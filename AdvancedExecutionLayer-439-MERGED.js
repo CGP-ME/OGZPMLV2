@@ -1,0 +1,530 @@
+/**
+ * AdvancedExecutionLayer.js - Risk-Integrated Trade Execution Engine
+ *
+ * Combines ExecutionLayer functionality with advanced risk management integration.
+ * Handles actual trade execution, position tracking, P&L calculation, and ML learning data.
+ *
+ * CHANGE 513 COMPLIANT: Stores entry indicators for ML learning
+ */
+
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+class AdvancedExecutionLayer {
+  constructor(config = {}) {
+    this.bot = config.bot || null;
+    this.krakenAdapter = null;
+    this.wsClient = null;
+    this.botTier = config.botTier || process.env.BOT_TIER || 'quantum';
+
+    this.config = {
+      maxPositionSize: config.maxPositionSize || 0.1,
+      minTradeSize: config.minTradeSize || 10,
+      sandboxMode: config.sandboxMode !== false,
+      enableRiskManagement: config.enableRiskManagement !== false,
+      apiKey: config.apiKey || process.env.POLYGON_API_KEY,
+      ...config
+    };
+
+    // Position and order tracking
+    this.positions = new Map();
+    this.orders = new Map();
+    this.balance = config.initialBalance || 10000;
+    this.totalTrades = 0;
+    this.winningTrades = 0;
+    this.totalPnL = 0;
+
+    console.log('🎯 AdvancedExecutionLayer initialized');
+    console.log(`   Mode: ${this.config.sandboxMode ? 'SANDBOX' : '🔥 LIVE 🔥'}`);
+    console.log(`   Max Position: ${(this.config.maxPositionSize * 100).toFixed(1)}%`);
+    console.log(`   Risk Management: ${this.config.enableRiskManagement ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  setKrakenAdapter(adapter) {
+    this.krakenAdapter = adapter;
+    console.log('✅ Kraken adapter connected');
+  }
+
+  setWebSocketClient(ws) {
+    this.wsClient = ws;
+    console.log('✅ WebSocket client connected');
+  }
+
+  /**
+   * CHANGE 658: Get current holdings in dollars (spot-only)
+   */
+  getCurrentHoldings() {
+    // In paper/sandbox mode, track via bot's currentPosition
+    if (this.config.sandboxMode) {
+      return this.bot?.currentPosition || 0;
+    }
+    // In live trading, would query exchange API
+    // For now, use tracked position from bot
+    return this.bot?.currentPosition || 0;
+  }
+
+  async executeTrade(params) {
+    const { direction, positionSize, confidence, marketData, patterns = [] } = params;
+
+    try {
+      console.log('\n🎯 EXECUTING TRADE');
+      console.log(`   Direction: ${direction}`);
+      console.log(`   Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`   Price: $${marketData.price}`);
+
+      if (!this.bot) throw new Error('Bot reference not set');
+
+      // Risk assessment via RiskManager
+      if (this.config.enableRiskManagement && this.bot.riskManager) {
+        const riskAssessment = this.bot.riskManager.assessTradeRisk?.({
+          direction, entryPrice: marketData.price, confidence, marketData, patterns
+        });
+        if (riskAssessment && !riskAssessment.approved) {
+          console.log('🛡️ Trade blocked by risk manager');
+          return { success: false, reason: riskAssessment.reason };
+        }
+      }
+
+      // Get current balance
+      const balance = this.bot.systemState?.currentBalance || this.balance;
+      let optimizedPositionSize = positionSize;
+
+      // Calculate optimal position size via TradingBrain
+      if (this.bot.tradingBrain?.calculateOptimalPositionSize) {
+        // Convert dollar amount to percentage for TradingBrain
+        const basePositionPercent = positionSize / balance;
+
+        // TradingBrain works with percentages and returns optimized percentage
+        const optimizedPercent = this.bot.tradingBrain.calculateOptimalPositionSize(
+          basePositionPercent, confidence, marketData, balance
+        );
+
+        // Convert back to dollar amount
+        optimizedPositionSize = balance * optimizedPercent;
+      } else {
+        // Fallback calculation
+        optimizedPositionSize = this.calculateRealPositionSize(balance, confidence);
+      }
+
+      if (optimizedPositionSize < this.config.minTradeSize) {
+        return { success: false, reason: 'Position size too small' };
+      }
+
+      console.log(`   Position Size: $${optimizedPositionSize.toFixed(2)}`);
+
+      // Calculate stop loss via TradingBrain
+      const entryPrice = marketData.price;
+      let stopLoss, takeProfit;
+
+      if (this.bot.tradingBrain?.calculateBreakevenStopLoss) {
+        const feeConfig = this.bot.config?.feeConfig || { totalRoundTrip: 0.002 };
+        stopLoss = this.bot.tradingBrain.calculateBreakevenStopLoss(entryPrice, direction, feeConfig);
+      } else {
+        stopLoss = direction === 'buy' ? entryPrice * 0.98 : entryPrice * 1.02;
+      }
+
+      // Calculate take profit via TradingBrain
+      if (this.bot.tradingBrain?.calculateTakeProfit) {
+        takeProfit = this.bot.tradingBrain.calculateTakeProfit(entryPrice, direction, confidence);
+      } else {
+        takeProfit = direction === 'buy' ? entryPrice * 1.04 : entryPrice * 0.96;
+      }
+
+      console.log(`   Stop Loss: $${stopLoss.toFixed(2)}`);
+      console.log(`   Take Profit: $${takeProfit.toFixed(2)}`);
+
+      const tradeId = 'trade_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+
+      // Change 597: Fix case-sensitivity bug - makeTradeDecision returns uppercase 'BUY'/'SELL'
+      // but this was checking lowercase 'buy', causing BUY signals to be treated as SELL (shorting!)
+      const dirLower = (direction || '').toString().toLowerCase();
+      const normalizedDirection = (dirLower === 'buy' || dirLower === 'long') ? 'buy' : 'sell';
+      console.log(`   🔍 [Change 597] Input: "${direction}" → Normalized: "${normalizedDirection}"`);
+
+      // CHANGE 658: Spot-only guardrails - prevent selling without holdings
+      if (normalizedDirection === 'sell') {
+        const currentHoldings = this.getCurrentHoldings();
+        if (currentHoldings <= 0) {
+          console.log('🚫 SPOT GUARDRAIL: Cannot SELL with 0 holdings');
+          return {
+            executed: false,
+            reason: 'NO_HOLDINGS',
+            message: 'Attempted to sell with zero holdings (spot-only mode)'
+          };
+        }
+        // Clamp sell size to available holdings
+        const originalSize = optimizedPositionSize;
+        optimizedPositionSize = Math.min(optimizedPositionSize, currentHoldings);
+        if (originalSize > optimizedPositionSize) {
+          console.log(`⚠️ SPOT GUARDRAIL: Clamped sell size from $${originalSize.toFixed(2)} to $${optimizedPositionSize.toFixed(2)} (max holdings)`);
+        }
+      }
+
+      // Create position object (CHANGE 513 COMPLIANT)
+      // CHANGE 658: Fix position size units - convert dollars to fraction
+      const positionSizeFraction = optimizedPositionSize / this.initialBalance;
+      const position = {
+        id: tradeId,
+        direction: normalizedDirection,
+        entryPrice: entryPrice,
+        positionSize: positionSizeFraction,  // Now a fraction (0.05 = 5%)
+        confidence: confidence,
+        timestamp: Date.now(),
+        tradeValue: optimizedPositionSize,  // Keep dollar value here
+        stopLoss: stopLoss,
+        takeProfit: takeProfit,
+        active: true,
+        patterns: patterns,
+        closed: false,
+        pnl: 0,
+        // CHANGE 513: Store entry indicators for ML learning
+        entryIndicators: {
+          rsi: marketData.indicators?.rsi || null,
+          macd: marketData.indicators?.macd || null,
+          macdSignal: marketData.indicators?.macdSignal || null,
+          trend: marketData.indicators?.trend || null,
+          volatility: marketData.indicators?.volatility || null,
+          volume: marketData.volume || null
+        }
+      };
+
+      // Execute actual trade (Kraken or paper)
+      const order = await this.executeKrakenTrade({
+        side: normalizedDirection,
+        symbol: 'BTC-USD',
+        price: entryPrice,
+        size: optimizedPositionSize,
+        confidence: confidence,
+        stopLoss: stopLoss,
+        takeProfit: takeProfit
+      });
+
+      if (order) {
+        position.orderId = order.id;
+        this.positions.set(tradeId, position);
+        this.totalTrades++;
+
+        // Track with bot modules
+        if (this.bot.riskManager?.registerTrade) {
+          this.bot.riskManager.registerTrade(position);
+        }
+
+        if (this.bot.performanceDashboard?.trackTrade) {
+          this.bot.performanceDashboard.trackTrade({ ...position, type: 'entry' });
+        }
+
+        if (this.bot.tradingBrain?.trackTrade) {
+          this.bot.tradingBrain.trackTrade(position);
+        }
+
+        if (this.bot.activePositions) {
+          this.bot.activePositions.set(tradeId, position);
+        }
+
+        // Log trade
+        if (this.bot.logTrade) {
+          await this.bot.logTrade({ ...position, type: 'entry' });
+        } else {
+          this.logTradeToFile(position);
+        }
+
+        // Broadcast to dashboard
+        if (this.bot.broadcastToClients) {
+          this.bot.broadcastToClients({ type: 'trade_opened', trade: position });
+        } else {
+          this.broadcastTrade(position);
+        }
+
+        console.log('✅ TRADE EXECUTED SUCCESSFULLY');
+        return { success: true, tradeId: tradeId, position: position };
+      } else {
+        console.log('❌ Trade execution failed');
+        return { success: false, error: 'Order execution failed' };
+      }
+
+    } catch (error) {
+      console.error('❌ Trade execution error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Execute trade via Kraken adapter or paper trading
+   */
+  async executeKrakenTrade(params) {
+    if (!this.krakenAdapter || this.config.sandboxMode) {
+      console.log('📝 Paper trade execution');
+      return {
+        id: Date.now().toString(),
+        side: params.side,
+        symbol: params.symbol,
+        size: params.size,
+        price: params.price,
+        timestamp: Date.now(),
+        status: 'filled',
+        confidence: params.confidence
+      };
+    }
+
+    console.log('🔹 Executing REAL Kraken trade');
+    try {
+      const order = await this.krakenAdapter.placeOrder({
+        symbol: params.symbol,
+        side: params.side,
+        type: 'market',
+        quantity: params.size
+      });
+
+      console.log('✅ KRAKEN ORDER PLACED:', order.orderId);
+      return {
+        ...order,
+        confidence: params.confidence
+      };
+    } catch (error) {
+      console.error('❌ Kraken execution failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate position size based on balance and confidence
+   */
+  calculateRealPositionSize(balance, confidence = 0.5) {
+    const maxPosition = balance * this.config.maxPositionSize;
+    const scaledPosition = maxPosition * Math.min(confidence, 1);
+    const finalSize = Math.max(scaledPosition, this.config.minTradeSize);
+    return finalSize;
+  }
+
+  /**
+   * Close position at current price
+   */
+  async closePosition(positionId, currentPrice, reason = 'Manual close') {
+    const position = this.positions.get(positionId);
+    if (!position) {
+      console.log(`⚠️ Position ${positionId} not found`);
+      return null;
+    }
+
+    // Calculate P&L
+    if (position.direction === 'buy') {
+      position.pnl = (currentPrice - position.entryPrice) * position.positionSize;
+    } else {
+      position.pnl = (position.entryPrice - currentPrice) * position.positionSize;
+    }
+
+    // Update balance
+    this.balance += position.pnl;
+
+    // Update stats
+    if (position.pnl > 0) {
+      this.winningTrades++;
+    }
+
+    // Mark as closed
+    position.closed = true;
+    position.exitPrice = currentPrice;
+    position.exitTime = Date.now();
+    position.exitReason = reason;
+    position.active = false;
+
+    console.log(`✅ POSITION CLOSED: ${position.direction} ${position.id}`);
+    console.log(`   P&L: $${position.pnl.toFixed(2)}`);
+    console.log(`   New Balance: $${this.balance.toFixed(2)}`);
+
+    // Log and broadcast
+    this.logTradeToFile(position);
+    this.broadcastTrade(position);
+
+    // Notify risk manager
+    if (this.bot?.riskManager?.recordTrade) {
+      this.bot.riskManager.recordTrade({
+        profit: position.pnl > 0,
+        pnl: position.pnl,
+        confidence: position.confidence
+      });
+    }
+
+    // 🧠 TRAI PATTERN MEMORY - Let TRAI learn from this trade
+    if (this.bot?.trai?.recordTradeOutcome) {
+      this.recordTradeForTRAI(position);
+    }
+
+    return position;
+  }
+
+  /**
+   * Format and record trade for TRAI pattern memory learning
+   * Called automatically when positions close
+   */
+  recordTradeForTRAI(position) {
+    try {
+      // Format trade data for TRAI's pattern memory
+      const tradeData = {
+        entry: {
+          timestamp: new Date(position.timestamp).toISOString(),
+          price: position.entryPrice,
+          indicators: {
+            rsi: position.entryIndicators?.rsi || 50,
+            macd: position.entryIndicators?.macd || 0,
+            macdHistogram: position.entryIndicators?.macdSignal || 0,
+            primaryPattern: position.patterns?.[0]?.name || position.patterns?.[0] || 'none'
+          },
+          trend: position.entryIndicators?.trend || 'sideways',
+          volatility: position.entryIndicators?.volatility || 0.02
+        },
+        exit: {
+          timestamp: new Date(position.exitTime).toISOString(),
+          price: position.exitPrice,
+          reason: position.exitReason || 'unknown'
+        },
+        profitLoss: position.pnl,
+        profitLossPercent: (position.pnl / (position.entryPrice * position.positionSize)) * 100,
+        holdDuration: position.exitTime - position.timestamp
+      };
+
+      // Record with TRAI
+      this.bot.trai.recordTradeOutcome(tradeData);
+
+      console.log(`🧠 [TRAI] Trade recorded for learning: ${position.pnl > 0 ? 'WIN' : 'LOSS'} (${tradeData.profitLossPercent.toFixed(2)}%)`);
+
+    } catch (error) {
+      console.error('❌ [TRAI] Failed to record trade:', error.message);
+    }
+  }
+
+  /**
+   * Calculate P&L for all open positions
+   */
+  calculatePnL(currentPrice) {
+    let totalPnL = 0;
+
+    for (const [id, position] of this.positions) {
+      if (!position.closed) {
+        if (position.direction === 'buy') {
+          position.pnl = (currentPrice - position.entryPrice) * position.positionSize;
+        } else {
+          position.pnl = (position.entryPrice - currentPrice) * position.positionSize;
+        }
+        totalPnL += position.pnl;
+      }
+    }
+
+    this.totalPnL = totalPnL;
+    return totalPnL;
+  }
+
+  /**
+   * Get current balance
+   */
+  async getBalance() {
+    return this.bot?.systemState?.currentBalance || this.balance || 10000;
+  }
+
+  /**
+   * Get trading statistics
+   */
+  getStats() {
+    const winRate = this.totalTrades > 0 ? (this.winningTrades / this.totalTrades * 100) : 0;
+    return {
+      totalTrades: this.totalTrades,
+      winningTrades: this.winningTrades,
+      winRate: `${winRate.toFixed(1)}%`,
+      totalPnL: this.totalPnL.toFixed(2),
+      balance: this.balance.toFixed(2),
+      positions: this.positions.size,
+      mode: this.config.sandboxMode ? 'PAPER' : 'LIVE'
+    };
+  }
+
+  /**
+   * Get all positions
+   */
+  getPositions() {
+    return Array.from(this.positions.values());
+  }
+
+  /**
+   * Get trading status
+   */
+  getStatus() {
+    const openPositions = Array.from(this.positions.values()).filter(p => !p.closed);
+    const closedPositions = Array.from(this.positions.values()).filter(p => p.closed);
+
+    return {
+      mode: this.config.sandboxMode ? 'PAPER' : 'LIVE',
+      riskManagement: this.config.enableRiskManagement,
+      openPositions: openPositions.length,
+      closedPositions: closedPositions.length,
+      totalTrades: this.totalTrades,
+      winRate: this.totalTrades > 0 ? (this.winningTrades / this.totalTrades * 100).toFixed(1) + '%' : '0%',
+      balance: this.balance.toFixed(2)
+    };
+  }
+
+  /**
+   * Log trade to file
+   */
+  logTradeToFile(trade) {
+    try {
+      const date = new Date().toISOString().split('T')[0];
+      const logDir = path.join(__dirname, '..', 'logs', 'trades');
+      const logFile = path.join(logDir, `trades_${date}.json`);
+
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+
+      let trades = [];
+      if (fs.existsSync(logFile)) {
+        const content = fs.readFileSync(logFile, 'utf8');
+        try {
+          trades = JSON.parse(content);
+        } catch (e) {
+          trades = [];
+        }
+      }
+
+      trades.push({
+        ...trade,
+        balance: this.balance,
+        totalTrades: this.totalTrades,
+        timestamp: new Date().toISOString()
+      });
+
+      fs.writeFileSync(logFile, JSON.stringify(trades, null, 2));
+    } catch (error) {
+      console.error('❌ Failed to log trade:', error.message);
+    }
+  }
+
+  /**
+   * Broadcast trade to WebSocket dashboard
+   */
+  broadcastTrade(trade) {
+    try {
+      if (this.wsClient && this.wsClient.readyState === 1) {
+        const message = {
+          type: 'trade',
+          botTier: this.botTier,
+          source: 'trading_bot',
+          action: trade.direction === 'buy' ? 'BUY' : 'SELL',
+          price: trade.entryPrice || trade.price,
+          pnl: trade.pnl || 0,
+          confidence: trade.confidence || 95,
+          balance: this.balance,
+          totalTrades: this.totalTrades,
+          timestamp: Date.now()
+        };
+
+        this.wsClient.send(JSON.stringify(message));
+        console.log('📡 Trade broadcast to dashboard');
+      }
+    } catch (error) {
+      console.error('❌ Failed to broadcast trade:', error.message);
+    }
+  }
+}
+
+module.exports = AdvancedExecutionLayer;

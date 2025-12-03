@@ -33,77 +33,67 @@ class BrokerFactory {
         // Crypto brokers
         this.register('kraken', {
             assetType: 'crypto',
-            loader: () => this.loadBroker('kraken_adapter_simple.js')
+            loader: () => this.loadBroker('specialized/crypto-bot/brokers/KrakenAdapter'),
+            fallback: () => this.loadBroker('core/KrakenAdapter') // Current location
         });
         
         this.register('coinbase', {
             assetType: 'crypto',
-            loader: () => this.loadBroker('brokers/CoinbaseAdapter')
+            loader: () => this.loadBroker('specialized/crypto-bot/brokers/CoinbaseAdapter')
         });
         
         this.register('binance', {
             assetType: 'crypto',
-            loader: () => this.loadBroker('brokers/BinanceAdapter')
+            loader: () => this.loadBroker('specialized/crypto-bot/brokers/BinanceAdapter')
         });
 
         // Stock brokers
-        this.register('interactivebrokers', {
-            assetType: 'stocks',
-            loader: () => this.loadBroker('brokers/InteractiveBrokersAdapter')
-        });
-
         this.register('tdameritrade', {
             assetType: 'stocks',
-            loader: () => this.loadBroker('brokers/TDAmeritradeAdapter')
+            loader: () => this.loadBroker('specialized/stocks-bot/brokers/TDAmeritradeAdapter')
         });
         
         this.register('schwab', {
             assetType: 'stocks',
-            loader: () => this.loadBroker('brokers/SchwabAdapter')
+            loader: () => this.loadBroker('specialized/stocks-bot/brokers/SchwabAdapter')
         });
         
         this.register('fidelity', {
             assetType: 'stocks',
-            loader: () => this.loadBroker('brokers/FidelityAdapter')
+            loader: () => this.loadBroker('specialized/stocks-bot/brokers/FidelityAdapter')
+        });
+        
+        this.register('interactivebrokers', {
+            assetType: 'stocks',
+            loader: () => this.loadBroker('specialized/stocks-bot/brokers/InteractiveBrokersAdapter')
         });
 
         // Options brokers
         this.register('tastyworks', {
             assetType: 'options',
-            loader: () => this.loadBroker('brokers/TastyworksAdapter')
+            loader: () => this.loadBroker('specialized/options-bot/brokers/TastyworksAdapter')
         });
 
         // Forex brokers
         this.register('oanda', {
             assetType: 'forex',
-            loader: () => this.loadBroker('brokers/OandaAdapter')
+            loader: () => this.loadBroker('specialized/forex-bot/brokers/OandaAdapter')
         });
         
         this.register('fxcm', {
             assetType: 'forex',
-            loader: () => this.loadBroker('brokers/FXCMAdapter')
+            loader: () => this.loadBroker('specialized/forex-bot/brokers/FXCMAdapter')
         });
 
         // Futures brokers
         this.register('cme', {
             assetType: 'futures',
-            loader: () => this.loadBroker('brokers/CMEAdapter')
+            loader: () => this.loadBroker('specialized/futures-bot/brokers/CMEAdapter')
         });
         
         this.register('ice', {
             assetType: 'futures',
-            loader: () => this.loadBroker('brokers/ICEAdapter')
-        });
-
-        // Specialized
-        this.register('bybit', {
-            assetType: 'crypto',
-            loader: () => this.loadBroker('brokers/BinanceAdapter')  // Compatible API
-        });
-
-        this.register('deribit', {
-            assetType: 'crypto',
-            loader: () => this.loadBroker('brokers/DeribitAdapter')
+            loader: () => this.loadBroker('specialized/futures-bot/brokers/ICEAdapter')
         });
 
         console.log(`📦 BrokerFactory initialized with ${this.registry.size} brokers`);

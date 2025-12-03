@@ -28,3 +28,46 @@ coverage/
 # Build outputs
 dist/
 build/
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Large model files
+*.pkl
+*.h5
+*.model
+*.weights
+*.safetensors
+*.ckpt
+*.pth
+*.bin
+*.onnx
+*.pb
+
+# Secrets and credentials
+*.pem
+*.key
+*.cert
+*.crt
+credentials.json
+secrets.json
+*.secret
+config/secrets/
+.env.*
+
+# Large data files
+*.csv
+*.parquet
+*.db
+*.sqlite
+*.sql
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
