@@ -2,10 +2,13 @@
 // Optimized for performance, memory efficiency, and bulletproof reliability
 // 🔧 FIXES APPLIED: TTL-based cache, smarter cleanup, stale data prevention
 
+// Import performance.now() for Node.js compatibility
+const { performance } = require('perf_hooks');
+
 /**
  * Advanced multi-timeframe manager with intelligent caching and optimization
  * Built for high-frequency trading with minimal latency
- * 
+ *
  * CRITICAL FIXES:
  * - Added TTL (Time To Live) to cache entries to prevent stale data during volatility
  * - Made emergency cleanup less aggressive to preserve pattern recognition data

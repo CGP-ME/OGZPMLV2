@@ -33,10 +33,16 @@ try {
     computeOgzTpo = ogzTpo.computeOgzTpo;
     detectTpoCrossover = ogzTpo.detectTpoCrossover;
     calculateDynamicLevels = ogzTpo.calculateDynamicLevels;
-    console.log('✅ OgzTwoPoleOscillator loaded successfully');
 } catch (e) {
-    console.error('❌ OgzTwoPoleOscillator module not found at ../src/indicators/ogzTwoPoleOscillator');
-    console.error('   Error:', e.message);
+    console.warn('⚠️ OgzTwoPoleOscillator not found, trying alternate path...');
+    try {
+        const ogzTpo = require('./src/indicators/ogzTwoPoleOscillator');
+        computeOgzTpo = ogzTpo.computeOgzTpo;
+        detectTpoCrossover = ogzTpo.detectTpoCrossover;
+        calculateDynamicLevels = ogzTpo.calculateDynamicLevels;
+    } catch (e2) {
+        console.error('❌ OgzTwoPoleOscillator module not found!');
+    }
 }
 
 // Try to import existing TPO for A/B testing

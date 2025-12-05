@@ -74,13 +74,16 @@ class TradeLogger {
      * @returns {string} Formatted hold time
      */
     formatHoldTime(holdTimeMs) {
-        if (!holdTimeMs) return '0s';
-        
-        const seconds = Math.floor(holdTimeMs / 1000);
+        // Type-safe conversion
+        const ms = parseInt(holdTimeMs, 10) || 0;
+
+        if (ms === 0) return '0s';
+
+        const seconds = Math.floor(ms / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
         const days = Math.floor(hours / 24);
-        
+
         if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
         if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
         if (minutes > 0) return `${minutes}m ${seconds % 60}s`;

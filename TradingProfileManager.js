@@ -499,21 +499,39 @@ class TradingProfileManager extends EventEmitter {
    * Load custom profiles from disk
    */
   loadCustomProfiles() {
+    const profilesPath = path.join(this.config.profilesPath || './config', 'custom_profiles.json');
+
     try {
-      const profilesPath = path.join(this.config.profilesPath, 'custom_profiles.json');
-      
-      if (fs.existsSync(profilesPath)) {
-        const data = JSON.parse(fs.readFileSync(profilesPath, 'utf8'));
-        
-        data.profiles.forEach(profile => {
-          this.customProfiles.set(profile.name, profile);
-        });
-        
-        console.log(`📁 Loaded ${this.customProfiles.size} custom profiles`);
+      if (!fs.existsSync(profilesPath)) {
+        console.log('ℹ️ No custom profiles file found, using defaults');
+        return;
       }
-      
+
+      const raw = fs.readFileSync(profilesPath, 'utf8');
+      const data = JSON.parse(raw);
+
+      // Schema validation
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid profile data: not an object');
+      }
+
+      if (!Array.isArray(data.profiles)) {
+        throw new Error('Invalid profile data: profiles is not an array');
+      }
+
+      let loaded = 0;
+      for (const profile of data.profiles) {
+        if (profile && typeof profile.name === 'string' && profile.name.trim()) {
+          this.customProfiles.set(profile.name, profile);
+          loaded++;
+        }
+      }
+
+      console.log(`✅ Loaded ${loaded} custom profiles`);
+
     } catch (error) {
       console.error('❌ Failed to load custom profiles:', error.message);
+      console.warn('⚠️ Continuing with default profiles only');
     }
   }
   

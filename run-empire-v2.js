@@ -23,9 +23,34 @@
 
 // CRITICAL: Load environment variables FIRST before any module loads
 require('dotenv').config();
+console.log('[CHECKPOINT-001] Environment loaded');
+
+// Add uncaught exception handler to catch silent failures
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err);
+  console.error('Stack:', err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// CRITICAL: ModuleAutoLoader as single source of truth
+console.log('[CHECKPOINT-002] Loading ModuleAutoLoader...');
+const loader = require('./core/ModuleAutoLoader');
+console.log('[CHECKPOINT-003] ModuleAutoLoader ready');
+
+// Load all modules through loader
+loader.loadAll();
+console.log('[CHECKPOINT-004] All modules loaded');
 
 // CRITICAL: SingletonLock to prevent multiple instances
-const { OGZSingletonLock, checkCriticalPorts } = require('./core/SingletonLock');
+console.log('[CHECKPOINT-005] Getting SingletonLock...');
+const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
+const { OGZSingletonLock, checkCriticalPorts } = SingletonLock;
+console.log('[CHECKPOINT-006] SingletonLock obtained');
 const singletonLock = new OGZSingletonLock('ogz-prime-v14');
 
 // Acquire lock IMMEDIATELY (will exit if another instance is running)
@@ -44,17 +69,27 @@ const singletonLock = new OGZSingletonLock('ogz-prime-v14');
 })();
 const WebSocket = require('ws');
 
-// Core Trading Modules
-const { EnhancedPatternChecker } = require('./core/EnhancedPatternRecognition');
-const { OptimizedTradingBrain } = require('./core/OptimizedTradingBrain');
-const RiskManager = require('./core/RiskManager');
-const ExecutionRateLimiter = require('./core/ExecutionRateLimiter');
-const AdvancedExecutionLayer = require('./core/AdvancedExecutionLayer-439-MERGED'); // Browser Claude's merged version
-const PerformanceAnalyzer = require('./core/PerformanceAnalyzer');
-const OptimizedIndicators = require('./core/OptimizedIndicators');
-const MarketRegimeDetector = require('./core/MarketRegimeDetector');
-const TradingProfileManager = require('./core/TradingProfileManager'); // CHANGE 665: Add profile management
-const GridTradingStrategy = require('./core/GridTradingStrategy'); // CHANGE 670: Grid bot functionality
+// Core Trading Modules - All through ModuleAutoLoader
+console.log('[CHECKPOINT-007] Loading core modules...');
+const EnhancedPatternRecognition = loader.get('core', 'EnhancedPatternRecognition');
+console.log('  EnhancedPatternRecognition:', !!EnhancedPatternRecognition);
+const { EnhancedPatternChecker } = EnhancedPatternRecognition || {};
+
+const OptimizedTradingBrainModule = loader.get('core', 'OptimizedTradingBrain');
+console.log('  OptimizedTradingBrain:', !!OptimizedTradingBrainModule);
+const { OptimizedTradingBrain } = OptimizedTradingBrainModule || {};
+
+const RiskManager = loader.get('core', 'RiskManager');
+console.log('  RiskManager:', !!RiskManager);
+const ExecutionRateLimiter = loader.get('core', 'ExecutionRateLimiter');
+console.log('  ExecutionRateLimiter:', !!ExecutionRateLimiter);
+const AdvancedExecutionLayer = loader.get('core', 'AdvancedExecutionLayer-439-MERGED');
+console.log('  AdvancedExecutionLayer:', !!AdvancedExecutionLayer);
+const PerformanceAnalyzer = loader.get('core', 'PerformanceAnalyzer');
+const OptimizedIndicators = loader.get('core', 'OptimizedIndicators');
+const MarketRegimeDetector = loader.get('core', 'MarketRegimeDetector');
+const TradingProfileManager = loader.get('core', 'TradingProfileManager');
+const GridTradingStrategy = loader.get('core', 'GridTradingStrategy');
 
 // Change 587: Wire SafetyNet and TradeLogger into live loop
 // Both removed - SafetyNet too restrictive, TradeLogger doesn't exist
@@ -62,12 +97,12 @@ const GridTradingStrategy = require('./core/GridTradingStrategy'); // CHANGE 670
 // const TradeLogger = require('./core/TradeLogger');
 
 // 🤖 AI Co-Founder (Change 574 - Opus Architecture + Codex Fix)
-const TRAIDecisionModule = require('./core/TRAIDecisionModule');
+const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
 
 // Infrastructure
-const KrakenAdapterSimple = require('./kraken_adapter_simple');
-const TierFeatureFlags = require('./TierFeatureFlags');
-const OgzTpoIntegration = require('./core/OgzTpoIntegration');
+const KrakenAdapterSimple = require('./kraken_adapter_simple'); // Keep direct - not in modules
+const TierFeatureFlags = require('./TierFeatureFlags'); // Keep direct - in root not core
+const OgzTpoIntegration = loader.get('core', 'OgzTpoIntegration');
 
 /**
  * Main Trading Bot Orchestrator
@@ -89,7 +124,13 @@ class OGZPrimeV14Bot {
     console.log(`🎯 Tier: ${this.tier.toUpperCase()}`);
 
     // Initialize core modules
+    console.log('[CHECKPOINT-008] Creating pattern checker...');
+    if (!EnhancedPatternChecker) {
+      console.error('❌ EnhancedPatternChecker is undefined! Module loading failed.');
+      process.exit(1);
+    }
     this.patternChecker = new EnhancedPatternChecker();
+    console.log('[CHECKPOINT-009] EnhancedPatternChecker created');
 
     // Initialize OGZ Two-Pole Oscillator (pure function implementation from V2)
     this.ogzTpo = this.tierFlagManager.isEnabled('ogzTpoEnabled')

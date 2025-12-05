@@ -241,9 +241,13 @@ class PatternMemorySystem {
 
         console.log(`Loaded ${this.patternCount} patterns from memory file`);
 
-        // If memory is empty, initialize with seed patterns
-        if (this.patternCount === 0) {
+        // Only initialize seed patterns if BOTH memory and count are empty
+        // CRITICAL FIX: Don't wipe patterns just because count is 0
+        if (Object.keys(this.memory).length === 0 && this.patternCount === 0) {
+          console.log('⚠️ Pattern memory truly empty, initializing fresh');
           this.initializeSeedPatterns();
+        } else {
+          console.log(`✅ Keeping existing ${Object.keys(this.memory).length} patterns in memory`);
         }
       } else {
         console.log('No pattern memory file found, initializing with seed patterns');
@@ -260,25 +264,27 @@ class PatternMemorySystem {
    * Initialize memory with seed patterns for learning bootstrapping
    */
   initializeSeedPatterns() {
-  console.log('🧠 Starting with COMPLETELY FRESH pattern memory - no old patterns loaded');
+  console.log('🧠 Initializing minimum required patterns for bot operation');
 
-  // START FRESH - No seed patterns, no old data
-  this.memory = {};
-  this.patternCount = 0;
-
-  // Clear any existing file
-  if (this.options.persistToDisk) {
-  try {
-  if (fs.existsSync(this.options.memoryFile)) {
-    fs.unlinkSync(this.options.memoryFile);
-  console.log('🗑️ Cleared old pattern memory file');
+  // Keep existing patterns but ensure we have at least one base pattern
+  if (!this.memory) {
+    this.memory = {};
   }
-  } catch (err) {
-  console.warn('⚠️ Could not clear old pattern file:', err.message);
-  }
-    }
 
-  console.log('✅ Pattern memory initialized FRESH - ready for live learning only');
+  // Add a minimal seed pattern if we have absolutely nothing
+  if (Object.keys(this.memory).length === 0) {
+    this.memory['BASE_PATTERN'] = {
+      type: 'seed',
+      confidence: 0.5,
+      successRate: 0.5,
+      occurrences: 1,
+      lastSeen: Date.now()
+    };
+    this.patternCount = 1;
+    console.log('✅ Added minimal seed pattern for bot startup');
+  } else {
+    console.log(`✅ Keeping ${Object.keys(this.memory).length} existing patterns`);
+  }
   }
 
   /**

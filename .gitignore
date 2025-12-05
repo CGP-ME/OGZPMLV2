@@ -9,6 +9,9 @@ config/.env
 *.log
 logs/
 
+# Lock files
+.ogz-prime-v14.lock
+
 # Data files (keep example only)
 data/*.json
 !data/example.json
@@ -47,6 +50,11 @@ build/
 *.bin
 *.onnx
 *.pb
+*.gguf
+
+# TRAI brain files (too large for GitHub)
+trai_brain/models/
+trai_brain/*.json
 
 # Secrets and credentials
 *.pem

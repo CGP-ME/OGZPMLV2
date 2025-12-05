@@ -1,0 +1,31 @@
+{
+  "patterns": {
+    "BUY_91201": {
+      "trades": [
+        {
+          "id": "trade_1764876003056_0fca7fa0",
+          "direction": "buy",
+          "entryPrice": 91201.4,
+          "confidence": 0.6556000000000001,
+          "timestamp": 1764876003057
+        }
+      ],
+      "successRate": 0,
+      "avgProfit": 0
+    }
+  },
+  "count": 1,
+  "": {
+    "trades": [
+      {
+        "id": "trade_1764920839619_e093fa04",
+        "direction": "buy",
+        "entryPrice": 92335.2,
+        "confidence": 0.6556000000000001,
+        "timestamp": 1764920839620
+      }
+    ],
+    "successRate": 0,
+    "avgProfit": 0
+  }
+}

@@ -1,0 +1,1 @@
+/opt/ogzprime/OGZPMLV2/tradeLogger.js

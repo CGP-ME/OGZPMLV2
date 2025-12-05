@@ -913,11 +913,15 @@ Keep response under 200 words, be direct and technical.`;
      * Prune old patterns from memory (call periodically)
      */
     pruneOldMemories() {
-        if (!this.patternMemory) {
+        // Null-safe pattern pruning
+        if (!this.patternMemory) return 0;
+
+        try {
+            return this.patternMemory.pruneOldPatterns();
+        } catch (error) {
+            console.error('❌ Failed to prune patterns:', error.message);
             return 0;
         }
-
-        return this.patternMemory.pruneOldPatterns();
     }
 
     onTradeExecuted(trade) {
