@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2024-12-06 - PATTERN RECORDING FIX
+
+### Fixed
+- **Pattern Memory Not Recording New Trades**
+  - File: `core/EnhancedPatternRecognition.js` lines 773-784
+  - Problem: Pattern memory stuck at 2 entries for 10+ hours despite trades executing
+  - Root Cause: `analyzePatterns` only returned patterns when `evaluatePattern` had confidence > 0
+  - Issue: New patterns need 3+ occurrences to build confidence (chicken & egg problem)
+  - Fix: Removed `if (result)` check - now ALWAYS returns patterns with minimum 0.1 confidence
+  - Impact: Bot can finally learn from ALL patterns and build confidence over time
+  - Test Result: Pattern memory now growing (3+ patterns loaded vs stuck at 2)
+
 ## [2.0.1] - 2024-12-05 - CRITICAL PATTERN MEMORY FIX & MODULE CLEANUP
 
 ### Fixed
