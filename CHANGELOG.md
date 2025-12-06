@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2024-12-06 - PATTERN RECORDING TO FILE FIX
+
+### Fixed
+- **Patterns Not Being Saved to pattern_memory.json**
+  - File: `run-empire-v2.js` lines 741-760
+  - Problem: Patterns detected but never saved to memory file
+  - Root Cause: `recordPatternResult` only called when trades complete
+  - Issue: Machine-gunning trades (rapid buy-sell) never properly complete
+  - Fix: Record patterns IMMEDIATELY when detected, not after trade completion
+  - Impact: Bot can finally build persistent pattern memory across restarts
+
 ## [2.0.2] - 2024-12-06 - PATTERN RECORDING FIX
 
 ### Fixed
