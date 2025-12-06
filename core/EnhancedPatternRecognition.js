@@ -770,18 +770,18 @@ class EnhancedPatternChecker {
     // Evaluate the pattern
     const result = this.evaluatePattern(features);
 
-    // ALWAYS return patterns for learning - even low confidence ones
-    if (result) {
-      patterns.push({
-        name: result.bestMatch?.pattern || 'Emerging Pattern',
-        confidence: result.confidence || 0.1,  // Default to 0.1 if no confidence
-        direction: result.direction || (result.confidence > 0.5 ? 'bullish' : 'bearish'),
-        signature: JSON.stringify(features).substring(0, 50),
-        features: features,
-        quality: result.quality || 0.3,
-        isNew: result.confidence < 0.5  // Flag new/learning patterns
-      });
-    }
+    // CRITICAL FIX: Always create pattern for learning, even with 0 confidence
+    // The bot needs to see patterns to learn from them!
+    patterns.push({
+      name: result?.bestMatch?.pattern || 'Learning Pattern',
+      confidence: result?.confidence || 0.1,  // Force minimum 0.1 for new patterns
+      direction: result?.direction || 'neutral',
+      signature: JSON.stringify(features).substring(0, 50),
+      features: features,
+      quality: result?.quality || 0.3,
+      isNew: true,  // Always flag as new for learning
+      reason: result?.reason || 'New pattern being learned'
+    });
 
     return patterns;
   }
