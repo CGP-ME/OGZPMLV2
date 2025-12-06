@@ -738,6 +738,27 @@ class OGZPrimeV14Bot {
       volume: this.marketData.volume || 0
     });
 
+    // CRITICAL FIX: Record patterns immediately when detected for learning
+    // Don't wait for trade completion - patterns need to be recorded NOW
+    if (patterns && patterns.length > 0) {
+      patterns.forEach(pattern => {
+        const signature = pattern.signature || pattern.name;
+        // Record that we've seen this pattern (for learning frequency)
+        this.patternChecker.recordPatternResult(signature, {
+          detected: true,
+          confidence: pattern.confidence || 0.1,
+          timestamp: Date.now(),
+          price: this.marketData.price || 0,
+          indicators: {
+            rsi: indicators.rsi,
+            macd: indicators.macd?.macd || 0,
+            trend: indicators.trend
+          }
+        });
+      });
+      console.log(`📊 Recorded ${patterns.length} patterns for learning`);
+    }
+
     // Update OGZ Two-Pole Oscillator with latest candle
     let tpoResult = null;
     if (this.ogzTpo && this.priceHistory.length > 0) {
