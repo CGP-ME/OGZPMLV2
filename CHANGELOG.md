@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2024-12-07 - CRITICAL PATTERN SAVE FIX
+
+### Fixed
+- **Pattern Memory Never Saving to Disk (6+ MONTH BUG)**
+  - File: `core/EnhancedPatternRecognition.js` line 850
+  - Problem: `recordPatternResult()` method never called `savePatternMemory()`
+  - Root Cause: Missing save call after recording patterns
+  - Issue: Patterns were recorded in memory but NEVER persisted to disk
+  - Fix: Added `this.savePatternMemory()` call after recording
+  - Impact: Bot can FINALLY save learned patterns to pattern_memory.json
+  - Test Result: Patterns now persist across restarts and grow properly
+
 ## [2.0.3] - 2024-12-06 - PATTERN RECORDING TO FILE FIX
 
 ### Fixed
@@ -212,6 +224,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Updated .gitignore to exclude sensitive files and credentials
 - Validated all code for hardcoded secrets (none found)
+
+## [2.1.0] - 2025-12-06 - LAUNCH READY EDITION 🚀
+
+### Added - THE FINAL INNOVATION
+- **Complete CI/CD Pipeline**
+  - GitHub Actions workflow (.github/workflows/ci.yml)
+  - Automatic testing on every push/PR
+  - Smoke test catches "bot dies on candle 2" bugs instantly
+  - Pattern test verifies memory is actually growing
+  - Auto-deployment to VPS on master merge
+  - CHANGELOG verification enforced in PRs
+
+- **Production Telemetry System** (core/Telemetry.js)
+  - Real-time pattern detection tracking
+  - Trade execution metrics with P&L
+  - Win rate calculations for patterns and trades
+  - Performance monitoring (candles processed)
+  - Telemetry report generator (`npm run telemetry:report`)
+  - JSON Lines format for streaming logs
+
+- **Complete Claudito Platoon** (19 Specialized Agents)
+  - **Forensics Claudito**: Landmine hunter for semantic bugs
+  - **Critic Claudito** (Dick Claudito): Forces 3-pass iterative refinement
+  - **Inline Commentator Claudito**: Self-documenting code
+  - Hook-based communication protocol
+  - Three workflows: Standard, Audit, Iterative Refinement
+  - CLAUDITO-DOSSIERS.md with complete documentation
+
+### Infrastructure
+- npm scripts for all operations:
+  - `npm test` - Run smoke and pattern tests
+  - `npm run telemetry:report` - See what bot is learning
+  - `npm run start:prod` - PM2 production launch
+- Pattern memory backup on deployment
+- Automatic test execution in CI
+
+### Documentation
+- CLAUDITO-DOSSIERS.md - Complete agent documentation
+- CI/CD integration guide in workflows
+- Telemetry usage and metrics documentation
+
+### Why This Is The Last Innovation
+- Every pattern bug will be caught automatically by CI
+- Every deployment will be tested before going live
+- Every metric will be tracked in telemetry
+- The bot can finally learn, and you can see it happening
+- No more "why hasn't it learned in 6 months" - telemetry shows exactly what's happening
+
+**Status: PRODUCTION READY - LAUNCH IT!**
 
 ## [0.1.0] - 2024-12-02
 

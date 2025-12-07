@@ -200,7 +200,9 @@ class PatternMemorySystem {
     };
 
     // Initialize memory store
-    this.memory = {};
+    if (!this.memory) {
+      this.memory = {};
+    }
     this.patternCount = 0;
     this.lastSaveTime = Date.now();
 
@@ -845,6 +847,9 @@ class EnhancedPatternChecker {
   recordPatternResult(signature, result) {
     this.memory.recordPattern({ signature }, result);
     this.stats.tradeResults++;
+
+    // CRITICAL FIX: Actually save patterns to disk!
+    this.saveToDisk();
   }
 
   /**
