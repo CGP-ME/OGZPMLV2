@@ -378,7 +378,6 @@ class PatternMemorySystem {
     }
 
     const key = this.getPatternKey(features);
-        if (!key) return null;
     if (!key) return false;
 
     // Create or update pattern entry

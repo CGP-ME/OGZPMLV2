@@ -4,14 +4,20 @@
   "description": "AI-Powered Trading Operating System - Production Ready v14FINAL",
   "main": "run-trading-bot-v14FINAL.js",
   "scripts": {
-    "start": "node run-trading-bot-v14FINAL.js",
+    "start": "node run-empire-v2.js",
+    "start:v14": "node run-trading-bot-v14FINAL.js",
     "bot": "node run-trading-bot-v14FINAL.js --profile default --asset BTC-USD",
     "check": "node --check run-trading-bot-v14FINAL.js",
     "dashboard": "node ogzprime_ssl_server_advanced.js",
     "backtest": "node tools/optimized-backtester.js",
     "launch": "node launch-turbo-train.bat",
     "safety": "node CRITICAL_SAFETY.js",
-    "debug": "node enhanced-safety-diagnostics.js"
+    "debug": "node enhanced-safety-diagnostics.js",
+    "test": "npm run test:smoke && npm run test:patterns",
+    "test:smoke": "node scripts/smoke-test.js",
+    "test:patterns": "node scripts/test-patterns.js",
+    "start:prod": "pm2 start run-empire-v2.js --name ogzprime",
+    "telemetry:report": "node scripts/telemetry-report.js"
   },
   "keywords": [
     "trading",
@@ -39,12 +45,13 @@
     "node": ">=14.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.18.0",
     "express-rate-limit": "^8.2.1",
-    "node-fetch": "^3.0.0",
+    "node-fetch": "^2.7.0",
     "require-in-the-middle": "^7.5.2",
     "stripe": "^18.3.0",
     "ws": "^8.0.0"

@@ -80,6 +80,20 @@ class AdvancedExecutionLayer {
     const { direction, positionSize, confidence, marketData, patterns = [] } = params;
 
     try {
+      // CHECK KILL SWITCH FIRST - BLOCK ALL TRADES IF ACTIVE
+      const killSwitch = require('./KillSwitch');
+      if (killSwitch.isKillSwitchOn()) {
+        const status = killSwitch.getStatus();
+        console.log('\n🛑 TRADE BLOCKED BY KILL SWITCH');
+        console.log(`   Reason: ${status.reason}`);
+        console.log(`   Active for: ${status.duration}`);
+        return {
+          success: false,
+          reason: `Kill switch active: ${status.reason}`,
+          blocked: true
+        };
+      }
+
       console.log('\n🎯 EXECUTING TRADE');
       console.log(`   Direction: ${direction}`);
       console.log(`   Confidence: ${(confidence * 100).toFixed(1)}%`);

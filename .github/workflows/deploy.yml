@@ -1,0 +1,56 @@
+name: OGZPrime Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'   # deploy on version tags like v1.0.0
+    branches:
+      - master   # auto-deploy master after merge
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.OGZ_VPS_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          # Replace with your actual VPS details
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'logs' \
+            --exclude 'pattern_memory*.json' \
+            . user@${{ secrets.VPS_IP }}:/opt/ogzprime/OGZPMLV2
+
+      - name: Install deps and restart bot
+        run: |
+          ssh user@${{ secrets.VPS_IP }} << 'EOF'
+            cd /opt/ogzprime/OGZPMLV2
+            npm ci || npm install
+
+            # Save pattern memory before restart
+            cp pattern_memory.json pattern_memory.backup.$(date +%s).json 2>/dev/null || true
+
+            # Restart with PM2
+            pm2 stop ogzprime 2>/dev/null || true
+            pm2 delete ogzprime 2>/dev/null || true
+            pm2 start run-empire-v2.js --name ogzprime --log logs/empire.log
+            pm2 save
+
+            echo "✅ Empire V2 deployed and restarted"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          ssh user@${{ secrets.VPS_IP }} "pm2 status ogzprime"

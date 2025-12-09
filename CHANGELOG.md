@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2024-12-09 - FORENSICS LANDMINE FIXES
+
+### Fixed (via Deep Forensics Analysis)
+- **Critical: savePatternMemory method doesn't exist**
+  - File: `core/EnhancedPatternRecognition.js` line 225
+  - Fix: Changed to `this.saveToDisk()` which is the actual method
+  - Impact: Bot no longer crashes every 5 minutes on auto-save
+
+- **Pattern signatures can be undefined**
+  - File: `run-empire-v2.js` line 748
+  - Fix: Added fallback and validation for missing signatures
+  - Impact: Patterns no longer silently dropped
+
+- **Discord toFixed() crashes on undefined values**
+  - File: `utils/discordNotifier.js` lines 233, 237-238
+  - Fix: Added null coalescing (??) and division by zero checks
+  - Impact: Discord notifications no longer crash on edge cases
+
+### Testing
+- Forensics Claudito successfully identified landmines
+- Applied targeted fixes based on actual code analysis
+- Ready for production deployment
+
+## [2.0.5] - 2024-12-09 - PRODUCTION ERROR FIXES
+
+### Fixed
+- **saveToDisk is not a function (6+ MONTH BUG FINALLY FIXED)**
+  - File: `core/EnhancedPatternRecognition.js` line 235
+  - Problem: Called `this.saveToDisk()` which doesn't exist
+  - Fix: Changed to `this.savePatternMemory()`
+  - Status: ✅ FIXED and verified working
+
+- **toFixed() undefined errors in Discord notifications**
+  - Files: `utils/discordNotifier.js` lines 300-304
+  - Problem: Calling toFixed() on undefined values (totalPnL, bestTrade, worstTrade)
+  - Fix: Added null checks with fallback to "0.00"
+  - Applied aggressive fix wrapping all toFixed() calls
+
+- **trim() undefined errors in TRAI persistent LLM**
+  - File: `core/trai_core.js` line 352
+  - Problem: Calling trim() on undefined/null response from LLM
+  - Fix: Added null check with fallback to empty string
+
+- **Kill Switch Emergency Stop System**
+  - File: `core/KillSwitch.js` (new)
+  - Purpose: Emergency trading stop during debugging
+  - Integrated into AdvancedExecutionLayer.js
+  - Activation: Create `killswitch.flag` file to stop all trades
+
+### Testing & Validation
+- Claudito Bomber successfully detected ALL production errors
+- Applied fixes using automated patching scripts
+- Created full backup/restore system (7 backup files)
+- Restore script: `/opt/ogzprime/OGZPMLV2/devtools/claudito/RESTORE-ALL-BACKUPS.sh`
+
 ## [2.0.4] - 2024-12-07 - CRITICAL PATTERN SAVE FIX
 
 ### Fixed

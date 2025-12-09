@@ -741,9 +741,17 @@ class OGZPrimeV14Bot {
     // CRITICAL FIX: Record patterns immediately when detected for learning
     // Don't wait for trade completion - patterns need to be recorded NOW
     if (patterns && patterns.length > 0) {
+      // TELEMETRY: Track pattern detection
+      const telemetry = require('./core/Telemetry').getTelemetry();
+
       patterns.forEach(pattern => {
-        const signature = pattern.signature || pattern.name;
-        // Record that we've seen this pattern (for learning frequency)
+        const signature = pattern.signature || pattern.name || `unknown_${Date.now()}`;
+        if (!signature) {
+          console.error('❌ Pattern missing signature:', pattern);
+          return;
+        }
+
+        // Record pattern for learning
         this.patternChecker.recordPatternResult(signature, {
           detected: true,
           confidence: pattern.confidence || 0.1,
@@ -755,7 +763,22 @@ class OGZPrimeV14Bot {
             trend: indicators.trend
           }
         });
+
+        // TELEMETRY: Log pattern detection event
+        telemetry.event('pattern_detected', {
+          signature,
+          confidence: pattern.confidence,
+          isNew: pattern.isNew,
+          price: this.marketData.price
+        });
       });
+
+      // TELEMETRY: Log batch recording
+      telemetry.event('pattern_recorded', {
+        count: patterns.length,
+        memorySize: this.patternChecker.getMemorySize ? this.patternChecker.getMemorySize() : 0
+      });
+
       console.log(`📊 Recorded ${patterns.length} patterns for learning`);
     }
 

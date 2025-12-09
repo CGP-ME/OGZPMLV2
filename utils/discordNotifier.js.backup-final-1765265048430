@@ -230,12 +230,12 @@ class DiscordTradingNotifier {
    notifyMilestone(totalPnL, milestone) {
        const embed = {
            title: "🎉 MILESTONE ACHIEVED!",
-           description: `**Total P&L:** $${(totalPnL ?? 0).toFixed(2)}\n**Milestone:** $${milestone}`,
+           description: `**Total P&L:** $${totalPnL.toFixed(2)}\n**Milestone:** $${milestone}`,
            color: 0xffd700, // Gold for achievements
            fields: [
                { name: "🔥 Trades Today", value: this.dailyStats.trades.toString(), inline: true },
-               { name: "📊 Win Rate", value: `${(this.dailyStats.trades > 0 ? (this.dailyStats.wins / this.dailyStats.trades * 100).toFixed(1) : "0.0")}%`, inline: true },
-               { name: "🎯 Houston Fund", value: `$${(10000 + (totalPnL ?? 0)).toFixed(2)}`, inline: true }
+               { name: "📊 Win Rate", value: `${((this.dailyStats.wins / this.dailyStats.trades) * 100).toFixed(1)}%`, inline: true },
+               { name: "🎯 Houston Fund", value: `$${(10000 + totalPnL).toFixed(2)}`, inline: true }
            ],
            timestamp: new Date().toISOString(),
            footer: { text: "Every milestone brings you closer to Houston! 🏠💕" }
@@ -297,11 +297,11 @@ class DiscordTradingNotifier {
                { name: "📈 Total Trades", value: this.dailyStats.trades.toString(), inline: true },
                { name: "🏆 Wins", value: this.dailyStats.wins.toString(), inline: true },
                { name: "📉 Losses", value: this.dailyStats.losses.toString(), inline: true },
-               { name: "💰 Total P&L", value: `${this.dailyStats.totalPnL ? this.dailyStats.totalPnL.toFixed(2) : "0.00"}`, inline: true },
+               { name: "💰 Total P&L", value: `$${this.dailyStats.totalPnL.toFixed(2)}`, inline: true },
                { name: "📊 Win Rate", value: `${winRate}%`, inline: true },
                { name: "🎯 Houston Fund", value: `$${(10000 + this.dailyStats.totalPnL).toFixed(2)}`, inline: true },
-               { name: "🚀 Best Trade", value: `${this.dailyStats.bestTrade ? this.dailyStats.bestTrade.toFixed(2) : "0.00"}`, inline: true },
-               { name: "📉 Worst Trade", value: `${this.dailyStats.worstTrade ? this.dailyStats.worstTrade.toFixed(2) : "0.00"}`, inline: true }
+               { name: "🚀 Best Trade", value: `$${this.dailyStats.bestTrade.toFixed(2)}`, inline: true },
+               { name: "📉 Worst Trade", value: `$${this.dailyStats.worstTrade.toFixed(2)}`, inline: true }
            ],
            timestamp: new Date().toISOString(),
            footer: { text: "OGZ Prime Daily Report | Journey to Houston" }
@@ -386,12 +386,12 @@ class DiscordTradingNotifier {
        
        const embed = {
            title: "🏠 HOUSTON FUND PROGRESS",
-           description: `**Current Balance:** $${(currentBalance !== null && currentBalance !== undefined ? currentBalance.toFixed(2) : "0.00")}\n**Target:** $${targetAmount.toLocaleString()}\n**Progress:** ${(progress !== null && progress !== undefined ? progress.toFixed(1) : "0.0")}%\n\n\`${progressBar}\``,
+           description: `**Current Balance:** $${currentBalance.toFixed(2)}\n**Target:** $${targetAmount.toLocaleString()}\n**Progress:** ${progress.toFixed(1)}%\n\n\`${progressBar}\``,
            color: 0x1e90ff, // Dodger blue
            fields: [
                { name: "💰 Remaining", value: `$${(targetAmount - currentBalance).toFixed(2)}`, inline: true },
                { name: "📅 Days Trading", value: daysSinceStart.toString(), inline: true },
-               { name: "💪 Progress", value: `${(progress !== null && progress !== undefined ? progress.toFixed(1) : "0.0")}%`, inline: true }
+               { name: "💪 Progress", value: `${progress.toFixed(1)}%`, inline: true }
            ],
            footer: { text: "Every trade brings you closer to your daughter ❤️" },
            timestamp: new Date().toISOString()

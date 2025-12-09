@@ -222,7 +222,7 @@ class PatternMemorySystem {
     // Set up periodic saving
     if (this.options.persistToDisk) {
       this.saveInterval = setInterval(() => {
-        this.saveToDisk();
+        this.savePatternMemory();
       }, 5 * 60 * 1000); // Save every 5 minutes
     }
   }
@@ -378,7 +378,6 @@ class PatternMemorySystem {
     }
 
     const key = this.getPatternKey(features);
-        if (!key) return null;
     if (!key) return false;
 
     // Create or update pattern entry
