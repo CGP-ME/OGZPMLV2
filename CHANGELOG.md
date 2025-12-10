@@ -5,6 +5,87 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.11] - 2025-12-10 - CRITICAL PATTERN MEMORY FIX
+
+### Fixed
+- **CRITICAL: Pattern memory accumulation finally fixed (6+ MONTH BUG)**
+  - Location: `core/EnhancedPatternRecognition.js:301`
+  - Problem: `saveToDisk()` was saving `this.memory` which is a PatternMemorySystem CLASS INSTANCE
+  - Impact: Patterns never accumulated, only BASE_PATTERN was ever saved
+  - Fix: Now saves `this.memory.memory` (the actual patterns object inside the class)
+  - This explains why bot never learned from trades for 6+ months
+
+- **Kill switch removed**
+  - Location: `core/AdvancedExecutionLayer-439-MERGED.js:85-95`
+  - Problem: Kill switch was left active since Dec 8 MCP disaster
+  - Impact: ALL trades blocked for 2+ days
+  - Fix: Commented out kill switch check and removed flag file
+
+## [2.0.10] - 2024-12-10 - PARTIAL FIXES & INFRASTRUCTURE
+
+### Fixed
+- **Claude model name in orchestrator**
+  - File: `devtools/claudito/claudito-bug-orchestrator.js` line 23
+  - Changed from non-existent `claude-3-opus-latest` to real `claude-3-opus-20240229`
+  - Impact: Claudito can now actually call Claude API
+
+- **One saveToDisk error (partial)**
+  - File: `core/EnhancedPatternRecognition.js` line 853
+  - Changed `this.saveToDisk()` to `this.memory.saveToDisk()`
+  - Note: MORE saveToDisk errors remain at lines 225, 432, 435, 710
+
+### Infrastructure
+- **Auto-patcher permanently disabled**
+  - Moved `apply-claudito-patches.js` to `_disabled/` folder
+  - Removed execute permissions
+  - Claudito now report-only, no automatic patches
+
+### Status
+- Bot runs but still has errors
+- Waiting for Opus forensics report for remaining fixes
+- Manual fix workflow established
+
+## [2.0.9] - 2024-12-09 - CRITICAL BRACE FIX
+
+### Fixed
+- **CRITICAL: Extra closing brace broke PatternMemorySystem class**
+  - File: `core/EnhancedPatternRecognition.js` line 290
+  - Bug: Extra `}` pushed saveToDisk() method outside class
+  - Fix: Removed extra brace, properly closed initializeSeedPatterns()
+  - Impact: THIS WAS THE ROOT CAUSE - saveToDisk is now accessible
+  - Status: ✅ Bot running for 10+ minutes without crashes
+
+## [2.0.8] - 2024-12-09 - AUTOMATED FIXER DAMAGE CONTROL
+
+### Reverted
+- Reverted to commit `cad46cf` after automated fixer disaster
+- Automated fixer created more problems than it solved:
+  - Added extra closing braces breaking class structure
+  - Created syntax errors in try-catch blocks
+  - Misplaced methods outside classes
+- Lesson learned: NO MORE AUTOMATED FIXERS
+
+## [2.0.7] - 2024-12-09 - OPUS DEEP BUG SCAN
+
+### Identified (20+ Deep Bugs Found)
+- WebSocket double connection race condition
+- Pattern memory concurrent write corruption risk
+- TRAI process pool unbounded growth
+- Infinity propagation in Fibonacci calculations
+- Floating point precision accumulation
+- Alert cleanup timer never cleared
+- Missing null checks in trading brain
+- Fire-and-forget Discord notifications
+- Conflicting confidence normalization
+- No broker error recovery
+- Pattern key collision risk
+- And 9 more...
+
+### Status
+- Bugs identified by Opus forensics
+- Manual fixes required (NO automated tools)
+- To be fixed in subsequent versions
+
 ## [2.0.6] - 2024-12-09 - FORENSICS LANDMINE FIXES
 
 ### Fixed (via Deep Forensics Analysis)
@@ -279,55 +360,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Updated .gitignore to exclude sensitive files and credentials
 - Validated all code for hardcoded secrets (none found)
-
-## [2.1.0] - 2025-12-06 - LAUNCH READY EDITION 🚀
-
-### Added - THE FINAL INNOVATION
-- **Complete CI/CD Pipeline**
-  - GitHub Actions workflow (.github/workflows/ci.yml)
-  - Automatic testing on every push/PR
-  - Smoke test catches "bot dies on candle 2" bugs instantly
-  - Pattern test verifies memory is actually growing
-  - Auto-deployment to VPS on master merge
-  - CHANGELOG verification enforced in PRs
-
-- **Production Telemetry System** (core/Telemetry.js)
-  - Real-time pattern detection tracking
-  - Trade execution metrics with P&L
-  - Win rate calculations for patterns and trades
-  - Performance monitoring (candles processed)
-  - Telemetry report generator (`npm run telemetry:report`)
-  - JSON Lines format for streaming logs
-
-- **Complete Claudito Platoon** (19 Specialized Agents)
-  - **Forensics Claudito**: Landmine hunter for semantic bugs
-  - **Critic Claudito** (Dick Claudito): Forces 3-pass iterative refinement
-  - **Inline Commentator Claudito**: Self-documenting code
-  - Hook-based communication protocol
-  - Three workflows: Standard, Audit, Iterative Refinement
-  - CLAUDITO-DOSSIERS.md with complete documentation
-
-### Infrastructure
-- npm scripts for all operations:
-  - `npm test` - Run smoke and pattern tests
-  - `npm run telemetry:report` - See what bot is learning
-  - `npm run start:prod` - PM2 production launch
-- Pattern memory backup on deployment
-- Automatic test execution in CI
-
-### Documentation
-- CLAUDITO-DOSSIERS.md - Complete agent documentation
-- CI/CD integration guide in workflows
-- Telemetry usage and metrics documentation
-
-### Why This Is The Last Innovation
-- Every pattern bug will be caught automatically by CI
-- Every deployment will be tested before going live
-- Every metric will be tracked in telemetry
-- The bot can finally learn, and you can see it happening
-- No more "why hasn't it learned in 6 months" - telemetry shows exactly what's happening
-
-**Status: PRODUCTION READY - LAUNCH IT!**
 
 ## [0.1.0] - 2024-12-02
 

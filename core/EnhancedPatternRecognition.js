@@ -296,9 +296,14 @@ class PatternMemorySystem {
     if (!this.options.persistToDisk) return;
 
     try {
+      // CRITICAL FIX 2025-12-10: this.memory is a PatternMemorySystem instance
+      // We need to save the actual patterns object INSIDE it, not the class instance
+      // This bug prevented pattern accumulation for 6+ months
+      const actualPatterns = this.memory.memory || this.memory || {};
+
       const data = JSON.stringify({
-        count: this.patternCount,
-        patterns: this.memory,
+        count: this.patternCount || Object.keys(actualPatterns).length,
+        patterns: actualPatterns,
         timestamp: new Date().toISOString()
       });
 
@@ -850,7 +855,7 @@ class EnhancedPatternChecker {
     this.stats.tradeResults++;
 
     // CRITICAL FIX: Actually save patterns to disk!
-    this.saveToDisk();
+    this.memory.saveToDisk();
   }
 
   /**

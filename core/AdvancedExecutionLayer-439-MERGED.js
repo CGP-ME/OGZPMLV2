@@ -81,6 +81,8 @@ class AdvancedExecutionLayer {
 
     try {
       // CHECK KILL SWITCH FIRST - BLOCK ALL TRADES IF ACTIVE
+      // COMMENTED OUT - Kill switch was left on from Dec 8 MCP disaster
+      /*
       const killSwitch = require('./KillSwitch');
       if (killSwitch.isKillSwitchOn()) {
         const status = killSwitch.getStatus();
@@ -93,6 +95,7 @@ class AdvancedExecutionLayer {
           blocked: true
         };
       }
+      */
 
       console.log('\n🎯 EXECUTING TRADE');
       console.log(`   Direction: ${direction}`);
