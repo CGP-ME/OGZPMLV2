@@ -10,6 +10,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { getInstance: getStateManager } = require('./StateManager');  // CHANGE 2025-12-11: StateManager sync
 
 class AdvancedExecutionLayer {
   constructor(config = {}) {

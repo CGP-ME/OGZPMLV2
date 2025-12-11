@@ -27,6 +27,9 @@ const MaxProfitManager = require('./MaxProfitManager');
 const FibonacciDetector = require('./FibonacciDetector');
 const SupportResistanceDetector = require('./SupportResistanceDetector');
 const PersistentPatternMap = require('./PersistentPatternMap');  // CHANGE 631: Simple persistence!
+const { getInstance: getStateManager } = require('./StateManager');  // CHANGE 2025-12-11: StateManager sync
+const ErrorHandler = require('./ErrorHandler');  // CHANGE 2025-12-11: Error escalation
+const { RollingWindow } = require('./MemoryManager');  // CHANGE 2025-12-11: Memory leak prevention
 
 /**
  * Enhanced Trading Brain with comprehensive logging and analysis
@@ -39,11 +42,17 @@ class OptimizedTradingBrain {
    * @param {Object} config - Configuration options
    */
   constructor(balance = 10000, config = {}) {
+    // CHANGE 2025-12-11: Error handler for circuit breaker pattern
+    this.errorHandler = new ErrorHandler({
+      maxErrorsBeforeCircuitBreak: 5,
+      circuitBreakResetMs: 60000
+    });
+
     // Account management
     this.balance = balance;
     this.initialBalance = balance;
     this.position = null; // Current open position
-    this.tradeHistory = []; // Historical trades
+    this.tradeHistory = new RollingWindow(100); // CHANGE 2025-12-11: Fixed-size window (was unbounded [])
     this.lastTradeResult = null; // Last trade result for quick access
     
     
@@ -967,6 +976,17 @@ class OptimizedTradingBrain {
     console.log(`   RSI: ${(analysisData.rsi || 0).toFixed(1)} | Trend: ${analysisData.trend || 'unknown'}`);
     console.log(`   Stop Loss: $${this.position.stopLossPrice.toFixed(2)} | Take Profit: $${this.position.takeProfitPrice.toFixed(2)}`);
     
+    // CHANGE 2025-12-11: Sync with StateManager for single source of truth
+    try {
+      const stateManager = getStateManager();
+      stateManager.openPosition(positionValue, price, { source: 'TradingBrain', reason, confidence });
+    } catch (e) {
+      this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
+        operation: 'StateManager.openPosition',
+        price, reason, confidence, positionValue
+      });
+    }
+    
     return true;
   }
   
@@ -1142,7 +1162,10 @@ class OptimizedTradingBrain {
     try {
       logTrade(tradeData);
     } catch (error) {
-      console.error('❌ Failed to log trade:', error.message);
+      this.errorHandler.reportWarning('OptimizedTradingBrain', error, {
+        operation: 'logTrade',
+        tradeId: tradeData.id
+      });
     }
     
     // 🛡️ SAFETY NET: Update trade result for safety tracking
@@ -1174,6 +1197,17 @@ class OptimizedTradingBrain {
           reason: reason
         }
       }, involvedComponents);
+    }
+    
+    // CHANGE 2025-12-11: Sync with StateManager before clearing position
+    try {
+      const stateManager = getStateManager();
+      stateManager.closePosition(price, false, null, { source: 'TradingBrain', reason, pnl });
+    } catch (e) {
+      this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
+        operation: 'StateManager.closePosition',
+        price, reason, pnl
+      });
     }
     
     // Reset position and profit manager

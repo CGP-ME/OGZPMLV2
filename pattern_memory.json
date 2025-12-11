@@ -1,0 +1,15 @@
+{
+  "": {
+    "trades": [
+      {
+        "id": "trade_1765407136927_211b84b6",
+        "direction": "buy",
+        "entryPrice": 92435.3,
+        "confidence": 0.5926,
+        "timestamp": 1765407136928
+      }
+    ],
+    "successRate": 0,
+    "avgProfit": 0
+  }
+}

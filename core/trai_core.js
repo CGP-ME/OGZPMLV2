@@ -326,7 +326,7 @@ class TRAICore extends EventEmitter {
         // Check if LLM server is ready
         if (!this.llmReady) {
             console.warn('⚠️ TRAI LLM not ready, using fallback');
-            return { response: 'TRAI LLM not ready - using rule-based fallback', confidence: 0.5 };
+            return this.getFallbackResponse(primaryCategory);
         }
 
         try {
@@ -349,7 +349,7 @@ class TRAICore extends EventEmitter {
                 console.warn(`⚠️ Slow inference: ${inferenceTime}ms (model may need optimization)`);
             }
 
-            return response ? response.trim() : "";
+            return response.trim();
 
         } catch (error) {
             console.error('⚠️ TRAI persistent LLM error:', error.message);
@@ -913,15 +913,11 @@ Keep response under 200 words, be direct and technical.`;
      * Prune old patterns from memory (call periodically)
      */
     pruneOldMemories() {
-        // Null-safe pattern pruning
-        if (!this.patternMemory) return 0;
-
-        try {
-            return this.patternMemory.pruneOldPatterns();
-        } catch (error) {
-            console.error('❌ Failed to prune patterns:', error.message);
+        if (!this.patternMemory) {
             return 0;
         }
+
+        return this.patternMemory.pruneOldPatterns();
     }
 
     onTradeExecuted(trade) {

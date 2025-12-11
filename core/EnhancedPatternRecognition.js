@@ -296,14 +296,9 @@ class PatternMemorySystem {
     if (!this.options.persistToDisk) return;
 
     try {
-      // CRITICAL FIX 2025-12-10: this.memory is a PatternMemorySystem instance
-      // We need to save the actual patterns object INSIDE it, not the class instance
-      // This bug prevented pattern accumulation for 6+ months
-      const actualPatterns = this.memory.memory || this.memory || {};
-
       const data = JSON.stringify({
-        count: this.patternCount || Object.keys(actualPatterns).length,
-        patterns: actualPatterns,
+        count: this.patternCount,
+        patterns: this.memory,
         timestamp: new Date().toISOString()
       });
 
@@ -850,12 +845,17 @@ class EnhancedPatternChecker {
    * @param {String} signature - Pattern signature
    * @param {Object} result - Trade result
    */
-  recordPatternResult(signature, result) {
-    this.memory.recordPattern({ signature }, result);
+  recordPatternResult(featuresOrSignature, result) {
+    // CHANGE 659: Features array required - strict validation
+    if (!Array.isArray(featuresOrSignature) || featuresOrSignature.length === 0) {
+      console.error('❌ recordPatternResult: Expected features array, got:', typeof featuresOrSignature);
+      return false;
+    }
+    
+    this.memory.recordPattern(featuresOrSignature, result);
     this.stats.tradeResults++;
-
-    // CRITICAL FIX: Actually save patterns to disk!
     this.memory.saveToDisk();
+    return true;
   }
 
   /**

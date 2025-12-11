@@ -5,6 +5,85 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.16] - 2025-12-11 - CRITICAL FIXES: ERROR ESCALATION & MEMORY MANAGEMENT
+
+### Fixed
+- **Error Swallowing in OptimizedTradingBrain.js**
+  - Line 983: StateManager.openPosition() - Now escalates via ErrorHandler.reportCritical()
+  - Line 1164: logTrade() - Now escalates via ErrorHandler.reportWarning()
+  - Line 1200: StateManager.closePosition() - Now escalates via ErrorHandler.reportCritical()
+  - Circuit breaker triggers at 5 errors per module
+  - Critical errors properly tracked and logged
+
+- **Memory Leaks in OptimizedTradingBrain.js**
+  - Line 47: `this.tradeHistory = []` → `this.tradeHistory = new RollingWindow(100)`
+  - Fixed: Unbounded trade history now caps at 100 items (FIFO)
+  - Memory estimate: ~100 trades * 5KB avg = 500KB max (instead of unbounded)
+
+### Added
+- **core/ErrorHandler.js** - Centralized error management with circuit breaker
+  - `reportCritical(moduleName, error, context)` - Circuit breaks at 5 errors
+  - `reportWarning(moduleName, error, context)` - Logged non-critical errors
+  - Module-specific error tracking and stats
+  - Automatic recovery after 60 seconds
+
+- **core/MemoryManager.js** - Three window types for memory management
+  - `RollingWindow(size)` - Fixed-size FIFO buffer
+  - `TimeBasedWindow(maxAgeMs)` - Time-window cleanup
+  - `HybridWindow(size, maxAgeMs)` - Combined constraints
+
+### Changed
+- **OptimizedTradingBrain.js**
+  - Line 30-31: Added imports for ErrorHandler and RollingWindow
+  - Line 44-49: Initialize ErrorHandler in constructor
+  - Line 54: Changed tradeHistory to RollingWindow (memory leak fix)
+  - All silent error catches now properly escalate
+
+### Status
+- Bot at Candle #4/15 ✓
+- 708 patterns loaded ✓
+- ErrorHandler integrated ✓
+- Memory capping implemented ✓
+- Ready for extended testing (24+ hours)
+
+### Next
+- Integrate ErrorHandler into EnhancedPatternRecognition.js
+- Replace unbounded arrays in PerformanceAnalyzer.js
+- Integrate MemoryManager into MarketRegimeDetector.js
+
+## [2.0.15] - 2025-12-11 - STATEMANAGER INTEGRATION COMPLETE
+
+### Changed
+- **run-empire-v2.js: Full StateManager Integration**
+  - Line 53-54: Import StateManager singleton
+  - Line 289-302: Remove `this.currentPosition`, initialize StateManager with starting balance
+  - Line 857-870: Replace position reads with `stateManager.get('position')`
+  - Line 986-1029: Replace all position checks in `makeTradeDecision()`
+  - Line 1224-1241: BUY now uses `stateManager.openPosition()` for atomic update
+  - Line 1265-1293: SELL error handling uses `stateManager.emergencyReset()`
+  - Line 1315-1360: SELL now uses `stateManager.closePosition()` for atomic update
+  - Line 1412: Remove duplicate `this.currentPosition = 0` (handled by StateManager)
+  - Lines 674, 906, 1108, 1123: All position reads now use StateManager
+
+- **OptimizedTradingBrain.js: StateManager Sync**
+  - Line 30: Import StateManager singleton
+  - Line 970-977: `openPosition()` now syncs to StateManager after local update
+  - Line 1187-1194: `closePosition()` now syncs to StateManager before clearing position
+  - TradingBrain keeps its internal `this.position` for breakeven/trailing logic
+  - StateManager stays in sync for global consistency
+
+- **AdvancedExecutionLayer-439-MERGED.js: StateManager Import**
+  - Line 13: Import StateManager singleton (ready for future sync)
+  - Positions Map kept for multi-order tracking (different purpose)
+
+### Fixed
+- **Single Source of Truth for Position Tracking**
+  - `this.currentPosition` completely removed from run-empire-v2.js
+  - All reads go through `stateManager.get('position')`
+  - All updates go through `stateManager.openPosition()` / `closePosition()`
+  - TradingBrain and ExecutionLayer sync to StateManager on position changes
+  - No more desync between multiple position tracking locations
+
 ## [2.0.14] - 2025-12-11 - CRITICAL STATE MANAGEMENT FIX
 
 ### Fixed

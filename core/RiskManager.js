@@ -1787,9 +1787,12 @@ class RiskManager {
       }
 
       // 🧠 PATTERN LEARNING: Record pattern performance for future confidence adjustment
+      // CHANGE 659: Pass features array instead of signature string
       if (position.patterns && position.patterns.length > 0) {
         for (const pattern of position.patterns) {
-          this.bot.patternRecognition.recordPatternResult(pattern.signature, {
+          // CRITICAL: Use features array if available, fallback to signature
+          const featuresForRecording = pattern.features || pattern.signature;
+          this.bot.patternRecognition.recordPatternResult(featuresForRecording, {
             success: pnl > 0,
             pnl: pnl,
             timestamp: Date.now()

@@ -51,6 +51,10 @@ const { TradingOptimizations, PatternStatsManager } = require('./core/TradingOpt
 const patternStatsManager = new PatternStatsManager();
 const tradingOptimizations = new TradingOptimizations(patternStatsManager, console);
 
+// CHANGE 2025-12-11: StateManager - Single source of truth for position/balance
+const { getInstance: getStateManager } = require('./core/StateManager');
+const stateManager = getStateManager();
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -286,12 +290,19 @@ class OGZPrimeV14Bot {
     this.isRunning = false;
     this.marketData = null;
     this.priceHistory = [];
-    this.currentPosition = 0;
+    // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
+    // this.currentPosition removed - use stateManager.get('position') instead
     this.balance = parseFloat(process.env.INITIAL_BALANCE) || 10000;
     this.startTime = Date.now();
     this.systemState = {
       currentBalance: this.balance
     };
+    
+    // Initialize StateManager with starting balance
+    stateManager.updateState({ 
+      balance: this.balance, 
+      totalBalance: this.balance 
+    }, { action: 'INIT' });
 
     // CHANGE 644: Initialize trade tracking Maps in constructor to prevent crashes
     this.activeTrades = new Map();
@@ -660,7 +671,7 @@ class OGZPrimeV14Bot {
             },
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
             balance: this.balance,
-            position: this.currentPosition,
+            position: stateManager.get('position'),
             totalTrades: this.executionLayer?.totalTrades || 0
           }
         }));
@@ -844,14 +855,15 @@ class OGZPrimeV14Bot {
     // Let MaxProfitManager handle exits when we have a position
     let tradingDirection = brainDecision.direction; // 'buy', 'sell', or 'hold'
 
-    // CHANGE 635: Debug phantom position issue
-    console.log(`📊 DEBUG: currentPosition=${this.currentPosition}, tradingDirection=${tradingDirection}`);
+    // CHANGE 2025-12-11: Use StateManager for position reads
+    const currentPosition = stateManager.get('position');
+    console.log(`📊 DEBUG: currentPosition=${currentPosition}, tradingDirection=${tradingDirection}`);
 
-    if (tradingDirection === 'sell' && this.currentPosition === 0) {
+    if (tradingDirection === 'sell' && currentPosition === 0) {
       // Can't open SHORT positions - convert to HOLD
       console.log('🚫 TradingBrain said SELL but shorts forbidden - converting to HOLD');
       tradingDirection = 'hold';
-    } else if (tradingDirection === 'sell' && this.currentPosition > 0) {
+    } else if (tradingDirection === 'sell' && currentPosition > 0) {
       // CHANGE 638: Allow SELL to proceed when we have a position
       // MaxProfitManager was never being checked due to this conversion to HOLD
       console.log('📊 TradingBrain bearish - executing SELL of position');
@@ -891,7 +903,7 @@ class OGZPrimeV14Bot {
           regime: regime.currentRegime || 'unknown',
           indicators: indicators,
           positionSize: this.balance * 0.01,
-          currentPosition: this.currentPosition
+          currentPosition: stateManager.get('position')
         };
 
         // Process decision through TRAI
@@ -972,12 +984,13 @@ class OGZPrimeV14Bot {
     }
 
     // CHANGE 625: Debug logging to understand why trades don't execute
-    console.log(`🔍 makeTradeDecision: pos=${this.currentPosition}, conf=${totalConfidence.toFixed(1)}%, minConf=${minConfidence}%, brain=${brainDirection}`);
+    const pos = stateManager.get('position');
+    console.log(`🔍 makeTradeDecision: pos=${pos}, conf=${totalConfidence.toFixed(1)}%, minConf=${minConfidence}%, brain=${brainDirection}`);
 
     // CHANGE 651: Re-enable TradingBrain SELL signals with minimum hold time protection
     // CHANGE 640 completely broke exits by disabling ALL sell signals
     // Now we check minimum hold time before allowing TradingBrain sells
-    if (brainDirection === 'sell' && this.currentPosition > 0) {
+    if (brainDirection === 'sell' && pos > 0) {
       // Get the oldest BUY trade to check hold time
       const buyTrades = Array.from(this.activeTrades?.values() || [])
         .filter(t => t.action === 'BUY')
@@ -998,7 +1011,7 @@ class OGZPrimeV14Bot {
     }
 
     // Check if we should BUY (when flat)
-    if (this.currentPosition === 0 && totalConfidence >= minConfidence) {
+    if (pos === 0 && totalConfidence >= minConfidence) {
       console.log(`✅ BUY DECISION: Confidence ${totalConfidence.toFixed(1)}% >= ${minConfidence}%`);
 
       // CHANGE 2025-12-11: Pass 2 - Include decision context and pattern quality
@@ -1013,7 +1026,7 @@ class OGZPrimeV14Bot {
 
     // Check if we should SELL (when long)
     // Change 603: Integrate MaxProfitManager for dynamic exits
-    if (this.currentPosition > 0) {
+    if (pos > 0) {
       // Get entry trade to calculate P&L
       const buyTrades = Array.from(this.activeTrades?.values() || [])
         .filter(t => t.action === 'BUY')
@@ -1092,7 +1105,7 @@ class OGZPrimeV14Bot {
     const gate = this.rateLimiter.allow({
       symbol: this.tradingPair || process.env.TRADING_PAIR || 'XBT/USD',
       action: decision.action,
-      currentPosition: this.currentPosition
+      currentPosition: stateManager.get('position')
     });
 
     if (!gate.ok) {
@@ -1107,7 +1120,7 @@ class OGZPrimeV14Bot {
     console.log(`\n🎯 ${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
 
     // CHECKPOINT 1: Entry
-    console.log(`📍 CP1: executeTrade ENTRY - Balance: $${this.balance}, Position: ${this.currentPosition}`);
+    console.log(`📍 CP1: executeTrade ENTRY - Balance: $${this.balance}, Position: ${stateManager.get('position')}`);
 
     const basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
     const baseSize = this.systemState.currentBalance * basePositionPercent;
@@ -1213,16 +1226,21 @@ class OGZPrimeV14Bot {
         // Update position tracking
         if (decision.action === 'BUY') {
           // CHECKPOINT 5: Before position update
-          console.log(`📍 CP5: BEFORE BUY - Position: ${this.currentPosition}, Balance: $${this.balance}`);
+          const stateBefore = stateManager.getState();
+          console.log(`📍 CP5: BEFORE BUY - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
-          // CHANGE 636: Fix position tracking - store dollar value not BTC amount
-          this.currentPosition = positionSize; // Store dollar value of position
-
-          // CHANGE 626: Actually UPDATE the balance on BUY!
-          this.balance -= positionSize; // Deduct cost of position
+          // CHANGE 2025-12-11: Use StateManager for atomic position updates
+          await stateManager.openPosition(positionSize, price, { 
+            orderId, 
+            confidence: decision.confidence 
+          });
+          
+          // Sync local balance with StateManager
+          const stateAfter = stateManager.getState();
+          this.balance = stateAfter.balance;
 
           // CHECKPOINT 6: After position update
-          console.log(`📍 CP6: AFTER BUY - Position: ${this.currentPosition}, Balance: $${this.balance} (spent $${positionSize})`);
+          console.log(`📍 CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${positionSize})`);
 
           // Change 605: Start MaxProfitManager on BUY to track profit targets
           this.tradingBrain.maxProfitManager.start(price, 'buy', positionSize, {
@@ -1246,7 +1264,8 @@ class OGZPrimeV14Bot {
 
         } else if (decision.action === 'SELL') {
           // CHECKPOINT 7: SELL execution
-          console.log(`📍 CP7: SELL PATH - Position: ${this.currentPosition}, Balance: $${this.balance}`);
+          const currentState = stateManager.getState();
+          console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
           // Change 589: Complete post-trade integrations
           // Find the matching BUY trade
@@ -1257,7 +1276,7 @@ class OGZPrimeV14Bot {
           // CHANGE 644: Add error handling for SELL with no matching BUY
           if (buyTrades.length === 0) {
             console.error('❌ CRITICAL: SELL signal but no matching BUY trade found!');
-            console.log('   Current position:', this.currentPosition);
+            console.log('   Current position:', currentState.position);
             console.log('   Active trades count:', this.activeTrades.size);
             console.log('   Active trades:', Array.from(this.activeTrades.values()).map(t => ({
               id: t.orderId,
@@ -1265,9 +1284,10 @@ class OGZPrimeV14Bot {
               price: t.entryPrice
             })));
 
-            // Force reset to prevent permanent lockup
+            // Force reset to prevent permanent lockup via StateManager
             console.log('   ⚠️ Force resetting position to 0 to prevent lockup');
-            this.currentPosition = 0;
+            await stateManager.emergencyReset();
+            this.balance = stateManager.get('balance');
 
             // Stop MaxProfitManager if it's tracking
             if (this.tradingBrain?.maxProfitManager) {
@@ -1294,14 +1314,24 @@ class OGZPrimeV14Bot {
 
             console.log(`📊 Trade closed: ${pnl >= 0 ? '✅' : '❌'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
-            // CHANGE 626: Actually UPDATE the balance on SELL!
-            // CHANGE 643: Fix sell value to include profit/loss
-            // currentPosition is the original dollar amount invested
-            // We need to calculate the actual market value at current price
-            const btcAmount = this.currentPosition / buyTrade.entryPrice;  // How much BTC we bought
-            const sellValue = btcAmount * price;  // Current market value of that BTC
-            this.balance += sellValue;
-            const profitLoss = sellValue - this.currentPosition;  // Actual P&L in dollars
+            // CHANGE 2025-12-11: Use StateManager for atomic position close
+            const positionState = stateManager.getState();
+            const positionValue = positionState.position;
+            
+            // Close position via StateManager (handles P&L calculation)
+            await stateManager.closePosition(price, false, null, {
+              orderId: buyTrade.orderId,
+              exitReason: 'signal'
+            });
+            
+            // Get updated state after close
+            const afterSellState = stateManager.getState();
+            this.balance = afterSellState.balance;
+            
+            // Calculate display values
+            const btcAmount = positionValue / buyTrade.entryPrice;
+            const sellValue = btcAmount * price;
+            const profitLoss = sellValue - positionValue;
             console.log(`📍 CP8: SELL COMPLETE - New Balance: $${this.balance} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 642: Record SELL trade for backtest reporting
@@ -1381,7 +1411,7 @@ class OGZPrimeV14Bot {
             console.log(`💰 MaxProfitManager deactivated - ready for next trade`);
           }
 
-          this.currentPosition = 0;
+          // Position already reset via stateManager.closePosition() above
         }
 
         // Record in performance analyzer

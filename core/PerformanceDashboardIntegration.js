@@ -12,7 +12,7 @@ const path = require('path');
 const PerformanceVisualizer = require('./PerformanceVisualizer');
 const PerformanceValidator = require('./PerformanceValidator');
 const TradingProfileManager = require('./TradingProfileManager');
-const TradingSafetyNet = require('./TradingSafetyNet');
+// REMOVED: TradingSafetyNet doesn't exist
 
 class PerformanceDashboardIntegration extends EventEmitter {
   constructor(config = {}) {
