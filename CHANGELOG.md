@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.14] - 2025-12-11 - CRITICAL STATE MANAGEMENT FIX
+
+### Fixed
+- **CRITICAL: Position/Balance Desynchronization**
+  - Location: NEW `core/StateManager.js`
+  - Problem: Position tracked in 3 different places (currentPosition, tradingBrain.position, executionLayer.positions)
+  - Impact: Phantom trades, wrong sizes, failed exits
+  - Solution: Centralized StateManager with atomic updates
+  - All state changes now go through single source of truth
+
+### Added
+- **StateManager - Centralized State Management**
+  - Atomic state updates (no partial corruption)
+  - Transaction logging for debugging
+  - State validation before trades
+  - Emergency reset capability
+  - Lock mechanism for race condition prevention
+
+### Impact
+- Fixes position desync causing phantom trades
+- Prevents balance inconsistencies
+- Enables proper state recovery after crashes
+- Foundation for distributed trading (multiple instances)
+
 ## [2.0.13] - 2025-12-11 - TRADING OPTIMIZATION FRAMEWORK
 
 ### Added
