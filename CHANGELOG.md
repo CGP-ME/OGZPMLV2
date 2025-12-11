@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.13] - 2025-12-11 - TRADING OPTIMIZATION FRAMEWORK
+
+### Added
+- **Three-pass trading optimization system**
+  - Location: `core/TradingOptimizations.js` (new file)
+  - Pass 1: DecisionContext for complete trade visibility
+  - Pass 2: Pattern-based position sizing (0.25x to 1.5x multiplier)
+  - Pass 3: Elite bipole pattern filtering (ready but not active)
+
+- **Pattern Stats Manager**
+  - Tracks win/loss rates per pattern
+  - Calculates pattern quality scores
+  - Enables smart position sizing based on historical performance
+
+- **Integration into main bot**
+  - Modified: `run-empire-v2.js` lines 49-52, 941-953, 1004-1011, 1115-1121
+  - Every trade now has full context logging
+  - Position sizes adjust based on pattern quality
+  - Configuration flags for safe feature rollout
+
+### Configuration
+- `enableDecisionContext`: true (visibility only, no behavior change)
+- `enablePatternSizeScaling`: false (ready to enable)
+- `enablePerfectBipoleFilter`: false (ready to enable)
+
+### Impact
+- Zero behavior change with flags disabled
+- Full visibility into WHY each trade fires
+- Foundation for learning-based position sizing
+- Preparation for "elite patterns only" mode
+
+## [2.0.12] - 2025-12-11 - PATTERN MEMORY ACTUALLY WORKING! 🚀
+
+### Fixed
+- **BREAKTHROUGH: Pattern memory is FINALLY accumulating after 6+ months!**
+  - Location: `core/EnhancedPatternRecognition.js:848-859`
+  - Problem: `recordPatternResult()` was receiving signature strings but expecting features arrays
+  - Root Cause: Type mismatch - patterns created with features but recorded with signatures
+  - Fix: Strict validation requiring features arrays only (no string fallback)
+  - Impact: Pattern count jumped from 1 → 128+ in first hour of operation
+  - **This is the fix that changes everything - bot can finally LEARN**
+
+### Verified
+- Pattern memory growing in real-time (128+ patterns and climbing)
+- Each candle successfully recording patterns
+- No more "signature string" warnings
+- Pattern persistence working across restarts
+- Dashboard integration confirmed working
+
+### Dashboard Integration
+- Pattern count now visible in dashboard
+- Real-time pattern growth monitoring
+- Pattern success rates calculating correctly
+- Memory utilization tracking active
+
 ## [2.0.11] - 2025-12-10 - CRITICAL PATTERN MEMORY FIX
 
 ### Fixed

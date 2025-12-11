@@ -46,6 +46,11 @@ console.log('[CHECKPOINT-003] ModuleAutoLoader ready');
 loader.loadAll();
 console.log('[CHECKPOINT-004] All modules loaded');
 
+// CHANGE 2025-12-11: Trading optimizations for visibility and pattern-based sizing
+const { TradingOptimizations, PatternStatsManager } = require('./core/TradingOptimizations');
+const patternStatsManager = new PatternStatsManager();
+const tradingOptimizations = new TradingOptimizations(patternStatsManager, console);
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -682,6 +687,7 @@ class OGZPrimeV14Bot {
         await this.analyzeAndTrade();
       } catch (error) {
         console.error('❌ Trading cycle error:', error.message);
+        console.error(error.stack);
       }
     }, interval);
 
@@ -751,8 +757,14 @@ class OGZPrimeV14Bot {
           return;
         }
 
+        // CHANGE 659: Fix pattern recording - pass features array instead of signature string
+        // recordPatternResult expects features array, not signature string
+        // pattern.features contains the actual feature vector for pattern matching
+        const featuresForRecording = pattern.features || [];
+        
         // Record pattern for learning
-        this.patternChecker.recordPatternResult(signature, {
+        // CRITICAL: Pass features array to recordPatternResult, not signature
+        this.patternChecker.recordPatternResult(featuresForRecording || signature, {
           detected: true,
           confidence: pattern.confidence || 0.1,
           timestamp: Date.now(),
@@ -926,6 +938,20 @@ class OGZPrimeV14Bot {
     const { totalConfidence } = confidenceData;
     const minConfidence = this.config.minTradeConfidence * 100;
 
+    // CHANGE 2025-12-11: Pass 1 - Add decision context for visibility
+    const decisionContext = tradingOptimizations.createDecisionContext({
+      symbol: this.tradingPair || 'XBT/USD',
+      direction: brainDirection === 'sell' ? 'SHORT' : 'LONG',
+      confidence: totalConfidence,
+      patterns: patterns || [],
+      patternScores: confidenceData.patternScores || {},
+      indicators,
+      regime: this.marketRegime?.currentRegime || 'unknown',
+      module: this.gridStrategy ? 'grid' : 'standard',
+      price: currentPrice,
+      brainDirection
+    });
+
     // CHANGE 670: Check grid strategy first if enabled
     if (this.gridStrategy) {
       const gridSignal = this.gridStrategy.getGridSignal(currentPrice, indicators);
@@ -974,7 +1000,15 @@ class OGZPrimeV14Bot {
     // Check if we should BUY (when flat)
     if (this.currentPosition === 0 && totalConfidence >= minConfidence) {
       console.log(`✅ BUY DECISION: Confidence ${totalConfidence.toFixed(1)}% >= ${minConfidence}%`);
-      return { action: 'BUY', direction: 'long', confidence: totalConfidence };
+
+      // CHANGE 2025-12-11: Pass 2 - Include decision context and pattern quality
+      return {
+        action: 'BUY',
+        direction: 'long',
+        confidence: totalConfidence,
+        decisionContext,
+        patternQuality: decisionContext.patternQuality
+      };
     }
 
     // Check if we should SELL (when long)
@@ -1076,10 +1110,15 @@ class OGZPrimeV14Bot {
     console.log(`📍 CP1: executeTrade ENTRY - Balance: $${this.balance}, Position: ${this.currentPosition}`);
 
     const basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
-    const positionSize = this.systemState.currentBalance * basePositionPercent;
+    const baseSize = this.systemState.currentBalance * basePositionPercent;
+
+    // CHANGE 2025-12-11: Pass 2 - Pattern-based position sizing
+    const patternIds = decision.decisionContext?.patternsActive ||
+                      patterns?.map(p => p.id || p.signature || 'unknown') || [];
+    const positionSize = tradingOptimizations.calculatePositionSize(baseSize, patternIds, decision.decisionContext);
 
     // CHECKPOINT 2: Position sizing
-    console.log(`📍 CP2: Position size calculated: ${positionSize} (${basePositionPercent*100}% of $${this.systemState.currentBalance})`);
+    console.log(`📍 CP2: Position size calculated: ${positionSize} (base: ${baseSize.toFixed(2)}, adjusted for pattern quality)`);
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
@@ -1297,11 +1336,14 @@ class OGZPrimeV14Bot {
             // this.safetyNet.updateTradeResult(completeTradeResult);
 
             // 2. Record pattern outcome for learning
-            // CHANGE 648: Use pattern signature instead of name
+            // CHANGE 659: Pass features array for proper pattern matching
+            // Previously passed signature (string), but recordPatternResult needs features (array)
             if (buyTrade.patterns && buyTrade.patterns.length > 0) {
               const pattern = buyTrade.patterns[0]; // Primary pattern object
               const patternSignature = pattern.signature || pattern.name;
-              this.patternChecker.recordPatternResult(patternSignature, {
+              // CRITICAL: Use features array if available, fallback to signature string
+              const featuresForRecording = pattern.features || patternSignature;
+              this.patternChecker.recordPatternResult(featuresForRecording, {
                 pnl: pnl,
                 holdDurationMs: holdDuration,  // Add temporal data
                 exitReason: completeTradeResult.exitReason || 'signal',
@@ -1379,6 +1421,10 @@ class OGZPrimeV14Bot {
         // CHANGE 665: Include active trading profile in dashboard updates
         const activeProfile = this.profileManager.getActiveProfile();
 
+        // CHANGE 2.0.12: Include pattern memory stats in dashboard
+        const patternMemoryCount = this.patternChecker?.memory?.patternCount || 0;
+        const patternMemorySize = Object.keys(this.patternChecker?.memory?.memory || {}).length;
+
         const message = {
           type: 'pattern_analysis',
           timestamp: Date.now(),
@@ -1390,6 +1436,12 @@ class OGZPrimeV14Bot {
               name: p.name || p.type || 'unknown',
               confidence: p.confidence || 0
             }))
+          },
+          patternMemory: {
+            count: patternMemoryCount,
+            uniquePatterns: patternMemorySize,
+            growthRate: `${(patternMemoryCount / Math.max(1, this.candleCount)).toFixed(2)} patterns/candle`,
+            status: patternMemoryCount > 100 ? 'Learning Active 🧠' : 'Building Memory 📚'
           },
           indicators: {
             rsi: indicators.rsi,
