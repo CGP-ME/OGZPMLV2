@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2025-12-15
+
+### 🚨 Critical Security Fixes (Architecture Audit Response)
+
+#### Fixed
+- **Return shape inconsistency** in ExecutionLayer (line 180)
+  - Changed `executed: false` to `success: false` for NO_HOLDINGS case
+  - Prevents silent failures from undefined field checks
+  - Ensures consistent error handling across all return paths
+
+- **Circuit breaker enforcement** now active
+  - Added pre-execution check at run-empire-v2.js:1236
+  - Blocks trades after 5 consecutive failures
+  - Added error reporting at line 1544 to track failures
+  - Prevents cascade failures and protects capital
+
+#### Verified Clean
+- **Moon Shot test code**: Already removed (no $95,000 price override)
+- **Warmup requirement**: Already restored (15 candles required)
+- **State mutations**: All going through StateManager with locks
+
 ### ✅ Latest Accomplishments (2025-12-15)
 
 #### 🎯 Paper Trading Now Fully Functional!
