@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OGZPrime Unified Trading System - Live Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-panel: rgba(20, 20, 20, 0.9);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            
+            /* Version-specific colors */
+            --core-color: #00ccff;
+            --ml-color: #ffd700;
+            
+            --profit-color: #00ff88;
+            --loss-color: #ff3366;
+            --neutral-color: #8b8b8b;
+            
+            --metallic-gradient: linear-gradient(135deg, #c0c0c0 0%, #808080 50%, #c0c0c0 100%);
+            --core-gradient: linear-gradient(135deg, #00ccff 0%, #4dddff 50%, #00ccff 100%);
+            --ml-gradient: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Background effects */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--profit-color);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+        
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 42px;
+            font-weight: 900;
+            background: var(--metallic-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-shadow: 0 0 30px rgba(192, 192, 192, 0.5);
+        }
+        
+        .tagline {
+            color: #666666;
+            font-size: 14px;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        
+        /* Tier Selector - Prominent placement */
+        .tier-selector-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 15;
+        }
+        
+        .tier-label {
+            color: var(--ml-color);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .tier-selector {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--ml-color);
+            color: var(--ml-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            min-width: 250px;
+        }
+        
+        .tier-selector:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .tier-selector option {
+            background: #000;
+            color: #fff;
+            padding: 5px;
+        }
+        
+        /* Dynamic border color based on selected version */
+        .tier-core .tier-selector { border-color: var(--core-color); color: var(--core-color); }
+        .tier-ml .tier-selector { border-color: var(--ml-color); color: var(--ml-color); }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff0040;
+            animation: statusPulse 2s infinite;
+        }
+        
+        .status-dot.connected {
+            background: var(--profit-color);
+        }
+        
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        /* Main Container */
+        .main-container {
+            padding: 20px;
+            position: relative;
+            z-index: 5;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* Unified Chart Section */
+        .unified-chart-section {
+            background: var(--bg-panel);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        /* Dynamic version border highlighting */
+        .tier-core .unified-chart-section { border-color: var(--core-color); }
+        .tier-ml .unified-chart-section { border-color: var(--ml-color); }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chart-title-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .chart-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .tier-price {
+            font-size: 16px;
+            font-weight: 700;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid currentColor;
+        }
+        
+        /* Dynamic version coloring */
+        .tier-core .chart-title {
+            background: var(--core-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 204, 255, 0.8);
+        }
+
+        .tier-ml .chart-title {
+            background: var(--ml-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        select, button {
+            background: rgba(26, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid #ff0040;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        
+        select:hover, button:hover {
+            background: #ff0040;
+            box-shadow: 0 0 15px rgba(255, 0, 64, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            height: 600px;
+            width: 100%;
+        }
+        
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* Multiple Bot Status Display */
+        .bot-status-row {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 15px;
+            z-index: 15;
+        }
+        
+        .bot-status-indicator {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .bot-status-indicator.core {
+            background: rgba(0, 204, 255, 0.1);
+            border-color: var(--core-color);
+            color: var(--core-color);
+        }
+
+        .bot-status-indicator.ml {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--ml-color);
+            color: var(--ml-color);
+        }
+        
+        .bot-status-indicator.active {
+            animation: botPulse 1s infinite;
+        }
+        
+        @keyframes botPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Indicator Overlays */
+        .indicator-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+            z-index: 10;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+        
+        .indicator-overlay h4 {
+            color: #ffd700;
+            font-size: 12px;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+        
+        .indicator-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        
+        .indicator-label {
+            color: #ccc;
+        }
+        
+        .indicator-value {
+            color: #ffd700;
+            font-weight: bold;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        /* Feature Unlock Notice */
+        .feature-notice {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(255, 0, 0, 0.05) 100%);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 12px;
+            color: #ff6666;
+            display: none;
+        }
+        
+        /* Removed old tier lock notices */
+        
+        /* Trading Panel */
+        .trading-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .panel-section {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.2);
+        }
+        
+        .panel-title {
+            color: #ffd700;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        /* Trade Controls */
+        .trade-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .trade-btn {
+            flex: 1;
+            padding: 12px;
+            font-weight: 700;
+            font-family: 'Orbitron', monospace;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .trade-btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .trade-btn:hover:before {
+            left: 100%;
+        }
+        
+        .buy-btn {
+            background: linear-gradient(135deg, #00ff41, #00cc33);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+        
+        .sell-btn {
+            background: linear-gradient(135deg, #ff4444, #cc1111);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+        }
+        
+        .kill-btn {
+            background: linear-gradient(135deg, #ff6600, #cc4400);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
+        }
+        
+        /* Additional buttons for higher tiers */
+        .advanced-controls {
+            display: none;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* Advanced controls always visible */
+        
+        .long-btn {
+            background: linear-gradient(135deg, #1e90ff, #0066cc);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(30, 144, 255, 0.3);
+        }
+        
+        .short-btn {
+            background: linear-gradient(135deg, #9400d3, #6a0dad);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(148, 0, 211, 0.3);
+        }
+        
+        .hedge-btn {
+            background: linear-gradient(135deg, #ff8c00, #cc7000);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.3);
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffd700;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .positive { color: var(--profit-color) !important; }
+        .negative { color: var(--loss-color) !important; }
+        
+        /* Decision Log */
+        .decision-log {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .decision-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(26, 0, 0, 0.8);
+            border-radius: 8px;
+            font-size: 12px;
+            border-left: 3px solid #ff0040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .decision-entry.profit {
+            border-left-color: var(--profit-color);
+        }
+        
+        .decision-entry[data-tier="core"] {
+            border-left-color: var(--core-color);
+        }
+
+        .decision-entry[data-tier="ml"] {
+            border-left-color: var(--ml-color);
+        }
+        
+        .decision-time {
+            color: #666666;
+            font-size: 10px;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .decision-tier {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        
+        /* Pattern Recognition Panel */
+        .pattern-panel {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .pattern-name {
+            font-weight: 700;
+            color: #8a2be2;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        /* Neural Ensemble */
+        .neural-ensemble {
+            margin-top: 20px;
+        }
+        
+        .ensemble-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        
+        .brain-module {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.9));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .brain-module:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        
+        .brain-name {
+            font-size: 10px;
+            color: #666666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .brain-vote {
+            font-weight: 700;
+            font-size: 14px;
+            font-family: 'Orbitron', monospace;
+        }
+        
+        .vote-long { color: #00ff41; }
+        .vote-short { color: #ff4444; }
+        .vote-hedge { color: #ff8c00; }
+        .vote-hold { color: #8b8b8b; }
+        
+        /* Removed quantum-specific features (now using chain of thought) */
+        
+        /* Upgrade Prompt */
+        .upgrade-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            z-index: 100;
+            display: none;
+            animation: upgradePromptPulse 2s infinite;
+        }
+        
+        @keyframes upgradePromptPulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+        }
+        
+        /* Upgrade prompt hidden by default */
+        
+        /* Trade Log */
+        .trade-log {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .trade-log-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 5px;
+            font-size: 11px;
+        }
+
+        .trade-type {
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .trade-time {
+            color: #888;
+            font-size: 10px;
+        }
+
+        .trade-duration {
+            color: #666;
+            font-size: 10px;
+        }
+
+        /* Chain of Thought */
+        .chain-of-thought {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .thought-entry {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            border-left: 3px solid #ffd700;
+        }
+
+        .thought-step {
+            font-size: 11px;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .thought-step strong {
+            color: #ffd700;
+        }
+
+        /* Pattern Display */
+        .pattern-display {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+        }
+
+        .pattern-name {
+            font-weight: 700;
+            color: #8a2be2;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .pattern-visual {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .pattern-description {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .pattern-info {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        /* Brain confidence display */
+        .brain-confidence {
+            font-size: 10px;
+            color: #888;
+            margin-top: 3px;
+        }
+
+        /* Indicator panel visibility */
+        .indicators-panel {
+            display: none;
+        }
+
+        .tier-core .core-indicators {
+            display: block;
+        }
+
+        .tier-ml .ml-indicators {
+            display: block;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a0000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ffd700;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ffed4e;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">OGZPrime</div>
+        <div class="tagline">Neural Ensemble • Real-Time Data</div>
+        <div class="tier-selector-container">
+            <span class="tier-label">SELECT VERSION:</span>
+            <select id="tierSelector" class="tier-selector" onchange="switchTier(this.value)">
+                <option value="ml">🧠 ML VERSION - ALL FEATURES</option>
+                <option value="core">⚡ CORE VERSION</option>
+            </select>
+            <div class="connection-status">
+                <span class="status-dot" id="connectionStatus"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <!-- Unified Chart Section - Starts with ML to show all features -->
+        <div class="unified-chart-section tier-ml" id="unifiedChart">
+            <div class="chart-header">
+                <div class="chart-title-container">
+                    <h2 class="chart-title" id="chartTitle">ML VERSION</h2>
+                </div>
+                <div class="chart-controls">
+                    <select id="chartTypeSelector" onchange="changeChartType(this.value)">
+                        <option value="line" selected>Line</option>
+                        <option value="candlestick">Candlestick</option>
+                        <option value="bar">Bar</option>
+                    </select>
+                    <select id="assetSelector" onchange="changeAsset(this.value)">
+                        <option value="BTC-USD" selected>Bitcoin (BTC)</option>
+                        <option value="ETH-USD">Ethereum (ETH)</option>
+                        <option value="SOL-USD">Solana (SOL)</option>
+                        <option value="XRP-USD">Ripple (XRP)</option>
+                        <option value="ADA-USD">Cardano (ADA)</option>
+                        <option value="DOT-USD">Polkadot (DOT)</option>
+                        <option value="AVAX-USD">Avalanche (AVAX)</option>
+                        <option value="LINK-USD">Chainlink (LINK)</option>
+                        <option value="MATIC-USD">Polygon (MATIC)</option>
+                        <option value="UNI-USD">Uniswap (UNI)</option>
+                        <option value="ATOM-USD">Cosmos (ATOM)</option>
+                        <option value="LTC-USD">Litecoin (LTC)</option>
+                        <option value="DOGE-USD">Dogecoin (DOGE)</option>
+                        <option value="SHIB-USD">Shiba Inu (SHIB)</option>
+                        <option value="APT-USD">Aptos (APT)</option>
+                    </select>
+                    <select id="indicatorSelector" multiple onchange="updateIndicatorOverlays()">
+                        <option value="ema" selected>EMA</option>
+                        <option value="sma">SMA</option>
+                        <option value="bollinger">Bollinger Bands</option>
+                        <option value="atr">ATR</option>
+                        <option value="fibonacci">Fibonacci Retracements</option>
+                        <option value="trendlines">Trend Lines</option>
+                        <option value="rsi">RSI Overlay</option>
+                        <option value="macd">MACD Overlay</option>
+                        <option value="vwap">VWAP</option>
+                        <option value="ichimoku">Ichimoku Cloud</option>
+                        <option value="sr">Support/Resistance</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+                
+                <!-- Bot Status Indicators -->
+                <div class="bot-status-row">
+                    <div class="bot-status-indicator core" id="coreStatus">CORE</div>
+                    <div class="bot-status-indicator ml active" id="mlStatus">ML</div>
+                </div>
+                
+                <!-- Dynamic Indicator Overlay -->
+                <div class="indicator-overlay" id="indicatorOverlay">
+                    <h4>📊 Indicators</h4>
+
+                    <!-- Core Indicators -->
+                    <div class="indicators-panel core-indicators">
+                        <div class="indicator-item">
+                            <span class="indicator-label">RSI (14):</span>
+                            <span class="indicator-value" id="rsiCore">50</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">MACD (12/26):</span>
+                            <span class="indicator-value" id="macdCore">0.00</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">Pattern:</span>
+                            <span class="indicator-value" id="patternCore">None</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">Volume:</span>
+                            <span class="indicator-value" id="volumeCore">0</span>
+                        </div>
+                    </div>
+
+                    <!-- ML Indicators (Full suite) -->
+                    <div class="indicators-panel ml-indicators">
+                        <div class="indicator-item">
+                            <span class="indicator-label">RSI (14):</span>
+                            <span class="indicator-value" id="rsiML">50</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">MACD (12/26):</span>
+                            <span class="indicator-value" id="macdML">0.00</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">Pattern:</span>
+                            <span class="indicator-value" id="patternML">None</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">Volume:</span>
+                            <span class="indicator-value" id="volumeML">0</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">ATR:</span>
+                            <span class="indicator-value" id="atrML">0.00</span>
+                        </div>
+                        <div class="indicator-item">
+                            <span class="indicator-label">Confidence:</span>
+                            <span class="indicator-value" id="confidenceML">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trading Panel -->
+        <div class="trading-panel">
+            <!-- Controls Section -->
+            <div class="panel-section">
+                <div class="panel-title">Trading Controls</div>
+                <div class="trade-controls">
+                    <button class="trade-btn buy-btn" onclick="executeTrade('buy')">BUY</button>
+                    <button class="trade-btn sell-btn" onclick="executeTrade('sell')">SELL</button>
+                    <button class="trade-btn kill-btn" onclick="executeTrade('kill')">KILL</button>
+                </div>
+                <div class="trade-controls" style="display: flex;">
+                    <button class="trade-btn long-btn" onclick="executeTrade('long')">LONG</button>
+                    <button class="trade-btn short-btn" onclick="executeTrade('short')">SHORT</button>
+                    <button class="trade-btn hedge-btn" onclick="executeTrade('hedge')">HEDGE</button>
+                </div>
+
+                <!-- Pattern Recognition Panel - Interactive Teaching Tool -->
+                <div class="pattern-panel" style="display: block;">
+                    <div class="panel-title">Pattern Analysis</div>
+                    <div class="pattern-display" id="patternDisplay">
+                        <div class="pattern-name" id="currentPatternName">Analyzing...</div>
+                        <div class="pattern-visual" id="patternVisual">
+                            <!-- Pattern visualization will be drawn here -->
+                            <canvas id="patternCanvas" width="200" height="100"></canvas>
+                        </div>
+                        <div class="pattern-description" id="patternDescription">
+                            <p class="pattern-info">Pattern detection active. When a pattern is identified, its visual representation and explanation will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="panel-section">
+                <div class="panel-title">Performance Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Total P&L</div>
+                        <div class="stat-value" id="totalPnl">$0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value" id="winRate">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Trades Executed</div>
+                        <div class="stat-value" id="tradesExecuted">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Confidence</div>
+                        <div class="stat-value" id="confidence">0%</div>
+                    </div>
+                </div>
+
+                <!-- Trade Log -->
+                <div class="panel-title">Trade Log</div>
+                <div class="trade-log" id="tradeLog">
+                    <!-- Trade entries will populate here with format:
+                         Trade Type | +/-$Amount (green/red) | Time | Duration -->
+                </div>
+            </div>
+            
+            <!-- Chain of Thought Section -->
+            <div class="panel-section">
+                <div class="panel-title">Chain of Thought</div>
+                <div class="chain-of-thought" id="chainOfThought">
+                    <!-- Real-time display of bot's reasoning process -->
+                    <div class="thought-entry" id="thoughtDisplay">
+                        <p>Awaiting market data...</p>
+                    </div>
+                </div>
+
+                <!-- Neural Ensemble Voting -->
+                <div class="neural-ensemble" style="display: block;">
+                    <div class="panel-title">Neural Ensemble Voting</div>
+                    <div class="ensemble-grid">
+                        <div class="brain-module">
+                            <div class="brain-name">Technical</div>
+                            <div class="brain-vote vote-hold" id="technicalVote">HOLD</div>
+                            <div class="brain-confidence" id="technicalConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Pattern</div>
+                            <div class="brain-vote vote-hold" id="patternVote">HOLD</div>
+                            <div class="brain-confidence" id="patternConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Momentum</div>
+                            <div class="brain-vote vote-hold" id="momentumVote">HOLD</div>
+                            <div class="brain-confidence" id="momentumConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Risk</div>
+                            <div class="brain-vote vote-hold" id="riskVote">HOLD</div>
+                            <div class="brain-confidence" id="riskConf">0%</div>
+                        </div>
+                        <div class="brain-module">
+                            <div class="brain-name">Ensemble</div>
+                            <div class="brain-vote vote-hold" id="ensembleVote">HOLD</div>
+                            <div class="brain-confidence" id="ensembleConf">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contact for upgrade -->
+    <div class="upgrade-prompt" onclick="showUpgradeOptions()" style="display: none;">
+        Contact for ML Version Access
+    </div>
+    
+    <script>
+        // WebSocket connection to quantum_ssl_server.js on port 3010
+        let ws = null;
+        let chart = null;
+        let currentTier = 'ml'; // Start with ML to show all features
+        let priceData = [];
+        let tradeHistory = [];
+        let tradesExecuted = 0;
+        let botStates = {
+            core: { connected: false, pnl: 0, trades: 0, confidence: 0 },
+            ml: { connected: false, pnl: 0, trades: 0, confidence: 0 }
+        };
+
+        // Version configurations
+        const tierConfigs = {
+            core: {
+                title: 'CORE VERSION',
+                indicators: ['RSI', 'MACD', 'Pattern', 'Volume'],
+                features: {
+                    patterns: true,
+                    neural: false,
+                    chainOfThought: false
+                }
+            },
+            ml: {
+                title: 'ML VERSION',
+                indicators: ['RSI', 'MACD', 'Pattern', 'Volume', 'ATR', 'Confidence', 'All Overlays'],
+                features: {
+                    patterns: true,
+                    neural: true,
+                    chainOfThought: true
+                }
+            }
+        };
+
+        // Trade button colors for chart markers
+        const tradeColors = {
+            buy: '#00ff41',
+            sell: '#ff4444',
+            kill: '#ff6600',
+            long: '#1e90ff',
+            short: '#9400d3',
+            hedge: '#ff8c00'
+        };
+        
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Price',
+                        data: [],
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Connect to WebSocket - quantum_ssl_server.js
+        function connectWebSocket() {
+            // Connect to the unified WebSocket server on port 3010
+            ws = new WebSocket('ws://127.0.0.1:3010/ws');
+            
+            ws.onopen = () => {
+                console.log('Connected to OGZPrime WebSocket Server');
+                document.getElementById('connectionStatus').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                
+                // Identify as dashboard
+                ws.send(JSON.stringify({
+                    type: 'identify',
+                    source: 'dashboard',
+                    tier: currentTier,
+                    version: '2.0.0'
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('connectionStatus').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Reconnecting...';
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        // Handle messages from unified-bot.js instances
+        function handleWebSocketMessage(data) {
+            // Handle price updates
+            if (data.type === 'price' && data.data) {
+                updateChart(data.data);
+                updateIndicators(data);
+            }
+
+            // Handle trade messages from bots
+            else if (data.type === 'trade') {
+                const botTier = data.botTier || data.tier || 'ml';
+                // Map old tier names to new system
+                const mappedTier = (botTier === 'quantum' || botTier === 'elite') ? 'ml' :
+                                   (botTier === 'starter' || botTier === 'pro') ? 'core' : botTier;
+
+                // Add to trade log
+                addTradeToLog({
+                    type: data.direction || 'trade',
+                    pnl: data.pnl || 0,
+                    timestamp: data.timestamp || Date.now(),
+                    duration: data.duration || null
+                });
+
+                updateBotStatus(mappedTier, data);
+                updateStats(data);
+            }
+
+            // Handle bot status updates
+            else if (data.type === 'bot_status') {
+                const tier = data.tier || data.botTier || 'ml';
+                const mappedTier = (tier === 'quantum' || tier === 'elite') ? 'ml' :
+                                   (tier === 'starter' || tier === 'pro') ? 'core' : tier;
+                botStates[mappedTier] = { ...botStates[mappedTier], ...data };
+                updateBotStatusIndicators();
+            }
+
+            // Handle bot thinking - update Chain of Thought
+            else if (data.type === 'bot_thinking') {
+                const step = data.step || 'analysis';
+                const message = data.message || '';
+
+                // Build thought object based on step
+                const thought = {
+                    analysis: step === 'advisor' ? message : null,
+                    pattern: step === 'brain' ? message : null,
+                    confidence: data.confidence ? `${data.confidence}%` : null,
+                    decision: step === 'execution' ? message : null
+                };
+                updateChainOfThought(thought);
+            }
+
+            // Handle pattern analysis - update Pattern Display
+            else if (data.type === 'pattern_analysis') {
+                const pattern = data.pattern || {};
+                document.getElementById('currentPatternName').textContent =
+                    pattern.name || pattern.type || 'Analyzing...';
+                document.getElementById('patternDescription').innerHTML =
+                    `<p class="pattern-info">${pattern.description || 'Pattern detected - analyzing characteristics...'}</p>`;
+            }
+
+            // Handle neural ensemble votes
+            else if (data.type === 'neural_vote') {
+                updateNeuralVotes(data);
+            }
+
+            // Handle indicator updates
+            else if (data.type === 'indicators') {
+                updateIndicatorValues(data);
+            }
+
+            // Handle performance updates
+            else if (data.type === 'performance_update') {
+                if (data.data) {
+                    if (data.data.winRate !== undefined) {
+                        document.getElementById('winRate').textContent =
+                            `${data.data.winRate.toFixed(1)}%`;
+                    }
+                    if (data.data.totalPnl !== undefined) {
+                        const pnl = data.data.totalPnl;
+                        document.getElementById('totalPnl').textContent =
+                            `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                        document.getElementById('totalPnl').className =
+                            `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                    }
+                }
+            }
+
+            // Handle trade levels (Fib/S&R)
+            else if (data.type === 'trade_levels') {
+                // Store for chart overlay (future implementation)
+                console.log('Trade levels received:', data.fibLevels, data.srLevels);
+            }
+
+            // CHANGE 2025-12-11: Handle state_update from StateManager
+            // This provides accurate post-trade state (never stale)
+            else if (data.type === 'state_update') {
+                const state = data.state || {};
+                // Update balance/P&L display
+                if (state.totalPnL !== undefined) {
+                    const pnl = state.totalPnL;
+                    document.getElementById('totalPnl').textContent =
+                        `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                    document.getElementById('totalPnl').className =
+                        `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                }
+                if (state.tradeCount !== undefined) {
+                    document.getElementById('totalTrades').textContent = state.tradeCount;
+                }
+                // Update win rate if available
+                if (state.winningTrades !== undefined && state.tradeCount > 0) {
+                    const winRate = (state.winningTrades / state.tradeCount) * 100;
+                    document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+                }
+            }
+        }
+        
+        // Switch tier
+        function switchTier(tier) {
+            currentTier = tier;
+            const chartSection = document.getElementById('unifiedChart');
+
+            // Remove all tier classes
+            chartSection.classList.remove('tier-core', 'tier-ml');
+            // Add new tier class
+            chartSection.classList.add(`tier-${tier}`);
+
+            // Update title
+            document.getElementById('chartTitle').textContent = tierConfigs[tier].title;
+
+            // Update bot status indicators
+            updateBotStatusIndicators();
+
+            // Send tier change to WebSocket
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'tier_change',
+                    tier: tier
+                }));
+            }
+
+            // Update UI based on tier features
+            updateTierFeatures(tier);
+        }
+        
+        // Update bot status indicators
+        function updateBotStatusIndicators() {
+            ['core', 'ml'].forEach(tier => {
+                const indicator = document.getElementById(`${tier}Status`);
+                if (indicator) {
+                    if (botStates[tier].connected) {
+                        indicator.classList.add('active');
+                    } else {
+                        indicator.classList.remove('active');
+                    }
+                }
+            });
+        }
+        
+        // Update tier-specific features
+        function updateTierFeatures(tier) {
+            const config = tierConfigs[tier];
+
+            // Show/hide neural ensemble based on tier
+            const neuralEnsemble = document.querySelector('.neural-ensemble');
+            if (neuralEnsemble) {
+                neuralEnsemble.style.display = config.features.neural ? 'block' : 'none';
+            }
+
+            // Show/hide chain of thought based on tier
+            const chainOfThought = document.querySelector('.chain-of-thought');
+            if (chainOfThought) {
+                chainOfThought.style.display = config.features.chainOfThought ? 'block' : 'none';
+            }
+
+            // Show/hide appropriate indicator panels
+            const coreIndicators = document.querySelector('.core-indicators');
+            const mlIndicators = document.querySelector('.ml-indicators');
+            if (coreIndicators && mlIndicators) {
+                if (tier === 'core') {
+                    coreIndicators.style.display = 'block';
+                    mlIndicators.style.display = 'none';
+                } else {
+                    coreIndicators.style.display = 'none';
+                    mlIndicators.style.display = 'block';
+                }
+            }
+        }
+        
+        // Update chart with new price data
+        function updateChart(data) {
+            if (!chart) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const price = data.price || data.close || 0;
+            
+            chart.data.labels.push(timestamp);
+            chart.data.datasets[0].data.push(price);
+            
+            // Keep only last 50 points
+            if (chart.data.labels.length > 50) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update();
+        }
+        
+        // Update indicator values
+        function updateIndicatorValues(data) {
+            const indicators = data.indicators || data;
+            
+            // Update common indicators
+            if (indicators.rsi !== undefined) {
+                document.querySelectorAll('#rsi').forEach(el => {
+                    el.textContent = indicators.rsi.toFixed(1);
+                });
+            }
+            
+            if (indicators.macd !== undefined) {
+                document.querySelectorAll('#macd').forEach(el => {
+                    el.textContent = indicators.macd.toFixed(2);
+                });
+            }
+            
+            // Update tier-specific indicators
+            if (indicators.bbWidth !== undefined) {
+                const el = document.getElementById('bbWidth');
+                if (el) el.textContent = indicators.bbWidth.toFixed(2);
+            }
+            
+            if (indicators.pattern) {
+                const el = document.getElementById('pattern');
+                if (el) el.textContent = indicators.pattern;
+                
+                const patternEl = document.getElementById('currentPatternName');
+                if (patternEl) {
+                    patternEl.textContent = `Pattern Detected: ${indicators.pattern}`;
+                }
+            }
+            
+            // ML-specific indicators
+            if (currentTier === 'ml') {
+                if (indicators.atr !== undefined) {
+                    const el = document.getElementById('atrML');
+                    if (el) el.textContent = indicators.atr.toFixed(2);
+                }
+
+                if (indicators.confidence !== undefined) {
+                    const el = document.getElementById('confidenceML');
+                    if (el) el.textContent = `${indicators.confidence}%`;
+                }
+            }
+        }
+        
+        // Update indicators based on tier
+        function updateIndicators(data) {
+            if (data.indicators) {
+                updateIndicatorValues(data.indicators);
+            }
+        }
+        
+        // Update neural votes
+        function updateNeuralVotes(data) {
+            const votes = data.votes || {};
+            Object.keys(votes).forEach(brain => {
+                const element = document.getElementById(`${brain}Vote`);
+                if (element) {
+                    element.textContent = votes[brain].decision || votes[brain];
+                    const decision = (votes[brain].decision || votes[brain]).toLowerCase();
+                    element.className = `brain-vote vote-${decision}`;
+                }
+            });
+        }
+        
+        // Log trading decision from any bot tier
+        // Legacy function - kept for compatibility but not used
+        function logDecision(data, botTier) {
+            // Now handled by addTradeToLog()
+            const tierColors = {
+                core: '#00ccff',
+                ml: '#ffd700'
+            };
+            console.log(`Decision logged: ${botTier} - ${data.action || data.direction}`);
+        }
+        
+        // Update bot status
+        function updateBotStatus(tier, data) {
+            if (tier && botStates[tier]) {
+                botStates[tier].connected = true;
+                if (data.pnl !== undefined) {
+                    botStates[tier].pnl += data.pnl;
+                }
+                if (data.confidence !== undefined) {
+                    botStates[tier].confidence = data.confidence;
+                }
+                botStates[tier].trades++;
+                
+                updateBotStatusIndicators();
+            }
+        }
+        
+        // Update aggregated stats
+        function updateStats(data) {
+            // Calculate total P&L
+            let totalPnl = 0;
+            let avgConfidence = 0;
+            let activeCount = 0;
+
+            Object.keys(botStates).forEach(tier => {
+                if (botStates[tier].connected) {
+                    totalPnl += botStates[tier].pnl || 0;
+                    avgConfidence += botStates[tier].confidence || 0;
+                    activeCount++;
+                }
+            });
+
+            if (activeCount > 0) {
+                avgConfidence = avgConfidence / activeCount;
+            }
+
+            // Update display
+            document.getElementById('totalPnl').textContent =
+                `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+            document.getElementById('totalPnl').className =
+                `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+
+            if (data.winRate !== undefined) {
+                document.getElementById('winRate').textContent =
+                    `${data.winRate.toFixed(1)}%`;
+            }
+
+            document.getElementById('confidence').textContent =
+                `${avgConfidence.toFixed(1)}%`;
+
+            // Update trades executed
+            document.getElementById('tradesExecuted').textContent = tradesExecuted;
+        }
+
+        // Add trade to log
+        function addTradeToLog(trade) {
+            const tradeLog = document.getElementById('tradeLog');
+            const entry = document.createElement('div');
+            entry.className = 'trade-log-entry';
+
+            const isProfit = trade.pnl >= 0;
+            const color = tradeColors[trade.type] || '#ffffff';
+
+            entry.innerHTML = `
+                <span class="trade-type" style="color: ${color}">${trade.type.toUpperCase()}</span>
+                <span class="${isProfit ? 'positive' : 'negative'}">
+                    ${isProfit ? '+' : ''}$${Math.abs(trade.pnl).toFixed(2)}
+                </span>
+                <span class="trade-time">${new Date(trade.timestamp).toLocaleTimeString()}</span>
+                <span class="trade-duration">${trade.duration || 'N/A'}</span>
+            `;
+
+            tradeLog.insertBefore(entry, tradeLog.firstChild);
+
+            // Keep only last 20 entries
+            while (tradeLog.children.length > 20) {
+                tradeLog.removeChild(tradeLog.lastChild);
+            }
+
+            tradesExecuted++;
+            document.getElementById('tradesExecuted').textContent = tradesExecuted;
+        }
+
+        // Update chain of thought display
+        function updateChainOfThought(thought) {
+            const display = document.getElementById('thoughtDisplay');
+            if (display && thought) {
+                display.innerHTML = `
+                    <p class="thought-step"><strong>Analysis:</strong> ${thought.analysis || 'Processing...'}</p>
+                    <p class="thought-step"><strong>Pattern:</strong> ${thought.pattern || 'Scanning...'}</p>
+                    <p class="thought-step"><strong>Confidence:</strong> ${thought.confidence || '0'}%</p>
+                    <p class="thought-step"><strong>Decision:</strong> ${thought.decision || 'Evaluating...'}</p>
+                `;
+            }
+        }
+        
+        // Execute trade
+        function executeTrade(action) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Send to the appropriate bot based on current tier view
+                ws.send(JSON.stringify({
+                    type: `manual_${action}`,
+                    tier: currentTier,
+                    timestamp: Date.now()
+                }));
+            }
+        }
+
+        // Change chart type (line, candlestick, bar)
+        function changeChartType(type) {
+            if (!chart) return;
+
+            // Update chart type
+            if (type === 'candlestick') {
+                // Candlestick requires different data format - placeholder for now
+                console.log('Candlestick chart type selected - requires OHLC data');
+                chart.config.type = 'bar'; // Fallback to bar for now
+            } else {
+                chart.config.type = type;
+            }
+
+            chart.update();
+
+            // Notify bot of chart type change
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'chart_type_change',
+                    chartType: type,
+                    timestamp: Date.now()
+                }));
+            }
+        }
+
+        // Change trading asset
+        function changeAsset(asset) {
+            console.log(`Asset changed to: ${asset}`);
+
+            // Clear existing chart data
+            if (chart) {
+                chart.data.labels = [];
+                chart.data.datasets[0].data = [];
+                chart.update();
+            }
+
+            // Notify bot of asset change
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'asset_change',
+                    asset: asset,
+                    timestamp: Date.now()
+                }));
+            }
+        }
+
+        // Update indicator overlays on chart
+        function updateIndicatorOverlays() {
+            const selector = document.getElementById('indicatorSelector');
+            const selectedOptions = Array.from(selector.selectedOptions).map(opt => opt.value);
+
+            console.log('Selected indicators:', selectedOptions);
+
+            // Notify bot of indicator selection
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'indicator_selection',
+                    indicators: selectedOptions,
+                    timestamp: Date.now()
+                }));
+            }
+
+            // Future: Add/remove datasets from chart based on selection
+            // Each indicator would have its own dataset with specific color
+        }
+
+        // Show upgrade options
+        function showUpgradeOptions() {
+            alert('Contact sales@ogzprime.com for ML Version access and advanced features!');
+        }
+        
+        // Initialize on load
+        window.onload = () => {
+            initChart();
+            connectWebSocket();
+            // Start with ML version to showcase all features
+            switchTier('ml');
+
+            // Simulate initial bot connections after 2 seconds
+            setTimeout(() => {
+                ['core', 'ml'].forEach(tier => {
+                    botStates[tier].connected = true;
+                });
+                updateBotStatusIndicators();
+            }, 2000);
+        };
+    </script>
+</body>
+</html>

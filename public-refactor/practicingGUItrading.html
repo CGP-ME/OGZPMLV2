@@ -1,0 +1,238 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Tutorial for Beginners</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    #chart-container {
+      width: 80%;
+      margin: 20px auto;
+    }
+    #controls {
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 0 10px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    #log {
+      width: 50%;
+      margin: 20px auto;
+      text-align: left;
+    }
+    #trade-list {
+      list-style-type: none;
+      padding: 0;
+    }
+    #feedback {
+      font-size: 18px;
+      margin: 20px 0;
+    }
+    #current-price {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 20px 0;
+      color: #00cc00;
+    }
+  </style>
+</head>
+<body>
+  <h1>Trading Tutorial for Beginners</h1>
+  <p>Practice trading with fake money! Buy low, sell high, and watch your profits.</p>
+  
+  <div id="current-price">Current Price: $100.00</div>
+  
+  <div id="chart-container">
+    <canvas id="price-chart"></canvas>
+  </div>
+  
+  <div id="controls">
+    <button id="buy-btn">Buy</button>
+    <button id="sell-btn" disabled>Sell</button>
+    <button id="reset-btn">Reset</button>
+  </div>
+  
+  <div id="log">
+    <h3>Trade Log</h3>
+    <ul id="trade-list"></ul>
+  </div>
+  
+  <div id="feedback"></div>
+
+  <script>
+    const ctx = document.getElementById('price-chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Price',
+          data: [],
+          borderColor: 'blue',
+          fill: false
+        }]
+      },
+      options: {
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: false }
+        },
+        plugins: {
+          tooltip: {
+            enabled: true,
+            mode: 'nearest',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                return `Price: $${context.parsed.y.toFixed(2)}`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    let price = 100;
+    let time = 0;
+    let buyPrice = null;
+    let trades = [];
+    const currentPriceEl = document.getElementById('current-price');
+
+    const updateInterval = setInterval(() => {
+      time++;
+      price += (Math.random() - 0.5) * 2;
+      chart.data.labels.push(time);
+      chart.data.datasets[0].data.push(price);
+      chart.update();
+      currentPriceEl.textContent = `Current Price: $${price.toFixed(2)}`;
+    }, 500);
+
+    document.getElementById('buy-btn').addEventListener('click', () => {
+      if (buyPrice === null) {
+        buyPrice = price;
+        document.getElementById('sell-btn').disabled = false;
+        document.getElementById('buy-btn').disabled = true;
+        addLog(`Bought at $${buyPrice.toFixed(2)}`);
+        showFeedback('You bought! Now wait for the price to go up and click Sell.');
+      }
+    });
+
+    document.getElementById('sell-btn').addEventListener('click', () => {
+      if (buyPrice !== null) {
+        const sellPrice = price;
+        const profit = sellPrice - buyPrice;
+        trades.push({ buy: buyPrice, sell: sellPrice, profit });
+        addLog(`Sold at $${sellPrice.toFixed(2)}, Profit: $${profit.toFixed(2)}`);
+        buyPrice = null;
+        document.getElementById('sell-btn').disabled = true;
+        document.getElementById('buy-btn').disabled = false;
+        showFeedback(profit > 0 ? 
+          `Nice job! You made $${profit.toFixed(2)} profit.` : 
+          `Oops! You lost $${Math.abs(profit).toFixed(2)}. Try to buy low and sell high.`);
+        if (profit > 0) confetti();
+        if (trades.length >= 3) showSummary();
+      }
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      clearInterval(updateInterval);
+      chart.data.labels = [];
+      chart.data.datasets[0].data = [];
+      chart.update();
+      document.getElementById('trade-list').innerHTML = '';
+      document.getElementById('feedback').innerHTML = '';
+      buyPrice = null;
+      trades = [];
+      price = 100;
+      time = 0;
+      startSimulation();
+    });
+
+    function startSimulation() {
+      setInterval(() => {
+        time++;
+        price += (Math.random() - 0.5) * 2;
+        chart.data.labels.push(time);
+        chart.data.datasets[0].data.push(price);
+        chart.update();
+        currentPriceEl.textContent = `Current Price: $${price.toFixed(2)}`;
+      }, 500);
+    }
+
+    function addLog(message) {
+      const li = document.createElement('li');
+      li.textContent = message;
+      document.getElementById('trade-list').appendChild(li);
+    }
+
+    function showFeedback(message) {
+      document.getElementById('feedback').textContent = message;
+    }
+
+    function showSummary() {
+      const totalProfit = trades.reduce((sum, trade) => sum + trade.profit, 0);
+      const winRate = trades.filter(trade => trade.profit > 0).length / trades.length * 100;
+      alert(`Tutorial Complete!\nTotal Profit: $${totalProfit.toFixed(2)}\nWin Rate: ${winRate.toFixed(2)}%\n\nThis was a simplified simulation to teach you the basics. Real trading involves more factors and risks, but you’ve gone through the authentic process—just like trading with real money!`);
+    }
+  </script>
+</body>
+</html>

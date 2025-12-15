@@ -205,6 +205,10 @@ class PatternMemorySystem {
     }
     this.patternCount = 0;
     this.lastSaveTime = Date.now();
+    
+    // CHANGE 2025-12-12: Save queue for atomic writes
+    this.saving = false;
+    this.saveQueue = [];
 
     // Create data directory if it doesn't exist
     const dataDir = path.dirname(this.options.memoryFile);
@@ -292,8 +296,14 @@ class PatternMemorySystem {
   /**
    * Save pattern memory to disk
    */
-  saveToDisk() {
+  async saveToDisk() {
     if (!this.options.persistToDisk) return;
+
+    // CHANGE 2025-12-12: Prevent concurrent writes with save queue
+    if (this.saving) {
+      return new Promise(resolve => this.saveQueue.push(resolve));
+    }
+    this.saving = true;
 
     try {
       const data = JSON.stringify({
@@ -302,12 +312,27 @@ class PatternMemorySystem {
         timestamp: new Date().toISOString()
       });
 
-      fs.writeFileSync(this.options.memoryFile, data, 'utf8');
+      // CHANGE 2025-12-12: Use atomic file write (tmp + rename)
+      const tmpFile = this.options.memoryFile + '.tmp';
+      await fs.promises.writeFile(tmpFile, data, 'utf8');
+      await fs.promises.rename(tmpFile, this.options.memoryFile);
+      
       this.lastSaveTime = Date.now();
-
       console.log(`Saved ${this.patternCount} patterns to memory file`);
     } catch (err) {
       console.error('Error saving pattern memory:', err);
+    } finally {
+      this.saving = false;
+      // CHANGE 2025-12-12: Process queued saves
+      const hadQueue = this.saveQueue.length > 0;
+      const queue = [...this.saveQueue];
+      this.saveQueue = [];
+      queue.forEach(resolve => resolve());
+      
+      // If there were queued saves, execute one more save to get all pending changes
+      if (hadQueue) {
+        setImmediate(() => this.saveToDisk());
+      }
     }
   }
 

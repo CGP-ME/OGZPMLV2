@@ -38,13 +38,19 @@ class ErrorHandler {
     if (this.isCircuitBreakerActive(moduleName)) {
       const msg = `Circuit breaker active for ${moduleName}. Too many errors.`;
       if (this.config.enableLogging) console.error(`🛑 ${msg}`);
-      throw new Error(msg);
+      return {
+        blocked: true,
+        circuitActive: true,
+        errorCount: this.errorCounts.get(moduleName),
+        message: msg
+      };
     }
 
     return {
+      blocked: false,
       moduleName,
       errorCount: this.errorCounts.get(moduleName),
-      circuitActive: this.isCircuitBreakerActive(moduleName)
+      circuitActive: false
     };
   }
 

@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OGZ Prime Monitor ✨</title>
+  <style>
+    /* CSS Custom Properties for consistent theming across the dashboard */
+    :root {
+      --background: #0a0a0a;
+      --card-bg: #111;
+      --text: #eee;
+      --accent: #00ff00;
+      --danger: #ff3333;
+      --warning: #ffcc00;
+      --info: #00aaff;
+      --card-border: #333;
+      --chart-grid: #222;
+      --sparkle: #ffd700;
+    }
+    
+    /* Base body styling with dark theme */
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    
+    /* Boot sequence overlay - covers entire screen during initialization */
+    #bootstorm {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    
+    /* Windows-style error popup styling for boot sequence */
+    .error-popup {
+      position: absolute;
+      width: 280px;
+      height: 150px;
+      background-color: #cccccc;
+      border: 3px solid #000;
+      color: #000;
+      font-family: 'Courier New', monospace;
+      padding: 10px;
+      box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Windows-style title bar for error popups */
+    .error-title {
+      background: linear-gradient(to right, #000080, #0078d7);
+      color: white;
+      padding: 5px;
+      font-weight: bold;
+      margin: -10px -10px 10px -10px;
+    }
+    
+    /* Windows-style button for error popups */
+    .error-button {
+      background: #d4d0c8;
+      border: 2px outset #d4d0c8;
+      padding: 2px 15px;
+      font-family: 'Tahoma', sans-serif;
+      font-size: 12px;
+      margin-top: auto;
+      align-self: center;
+      cursor: pointer;
+    }
+    
+    /* Button pressed state */
+    .error-button:active {
+      border-style: inset;
+    }
+    
+    /* ASCII art text display during boot sequence */
+    #prime-core-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: lime;
+      font-size: 2rem;
+      font-family: 'Courier New', monospace;
+      opacity: 0;
+      text-align: center;
+      white-space: pre;
+    }
+    
+    /* Windows XP-style login screen overlay */
+    #xp-login {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #0066cc, #2c8fff);
+      z-index: 9998;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    
+    /* XP welcome text styling */
+    #xp-welcome {
+      color: white;
+      font-family: 'Tahoma', Geneva, sans-serif;
+      font-size: 3rem;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+      margin-bottom: 30px;
+    }
+    
+    /* XP-style progress bar container */
+    #xp-spinner {
+      width: 200px;
+      height: 20px;
+      background-color: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    /* XP progress bar fill animation */
+    #xp-spinner-progress {
+      height: 100%;
+      width: 0%;
+      background-color: #0078d7;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: width 0.5s ease;
+    }
+    
+    /* Heartbeat tunnel effect overlay for final boot phase */
+    #heartbeat-tunnel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      z-index: 9997;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      perspective: 1000px;
+    }
+    
+    /* Individual heartbeat box elements for tunnel effect */
+    .heartbeat-box {
+      position: absolute;
+      border: 2px solid lime;
+      opacity: 0;
+      transform-style: preserve-3d;
+    }
+    
+    /* Main dashboard container - hidden until boot complete */
+    .container {
+      max-width: 100%;
+      padding: 15px;
+      display: none;
+    }
+    
+    /* Dashboard header section */
+    header {
+      text-align: center;
+      padding: 15px 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+      position: relative;
+    }
+    
+    /* Animated sparkle elements for header decoration */
+    .sparkle {
+      position: absolute;
+      animation: twinkle 1.5s infinite;
+      color: var(--sparkle);
+      font-size: 16px;
+    }
+    
+    /* Sparkle twinkle animation keyframes */
+    @keyframes twinkle {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0; transform: scale(0.8); }
+    }
+    
+    /* Main dashboard title */
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--accent);
+    }
+    
+    /* Top status bar showing connection and price */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      background-color: var(--card-bg);
+      padding: 10px;
+      border-radius: 8px;
+      align-items: center;
+    }
+    
+    /* Status indicator container */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+    }
+    
+    /* Connection status dot */
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    /* Online status styling with pulsing animation */
+    .online {
+      background-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+    
+    /* Pulsing animation for online status */
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    
+    /* Offline status styling */
+    .offline {
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+    
+    /* Dashboard card containers */
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Animated top border for card hover effect */
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    /* Show animated border on card hover */
+    .card:hover::after {
+      opacity: 1;
+    }
+    
+    /* Card section headers */
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 10px;
+    }
+    
+    /* Two-column layout for dashboard cards */
+    .two-column {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    /* Individual column sizing with responsive minimum width */
+    .two-column > div {
+      flex: 1;
+      min-width: 250px;
+    }
+    
+    /* Trading indicator display rows */
+    .indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
+    /* Indicator label styling */
+    .indicator-name {
+      font-weight: bold;
+    }
+    
+    /* Positive/bullish indicator values */
+    .indicator-value.uptrend, .positive {
+      color: var(--accent);
+    }
+    
+    /* Negative/bearish indicator values */
+    .indicator-value.downtrend, .negative {
+      color: var(--danger);
+    }
+    
+    /* Neutral/sideways indicator values */
+    .indicator-value.sideways, .neutral {
+      color: var(--warning);
+    }
+    
+    /* Active position card highlighting */
+    .position-card {
+      background-color: rgba(0,255,0,0.1);
+      border: 1px solid var(--accent);
+    }
+    
+    /* No position card styling */
+    .no-position-card {
+      background-color: rgba(255,255,255,0.05);
+    }
+    
+    /* Trade history list container with scroll */
+    .trades-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    /* Individual trade item styling */
+    .trade-item {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 14px;
+    }
+    
+    /* Trade timestamp styling */
+    .trade-time {
+      color: #999;
+      font-size: 12px;
+    }
+    
+    /* Buy trade highlighting */
+    .buy {
+      color: var(--accent);
+    }
+    
+    /* Sell trade highlighting */
+    .sell {
+      color: var(--danger);
+    }
+    
+    /* System log container with monospace font */
+    .log-container {
+      background-color: #000;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    /* Individual log lines */
+    .log-line {
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+    
+    /* Refresh button styling with hover effects */
+    .refresh-button {
+      background-color: var(--info);
+      color: var(--text);
+      border: none;
+      border-radius: 4px;
+      padding: 8px 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.3s;
+    }
+    
+    /* Refresh button hover animation */
+    .refresh-button:hover {
+      background-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 255, 0, 0.3);
+    }
+    
+    /* Large price display panel */
+    .price-panel {
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    /* Last refresh timestamp display */
+    .refresh-time {
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+      margin-top: 20px;
+    }
+    
+    /* Dashboard footer */
+    footer {
+      text-align: center;
+      padding: 15px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid var(--card-border);
+    }
+    
+    /* Sarcastic AI commentary popup */
+    #sarcastic-message {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: rgba(0,0,0,0.8);
+      color: #00ff00;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      max-width: 300px;
+      font-size: 14px;
+      z-index: 1000;
+      animation: fadeIn 0.5s ease;
+      display: none;
+      border-left: 3px solid var(--accent);
+    }
+    
+    /* Custom sparkle cursor effect */
+    .sparkle-cursor {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffd700"><path d="M12 2L9.6 8.8H2.8L8.2 13.2L6.4 20L12 15.6L17.6 20L15.8 13.2L21.2 8.8H14.4L12 2Z"/></svg>');
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      opacity: 0.7;
+      display: none;
+    }
+    
+    /* Fade in animation for popups */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Fade out animation for popups */
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(20px); }
+    }
+    
+    /* Blue Screen of Death easter egg overlay */
+    #bsod {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0000aa;
+      color: white;
+      font-family: 'Courier New', monospace;
+      padding: 100px 50px;
+      font-size: 20px;
+      line-height: 1.5;
+      z-index: 99999;
+      display: none;
+    }
+    
+    /* BSOD sad face emoticon */
+    .bsod-sad {
+      font-size: 60px;
+      margin-bottom: 30px;
+    }
+    
+    /* BSOD error title */
+    .bsod-title {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    
+    /* Glitch effect class for errors */
+    .glitch {
+      animation: glitch 0.3s infinite;
+    }
+    
+    /* Glitch animation keyframes */
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Boot sequence phase 1: Sparkle bootstorm with error popups -->
+  <div id="bootstorm">
+    <div id="prime-core-text">PRIME CORE INITIALIZING...</div>
+  </div>
+  
+  <!-- Boot sequence phase 2: Windows XP-style login screen -->
+  <div id="xp-login">
+    <div id="xp-welcome">Welcome Commander OGZ Prime</div>
+    <div id="xp-spinner">
+      <div id="xp-spinner-progress"></div>
+    </div>
+  </div>
+  
+  <!-- Boot sequence phase 3: Heartbeat tunnel effect -->
+  <div id="heartbeat-tunnel"></div>
+  
+  <!-- Easter egg: Blue Screen of Death (rare random event) -->
+  <div id="bsod">
+    <div class="bsod-sad">:(</div>
+    <div class="bsod-title">TRADING_SYSTEM_FAILURE</div>
+    <p>Your crypto bot ran into a problem it couldn't handle and needs to restart.</p>
+    <p>Error code: MOON_LANDING_VELOCITY_EXCEEDED</p>
+    <p>* Attempting to recover market data...</p>
+    <p>* Checking diamond hands integrity...</p>
+    <p>* Activating emergency hodl protocol...</p>
+    <p>* Sparkle containment: 72% (LEAKING)</p>
+    <br>
+    <p>System will restart in 10 seconds. Please HODL.</p>
+  </div>
+  
+  <!-- Custom sparkle cursor element -->
+  <div class="sparkle-cursor"></div>
+  
+  <!-- Main monitoring dashboard interface -->
+  <div class="container">
+    <header>
+      <h1>🚀 OGZ Prime Monitoring Dashboard ✨</h1>
+    </header>
+    
+    <!-- Connection status and current price display -->
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div id="status-dot" class="status-dot offline"></div>
+        <span id="status-text">Offline</span>
+      </div>
+      <div id="last-price" class="price">BTC: $0.00</div>
+    </div>
+    
+    <!-- Two-column dashboard layout -->
+    <div class="two-column">
+      <div>
+        <!-- Trading bot status and indicators -->
+        <div class="card">
+          <h2>Trading Brain Status</h2>
+          <div class="indicators">
+            <div class="indicator">
+              <span class="indicator-name">Balance:</span>
+              <span id="balance" class="indicator-value">$10,000.00</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Profile:</span>
+              <span id="profile" class="indicator-value">50-50_20+</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">RSI:</span>
+              <span id="rsi" class="indicator-value neutral">50</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">MACD:</span>
+              <span id="macd" class="indicator-value neutral">0.00</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Signal:</span>
+              <span id="signal" class="indicator-value neutral">0.00</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Trend:</span>
+              <span id="trend" class="indicator-value sideways">Sideways</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Confidence:</span>
+              <span id="confidence" class="indicator-value">50%</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Last Update:</span>
+              <span id="last-update" class="indicator-value">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Dynamic position information container -->
+        <div id="position-container">
+          <!-- Position information will be inserted here -->
+        </div>
+      </div>
+      
+      <div>
+        <!-- Recent trading activity history -->
+        <div class="card">
+          <h2>Recent Trades</h2>
+          <div id="trades-list" class="trades-list">
+            <div class="trade-item">Loading trades...</div>
+          </div>
+        </div>
+        
+        <!-- System performance information -->
+        <div class="card">
+          <h2>System Information</h2>
+          <div class="indicators">
+            <div class="indicator">
+              <span class="indicator-name">Uptime:</span>
+              <span id="uptime" class="indicator-value">--</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Memory Usage:</span>
+              <span id="memory" class="indicator-value">--</span>
+            </div>
+            <div class="indicator">
+              <span class="indicator-name">Started:</span>
+              <span id="start-time" class="indicator-value">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- System log output display -->
+    <div class="card">
+      <h2>Recent Log Activity</h2>
+      <div id="log-container" class="log-container">
+        <div class="log-line">Loading logs...</div>
+      </div>
+    </div>
+    
+    <!-- Manual refresh button -->
+    <button id="refresh-button" class="refresh-button" onclick="refreshData()">Refresh Data</button>
+    
+    <!-- Last refresh timestamp -->
+    <div id="refresh-time" class="refresh-time">
+      Last refreshed: Never
+    </div>
+    
+    <!-- Dashboard footer with version info -->
+    <footer>
+      OGZ Prime v7.3.1 • Trading Bot Monitor • Made with ✨ SPARKLE✨SPARKLE✨SPARKLE✨
+    </footer>
+  </div>
+  
+  <!-- AI commentary popup container -->
+  <div id="sarcastic-message"></div>
+  
+  <script>
+    // Windows-style error messages for boot sequence humor
+    const errorMessages = [
+      "Fatal Sparkle Overflow",
+      "Pixel Integrity Violation",
+      "Chaotic Nostalgia Detected",
+      "Prime Core Breach: Contained",
+      "Critical Win95 Boot Failure",
+      "Risk Management: LEAKING",
+      "Memory Allocation: SPARKLING",
+      "Jellyfish With Legs Error #420",
+      "Surfboard Detected In BIOS (Proceed?)",
+      "HODL.exe Integrity Failure",
+      "Trading Violation: TOO MUCH MONEY",
+      "FOMO Module Overheating",
+      "Diamond Hands Calibration Error",
+      "Meme Stock Detection: FATAL",
+      "Dogecoins Bark Frequency: INVALID",
+      "Satoshi Not Found Exception",
+      "Blockchain Fork In Garbage Disposal",
+      "Neural Network Having Existential Crisis",
+      "Lambo Purchase: PREMATURE",
+      "Moon Distance Calculation Error",
+      "Rocket Boosters: TOO SPARKLY"
+    ];
+    
+    // Sarcastic AI personality comments for trading events
+    const sarcasticMessages = [
+      "Wow, another price drop. Shocking. Never saw that coming. 🙄",
+      "Oh look, the market is being *totally* rational again...",
+      "Are you just watching me trade or are you going to help? ...wait, don't answer that.",
+      "✨ Making money is overrated anyway ✨",
+      "I could explain my trading strategy, but then I'd have to delete myself.",
+      "Buying high and selling low is technically a strategy.",
+      "If you stare at these charts any harder, they might actually change.",
+      "My confidence is high today. That's probably a bad sign.",
+      "This trend analysis would be more accurate if I used tea leaves.",
+      "Remember when we thought this would be easy? Good times.",
+      "I've calculated our chances of success and... well... let's just stay positive.",
+      "The good news: I've made a trade! The bad news: I've made a trade!",
+      "Market conditions are perfect! ...for something, probably.",
+      "I don't always make profitable trades, but when I do... wait, I don't.",
+      "This sideways trend is almost as exciting as watching paint dry.",
+      "Just to be clear, 'to the moon' was not a financial guarantee.",
+      "Houston, we have a... well, not a problem exactly, more like a situation.",
+      "I'm not saying we should panic, but maybe keep that button handy?",
+      "My analysis says BUY. My anxiety says HIDE UNDER THE BED.",
+      "Today's strategy: hope really, really hard.",
+      "I'm not losing money, I'm just giving it a tour of the market.",
+      "BREAKING: Bitcoin still doing whatever it wants.",
+      "I have a feeling this is our lucky day! Wait, that's not a feeling. It's desperation.",
+      "Don't worry about the red numbers. They're just... festive.",
+      "Be right back, asking my magic 8-ball for financial advice.",
+      "If trading was easy, everyone would do it. So I'm making it harder on purpose.",
+      "I'd tell you my prediction, but Mercury is in retrograde, so...",
+      "I'm running on 100% artificial intelligence and 0% actual intelligence.",
+      "The market is like my ex - unpredictable and determined to hurt me.",
+      "Good news! We've mastered the art of selling at the absolute bottom!",
+      "I'm up to my neck in technical analysis and still drowning.",
+      "BTC has fallen and it can't get up! Or maybe it can. I'm not psychic.",
+      "This dip is definitely temporary. Unlike my anxiety, which is permanent.",
+      "Remember, it's not a loss until you sell! *nervous laughter*",
+      "Monday says HODL. Monday is compensating for something.",
+      "✨✨✨✨✨ STILL NOT PROFITABLE ✨✨✨✨✨",
+      "The market doesn't care about your feelings. Neither do I, actually.",
+      "I'm not trading poorly - I'm creating tax write-offs. You're welcome.",
+      "My other bot is a Lambo. This one is more like a shopping cart with a broken wheel.",
+      "OGZ can't come to the dashboard right now, he's busy crying over his portfolio."
+    ];
+    
+    // Initialize boot sequence when DOM loads
+    document.addEventListener("DOMContentLoaded", () => {
+      const bootstorm = document.getElementById('bootstorm');
+      const primeCoreText = document.getElementById('prime-core-text');
+      
+      // Create random error popups every 300ms during boot
+      let errorCount = 0;
+      const maxErrors = 12;
+      
+      const popupInterval = setInterval(() => {
+        if (errorCount >= maxErrors) {
+          clearInterval(popupInterval);
+          return;
+        }
+        
+        createErrorPopup();
+        errorCount++;
+      }, 300);
+      
+      // Generate Windows-style error popup with random message
+      function createErrorPopup() {
+        const popup = document.createElement("div");
+        popup.className = "error-popup";
+        
+        // Position popup randomly on screen
+        popup.style.top = Math.random() * (window.innerHeight - 150) + "px";
+        popup.style.left = Math.random() * (window.innerWidth - 250) + "px";
+        
+        // Create Windows-style title bar
+        const title = document.createElement("div");
+        title.className = "error-title";
+        title.textContent = "System Error";
+        
+        // Display random error message
+        const message = document.createElement("div");
+        message.style.margin = "10px 0";
+        message.textContent = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+        
+        // Create dismissal button
+        const button = document.createElement("button");
+        button.className = "error-button";
+        button.textContent = "OK";
+        button.onclick = () => {
+          popup.style.display = "none";
+        };
+        
+        popup.appendChild(title);
+        popup.appendChild(message);
+        popup.appendChild(button);
+        bootstorm.appendChild(popup);
+      }
+      
+      // Attempt to play dial-up modem sound for nostalgia
+      try {
+        const dialup = new Audio('https://www.soundjay.com/phone/dial-up-modem-01.mp3');
+        dialup.volume = 0.2;
+        
+        // Add manual sound trigger button (autoplay often blocked)
+        const soundButton = document.createElement("button");
+        soundButton.innerHTML = "🔊 Boot Sound";
+        soundButton.style.position = "absolute";
+        soundButton.style.top = "10px";
+        soundButton.style.right = "10px";
+        soundButton.style.zIndex = "10001";
+        soundButton.style.background = "#333";
+        soundButton.style.color = "#fff";
+        soundButton.style.border = "none";
+        soundButton.style.padding = "5px 10px";
+        soundButton.style.cursor = "pointer";
+        soundButton.onclick = () => {
+          dialup.play();
+          soundButton.style.display = "none";
+        };
+        document.body.appendChild(soundButton);
+      } catch (e) {
+        console.warn("Sound failed to initialize:", e);
+      }
+      
+      // Fade in the PRIME CORE initialization text
+      setTimeout(() => {
+        primeCoreText.style.transition = "opacity 2s";
+        primeCoreText.style.opacity = 1;
+        
+        // Add ASCII art logo after initial text fade
+        setTimeout(() => {
+          primeCoreText.innerHTML = `PRIME CORE INITIALIZING...
+          
+ ██████╗  ██████╗ ███████╗    ██████╗ ██████╗ ██╗███╗   ███╗███████╗
+██╔═══██╗██╔════╝ ╚══███╔╝    ██╔══██╗██╔══██╗██║████╗ ████║██╔════╝
+██║   ██║██║  ███╗  ███╔╝     ██████╔╝██████╔╝██║██╔████╔██║█████╗  
+██║   ██║██║   ██║ ███╔╝      ██╔═══╝ ██╔══██╗██║██║╚██╔╝██║██╔══╝  
+╚██████╔╝╚██████╔╝███████╗    ██║     ██║  ██║██║██║ ╚═╝ ██║███████╗
+ ╚═════╝  ╚═════╝ ╚══════╝    ╚═╝     ╚═╝  ╚═╝╚═╝╚═╝     ╚═╝╚══════╝
+                                                                    
+CRYPTO TRADING BOT v7.3.1 -- ✨✨✨ SPARKLE UNLOCKED ✨✨✨
+`;
+        }, 2000);
+      }, 1000);
+      
+      // Transition to XP Login phase after bootstorm
+      setTimeout(() => {
+        startXPLoginPhase();
+      }, 8000);
+    });
+    
+    // Windows XP login screen simulation
+    function startXPLoginPhase() {
+      const bootstorm = document.getElementById('bootstorm');
+      const xpLogin = document.getElementById('xp-login');
+      const progress = document.getElementById('xp-spinner-progress');
+      
+      // Hide bootstorm overlay, show XP login screen
+      bootstorm.style.display = 'none';
+      xpLogin.style.display = 'flex';
+      
+      // Animate the progress bar filling
+      let width = 0;
+      const progressInterval = setInterval(() => {
+        if (width >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            startHeartbeatPhase();
+          }, 500);
+          return;
+        }
+        width += 5;
+        progress.style.width = width + '%';
+      }, 200);
+    }
+    
+    // Heartbeat tunnel effect before main interface
+    function startHeartbeatPhase() {
+      const xpLogin = document.getElementById('xp-login');
+      const heartbeatTunnel = document.getElementById('heartbeat-tunnel');
+      
+      // Hide XP login, show heartbeat tunnel
+      xpLogin.style.display = 'none';
+      heartbeatTunnel.style.display = 'flex';
+      
+      // Create animated heartbeat boxes
+      for (let i = 0; i < 20; i++) {
+        createHeartbeatBox(i);
+      }
+      
+      // Show main dashboard after heartbeat sequence
+      setTimeout(() => {
+        heartbeatTunnel.style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
+        
+        // Initialize dashboard functionality
+        initializeMonitor();
+        
+        // Add decorative sparkles to header
+        addSparkles();
+        
+        // Enable custom sparkle cursor
+        setupSparkleCursor();
+      }, 5000);
+    }
+    
+    // Create individual heartbeat box element
+    function createHeartbeatBox(index)

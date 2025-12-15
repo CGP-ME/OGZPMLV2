@@ -52,6 +52,17 @@ class StateManager {
     // Lock for atomic operations
     this.locked = false;
     this.lockQueue = [];
+
+    // FIX: Bind methods to preserve 'this' context
+    this.get = this.get.bind(this);
+    this.set = this.set.bind(this);
+    this.updateActiveTrade = this.updateActiveTrade.bind(this);
+    this.removeActiveTrade = this.removeActiveTrade.bind(this);
+    this.openPosition = this.openPosition.bind(this);
+    this.closePosition = this.closePosition.bind(this);
+
+    // CHANGE 2025-12-13: Load saved state on initialization
+    this.load();
   }
 
   /**
@@ -66,6 +77,14 @@ class StateManager {
    */
   get(key) {
     return this.state[key];
+  }
+
+  /**
+   * Set specific state value (for internal use)
+   */
+  set(key, value) {
+    this.state[key] = value;
+    return value;
   }
 
   /**
@@ -86,7 +105,26 @@ class StateManager {
 
       // Apply updates atomically
       for (const [key, value] of Object.entries(updates)) {
-        this.state[key] = value;
+        // DEBUG: Log balance changes
+        if (key === 'balance') {
+          console.log(`💰 [StateManager] Balance update: ${this.state[key]} → ${value}`);
+        }
+
+        // CRITICAL FIX: Protect activeTrades Map from being overwritten
+        if (key === 'activeTrades') {
+          // If it's an array, convert to Map
+          if (Array.isArray(value)) {
+            this.state.activeTrades = new Map(value);
+            console.log(`🔧 [StateManager] Converted activeTrades array to Map with ${value.length} entries`);
+          } else if (value instanceof Map) {
+            this.state.activeTrades = value;
+          } else {
+            console.warn(`⚠️ [StateManager] Ignoring invalid activeTrades update (not Array or Map):`, value);
+            continue; // Skip this update
+          }
+        } else {
+          this.state[key] = value;
+        }
       }
 
       this.state.lastUpdate = timestamp;
@@ -101,6 +139,9 @@ class StateManager {
 
       // Notify listeners
       this.notifyListeners(updates, context);
+
+      // CHANGE 2025-12-13: Save state to disk after updates
+      this.save();
 
       return { success: true, state: this.getState() };
 
@@ -121,6 +162,35 @@ class StateManager {
     if (this.state.position > 0) {
       console.warn('[StateManager] Already in position, adding to it');
     }
+
+    // DEBUG: Log what we're doing
+    console.log(`📊 [StateManager] Opening position:`);
+    console.log(`   Size: ${size}`);
+    console.log(`   Price: ${price}`);
+    console.log(`   Current Balance: ${this.state.balance}`);
+    console.log(`   New Balance: ${this.state.balance - size}`);
+
+    // CRITICAL FIX: Add trade to activeTrades Map
+    const tradeId = context.orderId || `TRADE_${Date.now()}`;
+    const trade = {
+      id: tradeId,
+      action: 'BUY',  // FIX: Changed from 'type' to 'action' to match run-empire filter
+      type: 'BUY',    // Keep both for compatibility
+      size: size,
+      price: price,
+      entryPrice: price,  // Add entryPrice field that run-empire expects
+      entryTime: Date.now(),  // Add entryTime field
+      timestamp: Date.now(),
+      status: 'open',
+      ...context
+    };
+
+    // Add to activeTrades Map
+    if (!this.state.activeTrades) {
+      this.state.activeTrades = new Map();
+    }
+    this.state.activeTrades.set(tradeId, trade);
+    console.log(`✅ [StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
 
     const updates = {
       position: this.state.position + size,
@@ -149,8 +219,23 @@ class StateManager {
     }
 
     const closeSize = size || this.state.position;
-    const pnl = (price - this.state.entryPrice) * closeSize;
-    const pnlPercent = (pnl / closeSize) * 100;
+    // FIX: Calculate PnL correctly for dollar positions
+    // Position is in dollars, so we need to calculate based on price change percentage
+    const priceChangePercent = ((price - this.state.entryPrice) / this.state.entryPrice);
+    const pnl = closeSize * priceChangePercent;  // Dollar position × price change %
+    const pnlPercent = priceChangePercent * 100;
+
+    // CRITICAL FIX: Remove closed trades from activeTrades Map
+    if (!partial && this.state.activeTrades && this.state.activeTrades.size > 0) {
+      // Close all BUY trades
+      for (const [id, trade] of this.state.activeTrades.entries()) {
+        if (trade.type === 'BUY') {
+          this.state.activeTrades.delete(id);
+          console.log(`🔒 [StateManager] Removed closed trade ${id} from activeTrades`);
+        }
+      }
+      console.log(`📊 [StateManager] Active trades after closing: ${this.state.activeTrades.size}`);
+    }
 
     const updates = {
       position: Math.max(0, this.state.position - closeSize),
@@ -267,6 +352,125 @@ class StateManager {
     return this.updateState(updates, { action: 'EMERGENCY_RESET' });
   }
 
+  // === CHANGE 2025-12-13: STEP 1 - ACTIVE TRADES MANAGEMENT ===
+
+  /**
+   * Add or update an active trade
+   */
+  updateActiveTrade(orderId, tradeData) {
+    console.log(`🔍 [StateManager] updateActiveTrade called with orderId: ${orderId}`);
+    console.log(`🔍 [StateManager] this.get exists: ${typeof this.get}`);
+    console.log(`🔍 [StateManager] this.set exists: ${typeof this.set}`);
+
+    const trades = this.get('activeTrades') || new Map();
+    console.log(`🔍 [StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
+
+    trades.set(orderId, tradeData);
+    console.log(`🔍 [StateManager] About to call this.set with activeTrades`);
+
+    this.set('activeTrades', trades);
+    this.save(); // Save to disk with Map serialization
+    console.log(`📝 [StateManager] Updated trade ${orderId}`);
+  }
+
+  /**
+   * Remove an active trade
+   */
+  removeActiveTrade(orderId) {
+    const trades = this.get('activeTrades');
+    if (trades && trades.has(orderId)) {
+      trades.delete(orderId);
+      this.set('activeTrades', trades);
+      this.save(); // Save to disk with Map serialization
+      console.log(`🗑️ [StateManager] Removed trade ${orderId}`);
+    }
+  }
+
+  /**
+   * Get all active trades as array
+   */
+  getAllTrades() {
+    const trades = this.get('activeTrades');
+    return trades ? Array.from(trades.values()) : [];
+  }
+
+  /**
+   * Check if state is in sync
+   */
+  isInSync() {
+    const validation = this.validateState();
+    if (!validation.valid) {
+      console.error('❌ [StateManager] STATE DESYNC DETECTED:', validation.issues);
+    }
+    return validation.valid;
+  }
+
+  // === CHANGE 2025-12-13: CRITICAL - MAP SERIALIZATION FOR PERSISTENCE ===
+
+  /**
+   * Save state to disk with Map serialization
+   */
+  save() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const stateFile = path.join(__dirname, '..', 'data', 'state.json');
+
+      // Create data directory if it doesn't exist
+      const dataDir = path.dirname(stateFile);
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      // Prepare state for serialization
+      const stateToSave = { ...this.state };
+
+      // CRITICAL: Convert Map to Array for JSON serialization
+      if (this.state.activeTrades instanceof Map) {
+        stateToSave.activeTrades = Array.from(this.state.activeTrades.entries());
+      }
+
+      // Save to disk
+      fs.writeFileSync(stateFile, JSON.stringify(stateToSave, null, 2));
+      console.log('[StateManager] State saved to disk');
+    } catch (error) {
+      console.error('[StateManager] Failed to save state:', error);
+    }
+  }
+
+  /**
+   * Load state from disk with Map deserialization
+   */
+  load() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const stateFile = path.join(__dirname, '..', 'data', 'state.json');
+
+      if (fs.existsSync(stateFile)) {
+        const savedState = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+
+        // CRITICAL: Convert Array back to Map
+        if (Array.isArray(savedState.activeTrades)) {
+          savedState.activeTrades = new Map(savedState.activeTrades);
+        } else if (!savedState.activeTrades) {
+          savedState.activeTrades = new Map();
+        }
+
+        // Restore state
+        this.state = { ...this.state, ...savedState };
+        console.log('[StateManager] State loaded from disk');
+
+        // Verify Map restoration
+        console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
+      }
+    } catch (error) {
+      console.error('[StateManager] Failed to load state:', error);
+      // Initialize empty Map if load fails
+      this.state.activeTrades = new Map();
+    }
+  }
+
   // === INTERNAL METHODS ===
 
   validateUpdates(updates) {
@@ -293,17 +497,19 @@ class StateManager {
     }
 
     // Wait for lock to be available
-    return new Promise(resolve => {
+    await new Promise(resolve => {
       this.lockQueue.push(resolve);
     });
+    this.locked = true;  // CRITICAL: Must set after wait completes
   }
 
   releaseLock() {
-    this.locked = false;
     if (this.lockQueue.length > 0) {
       const next = this.lockQueue.shift();
-      this.locked = true;
-      next();
+      this.locked = false;  // Release lock
+      next();  // Wake next waiter
+    } else {
+      this.locked = false;  // Only release if no queue
     }
   }
 
@@ -324,6 +530,46 @@ class StateManager {
       } catch (error) {
         console.error('[StateManager] Listener error:', error);
       }
+    }
+
+    // CHANGE 2025-12-11: Broadcast to dashboard AFTER state changes
+    // This ensures dashboard always shows accurate, post-update state
+    this.broadcastToDashboard(updates, context);
+  }
+
+  // === DASHBOARD INTEGRATION ===
+  // CHANGE 2025-12-11: Dashboard gets state AFTER updates, never stale data
+
+  setDashboardWs(ws) {
+    this.dashboardWs = ws;
+    console.log('[StateManager] Dashboard WebSocket connected');
+  }
+
+  broadcastToDashboard(updates, context) {
+    if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return;
+
+    try {
+      const state = this.getState();
+      this.dashboardWs.send(JSON.stringify({
+        type: 'state_update',
+        source: 'StateManager',
+        updates: updates,
+        context: context,
+        state: {
+          position: state.position,
+          balance: state.balance,
+          totalBalance: state.totalBalance,
+          realizedPnL: state.realizedPnL,
+          unrealizedPnL: state.unrealizedPnL,
+          totalPnL: state.totalPnL,
+          tradeCount: state.tradeCount,
+          dailyTradeCount: state.dailyTradeCount,
+          recoveryMode: state.recoveryMode
+        },
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      // Silent fail - don't let dashboard issues affect trading
     }
   }
 

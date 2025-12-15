@@ -32,6 +32,11 @@ class KrakenAdapterSimple {
     this.requestTimestamps = [];
     this.rateLimitBackoff = 1000; // Start at 1s for 429 errors
 
+    // CHANGE 2025-12-13: Step 4 - Simple queue to prevent recursion
+    this.requestQueue = [];
+    this.queueProcessing = false;
+    this.processQueueInterval = null;
+
     // Capabilities
     this.capabilities = {
       markets: ['crypto'],
@@ -101,23 +106,68 @@ class KrakenAdapterSimple {
     }
   }
 
+  // CHANGE 2025-12-13: Step 4 - Queue-based request handling (no recursion)
   async makePrivateRequest(endpoint, data = {}) {
-    // FIX #11: Rate limit enforcement (Kraken tier 2: 15 req/sec)
-    await this.enforceRateLimit();
+    return new Promise((resolve, reject) => {
+      // Add request to queue
+      this.requestQueue.push({
+        endpoint,
+        data,
+        resolve,
+        reject,
+        retries: 0
+      });
 
-    const nonce = Date.now() * 1000;
-    const postData = querystring.stringify({ nonce, ...data });
+      // Start queue processor if not running
+      this.startQueueProcessor();
+    });
+  }
 
-    // Create signature
-    const secret = Buffer.from(this.apiSecret, 'base64');
-    const hash = crypto.createHash('sha256').update(nonce + postData).digest();
-    const hmac = crypto.createHmac('sha512', secret);
-    hmac.update(endpoint, 'utf8');
-    hmac.update(hash);
-    const signature = hmac.digest('base64');
+  // Process queued requests without recursion
+  startQueueProcessor() {
+    if (this.queueProcessing) return;
+
+    this.queueProcessing = true;
+    this.processQueueInterval = setInterval(() => this.processQueue(), 100);
+  }
+
+  async processQueue() {
+    if (this.requestQueue.length === 0) {
+      // Stop processor when queue is empty
+      clearInterval(this.processQueueInterval);
+      this.queueProcessing = false;
+      return;
+    }
+
+    // Check rate limit
+    const now = Date.now();
+    this.requestTimestamps = this.requestTimestamps.filter(ts => now - ts < this.requestWindow);
+
+    if (this.requestTimestamps.length >= this.maxRequestsPerWindow) {
+      // Still rate limited, wait for next interval
+      return;
+    }
+
+    // Process next request
+    const request = this.requestQueue.shift();
+    if (!request) return;
 
     try {
-      const response = await axios.post(`${this.baseUrl}${endpoint}`, postData, {
+      // Rate limit enforcement
+      this.requestTimestamps.push(now);
+
+      const nonce = Date.now() * 1000;
+      const postData = querystring.stringify({ nonce, ...request.data });
+
+      // Create signature
+      const secret = Buffer.from(this.apiSecret, 'base64');
+      const hash = crypto.createHash('sha256').update(nonce + postData).digest();
+      const hmac = crypto.createHmac('sha512', secret);
+      hmac.update(request.endpoint, 'utf8');
+      hmac.update(hash);
+      const signature = hmac.digest('base64');
+
+      const response = await axios.post(`${this.baseUrl}${request.endpoint}`, postData, {
         headers: {
           'API-Key': this.apiKey,
           'API-Sign': signature,
@@ -127,17 +177,29 @@ class KrakenAdapterSimple {
 
       // Success - reset backoff
       this.rateLimitBackoff = 1000;
-      return response.data;
+      request.resolve(response.data);
 
     } catch (error) {
-      // Handle 429 rate limit errors with exponential backoff
+      // Handle 429 rate limit errors
       if (error.response?.status === 429) {
-        console.log(`⚠️ RATE_LIMIT_429: Waiting ${this.rateLimitBackoff}ms before retry`);
-        await new Promise(resolve => setTimeout(resolve, this.rateLimitBackoff));
-        this.rateLimitBackoff = Math.min(this.rateLimitBackoff * 2, 8000); // Cap at 8s
-        return this.makePrivateRequest(endpoint, data); // Retry
+        console.log(`⚠️ RATE_LIMIT_429: Re-queuing request after ${this.rateLimitBackoff}ms`);
+
+        // Put request back at front of queue
+        this.requestQueue.unshift(request);
+
+        // Pause queue processing
+        clearInterval(this.processQueueInterval);
+        this.queueProcessing = false;
+
+        // Resume after backoff
+        setTimeout(() => {
+          this.rateLimitBackoff = Math.min(this.rateLimitBackoff * 2, 8000);
+          this.startQueueProcessor();
+        }, this.rateLimitBackoff);
+      } else {
+        // Other errors - reject promise
+        request.reject(error);
       }
-      throw error;
     }
   }
 

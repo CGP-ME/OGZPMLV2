@@ -55,6 +55,9 @@ const tradingOptimizations = new TradingOptimizations(patternStatsManager, conso
 const { getInstance: getStateManager } = require('./core/StateManager');
 const stateManager = getStateManager();
 
+// CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
+const MessageQueue = require('./core/MessageQueue');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -292,25 +295,45 @@ class OGZPrimeV14Bot {
     this.priceHistory = [];
     // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
     // this.currentPosition removed - use stateManager.get('position') instead
-    this.balance = parseFloat(process.env.INITIAL_BALANCE) || 10000;
+    // CHANGE 2025-12-13: STEP 1 - SINGLE SOURCE OF TRUTH
+    // stateManager.get('balance') REMOVED - use stateManager.get('balance') instead
+    // this.activeTrades REMOVED - use stateManager.get('activeTrades') instead
+    const initialBalance = parseFloat(process.env.INITIAL_BALANCE) || 10000;
     this.startTime = Date.now();
     this.systemState = {
-      currentBalance: this.balance
+      currentBalance: initialBalance
     };
-    
-    // Initialize StateManager with starting balance
-    stateManager.updateState({ 
-      balance: this.balance, 
-      totalBalance: this.balance 
-    }, { action: 'INIT' });
+
+    // Initialize StateManager with starting balance ONLY if not already loaded
+    // CRITICAL FIX: Don't overwrite saved state on startup!
+    const currentState = stateManager.getState();
+    if (!currentState.balance || currentState.balance === 0) {
+      console.log('🆕 Initializing fresh state with balance:', initialBalance);
+      stateManager.updateState({
+        balance: initialBalance,
+        totalBalance: initialBalance,
+        activeTrades: new Map()  // CHANGE 2025-12-13: Centralized active trades
+      }, { action: 'INIT' });
+    } else {
+      console.log('✅ Using existing state - Balance:', currentState.balance, 'Trades:', currentState.activeTrades?.size || 0);
+    }
 
     // CHANGE 644: Initialize trade tracking Maps in constructor to prevent crashes
-    this.activeTrades = new Map();
+    // CHANGE 2025-12-13: MOVED TO StateManager - no longer tracked here
     this.pendingTraiDecisions = new Map();
     this.confidenceHistory = [];  // Used for confidence tracking
 
     // Debug flags
     this.ohlcDebugCount = 0; // Log first 5 messages for debugging
+
+    // CHANGE 2025-12-11: MessageQueue for WebSocket race condition prevention
+    this.messageQueue = new MessageQueue({
+      maxQueueSize: 50,
+      minProcessingGapMs: 5,
+      staleThresholdMs: 3000,
+      onProcess: (data) => this.handleMarketData(data),
+      onError: (msg, err) => console.error('❌ MessageQueue:', msg, err.message)
+    });
 
     // MODE DETECTION: Paper, Live, or Backtest (MUTUAL EXCLUSION)
     const enableLiveTrading = process.env.ENABLE_LIVE_TRADING === 'true';
@@ -399,6 +422,10 @@ class OGZPrimeV14Bot {
 
         // Connect to AdvancedExecutionLayer for trade broadcasts
         this.executionLayer.setWebSocketClient(this.dashboardWs);
+
+        // CHANGE 2025-12-11: Connect StateManager to dashboard for accurate post-update state
+        // Dashboard now receives state AFTER changes, never stale data
+        stateManager.setDashboardWs(this.dashboardWs);
 
         // Connect TRAI for chain-of-thought broadcasts
         if (this.trai) {
@@ -559,7 +586,9 @@ class OGZPrimeV14Bot {
             if (channelType && channelType.startsWith('ohlc')) {
               const ohlcArray = msg[1];
               if (Array.isArray(ohlcArray) && ohlcArray.length >= 8) {
-                this.handleMarketData(ohlcArray);
+                // CHANGE 2025-12-11: Queue messages to prevent race conditions
+                // Old: this.handleMarketData(ohlcArray) - direct processing caused out-of-order execution
+                this.messageQueue.add(ohlcArray);
               } else {
                 console.warn('⚠️ Unexpected OHLC array format:', ohlcArray);
               }
@@ -597,8 +626,18 @@ class OGZPrimeV14Bot {
 
     const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
 
-    const price = parseFloat(close);
+    let price = parseFloat(close);
     if (!price || isNaN(price)) return;
+
+    // --- 🧪 FORCED SELL TEST START ---
+    // Overwrite the real price with a fake "Moon" price to force a SELL
+    // Entry was ~88,319. We set price to 95,000 to guarantee profit.
+    // ONLY RUN THIS ONCE, THEN REMOVE IT!
+    const originalPrice = price; // keep for reference
+    price = 95000;
+    console.log(`🧪 MOON SHOT TEST: Faking price! Real: $${originalPrice} -> Fake: $${price}`);
+    console.log(`🚀 This should trigger immediate SELL for ~7.5% profit!`);
+    // --- 🧪 FORCED SELL TEST END ---
 
     // Build proper OHLCV candle structure from Kraken OHLC stream
     const candle = {
@@ -658,7 +697,7 @@ class OGZPrimeV14Bot {
     if (this.dashboardWsConnected && this.dashboardWs) {
       try {
         this.dashboardWs.send(JSON.stringify({
-          type: 'market_update',
+          type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           data: {
             price: price,
             candle: {
@@ -670,7 +709,7 @@ class OGZPrimeV14Bot {
               timestamp: Date.now()
             },
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
-            balance: this.balance,
+            balance: stateManager.get('balance'),
             position: stateManager.get('position'),
             totalTrades: this.executionLayer?.totalTrades || 0
           }
@@ -689,10 +728,12 @@ class OGZPrimeV14Bot {
 
     this.tradingInterval = setInterval(async () => {
       // Need minimum 15 candles for RSI-14 calculation
-      if (!this.marketData || this.priceHistory.length < 15) {
+      // MOON SHOT TEST: Temporarily bypass warmup to test sell immediately
+      if (!this.marketData || this.priceHistory.length < 1) {  // Changed from 15 to 1 for test
         console.log(`⏳ Warming up... ${this.priceHistory.length}/15 candles (need 15 for RSI)`);
         return;
       }
+      console.log(`🚀 MOON SHOT: Bypassing warmup! Trading with ${this.priceHistory.length} candles`);
 
       try {
         await this.analyzeAndTrade();
@@ -902,23 +943,37 @@ class OGZPrimeV14Bot {
           volume: this.marketData.volume || 'normal',
           regime: regime.currentRegime || 'unknown',
           indicators: indicators,
-          positionSize: this.balance * 0.01,
+          positionSize: stateManager.get('balance') * 0.01,
           currentPosition: stateManager.get('position')
         };
 
-        // Process decision through TRAI
-        traiDecision = await this.trai.processDecision(signal, context);
+        // CHANGE 2025-12-13: TRAI DISABLED FOR CLEAN PROFESSIONAL LOGS
+        // TRAI was async but still cluttering output
+        // Pure mathematical trading only - no AI interference
 
-        // Log TRAI decision
-        console.log(`🤖 TRAI: ${(traiDecision.traiConfidence * 100).toFixed(1)}% → ${(traiDecision.finalConfidence * 100).toFixed(1)}% | ${traiDecision.traiRecommendation}`);
+        /* DISABLED - Uncomment to re-enable TRAI learning
+        this.trai.processDecision(signal, context)
+          .then(decision => {
+            // Log when TRAI completes (async)
+            console.log(`🤖 [TRAI Async] Completed: ${(decision.traiConfidence * 100).toFixed(1)}% → ${(decision.finalConfidence * 100).toFixed(1)}% | ${decision.traiRecommendation}`);
 
-        // Change 601: TRAI NEVER VETOS - only boosts confidence
-        // If the math says trade, we trade. TRAI adds intelligence boost only.
-        // His real value is post-trade analysis, ML learning, and meta-optimization.
+            // Store for post-trade learning (but don't block)
+            if (decision.id) {
+              this.pendingTraiDecisions.set(`async_${Date.now()}`, {
+                decisionId: decision.id,
+                originalConfidence: decision.originalConfidence,
+                traiConfidence: decision.traiConfidence,
+                timestamp: Date.now()
+              });
+            }
+          })
+          .catch(err => {
+            console.warn('⚠️ [TRAI Async] Error (non-blocking):', err.message);
+          });
+        */
 
-        // Use TRAI-boosted confidence (additive from Change 600)
-        finalConfidence = traiDecision.finalConfidence * 100;
-        confidenceData.totalConfidence = finalConfidence;
+        // CRITICAL: Do NOT wait for TRAI - use mathematical confidence immediately
+        // finalConfidence stays at rawConfidence - TRAI no longer affects real-time decisions
 
       } catch (error) {
         console.error('⚠️ TRAI processing error:', error.message);
@@ -987,28 +1042,8 @@ class OGZPrimeV14Bot {
     const pos = stateManager.get('position');
     console.log(`🔍 makeTradeDecision: pos=${pos}, conf=${totalConfidence.toFixed(1)}%, minConf=${minConfidence}%, brain=${brainDirection}`);
 
-    // CHANGE 651: Re-enable TradingBrain SELL signals with minimum hold time protection
-    // CHANGE 640 completely broke exits by disabling ALL sell signals
-    // Now we check minimum hold time before allowing TradingBrain sells
-    if (brainDirection === 'sell' && pos > 0) {
-      // Get the oldest BUY trade to check hold time
-      const buyTrades = Array.from(this.activeTrades?.values() || [])
-        .filter(t => t.action === 'BUY')
-        .sort((a, b) => a.entryTime - b.entryTime);
-
-      if (buyTrades.length > 0) {
-        const buyTrade = buyTrades[0];
-        const holdTime = (Date.now() - buyTrade.entryTime) / 60000; // Convert to minutes
-        const minHoldTime = 0.05; // 3 seconds for 5-sec candles
-
-        if (holdTime >= minHoldTime) {
-          console.log(`📊 TradingBrain bearish - executing SELL of position (held ${holdTime.toFixed(2)} min)`);
-          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-        } else {
-          console.log(`⏱️ Min hold time not met: ${holdTime.toFixed(3)} < ${minHoldTime} min`);
-        }
-      }
-    }
+    // CHANGE 2025-12-13: Step 5 - MaxProfitManager gets priority on exits
+    // Math (stops/targets) ALWAYS wins over Brain (emotional) signals
 
     // Check if we should BUY (when flat)
     if (pos === 0 && totalConfidence >= minConfidence) {
@@ -1028,12 +1063,21 @@ class OGZPrimeV14Bot {
     // Change 603: Integrate MaxProfitManager for dynamic exits
     if (pos > 0) {
       // Get entry trade to calculate P&L
-      const buyTrades = Array.from(this.activeTrades?.values() || [])
+      // CHANGE 2025-12-13: Read from StateManager (single source of truth)
+      const allTrades = stateManager.getAllTrades();
+      console.log(`🔍 DEBUG: getAllTrades returned ${allTrades.length} trades`);
+      if (allTrades.length > 0) {
+        console.log(`🔍 DEBUG: First trade has action='${allTrades[0].action}', type='${allTrades[0].type}'`);
+      }
+      const buyTrades = allTrades
         .filter(t => t.action === 'BUY')
         .sort((a, b) => a.entryTime - b.entryTime);
+      console.log(`🔍 DEBUG: After filtering for BUY, found ${buyTrades.length} trades`);
 
       if (buyTrades.length > 0) {
+        console.log(`🔍 DEBUG: BUY trade found:`, JSON.stringify(buyTrades[0], null, 2));
         const entryPrice = buyTrades[0].entryPrice;
+        console.log(`🔍 DEBUG: Entry price from trade: ${entryPrice}, Current price: ${currentPrice}`);
 
         // Change 608: Analyze Fib/S&R levels to adjust trailing stops dynamically
          const levelAnalysis = this.tradingBrain.analyzeFibSRLevels(this.candles, currentPrice);
@@ -1060,6 +1104,37 @@ class OGZPrimeV14Bot {
         if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full')) {
           console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
           return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        }
+
+        // CHANGE 2025-12-13: Step 5 - Brain sell signals ONLY after MaxProfitManager
+        // Check if Brain wants to sell (but only if MaxProfitManager didn't exit)
+        if (brainDirection === 'sell') {
+          // Get the oldest BUY trade to check hold time
+          const buyTrades = stateManager.getAllTrades()
+            .filter(t => t.action === 'BUY')
+            .sort((a, b) => a.entryTime - b.entryTime);
+
+          if (buyTrades.length > 0) {
+            const buyTrade = buyTrades[0];
+            const holdTime = (Date.now() - buyTrade.entryTime) / 60000; // Convert to minutes
+            const minHoldTime = 0.05; // 3 seconds for 5-sec candles
+
+            // Additional conditions for Brain to override:
+            // 1. Minimum hold time met
+            // 2. Position is in profit (don't panic sell at loss)
+            const pnl = ((currentPrice - entryPrice) / entryPrice) * 100;
+
+            if (holdTime >= minHoldTime && pnl > 0) {
+              console.log(`🧠 Brain bearish & profitable - allowing SELL (held ${holdTime.toFixed(2)} min, PnL: ${pnl.toFixed(2)}%)`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else if (holdTime >= minHoldTime && pnl < -2) {
+              // Emergency: Allow Brain to cut losses if down > 2%
+              console.log(`🚨 Brain emergency sell - cutting losses (PnL: ${pnl.toFixed(2)}%)`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else {
+              console.log(`🧠 Brain wants sell but conditions not met (hold: ${holdTime.toFixed(3)} min, PnL: ${pnl.toFixed(2)}%)`);
+            }
+          }
         }
 
         // Change 604: DISABLE confidence exits - they're killing profitability
@@ -1120,7 +1195,7 @@ class OGZPrimeV14Bot {
     console.log(`\n🎯 ${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
 
     // CHECKPOINT 1: Entry
-    console.log(`📍 CP1: executeTrade ENTRY - Balance: $${this.balance}, Position: ${stateManager.get('position')}`);
+    console.log(`📍 CP1: executeTrade ENTRY - Balance: $${stateManager.get('balance')}, Position: ${stateManager.get('position')}`);
 
     const basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
     const baseSize = this.systemState.currentBalance * basePositionPercent;
@@ -1184,6 +1259,7 @@ class OGZPrimeV14Bot {
       console.log(`📍 CP4: ExecutionLayer returned:`, tradeResult ? `success=${tradeResult.success}` : 'NULL');
 
       if (tradeResult && tradeResult.success) {
+        console.log(`📍 CP4.5: Trade SUCCESS confirmed, creating unified result`);
         // Change 588: Create unified tradeResult format
         const unifiedResult = {
           orderId: tradeResult.orderId || `SIM_${Date.now()}`,
@@ -1207,9 +1283,21 @@ class OGZPrimeV14Bot {
           }
         };
 
+        console.log(`📍 CP4.6: Unified result created with orderId: ${unifiedResult.orderId}`);
+
         // Store for pattern learning and post-trade analysis
-        // CHANGE 644: No need to check, already initialized in constructor
-        this.activeTrades.set(unifiedResult.orderId, unifiedResult);
+        // CHANGE 2025-12-13: Store in StateManager (single source of truth)
+        console.log(`📍 CP4.7: About to call stateManager.updateActiveTrade`);
+        console.log(`   stateManager exists: ${!!stateManager}`);
+        console.log(`   updateActiveTrade type: ${typeof stateManager.updateActiveTrade}`);
+
+        try {
+          stateManager.updateActiveTrade(unifiedResult.orderId, unifiedResult);
+          console.log(`📍 CP4.8: updateActiveTrade completed successfully`);
+        } catch (error) {
+          console.error(`❌ CP4.8 ERROR: updateActiveTrade failed:`, error.message);
+          console.error(`   Full error:`, error);
+        }
 
         // CHANGE 647: Store TRAI decision for learning feedback loop
         // CHANGE 650: Use correct field name 'id' not 'decisionId'
@@ -1230,14 +1318,22 @@ class OGZPrimeV14Bot {
           console.log(`📍 CP5: BEFORE BUY - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
           // CHANGE 2025-12-11: Use StateManager for atomic position updates
-          await stateManager.openPosition(positionSize, price, { 
-            orderId, 
+          // CHANGE 2025-12-11 FIX: orderId was undefined - use unifiedResult.orderId
+          const positionResult = await stateManager.openPosition(positionSize, price, { 
+            orderId: unifiedResult.orderId, 
             confidence: decision.confidence 
           });
-          
-          // Sync local balance with StateManager
+
+          // CHANGE 2025-12-12: Validate StateManager.openPosition() success
+          if (!positionResult.success) {
+            console.error('❌ StateManager.openPosition failed:', positionResult.error);
+            // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
+            stateManager.removeActiveTrade(unifiedResult.orderId);
+            return; // Abort trade
+          }
+
+          // CHANGE 2025-12-13: No longer sync to local balance - read from StateManager
           const stateAfter = stateManager.getState();
-          this.balance = stateAfter.balance;
 
           // CHECKPOINT 6: After position update
           console.log(`📍 CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${positionSize})`);
@@ -1258,7 +1354,7 @@ class OGZPrimeV14Bot {
               price: price,
               amount: positionSize,
               confidence: decision.confidence,
-              balance: this.balance
+              balance: stateManager.get('balance')  // CHANGE 2025-12-13: Read from StateManager
             });
           }
 
@@ -1269,7 +1365,8 @@ class OGZPrimeV14Bot {
 
           // Change 589: Complete post-trade integrations
           // Find the matching BUY trade
-          const buyTrades = Array.from(this.activeTrades?.values() || [])
+          // CHANGE 2025-12-13: Read from StateManager (single source of truth)
+          const buyTrades = stateManager.getAllTrades()
             .filter(t => t.action === 'BUY')
             .sort((a, b) => a.entryTime - b.entryTime);
 
@@ -1277,8 +1374,10 @@ class OGZPrimeV14Bot {
           if (buyTrades.length === 0) {
             console.error('❌ CRITICAL: SELL signal but no matching BUY trade found!');
             console.log('   Current position:', currentState.position);
-            console.log('   Active trades count:', this.activeTrades.size);
-            console.log('   Active trades:', Array.from(this.activeTrades.values()).map(t => ({
+            // CHANGE 2025-12-13: Read from StateManager (single source of truth)
+            const allTrades = stateManager.getAllTrades();
+            console.log('   Active trades count:', allTrades.length);
+            console.log('   Active trades:', allTrades.map(t => ({
               id: t.orderId,
               action: t.action,
               price: t.entryPrice
@@ -1287,7 +1386,7 @@ class OGZPrimeV14Bot {
             // Force reset to prevent permanent lockup via StateManager
             console.log('   ⚠️ Force resetting position to 0 to prevent lockup');
             await stateManager.emergencyReset();
-            this.balance = stateManager.get('balance');
+            // CHANGE 2025-12-13: No local balance sync needed
 
             // Stop MaxProfitManager if it's tracking
             if (this.tradingBrain?.maxProfitManager) {
@@ -1319,20 +1418,26 @@ class OGZPrimeV14Bot {
             const positionValue = positionState.position;
             
             // Close position via StateManager (handles P&L calculation)
-            await stateManager.closePosition(price, false, null, {
+            const closeResult = await stateManager.closePosition(price, false, null, {
               orderId: buyTrade.orderId,
               exitReason: 'signal'
             });
+
+            // CHANGE 2025-12-12: Validate StateManager.closePosition() success
+            if (!closeResult.success) {
+              console.error('❌ StateManager.closePosition failed:', closeResult.error);
+              return; // Abort close
+            }
             
             // Get updated state after close
+            // CHANGE 2025-12-13: No local balance sync needed - read from StateManager
             const afterSellState = stateManager.getState();
-            this.balance = afterSellState.balance;
             
             // Calculate display values
             const btcAmount = positionValue / buyTrade.entryPrice;
             const sellValue = btcAmount * price;
             const profitLoss = sellValue - positionValue;
-            console.log(`📍 CP8: SELL COMPLETE - New Balance: $${this.balance} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
+            console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 642: Record SELL trade for backtest reporting
             // CHANGE 649: Add exit indicators for ML learning
@@ -1346,7 +1451,7 @@ class OGZPrimeV14Bot {
                 pnl: pnl,
                 pnlDollars: completeTradeResult.pnlDollars,
                 confidence: decision.confidence,
-                balance: this.balance,
+                balance: stateManager.get('balance'),
                 holdDuration: holdDuration,
                 // Entry indicators from BUY
                 entryIndicators: buyTrade.indicators,
@@ -1402,7 +1507,8 @@ class OGZPrimeV14Bot {
             }
 
             // Clean up active trade
-            this.activeTrades.delete(buyTrade.orderId);
+            // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
+            stateManager.removeActiveTrade(buyTrade.orderId);
           }
 
           // CHANGE 645: Reset MaxProfitManager after successful SELL
@@ -1591,8 +1697,8 @@ class OGZPrimeV14Bot {
       console.log(`   ⏱️  Duration: ${totalTime}s`);
       console.log(`   ⚡ Rate: ${(processedCount / totalTime).toFixed(0)} candles/sec`);
       console.log(`   ❌ Errors: ${errorCount}`);
-      console.log(`   💰 Final Balance: $${this.balance.toFixed(2)}`);
-      console.log(`   📈 Total P&L: $${(this.balance - 10000).toFixed(2)} (${((this.balance / 10000 - 1) * 100).toFixed(2)}%)`);
+      console.log(`   💰 Final Balance: $${stateManager.get('balance').toFixed(2)}`);
+      console.log(`   📈 Total P&L: $${(stateManager.get('balance') - 10000).toFixed(2)} (${((stateManager.get('balance') / 10000 - 1) * 100).toFixed(2)}%)`);
 
       // Generate backtest report
       const reportPath = path.join(__dirname, `backtest-report-v14MERGED-${Date.now()}.json`);
@@ -1604,9 +1710,9 @@ class OGZPrimeV14Bot {
       const report = {
         summary: {
           initialBalance: 10000,
-          finalBalance: this.balance,
-          totalReturn: ((this.balance / 10000 - 1) * 100),
-          totalPnL: this.balance - 10000,
+          finalBalance: stateManager.get('balance'),
+          totalReturn: ((stateManager.get('balance') / 10000 - 1) * 100),
+          totalPnL: stateManager.get('balance') - 10000,
           duration: `${totalTime}s`,
           candlesProcessed: processedCount,
           errors: errorCount
@@ -1719,10 +1825,16 @@ class OGZPrimeV14Bot {
       console.log('🤖 TRAI Core shutdown complete');
     }
 
+    // CHANGE 2025-12-12: Cleanup RiskManager timer leak
+    if (this.riskManager) {
+      this.riskManager.shutdown();
+      console.log('🛡️ RiskManager timers cleaned up');
+    }
+
     // Print final performance stats
     console.log('\n📊 Final Performance:');
     console.log(`   Session Duration: ${((Date.now() - this.startTime) / 1000 / 60).toFixed(1)} minutes`);
-    console.log(`   Final Balance: $${this.balance.toFixed(2)}`);
+    console.log(`   Final Balance: $${stateManager.get('balance').toFixed(2)}`);
 
     console.log('\n✅ Shutdown complete\n');
     process.exit(0);

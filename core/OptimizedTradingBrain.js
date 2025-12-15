@@ -977,15 +977,14 @@ class OptimizedTradingBrain {
     console.log(`   Stop Loss: $${this.position.stopLossPrice.toFixed(2)} | Take Profit: $${this.position.takeProfitPrice.toFixed(2)}`);
     
     // CHANGE 2025-12-11: Sync with StateManager for single source of truth
-    try {
-      const stateManager = getStateManager();
-      stateManager.openPosition(positionValue, price, { source: 'TradingBrain', reason, confidence });
-    } catch (e) {
-      this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
-        operation: 'StateManager.openPosition',
-        price, reason, confidence, positionValue
+    const stateManager = getStateManager();
+    stateManager.openPosition(positionValue, price, { source: 'TradingBrain', reason, confidence })
+      .catch(e => {
+        this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
+          operation: 'StateManager.openPosition',
+          price, reason, confidence, positionValue
+        });
       });
-    }
     
     return true;
   }
@@ -1199,16 +1198,15 @@ class OptimizedTradingBrain {
       }, involvedComponents);
     }
     
-    // CHANGE 2025-12-11: Sync with StateManager before clearing position
-    try {
-      const stateManager = getStateManager();
-      stateManager.closePosition(price, false, null, { source: 'TradingBrain', reason, pnl });
-    } catch (e) {
-      this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
-        operation: 'StateManager.closePosition',
-        price, reason, pnl
-      });
-    }
+                                            // CHANGE 2025-12-11: Sync with StateManager before clearing position
+                                            const stateManager = getStateManager();
+                                            stateManager.closePosition(price, false, null, { source: 'TradingBrain', reason, pnl })
+                                              .catch(e => {
+                                                this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
+                                                  operation: 'StateManager.closePosition',
+                                                  price, reason, pnl
+                                                });
+                                              });
     
     // Reset position and profit manager
     this.position = null;

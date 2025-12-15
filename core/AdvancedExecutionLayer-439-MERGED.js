@@ -66,15 +66,13 @@ class AdvancedExecutionLayer {
 
   /**
    * CHANGE 658: Get current holdings in dollars (spot-only)
+   * CHANGE 2025-12-12: Read from StateManager (currentPosition deleted in refactor)
    */
   getCurrentHoldings() {
-    // In paper/sandbox mode, track via bot's currentPosition
-    if (this.config.sandboxMode) {
-      return this.bot?.currentPosition || 0;
-    }
-    // In live trading, would query exchange API
-    // For now, use tracked position from bot
-    return this.bot?.currentPosition || 0;
+    // Read position from StateManager (single source of truth)
+    const { getInstance: getStateManager } = require('./StateManager');
+    const stateManager = getStateManager();
+    return stateManager.get('position') || 0;
   }
 
   async executeTrade(params) {
@@ -116,8 +114,9 @@ class AdvancedExecutionLayer {
         }
       }
 
-      // Get current balance
-      const balance = this.bot.systemState?.currentBalance || this.balance;
+      // CHANGE 668: Get balance from StateManager (single source of truth)
+      const stateManager = getStateManager();
+      const balance = stateManager.get('balance') || this.bot.systemState?.currentBalance || this.balance;
       let optimizedPositionSize = positionSize;
 
       // Calculate optimal position size via TradingBrain
@@ -285,7 +284,7 @@ class AdvancedExecutionLayer {
         }
 
         console.log('✅ TRADE EXECUTED SUCCESSFULLY');
-        return { success: true, tradeId: tradeId, position: position };
+        return { success: true, orderId: order.orderId || order.id, tradeId: tradeId, position: position };
       } else {
         console.log('❌ Trade execution failed');
         return { success: false, error: 'Order execution failed' };
@@ -304,6 +303,8 @@ class AdvancedExecutionLayer {
     if (!this.krakenAdapter || this.config.sandboxMode) {
       console.log('📝 Paper trade execution');
       return {
+        success: true,  // FIX: Add success field that run-empire-v2 expects!
+        orderId: `PAPER_${Date.now()}`,  // FIX: Add orderId field
         id: Date.now().toString(),
         side: params.side,
         symbol: params.symbol,
@@ -575,7 +576,7 @@ class AdvancedExecutionLayer {
       // Null-safe WebSocket check with optional chaining
       if (this.wsClient?.readyState === 1) { // 1 = OPEN
         const message = {
-          type: 'trade_update',
+          type: 'trade',  // CHANGE 2025-12-11: Match frontend expected message type
           botTier: this.botTier,
           source: 'trading_bot',
           action: trade.direction === 'buy' ? 'BUY' : 'SELL',

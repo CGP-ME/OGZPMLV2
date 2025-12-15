@@ -1215,19 +1215,79 @@
         }
         
         // Handle messages from unified-bot.js instances
+        // CHANGE 2025-12-11: Fixed to handle actual message types from backend
         function handleWebSocketMessage(data) {
-            // Handle price updates
+            // Handle price updates (legacy format)
             if (data.type === 'price' && data.data) {
                 updateChart(data.data);
                 updateIndicators(data);
             }
             
-            // Handle trade messages from bots
+            // CHANGE 2025-12-11: Handle market_update from run-empire-v2.js
+            else if (data.type === 'market_update' && data.data) {
+                updateChart(data.data);
+                // Update balance and position from market update
+                if (data.data.balance !== undefined) {
+                    document.getElementById('totalPnl').textContent = `$${data.data.balance.toFixed(2)}`;
+                }
+                if (data.data.position !== undefined) {
+                    const positionEl = document.getElementById('currentPosition');
+                    if (positionEl) positionEl.textContent = data.data.position > 0 ? `$${data.data.position.toFixed(2)}` : 'None';
+                }
+            }
+            
+            // Handle trade messages from bots (legacy format)
             else if (data.type === 'trade') {
                 const botTier = data.botTier || data.tier;
                 logDecision(data, botTier);
                 updateBotStatus(botTier, data);
                 updateStats(data);
+            }
+            
+            // CHANGE 2025-12-11: Handle trade_update from AdvancedExecutionLayer
+            else if (data.type === 'trade_update') {
+                const botTier = data.botTier || 'quantum';
+                logDecision(data, botTier);
+                updateBotStatus(botTier, data);
+                updateStats(data);
+            }
+            
+            // CHANGE 2025-12-11: Handle state_update from StateManager
+            else if (data.type === 'state_update') {
+                const state = data.state || {};
+                // Update dashboard with accurate post-trade state
+                if (state.balance !== undefined) {
+                    document.getElementById('totalPnl').textContent = `$${state.balance.toFixed(2)}`;
+                }
+                if (state.totalPnL !== undefined) {
+                    const pnlEl = document.getElementById('totalPnl');
+                    if (pnlEl) {
+                        pnlEl.textContent = `${state.totalPnL >= 0 ? '+' : ''}$${state.totalPnL.toFixed(2)}`;
+                        pnlEl.className = `stat-value ${state.totalPnL >= 0 ? 'positive' : 'negative'}`;
+                    }
+                }
+                if (state.tradeCount !== undefined) {
+                    const tradesEl = document.getElementById('totalTrades');
+                    if (tradesEl) tradesEl.textContent = state.tradeCount;
+                }
+            }
+            
+            // CHANGE 2025-12-11: Handle pattern_analysis from run-empire-v2.js
+            else if (data.type === 'pattern_analysis') {
+                // Update pattern display
+                const patternEl = document.getElementById('currentPattern');
+                if (patternEl && data.pattern) {
+                    patternEl.textContent = `Pattern: ${data.pattern.name} (${(data.pattern.confidence * 100).toFixed(1)}%)`;
+                }
+                // Update indicators from pattern analysis
+                if (data.indicators) {
+                    updateIndicatorValues(data.indicators);
+                }
+                // Update pattern memory stats
+                if (data.patternMemory) {
+                    const memoryEl = document.getElementById('patternMemory');
+                    if (memoryEl) memoryEl.textContent = `${data.patternMemory.count} patterns | ${data.patternMemory.status}`;
+                }
             }
             
             // Handle bot status updates
@@ -1245,6 +1305,35 @@
             // Handle indicator updates
             else if (data.type === 'indicators') {
                 updateIndicatorValues(data);
+            }
+            
+            // CHANGE 2025-12-11: Handle TRAI chain of thought (bot_thinking from TRAIDecisionModule)
+            else if (data.type === 'bot_thinking' && data.step === 'trai_analysis') {
+                // Update TRAI thinking display
+                const traiEl = document.getElementById('traiThought');
+                if (traiEl && data.message) {
+                    traiEl.textContent = data.message.substring(0, 200) + (data.message.length > 200 ? '...' : '');
+                }
+                // Update confidence display
+                if (data.data) {
+                    const confEl = document.getElementById('traiConfidence');
+                    if (confEl) confEl.textContent = `${data.data.finalConfidence}%`;
+                    
+                    const recEl = document.getElementById('traiRecommendation');
+                    if (recEl) recEl.textContent = data.data.recommendation || 'ANALYZING...';
+                }
+            }
+            
+            // Handle legacy trai formats
+            else if (data.type === 'trai_thought' || data.type === 'trai_decision') {
+                const traiEl = document.getElementById('traiThought');
+                if (traiEl && data.thought) {
+                    traiEl.textContent = data.thought;
+                }
+                if (data.decision) {
+                    const decisionEl = document.getElementById('traiDecision');
+                    if (decisionEl) decisionEl.textContent = `TRAI: ${data.decision}`;
+                }
             }
         }
         

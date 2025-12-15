@@ -1890,6 +1890,17 @@ class RiskManager {
   resetErrorCount() {
     this.state.consecutiveErrors = 0;
   }
+
+  /**
+   * CHANGE 2025-12-12: Cleanup resources on shutdown
+   * Prevents timer leaks and memory issues
+   */
+  shutdown() {
+    if (this.alertCleanupTimer) {
+      clearInterval(this.alertCleanupTimer);
+      this.alertCleanupTimer = null;
+    }
+  }
 }
 
 // ============================================================================

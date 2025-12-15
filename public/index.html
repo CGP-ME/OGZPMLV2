@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OGZ Prime - Command Your Edge</title>
+  <link rel="stylesheet" href="valhalla-style.css">
+  <script src="https://js.stripe.com/v3/"></script>
+  <script defer src="trai-widget.js"></script>
+  <script>
+    const stripe = Stripe("pk_test_51Rc2VnGai7JiFhNgT1aZdghugWMXbWoOnOVpNwr7QmojxxIau57wGKOB3f8rBi8yFWVuvIGGON7bjvuUtcm7SIm100ylS00sz6");
+
+    function createCheckoutSession(tier) {
+    // UPDATED FOR ELITE/ML TIER SYSTEM - All prices TBD, using placeholders
+    const priceMap = {
+    elite: "price_elite_placeholder",  // Advanced trading features
+    ml: "price_ml_placeholder"         // Elite + TRAI AI co-founder
+    };
+
+      fetch("/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId: priceMap[tier] })
+      })
+      .then(res => res.json())
+      .then(data => stripe.redirectToCheckout({ sessionId: data.sessionId }))
+      .catch(error => console.error("Error:", error));
+    }
+  </script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0a0a, #1a0a0a);
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .hero {
+      text-align: center;
+      padding: 100px 20px;
+      background: black;
+      position: relative;
+      overflow: hidden;
+    }
+    .video-bg {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden;
+      z-index: -1;
+    }
+    .video-bg video {
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      filter: brightness(0.3);
+    }
+    .overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+    .hero h1 {
+      font-size: 3.5rem;
+      background: linear-gradient(45deg, #ff3333, #dc2626);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 51, 51, 0.6);
+    }
+    .hero p {
+      font-size: 1.3rem;
+      color: #ccc;
+      margin-top: 20px;
+    }
+    .cta-btn {
+      background: #dc2626;
+      padding: 18px 40px;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      margin-top: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .cta-btn:hover {
+      background: #ff3333;
+      box-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
+    }
+    .section {
+      padding: 80px 40px;
+      max-width: 1000px;
+      margin: auto;
+      text-align: center;
+    }
+    .section h2 {
+      font-size: 2.5rem;
+      color: #ff3333;
+      margin-bottom: 20px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 40px;
+      margin-top: 40px;
+    }
+    .feature {
+      background: #111;
+      padding: 30px;
+      border-radius: 12px;
+      border: 1px solid #dc2626;
+    }
+    .feature h3 {
+      color: #f87171;
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+    }
+    .feature p {
+      color: #bbb;
+    }
+    footer {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <section class="hero" style="position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: black; overflow: hidden;">
+    <video autoplay muted loop playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; filter: brightness(0.3);">
+      <source src="/assets/video/ogz-stinger-merged.mp4" type="video/mp4">
+    </video>
+    <div class="hero-content">
+      <h1>OGZ Prime</h1>
+      <p>The last trading system you will ever need. Built from war. Forged in precision. Run by intelligence.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Command The Edge</h2>
+    <p>You didn't come here for theory. You came for results. OGZ Prime is an AI-driven, zero-trust, pattern-aware trading OS designed for traders who don't flinch. No fluff. Just execution.</p>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>Live Market Data Streaming</h3>
+        <p>Real-time cryptocurrency price feeds for BTC, ETH, SOL and 20+ assets via Polygon.io WebSocket. Professional-grade data with millisecond updates.</p>
+      </div>
+      <div class="feature">
+        <h3>V13 Trading Bot Engine</h3>
+        <p>Automated trading with RSI, MACD, Bollinger Bands, EMA indicators. Real-time position management, P&L tracking, and performance metrics.</p>
+      </div>
+      <div class="feature">
+        <h3>Risk Management System</h3>
+        <p>Built-in safety nets with stop-loss (1.5%), take-profit (2.5%), position limits, and emergency circuit breakers. Daily/weekly loss limits protect your capital.</p>
+      </div>
+      <div class="feature">
+        <h3>TRAI AI Assistant</h3>
+        <p>Powered by Qwen3-coder 30B model. Analyzes your trades, answers questions, and provides insights. 190MB of trading knowledge at your fingertips.</p>
+      </div>
+      <div class="feature">
+        <h3>Professional Dashboard Suite</h3>
+        <p>15+ dashboard variants with real-time charts, WebSocket updates, and Chart.js visualizations. Monitor prices, bot performance, and system metrics.</p>
+      </div>
+      <div class="feature">
+        <h3>Self-Healing Architecture</h3>
+        <p>Bulletproof WebSocket system with automatic reconnection, circuit breakers, and priority message routing. Stays online when others fail.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>The Story Behind OGZ</h2>
+    <p>This wasn't built in a lab. It was built through loss, hunger, obsession, and the need to escape. OGZ Prime is the result of one man's war to take back control, turn pain into profit, and build something that could outthink him.</p>
+    <p>Now it's yours.</p>
+  </section>
+
+  <section class="section">
+    <h2>Get Started Today</h2>
+    <p>Live trading system with real market data. Battle-tested algorithms running 24/7 on your behalf.</p>
+    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 30px;">
+    <a href="#" id="liveDemoLink" onclick="return openDemoGate(event)">
+  <button style="background: linear-gradient(45deg, #dc2626, #ff3333); padding: 18px 40px; color: white; border: none; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">
+   🎯 Watch Live Demo
+  </button>
+</a>
+
+      <a href="pricing.html"><button style="background: transparent; border: 2px solid #dc2626; color: #dc2626; padding: 16px 38px; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">⚡ See Pricing</button></a>
+    </div>
+  </section>
+
+  <!-- Lead Capture Modal for Live Demo Gate -->
+  <div id="leadModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div style="width: 95%; max-width: 520px; background:#0b0b0b; border:1px solid #dc2626; border-radius:12px; padding:22px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);">
+      <h3 style="margin:0; color:#f87171;">Unlock Live Demo</h3>
+      <p style="color:#bbb; margin:8px 0 14px;">Enter your email to view the live trading dashboard. We’ll send strategy insights and performance updates.</p>
+      <form id="leadForm" onsubmit="return submitLead(event)">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <input id="leadName" placeholder="Your name (optional)" style="flex:1; padding:12px; border-radius:8px; border:1px solid #333; background:#111; color:#fff;">
+        </div>
+        <div style="display:flex; gap:10px;">
+          <input id="leadEmail" placeholder="Email (required)" type="email" required style="flex:1; padding:12px; border-radius:8px; border:1px solid #333; background:#111; color:#fff;">
+        </div>
+        <div id="leadError" style="display:none; color:#f87171; margin-top:8px; font-size:0.95rem;"></div>
+        <div style="display:flex; gap:10px; margin-top:14px; align-items:center;">
+          <button id="leadSubmit" class="cta-btn" type="submit" style="flex:1;">Continue to Live Demo</button>
+          <button type="button" onclick="closeLeadModal()" style="background:transparent; border:1px solid #444; color:#aaa; padding:12px 16px; border-radius:8px; cursor:pointer;">Cancel</button>
+        </div>
+        <div style="margin-top:10px; color:#777; font-size:0.85rem;">We respect your inbox. Unsubscribe anytime. Read our <a href="legal-final.html" style="color:#f87171;">privacy</a>.</div>
+        <input type="text" id="leadBot" style="position:absolute; left:-9999px; top:-9999px;" tabindex="-1" autocomplete="off">
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Gate the live demo behind lead capture unless already captured
+    function openDemoGate(e) {
+      try {
+        const ok = localStorage.getItem('ogz_lead_demo_ok');
+        if (ok) {
+          window.location.href = 'unified-dashboard.html';
+          return false;
+        }
+        document.getElementById('leadModal').style.display = 'flex';
+      } catch (_) {
+        document.getElementById('leadModal').style.display = 'flex';
+      }
+      return false;
+    }
+    function closeLeadModal() {
+      document.getElementById('leadModal').style.display = 'none';
+    }
+    function showLeadError(msg) {
+      const el = document.getElementById('leadError');
+      el.textContent = msg; el.style.display = 'block';
+    }
+    function hideLeadError() {
+      const el = document.getElementById('leadError');
+      el.style.display = 'none';
+    }
+    function getUtmParams() {
+      const p = new URLSearchParams(window.location.search);
+      const keys = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+      const obj = {}; keys.forEach(k => { if (p.get(k)) obj[k] = p.get(k); });
+      return obj;
+    }
+    async function submitLead(ev) {
+      ev.preventDefault(); hideLeadError();
+      const email = document.getElementById('leadEmail').value.trim();
+      const name = document.getElementById('leadName').value.trim();
+      const honeypot = document.getElementById('leadBot').value;
+      if (honeypot) { return false; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showLeadError('Please enter a valid email.'); return false; }
+      const btn = document.getElementById('leadSubmit');
+      btn.disabled = true; btn.textContent = 'Submitting...';
+      try {
+        const payload = {
+          email,
+          name,
+          type: 'demo_gate',
+          timestamp: new Date().toISOString(),
+          source: 'index',
+          page: window.location.href,
+          userAgent: navigator.userAgent,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ...getUtmParams()
+        };
+        // Send to Make.com webhook for lead tracking + AI follow-up
+        const res = await fetch('https://hook.us2.make.com/qvl54ugr24grkqgkbbm7i0xmfub3oh5a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          console.error('Webhook failed:', res.status, res.statusText);
+          throw new Error('Lead webhook failed');
+        }
+        try { localStorage.setItem('ogz_lead_demo_ok', String(Date.now())); } catch(_){}
+        window.location.href = 'unified-dashboard.html';
+      } catch (e) {
+        console.error('Form submission error:', e);
+        showLeadError('Could not submit. Please try again in a moment.');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Continue to Live Demo';
+      }
+      return false;
+    }
+  </script>
+
+  <footer>
+    &copy; 2025 OGZ Prime. All Rights Reserved. | 
+    <a href="legal.html" style="color:#f87171">Legal</a> |
+    <a href="signup.html" style="color:#f87171">Downloads</a>
+  </footer>
+</body>
+</html>

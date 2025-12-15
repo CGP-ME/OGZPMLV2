@@ -12,7 +12,7 @@ const path = require('path');
 const PerformanceVisualizer = require('./PerformanceVisualizer');
 const PerformanceValidator = require('./PerformanceValidator');
 const TradingProfileManager = require('./TradingProfileManager');
-// REMOVED: TradingSafetyNet doesn't exist
+// CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
 
 class PerformanceDashboardIntegration extends EventEmitter {
   constructor(config = {}) {
@@ -22,7 +22,7 @@ class PerformanceDashboardIntegration extends EventEmitter {
       updateInterval: config.updateInterval || 5000, // 5 second updates
       enableVisualizations: config.enableVisualizations !== false,
       enableProfileTracking: config.enableProfileTracking !== false,
-      enableSafetyTracking: config.enableSafetyTracking !== false,
+      enableSafetyTracking: false, // CHANGE 2025-12-11: Disabled - TradingSafetyNet doesn't exist
       ...config
     };
     
@@ -39,11 +39,13 @@ class PerformanceDashboardIntegration extends EventEmitter {
       profilesPath: path.join(process.cwd(), 'profiles', 'trading')
     });
     
-    this.safetyNet = new TradingSafetyNet({
-      maxDailyLoss: 0.05,
-      maxDrawdown: 0.10,
-      enableLogging: true
-    });
+    // CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
+    // this.safetyNet = new TradingSafetyNet({
+    //   maxDailyLoss: 0.05,
+    //   maxDrawdown: 0.10,
+    //   enableLogging: true
+    // });
+    this.safetyNet = null;
     
     // Real-time metrics storage
     this.liveMetrics = {
