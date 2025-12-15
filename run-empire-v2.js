@@ -1232,6 +1232,12 @@ class OGZPrimeV14Bot {
       // CHECKPOINT 3: Before ExecutionLayer call
       console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with size=${positionSize}`);
 
+      // Circuit breaker check before execution
+      if (this.tradingBrain?.errorHandler?.isCircuitBreakerActive('ExecutionLayer')) {
+        console.log('🚨 CIRCUIT BREAKER: Execution blocked due to repeated failures');
+        return;
+      }
+
       const tradeResult = await this.executionLayer.executeTrade({
         direction: decision.action,
         positionSize,
@@ -1532,6 +1538,15 @@ class OGZPrimeV14Bot {
 
     } catch (error) {
       console.error(`❌ Trade failed: ${error.message}\n`);
+
+      // Report error to circuit breaker
+      if (this.tradingBrain?.errorHandler) {
+        this.tradingBrain.errorHandler.reportCritical('ExecutionLayer', error, {
+          decision: decision.action,
+          confidence: decision.confidence,
+          positionSize
+        });
+      }
     }
   }
 

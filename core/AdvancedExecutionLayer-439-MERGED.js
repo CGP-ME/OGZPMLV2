@@ -177,7 +177,7 @@ class AdvancedExecutionLayer {
         if (currentHoldings <= 0) {
           console.log('🚫 SPOT GUARDRAIL: Cannot SELL with 0 holdings');
           return {
-            executed: false,
+            success: false,  // Fixed: normalized field name
             reason: 'NO_HOLDINGS',
             message: 'Attempted to sell with zero holdings (spot-only mode)'
           };
