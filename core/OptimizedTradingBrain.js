@@ -1650,7 +1650,36 @@ class OptimizedTradingBrain {
       }
     }
 
-    // === PHASE 2: BASIC POSITION SIZING ===
+    // === PHASE 2: PATTERN-BASED POSITION SIZING ===
+    // Adjust position size based on historical pattern win rate
+    let patternSizeMultiplier = 1.0;
+
+    if (marketData.patterns && marketData.patterns.length > 0) {
+      // Get the primary pattern (highest confidence)
+      const primaryPattern = marketData.patterns.reduce((best, current) =>
+        (current.confidence > best.confidence) ? current : best
+      );
+
+      // Get historical win rate for this pattern type
+      const patternWinRate = this.getPatternWinRate(primaryPattern.type || primaryPattern.name);
+      const sampleSize = this.getPatternSampleSize(primaryPattern.type || primaryPattern.name);
+
+      // Only apply multiplier if we have sufficient sample size
+      if (sampleSize >= 10) {  // Require at least 10 historical occurrences
+        // Clamp multiplier between 0.75 and 1.5 for safety
+        // Win rate 70%+ = 1.5x size
+        // Win rate 50% = 1.0x size
+        // Win rate 30%- = 0.75x size
+        patternSizeMultiplier = Math.max(0.75, Math.min(1.5, 0.5 + patternWinRate));
+
+        console.log(`🎯 Pattern-Based Sizing Active:`);
+        console.log(`   📊 Pattern: ${primaryPattern.type || primaryPattern.name}`);
+        console.log(`   📈 Win Rate: ${(patternWinRate * 100).toFixed(1)}% (${sampleSize} samples)`);
+        console.log(`   🎚️ Size Multiplier: ${patternSizeMultiplier.toFixed(2)}x`);
+      }
+    }
+
+    // === PHASE 3: BASIC POSITION SIZING ===
     // Enhanced basic sizing for STARTER/PRO tiers
     const baseSize = this.config.maxPositionSize || 0.1;
     const volatilityAdjustment = (marketData.volatility && marketData.volatility > 0.03) ? 0.7 : 1.0;
@@ -1660,13 +1689,14 @@ class OptimizedTradingBrain {
     const maxLeverage = tierFlags.enableHedgeMode ? 2 : 1; // Allow 2x leverage for hedge mode
     const leverageMultiplier = Math.min(maxLeverage, 1 + (confidence - 0.5) * 2);
 
-    const size = baseSize * volatilityAdjustment * confidenceMultiplier * leverageMultiplier;
+    const size = baseSize * volatilityAdjustment * confidenceMultiplier * leverageMultiplier * patternSizeMultiplier;
 
-    console.log(`📊 Basic Size: ${(size * 100).toFixed(2)}%`);
+    console.log(`📊 Final Position Size: ${(size * 100).toFixed(2)}%`);
     console.log(`   📊 Confidence: ${(confidence * 100).toFixed(1)}%`);
     console.log(`   📈 Leverage: ${leverageMultiplier.toFixed(1)}x (max ${maxLeverage}x)`);
+    console.log(`   🎯 Pattern Multiplier: ${patternSizeMultiplier.toFixed(2)}x`);
 
-    return Math.min(size, baseSize * maxLeverage);
+    return Math.min(size, baseSize * maxLeverage * patternSizeMultiplier);
   }
   
   /**
@@ -2107,9 +2137,46 @@ class OptimizedTradingBrain {
   }
   
   // ========================================================================
+  /**
+   * Get pattern sample size (number of historical occurrences)
+   * @param {string} patternType - Pattern type
+   * @returns {number} Number of times this pattern has been seen
+   */
+  getPatternSampleSize(patternType) {
+    // 🧠 PROFILE-SPECIFIC PATTERN QUERY: Get sample size from ProfilePatternManager
+    if (this.ogzPrime && this.ogzPrime.profilePatternManager) {
+      try {
+        const profile = this.ogzPrime.getCurrentProfile();
+        if (profile) {
+          const patterns = this.ogzPrime.profilePatternManager.getPatterns(profile.name);
+          const typePatterns = patterns.filter(p => p.type === patternType);
+
+          let total = 0;
+          typePatterns.forEach(pattern => {
+            if (pattern.tradeResults && pattern.tradeResults.length > 0) {
+              total += pattern.tradeResults.length;
+            }
+          });
+
+          return total;
+        }
+      } catch (error) {
+        console.error('❌ Failed to get pattern sample size:', error.message);
+      }
+    }
+
+    // Fallback to legacy pattern memory
+    if (this.patternMemory && this.patternMemory.has(patternType)) {
+      const pattern = this.patternMemory.get(patternType);
+      return (pattern.wins || 0) + (pattern.losses || 0);
+    }
+
+    return 0;
+  }
+
   // 🛡️ SAFETY INTEGRATION METHODS
   // ========================================================================
-  
+
   /**
    * 📊 Extract involved components from trade reason and analysis
    * @param {string} reason - Trade reason

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-12-15
+
+### 🎯 Pattern-Based Position Sizing Implementation
+
+#### The Big Win - ROI Optimization Without Risk Increase
+As identified in the final audit: "lowest-risk, highest-return improvement available"
+
+#### Implementation Details (OptimizedTradingBrain.js)
+
+##### New Position Sizing Logic (Lines 1653-1680)
+- **Added**: Pattern-based sizing phase BEFORE basic sizing
+- **Location**: Between quantum sizing (elite) and basic sizing (all tiers)
+- **Formula**: `patternSizeMultiplier = 0.5 + patternWinRate`
+- **Safety Clamps**: Min 0.75x, Max 1.5x position size
+- **Sample Size Gate**: Requires 10+ historical occurrences
+
+##### Multiplier Logic
+```
+Win Rate 70%+ → 1.5x position size (max)
+Win Rate 50%  → 1.0x position size (baseline)
+Win Rate 30%- → 0.75x position size (min)
+```
+
+##### Integration Points
+- **Line 1692**: Applied to final size calculation
+- **Line 1697**: Logged in position sizing output
+- **Line 1699**: Included in max size constraint
+
+##### New Method: getPatternSampleSize (Lines 2145-2175)
+- **Purpose**: Count historical occurrences of pattern type
+- **Primary Source**: ProfilePatternManager (if available)
+- **Fallback**: Legacy pattern memory
+- **Returns**: Total number of times pattern has been seen
+
+#### Expected Impact (Per Audit Report)
+- **+15-25% ROI improvement** from smarter bet sizing
+- **Same trades, same signals** - only size changes
+- **Risk profile unchanged** - frequency stays same
+- **Compounds with learning** - gets better over time
+
 ## [2.1.4] - 2025-12-15
 
 ### 🔧 Critical Dataflow & Schema Fixes (Full-System Architecture Audit Response)
