@@ -1,0 +1,293 @@
+{
+  "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+  "bestResult": {
+    "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+    "params": {
+      "period": "30d",
+      "initialBalance": 10000,
+      "maxTrades": 50,
+      "positionSize": 0.02,
+      "stopLoss": 0.015,
+      "takeProfit": 0.025,
+      "rsiOversold": 25,
+      "rsiOverbought": 70,
+      "minConfidence": 30
+    },
+    "metrics": {
+      "totalTrades": 0,
+      "wins": 0,
+      "losses": 0,
+      "winRate": "0.00%",
+      "totalReturn": "0.00%",
+      "finalBalance": "10000.00",
+      "maxDrawdown": "0.00%",
+      "sharpeRatio": 0
+    },
+    "trades": [],
+    "timestamp": "2025-12-15T14:29:51.799Z"
+  },
+  "allResults": [
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 25,
+        "rsiOverbought": 70,
+        "minConfidence": 30
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:51.799Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 25,
+        "rsiOverbought": 70,
+        "minConfidence": 40
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:51.861Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 25,
+        "rsiOverbought": 75,
+        "minConfidence": 30
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:51.921Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 25,
+        "rsiOverbought": 75,
+        "minConfidence": 40
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:51.976Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 30,
+        "rsiOverbought": 70,
+        "minConfidence": 30
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.036Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 30,
+        "rsiOverbought": 70,
+        "minConfidence": 40
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.089Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 30,
+        "rsiOverbought": 75,
+        "minConfidence": 30
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.157Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.025,
+        "rsiOversold": 30,
+        "rsiOverbought": 75,
+        "minConfidence": 40
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.213Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.03,
+        "rsiOversold": 25,
+        "rsiOverbought": 70,
+        "minConfidence": 30
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.270Z"
+    },
+    {
+      "jobId": "7dcf4a74-23fb-4608-b21c-cffabd800938",
+      "params": {
+        "period": "30d",
+        "initialBalance": 10000,
+        "maxTrades": 50,
+        "positionSize": 0.02,
+        "stopLoss": 0.015,
+        "takeProfit": 0.03,
+        "rsiOversold": 25,
+        "rsiOverbought": 70,
+        "minConfidence": 40
+      },
+      "metrics": {
+        "totalTrades": 0,
+        "wins": 0,
+        "losses": 0,
+        "winRate": "0.00%",
+        "totalReturn": "0.00%",
+        "finalBalance": "10000.00",
+        "maxDrawdown": "0.00%",
+        "sharpeRatio": 0
+      },
+      "trades": [],
+      "timestamp": "2025-12-15T14:29:52.328Z"
+    }
+  ],
+  "totalTested": 216,
+  "timestamp": "2025-12-15T14:30:03.323Z"
+}

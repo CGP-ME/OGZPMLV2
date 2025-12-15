@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OGZPrime Unified Trading System - Live Dashboard</title>
+    <!-- Keep Chart.js for compatibility -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <!-- Add TradingView Lightweight Charts for interactive trading -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         
@@ -840,7 +843,18 @@
             </div>
             
             <div class="chart-container">
+                <!-- Toggle for chart type -->
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 100;">
+                    <button id="chartToggle" style="background: rgba(76, 175, 80, 0.8); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        Switch to Interactive Chart
+                    </button>
+                </div>
+
+                <!-- Chart.js canvas (default) -->
                 <canvas id="mainChart"></canvas>
+
+                <!-- TradingView container (hidden by default) -->
+                <div id="tradingViewChart" style="display: none; height: 100%; width: 100%;"></div>
                 
                 <!-- Bot Status Indicators -->
                 <div class="bot-status-row">
@@ -1070,6 +1084,10 @@
         // WebSocket connection to quantum_ssl_server.js on port 3010
         let ws = null;
         let chart = null;
+        let tradingViewChart = null;  // TradingView chart instance
+        let candlestickSeries = null; // Candlestick series for TradingView
+        let volumeSeries = null;      // Volume series for TradingView
+        let isUsingTradingView = false; // Track which chart is active
         let currentTier = 'quantum'; // Start with quantum to show all features
         let priceData = [];
         let tradeHistory = [];
@@ -1612,13 +1630,133 @@
         function showUpgradeOptions() {
             alert('Contact sales@ogzprime.com to upgrade your tier and unlock advanced features!');
         }
-        
+
+        // Initialize TradingView Chart
+        function initTradingViewChart() {
+            const container = document.getElementById('tradingViewChart');
+
+            tradingViewChart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 500,
+                layout: {
+                    background: { color: '#0a0a0a' },
+                    textColor: '#DDD',
+                },
+                grid: {
+                    vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                    horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#4CAF50',
+                },
+                timeScale: {
+                    borderColor: '#4CAF50',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+
+            // Create candlestick series
+            candlestickSeries = tradingViewChart.addCandlestickSeries({
+                upColor: '#4CAF50',
+                downColor: '#ff5252',
+                borderDownColor: '#ff5252',
+                borderUpColor: '#4CAF50',
+                wickDownColor: '#ff5252',
+                wickUpColor: '#4CAF50',
+            });
+
+            // Create volume histogram
+            volumeSeries = tradingViewChart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                },
+                priceScaleId: '',
+                scaleMargins: {
+                    top: 0.8,
+                    bottom: 0,
+                },
+            });
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                tradingViewChart.applyOptions({
+                    width: container.clientWidth,
+                });
+            });
+        }
+
+        // Update TradingView Chart
+        function updateTradingViewChart(data) {
+            if (!tradingViewChart || !candlestickSeries) return;
+
+            // Convert price data to OHLC format
+            const candles = priceData.map((point, i) => {
+                const time = Math.floor(new Date(point.timestamp).getTime() / 1000);
+                const price = point.price || point.y;
+
+                return {
+                    time: time,
+                    open: i > 0 ? priceData[i-1].price || priceData[i-1].y : price,
+                    high: price * 1.002,
+                    low: price * 0.998,
+                    close: price
+                };
+            }).filter(c => !isNaN(c.time));
+
+            if (candles.length > 0) {
+                candlestickSeries.setData(candles);
+
+                // Add volume data
+                const volumeData = candles.map(c => ({
+                    time: c.time,
+                    value: Math.random() * 1000000,
+                    color: c.close > c.open ? '#4CAF50' : '#ff5252'
+                }));
+                volumeSeries.setData(volumeData);
+            }
+        }
+
+        // Toggle between Chart.js and TradingView
+        function toggleChartType() {
+            const mainChart = document.getElementById('mainChart');
+            const tvChart = document.getElementById('tradingViewChart');
+            const toggleBtn = document.getElementById('chartToggle');
+
+            if (isUsingTradingView) {
+                // Switch to Chart.js
+                mainChart.style.display = 'block';
+                tvChart.style.display = 'none';
+                toggleBtn.textContent = 'Switch to Interactive Chart';
+                isUsingTradingView = false;
+            } else {
+                // Switch to TradingView
+                mainChart.style.display = 'none';
+                tvChart.style.display = 'block';
+                toggleBtn.textContent = 'Switch to Basic Chart';
+                isUsingTradingView = true;
+
+                // Initialize TradingView if not already done
+                if (!tradingViewChart) {
+                    initTradingViewChart();
+                }
+                updateTradingViewChart();
+            }
+        }
+
         // Initialize on load
         window.onload = () => {
             initChart();
             connectWebSocket();
             // Start with quantum tier to showcase all features
             switchTier('quantum');
+
+            // Add toggle button event listener
+            document.getElementById('chartToggle').addEventListener('click', toggleChartType);
             
             // Simulate initial bot connections after 2 seconds
             setTimeout(() => {

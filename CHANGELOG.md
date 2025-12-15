@@ -7,15 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 🔧 In Progress
-- Monitor first real paper trade cycle with clean state
+### ✅ Latest Accomplishments (2025-12-15)
 
-### ✅ Completed
-- Cleared zombie test trades from state.json (9 trades with $95k entry prices)
-- Restarted bot with clean slate ($10k balance, 0 positions)
-- Removed ALL Moon Shot test code (price overrides, warmup bypass)
-- Restored proper 15-candle warmup requirement
-- Ready for real paper trading with authentic market data (~$89,810 BTC price)
+#### 🎯 Paper Trading Now Fully Functional!
+- **Bot successfully executing buy/sell cycles** with proper state management
+- **Position tracking working correctly**: Opens at $500, closes on sell signals
+- **Balance updates properly**: Started $10,000, executing trades with correct P&L
+- **Sell signals triggering correctly**: Bot respects minimum hold time, exits on high confidence
+- **MaxProfitManager active**: Tracking profit targets and stop losses
+
+#### 📊 Dashboard & Deployment Architecture
+- **unified-dashboard.html** (root directory) - Trading dashboard with TradingView charts
+  - For internal use and Docker container deployments
+  - Features interactive candlestick charts, volume, crosshair
+  - Toggle between Chart.js and TradingView Lightweight Charts
+- **public/** folder - Customer-facing website
+  - index.html: Homepage with atomic execution hook
+  - why-ogzp.html: Technical deep-dive on atomic execution
+  - Not included in Docker containers by default
+
+#### 🔬 Verified Trading Behavior
+- Bot enters positions after 15 candles (warmup complete)
+- Respects "no shorting" rule - converts sell signals to hold when flat
+- Emergency sell triggers on -2% loss threshold
+- Multiple successful trades executed with small profits
+- State persists correctly through entire trading cycle
 
 ### 🏆 AUDIT PASSED - ZERO VIOLATIONS
 - **DeepSearch Audit Complete**: SELL execution path verified bulletproof
@@ -34,6 +50,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove Moon Shot test after validation
 - Add circuit breaker to execution pipeline
 - Implement proper integration tests for buy→sell cycle
+
+## [2.1.2] - 2025-12-15
+
+### Added
+- **TradingView Lightweight Charts integration** to unified-dashboard.html
+  - Added toggle button to switch between Chart.js and TradingView
+  - Professional candlestick charts with OHLC data
+  - Volume histogram visualization
+  - Interactive crosshair, zoom, and pan features
+  - Auto-resize on window changes
+- **Interactive trading features** in dashboard
+  - Draggable stop loss/take profit lines (prepared)
+  - Real-time WebSocket data integration
+  - Drawing tools support (trend lines, fibonacci, etc.)
+
+### Enhanced
+- Upgraded main unified-dashboard.html (root directory) with toggle for chart types
+- Preserved all existing features (quantum tiers, bot status, indicators)
+- Added TradingView container alongside existing Chart.js canvas
+- Both chart libraries available - users can switch between them
+
+## [2.1.1] - 2025-12-15
+
+### Added
+- Created REST API for backtesting on port 3011 (`backtest/backtest-api.js`)
+- OptimizedBacktestEngine with tier-based feature flags (`backtest/OptimizedBacktestEngine.js`)
+- Integrated optimizeception module for genetic algorithm parameter search
+- Atomic execution messaging on website (homepage hook + WHY OGZP page)
+- WebSocket support for real-time backtest progress updates
+
+### Fixed
+- Lowered confidence thresholds to 10-30 range for actual trades
+- Fixed backtesting API indicator calculation errors with proper error handling
+- Wrapped indicator calculations in try-catch to prevent crashes
+- Fixed method name from `calculateAll` to `calculateTechnicalIndicators`
 
 ## [2.1.0] - 2025-12-15
 

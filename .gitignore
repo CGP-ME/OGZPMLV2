@@ -55,6 +55,10 @@ build/
 # TRAI brain files (too large for GitHub)
 trai_brain/models/
 trai_brain/*.json
+trai_brain/inference_server_ct.py
+trai_brain/**/*.pkl
+trai_brain/**/*.h5
+trai_brain/**/*.model
 
 # Secrets and credentials
 *.pem
@@ -79,3 +83,19 @@ config/secrets/
 *.temp
 *.bak
 *.swp
+
+# Dump files and large exports
+*dump*.txt
+*dump*.json
+repodumpforgpt.json
+ogz-prime-full-repo-dump.txt
+ogz-complete-dump.txt
+*.dump
+
+# State and memory files
+state.json
+pattern_memory.json
+pattern_memory.backup.json
+
+# Profile data
+profiles/trading/*.json

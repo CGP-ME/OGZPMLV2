@@ -1,0 +1,23 @@
+{
+  "jobId": "fe2296d2-a8f1-4bd2-9024-41b6c6eed55d",
+  "params": {
+    "minConfidence": 15,
+    "stopLoss": 0.015,
+    "takeProfit": 0.025,
+    "positionSize": 0.15,
+    "rsiOversold": 30,
+    "rsiOverbought": 70
+  },
+  "metrics": {
+    "totalTrades": 0,
+    "wins": 0,
+    "losses": 0,
+    "winRate": "0.00%",
+    "totalReturn": "0.00%",
+    "finalBalance": "10000.00",
+    "maxDrawdown": "0.00%",
+    "sharpeRatio": 0
+  },
+  "trades": [],
+  "timestamp": "2025-12-15T14:52:31.498Z"
+}
