@@ -9,62 +9,167 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.4] - 2025-12-15
 
-### 🔧 Dataflow Fixes (Architecture Audit Response)
+### 🔧 Critical Dataflow & Schema Fixes (Full-System Architecture Audit Response)
 
-#### Fixed
-- **Timestamp semantic mismatch** in marketData
-  - Changed from `Date.now()` to actual candle timestamp
-  - Added `systemTime` field for current time if needed
-  - Prevents time-based calculation errors
+#### 🔴 CRITICAL Issues Fixed
 
-- **Pattern signature fallback** issue
-  - Changed from `unknown_${Date.now()}` to `unknown_pattern`
-  - Prevents unique signatures that defeat pattern learning
-  - Still records patterns for statistics even with generic signature
+##### Timestamp Semantic Mismatch (run-empire-v2.js:681)
+- **Problem**: marketData.timestamp was using `Date.now()` instead of candle's actual time
+- **Impact**: All time-based calculations using wrong timestamp (could be seconds/minutes off)
+- **Fix**: Changed to `parseFloat(time) * 1000` to use candle's actual timestamp
+- **Added**: `systemTime: Date.now()` field to preserve system time if needed
+- **Files**: run-empire-v2.js lines 678-687
 
-#### Verified Clean
-- **Moon Shot price override**: Already removed (no $95,000 contamination)
-- **MACD assignment**: Already fixed (properly assigned in indicators object)
+##### Pattern Signature Generation Defect (run-empire-v2.js:797)
+- **Problem**: Fallback used `unknown_${Date.now()}` creating unique signature every detection
+- **Impact**: Every pattern detection created new signature, preventing learning/recognition
+- **Fix**: Changed to static `unknown_pattern` fallback
+- **Result**: Patterns can now be learned and recognized across sessions
+- **Files**: run-empire-v2.js lines 796-801
+
+#### 📊 Schema Mismatches Identified & Documented
+
+##### Unit Inconsistencies Found
+- **Position Size**: AdvancedExecutionLayer stores BOTH fraction (0-1) and USD in same object
+  - `position.positionSize`: fraction (0.05 = 5%)
+  - `position.tradeValue`: USD ($500)
+  - **Risk**: Code reading wrong field gets wrong units
+
+##### Indicator Output Schemas
+- **RSI**: 0-100 range
+- **Volatility**: 0-1 range (0.02 = 2%)
+- **MACD**: Returns {macd, macdSignal} but was being accessed incorrectly
+- **Confidence**: Normalized from 0-100 to 0-1 before execution
+
+#### ✅ Verified Clean
+- **Moon Shot Test Code**: CONFIRMED REMOVED
+  - No $95,000 price override found
+  - No test warmup bypass (requires 15 candles)
+  - System running on real market data
+- **MACD Assignment**: Fixed at line 749 - properly assigned to indicators object
+- **State Mutations**: All going through StateManager with proper locking
 
 ## [2.1.3] - 2025-12-15
 
-### 🚨 Critical Security Fixes (Architecture Audit Response)
+### 🚨 Critical Security & Safety Fixes (Deep Architecture Audit Response)
 
-#### Fixed
-- **Return shape inconsistency** in ExecutionLayer (line 180)
-  - Changed `executed: false` to `success: false` for NO_HOLDINGS case
-  - Prevents silent failures from undefined field checks
-  - Ensures consistent error handling across all return paths
+#### 🛡️ Circuit Breaker System Implementation
 
-- **Circuit breaker enforcement** now active
-  - Added pre-execution check at run-empire-v2.js:1236
-  - Blocks trades after 5 consecutive failures
-  - Added error reporting at line 1544 to track failures
-  - Prevents cascade failures and protects capital
+##### Pre-Execution Safety Gate (run-empire-v2.js:1236)
+- **Added**: Circuit breaker check BEFORE any trade execution
+- **Code**: `if (this.tradingBrain?.errorHandler?.isCircuitBreakerActive('ExecutionLayer'))`
+- **Behavior**: Blocks ALL trades after 5 consecutive failures
+- **Protection**: Prevents cascade failures during error conditions
 
-#### Verified Clean
-- **Moon Shot test code**: Already removed (no $95,000 price override)
-- **Warmup requirement**: Already restored (15 candles required)
-- **State mutations**: All going through StateManager with locks
+##### Error Reporting Integration (run-empire-v2.js:1544)
+- **Added**: Automatic error reporting to circuit breaker on trade failures
+- **Code**: `this.tradingBrain.errorHandler.reportCritical('ExecutionLayer', error, context)`
+- **Tracks**: Failed trades with decision, confidence, and position size
+- **Result**: Circuit breaker activates automatically on repeated failures
 
-### ✅ Latest Accomplishments (2025-12-15)
+#### 🔄 Return Shape Consistency Fix
 
-#### 🎯 Paper Trading Now Fully Functional!
-- **Bot successfully executing buy/sell cycles** with proper state management
-- **Position tracking working correctly**: Opens at $500, closes on sell signals
-- **Balance updates properly**: Started $10,000, executing trades with correct P&L
-- **Sell signals triggering correctly**: Bot respects minimum hold time, exits on high confidence
-- **MaxProfitManager active**: Tracking profit targets and stop losses
+##### ExecutionLayer NO_HOLDINGS Case (AdvancedExecutionLayer-439-MERGED.js:180)
+- **Problem**: Returned `{executed: false}` instead of `{success: false}`
+- **Impact**: Caller checking `tradeResult.success` got undefined
+- **Behavior**: Safe failure (undefined = false) but no explicit error handling
+- **Fix**: Normalized to `{success: false}` matching all other return paths
+- **Files**: core/AdvancedExecutionLayer-439-MERGED.js lines 177-184
 
-#### 📊 Dashboard & Deployment Architecture
-- **unified-dashboard.html** (root directory) - Trading dashboard with TradingView charts
-  - For internal use and Docker container deployments
-  - Features interactive candlestick charts, volume, crosshair
-  - Toggle between Chart.js and TradingView Lightweight Charts
-- **public/** folder - Customer-facing website
-  - index.html: Homepage with atomic execution hook
-  - why-ogzp.html: Technical deep-dive on atomic execution
-  - Not included in Docker containers by default
+#### 📋 Comprehensive Safety Verification
+- **7 Failure Gates**: All verified to abort without state mutation
+- **Atomic Pattern**: executeTrade() → success → closePosition() confirmed
+- **State Integrity**: No side-channels, no race conditions, locks verified
+- **Single Source of Truth**: StateManager is authoritative for all state
+
+### ✅ Paper Trading Complete Overhaul (2025-12-15 Session)
+
+#### 🔧 StateManager Fixes (CRITICAL - Money Printer Bug)
+
+##### Position Update Fix (StateManager.js:196-248)
+- **BUG**: PnL calculation treating USD position as BTC units
+- **Example**: $500 position treated as 500 BTC = $44,809,300 value
+- **Impact**: Balance exploding from $10,000 to $64,849 on single trade
+- **Root Cause**: `const pnl = closeSize * priceChange;` (should be percentage-based)
+- **FIX**: `const pnl = closeSize * priceChangePercent;`
+- **Verification**: Tested with real trades, PnL now accurate to cents
+
+##### Missing set() Method (StateManager.js:114)
+- **BUG**: "TypeError: this.set is not a function"
+- **Impact**: Trades failing with cryptic error
+- **FIX**: Added `set(key, value) { this.state[key] = value; return value; }`
+- **Result**: State updates working correctly
+
+##### State Persistence Fix (run-empire-v2.js:307-319)
+- **BUG**: Bot wiping state on every restart (amnesia)
+- **Code Before**: Always called `stateManager.updateState()` with fresh values
+- **Code After**: Check existing state first: `if (!currentState.balance || currentState.balance === 0)`
+- **Impact**: Trades and balance now persist through restarts
+
+#### 🎯 ExecutionLayer Fixes
+
+##### Success Field Normalization (AdvancedExecutionLayer-439-MERGED.js:287-295)
+- **BUG**: Paper mode returning `success: true` but live mode returning different fields
+- **Impact**: Inconsistent handling between modes
+- **FIX**: Added `success: true` field to all paper trade returns
+- **Verified**: Both modes now return consistent shape
+
+##### Position Tracking (Multiple fixes in ExecutionLayer)
+- **BUG**: ExecutionLayer not updating StateManager
+- **FIX**: Proper state mutation flow through StateManager
+- **Verified**: Positions update immediately on trade execution
+
+#### 🌐 Website & Dashboard Deployment
+
+##### Unified Dashboard Upgrade (unified-dashboard.html)
+- **Added**: TradingView Lightweight Charts library integration
+- **Feature**: Toggle button to switch between Chart.js and TradingView
+- **Charts**: Professional candlestick with OHLC data and volume histogram
+- **Interaction**: Crosshair, zoom, pan, auto-resize on window changes
+- **WebSocket**: Fixed URL from `ws://127.0.0.1:3010/ws` to `wss://ogzprime.com/ws`
+- **Deployment**: Copied to `/var/www/ogzprime.com/` for production
+- **Live at**: https://ogzprime.com/unified-dashboard.html
+
+##### Atomic Execution Marketing (public/ folder updates)
+- **Homepage Hook** (index.html after hero section):
+  - Brief teaser about atomic execution
+  - Links to detailed WHY OGZP page
+- **Technical Page** (why-ogzp.html created):
+  - Full explanation of atomic execution model
+  - Execute → Confirm → Update State pattern
+  - Targets engineers and serious traders
+  - Emphasizes reliability over speed
+
+#### 🔬 Backtest System Implementation
+
+##### REST API Creation (backtest/backtest-api.js - Port 3011)
+- **Endpoints**:
+  - `POST /backtest` - Run backtest with parameters
+  - `POST /optimize` - Genetic algorithm parameter search
+  - `GET /results/:id` - Retrieve backtest results
+- **WebSocket**: Real-time progress updates during backtests
+- **Integration**: Uses OptimizedBacktestEngine with tier features
+- **Error Handling**: Try-catch wrapping for indicator calculations
+
+##### Backtest Engine Issues Found
+- **Bug**: "OptimizedIndicators is not a constructor"
+- **Bug**: RSI calculation "Cannot read properties of undefined"
+- **Status**: Needs fixing but API framework complete
+
+#### 🧹 Repository Cleanup
+
+##### Removed Large Files from Git
+- `ogz-complete-dump.txt` (2.6MB)
+- `ogz-prime-full-repo-dump.txt` (1.2MB)
+- `trai_brain/experimental/polygon-btc-1y.json` (9MB)
+- All `trai_brain/inference_server*.py` files
+- All `__pycache__` directories
+
+##### Updated .gitignore
+- Added patterns for dump files
+- Added LLM model extensions (.pkl, .h5, .pth, etc.)
+- Added state files (state.json, pattern_memory.json)
+- Added profile data exclusions
 
 #### 🔬 Verified Trading Behavior
 - Bot enters positions after 15 candles (warmup complete)
