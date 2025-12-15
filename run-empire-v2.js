@@ -678,7 +678,8 @@ class OGZPrimeV14Bot {
     // Store latest market data
     this.marketData = {
       price,
-      timestamp: Date.now(),
+      timestamp: parseFloat(time) * 1000,  // Use candle's actual timestamp
+      systemTime: Date.now(),  // Keep system time separately if needed
       volume: parseFloat(volume) || 0,
       open: parseFloat(open),
       high: parseFloat(high),
@@ -793,10 +794,10 @@ class OGZPrimeV14Bot {
       const telemetry = require('./core/Telemetry').getTelemetry();
 
       patterns.forEach(pattern => {
-        const signature = pattern.signature || pattern.name || `unknown_${Date.now()}`;
-        if (!signature) {
-          console.error('❌ Pattern missing signature:', pattern);
-          return;
+        const signature = pattern.signature || pattern.name || 'unknown_pattern';
+        if (!signature || signature === 'unknown_pattern') {
+          console.warn('⚠️ Pattern missing proper signature, using generic fallback:', pattern);
+          // Don't return - still record for statistics even with generic signature
         }
 
         // CHANGE 659: Fix pattern recording - pass features array instead of signature string

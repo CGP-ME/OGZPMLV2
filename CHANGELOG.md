@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2025-12-15
+
+### 🔧 Dataflow Fixes (Architecture Audit Response)
+
+#### Fixed
+- **Timestamp semantic mismatch** in marketData
+  - Changed from `Date.now()` to actual candle timestamp
+  - Added `systemTime` field for current time if needed
+  - Prevents time-based calculation errors
+
+- **Pattern signature fallback** issue
+  - Changed from `unknown_${Date.now()}` to `unknown_pattern`
+  - Prevents unique signatures that defeat pattern learning
+  - Still records patterns for statistics even with generic signature
+
+#### Verified Clean
+- **Moon Shot price override**: Already removed (no $95,000 contamination)
+- **MACD assignment**: Already fixed (properly assigned in indicators object)
+
 ## [2.1.3] - 2025-12-15
 
 ### 🚨 Critical Security Fixes (Architecture Audit Response)
