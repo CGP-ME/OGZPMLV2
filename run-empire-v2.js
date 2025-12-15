@@ -629,15 +629,7 @@ class OGZPrimeV14Bot {
     let price = parseFloat(close);
     if (!price || isNaN(price)) return;
 
-    // --- 🧪 FORCED SELL TEST START ---
-    // Overwrite the real price with a fake "Moon" price to force a SELL
-    // Entry was ~88,319. We set price to 95,000 to guarantee profit.
-    // ONLY RUN THIS ONCE, THEN REMOVE IT!
-    const originalPrice = price; // keep for reference
-    price = 95000;
-    console.log(`🧪 MOON SHOT TEST: Faking price! Real: $${originalPrice} -> Fake: $${price}`);
-    console.log(`🚀 This should trigger immediate SELL for ~7.5% profit!`);
-    // --- 🧪 FORCED SELL TEST END ---
+    // Test code removed - running on REAL market data
 
     // Build proper OHLCV candle structure from Kraken OHLC stream
     const candle = {
@@ -728,12 +720,10 @@ class OGZPrimeV14Bot {
 
     this.tradingInterval = setInterval(async () => {
       // Need minimum 15 candles for RSI-14 calculation
-      // MOON SHOT TEST: Temporarily bypass warmup to test sell immediately
-      if (!this.marketData || this.priceHistory.length < 1) {  // Changed from 15 to 1 for test
+      if (!this.marketData || this.priceHistory.length < 15) {
         console.log(`⏳ Warming up... ${this.priceHistory.length}/15 candles (need 15 for RSI)`);
         return;
       }
-      console.log(`🚀 MOON SHOT: Bypassing warmup! Trading with ${this.priceHistory.length} candles`);
 
       try {
         await this.analyzeAndTrade();
