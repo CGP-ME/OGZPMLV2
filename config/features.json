@@ -16,6 +16,32 @@
         "learningSize": "PAPER_ONLY"
       }
     },
+    "PATTERN_EXIT_MODEL": {
+      "enabled": false,
+      "description": "Pattern-based exit intelligence - enhances MaxProfitManager",
+      "version": "2.3.2",
+      "shadowMode": true,
+      "settings": {
+        "enableReversalDetection": true,
+        "enablePatternTargets": true,
+        "enablePatternStops": true,
+        "enableMomentumExhaustion": true,
+        "enableRegimeExits": true,
+        "minReversalConfidence": 0.65,
+        "reversalExitPercent": 0.5
+      }
+    },
+    "PATTERN_MEMORY_PARTITION": {
+      "enabled": true,
+      "description": "Mode-aware pattern memory to prevent contamination",
+      "version": "2.3.2",
+      "settings": {
+        "live": "pattern_memory.live.json",
+        "paper": "pattern_memory.paper.json",
+        "backtest": "pattern_memory.backtest.json",
+        "backtestPersist": false
+      }
+    },
     "PATTERN_BASED_SIZING": {
       "enabled": true,
       "description": "Dynamic position sizing based on pattern win rates",

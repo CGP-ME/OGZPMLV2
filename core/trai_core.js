@@ -40,7 +40,8 @@ class TRAICore extends EventEmitter {
         this.patternMemory = this.config.enablePatternMemory
             ? new PatternMemoryBank({
                 dbPath: path.join(this.config.staticBrainPath, 'learned_patterns.json'),
-                backupPath: path.join(this.config.staticBrainPath, 'learned_patterns.backup.json')
+                backupPath: path.join(this.config.staticBrainPath, 'learned_patterns.backup.json'),
+                featureFlags: this.config.featureFlags || {}
               })
             : null;
 

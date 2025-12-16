@@ -240,6 +240,15 @@ class OGZPrimeV14Bot {
     this.performanceAnalyzer = new PerformanceAnalyzer();
     this.regimeDetector = new MarketRegimeDetector();
 
+    // Initialize Pattern Exit Model (shadow mode by default)
+    this.patternExitModel = null;
+    if (featureFlags.features.PATTERN_EXIT_MODEL?.enabled) {
+      const PatternBasedExitModel = require('./core/PatternBasedExitModel');
+      this.patternExitModel = new PatternBasedExitModel(featureFlags.features.PATTERN_EXIT_MODEL.settings || {});
+      this.patternExitShadowMode = featureFlags.features.PATTERN_EXIT_MODEL.shadowMode !== false;
+      console.log(`🎯 Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+    }
+
     // CHANGE 670: Initialize Grid Trading Strategy
     this.gridStrategy = null; // Initialize on demand based on strategy mode
     if (process.env.ENABLE_GRID_BOT === 'true') {
@@ -1107,6 +1116,46 @@ class OGZPrimeV14Bot {
            trailMultiplier: levelAnalysis.trailMultiplier || 1.0
          });
 
+         // Evaluate pattern exit model (shadow mode or active)
+         if (this.patternExitModel) {
+           const profitPercent = (currentPrice - entryPrice) / entryPrice;
+           const exitDecision = this.patternExitModel.evaluateExit({
+             currentPrice,
+             currentPatterns: patterns || [],
+             indicators: {
+               rsi: indicators.rsi,
+               macd: indicators.macd
+             },
+             regime: this.regimeDetector?.currentRegime || 'unknown',
+             profitPercent,
+             maxProfitManagerState: profitResult
+           });
+
+           if (this.patternExitShadowMode) {
+             // Shadow mode - just log what would happen
+             if (exitDecision.exitRecommended) {
+               console.log(`🕵️ [SHADOW] Pattern Exit would trigger:`);
+               console.log(`   Action: ${exitDecision.action}`);
+               console.log(`   Urgency: ${exitDecision.exitUrgency}`);
+               console.log(`   Exit %: ${(exitDecision.exitPercent * 100).toFixed(0)}%`);
+               console.log(`   Reasons: ${exitDecision.reasons.join(', ')}`);
+             }
+             if (exitDecision.adjustments.targetMultiplier !== 1.0 ||
+                 exitDecision.adjustments.stopMultiplier !== 1.0 ||
+                 exitDecision.adjustments.trailMultiplier !== 1.0) {
+               console.log(`🕵️ [SHADOW] Pattern adjustments would apply:`);
+               console.log(`   Target: ${exitDecision.adjustments.targetMultiplier.toFixed(2)}x`);
+               console.log(`   Stop: ${exitDecision.adjustments.stopMultiplier.toFixed(2)}x`);
+               console.log(`   Trail: ${exitDecision.adjustments.trailMultiplier.toFixed(2)}x`);
+             }
+           } else if (exitDecision.exitRecommended &&
+                      (exitDecision.exitUrgency === 'high' || exitDecision.exitUrgency === 'critical')) {
+             // Active mode - actually trigger exit on high urgency
+             console.log(`🎯 Pattern Exit ACTIVE: ${exitDecision.reasons.join(', ')}`);
+             return { action: 'SELL', direction: 'close', confidence: totalConfidence * 1.2 };
+           }
+         }
+
         // Check if MaxProfitManager signals exit
         if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full')) {
           console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
@@ -1359,6 +1408,24 @@ class OGZPrimeV14Bot {
           });
           console.log(`💰 MaxProfitManager started - tracking 1-2% profit targets`);
 
+          // Start pattern exit tracking (shadow mode or active)
+          if (this.patternExitModel) {
+            const exitTracking = this.patternExitModel.startTracking({
+              entryPrice: price,
+              direction: 'buy',
+              size: positionSize,
+              patterns: patterns || [],
+              confidence: decision.confidence / 100,
+              entryTime: Date.now()
+            });
+
+            if (this.patternExitShadowMode) {
+              console.log(`🕵️ [SHADOW] Pattern Exit Tracking Started:`);
+              console.log(`   Pattern Target: ${(exitTracking.patternTarget * 100).toFixed(2)}%`);
+              console.log(`   Pattern Stop: ${(exitTracking.patternStop * 100).toFixed(2)}%`);
+            }
+          }
+
           // CHANGE 642: Record BUY trade for backtest reporting
           if (this.executionLayer && this.executionLayer.trades) {
             this.executionLayer.trades.push({
@@ -1528,6 +1595,17 @@ class OGZPrimeV14Bot {
           if (this.tradingBrain?.maxProfitManager) {
             this.tradingBrain.maxProfitManager.reset();
             console.log(`💰 MaxProfitManager deactivated - ready for next trade`);
+          }
+
+          // Stop pattern exit tracking
+          if (this.patternExitModel) {
+            this.patternExitModel.stopTracking({
+              pnl: closeResult.pnl,
+              exitReason: 'manual_sell'
+            });
+            if (this.patternExitShadowMode) {
+              console.log(`🕵️ [SHADOW] Pattern Exit tracking stopped`);
+            }
           }
 
           // Position already reset via stateManager.closePosition() above

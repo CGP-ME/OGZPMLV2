@@ -32,8 +32,30 @@ const crypto = require('crypto');
 
 class PatternMemoryBank {
     constructor(config = {}) {
-        this.dbPath = config.dbPath || path.join(__dirname, 'learned_patterns.json');
-        this.backupPath = config.backupPath || path.join(__dirname, 'learned_patterns.backup.json');
+        // Mode-aware pattern memory persistence to prevent contamination
+        const mode = process.env.TRADING_MODE || process.env.BACKTEST_MODE === 'true' ? 'backtest' : 'paper';
+        const featureFlags = config.featureFlags || {};
+        const partitionSettings = featureFlags.PATTERN_MEMORY_PARTITION?.settings || {};
+
+        // Determine file based on mode
+        let memoryFile = 'learned_patterns.json';
+        if (partitionSettings[mode]) {
+            memoryFile = partitionSettings[mode];
+        } else if (mode === 'live') {
+            memoryFile = 'pattern_memory.live.json';
+        } else if (mode === 'paper') {
+            memoryFile = 'pattern_memory.paper.json';
+        } else if (mode === 'backtest') {
+            memoryFile = 'pattern_memory.backtest.json';
+        }
+
+        this.dbPath = config.dbPath || path.join(__dirname, '..', memoryFile);
+        this.backupPath = config.backupPath || path.join(__dirname, '..', memoryFile.replace('.json', '.backup.json'));
+
+        // Disable persistence for backtest mode if configured
+        this.persistenceEnabled = mode !== 'backtest' || partitionSettings.backtestPersist !== false;
+
+        console.log(`🧠 [TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
 
         // Statistical thresholds
         this.minTradesSample = config.minTradesSample || 10;  // Need 10+ occurrences
@@ -455,6 +477,12 @@ class PatternMemoryBank {
      * Save memory to disk with backup
      */
     saveMemory() {
+        // Skip saving if persistence is disabled (e.g., backtest mode)
+        if (!this.persistenceEnabled) {
+            console.log(`⏭️ [TRAI Memory] Skipping save (persistence disabled for mode)`);
+            return;
+        }
+
         try {
             // Create backup of existing file
             if (fs.existsSync(this.dbPath)) {

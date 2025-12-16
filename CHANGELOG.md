@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2025-12-16
+
+### Added - Pattern-Based Exit Model & Mode-Aware Memory
+
+#### Pattern Exit Model (Shadow Mode by Default)
+Complete pattern-driven exit intelligence that enhances MaxProfitManager without replacing it.
+
+**Feature Flags** (`config/features.json`):
+- `PATTERN_EXIT_MODEL.enabled`: false (default)
+- `PATTERN_EXIT_MODEL.shadowMode`: true (logs only, no actions)
+- When shadow mode OFF: Only exits on high/critical urgency
+
+**Implementation** (`run-empire-v2.js`):
+1. **Initialization** (lines 243-250):
+   - Creates PatternBasedExitModel if feature enabled
+   - Sets shadow mode flag for logging vs active
+
+2. **Entry Tracking** (lines 1371-1387):
+   - Starts pattern exit tracking on BUY
+   - Calculates pattern-predicted target/stop based on historical data
+   - Logs targets in shadow mode
+
+3. **Exit Evaluation** (lines 1119-1157):
+   - Evaluates exit signals on each tick
+   - Checks for reversal patterns, momentum exhaustion
+   - Logs what WOULD happen in shadow mode
+   - Triggers exit on high/critical urgency in active mode
+
+4. **Cleanup** (lines 1600-1609):
+   - Stops tracking on position close
+   - Records outcome for pattern learning
+
+**Exit Signals**:
+- Reversal pattern detection (shooting star, double top, etc.)
+- Momentum exhaustion (RSI extremes, MACD divergence)
+- Pattern target reached (historical avg gain)
+- Profit protection (giving back gains)
+
+#### Mode-Aware Pattern Memory Persistence
+
+**Problem**: Backtest was contaminating live pattern memory with simulated data.
+
+**Solution** (`core/PatternMemoryBank.js`):
+1. **Mode Detection** (lines 35-58):
+   - Detects mode: live/paper/backtest from env
+   - Uses separate files per mode:
+     - `pattern_memory.live.json`
+     - `pattern_memory.paper.json`
+     - `pattern_memory.backtest.json`
+
+2. **Persistence Control** (lines 480-484):
+   - Backtest mode: persistence DISABLED by default
+   - Prevents contamination of live patterns
+   - Can override with `backtestPersist: true`
+
+3. **Feature Flag** (`PATTERN_MEMORY_PARTITION`):
+   - Enabled by default
+   - Configurable file paths per mode
+   - `backtestPersist: false` prevents backtest writes
+
+This ensures backtest, paper, and live trading maintain completely separate pattern memories, preventing strategy contamination from simulated data.
+
 ## [2.3.1] - 2025-12-16
 
 ### Added - Feature Flags Configuration System
