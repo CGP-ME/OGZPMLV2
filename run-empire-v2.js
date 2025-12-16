@@ -25,6 +25,16 @@
 require('dotenv').config();
 console.log('[CHECKPOINT-001] Environment loaded');
 
+// Load feature flags configuration
+let featureFlags = {};
+try {
+  featureFlags = require('./config/features.json');
+  console.log('[FEATURES] Loaded feature flags:', Object.keys(featureFlags.features).filter(f => featureFlags.features[f].enabled));
+} catch (err) {
+  console.log('[FEATURES] No feature flags config found, using defaults');
+  featureFlags = { features: {}, environment: {} };
+}
+
 // Add uncaught exception handler to catch silent failures
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err);
@@ -203,6 +213,10 @@ class OGZPrimeV14Bot {
       houstonFundTarget: parseFloat(process.env.FUND_TARGET) || 25000
     };
 
+    // Pass feature flags to TradingBrain
+    tradingBrainConfig.featureFlags = featureFlags.features || {};
+    tradingBrainConfig.patternDominance = featureFlags.features.PATTERN_DOMINANCE?.enabled || false;
+
     this.tradingBrain = new OptimizedTradingBrain(
       parseFloat(process.env.INITIAL_BALANCE) || 10000,
       tradingBrainConfig
@@ -218,7 +232,9 @@ class OGZPrimeV14Bot {
       botTier: this.tier,
       sandboxMode: process.env.ENABLE_LIVE_TRADING !== 'true',
       enableRiskManagement: true,
-      initialBalance: parseFloat(process.env.INITIAL_BALANCE) || 10000
+      initialBalance: parseFloat(process.env.INITIAL_BALANCE) || 10000,
+      paperTrading: featureFlags.features.PAPER_TRADING?.enabled || false,
+      featureFlags: featureFlags.features || {}
     });
 
     this.performanceAnalyzer = new PerformanceAnalyzer();

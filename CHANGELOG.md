@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2025-12-16
+
+### Added - Feature Flags Configuration System
+
+#### Centralized Feature Management
+Created **config/features.json** for managing all feature toggles and experimental settings.
+
+#### Implementation Details:
+1. **Feature Flags File** (`config/features.json`):
+   - Centralized configuration for all features
+   - Per-feature settings and thresholds
+   - Environment mode configuration
+   - Version tracking per feature
+
+2. **Bot Integration** (`run-empire-v2.js`):
+   - Loads feature flags on startup (lines 28-36)
+   - Passes flags to TradingBrain (lines 216-218)
+   - Passes flags to ExecutionLayer (lines 236-237)
+   - Auto-logs enabled features on boot
+
+3. **Available Features**:
+   - **PATTERN_DOMINANCE** (v2.3.0) - OFF by default
+     - Empire Pattern-driven entry gating
+     - Configurable tier thresholds and multipliers
+   - **PATTERN_BASED_SIZING** (v2.2.0) - ON
+     - Dynamic position sizing based on pattern win rates
+   - **PAPER_TRADING** (v2.1.3) - ON
+     - Paper trading mode for testing
+   - **CIRCUIT_BREAKER** (v2.0.0) - ON
+     - Error cascade prevention
+   - **TRAI_INFERENCE** (v2.1.0) - OFF
+     - AI model inference (requires inference server)
+   - **WEBSOCKET_DASHBOARD** (v2.1.4) - ON
+     - Real-time dashboard updates
+   - **BACKTEST_API** (v2.1.4) - ON
+     - REST API on port 3011
+
+#### Usage:
+To enable Empire Pattern Dominance:
+1. Edit `config/features.json`
+2. Set `PATTERN_DOMINANCE.enabled: true`
+3. Restart bot - will log: "[FEATURES] Loaded feature flags: [..., PATTERN_DOMINANCE]"
+
+This provides a clean, version-controlled way to manage experimental features without environment variable clutter.
+
 ## [2.3.0] - 2025-12-16
 
 ### 🚀 EMPIRE PATTERN DOMINANCE - Complete Pattern-Driven Entry System

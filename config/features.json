@@ -1,0 +1,65 @@
+{
+  "features": {
+    "PATTERN_DOMINANCE": {
+      "enabled": false,
+      "description": "Empire Pattern Dominance - Pattern-driven entry gating system",
+      "version": "2.3.0",
+      "settings": {
+        "eliteThreshold": 0.75,
+        "eliteSamples": 20,
+        "provenThreshold": 0.55,
+        "provenSamples": 10,
+        "weakThreshold": 0.35,
+        "eliteSizeMultiplier": 1.5,
+        "provenSizeMultiplier": 1.2,
+        "weakSizeMultiplier": 0.75,
+        "learningSize": "PAPER_ONLY"
+      }
+    },
+    "PATTERN_BASED_SIZING": {
+      "enabled": true,
+      "description": "Dynamic position sizing based on pattern win rates",
+      "version": "2.2.0",
+      "settings": {
+        "minMultiplier": 0.75,
+        "maxMultiplier": 1.5,
+        "requiredSamples": 5
+      }
+    },
+    "PAPER_TRADING": {
+      "enabled": true,
+      "description": "Paper trading mode for testing without real funds",
+      "version": "2.1.3"
+    },
+    "CIRCUIT_BREAKER": {
+      "enabled": true,
+      "description": "Circuit breaker to prevent error cascades",
+      "version": "2.0.0",
+      "settings": {
+        "maxErrors": 5,
+        "resetTimeMs": 300000
+      }
+    },
+    "TRAI_INFERENCE": {
+      "enabled": false,
+      "description": "TRAI AI model inference for advanced pattern recognition",
+      "version": "2.1.0"
+    },
+    "WEBSOCKET_DASHBOARD": {
+      "enabled": true,
+      "description": "Real-time WebSocket dashboard updates",
+      "version": "2.1.4"
+    },
+    "BACKTEST_API": {
+      "enabled": true,
+      "description": "REST API for backtesting",
+      "version": "2.1.4",
+      "port": 3011
+    }
+  },
+  "environment": {
+    "mode": "paper",
+    "debug": false,
+    "logLevel": "info"
+  }
+}
