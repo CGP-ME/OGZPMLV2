@@ -33,7 +33,14 @@ const crypto = require('crypto');
 class PatternMemoryBank {
     constructor(config = {}) {
         // Mode-aware pattern memory persistence to prevent contamination
-        const mode = process.env.TRADING_MODE || process.env.BACKTEST_MODE === 'true' ? 'backtest' : 'paper';
+        let mode = 'paper';  // Default to paper
+        if (process.env.BACKTEST_MODE === 'true') {
+            mode = 'backtest';
+        } else if (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') {
+            mode = 'live';
+        } else if (process.env.TRADING_MODE === 'paper' || process.env.PAPER_TRADING === 'true') {
+            mode = 'paper';
+        }
         const featureFlags = config.featureFlags || {};
         const partitionSettings = featureFlags.PATTERN_MEMORY_PARTITION?.settings || {};
 
@@ -49,8 +56,15 @@ class PatternMemoryBank {
             memoryFile = 'pattern_memory.backtest.json';
         }
 
-        this.dbPath = config.dbPath || path.join(__dirname, '..', memoryFile);
-        this.backupPath = config.backupPath || path.join(__dirname, '..', memoryFile.replace('.json', '.backup.json'));
+        // If dbPath is provided in config, modify it based on mode
+        if (config.dbPath) {
+            const basePath = config.dbPath.replace('.json', '');
+            this.dbPath = `${basePath}.${mode}.json`;
+            this.backupPath = `${basePath}.${mode}.backup.json`;
+        } else {
+            this.dbPath = path.join(__dirname, '..', memoryFile);
+            this.backupPath = path.join(__dirname, '..', memoryFile.replace('.json', '.backup.json'));
+        }
 
         // Disable persistence for backtest mode if configured
         this.persistenceEnabled = mode !== 'backtest' || partitionSettings.backtestPersist !== false;

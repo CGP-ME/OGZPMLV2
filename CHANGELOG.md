@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.3] - 2025-12-16
+
+### Fixed - Pattern Memory Mode Detection
+
+Fixed critical issue where pattern memory mode detection logic was incorrect,
+potentially allowing backtest patterns to contaminate live/paper trading data.
+
+**Changes** (`core/PatternMemoryBank.js`):
+1. **Mode Detection Logic** (lines 36-43):
+   - Fixed incorrect ternary operator that always returned 'backtest'
+   - Now properly detects: backtest, live, or paper mode
+   - Defaults to 'paper' for safety
+
+2. **Path Handling** (lines 59-67):
+   - When dbPath provided in config, appends mode suffix
+   - Example: `learned_patterns.json` → `learned_patterns.paper.json`
+   - Ensures complete separation even with custom paths
+
+**Result**:
+- Backtest patterns stored in: `*.backtest.json`
+- Paper trading patterns in: `*.paper.json`
+- Live trading patterns in: `*.live.json`
+- No cross-contamination between modes
+
 ## [2.3.2] - 2025-12-16
 
 ### Added - Pattern-Based Exit Model & Mode-Aware Memory

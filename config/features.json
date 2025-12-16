@@ -17,7 +17,7 @@
       }
     },
     "PATTERN_EXIT_MODEL": {
-      "enabled": false,
+      "enabled": true,
       "description": "Pattern-based exit intelligence - enhances MaxProfitManager",
       "version": "2.3.2",
       "shadowMode": true,
