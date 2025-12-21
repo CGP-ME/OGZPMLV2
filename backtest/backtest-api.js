@@ -108,6 +108,11 @@ async function runSimpleBacktest(params, jobId) {
  * Load historical price data
  */
 async function loadHistoricalData(period = '30d') {
+    // SECURITY: Validate period to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(period)) {
+        throw new Error('Invalid period parameter');
+    }
+
     const cacheFile = path.join(__dirname, 'data', `btc_${period}.json`);
 
     try {
@@ -558,6 +563,14 @@ function generateCombinations(paramGrid) {
  */
 app.get('/api/backtest/results/:id', async (req, res) => {
     const { id } = req.params;
+
+    // SECURITY: Validate ID to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid ID format'
+        });
+    }
 
     // Check if job is still running
     if (activeJobs.has(id)) {
