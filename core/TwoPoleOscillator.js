@@ -74,29 +74,36 @@ class TwoPoleOscillator {
      * Based on price deviation from mean
      */
     calculateOscillator(prices) {
-        if (prices.length < this.smaLength) {
+        const len = prices.length;
+        if (len < this.smaLength) {
             return 0;
         }
 
-        // Get recent prices for calculation
-        const recentPrices = prices.slice(-this.smaLength);
-        const currentPrice = prices[prices.length - 1];
+        const start = len - this.smaLength;
+        let sum = 0;
 
-        // Calculate SMA
-        const sma = recentPrices.reduce((sum, p) => sum + p, 0) / this.smaLength;
+        // OPTIMIZATION: Use for loop to avoid slice/reduce allocations
+        for (let i = start; i < len; i++) {
+            sum += prices[i];
+        }
 
-        // Calculate deviation from mean
-        const deviation = currentPrice - sma;
+        const sma = sum / this.smaLength;
+        let sumSqDiff = 0;
 
-        // Calculate standard deviation for normalization
-        const squaredDiffs = recentPrices.map(p => Math.pow(p - sma, 2));
-        const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / this.smaLength;
+        // Calculate variance
+        for (let i = start; i < len; i++) {
+            const diff = prices[i] - sma;
+            sumSqDiff += diff * diff;
+        }
+
+        const variance = sumSqDiff / this.smaLength;
         const stdDev = Math.sqrt(variance);
 
-        // Normalize oscillator (-1 to 1 range typically)
-        const oscillator = stdDev > 0 ? deviation / stdDev : 0;
+        const currentPrice = prices[len - 1];
+        const deviation = currentPrice - sma;
 
-        return oscillator;
+        // Normalize oscillator (-1 to 1 range typically)
+        return stdDev > 0 ? deviation / stdDev : 0;
     }
 
     /**
