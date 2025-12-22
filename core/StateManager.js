@@ -352,6 +352,57 @@ class StateManager {
     return this.updateState(updates, { action: 'EMERGENCY_RESET' });
   }
 
+  /**
+   * Pause trading for safety
+   * @param {string} reason - Why trading is being paused
+   */
+  async pauseTrading(reason) {
+    console.log('🛑 [StateManager] PAUSING TRADING:', reason);
+
+    const updates = {
+      isTrading: false,
+      lastError: reason,
+      pausedAt: Date.now(),
+      pauseReason: reason
+    };
+
+    await this.updateState(updates, { action: 'PAUSE_TRADING', reason });
+
+    // Log to console with visible warning
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🚨 TRADING PAUSED - SAFETY STOP');
+    console.log(`   Reason: ${reason}`);
+    console.log(`   Time: ${new Date().toISOString()}`);
+    console.log('   Action Required: Review logs and resume manually');
+    console.log('═══════════════════════════════════════════════════════');
+
+    return { success: true, message: `Trading paused: ${reason}` };
+  }
+
+  /**
+   * Resume trading after pause
+   */
+  async resumeTrading() {
+    console.log('✅ [StateManager] RESUMING TRADING');
+
+    const updates = {
+      isTrading: true,
+      lastError: null,
+      pausedAt: null,
+      pauseReason: null,
+      resumedAt: Date.now()
+    };
+
+    await this.updateState(updates, { action: 'RESUME_TRADING' });
+
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('✅ TRADING RESUMED');
+    console.log(`   Time: ${new Date().toISOString()}`);
+    console.log('═══════════════════════════════════════════════════════');
+
+    return { success: true, message: 'Trading resumed' };
+  }
+
   // === CHANGE 2025-12-13: STEP 1 - ACTIVE TRADES MANAGEMENT ===
 
   /**

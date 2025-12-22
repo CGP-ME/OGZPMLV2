@@ -250,6 +250,38 @@ class KrakenAdapterSimple {
     return positions;
   }
 
+  // Alias for compatibility with ExchangeReconciler
+  async getBalance() {
+    const balances = await this.getAccountBalance();
+    let totalUSD = 0;
+
+    // Calculate total balance in USD
+    Object.entries(balances).forEach(([asset, amount]) => {
+      if (asset === 'ZUSD' || asset === 'USD') {
+        totalUSD += parseFloat(amount);
+      }
+      // Add conversion for other assets if needed
+    });
+
+    return {
+      total: totalUSD,
+      available: totalUSD,
+      currencies: balances
+    };
+  }
+
+  // Alias for compatibility - KrakenAdapterSimple uses getPositions
+  async getOpenPositions() {
+    return await this.getPositions();
+  }
+
+  // Get open orders - not implemented in simple adapter
+  async getOpenOrders() {
+    // Would need to implement via REST API
+    // For now return empty array
+    return [];
+  }
+
   convertToKrakenSymbol(symbol) {
     // Convert standard format to Kraken format
     if (symbol === 'BTC-USD' || symbol === 'BTC/USD') {

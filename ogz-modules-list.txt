@@ -1,0 +1,56 @@
+=== OGZPMLV2 COMPLETE MODULE LIST ===
+Generated: 2025-12-16
+
+MAIN ORCHESTRATOR:
+run-empire-v2.js
+
+CORE TRADING MODULES:
+core/AdvancedExecutionLayer-439-MERGED.js
+core/OptimizedTradingBrain.js
+core/PatternBasedExitModel.js
+core/PatternMemoryBank.js
+core/StateManager.js
+core/MaxProfitManager.js
+core/RiskManager.js
+core/MarketRegimeDetector.js
+core/EnhancedPatternRecognition.js
+core/KrakenAdapterV2.js
+core/TRAIDecisionModule.js
+core/trai_core.js
+core/OptimizedIndicators.js
+core/TradingOptimizations.js
+core/PerformanceAnalyzer.js
+
+BROKER ADAPTERS:
+brokers/BrokerRegistry.js
+brokers/IBrokerAdapter.js
+brokers/KrakenAdapterV2.js
+brokers/BinanceAdapter.js
+brokers/CoinbaseAdapter.js
+
+BACKTEST SYSTEM:
+backtest/BacktestEngine.js
+backtest/OptimizedBacktestEngine.js
+backtest/backtest-api.js
+
+SERVER COMPONENTS:
+ogzprime-ssl-server.js (WebSocket - Port 3010)
+dashboard-server.js (Dashboard - Port 3011)
+
+DASHBOARDS:
+public/unified-dashboard-refactor.html
+public/customer-control-panel.html
+public/distribution-portal.html
+public/master-dashboard.html
+
+DOCKER:
+Dockerfile
+docker-compose.yml
+
+LAUNCH SCRIPTS:
+launch-empire-v2.sh
+launch-ogzprime-tiered.sh
+
+CONFIG:
+config/features.json
+config/.env.example

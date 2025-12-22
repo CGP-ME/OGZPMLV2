@@ -48,6 +48,10 @@ class AdvancedExecutionLayer {
     this.winningTrades = 0;
     this.totalPnL = 0;
 
+    // IDEMPOTENCY: Track submitted orders to prevent duplicates
+    this.submittedIntents = new Map(); // intentId -> { timestamp, status, orderId }
+    this.intentTTL = 5 * 60 * 1000; // 5 minutes TTL for intent cache
+
     console.log('🎯 AdvancedExecutionLayer initialized');
     console.log(`   Mode: ${this.config.sandboxMode ? 'SANDBOX' : '🔥 LIVE 🔥'}`);
     console.log(`   Max Position: ${(this.config.maxPositionSize * 100).toFixed(1)}%`);
@@ -65,6 +69,51 @@ class AdvancedExecutionLayer {
   }
 
   /**
+   * IDEMPOTENCY: Generate unique intent ID for trade
+   * Based on: timestamp + symbol + direction + confidence
+   */
+  generateIntentId(symbol, direction, confidence) {
+    const timestamp = Date.now();
+    const data = `${timestamp}-${symbol}-${direction}-${confidence.toFixed(4)}`;
+    return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+  }
+
+  /**
+   * IDEMPOTENCY: Generate client order ID from intent ID
+   * This ensures same intent always generates same order ID
+   */
+  generateClientOrderId(intentId, venue = 'kraken') {
+    const data = `${intentId}-${venue}`;
+    return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
+  }
+
+  /**
+   * IDEMPOTENCY: Check if intent was already submitted
+   * Returns existing order if duplicate detected
+   */
+  checkDuplicateIntent(intentId) {
+    // Clean old intents from cache
+    const now = Date.now();
+    for (const [id, intent] of this.submittedIntents.entries()) {
+      if (now - intent.timestamp > this.intentTTL) {
+        this.submittedIntents.delete(id);
+      }
+    }
+
+    // Check if intent exists
+    const existing = this.submittedIntents.get(intentId);
+    if (existing) {
+      console.log('⚠️ DUPLICATE ORDER PREVENTED');
+      console.log(`   Intent ID: ${intentId}`);
+      console.log(`   Original order: ${existing.orderId}`);
+      console.log(`   Status: ${existing.status}`);
+      return existing;
+    }
+
+    return null;
+  }
+
+  /**
    * CHANGE 658: Get current holdings in dollars (spot-only)
    * CHANGE 2025-12-12: Read from StateManager (currentPosition deleted in refactor)
    */
@@ -76,7 +125,9 @@ class AdvancedExecutionLayer {
   }
 
   async executeTrade(params) {
+    console.log('🔍 [DEBUG] executeTrade called');
     const { direction, positionSize, confidence, marketData, patterns = [] } = params;
+    console.log('🔍 [DEBUG] params extracted');
 
     try {
       // CHECK KILL SWITCH FIRST - BLOCK ALL TRADES IF ACTIVE
@@ -96,12 +147,40 @@ class AdvancedExecutionLayer {
       }
       */
 
+      // IDEMPOTENCY: Generate intent ID for this trade
+      const symbol = marketData?.symbol || 'BTC-USD';
+      const intentId = this.generateIntentId(symbol, direction, confidence);
+
+      // Check for duplicate submission
+      const existing = this.checkDuplicateIntent(intentId);
+      if (existing) {
+        return {
+          success: false,
+          reason: 'Duplicate order prevented',
+          duplicate: true,
+          originalOrder: existing.orderId,
+          intentId: intentId
+        };
+      }
+
+      // Record intent submission
+      this.submittedIntents.set(intentId, {
+        timestamp: Date.now(),
+        status: 'pending',
+        direction: direction,
+        confidence: confidence,
+        symbol: symbol
+      });
+
       console.log('\n🎯 EXECUTING TRADE');
+      console.log(`   Intent ID: ${intentId}`);
       console.log(`   Direction: ${direction}`);
       console.log(`   Confidence: ${(confidence * 100).toFixed(1)}%`);
       console.log(`   Price: $${marketData.price}`);
 
+      console.log('🔍 [DEBUG] Checking bot reference:', !!this.bot);
       if (!this.bot) throw new Error('Bot reference not set');
+      console.log('🔍 [DEBUG] Bot reference OK');
 
       // Risk assessment via RiskManager
       if (this.config.enableRiskManagement && this.bot.riskManager) {
@@ -163,7 +242,8 @@ class AdvancedExecutionLayer {
       console.log(`   Stop Loss: $${stopLoss.toFixed(2)}`);
       console.log(`   Take Profit: $${takeProfit.toFixed(2)}`);
 
-      const tradeId = 'trade_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+      // Use intentId as base for tradeId to ensure consistency
+      const tradeId = `trade_${intentId}`;
 
       // Change 597: Fix case-sensitivity bug - makeTradeDecision returns uppercase 'BUY'/'SELL'
       // but this was checking lowercase 'buy', causing BUY signals to be treated as SELL (shorting!)
@@ -219,6 +299,7 @@ class AdvancedExecutionLayer {
       };
 
       // Execute actual trade (Kraken or paper)
+      const clientOrderId = this.generateClientOrderId(intentId, 'kraken');
       const order = await this.executeKrakenTrade({
         side: normalizedDirection,
         symbol: 'BTC-USD',
@@ -226,13 +307,25 @@ class AdvancedExecutionLayer {
         size: optimizedPositionSize,
         confidence: confidence,
         stopLoss: stopLoss,
-        takeProfit: takeProfit
+        takeProfit: takeProfit,
+        clientOrderId: clientOrderId,
+        intentId: intentId
       });
 
       if (order) {
         position.orderId = order.id;
         this.positions.set(tradeId, position);
         this.totalTrades++;
+
+        // Update intent status with successful order
+        this.submittedIntents.set(intentId, {
+          timestamp: Date.now(),
+          status: 'filled',
+          orderId: order.id || order.orderId,
+          direction: direction,
+          confidence: confidence,
+          symbol: symbol
+        });
 
         // Track with bot modules
         if (this.bot.riskManager?.registerTrade) {
@@ -302,36 +395,49 @@ class AdvancedExecutionLayer {
   async executeKrakenTrade(params) {
     if (!this.krakenAdapter || this.config.sandboxMode) {
       console.log('📝 Paper trade execution');
+      console.log(`   Client Order ID: ${params.clientOrderId}`);
       return {
         success: true,  // FIX: Add success field that run-empire-v2 expects!
-        orderId: `PAPER_${Date.now()}`,  // FIX: Add orderId field
-        id: Date.now().toString(),
+        orderId: params.clientOrderId || `PAPER_${Date.now()}`,  // Use clientOrderId
+        id: params.intentId || Date.now().toString(),
         side: params.side,
         symbol: params.symbol,
         size: params.size,
         price: params.price,
         timestamp: Date.now(),
         status: 'filled',
-        confidence: params.confidence
+        confidence: params.confidence,
+        clientOrderId: params.clientOrderId
       };
     }
 
     console.log('🔹 Executing REAL Kraken trade');
+    console.log(`   Client Order ID: ${params.clientOrderId}`);
     try {
       const order = await this.krakenAdapter.placeOrder({
         symbol: params.symbol,
         side: params.side,
         type: 'market',
-        quantity: params.size
+        quantity: params.size,
+        clientOrderId: params.clientOrderId  // Pass to Kraken for idempotency
       });
 
       console.log('✅ KRAKEN ORDER PLACED:', order.orderId);
       return {
         ...order,
-        confidence: params.confidence
+        confidence: params.confidence,
+        clientOrderId: params.clientOrderId
       };
     } catch (error) {
       console.error('❌ Kraken execution failed:', error.message);
+
+      // Check if error is due to duplicate clientOrderId
+      if (error.message && error.message.includes('duplicate') || error.message.includes('already exists')) {
+        console.log('⚠️ Duplicate order detected at exchange level');
+        // Query exchange for existing order with this clientOrderId
+        // This would need implementation in KrakenAdapter
+      }
+
       throw error;
     }
   }

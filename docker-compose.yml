@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # Main Trading Bot
+  ogz-bot:
+    build: .
+    container_name: ogz-prime-bot
+    environment:
+      - TRADING_PROFILE=${TRADING_PROFILE:-scalper}
+      - PAPER_TRADING=${PAPER_TRADING:-true}
+      - LIVE_TRADING=${LIVE_TRADING:-false}
+      - BACKTEST_MODE=${BACKTEST_MODE:-false}
+      - MIN_TRADE_CONFIDENCE=${MIN_TRADE_CONFIDENCE:-0.01}
+      - ENABLE_TRAI=${ENABLE_TRAI:-true}
+      - WS_URL=ws://ogz-websocket:3010
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    depends_on:
+      - ogz-websocket
+      - trai-server
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  # Unified WebSocket Server
+  ogz-websocket:
+    build: .
+    container_name: ogz-websocket
+    command: node ogzprime-ssl-server.js
+    environment:
+      - WS_PORT=3010
+      - NODE_ENV=production
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  # Dashboard Web Server
+  ogz-dashboard:
+    build: .
+    container_name: ogz-dashboard
+    command: node dashboard-server.js
+    environment:
+      - PORT=3011
+      - NODE_ENV=production
+      - WS_URL=ws://ogz-websocket:3010
+    ports:
+      - "3011:3011"
+    volumes:
+      - ./public:/app/public
+      - ./logs:/app/logs
+    depends_on:
+      - ogz-websocket
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  # TRAI AI Brain Server
+  trai-server:
+    build: ./trai_brain
+    container_name: trai-server
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=/models/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf
+    volumes:
+      - ./trai_brain:/app
+      - ./models:/models
+      - ./logs:/app/logs
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    networks:
+      - ogzprime
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+  # Nginx Reverse Proxy (Optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: ogz-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl
+    depends_on:
+      - ogz-dashboard
+      - ogz-websocket
+    restart: unless-stopped
+    networks:
+      - ogzprime
+    profiles:
+      - production
+
+networks:
+  ogzprime:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
+  models:

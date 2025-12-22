@@ -7,6 +7,256 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.9] - 2025-12-22
+
+### Fixed - Dashboard WebSocket Authentication
+**Root Cause**: Dashboard was using hardcoded 'CHANGE_ME_IN_PRODUCTION' token while bot was using actual token from .env
+
+**Fixed** (`/opt/ogzprime/OGZPMLV2/public/unified-dashboard-refactor.html`):
+- Updated auth token to match WEBSOCKET_AUTH_TOKEN from .env (line 1178)
+- Dashboard now successfully authenticates with WebSocket server
+- Data flow: Bot → WebSocket Server (port 3010) → Dashboard is now working
+
+### Changed - Website Structure Cleanup
+**Reorganized** (`/opt/ogzprime/OGZPMLV2/public/`):
+- Consolidated all website files in public/ directory
+- Removed public-refactor/ directory (duplicate/obsolete)
+- Updated nginx to serve from /opt/ogzprime/OGZPMLV2/public/
+- Preserved index.html as landing page/funnel
+- unified-dashboard-refactor.html is the trading dashboard
+
+### Lessons Learned
+- Read ogz-meta/ documentation FIRST before making changes
+- Understand the architecture before assuming file purposes
+- Bot has comprehensive documentation that prevents these issues
+
+## [2.3.8] - 2025-12-22
+
+### Fixed - WebSocket Authentication Issues
+**Fixed** (`ogzprime-ssl-server.js`):
+- Server requires authentication within 10 seconds with `type: 'auth'` message
+- Was causing dashboard to disconnect with code 1008 every 10 seconds
+
+**Fixed** (`/var/www/ogzprime.com/unified-dashboard-refactor.html`):
+- Added proper authentication flow: send auth token first, then identify after auth_success (lines 1177-1186, 1217-1227)
+- Added comprehensive WebSocket debugging to track close codes (lines 1126-1210)
+- Fixed reconnection backoff logic to prevent connection spam
+
+**Fixed** (`/var/www/ogzprime.com/index.html`):
+- Same authentication flow fixes as unified-dashboard-refactor.html (lines 1177-1186, 1217-1234)
+- Added WebSocket debugging capabilities
+
+**Fixed** (`run-empire-v2.js`):
+- Bot now waits for auth_success before sending identify message (lines 502-519, 538-563)
+- Uses default token 'CHANGE_ME_IN_PRODUCTION' when WEBSOCKET_AUTH_TOKEN not set
+- Properly handles authentication handshake with dashboard
+
+### WebSocket Architecture Summary
+- **Port 3010**: ogzprime-ssl-server.js - Main WebSocket server with authentication
+- **Port 3012**: dashboard-server.js - Legacy dashboard server (no auth)
+- **Nginx**: Proxies /ws to port 3010 for production access
+- **Flow**: Client → Auth → Auth Success → Identify → Connected
+
+## [2.3.7] - 2025-12-21
+
+### Fixed - Critical Integration Issues
+**Fixed** (`core/StateManager.js`):
+- Added missing `pauseTrading()` method (lines 359-379)
+- Added missing `resumeTrading()` method (lines 385-403)
+- These methods are called by EventLoopMonitor and stale feed detection
+
+**Fixed** (`kraken_adapter_simple.js`):
+- Added `getBalance()` method as alias to getAccountBalance (lines 254-271)
+- Added `getOpenPositions()` method as alias to getPositions (lines 274-276)
+- Added `getOpenOrders()` stub method (lines 279-283)
+- These methods are required by ExchangeReconciler
+
+**Fixed** (`core/ExchangeReconciler.js`):
+- Added paperMode flag to skip reconciliation in paper trading (line 19, 87-90)
+- Prevents false drift alerts when comparing paper balance to real exchange
+
+**Fixed** (`run-empire-v2.js`):
+- Fixed position sizing to use current balance from StateManager instead of stale systemState (lines 1385-1390)
+- Increased stale feed tolerance from 30s to 90s for poor network conditions (line 751)
+- Added paperMode flag to reconciler initialization (line 319)
+- Fixed WebSocket connection URL to use /ws path for ogzprime-ssl-server (line 495)
+
+### Changed - Dashboard Configuration
+**Changed** (`/var/www/ogzprime.com/`):
+- Made unified-dashboard-refactor.html the main index.html
+- Updated nginx to proxy WebSocket correctly to port 3010
+
+### Technical Debt
+- Multiple WebSocket servers running (dashboard-server.js on 3012, ogzprime-ssl-server.js on 3010)
+- Bot WebSocket connection still getting 400 errors despite fixes
+- Need to consolidate to single WebSocket server
+
+## [2.3.6] - 2025-12-20
+
+### Fixed - Pattern Recording System
+**Fixed** (`core/EnhancedPatternRecognition.js`):
+- Separated array validation from empty array check (lines 874-887)
+- Empty feature arrays now log warning instead of error
+- Bot continues trading with empty patterns during warmup
+
+### Changed - Trading Configuration
+**Changed** (`config/features.json`):
+- Enabled PATTERN_DOMINANCE feature for pattern-based entry gating
+- Pattern system now actively influences trading decisions
+
+### Configuration - Scalping Mode
+**Current Settings**:
+- Position Size: 5% of balance (MAX_POSITION_SIZE_PCT=0.05)
+- Stop Loss: 1.5% (tight for scalping)
+- Take Profit: 2.0% (quick profit taking)
+- Min Confidence: 3% (ultra aggressive entry)
+- MaxProfitManager Tiers: 0.5%, 1.0%, 1.5%, 2.5% (scalping targets)
+- Single position management (closes before opening new)
+
+## [2.3.5] - 2025-12-18
+
+### Added - Critical Safety Features Implementation
+
+#### Order Idempotency System
+**Implemented** (`core/AdvancedExecutionLayer-439-MERGED.js`):
+- Unique `intentId` generation for every trade based on symbol+direction+confidence+timestamp
+- `clientOrderId` generation from intentId for exchange-level deduplication
+- Duplicate prevention cache with 5-minute TTL
+- Automatic rejection of duplicate orders with original order info returned
+
+**Changes:**
+1. **Intent Tracking** (lines 51-53):
+   - `submittedIntents` Map tracks all order submissions
+   - Auto-cleanup of old intents after TTL expiry
+
+2. **Deduplication Methods** (lines 75-114):
+   - `generateIntentId()`: Creates unique trade identifier
+   - `generateClientOrderId()`: Ensures same intent → same order ID
+   - `checkDuplicateIntent()`: Prevents duplicate submissions
+
+3. **Trade Execution** (lines 148-171):
+   - Check for duplicates before any order submission
+   - Record intent before sending to exchange
+   - Update intent status after successful execution
+
+#### Exchange Reconciliation System
+**Created** (`core/ExchangeReconciler.js`):
+- Complete truth-source reconciliation with exchange
+- 30-second automatic reconciliation interval
+- Drift detection with configurable thresholds
+- Automatic pause on large drift or unknown positions
+
+**Features:**
+1. **Startup Reconciliation**:
+   - Blocks trading until initial sync completes
+   - Ensures state matches exchange before any trades
+
+2. **Drift Thresholds**:
+   - Position warning: 0.001 BTC
+   - Position pause: 0.01 BTC
+   - Balance warning: $5
+   - Balance pause: $10
+
+3. **Drift Handling**:
+   - Auto-correction for small drift
+   - Trading pause for large drift
+   - Hard stop for critical issues (unknown positions)
+
+**Integration** (`run-empire-v2.js`):
+- Lines 311-317: Reconciler initialization
+- Lines 560-563: Startup blocking reconciliation
+- Ensures exchange is truth source before trading begins
+
+#### Pattern Recording Fix
+**Fixed** (`run-empire-v2.js`):
+- Lines 831-837: Always create valid features array for pattern detection
+- Lines 1566-1572: Fallback to entry indicators for pattern recording
+- Resolves "Expected features array, got: object" errors
+
+## [2.3.4] - 2025-12-18
+
+### Added - Production Safety Gates & Critical Audit
+
+#### Technical Gates Checklist Enhancement
+Comprehensive safety gates added for production deployment based on real-world bot failure patterns.
+
+**New Gates Added** (`TECHNICAL-GATES-CHECKLIST.md`):
+1. **Gate 1 - Process Safety & Single Instance** (NEW):
+   - Single instance lock verification
+   - Event loop lag monitoring requirements
+   - Graceful shutdown procedures
+   - Memory leak detection
+
+2. **Enhanced Execution Correctness** (Gate 4):
+   - Idempotency requirements with intentId/clientOrderId
+   - Deduplication store implementation
+   - Bounded retry with exponential backoff
+   - Order lifecycle tracking
+
+3. **Enhanced Reconciliation** (Gate 5):
+   - Truth hierarchy (Exchange → StateManager → Logs)
+   - 30-second reconciliation interval
+   - Drift thresholds and auto-pause
+   - Startup reconciliation blocks trading
+
+4. **Gate 12 - Two-Key Turn Safety** (NEW):
+   - Dual environment variable requirement
+   - Launch confirmation prompt
+   - 10-second countdown before trading
+   - Initial position size reduction
+
+#### Critical Safety Audit Results
+**Status**: NOT READY FOR PRODUCTION
+
+**Implemented** ✅:
+- SingletonLock (core/SingletonLock.js)
+- State persistence (core/StateManager.js)
+- Partial stale feed detection
+
+**MISSING CRITICAL** ❌:
+- Order idempotency/deduplication
+- Exchange reconciliation loop
+- Event loop lag monitoring
+- Two-key turn activation
+
+**Files Created**:
+- `SAFETY-VERIFICATION-STATUS.md` - Detailed implementation audit
+- Updated `GO-LIVE-COUNTDOWN-CHECKLIST.md` - Fixed withdrawal contradiction
+
+**Impact**: Bot cannot safely go live until missing safety features are implemented.
+
+### Enhanced - Dashboard Chart Integration
+**Date**: 2025-12-16
+
+#### Improvements to Live Data Display
+Enhanced the dashboard to properly handle and display Kraken OHLC (Open, High, Low, Close) candlestick data.
+
+**Changes** (`/var/www/ogzprime.com/unified-dashboard-refactor.html`):
+
+1. **Enhanced Chart Update Function** (lines 1348-1396):
+   - Now properly handles full OHLC candle data from bot
+   - Stores candle history in `window.candleData` for candlestick charts
+   - Uses historical candles array when available for smoother updates
+   - Maintains 50-candle rolling window for performance
+
+2. **Improved Candlestick Chart Support** (lines 1583-1614):
+   - Candlestick chart type now uses actual OHLC data
+   - Green bars for bullish candles (close >= open)
+   - Red bars for bearish candles (close < open)
+   - Bar height represents price range (high - low)
+
+**Data Flow Verified**:
+- Bot connects to Kraken WebSocket at `wss://ws.kraken.com`
+- Subscribes to 1-minute OHLC candles for XBT/USD
+- Forwards complete candle data to dashboard via port 3010
+- Dashboard now properly displays this data in charts
+
+**Result**:
+- Real-time Kraken price data displayed on dashboard
+- Full candlestick chart functionality restored
+- Historical price data properly rendered
+- Smooth chart updates with 50-candle history
+
 ## [2.3.3] - 2025-12-16
 
 ### Fixed - Pattern Memory Mode Detection

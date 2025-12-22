@@ -1122,43 +1122,117 @@
             });
         }
         
-        // Connect to WebSocket - quantum_ssl_server.js
+        // GLOBAL guard + stats
+        window.__wsDebug = window.__wsDebug || {
+            created: 0,
+            opened: 0,
+            closed: 0,
+            errored: 0,
+            lastClose: null,
+            lastError: null,
+            reconnects: 0,
+        };
+
+        let __reconnectTimer = null;
+        let __backoffMs = 250;
+
+        function scheduleReconnect(url) {
+            if (__reconnectTimer) return; // prevent multiple timers
+            window.__wsDebug.reconnects++;
+            const wait = Math.min(__backoffMs, 5000);
+            __backoffMs = Math.min(__backoffMs * 2, 5000);
+
+            console.log(`[WS] reconnecting in ${wait}ms (attempt ${window.__wsDebug.reconnects})`);
+            __reconnectTimer = setTimeout(() => {
+                __reconnectTimer = null;
+                connectWebSocket();
+            }, wait);
+        }
+
+        // Connect to WebSocket with proper debugging
         function connectWebSocket() {
-            // Connect to the unified WebSocket server on port 3010
-            ws = new WebSocket('ws://127.0.0.1:3010/ws');
-            
-            ws.onopen = () => {
-                console.log('Connected to OGZPrime WebSocket Server');
+            const url = 'wss://ogzprime.com/ws';
+
+            // Hard guard: prevent multiple sockets from existing
+            if (window.__ws && (window.__ws.readyState === WebSocket.OPEN || window.__ws.readyState === WebSocket.CONNECTING)) {
+                console.log("[WS] already open/connecting, skip");
+                return window.__ws;
+            }
+
+            window.__wsDebug.created++;
+            console.log(`[WS] creating #${window.__wsDebug.created}`, url);
+
+            ws = new WebSocket(url);
+            window.__ws = ws;
+
+            ws.addEventListener("open", () => {
+                window.__wsDebug.opened++;
+                console.log(`[WS] open #${window.__wsDebug.opened}`);
                 document.getElementById('connectionStatus').classList.add('connected');
                 document.getElementById('statusText').textContent = 'Connected';
-                
-                // Identify as dashboard
+
+                // Reset backoff on successful connection
+                __backoffMs = 250;
+
+                // CRITICAL: Send authentication first (server requires this within 10 seconds)
+                const authToken = '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'; // Matches WEBSOCKET_AUTH_TOKEN in .env
+                ws.send(JSON.stringify({
+                    type: 'auth',
+                    token: authToken
+                }));
+                console.log('[WS] Sent authentication');
+
+                // Then identify as dashboard after auth success
+                // The server will send auth_success message first
+            });
+
+            ws.addEventListener("error", (e) => {
+                window.__wsDebug.errored++;
+                window.__wsDebug.lastError = e;
+                console.log("[WS] error", e);
+            });
+
+            ws.addEventListener("close", (e) => {
+                window.__wsDebug.closed++;
+                window.__wsDebug.lastClose = { code: e.code, reason: e.reason, wasClean: e.wasClean };
+                console.log("[WS] close", window.__wsDebug.lastClose);
+
+                document.getElementById('connectionStatus').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+
+                // Only reconnect if you actually want to
+                scheduleReconnect(url);
+            });
+
+            ws.addEventListener("message", (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            });
+
+            return ws;
+        }
+        
+        // Handle messages from unified-bot.js instances
+        function handleWebSocketMessage(data) {
+            // Handle authentication success
+            if (data.type === 'auth_success') {
+                console.log('[WS] Authentication successful, sending identify');
+                // Now send identify message after successful auth
                 ws.send(JSON.stringify({
                     type: 'identify',
                     source: 'dashboard',
                     tier: currentTier,
                     version: '2.0.0'
                 }));
-            };
-            
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
-            };
-            
-            ws.onclose = () => {
-                document.getElementById('connectionStatus').classList.remove('connected');
-                document.getElementById('statusText').textContent = 'Reconnecting...';
-                setTimeout(connectWebSocket, 5000);
-            };
-            
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-        }
-        
-        // Handle messages from unified-bot.js instances
-        function handleWebSocketMessage(data) {
+                return;
+            }
+
+            // Handle authentication error
+            if (data.type === 'error') {
+                console.error('[WS] Server error:', data.message);
+                return;
+            }
+
             // Handle price updates
             if (data.type === 'price' && data.data) {
                 updateChart(data.data);
@@ -1208,6 +1282,28 @@
                 updateChainOfThought(thought);
             }
 
+            // Handle StateManager state updates
+            else if (data.type === 'state_update') {
+                if (data.state) {
+                    // Update P&L
+                    if (data.state.totalPnL !== undefined) {
+                        const pnl = data.state.totalPnL;
+                        const pnlEl = document.getElementById('totalPnl');
+                        if (pnlEl) {
+                            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                            pnlEl.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                        }
+                    }
+                    // Update trade count
+                    if (data.state.tradeCount !== undefined) {
+                        const tradesEl = document.getElementById('tradesExecuted');
+                        if (tradesEl) {
+                            tradesEl.textContent = `${data.state.tradeCount}`;
+                        }
+                    }
+                }
+            }
+
             // Handle pattern analysis - update Pattern Display
             else if (data.type === 'pattern_analysis') {
                 const pattern = data.pattern || {};
@@ -1248,28 +1344,6 @@
             else if (data.type === 'trade_levels') {
                 // Store for chart overlay (future implementation)
                 console.log('Trade levels received:', data.fibLevels, data.srLevels);
-            }
-
-            // CHANGE 2025-12-11: Handle state_update from StateManager
-            // This provides accurate post-trade state (never stale)
-            else if (data.type === 'state_update') {
-                const state = data.state || {};
-                // Update balance/P&L display
-                if (state.totalPnL !== undefined) {
-                    const pnl = state.totalPnL;
-                    document.getElementById('totalPnl').textContent =
-                        `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-                    document.getElementById('totalPnl').className =
-                        `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
-                }
-                if (state.tradeCount !== undefined) {
-                    document.getElementById('totalTrades').textContent = state.tradeCount;
-                }
-                // Update win rate if available
-                if (state.winningTrades !== undefined && state.tradeCount > 0) {
-                    const winRate = (state.winningTrades / state.tradeCount) * 100;
-                    document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
-                }
             }
         }
         
@@ -1348,19 +1422,59 @@
         // Update chart with new price data
         function updateChart(data) {
             if (!chart) return;
-            
-            const timestamp = new Date().toLocaleTimeString();
+
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds();
             const price = data.price || data.close || 0;
-            
-            chart.data.labels.push(timestamp);
-            chart.data.datasets[0].data.push(price);
-            
-            // Keep only last 50 points
-            if (chart.data.labels.length > 50) {
-                chart.data.labels.shift();
-                chart.data.datasets[0].data.shift();
+
+            // Debug logging
+            console.log('[Chart Update]', {price, hasCandles: !!data.candles, candleCount: data.candles?.length});
+
+            // Store the full candle data if available
+            if (data.candle) {
+                if (!window.candleData) window.candleData = [];
+                window.candleData.push({
+                    t: timestamp,
+                    o: data.candle.open,
+                    h: data.candle.high,
+                    l: data.candle.low,
+                    c: data.candle.close,
+                    v: data.candle.volume
+                });
+
+                // Keep only last 50 candles
+                if (window.candleData.length > 50) {
+                    window.candleData.shift();
+                }
             }
-            
+
+            // If we have historical candles array, use it ONLY if chart is empty (initial load)
+            if (data.candles && Array.isArray(data.candles) && chart.data.labels.length === 0) {
+                // Initial population of chart
+                data.candles.forEach(candle => {
+                    const time = new Date(candle.t).toLocaleTimeString();
+                    chart.data.labels.push(time);
+                    chart.data.datasets[0].data.push(candle.c); // Use close price for line chart
+                });
+            } else if (price > 0) {
+                // Add new price point without clearing existing data
+                // Don't add duplicate timestamps
+                const lastLabel = chart.data.labels[chart.data.labels.length - 1];
+                if (lastLabel !== timestamp) {
+                    chart.data.labels.push(timestamp);
+                    chart.data.datasets[0].data.push(price);
+                } else {
+                    // Update the last point if same timestamp
+                    chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] = price;
+                }
+
+                // Keep only last 50 points
+                if (chart.data.labels.length > 50) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                }
+            }
+
             chart.update();
         }
         
@@ -1555,11 +1669,29 @@
 
             // Update chart type
             if (type === 'candlestick') {
-                // Candlestick requires different data format - placeholder for now
-                console.log('Candlestick chart type selected - requires OHLC data');
-                chart.config.type = 'bar'; // Fallback to bar for now
+                // Switch to candlestick visualization using bar chart with OHLC data
+                chart.config.type = 'bar';
+
+                // If we have candle data, update the chart to show high-low bars
+                if (window.candleData && window.candleData.length > 0) {
+                    chart.data.datasets[0].backgroundColor = window.candleData.map(candle =>
+                        candle.c >= candle.o ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 82, 82, 0.6)'
+                    );
+                    chart.data.datasets[0].borderColor = window.candleData.map(candle =>
+                        candle.c >= candle.o ? '#00ff88' : '#ff5252'
+                    );
+
+                    // Show price range (high - low) as bar height
+                    chart.data.datasets[0].data = window.candleData.map(candle => candle.h - candle.l);
+                }
             } else {
                 chart.config.type = type;
+
+                // Reset colors for non-candlestick charts
+                if (type === 'line') {
+                    chart.data.datasets[0].backgroundColor = 'rgba(0, 255, 136, 0.1)';
+                    chart.data.datasets[0].borderColor = '#00ff88';
+                }
             }
 
             chart.update();

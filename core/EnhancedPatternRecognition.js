@@ -692,7 +692,8 @@ class PatternMemorySystem {
     // Convert to array for sorting
     const patterns = Object.entries(this.memory).map(([key, stats]) => {
       // Calculate pattern value based on times seen and recency
-      const mostRecentTime = stats.results.length > 0
+      // FIX: Check if results exists before accessing length
+      const mostRecentTime = stats.results && stats.results.length > 0
         ? Math.max(...stats.results.map(r => r.timestamp))
         : 0;
 
@@ -872,8 +873,16 @@ class EnhancedPatternChecker {
    */
   recordPatternResult(featuresOrSignature, result) {
     // CHANGE 659: Features array required - strict validation
-    if (!Array.isArray(featuresOrSignature) || featuresOrSignature.length === 0) {
+    if (!Array.isArray(featuresOrSignature)) {
       console.error('❌ recordPatternResult: Expected features array, got:', typeof featuresOrSignature);
+      console.error('   Value received:', featuresOrSignature);
+      console.error('   Stack trace:', new Error().stack);
+      return false;
+    }
+
+    // Skip empty arrays (no features to record)
+    if (featuresOrSignature.length === 0) {
+      console.warn('⚠️ recordPatternResult: Empty features array, skipping');
       return false;
     }
     
