@@ -18,7 +18,7 @@ const BrokerRegistry = {
     kraken: {
         name: 'Kraken',
         assetType: 'crypto',
-        filePath: './kraken_adapter_simple',  // Uses existing simple adapter
+        filePath: './KrakenIBrokerAdapter',  // Uses IBroker-compliant wrapper
         description: 'Spot crypto trading, high liquidity',
         features: ['spot', 'margin', 'staking'],
         supported: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'ADA/USD'],
@@ -229,12 +229,15 @@ function getBrokerInfo(brokerName) {
 /**
  * Check if adapter file exists and is implemented
  */
+const path = require('path');
+
 function isImplemented(brokerName) {
     const broker = BrokerRegistry[brokerName.toLowerCase()];
     if (!broker) return false;
 
     try {
-        require(broker.filePath);
+        const resolved = path.resolve(__dirname, broker.filePath);
+        require(resolved);
         return true;
     } catch (error) {
         return false;

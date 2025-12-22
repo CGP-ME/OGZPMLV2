@@ -122,7 +122,8 @@ const GridTradingStrategy = loader.get('core', 'GridTradingStrategy');
 const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
 
 // Infrastructure
-const KrakenAdapterSimple = require('./kraken_adapter_simple'); // Keep direct - not in modules
+// EMPIRE V2 ARCHITECTURE: Using BrokerFactory for proper abstraction
+const { createBrokerAdapter } = require('./brokers/BrokerFactory');
 const TierFeatureFlags = require('./TierFeatureFlags'); // Keep direct - in root not core
 const OgzTpoIntegration = loader.get('core', 'OgzTpoIntegration');
 
@@ -302,11 +303,29 @@ class OGZPrimeV14Bot {
     // this.safetyNet = new TradingSafetyNet(); // DISABLED - blocking everything
     // this.tradeLogger = new TradeLogger(); // Module doesn't exist
 
-    // Kraken adapter for live trading
-    this.kraken = new KrakenAdapterSimple({
-      apiKey: process.env.KRAKEN_API_KEY,
-      apiSecret: process.env.KRAKEN_API_SECRET
-    });
+    console.log('🔍 [DEBUG] About to create Kraken adapter...');
+    console.log('🔍 [DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
+
+    // EMPIRE V2: Create Kraken adapter through BrokerFactory
+    try {
+      this.kraken = createBrokerAdapter('kraken', {
+        apiKey: process.env.KRAKEN_API_KEY,
+        apiSecret: process.env.KRAKEN_API_SECRET
+      });
+      console.log('🏭 [EMPIRE V2] Created Kraken adapter via BrokerFactory');
+      console.log('🔍 [DEBUG] Kraken adapter type:', this.kraken.constructor.name);
+      console.log('🔍 [DEBUG] Kraken methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.kraken)).filter(m => typeof this.kraken[m] === 'function'));
+    } catch (error) {
+      console.error('❌ [EMPIRE V2] Failed to create Kraken adapter:', error.message);
+      console.error('Stack:', error.stack);
+      // Fallback to direct adapter
+      console.log('⚠️ [FALLBACK] Using direct KrakenAdapterSimple');
+      const KrakenAdapterSimple = require('./kraken_adapter_simple');
+      this.kraken = new KrakenAdapterSimple({
+        apiKey: process.env.KRAKEN_API_KEY,
+        apiSecret: process.env.KRAKEN_API_SECRET
+      });
+    }
 
     // Connect execution layer to Kraken
     this.executionLayer.setKrakenAdapter(this.kraken);
@@ -855,8 +874,14 @@ class OGZPrimeV14Bot {
     };
 
     // CHANGE 663: Broadcast market data to dashboard
+    console.log(`🔍 [DEBUG] Dashboard broadcast check: connected=${this.dashboardWsConnected}, ws exists=${!!this.dashboardWs}`);
+
     if (this.dashboardWsConnected && this.dashboardWs) {
       try {
+        // Calculate simple indicators for display
+        const indicators = this.calculateSimpleIndicators(this.priceHistory);
+        console.log(`📤 [DEBUG] Sending to dashboard: price=${price}, indicators:`, indicators);
+
         this.dashboardWs.send(JSON.stringify({
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           data: {
@@ -869,6 +894,7 @@ class OGZPrimeV14Bot {
               volume: parseFloat(volume),
               timestamp: Date.now()
             },
+            indicators: indicators,
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
             balance: stateManager.get('balance'),
             position: stateManager.get('position'),
@@ -1842,6 +1868,54 @@ class OGZPrimeV14Bot {
   /**
    * Broadcast pattern analysis to dashboard for transparency
    */
+  /**
+   * Calculate simple indicators for dashboard display
+   */
+  calculateSimpleIndicators(priceHistory) {
+    if (!priceHistory || priceHistory.length < 14) {
+      return { rsi: 50, macd: 0, sma20: 0, ema12: 0, volume: 0 };
+    }
+
+    const prices = priceHistory.map(c => c.close || c.c || c.price).filter(p => p > 0);
+    if (prices.length < 14) return { rsi: 50, macd: 0, sma20: 0, ema12: 0, volume: 0 };
+
+    // Simple RSI calculation
+    let gains = 0, losses = 0;
+    for (let i = 1; i < Math.min(14, prices.length); i++) {
+      const change = prices[i] - prices[i - 1];
+      if (change > 0) gains += change;
+      else losses += Math.abs(change);
+    }
+    const avgGain = gains / 14;
+    const avgLoss = losses / 14;
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    const rsi = 100 - (100 / (1 + rs));
+
+    // Simple SMA and MACD
+    const sma20 = prices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, prices.length);
+    const ema12 = this.calculateEMA(prices, 12);
+    const ema26 = this.calculateEMA(prices, 26);
+    const macd = ema12 - ema26;
+
+    return {
+      rsi: Math.round(rsi * 10) / 10,
+      macd: Math.round(macd * 100) / 100,
+      sma20: Math.round(sma20 * 100) / 100,
+      ema12: Math.round(ema12 * 100) / 100,
+      volume: priceHistory[priceHistory.length - 1]?.volume || 0
+    };
+  }
+
+  calculateEMA(prices, period) {
+    if (prices.length < period) return prices[prices.length - 1] || 0;
+    const k = 2 / (period + 1);
+    let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    for (let i = period; i < prices.length; i++) {
+      ema = (prices[i] * k) + (ema * (1 - k));
+    }
+    return ema;
+  }
+
   broadcastPatternAnalysis(patterns, indicators) {
     try {
       if (this.dashboardWs && this.dashboardWs.readyState === 1) {

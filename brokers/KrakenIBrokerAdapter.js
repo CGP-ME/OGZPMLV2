@@ -1,0 +1,381 @@
+/**
+ * ============================================================================
+ * KrakenIBrokerAdapter - Kraken IBroker Implementation
+ * ============================================================================
+ *
+ * Wraps the existing kraken_adapter_simple to conform to IBrokerAdapter interface
+ * This allows Kraken to be used via the broker abstraction layer
+ *
+ * EMPIRE V2 IMPLEMENTATION
+ *
+ * @author OGZPrime Team
+ * @version 1.0.0
+ * ============================================================================
+ */
+
+const IBrokerAdapter = require('./IBrokerAdapter');
+const KrakenAdapterSimple = require('../kraken_adapter_simple');
+const WebSocket = require('ws');
+
+class KrakenIBrokerAdapter extends IBrokerAdapter {
+  constructor(options = {}) {
+    super();
+    this.kraken = new KrakenAdapterSimple(options);
+    this.connected = false;
+    this.wsConnection = null;
+    this.subscriptions = new Map();
+  }
+
+  // =========================================================================
+  // CONNECTION MANAGEMENT
+  // =========================================================================
+
+  async connect() {
+    try {
+      await this.kraken.connect();
+      this.connected = true;
+      console.log('✅ [KrakenIBroker] Connected to Kraken');
+      return true;
+    } catch (error) {
+      console.error('❌ [KrakenIBroker] Connection failed:', error.message);
+      this.connected = false;
+      return false;
+    }
+  }
+
+  async disconnect() {
+    if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
+      this.wsConnection.close();
+    }
+    await this.kraken.disconnect();
+    this.connected = false;
+    console.log('📴 [KrakenIBroker] Disconnected from Kraken');
+  }
+
+  isConnected() {
+    return this.connected;
+  }
+
+  // =========================================================================
+  // BROKER IDENTIFICATION
+  // =========================================================================
+
+  getAssetType() {
+    return 'crypto';
+  }
+
+  getBrokerName() {
+    return 'kraken';
+  }
+
+  // =========================================================================
+  // ACCOUNT INFO
+  // =========================================================================
+
+  async getBalance() {
+    return await this.kraken.getBalance();
+  }
+
+  async getPositions() {
+    return await this.kraken.getOpenPositions();
+  }
+
+  async getOpenOrders() {
+    return await this.kraken.getOpenOrders();
+  }
+
+  // =========================================================================
+  // ORDER MANAGEMENT
+  // =========================================================================
+
+  async placeBuyOrder(symbol, amount, price = null, options = {}) {
+    const order = {
+      symbol: symbol,
+      action: 'buy',
+      orderType: price ? 'limit' : 'market',
+      size: amount,
+      price: price,
+      ...options
+    };
+
+    const result = await this.kraken.placeOrder(order);
+    return {
+      orderId: result.orderId || result.txid?.[0],
+      status: result.status || 'pending',
+      ...result
+    };
+  }
+
+  async placeSellOrder(symbol, amount, price = null, options = {}) {
+    const order = {
+      symbol: symbol,
+      action: 'sell',
+      orderType: price ? 'limit' : 'market',
+      size: amount,
+      price: price,
+      ...options
+    };
+
+    const result = await this.kraken.placeOrder(order);
+    return {
+      orderId: result.orderId || result.txid?.[0],
+      status: result.status || 'pending',
+      ...result
+    };
+  }
+
+  // =========================================================================
+  // EMPIRE V2 EXECUTION CONTRACT (CRITICAL FOR TRAI/RECONCILER)
+  // =========================================================================
+
+  async executeTrade(params) {
+    const {
+      direction,
+      positionSize,
+      confidence,
+      marketData,
+      decisionId,
+      meta = {}
+    } = params;
+
+    // Call underlying placeOrder with V2 metadata preserved
+    const order = {
+      symbol: marketData.symbol,
+      action: direction.toLowerCase(),
+      orderType: 'market',
+      size: positionSize,
+      decisionId: decisionId,  // CRITICAL: Pass through for TRAI learning
+      confidence: confidence,
+      meta: meta
+    };
+
+    const result = await this.kraken.placeOrder(order);
+
+    // Return V2-compatible execution result with full metadata
+    return {
+      orderId: result.orderId || result.txid?.[0],
+      status: 'submitted',
+      decisionId: decisionId,      // CRITICAL: For TRAI attribution
+      broker: 'kraken',
+      symbol: marketData.symbol,
+      side: direction,
+      requestedQty: positionSize,
+      confidence: confidence,
+      timestamp: Date.now(),
+      raw: result
+    };
+  }
+
+  // Expose underlying adapter methods for compatibility
+  async placeOrder(order) {
+    return await this.kraken.placeOrder(order);
+  }
+
+  async connectWebSocketStream(callback) {
+    return await this.kraken.connectWebSocketStream(callback);
+  }
+
+  async cancelOrder(orderId) {
+    // kraken_adapter_simple doesn't have cancelOrder, would need to add
+    throw new Error('[KrakenIBroker] cancelOrder not implemented in kraken_adapter_simple');
+  }
+
+  async modifyOrder(orderId, modifications) {
+    // kraken_adapter_simple doesn't have modifyOrder, would need to add
+    throw new Error('[KrakenIBroker] modifyOrder not implemented in kraken_adapter_simple');
+  }
+
+  async getOrderStatus(orderId) {
+    // kraken_adapter_simple doesn't have getOrderStatus, would need to add
+    throw new Error('[KrakenIBroker] getOrderStatus not implemented in kraken_adapter_simple');
+  }
+
+  // =========================================================================
+  // MARKET DATA
+  // =========================================================================
+
+  async getTicker(symbol) {
+    const marketData = await this.kraken.getMarketData(symbol);
+    return {
+      bid: marketData.bid,
+      ask: marketData.ask,
+      last: marketData.last || marketData.price,
+      volume: marketData.volume,
+      timestamp: Date.now()
+    };
+  }
+
+  async getCandles(symbol, timeframe = '1m', limit = 100) {
+    // kraken_adapter_simple doesn't have getCandles, would need REST call
+    throw new Error('[KrakenIBroker] getCandles not implemented - use subscribeToCandles for real-time');
+  }
+
+  async getOrderBook(symbol, depth = 20) {
+    // kraken_adapter_simple doesn't have getOrderBook
+    throw new Error('[KrakenIBroker] getOrderBook not implemented in kraken_adapter_simple');
+  }
+
+  // =========================================================================
+  // REAL-TIME SUBSCRIPTIONS
+  // =========================================================================
+
+  subscribeToTicker(symbol, callback) {
+    // Use the existing connectWebSocketStream for price updates
+    this.kraken.connectWebSocketStream((data) => {
+      if (data.symbol === symbol || data.asset === symbol) {
+        callback({
+          symbol: symbol,
+          bid: data.bid,
+          ask: data.ask,
+          last: data.price,
+          volume: data.volume,
+          timestamp: data.timestamp || Date.now()
+        });
+      }
+    });
+  }
+
+  subscribeToCandles(symbol, timeframe, callback) {
+    // Connect to Kraken WebSocket for OHLC data
+    if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
+      this.wsConnection = new WebSocket('wss://ws.kraken.com');
+
+      this.wsConnection.on('open', () => {
+        console.log('📡 [KrakenIBroker] Connected to Kraken WebSocket for OHLC');
+
+        // Subscribe to OHLC
+        const krakenSymbol = this.toBrokerSymbol(symbol);
+        const intervalMap = {
+          '1m': 1, '5m': 5, '15m': 15, '30m': 30,
+          '1h': 60, '4h': 240, '1d': 1440
+        };
+
+        this.wsConnection.send(JSON.stringify({
+          event: 'subscribe',
+          pair: [krakenSymbol],
+          subscription: {
+            name: 'ohlc',
+            interval: intervalMap[timeframe] || 1
+          }
+        }));
+      });
+
+      this.wsConnection.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          // Skip system messages
+          if (msg.event) return;
+
+          // OHLC data comes as array: [channelID, data, channelName, pair]
+          if (Array.isArray(msg) && msg.length >= 4) {
+            const [channelId, ohlcData, channelName, pair] = msg;
+
+            if (channelName && channelName.startsWith('ohlc')) {
+              // ohlcData format: [time, etime, open, high, low, close, vwap, volume, count]
+              const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
+
+              callback({
+                symbol: this.fromBrokerSymbol(pair),
+                o: parseFloat(open),
+                h: parseFloat(high),
+                l: parseFloat(low),
+                c: parseFloat(close),
+                v: parseFloat(volume),
+                t: parseInt(time) * 1000, // Convert to milliseconds
+                etime: parseInt(etime) * 1000,
+                count: parseInt(count)
+              });
+            }
+          }
+        } catch (error) {
+          console.error('[KrakenIBroker] Error parsing WebSocket message:', error);
+        }
+      });
+
+      this.wsConnection.on('error', (error) => {
+        console.error('❌ [KrakenIBroker] WebSocket error:', error.message);
+      });
+
+      this.wsConnection.on('close', () => {
+        console.log('📴 [KrakenIBroker] WebSocket disconnected');
+        // Reconnect after 5 seconds
+        setTimeout(() => this.subscribeToCandles(symbol, timeframe, callback), 5000);
+      });
+    }
+
+    // Store subscription for later cleanup
+    const key = `${symbol}-${timeframe}`;
+    this.subscriptions.set(key, callback);
+  }
+
+  subscribeToOrderBook(symbol, callback) {
+    throw new Error('[KrakenIBroker] subscribeToOrderBook not implemented yet');
+  }
+
+  subscribeToAccount(callback) {
+    throw new Error('[KrakenIBroker] subscribeToAccount not implemented yet');
+  }
+
+  unsubscribeAll() {
+    this.subscriptions.clear();
+    if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
+      this.wsConnection.close();
+    }
+  }
+
+  // =========================================================================
+  // ASSET INFORMATION
+  // =========================================================================
+
+  async getSupportedSymbols() {
+    // Return common Kraken pairs
+    return [
+      'BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'ADA/USD',
+      'DOT/USD', 'AVAX/USD', 'LINK/USD', 'ATOM/USD', 'UNI/USD'
+    ];
+  }
+
+  getMinOrderSize(symbol) {
+    // Kraken minimums (simplified)
+    const minimums = {
+      'BTC/USD': 0.0001,
+      'ETH/USD': 0.001,
+      'SOL/USD': 0.01,
+      'XRP/USD': 1,
+      'ADA/USD': 1,
+      'default': 0.01
+    };
+    return minimums[symbol] || minimums.default;
+  }
+
+  getFees() {
+    return {
+      maker: 0.0016,
+      taker: 0.0026
+    };
+  }
+
+  isTradeableNow(symbol) {
+    // Crypto trades 24/7
+    return true;
+  }
+
+  // =========================================================================
+  // SYMBOL NORMALIZATION
+  // =========================================================================
+
+  toBrokerSymbol(symbol) {
+    // Convert universal format to Kraken format
+    // BTC/USD -> XBT/USD
+    return symbol.replace('BTC/', 'XBT/');
+  }
+
+  fromBrokerSymbol(brokerSymbol) {
+    // Convert Kraken format to universal format
+    // XBT/USD -> BTC/USD
+    return brokerSymbol.replace('XBT/', 'BTC/');
+  }
+}
+
+module.exports = KrakenIBrokerAdapter;

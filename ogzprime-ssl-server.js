@@ -147,9 +147,17 @@ let currentAsset = 'BTC-USD';
 // � Kraken WebSocket connection (PUBLIC - no API key needed for market data!)
 const KRAKEN_PUBLIC_WS = 'wss://ws.kraken.com';
 
-console.log('🐙 Using Kraken public WebSocket for market data (no API key required)');
+console.log('🔧 [EMPIRE V2] Kraken direct connection DISABLED - Bot provides all market data');
+console.log('📡 WebSocket server acting as relay only - no direct Kraken connection');
 
-const krakenSocket = new WebSocket(KRAKEN_PUBLIC_WS);
+// TEMPORARILY DISABLED to fix data conflicts - bot sends all data
+// const krakenSocket = new WebSocket(KRAKEN_PUBLIC_WS);
+const krakenSocket = {
+  on: () => {},
+  send: () => {},
+  readyState: 0,
+  close: () => {}
+};
 
 krakenSocket.on('open', () => {
   console.log('� Connected to Kraken public WebSocket feed');
@@ -230,17 +238,17 @@ krakenSocket.on('message', (data) => {
         }
       };
       
-      // Broadcast to ALL connected WebSocket clients
+      // Broadcast ONLY to authenticated WebSocket clients
       const messageStr = JSON.stringify(priceMessage);
       let sentCount = 0;
-      
+
       wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
+        if (client.readyState === WebSocket.OPEN && client.authenticated) {
           try {
             client.send(messageStr);
             sentCount++;
           } catch (err) {
-            console.error('Error sending to client:', err.message);
+            console.error('Error sending to authenticated client:', err.message);
           }
         }
       });
@@ -281,7 +289,7 @@ krakenSocket.on('close', () => {
   });
   
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN && client.authenticated) {
       try {
         client.send(disconnectMessage);
       } catch (err) {

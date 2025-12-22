@@ -1093,7 +1093,28 @@
                         borderColor: '#00ff88',
                         backgroundColor: 'rgba(0, 255, 136, 0.1)',
                         borderWidth: 2,
-                        tension: 0.1
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'RSI',
+                        data: [],
+                        borderColor: '#ff6b6b',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                        borderWidth: 1,
+                        tension: 0.1,
+                        hidden: true,  // Start hidden until we have RSI data
+                        yAxisID: 'y1',
+                        spanGaps: true  // Skip null values
+                    }, {
+                        label: 'MACD',
+                        data: [],
+                        borderColor: '#4ecdc4',
+                        backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                        borderWidth: 1,
+                        tension: 0.1,
+                        hidden: true,  // Start hidden until we have MACD data
+                        yAxisID: 'y2',
+                        spanGaps: true  // Skip null values
                     }]
                 },
                 options: {
@@ -1109,12 +1130,61 @@
                             display: true,
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#999',
+                                maxRotation: 0
                             }
                         },
                         y: {
+                            type: 'linear',
                             display: true,
+                            position: 'left',
+                            beginAtZero: false,
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#00ff88'
+                            },
+                            // Add padding to see above the price
+                            suggestedMax: function(context) {
+                                const max = Math.max(...context.chart.data.datasets[0].data);
+                                return max * 1.05; // 5% padding above max
+                            },
+                            suggestedMin: function(context) {
+                                const min = Math.min(...context.chart.data.datasets[0].data.filter(d => d > 0));
+                                return min * 0.95; // 5% padding below min
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: false,  // Start hidden, will show when RSI data arrives
+                            position: 'right',
+                            beginAtZero: false,
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: '#ff6b6b'
+                            },
+                            title: {
+                                display: true,
+                                text: 'RSI',
+                                color: '#ff6b6b'
+                            }
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: false,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: '#4ecdc4'
                             }
                         }
                     }
@@ -1425,10 +1495,18 @@
 
             const now = new Date();
             const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds();
-            const price = data.price || data.close || 0;
+
+            // FIX: Only use valid price, don't default to 0
+            const price = data.price || data.close || null;
 
             // Debug logging
-            console.log('[Chart Update]', {price, hasCandles: !!data.candles, candleCount: data.candles?.length});
+            console.log('[Chart Update]', {
+                price,
+                asset: data.asset,
+                hasCandles: !!data.candles,
+                candleCount: data.candles?.length,
+                rawData: data
+            });
 
             // Store the full candle data if available
             if (data.candle) {
@@ -1456,22 +1534,52 @@
                     chart.data.labels.push(time);
                     chart.data.datasets[0].data.push(candle.c); // Use close price for line chart
                 });
-            } else if (price > 0) {
+            } else if (price && price > 0) {
                 // Add new price point without clearing existing data
                 // Don't add duplicate timestamps
                 const lastLabel = chart.data.labels[chart.data.labels.length - 1];
                 if (lastLabel !== timestamp) {
                     chart.data.labels.push(timestamp);
                     chart.data.datasets[0].data.push(price);
+
+                    // Add indicator data if available
+                    if (data.indicators) {
+                        // Only add and show RSI if we have valid data
+                        if (data.indicators.rsi && data.indicators.rsi !== 50) {
+                            chart.data.datasets[1].data.push(data.indicators.rsi);
+                            chart.data.datasets[1].hidden = false; // Show RSI line
+                        } else {
+                            chart.data.datasets[1].data.push(null);
+                        }
+
+                        // Only add and show MACD if we have valid data
+                        if (data.indicators.macd && data.indicators.macd !== 0) {
+                            chart.data.datasets[2].data.push(data.indicators.macd);
+                            chart.data.datasets[2].hidden = false; // Show MACD line
+                        } else {
+                            chart.data.datasets[2].data.push(null);
+                        }
+                    } else {
+                        chart.data.datasets[1].data.push(null);
+                        chart.data.datasets[2].data.push(null);
+                    }
                 } else {
-                    // Update the last point if same timestamp
+                    // Update the last point if same timestamp (in-place update)
                     chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] = price;
+
+                    // Update indicator data
+                    if (data.indicators) {
+                        chart.data.datasets[1].data[chart.data.datasets[1].data.length - 1] = data.indicators.rsi || null;
+                        chart.data.datasets[2].data[chart.data.datasets[2].data.length - 1] = data.indicators.macd || null;
+                    }
                 }
 
                 // Keep only last 50 points
                 if (chart.data.labels.length > 50) {
                     chart.data.labels.shift();
                     chart.data.datasets[0].data.shift();
+                    chart.data.datasets[1].data.shift(); // RSI
+                    chart.data.datasets[2].data.shift(); // MACD
                 }
             }
 
