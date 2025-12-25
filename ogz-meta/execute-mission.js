@@ -178,11 +178,34 @@ async function executeMission(missionFile, options = {}) {
 
   console.log('\n');
 
+  // Check for PATCHSET section first (required for real fixes)
+  const hasPatchset = missionContent.includes('## PATCHSET');
+  const patchFileMatch = missionContent.match(/### Patch File\s*\n(.+\.patch)/);
+
   // Extract fix information from mission
   const fixes = extractFixes(missionContent);
 
-  if (fixes.length === 0) {
-    console.log('ℹ️  No specific fixes found in mission plan.');
+  // CRITICAL GUARDRAIL: No real changes without a patchset
+  if (!isDryRun && !hasPatchset && fixes.length > 0) {
+    console.log('\n❌ FATAL: No PATCHSET found in mission!');
+    console.log('   This mission contains only diagnostic references, not executable fixes.');
+    console.log('\n   To apply actual fixes, the mission must include:');
+    console.log('   ## PATCHSET (REQUIRED FOR APPLY)');
+    console.log('   ### Patch File');
+    console.log('   ogz-meta/support-missions/MISSION-xxx.patch');
+    console.log('\n   Current mission contains:');
+    fixes.slice(0, 3).forEach(f => {
+      console.log(`   - ${f.description} (reference only)`);
+    });
+    console.log('\n💡 Next steps:');
+    console.log('   1. Review the diagnostic report');
+    console.log('   2. Generate actual patches if needed');
+    console.log('   3. Or manually implement the suggested fixes');
+    process.exit(1);
+  }
+
+  if (fixes.length === 0 && !hasPatchset) {
+    console.log('ℹ️  No fixes or patchset found in mission plan.');
     console.log('This appears to be an informational/diagnostic mission only.');
     return;
   }
@@ -220,49 +243,104 @@ async function executeMission(missionFile, options = {}) {
     return { dryRun: true, fixes: fixes.length };
   }
 
-  // APPLY MODE - Actually execute fixes
-  for (const fix of fixes) {
-    console.log(`\n🔧 Executing fix: ${fix.description}`);
-    console.log(`   File: ${fix.file}`);
-    console.log(`   Line: ${fix.line || 'N/A'}`);
+  // APPLY MODE - Apply patchset if it exists
+  if (hasPatchset && patchFileMatch) {
+    const patchFile = patchFileMatch[1].trim();
+    const fullPatchPath = path.isAbsolute(patchFile) ? patchFile :
+                          path.join(path.dirname(__dirname), patchFile);
+
+    console.log(`\n📄 APPLYING PATCHSET`);
+    console.log(`   Patch file: ${patchFile}`);
+
+    if (!fs.existsSync(fullPatchPath)) {
+      console.error(`\n❌ FATAL: Patch file not found: ${fullPatchPath}`);
+      console.error('   Mission references a patchset that does not exist!');
+      process.exit(1);
+    }
 
     try {
-      // Backup original file
-      if (fix.file && fs.existsSync(fix.file)) {
-        const backupPath = `${fix.file}.backup.${missionId}`;
-        fs.copyFileSync(fix.file, backupPath);
-        console.log(`   Backup: ${backupPath}`);
-
-        // Add to manifest
-        if (manifestPath) {
-          addToManifest(manifestPath, 'backups', backupPath);
-        }
-      }
-
-      // Apply fix (this is where actual changes would happen)
-      // For now, log what would be done
-      console.log(`   Fix: ${fix.fix}`);
+      // Apply the patch
+      console.log('   Applying patch...');
+      execSync(`git apply --index "${fullPatchPath}"`, { stdio: 'inherit' });
+      console.log('   ✅ Patch applied successfully');
 
       executionLog.push({
-        fix: fix.description,
-        file: fix.file,
+        fix: 'Applied patchset',
+        file: patchFile,
         status: 'SUCCESS',
         timestamp: new Date().toISOString()
       });
-
       successCount++;
-      console.log('   ✅ Fix applied successfully');
 
+      // Add patch to manifest
+      if (manifestPath) {
+        addToManifest(manifestPath, 'files', fullPatchPath);
+      }
     } catch (error) {
-      console.error(`   ❌ Fix failed: ${error.message}`);
+      console.error(`   ❌ Patch failed to apply: ${error.message}`);
       executionLog.push({
-        fix: fix.description,
-        file: fix.file,
+        fix: 'Apply patchset',
+        file: patchFile,
         status: 'FAILED',
         error: error.message,
         timestamp: new Date().toISOString()
       });
       failureCount++;
+
+      // Exit on patch failure
+      console.error('\n❌ FATAL: Patch application failed!');
+      console.error('   The patchset could not be applied cleanly.');
+      console.error('   Please review the patch and resolve conflicts manually.');
+      process.exit(1);
+    }
+  } else {
+    // Legacy mode - execute individual fixes (deprecated)
+    console.log('\n⚠️  DEPRECATED: Using legacy fix extraction (no patchset)');
+    console.log('   This mode will be removed. Use PATCHSET format instead.');
+
+    for (const fix of fixes) {
+      console.log(`\n🔧 Executing fix: ${fix.description}`);
+      console.log(`   File: ${fix.file}`);
+      console.log(`   Line: ${fix.line || 'N/A'}`);
+
+      try {
+        // Backup original file
+        if (fix.file && fs.existsSync(fix.file)) {
+          const backupPath = `${fix.file}.backup.${missionId}`;
+          fs.copyFileSync(fix.file, backupPath);
+          console.log(`   Backup: ${backupPath}`);
+
+          // Add to manifest
+          if (manifestPath) {
+            addToManifest(manifestPath, 'backups', backupPath);
+          }
+        }
+
+        // Apply fix (this is where actual changes would happen)
+        // For now, log what would be done
+        console.log(`   Fix: ${fix.fix}`);
+
+        executionLog.push({
+          fix: fix.description,
+          file: fix.file,
+          status: 'SUCCESS',
+          timestamp: new Date().toISOString()
+        });
+
+        successCount++;
+        console.log('   ✅ Fix applied successfully');
+
+      } catch (error) {
+        console.error(`   ❌ Fix failed: ${error.message}`);
+        executionLog.push({
+          fix: fix.description,
+          file: fix.file,
+          status: 'FAILED',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        failureCount++;
+      }
     }
   }
 
