@@ -68,6 +68,14 @@ const stateManager = getStateManager();
 // CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
 const MessageQueue = require('./core/MessageQueue');
 
+// CHANGE 2025-12-23: Empire V2 IndicatorEngine - Single source of truth for indicators
+const IndicatorEngine = require('./core/indicators/IndicatorEngine');
+const indicatorEngine = new IndicatorEngine({
+  symbol: 'BTC-USD',
+  tf: '1m',
+  ogzTpoEnabled: true
+});
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -234,7 +242,7 @@ class OGZPrimeV14Bot {
     this.executionLayer = new AdvancedExecutionLayer({
       bot: this,
       botTier: this.tier,
-      sandboxMode: process.env.ENABLE_LIVE_TRADING !== 'true',
+      sandboxMode: process.env.LIVE_TRADING !== 'true',
       enableRiskManagement: true,
       initialBalance: parseFloat(process.env.INITIAL_BALANCE) || 10000,
       paperTrading: featureFlags.features.PAPER_TRADING?.enabled || false,
@@ -335,7 +343,7 @@ class OGZPrimeV14Bot {
     this.reconciler = getReconciler({
       krakenAdapter: this.kraken,
       interval: 30000, // Reconcile every 30 seconds
-      paperMode: process.env.ENABLE_LIVE_TRADING !== 'true'
+      paperMode: process.env.LIVE_TRADING !== 'true'
     });
     console.log('🔄 Exchange reconciler initialized');
 
@@ -407,7 +415,7 @@ class OGZPrimeV14Bot {
     });
 
     // MODE DETECTION: Paper, Live, or Backtest (MUTUAL EXCLUSION)
-    const enableLiveTrading = process.env.ENABLE_LIVE_TRADING === 'true';
+    const enableLiveTrading = process.env.LIVE_TRADING === 'true';
     const enableBacktestMode = process.env.BACKTEST_MODE === 'true';
 
     // Enforce mutual exclusion: Only ONE mode can be active
@@ -458,7 +466,7 @@ class OGZPrimeV14Bot {
    * Prevents accidental live trading activation
    */
   verifyTradingMode() {
-    const enableLive = process.env.ENABLE_LIVE_TRADING === 'true';
+    const enableLive = process.env.LIVE_TRADING === 'true';
     const confirmLive = process.env.CONFIRM_LIVE_TRADING === 'true';
 
     // Check if attempting live mode
@@ -873,14 +881,24 @@ class OGZPrimeV14Bot {
       low: parseFloat(low)
     };
 
+    // CHANGE 2025-12-23: Feed candle to IndicatorEngine (Empire V2)
+    indicatorEngine.updateCandle({
+      t: parseFloat(time) * 1000,
+      o: parseFloat(open),
+      h: parseFloat(high),
+      l: parseFloat(low),
+      c: parseFloat(close),
+      v: parseFloat(volume) || 0
+    });
+
     // CHANGE 663: Broadcast market data to dashboard
     console.log(`🔍 [DEBUG] Dashboard broadcast check: connected=${this.dashboardWsConnected}, ws exists=${!!this.dashboardWs}`);
 
     if (this.dashboardWsConnected && this.dashboardWs) {
       try {
-        // Calculate simple indicators for display
-        const indicators = this.calculateSimpleIndicators(this.priceHistory);
-        console.log(`📤 [DEBUG] Sending to dashboard: price=${price}, indicators:`, indicators);
+        // CHANGE 2025-12-23: Use IndicatorEngine render packet for dashboard
+        const renderPacket = indicatorEngine.getRenderPacket({ maxPoints: 200 });
+        console.log(`📤 [DEBUG] Sending to dashboard: price=${price}, ogzTpo:`, renderPacket.indicators?.ogzTpo?.tpo);
 
         this.dashboardWs.send(JSON.stringify({
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
@@ -894,8 +912,9 @@ class OGZPrimeV14Bot {
               volume: parseFloat(volume),
               timestamp: Date.now()
             },
-            indicators: indicators,
+            indicators: renderPacket.indicators,  // Use IndicatorEngine output
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
+            series: renderPacket.series,  // Include chart series data
             balance: stateManager.get('balance'),
             position: stateManager.get('position'),
             totalTrades: this.executionLayer?.totalTrades || 0
@@ -914,9 +933,9 @@ class OGZPrimeV14Bot {
     const interval = parseInt(process.env.TRADING_INTERVAL) || 15000;
 
     this.tradingInterval = setInterval(async () => {
-      // TEMP: Reduced to 3 for debugging - normally 15
-      if (!this.marketData || this.priceHistory.length < 3) {
-        console.log(`⏳ Warming up... ${this.priceHistory.length}/3 candles (TEMP: reduced for debug)`);
+      // Require 15 candles for stable indicators
+      if (!this.marketData || this.priceHistory.length < 15) {
+        console.log(`⏳ Warming up... ${this.priceHistory.length}/15 candles`);
         return;
       }
 
@@ -938,14 +957,17 @@ class OGZPrimeV14Bot {
   async analyzeAndTrade() {
     const { price } = this.marketData;
 
-    // Calculate technical indicators
+    // CHANGE 2025-12-23: Use IndicatorEngine as single source of truth
+    const engineState = indicatorEngine.getSnapshot();
+
+    // Map IndicatorEngine output to expected format
     const indicators = {
-      rsi: OptimizedIndicators.calculateRSI(this.priceHistory, 14),
-      macd: OptimizedIndicators.calculateMACD(this.priceHistory),
-      ema12: OptimizedIndicators.calculateEMA(this.priceHistory, 12),
-      ema26: OptimizedIndicators.calculateEMA(this.priceHistory, 26),
-      trend: OptimizedIndicators.determineTrend(this.priceHistory, 10, 30),
-      volatility: OptimizedIndicators.calculateVolatility(this.priceHistory, 20)
+      rsi: engineState.rsi || 50,
+      macd: engineState.macd || { macd: 0, signal: 0, hist: 0 },
+      ema12: engineState.ema?.[12] || price,
+      ema26: engineState.ema?.[26] || price,
+      trend: OptimizedIndicators.determineTrend(this.priceHistory, 10, 30), // Keep for now
+      volatility: engineState.atr || OptimizedIndicators.calculateVolatility(this.priceHistory, 20)
     };
 
     // CHANGE 655: RSI Smoothing - Prevent machine-gun trading without circuit breakers

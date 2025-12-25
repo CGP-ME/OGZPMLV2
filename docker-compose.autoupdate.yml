@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Watchtower - Automatically updates Docker containers
+  watchtower:
+    image: containrrr/watchtower
+    container_name: ogz-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Check every 5 minutes (300 seconds)
+      - WATCHTOWER_POLL_INTERVAL=300
+      # Only update containers with label
+      - WATCHTOWER_LABEL_ENABLE=true
+      # Send notifications (optional)
+      - WATCHTOWER_NOTIFICATIONS=email
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=ogzprime@updates.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${ADMIN_EMAIL}
+      # Clean up old images
+      - WATCHTOWER_CLEANUP=true
+      # Include stopped containers
+      - WATCHTOWER_INCLUDE_STOPPED=true
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  # Your bot with auto-update label
+  ogz-bot:
+    build: .
+    container_name: ogz-prime-bot
+    labels:
+      # Enable auto-updates for this container
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Check for updates every 5 minutes
+      - "com.centurylinklabs.watchtower.poll-interval=300"
+    environment:
+      - TRADING_PROFILE=${TRADING_PROFILE:-scalper}
+      - LIVE_TRADING=${LIVE_TRADING:-false}
+      - PAPER_TRADING=${PAPER_TRADING:-true}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+networks:
+  ogzprime:
+    driver: bridge

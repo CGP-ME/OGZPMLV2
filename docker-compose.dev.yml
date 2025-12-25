@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Development mode - uses local code directly (no rebuild needed)
+  ogz-bot-dev:
+    image: node:18-alpine
+    container_name: ogz-prime-bot-dev
+    working_dir: /app
+    volumes:
+      # Mount current code directly - changes are instant!
+      - ./:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+    environment:
+      - TRADING_PROFILE=${TRADING_PROFILE:-scalper}
+      - LIVE_TRADING=${LIVE_TRADING:-false}
+      - PAPER_TRADING=${PAPER_TRADING:-true}
+      - MIN_TRADE_CONFIDENCE=${MIN_TRADE_CONFIDENCE:-0.01}
+      - WS_URL=ws://ogz-websocket-dev:3010
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+    command: >
+      sh -c "
+        npm install &&
+        npm install -g pm2 &&
+        pm2-runtime start run-empire-v2.js
+      "
+    depends_on:
+      - ogz-websocket-dev
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  ogz-websocket-dev:
+    image: node:18-alpine
+    container_name: ogz-websocket-dev
+    working_dir: /app
+    volumes:
+      # Mount current code
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - WS_PORT=3010
+      - NODE_ENV=development
+    command: >
+      sh -c "
+        npm install &&
+        node ogzprime-ssl-server.js
+      "
+    ports:
+      - "3010:3010"
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+  ogz-dashboard-dev:
+    image: node:18-alpine
+    container_name: ogz-dashboard-dev
+    working_dir: /app
+    volumes:
+      # Mount current code
+      - ./:/app
+      - /app/node_modules
+      - ./public:/app/public:ro
+    environment:
+      - PORT=3011
+      - NODE_ENV=development
+      - WS_URL=ws://ogz-websocket-dev:3010
+    command: >
+      sh -c "
+        npm install &&
+        node dashboard-server.js
+      "
+    ports:
+      - "3011:3011"
+    depends_on:
+      - ogz-websocket-dev
+    restart: unless-stopped
+    networks:
+      - ogzprime
+
+networks:
+  ogzprime:
+    driver: bridge

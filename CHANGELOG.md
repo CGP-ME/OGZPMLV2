@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2025-12-22
+
+### Added - EMPIRE V2 Architecture
+- 🏭 Implemented BrokerFactory pattern for dynamic broker adapter creation
+- 🔌 Created KrakenIBrokerAdapter with full IBrokerAdapter interface compliance
+- ✅ Added executeTrade method with V2 metadata (decisionId for TRAI learning)
+- 📊 Enhanced chart with better price handling
+
+### Fixed - Dashboard Display Issues
+- Chart no longer resets to zero when receiving invalid price updates
+- Only updates chart when valid price > 0 is received
+- Added better debug logging for price data
+
+### TODO - In Progress
+- Add candlestick visualization to chart
+- Fix indicator overlays (RSI, MACD, etc.)
+- Add support for multiple chart types (line, candlestick, bar)
+
 ## [2.3.9] - 2025-12-22
 
 ### Fixed - Dashboard WebSocket Authentication

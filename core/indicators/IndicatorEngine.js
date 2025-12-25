@@ -20,8 +20,10 @@ try {
   const ogzTpo = require('../ogzTwoPoleOscillator');
   computeOgzTpo = ogzTpo.computeOgzTpo;
   detectTpoCrossover = ogzTpo.detectTpoCrossover;
+  console.log('[IndicatorEngine] OGZ TPO module loaded successfully');
 } catch (e) {
-  console.log('[IndicatorEngine] OGZ TPO module not found, oscillator will be disabled');
+  console.error('[IndicatorEngine] OGZ TPO module error:', e.message);
+  console.log('[IndicatorEngine] OGZ TPO oscillator will be disabled');
 }
 
 class IndicatorEngine {

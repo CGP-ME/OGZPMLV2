@@ -15,6 +15,10 @@ const EventEmitter = require('events');
 const PatternMemoryBank = require('./PatternMemoryBank');
 const PersistentLLMClient = require('./persistent_llm_client');
 
+// SINGLETON: Static brain loaded only once to prevent memory leak
+let staticBrainInstance = null;
+let isLoadingBrain = false;
+
 class TRAICore extends EventEmitter {
     constructor(config = {}) {
         super();
@@ -103,9 +107,30 @@ class TRAICore extends EventEmitter {
     }
     
     async loadStaticBrain() {
+        // SINGLETON: Check if brain is already loaded
+        if (staticBrainInstance) {
+            console.log('📊 Using cached static brain (already loaded)');
+            this.staticBrain = staticBrainInstance;
+            return;
+        }
+
+        // Prevent multiple simultaneous loads
+        if (isLoadingBrain) {
+            console.log('⏳ Static brain is currently loading, waiting...');
+            // Wait for the other load to complete
+            while (isLoadingBrain) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            this.staticBrain = staticBrainInstance;
+            return;
+        }
+
+        isLoadingBrain = true;
         const brainPath = path.resolve(this.config.staticBrainPath);
-        
+
         try {
+            console.log('🧠 Loading static brain for the FIRST time...');
+
             // Load master index
             const masterIndexPath = path.join(brainPath, 'master_index.json');
             if (fs.existsSync(masterIndexPath)) {
@@ -113,23 +138,29 @@ class TRAICore extends EventEmitter {
                 this.staticBrain.index = masterIndex;
                 console.log(`📊 Loaded brain index: ${Object.keys(masterIndex.trai_static_brain.categories).length} categories`);
             }
-            
+
             // Load category files
             const categoryFiles = fs.readdirSync(brainPath)
                 .filter(file => file.endsWith('.json') && file !== 'master_index.json');
-            
+
             for (const categoryFile of categoryFiles) {
                 const categoryPath = path.join(brainPath, categoryFile);
                 const categoryName = path.basename(categoryFile, '.json');
                 const categoryData = JSON.parse(fs.readFileSync(categoryPath, 'utf-8'));
-                
+
                 this.staticBrain[categoryName] = categoryData;
                 console.log(`📁 Loaded category: ${categoryName} (${categoryData.total_messages} messages)`);
             }
-            
+
+            // Cache the loaded brain
+            staticBrainInstance = this.staticBrain;
+            console.log('✅ Static brain cached for future use');
+
         } catch (error) {
             console.error('❌ Failed to load static brain:', error);
             throw error;
+        } finally {
+            isLoadingBrain = false;
         }
     }
     

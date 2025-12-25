@@ -1,0 +1,57 @@
+name: Auto Deploy OGZ Prime V2
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build Docker Image
+      run: |
+        docker build -t ogzprime:latest .
+        docker tag ogzprime:latest ogzprime:v$(date +%Y%m%d-%H%M%S)
+
+    - name: Deploy to Production
+      env:
+        DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      run: |
+        # Setup SSH
+        mkdir -p ~/.ssh
+        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+
+        # Deploy via SSH
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no user@$DEPLOY_HOST << 'EOF'
+          cd /opt/ogzprime/OGZPMLV2
+          git pull origin master
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          docker system prune -f
+        EOF
+
+    - name: Health Check
+      run: |
+        sleep 30
+        curl -f http://${{ secrets.DEPLOY_HOST }}:3011/health || exit 1
+
+    - name: Notify Success
+      if: success()
+      run: |
+        echo "✅ Deployment successful!"
+
+    - name: Rollback on Failure
+      if: failure()
+      run: |
+        ssh -i ~/.ssh/deploy_key user@$DEPLOY_HOST << 'EOF'
+          cd /opt/ogzprime/OGZPMLV2
+          git reset --hard HEAD~1
+          docker-compose up -d
+        EOF
