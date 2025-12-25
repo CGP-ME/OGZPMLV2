@@ -131,24 +131,28 @@ async function executeMission(missionFile, options = {}) {
       if (currentBranch === 'master' || currentBranch === 'main') {
         console.log(`   Currently on ${currentBranch} - creating isolated mission branch...`);
 
+        // Check for uncommitted changes
+        try {
+          const gitStatus = execSync('git status --porcelain', { encoding: 'utf8' });
+          if (gitStatus.trim()) {
+            console.error('\n❌ FATAL: You have uncommitted changes!');
+            console.error('   Please commit or stash your changes first:');
+            console.error('   git stash   (to save temporarily)');
+            console.error('   git commit  (to save permanently)');
+            console.error('\n   Refusing to proceed - your work is important!');
+            process.exit(1);
+          }
+        } catch (e) {
+          console.error('❌ Could not check git status');
+          process.exit(1);
+        }
+
         // Ensure we have latest master
         console.log('   📡 Fetching latest from origin...');
         execSync('git fetch origin master', { stdio: 'inherit' });
 
-        // Stash any uncommitted changes
-        try {
-          execSync('git stash', { stdio: 'inherit' });
-          console.log('   📦 Stashed any uncommitted changes');
-        } catch (e) {
-          // No changes to stash
-        }
-
-        // Reset to origin/master to ensure clean state
-        execSync('git reset --hard origin/master', { stdio: 'inherit' });
-        console.log('   🔄 Reset to origin/master (clean state)');
-
-        // Create and checkout new branch from master
-        execSync(`git checkout -b ${branchName} master`, { stdio: 'inherit' });
+        // Create and checkout new branch from origin/master
+        execSync(`git checkout -b ${branchName} origin/master`, { stdio: 'inherit' });
         console.log(`   ✅ Created branch: ${branchName}`);
         console.log('   🔒 This is an isolated clone of master');
         console.log('   🔒 All changes will be contained in this mission branch');
