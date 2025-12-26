@@ -353,7 +353,7 @@ async function forensics(manifest, params) {
     recommended_verifications: catalyzeVerification ? [
       'node --check run-empire-v2.js',
       'pm2 status',
-      'Check memory usage'
+      'ps aux | grep node'
     ] : []
   });
 
@@ -376,7 +376,7 @@ async function cicd(manifest, params) {
   let testResult = 'PASS';
 
   try {
-    execSync('node -c run-empire-v2.js', { encoding: 'utf8' });
+    execSync('node --check run-empire-v2.js', { encoding: 'utf8' });
   } catch (e) {
     buildResult = 'FAIL';
     manifest.stop_conditions.cicd_failed = true;

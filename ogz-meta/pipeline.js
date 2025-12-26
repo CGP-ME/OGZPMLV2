@@ -69,7 +69,7 @@ async function execute(issue) {
         }
         console.log('\n🔄 Forensics triggered verification pass 2');
         // Pass forensics flag to debugger
-        await route(`${command} --forensics`, { manifest: `ogz-meta/manifests/current.json` });
+        manifest = await route(`${command} --forensics`, { manifest: `ogz-meta/manifests/current.json` });
         console.log(`   State: ${manifest.state}`);
         continue;
       }
