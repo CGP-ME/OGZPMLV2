@@ -2,9 +2,12 @@ name: OGZPrime CI
 
 on:
   push:
-    branches: [ master, main, dev, feature/** ]
+    branches:
+      - "mission/**"
+      - "feature/**"
+      - dev
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
 
 jobs:
   ci:
@@ -13,6 +16,20 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: 🛡️ Block forbidden git commands
+        run: |
+          if grep -r "git reset --hard" . --include="*.yml" --include="*.yaml" --include="*.js" --include="*.sh"; then
+            echo "❌ CRITICAL: Found forbidden 'git reset --hard' command!"
+            echo "This command can destroy the repository and is strictly banned."
+            exit 1
+          fi
+          if grep -r "git push.*--force" . --include="*.yml" --include="*.yaml" --include="*.js" --include="*.sh"; then
+            echo "❌ CRITICAL: Found forbidden 'git push --force' command!"
+            echo "Force pushing can rewrite history and is strictly banned."
+            exit 1
+          fi
+          echo "✅ No forbidden git commands found"
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
