@@ -1,0 +1,314 @@
+{
+  "mission_id": "MISSION-1766749569806",
+  "created": "2025-12-26T11:46:09.806Z",
+  "state": "CRITIC",
+  "issue": "memory leak in pattern storage",
+  "commander": {
+    "timestamp": "2025-12-26T11:46:09.950Z",
+    "context": {
+      "timestamp": "2025-12-26T11:46:09.809Z",
+      "environment": {
+        "MIN_TRADE_CONFIDENCE": "0.08"
+      },
+      "recentChanges": [],
+      "knownIssues": [
+        {
+          "id": "FIX-659-INDEX",
+          "symptom": "Pattern memory not growing",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-659-SUMMARY",
+          "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-2025-12-25-STATE-DESYNCHRONIZATION",
+          "symptom": "- Three different sources of \"truth\" tracking the same data:",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-2025-12-25-TRAI-BLOCKING-MAIN-LOOP",
+          "symptom": "- TRAI (AI decision system) blocked main loop for 2-5 seconds per decision",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-2025-12-25-MAP-SERIALIZATION-FAILURE",
+          "symptom": "- StateManager used Maps for activeTrades",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-2025-12-25-KRAKEN-ADAPTER-ARCHITECTURE-MI",
+          "symptom": "- kraken_adapter_simple.js works but doesn't implement IBrokerAdapter interface",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        },
+        {
+          "id": "FIX-2025-12-25-RECURSIVE-RATE-LIMITER-STACK-O",
+          "symptom": "- Rate limiter used recursion for retries",
+          "status": "FIXED",
+          "date": "2025-12-25"
+        }
+      ],
+      "activeMode": "LIVE_TRADING"
+    },
+    "agent_selection": "Pipeline mode - all agents",
+    "known_issues": [
+      {
+        "id": "FIX-659-SUMMARY",
+        "date": "2025-12-25",
+        "severity": "HIGH",
+        "tags": [
+          "pattern-memory",
+          "recording"
+        ],
+        "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
+        "root_cause": "The pattern recording pipeline lost features data when converting from pattern objects to the recordPatternResult API:\n\n1. **analyzePatterns()** creates patterns with `features` field (numeric array)\n2. **recordPatternResult()** was called with `signature` field (truncated string)\n3. **recordPattern()** expects features array, not signature string\n4. Validation failed on signature string, patterns never stored",
+        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
+        "files": [],
+        "verification": [
+          "Patterns now recording",
+          "Memory growing"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "Preserving features array through pipeline"
+        ],
+        "what_failed": [
+          "String signature truncation"
+        ],
+        "evidence": [
+          "FIX-659-SUMMARY.md"
+        ],
+        "commit": null,
+        "_score": 183
+      },
+      {
+        "id": "FIX-659-INDEX",
+        "date": "2025-12-25",
+        "severity": "HIGH",
+        "tags": [
+          "pattern-memory",
+          "recording"
+        ],
+        "symptom": "Pattern memory not growing",
+        "root_cause": "See report",
+        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
+        "files": [
+          "v2.js",
+          "v2.js",
+          "EnhancedPatternRecognition.js",
+          "RiskManager.js"
+        ],
+        "verification": [
+          "Patterns now recording",
+          "Memory growing"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "Preserving features array through pipeline"
+        ],
+        "what_failed": [
+          "String signature truncation"
+        ],
+        "evidence": [
+          "FIX-659-INDEX.md"
+        ],
+        "commit": null,
+        "_score": 166.5
+      },
+      {
+        "id": "FIX-2025-12-25-STATE-DESYNCHRONIZATION",
+        "date": "2025-12-25",
+        "severity": "CRITICAL",
+        "tags": [
+          "state"
+        ],
+        "symptom": "- Three different sources of \"truth\" tracking the same data:",
+        "root_cause": "- Three different sources of \"truth\" tracking the same data:\n  - `this.currentPosition` in main bot (run-empire-v2.js)\n  - `this.tradingBrain.position` in OptimizedTradingBrain\n  - `this.executionLayer.positions` Map in AdvancedExecutionLayer\n- Each module updating its own copy → phantom trades, balance mismatches\n- \"3 truths = 0 truth\" - complete state chaos",
+        "minimal_fix": "- **File**: `run-empire-v2.js` (multiple locations)",
+        "files": [
+          "run-empire-v2.js"
+        ],
+        "verification": [
+          "StateManager is now the ONLY source of truth",
+          "No more phantom trades or balance mismatches",
+          "All modules read/write to same centralized state"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "StateManager is now the ONLY source of truth",
+          "No more phantom trades or balance mismatches",
+          "All modules read/write to same centralized state"
+        ],
+        "what_failed": [],
+        "evidence": [
+          "SURGICAL-FIXES-REPORT.md#STATE DESYNCHRONIZATION"
+        ],
+        "commit": null,
+        "_score": 77
+      }
+    ],
+    "rag_score": 183
+  },
+  "architect": {
+    "timestamp": "2025-12-26T11:46:09.951Z",
+    "system_map": [
+      "run-empire-v2.js (main)",
+      "core/indicators/IndicatorEngine.js",
+      "brokers/BrokerFactory.js",
+      "core/StateManager.js"
+    ],
+    "dependencies": [
+      "Empire V2 Architecture",
+      "IBrokerAdapter"
+    ]
+  },
+  "entomologist": {
+    "timestamp": "2025-12-26T11:46:09.962Z",
+    "bugs_found": [
+      {
+        "type": "DOCUMENTED",
+        "location": "VERIFY-FIX-659.md",
+        "description": "See report for details"
+      },
+      {
+        "type": "DOCUMENTED",
+        "location": "FIX-659-SUMMARY.md",
+        "description": "See report for details"
+      },
+      {
+        "type": "DOCUMENTED",
+        "location": "FIX-659-INDEX.md",
+        "description": "See report for details"
+      }
+    ],
+    "classifications": [
+      "DOCUMENTED",
+      "DOCUMENTED",
+      "DOCUMENTED"
+    ],
+    "rag_reports": [
+      {
+        "file": "VERIFY-FIX-659.md",
+        "score": 875,
+        "excerpt": "```bash\n# Check final pattern count\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 5+ (should grow significantly)\n\n# Compare before/after\necho \"Before: $(cat pattern-memory.backup.json | jq '.count')\"\necho \"After: $(cat data/pattern-memory.json | jq '.count')\"\n```\n\n### 2. Pattern Keys Created\n\n```bash\n# List all pattern keys\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.patterns | keys'\n# Expected: Array with multiple unique pattern keys like:\n# [\"0.50,0.15,-1,0.02,0.01,0.50,0.0,0.0,0.0\", ...]\n\n# Count unique patterns\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.patterns | keys | length'",
+        "path": "/opt/ogzprime/OGZPMLV2/VERIFY-FIX-659.md"
+      },
+      {
+        "file": "FIX-659-SUMMARY.md",
+        "score": 475,
+        "excerpt": "```bash\n# Check pattern file after 30+ trades\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 10+ patterns (should grow with each trade)\n\n# Check that new patterns are being added\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.patterns | keys | length'\n# Expected: 10+ unique pattern keys\n```\n\n### Verification Signs\n- ✅ Console logs `✅ Added [X] new patterns` instead of `❌ Pattern recording failed`\n- ✅ Pattern count increases with each trade\n- ✅ No warnings about signature strings in pattern recording\n- ✅ Pattern-memory.json file size grows\n- ✅ Patterns field in responses shows valid feature vectors\n\n## Change Tracking\n\n- **CHANGE 659**: Pattern Recording Fix - Features Array Handling",
+        "path": "/opt/ogzprime/OGZPMLV2/FIX-659-SUMMARY.md"
+      },
+      {
+        "file": "FIX-659-INDEX.md",
+        "score": 365,
+        "excerpt": "- Decision quality: doesn't improve\n\n### After Fix\n- Pattern count: grows with trades\n- Memory growth: continuous\n- Learning: active and measurable\n- Decision quality: improves over time\n\n## Key Insights\n\n1. **Signature Problem**: Truncated to 50 chars, loses data\n2. **Features Solution**: Full numeric array, preserves all data\n3. **Three Recording Points**: Detection, trade completion, risk management\n4. **Backward Compatible**: Old code still works, new code works better\n5. **Pattern Key**: Generated from features, used for pattern matching\n\n## Related Issues\n\n- **Pattern File Location**: `/data/pattern-memory.json` (not root `pattern_memory.json`)\n- **Pattern Evaluation**: Needs growing database to work effectively",
+        "path": "/opt/ogzprime/OGZPMLV2/FIX-659-INDEX.md"
+      }
+    ]
+  },
+  "exterminator": {
+    "timestamp": "2025-12-26T11:46:09.964Z",
+    "fixes_applied": [
+      {
+        "bug_id": "DOCUMENTED",
+        "patch": "Fix for DOCUMENTED at VERIFY-FIX-659.md",
+        "applied": false
+      },
+      {
+        "bug_id": "DOCUMENTED",
+        "patch": "Fix for DOCUMENTED at FIX-659-SUMMARY.md",
+        "applied": false
+      },
+      {
+        "bug_id": "DOCUMENTED",
+        "patch": "Fix for DOCUMENTED at FIX-659-INDEX.md",
+        "applied": false
+      }
+    ],
+    "patches": [
+      "Fix for DOCUMENTED at VERIFY-FIX-659.md",
+      "Fix for DOCUMENTED at FIX-659-SUMMARY.md",
+      "Fix for DOCUMENTED at FIX-659-INDEX.md"
+    ]
+  },
+  "debugger": {
+    "timestamp": "2025-12-26T11:46:10.390Z",
+    "tests_run": [
+      "syntax_check",
+      "unit_tests"
+    ],
+    "results": [
+      {
+        "test": "syntax_check",
+        "passed": true
+      },
+      {
+        "test": "unit_tests",
+        "passed": false,
+        "error": "Command failed: npm test\n❌ ERROR:   ❌ invariants: module is not defined in ES module scope\n\n❌ ERROR: ⚠️ Directory not found: ui (/opt/ogzprime/OGZPMLV2/ui)\n\n❌ ERROR: ⚠️ Directory not found: analytics (/opt/ogzprime/OGZPMLV2/analytics)\n⚠️ Directory not found: deployment (/opt/ogzprime/OGZPMLV2/deployment)\n\n❌ ERROR: \n🚨🚨🚨 CRITICAL SAFETY ERROR 🚨🚨🚨\nAnother ogz-prime-v14 instance is already running!\n\nRunning Instance:\n  PID: 1430092\n  Started: 12/24/2025, 8:12:43 PM\n  Token: c775a4d1e7d9880496a5f09021fae68c\n\n🛑 ABORTING TO PREVENT:\n  - Duplicate trades\n  - Portfolio conflicts  \n  - WebSocket port conflicts\n  - Data corruption\n\nTo force start (DANGEROUS):\n1. Kill existing process: kill -9 1430092\n2. Remove lock file: rm /opt/ogzprime/OGZPMLV2/.ogz-prime-v14.lock\n3. Start again\n\nHouston Mission Status: PROTECTED ✅\n          \n\n"
+      }
+    ]
+  },
+  "critic": {
+    "timestamp": "2025-12-26T11:46:09.963Z",
+    "weaknesses": [],
+    "force_rerun": false
+  },
+  "validator": {
+    "timestamp": null,
+    "checks_passed": [],
+    "checks_failed": []
+  },
+  "forensics": {
+    "timestamp": null,
+    "silent_bugs": [],
+    "regression_risks": []
+  },
+  "cicd": {
+    "timestamp": null,
+    "build_result": null,
+    "test_result": null
+  },
+  "committer": {
+    "timestamp": null,
+    "commit_hash": null,
+    "branch": null
+  },
+  "scribe": {
+    "timestamp": null,
+    "changelog_entry": null,
+    "ledger_update": null
+  },
+  "janitor": {
+    "timestamp": null,
+    "files_cleaned": [],
+    "artifacts_removed": []
+  },
+  "warden": {
+    "timestamp": null,
+    "scope_violations": [],
+    "safety_blocks": [],
+    "final_approval": false
+  },
+  "artifacts": {
+    "files_created": [],
+    "files_modified": [],
+    "backups": [],
+    "reports": []
+  },
+  "stop_conditions": {
+    "critic_failures": 0,
+    "forensics_critical": false,
+    "cicd_failed": true,
+    "manifest_mismatch": false,
+    "warden_blocked": false
+  }
+}
