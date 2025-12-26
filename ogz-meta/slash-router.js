@@ -51,6 +51,7 @@ async function route(command, args) {
 
   // Route to handler
   const handlers = {
+    '/branch': branch,
     '/commander': commander,
     '/architect': architect,
     '/entomologist': entomologist,
@@ -82,6 +83,68 @@ async function route(command, args) {
   // Emit hook
   emitHook(cmd, manifest);
 
+  return manifest;
+}
+
+/**
+ * Branch: Creates a mission branch off master (read-only master rule)
+ */
+async function branch(manifest, params) {
+  const missionBranch = `mission/${manifest.mission_id}`;
+
+  // Safety: must be clean before branching
+  const dirty = execSync('git status --porcelain', { encoding: 'utf8' }).trim();
+  if (dirty) {
+    manifest.stop_conditions.warden_blocked = true;
+    updateSection(manifest, 'branch', {
+      blocked: true,
+      reason: 'Working tree not clean; refusing to branch',
+      dirty_preview: dirty.split('\n').slice(0, 10)
+    });
+    console.log('🛑 Branch: BLOCKED (dirty working tree)');
+    return manifest;
+  }
+
+  // Always base off latest master
+  try {
+    execSync('git checkout master', { stdio: 'pipe' });
+    execSync('git pull origin master', { stdio: 'pipe' });
+  } catch (e) {
+    manifest.stop_conditions.warden_blocked = true;
+    updateSection(manifest, 'branch', {
+      blocked: true,
+      reason: 'Failed to checkout/pull master',
+      error: e.message
+    });
+    console.log('🛑 Branch: BLOCKED (could not sync master)');
+    return manifest;
+  }
+
+  // Create/switch mission branch
+  try {
+    execSync(`git checkout -b ${missionBranch}`, { stdio: 'pipe' });
+  } catch (e) {
+    // If it already exists locally, switch to it
+    try {
+      execSync(`git checkout ${missionBranch}`, { stdio: 'pipe' });
+    } catch (e2) {
+      manifest.stop_conditions.warden_blocked = true;
+      updateSection(manifest, 'branch', {
+        blocked: true,
+        reason: 'Failed to create/switch mission branch',
+        error: e2.message
+      });
+      console.log('🛑 Branch: BLOCKED (could not create/switch mission branch)');
+      return manifest;
+    }
+  }
+
+  updateSection(manifest, 'branch', {
+    base: 'master',
+    branch: missionBranch
+  });
+
+  console.log(`✅ Branch: on ${missionBranch} (based on master)`);
   return manifest;
 }
 
@@ -395,8 +458,19 @@ async function cicd(manifest, params) {
  * Committer: Commits changes
  */
 async function committer(manifest, params) {
-  // Only commit if on mission branch
   const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+
+  // CRITICAL: Clauditos cannot write to master
+  if (branch === 'master') {
+    manifest.stop_conditions.warden_blocked = true;
+    updateSection(manifest, 'committer', {
+      branch,
+      blocked: true,
+      reason: 'Clauditos cannot commit to production branch master'
+    });
+    console.log('🛑 Committer: BLOCKED (on master)');
+    return manifest;
+  }
 
   if (!branch.startsWith('mission/')) {
     console.log('⚠️  Not on mission branch, skipping commit');
@@ -503,6 +577,12 @@ async function janitor(manifest, params) {
  */
 async function warden(manifest, params) {
   const violations = [];
+
+  // CRITICAL: Check if on forbidden master branch
+  const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+  if (branch === 'master') {
+    violations.push('On production branch master (writes forbidden for Clauditos)');
+  }
 
   // Check scope
   if (manifest.artifacts.files_modified?.length > 10) {

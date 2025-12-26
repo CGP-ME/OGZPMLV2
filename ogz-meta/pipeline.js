@@ -25,6 +25,7 @@ const { shouldStop } = require('./manifest-schema');
 
 const PIPELINE = [
   '/commander',
+  '/branch',              // Creates mission branch (Clauditos never write to master)
   '/architect',
   '/entomologist',
   '/exterminator',
