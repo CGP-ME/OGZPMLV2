@@ -28,6 +28,14 @@ function createManifest(missionId) {
       agent_selection: null
     },
 
+    branch: {
+      timestamp: null,
+      base: null,
+      branch: null,
+      blocked: false,
+      reason: null
+    },
+
     architect: {
       timestamp: null,
       system_map: [],
@@ -156,7 +164,8 @@ function updateSection(manifest, agent, data) {
 
   // Update state
   const stateFlow = {
-    'commander': 'ARCHITECT',
+    'commander': 'BRANCH',
+    'branch': 'ARCHITECT',
     'architect': 'ENTOMOLOGY',
     'entomologist': 'EXTERMINATION',
     'exterminator': 'DEBUG',

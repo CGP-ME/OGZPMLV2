@@ -1,12 +1,12 @@
 {
-  "mission_id": "MISSION-1766750633848",
-  "created": "2025-12-26T12:03:53.848Z",
-  "state": "CRITIC",
-  "issue": "test fixes applied correctly",
+  "mission_id": "MISSION-1766801025177",
+  "created": "2025-12-27T02:03:45.177Z",
+  "state": "ARCHITECT",
+  "issue": "audit",
   "commander": {
-    "timestamp": "2025-12-26T12:03:53.986Z",
+    "timestamp": "2025-12-27T02:03:45.310Z",
     "context": {
-      "timestamp": "2025-12-26T12:03:53.851Z",
+      "timestamp": "2025-12-27T02:03:45.179Z",
       "environment": {
         "MIN_TRADE_CONFIDENCE": "0.08"
       },
@@ -88,7 +88,7 @@
           "SURGICAL-FIXES-REPORT.md#STATE DESYNCHRONIZATION"
         ],
         "commit": null,
-        "_score": 44
+        "_score": 43
       },
       {
         "id": "FIX-2025-12-25-TRAI-BLOCKING-MAIN-LOOP",
@@ -122,7 +122,7 @@
           "SURGICAL-FIXES-REPORT.md#TRAI BLOCKING MAIN LOOP"
         ],
         "commit": null,
-        "_score": 44
+        "_score": 43
       },
       {
         "id": "FIX-2025-12-25-MAP-SERIALIZATION-FAILURE",
@@ -155,117 +155,49 @@
           "SURGICAL-FIXES-REPORT.md#MAP SERIALIZATION FAILURE"
         ],
         "commit": null,
-        "_score": 44
+        "_score": 43
       }
     ],
-    "rag_score": 44
+    "rag_score": 43
+  },
+  "branch": {
+    "timestamp": "2025-12-27T02:03:45.315Z",
+    "base": null,
+    "branch": null,
+    "blocked": true,
+    "reason": "Working tree not clean; refusing to branch",
+    "dirty_preview": [
+      "M core/EnhancedPatternRecognition.js",
+      " M ogz-meta/manifest-schema.js",
+      " M ogz-meta/manifests/current.json",
+      "?? ogz-meta/manifests/MISSION-1766800962635.hook",
+      "?? ogz-meta/manifests/MISSION-1766801025177.hook",
+      "?? \"ogz-meta/support-missions/MISSION-AUDIT-$(date +%s).md\"",
+      "?? ogz-meta/support-missions/MISSION-AUDIT-1766800954.md"
+    ]
   },
   "architect": {
-    "timestamp": "2025-12-26T12:03:53.987Z",
-    "system_map": [
-      "run-empire-v2.js (main)",
-      "core/indicators/IndicatorEngine.js",
-      "brokers/BrokerFactory.js",
-      "core/StateManager.js"
-    ],
-    "dependencies": [
-      "Empire V2 Architecture",
-      "IBrokerAdapter"
-    ]
+    "timestamp": null,
+    "system_map": [],
+    "dependencies": []
   },
   "entomologist": {
-    "timestamp": "2025-12-26T12:03:53.998Z",
-    "bugs_found": [
-      {
-        "type": "DOCUMENTED",
-        "location": "VERIFY-FIX-659.md",
-        "description": "## Quick Status Check\n\n```bash\n# 1. Verify code changes were applied\ngrep -c \"CHANGE 659\" /opt/ogzprime/OGZPMLV2/{run-empire-v2.js,core/EnhancedPatternRecognition.js,core/RiskManager.js}\n# Expected: 3 files with CHANGE 659 comments\n\n# 2. Check if pattern file exists\nls -lh /opt/ogzprime/OGZPMLV2/data/pattern-memory.json\n# Expected: File exists with some size\n\n# 3. Check current pattern count (before test)\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 1 (BASE_PATTERN only before running bot)\n```\n\n## Pre-Test Checklist\n\n```bash\n# Clean up old test files",
-        "score": 205
-      },
-      {
-        "type": "DOCUMENTED",
-        "location": "FIX-659-INDEX.md",
-        "description": "- Recovery procedures\n\n### 3. **PATTERN-RECORDING-ARCHITECTURE.md** (Deep dive)\nTechnical architecture and system design.\n- Complete recording pipeline flow\n- 3 recording paths explained\n- Why the bug occurred\n- What the fix does\n- Memory structure details\n- Performance implications\n- Related issues\n\n### 4. **VERIFY-FIX-659.md** (Testing guide)\nStep-by-step verification procedures.\n- Pre-test checklist\n- Running smoke test\n- Post-test verification (5 steps)\n- Console log analysis\n- What to look for (good/bad signs)\n- Full production test steps",
-        "score": 130
-      },
-      {
-        "type": "DOCUMENTED",
-        "location": "FIX-659-SUMMARY.md",
-        "description": "// BEFORE\nthis.bot.patternRecognition.recordPatternResult(pattern.signature, {...})\n\n// AFTER\nconst featuresForRecording = pattern.features || pattern.signature;\nthis.bot.patternRecognition.recordPatternResult(featuresForRecording, {...})\n```\n\n## Testing\n\n### Before Testing\n```bash\n# Check pattern file before running bot\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 1 (only BASE_PATTERN)\n```\n\n### Run Test\n```bash\nnpm run test:smoke",
-        "score": 50
-      }
-    ],
-    "classifications": [
-      "DOCUMENTED",
-      "DOCUMENTED",
-      "DOCUMENTED"
-    ],
-    "rag_reports": [
-      {
-        "file": "VERIFY-FIX-659.md",
-        "score": 205,
-        "excerpt": "## Quick Status Check\n\n```bash\n# 1. Verify code changes were applied\ngrep -c \"CHANGE 659\" /opt/ogzprime/OGZPMLV2/{run-empire-v2.js,core/EnhancedPatternRecognition.js,core/RiskManager.js}\n# Expected: 3 files with CHANGE 659 comments\n\n# 2. Check if pattern file exists\nls -lh /opt/ogzprime/OGZPMLV2/data/pattern-memory.json\n# Expected: File exists with some size\n\n# 3. Check current pattern count (before test)\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 1 (BASE_PATTERN only before running bot)\n```\n\n## Pre-Test Checklist\n\n```bash\n# Clean up old test files",
-        "path": "/opt/ogzprime/OGZPMLV2/VERIFY-FIX-659.md"
-      },
-      {
-        "file": "FIX-659-INDEX.md",
-        "score": 130,
-        "excerpt": "- Recovery procedures\n\n### 3. **PATTERN-RECORDING-ARCHITECTURE.md** (Deep dive)\nTechnical architecture and system design.\n- Complete recording pipeline flow\n- 3 recording paths explained\n- Why the bug occurred\n- What the fix does\n- Memory structure details\n- Performance implications\n- Related issues\n\n### 4. **VERIFY-FIX-659.md** (Testing guide)\nStep-by-step verification procedures.\n- Pre-test checklist\n- Running smoke test\n- Post-test verification (5 steps)\n- Console log analysis\n- What to look for (good/bad signs)\n- Full production test steps",
-        "path": "/opt/ogzprime/OGZPMLV2/FIX-659-INDEX.md"
-      },
-      {
-        "file": "FIX-659-SUMMARY.md",
-        "score": 50,
-        "excerpt": "// BEFORE\nthis.bot.patternRecognition.recordPatternResult(pattern.signature, {...})\n\n// AFTER\nconst featuresForRecording = pattern.features || pattern.signature;\nthis.bot.patternRecognition.recordPatternResult(featuresForRecording, {...})\n```\n\n## Testing\n\n### Before Testing\n```bash\n# Check pattern file before running bot\ncat /opt/ogzprime/OGZPMLV2/data/pattern-memory.json | jq '.count'\n# Expected: 1 (only BASE_PATTERN)\n```\n\n### Run Test\n```bash\nnpm run test:smoke",
-        "path": "/opt/ogzprime/OGZPMLV2/FIX-659-SUMMARY.md"
-      }
-    ]
+    "timestamp": null,
+    "bugs_found": [],
+    "classifications": []
   },
   "exterminator": {
-    "timestamp": "2025-12-26T12:03:53.999Z",
-    "fixes_applied": [
-      {
-        "bug_id": "DOCUMENTED",
-        "patch": "Fix for DOCUMENTED at VERIFY-FIX-659.md",
-        "applied": false
-      },
-      {
-        "bug_id": "DOCUMENTED",
-        "patch": "Fix for DOCUMENTED at FIX-659-INDEX.md",
-        "applied": false
-      },
-      {
-        "bug_id": "DOCUMENTED",
-        "patch": "Fix for DOCUMENTED at FIX-659-SUMMARY.md",
-        "applied": false
-      }
-    ],
-    "patches": [
-      "Fix for DOCUMENTED at VERIFY-FIX-659.md",
-      "Fix for DOCUMENTED at FIX-659-INDEX.md",
-      "Fix for DOCUMENTED at FIX-659-SUMMARY.md"
-    ]
+    "timestamp": null,
+    "fixes_applied": [],
+    "patches": []
   },
   "debugger": {
-    "timestamp": "2025-12-26T12:03:54.406Z",
-    "tests_run": [
-      "syntax_check",
-      "unit_tests"
-    ],
-    "results": [
-      {
-        "test": "syntax_check",
-        "passed": true
-      },
-      {
-        "test": "unit_tests",
-        "passed": false,
-        "error": "Command failed: npm test\n❌ ERROR:   ❌ invariants: module is not defined in ES module scope\n\n❌ ERROR: ⚠️ Directory not found: ui (/opt/ogzprime/OGZPMLV2/ui)\n\n❌ ERROR: ⚠️ Directory not found: analytics (/opt/ogzprime/OGZPMLV2/analytics)\n⚠️ Directory not found: deployment (/opt/ogzprime/OGZPMLV2/deployment)\n\n❌ ERROR: \n🚨🚨🚨 CRITICAL SAFETY ERROR 🚨🚨🚨\nAnother ogz-prime-v14 instance is already running!\n\nRunning Instance:\n  PID: 1430092\n  Started: 12/24/2025, 8:12:43 PM\n  Token: c775a4d1e7d9880496a5f09021fae68c\n\n🛑 ABORTING TO PREVENT:\n  - Duplicate trades\n  - Portfolio conflicts  \n  - WebSocket port conflicts\n  - Data corruption\n\nTo force start (DANGEROUS):\n1. Kill existing process: kill -9 1430092\n2. Remove lock file: rm /opt/ogzprime/OGZPMLV2/.ogz-prime-v14.lock\n3. Start again\n\nHouston Mission Status: PROTECTED ✅\n          \n\n"
-      }
-    ]
+    "timestamp": null,
+    "tests_run": [],
+    "results": []
   },
   "critic": {
-    "timestamp": "2025-12-26T12:03:53.999Z",
+    "timestamp": null,
     "weaknesses": [],
     "force_rerun": false
   },
@@ -314,9 +246,9 @@
   "stop_conditions": {
     "critic_failures": 0,
     "forensics_critical": false,
-    "verification_failed": true,
+    "verification_failed": false,
     "cicd_failed": false,
     "manifest_mismatch": false,
-    "warden_blocked": false
+    "warden_blocked": true
   }
 }

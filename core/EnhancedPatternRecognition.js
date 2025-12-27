@@ -181,8 +181,14 @@ class PatternMemorySystem {
    * @param {Object} options - Memory configuration
    */
   constructor(options = {}) {
+    // FIX 2025-12-27: Use mode-based pattern memory files
+    const mode = process.env.PAPER_TRADING === 'true' ? 'paper' :
+                 process.env.BACKTEST_MODE === 'true' ? 'backtest' : 'live';
+    const memoryFileName = `pattern-memory.${mode}.json`;
+    console.log(`📁 Pattern Memory: Using ${memoryFileName} (mode: ${mode})`);
+
     this.options = {
-      memoryFile: path.join(process.cwd(), 'data', 'pattern-memory.json'),
+      memoryFile: path.join(process.cwd(), 'data', memoryFileName),
       persistToDisk: true,
       maxPatterns: 10000,
       featureWeights: [
