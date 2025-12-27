@@ -1471,17 +1471,23 @@ class OGZPrimeV14Bot {
     // FIXED: Use actual balance from StateManager, not stale systemState
     const currentBalance = stateManager.get('balance') || 10000;
     const basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
-    const baseSize = currentBalance * basePositionPercent;
+    const baseSizeUSD = currentBalance * basePositionPercent;
 
-    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, BaseSize=$${baseSize.toFixed(2)}`);
+    // FIX 2025-12-27: Convert USD to BTC amount (was treating $500 as 500 BTC!)
+    const positionSizeUSD = baseSizeUSD; // This is in USD
+    const positionSizeBTC = positionSizeUSD / price; // Convert to BTC amount
+
+    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSizeUSD.toFixed(2)}, BTC=${positionSizeBTC.toFixed(8)}`);
 
     // CHANGE 2025-12-11: Pass 2 - Pattern-based position sizing
     const patternIds = decision.decisionContext?.patternsActive ||
                       patterns?.map(p => p.id || p.signature || 'unknown') || [];
-    const positionSize = tradingOptimizations.calculatePositionSize(baseSize, patternIds, decision.decisionContext);
+    // Now pass BTC amount to calculatePositionSize, not USD
+    const adjustedPositionBTC = tradingOptimizations.calculatePositionSize(positionSizeBTC, patternIds, decision.decisionContext);
+    const positionSize = adjustedPositionBTC; // Final position size in BTC
 
     // CHECKPOINT 2: Position sizing
-    console.log(`📍 CP2: Position size calculated: ${positionSize} (base: ${baseSize.toFixed(2)}, adjusted for pattern quality)`);
+    console.log(`📍 CP2: Position size calculated: ${positionSize.toFixed(8)} BTC (base: ${positionSizeBTC.toFixed(8)} BTC, adjusted for pattern quality)`);
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits

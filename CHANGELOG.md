@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2025-12-27
+
+### Critical Bugs Discovered
+- 🐛 **MAJOR: Position Sizing Unit Confusion** - Bot treating USD amounts as BTC amounts
+  - Line 1474 in run-empire-v2.js: `baseSize = currentBalance * basePositionPercent` calculates $500
+  - Bot interprets this as 500 BTC instead of $500 worth of BTC
+  - Caused bot to think it had 500 BTC position (worth ~$43M) with only $10k account
+  - Trading halted after 2 trades due to "Large drift detected"
+  - Need to convert: `positionSizeBTC = baseSizeUSD / currentPrice`
+  - Affects: run-empire-v2.js, ExecutionLayer, all position calculations
+
+### Infrastructure Issues Found
+- 📁 **Pattern Memory Not Separated by Mode**
+  - Config says: pattern_memory.paper.json, pattern_memory.live.json
+  - Reality: All modes writing to single pattern-memory.json (contaminated data)
+- 📊 **Logs Not Separated by Mode**
+  - No paper/live/backtest separation in logs
+  - Single telemetry.jsonl (17MB), single error.log
+- 🖥️ **Dashboard WebSocket Issues**
+  - Dashboard HTML serves but real-time updates not working
+  - Bot shows "connected=true" but dashboard not updating
+
+### Critical Pipeline Fixes
+- 🚨 **Disabled auto-deploy.yml workflow**
+  - File: .github/workflows/auto-deploy.yml → auto-deploy.yml.DANGEROUS.disabled
+  - Contained forbidden `git reset --hard HEAD~1` in rollback section
+  - Replaced contents with safe tombstone to prevent CI failures
+- 🔒 **Added mission branch enforcement**
+  - Added /branch handler in ogz-meta/slash-router.js
+  - Creates mission/<id> branches from master
+  - Clauditos cannot commit to master (hard block)
+- 🛡️ **Added CI guards** (.github/workflows/ci.yml)
+  - Blocks `git reset --hard` patterns
+  - Blocks `git push --force` patterns
+  - Excludes *.disabled files from grep
+- 🔧 **Fixed 3 pipeline "silent lie/crash" issues**:
+  - **CI/CD** (slash-router.js:379): Changed `node -c` to `node --check`
+  - **Forensics** (slash-router.js:356): Replaced "Check memory usage" with `ps aux | grep node`
+  - **Pipeline** (pipeline.js:72): Fixed pass-2 debugger manifest assignment `manifest = await route()`
+
+### Security Hardening
+- Mission branches enforced via /branch handler
+- Committer hard-blocks commits on master (slash-router.js:464-472)
+- Warden checks for master branch violations (slash-router.js:583-584)
+- CI triggers changed: only runs on mission/**, feature/**, dev (not master)
+- Deploy workflow simplified: only deploys from master (human-controlled)
+- Removed tag deployments from deploy.yml
+
+### File Changes
+- Modified: ogz-meta/slash-router.js (branch handler, committer block, warden check)
+- Modified: ogz-meta/pipeline.js (added /branch step, fixed pass-2 debugger)
+- Modified: .github/workflows/ci.yml (triggers, forbidden command guard)
+- Modified: .github/workflows/deploy.yml (simplified triggers)
+- Disabled: .github/workflows/auto-deploy.yml (dangerous git reset --hard)
+
 ## [2.4.0] - 2025-12-22
 
 ### Added - EMPIRE V2 Architecture
