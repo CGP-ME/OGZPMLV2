@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.2] - 2025-12-27 (Later)
+
+### Critical Discovery - Unhooked Features Audit
+- **MAJOR FINDING**: 43% of enabled features weren't actually hooked up (5 out of 7)
+- Created `ogz-meta/audit-features.js` to systematically find all unhooked features
+- Audit revealed:
+  - ✅ PAPER_TRADING: Hooked up and working
+  - ✅ CIRCUIT_BREAKER: Hooked up (but blocking trades, kept disabled)
+  - ❌ PATTERN_MEMORY_PARTITION: Enabled but not working
+  - ❌ PATTERN_BASED_SIZING: Hardcoded to false
+  - ❌ WEBSOCKET_DASHBOARD: Enabled but uncertain if sending updates
+  - ❌ BACKTEST_API: Enabled but never used
+  - ❌ PATTERN_EXIT_MODEL: Running in shadow mode only
+
+### Fixed - Feature Hookups
+- **PATTERN_BASED_SIZING** (`core/TradingOptimizations.js`):
+  - Problem: Line 26 hardcoded `enablePatternSizeScaling: false`
+  - Fixed: Lines 15-21 now read from `config/features.json`
+  - Created test: `test-pattern-sizing.js` - confirms working
+
+- **PATTERN_MEMORY_PARTITION** (`core/EnhancedPatternRecognition.js`):
+  - Problem: All modes using single `pattern-memory.json` file
+  - Fixed: Lines 185-187 now create mode-specific files
+  - Files: `pattern-memory.paper.json`, `pattern-memory.live.json`, `pattern-memory.backtest.json`
+  - Created test: `test-pattern-partition.js` - confirms separation
+
+### In Progress - Pipeline Fixes
+- Running Claudito pipeline for remaining unhooked features:
+  - WEBSOCKET_DASHBOARD (pipeline ID: f940a0)
+  - BACKTEST_API (pipeline ID: b1f46f)
+  - PATTERN_EXIT_MODEL (pipeline ID: 6a8130)
+
+### Lessons Learned
+- "Production ready" bot had nearly half its features not working
+- Feature flags in config don't guarantee features are actually hooked up
+- Need systematic audits to verify feature integration
+- Test scripts essential for validating fixes
+
 ## [2.4.1] - 2025-12-27
 
 ### Critical Bugs Discovered
