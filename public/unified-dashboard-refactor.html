@@ -795,6 +795,10 @@
             background: #ffed4e;
         }
     </style>
+
+    <!-- Chart Data Management -->
+    <script src="js/ChartManager.js"></script>
+    <script src="js/IndicatorAdapter.js"></script>
 </head>
 <body>
     <div class="header">
@@ -1047,6 +1051,20 @@
             core: { connected: false, pnl: 0, trades: 0, confidence: 0 },
             ml: { connected: false, pnl: 0, trades: 0, confidence: 0 }
         };
+
+        // Initialize Chart Data Management
+        let chartManager = null;
+        let indicatorAdapter = null;
+
+        // Initialize managers after DOM loads
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof ChartManager !== 'undefined') {
+                chartManager = new ChartManager();
+            }
+            if (typeof IndicatorAdapter !== 'undefined' && chartManager) {
+                indicatorAdapter = new IndicatorAdapter(chartManager);
+            }
+        });
 
         // Version configurations
         const tierConfigs = {

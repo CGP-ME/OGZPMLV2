@@ -1,12 +1,12 @@
 {
-  "mission_id": "MISSION-1766808169470",
-  "created": "2025-12-27T04:02:49.470Z",
+  "mission_id": "MISSION-1766808298772",
+  "created": "2025-12-27T04:04:58.772Z",
   "state": "ARCHITECT",
-  "issue": "Fix PATTERN_EXIT_MODEL - feature enabled in config/features.json with shadowMode:true. Need to make it active instead of shadow mode to affect real trades",
+  "issue": "Fix PATTERN_EXIT_MODEL - Currently in shadowMode:true in config/features.json. Need to make it active to affect real trades",
   "commander": {
-    "timestamp": "2025-12-27T04:02:49.653Z",
+    "timestamp": "2025-12-27T04:04:58.948Z",
     "context": {
-      "timestamp": "2025-12-27T04:02:49.472Z",
+      "timestamp": "2025-12-27T04:04:58.774Z",
       "environment": {
         "MIN_TRADE_CONFIDENCE": "0.08"
       },
@@ -88,36 +88,7 @@
           "SURGICAL-FIXES-REPORT.md#STATE DESYNCHRONIZATION"
         ],
         "commit": null,
-        "_score": 202
-      },
-      {
-        "id": "FIX-659-SUMMARY",
-        "date": "2025-12-25",
-        "severity": "HIGH",
-        "tags": [
-          "pattern-memory",
-          "recording"
-        ],
-        "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
-        "root_cause": "The pattern recording pipeline lost features data when converting from pattern objects to the recordPatternResult API:\n\n1. **analyzePatterns()** creates patterns with `features` field (numeric array)\n2. **recordPatternResult()** was called with `signature` field (truncated string)\n3. **recordPattern()** expects features array, not signature string\n4. Validation failed on signature string, patterns never stored",
-        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
-        "files": [],
-        "verification": [
-          "Patterns now recording",
-          "Memory growing"
-        ],
-        "outcome": "success",
-        "what_worked": [
-          "Preserving features array through pipeline"
-        ],
-        "what_failed": [
-          "String signature truncation"
-        ],
-        "evidence": [
-          "FIX-659-SUMMARY.md"
-        ],
-        "commit": null,
-        "_score": 201.5
+        "_score": 208
       },
       {
         "id": "FIX-2025-12-25-TRAI-BLOCKING-MAIN-LOOP",
@@ -151,27 +122,47 @@
           "SURGICAL-FIXES-REPORT.md#TRAI BLOCKING MAIN LOOP"
         ],
         "commit": null,
-        "_score": 164.5
+        "_score": 176
+      },
+      {
+        "id": "FIX-659-SUMMARY",
+        "date": "2025-12-25",
+        "severity": "HIGH",
+        "tags": [
+          "pattern-memory",
+          "recording"
+        ],
+        "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
+        "root_cause": "The pattern recording pipeline lost features data when converting from pattern objects to the recordPatternResult API:\n\n1. **analyzePatterns()** creates patterns with `features` field (numeric array)\n2. **recordPatternResult()** was called with `signature` field (truncated string)\n3. **recordPattern()** expects features array, not signature string\n4. Validation failed on signature string, patterns never stored",
+        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
+        "files": [],
+        "verification": [
+          "Patterns now recording",
+          "Memory growing"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "Preserving features array through pipeline"
+        ],
+        "what_failed": [
+          "String signature truncation"
+        ],
+        "evidence": [
+          "FIX-659-SUMMARY.md"
+        ],
+        "commit": null,
+        "_score": 171.5
       }
     ],
-    "rag_score": 202
+    "rag_score": 208
   },
   "branch": {
-    "timestamp": "2025-12-27T04:02:49.659Z",
+    "timestamp": "2025-12-27T04:04:58.958Z",
     "base": null,
     "branch": null,
     "blocked": true,
-    "reason": "Working tree not clean; refusing to branch",
-    "dirty_preview": [
-      "M core/TradingOptimizations.js",
-      " M profiles/trading/last_profile.json",
-      "?? ogz-meta/audit-features.js",
-      "?? test-dashboard-updates.js",
-      "?? test-pattern-partition.js",
-      "?? test-pattern-sizing.js",
-      "?? test-websocket.js",
-      "?? test-ws-auth.js"
-    ]
+    "reason": "Failed to checkout/pull master",
+    "error": "Command failed: git checkout master\nerror: Your local changes to the following files would be overwritten by checkout:\n\togz-meta/manifests/current.json\nPlease commit your changes or stash them before you switch branches.\nAborting\n"
   },
   "architect": {
     "timestamp": null,
