@@ -1323,6 +1323,28 @@
 
             // Handle price updates
             if (data.type === 'price' && data.data) {
+                // Update ChartManager with new candle data
+                if (chartManager && data.data.candle) {
+                    const candle = {
+                        t: data.data.candle.timestamp || Date.now(),
+                        o: data.data.candle.open,
+                        h: data.data.candle.high,
+                        l: data.data.candle.low,
+                        c: data.data.candle.close,
+                        v: data.data.candle.volume || 0
+                    };
+                    chartManager.addCandle('BTC', '1m', candle);
+                }
+
+                // Process indicators through IndicatorAdapter
+                if (indicatorAdapter && data.data.indicators) {
+                    indicatorAdapter.processIndicatorUpdate({
+                        symbol: 'BTC',
+                        tf: '1m',
+                        indicators: data.data.indicators
+                    });
+                }
+
                 updateChart(data.data);
                 updateIndicators(data);
             }
@@ -1653,8 +1675,70 @@
         
         // Update indicators based on tier
         function updateIndicators(data) {
-            if (data.indicators) {
-                updateIndicatorValues(data.indicators);
+            if (data.data && data.data.indicators) {
+                const indicators = data.data.indicators;
+
+                // Update RSI
+                if (indicators.rsi !== null && indicators.rsi !== undefined) {
+                    const rsiElement = document.getElementById('rsiCore');
+                    if (rsiElement) {
+                        rsiElement.textContent = indicators.rsi.toFixed(2);
+                        rsiElement.style.color = indicators.rsi > 70 ? '#ff3366' :
+                                                 indicators.rsi < 30 ? '#00ff88' : '#ffffff';
+                    }
+                }
+
+                // Update MACD
+                if (indicators.macd) {
+                    const macdElement = document.getElementById('macdValue');
+                    if (macdElement) {
+                        macdElement.textContent = `${indicators.macd.macd?.toFixed(4) || '0'}`;
+                    }
+                }
+
+                // Update Bollinger Bands
+                if (indicators.bb) {
+                    const bbElement = document.getElementById('bbValue');
+                    if (bbElement) {
+                        const bandwidth = ((indicators.bb.upper - indicators.bb.lower) / indicators.bb.mid * 100).toFixed(2);
+                        bbElement.textContent = `${bandwidth}%`;
+                    }
+                }
+
+                // Update ATR
+                if (indicators.atr !== null && indicators.atr !== undefined) {
+                    const atrElement = document.getElementById('atrValue');
+                    if (atrElement) {
+                        atrElement.textContent = indicators.atr.toFixed(2);
+                    }
+                }
+
+                // Update Stochastic RSI
+                if (indicators.stochRsi) {
+                    const stochElement = document.getElementById('stochValue');
+                    if (stochElement) {
+                        stochElement.textContent = `K:${indicators.stochRsi.k?.toFixed(2) || 'N/A'}`;
+                    }
+                }
+
+                // Update OBV
+                if (indicators.obv !== null && indicators.obv !== undefined) {
+                    const obvElement = document.getElementById('obvValue');
+                    if (obvElement) {
+                        obvElement.textContent = (indicators.obv / 1000000).toFixed(2) + 'M';
+                    }
+                }
+
+                // Get formatted display from IndicatorAdapter
+                if (indicatorAdapter) {
+                    const display = indicatorAdapter.getIndicatorDisplay('BTC', '1m');
+                    // Can use display data for additional UI elements
+                }
+
+                // Call original function if it exists
+                if (typeof updateIndicatorValues === 'function') {
+                    updateIndicatorValues(indicators);
+                }
             }
         }
         
