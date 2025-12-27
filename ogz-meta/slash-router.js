@@ -92,8 +92,12 @@ async function route(command, args) {
 async function branch(manifest, params) {
   const missionBranch = `mission/${manifest.mission_id}`;
 
-  // Safety: must be clean before branching
-  const dirty = execSync('git status --porcelain', { encoding: 'utf8' }).trim();
+  // Safety: must be clean before branching (ignore manifest files)
+  const dirty = execSync('git status --porcelain', { encoding: 'utf8' })
+    .split('\n')
+    .filter(line => !line.includes('ogz-meta/manifests/'))
+    .join('\n')
+    .trim();
   if (dirty) {
     manifest.stop_conditions.warden_blocked = true;
     updateSection(manifest, 'branch', {
