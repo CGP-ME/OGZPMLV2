@@ -4,9 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OGZPrime Unified Trading System - Live Dashboard</title>
+    <!-- Force cache refresh with timestamp -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js?v=20251228"></script>
+
+    <!-- SIMPLE TEST -->
+    <script>
+        window.addEventListener('load', function() {
+            console.log('🚨 SIMPLE TEST: Page loaded');
+            console.log('🚨 SIMPLE TEST: LightweightCharts exists?', typeof LightweightCharts);
+
+            // Try to create a test chart in the main chart area
+            setTimeout(() => {
+                const testContainer = document.getElementById('mainChart');
+                if (testContainer) {
+                    console.log('🚨 SIMPLE TEST: Found mainChart container');
+                    testContainer.style.background = 'red';
+                    testContainer.style.width = '100%';
+                    testContainer.style.height = '400px';
+
+                    if (typeof LightweightCharts !== 'undefined') {
+                        console.log('🚨 SIMPLE TEST: Creating test chart...');
+                        try {
+                            const testChart = LightweightCharts.createChart(testContainer, {
+                                width: 800,
+                                height: 400
+                            });
+                            const testSeries = testChart.addLineSeries();
+                            testSeries.setData([
+                                { time: '2024-01-01', value: 100 },
+                                { time: '2024-01-02', value: 110 },
+                                { time: '2024-01-03', value: 105 }
+                            ]);
+                            console.log('🚨 SIMPLE TEST: Chart created successfully!');
+                        } catch (e) {
+                            console.error('🚨 SIMPLE TEST: Error creating chart:', e);
+                        }
+                    } else {
+                        console.error('🚨 SIMPLE TEST: LightweightCharts not loaded!');
+                    }
+                } else {
+                    console.error('🚨 SIMPLE TEST: mainChart container not found!');
+                }
+            }, 1000);
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         
@@ -1100,22 +1143,143 @@
         
         // Initialize Chart
         function initChart() {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Price',
-                        data: [],
-                        borderColor: '#00ff88',
-                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.1,
-                        yAxisID: 'y'
+            console.log('🔍 [DEBUG] initChart called');
+
+            // Check if TradingView library is loaded
+            if (typeof LightweightCharts === 'undefined') {
+                console.error('❌ [DEBUG] TradingView Lightweight Charts library not loaded');
+                setTimeout(initChart, 100); // Retry in 100ms
+                return;
+            }
+
+            console.log('✅ [DEBUG] TradingView library loaded');
+
+            // Create TradingView chart for candlesticks
+            const chartContainer = document.getElementById('mainChart').parentElement;
+            console.log('🔍 [DEBUG] Chart container:', chartContainer);
+
+            // Clear any existing canvas and create div for TradingView chart
+            chartContainer.innerHTML = '<div id="tvChart" style="width: 100%; height: 100%;"></div>';
+            console.log('🔍 [DEBUG] Created tvChart div');
+
+            // Initialize TradingView Lightweight Charts
+            console.log('🔍 [DEBUG] Creating TradingView chart...');
+            const tvChart = LightweightCharts.createChart(document.getElementById('tvChart'), {
+                width: chartContainer.clientWidth,
+                height: 400,
+                layout: {
+                    background: { color: '#0a0e1a' },
+                    textColor: '#d1d5db',
+                },
+                grid: {
+                    vertLines: { color: '#1f2937' },
+                    horzLines: { color: '#1f2937' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#1f2937',
+                },
+                timeScale: {
+                    borderColor: '#1f2937',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+
+            // Create candlestick series
+            console.log('🔍 [DEBUG] Creating candlestick series...');
+            console.log('🔍 [DEBUG] tvChart object methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(tvChart)));
+
+            // Check what methods are available
+            console.log('🔍 [DEBUG] Available chart methods:', Object.keys(tvChart));
+            for (let key in tvChart) {
+                if (key.includes('add') || key.includes('Series')) {
+                    console.log('🔍 [DEBUG] Found method:', key, typeof tvChart[key]);
+                }
+            }
+
+            // Try to create a series - use the methods that ARE available
+            try {
+                let seriesCreated = false;
+
+                // We know addSeries exists, so try that first
+                if (typeof tvChart.addSeries === 'function') {
+                    console.log('🔍 [DEBUG] Trying addSeries method');
+                    try {
+                        // Try different series type strings
+                        window.candlestickSeries = tvChart.addSeries({
+                            type: 'Candlestick',
+                            upColor: '#00ff88',
+                            downColor: '#ff6b6b'
+                        });
+                        seriesCreated = true;
+                        console.log('✅ [DEBUG] Created with addSeries(Candlestick)');
+                    } catch (e1) {
+                        console.log('⚠️ [DEBUG] Candlestick failed, trying Line');
+                        try {
+                            window.candlestickSeries = tvChart.addSeries({
+                                type: 'Line',
+                                color: '#00ff88'
+                            });
+                            seriesCreated = true;
+                            console.log('✅ [DEBUG] Created with addSeries(Line)');
+                        } catch (e2) {
+                            console.log('⚠️ [DEBUG] Line failed too');
+                        }
+                    }
+                } else if (typeof tvChart.addCustomSeries === 'function') {
+                    console.log('🔍 [DEBUG] Trying addCustomSeries');
+                    window.candlestickSeries = tvChart.addCustomSeries({
+                        upColor: '#00ff88',
+                        downColor: '#ff6b6b'
+                    });
+                    seriesCreated = true;
+                }
+
+                if (seriesCreated) {
+                    console.log('✅ [DEBUG] Series created successfully');
+
+                    // Add test data
+                    const testData = [
+                        { time: '2024-01-01', open: 100, high: 110, low: 95, close: 105 },
+                        { time: '2024-01-02', open: 105, high: 115, low: 100, close: 110 },
+                        { time: '2024-01-03', open: 110, high: 120, low: 105, close: 108 }
+                    ];
+                    window.candlestickSeries.setData(testData);
+                    console.log('✅ [DEBUG] Test data added');
+                } else {
+                    console.error('❌ [DEBUG] No compatible series method found');
+                }
+            } catch (e) {
+                console.error('❌ [DEBUG] Error creating series:', e);
+            }
+
+            // Store chart reference
+            window.tvChart = tvChart;
+
+            // Keep old Chart.js for indicators (hidden)
+            const canvas = document.createElement('canvas');
+            canvas.id = 'indicatorChart';
+            canvas.style.display = 'none';
+            chartContainer.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+
+            // Initialize hidden Chart.js for indicators only
+            if (Chart) {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Hidden',
+                            data: [],
+                            yAxisID: 'y'
                     }, {
                         label: 'RSI',
                         data: [],
+                        type: 'line',
                         borderColor: '#ff6b6b',
                         backgroundColor: 'rgba(255, 107, 107, 0.1)',
                         borderWidth: 1,
@@ -1145,13 +1309,16 @@
                     },
                     scales: {
                         x: {
+                            type: 'time',
                             display: true,
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
                             ticks: {
                                 color: '#999',
-                                maxRotation: 0
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
                             }
                         },
                         y: {
@@ -1208,8 +1375,9 @@
                     }
                 }
             });
+            }
         }
-        
+
         // GLOBAL guard + stats
         window.__wsDebug = window.__wsDebug || {
             created: 0,
@@ -1323,8 +1491,11 @@
 
             // Handle price updates
             if (data.type === 'price' && data.data) {
+                console.log('📊 [DEBUG] Price message received:', data);
+
                 // Update ChartManager with new candle data
                 if (chartManager && data.data.candle) {
+                    console.log('📊 [DEBUG] Has candle data:', data.data.candle);
                     const candle = {
                         t: data.data.candle.timestamp || Date.now(),
                         o: data.data.candle.open,
@@ -1531,7 +1702,8 @@
         
         // Update chart with new price data
         function updateChart(data) {
-            if (!chart) return;
+            // Check if TradingView chart is initialized
+            if (!window.candlestickSeries) return;
 
             const now = new Date();
             const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds();
@@ -1549,32 +1721,63 @@
             });
 
             // Store the full candle data if available
-            if (data.candle) {
-                if (!window.candleData) window.candleData = [];
-                window.candleData.push({
-                    t: timestamp,
-                    o: data.candle.open,
-                    h: data.candle.high,
-                    l: data.candle.low,
-                    c: data.candle.close,
-                    v: data.candle.volume
-                });
+            if (data.candle && window.candlestickSeries) {
+                console.log('📈 [DEBUG] Updating chart with candle:', data.candle);
+                const timestamp = Math.floor(Date.now() / 1000); // TradingView needs Unix timestamp in seconds
 
-                // Keep only last 50 candles
-                if (window.candleData.length > 50) {
-                    window.candleData.shift();
+                // Add candlestick data point for TradingView
+                const candlePoint = {
+                    time: timestamp,
+                    open: data.candle.open || data.candle.o,
+                    high: data.candle.high || data.candle.h,
+                    low: data.candle.low || data.candle.l,
+                    close: data.candle.close || data.candle.c
+                };
+
+                console.log('📈 [DEBUG] Formatted candle point:', candlePoint);
+
+                // Update TradingView chart
+                window.candlestickSeries.update(candlePoint);
+                console.log('✅ [DEBUG] Chart updated!');
+
+                // Store candle data for ChartManager
+                if (chartManager) {
+                    const candle = {
+                        t: timestamp * 1000, // Convert back to milliseconds for ChartManager
+                        o: candlePoint.open,
+                        h: candlePoint.high,
+                        l: candlePoint.low,
+                        c: candlePoint.close,
+                        v: data.candle.volume || 0
+                    };
+                    chartManager.addCandle('BTC', '1m', candle);
+                }
+
+                // Auto-scale the chart
+                if (window.tvChart) {
+                    window.tvChart.timeScale().fitContent();
                 }
             }
 
-            // If we have historical candles array, use it ONLY if chart is empty (initial load)
-            if (data.candles && Array.isArray(data.candles) && chart.data.labels.length === 0) {
-                // Initial population of chart
-                data.candles.forEach(candle => {
-                    const time = new Date(candle.t).toLocaleTimeString();
-                    chart.data.labels.push(time);
-                    chart.data.datasets[0].data.push(candle.c); // Use close price for line chart
-                });
-            } else if (price && price > 0) {
+            // If we have historical candles array, load them into TradingView chart
+            if (data.candles && Array.isArray(data.candles) && window.candlestickSeries) {
+                // Convert candles to TradingView format
+                const tvCandles = data.candles.map(candle => ({
+                    time: Math.floor(new Date(candle.t).getTime() / 1000),
+                    open: candle.o || candle.open,
+                    high: candle.h || candle.high,
+                    low: candle.l || candle.low,
+                    close: candle.c || candle.close
+                })).sort((a, b) => a.time - b.time); // Ensure chronological order
+
+                // Set all historical data at once
+                if (tvCandles.length > 0) {
+                    window.candlestickSeries.setData(tvCandles);
+                    if (window.tvChart) {
+                        window.tvChart.timeScale().fitContent();
+                    }
+                }
+            } else if (price && price > 0 && !data.candle) {
                 // Add new price point without clearing existing data
                 // Don't add duplicate timestamps
                 const lastLabel = chart.data.labels[chart.data.labels.length - 1];

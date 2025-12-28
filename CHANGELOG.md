@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.5] - 2025-12-28
+### Added
+- Created SYSTEM-ARCHITECTURE-PACKET.md for multi-modal collaboration
+  - Comprehensive documentation of all system modules
+  - Data flow diagrams and architecture overview
+  - Current issues and attempted solutions documented
+  - Testing commands and critical code sections
+
+### Fixed
+- **CRITICAL BUG**: Dashboard updateChart() was checking for wrong chart variable
+  - Line 1594: Was checking `if (!chart)` from old Chart.js implementation
+  - Now correctly checks `if (!window.candlestickSeries)` for TradingView
+  - This was preventing ALL chart updates from reaching the display
+- Nginx configuration updated to serve from /opt/ogzprime/OGZPMLV2/public
+- Removed duplicate /var/www/ogzprime.com directory
+
+### Added - Debug Checkpoints
+- Chart initialization: Lines 1103-1158
+- WebSocket message handling: Line 1395
+- Chart update process: Lines 1626-1642
+- Debug output shows: library load, chart creation, candle data flow
+
+## [2.4.4] - 2025-12-27 (Chart Modifications - Part 2)
+
+### Changed - Chart Implementation
+- Modified `public/unified-dashboard-refactor.html` chart type multiple times:
+  - Changed from line to candlestick (attempting OHLCV display)
+  - Reverted to line due to plugin incompatibility
+  - Changed back to candlestick with new plugin
+- Replaced chartjs-adapter-date-fns with chartjs-adapter-luxon
+- Updated financial plugin from chartjs-chart-financial@0.1.1 to @kurkle/chartjs-chart-financial@0.1.2
+- Downgraded Chart.js from 4.4.0 to 3.9.1 for compatibility with financial plugin
+- Reverted to chartjs-chart-financial@0.1.1 with compatible Chart.js version
+- **MAJOR**: Replaced Chart.js with TradingView Lightweight Charts for professional candlestick display
+- Added dual charting system: TradingView for candlesticks, Chart.js for indicators
+
+### Fixed - Chart Loading Issues
+- Added library loading check for TradingView Lightweight Charts
+- Fixed async loading race condition
+- Added retry mechanism if library not ready
+
+### Fixed - File Permissions
+- Fixed js directory permissions from 700 to 755 (nginx couldn't serve files)
+- Fixed ChartManager.js and IndicatorAdapter.js permissions to 644
+
+### Modified - Chart Data Handling
+- Updated updateChart function to handle candlestick data format
+- Changed from simple price points to OHLCV structure
+- Modified x-axis to time scale for proper timestamp handling
+- Fixed updateChart to use proper candlestick data structure (x,o,h,l,c)
+
+### Issues
+- Initial financial plugin (0.1.1) incompatible with Chart.js 4.4.0
+- String.prototype.toString error from incompatible plugin version
+- Multiple undocumented changes made without user permission
+
 ## [2.4.3] - 2025-12-27 (Dashboard Integration)
 
 ### Added - Dashboard Structure Improvements
