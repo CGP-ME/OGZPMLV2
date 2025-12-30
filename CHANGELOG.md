@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Trade Signal Connection**: plotTradeSignal now properly called on trade messages
 - **WebSocket Trade Handler**: Enhanced to properly format trade data for chart markers
 
-## [2.5.0] - 2025-12-29 - ULTIMATE DASHBOARD MERGE
+## [2.5.0] - 2024-12-29 - ULTIMATE DASHBOARD MERGE
 ### 🚀 THE BIG ONE - Complete Dashboard Integration
 
 #### Features Combined from Both Versions:
@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MERGED: unified-dashboard-refactor.html (production)
 - BACKUP: unified-dashboard-refactor-backup-[timestamp].html
 
-## [2.4.7] - 2025-12-28
+## [2.4.7] - 2024-12-28
 ### Added - Dashboard Enhancements
 - Real-time trade signal plotting with buy/sell markers on chart
   - Handles `trade_opened` WebSocket messages from bot
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Indicator overlay data properly parsed and displayed
 - Chart auto-scaling improved for better price visibility
 
-## [2.4.6] - 2025-12-28
+## [2.4.6] - 2024-12-28
 ### Verified
 - Module integration and WebSocket data flow verification completed
   - Bot (run-empire-v2.js) connects to ws://localhost:3010/ws
@@ -115,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ogz-dashboard (PM2 ID 14): ONLINE - serving dashboard files
 - ogz-prime-v2 (PM2 ID 11): STOPPED - bot needs to be started to send market data
 
-## [2.4.5] - 2025-12-28
+## [2.4.5] - 2024-12-28
 ### Added
 - Created SYSTEM-ARCHITECTURE-PACKET.md for multi-modal collaboration
   - Comprehensive documentation of all system modules
@@ -137,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chart update process: Lines 1626-1642
 - Debug output shows: library load, chart creation, candle data flow
 
-## [2.4.4] - 2025-12-27 (Chart Modifications - Part 2)
+## [2.4.4] - 2024-12-27 (Chart Modifications - Part 2)
 
 ### Changed - Chart Implementation
 - Modified `public/unified-dashboard-refactor.html` chart type multiple times:
@@ -171,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - String.prototype.toString error from incompatible plugin version
 - Multiple undocumented changes made without user permission
 
-## [2.4.3] - 2025-12-27 (Dashboard Integration)
+## [2.4.3] - 2024-12-27 (Dashboard Integration)
 
 ### Added - Dashboard Structure Improvements
 - Created `public/js/ChartManager.js` - Centralized OHLCV data management system
@@ -197,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added multi-asset and multi-timeframe support
 - Integrated with existing WebSocket update system
 
-## [2.4.2] - 2025-12-27 (Later)
+## [2.4.2] - 2024-12-27 (Later)
 
 ### Critical Discovery - Unhooked Features Audit
 - **MAJOR FINDING**: 43% of enabled features weren't actually hooked up (5 out of 7)
@@ -235,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Need systematic audits to verify feature integration
 - Test scripts essential for validating fixes
 
-## [2.4.1] - 2025-12-27
+## [2.4.1] - 2024-12-27
 
 ### Critical Bugs Discovered
 - 🐛 **MAJOR: Position Sizing Unit Confusion** - Bot treating USD amounts as BTC amounts
@@ -290,7 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modified: .github/workflows/deploy.yml (simplified triggers)
 - Disabled: .github/workflows/auto-deploy.yml (dangerous git reset --hard)
 
-## [2.4.0] - 2025-12-22
+## [2.4.0] - 2024-12-22
 
 ### Added - EMPIRE V2 Architecture
 - 🏭 Implemented BrokerFactory pattern for dynamic broker adapter creation
@@ -308,7 +308,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix indicator overlays (RSI, MACD, etc.)
 - Add support for multiple chart types (line, candlestick, bar)
 
-## [2.3.9] - 2025-12-22
+## [2.3.9] - 2024-12-22
 
 ### Fixed - Dashboard WebSocket Authentication
 **Root Cause**: Dashboard was using hardcoded 'CHANGE_ME_IN_PRODUCTION' token while bot was using actual token from .env
@@ -331,7 +331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Understand the architecture before assuming file purposes
 - Bot has comprehensive documentation that prevents these issues
 
-## [2.3.8] - 2025-12-22
+## [2.3.8] - 2024-12-22
 
 ### Fixed - WebSocket Authentication Issues
 **Fixed** (`ogzprime-ssl-server.js`):
@@ -358,7 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Nginx**: Proxies /ws to port 3010 for production access
 - **Flow**: Client → Auth → Auth Success → Identify → Connected
 
-## [2.3.7] - 2025-12-21
+## [2.3.7] - 2024-12-21
 
 ### Fixed - Critical Integration Issues
 **Fixed** (`core/StateManager.js`):
@@ -392,7 +392,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bot WebSocket connection still getting 400 errors despite fixes
 - Need to consolidate to single WebSocket server
 
-## [2.3.6] - 2025-12-20
+## [2.3.6] - 2024-12-20
 
 ### Fixed - Pattern Recording System
 **Fixed** (`core/EnhancedPatternRecognition.js`):
@@ -414,7 +414,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MaxProfitManager Tiers: 0.5%, 1.0%, 1.5%, 2.5% (scalping targets)
 - Single position management (closes before opening new)
 
-## [2.3.5] - 2025-12-18
+## [2.3.5] - 2024-12-18
 
 ### Added - Critical Safety Features Implementation
 
@@ -474,7 +474,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lines 1566-1572: Fallback to entry indicators for pattern recording
 - Resolves "Expected features array, got: object" errors
 
-## [2.3.4] - 2025-12-18
+## [2.3.4] - 2024-12-18
 
 ### Added - Production Safety Gates & Critical Audit
 
@@ -527,7 +527,7 @@ Comprehensive safety gates added for production deployment based on real-world b
 **Impact**: Bot cannot safely go live until missing safety features are implemented.
 
 ### Enhanced - Dashboard Chart Integration
-**Date**: 2025-12-16
+**Date**: 2024-12-16
 
 #### Improvements to Live Data Display
 Enhanced the dashboard to properly handle and display Kraken OHLC (Open, High, Low, Close) candlestick data.
@@ -558,7 +558,7 @@ Enhanced the dashboard to properly handle and display Kraken OHLC (Open, High, L
 - Historical price data properly rendered
 - Smooth chart updates with 50-candle history
 
-## [2.3.3] - 2025-12-16
+## [2.3.3] - 2024-12-16
 
 ### Fixed - Pattern Memory Mode Detection
 
@@ -582,7 +582,7 @@ potentially allowing backtest patterns to contaminate live/paper trading data.
 - Live trading patterns in: `*.live.json`
 - No cross-contamination between modes
 
-## [2.3.2] - 2025-12-16
+## [2.3.2] - 2024-12-16
 
 ### Added - Pattern-Based Exit Model & Mode-Aware Memory
 
@@ -644,7 +644,7 @@ Complete pattern-driven exit intelligence that enhances MaxProfitManager without
 
 This ensures backtest, paper, and live trading maintain completely separate pattern memories, preventing strategy contamination from simulated data.
 
-## [2.3.1] - 2025-12-16
+## [2.3.1] - 2024-12-16
 
 ### Added - Feature Flags Configuration System
 
@@ -689,7 +689,7 @@ To enable Empire Pattern Dominance:
 
 This provides a clean, version-controlled way to manage experimental features without environment variable clutter.
 
-## [2.3.0] - 2025-12-16
+## [2.3.0] - 2024-12-16
 
 ### 🚀 EMPIRE PATTERN DOMINANCE - Complete Pattern-Driven Entry System
 
@@ -774,7 +774,7 @@ Added to decision object when pattern dominance enabled:
 - **Better compounding** as pattern library matures
 - **No additional risk** - same number of signals, better filtering
 
-## [2.2.0] - 2025-12-15
+## [2.2.0] - 2024-12-15
 
 ### 🎯 Pattern-Based Position Sizing Implementation
 
@@ -814,7 +814,7 @@ Win Rate 30%- → 0.75x position size (min)
 - **Risk profile unchanged** - frequency stays same
 - **Compounds with learning** - gets better over time
 
-## [2.1.4] - 2025-12-15
+## [2.1.4] - 2024-12-15
 
 ### 🔧 Critical Dataflow & Schema Fixes (Full-System Architecture Audit Response)
 
@@ -856,7 +856,7 @@ Win Rate 30%- → 0.75x position size (min)
 - **MACD Assignment**: Fixed at line 749 - properly assigned to indicators object
 - **State Mutations**: All going through StateManager with proper locking
 
-## [2.1.3] - 2025-12-15
+## [2.1.3] - 2024-12-15
 
 ### 🚨 Critical Security & Safety Fixes (Deep Architecture Audit Response)
 
@@ -889,7 +889,7 @@ Win Rate 30%- → 0.75x position size (min)
 - **State Integrity**: No side-channels, no race conditions, locks verified
 - **Single Source of Truth**: StateManager is authoritative for all state
 
-### ✅ Paper Trading Complete Overhaul (2025-12-15 Session)
+### ✅ Paper Trading Complete Overhaul (2024-12-15 Session)
 
 #### 🔧 StateManager Fixes (CRITICAL - Money Printer Bug)
 
@@ -1003,7 +1003,7 @@ Win Rate 30%- → 0.75x position size (min)
 - Add circuit breaker to execution pipeline
 - Implement proper integration tests for buy→sell cycle
 
-## [2.1.2] - 2025-12-15
+## [2.1.2] - 2024-12-15
 
 ### Added
 - **TradingView Lightweight Charts integration** to unified-dashboard.html
@@ -1023,7 +1023,7 @@ Win Rate 30%- → 0.75x position size (min)
 - Added TradingView container alongside existing Chart.js canvas
 - Both chart libraries available - users can switch between them
 
-## [2.1.1] - 2025-12-15
+## [2.1.1] - 2024-12-15
 
 ### Added
 - Created REST API for backtesting on port 3011 (`backtest/backtest-api.js`)
@@ -1038,7 +1038,7 @@ Win Rate 30%- → 0.75x position size (min)
 - Wrapped indicator calculations in try-catch to prevent crashes
 - Fixed method name from `calculateAll` to `calculateTechnicalIndicators`
 
-## [2.1.0] - 2025-12-15
+## [2.1.0] - 2024-12-15
 
 ### ⚠️ BREAKING CHANGES
 - **State Schema Change**: `activeTrades` must contain `action` field (not just `type`)
@@ -1073,7 +1073,7 @@ Win Rate 30%- → 0.75x position size (min)
 - **Trade Schema**: `{action: 'BUY'|'SELL', type: string, entryPrice: number, entryTime: number}`
 - **Migration Policy**: One-time migration for old trades: `if (!trade.action && trade.type) trade.action = trade.type.toUpperCase()`
 
-## [2.0.26] - 2025-12-14
+## [2.0.26] - 2024-12-14
 
 ### Added
 - Moon Shot test for forcing sell conditions (`run-empire-v2.js` lines 625-639)
@@ -1083,7 +1083,7 @@ Win Rate 30%- → 0.75x position size (min)
 - Test harness bug: Forces both entry and mark price to $95k
 - MaxProfitManager never sees profit delta
 
-## [2.0.25] - 2025-12-13
+## [2.0.25] - 2024-12-13
 
 ### Fixed
 - ExecutionLayer missing `success: true` field in paper mode
@@ -1122,7 +1122,7 @@ The "Amnesia Bug" was caused by a Map/Array serialization issue:
 5. Bot forgets all trades but keeps position
 6. MaxProfitManager checks activeTrades (empty) → no sells possible
 
-## [2.0.26] - 2025-12-14 - MOON SHOT TEST: FORCING SELL TO VERIFY P&L
+## [2.0.26] - 2024-12-14 - MOON SHOT TEST: FORCING SELL TO VERIFY P&L
 
 ### Testing - Force Sell Scenario
 - **Added Moon Shot price injection for testing**
@@ -1132,7 +1132,7 @@ The "Amnesia Bug" was caused by a Map/Array serialization issue:
   - Verifies P&L calculation and balance updates
   - TEMPORARY - Remove after verification
 
-## [2.0.25] - 2025-12-13 - PAPER TRADING FIXED: POSITIONS ACTUALLY UPDATE NOW!
+## [2.0.25] - 2024-12-13 - PAPER TRADING FIXED: POSITIONS ACTUALLY UPDATE NOW!
 
 ### Fixed - Paper Trading Now Works!
 - **ExecutionLayer returned wrong format in paper mode**
@@ -1162,7 +1162,7 @@ The "Amnesia Bug" was caused by a Map/Array serialization issue:
 - Position size shows as NaN% when tracking
 - No sell/close position logic for paper mode yet
 
-## [2.0.24] - 2025-12-13 - SURGICAL ENGINE SWAP: STATE DESYNC & TRAI BLOCKING ELIMINATED
+## [2.0.24] - 2024-12-13 - SURGICAL ENGINE SWAP: STATE DESYNC & TRAI BLOCKING ELIMINATED
 
 ### Fixed - Step 1: Single Source of Truth (STATE DESYNC ELIMINATED)
 - **CRITICAL: Removed ALL duplicate state tracking - StateManager is now ONLY truth**
@@ -1235,7 +1235,7 @@ The "Amnesia Bug" was caused by a Map/Array serialization issue:
 ✅ **Rate Limiter**: Queue-based, no recursion
 ✅ **Exit Priority**: Math wins over emotions
 
-## [2.0.23] - 2025-12-12 - CRITICAL FIX: BALANCE SYNC IN EXECUTIONLAYER
+## [2.0.23] - 2024-12-12 - CRITICAL FIX: BALANCE SYNC IN EXECUTIONLAYER
 
 ### Fixed
 - **CRITICAL: ExecutionLayer using stale $10k balance instead of current StateManager balance**
@@ -1282,7 +1282,7 @@ Bot will:
 5. Warm up RSI indicator (need 15 candles = ~15 minutes)
 6. Start trading once indicators ready
 
-## [2.0.21] - 2025-12-12 - COMPLETE VERIFICATION: ALL 7 BUGS AUDITED + DATA FLOW MAPPED
+## [2.0.21] - 2024-12-12 - COMPLETE VERIFICATION: ALL 7 BUGS AUDITED + DATA FLOW MAPPED
 
 ### Verification Complete - All Bug Fixes Architecturally Sound
 
@@ -1338,7 +1338,7 @@ Bot will:
   - Both HTML element IDs exist at lines 964 and 972
 - **Status**: FULLY WIRED - Dashboard displays live P&L and trade count ✅
 
-## [2.0.20] - 2025-12-11 - FIX: DASHBOARD DATA STRUCTURE MISMATCHES
+## [2.0.20] - 2024-12-11 - FIX: DASHBOARD DATA STRUCTURE MISMATCHES
 
 ### Fixed
 - **Dashboard not receiving data from backend (message type mismatches)**
@@ -1375,7 +1375,7 @@ Bot will:
 - Trade log should show BUY/SELL decisions
 - Pattern section should show detected patterns
 
-## [2.0.19] - 2025-12-11 - FIX: DASHBOARD SHOWS STALE DATA
+## [2.0.19] - 2024-12-11 - FIX: DASHBOARD SHOWS STALE DATA
 
 ### Fixed
 - **Dashboard shows old state during trade execution (stale P&L, position)**
@@ -1406,7 +1406,7 @@ Bot will:
 5. Dashboard receives `state_update` message with CURRENT accurate state
 6. No more stale data - dashboard always shows post-update state
 
-## [2.0.18] - 2025-12-11 - FIX: WEBSOCKET RACE CONDITIONS (MESSAGE QUEUE)
+## [2.0.18] - 2024-12-11 - FIX: WEBSOCKET RACE CONDITIONS (MESSAGE QUEUE)
 
 ### Fixed
 - **WebSocket messages processed out of order causing duplicate/missed trades**
@@ -1438,7 +1438,7 @@ Bot will:
 4. Stale messages (>3s old) are dropped
 5. Minimum 5ms gap prevents CPU overload during rapid updates
 
-## [2.0.17] - 2025-12-11 - CRITICAL FIX: TRADES NOT EXECUTING (PHANTOM TRADE BUG)
+## [2.0.17] - 2024-12-11 - CRITICAL FIX: TRADES NOT EXECUTING (PHANTOM TRADE BUG)
 
 ### Fixed
 - **CRITICAL: Trades registering but NOT executing (ReferenceError: orderId is undefined)**
@@ -1462,7 +1462,7 @@ Bot will:
 - StateManager position updates correctly after BUY
 - Balance decreases by position size after BUY
 
-## [2.0.16] - 2025-12-11 - CRITICAL FIXES: ERROR ESCALATION & MEMORY MANAGEMENT
+## [2.0.16] - 2024-12-11 - CRITICAL FIXES: ERROR ESCALATION & MEMORY MANAGEMENT
 
 ### Fixed
 - **Error Swallowing in OptimizedTradingBrain.js**
@@ -1508,7 +1508,7 @@ Bot will:
 - Replace unbounded arrays in PerformanceAnalyzer.js
 - Integrate MemoryManager into MarketRegimeDetector.js
 
-## [2.0.15] - 2025-12-11 - STATEMANAGER INTEGRATION COMPLETE
+## [2.0.15] - 2024-12-11 - STATEMANAGER INTEGRATION COMPLETE
 
 ### Changed
 - **run-empire-v2.js: Full StateManager Integration**
@@ -1541,7 +1541,7 @@ Bot will:
   - TradingBrain and ExecutionLayer sync to StateManager on position changes
   - No more desync between multiple position tracking locations
 
-## [2.0.14] - 2025-12-11 - CRITICAL STATE MANAGEMENT FIX
+## [2.0.14] - 2024-12-11 - CRITICAL STATE MANAGEMENT FIX
 
 ### Fixed
 - **CRITICAL: Position/Balance Desynchronization**
@@ -1565,7 +1565,7 @@ Bot will:
 - Enables proper state recovery after crashes
 - Foundation for distributed trading (multiple instances)
 
-## [2.0.13] - 2025-12-11 - TRADING OPTIMIZATION FRAMEWORK
+## [2.0.13] - 2024-12-11 - TRADING OPTIMIZATION FRAMEWORK
 
 ### Added
 - **Three-pass trading optimization system**
@@ -1596,7 +1596,7 @@ Bot will:
 - Foundation for learning-based position sizing
 - Preparation for "elite patterns only" mode
 
-## [2.0.12] - 2025-12-11 - PATTERN MEMORY ACTUALLY WORKING! 🚀
+## [2.0.12] - 2024-12-11 - PATTERN MEMORY ACTUALLY WORKING! 🚀
 
 ### Fixed
 - **BREAKTHROUGH: Pattern memory is FINALLY accumulating after 6+ months!**
@@ -1620,7 +1620,7 @@ Bot will:
 - Pattern success rates calculating correctly
 - Memory utilization tracking active
 
-## [2.0.11] - 2025-12-10 - CRITICAL PATTERN MEMORY FIX
+## [2.0.11] - 2024-12-10 - CRITICAL PATTERN MEMORY FIX
 
 ### Fixed
 - **CRITICAL: Pattern memory accumulation finally fixed (6+ MONTH BUG)**
