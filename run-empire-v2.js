@@ -914,7 +914,7 @@ class OGZPrimeV14Bot {
             },
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
-            series: renderPacket.series,  // Include chart series data
+            overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             balance: stateManager.get('balance'),
             position: stateManager.get('position'),
             totalTrades: this.executionLayer?.totalTrades || 0

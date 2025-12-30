@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2024-12-30 - Dashboard UI/UX Improvements
+### Added
+- **Timeframe Selector**: Added dropdown for selecting chart timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1D)
+- **Indicator Checkboxes**: Replaced multi-select dropdown with individual checkboxes for better UX
+  - Each indicator has a color dot for visual reference
+  - Cleaner, more intuitive interface
+- **OHLC Hover Display**: Chart now shows full OHLC data on crosshair hover
+  - Format: "O: $X H: $Y L: $Z C: $W"
+- **Pattern Visualization Canvas**: Enhanced pattern display with confidence bars
+  - Top 5 patterns shown with color-coded confidence levels
+  - Pattern memory stats display (patterns learned, unique patterns)
+- **Trade Marker Integration**: Connected trade messages to chart markers
+  - Buy/sell arrows with PnL display on chart
+
+### Changed
+- **Chart Height**: Increased from 500px to 600px for better visibility
+- **Scroll Wheel Behavior**: Disabled mousewheel zoom to prevent accidental zooming
+  - Added handleScroll and handleScale options to chart config
+- **Indicators Default State**: All indicators now OFF by default (previously EMA and Bollinger were ON)
+- **Chain of Thought Display**: Enhanced with more metrics
+  - Shows Analysis, Trend, RSI, Confidence %, Risk Score %, and Decision
+  - Added emoji indicators for better visual scanning
+- **Pattern Analysis Handler**: Improved with detailed confidence and pattern memory
+
+### Fixed
+- **Trade Signal Connection**: plotTradeSignal now properly called on trade messages
+- **WebSocket Trade Handler**: Enhanced to properly format trade data for chart markers
+
+## [2.5.0] - 2025-12-29 - ULTIMATE DASHBOARD MERGE
+### 🚀 THE BIG ONE - Complete Dashboard Integration
+
+#### Features Combined from Both Versions:
+**From Opus 4.5:**
+- ✅ EMA 20/50/200 overlays (yellow/cyan/orange)
+- ✅ Bollinger Bands with middle line (white dashed)
+- ✅ VWAP indicator (magenta)
+- ✅ SuperTrend indicator (green/red directional)
+- ✅ Multi-select indicator toggle dropdown
+- ✅ Full 15 crypto asset selector
+- ✅ Tier selector (Core/ML versions)
+- ✅ Pattern Analysis panel with canvas
+- ✅ Neural Ensemble Voting (5 brains)
+- ✅ Chain of Thought display
+
+**From Our Enhancements:**
+- ✅ plotTradeSignal() - Real-time trade markers on chart
+- ✅ Enhanced candlestick colors with transparency
+- ✅ trade_opened WebSocket handler for bot trades
+- ✅ Better chart borders and styling
+- ✅ Proven WebSocket fixes from testing
+
+#### Complete Feature Set:
+- TradingView Lightweight Charts v4.1.0
+- 6 trade buttons (BUY/SELL/KILL/LONG/SHORT/HEDGE)
+- Real-time indicator value updates
+- Trade log with P&L tracking
+- Performance stats panel
+- WebSocket: wss://ogzprime.com/ws (production ready)
+- 1775 lines of pure dashboard excellence
+
+### Files:
+- MERGED: unified-dashboard-refactor.html (production)
+- BACKUP: unified-dashboard-refactor-backup-[timestamp].html
+
+## [2.4.7] - 2025-12-28
+### Added - Dashboard Enhancements
+- Real-time trade signal plotting with buy/sell markers on chart
+  - Handles `trade_opened` WebSocket messages from bot
+  - Visual arrows (green up/red down) at trade execution points
+  - Trade details displayed on markers
+
+- Indicator overlays directly on TradingView chart:
+  - Moving Average (MA) - blue line
+  - Bollinger Bands (upper/lower) - orange lines
+  - EMA 21 - green line
+  - EMA 50 - red line
+  - All overlays update in real-time with price data
+
+- Enhanced chart visual settings:
+  - Improved candlestick colors with transparency
+  - Better grid visibility with dotted lines
+  - Purple crosshair for precise price tracking
+  - Optimized volume histogram display
+  - Professional color scheme for dark theme
+
+### Fixed
+- Trade signal handler now properly receives and plots bot trades
+- Indicator overlay data properly parsed and displayed
+- Chart auto-scaling improved for better price visibility
+
+## [2.4.6] - 2025-12-28
+### Verified
+- Module integration and WebSocket data flow verification completed
+  - Bot (run-empire-v2.js) connects to ws://localhost:3010/ws
+  - Dashboard WebSocket server (ogzprime-ssl-server.js) running on port 3010
+  - Dashboard server (dashboard-server.js) serving files from /opt/ogzprime/OGZPMLV2/public
+  - Dashboard (unified-dashboard-refactor.html) connects to wss://ogzprime.com/ws
+  - WebSocket authentication working correctly
+
+### Updated
+- dashboard-server.js console message updated to reference correct dashboard file
+  - Changed from master-dashboard.html to unified-dashboard-refactor.html
+
+### Status
+- ogz-websocket (PM2 ID 5): ONLINE - handling WebSocket connections
+- ogz-dashboard (PM2 ID 14): ONLINE - serving dashboard files
+- ogz-prime-v2 (PM2 ID 11): STOPPED - bot needs to be started to send market data
+
 ## [2.4.5] - 2025-12-28
 ### Added
 - Created SYSTEM-ARCHITECTURE-PACKET.md for multi-modal collaboration

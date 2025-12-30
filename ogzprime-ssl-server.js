@@ -122,7 +122,29 @@ wss.on('connection', (ws, req) => {
         console.log('📊 DASHBOARD IDENTIFIED!');
         ws.clientType = 'dashboard';
       }
-      
+
+      // 🚀 RELAY: Bot messages → Dashboard clients
+      if (ws.clientType === 'bot' && data.type !== 'identify') {
+        const messageStr = JSON.stringify(data);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN &&
+              client.authenticated &&
+              client.clientType === 'dashboard') {
+            try {
+              client.send(messageStr);
+            } catch (err) {
+              console.error('Error relaying to dashboard:', err.message);
+            }
+          }
+        });
+
+        // Log relay activity
+        if (data.type === 'price') {
+          console.log(`📡 Relayed price to dashboards: $${data.data?.price?.toFixed(2) || 'N/A'}`);
+        }
+      }
+
     } catch (err) {
       console.error(`Error parsing message from ${connectionId}:`, err.message);
     }

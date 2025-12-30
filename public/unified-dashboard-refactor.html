@@ -4,52 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OGZPrime Unified Trading System - Live Dashboard</title>
-    <!-- Force cache refresh with timestamp -->
-    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js?v=20251228"></script>
-
-    <!-- SIMPLE TEST -->
-    <script>
-        window.addEventListener('load', function() {
-            console.log('🚨 SIMPLE TEST: Page loaded');
-            console.log('🚨 SIMPLE TEST: LightweightCharts exists?', typeof LightweightCharts);
-
-            // Try to create a test chart in the main chart area
-            setTimeout(() => {
-                const testContainer = document.getElementById('mainChart');
-                if (testContainer) {
-                    console.log('🚨 SIMPLE TEST: Found mainChart container');
-                    testContainer.style.background = 'red';
-                    testContainer.style.width = '100%';
-                    testContainer.style.height = '400px';
-
-                    if (typeof LightweightCharts !== 'undefined') {
-                        console.log('🚨 SIMPLE TEST: Creating test chart...');
-                        try {
-                            const testChart = LightweightCharts.createChart(testContainer, {
-                                width: 800,
-                                height: 400
-                            });
-                            const testSeries = testChart.addLineSeries();
-                            testSeries.setData([
-                                { time: '2024-01-01', value: 100 },
-                                { time: '2024-01-02', value: 110 },
-                                { time: '2024-01-03', value: 105 }
-                            ]);
-                            console.log('🚨 SIMPLE TEST: Chart created successfully!');
-                        } catch (e) {
-                            console.error('🚨 SIMPLE TEST: Error creating chart:', e);
-                        }
-                    } else {
-                        console.error('🚨 SIMPLE TEST: LightweightCharts not loaded!');
-                    }
-                } else {
-                    console.error('🚨 SIMPLE TEST: mainChart container not found!');
-                }
-            }, 1000);
-        });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- TradingView Lightweight Charts v4.1 -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         
@@ -265,13 +221,15 @@
             transition: all 0.3s ease;
         }
         
-        .tier-price {
-            font-size: 16px;
+        .price-display {
+            font-size: 20px;
             font-weight: 700;
-            padding: 5px 15px;
+            padding: 8px 20px;
             border-radius: 20px;
             background: rgba(0, 0, 0, 0.5);
-            border: 1px solid currentColor;
+            border: 1px solid var(--profit-color);
+            color: var(--profit-color);
+            font-family: 'Orbitron', monospace;
         }
         
         /* Dynamic version coloring */
@@ -293,7 +251,48 @@
             display: flex;
             gap: 10px;
         }
-        
+
+        .indicator-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: rgba(26, 0, 0, 0.8);
+            border: 1px solid #ff0040;
+            border-radius: 5px;
+            padding: 8px;
+            max-width: 600px;
+        }
+
+        .indicator-check {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 11px;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 3px 6px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .indicator-check:hover {
+            background: rgba(255, 0, 64, 0.1);
+        }
+
+        .indicator-check input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .color-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
         select, button {
             background: rgba(26, 0, 0, 0.8);
             color: #fff;
@@ -313,28 +312,29 @@
             transform: translateY(-2px);
         }
         
-        /* Chart Container */
+        /* Chart Container - TradingView */
         .chart-container {
             position: relative;
             background: rgba(0, 0, 0, 0.8);
             border-radius: 10px;
-            padding: 20px;
+            padding: 10px;
             margin-bottom: 20px;
             border: 1px solid var(--border-color);
             height: 600px;
             width: 100%;
         }
         
-        canvas {
-            width: 100% !important;
-            height: 100% !important;
+        #tvChartContainer {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
         }
         
         /* Multiple Bot Status Display */
         .bot-status-row {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 20px;
+            left: 20px;
             display: flex;
             gap: 15px;
             z-index: 15;
@@ -413,20 +413,18 @@
             font-family: 'Orbitron', monospace;
         }
         
-        /* Feature Unlock Notice */
-        .feature-notice {
-            background: linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(255, 0, 0, 0.05) 100%);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            border-radius: 8px;
-            padding: 10px;
-            margin: 10px 0;
-            text-align: center;
-            font-size: 12px;
-            color: #ff6666;
+        /* Indicator panel visibility */
+        .indicators-panel {
             display: none;
         }
-        
-        /* Removed old tier lock notices */
+
+        .tier-core .core-indicators {
+            display: block;
+        }
+
+        .tier-ml .ml-indicators {
+            display: block;
+        }
         
         /* Trading Panel */
         .trading-panel {
@@ -461,7 +459,7 @@
         .trade-controls {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .trade-btn {
@@ -511,15 +509,6 @@
             color: #fff;
             box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
         }
-        
-        /* Additional buttons for higher tiers */
-        .advanced-controls {
-            display: none;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        /* Advanced controls always visible */
         
         .long-btn {
             background: linear-gradient(135deg, #1e90ff, #0066cc);
@@ -579,140 +568,6 @@
         .positive { color: var(--profit-color) !important; }
         .negative { color: var(--loss-color) !important; }
         
-        /* Decision Log */
-        .decision-log {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-        
-        .decision-entry {
-            padding: 10px;
-            margin-bottom: 8px;
-            background: rgba(26, 0, 0, 0.8);
-            border-radius: 8px;
-            font-size: 12px;
-            border-left: 3px solid #ff0040;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .decision-entry.profit {
-            border-left-color: var(--profit-color);
-        }
-        
-        .decision-entry[data-tier="core"] {
-            border-left-color: var(--core-color);
-        }
-
-        .decision-entry[data-tier="ml"] {
-            border-left-color: var(--ml-color);
-        }
-        
-        .decision-time {
-            color: #666666;
-            font-size: 10px;
-            font-family: 'Orbitron', monospace;
-        }
-        
-        .decision-tier {
-            font-size: 9px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        
-        /* Pattern Recognition Panel */
-        .pattern-panel {
-            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
-            border: 1px solid rgba(138, 43, 226, 0.4);
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        
-        .pattern-name {
-            font-weight: 700;
-            color: #8a2be2;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        
-        /* Neural Ensemble */
-        .neural-ensemble {
-            margin-top: 20px;
-        }
-        
-        .ensemble-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-        
-        .brain-module {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.9));
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .brain-module:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-        }
-        
-        .brain-name {
-            font-size: 10px;
-            color: #666666;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        
-        .brain-vote {
-            font-weight: 700;
-            font-size: 14px;
-            font-family: 'Orbitron', monospace;
-        }
-        
-        .vote-long { color: #00ff41; }
-        .vote-short { color: #ff4444; }
-        .vote-hedge { color: #ff8c00; }
-        .vote-hold { color: #8b8b8b; }
-        
-        /* Removed quantum-specific features (now using chain of thought) */
-        
-        /* Upgrade Prompt */
-        .upgrade-prompt {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
-            color: #000;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
-            z-index: 100;
-            display: none;
-            animation: upgradePromptPulse 2s infinite;
-        }
-        
-        @keyframes upgradePromptPulse {
-            0%, 100% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.05); }
-        }
-        
-        /* Upgrade prompt hidden by default */
-        
         /* Trade Log */
         .trade-log {
             max-height: 200px;
@@ -770,7 +625,15 @@
             color: #ffd700;
         }
 
-        /* Pattern Display */
+        /* Pattern Panel */
+        .pattern-panel {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
         .pattern-display {
             padding: 10px;
             background: rgba(0, 0, 0, 0.6);
@@ -800,24 +663,71 @@
             line-height: 1.4;
         }
 
-        /* Brain confidence display */
+        /* Neural Ensemble */
+        .neural-ensemble {
+            margin-top: 20px;
+        }
+        
+        .ensemble-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        
+        .brain-module {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.9));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .brain-module:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        
+        .brain-name {
+            font-size: 10px;
+            color: #666666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .brain-vote {
+            font-weight: 700;
+            font-size: 14px;
+            font-family: 'Orbitron', monospace;
+        }
+        
         .brain-confidence {
             font-size: 10px;
             color: #888;
             margin-top: 3px;
         }
+        
+        .vote-long { color: #00ff41; }
+        .vote-short { color: #ff4444; }
+        .vote-hedge { color: #ff8c00; }
+        .vote-hold { color: #8b8b8b; }
 
-        /* Indicator panel visibility */
-        .indicators-panel {
+        /* Upgrade Prompt */
+        .upgrade-prompt {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            z-index: 100;
             display: none;
-        }
-
-        .tier-core .core-indicators {
-            display: block;
-        }
-
-        .tier-ml .ml-indicators {
-            display: block;
         }
 
         /* Scrollbar */
@@ -838,10 +748,6 @@
             background: #ffed4e;
         }
     </style>
-
-    <!-- Chart Data Management -->
-    <script src="js/ChartManager.js"></script>
-    <script src="js/IndicatorAdapter.js"></script>
 </head>
 <body>
     <div class="header">
@@ -861,17 +767,17 @@
     </div>
     
     <div class="main-container">
-        <!-- Unified Chart Section - Starts with ML to show all features -->
+        <!-- Unified Chart Section -->
         <div class="unified-chart-section tier-ml" id="unifiedChart">
             <div class="chart-header">
                 <div class="chart-title-container">
                     <h2 class="chart-title" id="chartTitle">ML VERSION</h2>
+                    <span class="price-display" id="currentPrice">$0.00</span>
                 </div>
                 <div class="chart-controls">
                     <select id="chartTypeSelector" onchange="changeChartType(this.value)">
-                        <option value="line" selected>Line</option>
-                        <option value="candlestick">Candlestick</option>
-                        <option value="bar">Bar</option>
+                        <option value="candlestick" selected>Candlestick</option>
+                        <option value="line">Line</option>
                     </select>
                     <select id="assetSelector" onchange="changeAsset(this.value)">
                         <option value="BTC-USD" selected>Bitcoin (BTC)</option>
@@ -890,24 +796,78 @@
                         <option value="SHIB-USD">Shiba Inu (SHIB)</option>
                         <option value="APT-USD">Aptos (APT)</option>
                     </select>
-                    <select id="indicatorSelector" multiple onchange="updateIndicatorOverlays()">
-                        <option value="ema" selected>EMA</option>
-                        <option value="sma">SMA</option>
-                        <option value="bollinger">Bollinger Bands</option>
-                        <option value="atr">ATR</option>
-                        <option value="fibonacci">Fibonacci Retracements</option>
-                        <option value="trendlines">Trend Lines</option>
-                        <option value="rsi">RSI Overlay</option>
-                        <option value="macd">MACD Overlay</option>
-                        <option value="vwap">VWAP</option>
-                        <option value="ichimoku">Ichimoku Cloud</option>
-                        <option value="sr">Support/Resistance</option>
+                    <select id="timeframeSelector" onchange="changeTimeframe(this.value)">
+                        <option value="1m" selected>1M</option>
+                        <option value="5m">5M</option>
+                        <option value="15m">15M</option>
+                        <option value="30m">30M</option>
+                        <option value="1h">1H</option>
+                        <option value="4h">4H</option>
+                        <option value="1d">1D</option>
                     </select>
+                    <div class="indicator-checkboxes" id="indicatorCheckboxes">
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-ema" value="ema" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ffcc00;"></span>
+                            <span>EMA</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-sma" value="sma" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #00ccff;"></span>
+                            <span>SMA</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-bollinger" value="bollinger" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ff00cc;"></span>
+                            <span>Bollinger Bands</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-atr" value="atr" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ff6600;"></span>
+                            <span>ATR</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-fibonacci" value="fibonacci" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #9900ff;"></span>
+                            <span>Fibonacci</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-trendlines" value="trendlines" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #00ff00;"></span>
+                            <span>Trend Lines</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-rsi" value="rsi" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ff0066;"></span>
+                            <span>RSI Overlay</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-macd" value="macd" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #6600ff;"></span>
+                            <span>MACD Overlay</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-vwap" value="vwap" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #00ffcc;"></span>
+                            <span>VWAP</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-ichimoku" value="ichimoku" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ccff00;"></span>
+                            <span>Ichimoku Cloud</span>
+                        </label>
+                        <label class="indicator-check">
+                            <input type="checkbox" id="chk-sr" value="sr" onchange="updateIndicatorOverlays()">
+                            <span class="color-dot" style="background: #ff9900;"></span>
+                            <span>Support/Resistance</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             
             <div class="chart-container">
-                <canvas id="mainChart"></canvas>
+                <!-- TradingView Chart -->
+                <div id="tvChartContainer"></div>
                 
                 <!-- Bot Status Indicators -->
                 <div class="bot-status-row">
@@ -980,19 +940,18 @@
                     <button class="trade-btn sell-btn" onclick="executeTrade('sell')">SELL</button>
                     <button class="trade-btn kill-btn" onclick="executeTrade('kill')">KILL</button>
                 </div>
-                <div class="trade-controls" style="display: flex;">
+                <div class="trade-controls">
                     <button class="trade-btn long-btn" onclick="executeTrade('long')">LONG</button>
                     <button class="trade-btn short-btn" onclick="executeTrade('short')">SHORT</button>
                     <button class="trade-btn hedge-btn" onclick="executeTrade('hedge')">HEDGE</button>
                 </div>
 
-                <!-- Pattern Recognition Panel - Interactive Teaching Tool -->
-                <div class="pattern-panel" style="display: block;">
+                <!-- Pattern Recognition Panel -->
+                <div class="pattern-panel">
                     <div class="panel-title">Pattern Analysis</div>
                     <div class="pattern-display" id="patternDisplay">
                         <div class="pattern-name" id="currentPatternName">Analyzing...</div>
                         <div class="pattern-visual" id="patternVisual">
-                            <!-- Pattern visualization will be drawn here -->
                             <canvas id="patternCanvas" width="200" height="100"></canvas>
                         </div>
                         <div class="pattern-description" id="patternDescription">
@@ -1027,8 +986,6 @@
                 <!-- Trade Log -->
                 <div class="panel-title">Trade Log</div>
                 <div class="trade-log" id="tradeLog">
-                    <!-- Trade entries will populate here with format:
-                         Trade Type | +/-$Amount (green/red) | Time | Duration -->
                 </div>
             </div>
             
@@ -1036,14 +993,13 @@
             <div class="panel-section">
                 <div class="panel-title">Chain of Thought</div>
                 <div class="chain-of-thought" id="chainOfThought">
-                    <!-- Real-time display of bot's reasoning process -->
                     <div class="thought-entry" id="thoughtDisplay">
                         <p>Awaiting market data...</p>
                     </div>
                 </div>
 
                 <!-- Neural Ensemble Voting -->
-                <div class="neural-ensemble" style="display: block;">
+                <div class="neural-ensemble">
                     <div class="panel-title">Neural Ensemble Voting</div>
                     <div class="ensemble-grid">
                         <div class="brain-module">
@@ -1077,37 +1033,49 @@
         </div>
     </div>
     
-    <!-- Contact for upgrade -->
+    <!-- Upgrade Prompt -->
     <div class="upgrade-prompt" onclick="showUpgradeOptions()" style="display: none;">
         Contact for ML Version Access
     </div>
     
     <script>
-        // WebSocket connection to quantum_ssl_server.js on port 3010
+        // ============================================
+        // OGZPrime Dashboard - Complete TradingView Edition
+        // All original functionality + TradingView charts + Indicator overlays
+        // ============================================
+        
+        console.log('🚀 OGZPrime Dashboard Loading...');
+        
+        // Global state
         let ws = null;
-        let chart = null;
-        let currentTier = 'ml'; // Start with ML to show all features
-        let priceData = [];
-        let tradeHistory = [];
+        let tvChart = null;
+        let currentTier = 'ml';
         let tradesExecuted = 0;
+        let lastPrice = 0;
+        let currentChartType = 'candlestick';
+        
+        // Chart series
+        let candleSeries = null;
+        let lineSeries = null;
+        let volumeSeries = null;
+        
+        // Indicator overlay series
+        let ema20Series = null;
+        let ema50Series = null;
+        let ema200Series = null;
+        let bbUpperSeries = null;
+        let bbMiddleSeries = null;
+        let bbLowerSeries = null;
+        let vwapSeries = null;
+        let superTrendSeries = null;
+        
+        // Active indicator overlays (all OFF by default)
+        let activeOverlays = [];
+        
         let botStates = {
             core: { connected: false, pnl: 0, trades: 0, confidence: 0 },
             ml: { connected: false, pnl: 0, trades: 0, confidence: 0 }
         };
-
-        // Initialize Chart Data Management
-        let chartManager = null;
-        let indicatorAdapter = null;
-
-        // Initialize managers after DOM loads
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof ChartManager !== 'undefined') {
-                chartManager = new ChartManager();
-            }
-            if (typeof IndicatorAdapter !== 'undefined' && chartManager) {
-                indicatorAdapter = new IndicatorAdapter(chartManager);
-            }
-        });
 
         // Version configurations
         const tierConfigs = {
@@ -1131,7 +1099,7 @@
             }
         };
 
-        // Trade button colors for chart markers
+        // Trade button colors
         const tradeColors = {
             buy: '#00ff41',
             sell: '#ff4444',
@@ -1141,339 +1109,376 @@
             hedge: '#ff8c00'
         };
         
-        // Initialize Chart
+        // Indicator colors
+        const COLORS = {
+            ema20: '#ffcc00',
+            ema50: '#00ccff',
+            ema200: '#ff6600',
+            bbUpper: 'rgba(255, 255, 255, 0.4)',
+            bbMiddle: 'rgba(255, 255, 255, 0.6)',
+            bbLower: 'rgba(255, 255, 255, 0.4)',
+            vwap: '#ff00ff',
+            superTrendUp: '#00ff88',
+            superTrendDown: '#ff3366'
+        };
+        
+        // ============================================
+        // CHART INITIALIZATION
+        // ============================================
+        
         function initChart() {
-            console.log('🔍 [DEBUG] initChart called');
-
-            // Check if TradingView library is loaded
+            console.log('🔍 [Chart] Initializing TradingView chart...');
+            
             if (typeof LightweightCharts === 'undefined') {
-                console.error('❌ [DEBUG] TradingView Lightweight Charts library not loaded');
-                setTimeout(initChart, 100); // Retry in 100ms
+                console.error('❌ LightweightCharts not loaded!');
                 return;
             }
-
-            console.log('✅ [DEBUG] TradingView library loaded');
-
-            // Create TradingView chart for candlesticks
-            const chartContainer = document.getElementById('mainChart').parentElement;
-            console.log('🔍 [DEBUG] Chart container:', chartContainer);
-
-            // Clear any existing canvas and create div for TradingView chart
-            chartContainer.innerHTML = '<div id="tvChart" style="width: 100%; height: 100%;"></div>';
-            console.log('🔍 [DEBUG] Created tvChart div');
-
-            // Initialize TradingView Lightweight Charts
-            console.log('🔍 [DEBUG] Creating TradingView chart...');
-            const tvChart = LightweightCharts.createChart(document.getElementById('tvChart'), {
-                width: chartContainer.clientWidth,
-                height: 400,
+            
+            const container = document.getElementById('tvChartContainer');
+            if (!container) {
+                console.error('❌ Chart container not found!');
+                return;
+            }
+            
+            const rect = container.parentElement.getBoundingClientRect();
+            
+            tvChart = LightweightCharts.createChart(container, {
+                width: rect.width - 20,
+                height: rect.height - 20,
                 layout: {
-                    background: { color: '#0a0e1a' },
-                    textColor: '#d1d5db',
+                    background: { type: 'solid', color: '#0a0a0a' },
+                    textColor: '#d1d4dc',
                 },
                 grid: {
-                    vertLines: { color: '#1f2937' },
-                    horzLines: { color: '#1f2937' },
+                    vertLines: { color: 'rgba(255, 255, 255, 0.06)' },
+                    horzLines: { color: 'rgba(255, 255, 255, 0.06)' },
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: { color: 'rgba(255, 215, 0, 0.4)', width: 1, style: 2 },
+                    horzLine: { color: 'rgba(255, 215, 0, 0.4)', width: 1, style: 2 },
                 },
                 rightPriceScale: {
-                    borderColor: '#1f2937',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    scaleMargins: { top: 0.1, bottom: 0.2 },
                 },
                 timeScale: {
-                    borderColor: '#1f2937',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
                     timeVisible: true,
                     secondsVisible: false,
                 },
-            });
-
-            // Create candlestick series
-            console.log('🔍 [DEBUG] Creating candlestick series...');
-            console.log('🔍 [DEBUG] tvChart object methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(tvChart)));
-
-            // Check what methods are available
-            console.log('🔍 [DEBUG] Available chart methods:', Object.keys(tvChart));
-            for (let key in tvChart) {
-                if (key.includes('add') || key.includes('Series')) {
-                    console.log('🔍 [DEBUG] Found method:', key, typeof tvChart[key]);
-                }
-            }
-
-            // Try to create a series - use the methods that ARE available
-            try {
-                let seriesCreated = false;
-
-                // We know addSeries exists, so try that first
-                if (typeof tvChart.addSeries === 'function') {
-                    console.log('🔍 [DEBUG] Trying addSeries method');
-                    try {
-                        // Try different series type strings
-                        window.candlestickSeries = tvChart.addSeries({
-                            type: 'Candlestick',
-                            upColor: '#00ff88',
-                            downColor: '#ff6b6b'
-                        });
-                        seriesCreated = true;
-                        console.log('✅ [DEBUG] Created with addSeries(Candlestick)');
-                    } catch (e1) {
-                        console.log('⚠️ [DEBUG] Candlestick failed, trying Line');
-                        try {
-                            window.candlestickSeries = tvChart.addSeries({
-                                type: 'Line',
-                                color: '#00ff88'
-                            });
-                            seriesCreated = true;
-                            console.log('✅ [DEBUG] Created with addSeries(Line)');
-                        } catch (e2) {
-                            console.log('⚠️ [DEBUG] Line failed too');
-                        }
-                    }
-                } else if (typeof tvChart.addCustomSeries === 'function') {
-                    console.log('🔍 [DEBUG] Trying addCustomSeries');
-                    window.candlestickSeries = tvChart.addCustomSeries({
-                        upColor: '#00ff88',
-                        downColor: '#ff6b6b'
-                    });
-                    seriesCreated = true;
-                }
-
-                if (seriesCreated) {
-                    console.log('✅ [DEBUG] Series created successfully');
-
-                    // Add test data
-                    const testData = [
-                        { time: '2024-01-01', open: 100, high: 110, low: 95, close: 105 },
-                        { time: '2024-01-02', open: 105, high: 115, low: 100, close: 110 },
-                        { time: '2024-01-03', open: 110, high: 120, low: 105, close: 108 }
-                    ];
-                    window.candlestickSeries.setData(testData);
-                    console.log('✅ [DEBUG] Test data added');
-                } else {
-                    console.error('❌ [DEBUG] No compatible series method found');
-                }
-            } catch (e) {
-                console.error('❌ [DEBUG] Error creating series:', e);
-            }
-
-            // Store chart reference
-            window.tvChart = tvChart;
-
-            // Keep old Chart.js for indicators (hidden)
-            const canvas = document.createElement('canvas');
-            canvas.id = 'indicatorChart';
-            canvas.style.display = 'none';
-            chartContainer.appendChild(canvas);
-
-            const ctx = canvas.getContext('2d');
-
-            // Initialize hidden Chart.js for indicators only
-            if (Chart) {
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        datasets: [{
-                            label: 'Hidden',
-                            data: [],
-                            yAxisID: 'y'
-                    }, {
-                        label: 'RSI',
-                        data: [],
-                        type: 'line',
-                        borderColor: '#ff6b6b',
-                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                        borderWidth: 1,
-                        tension: 0.1,
-                        hidden: true,  // Start hidden until we have RSI data
-                        yAxisID: 'y1',
-                        spanGaps: true  // Skip null values
-                    }, {
-                        label: 'MACD',
-                        data: [],
-                        borderColor: '#4ecdc4',
-                        backgroundColor: 'rgba(78, 205, 196, 0.1)',
-                        borderWidth: 1,
-                        tension: 0.1,
-                        hidden: true,  // Start hidden until we have MACD data
-                        yAxisID: 'y2',
-                        spanGaps: true  // Skip null values
-                    }]
+                localization: {
+                    priceFormatter: price => '$' + price.toFixed(2),
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            display: true,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#999',
-                                maxRotation: 0,
-                                autoSkip: true,
-                                maxTicksLimit: 10
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            beginAtZero: false,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#00ff88'
-                            },
-                            // Add padding to see above the price
-                            suggestedMax: function(context) {
-                                const max = Math.max(...context.chart.data.datasets[0].data);
-                                return max * 1.05; // 5% padding above max
-                            },
-                            suggestedMin: function(context) {
-                                const min = Math.min(...context.chart.data.datasets[0].data.filter(d => d > 0));
-                                return min * 0.95; // 5% padding below min
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: false,  // Start hidden, will show when RSI data arrives
-                            position: 'right',
-                            beginAtZero: false,
-                            min: 0,
-                            max: 100,
-                            grid: {
-                                drawOnChartArea: false
-                            },
-                            ticks: {
-                                color: '#ff6b6b'
-                            },
-                            title: {
-                                display: true,
-                                text: 'RSI',
-                                color: '#ff6b6b'
-                            }
-                        },
-                        y2: {
-                            type: 'linear',
-                            display: false,
-                            position: 'right',
-                            grid: {
-                                drawOnChartArea: false
-                            },
-                            ticks: {
-                                color: '#4ecdc4'
-                            }
-                        }
-                    }
+                handleScroll: {
+                    mouseWheel: false,  // Disable scroll wheel zoom
+                    pressedMouseMove: true,
+                },
+                handleScale: {
+                    mouseWheel: false,  // Disable scroll wheel zoom
+                    pinch: true,
+                },
+            });
+            
+            // Main price series
+            candleSeries = tvChart.addCandlestickSeries({
+                upColor: 'rgba(0, 255, 136, 0.8)',
+                downColor: 'rgba(255, 51, 102, 0.8)',
+                borderVisible: true,
+                borderUpColor: '#00ff88',
+                borderDownColor: '#ff3366',
+                wickUpColor: '#00ff88',
+                wickDownColor: '#ff3366',
+                priceFormat: {
+                    type: 'price',
+                    precision: 2,
+                    minMove: 0.01
                 }
             });
+            
+            lineSeries = tvChart.addLineSeries({
+                color: '#00ff88',
+                lineWidth: 2,
+                visible: false,
+            });
+            
+            volumeSeries = tvChart.addHistogramSeries({
+                priceFormat: { type: 'volume' },
+                priceScaleId: '',
+                scaleMargins: { top: 0.85, bottom: 0 },
+            });
+            
+            // EMA lines
+            ema20Series = tvChart.addLineSeries({
+                color: COLORS.ema20,
+                lineWidth: 1,
+                visible: activeOverlays.includes('ema'),
+            });
+            
+            ema50Series = tvChart.addLineSeries({
+                color: COLORS.ema50,
+                lineWidth: 1,
+                visible: activeOverlays.includes('ema'),
+            });
+            
+            ema200Series = tvChart.addLineSeries({
+                color: COLORS.ema200,
+                lineWidth: 2,
+                visible: activeOverlays.includes('ema'),
+            });
+            
+            // Bollinger Bands
+            bbUpperSeries = tvChart.addLineSeries({
+                color: COLORS.bbUpper,
+                lineWidth: 1,
+                visible: activeOverlays.includes('bollinger'),
+                lineStyle: 2,
+            });
+            
+            bbMiddleSeries = tvChart.addLineSeries({
+                color: COLORS.bbMiddle,
+                lineWidth: 1,
+                visible: activeOverlays.includes('bollinger'),
+            });
+            
+            bbLowerSeries = tvChart.addLineSeries({
+                color: COLORS.bbLower,
+                lineWidth: 1,
+                visible: activeOverlays.includes('bollinger'),
+                lineStyle: 2,
+            });
+            
+            // VWAP
+            vwapSeries = tvChart.addLineSeries({
+                color: COLORS.vwap,
+                lineWidth: 2,
+                visible: activeOverlays.includes('vwap'),
+            });
+            
+            // SuperTrend
+            superTrendSeries = tvChart.addLineSeries({
+                color: COLORS.superTrendUp,
+                lineWidth: 2,
+                visible: false,
+            });
+            
+            // Resize handler
+            window.addEventListener('resize', () => {
+                if (tvChart) {
+                    const r = container.parentElement.getBoundingClientRect();
+                    tvChart.applyOptions({ width: r.width - 20, height: r.height - 20 });
+                }
+            });
+            
+            window.tvChart = tvChart;
+            window.candleSeries = candleSeries;
+
+            // Add crosshair move handler for OHLC display
+            tvChart.subscribeCrosshairMove((param) => {
+                if (!param || !param.seriesData || !param.time) {
+                    document.getElementById('currentPrice').textContent = '$0.00';
+                    return;
+                }
+
+                const data = param.seriesData.get(candleSeries);
+                if (data) {
+                    let displayText = '';
+                    if (data.open !== undefined) {
+                        // OHLC data available
+                        displayText = `O: $${data.open.toFixed(2)} H: $${data.high.toFixed(2)} L: $${data.low.toFixed(2)} C: $${data.close.toFixed(2)}`;
+                    } else if (data.value !== undefined) {
+                        // Line series data
+                        displayText = `$${data.value.toFixed(2)}`;
+                    }
+                    document.getElementById('currentPrice').textContent = displayText;
+                }
+            });
+
+            console.log('✅ TradingView chart initialized');
+            
+            // DO NOT LOAD FAKE DATA - wait for real Kraken data
+            // loadPlaceholderData();  // REMOVED - was causing fake data issues
+        }
+        
+        // REMOVED - This was generating FAKE random data!
+        function loadPlaceholderData() {
+            console.warn('⚠️ loadPlaceholderData DISABLED - only real Kraken data allowed');
+            // DO NOT generate fake data - chart should start empty
+            // Real data comes from WebSocket connection to Kraken
+            return;
+        }
+        
+        // ============================================
+        // CHART UPDATE FUNCTIONS
+        // ============================================
+        
+        function updateChart(data) {
+            if (!candleSeries) return;
+
+            const price = parseFloat(data.price || data.close);
+            if (!price || isNaN(price) || price <= 0) return;
+            
+            // Update price display
+            lastPrice = price;
+            document.getElementById('currentPrice').textContent = '$' + price.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            let timestamp = data.candle?.timestamp || data.timestamp || Date.now();
+            if (timestamp > 9999999999) timestamp = Math.floor(timestamp / 1000);
+
+            // Update candle
+            if (data.candle) {
+                const candle = {
+                    time: timestamp,
+                    open: parseFloat(data.candle.open || price),
+                    high: parseFloat(data.candle.high || price),
+                    low: parseFloat(data.candle.low || price),
+                    close: price,
+                };
+
+                if (currentChartType === 'candlestick') {
+                    candleSeries.update(candle);
+                } else {
+                    lineSeries.update({ time: timestamp, value: price });
+                }
+
+                // Volume
+                if (data.candle.volume) {
+                    volumeSeries.update({
+                        time: timestamp,
+                        value: parseFloat(data.candle.volume),
+                        color: candle.close >= candle.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)',
+                    });
+                }
+            }
+
+            // Update indicator overlays
+            if (data.indicators) {
+                updateIndicatorOverlaysOnChart(timestamp, data.indicators);
+                updateIndicatorValues(data.indicators);
             }
         }
-
-        // GLOBAL guard + stats
-        window.__wsDebug = window.__wsDebug || {
-            created: 0,
-            opened: 0,
-            closed: 0,
-            errored: 0,
-            lastClose: null,
-            lastError: null,
-            reconnects: 0,
-        };
-
-        let __reconnectTimer = null;
-        let __backoffMs = 250;
+        
+        function updateIndicatorOverlaysOnChart(time, indicators) {
+            // EMAs
+            if (indicators.ema) {
+                if (indicators.ema[20]) ema20Series.update({ time, value: indicators.ema[20] });
+                if (indicators.ema[50]) ema50Series.update({ time, value: indicators.ema[50] });
+                if (indicators.ema[200]) ema200Series.update({ time, value: indicators.ema[200] });
+            }
+            
+            // Bollinger Bands
+            if (indicators.bb) {
+                if (indicators.bb.upper) bbUpperSeries.update({ time, value: indicators.bb.upper });
+                if (indicators.bb.mid) bbMiddleSeries.update({ time, value: indicators.bb.mid });
+                if (indicators.bb.lower) bbLowerSeries.update({ time, value: indicators.bb.lower });
+            }
+            
+            // VWAP
+            if (indicators.vwap) {
+                vwapSeries.update({ time, value: indicators.vwap });
+            }
+            
+            // SuperTrend
+            if (indicators.superTrend && indicators.superTrend.value) {
+                superTrendSeries.update({ time, value: indicators.superTrend.value });
+                superTrendSeries.applyOptions({
+                    color: indicators.superTrend.trend === 1 ? COLORS.superTrendUp : COLORS.superTrendDown
+                });
+            }
+        }
+        
+        function loadHistoricalCandles(candles) {
+            if (!candleSeries || !candles || !candles.length) return;
+            
+            const data = candles.map(c => {
+                let t = c.t || c.timestamp;
+                if (t > 9999999999) t = Math.floor(t / 1000);
+                return {
+                    time: t,
+                    open: parseFloat(c.o || c.open),
+                    high: parseFloat(c.h || c.high),
+                    low: parseFloat(c.l || c.low),
+                    close: parseFloat(c.c || c.close),
+                };
+            });
+            
+            candleSeries.setData(data);
+            lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+            console.log(`✅ Loaded ${data.length} historical candles`);
+        }
+        
+        // ============================================
+        // WEBSOCKET
+        // ============================================
+        
+        let reconnectTimer = null;
+        let backoffMs = 250;
 
         function scheduleReconnect(url) {
-            if (__reconnectTimer) return; // prevent multiple timers
-            window.__wsDebug.reconnects++;
-            const wait = Math.min(__backoffMs, 5000);
-            __backoffMs = Math.min(__backoffMs * 2, 5000);
-
-            console.log(`[WS] reconnecting in ${wait}ms (attempt ${window.__wsDebug.reconnects})`);
-            __reconnectTimer = setTimeout(() => {
-                __reconnectTimer = null;
+            if (reconnectTimer) return;
+            const wait = Math.min(backoffMs, 5000);
+            backoffMs = Math.min(backoffMs * 2, 5000);
+            console.log(`[WS] Reconnecting in ${wait}ms`);
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
                 connectWebSocket();
             }, wait);
         }
 
-        // Connect to WebSocket with proper debugging
         function connectWebSocket() {
             const url = 'wss://ogzprime.com/ws';
 
-            // Hard guard: prevent multiple sockets from existing
             if (window.__ws && (window.__ws.readyState === WebSocket.OPEN || window.__ws.readyState === WebSocket.CONNECTING)) {
-                console.log("[WS] already open/connecting, skip");
                 return window.__ws;
             }
 
-            window.__wsDebug.created++;
-            console.log(`[WS] creating #${window.__wsDebug.created}`, url);
-
+            console.log('[WS] Connecting to', url);
             ws = new WebSocket(url);
             window.__ws = ws;
 
             ws.addEventListener("open", () => {
-                window.__wsDebug.opened++;
-                console.log(`[WS] open #${window.__wsDebug.opened}`);
+                console.log('[WS] Connected');
                 document.getElementById('connectionStatus').classList.add('connected');
                 document.getElementById('statusText').textContent = 'Connected';
+                backoffMs = 250;
 
-                // Reset backoff on successful connection
-                __backoffMs = 250;
-
-                // CRITICAL: Send authentication first (server requires this within 10 seconds)
-                const authToken = '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'; // Matches WEBSOCKET_AUTH_TOKEN in .env
+                // Auth
                 ws.send(JSON.stringify({
                     type: 'auth',
-                    token: authToken
+                    token: '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'
                 }));
-                console.log('[WS] Sent authentication');
-
-                // Then identify as dashboard after auth success
-                // The server will send auth_success message first
             });
 
             ws.addEventListener("error", (e) => {
-                window.__wsDebug.errored++;
-                window.__wsDebug.lastError = e;
-                console.log("[WS] error", e);
+                console.error('[WS] Error:', e);
             });
 
             ws.addEventListener("close", (e) => {
-                window.__wsDebug.closed++;
-                window.__wsDebug.lastClose = { code: e.code, reason: e.reason, wasClean: e.wasClean };
-                console.log("[WS] close", window.__wsDebug.lastClose);
-
+                console.log('[WS] Closed');
                 document.getElementById('connectionStatus').classList.remove('connected');
                 document.getElementById('statusText').textContent = 'Disconnected';
-
-                // Only reconnect if you actually want to
                 scheduleReconnect(url);
             });
 
             ws.addEventListener("message", (event) => {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (err) {
+                    console.error('[WS] Parse error:', err);
+                }
             });
 
             return ws;
         }
         
-        // Handle messages from unified-bot.js instances
         function handleWebSocketMessage(data) {
-            // Handle authentication success
+            // Auth success
             if (data.type === 'auth_success') {
-                console.log('[WS] Authentication successful, sending identify');
-                // Now send identify message after successful auth
+                console.log('[WS] Auth successful');
                 ws.send(JSON.stringify({
                     type: 'identify',
                     source: 'dashboard',
@@ -1483,63 +1488,45 @@
                 return;
             }
 
-            // Handle authentication error
             if (data.type === 'error') {
-                console.error('[WS] Server error:', data.message);
+                console.error('[WS] Error:', data.message);
                 return;
             }
 
-            // Handle price updates
+            // Price updates
             if (data.type === 'price' && data.data) {
-                console.log('📊 [DEBUG] Price message received:', data);
-
-                // Update ChartManager with new candle data
-                if (chartManager && data.data.candle) {
-                    console.log('📊 [DEBUG] Has candle data:', data.data.candle);
-                    const candle = {
-                        t: data.data.candle.timestamp || Date.now(),
-                        o: data.data.candle.open,
-                        h: data.data.candle.high,
-                        l: data.data.candle.low,
-                        c: data.data.candle.close,
-                        v: data.data.candle.volume || 0
-                    };
-                    chartManager.addCandle('BTC', '1m', candle);
-                }
-
-                // Process indicators through IndicatorAdapter
-                if (indicatorAdapter && data.data.indicators) {
-                    indicatorAdapter.processIndicatorUpdate({
-                        symbol: 'BTC',
-                        tf: '1m',
-                        indicators: data.data.indicators
-                    });
-                }
-
                 updateChart(data.data);
-                updateIndicators(data);
+                
+                // Historical candles on first load
+                if (data.data.candles && data.data.candles.length > 0) {
+                    loadHistoricalCandles(data.data.candles);
+                }
             }
 
-            // Handle trade messages from bots
+            // Trade messages
             else if (data.type === 'trade') {
                 const botTier = data.botTier || data.tier || 'ml';
-                // Map old tier names to new system
                 const mappedTier = (botTier === 'quantum' || botTier === 'elite') ? 'ml' :
                                    (botTier === 'starter' || botTier === 'pro') ? 'core' : botTier;
 
-                // Add to trade log
-                addTradeToLog({
-                    type: data.direction || 'trade',
+                const tradeData = {
+                    type: data.direction || data.action || 'trade',
+                    price: data.price || lastPrice,
                     pnl: data.pnl || 0,
                     timestamp: data.timestamp || Date.now(),
-                    duration: data.duration || null
-                });
+                    duration: data.duration || null,
+                    side: data.side || data.action,
+                    direction: data.direction
+                };
+
+                addTradeToLog(tradeData);
+                plotTradeSignal(tradeData);  // Add trade marker to chart
 
                 updateBotStatus(mappedTier, data);
                 updateStats(data);
             }
 
-            // Handle bot status updates
+            // Bot status
             else if (data.type === 'bot_status') {
                 const tier = data.tier || data.botTier || 'ml';
                 const mappedTier = (tier === 'quantum' || tier === 'elite') ? 'ml' :
@@ -1548,327 +1535,184 @@
                 updateBotStatusIndicators();
             }
 
-            // Handle bot thinking - update Chain of Thought
+            // Bot thinking - Chain of Thought
             else if (data.type === 'bot_thinking') {
-                const step = data.step || 'analysis';
-                const message = data.message || '';
-
-                // Build thought object based on step
                 const thought = {
-                    analysis: step === 'advisor' ? message : null,
-                    pattern: step === 'brain' ? message : null,
-                    confidence: data.confidence ? `${data.confidence}%` : null,
-                    decision: step === 'execution' ? message : null
+                    analysis: data.message || data.data?.reasoning || 'Processing...',
+                    pattern: data.data?.pattern || 'Scanning...',
+                    confidence: data.confidence || data.data?.finalConfidence || '0',
+                    decision: data.data?.recommendation || 'Evaluating...',
+                    rsi: data.data?.rsi,
+                    trend: data.data?.trend,
+                    riskScore: data.data?.riskScore
                 };
                 updateChainOfThought(thought);
             }
 
-            // Handle StateManager state updates
+            // State updates
             else if (data.type === 'state_update') {
                 if (data.state) {
-                    // Update P&L
                     if (data.state.totalPnL !== undefined) {
                         const pnl = data.state.totalPnL;
-                        const pnlEl = document.getElementById('totalPnl');
-                        if (pnlEl) {
-                            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-                            pnlEl.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
-                        }
+                        const el = document.getElementById('totalPnl');
+                        el.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                        el.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
                     }
-                    // Update trade count
                     if (data.state.tradeCount !== undefined) {
-                        const tradesEl = document.getElementById('tradesExecuted');
-                        if (tradesEl) {
-                            tradesEl.textContent = `${data.state.tradeCount}`;
-                        }
+                        document.getElementById('tradesExecuted').textContent = data.state.tradeCount;
                     }
                 }
             }
 
-            // Handle pattern analysis - update Pattern Display
+            // Pattern analysis
             else if (data.type === 'pattern_analysis') {
                 const pattern = data.pattern || {};
+
+                // Update pattern name
                 document.getElementById('currentPatternName').textContent =
-                    pattern.name || pattern.type || 'Analyzing...';
-                document.getElementById('patternDescription').innerHTML =
-                    `<p class="pattern-info">${pattern.description || 'Pattern detected - analyzing characteristics...'}</p>`;
+                    pattern.name || 'No Pattern';
+
+                // Update description with confidence
+                document.getElementById('patternDescription').innerHTML = `
+                    <p class="pattern-info"><strong>Confidence:</strong> ${pattern.confidence || 0}%</p>
+                    <p class="pattern-info">${pattern.description || 'Analyzing market structure...'}</p>
+                `;
+
+                // Update pattern memory stats if available
+                if (data.patternMemory) {
+                    const mem = data.patternMemory;
+                    document.getElementById('patternDescription').innerHTML += `
+                        <p class="pattern-info" style="margin-top: 10px; color: #888;">
+                            🧠 ${mem.status} | ${mem.count} patterns learned | ${mem.uniquePatterns} unique
+                        </p>
+                    `;
+                }
+
+                // Draw pattern visualization if we have pattern data
+                if (pattern.allPatterns && pattern.allPatterns.length > 0) {
+                    drawPatternVisualization(pattern.allPatterns);
+                }
             }
 
-            // Handle neural ensemble votes
+            // CRITICAL ADDITION - Trade signal plotting handler
+            else if (data.type === 'trade_opened' && data.trade) {
+                plotTradeSignal(data.trade);
+            }
+
+            // Neural votes
             else if (data.type === 'neural_vote') {
                 updateNeuralVotes(data);
             }
 
-            // Handle indicator updates
+            // Indicators
             else if (data.type === 'indicators') {
                 updateIndicatorValues(data);
             }
 
-            // Handle performance updates
+            // Performance
             else if (data.type === 'performance_update') {
                 if (data.data) {
                     if (data.data.winRate !== undefined) {
-                        document.getElementById('winRate').textContent =
-                            `${data.data.winRate.toFixed(1)}%`;
+                        document.getElementById('winRate').textContent = `${data.data.winRate.toFixed(1)}%`;
                     }
                     if (data.data.totalPnl !== undefined) {
                         const pnl = data.data.totalPnl;
-                        document.getElementById('totalPnl').textContent =
-                            `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-                        document.getElementById('totalPnl').className =
-                            `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                        const el = document.getElementById('totalPnl');
+                        el.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                        el.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
                     }
                 }
             }
 
-            // Handle trade levels (Fib/S&R)
+            // Trade levels
             else if (data.type === 'trade_levels') {
-                // Store for chart overlay (future implementation)
-                console.log('Trade levels received:', data.fibLevels, data.srLevels);
+                console.log('Trade levels:', data.fibLevels, data.srLevels);
             }
         }
         
-        // Switch tier
+        // ============================================
+        // UI UPDATE FUNCTIONS (Original functionality)
+        // ============================================
+        
         function switchTier(tier) {
             currentTier = tier;
             const chartSection = document.getElementById('unifiedChart');
 
-            // Remove all tier classes
             chartSection.classList.remove('tier-core', 'tier-ml');
-            // Add new tier class
             chartSection.classList.add(`tier-${tier}`);
 
-            // Update title
             document.getElementById('chartTitle').textContent = tierConfigs[tier].title;
-
-            // Update bot status indicators
             updateBotStatusIndicators();
 
-            // Send tier change to WebSocket
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'tier_change',
-                    tier: tier
-                }));
+                ws.send(JSON.stringify({ type: 'tier_change', tier }));
             }
 
-            // Update UI based on tier features
             updateTierFeatures(tier);
         }
         
-        // Update bot status indicators
         function updateBotStatusIndicators() {
             ['core', 'ml'].forEach(tier => {
                 const indicator = document.getElementById(`${tier}Status`);
                 if (indicator) {
-                    if (botStates[tier].connected) {
-                        indicator.classList.add('active');
-                    } else {
-                        indicator.classList.remove('active');
-                    }
+                    indicator.classList.toggle('active', botStates[tier].connected);
                 }
             });
         }
         
-        // Update tier-specific features
         function updateTierFeatures(tier) {
             const config = tierConfigs[tier];
 
-            // Show/hide neural ensemble based on tier
             const neuralEnsemble = document.querySelector('.neural-ensemble');
             if (neuralEnsemble) {
                 neuralEnsemble.style.display = config.features.neural ? 'block' : 'none';
             }
 
-            // Show/hide chain of thought based on tier
             const chainOfThought = document.querySelector('.chain-of-thought');
             if (chainOfThought) {
                 chainOfThought.style.display = config.features.chainOfThought ? 'block' : 'none';
             }
 
-            // Show/hide appropriate indicator panels
             const coreIndicators = document.querySelector('.core-indicators');
             const mlIndicators = document.querySelector('.ml-indicators');
             if (coreIndicators && mlIndicators) {
-                if (tier === 'core') {
-                    coreIndicators.style.display = 'block';
-                    mlIndicators.style.display = 'none';
-                } else {
-                    coreIndicators.style.display = 'none';
-                    mlIndicators.style.display = 'block';
-                }
+                coreIndicators.style.display = tier === 'core' ? 'block' : 'none';
+                mlIndicators.style.display = tier === 'ml' ? 'block' : 'none';
             }
         }
         
-        // Update chart with new price data
-        function updateChart(data) {
-            // Check if TradingView chart is initialized
-            if (!window.candlestickSeries) return;
-
-            const now = new Date();
-            const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds();
-
-            // FIX: Only use valid price, don't default to 0
-            const price = data.price || data.close || null;
-
-            // Debug logging
-            console.log('[Chart Update]', {
-                price,
-                asset: data.asset,
-                hasCandles: !!data.candles,
-                candleCount: data.candles?.length,
-                rawData: data
-            });
-
-            // Store the full candle data if available
-            if (data.candle && window.candlestickSeries) {
-                console.log('📈 [DEBUG] Updating chart with candle:', data.candle);
-                const timestamp = Math.floor(Date.now() / 1000); // TradingView needs Unix timestamp in seconds
-
-                // Add candlestick data point for TradingView
-                const candlePoint = {
-                    time: timestamp,
-                    open: data.candle.open || data.candle.o,
-                    high: data.candle.high || data.candle.h,
-                    low: data.candle.low || data.candle.l,
-                    close: data.candle.close || data.candle.c
-                };
-
-                console.log('📈 [DEBUG] Formatted candle point:', candlePoint);
-
-                // Update TradingView chart
-                window.candlestickSeries.update(candlePoint);
-                console.log('✅ [DEBUG] Chart updated!');
-
-                // Store candle data for ChartManager
-                if (chartManager) {
-                    const candle = {
-                        t: timestamp * 1000, // Convert back to milliseconds for ChartManager
-                        o: candlePoint.open,
-                        h: candlePoint.high,
-                        l: candlePoint.low,
-                        c: candlePoint.close,
-                        v: data.candle.volume || 0
-                    };
-                    chartManager.addCandle('BTC', '1m', candle);
-                }
-
-                // Auto-scale the chart
-                if (window.tvChart) {
-                    window.tvChart.timeScale().fitContent();
-                }
-            }
-
-            // If we have historical candles array, load them into TradingView chart
-            if (data.candles && Array.isArray(data.candles) && window.candlestickSeries) {
-                // Convert candles to TradingView format
-                const tvCandles = data.candles.map(candle => ({
-                    time: Math.floor(new Date(candle.t).getTime() / 1000),
-                    open: candle.o || candle.open,
-                    high: candle.h || candle.high,
-                    low: candle.l || candle.low,
-                    close: candle.c || candle.close
-                })).sort((a, b) => a.time - b.time); // Ensure chronological order
-
-                // Set all historical data at once
-                if (tvCandles.length > 0) {
-                    window.candlestickSeries.setData(tvCandles);
-                    if (window.tvChart) {
-                        window.tvChart.timeScale().fitContent();
-                    }
-                }
-            } else if (price && price > 0 && !data.candle) {
-                // Add new price point without clearing existing data
-                // Don't add duplicate timestamps
-                const lastLabel = chart.data.labels[chart.data.labels.length - 1];
-                if (lastLabel !== timestamp) {
-                    chart.data.labels.push(timestamp);
-                    chart.data.datasets[0].data.push(price);
-
-                    // Add indicator data if available
-                    if (data.indicators) {
-                        // Only add and show RSI if we have valid data
-                        if (data.indicators.rsi && data.indicators.rsi !== 50) {
-                            chart.data.datasets[1].data.push(data.indicators.rsi);
-                            chart.data.datasets[1].hidden = false; // Show RSI line
-                        } else {
-                            chart.data.datasets[1].data.push(null);
-                        }
-
-                        // Only add and show MACD if we have valid data
-                        if (data.indicators.macd && data.indicators.macd !== 0) {
-                            chart.data.datasets[2].data.push(data.indicators.macd);
-                            chart.data.datasets[2].hidden = false; // Show MACD line
-                        } else {
-                            chart.data.datasets[2].data.push(null);
-                        }
-                    } else {
-                        chart.data.datasets[1].data.push(null);
-                        chart.data.datasets[2].data.push(null);
-                    }
-                } else {
-                    // Update the last point if same timestamp (in-place update)
-                    chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1] = price;
-
-                    // Update indicator data
-                    if (data.indicators) {
-                        chart.data.datasets[1].data[chart.data.datasets[1].data.length - 1] = data.indicators.rsi || null;
-                        chart.data.datasets[2].data[chart.data.datasets[2].data.length - 1] = data.indicators.macd || null;
-                    }
-                }
-
-                // Keep only last 50 points
-                if (chart.data.labels.length > 50) {
-                    chart.data.labels.shift();
-                    chart.data.datasets[0].data.shift();
-                    chart.data.datasets[1].data.shift(); // RSI
-                    chart.data.datasets[2].data.shift(); // MACD
-                }
-            }
-
-            chart.update();
-        }
-        
-        // Update indicator values
         function updateIndicatorValues(data) {
             const indicators = data.indicators || data;
             
-            // Update common indicators
             if (indicators.rsi !== undefined) {
-                document.querySelectorAll('#rsi').forEach(el => {
-                    el.textContent = indicators.rsi.toFixed(1);
+                ['rsiCore', 'rsiML'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = indicators.rsi.toFixed(1);
                 });
             }
             
-            if (indicators.macd !== undefined) {
-                document.querySelectorAll('#macd').forEach(el => {
-                    el.textContent = indicators.macd.toFixed(2);
+            if (indicators.macd) {
+                const macd = indicators.macd.macd || indicators.macd;
+                ['macdCore', 'macdML'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = (typeof macd === 'number' ? macd : 0).toFixed(2);
                 });
-            }
-            
-            // Update tier-specific indicators
-            if (indicators.bbWidth !== undefined) {
-                const el = document.getElementById('bbWidth');
-                if (el) el.textContent = indicators.bbWidth.toFixed(2);
             }
             
             if (indicators.pattern) {
-                const el = document.getElementById('pattern');
-                if (el) el.textContent = indicators.pattern;
-                
-                const patternEl = document.getElementById('currentPatternName');
-                if (patternEl) {
-                    patternEl.textContent = `Pattern Detected: ${indicators.pattern}`;
-                }
+                ['patternCore', 'patternML'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = indicators.pattern;
+                });
+                document.getElementById('currentPatternName').textContent = `Pattern: ${indicators.pattern}`;
             }
             
-            // ML-specific indicators
+            // ML-specific
             if (currentTier === 'ml') {
                 if (indicators.atr !== undefined) {
                     const el = document.getElementById('atrML');
                     if (el) el.textContent = indicators.atr.toFixed(2);
                 }
-
                 if (indicators.confidence !== undefined) {
                     const el = document.getElementById('confidenceML');
                     if (el) el.textContent = `${indicators.confidence}%`;
@@ -1876,118 +1720,33 @@
             }
         }
         
-        // Update indicators based on tier
-        function updateIndicators(data) {
-            if (data.data && data.data.indicators) {
-                const indicators = data.data.indicators;
-
-                // Update RSI
-                if (indicators.rsi !== null && indicators.rsi !== undefined) {
-                    const rsiElement = document.getElementById('rsiCore');
-                    if (rsiElement) {
-                        rsiElement.textContent = indicators.rsi.toFixed(2);
-                        rsiElement.style.color = indicators.rsi > 70 ? '#ff3366' :
-                                                 indicators.rsi < 30 ? '#00ff88' : '#ffffff';
-                    }
-                }
-
-                // Update MACD
-                if (indicators.macd) {
-                    const macdElement = document.getElementById('macdValue');
-                    if (macdElement) {
-                        macdElement.textContent = `${indicators.macd.macd?.toFixed(4) || '0'}`;
-                    }
-                }
-
-                // Update Bollinger Bands
-                if (indicators.bb) {
-                    const bbElement = document.getElementById('bbValue');
-                    if (bbElement) {
-                        const bandwidth = ((indicators.bb.upper - indicators.bb.lower) / indicators.bb.mid * 100).toFixed(2);
-                        bbElement.textContent = `${bandwidth}%`;
-                    }
-                }
-
-                // Update ATR
-                if (indicators.atr !== null && indicators.atr !== undefined) {
-                    const atrElement = document.getElementById('atrValue');
-                    if (atrElement) {
-                        atrElement.textContent = indicators.atr.toFixed(2);
-                    }
-                }
-
-                // Update Stochastic RSI
-                if (indicators.stochRsi) {
-                    const stochElement = document.getElementById('stochValue');
-                    if (stochElement) {
-                        stochElement.textContent = `K:${indicators.stochRsi.k?.toFixed(2) || 'N/A'}`;
-                    }
-                }
-
-                // Update OBV
-                if (indicators.obv !== null && indicators.obv !== undefined) {
-                    const obvElement = document.getElementById('obvValue');
-                    if (obvElement) {
-                        obvElement.textContent = (indicators.obv / 1000000).toFixed(2) + 'M';
-                    }
-                }
-
-                // Get formatted display from IndicatorAdapter
-                if (indicatorAdapter) {
-                    const display = indicatorAdapter.getIndicatorDisplay('BTC', '1m');
-                    // Can use display data for additional UI elements
-                }
-
-                // Call original function if it exists
-                if (typeof updateIndicatorValues === 'function') {
-                    updateIndicatorValues(indicators);
-                }
-            }
-        }
-        
-        // Update neural votes
         function updateNeuralVotes(data) {
             const votes = data.votes || {};
             Object.keys(votes).forEach(brain => {
-                const element = document.getElementById(`${brain}Vote`);
-                if (element) {
-                    element.textContent = votes[brain].decision || votes[brain];
-                    const decision = (votes[brain].decision || votes[brain]).toLowerCase();
-                    element.className = `brain-vote vote-${decision}`;
+                const voteEl = document.getElementById(`${brain}Vote`);
+                const confEl = document.getElementById(`${brain}Conf`);
+                if (voteEl) {
+                    const vote = votes[brain].decision || votes[brain];
+                    voteEl.textContent = vote;
+                    voteEl.className = `brain-vote vote-${vote.toLowerCase()}`;
+                }
+                if (confEl && votes[brain].confidence !== undefined) {
+                    confEl.textContent = `${votes[brain].confidence}%`;
                 }
             });
         }
         
-        // Log trading decision from any bot tier
-        // Legacy function - kept for compatibility but not used
-        function logDecision(data, botTier) {
-            // Now handled by addTradeToLog()
-            const tierColors = {
-                core: '#00ccff',
-                ml: '#ffd700'
-            };
-            console.log(`Decision logged: ${botTier} - ${data.action || data.direction}`);
-        }
-        
-        // Update bot status
         function updateBotStatus(tier, data) {
             if (tier && botStates[tier]) {
                 botStates[tier].connected = true;
-                if (data.pnl !== undefined) {
-                    botStates[tier].pnl += data.pnl;
-                }
-                if (data.confidence !== undefined) {
-                    botStates[tier].confidence = data.confidence;
-                }
+                if (data.pnl !== undefined) botStates[tier].pnl += data.pnl;
+                if (data.confidence !== undefined) botStates[tier].confidence = data.confidence;
                 botStates[tier].trades++;
-                
                 updateBotStatusIndicators();
             }
         }
         
-        // Update aggregated stats
         function updateStats(data) {
-            // Calculate total P&L
             let totalPnl = 0;
             let avgConfidence = 0;
             let activeCount = 0;
@@ -2000,29 +1759,20 @@
                 }
             });
 
-            if (activeCount > 0) {
-                avgConfidence = avgConfidence / activeCount;
-            }
+            if (activeCount > 0) avgConfidence /= activeCount;
 
-            // Update display
-            document.getElementById('totalPnl').textContent =
-                `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
-            document.getElementById('totalPnl').className =
-                `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+            const pnlEl = document.getElementById('totalPnl');
+            pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+            pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
 
             if (data.winRate !== undefined) {
-                document.getElementById('winRate').textContent =
-                    `${data.winRate.toFixed(1)}%`;
+                document.getElementById('winRate').textContent = `${data.winRate.toFixed(1)}%`;
             }
 
-            document.getElementById('confidence').textContent =
-                `${avgConfidence.toFixed(1)}%`;
-
-            // Update trades executed
+            document.getElementById('confidence').textContent = `${avgConfidence.toFixed(1)}%`;
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
         }
 
-        // Add trade to log
         function addTradeToLog(trade) {
             const tradeLog = document.getElementById('tradeLog');
             const entry = document.createElement('div');
@@ -2041,33 +1791,91 @@
             `;
 
             tradeLog.insertBefore(entry, tradeLog.firstChild);
-
-            // Keep only last 20 entries
-            while (tradeLog.children.length > 20) {
-                tradeLog.removeChild(tradeLog.lastChild);
-            }
+            while (tradeLog.children.length > 20) tradeLog.removeChild(tradeLog.lastChild);
 
             tradesExecuted++;
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
         }
 
-        // Update chain of thought display
         function updateChainOfThought(thought) {
             const display = document.getElementById('thoughtDisplay');
             if (display && thought) {
                 display.innerHTML = `
-                    <p class="thought-step"><strong>Analysis:</strong> ${thought.analysis || 'Processing...'}</p>
-                    <p class="thought-step"><strong>Pattern:</strong> ${thought.pattern || 'Scanning...'}</p>
-                    <p class="thought-step"><strong>Confidence:</strong> ${thought.confidence || '0'}%</p>
-                    <p class="thought-step"><strong>Decision:</strong> ${thought.decision || 'Evaluating...'}</p>
+                    <p class="thought-step"><strong>📊 Analysis:</strong> ${thought.analysis}</p>
+                    <p class="thought-step"><strong>📈 Trend:</strong> ${thought.trend || 'N/A'} | RSI: ${thought.rsi || 'N/A'}</p>
+                    <p class="thought-step"><strong>🎯 Confidence:</strong> ${thought.confidence}%</p>
+                    <p class="thought-step"><strong>⚠️ Risk Score:</strong> ${thought.riskScore || 'N/A'}%</p>
+                    <p class="thought-step"><strong>💡 Decision:</strong> ${thought.decision}</p>
                 `;
             }
         }
+
+        // Simple pattern visualization on canvas
+        function drawPatternVisualization(patterns) {
+            const canvas = document.getElementById('patternCanvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw confidence bars for each pattern
+            const barHeight = 15;
+            const maxWidth = canvas.width - 20;
+
+            patterns.slice(0, 5).forEach((p, i) => {
+                const y = 10 + (i * (barHeight + 5));
+                const width = (p.confidence / 100) * maxWidth;
+
+                // Background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(10, y, maxWidth, barHeight);
+
+                // Confidence bar
+                ctx.fillStyle = p.confidence > 70 ? '#00ff41' : p.confidence > 40 ? '#ffd700' : '#ff4444';
+                ctx.fillRect(10, y, width, barHeight);
+
+                // Label
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px JetBrains Mono';
+                ctx.fillText(`${p.name}: ${p.confidence}%`, 15, y + 11);
+            });
+        }
+
+        // CRITICAL ADDITION FROM OUR VERSION - Trade signal plotting
+        function plotTradeSignal(trade) {
+            if (!candleSeries) {
+                console.warn('Chart not ready for trade plotting');
+                return;
+            }
+
+            // Plot marker on the chart
+            const isLong = trade.type === 'BUY' || trade.side === 'buy' || trade.direction === 'long';
+            const marker = {
+                time: trade.timestamp ? Math.floor(trade.timestamp / 1000) : Math.floor(Date.now() / 1000),
+                position: isLong ? 'belowBar' : 'aboveBar',
+                color: isLong ? '#00ff88' : '#ff3366',
+                shape: isLong ? 'arrowUp' : 'arrowDown',
+                text: `${isLong ? 'BUY' : 'SELL'} @ ${trade.price || lastPrice}`
+            };
+
+            // Get existing markers and add new one
+            const existingMarkers = candleSeries.markers() || [];
+            existingMarkers.push(marker);
+            candleSeries.setMarkers(existingMarkers);
+
+            // Also add to trade log
+            const tradeData = {
+                type: isLong ? 'buy' : 'sell',
+                pnl: trade.pnl || 0,
+                timestamp: trade.timestamp || Date.now()
+            };
+            updateTradeHistory(tradeData);
+
+            console.log(`📍 Trade signal plotted: ${marker.text}`);
+        }
         
-        // Execute trade
         function executeTrade(action) {
             if (ws && ws.readyState === WebSocket.OPEN) {
-                // Send to the appropriate bot based on current tier view
                 ws.send(JSON.stringify({
                     type: `manual_${action}`,
                     tier: currentTier,
@@ -2076,109 +1884,68 @@
             }
         }
 
-        // Change chart type (line, candlestick, bar)
         function changeChartType(type) {
-            if (!chart) return;
+            currentChartType = type;
+            candleSeries.applyOptions({ visible: type === 'candlestick' });
+            lineSeries.applyOptions({ visible: type === 'line' });
 
-            // Update chart type
-            if (type === 'candlestick') {
-                // Switch to candlestick visualization using bar chart with OHLC data
-                chart.config.type = 'bar';
-
-                // If we have candle data, update the chart to show high-low bars
-                if (window.candleData && window.candleData.length > 0) {
-                    chart.data.datasets[0].backgroundColor = window.candleData.map(candle =>
-                        candle.c >= candle.o ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 82, 82, 0.6)'
-                    );
-                    chart.data.datasets[0].borderColor = window.candleData.map(candle =>
-                        candle.c >= candle.o ? '#00ff88' : '#ff5252'
-                    );
-
-                    // Show price range (high - low) as bar height
-                    chart.data.datasets[0].data = window.candleData.map(candle => candle.h - candle.l);
-                }
-            } else {
-                chart.config.type = type;
-
-                // Reset colors for non-candlestick charts
-                if (type === 'line') {
-                    chart.data.datasets[0].backgroundColor = 'rgba(0, 255, 136, 0.1)';
-                    chart.data.datasets[0].borderColor = '#00ff88';
-                }
-            }
-
-            chart.update();
-
-            // Notify bot of chart type change
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'chart_type_change',
-                    chartType: type,
-                    timestamp: Date.now()
-                }));
+                ws.send(JSON.stringify({ type: 'chart_type_change', chartType: type }));
             }
         }
 
-        // Change trading asset
         function changeAsset(asset) {
-            console.log(`Asset changed to: ${asset}`);
+            console.log('Asset changed to:', asset);
+            candleSeries.setData([]);
+            lineSeries.setData([]);
 
-            // Clear existing chart data
-            if (chart) {
-                chart.data.labels = [];
-                chart.data.datasets[0].data = [];
-                chart.update();
-            }
-
-            // Notify bot of asset change
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'asset_change',
-                    asset: asset,
-                    timestamp: Date.now()
-                }));
+                ws.send(JSON.stringify({ type: 'asset_change', asset }));
             }
         }
 
-        // Update indicator overlays on chart
         function updateIndicatorOverlays() {
-            const selector = document.getElementById('indicatorSelector');
-            const selectedOptions = Array.from(selector.selectedOptions).map(opt => opt.value);
+            const checkboxes = document.querySelectorAll('#indicatorCheckboxes input[type="checkbox"]:checked');
+            activeOverlays = Array.from(checkboxes).map(cb => cb.value);
+            console.log('Selected indicators:', activeOverlays);
 
-            console.log('Selected indicators:', selectedOptions);
+            // Toggle visibility
+            ema20Series.applyOptions({ visible: activeOverlays.includes('ema') });
+            ema50Series.applyOptions({ visible: activeOverlays.includes('ema') });
+            ema200Series.applyOptions({ visible: activeOverlays.includes('ema') });
+            bbUpperSeries.applyOptions({ visible: activeOverlays.includes('bollinger') });
+            bbMiddleSeries.applyOptions({ visible: activeOverlays.includes('bollinger') });
+            bbLowerSeries.applyOptions({ visible: activeOverlays.includes('bollinger') });
+            vwapSeries.applyOptions({ visible: activeOverlays.includes('vwap') });
 
-            // Notify bot of indicator selection
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'indicator_selection',
-                    indicators: selectedOptions,
-                    timestamp: Date.now()
-                }));
+                ws.send(JSON.stringify({ type: 'indicator_selection', indicators: activeOverlays }));
             }
-
-            // Future: Add/remove datasets from chart based on selection
-            // Each indicator would have its own dataset with specific color
         }
 
-        // Show upgrade options
         function showUpgradeOptions() {
-            alert('Contact sales@ogzprime.com for ML Version access and advanced features!');
+            alert('Contact sales@ogzprime.com for ML Version access!');
         }
         
-        // Initialize on load
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
         window.onload = () => {
+            console.log('🚀 OGZPrime Dashboard Initializing...');
+            
             initChart();
             connectWebSocket();
-            // Start with ML version to showcase all features
             switchTier('ml');
 
-            // Simulate initial bot connections after 2 seconds
             setTimeout(() => {
                 ['core', 'ml'].forEach(tier => {
                     botStates[tier].connected = true;
                 });
                 updateBotStatusIndicators();
             }, 2000);
+            
+            console.log('✅ OGZPrime Dashboard Ready');
         };
     </script>
 </body>

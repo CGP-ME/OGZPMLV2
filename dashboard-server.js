@@ -165,7 +165,7 @@ const PORT = process.env.PORT || 3010;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Dashboard server running on http://0.0.0.0:${PORT}`);
   console.log(`📡 WebSocket server ready for bot connections`);
-  console.log(`🌐 Open http://localhost:${PORT}/master-dashboard.html to view dashboard`);
+  console.log(`🌐 Open http://localhost:${PORT}/unified-dashboard-refactor.html to view dashboard`);
 });
 
 // Graceful shutdown
