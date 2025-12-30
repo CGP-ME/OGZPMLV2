@@ -76,6 +76,7 @@
             font-size: 42px;
             font-weight: 900;
             background: var(--metallic-gradient);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-transform: uppercase;
@@ -235,6 +236,7 @@
         /* Dynamic version coloring */
         .tier-core .chart-title {
             background: var(--core-gradient);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(0, 204, 255, 0.8);
@@ -242,6 +244,7 @@
 
         .tier-ml .chart-title {
             background: var(--ml-gradient);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
@@ -269,7 +272,7 @@
             gap: 5px;
             cursor: pointer;
             user-select: none;
-            font-size: 11px;
+            font-size: 13px;  /* Increased from 11px */
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             padding: 3px 6px;
@@ -343,7 +346,7 @@
         .bot-status-indicator {
             padding: 5px 10px;
             border-radius: 5px;
-            font-size: 10px;
+            font-size: 12px;  /* Increased for readability */
             font-weight: 700;
             text-transform: uppercase;
             border: 1px solid;
@@ -400,7 +403,7 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 4px;
-            font-size: 11px;
+            font-size: 13px;  /* Increased for readability */
         }
         
         .indicator-label {
@@ -445,7 +448,7 @@
         
         .panel-title {
             color: #ffd700;
-            font-size: 14px;
+            font-size: 16px;  /* Increased for better visibility */
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -551,8 +554,8 @@
         }
         
         .stat-label {
-            font-size: 11px;
-            color: #888;
+            font-size: 13px;  /* Increased from 11px */
+            color: #aaa;  /* Brightened from #888 */
             margin-bottom: 5px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -583,7 +586,7 @@
             margin-bottom: 5px;
             background: rgba(0, 0, 0, 0.6);
             border-radius: 5px;
-            font-size: 11px;
+            font-size: 13px;  /* Increased for readability */
         }
 
         .trade-type {
@@ -593,12 +596,12 @@
 
         .trade-time {
             color: #888;
-            font-size: 10px;
+            font-size: 12px;  /* Increased for readability */
         }
 
         .trade-duration {
             color: #666;
-            font-size: 10px;
+            font-size: 12px;  /* Increased for readability */
         }
 
         /* Chain of Thought */
@@ -616,7 +619,7 @@
         }
 
         .thought-step {
-            font-size: 11px;
+            font-size: 13px;  /* Increased for readability */
             margin-bottom: 5px;
             color: #ccc;
         }
@@ -654,7 +657,7 @@
         }
 
         .pattern-description {
-            font-size: 11px;
+            font-size: 13px;  /* Increased for readability */
             color: #aaa;
         }
 
@@ -689,7 +692,7 @@
         }
         
         .brain-name {
-            font-size: 10px;
+            font-size: 12px;  /* Increased for readability */
             color: #666666;
             margin-bottom: 5px;
             text-transform: uppercase;
@@ -702,7 +705,7 @@
         }
         
         .brain-confidence {
-            font-size: 10px;
+            font-size: 12px;  /* Increased for readability */
             color: #888;
             margin-top: 3px;
         }
@@ -1416,6 +1419,42 @@
         
         let reconnectTimer = null;
         let backoffMs = 250;
+        let heartbeatInterval = null;
+        let missedPongs = 0;
+
+        // Heartbeat functions to keep WebSocket alive
+        function startHeartbeat() {
+            stopHeartbeat(); // Clear any existing heartbeat
+            missedPongs = 0;
+
+            heartbeatInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    missedPongs++;
+
+                    // If we've missed 3 pongs, reconnect
+                    if (missedPongs >= 3) {
+                        console.warn('[WS] Missed 3 heartbeats, reconnecting...');
+                        ws.close();
+                        return;
+                    }
+
+                    // Send ping
+                    ws.send(JSON.stringify({
+                        type: 'ping',
+                        timestamp: Date.now()
+                    }));
+                    console.log('[WS] Ping sent');
+                }
+            }, 30000); // Ping every 30 seconds
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            missedPongs = 0;
+        }
 
         function scheduleReconnect(url) {
             if (reconnectTimer) return;
@@ -1450,6 +1489,9 @@
                     type: 'auth',
                     token: '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'
                 }));
+
+                // Start heartbeat to keep connection alive
+                startHeartbeat();
             });
 
             ws.addEventListener("error", (e) => {
@@ -1460,6 +1502,7 @@
                 console.log('[WS] Closed');
                 document.getElementById('connectionStatus').classList.remove('connected');
                 document.getElementById('statusText').textContent = 'Disconnected';
+                stopHeartbeat();
                 scheduleReconnect(url);
             });
 
@@ -1490,6 +1533,13 @@
 
             if (data.type === 'error') {
                 console.error('[WS] Error:', data.message);
+                return;
+            }
+
+            // Handle pong response to reset missed count
+            if (data.type === 'pong') {
+                missedPongs = 0;
+                console.log('[WS] Pong received');
                 return;
             }
 
@@ -1901,6 +1951,41 @@
 
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'asset_change', asset }));
+            }
+        }
+
+        // Handle timeframe changes
+        let currentTimeframe = '1m';
+        function changeTimeframe(timeframe) {
+            console.log('Timeframe changed to:', timeframe);
+            currentTimeframe = timeframe;
+
+            // Clear current chart data
+            if (candleSeries) candleSeries.setData([]);
+            if (lineSeries) lineSeries.setData([]);
+
+            // Request new data with the selected timeframe
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'timeframe_change',
+                    timeframe: timeframe,
+                    asset: document.getElementById('assetSelector').value
+                }));
+
+                // Request historical data for the new timeframe
+                ws.send(JSON.stringify({
+                    type: 'request_historical',
+                    timeframe: timeframe,
+                    asset: document.getElementById('assetSelector').value,
+                    limit: 500
+                }));
+            }
+
+            // Update chart title to show timeframe
+            const title = document.getElementById('chartTitle');
+            if (title) {
+                const tierText = currentTier === 'ml' ? 'ML VERSION' : 'CORE VERSION';
+                title.textContent = `${tierText} - ${timeframe.toUpperCase()}`;
             }
         }
 
