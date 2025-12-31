@@ -7,33 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.6.0] - 2025-12-30 - Dashboard UI/UX Improvements
+## [2.6.1] - 2025-12-30 - CRITICAL FIXES SESSION 2
+### Fixed
+- **Missing changeTimeframe() Function**: Dashboard timeframe selector was calling non-existent function
+  - Added complete function at line 1912-1943
+  - Clears chart data on timeframe change
+  - Sends timeframe_change and request_historical messages
+  - Updates chart title with selected timeframe
+- **WebSocket Disconnection After Few Minutes**: Added heartbeat mechanism
+  - Added ping/pong every 30 seconds (line 1426-1457)
+  - Auto-reconnect after 3 missed heartbeats
+  - Added missedPongs counter and handlers
+- **Text Too Small/Hard to Read**: Increased all font sizes
+  - 10px → 12px (all instances)
+  - 11px → 13px (all instances)
+  - Panel titles 14px → 16px
+  - Changed color #888 → #aaa for better contrast
+- **CSS Vendor Prefix Warnings**: Added standard background-clip
+  - Line 79: Logo gradient
+  - Line 239: Core version title
+  - Line 247: ML version title
+
+### Deleted
+- Removed duplicate dashboard files:
+  - public/test-chart.html
+  - public/unified-dashboard-refactor2.html
+  - public/unified-dashboard-refactor-MERGED.html
+
+## [2.6.0] - 2025-12-30 - Dashboard UI/UX Improvements (SESSION 1)
 ### Added
 - **Timeframe Selector**: Added dropdown for selecting chart timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1D)
+  - HTML dropdown at line 799-807
+  - BUT FORGOT TO ADD THE FUNCTION (fixed in 2.6.1)
 - **Indicator Checkboxes**: Replaced multi-select dropdown with individual checkboxes for better UX
-  - Each indicator has a color dot for visual reference
-  - Cleaner, more intuitive interface
+  - Lines 767-823: Full checkbox HTML with color dots
+  - Lines 255-294: Complete CSS styling
+  - Line 1776-1778: Updated handler for checkboxes
 - **OHLC Hover Display**: Chart now shows full OHLC data on crosshair hover
-  - Format: "O: $X H: $Y L: $Z C: $W"
+  - Lines 1277-1295: subscribeCrosshairMove handler
+  - Format: "O: $88429.20 H: $88430.50 L: $88428.10 C: $88429.30"
 - **Pattern Visualization Canvas**: Enhanced pattern display with confidence bars
-  - Top 5 patterns shown with color-coded confidence levels
-  - Pattern memory stats display (patterns learned, unique patterns)
+  - Lines 1814-1842: drawPatternVisualization() function
+  - Lines 1568-1594: Enhanced pattern_analysis handler
 - **Trade Marker Integration**: Connected trade messages to chart markers
-  - Buy/sell arrows with PnL display on chart
+  - Lines 1512-1523: Modified trade handler to call plotTradeSignal()
 
 ### Changed
-- **Chart Height**: Increased from 500px to 600px for better visibility
-- **Scroll Wheel Behavior**: Disabled mousewheel zoom to prevent accidental zooming
-  - Added handleScroll and handleScale options to chart config
-- **Indicators Default State**: All indicators now OFF by default (previously EMA and Bollinger were ON)
-- **Chain of Thought Display**: Enhanced with more metrics
-  - Shows Analysis, Trend, RSI, Confidence %, Risk Score %, and Decision
-  - Added emoji indicators for better visual scanning
-- **Pattern Analysis Handler**: Improved with detailed confidence and pattern memory
-
-### Fixed
-- **Trade Signal Connection**: plotTradeSignal now properly called on trade messages
-- **WebSocket Trade Handler**: Enhanced to properly format trade data for chart markers
+- **Chart Height**: Line 323: 500px → 600px
+- **Scroll Wheel Behavior**: Lines 1173-1179: Disabled mousewheel zoom
+- **Indicators Default State**: Line 1073: ['ema', 'bollinger'] → [] (all OFF)
+- **Chain of Thought Display**: Lines 1539-1549: Enhanced handler
+  - Lines 1783-1787: New display format with emojis
+- **Pattern Analysis Handler**: Lines 1568-1594: Complete rewrite
+- **WebSocket Relay Code** (ogzprime-ssl-server.js lines 126-146):
+  - Added bot → dashboard message relay (from earlier session)
 
 ## [2.5.0] - 2025-12-29 - ULTIMATE DASHBOARD MERGE
 ### 🚀 THE BIG ONE - Complete Dashboard Integration
