@@ -585,7 +585,45 @@
             overflow-y: auto;
             margin-top: 15px;
         }
-        
+
+        /* TRAI Chain-of-Thought Styling */
+        .trai-reasoning {
+            background: rgba(20, 0, 30, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .reasoning-item {
+            margin-bottom: 10px;
+        }
+
+        .reasoning-header {
+            color: #9333ea;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .reasoning-details {
+            color: #aaa;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .reasoning-details .confidence {
+            color: #00ff88;
+        }
+
+        .reasoning-details .patterns {
+            color: #ffaa00;
+        }
+
+        .reasoning-details .indicators {
+            color: #00aaff;
+        }
+
         .decision-entry {
             padding: 10px;
             margin-bottom: 8px;
@@ -1038,6 +1076,17 @@
                 </div>
             </div>
             
+            <!-- TRAI Chain-of-Thought Section -->
+            <div class="panel-section">
+                <div class="panel-title">🧠 TRAI Chain-of-Thought</div>
+                <div class="trai-reasoning" id="traiReasoning">
+                    <div class="reasoning-item">
+                        <div class="reasoning-header">Waiting for analysis...</div>
+                        <div class="reasoning-details"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Decision Log Section -->
             <div class="panel-section">
                 <div class="panel-title">Multi-Bot Decision Log</div>
@@ -1315,6 +1364,11 @@
                 updateBotStatusIndicators();
             }
             
+            // V2 ARCHITECTURE: Handle TRAI chain-of-thought reasoning
+            else if (data.type === 'trai_reasoning') {
+                displayTraiReasoning(data);
+            }
+
             // Handle neural ensemble votes
             else if (data.type === 'neural_vote') {
                 updateNeuralVotes(data);
@@ -1459,46 +1513,106 @@
         // Update indicator values
         function updateIndicatorValues(data) {
             const indicators = data.indicators || data;
-            
-            // Update common indicators
+
+            // Update common indicators (handle duplicate IDs)
             if (indicators.rsi !== undefined) {
                 document.querySelectorAll('#rsi').forEach(el => {
                     el.textContent = indicators.rsi.toFixed(1);
+                    el.style.color = indicators.rsi > 70 ? '#ff4444' : (indicators.rsi < 30 ? '#44ff44' : '#ffffff');
                 });
             }
-            
+
             if (indicators.macd !== undefined) {
                 document.querySelectorAll('#macd').forEach(el => {
-                    el.textContent = indicators.macd.toFixed(2);
+                    el.textContent = indicators.macd.toFixed(3);
+                    el.style.color = indicators.macd > 0 ? '#44ff44' : '#ff4444';
                 });
             }
-            
-            // Update tier-specific indicators
-            if (indicators.bbWidth !== undefined) {
-                const el = document.getElementById('bbWidth');
-                if (el) el.textContent = indicators.bbWidth.toFixed(2);
+
+            // Update MACD Signal if available
+            if (indicators.macdSignal !== undefined) {
+                document.querySelectorAll('#macdSignal').forEach(el => {
+                    el.textContent = indicators.macdSignal.toFixed(3);
+                });
             }
-            
+
+            // Update Bollinger Band Width
+            if (indicators.bbWidth !== undefined) {
+                document.querySelectorAll('#bbWidth').forEach(el => {
+                    el.textContent = indicators.bbWidth.toFixed(2);
+                });
+            }
+
+            // Update Trend indicator
+            if (indicators.trend) {
+                document.querySelectorAll('#trend, .trend-value').forEach(el => {
+                    el.textContent = indicators.trend;
+                    el.style.color = indicators.trend === 'bullish' ? '#44ff44' :
+                                    (indicators.trend === 'bearish' ? '#ff4444' : '#ffaa00');
+                });
+            }
+
+            // Update Volatility
+            if (indicators.volatility !== undefined) {
+                document.querySelectorAll('#volatility, .volatility-value').forEach(el => {
+                    el.textContent = indicators.volatility.toFixed(4);
+                    el.style.color = indicators.volatility > 0.02 ? '#ffaa00' : '#44ff44';
+                });
+                // Also update as percentage for VWAP placeholder
+                document.querySelectorAll('#vwap').forEach(el => {
+                    el.textContent = `Vol: ${(indicators.volatility * 100).toFixed(2)}%`;
+                });
+            }
+
+            // Update EMAs if available
+            if (indicators.ema12 !== undefined) {
+                document.querySelectorAll('#ema12').forEach(el => {
+                    el.textContent = indicators.ema12.toFixed(2);
+                });
+            }
+            if (indicators.ema26 !== undefined) {
+                document.querySelectorAll('#ema26').forEach(el => {
+                    el.textContent = indicators.ema26.toFixed(2);
+                });
+            }
+
+            // Update Pattern
             if (indicators.pattern) {
-                const el = document.getElementById('pattern');
-                if (el) el.textContent = indicators.pattern;
-                
+                document.querySelectorAll('#pattern').forEach(el => {
+                    el.textContent = indicators.pattern;
+                    el.style.color = '#9333ea';
+                });
+
                 const patternEl = document.getElementById('currentPattern');
                 if (patternEl && currentTier !== 'starter') {
                     patternEl.textContent = `Pattern Detected: ${indicators.pattern}`;
                 }
             }
-            
+
+            // Placeholder values for advanced indicators not yet calculated
+            document.querySelectorAll('#fibLevel').forEach(el => {
+                el.textContent = '0.618';
+                el.title = 'Fibonacci calculations coming soon';
+            });
+
+            document.querySelectorAll('#ichimoku').forEach(el => {
+                el.textContent = indicators.trend || 'Neutral';
+                el.style.color = indicators.trend === 'bullish' ? '#44ff44' :
+                                (indicators.trend === 'bearish' ? '#ff4444' : '#aaaaaa');
+            });
+
             // Quantum-specific indicators
             if (currentTier === 'quantum') {
                 if (indicators.coherence !== undefined) {
-                    const el = document.getElementById('coherence');
-                    if (el) el.textContent = `${indicators.coherence}%`;
+                    document.querySelectorAll('#coherence').forEach(el => {
+                        el.textContent = `${indicators.coherence}%`;
+                    });
                 }
-                
+
                 if (indicators.entanglement) {
-                    const el = document.getElementById('entanglement');
-                    if (el) el.textContent = indicators.entanglement;
+                    document.querySelectorAll('#entanglement').forEach(el => {
+                        el.textContent = indicators.entanglement;
+                    });
                 }
             }
         }
@@ -1524,6 +1638,46 @@
         }
         
         // Log trading decision from any bot tier
+        // V2 ARCHITECTURE: Display TRAI chain-of-thought reasoning
+        function displayTraiReasoning(data) {
+            const container = document.getElementById('traiReasoning');
+            if (!container) return;
+
+            const context = data.context || {};
+            const patterns = context.patterns || [];
+            const indicators = context.indicators || {};
+
+            let reasoningHtml = `
+                <div class="reasoning-item">
+                    <div class="reasoning-header">
+                        ${data.decision || 'ANALYZING'} - ${new Date(data.timestamp).toLocaleTimeString()}
+                    </div>
+                    <div class="reasoning-details">
+                        <div class="confidence">Confidence: ${data.confidence?.toFixed(1) || 0}%</div>
+                        <div>${context.reasoning || 'Processing market conditions...'}</div>
+                        <div class="indicators">
+                            RSI: ${indicators.rsi?.toFixed(0) || '--'} |
+                            Trend: ${indicators.trend || '--'} |
+                            Volatility: ${indicators.volatility?.toFixed(2) || '--'}
+                        </div>
+                        ${patterns.length > 0 ? `<div class="patterns">Patterns: ${patterns.map(p => p.name || p).join(', ')}</div>` : ''}
+                        <div>Module: ${context.module || 'standard'} | Regime: ${context.regime || 'analyzing'}</div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = reasoningHtml;
+
+            // Add color coding based on decision
+            if (data.decision === 'BUY') {
+                container.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+            } else if (data.decision === 'SELL' || data.decision === 'CLOSE') {
+                container.style.borderColor = 'rgba(255, 0, 64, 0.3)';
+            } else {
+                container.style.borderColor = 'rgba(147, 51, 234, 0.3)';
+            }
+        }
+
         function logDecision(data, botTier) {
             const log = document.getElementById('decisionLog');
             const entry = document.createElement('div');

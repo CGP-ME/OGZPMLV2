@@ -33,7 +33,7 @@ class AdvancedExecutionLayer {
 
     this.config = {
       maxPositionSize: config.maxPositionSize || 0.1,
-      minTradeSize: config.minTradeSize || 10,
+      minTradeSize: config.minTradeSize || 0.00001,  // Minimum 0.00001 BTC (~$0.88) - allows small test trades
       sandboxMode: config.sandboxMode !== false,
       enableRiskManagement: config.enableRiskManagement !== false,
       apiKey: config.apiKey || process.env.POLYGON_API_KEY,

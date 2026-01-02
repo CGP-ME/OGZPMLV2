@@ -11,10 +11,19 @@ class TradingOptimizations {
     this.patternStats = patternStats;
     this.logger = logger || console;
 
+    // Load feature flags
+    let patternSizingEnabled = false;
+    try {
+      const features = require('../config/features.json');
+      patternSizingEnabled = features.features?.PATTERN_BASED_SIZING?.enabled || false;
+    } catch (e) {
+      // Default to false if config not found
+    }
+
     // Configuration flags for safe rollout
     this.config = {
       enableDecisionContext: true,
-      enablePatternSizeScaling: false,
+      enablePatternSizeScaling: patternSizingEnabled,  // Now uses feature flag!
       enablePerfectBipoleFilter: false,
 
       // Size scaling parameters

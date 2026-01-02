@@ -164,11 +164,13 @@ class StateManager {
     }
 
     // DEBUG: Log what we're doing
+    const usdCost = size * price;  // Calculate USD cost
     console.log(`📊 [StateManager] Opening position:`);
-    console.log(`   Size: ${size}`);
-    console.log(`   Price: ${price}`);
-    console.log(`   Current Balance: ${this.state.balance}`);
-    console.log(`   New Balance: ${this.state.balance - size}`);
+    console.log(`   Size: ${size} BTC`);
+    console.log(`   Price: $${price}`);
+    console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
+    console.log(`   Current Balance: $${this.state.balance}`);
+    console.log(`   New Balance: $${(this.state.balance - usdCost).toFixed(2)}`);
 
     // CRITICAL FIX: Add trade to activeTrades Map
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
@@ -199,7 +201,7 @@ class StateManager {
         ? (this.state.entryPrice * this.state.position + price * size) / (this.state.position + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      balance: this.state.balance - size,
+      balance: this.state.balance - (size * price),  // FIX: Subtract USD cost, not BTC amount!
       inPosition: this.state.inPosition + size,
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,

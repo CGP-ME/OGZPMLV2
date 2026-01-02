@@ -15,14 +15,12 @@
 
 const IBrokerAdapter = require('./IBrokerAdapter');
 const KrakenAdapterSimple = require('../kraken_adapter_simple');
-const WebSocket = require('ws');
 
 class KrakenIBrokerAdapter extends IBrokerAdapter {
   constructor(options = {}) {
     super();
     this.kraken = new KrakenAdapterSimple(options);
     this.connected = false;
-    this.wsConnection = null;
     this.subscriptions = new Map();
   }
 
@@ -35,6 +33,10 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
       await this.kraken.connect();
       this.connected = true;
       console.log('✅ [KrakenIBroker] Connected to Kraken');
+
+      // V2 ARCHITECTURE: Emit ready event for subscribers
+      this.emit('connected', { broker: 'kraken', ready: true });
+
       return true;
     } catch (error) {
       console.error('❌ [KrakenIBroker] Connection failed:', error.message);
@@ -44,10 +46,10 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   async disconnect() {
-    if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
-      this.wsConnection.close();
+    // V2 ARCHITECTURE: Single WebSocket managed by kraken_adapter_simple
+    if (this.kraken.ws) {
+      await this.kraken.disconnect();
     }
-    await this.kraken.disconnect();
     this.connected = false;
     console.log('📴 [KrakenIBroker] Disconnected from Kraken');
   }
@@ -242,77 +244,48 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   subscribeToCandles(symbol, timeframe, callback) {
-    // Connect to Kraken WebSocket for OHLC data
-    if (!this.wsConnection || this.wsConnection.readyState !== WebSocket.OPEN) {
-      this.wsConnection = new WebSocket('wss://ws.kraken.com');
+    // V2 ARCHITECTURE: Use single WebSocket from kraken_adapter_simple
+    console.log('📡 [KrakenIBroker] V2 SINGLE SOURCE: Subscribing via kraken_adapter_simple');
 
-      this.wsConnection.on('open', () => {
-        console.log('📡 [KrakenIBroker] Connected to Kraken WebSocket for OHLC');
+    // Connect to kraken_adapter_simple WebSocket if not connected
+    if (!this.kraken.ws || this.kraken.ws.readyState !== WebSocket.OPEN) {
+      this.kraken.connectWebSocketStream((data) => {
+        // Handle both price and OHLC data from the single source
+        if (data.type === 'ohlc') {
+          // ohlcData format: [time, etime, open, high, low, close, vwap, volume, count]
+          const ohlcData = data.data;
+          const pair = data.pair;
 
-        // Subscribe to OHLC
-        const krakenSymbol = this.toBrokerSymbol(symbol);
-        const intervalMap = {
-          '1m': 1, '5m': 5, '15m': 15, '30m': 30,
-          '1h': 60, '4h': 240, '1d': 1440
-        };
+          // V2 ARCHITECTURE: Emit raw event for subscribers (like run-empire-v2)
+          this.emit('ohlc', ohlcData);
 
-        this.wsConnection.send(JSON.stringify({
-          event: 'subscribe',
-          pair: [krakenSymbol],
-          subscription: {
-            name: 'ohlc',
-            interval: intervalMap[timeframe] || 1
+          // Also process for callback if provided
+          if (callback && ohlcData) {
+            const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
+
+            const ohlcPacket = {
+              symbol: this.fromBrokerSymbol(pair),
+              o: parseFloat(open),
+              h: parseFloat(high),
+              l: parseFloat(low),
+              c: parseFloat(close),
+              v: parseFloat(volume),
+              t: parseInt(time) * 1000, // Convert to milliseconds
+              etime: parseInt(etime) * 1000,
+              count: parseInt(count)
+            };
+
+            callback(ohlcPacket);
           }
-        }));
-      });
-
-      this.wsConnection.on('message', (data) => {
-        try {
-          const msg = JSON.parse(data.toString());
-
-          // Skip system messages
-          if (msg.event) return;
-
-          // OHLC data comes as array: [channelID, data, channelName, pair]
-          if (Array.isArray(msg) && msg.length >= 4) {
-            const [channelId, ohlcData, channelName, pair] = msg;
-
-            if (channelName && channelName.startsWith('ohlc')) {
-              // ohlcData format: [time, etime, open, high, low, close, vwap, volume, count]
-              const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
-
-              callback({
-                symbol: this.fromBrokerSymbol(pair),
-                o: parseFloat(open),
-                h: parseFloat(high),
-                l: parseFloat(low),
-                c: parseFloat(close),
-                v: parseFloat(volume),
-                t: parseInt(time) * 1000, // Convert to milliseconds
-                etime: parseInt(etime) * 1000,
-                count: parseInt(count)
-              });
-            }
-          }
-        } catch (error) {
-          console.error('[KrakenIBroker] Error parsing WebSocket message:', error);
         }
-      });
-
-      this.wsConnection.on('error', (error) => {
-        console.error('❌ [KrakenIBroker] WebSocket error:', error.message);
-      });
-
-      this.wsConnection.on('close', () => {
-        console.log('📴 [KrakenIBroker] WebSocket disconnected');
-        // Reconnect after 5 seconds
-        setTimeout(() => this.subscribeToCandles(symbol, timeframe, callback), 5000);
       });
     }
 
     // Store subscription for later cleanup
     const key = `${symbol}-${timeframe}`;
     this.subscriptions.set(key, callback);
+
+    console.log(`✅ [KrakenIBroker] Subscribed to ${symbol} ${timeframe} via single source`);
   }
 
   subscribeToOrderBook(symbol, callback) {
@@ -325,9 +298,8 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
 
   unsubscribeAll() {
     this.subscriptions.clear();
-    if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
-      this.wsConnection.close();
-    }
+    // V2 ARCHITECTURE: WebSocket managed by kraken_adapter_simple
+    console.log('📴 [KrakenIBroker] Cleared all subscriptions');
   }
 
   // =========================================================================

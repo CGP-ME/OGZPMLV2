@@ -1,12 +1,12 @@
 {
-  "mission_id": "MISSION-1766801043541",
-  "created": "2025-12-27T02:04:03.541Z",
+  "mission_id": "MISSION-1766808298772",
+  "created": "2025-12-27T04:04:58.772Z",
   "state": "ARCHITECT",
-  "issue": "audit all unhooked features",
+  "issue": "Fix PATTERN_EXIT_MODEL - Currently in shadowMode:true in config/features.json. Need to make it active to affect real trades",
   "commander": {
-    "timestamp": "2025-12-27T02:04:03.680Z",
+    "timestamp": "2025-12-27T04:04:58.948Z",
     "context": {
-      "timestamp": "2025-12-27T02:04:03.543Z",
+      "timestamp": "2025-12-27T04:04:58.774Z",
       "environment": {
         "MIN_TRADE_CONFIDENCE": "0.08"
       },
@@ -60,68 +60,6 @@
     "agent_selection": "Pipeline mode - all agents",
     "known_issues": [
       {
-        "id": "FIX-659-SUMMARY",
-        "date": "2025-12-25",
-        "severity": "HIGH",
-        "tags": [
-          "pattern-memory",
-          "recording"
-        ],
-        "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
-        "root_cause": "The pattern recording pipeline lost features data when converting from pattern objects to the recordPatternResult API:\n\n1. **analyzePatterns()** creates patterns with `features` field (numeric array)\n2. **recordPatternResult()** was called with `signature` field (truncated string)\n3. **recordPattern()** expects features array, not signature string\n4. Validation failed on signature string, patterns never stored",
-        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
-        "files": [],
-        "verification": [
-          "Patterns now recording",
-          "Memory growing"
-        ],
-        "outcome": "success",
-        "what_worked": [
-          "Preserving features array through pipeline"
-        ],
-        "what_failed": [
-          "String signature truncation"
-        ],
-        "evidence": [
-          "FIX-659-SUMMARY.md"
-        ],
-        "commit": null,
-        "_score": 70
-      },
-      {
-        "id": "FIX-2025-12-25-MAP-SERIALIZATION-FAILURE",
-        "date": "2025-12-25",
-        "severity": "CRITICAL",
-        "tags": [
-          "trai"
-        ],
-        "symptom": "- StateManager used Maps for activeTrades",
-        "root_cause": "- StateManager used Maps for activeTrades\n- JavaScript Maps can't be serialized to JSON\n- On restart, all active trades were lost\n- Bot had amnesia after every restart",
-        "minimal_fix": "- **File**: `core/StateManager.js` lines 326-385",
-        "files": [
-          "core/StateManager.js",
-          "core/KrakenAdapterV2.js"
-        ],
-        "verification": [
-          "Active trades persist across restarts",
-          "Bot remembers exact position after crash",
-          "No more lost trades on reboot"
-        ],
-        "outcome": "success",
-        "what_worked": [
-          "Active trades persist across restarts",
-          "Bot remembers exact position after crash",
-          "No more lost trades on reboot",
-          "Automatic save after every state update"
-        ],
-        "what_failed": [],
-        "evidence": [
-          "SURGICAL-FIXES-REPORT.md#MAP SERIALIZATION FAILURE"
-        ],
-        "commit": null,
-        "_score": 55
-      },
-      {
         "id": "FIX-2025-12-25-STATE-DESYNCHRONIZATION",
         "date": "2025-12-25",
         "severity": "CRITICAL",
@@ -150,21 +88,81 @@
           "SURGICAL-FIXES-REPORT.md#STATE DESYNCHRONIZATION"
         ],
         "commit": null,
-        "_score": 43
+        "_score": 208
+      },
+      {
+        "id": "FIX-2025-12-25-TRAI-BLOCKING-MAIN-LOOP",
+        "date": "2025-12-25",
+        "severity": "CRITICAL",
+        "tags": [
+          "trai",
+          "performance"
+        ],
+        "symptom": "- TRAI (AI decision system) blocked main loop for 2-5 seconds per decision",
+        "root_cause": "- TRAI (AI decision system) blocked main loop for 2-5 seconds per decision\n- During volatile moves, bot was blind while waiting for AI to \"think\"\n- Flash crashes could happen while bot waited for philosophical analysis",
+        "minimal_fix": "- **File**: `run-empire-v2.js` lines 931-954",
+        "files": [
+          "run-empire-v2.js",
+          "core/StateManager.js"
+        ],
+        "verification": [
+          "Bot never waits for TRAI decisions",
+          "Can react instantly to market moves",
+          "TRAI does post-trade learning only"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "Bot never waits for TRAI decisions",
+          "Can react instantly to market moves",
+          "TRAI does post-trade learning only",
+          "Mathematical logic drives real-time decisions"
+        ],
+        "what_failed": [],
+        "evidence": [
+          "SURGICAL-FIXES-REPORT.md#TRAI BLOCKING MAIN LOOP"
+        ],
+        "commit": null,
+        "_score": 176
+      },
+      {
+        "id": "FIX-659-SUMMARY",
+        "date": "2025-12-25",
+        "severity": "HIGH",
+        "tags": [
+          "pattern-memory",
+          "recording"
+        ],
+        "symptom": "Pattern memory was not growing despite hours of trading. The bot only showed the BASE_PATTERN despite processing hundreds of trades.",
+        "root_cause": "The pattern recording pipeline lost features data when converting from pattern objects to the recordPatternResult API:\n\n1. **analyzePatterns()** creates patterns with `features` field (numeric array)\n2. **recordPatternResult()** was called with `signature` field (truncated string)\n3. **recordPattern()** expects features array, not signature string\n4. Validation failed on signature string, patterns never stored",
+        "minimal_fix": "Fixed feature data conversion in pattern pipeline",
+        "files": [],
+        "verification": [
+          "Patterns now recording",
+          "Memory growing"
+        ],
+        "outcome": "success",
+        "what_worked": [
+          "Preserving features array through pipeline"
+        ],
+        "what_failed": [
+          "String signature truncation"
+        ],
+        "evidence": [
+          "FIX-659-SUMMARY.md"
+        ],
+        "commit": null,
+        "_score": 171.5
       }
     ],
-    "rag_score": 70
+    "rag_score": 208
   },
   "branch": {
-    "timestamp": "2025-12-27T02:04:03.685Z",
+    "timestamp": "2025-12-27T04:04:58.958Z",
     "base": null,
     "branch": null,
     "blocked": true,
-    "reason": "Working tree not clean; refusing to branch",
-    "dirty_preview": [
-      "M ogz-meta/manifests/current.json",
-      "?? ogz-meta/manifests/MISSION-1766801043541.hook"
-    ]
+    "reason": "Failed to checkout/pull master",
+    "error": "Command failed: git checkout master\nerror: Your local changes to the following files would be overwritten by checkout:\n\togz-meta/manifests/current.json\nPlease commit your changes or stash them before you switch branches.\nAborting\n"
   },
   "architect": {
     "timestamp": null,

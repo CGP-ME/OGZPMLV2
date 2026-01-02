@@ -53,12 +53,15 @@ build/
 *.gguf
 
 # TRAI brain files (too large for GitHub)
+trai_brain/
 trai_brain/models/
 trai_brain/*.json
 trai_brain/inference_server_ct.py
 trai_brain/**/*.pkl
 trai_brain/**/*.h5
 trai_brain/**/*.model
+*brain*.py
+inference_server*.py
 
 # Secrets and credentials
 *.pem
