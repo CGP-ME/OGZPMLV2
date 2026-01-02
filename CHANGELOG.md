@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2025-01-02
+
+### Fixed
+- **Kill Switch (Non-Throwing)** - core/AdvancedExecutionLayer-439-MERGED.js:133-147
+  - Uncommented and fixed kill switch to skip trades without throwing
+  - Returns `{success: false, blocked: true}` instead of crashing bot
+  - Added throttled logging (every 5 seconds) to prevent log spam
+  - Bot continues running but blocks all trade attempts when kill switch active
+
+- **Reconciler (Non-Blocking)** - core/ExchangeReconciler.js:56-59
+  - Fixed reconciler to not throw and crash bot on initial failure in LIVE mode
+  - Now just pauses trading and keeps process alive
+  - Paper mode: non-blocking startup, log-only drift handling (never pauses)
+  - Live mode: blocks until first reconcile, but doesn't crash on failure
+  - Added paper mode check to handleDrift() - only logs drift, never pauses
+
+- **Configurable Reconcile Interval** - run-empire-v2.js:345
+  - Added RECONCILE_INTERVAL_MS environment variable
+  - Default 5000ms (5 seconds) instead of hardcoded 30000ms
+  - Allows faster drift detection without code changes
+
+### Changed
+- Updated .gitignore to exclude codebase-export.txt from git tracking
+
 ## [2.4.1] - 2025-12-27
 
 ### Critical Bugs Discovered

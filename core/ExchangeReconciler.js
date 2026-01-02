@@ -53,8 +53,10 @@ class ExchangeReconciler {
       const result = await this.reconcileNow();
 
       if (!result.success) {
-        console.error('❌ INITIAL RECONCILIATION FAILED - TRADING BLOCKED');
-        throw new Error('Cannot start trading without successful reconciliation');
+        console.error('❌ INITIAL RECONCILIATION FAILED - trading will remain paused until recovered');
+        const stateManager = getStateManager();
+        await stateManager.pauseTrading('Initial reconciliation failed');
+        // do NOT throw - keep process alive
       }
 
       console.log('✅ Initial reconciliation complete - trading enabled');
@@ -234,6 +236,15 @@ class ExchangeReconciler {
   async handleDrift(drift, exchangeData, internalState) {
     const stateManager = getStateManager();
 
+    // PAPER MODE: never pause trading, only log + track
+    if (this.paperMode) {
+      if (drift.severity !== 'none') {
+        console.warn(`📝 [PAPER] Drift detected (${drift.severity}): ${drift.summary}`);
+      }
+      return 'LOG_ONLY';
+    }
+
+    // LIVE MODE: existing behavior
     switch (drift.severity) {
       case 'critical':
         console.error('🚨 CRITICAL DRIFT - HARD STOP');

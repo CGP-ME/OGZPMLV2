@@ -342,7 +342,7 @@ class OGZPrimeV14Bot {
     const { getInstance: getReconciler } = require('./core/ExchangeReconciler');
     this.reconciler = getReconciler({
       krakenAdapter: this.kraken,
-      interval: 30000, // Reconcile every 30 seconds
+      interval: parseInt(process.env.RECONCILE_INTERVAL_MS || '5000', 10),
       paperMode: process.env.LIVE_TRADING !== 'true'
     });
     console.log('🔄 Exchange reconciler initialized');
@@ -670,10 +670,13 @@ class OGZPrimeV14Bot {
         // Connect to Kraken WebSocket for live price data
         await this.connectToMarketData();
 
-        // RECONCILIATION: Start reconciler with initial blocking sync
+        // RECONCILIATION: ENABLED - non-blocking in PAPER, optional blocking in LIVE
         console.log('🔄 Starting exchange reconciliation...');
-        await this.reconciler.start(true); // Block until first reconciliation
-        console.log('✅ Reconciliation active - exchange truth verified');
+        const isLive = process.env.LIVE_TRADING === 'true';
+
+        // Paper: don't block startup. Live: you can choose to block
+        await this.reconciler.start(isLive);
+        console.log('✅ Reconciliation active');
 
         // EVENT LOOP MONITORING: Start monitoring for freezes
         console.log('⚡ Starting event loop monitoring...');
