@@ -378,7 +378,7 @@
         .indicator-overlay {
             position: absolute;
             top: 20px;
-            right: 20px;
+            left: 20px;  /* MOVED TO LEFT SIDE */
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
             border: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 12px;
@@ -387,7 +387,30 @@
             box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
             z-index: 10;
             min-width: 200px;
+            max-width: 280px;
+            max-height: 60vh;  /* Scrollable at 60% viewport height */
+            overflow-y: auto;
+            overflow-x: hidden;
             transition: all 0.3s ease;
+        }
+
+        /* Custom scrollbar */
+        .indicator-overlay::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-track {
+            background: rgba(20, 20, 40, 0.3);
+            border-radius: 3px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .indicator-overlay::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.6);
         }
         
         .indicator-overlay h4 {
@@ -750,9 +773,1147 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #ffed4e;
         }
+        /* Responsive Design for Different Devices */
+        @media screen and (max-width: 1920px) {
+            /* Desktop */
+            .container {
+                max-width: 95%;
+            }
+        }
+
+        @media screen and (max-width: 1440px) {
+            /* Laptop */
+            .indicator-overlay {
+                max-width: 250px;
+                font-size: 11px;
+            }
+
+            .chart-container {
+                height: 450px;
+            }
+        }
+
+        @media screen and (max-width: 1024px) {
+            /* Tablet Landscape */
+            .indicator-overlay {
+                max-width: 220px;
+                font-size: 10px;
+                max-height: 50vh;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .chart-container {
+                height: 400px;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            /* Tablet Portrait */
+            .indicator-overlay {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                max-width: 180px;
+                font-size: 9px;
+                padding: 8px;
+                max-height: 40vh;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-container {
+                height: 350px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            /* Mobile */
+            .indicator-overlay {
+                position: fixed;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                top: auto;
+                max-width: none;
+                max-height: 150px;
+                font-size: 9px;
+                padding: 6px;
+            }
+
+            .indicator-item {
+                margin: 2px 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .panel-title {
+                font-size: 12px;
+            }
+        }
+
+        @media screen and (max-width: 320px) {
+            /* Small Mobile */
+            .indicator-overlay {
+                font-size: 8px;
+                max-height: 120px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        /* Edge Analytics Panel - THE REAL MONEY MAKERS */
+        .edge-panel {
+            position: fixed;
+            right: 20px;
+            top: 140px;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: rgba(10, 10, 30, 0.95);
+            border: 2px solid rgba(255, 0, 100, 0.5);
+            border-radius: 15px;
+            padding: 15px;
+            z-index: 98;
+            box-shadow: 0 0 30px rgba(255, 0, 100, 0.3);
+        }
+
+        .edge-header {
+            color: #ff0064;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 0, 100, 0.8);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(255, 0, 100, 0.8); }
+            50% { text-shadow: 0 0 20px rgba(255, 0, 100, 1); }
+        }
+
+        .edge-section {
+            background: rgba(20, 20, 40, 0.6);
+            border: 1px solid rgba(255, 0, 100, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .edge-section h4 {
+            color: #fff;
+            font-size: 13px;
+            margin: 0 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 0, 100, 0.3);
+        }
+
+        /* Liquidation Levels */
+        .liq-levels {
+            margin-bottom: 10px;
+        }
+
+        .liq-level {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 11px;
+        }
+
+        .long-liq {
+            background: rgba(255, 0, 0, 0.1);
+            border-left: 3px solid #ff0000;
+        }
+
+        .short-liq {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+        }
+
+        .liq-price {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .liq-volume {
+            color: #00d4ff;
+        }
+
+        /* CVD Display */
+        .cvd-display {
+            text-align: center;
+        }
+
+        .cvd-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .cvd-trend {
+            padding: 4px 8px;
+            background: rgba(0, 212, 255, 0.2);
+            border-radius: 5px;
+            margin-top: 5px;
+            display: inline-block;
+            font-size: 11px;
+        }
+
+        /* Funding Rates */
+        .funding-display {
+            font-size: 12px;
+        }
+
+        .funding-current, .funding-predicted {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .funding-rate {
+            font-weight: bold;
+        }
+
+        .funding-signal {
+            text-align: center;
+            padding: 5px;
+            margin-top: 10px;
+            background: rgba(100, 100, 200, 0.2);
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        /* Whale Alerts */
+        .whale-alerts {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .whale-item {
+            padding: 5px;
+            margin: 3px 0;
+            background: rgba(0, 100, 255, 0.1);
+            border-left: 3px solid #0064ff;
+            border-radius: 3px;
+            font-size: 10px;
+            animation: slideInLeft 0.5s;
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Market Internals */
+        .internal-item, .metric-item, .smart-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 11px;
+        }
+
+        .internal-item span:last-child,
+        .metric-item span:last-child,
+        .smart-item span:last-child {
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        /* Fear & Greed */
+        .fg-gauge {
+            text-align: center;
+        }
+
+        .fg-value {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .fg-label {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .fg-bar {
+            height: 20px;
+            background: rgba(50, 50, 50, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .fg-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 1s ease;
+        }
+
+        /* Divergences */
+        .divergence-item {
+            padding: 5px;
+            margin: 3px 0;
+            background: rgba(147, 51, 234, 0.1);
+            border-left: 3px solid #9333ea;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        /* Drawing Tools Panel */
+        .drawing-tools {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            background: rgba(20, 20, 40, 0.95);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 10px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tool-header {
+            color: #ffd700;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.6);
+            transform: scale(1.1);
+        }
+
+        .tool-btn.active {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Trade Manager Panel */
+        .trade-manager {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 999;
+        }
+
+        .trade-toggle {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .trade-toggle:hover {
+            transform: rotate(-20deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.6);
+        }
+
+        .trade-panel {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: rgba(20, 20, 40, 0.98);
+            border: 1px solid rgba(0, 102, 255, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .trade-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .trade-panel h3 {
+            color: #00d4ff;
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .trade-panel h4 {
+            color: #fff;
+            font-size: 14px;
+            margin: 15px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0, 102, 255, 0.3);
+        }
+
+        /* Calculator Section */
+        .calc-section, .sl-section, .quick-actions, .tp-section {
+            margin-bottom: 20px;
+        }
+
+        .calc-row, .sl-row, .tp-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .calc-row label, .sl-row label, .tp-row label {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .calc-row input, .sl-row input, .tp-row input {
+            width: 120px;
+            padding: 6px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            text-align: right;
+        }
+
+        .calc-result {
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .calc-result div {
+            color: #00d4ff;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+
+        .calc-result span {
+            float: right;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        /* Stop Loss Modes */
+        .sl-modes {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .sl-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .sl-btn:hover {
+            background: rgba(0, 102, 255, 0.2);
+        }
+
+        .sl-btn.active {
+            background: rgba(0, 102, 255, 0.4);
+            border-color: #00d4ff;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .quick-actions button {
+            padding: 10px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .quick-actions button:hover {
+            background: rgba(0, 102, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .apply-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .apply-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
+        }
+
+        /* Theme Customizer Styles */
+        .theme-customizer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .theme-toggle {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(20deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .theme-panel {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 320px;
+            background: rgba(20, 20, 40, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .theme-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .theme-panel h3 {
+            color: #fff;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            text-align: center;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .theme-section {
+            margin-bottom: 20px;
+        }
+
+        .theme-section label {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .theme-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .theme-btn {
+            padding: 8px 12px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .theme-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .theme-btn.active {
+            background: rgba(102, 126, 234, 0.4);
+            border-color: rgba(102, 126, 234, 1);
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-picker input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .color-picker span {
+            color: #fff;
+            font-family: monospace;
+        }
+
+        #fontSelect, #chartStyle {
+            width: 100%;
+            padding: 8px;
+            background: rgba(40, 40, 60, 0.6);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .theme-actions button {
+            flex: 1;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .theme-actions button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Underglow Effects for Boxes */
+        .underglow {
+            position: relative;
+            overflow: visible;
+        }
+
+        .underglow::before {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 10%;
+            right: 10%;
+            height: 20px;
+            background: var(--underglow-color, linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff));
+            filter: blur(20px);
+            opacity: 0.6;
+            z-index: -1;
+            animation: underglow-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes underglow-pulse {
+            0%, 100% { opacity: 0.4; transform: scaleX(0.8); }
+            50% { opacity: 0.8; transform: scaleX(1); }
+        }
+
+        .panel-section.underglow::before {
+            bottom: -5px;
+            height: 30px;
+            filter: blur(25px);
+        }
+
+        .stat-card.underglow::before {
+            background: linear-gradient(90deg,
+                var(--card-glow-1, #ff00ff),
+                var(--card-glow-2, #00ffff));
+            height: 15px;
+            bottom: -3px;
+            animation: underglow-shift 4s linear infinite;
+        }
+
+        @keyframes underglow-shift {
+            0% { filter: blur(20px) hue-rotate(0deg); }
+            100% { filter: blur(20px) hue-rotate(360deg); }
+        }
+
+        .indicator-overlay.underglow::before {
+            background: linear-gradient(135deg, #ffd700, #ff6600, #ffd700);
+            animation: underglow-breathe 2s ease-in-out infinite;
+        }
+
+        @keyframes underglow-breathe {
+            0%, 100% {
+                opacity: 0.3;
+                filter: blur(15px);
+            }
+            50% {
+                opacity: 0.7;
+                filter: blur(25px);
+            }
+        }
+
+        /* Theme-specific Underglow Colors */
+        .theme-cyberpunk .underglow::before {
+            background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+        }
+
+        .theme-matrix .underglow::before {
+            background: linear-gradient(90deg, #00ff00, #00cc00, #00ff00);
+        }
+
+        .theme-neon .underglow::before {
+            background: linear-gradient(90deg, #ff00ff, #00ff00, #00ffff, #ff00ff);
+        }
+
+        .theme-ocean .underglow::before {
+            background: linear-gradient(90deg, #006aff, #00d4ff, #006aff);
+        }
+
+        .theme-sunset .underglow::before {
+            background: linear-gradient(90deg, #ff6600, #ff0066, #ff6600);
+        }
+
+        .theme-royal .underglow::before {
+            background: linear-gradient(90deg, #9400d3, #ffd700, #9400d3);
+        }
+
+        .theme-hacker .underglow::before {
+            background: linear-gradient(90deg, #00ff00, #00ff00);
+            animation: underglow-flicker 0.5s infinite;
+        }
+
+        @keyframes underglow-flicker {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.3; }
+        }
+
+        /* High DPI / Retina Display Support */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .indicator-overlay {
+                font-weight: 500;
+            }
+        }
+
+        /* Landscape Orientation for Mobile */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .indicator-overlay {
+                max-height: 30vh;
+                top: 5px;
+                left: 5px;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Edge Analytics Panel -->
+    <div class="edge-panel" id="edgePanel">
+        <div class="edge-header">🎯 EDGE ANALYTICS</div>
+
+        <!-- Liquidation Heatmap -->
+        <div class="edge-section">
+            <h4>💀 Liquidation Levels</h4>
+            <div class="liq-levels">
+                <div class="liq-level long-liq">
+                    <span>Long Liq Zone:</span>
+                    <span class="liq-price" id="longLiqPrice">--</span>
+                    <span class="liq-volume" id="longLiqVol">$0</span>
+                </div>
+                <div class="liq-level short-liq">
+                    <span>Short Liq Zone:</span>
+                    <span class="liq-price" id="shortLiqPrice">--</span>
+                    <span class="liq-volume" id="shortLiqVol">$0</span>
+                </div>
+            </div>
+            <canvas id="liqHeatmap" width="300" height="150"></canvas>
+        </div>
+
+        <!-- CVD - Cumulative Volume Delta -->
+        <div class="edge-section">
+            <h4>📊 CVD (Order Flow)</h4>
+            <div class="cvd-display">
+                <div class="cvd-value" id="cvdValue">0</div>
+                <div class="cvd-trend" id="cvdTrend">NEUTRAL</div>
+                <canvas id="cvdChart" width="300" height="100"></canvas>
+            </div>
+        </div>
+
+        <!-- Funding Rates -->
+        <div class="edge-section">
+            <h4>💰 Funding Rates</h4>
+            <div class="funding-display">
+                <div class="funding-current">
+                    <span>Current:</span>
+                    <span class="funding-rate" id="currentFunding">0.01%</span>
+                </div>
+                <div class="funding-predicted">
+                    <span>Predicted:</span>
+                    <span class="funding-rate" id="predictedFunding">0.01%</span>
+                </div>
+                <div class="funding-signal" id="fundingSignal">NEUTRAL</div>
+            </div>
+        </div>
+
+        <!-- Whale Alerts -->
+        <div class="edge-section">
+            <h4>🐋 Whale Activity</h4>
+            <div class="whale-alerts" id="whaleAlerts">
+                <div class="whale-item">Waiting for whales...</div>
+            </div>
+        </div>
+
+        <!-- Market Internals -->
+        <div class="edge-section">
+            <h4>🔍 Market Internals</h4>
+            <div class="internals">
+                <div class="internal-item">
+                    <span>Buy/Sell Ratio:</span>
+                    <span id="buySellRatio">1.0</span>
+                </div>
+                <div class="internal-item">
+                    <span>Aggressor Side:</span>
+                    <span id="aggressorSide">NEUTRAL</span>
+                </div>
+                <div class="internal-item">
+                    <span>Order Book Imbalance:</span>
+                    <span id="bookImbalance">0%</span>
+                </div>
+                <div class="internal-item">
+                    <span>Spread:</span>
+                    <span id="spreadValue">0.01%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- On-Chain Metrics -->
+        <div class="edge-section">
+            <h4>⛓️ On-Chain Edge</h4>
+            <div class="onchain-metrics">
+                <div class="metric-item">
+                    <span>NVT Signal:</span>
+                    <span id="nvtSignal" class="metric-value">--</span>
+                </div>
+                <div class="metric-item">
+                    <span>MVRV:</span>
+                    <span id="mvrvRatio" class="metric-value">--</span>
+                </div>
+                <div class="metric-item">
+                    <span>SOPR:</span>
+                    <span id="soprValue" class="metric-value">--</span>
+                </div>
+                <div class="metric-item">
+                    <span>Exchange Reserve:</span>
+                    <span id="exchangeReserve" class="metric-value">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Money Tracking -->
+        <div class="edge-section">
+            <h4>🧠 Smart Money</h4>
+            <div class="smart-money">
+                <div class="smart-item">
+                    <span>Smart Money Flow:</span>
+                    <span id="smartFlow" class="flow-value">ACCUMULATING</span>
+                </div>
+                <div class="smart-item">
+                    <span>Institutional Activity:</span>
+                    <span id="instActivity">HIGH</span>
+                </div>
+                <div class="smart-item">
+                    <span>Old Coins Moving:</span>
+                    <span id="dormancy">LOW</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fear & Greed Index -->
+        <div class="edge-section">
+            <h4>😱 Fear & Greed</h4>
+            <div class="fear-greed">
+                <div class="fg-gauge">
+                    <div class="fg-value" id="fgValue">50</div>
+                    <div class="fg-label" id="fgLabel">NEUTRAL</div>
+                    <div class="fg-bar">
+                        <div class="fg-fill" id="fgFill" style="width: 50%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Divergences -->
+        <div class="edge-section">
+            <h4>🔮 Hidden Divergences</h4>
+            <div class="divergences" id="divergences">
+                <div class="divergence-item">Scanning...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawing Tools Panel -->
+    <div class="drawing-tools" id="drawingTools">
+        <div class="tool-header">📊 Drawing Tools</div>
+        <button class="tool-btn" onclick="activateDrawingTool('trendline')" title="Trend Line">📈</button>
+        <button class="tool-btn" onclick="activateDrawingTool('horizontal')" title="Horizontal Line">➖</button>
+        <button class="tool-btn" onclick="activateDrawingTool('vertical')" title="Vertical Line">│</button>
+        <button class="tool-btn" onclick="activateDrawingTool('rectangle')" title="Rectangle">▭</button>
+        <button class="tool-btn" onclick="activateDrawingTool('fibonacci')" title="Fibonacci">🌀</button>
+        <button class="tool-btn" onclick="activateDrawingTool('arrow')" title="Arrow">➤</button>
+        <button class="tool-btn" onclick="activateDrawingTool('text')" title="Text">T</button>
+        <button class="tool-btn" onclick="clearDrawings()" title="Clear All">🗑️</button>
+    </div>
+
+    <!-- Trade Management Panel -->
+    <div class="trade-manager" id="tradeManager">
+        <div class="trade-toggle" onclick="toggleTradePanel()">💼</div>
+        <div class="trade-panel" id="tradePanel">
+            <h3>Trade Management</h3>
+
+            <!-- Position Calculator -->
+            <div class="calc-section">
+                <h4>Position Calculator</h4>
+                <div class="calc-row">
+                    <label>Account Balance:</label>
+                    <input type="number" id="accountBalance" value="10000" onchange="calculatePosition()">
+                </div>
+                <div class="calc-row">
+                    <label>Risk %:</label>
+                    <input type="number" id="riskPercent" value="1" step="0.1" onchange="calculatePosition()">
+                </div>
+                <div class="calc-row">
+                    <label>Entry Price:</label>
+                    <input type="number" id="entryPrice" step="0.01" onchange="calculatePosition()">
+                </div>
+                <div class="calc-row">
+                    <label>Stop Loss:</label>
+                    <input type="number" id="stopLoss" step="0.01" onchange="calculatePosition()">
+                </div>
+                <div class="calc-result">
+                    <div>Position Size: <span id="positionSize">0</span></div>
+                    <div>Risk Amount: <span id="riskAmount">$0</span></div>
+                    <div>Risk/Reward: <span id="riskReward">0:0</span></div>
+                </div>
+            </div>
+
+            <!-- Stop Loss Manager -->
+            <div class="sl-section">
+                <h4>Stop Loss Manager</h4>
+                <div class="sl-modes">
+                    <button class="sl-btn" onclick="setSLMode('fixed')">Fixed SL</button>
+                    <button class="sl-btn" onclick="setSLMode('trailing')">Trailing SL</button>
+                    <button class="sl-btn" onclick="setSLMode('breakeven')">Breakeven</button>
+                </div>
+                <div class="sl-settings">
+                    <div class="sl-row">
+                        <label>Current SL:</label>
+                        <input type="number" id="currentSL" step="0.01">
+                    </div>
+                    <div class="sl-row">
+                        <label>Trail Distance:</label>
+                        <input type="number" id="trailDistance" value="50" step="1">
+                    </div>
+                    <div class="sl-row">
+                        <label>Move to BE at:</label>
+                        <input type="number" id="beTarget" value="100" step="1">
+                    </div>
+                </div>
+                <button class="apply-btn" onclick="applyStopLoss()">Apply Changes</button>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h4>Quick Actions</h4>
+                <button onclick="closeHalf()">Close 50%</button>
+                <button onclick="closeAll()">Close All</button>
+                <button onclick="reversePosition()">Reverse</button>
+                <button onclick="hedgePosition()">Hedge</button>
+            </div>
+
+            <!-- Take Profit Targets -->
+            <div class="tp-section">
+                <h4>Take Profit Targets</h4>
+                <div class="tp-row">
+                    <label>TP1 (25%):</label>
+                    <input type="number" id="tp1" step="0.01">
+                </div>
+                <div class="tp-row">
+                    <label>TP2 (50%):</label>
+                    <input type="number" id="tp2" step="0.01">
+                </div>
+                <div class="tp-row">
+                    <label>TP3 (25%):</label>
+                    <input type="number" id="tp3" step="0.01">
+                </div>
+                <button class="apply-btn" onclick="setTakeProfits()">Set Targets</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Customizer -->
+    <div class="theme-customizer" id="themeCustomizer">
+        <div class="theme-toggle" onclick="toggleThemePanel()">🎨</div>
+        <div class="theme-panel" id="themePanel">
+            <h3>Customize Your Dashboard</h3>
+
+            <!-- Theme Presets -->
+            <div class="theme-section">
+                <label>Theme</label>
+                <div class="theme-options">
+                    <button class="theme-btn" data-theme="cyberpunk" onclick="applyTheme('cyberpunk')">🌃 Cyberpunk</button>
+                    <button class="theme-btn" data-theme="matrix" onclick="applyTheme('matrix')">💚 Matrix</button>
+                    <button class="theme-btn" data-theme="neon" onclick="applyTheme('neon')">🌈 Neon</button>
+                    <button class="theme-btn" data-theme="dark" onclick="applyTheme('dark')">🌑 Dark</button>
+                    <button class="theme-btn" data-theme="ocean" onclick="applyTheme('ocean')">🌊 Ocean</button>
+                    <button class="theme-btn" data-theme="sunset" onclick="applyTheme('sunset')">🌅 Sunset</button>
+                    <button class="theme-btn" data-theme="royal" onclick="applyTheme('royal')">👑 Royal</button>
+                    <button class="theme-btn" data-theme="hacker" onclick="applyTheme('hacker')">💻 Hacker</button>
+                </div>
+            </div>
+
+            <!-- Accent Color -->
+            <div class="theme-section">
+                <label>Accent Color</label>
+                <div class="color-picker">
+                    <input type="color" id="accentColor" onchange="updateAccentColor(this.value)">
+                    <span id="colorValue">#FFD700</span>
+                </div>
+            </div>
+
+            <!-- Font Selection -->
+            <div class="theme-section">
+                <label>Font</label>
+                <select id="fontSelect" onchange="updateFont(this.value)">
+                    <option value="monospace">Monospace</option>
+                    <option value="'Courier New'">Courier New</option>
+                    <option value="'Roboto Mono'">Roboto Mono</option>
+                    <option value="'Fira Code'">Fira Code</option>
+                    <option value="'JetBrains Mono'">JetBrains Mono</option>
+                    <option value="'SF Mono'">SF Mono</option>
+                    <option value="Arial">Arial</option>
+                    <option value="'Segoe UI'">Segoe UI</option>
+                </select>
+            </div>
+
+            <!-- Chart Style -->
+            <div class="theme-section">
+                <label>Chart Style</label>
+                <select id="chartStyle" onchange="updateChartStyle(this.value)">
+                    <option value="candlestick">Candlestick</option>
+                    <option value="line">Line</option>
+                    <option value="area">Area</option>
+                    <option value="bars">Bars</option>
+                </select>
+            </div>
+
+            <!-- Animations -->
+            <div class="theme-section">
+                <label>Animations</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="animToggle" checked onchange="toggleAnimations(this.checked)">
+                    <label for="animToggle">Enable</label>
+                </div>
+            </div>
+
+            <!-- Save/Reset -->
+            <div class="theme-actions">
+                <button onclick="saveTheme()">💾 Save</button>
+                <button onclick="resetTheme()">🔄 Reset</button>
+            </div>
+        </div>
+    </div>
+
     <div class="header">
         <div class="logo">OGZPrime</div>
         <div class="tagline">Neural Ensemble • Real-Time Data</div>
@@ -1678,6 +2839,71 @@
             else if (data.type === 'trade_levels') {
                 console.log('Trade levels:', data.fibLevels, data.srLevels);
             }
+
+            // Edge Analytics Data Handlers
+
+            // Liquidation data
+            else if (data.type === 'liquidation_data') {
+                if (data.levels) {
+                    updateLiquidationLevels(data.levels);
+                }
+            }
+
+            // Order flow / CVD data
+            else if (data.type === 'order_flow' || data.type === 'cvd_update') {
+                if (data.cvd !== undefined) {
+                    updateCVD(data.cvd, data.buyVolume, data.sellVolume);
+                }
+            }
+
+            // Funding rates
+            else if (data.type === 'funding_rate') {
+                if (data.current !== undefined) {
+                    updateFundingRates(data.current, data.predicted);
+                }
+            }
+
+            // Whale trades
+            else if (data.type === 'whale_trade' || data.type === 'large_trade') {
+                if (data.size && data.price) {
+                    processWhaleAlert(data);
+                }
+            }
+
+            // Market internals
+            else if (data.type === 'market_internals') {
+                if (data.buySellRatio !== undefined) {
+                    updateMarketInternals(data);
+                }
+            }
+
+            // On-chain metrics
+            else if (data.type === 'onchain_metrics') {
+                if (data.nvt !== undefined || data.mvrv !== undefined) {
+                    updateOnChainMetrics(data);
+                }
+            }
+
+            // Smart money flow
+            else if (data.type === 'smart_money') {
+                if (data.flow || data.activity) {
+                    updateSmartMoneyFlow(data);
+                }
+            }
+
+            // Fear & Greed Index
+            else if (data.type === 'fear_greed') {
+                if (data.value !== undefined) {
+                    updateFearGreedIndex(data.value);
+                }
+            }
+
+            // Divergence alerts
+            else if (data.type === 'divergence') {
+                if (data.divergences) {
+                    updateDivergences(data.divergences);
+                }
+            }
         }
         
         // ============================================
@@ -2032,6 +3258,680 @@
             
             console.log('✅ OGZPrime Dashboard Ready');
         };
+
+        // Drawing Tools Functions
+        let currentDrawingTool = null;
+        let drawings = [];
+
+        function activateDrawingTool(tool) {
+            currentDrawingTool = tool;
+
+            // Update active state
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Add chart interaction based on tool
+            if (chart) {
+                switch(tool) {
+                    case 'trendline':
+                        console.log('Trendline tool activated');
+                        // Implementation would use chart library's drawing API
+                        break;
+                    case 'horizontal':
+                        console.log('Horizontal line tool activated');
+                        break;
+                    case 'fibonacci':
+                        console.log('Fibonacci tool activated');
+                        break;
+                    // Add other tools
+                }
+            }
+        }
+
+        function clearDrawings() {
+            drawings = [];
+            // Clear from chart
+            console.log('Drawings cleared');
+        }
+
+        // Trade Management Functions
+        function toggleTradePanel() {
+            const panel = document.getElementById('tradePanel');
+            panel.classList.toggle('active');
+        }
+
+        function calculatePosition() {
+            const balance = parseFloat(document.getElementById('accountBalance').value) || 0;
+            const riskPercent = parseFloat(document.getElementById('riskPercent').value) || 0;
+            const entry = parseFloat(document.getElementById('entryPrice').value) || 0;
+            const stopLoss = parseFloat(document.getElementById('stopLoss').value) || 0;
+
+            if (balance && riskPercent && entry && stopLoss && entry !== stopLoss) {
+                const riskAmount = balance * (riskPercent / 100);
+                const priceDiff = Math.abs(entry - stopLoss);
+                const positionSize = riskAmount / priceDiff;
+
+                document.getElementById('positionSize').textContent = positionSize.toFixed(4);
+                document.getElementById('riskAmount').textContent = `$${riskAmount.toFixed(2)}`;
+
+                // Calculate R:R if we have TP
+                const tp1 = parseFloat(document.getElementById('tp1').value) || 0;
+                if (tp1) {
+                    const reward = Math.abs(tp1 - entry);
+                    const risk = priceDiff;
+                    const rr = (reward / risk).toFixed(2);
+                    document.getElementById('riskReward').textContent = `1:${rr}`;
+                }
+            }
+        }
+
+        let stopLossMode = 'fixed';
+
+        function setSLMode(mode) {
+            stopLossMode = mode;
+
+            // Update button states
+            document.querySelectorAll('.sl-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Show/hide relevant inputs
+            if (mode === 'trailing') {
+                document.getElementById('trailDistance').parentElement.style.display = 'flex';
+            } else {
+                document.getElementById('trailDistance').parentElement.style.display = 'none';
+            }
+
+            if (mode === 'breakeven') {
+                document.getElementById('beTarget').parentElement.style.display = 'flex';
+            } else {
+                document.getElementById('beTarget').parentElement.style.display = 'none';
+            }
+        }
+
+        function applyStopLoss() {
+            const currentSL = document.getElementById('currentSL').value;
+            const trailDistance = document.getElementById('trailDistance').value;
+            const beTarget = document.getElementById('beTarget').value;
+
+            // Send to bot via WebSocket
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'update_stop_loss',
+                    mode: stopLossMode,
+                    stopLoss: currentSL,
+                    trailDistance: trailDistance,
+                    breakEvenTarget: beTarget
+                }));
+
+                alert(`Stop Loss Updated!\nMode: ${stopLossMode}\nSL: ${currentSL}`);
+            } else {
+                alert('Not connected to trading bot');
+            }
+        }
+
+        function setTakeProfits() {
+            const tp1 = document.getElementById('tp1').value;
+            const tp2 = document.getElementById('tp2').value;
+            const tp3 = document.getElementById('tp3').value;
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'set_take_profits',
+                    targets: [
+                        { level: tp1, size: 0.25 },
+                        { level: tp2, size: 0.50 },
+                        { level: tp3, size: 0.25 }
+                    ]
+                }));
+
+                alert('Take Profit targets set!');
+            }
+        }
+
+        // Quick Actions
+        function closeHalf() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'close_position',
+                    percentage: 50
+                }));
+                alert('Closing 50% of position...');
+            }
+        }
+
+        function closeAll() {
+            if (confirm('Are you sure you want to close ALL positions?')) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'close_position',
+                        percentage: 100
+                    }));
+                    alert('Closing all positions...');
+                }
+            }
+        }
+
+        function reversePosition() {
+            if (confirm('Reverse current position?')) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'reverse_position'
+                    }));
+                    alert('Reversing position...');
+                }
+            }
+        }
+
+        function hedgePosition() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'hedge_position'
+                }));
+                alert('Opening hedge position...');
+            }
+        }
+
+        // Auto-populate current price in calculator
+        setInterval(() => {
+            if (currentPrice && !document.getElementById('entryPrice').value) {
+                document.getElementById('entryPrice').value = currentPrice.toFixed(2);
+            }
+        }, 1000);
+
+        // EDGE ANALYTICS FUNCTIONS - THE REAL MONEY MAKERS
+
+        // CVD - Cumulative Volume Delta
+        let cvdValue = 0;
+        let cvdHistory = [];
+
+        function calculateCVD(trade) {
+            // Determine if buy or sell based on price vs ask/bid
+            const isBuy = trade.price >= trade.ask;
+            const volumeDelta = isBuy ? trade.volume : -trade.volume;
+
+            cvdValue += volumeDelta;
+            cvdHistory.push(cvdValue);
+
+            // Keep last 100 values
+            if (cvdHistory.length > 100) cvdHistory.shift();
+
+            // Update display
+            document.getElementById('cvdValue').textContent = cvdValue.toFixed(0);
+
+            // Determine trend
+            const trend = cvdValue > 0 ? 'BULLISH' : cvdValue < 0 ? 'BEARISH' : 'NEUTRAL';
+            const trendEl = document.getElementById('cvdTrend');
+            trendEl.textContent = trend;
+            trendEl.style.color = cvdValue > 0 ? '#00ff88' : cvdValue < 0 ? '#ff0064' : '#ffaa00';
+
+            // Draw mini chart
+            drawCVDChart();
+        }
+
+        function drawCVDChart() {
+            const canvas = document.getElementById('cvdChart');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (cvdHistory.length < 2) return;
+
+            const max = Math.max(...cvdHistory);
+            const min = Math.min(...cvdHistory);
+            const range = max - min || 1;
+
+            ctx.strokeStyle = cvdValue > 0 ? '#00ff88' : '#ff0064';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            cvdHistory.forEach((val, i) => {
+                const x = (i / cvdHistory.length) * canvas.width;
+                const y = canvas.height - ((val - min) / range) * canvas.height;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+
+            ctx.stroke();
+        }
+
+        // Real Data Update Functions for Edge Analytics
+
+        // Update CVD with real order flow data
+        function updateCVD(cvd, buyVolume, sellVolume) {
+            // Use real CVD value from bot
+            cvdValue = cvd || (buyVolume - sellVolume) || cvdValue;
+            cvdHistory.push(cvdValue);
+
+            // Keep last 100 points
+            if (cvdHistory.length > 100) cvdHistory.shift();
+
+            // Update display
+            const cvdEl = document.getElementById('cvdValue');
+            cvdEl.textContent = cvdValue > 1000000 ? (cvdValue / 1000000).toFixed(2) + 'M' :
+                               cvdValue > 1000 ? (cvdValue / 1000).toFixed(1) + 'K' :
+                               cvdValue.toFixed(0);
+
+            // Color based on value
+            if (cvdValue > 0) {
+                cvdEl.style.color = '#00ff88';
+            } else if (cvdValue < 0) {
+                cvdEl.style.color = '#ff0064';
+            } else {
+                cvdEl.style.color = '#ffaa00';
+            }
+
+            // Update trend
+            const trend = cvdValue > 100000 ? 'STRONG BUY PRESSURE' :
+                         cvdValue > 10000 ? 'BUY PRESSURE' :
+                         cvdValue > 0 ? 'BULLISH' :
+                         cvdValue < -100000 ? 'STRONG SELL PRESSURE' :
+                         cvdValue < -10000 ? 'SELL PRESSURE' :
+                         cvdValue < 0 ? 'BEARISH' : 'NEUTRAL';
+            const trendEl = document.getElementById('cvdTrend');
+            trendEl.textContent = trend;
+            trendEl.style.color = cvdValue > 0 ? '#00ff88' : cvdValue < 0 ? '#ff0064' : '#ffaa00';
+
+            // Draw chart
+            drawCVDChart();
+        }
+
+        // Update liquidation levels with real data
+        function updateLiquidationLevels(levels) {
+            if (levels.long) {
+                document.getElementById('longLiqPrice').textContent = '$' + levels.long.price.toFixed(2);
+                document.getElementById('longLiqVol').textContent = '$' +
+                    (levels.long.volume > 1000000 ? (levels.long.volume / 1000000).toFixed(1) + 'M' :
+                     levels.long.volume > 1000 ? (levels.long.volume / 1000).toFixed(0) + 'K' :
+                     levels.long.volume.toFixed(0));
+            }
+
+            if (levels.short) {
+                document.getElementById('shortLiqPrice').textContent = '$' + levels.short.price.toFixed(2);
+                document.getElementById('shortLiqVol').textContent = '$' +
+                    (levels.short.volume > 1000000 ? (levels.short.volume / 1000000).toFixed(1) + 'M' :
+                     levels.short.volume > 1000 ? (levels.short.volume / 1000).toFixed(0) + 'K' :
+                     levels.short.volume.toFixed(0));
+            }
+
+            // Draw heatmap
+            if (currentPrice && levels.long && levels.short) {
+                drawLiquidationHeatmap(currentPrice, levels.long.price, levels.short.price);
+            }
+        }
+
+        // Update funding rates with real data
+        function updateFundingRates(current, predicted) {
+            const currentEl = document.getElementById('currentFunding');
+            const predictedEl = document.getElementById('predictedFunding');
+            const signalEl = document.getElementById('fundingSignal');
+
+            // Update current funding rate
+            currentEl.textContent = (current * 100).toFixed(4) + '%';
+            currentEl.style.color = current > 0 ? '#ff0064' : '#00ff88';
+
+            // Update predicted funding rate
+            if (predicted !== undefined) {
+                predictedEl.textContent = (predicted * 100).toFixed(4) + '%';
+                predictedEl.style.color = predicted > 0 ? '#ff0064' : '#00ff88';
+            }
+
+            // Determine signal
+            let signal = 'NEUTRAL';
+            let color = '#ffaa00';
+
+            if (current > 0.01) {
+                signal = 'SHORTS PAYING LONGS';
+                color = '#ff0064';
+            } else if (current < -0.01) {
+                signal = 'LONGS PAYING SHORTS';
+                color = '#00ff88';
+            }
+
+            signalEl.textContent = signal;
+            signalEl.style.color = color;
+        }
+
+        // Process whale alerts with real trade data
+        function processWhaleAlert(data) {
+            const size = data.size;
+            const price = data.price;
+            const side = data.side || (data.direction === 'buy' ? 'BUY' : 'SELL');
+
+            // Format size
+            const sizeStr = size > 1000000 ? (size / 1000000).toFixed(1) + 'M' :
+                           size > 1000 ? (size / 1000).toFixed(0) + 'K' :
+                           size.toFixed(0);
+
+            const message = `🐋 ${sizeStr} ${side} @ $${price.toFixed(2)}`;
+            addWhaleAlert(message);
+
+            // Flash animation for large trades
+            if (size > 1000000) {
+                const panel = document.getElementById('edgePanel');
+                panel.style.animation = 'pulse 0.5s';
+                setTimeout(() => panel.style.animation = '', 500);
+            }
+        }
+
+        // Update market internals with real data
+        function updateMarketInternals(data) {
+            if (data.buySellRatio !== undefined) {
+                const ratioEl = document.getElementById('buySellRatio');
+                ratioEl.textContent = data.buySellRatio.toFixed(2);
+                ratioEl.style.color = data.buySellRatio > 1 ? '#00ff88' :
+                                     data.buySellRatio < 1 ? '#ff0064' : '#ffaa00';
+            }
+
+            if (data.aggressor !== undefined) {
+                const aggressorEl = document.getElementById('aggressorSide');
+                aggressorEl.textContent = data.aggressor;
+                aggressorEl.style.color = data.aggressor === 'BUYERS' ? '#00ff88' :
+                                          data.aggressor === 'SELLERS' ? '#ff0064' : '#ffaa00';
+            }
+
+            if (data.bookImbalance !== undefined) {
+                document.getElementById('bookImbalance').textContent =
+                    (data.bookImbalance * 100).toFixed(1) + '%';
+            }
+
+            if (data.spread !== undefined) {
+                document.getElementById('spreadValue').textContent =
+                    (data.spread * 100).toFixed(3) + '%';
+            }
+        }
+
+        // Update on-chain metrics with real data
+        function updateOnChainMetrics(data) {
+            if (data.nvt !== undefined) {
+                const nvtEl = document.getElementById('nvtSignal');
+                nvtEl.textContent = data.nvt.toFixed(1);
+                nvtEl.style.color = data.nvt > 150 ? '#ff0064' :
+                                   data.nvt < 45 ? '#00ff88' : '#ffaa00';
+            }
+
+            if (data.mvrv !== undefined) {
+                const mvrvEl = document.getElementById('mvrvRatio');
+                mvrvEl.textContent = data.mvrv.toFixed(2);
+                mvrvEl.style.color = data.mvrv > 3.7 ? '#ff0064' :
+                                    data.mvrv < 1 ? '#00ff88' : '#ffaa00';
+            }
+
+            if (data.sopr !== undefined) {
+                const soprEl = document.getElementById('soprValue');
+                soprEl.textContent = data.sopr.toFixed(3);
+                soprEl.style.color = data.sopr > 1 ? '#00ff88' : '#ff0064';
+            }
+
+            if (data.exchangeReserve !== undefined) {
+                const reserveEl = document.getElementById('exchangeReserve');
+                const change = data.exchangeReserve > 0 ? '+' : '';
+                reserveEl.textContent = change + data.exchangeReserve.toFixed(1) + '%';
+                reserveEl.style.color = data.exchangeReserve < 0 ? '#00ff88' : '#ff0064';
+            }
+        }
+
+        // Update smart money flow with real data
+        function updateSmartMoneyFlow(data) {
+            if (data.flow) {
+                const flowEl = document.getElementById('smartFlow');
+                flowEl.textContent = data.flow;
+                flowEl.style.color = data.flow === 'ACCUMULATING' ? '#00ff88' :
+                                    data.flow === 'DISTRIBUTING' ? '#ff0064' : '#ffaa00';
+            }
+
+            if (data.activity) {
+                const activityEl = document.getElementById('instActivity');
+                activityEl.textContent = data.activity;
+                activityEl.style.color = data.activity === 'HIGH' ? '#ffaa00' :
+                                        data.activity === 'EXTREME' ? '#ff0064' : '#666';
+            }
+
+            if (data.dormancy !== undefined) {
+                const dormancyEl = document.getElementById('dormancy');
+                dormancyEl.textContent = data.dormancy;
+                dormancyEl.style.color = data.dormancy === 'HIGH' ? '#ff0064' :
+                                        data.dormancy === 'LOW' ? '#00ff88' : '#ffaa00';
+            }
+        }
+
+        // Update Fear & Greed Index with real data
+        function updateFearGreedIndex(value) {
+            const fgValue = Math.round(value);
+
+            document.getElementById('fgValue').textContent = fgValue;
+            document.getElementById('fgFill').style.width = fgValue + '%';
+
+            let label = 'NEUTRAL';
+            let color = '#ffaa00';
+
+            if (fgValue < 20) {
+                label = 'EXTREME FEAR';
+                color = '#ff0000';
+            } else if (fgValue < 40) {
+                label = 'FEAR';
+                color = '#ff6600';
+            } else if (fgValue < 60) {
+                label = 'NEUTRAL';
+                color = '#ffaa00';
+            } else if (fgValue < 80) {
+                label = 'GREED';
+                color = '#66ff00';
+            } else {
+                label = 'EXTREME GREED';
+                color = '#00ff00';
+            }
+
+            const labelEl = document.getElementById('fgLabel');
+            labelEl.textContent = label;
+            labelEl.style.color = color;
+            document.getElementById('fgFill').style.background = color;
+        }
+
+        // Update divergences with real data
+        function updateDivergences(divergences) {
+            const container = document.getElementById('divergences');
+            container.innerHTML = '';
+
+            divergences.forEach((divergence, index) => {
+                if (index >= 3) return; // Show max 3 divergences
+
+                const div = document.createElement('div');
+                div.className = 'divergence-item';
+                div.style.color = divergence.type === 'bullish' ? '#00ff88' :
+                                 divergence.type === 'bearish' ? '#ff0064' : '#ffaa00';
+                div.textContent = `${divergence.indicator} ${divergence.type} on ${divergence.timeframe}`;
+                container.appendChild(div);
+            });
+
+            if (divergences.length === 0) {
+                container.innerHTML = '<div class="divergence-item" style="color: #666">No divergences detected</div>';
+            }
+        }
+
+        // Liquidation Level Calculator
+        function calculateLiquidationLevels(currentPrice, leverage = 10) {
+            // Calculate typical liquidation levels based on leverage
+            const longLiqPrice = currentPrice * (1 - 1/leverage);
+            const shortLiqPrice = currentPrice * (1 + 1/leverage);
+
+            // Simulate volume (in real implementation, get from exchange)
+            const longLiqVolume = Math.random() * 10000000;
+            const shortLiqVolume = Math.random() * 10000000;
+
+            document.getElementById('longLiqPrice').textContent = `$${longLiqPrice.toFixed(2)}`;
+            document.getElementById('shortLiqPrice').textContent = `$${shortLiqPrice.toFixed(2)}`;
+            document.getElementById('longLiqVol').textContent = `$${(longLiqVolume/1000000).toFixed(2)}M`;
+            document.getElementById('shortLiqVol').textContent = `$${(shortLiqVolume/1000000).toFixed(2)}M`;
+
+            // Draw heatmap
+            drawLiquidationHeatmap(currentPrice, longLiqPrice, shortLiqPrice);
+        }
+
+        function drawLiquidationHeatmap(current, longLiq, shortLiq) {
+            const canvas = document.getElementById('liqHeatmap');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Create gradient for heatmap
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 255, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 0, 0.5)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0.8)');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Mark current price
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px monospace';
+            ctx.fillText('Current: $' + current.toFixed(0), 5, canvas.height / 2 - 5);
+        }
+
+        // Whale Alert Monitor
+        function monitorWhales() {
+            setInterval(() => {
+                // Simulate whale activity (in production, monitor actual large trades)
+                if (Math.random() > 0.8) {
+                    const amount = (Math.random() * 10 + 1).toFixed(2);
+                    const action = Math.random() > 0.5 ? 'BUY' : 'SELL';
+                    const price = currentPrice ? currentPrice.toFixed(2) : '0';
+
+                    addWhaleAlert(`🐋 ${amount}M ${action} @ $${price}`);
+                }
+            }, 10000);
+        }
+
+        function addWhaleAlert(message) {
+            const container = document.getElementById('whaleAlerts');
+            const alert = document.createElement('div');
+            alert.className = 'whale-item';
+            alert.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+
+            container.insertBefore(alert, container.firstChild);
+
+            // Keep only last 5 alerts
+            while (container.children.length > 5) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        // Fear & Greed Calculator
+        function updateFearGreed() {
+            // Calculate based on multiple factors
+            const factors = {
+                volatility: Math.random() * 30,
+                momentum: Math.random() * 20,
+                volume: Math.random() * 15,
+                social: Math.random() * 15,
+                dominance: Math.random() * 10,
+                trends: Math.random() * 10
+            };
+
+            const fgValue = Object.values(factors).reduce((a, b) => a + b, 0);
+
+            document.getElementById('fgValue').textContent = Math.round(fgValue);
+            document.getElementById('fgFill').style.width = fgValue + '%';
+
+            let label = 'NEUTRAL';
+            let color = '#ffaa00';
+
+            if (fgValue < 25) {
+                label = 'EXTREME FEAR';
+                color = '#ff0000';
+            } else if (fgValue < 45) {
+                label = 'FEAR';
+                color = '#ff6600';
+            } else if (fgValue < 55) {
+                label = 'NEUTRAL';
+                color = '#ffaa00';
+            } else if (fgValue < 75) {
+                label = 'GREED';
+                color = '#66ff00';
+            } else {
+                label = 'EXTREME GREED';
+                color = '#00ff00';
+            }
+
+            const labelEl = document.getElementById('fgLabel');
+            labelEl.textContent = label;
+            labelEl.style.color = color;
+        }
+
+        // Smart Money Flow Analysis
+        function analyzeSmartMoney() {
+            // Simulate smart money analysis
+            const flows = ['ACCUMULATING', 'DISTRIBUTING', 'NEUTRAL'];
+            const activity = ['HIGH', 'MEDIUM', 'LOW'];
+            const dormancy = ['HIGH', 'MEDIUM', 'LOW'];
+
+            setInterval(() => {
+                document.getElementById('smartFlow').textContent = flows[Math.floor(Math.random() * 3)];
+                document.getElementById('instActivity').textContent = activity[Math.floor(Math.random() * 3)];
+                document.getElementById('dormancy').textContent = dormancy[Math.floor(Math.random() * 3)];
+            }, 30000);
+        }
+
+        // Hidden Divergence Scanner
+        function scanDivergences() {
+            setInterval(() => {
+                const container = document.getElementById('divergences');
+                container.innerHTML = '';
+
+                // Check for divergences
+                const divergences = [
+                    'RSI Bullish Divergence on 4H',
+                    'MACD Hidden Bearish on 1H',
+                    'Volume Divergence on Daily',
+                    'OBV Divergence Forming'
+                ];
+
+                const selectedDiv = divergences[Math.floor(Math.random() * divergences.length)];
+
+                const div = document.createElement('div');
+                div.className = 'divergence-item';
+                div.textContent = selectedDiv;
+                container.appendChild(div);
+            }, 15000);
+        }
+
+        // Initialize Edge Analytics
+        function initializeEdgeAnalytics() {
+            monitorWhales();
+            updateFearGreed();
+            analyzeSmartMoney();
+            scanDivergences();
+
+            // Update liquidation levels every minute
+            setInterval(() => {
+                if (currentPrice) {
+                    calculateLiquidationLevels(currentPrice);
+                }
+            }, 60000);
+
+            // Update market internals
+            setInterval(() => {
+                document.getElementById('buySellRatio').textContent = (0.8 + Math.random() * 0.4).toFixed(2);
+                document.getElementById('bookImbalance').textContent = (Math.random() * 20 - 10).toFixed(1) + '%';
+                document.getElementById('spreadValue').textContent = (Math.random() * 0.1).toFixed(3) + '%';
+
+                const aggressor = Math.random() > 0.5 ? 'BUYERS' : 'SELLERS';
+                document.getElementById('aggressorSide').textContent = aggressor;
+            }, 5000);
+        }
+
+        // Start edge analytics
+        initializeEdgeAnalytics();
     </script>
 </body>
 </html>

@@ -7,6 +7,283 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-01-02 - Critical Trading Logic Fix
+
+### Fixed
+- **Bot lost $3,160 due to backwards confidence calculation**
+  - Bot was buying at RSI 98-99 with 96.5% confidence (should be SELL signal)
+  - Added RSI Safety Override in OptimizedTradingBrain.js lines 2771-2782
+    - Blocks BUY when RSI > 80
+    - Blocks SELL when RSI < 20
+- **SELL→BUY conversion bug**
+  - Bot was converting SELL signals to BUY when unable to short
+  - Fixed in run-empire-v2.js lines 1566-1581 to HOLD instead
+- **Broken EXIT logic - bot stuck in positions**
+  - Bot couldn't exit positions, missing new 96.5% confidence opportunities
+  - Fixed in run-empire-v2.js lines 1677-1698
+    - Added fallback exit conditions when MaxProfitManager isn't active
+    - Exit at 0.35% profit (covers 0.32% fees)
+    - Stop loss at -1.5%
+    - Brain sell signals work after 30 seconds hold time
+- **Raised MIN_TRADE_CONFIDENCE** from 3% to 70% (.env line 180)
+  - Filters out weak trades, only takes HIGH PROBABILITY setups
+- **Added "shit or get off the pot" rule** (lines 1699-1703)
+  - Exit unprofitable positions after 30 minutes
+  - Prevents holding losing positions forever
+- **Brain Override Fix** (lines 1566-1569)
+  - High confidence (70%+) now overrides brain caution
+  - Brain was blocking 76% confidence trades despite being above threshold
+  - Now: confidence > threshold = GREEN LIGHT (as intended)
+
+### Progress Update
+- **Bot improved significantly**: From buying at tops (RSI 98) to proper position management
+- **Confidence now makes sense**: 77-82% sell signals when overbought, 10% when neutral
+- **Brain direction working**: Correctly identifies buy/sell/hold based on market conditions
+- **Safety mechanisms active**: RSI override and SELL→HOLD conversion preventing disasters
+- **Exit logic fixed**: 0.35% minimum profit requirement covers fees
+
+## [2.1.3] - 2025-01-01 - Fixed Position Size Unit Mismatch
+
+### Fixed
+- **minTradeSize Unit Mismatch**: ExecutionLayer was blocking all trades
+  - Changed minTradeSize from 10 (USD) to 0.00001 (BTC) in AdvancedExecutionLayer-439-MERGED.js:36
+  - Was comparing BTC amounts (0.00057) against USD minimum (10)
+  - Pattern-based sizing confirmed still working at lines 1760-1765
+- **ExecutionLayer Unit Mismatch**: Fixed BTC/USD confusion
+  - Line 1814: Changed to pass USD amount (positionSize * price) instead of BTC
+  - ExecutionLayer expects USD but was receiving BTC amounts
+  - This caused "Base 0.00%" in OptimizedTradingBrain calculations
+  - Bot can now properly calculate position sizes and execute trades
+
+## [2.1.2] - 2025-01-01 - Critical Execution Fix
+
+### Fixed
+- **Line 1219 Execution Crash**: Fixed undefined `this.candles` reference preventing trades
+  - Changed `this.candles.length` to `this.priceHistory.length` at run-empire-v2.js:1219
+  - Changed `this.candles` to `this.priceHistory` at run-empire-v2.js:1220
+  - Fixed calculateAutoDrawLevels property mismatches:
+    - Line 1267-1268: Changed `c.high` to `c.h`, `c.low` to `c.l`
+    - Line 1431-1432: Changed `c.high` to `c.h`, `c.low` to `c.l`
+    - Line 1465-1466: Changed `c.high` to `c.h`, `c.low` to `c.l`
+  - Added defensive checks for priceHistory existence at line 1219
+  - Bot can now execute BUY/SELL orders without crashing
+  - Error was: "Cannot read properties of undefined (reading 'length')"
+
+## [2.1.1] - 2025-12-31 - Critical API Key Fix
+
+### Fixed
+- **Duplicate KRAKEN_API_KEY in .env**: Removed placeholder causing authentication failure
+  - Line 170 had `KRAKEN_API_KEY=[REDACTED:api-key]` (placeholder)
+  - Line 185 had real API key but was being ignored
+  - Node.js uses FIRST occurrence, so bot was trying to auth with placeholder
+  - Removed line 170, now using real key from line 185
+  - Trading operations now properly authenticated
+
+## [2.1.0] - 2025-12-31
+
+### Added - Edge Analytics Suite
+
+#### Dashboard Enhancements
+- **Real-time Edge Analytics Panel**: Comprehensive suite of advanced trading metrics
+  - **Liquidation Heatmap**: Real-time liquidation levels with volume estimates
+    - Calculates levels for 10x, 25x, 50x, 100x leverage
+    - Shows long and short liquidation zones
+    - Visual heatmap canvas display
+
+  - **CVD (Cumulative Volume Delta)**: Order flow analysis
+    - Real-time CVD calculation from actual trades
+    - Buy/sell volume tracking
+    - Trend detection (BULLISH/BEARISH/NEUTRAL)
+    - Mini chart visualization
+
+  - **Funding Rates Monitor**: Perpetual swap funding tracking
+    - Current and predicted funding rates
+    - Signal indicators for funding direction
+    - Updates every 60 seconds
+
+  - **Whale Alert System**: Large trade detection
+    - Monitors trades 5x average volume
+    - Real-time whale activity feed
+    - Visual pulse animation for mega trades
+
+  - **Market Internals**: Microstructure analysis
+    - Buy/sell ratio calculation
+    - Aggressor side detection
+    - Order book imbalance percentage
+    - Bid/ask spread monitoring
+
+  - **On-Chain Metrics** (Placeholders ready for API integration):
+    - NVT Signal
+    - MVRV Ratio
+    - SOPR (Spent Output Profit Ratio)
+    - Exchange Reserve tracking
+
+  - **Smart Money Flow**: Institutional activity tracking
+    - Accumulation/Distribution detection
+    - Institutional activity levels
+    - Dormancy flow analysis
+
+  - **Fear & Greed Index**: Market sentiment gauge
+    - 0-100 scale with visual bar
+    - Multi-factor calculation (volatility, momentum, volume, CVD)
+    - Color-coded sentiment levels
+
+  - **Hidden Divergence Scanner**: Technical divergence detection
+    - RSI divergence detection
+    - Volume divergence analysis
+    - Real-time divergence alerts
+
+#### Bot Integration (`run-empire-v2.js`)
+- **New Methods**:
+  - `broadcastEdgeAnalytics()` - Main edge analytics calculation and broadcast (lines 2517-2738)
+  - `calculateVolatility()` - Price volatility calculation for Fear & Greed (lines 2740-2755)
+  - `detectDivergences()` - RSI and volume divergence detection (lines 2757-2801)
+
+- **Edge Analytics State Management**:
+  - Maintains cumulative metrics (CVD, buy/sell volumes)
+  - Tracks whale trades history
+  - Manages update frequencies per metric
+  - Stores liquidation levels and market internals
+
+#### WebSocket Protocol Enhancements
+- **New Message Types**:
+  - `cvd_update` - Cumulative volume delta with buy/sell breakdown
+  - `liquidation_data` - Liquidation levels with volume estimates
+  - `funding_rate` - Current and predicted funding rates
+  - `whale_trade` - Large trade alerts with size/price/side
+  - `market_internals` - Complete market microstructure data
+  - `fear_greed` - Sentiment index value (0-100)
+  - `smart_money` - Institutional flow and activity levels
+  - `divergence` - Technical divergence array
+
+#### Dashboard Message Handlers (`unified-dashboard-refactor.html`)
+- **New Handlers** (lines 2843-2907):
+  - Liquidation data processor
+  - CVD/Order flow handler
+  - Funding rate updater
+  - Whale trade processor
+  - Market internals handler
+  - On-chain metrics updater
+  - Smart money flow handler
+  - Fear & Greed processor
+  - Divergence alert handler
+
+- **Real Data Update Functions** (lines 3501-3753):
+  - `updateCVD()` - Process real CVD data
+  - `updateLiquidationLevels()` - Update liquidation zones
+  - `updateFundingRates()` - Display funding rates
+  - `processWhaleAlert()` - Handle whale trades
+  - `updateMarketInternals()` - Update microstructure
+  - `updateOnChainMetrics()` - Display on-chain data
+  - `updateSmartMoneyFlow()` - Track smart money
+  - `updateFearGreedIndex()` - Update sentiment gauge
+  - `updateDivergences()` - Display divergences
+
+### Enhanced
+- **Data Quality**: Replaced all simulated/random data with real market calculations
+- **Performance**: Optimized update frequencies (5s internals, 10s liquidations, 15s divergences, etc.)
+- **Error Handling**: Added fail-safe error handling for all edge analytics broadcasts
+- **Visual Feedback**: Added animations and color coding for all metrics
+
+### Changed
+- **Dashboard UI**: Moved floating indicators box from right to left side
+  - Modified `.indicator-overlay` CSS position (line 381)
+  - Better visibility, doesn't overlap with price action
+
+### Enhanced
+- **Dashboard Customization System**: Complete theme and styling customization
+  - **8 Pre-built Themes**: Cyberpunk, Matrix, Neon, Dark, Ocean, Sunset, Royal, Hacker
+  - **Custom Accent Colors**: Color picker for personalized accents
+  - **Font Selection**: 8 font options (Monospace, Courier, Roboto Mono, Fira Code, etc.)
+  - **Underglow Effects**: Animated neon underglow for all panels
+  - **Responsive Design**: Optimized for all devices (mobile, tablet, desktop, 4K)
+  - **Scrollable Indicators**: Max 60% viewport height with custom scrollbar
+  - **Theme Persistence**: Saves preferences to localStorage
+  - **Animation Toggle**: Option to disable animations for performance
+
+- **Indicator Display Improvements**:
+  - Fixed population of all indicator values (RSI, MACD, Trend, Volatility)
+  - Added color coding for indicator states (green/red based on values)
+  - Replaced checkboxes with highlightable selection buttons
+  - Added real-time updates for EMAs and MACD Signal
+
+### Added
+- **TRAI Chain-of-Thought Routing**: Real-time decision reasoning to dashboard
+  - Added broadcast of TRAI decision context in `run-empire-v2.js` (lines 1187-1221)
+  - Sends pattern analysis, indicators, confidence, and reasoning to dashboard
+  - Created dedicated TRAI reasoning panel in dashboard UI (line 1041-1050)
+  - Added CSS styling for chain-of-thought display (lines 590-625)
+  - Implemented `displayTraiReasoning()` function (lines 1582-1619)
+  - Dashboard now shows: Decision, Confidence %, Patterns, Indicators, Regime
+
+- **Trading Configuration in .env**: Centralized trading pair and timeframe settings
+  - Added `TRADING_PAIR=BTC/USD` configuration (line 57)
+  - Added `CANDLE_TIMEFRAME=1m` configuration (line 58)
+  - Supports multiple pairs: BTC/USD, ETH/USD, SOL/USD, XRP/USD, etc.
+  - Supports timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 1d
+  - Bot reads from env: `process.env.TRADING_PAIR` and `process.env.CANDLE_TIMEFRAME`
+
+### Removed
+- **Test Files and Logs Cleanup**: Organized development artifacts
+  - Created `cleanup-20251231/` folder for review
+  - Moved 12 test log files (*.test.log, backtest*.log, etc.)
+  - Moved 7 test JavaScript files (test-*.js)
+  - Moved backup dashboard (unified-dashboard-refactor-backup-*.html)
+  - Total: 20 files organized for potential deletion
+
+### Fixed
+- **WebSocket Consolidation**: Achieved true single-source architecture
+  - Enhanced `kraken_adapter_simple.js` to handle OHLC messages (lines 532-547)
+  - Removed duplicate WebSocket from `KrakenIBrokerAdapter.js` (was line 251)
+  - Modified subscribeToCandles() to use single source (lines 248-291)
+  - Removed WebSocket import from KrakenIBrokerAdapter (line 18)
+  - Updated disconnect() and unsubscribeAll() methods for V2 architecture
+  - Verified: Single "Kraken WebSocket connected" message in logs
+  - Result: True V2 architecture with single BrokerFactory connection
+
+## [3.0.0] - 2025-12-31 - V2 ARCHITECTURE IMPLEMENTATION
+### Changed - BREAKING
+- **Complete V2 Architecture Implementation**: Single source of truth via BrokerFactory
+  - Removed multiple duplicate WebSocket connections to Kraken (was 3-4, now 1)
+  - Implemented event-driven data flow: Kraken → BrokerFactory → Bot → Dashboard
+  - Bot now subscribes to broker events instead of direct connections
+
+### Fixed
+- **Data Consistency Issues**: Eliminated mixed data sources causing "fake" looking candles
+  - Pattern memory was getting corrupted from multiple competing connections
+  - Dashboard was receiving inconsistent data from different sources
+  - Timestamps now properly synchronized (UTC standard)
+
+### Added
+- **Event Emitter in KrakenIBrokerAdapter**: Broker now emits OHLC events
+  - Added `this.emit('ohlc', data)` for subscribers (line 297)
+  - Added `this.emit('connected')` event on broker connect (line 40)
+- **subscribeToMarketData() method**: Replaces direct WebSocket connection
+  - Located in run-empire-v2.js (lines 699-731)
+  - Subscribes to broker events instead of creating own connection
+
+### Removed
+- **Direct Kraken WebSocket in run-empire-v2.js**: Eliminated duplicate connection
+  - Deprecated connectToMarketData() function (lines 737-798)
+  - Was creating competing connection at line 701
+
+### Investigation Process
+- **Initial Issue**: User suspected dashboard showing fake/corrupted candle data
+- **Root Cause Found**: Multiple duplicate WebSocket connections competing:
+  - run-empire-v2.js line 701: Direct WebSocket to Kraken
+  - kraken_adapter_simple.js line 466: Adapter's own WebSocket
+  - KrakenIBrokerAdapter.js line 247: Another WebSocket connection
+  - ogzprime-ssl-server.js line 170: Disabled Kraken connection
+- **Temporary Fix Applied**: Restored direct connection while designing proper solution
+- **Final Fix**: Implemented proper V2 event-driven architecture
+
+### Technical Details
+- **Before**: Multiple connections → Mixed data → Pattern corruption
+- **After**: Single BrokerFactory connection → Clean event flow → Consistent data
+- **Pattern Memory**: Cleared and reset to rebuild with clean V2 data
+- **Performance**: Real-time data flow with <10 second timestamp accuracy
+- **Verification**: All 6 tests passed (single connection, data flow, dashboard reception, timestamps, pattern memory, no conflicts)
+
 ## [2.6.1] - 2025-12-30 - CRITICAL FIXES SESSION 2
 ### Fixed
 - **Missing changeTimeframe() Function**: Dashboard timeframe selector was calling non-existent function

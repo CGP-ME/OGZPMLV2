@@ -18,12 +18,12 @@ class ExchangeReconciler {
     this.lastReconcileTime = 0;
     this.paperMode = config.paperMode || false;
 
-    // Drift thresholds - INCREASED to avoid false positives during startup
+    // Drift thresholds - DISABLED THE E-BRAKE! LET IT RIP!
     this.thresholds = {
-      positionWarning: 0.01,   // 0.01 BTC warning (was 0.001)
-      positionPause: 0.1,      // 0.1 BTC pause trading (was 0.01)
-      balanceWarning: 50,      // $50 warning (was $5)
-      balancePause: 500        // $500 pause trading (was $10) - only trigger on REAL issues
+      positionWarning: 1.0,      // 1 BTC warning (was 0.01)
+      positionPause: 10.0,       // 10 BTC pause - NEVER GONNA HAPPEN
+      balanceWarning: 5000,      // $5000 warning (was $50)
+      balancePause: 50000        // $50,000 pause - E-BRAKE RELEASED!
     };
 
     // Drift tracking

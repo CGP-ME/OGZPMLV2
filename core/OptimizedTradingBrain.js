@@ -2768,6 +2768,19 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       console.log(`   ⚠️ Direction: NEUTRAL (neither exceeded 15% threshold, keeping base ${(confidence * 100).toFixed(1)}%)`);
     }
 
+    // CRITICAL FIX: RSI Safety Override - prevent buying at tops and selling at bottoms
+    if (marketData && marketData.indicators && marketData.indicators.rsi) {
+      if (marketData.indicators.rsi > 80 && direction === 'buy') {
+        console.log(`🚫 RSI SAFETY: Blocking BUY at RSI ${marketData.indicators.rsi.toFixed(1)} (>80) - preventing top buying!`);
+        direction = 'hold';
+        finalConfidence = 0;
+      } else if (marketData.indicators.rsi < 20 && direction === 'sell') {
+        console.log(`🚫 RSI SAFETY: Blocking SELL at RSI ${marketData.indicators.rsi.toFixed(1)} (<20) - preventing bottom selling!`);
+        direction = 'hold';
+        finalConfidence = 0;
+      }
+    }
+
     // --- ultra-minimal bars (toggle with DEBUG_AGG=1) ---
     if (process.env.DEBUG_AGG === '1') {
       const base = confidence;

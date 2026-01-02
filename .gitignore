@@ -102,3 +102,9 @@ pattern_memory.backup.json
 
 # Profile data
 profiles/trading/*.json
+
+# Temporary and large files
+backups/
+cleanup-*/
+*.tar.gz
+*.zip

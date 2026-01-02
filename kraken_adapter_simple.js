@@ -468,8 +468,9 @@ class KrakenAdapterSimple {
       this.ws.on('open', () => {
         console.log('✅ Kraken WebSocket connected');
 
-        // Subscribe to BTC-USD ticker
-        const subscription = {
+        // V2 ARCHITECTURE FIX: Single source subscribes to ALL data types
+        // Subscribe to both ticker AND OHLC data
+        const tickerSub = {
           event: 'subscribe',
           pair: ['XBT/USD'],  // Kraken uses XBT for Bitcoin
           subscription: {
@@ -477,8 +478,18 @@ class KrakenAdapterSimple {
           }
         };
 
-        this.ws.send(JSON.stringify(subscription));
-        console.log('📊 Subscribed to BTC-USD ticker stream');
+        const ohlcSub = {
+          event: 'subscribe',
+          pair: ['XBT/USD'],
+          subscription: {
+            name: 'ohlc',
+            interval: 1  // 1-minute candles for patterns
+          }
+        };
+
+        this.ws.send(JSON.stringify(tickerSub));
+        this.ws.send(JSON.stringify(ohlcSub));
+        console.log('📊 V2 FIX: Single KrakenAdapter subscribed to ticker + OHLC streams');
       });
 
       this.ws.on('message', (data) => {
@@ -514,6 +525,23 @@ class KrakenAdapterSimple {
                   timestamp: Date.now(),
                   source: 'kraken'
                 }
+              });
+            }
+          }
+
+          // V2 ARCHITECTURE: Handle OHLC data
+          if (Array.isArray(msg) && msg[2] === 'ohlc-1') {
+            // OHLC data format: [channelID, ohlcArray, channelName, pair]
+            const ohlcData = msg[1];
+            const pair = msg[3];
+
+            // Emit raw OHLC for KrakenIBrokerAdapter
+            if (onPriceUpdate) {
+              onPriceUpdate({
+                type: 'ohlc',
+                data: ohlcData,
+                pair: pair,
+                timestamp: Date.now()
               });
             }
           }
