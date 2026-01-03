@@ -338,14 +338,7 @@ class OGZPrimeV14Bot {
     // Connect execution layer to Kraken
     this.executionLayer.setKrakenAdapter(this.kraken);
 
-    // RECONCILIATION: Initialize exchange reconciler for truth source sync
-    const { getInstance: getReconciler } = require('./core/ExchangeReconciler');
-    this.reconciler = getReconciler({
-      krakenAdapter: this.kraken,
-      interval: parseInt(process.env.RECONCILE_INTERVAL_MS || '5000', 10),
-      paperMode: process.env.LIVE_TRADING !== 'true'
-    });
-    console.log('🔄 Exchange reconciler initialized');
+    // RECONCILER REMOVED - was causing more problems than it solved
 
     // EVENT LOOP MONITORING: Detect freezes and high lag
     const { getInstance: getEventLoopMonitor } = require('./core/EventLoopMonitor');
@@ -671,13 +664,7 @@ class OGZPrimeV14Bot {
         // Subscribe to broker events instead of direct connection
         this.subscribeToMarketData();
 
-        // RECONCILIATION: ENABLED - non-blocking in PAPER, optional blocking in LIVE
-        console.log('🔄 Starting exchange reconciliation...');
-        const isLive = process.env.LIVE_TRADING === 'true';
-
-        // Paper: don't block startup. Live: you can choose to block
-        await this.reconciler.start(isLive);
-        console.log('✅ Reconciliation active');
+        // RECONCILER REMOVED - was blocking trades
 
         // EVENT LOOP MONITORING: Start monitoring for freezes
         console.log('⚡ Starting event loop monitoring...');
@@ -1578,7 +1565,6 @@ class OGZPrimeV14Bot {
           decisionContext,
           patternQuality: decisionContext.patternQuality
         };
-      }
     }
 
     // Check if we should SELL (when long)

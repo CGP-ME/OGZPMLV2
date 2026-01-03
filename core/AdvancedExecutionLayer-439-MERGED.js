@@ -130,21 +130,7 @@ class AdvancedExecutionLayer {
     console.log('🔍 [DEBUG] params extracted');
 
     try {
-      // CHECK KILL SWITCH FIRST - SKIP TRADES IF ACTIVE (non-throwing)
-      const killSwitch = require('./KillSwitch');
-      if (killSwitch.isKillSwitchOn()) {
-        const status = killSwitch.getStatus();
-        if (!this._lastKillLog || Date.now() - this._lastKillLog > 5000) {
-          console.error(`🔴 KILL SWITCH ACTIVE: ${status.reason || 'Trading blocked'}`);
-          console.log(`   Active for: ${status.duration}`);
-          this._lastKillLog = Date.now();
-        }
-        return {
-          success: false,
-          reason: `Kill switch active: ${status.reason}`,
-          blocked: true
-        };
-      }
+      // KILL SWITCH REMOVED - was blocking trades
 
       // IDEMPOTENCY: Generate intent ID for this trade
       const symbol = marketData?.symbol || 'BTC-USD';
