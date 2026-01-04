@@ -200,7 +200,12 @@ class OGZPrimeV14Bot {
       tier: this.tier,
 
       // Phase 1: High-priority risk management (env vars ONLY)
-      minConfidenceThreshold: parseFloat(process.env.MIN_TRADE_CONFIDENCE) || 0.08,
+      // CHANGE 661: Fix percentage conversion (15 → 0.15, not 15.0)
+      minConfidenceThreshold: process.env.MIN_TRADE_CONFIDENCE
+        ? (parseFloat(process.env.MIN_TRADE_CONFIDENCE) > 1
+          ? parseFloat(process.env.MIN_TRADE_CONFIDENCE) / 100
+          : parseFloat(process.env.MIN_TRADE_CONFIDENCE))
+        : 0.08,
       maxRiskPerTrade: parseFloat(process.env.MAX_RISK_PER_TRADE) || 0.02,
       stopLossPercent: parseFloat(process.env.STOP_LOSS_PERCENT) || 0.02,
       takeProfitPercent: parseFloat(process.env.TAKE_PROFIT_PERCENT) || 0.04,

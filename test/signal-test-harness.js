@@ -197,43 +197,49 @@ const SCENARIOS = {
   },
 
   // TPO at value area high - sell zone
+  // Candles start AFTER the top, showing clear downtrend
   tpo_sell: {
-    name: 'TPO Value Area High',
-    description: 'Price at value area high with rejection',
+    name: 'TPO Value Area High - Post Reversal',
+    description: 'Price rejected from VAH, now in confirmed downtrend',
     expectedSignal: 'SELL',
     generate: () => {
       const candles = [];
-      const baseTime = Date.now() - (120 * 60000);
-      let price = 88000;
+      const baseTime = Date.now() - (100 * 60000);
+      let price = 92000; // Start at the top
 
-      // Build value area around 89000-89500
-      for (let i = 0; i < 60; i++) {
-        const target = 89250;
-        const drift = (target - price) * 0.1 + (Math.random() - 0.5) * 100;
+      // Phase 1: Topping pattern (candles 0-20) - indecision at highs
+      for (let i = 0; i < 20; i++) {
+        const drift = (Math.random() - 0.5) * 60; // Tight range
+        candles.push(makeCandle(baseTime + i * 60000, price, drift, 50));
         price += drift;
-        candles.push(makeCandle(baseTime + i * 60000, price, drift, 80));
       }
 
-      // Rally to VAH (candles 60-80)
-      for (let i = 60; i < 80; i++) {
-        const gain = 50 + Math.random() * 30;
+      // Phase 2: First rejection (candles 20-35) - bearish engulfing
+      for (let i = 20; i < 35; i++) {
+        const drop = 80 + Math.random() * 40;
+        price -= drop;
+        candles.push(makeCandle(baseTime + i * 60000, price, -drop, 150)); // High volume selling
+      }
+
+      // Phase 3: Dead cat bounce (candles 35-45) - weak rally
+      for (let i = 35; i < 45; i++) {
+        const gain = 30 + Math.random() * 20;
         price += gain;
-        if (price > 90000) price = 90000; // VAH ceiling
-        candles.push(makeCandle(baseTime + i * 60000, price, gain, 60));
+        candles.push(makeCandle(baseTime + i * 60000, price, gain, 40)); // Low volume bounce
       }
 
-      // Rejection at VAH (candles 80-90)
-      for (let i = 80; i < 85; i++) {
-        const rejection = i < 83 ? 30 : -80;
-        price += rejection;
-        candles.push(makeCandle(baseTime + i * 60000, price, rejection, 180));
+      // Phase 4: Continuation down (candles 45-70) - TREND CONFIRMED
+      for (let i = 45; i < 70; i++) {
+        const drop = 100 + Math.random() * 60;
+        price -= drop;
+        candles.push(makeCandle(baseTime + i * 60000, price, -drop, 180)); // Accelerating selling
       }
 
-      // Breakdown from VAH (candles 85-100)
-      for (let i = 85; i < 100; i++) {
+      // Phase 5: Sustained downtrend (candles 70-100)
+      for (let i = 70; i < 100; i++) {
         const drop = 60 + Math.random() * 40;
         price -= drop;
-        candles.push(makeCandle(baseTime + i * 60000, price, -drop, 140));
+        candles.push(makeCandle(baseTime + i * 60000, price, -drop, 120));
       }
 
       return { candles };
