@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **PreviousDayRangeStrategy** - run-empire-v2.js
+  - Removed broken PDR strategy (lines 1065-1107, 1204-1239)
+  - Strategy was using wrong candle property names: `c.high/c.low/c.close` instead of `c.h/c.l/c.c`
+  - Import, initialization, update block, override block, and confluence logic all removed
+  - TPO override logic retained (working correctly)
+  - Will be re-implemented when user provides correct math/specs
+  - Files affected:
+    - `run-empire-v2.js`: Removed ~80 lines of broken PDR code
+    - `core/PreviousDayRangeStrategy.js`: File exists but no longer imported
+
+### Fixed
+- **Silent killer: resumeTrading() never called** - run-empire-v2.js:774
+  - Added `stateManager.resumeTrading()` when fresh data restored
+  - Without this, bot permanently paused after any stale feed event
+  - **Before:** Bot would pause on stale data, never resume
+  - **After:** Bot resumes trading when feed recovers
+
+- **Discord .toFixed on undefined** - utils/discordNotifier.js:205
+  - Fixed `pnl.toFixed(2)` crash when pnl is null/undefined
+  - Added proper type check: `typeof pnl === 'number' && !isNaN(pnl)`
+
+- **Stale data detection rewrite** - run-empire-v2.js:747-775
+  - Changed from tracking "last data arrival time" to checking "data age via etime"
+  - Uses exchange timestamp (`etime`) to detect truly stale data
+  - Threshold: 2 minutes (data older than 2min = stale)
+  - Properly calls resumeTrading() on recovery
+
+### Added
+- **TEST_MODE** - run-empire-v2.js:412-428
+  - New mode for testing signals without corrupting pattern base
+  - Set `TEST_MODE=true` to enable
+  - Patterns still used for decisions but NOT saved
+  - Optional `TEST_CONFIDENCE=75` to inject fake confidence
+  - Protects pattern base during development/debugging
+
 ## [2.7.0] - 2025-01-02
 
 ### Fixed

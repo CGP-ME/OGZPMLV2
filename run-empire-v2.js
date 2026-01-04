@@ -361,8 +361,7 @@ class OGZPrimeV14Bot {
     this.marketData = null;
     this.priceHistory = [];
 
-    // Stale feed tracking
-    this.lastDataTime = 0;
+    // Stale data tracking
     this.staleFeedPaused = false;
     this.feedRecoveryCandles = 0;
     // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
@@ -410,6 +409,7 @@ class OGZPrimeV14Bot {
     // MODE DETECTION: Paper, Live, or Backtest (MUTUAL EXCLUSION)
     const enableLiveTrading = process.env.LIVE_TRADING === 'true';
     const enableBacktestMode = process.env.BACKTEST_MODE === 'true';
+    const enableTestMode = process.env.TEST_MODE === 'true';  // Signal testing without pattern corruption
 
     // Enforce mutual exclusion: Only ONE mode can be active
     if (enableLiveTrading && enableBacktestMode) {
@@ -420,6 +420,14 @@ class OGZPrimeV14Bot {
     let tradingMode = 'PAPER';
     if (enableLiveTrading) tradingMode = 'LIVE';
     if (enableBacktestMode) tradingMode = 'BACKTEST';
+    if (enableTestMode) {
+      tradingMode = 'TEST';
+      console.log('🧪 TEST MODE ACTIVATED:');
+      console.log('   ✅ Patterns will NOT be saved');
+      console.log('   ✅ Trades are simulated');
+      console.log('   ✅ To inject signal: Set TEST_CONFIDENCE env var (0-100)');
+      console.log('   ✅ Example: TEST_CONFIDENCE=75 npm start');
+    }
 
     this.config = {
       // CHANGE 632: Fix MIN_TRADE_CONFIDENCE parsing - accept percentage or decimal
@@ -511,7 +519,7 @@ class OGZPrimeV14Bot {
    * OPTIONAL - only connects if WS_HOST is set
    */
   initializeDashboardWebSocket() {
-    // Bot connects locally on port 3010 with /ws path (ogzprime-ssl-server)
+    // Bot connects to WebSocket relay on port 3010
     const wsUrl = process.env.WS_URL || 'ws://localhost:3010/ws';
 
     console.log(`\n📊 Connecting to Dashboard WebSocket at ${wsUrl}...`);
@@ -736,40 +744,35 @@ class OGZPrimeV14Bot {
 
     const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
 
-    // STALE FEED DETECTION: Track last data time
+    // STALE DATA DETECTION: Check if DATA ITSELF is old (not arrival time)
     const now = Date.now();
-    if (this.lastDataTime) {
-      const feedAge = now - this.lastDataTime;
+    const dataAge = now - (etime * 1000); // etime is in SECONDS, convert to milliseconds
 
-      // Check for stale feed (>90 seconds - increased from 30 for poor network conditions)
-      if (feedAge > 90000) {
-        console.error('🚨 STALE FEED DETECTED:', Math.round(feedAge / 1000), 'seconds');
+    // If data is more than 2 minutes old, it's stale
+    if (dataAge > 120000) {
+      console.error('🚨 STALE DATA:', Math.round(dataAge / 1000), 'seconds old');
 
-        // AUTO-PAUSE TRADING
-        if (!this.staleFeedPaused) {
-          console.error('⏸️ PAUSING NEW ENTRIES DUE TO STALE FEED');
-          this.staleFeedPaused = true;
+      // AUTO-PAUSE TRADING
+      if (!this.staleFeedPaused) {
+        console.error('⏸️ PAUSING NEW ENTRIES DUE TO STALE DATA');
+        this.staleFeedPaused = true;
 
-          // Notify StateManager to pause
-          try {
-            const { getInstance: getStateManager } = require('./core/StateManager');
-            const stateManager = getStateManager();
-            stateManager.pauseTrading(`Stale feed: ${Math.round(feedAge / 1000)}s`);
-          } catch (error) {
-            console.error('Failed to pause via StateManager:', error.message);
-          }
+        // Notify StateManager to pause
+        try {
+          const { getInstance: getStateManager } = require('./core/StateManager');
+          const stateManager = getStateManager();
+          stateManager.pauseTrading(`Stale data: ${Math.round(dataAge / 1000)}s old`);
+        } catch (error) {
+          console.error('Failed to pause via StateManager:', error.message);
         }
-      } else if (feedAge > 5000) {
-        // Warning for delayed feed
-        console.warn('⚠️ Feed delay:', Math.round(feedAge / 1000), 'seconds');
-      } else if (this.staleFeedPaused && feedAge < 2000) {
-        // Feed recovered - wait 2 candles before resuming
-        console.log('✅ Feed recovered, will resume after 2 candles');
-        this.staleFeedPaused = false;
-        this.feedRecoveryCandles = 0;
       }
+    } else if (this.staleFeedPaused && dataAge < 30000) {
+      // Data is fresh again - resume
+      console.log('✅ Fresh data restored, resuming');
+      this.staleFeedPaused = false;
+      this.feedRecoveryCandles = 0;
+      stateManager.resumeTrading();
     }
-    this.lastDataTime = now;
 
     let price = parseFloat(close);
     if (!price || isNaN(price)) return;
@@ -1001,17 +1004,22 @@ class OGZPrimeV14Bot {
 
         // Record pattern for learning - always pass features array
         // Never fall back to signature (which is a string)
-        this.patternChecker.recordPatternResult(featuresForRecording, {
-          detected: true,
-          confidence: pattern.confidence || 0.1,
-          timestamp: Date.now(),
-          price: this.marketData.price || 0,
-          indicators: {
+        // Skip pattern saving in TEST mode
+        if (this.config.tradingMode !== 'TEST') {
+          this.patternChecker.recordPatternResult(featuresForRecording, {
+            detected: true,
+            confidence: pattern.confidence || 0.1,
+            timestamp: Date.now(),
+            price: this.marketData.price || 0,
+            indicators: {
             rsi: indicators.rsi,
             macd: indicators.macd?.macd || 0,
             trend: indicators.trend
           }
         });
+      } else {
+        console.log('🧪 TEST MODE: Skipping pattern save - preserving pattern base integrity');
+      }
 
         // TELEMETRY: Log pattern detection event
         telemetry.event('pattern_detected', {
@@ -1044,10 +1052,18 @@ class OGZPrimeV14Bot {
       });
 
       if (tpoResult.signal) {
-        console.log(`🎯 OGZ TPO Signal: ${tpoResult.signal.action} (${tpoResult.signal.zone})`);
-        // Dynamic levels available at: tpoResult.signal.levels.stopLoss / .takeProfit
+        console.log(`\n🎯 OGZ TPO Signal: ${tpoResult.signal.action} (${tpoResult.signal.zone})`);
+        console.log(`   Strength: ${(tpoResult.signal.strength * 100).toFixed(2)}%`);
+        console.log(`   High Probability: ${tpoResult.signal.highProbability ? '⭐ YES' : 'NO'}`);
+        if (tpoResult.signal.levels) {
+          console.log(`   SL: $${tpoResult.signal.levels.stopLoss.toFixed(2)}`);
+          console.log(`   TP: $${tpoResult.signal.levels.takeProfit.toFixed(2)}`);
+        }
       }
     }
+
+    // NOTE: PreviousDayRangeStrategy removed (was using wrong property names c.high vs c.h)
+    // Will be re-implemented with correct math when user provides specs
 
     // 📡 Broadcast pattern analysis to dashboard
     this.broadcastPatternAnalysis(patterns, indicators);
@@ -1096,7 +1112,16 @@ class OGZPrimeV14Bot {
       // Let the SELL proceed instead of converting to HOLD
     }
 
-    const rawConfidence = brainDecision.confidence;
+    // TEST MODE: Use patterns for decisions but DON'T save new patterns
+    let rawConfidence = brainDecision.confidence;
+    if (this.config.tradingMode === 'TEST') {
+      console.log(`🧪 TEST MODE: Using EXISTING patterns (${patterns.length} found) but NOT saving new ones`);
+      if (process.env.TEST_CONFIDENCE) {
+        const testConfidence = parseFloat(process.env.TEST_CONFIDENCE);
+        rawConfidence = testConfidence / 100;
+        console.log(`🧪 Override confidence: ${testConfidence}% (was ${(brainDecision.confidence * 100).toFixed(1)}%)`);
+      }
+    }
 
     const confidenceData = {
       totalConfidence: rawConfidence * 100
@@ -1172,10 +1197,42 @@ class OGZPrimeV14Bot {
     const cleanPrice = Math.round(price).toLocaleString();
     console.log(`\n📊 $${cleanPrice} | Conf: ${confidenceData.totalConfidence.toFixed(0)}% | RSI: ${Math.round(indicators.rsi)} | ${indicators.trend} | ${regime.currentRegime || 'analyzing'}`);
 
+    // CHECK FOR STRONG INDICATOR SIGNALS (TPO) THAT CAN OVERRIDE
+    let overrideSignal = null;
+    let signalSource = null;
+
+    // Check if TPO has a high-probability signal
+    if (tpoResult && tpoResult.signal && tpoResult.signal.highProbability) {
+      console.log(`\n⚡ TPO Override: High probability ${tpoResult.signal.zone} signal`);
+
+      if (tpoResult.signal.strength > 0.03) {
+        overrideSignal = tpoResult.signal;
+        signalSource = 'TPO';
+        tradingDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
+      }
+    }
+
     // CHANGE 639: Pass TradingBrain's direction to makeTradeDecision
     // Bug: When TRAI disabled, TradingBrain's 'sell' signal was ignored
     // Fix: Pass tradingDirection so makeTradeDecision respects TradingBrain
     const decision = this.makeTradeDecision(confidenceData, indicators, patterns, price, tradingDirection);
+
+    // Add override signal info to decision
+    if (overrideSignal && decision.action !== 'HOLD') {
+      decision.signalSource = signalSource;
+      decision.overrideSignal = overrideSignal;
+
+      // Use dynamic SL/TP from signals if available
+      if (overrideSignal.levels) {
+        decision.suggestedStopLoss = overrideSignal.levels.stopLoss || overrideSignal.stop;
+        decision.suggestedTakeProfit = overrideSignal.levels.takeProfit || overrideSignal.target1;
+        console.log(`   📍 Using ${signalSource} levels: SL=$${decision.suggestedStopLoss?.toFixed(2)}, TP=$${decision.suggestedTakeProfit?.toFixed(2)}`);
+      } else if (overrideSignal.stop && overrideSignal.target1) {
+        decision.suggestedStopLoss = overrideSignal.stop;
+        decision.suggestedTakeProfit = overrideSignal.target1;
+        console.log(`   📍 Using ${signalSource} levels: SL=$${decision.suggestedStopLoss.toFixed(2)}, TP=$${decision.suggestedTakeProfit.toFixed(2)}`);
+      }
+    }
 
     // V2 ARCHITECTURE: Broadcast TRAI chain-of-thought to dashboard
     if (this.dashboardWsConnected && this.dashboardWs && decision.decisionContext) {
@@ -2112,12 +2169,17 @@ class OGZPrimeV14Bot {
                 ];
               }
 
-              this.patternChecker.recordPatternResult(featuresForRecording, {
-                pnl: pnl,
-                holdDurationMs: holdDuration,  // Add temporal data
-                exitReason: completeTradeResult.exitReason || 'signal',
-                timestamp: Date.now()
-              });
+              // SAFE TEST MODE CHECK - Never corrupt patterns in test
+              if (this.config.tradingMode !== 'TEST' && process.env.TEST_MODE !== 'true') {
+                this.patternChecker.recordPatternResult(featuresForRecording, {
+                  pnl: pnl,
+                  holdDurationMs: holdDuration,  // Add temporal data
+                  exitReason: completeTradeResult.exitReason || 'signal',
+                  timestamp: Date.now()
+                });
+              } else if (this.config.tradingMode === 'TEST') {
+                console.log('🧪 TEST MODE: Would record P&L pattern but SKIPPING - pattern base protected');
+              }
               console.log(`🧠 Pattern learning: ${pattern.name} → ${pnl.toFixed(2)}%`);
             }
 
@@ -2802,7 +2864,7 @@ class OGZPrimeV14Bot {
     const priceLow = Math.min(...recentPrices.map(c => c.l));
     const currentPrice = recentPrices[recentPrices.length - 1].c;
 
-    const indicators = indicatorEngine.getAllLatest();
+    const indicators = indicatorEngine.getSnapshot();
     const rsi = indicators?.rsi;
 
     if (rsi) {

@@ -202,7 +202,7 @@ class DiscordTradingNotifier {
        // Format trade notification
        const emoji = type === 'buy' ? '📈' : '📉';
        const color = type === 'buy' ? 0x00ff00 : 0xff0000;
-       const pnlText = pnl !== null ? `\n💰 **P&L:** ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)}` : '';
+       const pnlText = (typeof pnl === 'number' && !isNaN(pnl)) ? `\n💰 **P&L:** ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)}` : '';
        
        const embed = {
            title: `${emoji} ${type.toUpperCase()} ORDER EXECUTED`,
