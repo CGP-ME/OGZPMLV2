@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `core/PreviousDayRangeStrategy.js`: File exists but no longer imported
 
 ### Fixed
+- **SELL signals blocked by 1500% threshold** - run-empire-v2.js:203-208
+  - Bug: `minConfidenceThreshold` received raw `15` instead of `0.15`
+  - Result: "Direction determination skipped: 54.0% below threshold 1500.0%"
+  - ALL sell signals were being blocked (impossible threshold)
+  - Fix: Added same percentage conversion as `minTradeConfidence`
+  - **Before:** `MIN_TRADE_CONFIDENCE=15` → `15.0` (1500%)
+  - **After:** `MIN_TRADE_CONFIDENCE=15` → `0.15` (15%)
+  - Verified via signal test harness (4/4 scenarios pass)
+
 - **Silent killer: resumeTrading() never called** - run-empire-v2.js:774
   - Added `stateManager.resumeTrading()` when fresh data restored
   - Without this, bot permanently paused after any stale feed event
@@ -36,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Properly calls resumeTrading() on recovery
 
 ### Added
+- **Signal Test Harness** - test/signal-test-harness.js
+  - Tests specific patterns trigger expected trades
+  - Scenarios: Bullish engulfing, Hammer, TPO buy, TPO sell
+  - Usage: `node test/signal-test-harness.js --all`
+  - Validates bot logic without corrupting production state
+  - Backtest mode now skips singleton lock and state loading
+
 - **TEST_MODE** - run-empire-v2.js:412-428
   - New mode for testing signals without corrupting pattern base
   - Set `TEST_MODE=true` to enable
