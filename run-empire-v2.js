@@ -85,7 +85,12 @@ const singletonLock = new OGZSingletonLock('ogz-prime-v14');
 
 // Acquire lock IMMEDIATELY (will exit if another instance is running)
 (async () => {
-  singletonLock.acquireLock();
+  // Skip singleton lock in backtest mode - allows testing while live bot runs
+  if (process.env.BACKTEST_MODE !== 'true') {
+    singletonLock.acquireLock();
+  } else {
+    console.log('⏭️ Skipping singleton lock (BACKTEST_MODE)');
+  }
   // Skip port check in backtest mode for faster testing
   if (process.env.BACKTEST_MODE !== 'true') {
     // CHANGE 660: Remove port 3010 from check - it's the WebSocket SERVER we connect TO

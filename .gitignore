@@ -122,3 +122,8 @@ ogz-meta/*.json
 
 # Backtest data
 backtest/data/*.json
+
+# Test artifacts
+test/temp-*.json
+test/debug-*.json
+backtest-report-*.json

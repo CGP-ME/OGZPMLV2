@@ -465,6 +465,11 @@ class StateManager {
    */
   save() {
     try {
+      // Skip state saving in backtest mode - don't corrupt real state
+      if (process.env.BACKTEST_MODE === 'true') {
+        return;
+      }
+
       const fs = require('fs');
       const path = require('path');
       const stateFile = path.join(__dirname, '..', 'data', 'state.json');
@@ -496,6 +501,12 @@ class StateManager {
    */
   load() {
     try {
+      // Skip state loading in backtest mode - start fresh
+      if (process.env.BACKTEST_MODE === 'true') {
+        console.log('[StateManager] BACKTEST_MODE: Starting with clean state');
+        return;
+      }
+
       const fs = require('fs');
       const path = require('path');
       const stateFile = path.join(__dirname, '..', 'data', 'state.json');
