@@ -109,3 +109,6 @@ cleanup-*/
 *.tar.gz
 *.zip
 codebase-export.txt
+
+# Archived broken code
+.archive/
