@@ -112,3 +112,13 @@ codebase-export.txt
 
 # Archived broken code
 .archive/
+trai_brain/experimental/*.json
+
+# Backup files
+*.backup*.js
+
+# RAG/LLM index files
+ogz-meta/*.json
+
+# Backtest data
+backtest/data/*.json
