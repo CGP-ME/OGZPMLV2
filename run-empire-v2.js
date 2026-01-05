@@ -641,6 +641,12 @@ class OGZPrimeV14Bot {
               this.tradingBrain.updateConfidenceThreshold(msg.confidence / 100);
             }
           }
+
+          // TRAI Chat Support - Tech support queries from dashboard
+          if (msg.type === 'trai_query' && this.trai) {
+            console.log('🧠 [TRAI] Received chat query:', msg.query?.substring(0, 50) + '...');
+            this.handleTraiQuery(msg);
+          }
         } catch (error) {
           console.error('❌ Dashboard message parse error:', error.message);
         }
@@ -2574,6 +2580,79 @@ class OGZPrimeV14Bot {
     };
 
     return descriptions[patternName] || `${patternName} pattern detected with ${(pattern.confidence * 100).toFixed(1)}% confidence. Analyzing market structure and momentum.`;
+  }
+
+  /**
+   * Handle TRAI chat queries from dashboard
+   * Used for tech support and customer questions
+   * Includes live market context for NLP-style queries
+   */
+  async handleTraiQuery(msg) {
+    const { query, queryId, sessionId } = msg;
+
+    try {
+      // Build live market context for TRAI
+      const lastCandle = this.priceHistory[this.priceHistory.length - 1];
+      const stats = this.executionLayer?.getStats() || {};
+      const position = this.executionLayer?.getPositions()?.find(p => !p.closed);
+
+      const marketContext = {
+        source: 'dashboard_chat',
+        sessionId: sessionId,
+        timestamp: Date.now(),
+        // Live market data
+        currentPrice: lastCandle?.c || this.currentPrice,
+        priceChange24h: this.priceHistory.length > 1
+          ? ((lastCandle?.c - this.priceHistory[0]?.c) / this.priceHistory[0]?.c * 100).toFixed(2) + '%'
+          : 'N/A',
+        candleCount: this.priceHistory.length,
+        // Bot status
+        botMode: this.config.sandboxMode ? 'PAPER' : 'LIVE',
+        isTrading: this.isRunning,
+        totalTrades: stats.totalTrades || 0,
+        winRate: stats.winRate || '0%',
+        balance: stats.balance || '0.00',
+        // Current position
+        hasOpenPosition: !!position,
+        positionDirection: position?.direction || null,
+        positionPnL: position?.pnl?.toFixed(2) || null,
+        // Indicators (if available)
+        lastDecision: this.lastDecisionContext?.decision || 'HOLD',
+        confidence: this.lastDecisionContext?.confidence || 0
+      };
+
+      // Process query with TRAICore (chat/queries go to core, not decision module)
+      if (!this.trai.traiCore) {
+        throw new Error('TRAI Core not available - LLM inference server not running');
+      }
+      const response = await this.trai.traiCore.processQuery(query, marketContext);
+
+      // Send response back to dashboard
+      if (this.dashboardWs && this.dashboardWs.readyState === 1) {
+        this.dashboardWs.send(JSON.stringify({
+          type: 'trai_response',
+          queryId: queryId,
+          sessionId: sessionId,
+          response: response.message || response.text || response,
+          timestamp: Date.now()
+        }));
+        console.log('🧠 [TRAI] Sent chat response');
+      }
+    } catch (error) {
+      console.error('❌ [TRAI] Chat query failed:', error.message);
+
+      // Send error response
+      if (this.dashboardWs && this.dashboardWs.readyState === 1) {
+        this.dashboardWs.send(JSON.stringify({
+          type: 'trai_response',
+          queryId: queryId,
+          sessionId: sessionId,
+          response: 'Sorry, I encountered an issue processing your question. Please try again.',
+          error: true,
+          timestamp: Date.now()
+        }));
+      }
+    }
   }
 
   /**
