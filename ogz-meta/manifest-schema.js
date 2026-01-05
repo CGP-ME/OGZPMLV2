@@ -21,6 +21,10 @@ function createManifest(missionId) {
     state: 'INIT',
     issue: '',
 
+    // ADVISORY MODE: Clauditos analyze and propose, never execute
+    // All changes require human approval
+    mode: 'ADVISORY',  // ADVISORY (default) or EXECUTE (requires explicit flag)
+
     // Each agent owns exactly ONE section
     commander: {
       timestamp: null,
@@ -50,8 +54,9 @@ function createManifest(missionId) {
 
     exterminator: {
       timestamp: null,
-      fixes_applied: [],
-      patches: []
+      fixes_applied: [],    // Only populated in EXECUTE mode
+      patches: [],
+      proposals: []         // ADVISORY mode: proposed changes for human review
     },
 
     debugger: {
@@ -114,7 +119,16 @@ function createManifest(missionId) {
       files_created: [],
       files_modified: [],
       backups: [],
-      reports: []
+      reports: [],
+      proposals: []         // ADVISORY mode: proposal documents for review
+    },
+
+    // Human approval tracking
+    approval: {
+      status: 'PENDING',    // PENDING, APPROVED, REJECTED
+      approved_by: null,
+      approved_at: null,
+      notes: null
     },
 
     // Stop conditions
