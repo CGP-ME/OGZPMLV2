@@ -640,6 +640,28 @@ class OGZPrimeV14Bot {
               this.profileManager.setDynamicConfidence(msg.confidence);
               this.tradingBrain.updateConfidenceThreshold(msg.confidence / 100);
             }
+
+            // PAUSE TRADING - Manual safety stop from dashboard
+            else if (msg.command === 'pause_trading') {
+              const reason = msg.reason || 'Manual pause from dashboard';
+              console.log('🛑 [Dashboard] Pause command received:', reason);
+              stateManager.pauseTrading(reason);
+              this.dashboardWs.send(JSON.stringify({
+                type: 'pause_confirmed',
+                reason: reason,
+                timestamp: Date.now()
+              }));
+            }
+
+            // RESUME TRADING - Manual resume from dashboard
+            else if (msg.command === 'resume_trading') {
+              console.log('✅ [Dashboard] Resume command received');
+              stateManager.resumeTrading();
+              this.dashboardWs.send(JSON.stringify({
+                type: 'resume_confirmed',
+                timestamp: Date.now()
+              }));
+            }
           }
 
           // TRAI Chat Support - Tech support queries from dashboard

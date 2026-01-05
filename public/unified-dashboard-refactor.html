@@ -2110,6 +2110,15 @@
                     <button class="trade-btn hedge-btn" onclick="executeTrade('hedge')">HEDGE</button>
                 </div>
 
+                <!-- PAUSE/RESUME Controls -->
+                <div class="trade-controls" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                    <button class="trade-btn pause-btn" id="pauseBtn" onclick="pauseTrading()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⏸️ PAUSE</button>
+                    <button class="trade-btn resume-btn" id="resumeBtn" onclick="resumeTrading()" style="background: linear-gradient(135deg, #10b981, #059669); display: none;">▶️ RESUME</button>
+                </div>
+                <div id="pauseStatus" style="font-size: 11px; color: #f59e0b; margin-top: 5px; display: none;">
+                    <span id="pauseReason"></span>
+                </div>
+
                 <!-- Pattern Recognition Panel -->
                 <div class="pattern-panel">
                     <div class="panel-title">Pattern Analysis</div>
@@ -2772,7 +2781,24 @@
                     if (data.state.tradeCount !== undefined) {
                         document.getElementById('tradesExecuted').textContent = data.state.tradeCount;
                     }
+                    // Update pause/resume UI based on state
+                    if (data.state.pauseReason !== undefined || data.state.isTrading !== undefined) {
+                        const isPaused = !data.state.isTrading || data.state.pauseReason;
+                        updatePauseResumeUI(isPaused, data.state.pauseReason);
+                    }
                 }
+            }
+
+            // Pause/Resume confirmations
+            else if (data.type === 'pause_confirmed') {
+                console.log('🛑 Trading paused:', data.reason);
+                updatePauseResumeUI(true, data.reason);
+                alert('Trading PAUSED: ' + data.reason);
+            }
+            else if (data.type === 'resume_confirmed') {
+                console.log('✅ Trading resumed');
+                updatePauseResumeUI(false);
+                alert('Trading RESUMED');
             }
 
             // Pattern analysis
@@ -3157,6 +3183,54 @@
                     tier: currentTier,
                     timestamp: Date.now()
                 }));
+            }
+        }
+
+        // PAUSE/RESUME TRADING CONTROLS
+        function pauseTrading() {
+            const reason = prompt('Pause reason (optional):', 'Manual pause from dashboard');
+            if (reason === null) return; // User cancelled
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'command',
+                    command: 'pause_trading',
+                    reason: reason || 'Manual pause from dashboard',
+                    timestamp: Date.now()
+                }));
+                console.log('🛑 Pause command sent');
+            }
+        }
+
+        function resumeTrading() {
+            if (!confirm('Resume trading? Make sure conditions are safe.')) return;
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'command',
+                    command: 'resume_trading',
+                    timestamp: Date.now()
+                }));
+                console.log('✅ Resume command sent');
+            }
+        }
+
+        // Update pause/resume button visibility based on state
+        function updatePauseResumeUI(isPaused, reason) {
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
+            const pauseStatus = document.getElementById('pauseStatus');
+            const pauseReason = document.getElementById('pauseReason');
+
+            if (isPaused) {
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'block';
+                pauseStatus.style.display = 'block';
+                pauseReason.textContent = '⚠️ PAUSED: ' + (reason || 'Unknown reason');
+            } else {
+                pauseBtn.style.display = 'block';
+                resumeBtn.style.display = 'none';
+                pauseStatus.style.display = 'none';
             }
         }
 
