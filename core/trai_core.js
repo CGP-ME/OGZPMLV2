@@ -250,7 +250,7 @@ class TRAICore extends EventEmitter {
         return {
             categories: categoryMatches,
             primaryCategory,
-            context: context,
+            context: context,  // Pass through market context for LLM
             complexity: this.assessComplexity(query),
             intent: this.detectIntent(query)
         };
@@ -353,7 +353,7 @@ class TRAICore extends EventEmitter {
      * Model already loaded in GPU RAM - returns in 3-5s instead of 15s+
      */
     async executeWithPersistentLLM(query, analysis) {
-        const { primaryCategory } = analysis;
+        const { primaryCategory, context } = analysis;
 
         // Check if LLM server is ready
         if (!this.llmReady) {
@@ -362,11 +362,25 @@ class TRAICore extends EventEmitter {
         }
 
         try {
+            // Build market context if available (from dashboard chat)
+            let marketInfo = '';
+            if (context?.currentPrice) {
+                marketInfo = `\n\nCurrent Market Status:
+- BTC Price: $${context.currentPrice}
+- Price Change: ${context.priceChange24h}
+- Bot Mode: ${context.botMode}
+- Total Trades: ${context.totalTrades}
+- Win Rate: ${context.winRate}
+- Balance: $${context.balance}
+- Position: ${context.hasOpenPosition ? `${context.positionDirection} (P&L: $${context.positionPnL})` : 'None'}
+- Last Signal: ${context.lastDecision} (${(context.confidence * 100).toFixed(1)}% confidence)\n`;
+            }
+
             const contextPrompt = primaryCategory ?
                 `Based on ${primaryCategory} knowledge from our development history: ` :
                 `As OGZ Prime's AI co-founder: `;
 
-            const fullPrompt = `${contextPrompt}${query}\n\nResponse:`;
+            const fullPrompt = `${contextPrompt}${marketInfo}${query}\n\nResponse:`;
 
             // Call persistent server (model already loaded in GPU!)
             const startTime = Date.now();

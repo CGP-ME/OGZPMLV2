@@ -109,6 +109,14 @@ wss.on('connection', (ws, req) => {
           data: data.data,
           timestamp: Date.now()
         });
+      } else if (data.type === 'trai_query') {
+        // Forward TRAI query to all clients (including bot)
+        console.log('🧠 [TRAI] Forwarding chat query to bot');
+        broadcastToClients(data);
+      } else if (data.type === 'trai_response') {
+        // Forward TRAI response to all clients
+        console.log('🧠 [TRAI] Forwarding chat response to clients');
+        broadcastToClients(data);
       }
     } catch (error) {
       console.error('Error processing WebSocket message:', error);
