@@ -292,16 +292,16 @@ class DiscordTradingNotifier {
        
        const embed = {
            title: "📊 DAILY TRADING SUMMARY",
-           color: this.dailyStats.totalPnL > 0 ? 0x00ff00 : 0xff0000,
+           color: (this.dailyStats.totalPnL || 0) > 0 ? 0x00ff00 : 0xff0000,
            fields: [
-               { name: "📈 Total Trades", value: this.dailyStats.trades.toString(), inline: true },
-               { name: "🏆 Wins", value: this.dailyStats.wins.toString(), inline: true },
-               { name: "📉 Losses", value: this.dailyStats.losses.toString(), inline: true },
-               { name: "💰 Total P&L", value: `${this.dailyStats.totalPnL ? this.dailyStats.totalPnL.toFixed(2) : "0.00"}`, inline: true },
+               { name: "📈 Total Trades", value: (this.dailyStats.trades || 0).toString(), inline: true },
+               { name: "🏆 Wins", value: (this.dailyStats.wins || 0).toString(), inline: true },
+               { name: "📉 Losses", value: (this.dailyStats.losses || 0).toString(), inline: true },
+               { name: "💰 Total P&L", value: `${typeof this.dailyStats.totalPnL === 'number' ? this.dailyStats.totalPnL.toFixed(2) : "0.00"}`, inline: true },
                { name: "📊 Win Rate", value: `${winRate}%`, inline: true },
-               { name: "🎯 Houston Fund", value: `$${(10000 + this.dailyStats.totalPnL).toFixed(2)}`, inline: true },
-               { name: "🚀 Best Trade", value: `${this.dailyStats.bestTrade ? this.dailyStats.bestTrade.toFixed(2) : "0.00"}`, inline: true },
-               { name: "📉 Worst Trade", value: `${this.dailyStats.worstTrade ? this.dailyStats.worstTrade.toFixed(2) : "0.00"}`, inline: true }
+               { name: "🎯 Houston Fund", value: `$${(10000 + (this.dailyStats.totalPnL || 0)).toFixed(2)}`, inline: true },
+               { name: "🚀 Best Trade", value: `${typeof this.dailyStats.bestTrade === 'number' ? this.dailyStats.bestTrade.toFixed(2) : "0.00"}`, inline: true },
+               { name: "📉 Worst Trade", value: `${typeof this.dailyStats.worstTrade === 'number' ? this.dailyStats.worstTrade.toFixed(2) : "0.00"}`, inline: true }
            ],
            timestamp: new Date().toISOString(),
            footer: { text: "OGZ Prime Daily Report | Journey to Houston" }
@@ -389,7 +389,7 @@ class DiscordTradingNotifier {
            description: `**Current Balance:** $${(currentBalance !== null && currentBalance !== undefined ? currentBalance.toFixed(2) : "0.00")}\n**Target:** $${targetAmount.toLocaleString()}\n**Progress:** ${(progress !== null && progress !== undefined ? progress.toFixed(1) : "0.0")}%\n\n\`${progressBar}\``,
            color: 0x1e90ff, // Dodger blue
            fields: [
-               { name: "💰 Remaining", value: `$${(targetAmount - currentBalance).toFixed(2)}`, inline: true },
+               { name: "💰 Remaining", value: `$${(targetAmount - (currentBalance || 0)).toFixed(2)}`, inline: true },
                { name: "📅 Days Trading", value: daysSinceStart.toString(), inline: true },
                { name: "💪 Progress", value: `${(progress !== null && progress !== undefined ? progress.toFixed(1) : "0.0")}%`, inline: true }
            ],

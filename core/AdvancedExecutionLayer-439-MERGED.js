@@ -74,7 +74,7 @@ class AdvancedExecutionLayer {
    */
   generateIntentId(symbol, direction, confidence) {
     const timestamp = Date.now();
-    const data = `${timestamp}-${symbol}-${direction}-${confidence.toFixed(4)}`;
+    const data = `${timestamp}-${symbol}-${direction}-${(confidence || 0).toFixed(4)}`;
     return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
   }
 
@@ -160,7 +160,7 @@ class AdvancedExecutionLayer {
       console.log('\n🎯 EXECUTING TRADE');
       console.log(`   Intent ID: ${intentId}`);
       console.log(`   Direction: ${direction}`);
-      console.log(`   Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`   Confidence: ${((confidence || 0) * 100).toFixed(1)}%`);
       console.log(`   Price: $${marketData.price}`);
 
       console.log('🔍 [DEBUG] Checking bot reference:', !!this.bot);
@@ -348,11 +348,11 @@ class AdvancedExecutionLayer {
           try {
             const message = `🎯 **TRADE OPENED**\n` +
               `**Symbol:** ${position.symbol}\n` +
-              `**Direction:** ${position.direction.toUpperCase()}\n` +
-              `**Price:** $${position.entryPrice.toFixed(2)}\n` +
-              `**Amount:** $${position.amount.toFixed(2)}\n` +
-              `**Confidence:** ${(position.confidence * 100).toFixed(1)}%\n` +
-              `**Balance:** $${this.balance.toFixed(2)}\n` +
+              `**Direction:** ${position.direction?.toUpperCase() || 'UNKNOWN'}\n` +
+              `**Price:** $${(position.entryPrice || 0).toFixed(2)}\n` +
+              `**Amount:** $${(position.amount || 0).toFixed(2)}\n` +
+              `**Confidence:** ${((position.confidence || 0) * 100).toFixed(1)}%\n` +
+              `**Balance:** $${(this.balance || 0).toFixed(2)}\n` +
               `**Mode:** ${this.mode}`;
 
             await this.discord.sendMessage(message, 'stats');
@@ -470,8 +470,8 @@ class AdvancedExecutionLayer {
     position.active = false;
 
     console.log(`✅ POSITION CLOSED: ${position.direction} ${position.id}`);
-    console.log(`   P&L: $${position.pnl.toFixed(2)}`);
-    console.log(`   New Balance: $${this.balance.toFixed(2)}`);
+    console.log(`   P&L: $${(position.pnl || 0).toFixed(2)}`);
+    console.log(`   New Balance: $${(this.balance || 0).toFixed(2)}`);
 
     // Log and broadcast
     this.logTradeToFile(position);
@@ -480,15 +480,18 @@ class AdvancedExecutionLayer {
     // Send Discord notification for closed trade
     if (this.discord) {
       try {
-        const pnlEmoji = position.pnl > 0 ? '💰' : '📉';
+        const pnlEmoji = (position.pnl || 0) > 0 ? '💰' : '📉';
+        const pnlPercent = position.entryPrice && position.amount
+          ? ((position.pnl || 0) / (position.entryPrice * position.amount) * 100).toFixed(2)
+          : '0.00';
         const message = `${pnlEmoji} **TRADE CLOSED**\n` +
           `**Symbol:** ${position.symbol}\n` +
-          `**Direction:** ${position.direction.toUpperCase()}\n` +
-          `**Entry:** $${position.entryPrice.toFixed(2)}\n` +
-          `**Exit:** $${currentPrice.toFixed(2)}\n` +
-          `**P&L:** $${position.pnl.toFixed(2)} (${((position.pnl / (position.entryPrice * position.amount)) * 100).toFixed(2)}%)\n` +
+          `**Direction:** ${position.direction?.toUpperCase() || 'UNKNOWN'}\n` +
+          `**Entry:** $${(position.entryPrice || 0).toFixed(2)}\n` +
+          `**Exit:** $${(currentPrice || 0).toFixed(2)}\n` +
+          `**P&L:** $${(position.pnl || 0).toFixed(2)} (${pnlPercent}%)\n` +
           `**Reason:** ${reason}\n` +
-          `**Balance:** $${this.balance.toFixed(2)}\n` +
+          `**Balance:** $${(this.balance || 0).toFixed(2)}\n` +
           `**Mode:** ${this.mode}`;
 
         await this.discord.sendMessage(message, 'stats');
@@ -547,7 +550,7 @@ class AdvancedExecutionLayer {
       // Record with TRAI
       this.bot.trai.recordTradeOutcome(tradeData);
 
-      console.log(`🧠 [TRAI] Trade recorded for learning: ${position.pnl > 0 ? 'WIN' : 'LOSS'} (${tradeData.profitLossPercent.toFixed(2)}%)`);
+      console.log(`🧠 [TRAI] Trade recorded for learning: ${(position.pnl || 0) > 0 ? 'WIN' : 'LOSS'} (${(tradeData.profitLossPercent || 0).toFixed(2)}%)`);
 
     } catch (error) {
       console.error('❌ [TRAI] Failed to record trade:', error.message);
@@ -590,9 +593,9 @@ class AdvancedExecutionLayer {
     return {
       totalTrades: this.totalTrades,
       winningTrades: this.winningTrades,
-      winRate: `${winRate.toFixed(1)}%`,
-      totalPnL: this.totalPnL.toFixed(2),
-      balance: this.balance.toFixed(2),
+      winRate: `${(winRate || 0).toFixed(1)}%`,
+      totalPnL: (this.totalPnL || 0).toFixed(2),
+      balance: (this.balance || 0).toFixed(2),
       positions: this.positions.size,
       mode: this.config.sandboxMode ? 'PAPER' : 'LIVE'
     };
@@ -619,7 +622,7 @@ class AdvancedExecutionLayer {
       closedPositions: closedPositions.length,
       totalTrades: this.totalTrades,
       winRate: this.totalTrades > 0 ? (this.winningTrades / this.totalTrades * 100).toFixed(1) + '%' : '0%',
-      balance: this.balance.toFixed(2)
+      balance: (this.balance || 0).toFixed(2)
     };
   }
 

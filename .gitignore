@@ -127,3 +127,6 @@ backtest/data/*.json
 test/temp-*.json
 test/debug-*.json
 backtest-report-*.json
+ogz-meta/manifests/*.json
+ogz-meta/manifests/*.hook
+profiles/trading/last_profile.json
