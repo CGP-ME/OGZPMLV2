@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Threshold: 2 minutes (data older than 2min = stale)
   - Properly calls resumeTrading() on recovery
 
+- **TRAI chat query routing** - run-empire-v2.js:2624-2628
+  - Bot was calling `this.trai.processQuery()` but method doesn't exist on TRAIDecisionModule
+  - TRAIDecisionModule = trading decisions (`processDecision`)
+  - TRAICore = chat/queries (`processQuery`)
+  - **Before:** `this.trai.processQuery()` → crash (method undefined)
+  - **After:** `this.trai.traiCore.processQuery()` → correct routing
+  - Added null check for when LLM inference server not running
+
 ### Added
 - **Signal Test Harness** - test/signal-test-harness.js
   - Tests specific patterns trigger expected trades
