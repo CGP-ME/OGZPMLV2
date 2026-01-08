@@ -21,6 +21,7 @@
  */
 
 const EventEmitter = require('events');
+const fs = require('fs');
 
 class TRAIDecisionModule extends EventEmitter {
   constructor(config = {}) {
@@ -244,7 +245,7 @@ class TRAIDecisionModule extends EventEmitter {
     decision.processingTime = Date.now() - startTime;
 
     // Step 10: Log the decision (after processingTime is set!)
-    this.logDecision(decision);
+    this.logDecision(decision, context, startTime);
 
     // Emit decision event for monitoring
     this.emit('decision', decision);
@@ -835,9 +836,9 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
   /**
    * Log decision for audit trail
    */
-  logDecision(decision) {
+  logDecision(decision, context, startTime) {
     if (!this.config.trackDecisions) return;
-    
+
     const log = {
       timestamp: new Date().toISOString(),
       originalConfidence: decision.originalConfidence,
@@ -849,11 +850,53 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
       reasoning: decision.reasoning,
       processingTime: decision.processingTime
     };
-    
+
     console.log(`🤖 [TRAI] Decision: ${JSON.stringify(log)}`);
-    
-    // TODO: Write to file if needed
-    // fs.appendFileSync(this.config.logPath, JSON.stringify(log) + '\n');
+
+    // JSONL Schema Compliance
+    const jsonlEntry = {
+      tsMs: Date.now(),
+      type: "trai_decision_output",
+      decisionId: decision.id.toString(), // Using timestamp as ID per existing logic
+      cycleId: `tick_${startTime}`, // Correlation ID
+      symbol: "BTC/USD", // Context doesn't always provide symbol, defaulting for observability
+      tf: "1m",
+
+      input: {
+        price: { last: context.price || 0 },
+        indicators: {
+          rsi: context.indicators?.rsi || 0,
+          macd: context.indicators?.macd?.histogram || 0
+        },
+        regime: context.regime || "unknown",
+        risk: {
+          exposureUsd: 0, // Not available in current context
+          openPositions: 0 // Not available in current context
+        }
+      },
+
+      output: {
+        action: decision.traiRecommendation,
+        confidence: decision.finalConfidence,
+        reasonCodes: decision.vetoApplied ? [decision.riskAssessment.vetoReason] : [],
+        chosenPatternId: decision.patternMemoryMatch ? "learned_pattern" : null,
+        proposal: {
+          qty: 0, // Execution handles this
+          price: null,
+          sl: null,
+          tp: null
+        }
+      },
+
+      meta: {
+        version: "v2",
+        module: "trai-decision",
+        build: process.env.GIT_SHA || "dev"
+      }
+    };
+
+    // Fire-and-forget async append (non-blocking)
+    fs.appendFile(this.config.logPath, JSON.stringify(jsonlEntry) + '\n', () => {});
   }
   
   /**
