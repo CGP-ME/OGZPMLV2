@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- TRAI decision telemetry logging (JSONL, non-blocking)
+
 ### Removed
 - **PreviousDayRangeStrategy** - run-empire-v2.js
   - Removed broken PDR strategy (lines 1065-1107, 1204-1239)
