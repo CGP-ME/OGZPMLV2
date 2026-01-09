@@ -2,12 +2,64 @@
 """
 TRAI Persistent Inference Server
 Keeps model loaded in GPU memory for fast inference (<2s)
+Includes local embedding endpoint on port 5051
 """
 
 import sys
 import json
 import torch
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+EMBEDDING_PORT = 5051
+embedding_model = None
+
+
+class EmbeddingHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass  # Suppress HTTP logs
+
+    def do_POST(self):
+        global embedding_model
+        if self.path != '/embed':
+            self.send_error(404)
+            return
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+
+        try:
+            data = json.loads(body)
+            text = data.get('text', '')
+            if not text:
+                self.send_error(400, 'Missing text field')
+                return
+
+            embedding = embedding_model.encode(text, normalize_embeddings=True)
+            result = {'embedding': embedding.tolist()}
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode())
+
+        except Exception as e:
+            self.send_error(500, str(e))
+
+
+def start_embedding_server():
+    global embedding_model
+    print(f"📦 Loading embedding model (bge-small-en-v1.5)...", file=sys.stderr)
+    embedding_model = SentenceTransformer('BAAI/bge-small-en-v1.5')
+    print(f"✅ Embedding model loaded", file=sys.stderr)
+
+    server = HTTPServer(('127.0.0.1', EMBEDDING_PORT), EmbeddingHandler)
+    print(f"🌐 Embedding server running on http://127.0.0.1:{EMBEDDING_PORT}/embed", file=sys.stderr)
+    server.serve_forever()
+
 
 class TRAIPersistentServer:
     def __init__(self, model_path=None):
@@ -144,6 +196,16 @@ RULES:
 
 
 if __name__ == "__main__":
-    # Start the persistent server
+    import os
+
+    # EMBEDDING SERVER: Disabled by default. Set TRAI_ENABLE_EMBEDDINGS=1 to enable.
+    if os.environ.get('TRAI_ENABLE_EMBEDDINGS', '').lower() in ('1', 'true', 'yes'):
+        embed_thread = threading.Thread(target=start_embedding_server, daemon=True)
+        embed_thread.start()
+        print("🌐 Embedding server ENABLED (TRAI_ENABLE_EMBEDDINGS=1)", file=sys.stderr)
+    else:
+        print("📴 Embedding server DISABLED (local-first mode)", file=sys.stderr)
+
+    # Start the persistent LLM server (blocks on stdin)
     server = TRAIPersistentServer()
     server.run_server()

@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **TRAI Local-First Architecture** - trai_brain/
+  - Complete architectural shift to local-first mode (no cloud LLM/embeddings by default)
+  - **trai_core.js**: Removed cloud fallback, added `getOfflineResponse()` for clear offline status
+  - If local LLM server not running, returns explicit TRAI_OFFLINE status (no silent degradation)
+  - No paid API calls unless explicitly enabled
+
+- **TRAI Memory Store Rewrite** - trai_brain/memory_store.js
+  - Removed ALL embedding/vector code (no OpenAI, no cloud calls)
+  - Changed to append-only JSONL journal (`trai_journal.jsonl`)
+  - Keyword + recency retrieval (70% keyword match, 30% recency decay)
+  - 7-day half-life exponential decay for recency scoring
+  - New methods: `recordInteraction()`, `recordDecision()`, `recordMistake()`, `recordOutcome()`
+  - No external dependencies (no node-fetch, no embeddings)
+
+- **Inference Server Embedding Disabled** - trai_brain/inference_server.py
+  - Embedding server disabled by default (local-first mode)
+  - Set `TRAI_ENABLE_EMBEDDINGS=1` to enable if needed
+  - bge-small-en-v1.5 via sentence-transformers (when enabled)
+
+### Added
+- **TRAI Research Mode** - trai_brain/research_mode.js (NEW)
+  - External web search capability (OFF by default)
+  - Enable with `TRAI_RESEARCH_ENABLED=1`
+  - SearXNG self-hosted search endpoint (http://localhost:8888/search)
+  - Strict rate limits: 3 queries/minute, 50 queries/day
+  - Per-user daily budget tracking
+  - NO cloud LLM - search only, summarization via local LLM
+
+- **TRAI Prompt Schemas** - trai_brain/prompt_schemas.js (NEW)
+  - Structured output schemas for mission/proposal JSON
+  - `chooseSchema(query)` function for dynamic schema selection
+
+- **TRAI Read-Only Tools** - trai_brain/read_only_tools.js (NEW)
+  - ReadOnlyToolbox class with safe operations
+  - Methods: `repo_search()`, `file_open()`, `log_tail()`, `bot_status()`
+  - Bounds checking to prevent access outside repo root
+
 ### Removed
 - **PreviousDayRangeStrategy** - run-empire-v2.js
   - Removed broken PDR strategy (lines 1065-1107, 1204-1239)

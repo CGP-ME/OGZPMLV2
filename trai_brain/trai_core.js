@@ -14,6 +14,9 @@ const path = require('path');
 const EventEmitter = require('events');
 const PatternMemoryBank = require('./PatternMemoryBank');
 const PersistentLLMClient = require('./persistent_llm_client');
+const TRAIMemoryStore = require('./memory_store');
+const ReadOnlyToolbox = require('./read_only_tools');
+const { chooseSchema } = require('./prompt_schemas');
 
 class TRAICore extends EventEmitter {
     constructor(config = {}) {
@@ -35,6 +38,15 @@ class TRAICore extends EventEmitter {
         this.workingMemory = new Map();
         this.conversationHistory = [];
         this.learningQueue = [];
+        this.memoryStore = new TRAIMemoryStore({
+            journalPath: path.join(this.config.staticBrainPath, 'trai_journal.jsonl'),
+            topK: this.config.memoryTopK || 5
+        });
+        this.readOnlyTools = new ReadOnlyToolbox({
+            repoRoot: process.cwd(),
+            logRoot: path.join(process.cwd(), 'logs'),
+            botStatusProvider: () => (this.bot && this.bot.systemState) ? this.bot.systemState : { connected: false }
+        });
 
         // 🧠 PATTERN MEMORY BANK - TRAI learns from trading patterns over time
         this.patternMemory = this.config.enablePatternMemory
@@ -175,17 +187,21 @@ class TRAICore extends EventEmitter {
         if (!this.initialized) {
             throw new Error('TRAI not initialized');
         }
-        
+
         try {
             // Analyze query and context
             const analysis = await this.analyzeQuery(query, context);
-            
+            const memoryContext = await this.retrieveMemoryContext(query, context);
+
             // Generate response using static brain + working model
-            const response = await this.generateResponse(query, analysis, context);
-            
+            const response = await this.generateResponse(query, analysis, {
+                ...context,
+                memoryContext
+            });
+
             // Learn from interaction
             await this.learnFromInteraction(query, response, context);
-            
+
             return response;
             
         } catch (error) {
@@ -223,7 +239,18 @@ class TRAICore extends EventEmitter {
             intent: this.detectIntent(query)
         };
     }
-    
+
+    async retrieveMemoryContext(query, context = {}) {
+        try {
+            // Keyword+recency retrieval from local journal (no embeddings)
+            const retrieval = this.memoryStore.retrieve(query, { topK: this.config.memoryTopK || 5 });
+            return retrieval;
+        } catch (error) {
+            console.error('❌ [TRAI] Memory retrieval failed:', error.message);
+            return [];
+        }
+    }
+
     calculateRelevance(query, messages) {
         // Simple relevance calculation based on keyword matching
         const queryWords = query.toLowerCase().split(/\s+/);
@@ -290,11 +317,12 @@ class TRAICore extends EventEmitter {
         // Generate response based on analysis
         // This is where the working model (Qwen) would process the query
         // For now, return a structured response
-        
+
         const response = {
             query: query,
             analysis: analysis,
-            response: await this.generateIntelligentResponse(query, analysis),
+            memoryContext: context.memoryContext || [],
+            response: await this.generateIntelligentResponse(query, analysis, context),
             timestamp: Date.now(),
             trai_version: '1.0.0'
         };
@@ -311,30 +339,45 @@ class TRAICore extends EventEmitter {
         return response;
     }
     
-    async generateIntelligentResponse(query, analysis) {
+    async generateIntelligentResponse(query, analysis, context = {}) {
         // 🚀 USE PERSISTENT LLM CLIENT (Change 579) - No more spawning!
-        return this.executeWithPersistentLLM(query, analysis);
+        return this.executeWithPersistentLLM(query, analysis, context.memoryContext || []);
     }
 
     /**
      * Execute inference using persistent LLM server (FAST!)
      * Model already loaded in GPU RAM - returns in 3-5s instead of 15s+
      */
-    async executeWithPersistentLLM(query, analysis) {
+    async executeWithPersistentLLM(query, analysis, memoryContext = []) {
         const { primaryCategory } = analysis;
 
-        // Check if LLM server is ready
+        // LOCAL-FIRST: No cloud fallback. If LLM is down, return offline status.
         if (!this.llmReady) {
-            console.warn('⚠️ TRAI LLM not ready, using fallback');
-            return this.getFallbackResponse(primaryCategory);
+            console.warn('⚠️ TRAI LLM offline - no cloud fallback allowed');
+            return this.getOfflineResponse();
         }
 
         try {
             const contextPrompt = primaryCategory ?
-                `Based on ${primaryCategory} knowledge from our development history: ` :
-                `As OGZ Prime's AI co-founder: `;
+                `Based on ${primaryCategory} knowledge from our development history:` :
+                `As OGZ Prime's AI co-founder:`;
 
-            const fullPrompt = `${contextPrompt}${query}\n\nResponse:`;
+            const schema = chooseSchema(query);
+            const memoryLines = (memoryContext || []).map(item => `- [${item.entry.source}:${item.entry.type || 'log'}] ${item.entry.content}`).join('\n') || 'None';
+            const toolList = this.readOnlyTools.listTools().map(tool => `- ${tool}`).join('\n');
+
+            const fullPrompt = [
+                contextPrompt,
+                `User Query: ${query}`,
+                `Primary Category: ${primaryCategory || 'unknown'}`,
+                `Retrieved Memory (top ${memoryContext.length}):\n${memoryLines}`,
+                'Read-only tools available (invoke only when explicitly asked and never modify files):',
+                toolList,
+                'You must respond in strict JSON using the selected schema. Do not add prose before or after the JSON.',
+                `Schema (${schema.type}):`,
+                schema.shape,
+                'Response:'
+            ].join('\n\n');
 
             // Call persistent server (model already loaded in GPU!)
             const startTime = Date.now();
@@ -354,7 +397,7 @@ class TRAICore extends EventEmitter {
         } catch (error) {
             console.error('⚠️ TRAI persistent LLM error:', error.message);
             this.processPool.totalTimedOut++;
-            return this.getFallbackResponse(primaryCategory);
+            return this.getOfflineResponse();
         }
     }
 
@@ -372,21 +415,17 @@ class TRAICore extends EventEmitter {
         };
     }
 
-    getFallbackResponse(primaryCategory) {
-        if (primaryCategory === 'customer_service') {
-            return "I'd be happy to help you with your question about OGZ Prime. Based on our development history, I can provide detailed assistance with setup, features, and troubleshooting.";
-        }
-
-        if (primaryCategory === 'technical_support') {
-            return "I understand you're experiencing a technical issue. Let me analyze this based on our extensive development experience and provide a solution.";
-        }
-
-        if (primaryCategory === 'trading_strategy' || primaryCategory === 'trading_decision') {
-            return "Let me analyze the current market conditions. I'm processing technical indicators, pattern recognition, and market regime data to provide you with an informed trading perspective.";
-        }
-
-        // Default fallback - more professional
-        return "I'm analyzing your request. I have access to our complete trading system, market data, and development history. Give me a moment to provide you with a detailed response.";
+    /**
+     * LOCAL-FIRST: Clear offline response when LLM is unavailable.
+     * No cloud fallback allowed.
+     */
+    getOfflineResponse() {
+        return JSON.stringify({
+            schema: 'offline',
+            status: 'TRAI_OFFLINE',
+            message: 'Local LLM server is not running. Start the persistent server to enable TRAI.',
+            timestamp: new Date().toISOString()
+        });
     }
     
     async generateVoiceResponse(text) {
@@ -408,32 +447,30 @@ class TRAICore extends EventEmitter {
     }
     
     async learnFromInteraction(query, response, context) {
-        // Add to learning queue for potential static brain updates
         const analysis = await this.analyzeQuery(query, context);
-        const learningEntry = {
-            query,
-            response,
-            context,
+        const importance = this.assessImportance(query, response, {
             category: analysis.primaryCategory,
-            timestamp: Date.now(),
-            importance: this.assessImportance(query, response, {
-                category: analysis.primaryCategory,
-                timestamp: Date.now()
-            })
-        };
+            timestamp: Date.now()
+        });
 
-        this.learningQueue.push(learningEntry);
-
-        // Commit important learnings to static brain periodically
-        if (this.learningQueue.length >= 10) {
-            await this.commitLearnings();
+        // Only record significant interactions
+        if (importance < 0.25) {
+            return;
         }
+
+        // Append to local journal (no cloud, no embeddings)
+        this.memoryStore.recordInteraction(query, response, {
+            tags: [analysis.primaryCategory || 'general', analysis.intent || 'general']
+        });
     }
     
     assessImportance(query, response, context = {}) {
         // Enhanced multi-criteria importance assessment for TRAI's learning system
 
-        const content = (query + response).toLowerCase();
+        const responseText = typeof response === 'string'
+            ? response
+            : JSON.stringify(response || '');
+        const content = (query + responseText).toLowerCase();
         let totalScore = 0;
 
         // 1. KEYWORD IMPORTANCE (0-0.4)
@@ -495,35 +532,22 @@ class TRAICore extends EventEmitter {
     }
     
     async commitLearnings() {
-        // Commit important learnings to static brain categories
+        // Write important learnings to journal
         const importantLearnings = this.learningQueue.filter(entry => entry.importance > 0.75);
-        
-        if (importantLearnings.length > 0) {
-            console.log(`🧠 Committing ${importantLearnings.length} important learnings to static brain`);
-            
-            // Add to appropriate categories in static brain
-            for (const learning of importantLearnings) {
-                const categories = this.categorizeLearning(learning);
-                
-                for (const category of categories) {
-                    if (this.staticBrain[category]) {
-                        this.staticBrain[category].messages.push({
-                            id: `learned_${Date.now()}`,
-                            content: `Learned interaction: ${learning.query} → ${learning.response}`,
-                            categories: [category],
-                            source_file: 'live_learning',
-                            timestamp: learning.timestamp,
-                            importance: learning.importance
-                        });
-                    }
-                }
-            }
-            
-            // Save updated static brain
-            await this.saveStaticBrain();
+
+        for (const learning of importantLearnings) {
+            this.memoryStore.appendToJournal({
+                type: 'learning',
+                content: `Learned: ${learning.query} → ${learning.response}`,
+                tags: this.categorizeLearning(learning),
+                source: 'live_learning'
+            });
         }
-        
-        // Clear learning queue
+
+        if (importantLearnings.length > 0) {
+            console.log(`🧠 Committed ${importantLearnings.length} learnings to local journal`);
+        }
+
         this.learningQueue = [];
     }
     
@@ -896,17 +920,42 @@ Keep response under 200 words, be direct and technical.`;
      * Get TRAI's learning statistics
      */
     getMemoryStats() {
-        if (!this.patternMemory) {
-            return {
-                enabled: false,
-                message: 'Pattern memory disabled'
-            };
-        }
-
-        return {
+        const patternStats = this.patternMemory ? {
             enabled: true,
             ...this.patternMemory.getStats()
+        } : {
+            enabled: false,
+            message: 'Pattern memory disabled'
         };
+
+        const semanticStats = this.memoryStore ? this.memoryStore.getStats() : {
+            entries: 0,
+            message: 'Memory store unavailable'
+        };
+
+        return {
+            ...patternStats,
+            semanticMemory: semanticStats
+        };
+    }
+
+    getReadOnlyTools() {
+        return this.readOnlyTools.listTools();
+    }
+
+    runReadOnlyTool(name, args = {}) {
+        switch (name) {
+            case 'repo_search':
+                return this.readOnlyTools.searchRepo(args.query || '', { limit: args.limit });
+            case 'file_open':
+                return this.readOnlyTools.openFile(args.path || '', { maxBytes: args.maxBytes });
+            case 'log_tail':
+                return this.readOnlyTools.tailLog(args.path || '', args.lines);
+            case 'bot_status':
+                return this.readOnlyTools.getBotStatus();
+            default:
+                return { error: 'Unknown read-only tool' };
+        }
     }
 
     /**
