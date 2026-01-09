@@ -10,7 +10,7 @@
  * EMPIRE V2 FOUNDATION
  * 
  * @author OGZPrime Team
- * @version 1.0.0
+ * @version 2.0.0
  * ============================================================================
  */
 
@@ -53,7 +53,7 @@ class IBrokerAdapter extends EventEmitter {
     }
 
     // =========================================================================
-    // ACCOUNT INFO
+    // ACCOUNT + ORDERS
     // =========================================================================
 
     /**
@@ -80,32 +80,13 @@ class IBrokerAdapter extends EventEmitter {
         throw new Error('getOpenOrders() must be implemented');
     }
 
-    // =========================================================================
-    // ORDER MANAGEMENT
-    // =========================================================================
-
     /**
-     * Place a buy order
-     * @param {string} symbol - Trading pair/symbol
-     * @param {number} amount - Order size
-     * @param {number|null} price - Limit price (null for market)
-     * @param {Object} options - Additional options { stopLoss, takeProfit, etc. }
+     * Place an order
+     * @param {Object} order - Universal order object { symbol, side, amount, price, type, ... }
      * @returns {Promise<Object>} { orderId, status, ... }
      */
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        throw new Error('placeBuyOrder() must be implemented');
-    }
-
-    /**
-     * Place a sell order
-     * @param {string} symbol - Trading pair/symbol
-     * @param {number} amount - Order size
-     * @param {number|null} price - Limit price (null for market)
-     * @param {Object} options - Additional options { stopLoss, takeProfit, etc. }
-     * @returns {Promise<Object>} { orderId, status, ... }
-     */
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        throw new Error('placeSellOrder() must be implemented');
+    async placeOrder(order) {
+        throw new Error('placeOrder() must be implemented');
     }
 
     /**
@@ -115,25 +96,6 @@ class IBrokerAdapter extends EventEmitter {
      */
     async cancelOrder(orderId) {
         throw new Error('cancelOrder() must be implemented');
-    }
-
-    /**
-     * Modify an existing order
-     * @param {string} orderId - Order ID to modify
-     * @param {Object} modifications - { price, amount, stopLoss, takeProfit }
-     * @returns {Promise<Object>} Modified order details
-     */
-    async modifyOrder(orderId, modifications) {
-        throw new Error('modifyOrder() must be implemented');
-    }
-
-    /**
-     * Get order status
-     * @param {string} orderId - Order ID to check
-     * @returns {Promise<Object>} { orderId, status, filledAmount, remainingAmount, ... }
-     */
-    async getOrderStatus(orderId) {
-        throw new Error('getOrderStatus() must be implemented');
     }
 
     // =========================================================================
@@ -150,6 +112,16 @@ class IBrokerAdapter extends EventEmitter {
     }
 
     /**
+     * Get order book
+     * @param {string} symbol - Trading pair/symbol
+     * @param {number} depth - Number of levels
+     * @returns {Promise<Object>} { bids: [[price, amount], ...], asks: [[price, amount], ...] }
+     */
+    async getOrderBook(symbol, depth = 10) {
+        throw new Error('getOrderBook() must be implemented');
+    }
+
+    /**
      * Get OHLCV candles
      * @param {string} symbol - Trading pair/symbol
      * @param {string} timeframe - '1m', '5m', '15m', '1h', '4h', '1d'
@@ -160,65 +132,8 @@ class IBrokerAdapter extends EventEmitter {
         throw new Error('getCandles() must be implemented');
     }
 
-    /**
-     * Get order book
-     * @param {string} symbol - Trading pair/symbol
-     * @param {number} depth - Number of levels
-     * @returns {Promise<Object>} { bids: [[price, amount], ...], asks: [[price, amount], ...] }
-     */
-    async getOrderBook(symbol, depth = 20) {
-        throw new Error('getOrderBook() must be implemented');
-    }
-
     // =========================================================================
-    // REAL-TIME SUBSCRIPTIONS
-    // =========================================================================
-
-    /**
-     * Subscribe to ticker updates
-     * @param {string} symbol - Trading pair/symbol
-     * @param {Function} callback - Called with ticker data
-     */
-    subscribeToTicker(symbol, callback) {
-        throw new Error('subscribeToTicker() must be implemented');
-    }
-
-    /**
-     * Subscribe to candle updates
-     * @param {string} symbol - Trading pair/symbol
-     * @param {string} timeframe - Candle timeframe
-     * @param {Function} callback - Called with new candle
-     */
-    subscribeToCandles(symbol, timeframe, callback) {
-        throw new Error('subscribeToCandles() must be implemented');
-    }
-
-    /**
-     * Subscribe to order book updates
-     * @param {string} symbol - Trading pair/symbol
-     * @param {Function} callback - Called with order book updates
-     */
-    subscribeToOrderBook(symbol, callback) {
-        throw new Error('subscribeToOrderBook() must be implemented');
-    }
-
-    /**
-     * Subscribe to order/position updates
-     * @param {Function} callback - Called with order/position updates
-     */
-    subscribeToAccount(callback) {
-        throw new Error('subscribeToAccount() must be implemented');
-    }
-
-    /**
-     * Unsubscribe from all subscriptions
-     */
-    unsubscribeAll() {
-        throw new Error('unsubscribeAll() must be implemented');
-    }
-
-    // =========================================================================
-    // ASSET INFORMATION
+    // METADATA
     // =========================================================================
 
     /**
@@ -231,7 +146,7 @@ class IBrokerAdapter extends EventEmitter {
 
     /**
      * Get broker name/identifier
-     * @returns {string} e.g., 'kraken', 'tdameritrade', 'tastyworks'
+     * @returns {string} e.g., 'kraken', 'binance', etc.
      */
     getBrokerName() {
         throw new Error('getBrokerName() must be implemented');
@@ -239,7 +154,7 @@ class IBrokerAdapter extends EventEmitter {
 
     /**
      * Get supported symbols/pairs
-     * @returns {Promise<Array>} ['BTC/USD', 'ETH/USD', ...] or ['AAPL', 'GOOGL', ...]
+     * @returns {Promise<Array>} ['BTC/USD', 'ETH/USD', ...]
      */
     async getSupportedSymbols() {
         throw new Error('getSupportedSymbols() must be implemented');
@@ -272,7 +187,7 @@ class IBrokerAdapter extends EventEmitter {
     }
 
     // =========================================================================
-    // SYMBOL NORMALIZATION (Override as needed)
+    // SYMBOL NORMALIZATION (Override if needed)
     // =========================================================================
 
     /**

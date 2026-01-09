@@ -154,51 +154,33 @@ class CoinbaseAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        const order = {
-            client_order_id: `buy-${Date.now()}`,
+    async placeOrder(order) {
+        const { symbol, side, amount, price, type, options = {} } = order;
+
+        const orderData = {
+            client_order_id: `${side.toLowerCase()}-${Date.now()}`,
             product_id: this._toBrokerSymbol(symbol),
-            side: 'BUY',
+            side: side.toUpperCase(),
             order_configuration: {
                 base_size: amount.toString()
             }
         };
 
-        if (price) {
-            order.order_configuration.limit_price = price.toString();
+        const isLimit = type === 'LIMIT' || (type !== 'MARKET' && price);
+
+        if (isLimit) {
+            if (!price) throw new Error('Price required for LIMIT order');
+            orderData.order_configuration.limit_price = price.toString();
         } else {
-            order.order_configuration.market_market_ioc = {};
+            orderData.order_configuration.market_market_ioc = {};
         }
 
         if (options.stopLoss) {
-            order.order_configuration.stop_loss = {
+            orderData.order_configuration.stop_loss = {
                 stop_price: options.stopLoss.toString()
             };
         }
 
-        return this._placeOrder(order);
-    }
-
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        const order = {
-            client_order_id: `sell-${Date.now()}`,
-            product_id: this._toBrokerSymbol(symbol),
-            side: 'SELL',
-            order_configuration: {
-                base_size: amount.toString()
-            }
-        };
-
-        if (price) {
-            order.order_configuration.limit_price = price.toString();
-        } else {
-            order.order_configuration.market_market_ioc = {};
-        }
-
-        return this._placeOrder(order);
-    }
-
-    async _placeOrder(orderData) {
         try {
             const path = '/brokerage/orders';
             const body = JSON.stringify(orderData);

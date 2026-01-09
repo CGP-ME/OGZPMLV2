@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **EMPIRE V2 Broker Adapter Architecture** - foundation/IBrokerAdapter.js
+  - Strict interface definition for V2 compliance.
+  - Standardized `placeOrder(order)` method replacing `placeBuyOrder`/`placeSellOrder`.
+  - Enforced method signature consistency across all adapters.
+
+### Changed
+- **Refactored All Broker Adapters to V2 Interface**
+  - **BinanceAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **KrakenIBrokerAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **CoinbaseAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **InteractiveBrokersAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **TastyworksAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **OandaAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **CMEAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **GeminiAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **SchwabAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **UpholdAdapter.js**: Implemented `placeOrder`, removed buy/sell wrappers.
+  - **KrakenAdapterV2.js**: Updated wrapper to match strict V2 interface.
+  - **BrokerFactory.js**: Updated validation logic to check for `placeOrder`.
+  - **test-brokers.js**: Updated validation tests for new interface.
+
+### Removed
+- Legacy `placeBuyOrder` and `placeSellOrder` methods from `IBrokerAdapter` and all implementing classes.
+
 ### Changed
 - **TRAI Local-First Architecture** - trai_brain/
   - Complete architectural shift to local-first mode (no cloud LLM/embeddings by default)
@@ -2336,8 +2361,8 @@ Bot will:
     - MarketRegimeDetector from modules.MarketRegimeDetector
     - TradingProfileManager from modules.TradingProfileManager
     - GridTradingStrategy from modules.GridTradingStrategy
-  - Line 90: TRAIDecisionModule from modules.TRAIDecisionModule
-  - Line 95: OgzTpoIntegration from modules.OgzTpoIntegration
+    - Line 90: TRAIDecisionModule from modules.TRAIDecisionModule
+    - Line 95: OgzTpoIntegration from modules.OgzTpoIntegration
   - Kept direct requires for:
     - KrakenAdapterSimple (not in core/utils)
     - TierFeatureFlags (in root directory)

@@ -285,26 +285,21 @@ class SchwabAdapter extends IBrokerAdapter {
   }
 
   // ORDER MANAGEMENT
-  async placeBuyOrder(symbol, amount, price = null, options = {}) {
-    return this._placeOrder('BUY', symbol, amount, price, options);
-  }
+  async placeOrder(order) {
+    const { symbol, side, amount, price, type, options = {} } = order;
 
-  async placeSellOrder(symbol, amount, price = null, options = {}) {
-    return this._placeOrder('SELL', symbol, amount, price, options);
-  }
-
-  async _placeOrder(instruction, symbol, quantity, price, options) {
     try {
-      const orderType = price ? 'LIMIT' : 'MARKET';
+      const orderType = (type === 'LIMIT' || (price && type !== 'MARKET')) ? 'LIMIT' : 'MARKET';
+      const instruction = side.toUpperCase();
 
-      const order = {
+      const schwabOrder = {
         orderType: orderType,
         session: options.session || 'NORMAL',
         duration: options.duration || 'DAY',
         orderStrategyType: 'SINGLE',
         orderLegCollection: [{
           instruction: instruction,
-          quantity: quantity,
+          quantity: amount,
           instrument: {
             symbol: symbol,
             assetType: options.assetType || 'EQUITY'
@@ -312,14 +307,15 @@ class SchwabAdapter extends IBrokerAdapter {
         }]
       };
 
-      if (price) {
-        order.price = price;
+      if (orderType === 'LIMIT') {
+          if (!price) throw new Error('Price required for LIMIT order');
+          schwabOrder.price = price;
       }
 
       const response = await this._request(
         `${this.tradingUrl}/accounts/${this.config.accountNumber}/orders`,
         'POST',
-        order
+        schwabOrder
       );
 
       // Schwab returns order ID in Location header
@@ -329,14 +325,14 @@ class SchwabAdapter extends IBrokerAdapter {
         id: orderId,
         symbol: symbol,
         type: orderType.toLowerCase(),
-        side: instruction.toLowerCase(),
+        side: side,
         price: price || 0,
-        amount: quantity,
+        amount: amount,
         status: 'pending',
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error(`❌ Failed to place ${instruction} order:`, error);
+      console.error(`❌ Failed to place ${side} order:`, error);
       return null;
     }
   }
