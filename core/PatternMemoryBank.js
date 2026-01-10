@@ -2,33 +2,50 @@
  * TRAI PATTERN MEMORY BANK
  *
  * Persistent learning system that remembers successful and failed trading patterns.
- * Only saves statistically significant patterns (10+ occurrences, 65%+ win rate).
+ * Patterns progress through: CANDIDATE → PROMOTED / QUARANTINED / DEAD
  *
  * Features:
  * - Pattern hashing for consistent identification
- * - Statistical significance filtering (prevents noise)
- * - Success/failure tracking
- * - News correlation memory
- * - Market regime detection
- * - Automatic pruning of outdated patterns
+ * - Statistical scoring (winRate * avgR * confidence * recency - penalty)
+ * - Automatic promotion/quarantine based on thresholds
+ * - Pruning by score and age
  *
  * Memory Structure:
  * {
- *   successfulPatterns: { hash: { pattern, wins, losses, totalPnL, ... } },
- *   failedPatterns: { hash: { pattern, wins, losses, ... } },
- *   newsCorrelations: { keyword: { priceImpact, occurrences } },
- *   marketRegimes: { regime: { volatility, winRate } },
+ *   patterns: {
+ *     hash: {
+ *       name, data, status, sampleCount, winCount, lossCount,
+ *       totalPnL, avgPnLPercent, sumPnLSquared, avgHoldMs,
+ *       firstSeenTs, lastSeenTs, lastOutcomeTs, score
+ *     }
+ *   },
  *   metadata: { lastUpdated, totalTrades, version }
  * }
  *
  * @author TRAI Core Team
- * @version 1.0.0
+ * @version 2.0.0
  * @created 2025-11-22
  */
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+
+// Status constants
+const STATUS = {
+  CANDIDATE: 'CANDIDATE',
+  PROMOTED: 'PROMOTED',
+  QUARANTINED: 'QUARANTINED',
+  DEAD: 'DEAD'
+};
+
+// Thresholds
+const MIN_SAMPLES_PROMOTE = 30;
+const MIN_SAMPLES_QUAR = 15;
+const MIN_WINRATE_PROMOTE = 0.55;
+const MIN_AVG_R_PROMOTE = 0.15;
+const MAX_WINRATE_QUAR = 0.45;
+const MAX_PATTERNS = 10000;
 
 class PatternMemoryBank {
     constructor(config = {}) {
@@ -80,9 +97,12 @@ class PatternMemoryBank {
         // Load existing memory or create new
         this.memory = this.loadMemory();
 
-        console.log('🧠 [TRAI Memory] Initialized with',
-            Object.keys(this.memory.successfulPatterns).length, 'successful patterns,',
-            Object.keys(this.memory.failedPatterns).length, 'failed patterns');
+        // Count by status
+        const counts = { CANDIDATE: 0, PROMOTED: 0, QUARANTINED: 0, DEAD: 0 };
+        for (const record of Object.values(this.memory.patterns)) {
+            counts[record.status] = (counts[record.status] || 0) + 1;
+        }
+        console.log(`🧠 [TRAI Memory] Initialized: ${counts.PROMOTED} promoted, ${counts.QUARANTINED} quarantined, ${counts.CANDIDATE} candidates`);
     }
 
     /**
@@ -107,12 +127,9 @@ class PatternMemoryBank {
      */
     createEmptyMemory() {
         return {
-            successfulPatterns: {},
-            failedPatterns: {},
-            newsCorrelations: {},
-            marketRegimes: {},
+            patterns: {},
             metadata: {
-                version: '1.0.0',
+                version: '2.0.0',
                 created: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),
                 totalTrades: 0,
@@ -128,16 +145,51 @@ class PatternMemoryBank {
     validateMemoryStructure(data) {
         const empty = this.createEmptyMemory();
 
+        // Migrate from v1 (successfulPatterns/failedPatterns) to v2 (patterns)
+        let patterns = data.patterns || {};
+        if (data.successfulPatterns || data.failedPatterns) {
+            // Migrate old structure
+            for (const [hash, record] of Object.entries(data.successfulPatterns || {})) {
+                patterns[hash] = this.migratePatternRecord(record, STATUS.PROMOTED);
+            }
+            for (const [hash, record] of Object.entries(data.failedPatterns || {})) {
+                patterns[hash] = this.migratePatternRecord(record, STATUS.QUARANTINED);
+            }
+        }
+
         return {
-            successfulPatterns: data.successfulPatterns || {},
-            failedPatterns: data.failedPatterns || {},
-            newsCorrelations: data.newsCorrelations || {},
-            marketRegimes: data.marketRegimes || {},
+            patterns,
             metadata: {
                 ...empty.metadata,
                 ...data.metadata,
+                version: '2.0.0',
                 lastUpdated: new Date().toISOString()
             }
+        };
+    }
+
+    /**
+     * Migrate v1 pattern record to v2 format
+     */
+    migratePatternRecord(old, status) {
+        const sampleCount = (old.wins || 0) + (old.losses || 0);
+        const avgPnLPercent = sampleCount > 0 ? (old.totalPnL || 0) / sampleCount : 0;
+        return {
+            name: old.name || 'unknown',
+            data: old.pattern || old.data || {},
+            status: status,
+            sampleCount: sampleCount,
+            winCount: old.wins || 0,
+            lossCount: old.losses || 0,
+            totalPnL: old.totalPnL || 0,
+            avgPnLPercent: avgPnLPercent,
+            sumPnLSquared: avgPnLPercent * avgPnLPercent * sampleCount, // Approximate
+            avgHoldMs: 0,
+            totalHoldMs: 0,
+            firstSeenTs: old.firstSeen ? new Date(old.firstSeen).getTime() : Date.now(),
+            lastSeenTs: old.lastSeen ? new Date(old.lastSeen).getTime() : Date.now(),
+            lastOutcomeTs: old.lastSeen ? new Date(old.lastSeen).getTime() : Date.now(),
+            score: 0
         };
     }
 
@@ -145,7 +197,7 @@ class PatternMemoryBank {
      * Record the outcome of a closed trade
      * This is called after every trade closes to build TRAI's memory
      *
-     * @param {Object} trade - Trade data including entry, exit, and P&L
+     * @param {Object} trade - Trade data including entry, exit, P&L, and optional decisionId
      */
     recordTradeOutcome(trade) {
         try {
@@ -156,96 +208,74 @@ class PatternMemoryBank {
                 return;
             }
 
+            const now = Date.now();
+            const pnlPercent = trade.profitLossPercent || 0;
+            const holdMs = trade.holdDuration || 0;
+            const isWin = trade.profitLoss > 0;
+
             // Initialize pattern record if it doesn't exist
-            if (!this.memory.successfulPatterns[pattern.hash] &&
-                !this.memory.failedPatterns[pattern.hash]) {
-                this.memory.successfulPatterns[pattern.hash] = {
-                    pattern: pattern.data,
+            if (!this.memory.patterns[pattern.hash]) {
+                this.memory.patterns[pattern.hash] = {
                     name: pattern.name,
-                    wins: 0,
-                    losses: 0,
+                    data: pattern.data,
+                    status: STATUS.CANDIDATE,
+                    sampleCount: 0,
+                    winCount: 0,
+                    lossCount: 0,
                     totalPnL: 0,
-                    avgPnL: 0,
-                    bestTrade: 0,
-                    worstTrade: 0,
-                    firstSeen: new Date().toISOString(),
-                    lastSeen: new Date().toISOString(),
-                    occurrences: []
+                    avgPnLPercent: 0,
+                    sumPnLSquared: 0,
+                    avgHoldMs: 0,
+                    totalHoldMs: 0,
+                    firstSeenTs: now,
+                    lastSeenTs: now,
+                    lastOutcomeTs: now,
+                    score: 0
                 };
             }
 
-            // Get existing record (could be in success or failed)
-            const record = this.memory.successfulPatterns[pattern.hash] ||
-                          this.memory.failedPatterns[pattern.hash];
+            const record = this.memory.patterns[pattern.hash];
 
-            // Update statistics
-            const isWin = trade.profitLoss > 0;
-
+            // Update counts
+            record.sampleCount++;
             if (isWin) {
-                record.wins++;
+                record.winCount++;
                 this.memory.metadata.totalWins++;
             } else {
-                record.losses++;
+                record.lossCount++;
                 this.memory.metadata.totalLosses++;
             }
 
-            record.totalPnL += trade.profitLoss;
-            record.lastSeen = new Date().toISOString();
+            // Update PnL stats
+            record.totalPnL += pnlPercent;
+            record.sumPnLSquared += pnlPercent * pnlPercent;
+            record.avgPnLPercent = record.totalPnL / record.sampleCount;
 
-            // Track best and worst trades
-            if (trade.profitLoss > record.bestTrade) {
-                record.bestTrade = trade.profitLoss;
-            }
-            if (trade.profitLoss < record.worstTrade) {
-                record.worstTrade = trade.profitLoss;
-            }
+            // Update hold time
+            record.totalHoldMs += holdMs;
+            record.avgHoldMs = record.totalHoldMs / record.sampleCount;
 
-            // Store occurrence details (keep last 20 for analysis)
-            record.occurrences.push({
-                timestamp: trade.exit.timestamp,
-                profitLoss: trade.profitLoss,
-                profitLossPercent: trade.profitLossPercent,
-                holdDuration: trade.holdDuration
-            });
-
-            if (record.occurrences.length > 20) {
-                record.occurrences = record.occurrences.slice(-20);
-            }
-
-            // Calculate statistics
-            const totalTrades = record.wins + record.losses;
-            const winRate = record.wins / totalTrades;
-            record.avgPnL = record.totalPnL / totalTrades;
-            record.winRate = winRate;
+            // Update timestamps
+            record.lastSeenTs = now;
+            record.lastOutcomeTs = now;
 
             // Update metadata
             this.memory.metadata.totalTrades++;
             this.memory.metadata.lastUpdated = new Date().toISOString();
 
-            // Classify pattern based on statistical significance
-            if (totalTrades >= this.minTradesSample) {
-                if (winRate >= this.successThreshold) {
-                    // Pattern is successful - keep in successful patterns
-                    if (this.memory.failedPatterns[pattern.hash]) {
-                        delete this.memory.failedPatterns[pattern.hash];
-                    }
-                    this.memory.successfulPatterns[pattern.hash] = record;
+            // Compute score and update status
+            record.score = this.computeScore(record);
+            this.updateStatus(record);
 
-                    console.log(`📚 [TRAI Memory] Pattern learned: "${pattern.name}" - ` +
-                               `${(winRate * 100).toFixed(1)}% win rate over ${totalTrades} trades ` +
-                               `(Avg: ${record.avgPnL > 0 ? '+' : ''}${record.avgPnL.toFixed(2)}%)`);
-
-                } else if (winRate < this.failureThreshold) {
-                    // Pattern is failing - move to failed patterns
-                    if (this.memory.successfulPatterns[pattern.hash]) {
-                        delete this.memory.successfulPatterns[pattern.hash];
-                    }
-                    this.memory.failedPatterns[pattern.hash] = record;
-
-                    console.log(`🚫 [TRAI Memory] Pattern marked as failed: "${pattern.name}" - ` +
-                               `Only ${(winRate * 100).toFixed(1)}% win rate over ${totalTrades} trades ` +
-                               `(Will avoid in future)`);
-                }
+            // Log status changes
+            const winRate = record.winCount / record.sampleCount;
+            if (record.status === STATUS.PROMOTED) {
+                console.log(`📚 [TRAI Memory] PROMOTED: "${pattern.name}" - ` +
+                           `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples, ` +
+                           `avgR=${record.avgPnLPercent.toFixed(2)}%, score=${record.score.toFixed(3)}`);
+            } else if (record.status === STATUS.QUARANTINED) {
+                console.log(`🚫 [TRAI Memory] QUARANTINED: "${pattern.name}" - ` +
+                           `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples`);
             }
 
             // Save to disk
@@ -253,6 +283,76 @@ class PatternMemoryBank {
 
         } catch (error) {
             console.error('❌ [TRAI Memory] Error recording trade outcome:', error.message);
+        }
+    }
+
+    /**
+     * Compute pattern score
+     * score = (winRate * avgR) * confidenceMultiplier * recencyMultiplier - penalty
+     */
+    computeScore(record) {
+        if (record.sampleCount === 0) return 0;
+
+        const winRate = record.winCount / record.sampleCount;
+        const avgR = record.avgPnLPercent;
+
+        // Confidence grows with sample count: min(1, log1p(n)/log1p(50))
+        const confidenceMultiplier = Math.min(1, Math.log1p(record.sampleCount) / Math.log1p(50));
+
+        // Recency: mild decay if not seen in 30 days
+        const daysSinceLastSeen = (Date.now() - record.lastSeenTs) / (24 * 60 * 60 * 1000);
+        const recencyMultiplier = daysSinceLastSeen > 30 ? Math.max(0.5, 1 - (daysSinceLastSeen - 30) / 60) : 1;
+
+        // Variance penalty: stdDev proxy from sumPnLSquared
+        const variance = record.sampleCount > 1
+            ? (record.sumPnLSquared / record.sampleCount) - (avgR * avgR)
+            : 0;
+        const stdDev = Math.sqrt(Math.max(0, variance));
+        const variancePenalty = stdDev > 2 ? (stdDev - 2) * 0.1 : 0;
+
+        // Win rate penalty if below floor after enough samples
+        const winRatePenalty = (record.sampleCount >= MIN_SAMPLES_QUAR && winRate < MAX_WINRATE_QUAR)
+            ? (MAX_WINRATE_QUAR - winRate) * 2
+            : 0;
+
+        const score = (winRate * avgR) * confidenceMultiplier * recencyMultiplier - variancePenalty - winRatePenalty;
+        return score;
+    }
+
+    /**
+     * Update pattern status based on thresholds
+     */
+    updateStatus(record) {
+        const winRate = record.sampleCount > 0 ? record.winCount / record.sampleCount : 0;
+        const avgR = record.avgPnLPercent;
+
+        // PROMOTED: meets all criteria
+        if (record.sampleCount >= MIN_SAMPLES_PROMOTE &&
+            winRate >= MIN_WINRATE_PROMOTE &&
+            avgR >= MIN_AVG_R_PROMOTE) {
+            record.status = STATUS.PROMOTED;
+            return;
+        }
+
+        // QUARANTINED: enough samples but failing
+        if (record.sampleCount >= MIN_SAMPLES_QUAR &&
+            (winRate <= MAX_WINRATE_QUAR || avgR <= 0)) {
+            record.status = STATUS.QUARANTINED;
+            return;
+        }
+
+        // DEAD: quarantined + very old + negative score
+        const daysSinceLastSeen = (Date.now() - record.lastSeenTs) / (24 * 60 * 60 * 1000);
+        if (record.status === STATUS.QUARANTINED &&
+            daysSinceLastSeen > 60 &&
+            record.score < -0.5) {
+            record.status = STATUS.DEAD;
+            return;
+        }
+
+        // Otherwise stay CANDIDATE (or keep current status if already PROMOTED/QUARANTINED)
+        if (record.status !== STATUS.PROMOTED && record.status !== STATUS.QUARANTINED) {
+            record.status = STATUS.CANDIDATE;
         }
     }
 
@@ -265,61 +365,53 @@ class PatternMemoryBank {
     getPatternConfidence(currentPattern) {
         try {
             const hash = this.hashPattern(currentPattern);
+            const record = this.memory.patterns[hash];
 
-            // Check successful patterns
-            if (this.memory.successfulPatterns[hash]) {
-                const record = this.memory.successfulPatterns[hash];
-                const totalTrades = record.wins + record.losses;
-
-                if (totalTrades >= this.minTradesSample) {
-                    const winRate = record.wins / totalTrades;
-
-                    console.log(`🧠 [TRAI Memory] MATCH FOUND: "${record.name}" - ` +
-                               `${(winRate * 100).toFixed(1)}% win rate over ${totalTrades} trades ` +
-                               `(Avg: ${record.avgPnL > 0 ? '+' : ''}${record.avgPnL.toFixed(2)}%)`);
-
-                    return {
-                        confidence: winRate,
-                        source: 'learned_success',
-                        stats: {
-                            totalTrades,
-                            wins: record.wins,
-                            losses: record.losses,
-                            avgPnL: record.avgPnL,
-                            bestTrade: record.bestTrade,
-                            worstTrade: record.worstTrade
-                        }
-                    };
-                }
+            if (!record || record.sampleCount < this.minTradesSample) {
+                return null;
             }
 
-            // Check failed patterns
-            if (this.memory.failedPatterns[hash]) {
-                const record = this.memory.failedPatterns[hash];
-                const totalTrades = record.wins + record.losses;
+            const winRate = record.winCount / record.sampleCount;
 
-                if (totalTrades >= this.minTradesSample) {
-                    const winRate = record.wins / totalTrades;
+            if (record.status === STATUS.PROMOTED) {
+                console.log(`🧠 [TRAI Memory] PROMOTED MATCH: "${record.name}" - ` +
+                           `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples, ` +
+                           `score=${record.score.toFixed(3)}`);
 
-                    console.log(`⚠️ [TRAI Memory] AVOID: "${record.name}" - ` +
-                               `Only ${(winRate * 100).toFixed(1)}% win rate over ${totalTrades} trades ` +
-                               `(Pattern has failed historically)`);
-
-                    return {
-                        confidence: 0.0,
-                        source: 'learned_failure',
-                        stats: {
-                            totalTrades,
-                            wins: record.wins,
-                            losses: record.losses,
-                            avgPnL: record.avgPnL,
-                            reason: 'Historical failure pattern'
-                        }
-                    };
-                }
+                return {
+                    confidence: winRate,
+                    source: 'learned_success',
+                    stats: {
+                        sampleCount: record.sampleCount,
+                        winCount: record.winCount,
+                        lossCount: record.lossCount,
+                        avgPnLPercent: record.avgPnLPercent,
+                        score: record.score,
+                        status: record.status
+                    }
+                };
             }
 
-            // Pattern not in memory yet
+            if (record.status === STATUS.QUARANTINED || record.status === STATUS.DEAD) {
+                console.log(`⚠️ [TRAI Memory] AVOID (${record.status}): "${record.name}" - ` +
+                           `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples`);
+
+                return {
+                    confidence: 0.0,
+                    source: 'learned_failure',
+                    stats: {
+                        sampleCount: record.sampleCount,
+                        winCount: record.winCount,
+                        lossCount: record.lossCount,
+                        avgPnLPercent: record.avgPnLPercent,
+                        score: record.score,
+                        status: record.status,
+                        reason: `Pattern ${record.status}`
+                    }
+                };
+            }
+
+            // CANDIDATE - not enough data to boost/penalize
             return null;
 
         } catch (error) {
@@ -449,42 +541,101 @@ class PatternMemoryBank {
     }
 
     /**
-     * Prune old and irrelevant patterns
-     * Removes patterns that haven't been seen in 90 days
+     * Prune old, dead, and excess patterns
+     * - Removes DEAD patterns
+     * - Removes patterns older than maxPatternAge
+     * - If over MAX_PATTERNS cap, drops lowest score oldest first
      */
     pruneOldPatterns() {
         let pruned = 0;
         const now = Date.now();
 
-        // Prune successful patterns
-        for (const [hash, record] of Object.entries(this.memory.successfulPatterns)) {
-            const lastSeen = new Date(record.lastSeen).getTime();
-            const age = now - lastSeen;
+        // First pass: Remove DEAD and old patterns
+        for (const [hash, record] of Object.entries(this.memory.patterns)) {
+            const age = now - record.lastSeenTs;
 
-            if (age > this.maxPatternAge) {
-                delete this.memory.successfulPatterns[hash];
+            if (record.status === STATUS.DEAD) {
+                delete this.memory.patterns[hash];
                 pruned++;
-                console.log(`🗑️ [TRAI Memory] Pruned old pattern: "${record.name}" (not seen in ${Math.floor(age / (24 * 60 * 60 * 1000))} days)`);
+                console.log(`🗑️ [TRAI Memory] Pruned DEAD: "${record.name}"`);
+            } else if (age > this.maxPatternAge) {
+                delete this.memory.patterns[hash];
+                pruned++;
+                console.log(`🗑️ [TRAI Memory] Pruned old: "${record.name}" (${Math.floor(age / (24 * 60 * 60 * 1000))} days)`);
             }
         }
 
-        // Prune failed patterns
-        for (const [hash, record] of Object.entries(this.memory.failedPatterns)) {
-            const lastSeen = new Date(record.lastSeen).getTime();
-            const age = now - lastSeen;
+        // Second pass: If still over cap, drop lowest score oldest first
+        const patternCount = Object.keys(this.memory.patterns).length;
+        if (patternCount > MAX_PATTERNS) {
+            const toRemove = patternCount - MAX_PATTERNS;
+            const sorted = Object.entries(this.memory.patterns)
+                .map(([hash, record]) => ({ hash, score: record.score, lastSeenTs: record.lastSeenTs }))
+                .sort((a, b) => {
+                    // Sort by score ascending, then by lastSeenTs ascending (oldest first)
+                    if (a.score !== b.score) return a.score - b.score;
+                    return a.lastSeenTs - b.lastSeenTs;
+                });
 
-            if (age > this.maxPatternAge) {
-                delete this.memory.failedPatterns[hash];
+            for (let i = 0; i < toRemove && i < sorted.length; i++) {
+                const { hash } = sorted[i];
+                const record = this.memory.patterns[hash];
+                console.log(`🗑️ [TRAI Memory] Pruned (cap): "${record.name}" score=${record.score.toFixed(3)}`);
+                delete this.memory.patterns[hash];
                 pruned++;
             }
         }
 
         if (pruned > 0) {
-            console.log(`🗑️ [TRAI Memory] Pruned ${pruned} old patterns`);
+            console.log(`🗑️ [TRAI Memory] Pruned ${pruned} patterns total`);
             this.saveMemory();
         }
 
         return pruned;
+    }
+
+    /**
+     * Get top patterns by score
+     * @param {number} limit - Max patterns to return
+     * @param {string} status - Filter by status (default: PROMOTED)
+     */
+    getTopPatterns(limit = 50, status = STATUS.PROMOTED) {
+        return Object.entries(this.memory.patterns)
+            .filter(([_, record]) => record.status === status)
+            .map(([hash, record]) => ({
+                hash,
+                name: record.name,
+                status: record.status,
+                sampleCount: record.sampleCount,
+                winRate: record.sampleCount > 0 ? record.winCount / record.sampleCount : 0,
+                avgPnLPercent: record.avgPnLPercent,
+                avgHoldMs: record.avgHoldMs,
+                score: record.score,
+                lastSeenTs: record.lastSeenTs
+            }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
+    }
+
+    /**
+     * Get worst patterns (QUARANTINED + DEAD, lowest scores)
+     * @param {number} limit - Max patterns to return
+     */
+    getWorstPatterns(limit = 50) {
+        return Object.entries(this.memory.patterns)
+            .filter(([_, record]) => record.status === STATUS.QUARANTINED || record.status === STATUS.DEAD)
+            .map(([hash, record]) => ({
+                hash,
+                name: record.name,
+                status: record.status,
+                sampleCount: record.sampleCount,
+                winRate: record.sampleCount > 0 ? record.winCount / record.sampleCount : 0,
+                avgPnLPercent: record.avgPnLPercent,
+                score: record.score,
+                lastSeenTs: record.lastSeenTs
+            }))
+            .sort((a, b) => a.score - b.score)
+            .slice(0, limit);
     }
 
     /**
@@ -506,8 +657,8 @@ class PatternMemoryBank {
             // Write new memory
             fs.writeFileSync(this.dbPath, JSON.stringify(this.memory, null, 2));
 
-            console.log(`💾 [TRAI Memory] Saved - ${Object.keys(this.memory.successfulPatterns).length} successful, ` +
-                       `${Object.keys(this.memory.failedPatterns).length} failed patterns`);
+            const total = Object.keys(this.memory.patterns).length;
+            console.log(`💾 [TRAI Memory] Saved ${total} patterns`);
 
         } catch (error) {
             console.error('❌ [TRAI Memory] Failed to save:', error.message);
@@ -528,42 +679,46 @@ class PatternMemoryBank {
         this.memory = this.validateMemoryStructure(data);
         this.saveMemory();
         console.log('📥 [TRAI Memory] Imported memory with',
-                   Object.keys(this.memory.successfulPatterns).length, 'patterns');
+                   Object.keys(this.memory.patterns).length, 'patterns');
     }
 
     /**
      * Get statistics about TRAI's learning
      */
     getStats() {
-        const successfulCount = Object.keys(this.memory.successfulPatterns).length;
-        const failedCount = Object.keys(this.memory.failedPatterns).length;
+        const patterns = Object.values(this.memory.patterns);
+        const counts = { CANDIDATE: 0, PROMOTED: 0, QUARANTINED: 0, DEAD: 0 };
+        let totalScore = 0;
+        let promotedWinRateSum = 0;
+        let promotedAvgRSum = 0;
 
-        // Calculate average win rate of learned patterns
-        let totalWinRate = 0;
-        let maturePatterns = 0;
+        for (const record of patterns) {
+            counts[record.status] = (counts[record.status] || 0) + 1;
+            totalScore += record.score;
 
-        for (const record of Object.values(this.memory.successfulPatterns)) {
-            const totalTrades = record.wins + record.losses;
-            if (totalTrades >= this.minTradesSample) {
-                totalWinRate += record.wins / totalTrades;
-                maturePatterns++;
+            if (record.status === STATUS.PROMOTED && record.sampleCount > 0) {
+                promotedWinRateSum += record.winCount / record.sampleCount;
+                promotedAvgRSum += record.avgPnLPercent;
             }
         }
 
-        const avgWinRate = maturePatterns > 0 ? totalWinRate / maturePatterns : 0;
+        const promotedCount = counts.PROMOTED || 0;
 
         return {
-            successfulPatterns: successfulCount,
-            failedPatterns: failedCount,
-            maturePatterns,  // Patterns with 10+ trades
+            totalPatterns: patterns.length,
+            promoted: promotedCount,
+            quarantined: counts.QUARANTINED || 0,
+            candidates: counts.CANDIDATE || 0,
+            dead: counts.DEAD || 0,
             totalTrades: this.memory.metadata.totalTrades,
             totalWins: this.memory.metadata.totalWins,
             totalLosses: this.memory.metadata.totalLosses,
             overallWinRate: this.memory.metadata.totalTrades > 0
                 ? this.memory.metadata.totalWins / this.memory.metadata.totalTrades
                 : 0,
-            avgLearnedPatternWinRate: avgWinRate,
-            newsCorrelations: Object.keys(this.memory.newsCorrelations).length,
+            avgPromotedWinRate: promotedCount > 0 ? promotedWinRateSum / promotedCount : 0,
+            avgPromotedR: promotedCount > 0 ? promotedAvgRSum / promotedCount : 0,
+            avgScore: patterns.length > 0 ? totalScore / patterns.length : 0,
             lastUpdated: this.memory.metadata.lastUpdated,
             created: this.memory.metadata.created
         };
@@ -580,3 +735,4 @@ class PatternMemoryBank {
 }
 
 module.exports = PatternMemoryBank;
+module.exports.STATUS = STATUS;
