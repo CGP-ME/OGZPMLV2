@@ -21,6 +21,7 @@
  */
 
 const EventEmitter = require('events');
+const fs = require('fs');
 
 class TRAIDecisionModule extends EventEmitter {
   constructor(config = {}) {
@@ -244,7 +245,7 @@ class TRAIDecisionModule extends EventEmitter {
     decision.processingTime = Date.now() - startTime;
 
     // Step 10: Log the decision (after processingTime is set!)
-    this.logDecision(decision);
+    this.logDecision(decision, signal, context);
 
     // Emit decision event for monitoring
     this.emit('decision', decision);
@@ -835,25 +836,43 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
   /**
    * Log decision for audit trail
    */
-  logDecision(decision) {
+  logDecision(decision, signal, context) {
     if (!this.config.trackDecisions) return;
-    
-    const log = {
-      timestamp: new Date().toISOString(),
-      originalConfidence: decision.originalConfidence,
-      traiConfidence: decision.traiConfidence,
-      finalConfidence: decision.finalConfidence,
-      recommendation: decision.traiRecommendation,
-      riskScore: decision.riskAssessment.riskScore,
-      vetoApplied: decision.vetoApplied,
-      reasoning: decision.reasoning,
-      processingTime: decision.processingTime
+
+    const telemetry = {
+      tsMs: Date.now(),
+      type: "trai_decision",
+      decisionId: decision.id,
+      cycleId: this.state?.totalDecisions ?? null,
+
+      input: {
+        symbol: signal?.symbol,
+        timeframe: signal?.timeframe,
+        action: signal?.action,
+        originalConfidence: decision.originalConfidence,
+        indicators: decision.indicatorsSnapshot || null
+      },
+
+      output: {
+        action: decision.traiRecommendation,
+        finalConfidence: decision.finalConfidence,
+        traiConfidence: decision.traiConfidence,
+        vetoApplied: decision.vetoApplied,
+        riskScore: decision.riskAssessment?.riskScore,
+        adjustments: decision.adjustments || null
+      },
+
+      meta: {
+        processingTimeMs: decision.processingTime,
+        mode: this.config.mode
+      }
     };
-    
-    console.log(`🤖 [TRAI] Decision: ${JSON.stringify(log)}`);
-    
-    // TODO: Write to file if needed
-    // fs.appendFileSync(this.config.logPath, JSON.stringify(log) + '\n');
+
+    fs.appendFile(
+      this.config.logPath,
+      JSON.stringify(telemetry) + "\n",
+      () => {}
+    );
   }
   
   /**
