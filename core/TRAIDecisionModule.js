@@ -22,6 +22,14 @@
 
 const EventEmitter = require('events');
 const fs = require('fs');
+const path = require('path');
+
+// Version hash for telemetry
+const VERSION_HASH = 'v2.0.0-telem';
+
+// Ensure logs directory exists (fire-and-forget, ignore errors)
+const LOGS_DIR = path.join(__dirname, '..', 'logs');
+try { fs.mkdirSync(LOGS_DIR, { recursive: true }); } catch (_) {}
 
 class TRAIDecisionModule extends EventEmitter {
   constructor(config = {}) {
@@ -96,7 +104,7 @@ class TRAIDecisionModule extends EventEmitter {
 
       if (enableLLM) {
         try {
-          const TRAICore = require('../trai_brain/trai_core.js');
+          const TRAICore = require('./trai_core.js');
           this.traiCore = new TRAICore({
             staticBrainPath: './trai_brain',
             enableLLM: true,
@@ -834,10 +842,15 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
   }
   
   /**
-   * Log decision for audit trail
+   * Log decision for audit trail (JSONL telemetry)
+   * Schema: tsMs, type, decisionId, cycleId, input (sanitized), output, meta
    */
   logDecision(decision, signal, context) {
     if (!this.config.trackDecisions) return;
+
+    // Detect trading mode (no secrets exposure)
+    const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
+                        (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
 
     const telemetry = {
       tsMs: Date.now(),
@@ -845,33 +858,53 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
       decisionId: decision.id,
       cycleId: this.state?.totalDecisions ?? null,
 
+      // Sanitized input - NO secrets, NO full env dumps
       input: {
-        symbol: signal?.symbol,
-        timeframe: signal?.timeframe,
+        symbol: signal?.symbol || 'BTC-USD',
+        timeframe: signal?.timeframe || '1m',
         action: signal?.action,
         originalConfidence: decision.originalConfidence,
-        indicators: decision.indicatorsSnapshot || null
+        regime: context?.regime || null,
+        trend: context?.trend || null,
+        volatility: context?.volatility || null,
+        indicators: {
+          rsi: context?.indicators?.rsi || null,
+          macd: context?.indicators?.macd || null,
+          macdHistogram: context?.indicators?.macdHistogram || null
+        },
+        patternIds: (signal?.patterns || []).map(p => p.id || p.name || p).slice(0, 5),
+        riskFlags: decision.riskAssessment?.factors || []
       },
 
       output: {
-        action: decision.traiRecommendation,
-        finalConfidence: decision.finalConfidence,
+        decision: decision.traiRecommendation,
+        confidence: decision.finalConfidence,
         traiConfidence: decision.traiConfidence,
+        reasonSummary: (decision.reasoning || '').slice(0, 200),
         vetoApplied: decision.vetoApplied,
-        riskScore: decision.riskAssessment?.riskScore,
-        adjustments: decision.adjustments || null
+        riskScore: decision.riskAssessment?.riskScore || null,
+        chosenPatternIds: (decision.adjustments || []).map(a => a.type).slice(0, 5),
+        intendedOrderParams: decision.traiRecommendation !== 'HOLD' ? {
+          direction: decision.traiRecommendation.includes('BUY') ? 'buy' : 'sell',
+          confidenceGate: decision.finalConfidence
+        } : null
       },
 
       meta: {
-        processingTimeMs: decision.processingTime,
-        mode: this.config.mode
+        version: VERSION_HASH,
+        adapterId: 'kraken',
+        brokerId: process.env.BOT_TIER || 'quantum',
+        mode: tradingMode,
+        traiMode: this.config.mode,
+        latencyMs: decision.processingTime
       }
     };
 
+    // Async fire-and-forget JSONL append (silent failure)
     fs.appendFile(
       this.config.logPath,
       JSON.stringify(telemetry) + "\n",
-      () => {}
+      () => {} // Ignore errors
     );
   }
   
