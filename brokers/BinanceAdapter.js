@@ -206,27 +206,22 @@ class BinanceAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'BUY', amount, price, options);
-    }
-
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'SELL', amount, price, options);
-    }
-
-    async _placeOrder(symbol, side, amount, price, options = {}) {
+    async placeOrder(order) {
         try {
+            const { symbol, side, amount, price, type, options = {} } = order;
+
             const params = {
                 symbol: this._toBrokerSymbol(symbol),
-                side: side,
+                side: side.toUpperCase(),
                 quantity: amount,
-                type: price ? 'LIMIT' : 'MARKET',
+                type: (type || (price ? 'LIMIT' : 'MARKET')).toUpperCase(),
                 timeInForce: 'GTC',
                 timestamp: Date.now(),
                 recvWindow: 5000
             };
 
-            if (price) {
+            if (params.type === 'LIMIT') {
+                if (!price) throw new Error('Price required for LIMIT order');
                 params.price = price;
             }
 
@@ -244,7 +239,8 @@ class BinanceAdapter extends IBrokerAdapter {
             });
 
             return {
-                orderId: response.data.orderId,
+                // Return composite ID "SYMBOL:ID" so cancelOrder(orderId) works without separate symbol arg
+                orderId: `${this.fromBrokerSymbol(response.data.symbol)}:${response.data.orderId}`,
                 status: response.data.status,
                 symbol: this.fromBrokerSymbol(response.data.symbol),
                 side: response.data.side,
@@ -256,11 +252,27 @@ class BinanceAdapter extends IBrokerAdapter {
         }
     }
 
-    async cancelOrder(symbol, orderId) {
+    async cancelOrder(orderId) {
         try {
+            // Note: Binance requires symbol for cancellation.
+            // This is a limitation of the V2 strict interface (cancelOrder(orderId)).
+            // We would need to look up the order or require symbol in orderId (e.g. "BTCUSD:12345")
+            // For now, we assume the caller might have encoded it or we'll fail if we can't derive it.
+            // But wait, the previous implementation took symbol as argument 1.
+            // I will implement a workaround or strict failure if symbol is not available.
+            // In a real V2, we might maintain a local order map or require orderId to be composite.
+
+            // Assuming orderId is composite "SYMBOL:ID" for now to satisfy interface without "symbol" arg
+            let symbol, realOrderId;
+            if (typeof orderId === 'string' && orderId.includes(':')) {
+                [symbol, realOrderId] = orderId.split(':');
+            } else {
+                throw new Error('Binance requires symbol for cancellation. Pass orderId as "SYMBOL:ID"');
+            }
+
             const params = {
                 symbol: this._toBrokerSymbol(symbol),
-                orderId: orderId,
+                orderId: realOrderId,
                 timestamp: Date.now(),
                 recvWindow: 5000
             };

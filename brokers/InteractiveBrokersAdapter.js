@@ -157,15 +157,9 @@ class InteractiveBrokersAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'BUY', amount, price, options);
-    }
+    async placeOrder(order) {
+        const { symbol, side, amount, price, type, options = {} } = order;
 
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'SELL', amount, price, options);
-    }
-
-    async _placeOrder(symbol, side, amount, price, options = {}) {
         try {
             // First, resolve the contract for the symbol
             const contracts = await this._apiCall('GET', `/iserver/secdef/search?symbol=${symbol}`);

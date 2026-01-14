@@ -104,14 +104,16 @@ class KrakenAdapterV2 extends IBrokerAdapter {
   // ORDER MANAGEMENT
   // =========================================================================
 
-  async placeBuyOrder(symbol, amount, price = null, options = {}) {
+  async placeOrder(order) {
     try {
+      const { symbol, side, amount, price, type, options = {} } = order;
+
       const orderData = {
         symbol: symbol,
-        side: 'buy',
+        side: side.toLowerCase(),
         amount: amount,
         price: price,
-        type: price ? 'limit' : 'market',
+        type: (type || (price ? 'limit' : 'market')).toLowerCase(),
         ...options
       };
 
@@ -119,50 +121,29 @@ class KrakenAdapterV2 extends IBrokerAdapter {
 
       // Track in StateManager
       if (result.success) {
-        this.stateManager.updateActiveTrade(result.orderId, {
-          orderId: result.orderId,
-          symbol: symbol,
-          action: 'BUY',
-          size: amount,
-          entryPrice: price || result.price,
-          entryTime: Date.now(),
-          status: 'open'
-        });
-      }
-
-      return result;
-    } catch (error) {
-      console.error('[KrakenAdapterV2] Buy order failed:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async placeSellOrder(symbol, amount, price = null, options = {}) {
-    try {
-      const orderData = {
-        symbol: symbol,
-        side: 'sell',
-        amount: amount,
-        price: price,
-        type: price ? 'limit' : 'market',
-        ...options
-      };
-
-      const result = await this.simple.placeOrder(orderData);
-
-      // Update StateManager on successful sell
-      if (result.success) {
-        // Find and remove the corresponding buy trade
-        const activeTrades = this.stateManager.getAllTrades();
-        const buyTrade = activeTrades.find(t => t.action === 'BUY');
-        if (buyTrade) {
-          this.stateManager.removeActiveTrade(buyTrade.orderId);
+        if (side.toLowerCase() === 'buy') {
+            this.stateManager.updateActiveTrade(result.orderId, {
+              orderId: result.orderId,
+              symbol: symbol,
+              action: 'BUY',
+              size: amount,
+              entryPrice: price || result.price,
+              entryTime: Date.now(),
+              status: 'open'
+            });
+        } else if (side.toLowerCase() === 'sell') {
+            // Find and remove the corresponding buy trade
+            const activeTrades = this.stateManager.getAllTrades();
+            const buyTrade = activeTrades.find(t => t.action === 'BUY');
+            if (buyTrade) {
+              this.stateManager.removeActiveTrade(buyTrade.orderId);
+            }
         }
       }
 
       return result;
     } catch (error) {
-      console.error('[KrakenAdapterV2] Sell order failed:', error);
+      console.error('[KrakenAdapterV2] Order failed:', error);
       return { success: false, error: error.message };
     }
   }

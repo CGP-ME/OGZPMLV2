@@ -172,18 +172,14 @@ class TastyworksAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'BUY_TO_OPEN', amount, price, options);
-    }
+    async placeOrder(order) {
+        const { symbol, side, amount, price, type, options = {} } = order;
 
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'SELL_TO_CLOSE', amount, price, options);
-    }
-
-    async _placeOrder(symbol, action, amount, price, options = {}) {
         try {
             const accounts = await this._apiCall('GET', '/customers/me/accounts');
             const accountId = accounts[0].account.external_id;
+
+            const action = side.toUpperCase() === 'BUY' ? 'BUY_TO_OPEN' : 'SELL_TO_CLOSE';
 
             // Build order legs
             const legs = [{
@@ -197,13 +193,20 @@ class TastyworksAdapter extends IBrokerAdapter {
                 legs.push(...options.legs);
             }
 
+            const orderType = (type === 'LIMIT' || (price && type !== 'MARKET')) ? 'Limit' : 'Market';
+
             const orderData = {
-                order_type: price ? 'Limit' : 'Market',
+                order_type: orderType,
                 legs: legs,
                 price: price,
                 time_in_force: options.timeInForce || 'Day',
                 gtc_date: options.gtcDate || null
             };
+
+            if (orderType === 'Limit') {
+                if (!price) throw new Error('Price required for LIMIT order');
+                orderData.price = price;
+            }
 
             const response = await this._apiCall('POST', `/accounts/${accountId}/orders`, orderData);
 

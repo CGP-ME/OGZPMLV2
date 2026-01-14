@@ -185,17 +185,16 @@ class UpholdAdapter extends IBrokerAdapter {
   }
 
   // ORDER MANAGEMENT (Uphold uses "transactions")
-  async placeBuyOrder(symbol, amount, price = null, options = {}) {
-    return this._createTransaction('buy', symbol, amount, options);
-  }
+  async placeOrder(order) {
+    const { symbol, side, amount, price, type, options = {} } = order;
 
-  async placeSellOrder(symbol, amount, price = null, options = {}) {
-    return this._createTransaction('sell', symbol, amount, options);
-  }
+    // Uphold only supports market orders
+    if (type === 'LIMIT' || (price && type !== 'MARKET')) {
+        throw new Error('Uphold only supports market orders (instant conversion)');
+    }
 
-  async _createTransaction(side, symbol, amount, options) {
     try {
-      const [fromCurrency, toCurrency] = side === 'buy'
+      const [fromCurrency, toCurrency] = side.toLowerCase() === 'buy'
         ? ['USD', symbol.split('/')[0]]  // Buying crypto with USD
         : [symbol.split('/')[0], 'USD']; // Selling crypto for USD
 
