@@ -134,3 +134,6 @@ backtest-report-*.json
 ogz-meta/manifests/*.json
 ogz-meta/manifests/*.hook
 profiles/trading/last_profile.json
+public/assets/video/
+trai_brain/trai_journal.jsonl
+pr5-broker-refactor.txt

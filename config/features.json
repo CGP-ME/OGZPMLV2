@@ -81,6 +81,21 @@
       "description": "REST API for backtesting",
       "version": "2.1.4",
       "port": 3011
+    },
+    "MA_EXTENSION_FILTER": {
+      "enabled": false,
+      "description": "20MA Extension + Acceleration filter - skip first touch after accelerating away",
+      "version": "1.0.0",
+      "shadowMode": true,
+      "settings": {
+        "slopeWindow": 5,
+        "slopeTh": 0.001,
+        "slope200Th": 0.0005,
+        "extTh": 1.5,
+        "accelTh": 0.2,
+        "touchBand": 0.3,
+        "skipTimeout": 20
+      }
     }
   },
   "environment": {

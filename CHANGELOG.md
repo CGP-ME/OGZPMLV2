@@ -28,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - bge-small-en-v1.5 via sentence-transformers (when enabled)
 
 ### Added
+- **MAExtensionFilter** - core/MAExtensionFilter.js (NEW)
+  - 20MA Extension + Acceleration + First-Touch Skip filter
+  - Tracks how far/fast price moves away from 20MA (in ATR units)
+  - After "accelerating away" event, skips first touch back to MA (often fake-out)
+  - Allows second touch or resets after timeout (20 bars default)
+  - Feature flag: `MA_EXTENSION_FILTER` in config/features.json (disabled by default)
+  - Verified against 60k candles: 13 accelerations, 8 first-touch skips, 8 second-touch allows
+  - Verification test: test/verify-ma-extension-filter.js
+
 - **TRAI Research Mode** - trai_brain/research_mode.js (NEW)
   - External web search capability (OFF by default)
   - Enable with `TRAI_RESEARCH_ENABLED=1`
