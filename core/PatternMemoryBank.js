@@ -31,6 +31,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+// Ensure logs directory exists (fire-and-forget at module load)
+const LOGS_DIR = path.join(__dirname, '..', 'logs');
+try { fs.mkdirSync(LOGS_DIR, { recursive: true }); } catch (_) {}
+const TRADE_OUTCOMES_LOG = path.join(LOGS_DIR, 'trade-outcomes.log');
+
 // Status constants
 const STATUS = {
   CANDIDATE: 'CANDIDATE',
@@ -79,8 +84,9 @@ class PatternMemoryBank {
             this.dbPath = `${basePath}.${mode}.json`;
             this.backupPath = `${basePath}.${mode}.backup.json`;
         } else {
-            this.dbPath = path.join(__dirname, '..', memoryFile);
-            this.backupPath = path.join(__dirname, '..', memoryFile.replace('.json', '.backup.json'));
+            const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
+            this.dbPath = path.join(dataDir, memoryFile);
+            this.backupPath = path.join(dataDir, memoryFile.replace('.json', '.backup.json'));
         }
 
         // Disable persistence for backtest mode if configured
@@ -277,6 +283,49 @@ class PatternMemoryBank {
                 console.log(`🚫 [TRAI Memory] QUARANTINED: "${pattern.name}" - ` +
                            `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples`);
             }
+
+            // ═══════════════════════════════════════════════════════════════
+            // TRADE OUTCOME TELEMETRY - JSONL append (fire-and-forget)
+            // Ground truth for PatternMemoryBank learning evaluation
+            // ═══════════════════════════════════════════════════════════════
+            const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
+                               (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
+
+            const outcomeLabel = pnlPercent > 0.1 ? 'win' : (pnlPercent < -0.1 ? 'loss' : 'breakeven');
+
+            const outcomeTelemetry = {
+                tsMs: now,
+                type: 'trade_outcome',
+                tradeId: trade.tradeId || trade.id || `trade_${now}`,
+                decisionId: trade.decisionId || null,  // Join key to trai-decisions.log
+                symbol: trade.symbol || 'BTC-USD',
+                side: trade.entry?.side || trade.side || (pnlPercent > 0 ? 'long' : 'short'),
+                entry: {
+                    price: trade.entry?.price || trade.entryPrice || 0,
+                    ts: trade.entry?.timestamp || trade.entryTimestamp || null
+                },
+                exit: {
+                    price: trade.exit?.price || trade.exitPrice || 0,
+                    ts: trade.exit?.timestamp || trade.exitTimestamp || null,
+                    reason: trade.exit?.reason || trade.exitReason || 'unknown'
+                },
+                pnlAbs: trade.profitLoss || 0,
+                pnlPct: pnlPercent,
+                fees: trade.fees || 0,
+                holdMs: holdMs,
+                outcomeLabel: outcomeLabel,
+                patternHash: pattern.hash,
+                patternName: pattern.name,
+                meta: {
+                    broker: 'kraken',
+                    mode: tradingMode,
+                    patternStatus: record.status,
+                    patternScore: record.score
+                }
+            };
+
+            // Async fire-and-forget (silent failure)
+            fs.appendFile(TRADE_OUTCOMES_LOG, JSON.stringify(outcomeTelemetry) + '\n', () => {});
 
             // Save to disk
             this.saveMemory();

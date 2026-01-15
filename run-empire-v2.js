@@ -22,7 +22,8 @@
  */
 
 // CRITICAL: Load environment variables FIRST before any module loads
-require('dotenv').config();
+// Support DOTENV_CONFIG_PATH for parallel instance testing
+require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 console.log('[CHECKPOINT-001] Environment loaded');
 
 // Load feature flags configuration
@@ -1939,10 +1940,14 @@ class OGZPrimeV14Bot {
         // return;
       }
 
+      // Generate decisionId for pattern attribution (join key to trai-decisions.log)
+      const decisionId = decision.decisionId || `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
       const tradeResult = await this.executionLayer.executeTrade({
         direction: decision.action,
         positionSize: usdAmount,  // ExecutionLayer expects USD, not BTC!
         confidence: decision.confidence / 100,
+        decisionId: decisionId,  // Pattern attribution join key
         marketData: {
           price,
           indicators,

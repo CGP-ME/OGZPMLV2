@@ -472,10 +472,10 @@ class StateManager {
 
       const fs = require('fs');
       const path = require('path');
-      const stateFile = path.join(__dirname, '..', 'data', 'state.json');
+      const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+      const stateFile = path.join(dataDir, 'state.json');
 
       // Create data directory if it doesn't exist
-      const dataDir = path.dirname(stateFile);
       if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
       }
@@ -509,7 +509,8 @@ class StateManager {
 
       const fs = require('fs');
       const path = require('path');
-      const stateFile = path.join(__dirname, '..', 'data', 'state.json');
+      const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+      const stateFile = path.join(dataDir, 'state.json');
 
       if (fs.existsSync(stateFile)) {
         const savedState = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
