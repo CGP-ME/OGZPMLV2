@@ -1,0 +1,22 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "files.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "ms-azuretools.vscode-docker",
+      "eamodio.gitlens",
+      "github.vscode-pull-request-github",
+      "usernamehw.errorlens",
+      "gruntfuggly.todo-tree"
+    ]
+  }
+}

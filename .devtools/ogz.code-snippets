@@ -1,0 +1,65 @@
+{
+  "OGZ: New Service Module Header": {
+    "prefix": "ogzheader",
+    "body": [
+      "/**",
+      " * ${1:ModuleName} - OGZPrime Service",
+      " * File: ${TM_FILENAME/(.*)/${1:/kebabcase}/}",
+      " * Generated: ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}",
+      " */",
+      "",
+      "\"use strict\";",
+      "",
+      "module.exports = class ${1:ModuleName} {",
+      "  constructor(config = {}) {",
+      "    this.config = config;",
+      "  }",
+      "",
+      "  async start() {",
+      "    // TODO: init",
+      "  }",
+      "",
+      "  async stop() {",
+      "    // TODO: cleanup",
+      "  }",
+      "};"
+    ],
+    "description": "OGZPrime module header + class skeleton with kebabcase filename transform"
+  },
+
+  "OGZ: Structured Log Line": {
+    "prefix": "ogzlog",
+    "body": [
+      "console.log(JSON.stringify({",
+      "  ts: Date.now(),",
+      "  level: \"${1:info}\",",
+      "  component: \"${2:component}\",",
+      "  msg: \"${3:message}\",",
+      "  meta: ${4:{}}",
+      "}));"
+    ],
+    "description": "Consistent structured logging line (JSON)"
+  },
+
+  "OGZ: Feature Flag Guard": {
+    "prefix": "ogzflag",
+    "body": [
+      "if (!process.env.${1:FEATURE_FLAG_NAME} || process.env.${1:FEATURE_FLAG_NAME} === \"false\") {",
+      "  return ${2:null};",
+      "}"
+    ],
+    "description": "Env-driven feature flag guard"
+  },
+
+  "OGZ: Compose Cheatsheet": {
+    "prefix": "ogzcompose",
+    "body": [
+      "// Stack up: docker compose up -d",
+      "// Stack down: docker compose down",
+      "// Logs: docker compose logs -f --tail=200",
+      "// Restart bot: docker compose restart ogz-bot",
+      "// Restart websocket: docker compose restart ogz-websocket"
+    ],
+    "description": "Common docker compose commands"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "name": "OGZPrime",
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "editor.wordWrap": "off",
+    "editor.minimap.enabled": false,
+    "editor.renderWhitespace": "selection",
+    "editor.rulers": [100, 120],
+
+    "files.eol": "\n",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 750,
+
+    "eslint.enable": true,
+    "eslint.run": "onSave",
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+    "eslint.format.enable": true,
+
+    "breadcrumbs.enabled": true,
+    "breadcrumbs.symbolPathSeparator": " :: ",
+
+    "workbench.editor.enablePreview": false,
+    "workbench.tree.indent": 14,
+    "workbench.iconTheme": "pkief.material-icon-theme",
+
+    "search.useIgnoreFiles": true,
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.next": true,
+      "**/.cache": true
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.git/**": true,
+      "**/dist/**": true,
+      "**/build/**": true
+    },
+
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "git.postCommitCommand": "sync",
+    "git.suggestSmartCommit": false,
+
+    "git.blame.ignoreWhitespace": true,
+    "git.blame.editorDecoration.disableHover": true,
+
+    "scm.repositories.explorer": true,
+    "scm.repositories.selectionMode": "multi",
+
+    "debug.breakpointsView.presentation": "tree",
+
+    "testing.coverageToolbarEnabled": true,
+
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.defaultProfile.osx": "zsh"
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "editorconfig.editorconfig",
+
+      "ms-azuretools.vscode-docker",
+      "eamodio.gitlens",
+      "github.vscode-pull-request-github",
+
+      "usernamehw.errorlens",
+      "gruntfuggly.todo-tree",
+      "streetsidesoftware.code-spell-checker",
+      "christian-kohler.path-intellisense",
+      "wix.vscode-import-cost",
+      "rangav.vscode-thunder-client",
+      "redhat.vscode-yaml",
+      "ms-vscode.vscode-typescript-next",
+      "pkief.material-icon-theme"
+    ]
+  }
+}

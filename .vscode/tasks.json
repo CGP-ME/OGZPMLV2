@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "OGZ: Compose Up",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: Compose Down",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: Logs (All)",
+      "type": "shell",
+      "command": "docker compose logs -f --tail=200",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "OGZ: Logs (Bot)",
+      "type": "shell",
+      "command": "docker compose logs -f --tail=200 ogz-bot",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "OGZ: Restart Bot",
+      "type": "shell",
+      "command": "docker compose restart ogz-bot",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: Restart WebSocket",
+      "type": "shell",
+      "command": "docker compose restart ogz-websocket",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: Restart Dashboard",
+      "type": "shell",
+      "command": "docker compose restart ogz-dashboard",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: Restart TRAI",
+      "type": "shell",
+      "command": "docker compose restart trai-server",
+      "problemMatcher": []
+    },
+    {
+      "label": "OGZ: PS (Status)",
+      "type": "shell",
+      "command": "docker compose ps",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -26,8 +26,8 @@ data/*.json
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
+# .vscode/ tracked for tasks.json and launch.json
 
 # Test coverage
 coverage/
