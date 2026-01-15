@@ -12,7 +12,7 @@ services:
       - BACKTEST_MODE=${BACKTEST_MODE:-false}
       - MIN_TRADE_CONFIDENCE=${MIN_TRADE_CONFIDENCE:-0.01}
       - ENABLE_TRAI=${ENABLE_TRAI:-true}
-      - WS_URL=ws://ogz-websocket:3010
+      - WS_URL=ws://ogz-websocket:3010/ws
       - KRAKEN_API_KEY=${KRAKEN_API_KEY}
       - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
     volumes:
@@ -50,7 +50,7 @@ services:
     environment:
       - PORT=3011
       - NODE_ENV=production
-      - WS_URL=ws://ogz-websocket:3010
+      - WS_URL=ws://ogz-websocket:3010/ws
     ports:
       - "3011:3011"
     volumes:
@@ -89,6 +89,11 @@ services:
   nginx:
     image: nginx:alpine
     container_name: ogz-nginx
+    environment:
+      # Canonical public URLs (for nginx config templating)
+      - OGZ_PUBLIC_HOST=${OGZ_PUBLIC_HOST:-ogzprime.com}
+      - OGZ_WS_URL=${OGZ_WS_URL:-wss://ogzprime.com/ws}
+      - OGZ_API_URL=${OGZ_API_URL:-https://ogzprime.com}
     ports:
       - "80:80"
       - "443:443"
