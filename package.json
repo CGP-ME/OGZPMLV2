@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "axios": "^1.10.0",
+    "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.22.1",
@@ -55,7 +55,7 @@
     "require-in-the-middle": "^7.5.2",
     "stripe": "^18.3.0",
     "uuid": "^13.0.0",
-    "ws": "^8.18.3"
+    "ws": "^8.19.0"
   },
   "private": false
 }

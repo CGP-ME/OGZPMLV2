@@ -81,36 +81,36 @@ class CMEAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'BUY', amount, price, options);
-    }
+    async placeOrder(order) {
+        const { symbol, side, amount, price, type, options = {} } = order;
 
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'SELL', amount, price, options);
-    }
-
-    async _placeOrder(symbol, side, amount, price, options = {}) {
         try {
             const contractId = this._getContractId(symbol);
             if (!contractId) {
                 throw new Error(`Unknown futures contract: ${symbol}`);
             }
 
+            const orderType = (type === 'LIMIT' || (price && type !== 'MARKET')) ? 'LIMIT' : 'MARKET';
+
             // Build order
-            const order = {
+            const cmeOrder = {
                 symbol: symbol,
                 contractId: contractId,
-                side: side,
+                side: side.toUpperCase(),
                 quantity: amount,
-                type: price ? 'LIMIT' : 'MARKET',
+                type: orderType,
                 price: price,
                 timeInForce: options.timeInForce || 'DAY',
                 marginRequirement: this._getMarginRequirement(symbol, amount)
             };
 
+            if (orderType === 'LIMIT') {
+                if (!price) throw new Error('Price required for LIMIT order');
+            }
+
             if (options.stopLoss) {
-                order.stopPrice = options.stopLoss;
-                order.type = 'STOP';
+                cmeOrder.stopPrice = options.stopLoss;
+                cmeOrder.type = 'STOP';
             }
 
             console.log(`📊 Futures order queued: ${side} ${amount} ${symbol}`);

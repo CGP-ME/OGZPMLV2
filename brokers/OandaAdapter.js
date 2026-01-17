@@ -153,29 +153,26 @@ class OandaAdapter extends IBrokerAdapter {
     // ORDER MANAGEMENT
     // =========================================================================
 
-    async placeBuyOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'BUY', amount, price, options);
-    }
+    async placeOrder(order) {
+        const { symbol, side, amount, price, type, options = {} } = order;
 
-    async placeSellOrder(symbol, amount, price = null, options = {}) {
-        return this._placeOrder(symbol, 'SELL', amount, price, options);
-    }
-
-    async _placeOrder(symbol, side, amount, price, options = {}) {
         try {
             const brokerSymbol = this._toBrokerSymbol(symbol);
+            const sideUpper = side.toUpperCase();
+            const orderType = (type === 'LIMIT' || (price && type !== 'MARKET')) ? 'LIMIT' : 'MARKET';
             
             const orderBody = {
                 order: {
                     instrument: brokerSymbol,
-                    units: side === 'BUY' ? amount : -amount,
-                    type: price ? 'LIMIT' : 'MARKET',
+                    units: sideUpper === 'BUY' ? amount.toString() : (-amount).toString(),
+                    type: orderType,
                     timeInForce: 'GTC'
                 }
             };
 
-            if (price) {
-                orderBody.order.priceBound = price;
+            if (orderType === 'LIMIT') {
+                if (!price) throw new Error('Price required for LIMIT order');
+                orderBody.order.price = price.toString();
             }
 
             if (options.stopLoss) {

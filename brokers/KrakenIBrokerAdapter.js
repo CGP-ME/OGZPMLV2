@@ -96,35 +96,19 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // ORDER MANAGEMENT
   // =========================================================================
 
-  async placeBuyOrder(symbol, amount, price = null, options = {}) {
-    const order = {
+  async placeOrder(order) {
+    const { symbol, side, amount, price, type, options = {} } = order;
+
+    const krakenOrder = {
       symbol: symbol,
-      action: 'buy',
-      orderType: price ? 'limit' : 'market',
+      action: side.toLowerCase(),
+      orderType: (type || (price ? 'limit' : 'market')).toLowerCase(),
       size: amount,
       price: price,
       ...options
     };
 
-    const result = await this.kraken.placeOrder(order);
-    return {
-      orderId: result.orderId || result.txid?.[0],
-      status: result.status || 'pending',
-      ...result
-    };
-  }
-
-  async placeSellOrder(symbol, amount, price = null, options = {}) {
-    const order = {
-      symbol: symbol,
-      action: 'sell',
-      orderType: price ? 'limit' : 'market',
-      size: amount,
-      price: price,
-      ...options
-    };
-
-    const result = await this.kraken.placeOrder(order);
+    const result = await this.kraken.placeOrder(krakenOrder);
     return {
       orderId: result.orderId || result.txid?.[0],
       status: result.status || 'pending',
@@ -175,10 +159,6 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   // Expose underlying adapter methods for compatibility
-  async placeOrder(order) {
-    return await this.kraken.placeOrder(order);
-  }
-
   async connectWebSocketStream(callback) {
     return await this.kraken.connectWebSocketStream(callback);
   }

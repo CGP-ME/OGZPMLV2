@@ -271,41 +271,36 @@ class GeminiAdapter extends IBrokerAdapter {
   }
 
   // ORDER MANAGEMENT
-  async placeBuyOrder(symbol, amount, price = null, options = {}) {
-    return this._placeOrder(symbol, 'buy', amount, price, options);
-  }
+  async placeOrder(order) {
+    const { symbol, side, amount, price, type, options = {} } = order;
 
-  async placeSellOrder(symbol, amount, price = null, options = {}) {
-    return this._placeOrder(symbol, 'sell', amount, price, options);
-  }
-
-  async _placeOrder(symbol, side, amount, price, options) {
     try {
-      const orderType = price ? 'exchange limit' : 'exchange market';
+      const orderType = (type === 'LIMIT' || (price && type !== 'MARKET')) ? 'exchange limit' : 'exchange market';
 
       const payload = {
         symbol: this._toBrokerSymbol(symbol),
         amount: amount.toString(),
-        side,
+        side: side.toLowerCase(),
         type: orderType,
         options: options.orderOptions || []
       };
 
-      if (price) {
-        payload.price = price.toString();
+      if (orderType === 'exchange limit') {
+          if (!price) throw new Error('Price required for LIMIT order');
+          payload.price = price.toString();
       }
 
-      const order = await this._request('/order/new', payload);
+      const response = await this._request('/order/new', payload);
 
       return {
-        id: order.order_id,
-        symbol: this.fromBrokerSymbol(order.symbol),
-        type: order.type,
-        side: order.side,
-        price: parseFloat(order.price || 0),
-        amount: parseFloat(order.original_amount),
+        id: response.order_id,
+        symbol: this.fromBrokerSymbol(response.symbol),
+        type: response.type,
+        side: response.side,
+        price: parseFloat(response.price || 0),
+        amount: parseFloat(response.original_amount),
         status: 'open',
-        timestamp: order.timestamp
+        timestamp: response.timestamp
       };
     } catch (error) {
       console.error(`❌ Failed to place ${side} order:`, error);

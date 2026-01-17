@@ -81,7 +81,7 @@ const requiredMethods = [
     // Account
     'getBalance', 'getPositions', 'getOpenOrders',
     // Orders
-    'placeBuyOrder', 'placeSellOrder', 'cancelOrder', 'modifyOrder', 'getOrderStatus',
+    'placeOrder', 'cancelOrder',
     // Market Data
     'getTicker', 'getCandles', 'getOrderBook',
     // Subscriptions
@@ -232,7 +232,13 @@ await kraken.connect();
 const balance = await kraken.getBalance();
 
 // Place order
-const order = await kraken.placeBuyOrder('BTC/USD', 0.1, 45000);
+const order = await kraken.placeOrder({
+    symbol: 'BTC/USD',
+    side: 'buy',
+    amount: 0.1,
+    price: 45000,
+    type: 'limit'
+});
 
 // Subscribe to real-time updates
 kraken.subscribeToTicker('BTC/USD', (ticker) => {

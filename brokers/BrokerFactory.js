@@ -44,7 +44,7 @@ function createBrokerAdapter(brokerId, options = {}) {
       'connect', 'disconnect', 'isConnected',
       'getBrokerName', 'getAssetType',
       'getBalance', 'getPositions',
-      'placeBuyOrder', 'placeSellOrder'
+      'placeOrder'
     ];
 
     for (const method of requiredMethods) {
