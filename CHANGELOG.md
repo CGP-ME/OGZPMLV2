@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Dashboard Responsive Layout** - public/unified-dashboard.html (UI FIX)
+  - Fixed overlapping fixed elements on right side (tier-selector vs theme-customizer)
+  - Fixed overlapping fixed elements on left side (bot-status-row vs indicator-overlay)
+  - Added comprehensive responsive media queries for ALL fixed panels
+  - Breakpoints: 1024px (tablet landscape), 768px (tablet portrait), 480px (mobile), landscape
+  - Panels now auto-adapt to device size: collapse, reposition, or convert to bottom-sheets
+  - Mobile: Tier-selector hidden, panels use full-width bottom-sheet approach
+
 ### Changed
 - **Dashboard File Renamed** - public/unified-dashboard.html (BREAKING)
   - Renamed `unified-dashboard-refactor.html` → `unified-dashboard.html`
