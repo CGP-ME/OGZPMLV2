@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Why OGZP - Atomic Trade Execution</title>
+    <title>Why OGZP - Verified Trading Operations</title>
     <style>
         * {
             margin: 0;
@@ -207,7 +207,7 @@
     <div class="container">
         <header>
             <h1>WHY OGZP</h1>
-            <p class="subtitle">Because most trading bots lie to themselves.</p>
+            <p class="subtitle">Because most trading systems fail silently.</p>
         </header>
 
         <section>
@@ -230,9 +230,9 @@
         </section>
 
         <section>
-            <h2>OGZP Is Built on Atomic Execution</h2>
+            <h2>OGZP Is Built on Verified Execution</h2>
 
-            <p>OGZP uses a strict atomic execution model:</p>
+            <p>OGZP uses a strict verified execution model:</p>
 
             <div class="diagram">
                 <div class="diagram-flow">
@@ -255,7 +255,7 @@
             <p>The system simply retries safely on the next cycle.</p>
 
             <div class="good-example">
-                <h3>OGZP's Approach (Atomic)</h3>
+                <h3>OGZP's Approach (Verified)</h3>
                 <div class="code-block">
 // Execute trade
 const result = await executeTrade(params);
@@ -315,37 +315,36 @@ try {
         </section>
 
         <section class="proof-section">
-            <h2 class="proof-title">Proven, Not Promised</h2>
+            <h2 class="proof-title">Verified Behavior</h2>
 
-            <p>OGZP's SELL execution path has been fully audited:</p>
+            <p>OGZPrime operational behavior is continuously monitored:</p>
 
             <div class="metric">
-                <span class="metric-label">Failure gates enumerated:</span>
-                <span class="metric-value">7 critical points</span>
+                <span class="metric-label">Order state updated:</span>
+                <span class="metric-value">Only after execution confirmed</span>
             </div>
 
             <div class="metric">
-                <span class="metric-label">State mutations traced:</span>
-                <span class="metric-value">All paths verified</span>
+                <span class="metric-label">Restart behavior:</span>
+                <span class="metric-value">Verified before production</span>
             </div>
 
             <div class="metric">
-                <span class="metric-label">Atomicity violations detected:</span>
-                <span class="metric-value">ZERO</span>
+                <span class="metric-label">Continuous operation:</span>
+                <span class="metric-value">Recorded automatically</span>
             </div>
 
             <div class="metric">
-                <span class="metric-label">Orphan position scenarios:</span>
-                <span class="metric-value">ZERO</span>
+                <span class="metric-label">Instance isolation:</span>
+                <span class="metric-value">Verified per deployment</span>
             </div>
 
             <p style="text-align: center; margin-top: 30px; font-size: 20px;">
-                <span class="highlight">In plain terms:</span><br>
-                OGZP cannot think it sold unless it actually sold.
+                <span class="highlight">OGZPrime doesn't guess. It verifies.</span>
             </p>
 
             <p style="text-align: center; margin-top: 20px;">
-                That's not a marketing claim — it's a <strong>verified property</strong> of the engine.
+                <a href="proof/" style="display: inline-block; padding: 14px 32px; background: #4CAF50; color: #000; text-decoration: none; font-weight: 700; font-size: 18px; border-radius: 4px;">View live system proof</a>
             </p>
         </section>
 
@@ -394,11 +393,12 @@ try {
 
         <section style="text-align: center; margin-top: 80px; padding-top: 40px; border-top: 1px solid #333;">
             <h2 style="border: none; padding: 0; font-size: 36px; margin-bottom: 30px;">
-                OGZP doesn't trade fast.<br>
-                <span class="highlight">OGZP trades correctly.</span>
+                OGZPrime doesn't guess.<br>
+                <span class="highlight">It verifies.</span>
             </h2>
 
-            <a href="/" class="back-home">← Back to Home</a>
+            <a href="proof/" class="back-home" style="margin-right: 15px;">View live system proof</a>
+            <a href="/" class="back-home" style="background: transparent; border: 2px solid #4CAF50; color: #4CAF50;">← Back to Home</a>
         </section>
     </div>
 </body>

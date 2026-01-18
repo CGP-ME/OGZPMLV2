@@ -1,0 +1,41 @@
+{
+  "run_id": "2026-01-15T16:45:00Z",
+  "env": "PAPER",
+  "instance": "ogz-prime-gates",
+  "brokers": ["KRAKEN", "GEMINI"],
+  "commit": "1b9117c",
+  "gates": [
+    {
+      "id": "4B",
+      "name": "Account Auth",
+      "status": "PASS",
+      "highlights": [
+        "Kraken: Authenticated",
+        "Gemini: Authenticated",
+        "Balance endpoints OK"
+      ]
+    },
+    {
+      "id": "4C",
+      "name": "Order Lifecycle",
+      "status": "PASS",
+      "highlights": [
+        "Market: BTC/USD $96,465",
+        "Adapter interface verified",
+        "Order validation OK",
+        "PAPER enforced"
+      ]
+    },
+    {
+      "id": "4D",
+      "name": "Restart + Reconcile",
+      "status": "PASS",
+      "highlights": [
+        "Restart successful",
+        "Lock isolated via DATA_DIR",
+        "No data collision",
+        "Main bot unaffected (3D uptime)"
+      ]
+    }
+  ]
+}

@@ -49,18 +49,18 @@ start_dashboard() {
     fi
     
     # Check if dashboard file exists
-    if [ ! -f "$PROJECT_ROOT/public-refactor/unified-dashboard-refactor.html" ]; then
-        echo -e "${RED}❌ Dashboard file not found at public-refactor/unified-dashboard-refactor.html${NC}"
+    if [ ! -f "$PROJECT_ROOT/public/unified-dashboard.html" ]; then
+        echo -e "${RED}❌ Dashboard file not found at public/unified-dashboard.html${NC}"
         return 1
     fi
-    
+
     # Start simple HTTP server for dashboard
-    (cd "$PROJECT_ROOT/public-refactor" && python3 -m http.server 3000 >/dev/null 2>&1 &)
-    
+    (cd "$PROJECT_ROOT/public" && python3 -m http.server 3000 >/dev/null 2>&1 &)
+
     sleep 2
-    
+
     if check_port 3000; then
-        echo -e "${GREEN}✅ Dashboard: http://localhost:3000/unified-dashboard-refactor.html${NC}"
+        echo -e "${GREEN}✅ Dashboard: http://localhost:3000/unified-dashboard.html${NC}"
         return 0
     else
         echo -e "${RED}❌ Failed to start dashboard${NC}"

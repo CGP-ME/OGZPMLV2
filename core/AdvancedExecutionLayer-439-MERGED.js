@@ -126,7 +126,7 @@ class AdvancedExecutionLayer {
 
   async executeTrade(params) {
     console.log('🔍 [DEBUG] executeTrade called');
-    const { direction, positionSize, confidence, marketData, patterns = [] } = params;
+    const { direction, positionSize, confidence, marketData, patterns = [], decisionId = null } = params;
     console.log('🔍 [DEBUG] params extracted');
 
     try {
@@ -260,6 +260,7 @@ class AdvancedExecutionLayer {
       const positionSizeFraction = optimizedPositionSize / this.initialBalance;
       const position = {
         id: tradeId,
+        decisionId: decisionId,  // Join key to trai-decisions.log for pattern attribution
         direction: normalizedDirection,
         entryPrice: entryPrice,
         positionSize: positionSizeFraction,  // Now a fraction (0.05 = 5%)
@@ -525,6 +526,11 @@ class AdvancedExecutionLayer {
     try {
       // Format trade data for TRAI's pattern memory
       const tradeData = {
+        // Pattern Attribution: thread IDs for joining decision telemetry to outcomes
+        tradeId: position.id,
+        decisionId: position.decisionId || null,  // Join key to trai-decisions.log
+        symbol: 'BTC-USD',
+        side: position.direction,
         entry: {
           timestamp: new Date(position.timestamp).toISOString(),
           price: position.entryPrice,

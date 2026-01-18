@@ -23,8 +23,23 @@
 
 // CRITICAL: Load environment variables FIRST before any module loads
 // Support DOTENV_CONFIG_PATH for parallel instance testing
-require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
+require('dotenv').config({ path: envPath });
+
+// SAFETY INVARIANT: TEST_MODE or gates requires DATA_DIR to prevent data collision
+if (process.env.TEST_MODE === 'true' && !process.env.DATA_DIR) {
+  console.error('❌ FATAL: TEST_MODE=true requires DATA_DIR to be set');
+  console.error('   This prevents accidental writes to production data.');
+  console.error('   Set DATA_DIR=/path/to/test/data in your .env file.');
+  process.exit(1);
+}
+
+// Log resolved paths for debugging
 console.log('[CHECKPOINT-001] Environment loaded');
+console.log(`   ENV_FILE: ${envPath}`);
+console.log(`   DATA_DIR: ${process.env.DATA_DIR || '(default: ./data)'}`);
+console.log(`   PAPER_TRADING: ${process.env.PAPER_TRADING}`);
+console.log(`   TEST_MODE: ${process.env.TEST_MODE || 'false'}`);
 
 // Load feature flags configuration
 let featureFlags = {};
@@ -375,6 +390,9 @@ class OGZPrimeV14Bot {
     // Stale data tracking
     this.staleFeedPaused = false;
     this.feedRecoveryCandles = 0;
+    // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
+    this.lastDataReceived = null;  // Set when handleMarketData receives data
+    this.livenessCheckInterval = null;  // Periodic check for "no data at all"
     // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
     // this.currentPosition removed - use stateManager.get('position') instead
     // CHANGE 2025-12-13: STEP 1 - SINGLE SOURCE OF TRUTH
@@ -783,6 +801,9 @@ class OGZPrimeV14Bot {
 
     const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
 
+    // CHANGE 2026-01-16: Track when we last received ANY data (for liveness watchdog)
+    this.lastDataReceived = Date.now();
+
     // STALE DATA DETECTION: Check if DATA ITSELF is old (not arrival time)
     const now = Date.now();
     const dataAge = now - (etime * 1000); // etime is in SECONDS, convert to milliseconds
@@ -945,6 +966,44 @@ class OGZPrimeV14Bot {
     }, interval);
 
     console.log(`⏰ Trading cycle started (${interval}ms interval)`);
+
+    // CHANGE 2026-01-16: Liveness watchdog - catches "no data at all" scenario
+    this.startLivenessWatchdog();
+  }
+
+  /**
+   * Liveness watchdog - detects when data feed goes completely silent
+   * Runs every 60 seconds, pauses trading if no data received in 2 minutes
+   */
+  startLivenessWatchdog() {
+    const LIVENESS_CHECK_INTERVAL = 60000;  // Check every 60 seconds
+    const MAX_DATA_SILENCE = 120000;  // 2 minutes without data = dead feed
+
+    this.livenessCheckInterval = setInterval(() => {
+      if (!this.lastDataReceived) {
+        // No data ever received - still warming up
+        return;
+      }
+
+      const silenceDuration = Date.now() - this.lastDataReceived;
+
+      if (silenceDuration > MAX_DATA_SILENCE && !this.staleFeedPaused) {
+        console.error('🚨🚨🚨 LIVENESS WATCHDOG: NO DATA RECEIVED FOR', Math.round(silenceDuration / 1000), 'SECONDS');
+        console.error('⏸️ PAUSING TRADING - DATA FEED APPEARS DEAD');
+        this.staleFeedPaused = true;
+
+        // Notify StateManager to pause
+        try {
+          const { getInstance: getStateManager } = require('./core/StateManager');
+          const stateManager = getStateManager();
+          stateManager.pauseTrading(`Liveness watchdog: No data for ${Math.round(silenceDuration / 1000)}s`);
+        } catch (error) {
+          console.error('Failed to pause via StateManager:', error.message);
+        }
+      }
+    }, LIVENESS_CHECK_INTERVAL);
+
+    console.log('🔍 Liveness watchdog started (checks every 60s, alerts if no data for 2min)');
   }
 
   /**

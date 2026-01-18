@@ -2,7 +2,7 @@
  * Gate 4B: Gemini Account Snapshot Test
  * Tests authenticated access to Gemini balance endpoint
  */
-require('dotenv').config();
+require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
 const crypto = require('crypto');
 const axios = require('axios');
 

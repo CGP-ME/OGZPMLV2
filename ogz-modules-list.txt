@@ -38,7 +38,7 @@ ogzprime-ssl-server.js (WebSocket - Port 3010)
 dashboard-server.js (Dashboard - Port 3011)
 
 DASHBOARDS:
-public/unified-dashboard-refactor.html
+public/unified-dashboard.html
 public/customer-control-panel.html
 public/distribution-portal.html
 public/master-dashboard.html

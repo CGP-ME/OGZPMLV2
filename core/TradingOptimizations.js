@@ -6,6 +6,13 @@
  * Pass 3: Elite bipole pattern filtering
  */
 
+const fs = require('fs');
+const path = require('path');
+
+// Decision telemetry JSONL path (fire-and-forget)
+const DECISION_LOG_PATH = path.join(__dirname, '..', 'logs', 'trai-decisions.log');
+try { fs.mkdirSync(path.dirname(DECISION_LOG_PATH), { recursive: true }); } catch (_) {}
+
 class TradingOptimizations {
   constructor(patternStats, logger) {
     this.patternStats = patternStats;
@@ -88,6 +95,50 @@ class TradingOptimizations {
 
     // Log the context for visibility
     this.logger.info('[TRADE_DECISION]', decisionContext);
+
+    // ═══════════════════════════════════════════════════════════════
+    // DECISION TELEMETRY - JSONL append (fire-and-forget, silent fail)
+    // ═══════════════════════════════════════════════════════════════
+    const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
+                        (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
+
+    const telemetry = {
+      tsMs: Date.now(),
+      type: 'trai_decision',
+      decisionId: `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      cycleId: null,
+      input: {
+        symbol: decisionContext.symbol || 'BTC-USD',
+        timeframe: '1m',
+        action: decisionContext.direction,
+        originalConfidence: decisionContext.confidence,
+        regime: decisionContext.regime,
+        trend: decisionContext.indicators?.trend,
+        volatility: decisionContext.indicators?.volatility,
+        indicators: {
+          rsi: decisionContext.indicators?.rsi,
+          macd: decisionContext.indicators?.macd?.macd,
+          macdHistogram: decisionContext.indicators?.macd?.hist
+        },
+        patternIds: decisionContext.patternsActive?.slice(0, 5) || [],
+        riskFlags: decisionContext.reasonTags || []
+      },
+      output: {
+        decision: decisionContext.direction === 'LONG' ? 'BUY' : (decisionContext.direction === 'SHORT' ? 'SELL' : 'HOLD'),
+        confidence: decisionContext.confidence / 100,
+        reasonSummary: decisionContext.reasonTags?.join(', ') || '',
+        patternQuality: decisionContext.patternQuality
+      },
+      meta: {
+        version: 'v2.0.0-telem',
+        adapterId: 'kraken',
+        brokerId: process.env.BOT_TIER || 'quantum',
+        mode: tradingMode,
+        module: decisionContext.module
+      }
+    };
+
+    fs.appendFile(DECISION_LOG_PATH, JSON.stringify(telemetry) + '\n', () => {});
 
     return decisionContext;
   }

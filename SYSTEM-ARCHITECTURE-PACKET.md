@@ -71,7 +71,7 @@ Kraken WebSocket → Bot (run-empire-v2.js) → WebSocket Server (:3010) → Das
 ### B. FRONTEND/DASHBOARD COMPONENTS
 
 #### Main Dashboard HTML
-- **File**: `/opt/ogzprime/OGZPMLV2/public/unified-dashboard-refactor.html`
+- **File**: `/opt/ogzprime/OGZPMLV2/public/unified-dashboard.html`
 - **Issue**: Chart not displaying despite receiving data
 - **Current State**:
   - Lines 1090-1200: Chart initialization code
@@ -240,7 +240,7 @@ if (dashboardWsConnected) {
 }
 ```
 
-### Dashboard WebSocket Handler (unified-dashboard-refactor.html:1150)
+### Dashboard WebSocket Handler (unified-dashboard.html:1150)
 ```javascript
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
@@ -296,7 +296,7 @@ nginx -t
 sudo systemctl reload nginx
 
 # Test dashboard
-curl https://ogzprime.com/unified-dashboard-refactor.html
+curl https://ogzprime.com/unified-dashboard.html
 
 # Check file permissions
 ls -la /opt/ogzprime/OGZPMLV2/public/js/
@@ -323,7 +323,7 @@ ls -la /opt/ogzprime/OGZPMLV2/public/js/
 The core issue is that the dashboard receives live trading data via WebSocket but fails to render candlestick charts. The bot successfully broadcasts OHLCV data every 5 seconds, indicators calculate correctly, but the chart display remains blank. Multiple charting libraries have been attempted with various compatibility issues. Current approach uses TradingView Lightweight Charts but needs proper implementation to display the data stream.
 
 **Key files to examine**:
-1. `/opt/ogzprime/OGZPMLV2/public/unified-dashboard-refactor.html` (lines 1090-1200)
+1. `/opt/ogzprime/OGZPMLV2/public/unified-dashboard.html` (lines 1090-1200)
 2. `/opt/ogzprime/OGZPMLV2/public/js/ChartManager.js`
 3. `/opt/ogzprime/OGZPMLV2/run-empire-v2.js` (lines 897-926)
 

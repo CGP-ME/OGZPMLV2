@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Dashboard File Renamed** - public/unified-dashboard.html (BREAKING)
+  - Renamed `unified-dashboard-refactor.html` → `unified-dashboard.html`
+  - Updated all references in: launch-empire-v2.sh, dashboard-server.js, SYSTEM-ARCHITECTURE-PACKET.md, ogz-modules-list.txt
+  - index.html and pricing.html were already linking to `unified-dashboard.html` (now works)
+  - **URL**: https://ogzprime.com/unified-dashboard.html
+
+### Added
+- **Liveness Watchdog** - run-empire-v2.js:978-1006 (CRITICAL FIX)
+  - Detected: Bot ran on 3-day stale data ($90k vs $95k reality) with no alerts
+  - Root cause: Existing stale detection only triggers when data ARRIVES
+  - If broker stops emitting events entirely, nothing detected it
+  - Fix: Added `startLivenessWatchdog()` - periodic check every 60s
+  - If no data received for 2 minutes, pauses trading and logs loudly
+  - Tracks `this.lastDataReceived` timestamp, updated in `handleMarketData()`
+  - This catches "feed went completely dark" scenario
+
+- **WebSocket Reconnect Counter Reset** - kraken_adapter_simple.js:471-476 (BUG FIX)
+  - Bug: `reconnectAttempts` counter never reset after successful reconnection
+  - Result: Counter accumulated across multiple disconnects over days/weeks
+  - Eventually hit `maxReconnectAttempts` (10) and gave up permanently
+  - Fix: Reset `reconnectAttempts = 0` in `ws.on('open')` handler
+  - Now each disconnect cycle starts fresh with 10 attempts
+
+### Changed
 - **TRAI Local-First Architecture** - trai_brain/
   - Complete architectural shift to local-first mode (no cloud LLM/embeddings by default)
   - **trai_core.js**: Removed cloud fallback, added `getOfflineResponse()` for clear offline status

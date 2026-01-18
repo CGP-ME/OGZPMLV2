@@ -468,6 +468,13 @@ class KrakenAdapterSimple {
       this.ws.on('open', () => {
         console.log('✅ Kraken WebSocket connected');
 
+        // CHANGE 2026-01-16: Reset reconnect counter on successful connection
+        // Without this, counter accumulates across disconnects and eventually hits max
+        if (this.reconnectAttempts > 0) {
+          console.log(`🔄 Reconnect successful after ${this.reconnectAttempts} attempts - resetting counter`);
+          this.reconnectAttempts = 0;
+        }
+
         // V2 ARCHITECTURE FIX: Single source subscribes to ALL data types
         // Subscribe to both ticker AND OHLC data
         const tickerSub = {

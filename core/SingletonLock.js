@@ -9,7 +9,10 @@ const crypto = require('crypto');
 class OGZSingletonLock {
   constructor(botName = 'ogz-prime') {
     this.botName = botName;
-    this.lockFile = path.join(process.cwd(), `.${botName}.lock`);
+    // CHANGE: Use DATA_DIR for lock file if set (enables isolated testing instances)
+    // This allows gates/test instances to run alongside main bot without conflict
+    const lockDir = process.env.DATA_DIR || process.cwd();
+    this.lockFile = path.join(lockDir, `.${botName}.lock`);
     this.pid = process.pid;
     this.startTime = Date.now();
     this.lockToken = crypto.randomBytes(16).toString('hex');
