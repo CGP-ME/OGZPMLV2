@@ -96,7 +96,7 @@
         .tier-selector-container {
             position: absolute;
             top: 20px;
-            right: 20px;
+            right: 80px; /* Moved left to avoid theme-customizer at right:20px */
             display: flex;
             align-items: center;
             gap: 15px;
@@ -377,8 +377,8 @@
         /* Indicator Overlays */
         .indicator-overlay {
             position: absolute;
-            top: 20px;
-            left: 20px;  /* MOVED TO LEFT SIDE */
+            top: 55px; /* Below bot-status-row which is at top:20px */
+            left: 20px;
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
             border: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 12px;
@@ -388,7 +388,7 @@
             z-index: 10;
             min-width: 200px;
             max-width: 280px;
-            max-height: 60vh;  /* Scrollable at 60% viewport height */
+            max-height: 55vh; /* Reduced to account for new top position */
             overflow-y: auto;
             overflow-x: hidden;
             transition: all 0.3s ease;
@@ -887,6 +887,212 @@
             }
         }
 
+        /* ========================================
+           RESPONSIVE RULES FOR FIXED PANELS
+           Auto-adapts to device size
+           ======================================== */
+
+        /* Tablet Landscape (1024px) - Reduce panel widths */
+        @media screen and (max-width: 1024px) {
+            .edge-panel {
+                width: 280px;
+                right: 10px;
+            }
+
+            .trade-manager {
+                right: 10px;
+            }
+
+            .theme-customizer {
+                right: 10px;
+            }
+
+            .tier-selector-container {
+                right: 70px;
+            }
+
+            .drawing-tools {
+                left: 10px;
+            }
+        }
+
+        /* Tablet Portrait (768px) - Collapse panels by default */
+        @media screen and (max-width: 768px) {
+            .edge-panel {
+                width: 260px;
+                right: 10px;
+                top: 120px;
+                max-height: 60vh;
+            }
+
+            .edge-panel.collapsed {
+                width: 45px;
+                height: 45px;
+            }
+
+            .trade-manager {
+                top: 70px;
+                right: 10px;
+            }
+
+            .trade-panel {
+                width: 300px;
+                max-height: 70vh;
+            }
+
+            .theme-customizer {
+                top: 10px;
+                right: 10px;
+            }
+
+            .theme-panel {
+                width: 280px;
+            }
+
+            .tier-selector-container {
+                position: relative;
+                top: auto;
+                right: auto;
+                justify-content: center;
+                margin-top: 10px;
+            }
+
+            .tier-selector {
+                min-width: 200px;
+            }
+
+            .drawing-tools {
+                top: 70px;
+                left: 10px;
+            }
+
+            .bot-status-row {
+                top: 10px;
+                left: 10px;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .indicator-overlay {
+                top: 45px;
+                left: 10px;
+                max-width: 200px;
+                max-height: 45vh;
+            }
+        }
+
+        /* Mobile (480px) - Stack vertically, bottom sheet approach */
+        @media screen and (max-width: 480px) {
+            .edge-panel {
+                position: fixed;
+                bottom: 10px;
+                top: auto;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 40vh;
+                border-radius: 15px 15px 0 0;
+            }
+
+            .edge-panel.collapsed {
+                bottom: 10px;
+                left: auto;
+                right: 10px;
+                width: 45px;
+                height: 45px;
+            }
+
+            .trade-manager {
+                top: 10px;
+                right: 60px; /* Space for theme-customizer */
+            }
+
+            .trade-panel {
+                position: fixed;
+                top: auto;
+                bottom: 60px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 50vh;
+            }
+
+            .theme-customizer {
+                top: 10px;
+                right: 10px;
+            }
+
+            .theme-toggle {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .theme-panel {
+                position: fixed;
+                top: auto;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 60vh;
+            }
+
+            .drawing-tools {
+                top: auto;
+                bottom: 60px;
+                left: 10px;
+            }
+
+            .drawing-tools.collapsed {
+                bottom: 10px;
+            }
+
+            .tool-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+
+            .bot-status-row {
+                top: 5px;
+                left: 5px;
+                gap: 3px;
+            }
+
+            .bot-status-indicator {
+                padding: 3px 6px;
+                font-size: 10px;
+            }
+
+            .tier-selector-container {
+                display: none; /* Hide on mobile - use menu instead */
+            }
+        }
+
+        /* Landscape Mobile - Side by side panels */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .edge-panel {
+                position: fixed;
+                right: 10px;
+                top: 60px;
+                bottom: auto;
+                width: 250px;
+                max-height: 70vh;
+            }
+
+            .indicator-overlay {
+                left: 10px;
+                top: 60px;
+                max-width: 180px;
+                max-height: 60vh;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+        }
+
         /* Edge Analytics Panel - THE REAL MONEY MAKERS */
         .edge-panel {
             position: fixed;
@@ -901,6 +1107,48 @@
             padding: 15px;
             z-index: 98;
             box-shadow: 0 0 30px rgba(255, 0, 100, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .edge-panel.collapsed {
+            width: 50px;
+            height: 50px;
+            max-height: 50px;
+            padding: 0;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .edge-panel.collapsed .edge-content {
+            display: none;
+        }
+
+        .edge-panel.collapsed .edge-header {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            margin: 0;
+            padding: 15px 5px;
+            font-size: 12px;
+        }
+
+        .edge-toggle {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 0, 100, 0.3);
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 20px;
+            text-align: center;
+        }
+
+        .edge-toggle:hover {
+            background: rgba(255, 0, 100, 0.6);
         }
 
         .edge-header {
@@ -911,6 +1159,7 @@
             margin-bottom: 15px;
             text-shadow: 0 0 10px rgba(255, 0, 100, 0.8);
             animation: pulse-glow 2s infinite;
+            cursor: pointer;
         }
 
         @keyframes pulse-glow {
@@ -1099,6 +1348,19 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .drawing-tools.collapsed {
+            width: 45px;
+            height: 45px;
+            padding: 5px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .drawing-tools.collapsed .tool-btn {
+            display: none;
         }
 
         .tool-header {
@@ -1599,8 +1861,10 @@
 </head>
 <body>
     <!-- Edge Analytics Panel -->
-    <div class="edge-panel" id="edgePanel">
-        <div class="edge-header">🎯 EDGE ANALYTICS</div>
+    <div class="edge-panel collapsed" id="edgePanel">
+        <button class="edge-toggle" onclick="toggleEdgePanel()" title="Toggle Panel">−</button>
+        <div class="edge-header" onclick="toggleEdgePanel()">🎯 EDGE</div>
+        <div class="edge-content">
 
         <!-- Liquidation Heatmap -->
         <div class="edge-section">
@@ -1740,11 +2004,12 @@
                 <div class="divergence-item">Scanning...</div>
             </div>
         </div>
+        </div><!-- end edge-content -->
     </div>
 
     <!-- Drawing Tools Panel -->
-    <div class="drawing-tools" id="drawingTools">
-        <div class="tool-header">📊 Drawing Tools</div>
+    <div class="drawing-tools collapsed" id="drawingTools" onclick="if(this.classList.contains('collapsed')) this.classList.remove('collapsed')">
+        <div class="tool-header">📊<button class="edge-toggle" onclick="event.stopPropagation(); document.getElementById('drawingTools').classList.add('collapsed')" style="margin-left:5px">−</button></div>
         <button class="tool-btn" onclick="activateDrawingTool('trendline')" title="Trend Line">📈</button>
         <button class="tool-btn" onclick="activateDrawingTool('horizontal')" title="Horizontal Line">➖</button>
         <button class="tool-btn" onclick="activateDrawingTool('vertical')" title="Vertical Line">│</button>
@@ -2716,10 +2981,11 @@
             // Price updates
             if (data.type === 'price' && data.data) {
                 updateChart(data.data);
-                
-                // Historical candles on first load
-                if (data.data.candles && data.data.candles.length > 0) {
+
+                // Historical candles on FIRST load only
+                if (!window.__historicalLoaded && data.data.candles && data.data.candles.length > 0) {
                     loadHistoricalCandles(data.data.candles);
+                    window.__historicalLoaded = true;
                 }
             }
 
@@ -3248,6 +3514,7 @@
             console.log('Asset changed to:', asset);
             candleSeries.setData([]);
             lineSeries.setData([]);
+            window.__historicalLoaded = false; // Reset to reload history
 
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'asset_change', asset }));
@@ -3263,6 +3530,7 @@
             // Clear current chart data
             if (candleSeries) candleSeries.setData([]);
             if (lineSeries) lineSeries.setData([]);
+            window.__historicalLoaded = false; // Reset to reload history
 
             // Request new data with the selected timeframe
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -3368,6 +3636,14 @@
             drawings = [];
             // Clear from chart
             console.log('Drawings cleared');
+        }
+
+        // Panel Toggle Functions
+        function toggleEdgePanel() {
+            const panel = document.getElementById('edgePanel');
+            const toggle = panel.querySelector('.edge-toggle');
+            panel.classList.toggle('collapsed');
+            toggle.textContent = panel.classList.contains('collapsed') ? '+' : '−';
         }
 
         // Trade Management Functions
