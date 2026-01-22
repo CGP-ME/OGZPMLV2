@@ -4,6 +4,35 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ---
 
+## 2026-01-22 – TRAI GPU Acceleration + Stability Fixes
+
+### TRAI GPU Acceleration (CRITICAL)
+- **Problem**: TRAI inference took 10-15+ seconds per call (why it was removed from hot path)
+- **Root Cause**: `gpu_layers=0` in `inference_server_ct.py` meant CPU-only despite A100 GPU
+- **Fix**: Changed to `gpu_layers=50` – model now loads to GPU VRAM
+- **Result**: Sub-second inference. TRAI can return to hot path.
+
+### TRAI Infrastructure Fixes
+- **Symlinks**: `core/inference_server*.py` now symlinks to `trai_brain/` (was missing)
+- **Widget URL**: Fixed `wss://ogzprime.com/` → `wss://ogzprime.com/ws`
+- **Permissions**: `public/trai-widget.js` now 644 (was 600, caused 403)
+
+### Kraken WebSocket Stability
+- **Heartbeat**: Added ping/pong every 30 seconds (Kraken kills idle connections at 60s)
+- **Reconnect**: Never gives up (was max 10 attempts then death)
+- **Result**: No more "data feed going dark" issues
+
+### Dashboard Fixes
+- **`currentPrice.toFixed` crash**: Variable didn't exist – changed to `lastPrice`
+- **Chart timezone**: Now shows local time, not UTC
+- **Scroll zoom**: Enabled (was disabled)
+
+### New Startup Script
+- `start-ogzprime.sh` – unified launcher with setup, start, stop, status
+- Auto-creates symlinks, fixes permissions, loads env, starts PM2 apps
+
+---
+
 ## 2026-01-12 – MAExtensionFilter (Feature Flagged, Disabled)
 
 - **New Module**: `core/MAExtensionFilter.js`

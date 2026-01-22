@@ -169,6 +169,102 @@
 - No structural or cross-module changes without:
   - a clear architectural summary from the AI,
   - confirmation it understands “who does what.”
-- If an AI can’t explain:
+- If an AI can't explain:
   - how a change fits into the architecture,
-  - it’s not allowed to make it.
+  - it's not allowed to make it.
+
+---
+
+## Infrastructure Landmines (Added 2026-01-22)
+
+### TRAI_GPU_007 – GPU Acceleration Disabled by Default
+
+**Symptom:**
+- TRAI takes 10-15+ seconds per inference
+- A100 GPU sits idle while CPU churns
+- TRAI removed from hot path because "too slow"
+
+**Cause:**
+- `trai_brain/inference_server_ct.py` had `gpu_layers=0`
+- This means 100% CPU, 0% GPU - regardless of hardware
+- Nobody noticed because it "worked" (just slowly)
+
+**Rule:**
+- For ctransformers with GPU: `gpu_layers=50` (or higher to use GPU)
+- Always verify with `nvidia-smi` that GPU is being used
+- Sub-second inference = GPU working. 10+ seconds = CPU fallback.
+
+---
+
+### TRAI_SYMLINK_008 – Inference Server Path Mismatch
+
+**Symptom:**
+- `[TRAI Server] python3: can't open file '/opt/ogzprime/OGZPMLV2/core/inference_server.py'`
+- TRAI falls back to rule-based reasoning
+- No LLM responses
+
+**Cause:**
+- `persistent_llm_client.js` looks for servers in `core/`
+- Actual files are in `trai_brain/`
+- Both locations gitignored, so missing symlinks not obvious
+
+**Rule:**
+- Startup script must create symlinks:
+  ```bash
+  ln -sf trai_brain/inference_server*.py core/
+  ```
+- Use `start-ogzprime.sh` which handles this automatically
+
+---
+
+### WS_URL_009 – WebSocket Path Missing
+
+**Symptom:**
+- `WebSocket connection to 'wss://ogzprime.com/' failed`
+- Constant reconnect attempts in console
+- Dashboard connects but TRAI widget doesn't
+
+**Cause:**
+- Dashboard uses `wss://ogzprime.com/ws` (correct)
+- TRAI widget used `wss://ogzprime.com/` (missing `/ws`)
+
+**Rule:**
+- All WebSocket connections must use the `/ws` path
+- When adding new WebSocket clients, copy URL from working code
+
+---
+
+### PERMS_010 – Web File Permissions
+
+**Symptom:**
+- `403 Forbidden` for JS/CSS files
+- Scripts load as `text/html` (nginx error page)
+- Features mysteriously broken
+
+**Cause:**
+- Files created with restrictive permissions (`-rw-------`)
+- nginx can't read files owned by linuxuser
+
+**Rule:**
+- Web-served files need `644` permissions
+- Startup script runs `chmod 644 public/*.js`
+- Check permissions when "403 Forbidden" appears
+
+---
+
+### VAR_NAME_011 – Referencing Non-Existent Variables
+
+**Symptom:**
+- `Uncaught TypeError: X.toFixed is not a function`
+- Spamming every second/tick
+- Dashboard features silently broken
+
+**Cause (Example):**
+- Code referenced `currentPrice` as a variable
+- Only `lastPrice` existed
+- `currentPrice` was an HTML element ID, not a JS variable
+
+**Rule:**
+- Search codebase before using variable names
+- If `let`/`const`/`var` declaration not found, variable doesn't exist
+- Don't confuse HTML element IDs with JavaScript variables
