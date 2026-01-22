@@ -2752,6 +2752,12 @@ class OGZPrimeV14Bot {
       clearInterval(this.tradingInterval);
     }
 
+    // CHANGE 2026-01-21: Clear liveness watchdog interval (memory leak fix)
+    if (this.livenessCheckInterval) {
+      clearInterval(this.livenessCheckInterval);
+      console.log('🔍 Liveness watchdog interval cleaned up');
+    }
+
     // 🔥 CRITICAL: Remove event listeners before closing (Change 575 - Memory leak fix)
     if (this.ws) {
       this.ws.removeAllListeners();

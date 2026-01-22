@@ -2604,17 +2604,29 @@
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     timeVisible: true,
                     secondsVisible: false,
+                    // CHANGE 2026-01-21: Fix timezone - show local time, not UTC
+                    // The chart receives Unix timestamps in seconds (UTC)
+                    // This tells the chart to display them in local time
+                    localization: {
+                        locale: navigator.language || 'en-US',
+                    },
                 },
                 localization: {
                     priceFormatter: price => '$' + price.toFixed(2),
+                    // CHANGE 2026-01-21: Format time in local timezone
+                    timeFormatter: (timestamp) => {
+                        const date = new Date(timestamp * 1000);
+                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    },
                 },
                 handleScroll: {
-                    mouseWheel: false,  // Disable scroll wheel zoom
+                    mouseWheel: true,  // CHANGE 2026-01-21: Enable scroll wheel for zoom
                     pressedMouseMove: true,
                 },
                 handleScale: {
-                    mouseWheel: false,  // Disable scroll wheel zoom
+                    mouseWheel: true,  // CHANGE 2026-01-21: Enable scroll wheel zoom
                     pinch: true,
+                    axisPressedMouseMove: true,  // Allow dragging on axis to zoom
                 },
             });
             
@@ -2846,6 +2858,16 @@
             candleSeries.setData(data);
             lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
             console.log(`✅ Loaded ${data.length} historical candles`);
+
+            // CHANGE 2026-01-21: Auto-fit chart to show reasonable detail
+            // Show last 50 candles by default for good zoom level
+            if (data.length > 0 && tvChart) {
+                const barsToShow = Math.min(50, data.length);
+                tvChart.timeScale().setVisibleLogicalRange({
+                    from: data.length - barsToShow,
+                    to: data.length
+                });
+            }
         }
         
         // ============================================
@@ -3786,9 +3808,10 @@
         }
 
         // Auto-populate current price in calculator
+        // CHANGE 2026-01-21: Fixed - use lastPrice variable instead of non-existent currentPrice
         setInterval(() => {
-            if (currentPrice && !document.getElementById('entryPrice').value) {
-                document.getElementById('entryPrice').value = currentPrice.toFixed(2);
+            if (lastPrice && !document.getElementById('entryPrice').value) {
+                document.getElementById('entryPrice').value = lastPrice.toFixed(2);
             }
         }, 1000);
 
@@ -3908,8 +3931,9 @@
             }
 
             // Draw heatmap
-            if (currentPrice && levels.long && levels.short) {
-                drawLiquidationHeatmap(currentPrice, levels.long.price, levels.short.price);
+            // CHANGE 2026-01-21: Fixed - use lastPrice variable
+            if (lastPrice && levels.long && levels.short) {
+                drawLiquidationHeatmap(lastPrice, levels.long.price, levels.short.price);
             }
         }
 
@@ -4122,6 +4146,9 @@
         }
 
         function drawLiquidationHeatmap(current, longLiq, shortLiq) {
+            // CHANGE 2026-01-21: Add type safety - ensure current is a number
+            if (typeof current !== 'number' || isNaN(current)) return;
+
             const canvas = document.getElementById('liqHeatmap');
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4152,10 +4179,11 @@
         function monitorWhales() {
             setInterval(() => {
                 // Simulate whale activity (in production, monitor actual large trades)
+                // CHANGE 2026-01-21: Fixed - use lastPrice variable
                 if (Math.random() > 0.8) {
                     const amount = (Math.random() * 10 + 1).toFixed(2);
                     const action = Math.random() > 0.5 ? 'BUY' : 'SELL';
-                    const price = currentPrice ? currentPrice.toFixed(2) : '0';
+                    const price = lastPrice ? lastPrice.toFixed(2) : '0';
 
                     addWhaleAlert(`🐋 ${amount}M ${action} @ $${price}`);
                 }
@@ -4263,9 +4291,10 @@
             scanDivergences();
 
             // Update liquidation levels every minute
+            // CHANGE 2026-01-21: Fixed - use lastPrice variable
             setInterval(() => {
-                if (currentPrice) {
-                    calculateLiquidationLevels(currentPrice);
+                if (lastPrice) {
+                    calculateLiquidationLevels(lastPrice);
                 }
             }, 60000);
 

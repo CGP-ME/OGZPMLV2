@@ -9,9 +9,10 @@
   'use strict';
 
   // Configuration
+  // CHANGE 2026-01-21: Fixed WebSocket URL - must include /ws path
   const WS_URL = window.location.protocol === 'https:'
-    ? `wss://${window.location.host}`
-    : `ws://${window.location.hostname}:3010`;
+    ? `wss://${window.location.host}/ws`
+    : `ws://${window.location.hostname}:3010/ws`;
 
   // State
   let ws = null;

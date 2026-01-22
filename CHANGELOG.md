@@ -8,6 +8,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Liveness Watchdog Interval Leak** - run-empire-v2.js:2754-2758 (MEMORY FIX)
+  - Bug: `livenessCheckInterval` was never cleared on shutdown
+  - While `tradingInterval` was properly cleared, the liveness watchdog kept running
+  - Fix: Added `clearInterval(this.livenessCheckInterval)` to shutdown() method
+  - Prevents orphan interval from continuing after bot shutdown
+
+- **Pattern Save Spam** - core/EnhancedPatternRecognition.js:897 (I/O FIX)
+  - Bug: `recordPatternResult()` called `saveToDisk()` on EVERY pattern record
+  - With 15-second trading interval, this caused excessive disk I/O
+  - Fix: Removed aggressive `saveToDisk()` call from recordPatternResult
+  - Pattern memory still saves via 5-minute periodic auto-save (line 234-236)
+  - Cleanup on shutdown still saves (cleanup() method preserved)
+
+- **Proof Page Stale Data** - public/proof/index.html (UX FIX)
+  - Bug: Gate verification page showed static data from January 15
+  - Made it look "placeholder-ish" and unprofessional
+  - Fix: Added live data fetching from `/api/health` endpoint
+  - Now shows real-time uptime, memory usage, and live status indicators
+  - Falls back to static JSON if bot API unavailable
+  - Refresh interval reduced from 5 minutes to 30 seconds
+
+- **Kraken WebSocket Heartbeat Missing** - kraken_adapter_simple.js (STABILITY CRITICAL)
+  - Bug: No ping/pong mechanism to keep Kraken connection alive
+  - Kraken closes idle connections after ~60 seconds without heartbeat
+  - Symptom: Frequent disconnects, "data feed going dark" repeatedly
+  - Fix: Added `ws.on('ping')` handler to respond to server pings
+  - Fix: Added client-side ping interval (every 30 seconds)
+  - Fix: Track `lastPong` timestamp for connection health monitoring
+  - Clean up ping interval on disconnect and close
+
+- **Reconnect Gives Up After 10 Attempts** - kraken_adapter_simple.js (STABILITY CRITICAL)
+  - Bug: After 10 failed reconnect attempts, adapter stopped trying forever
+  - Bot would stay dead until manual restart
+  - This contradicts our stability promise - bot must stay connected
+  - Fix: Reconnect now tries FOREVER with exponential backoff
+  - Backoff caps at 5 minutes (was 60 seconds)
+  - Warnings at 10 and 50 attempts, but never stops trying
+  - Only stops if `this.connected = false` (intentional disconnect)
+
+- **Dashboard currentPrice.toFixed Crash** - public/unified-dashboard.html (DASHBOARD CRITICAL)
+  - Bug: Code referenced `currentPrice` as a variable but it was never declared
+  - Only `lastPrice` variable existed for price tracking
+  - Caused `Uncaught TypeError: currentPrice.toFixed is not a function` spam (every second)
+  - Broke: Calculator auto-fill, liquidation heatmap, whale alerts, edge analytics
+  - Fix: Changed all `currentPrice` variable references to use `lastPrice`
+  - Fix: Added type safety check in `drawLiquidationHeatmap()` function
+
+- **TRAI Widget 403 Forbidden** - public/trai-widget.js (PERMISSION FIX)
+  - Bug: File permissions were `-rw-------` (owner-only read/write)
+  - Web server couldn't read the file to serve it
+  - Broke: TRAI chain-of-thought floating display
+  - Fix: Changed permissions to `-rw-r--r--` (world-readable)
+
+- **TRAI Widget WebSocket URL** - public/trai-widget.js (CONNECTION FIX)
+  - Bug: Widget connected to `wss://ogzprime.com/` instead of `wss://ogzprime.com/ws`
+  - Caused constant reconnect failures in console
+  - Fix: Added `/ws` path to WebSocket URL
+
+- **TRAI Inference Server Missing** - core/ symlinks (CRITICAL FIX)
+  - Bug: inference_server.py files were in `trai_brain/` but code looked in `core/`
+  - Error: `python3: can't open file '/opt/ogzprime/OGZPMLV2/core/inference_server.py'`
+  - TRAI fell back to rule-based reasoning with no LLM
+  - Fix: Created symlinks from `core/` to `trai_brain/` for all inference servers
+
+- **TRAI Running on CPU Instead of GPU** - trai_brain/inference_server_ct.py (PERFORMANCE CRITICAL)
+  - Bug: `gpu_layers=0` meant entire 7B model ran on CPU
+  - A100 GPU with 20GB VRAM sat completely idle
+  - Inference took 10-15+ seconds (why TRAI was removed from hot path)
+  - Fix: Changed to `gpu_layers=50` to load all layers to GPU
+  - Also increased context_length from 2048 to 4096
+  - Now sub-second inference - TRAI can return to hot path
+
+- **Dashboard Chart Time/Zoom Issues** - public/unified-dashboard.html (UX FIX)
+  - Bug: Chart displayed times in UTC instead of local timezone
+  - Bug: Chart was too zoomed out, candles had no detail
+  - Bug: Scroll wheel zoom was disabled
+  - Fix: Added `timeFormatter` to convert Unix timestamps to local time
+  - Fix: Enabled scroll wheel zoom for better chart navigation
+  - Fix: Added auto-fit to show last 50 candles on data load
+
+### Changed
+- **Gate Proof JSON Updated** - ogz-meta/gates/runs/latest.json
+  - Updated with current commit (70995f3) and timestamp
+  - Added Gate 5 (Truth Source) and Gate 6 (Risk Management)
+  - More descriptive highlights for each gate verification
+
 - **Dashboard Responsive Layout** - public/unified-dashboard.html (UI FIX)
   - Fixed overlapping fixed elements on right side (tier-selector vs theme-customizer)
   - Fixed overlapping fixed elements on left side (bot-status-row vs indicator-overlay)

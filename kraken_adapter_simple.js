@@ -26,6 +26,10 @@ class KrakenAdapterSimple {
     this.maxReconnectAttempts = 10;
     this.reconnectTimeout = null;
 
+    // CHANGE 2026-01-21: Heartbeat to keep connection alive
+    this.pingInterval = null;
+    this.lastPong = Date.now();
+
     // Rate limiting (Kraken API tier 2: 15 req/sec)
     this.requestWindow = 1000; // 1 second window
     this.maxRequestsPerWindow = 15;
@@ -497,6 +501,28 @@ class KrakenAdapterSimple {
         this.ws.send(JSON.stringify(tickerSub));
         this.ws.send(JSON.stringify(ohlcSub));
         console.log('📊 V2 FIX: Single KrakenAdapter subscribed to ticker + OHLC streams');
+
+        // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
+        // Kraken closes idle connections - this prevents that
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.pingInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.ping();
+          }
+        }, 30000); // Ping every 30 seconds
+        console.log('💓 Heartbeat started (30s ping interval)');
+      });
+
+      // CHANGE 2026-01-21: Respond to server pings to prevent timeout
+      this.ws.on('ping', () => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.pong();
+        }
+      });
+
+      // CHANGE 2026-01-21: Track pong responses for connection health
+      this.ws.on('pong', () => {
+        this.lastPong = Date.now();
       });
 
       this.ws.on('message', (data) => {
@@ -564,35 +590,47 @@ class KrakenAdapterSimple {
       this.ws.on('close', () => {
         console.log('🔌 Kraken WebSocket disconnected');
 
-        // FIX #1: Cleanup and exponential backoff reconnect with max attempts
+        // CHANGE 2026-01-21: Clear heartbeat interval on disconnect
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval);
+          this.pingInterval = null;
+        }
+
+        // CHANGE 2026-01-21: Never give up on reconnects - keep trying forever
+        // This is critical for stability - a trading bot must stay connected
         if (this.reconnectTimeout) {
           clearTimeout(this.reconnectTimeout);
         }
 
-        if (this.reconnectAttempts < this.maxReconnectAttempts && this.connected) {
+        // Only reconnect if we were intentionally connected (not manually disconnected)
+        if (this.connected) {
           this.reconnectAttempts++;
 
-          // Exponential backoff: 5s, 10s, 20s, 40s, capped at 60s
+          // Exponential backoff: 5s, 10s, 20s, 40s... capped at 5 minutes
           const baseDelay = 5000;
-          const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
+          const maxDelay = 300000; // 5 minutes max
+          const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts - 1), maxDelay);
 
-          console.log(`🔄 WS_RECONNECT delay=${delay}ms attempt=${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+          // Log warning at certain thresholds but NEVER stop trying
+          if (this.reconnectAttempts === 10) {
+            console.warn('⚠️ WS_RECONNECT: 10 attempts failed - will keep trying (check network?)');
+          } else if (this.reconnectAttempts === 50) {
+            console.error('🚨 WS_RECONNECT: 50 attempts failed - serious connectivity issue!');
+          }
+
+          console.log(`🔄 WS_RECONNECT delay=${Math.round(delay/1000)}s attempt=${this.reconnectAttempts}`);
 
           this.reconnectTimeout = setTimeout(() => {
             // Cleanup old websocket
             if (this.ws) {
               this.ws.removeAllListeners();
-              this.ws.close();
-              this.ws.terminate();
+              try { this.ws.close(); } catch(e) {}
+              try { this.ws.terminate(); } catch(e) {}
               this.ws = null;
             }
-            if (this.reconnectTimeout) {
-              this.reconnectTimeout = null;
-            }
+            this.reconnectTimeout = null;
             this.connectWebSocketStream(onPriceUpdate);
           }, delay);
-        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          console.log(`🚫 WS_RECONNECT max attempts (${this.maxReconnectAttempts}) reached, stopping reconnect`);
         }
       });
 
@@ -622,6 +660,11 @@ class KrakenAdapterSimple {
   }
 
   async disconnect() {
+    // CHANGE 2026-01-21: Clear heartbeat interval on disconnect
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;

@@ -894,7 +894,9 @@ class EnhancedPatternChecker {
     
     this.memory.recordPattern(featuresOrSignature, result);
     this.stats.tradeResults++;
-    this.memory.saveToDisk();
+    // CHANGE 2026-01-21: Removed aggressive saveToDisk() call
+    // PatternMemorySystem already has 5-minute periodic saves (line 234-236)
+    // Calling saveToDisk on every recordPatternResult caused massive I/O spam
     return true;
   }
 
