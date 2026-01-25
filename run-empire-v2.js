@@ -1888,6 +1888,11 @@ class OGZPrimeV14Bot {
               // Emergency: Allow Brain to cut losses if down > 2%
               console.log(`🚨 Brain emergency sell - cutting losses (PnL: ${pnl.toFixed(2)}%)`);
               return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else if (holdTime >= 5 && pnl < 0 && pnl >= -2) {
+              // CHANGE 2026-01-25: Gradual loss exit - don't bag hold small losses forever
+              // After 5 minutes, exit gracefully if losing but not yet at emergency threshold
+              console.log(`📉 Gradual exit - held ${holdTime.toFixed(1)} min at ${pnl.toFixed(2)}% loss, cutting loose`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
             } else {
               console.log(`🧠 Brain wants sell but conditions not met (hold: ${holdTime.toFixed(3)} min, PnL: ${pnl.toFixed(2)}%)`);
             }
@@ -2511,8 +2516,11 @@ class OGZPrimeV14Bot {
             macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
             trend: indicators.trend,
             volatility: indicators.volatility,
-            ema12: indicators.ema12,
-            ema26: indicators.ema26
+            // CHANGE 2026-01-25: Send EMA in format dashboard expects (ema[20], ema[50], ema[200])
+            ema: indicatorEngine.getSnapshot().ema || {},
+            // CHANGE 2026-01-25: Send BB and VWAP for dashboard overlays
+            bb: indicatorEngine.getSnapshot().bb || {},
+            vwap: indicatorEngine.getSnapshot().vwap || null
           },
           profile: {
             name: activeProfile.name,

@@ -367,12 +367,16 @@
     }
   }
 
-  // Send message - Direct Ollama for now (brain routing WIP)
-  async function sendMessage() {
+  // CHANGE 2026-01-25: Send via WebSocket to bot brain (gets 58K message context)
+  function sendMessage() {
     const input = document.getElementById('trai-input');
     const query = input.value.trim();
 
     if (!query) return;
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      addMessage('Not connected to TRAI. Please wait...', 'system');
+      return;
+    }
 
     // Add user message to chat
     addMessage(query, 'user');
@@ -383,41 +387,30 @@
     const typingEl = addMessage('Thinking...', 'bot typing');
     typingEl.id = 'trai-typing';
 
-    try {
-      // Direct Ollama call (brain routing coming soon)
-      const response = await fetch('/api/ollama/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'trai',
-          messages: [{ role: 'user', content: query }],
-          stream: false,
-          options: { num_predict: 1000 }
-        })
-      });
+    // Generate unique query ID for response matching
+    const queryId = 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-      removeTyping();
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+    // Track pending query with timeout
+    const timeoutId = setTimeout(() => {
+      if (pendingQueries.has(queryId)) {
+        removeTyping();
+        addMessage('Request timed out. TRAI may be processing a complex query.', 'system');
+        pendingQueries.delete(queryId);
       }
+    }, 60000); // 60 second timeout for reasoning model
 
-      const data = await response.json();
-      const answer = data.message?.content || data.response || 'No response received.';
-      addMessage(answer, 'bot');
+    pendingQueries.set(queryId, { timeoutId, query });
 
-      // Update TRAI status light
-      const traiLight = document.getElementById('traiLight');
-      if (traiLight) {
-        traiLight.classList.remove('yellow', 'red');
-        traiLight.classList.add('green');
-      }
+    // Send via WebSocket to bot brain (routes through trai_core with full context)
+    ws.send(JSON.stringify({
+      type: 'trai_query',
+      query: query,
+      queryId: queryId,
+      sessionId: sessionId,
+      timestamp: Date.now()
+    }));
 
-    } catch (error) {
-      removeTyping();
-      console.error('[TRAI Widget] Error:', error);
-      addMessage('Sorry, I encountered an error. Please try again.', 'bot');
-    }
+    console.log('[TRAI Widget] Sent query via brain routing:', queryId);
   }
 
   // Handle response from TRAI (via bot's brain)
