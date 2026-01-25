@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { createManifest, loadManifest, saveManifest, updateSection, shouldStop } = require('./manifest-schema');
+const { ClauditoLogger } = require('./claudito-logger');
 
 const MANIFEST_DIR = path.join(__dirname, 'manifests');
 
@@ -713,6 +714,7 @@ async function warden(manifest, params) {
 
 /**
  * Emit hook for downstream processing
+ * Enhanced with real-time console logging per ogz-meta specs
  */
 function emitHook(command, manifest) {
   const hookFile = path.join(MANIFEST_DIR, `${manifest.mission_id}.hook`);
@@ -722,7 +724,14 @@ function emitHook(command, manifest) {
     timestamp: new Date().toISOString()
   };
 
+  // Write to file (original behavior)
   fs.writeFileSync(hookFile, JSON.stringify(hook, null, 2));
+
+  // Real-time console logging (new per ogz-meta specs)
+  ClauditoLogger.hook(command, manifest.state, {
+    missionId: manifest.mission_id,
+    result: manifest[command.replace('/', '')]?.status || 'executed'
+  });
 }
 
 // CLI interface
