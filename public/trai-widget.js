@@ -305,15 +305,34 @@
 
       ws.onopen = () => {
         console.log('[TRAI Widget] Connected to WebSocket');
-        isConnected = true;
-        updateStatus(true);
-        document.getElementById('trai-send').disabled = !document.getElementById('trai-input').value.trim();
+
+        // Authenticate with the WebSocket server (same token as dashboard)
+        const authToken = '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62';
+        ws.send(JSON.stringify({
+          type: 'auth',
+          token: authToken
+        }));
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
+          // Handle auth success
+          if (data.type === 'auth_success') {
+            console.log('[TRAI Widget] Authenticated successfully');
+            // Identify as dashboard so we can receive bot responses
+            ws.send(JSON.stringify({
+              type: 'identify',
+              source: 'dashboard'
+            }));
+            isConnected = true;
+            updateStatus(true);
+            document.getElementById('trai-send').disabled = !document.getElementById('trai-input').value.trim();
+            return;
+          }
+
+          // Handle TRAI response
           if (data.type === 'trai_response' && data.sessionId === sessionId) {
             handleResponse(data);
           }
@@ -348,14 +367,12 @@
     }
   }
 
-  // Send message
-  function sendMessage() {
+  // Send message - Direct Ollama for now (brain routing WIP)
+  async function sendMessage() {
     const input = document.getElementById('trai-input');
     const query = input.value.trim();
 
-    if (!query || !isConnected) return;
-
-    const queryId = 'q_' + Date.now();
+    if (!query) return;
 
     // Add user message to chat
     addMessage(query, 'user');
@@ -363,38 +380,58 @@
     document.getElementById('trai-send').disabled = true;
 
     // Add typing indicator
-    const typingEl = addMessage('', 'bot typing');
+    const typingEl = addMessage('Thinking...', 'bot typing');
     typingEl.id = 'trai-typing';
 
-    // Send to bot
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'trai_query',
-        query: query,
-        queryId: queryId,
-        sessionId: sessionId,
-        timestamp: Date.now()
-      }));
-
-      pendingQueries.set(queryId, {
-        query,
-        timestamp: Date.now()
+    try {
+      // Direct Ollama call (brain routing coming soon)
+      const response = await fetch('/api/ollama/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'trai',
+          messages: [{ role: 'user', content: query }],
+          stream: false,
+          options: { num_predict: 1000 }
+        })
       });
 
-      // Timeout after 30s
-      setTimeout(() => {
-        if (pendingQueries.has(queryId)) {
-          pendingQueries.delete(queryId);
-          removeTyping();
-          addMessage('Sorry, the response timed out. Please try again.', 'bot');
-        }
-      }, 30000);
+      removeTyping();
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const answer = data.message?.content || data.response || 'No response received.';
+      addMessage(answer, 'bot');
+
+      // Update TRAI status light
+      const traiLight = document.getElementById('traiLight');
+      if (traiLight) {
+        traiLight.classList.remove('yellow', 'red');
+        traiLight.classList.add('green');
+      }
+
+    } catch (error) {
+      removeTyping();
+      console.error('[TRAI Widget] Error:', error);
+      addMessage('Sorry, I encountered an error. Please try again.', 'bot');
     }
   }
 
-  // Handle response from TRAI
+  // Handle response from TRAI (via bot's brain)
   function handleResponse(data) {
     removeTyping();
+
+    // Clear timeout for this query
+    if (pendingQueries.has(data.queryId)) {
+      const pending = pendingQueries.get(data.queryId);
+      if (pending.timeoutId) {
+        clearTimeout(pending.timeoutId);
+      }
+      pendingQueries.delete(data.queryId);
+    }
 
     const response = typeof data.response === 'string'
       ? data.response
@@ -402,8 +439,14 @@
 
     addMessage(response, 'bot');
 
-    if (pendingQueries.has(data.queryId)) {
-      pendingQueries.delete(data.queryId);
+    // Update dashboard TRAI status light to green (success)
+    const traiLight = document.getElementById('traiLight');
+    if (traiLight) {
+      traiLight.classList.remove('yellow', 'red');
+      traiLight.classList.add('green');
+    }
+    if (window.statusTimestamps) {
+      window.statusTimestamps.trai = Date.now();
     }
   }
 

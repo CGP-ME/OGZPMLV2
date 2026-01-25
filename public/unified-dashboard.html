@@ -42,6 +42,7 @@
             color: var(--text-primary);
             overflow-x: hidden;
             min-height: 100vh;
+            cursor: default;  /* CHANGE 2026-01-23: Fix crosshair bleeding to whole page */
             position: relative;
         }
         
@@ -155,7 +156,7 @@
             gap: 8px;
             font-size: 12px;
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -163,14 +164,77 @@
             background: #ff0040;
             animation: statusPulse 2s infinite;
         }
-        
+
         .status-dot.connected {
             background: var(--profit-color);
         }
-        
+
         @keyframes statusPulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* CHANGE 2026-01-22: Multi-status lights bar */
+        .status-lights-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-left: 15px;
+        }
+
+        .status-light {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-light .light {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #444;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-light .light.green {
+            background: #00ff88;
+            box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+        }
+
+        .status-light .light.yellow {
+            background: #ffcc00;
+            box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
+            animation: statusPulse 1.5s infinite;
+        }
+
+        .status-light .light.red {
+            background: #ff3366;
+            box-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
+        }
+
+        .status-light .label {
+            color: #888;
+        }
+
+        .status-light .light.green + .label {
+            color: #00ff88;
+        }
+
+        .status-light .light.yellow + .label {
+            color: #ffcc00;
+        }
+
+        .status-light .light.red + .label {
+            color: #ff3366;
         }
         
         /* Main Container */
@@ -323,7 +387,7 @@
             padding: 10px;
             margin-bottom: 20px;
             border: 1px solid var(--border-color);
-            height: 600px;
+            height: 850px;  /* CHANGE 2026-01-22: Made chart much larger */
             width: 100%;
         }
         
@@ -331,6 +395,7 @@
             width: 100%;
             height: 100%;
             border-radius: 8px;
+            cursor: crosshair;  /* CHANGE 2026-01-23: Crosshair only on chart */
         }
         
         /* Multiple Bot Status Display */
@@ -789,7 +854,7 @@
             }
 
             .chart-container {
-                height: 450px;
+                height: 650px;  /* CHANGE 2026-01-22: Larger chart */
             }
         }
 
@@ -806,7 +871,7 @@
             }
 
             .chart-container {
-                height: 400px;
+                height: 550px;  /* CHANGE 2026-01-22: Larger chart */
             }
         }
 
@@ -827,7 +892,7 @@
             }
 
             .chart-container {
-                height: 350px;
+                height: 450px;  /* CHANGE 2026-01-22: Larger chart */
             }
 
             .header h1 {
@@ -2192,6 +2257,22 @@
                 <span class="status-dot" id="connectionStatus"></span>
                 <span id="statusText">Connecting...</span>
             </div>
+
+            <!-- CHANGE 2026-01-22: Multi-status lights for system health -->
+            <div class="status-lights-bar">
+                <div class="status-light" title="Kraken data feed">
+                    <span class="light" id="dataLight"></span>
+                    <span class="label">DATA</span>
+                </div>
+                <div class="status-light" title="Trading bot process">
+                    <span class="light" id="botLight"></span>
+                    <span class="label">BOT</span>
+                </div>
+                <div class="status-light" title="TRAI LLM inference">
+                    <span class="light" id="traiLight"></span>
+                    <span class="label">TRAI</span>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -2507,8 +2588,9 @@
         let vwapSeries = null;
         let superTrendSeries = null;
         
-        // Active indicator overlays (all OFF by default)
+        // Active indicator overlays (all OFF by default - user preference)
         let activeOverlays = [];
+        let autoScrollEnabled = true;  // Auto-scroll to follow price
         
         let botStates = {
             core: { connected: false, pnl: 0, trades: 0, confidence: 0 },
@@ -2598,12 +2680,18 @@
                 },
                 rightPriceScale: {
                     borderColor: 'rgba(255, 255, 255, 0.1)',
-                    scaleMargins: { top: 0.1, bottom: 0.2 },
+                    scaleMargins: { top: 0.05, bottom: 0.15 },  // Less padding
+                    autoScale: true,
+                    alignLabels: true,  // Align price labels to candle closes
+                    entireTextOnly: true,  // Don't cut off price labels
                 },
                 timeScale: {
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     timeVisible: true,
                     secondsVisible: false,
+                    barSpacing: 8,  // CHANGE 2026-01-23: Thinner candles (default ~6, was too fat)
+                    minBarSpacing: 2,  // Allow zooming in closer
+                    rightOffset: 5,  // Keep some space on right for new candles
                     // CHANGE 2026-01-21: Fix timezone - show local time, not UTC
                     // The chart receives Unix timestamps in seconds (UTC)
                     // This tells the chart to display them in local time
@@ -2620,13 +2708,16 @@
                     },
                 },
                 handleScroll: {
-                    mouseWheel: true,  // CHANGE 2026-01-21: Enable scroll wheel for zoom
-                    pressedMouseMove: true,
+                    mouseWheel: false,  // CHANGE 2026-01-22: Disable janky mousewheel zoom
+                    pressedMouseMove: true,  // Click and drag to pan
+                    horzTouchDrag: true,
+                    vertTouchDrag: false,  // Don't scroll price axis
                 },
                 handleScale: {
-                    mouseWheel: true,  // CHANGE 2026-01-21: Enable scroll wheel zoom
-                    pinch: true,
-                    axisPressedMouseMove: true,  // Allow dragging on axis to zoom
+                    mouseWheel: false,  // CHANGE 2026-01-22: Disable mousewheel scale
+                    pinch: true,  // Keep pinch zoom for touch devices
+                    axisPressedMouseMove: false,  // Disable axis drag zoom (was confusing)
+                    axisDoubleClickReset: true,  // Double-click axis to reset zoom
                 },
             });
             
@@ -2652,10 +2743,21 @@
                 visible: false,
             });
             
+            // CHANGE 2026-01-22: Fix volume bars - use named overlay scale
             volumeSeries = tvChart.addHistogramSeries({
-                priceFormat: { type: 'volume' },
-                priceScaleId: '',
-                scaleMargins: { top: 0.85, bottom: 0 },
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                },
+                priceScaleId: 'volume',  // Named scale for volume
+            });
+
+            // Configure volume scale to appear at bottom 15% of chart
+            tvChart.priceScale('volume').applyOptions({
+                scaleMargins: {
+                    top: 0.85,
+                    bottom: 0,
+                },
             });
             
             // EMA lines
@@ -2778,6 +2880,12 @@
             let timestamp = data.candle?.timestamp || data.timestamp || Date.now();
             if (timestamp > 9999999999) timestamp = Math.floor(timestamp / 1000);
 
+            // CHANGE 2026-01-22: Normalize timestamp to start of minute for 1m candles
+            // This prevents duplicate candles (e.g., 02:12, 02:12, 02:12) from appearing
+            // All updates within the same minute will update the SAME candle
+            const timeframeSeconds = 60;  // 1 minute candles
+            timestamp = Math.floor(timestamp / timeframeSeconds) * timeframeSeconds;
+
             // Update candle
             if (data.candle) {
                 const candle = {
@@ -2788,19 +2896,31 @@
                     close: price,
                 };
 
-                if (currentChartType === 'candlestick') {
-                    candleSeries.update(candle);
-                } else {
-                    lineSeries.update({ time: timestamp, value: price });
+                // CHANGE 2026-01-22: Use try/catch to handle "oldest data" errors gracefully
+                try {
+                    if (currentChartType === 'candlestick') {
+                        candleSeries.update(candle);
+                    } else {
+                        lineSeries.update({ time: timestamp, value: price });
+                    }
+                } catch (e) {
+                    // Ignore "Cannot update oldest data" errors - just skip this update
+                    if (!e.message?.includes('oldest data')) {
+                        console.warn('Chart update error:', e.message);
+                    }
                 }
 
                 // Volume
                 if (data.candle.volume) {
-                    volumeSeries.update({
-                        time: timestamp,
-                        value: parseFloat(data.candle.volume),
-                        color: candle.close >= candle.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)',
-                    });
+                    try {
+                        volumeSeries.update({
+                            time: timestamp,
+                            value: parseFloat(data.candle.volume),
+                            color: candle.close >= candle.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)',
+                        });
+                    } catch (e) {
+                        // Ignore volume update errors
+                    }
                 }
             }
 
@@ -2809,14 +2929,32 @@
                 updateIndicatorOverlaysOnChart(timestamp, data.indicators);
                 updateIndicatorValues(data.indicators);
             }
+
+            // CHANGE 2026-01-22: Auto-scroll to keep latest candle visible
+            if (autoScrollEnabled && tvChart) {
+                tvChart.timeScale().scrollToRealTime();
+            }
         }
         
         function updateIndicatorOverlaysOnChart(time, indicators) {
-            // EMAs
+            // DEBUG: Log what we receive (remove after fixing)
+            if (!window._indicatorDebugLogged) {
+                console.log('📊 [INDICATOR DEBUG] Received indicators:', JSON.stringify(indicators, null, 2));
+                console.log('📊 [INDICATOR DEBUG] Active overlays:', activeOverlays);
+                window._indicatorDebugLogged = true;
+                // Reset after 30 seconds to log again
+                setTimeout(() => { window._indicatorDebugLogged = false; }, 30000);
+            }
+
+            // EMAs - check both formats: ema[20] and ema.20
             if (indicators.ema) {
-                if (indicators.ema[20]) ema20Series.update({ time, value: indicators.ema[20] });
-                if (indicators.ema[50]) ema50Series.update({ time, value: indicators.ema[50] });
-                if (indicators.ema[200]) ema200Series.update({ time, value: indicators.ema[200] });
+                const ema20 = indicators.ema[20] || indicators.ema['20'];
+                const ema50 = indicators.ema[50] || indicators.ema['50'];
+                const ema200 = indicators.ema[200] || indicators.ema['200'];
+
+                if (ema20) ema20Series.update({ time, value: ema20 });
+                if (ema50) ema50Series.update({ time, value: ema50 });
+                if (ema200) ema200Series.update({ time, value: ema200 });
             }
             
             // Bollinger Bands
@@ -3004,6 +3142,30 @@
             if (data.type === 'price' && data.data) {
                 updateChart(data.data);
 
+                // CHANGE 2026-01-22: Update DATA status light
+                statusTimestamps.data = Date.now();
+                updateStatusLight('dataLight', 'green');
+
+                // CHANGE 2026-01-23: Update BOT status light too (price comes from bot)
+                statusTimestamps.bot = Date.now();
+                updateStatusLight('botLight', 'green');
+
+                // CHANGE 2026-01-23: Update performance stats from price message
+                if (data.data.totalPnL !== undefined) {
+                    const pnl = data.data.totalPnL;
+                    const el = document.getElementById('totalPnl');
+                    if (el) {
+                        el.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                        el.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+                    }
+                }
+                if (data.data.winRate !== undefined) {
+                    const el = document.getElementById('winRate');
+                    if (el) {
+                        el.textContent = `${data.data.winRate.toFixed(1)}%`;
+                    }
+                }
+
                 // Historical candles on FIRST load only
                 if (!window.__historicalLoaded && data.data.candles && data.data.candles.length > 0) {
                     loadHistoricalCandles(data.data.candles);
@@ -3032,6 +3194,10 @@
 
                 updateBotStatus(mappedTier, data);
                 updateStats(data);
+
+                // CHANGE 2026-01-22: Update BOT status light on trade
+                statusTimestamps.bot = Date.now();
+                updateStatusLight('botLight', 'green');
             }
 
             // Bot status
@@ -3041,6 +3207,10 @@
                                    (tier === 'starter' || tier === 'pro') ? 'core' : tier;
                 botStates[mappedTier] = { ...botStates[mappedTier], ...data };
                 updateBotStatusIndicators();
+
+                // CHANGE 2026-01-22: Update BOT status light
+                statusTimestamps.bot = Date.now();
+                updateStatusLight('botLight', 'green');
             }
 
             // Bot thinking - Chain of Thought
@@ -3055,6 +3225,10 @@
                     riskScore: data.data?.riskScore
                 };
                 updateChainOfThought(thought);
+
+                // CHANGE 2026-01-22: Update TRAI status light (chain of thought = TRAI working)
+                statusTimestamps.trai = Date.now();
+                updateStatusLight('traiLight', 'green');
             }
 
             // State updates
@@ -3274,7 +3448,7 @@
         function updateIndicatorValues(data) {
             const indicators = data.indicators || data;
             
-            if (indicators.rsi !== undefined) {
+            if (indicators.rsi !== undefined && indicators.rsi !== null) {
                 ['rsiCore', 'rsiML'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = indicators.rsi.toFixed(1);
@@ -3299,11 +3473,11 @@
             
             // ML-specific
             if (currentTier === 'ml') {
-                if (indicators.atr !== undefined) {
+                if (indicators.atr !== undefined && indicators.atr !== null) {
                     const el = document.getElementById('atrML');
                     if (el) el.textContent = indicators.atr.toFixed(2);
                 }
-                if (indicators.confidence !== undefined) {
+                if (indicators.confidence !== undefined && indicators.confidence !== null) {
                     const el = document.getElementById('confidenceML');
                     if (el) el.textContent = `${indicators.confidence}%`;
                 }
@@ -3601,14 +3775,88 @@
         function showUpgradeOptions() {
             alert('Contact sales@ogzprime.com for ML Version access!');
         }
-        
+
+        // ============================================
+        // STATUS LIGHTS - CHANGE 2026-01-22
+        // ============================================
+
+        // Track last update times for each system
+        const statusTimestamps = {
+            data: 0,
+            bot: 0,
+            trai: 0
+        };
+        // CHANGE 2026-01-23: Expose for TRAI widget to update
+        window.statusTimestamps = statusTimestamps;
+
+        // Status light states: 'green', 'yellow', 'red', or '' (off)
+        function updateStatusLight(lightId, status) {
+            const light = document.getElementById(lightId);
+            if (!light) return;
+
+            // Remove all status classes
+            light.classList.remove('green', 'yellow', 'red');
+
+            // Add new status
+            if (status) {
+                light.classList.add(status);
+            }
+        }
+
+        // Check for stale data (no updates in X seconds)
+        function checkStatusStaleness() {
+            const now = Date.now();
+            const DATA_TIMEOUT = 10000;   // 10 seconds
+            const BOT_TIMEOUT = 30000;    // 30 seconds
+            const TRAI_TIMEOUT = 60000;   // 60 seconds
+
+            // DATA light - goes yellow if no price in 10s, red if 30s
+            if (statusTimestamps.data > 0) {
+                const dataAge = now - statusTimestamps.data;
+                if (dataAge > 30000) {
+                    updateStatusLight('dataLight', 'red');
+                } else if (dataAge > DATA_TIMEOUT) {
+                    updateStatusLight('dataLight', 'yellow');
+                }
+            }
+
+            // BOT light - goes yellow if no activity in 30s
+            if (statusTimestamps.bot > 0) {
+                const botAge = now - statusTimestamps.bot;
+                if (botAge > 120000) {
+                    updateStatusLight('botLight', 'red');
+                } else if (botAge > BOT_TIMEOUT) {
+                    updateStatusLight('botLight', 'yellow');
+                }
+            }
+
+            // TRAI light - goes yellow if no response in 60s
+            if (statusTimestamps.trai > 0) {
+                const traiAge = now - statusTimestamps.trai;
+                if (traiAge > 180000) {
+                    updateStatusLight('traiLight', 'red');
+                } else if (traiAge > TRAI_TIMEOUT) {
+                    updateStatusLight('traiLight', 'yellow');
+                }
+            }
+        }
+
+        // Start staleness checker
+        setInterval(checkStatusStaleness, 5000);
+
         // ============================================
         // INITIALIZATION
         // ============================================
         
         window.onload = () => {
             console.log('🚀 OGZPrime Dashboard Initializing...');
-            
+
+            // CHANGE 2026-01-22: Set default indicator checkboxes to match activeOverlays
+            activeOverlays.forEach(overlay => {
+                const checkbox = document.getElementById(`chk-${overlay}`);
+                if (checkbox) checkbox.checked = true;
+            });
+
             initChart();
             connectWebSocket();
             switchTier('ml');
@@ -3619,7 +3867,7 @@
                 });
                 updateBotStatusIndicators();
             }, 2000);
-            
+
             console.log('✅ OGZPrime Dashboard Ready');
         };
 

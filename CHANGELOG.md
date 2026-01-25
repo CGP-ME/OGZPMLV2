@@ -8,6 +8,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Trade Log Not Receiving Live Trades** - run-empire-v2.js (DASHBOARD FIX)
+  - Bug: Dashboard trade log never showed new BUY/SELL trades
+  - Bot recorded trades internally but never broadcast to WebSocket clients
+  - Dashboard expected `type: 'trade'` messages with action, price, pnl, timestamp
+  - Fix: Added WebSocket broadcast after BUY execution (line 2165)
+  - Fix: Added WebSocket broadcast after SELL execution (line 2287)
+  - Trade log now updates in real-time with executed trades
+
+- **SELL Trades Accumulating in activeTrades** - run-empire-v2.js + StateManager.js (CRITICAL BUG)
+  - Bug: `updateActiveTrade()` was called for ALL trades (BUY and SELL) at line 2071
+  - SELL trades were added to `activeTrades` but never removed
+  - `closePosition()` only removed trades where `type === 'BUY'`, not `action === 'SELL'`
+  - Result: 96 SELL "positions" accumulated, destroying 90% of paper balance ($9k loss)
+  - Fix 1: Only call `updateActiveTrade()` for BUY trades (run-empire-v2.js:2069)
+  - Fix 2: `closePosition()` now clears ALL trades on full close (StateManager.js:234)
+  - Defense in depth: Both fixes prevent this class of bug from recurring
+
+- **P&L Calculation Ignoring Open Position** - run-empire-v2.js:924 (DISPLAY BUG)
+  - Bug: `totalPnL = balance - 10000` didn't include value of open position
+  - If $250 was in a BTC position, dashboard showed -$250 P&L (wrong!)
+  - Fix: `totalPnL = (balance + positionValue) - 10000`
+  - Now correctly shows actual account value change
+
+- **No Fresh Start Option for Paper Trading** - StateManager.js (ARCHITECTURE)
+  - Problem: Paper trading loaded stale state (old balances, trade counts)
+  - Required manual reset scripts - treating symptoms not causes
+  - Fix: Added `FRESH_START=true` env var to reset state on boot
+  - Paper trading can now reliably start clean without manual intervention
+
+- **Cursor Bleeding to Whole Page** - public/unified-dashboard.html (UX FIX)
+  - Bug: TradingView crosshair cursor showed across entire page, not just chart
+  - Made cursor hard to see and navigation confusing
+  - Fix: Added `cursor: default` to body element
+  - Fix: Added `cursor: crosshair` only to `#tvChartContainer`
+  - Crosshair now shows only when hovering over the chart
+
+- **BOT Status Light Not Turning Green** - public/unified-dashboard.html (UX FIX)
+  - Bug: BOT status light stayed grey even when receiving live data
+  - Only turned green on `trade` or `bot_status` messages
+  - Since price data comes from the bot, should indicate bot is alive
+  - Fix: Now updates BOT light when price data is received (line 3153)
+
+- **TRAI Status Light Not Turning Green** - public/trai-widget.js (UX FIX)
+  - Bug: TRAI light only turned green on `bot_thinking` WebSocket messages
+  - After switching widget to HTTP calls, WebSocket never received messages
+  - Fix: Widget now directly updates `traiLight` on successful Ollama response
+  - Fix: Exposed `window.statusTimestamps` for widget to update timestamps
+
+- **Candlestick Width Too Fat** - public/unified-dashboard.html (UX FIX)
+  - Bug: Default TradingView barSpacing made candles too wide/fat
+  - Fix: Added `barSpacing: 8, minBarSpacing: 2, rightOffset: 5` to timeScale
+  - Candles now proportioned correctly for readability
+
+- **TRAI Widget Timeout** - trai-widget.js + ogzprime-ssl-server.js (INTEGRATION FIX)
+  - Bug: Widget sent `trai_query` via WebSocket but relay had no Ollama handler
+  - TRAI would show "Thinking..." forever then timeout
+  - Fix: Changed widget to call Ollama directly via HTTP `/api/ollama/chat`
+  - Fix: Added Ollama proxy endpoint to SSL server (POST /api/ollama/chat)
+
+- **Performance Stats Not Updating** - run-empire-v2.js + unified-dashboard.html (UX FIX)
+  - Bug: Dashboard showed $0.00 P&L and 0% Win Rate even during live trading
+  - Bot was sending balance but not calculated PnL or win rate
+  - Fix: Bot now calculates and sends totalPnL (balance - initial) and winRate
+  - Fix: Dashboard extracts these from price messages and updates display
+
+- **API Routes Going to Dead Port** - nginx config (ARCHITECTURE FIX)
+  - Bug: nginx `/api/` location routed to port 3008, but nothing runs there
+  - All API calls failed silently - TRAI widget, any future endpoints
+  - Root cause: Config was outdated, port 3010 is the unified server
+  - Fix: Changed `/api/` proxy_pass from `localhost:3008` to `localhost:3010/api/`
+  - Also added specific `/api/ollama/` route with 5-minute timeout for LLM inference
+  - Architecture now correct: all traffic through unified port 3010
+
+- **Kraken Silent Failure / Data Feed Going Dark** - kraken_adapter_simple.js (STABILITY CRITICAL)
+  - Bug: WebSocket stayed "open" (TCP keepalive worked) but Kraken stopped sending data
+  - Ping/pong heartbeat kept TCP alive but didn't detect application-layer data loss
+  - Symptom: Liveness watchdog fires "NO DATA FOR 145 SECONDS" but no reconnect
+  - Fix: Added data-level watchdog that tracks `lastDataReceived` timestamp
+  - If no actual market data for 60 seconds, force `ws.terminate()` to trigger reconnect
+  - This catches silent failures where socket appears open but data stopped flowing
+
+### Added
+- **Local TRAI LLM with Ollama** - /opt/ogzprime/models/ (FEATURE)
+  - Installed Ollama for local LLM inference
+  - Downloaded Qwen3-14B-RefusalDirection-ThinkingAware (Q6_K, 12.2GB GGUF)
+  - Created Modelfile with TRAI system prompt for trading advice
+  - Imported as `trai:latest` model
+  - Runs on A100 GPU for fast inference (~2-3 seconds)
+
 - **Liveness Watchdog Interval Leak** - run-empire-v2.js:2754-2758 (MEMORY FIX)
   - Bug: `livenessCheckInterval` was never cleared on shutdown
   - While `tradingInterval` was properly cleared, the liveness watchdog kept running

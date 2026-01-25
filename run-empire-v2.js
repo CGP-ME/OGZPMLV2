@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// SENTRY: Must be first import - catches all unhandled errors
+require('./instrument.js');
+
 /**
  * OGZ PRIME V14 - FINAL MERGED REFACTORED ORCHESTRATOR
  * =====================================================
@@ -915,6 +918,19 @@ class OGZPrimeV14Bot {
         const renderPacket = indicatorEngine.getRenderPacket({ maxPoints: 200 });
         console.log(`📤 [DEBUG] Sending to dashboard: price=${price}, ogzTpo:`, renderPacket.indicators?.ogzTpo?.tpo);
 
+        // CHANGE 2026-01-23: Calculate performance stats for dashboard
+        // BUGFIX 2026-01-23: Include position value in P&L calculation!
+        const currentBalance = stateManager.get('balance');
+        const currentPosition = stateManager.get('position') || 0;
+        const positionValue = currentPosition * price;  // Current market value of position
+        const totalAccountValue = currentBalance + positionValue;
+        const initialBalance = 10000;  // TODO: Make this configurable
+        const totalPnL = totalAccountValue - initialBalance;  // Correct: includes open position
+        const trades = this.executionLayer?.trades || [];
+        const closedTrades = trades.filter(t => t.pnl !== undefined);
+        const winningTrades = closedTrades.filter(t => t.pnl > 0).length;
+        const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
+
         this.dashboardWs.send(JSON.stringify({
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           data: {
@@ -930,9 +946,12 @@ class OGZPrimeV14Bot {
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
             candles: this.priceHistory.slice(-50), // Last 50 candles for chart
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
-            balance: stateManager.get('balance'),
+            balance: currentBalance,
             position: stateManager.get('position'),
-            totalTrades: this.executionLayer?.totalTrades || 0
+            totalTrades: this.executionLayer?.totalTrades || 0,
+            // CHANGE 2026-01-23: Include performance stats
+            totalPnL: totalPnL,
+            winRate: winRate
           }
         }));
 
@@ -2048,16 +2067,21 @@ class OGZPrimeV14Bot {
 
         // Store for pattern learning and post-trade analysis
         // CHANGE 2025-12-13: Store in StateManager (single source of truth)
-        console.log(`📍 CP4.7: About to call stateManager.updateActiveTrade`);
-        console.log(`   stateManager exists: ${!!stateManager}`);
-        console.log(`   updateActiveTrade type: ${typeof stateManager.updateActiveTrade}`);
-
-        try {
-          stateManager.updateActiveTrade(unifiedResult.orderId, unifiedResult);
-          console.log(`📍 CP4.8: updateActiveTrade completed successfully`);
-        } catch (error) {
-          console.error(`❌ CP4.8 ERROR: updateActiveTrade failed:`, error.message);
-          console.error(`   Full error:`, error);
+        // BUGFIX 2026-01-23: Only call updateActiveTrade for BUY trades!
+        // SELL trades were being added to activeTrades but never cleaned up because
+        // closePosition() only removes trades where type === 'BUY'.
+        // This caused 96 SELL trades to accumulate, destroying the paper balance.
+        if (decision.action === 'BUY') {
+          console.log(`📍 CP4.7: About to call stateManager.updateActiveTrade (BUY only)`);
+          try {
+            stateManager.updateActiveTrade(unifiedResult.orderId, unifiedResult);
+            console.log(`📍 CP4.8: updateActiveTrade completed successfully`);
+          } catch (error) {
+            console.error(`❌ CP4.8 ERROR: updateActiveTrade failed:`, error.message);
+            console.error(`   Full error:`, error);
+          }
+        } else {
+          console.log(`📍 CP4.7: SKIPPING updateActiveTrade for ${decision.action} (only BUY trades stored)`);
         }
 
         // CHANGE 647: Store TRAI decision for learning feedback loop
@@ -2135,6 +2159,20 @@ class OGZPrimeV14Bot {
               confidence: decision.confidence,
               balance: stateManager.get('balance')  // CHANGE 2025-12-13: Read from StateManager
             });
+          }
+
+          // CHANGE 2026-01-23: Broadcast BUY trade to dashboard
+          if (this.dashboardWsConnected && this.dashboardWs && this.dashboardWs.readyState === 1) {
+            this.dashboardWs.send(JSON.stringify({
+              type: 'trade',
+              action: 'BUY',
+              direction: 'long',
+              price: price,
+              pnl: 0,  // No P&L on entry
+              timestamp: Date.now(),
+              confidence: decision.confidence
+            }));
+            console.log(`📡 Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
           }
 
         } else if (decision.action === 'SELL') {
@@ -2244,6 +2282,21 @@ class OGZPrimeV14Bot {
                 },
                 exitReason: completeTradeResult.exitReason || 'signal'
               });
+            }
+
+            // CHANGE 2026-01-23: Broadcast SELL trade to dashboard
+            if (this.dashboardWsConnected && this.dashboardWs && this.dashboardWs.readyState === 1) {
+              this.dashboardWs.send(JSON.stringify({
+                type: 'trade',
+                action: 'SELL',
+                direction: 'short',
+                price: price,
+                pnl: completeTradeResult.pnlDollars,
+                timestamp: Date.now(),
+                duration: `${(holdDuration / 60000).toFixed(1)}m`,
+                confidence: decision.confidence
+              }));
+              console.log(`📡 Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
             }
 
             // 1. SafetyNet DISABLED - too restrictive

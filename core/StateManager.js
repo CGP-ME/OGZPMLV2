@@ -228,15 +228,17 @@ class StateManager {
     const pnlPercent = priceChangePercent * 100;
 
     // CRITICAL FIX: Remove closed trades from activeTrades Map
+    // BUGFIX 2026-01-23: Clear ALL trades on full close, not just type='BUY'
+    // Previous bug: trades with action='SELL' weren't removed, causing accumulation
     if (!partial && this.state.activeTrades && this.state.activeTrades.size > 0) {
-      // Close all BUY trades
+      // Clear ALL active trades on full position close
+      const tradeCount = this.state.activeTrades.size;
       for (const [id, trade] of this.state.activeTrades.entries()) {
-        if (trade.type === 'BUY') {
-          this.state.activeTrades.delete(id);
-          console.log(`🔒 [StateManager] Removed closed trade ${id} from activeTrades`);
-        }
+        // Remove ALL trades (BUY or SELL) - no position means no active trades
+        this.state.activeTrades.delete(id);
+        console.log(`🔒 [StateManager] Removed trade ${id} (${trade.action || trade.type}) from activeTrades`);
       }
-      console.log(`📊 [StateManager] Active trades after closing: ${this.state.activeTrades.size}`);
+      console.log(`📊 [StateManager] Cleared ${tradeCount} active trades on position close`);
     }
 
     const updates = {
@@ -504,6 +506,27 @@ class StateManager {
       // Skip state loading in backtest mode - start fresh
       if (process.env.BACKTEST_MODE === 'true') {
         console.log('[StateManager] BACKTEST_MODE: Starting with clean state');
+        return;
+      }
+
+      // CHANGE 2026-01-23: Option to start fresh in paper mode
+      // Set FRESH_START=true to reset paper trading state on boot
+      if (process.env.FRESH_START === 'true') {
+        console.log('[StateManager] FRESH_START: Resetting to clean $10k state');
+        this.state.balance = 10000;
+        this.state.totalBalance = 10000;
+        this.state.position = 0;
+        this.state.positionCount = 0;
+        this.state.entryPrice = 0;
+        this.state.entryTime = null;
+        this.state.inPosition = 0;
+        this.state.activeTrades = new Map();
+        this.state.tradeCount = 0;
+        this.state.dailyTradeCount = 0;
+        this.state.realizedPnL = 0;
+        this.state.unrealizedPnL = 0;
+        this.state.totalPnL = 0;
+        this.save(); // Persist the clean state
         return;
       }
 

@@ -268,3 +268,26 @@
 - Search codebase before using variable names
 - If `let`/`const`/`var` declaration not found, variable doesn't exist
 - Don't confuse HTML element IDs with JavaScript variables
+
+---
+
+### SELL_ACCUMULATE_012 – activeTrades Adding SELL Positions
+
+**Symptom:**
+- Paper balance destroyed (90% loss)
+- Dozens of SELL "positions" stuck in activeTrades
+- Bot thinks it has short positions that can never close
+
+**Cause:**
+- `updateActiveTrade()` called for ALL trades (BUY and SELL)
+- `closePosition()` only removed trades where `type === 'BUY'`
+- SELL trades added to state, never cleaned up
+- 96 phantom shorts accumulated over time
+
+**Rule:**
+- Only call `updateActiveTrade()` for BUY trades (position opens)
+- SELL is a close action, not a new position
+- `closePosition()` should clear ALL activeTrades, not just filtered subset
+- Always verify activeTrades.size after close operations
+
+**Date Fixed:** 2026-01-23

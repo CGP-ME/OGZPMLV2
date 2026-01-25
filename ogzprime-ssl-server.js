@@ -21,6 +21,22 @@ const httpServer = http.createServer(app);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// CHANGE 2026-01-23: Ollama proxy for TRAI widget
+app.post('/api/ollama/chat', async (req, res) => {
+  try {
+    const response = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('[Ollama Proxy] Error:', error.message);
+    res.status(500).json({ error: 'Failed to reach TRAI inference server' });
+  }
+});
+
 // HTTPS server removed - nginx handles SSL termination
 // All connections come through nginx proxy on port 3010
 
@@ -121,6 +137,24 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'identify' && data.source === 'dashboard') {
         console.log('📊 DASHBOARD IDENTIFIED!');
         ws.clientType = 'dashboard';
+      }
+
+      // 🚀 RELAY: Dashboard → Bot (for TRAI queries)
+      if (ws.clientType === 'dashboard' && data.type === 'trai_query') {
+        const messageStr = JSON.stringify(data);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN &&
+              client.authenticated &&
+              client.clientType === 'bot') {
+            try {
+              client.send(messageStr);
+              console.log('🧠 [TRAI] Relayed query to bot');
+            } catch (err) {
+              console.error('Error relaying TRAI query to bot:', err.message);
+            }
+          }
+        });
       }
 
       // 🚀 RELAY: Bot messages → Dashboard clients

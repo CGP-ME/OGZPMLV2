@@ -1,6 +1,11 @@
 /**
  * Persistent LLM Client for TRAI
- * Connects to inference_server.py that keeps model loaded in GPU
+ * Uses Ollama HTTP API for fast inference
+ *
+ * CHANGE 630: Switched from ctransformers Python server to Ollama
+ * - Ollama keeps model loaded in GPU RAM
+ * - HTTP API is simpler and more reliable
+ * - Uses custom 'trai' model with trading personality
  *
  * Usage:
  *   const client = new PersistentLLMClient();
@@ -8,158 +13,179 @@
  *   const response = await client.generateResponse("Your prompt here");
  */
 
-const { spawn } = require('child_process');
-const path = require('path');
+const http = require('http');
 
 class PersistentLLMClient {
-    constructor() {
-        this.serverProcess = null;
+    constructor(config = {}) {
+        this.host = config.host || 'localhost';
+        this.port = config.port || 11434;
+        this.model = config.model || 'trai';  // Our custom trading model
         this.isReady = false;
-        this.pendingRequests = new Map();
-        this.requestId = 0;
+        this.requestCount = 0;
+        this.totalLatency = 0;
     }
 
     /**
-     * Start the persistent Python server
-     * This loads the model into GPU memory (takes 10-20s, but only once!)
+     * Initialize - verify Ollama is running and model is available
      */
     async initialize() {
+        console.log('🚀 Connecting to Ollama for TRAI inference...');
+
+        try {
+            // Check if Ollama is running by listing models
+            const models = await this._makeRequest('/api/tags', 'GET');
+
+            // Check if our model exists
+            const modelList = models.models || [];
+            const hasTraiModel = modelList.some(m => m.name === this.model || m.name === `${this.model}:latest`);
+
+            if (!hasTraiModel) {
+                console.warn(`⚠️ Model '${this.model}' not found. Available: ${modelList.map(m => m.name).join(', ')}`);
+                console.log('💡 Falling back to deepseek-r1:8b if available...');
+
+                const hasDeepseek = modelList.some(m => m.name.includes('deepseek'));
+                if (hasDeepseek) {
+                    this.model = 'deepseek-r1:8b';
+                    console.log(`✅ Using fallback model: ${this.model}`);
+                } else {
+                    throw new Error(`No suitable model found. Run: ollama create trai -f trai_brain/Modelfile.trai`);
+                }
+            }
+
+            // Warm up the model with a quick inference
+            console.log(`🔥 Warming up ${this.model} model...`);
+            const warmupStart = Date.now();
+            await this.generateResponse('Hello', 10);
+            const warmupTime = Date.now() - warmupStart;
+            console.log(`✅ Model warm-up complete (${warmupTime}ms)`);
+
+            this.isReady = true;
+            console.log(`✅ TRAI Ollama Client Ready! Model: ${this.model}`);
+
+        } catch (error) {
+            console.error('❌ Failed to connect to Ollama:', error.message);
+            console.log('💡 Make sure Ollama is running: systemctl status ollama');
+            throw error;
+        }
+    }
+
+    /**
+     * Generate response using Ollama (FAST with model in GPU!)
+     * @param {string} prompt - The prompt to send
+     * @param {number} maxTokens - Max tokens to generate (num_predict in Ollama)
+     * @returns {Promise<string>} - The generated response
+     */
+    async generateResponse(prompt, maxTokens = 1000) {
+        if (!this.isReady && this.requestCount > 0) {
+            throw new Error('TRAI Ollama Client not ready');
+        }
+
+        const startTime = Date.now();
+
+        try {
+            const response = await this._makeRequest('/api/generate', 'POST', {
+                model: this.model,
+                prompt: prompt,
+                stream: false,
+                options: {
+                    num_predict: maxTokens,
+                    temperature: 0.6,  // Match Modelfile setting
+                    stop: ['<|end▁of▁sentence|>', '<｜end▁of▁sentence｜>']
+                }
+            });
+
+            const latency = Date.now() - startTime;
+            this.requestCount++;
+            this.totalLatency += latency;
+
+            // Log slow responses
+            if (latency > 8000) {
+                console.warn(`⚠️ Slow TRAI inference: ${latency}ms`);
+            }
+
+            // Extract and clean response
+            let text = response.response || '';
+
+            // Remove any thinking tags if present (DeepSeek R1 sometimes includes them)
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+            return text;
+
+        } catch (error) {
+            console.error('❌ TRAI inference error:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Make HTTP request to Ollama API
+     */
+    _makeRequest(path, method = 'GET', body = null) {
         return new Promise((resolve, reject) => {
-            console.log('🚀 Starting persistent TRAI inference server...');
+            const options = {
+                hostname: this.host,
+                port: this.port,
+                path: path,
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000  // 60s timeout for reasoning models
+            };
 
-            // Use ctransformers server (CHANGE 627: Fixed CUDA issues with ctransformers)
-            const ctServer = path.join(__dirname, 'inference_server_ct.py');
-            const ggufServer = path.join(__dirname, 'inference_server_gguf.py');
-            const regularServer = path.join(__dirname, 'inference_server.py');
-            const serverPath = require('fs').existsSync(ctServer) ? ctServer :
-                             (require('fs').existsSync(ggufServer) ? ggufServer : regularServer);
+            const req = http.request(options, (res) => {
+                let data = '';
 
-            // Spawn persistent Python process
-            this.serverProcess = spawn('python3', [serverPath], {
-                stdio: ['pipe', 'pipe', 'pipe']
-            });
+                res.on('data', chunk => {
+                    data += chunk;
+                });
 
-            // Listen for server ready signal
-            this.serverProcess.stderr.on('data', (data) => {
-                const message = data.toString();
-                console.log(`[TRAI Server] ${message.trim()}`);
-
-                // Server is ready when model is loaded
-                if (message.includes('Server Ready') || message.includes('Server running, ready for requests')) {
-                    this.isReady = true;
-                    console.log('✅ TRAI Persistent Server Ready!');
-                    resolve();
-                }
-            });
-
-            // Handle server stdout (responses)
-            this.serverProcess.stdout.on('data', (data) => {
-                try {
-                    const lines = data.toString().split('\n').filter(l => l.trim());
-
-                    for (const line of lines) {
-                        const result = JSON.parse(line);
-
-                        // Find pending request and resolve it
-                        const pendingIds = Array.from(this.pendingRequests.keys());
-                        if (pendingIds.length > 0) {
-                            const reqId = pendingIds[0]; // FIFO
-                            const pending = this.pendingRequests.get(reqId);
-                            this.pendingRequests.delete(reqId);
-
-                            if (result.error) {
-                                pending.reject(new Error(result.error));
-                            } else {
-                                pending.resolve(result.response);
-                            }
-                        }
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(data);
+                        resolve(json);
+                    } catch (e) {
+                        // If not JSON, return raw
+                        resolve({ response: data });
                     }
-                } catch (error) {
-                    console.error('❌ Failed to parse server response:', error.message);
-                }
+                });
             });
 
-            // Handle server exit
-            this.serverProcess.on('exit', (code) => {
-                console.log(`⚠️ TRAI Server exited with code ${code}`);
-                // If server exits during initialization, reject immediately
-                if (!this.isReady) {
-                    reject(new Error(`Server failed to start (exit code ${code})`));
-                }
-                this.isReady = false;
-
-                // Reject all pending requests
-                for (const [id, pending] of this.pendingRequests) {
-                    pending.reject(new Error('Server died'));
-                }
-                this.pendingRequests.clear();
-            });
-
-            this.serverProcess.on('error', (error) => {
-                console.error('❌ Failed to start TRAI server:', error.message);
+            req.on('error', (error) => {
                 reject(error);
             });
 
-            // Timeout if server doesn't start in 60s
-            setTimeout(() => {
-                if (!this.isReady) {
-                    reject(new Error('Server startup timeout (60s)'));
-                }
-            }, 60000);
+            req.on('timeout', () => {
+                req.destroy();
+                reject(new Error('Request timeout'));
+            });
+
+            if (body) {
+                req.write(JSON.stringify(body));
+            }
+
+            req.end();
         });
     }
 
     /**
-     * Generate response using the persistent server (FAST!)
-     * @param {string} prompt - The prompt to send
-     * @param {number} maxTokens - Max tokens to generate
-     * @returns {Promise<string>} - The generated response
-     */
-    async generateResponse(prompt, maxTokens = 300) {
-        if (!this.isReady) {
-            throw new Error('TRAI Server not ready');
-        }
-
-        return new Promise((resolve, reject) => {
-            const reqId = this.requestId++;
-
-            // Store pending request
-            this.pendingRequests.set(reqId, { resolve, reject });
-
-            // Send request to server
-            const request = JSON.stringify({ prompt, max_tokens: maxTokens }) + '\n';
-            this.serverProcess.stdin.write(request);
-
-            // Timeout after 10s
-            setTimeout(() => {
-                if (this.pendingRequests.has(reqId)) {
-                    this.pendingRequests.delete(reqId);
-                    reject(new Error('Inference timeout (10s)'));
-                }
-            }, 10000);
-        });
-    }
-
-    /**
-     * Shutdown the server gracefully
+     * Shutdown - nothing to do for HTTP client
      */
     shutdown() {
-        if (this.serverProcess) {
-            console.log('🛑 Shutting down TRAI server...');
-            this.serverProcess.kill('SIGTERM');
-            this.serverProcess = null;
-            this.isReady = false;
-        }
+        console.log('🛑 TRAI Ollama Client shutdown');
+        this.isReady = false;
     }
 
     /**
-     * Get server status
+     * Get client status and stats
      */
     getStatus() {
         return {
             ready: this.isReady,
-            pendingRequests: this.pendingRequests.size,
-            processAlive: this.serverProcess && !this.serverProcess.killed
+            model: this.model,
+            requestCount: this.requestCount,
+            avgLatency: this.requestCount > 0 ? Math.round(this.totalLatency / this.requestCount) : 0,
+            host: `${this.host}:${this.port}`
         };
     }
 }

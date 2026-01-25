@@ -30,6 +30,11 @@ class KrakenAdapterSimple {
     this.pingInterval = null;
     this.lastPong = Date.now();
 
+    // CHANGE 2026-01-23: Data-level watchdog - force reconnect if no data even if socket "open"
+    this.lastDataReceived = Date.now();
+    this.dataWatchdogInterval = null;
+    this.dataTimeout = 60000; // 60 seconds without data = force reconnect
+
     // Rate limiting (Kraken API tier 2: 15 req/sec)
     this.requestWindow = 1000; // 1 second window
     this.maxRequestsPerWindow = 15;
@@ -511,6 +516,22 @@ class KrakenAdapterSimple {
           }
         }, 30000); // Ping every 30 seconds
         console.log('💓 Heartbeat started (30s ping interval)');
+
+        // CHANGE 2026-01-23: Data watchdog - force reconnect if no data even if socket "open"
+        // This catches silent failures where TCP stays alive but Kraken stops sending
+        if (this.dataWatchdogInterval) clearInterval(this.dataWatchdogInterval);
+        this.lastDataReceived = Date.now(); // Reset on fresh connection
+        this.dataWatchdogInterval = setInterval(() => {
+          const timeSinceData = Date.now() - this.lastDataReceived;
+          if (timeSinceData > this.dataTimeout) {
+            console.error(`🚨 DATA WATCHDOG: No data for ${Math.round(timeSinceData/1000)}s - forcing reconnect`);
+            // Force close to trigger reconnect logic
+            if (this.ws) {
+              this.ws.terminate(); // Hard close, don't wait for graceful
+            }
+          }
+        }, 30000); // Check every 30 seconds
+        console.log('🔍 Data watchdog started (60s timeout)');
       });
 
       // CHANGE 2026-01-21: Respond to server pings to prevent timeout
@@ -532,6 +553,9 @@ class KrakenAdapterSimple {
           // Kraken sends various message types, filter for ticker updates
           if (Array.isArray(msg) && msg[2] === 'ticker') {
             const tickerData = msg[1];
+
+            // CHANGE 2026-01-23: Update data watchdog timestamp
+            this.lastDataReceived = Date.now();
 
             // FIX #2: Validate price message shape and value
             const price = parseFloat(tickerData?.c?.[0]);
@@ -564,6 +588,9 @@ class KrakenAdapterSimple {
 
           // V2 ARCHITECTURE: Handle OHLC data
           if (Array.isArray(msg) && msg[2] === 'ohlc-1') {
+            // CHANGE 2026-01-23: Update data watchdog timestamp
+            this.lastDataReceived = Date.now();
+
             // OHLC data format: [channelID, ohlcArray, channelName, pair]
             const ohlcData = msg[1];
             const pair = msg[3];
@@ -594,6 +621,12 @@ class KrakenAdapterSimple {
         if (this.pingInterval) {
           clearInterval(this.pingInterval);
           this.pingInterval = null;
+        }
+
+        // CHANGE 2026-01-23: Clear data watchdog on disconnect
+        if (this.dataWatchdogInterval) {
+          clearInterval(this.dataWatchdogInterval);
+          this.dataWatchdogInterval = null;
         }
 
         // CHANGE 2026-01-21: Never give up on reconnects - keep trying forever
@@ -664,6 +697,11 @@ class KrakenAdapterSimple {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+    // CHANGE 2026-01-23: Clear data watchdog on disconnect
+    if (this.dataWatchdogInterval) {
+      clearInterval(this.dataWatchdogInterval);
+      this.dataWatchdogInterval = null;
     }
     if (this.ws) {
       this.ws.close();

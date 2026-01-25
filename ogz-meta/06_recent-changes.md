@@ -4,6 +4,38 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ---
 
+## 2026-01-23 – Critical Trading Bug Fixes
+
+### SELL Trade Accumulation Bug (CRITICAL)
+- **Problem**: Paper trading lost 90% of balance ($9k of $10k)
+- **Root Cause**: `updateActiveTrade()` at run-empire-v2.js:2071 was called for ALL trades (BUY and SELL)
+- **Why it broke**: SELL trades added to `activeTrades`, but `closePosition()` only removed `type === 'BUY'`
+- **Result**: 96 phantom SELL positions accumulated, never cleaned up
+- **Fix 1**: Only call `updateActiveTrade()` for BUY trades
+- **Fix 2**: `closePosition()` now clears ALL trades on full close (defense in depth)
+
+### P&L Calculation Bug
+- **Problem**: Dashboard showed -$250 P&L when $250 was in open position
+- **Root Cause**: `totalPnL = balance - 10000` didn't include position value
+- **Fix**: `totalPnL = (balance + positionValue) - 10000`
+
+### Fresh Start Architecture
+- **Problem**: Paper trading loaded stale state (old balances, stuck trades)
+- **Why band-aids suck**: Required manual reset scripts every time
+- **Fix**: Added `FRESH_START=true` env var to StateManager.load()
+- **Usage**: `FRESH_START=true pm2 start ogz-prime-v2 --update-env`
+
+### Kraken Data Watchdog
+- **Problem**: WebSocket stayed "open" (ping/pong worked) but Kraken stopped sending data
+- **Symptom**: "NO DATA FOR 145 SECONDS" but no reconnect
+- **Fix**: Added `lastDataReceived` tracking, force `ws.terminate()` if no data for 60s
+
+### nginx API Routing
+- **Problem**: `/api/` routes went to port 3008 (nothing runs there)
+- **Fix**: Changed to port 3010 (unified server), added `/api/ollama/` with 5-min timeout
+
+---
+
 ## 2026-01-22 – TRAI GPU Acceleration + Stability Fixes
 
 ### TRAI GPU Acceleration (CRITICAL)

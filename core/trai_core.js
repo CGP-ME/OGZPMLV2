@@ -258,10 +258,15 @@ class TRAICore extends EventEmitter {
     
     calculateRelevance(query, messages) {
         // Simple relevance calculation based on keyword matching
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            return 0;
+        }
+
         const queryWords = query.toLowerCase().split(/\s+/);
         let totalRelevance = 0;
-        
+
         for (const message of messages.slice(0, 50)) { // Check recent messages
+            if (!message || !message.content) continue;
             const content = message.content.toLowerCase();
             let messageRelevance = 0;
             
