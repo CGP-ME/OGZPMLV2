@@ -1,6 +1,6 @@
 # OGZPrime – Curated Context Pack
-_Generated: 2025-12-25T16:21:27.388Z_
-_Size: 29735 chars (limit: 30000)_
+_Generated: 2026-01-25T20:38:52.022Z_
+_Size: 32109 chars (limit: 30000)_
 
 
 ---
@@ -130,12 +130,14 @@ OGZPrime is a **modular trading engine** with a clear separation between:
 
 - **Signal/Brain Layer** – decides *what* to do
 - **Execution Layer** – decides *how* to do it on real brokers
-- **Risk / Guardrail Layer** – decides *if* we’re allowed to do it
+- **Risk / Guardrail Layer** – decides *if* we're allowed to do it
 - **Pattern / Learning Layer** – watches history and adapts
 - **I/O / Infra Layer** – websockets, data feeds, logs, config, dashboards
+- **Claudito Pipeline Layer** – ALL code changes go through this (mandatory)
+- **Proof Logging Layer** – immutable audit trail for trading proof + Claudito activity
 
-Everything should plug into those lanes.  
-No module should try to be “the whole bot”.
+Everything should plug into those lanes.
+No module should try to be "the whole bot".
 
 ---
 
@@ -226,6 +228,84 @@ No module should try to be “the whole bot”.
 - **New Risk Models**
   - Attach into the **Pre-Checks** and/or **Decision** stage.
   - They should *veto* or *scale* decisions, not silently replace them.
+
+---
+
+## Claudito Pipeline (MANDATORY for Code Changes)
+
+**Added:** 2026-01-25
+
+```
+*************************************************************
+*                                                           *
+*   ALL CODE CHANGES MUST GO THROUGH CLAUDITO PIPELINE      *
+*                                                           *
+*   *** NO EXCEPTIONS ***                                   *
+*                                                           *
+*   Not "quick fixes." Not "small tweaks." Not "I'll just"  *
+*   EVERYTHING goes through the pipeline.                   *
+*                                                           *
+*************************************************************
+```
+
+### Pipeline Flow
+```
+Phase 1: Plan
+  /orchestrate → /warden → /architect → /purpose
+
+Phase 2: Fix (loop until clean)
+  /fixer → /debugger → /validator → /critic
+     ↑___________________________|
+     (if rejected)
+
+Phase 3: Verify
+  /cicd → /telemetry → /validator → /forensics
+
+Phase 4: Ship
+  /scribe → /commit → /janitor → /learning → /changelog
+```
+
+### Key Clauditos
+| Claudito | Job |
+|----------|-----|
+| Warden | Blocks scope creep |
+| Forensics | Finds bugs/landmines |
+| Fixer | Applies minimal fix |
+| Debugger | Tests fix works |
+| Critic | Adversarial review |
+| Validator | Quality gate |
+| Scribe | Documents everything |
+
+See `08_claudito-pipeline-process.md` for full details.
+
+---
+
+## Proof Logging Layer
+
+**Added:** 2026-01-25
+
+Two logging systems for full audit trail:
+
+### ClauditoLogger (AI/Agent Activity)
+- Logs all hook emissions
+- Logs all Claudito decisions with reason + confidence
+- Logs all errors with full context
+- Logs mission status changes
+- Output: `ogz-meta/logs/claudito-activity.jsonl`
+
+### TradingProofLogger (Trading Activity)
+- Logs every BUY with price, size, reason, confidence
+- Logs every SELL with P&L calculation
+- Logs position updates
+- Generates daily summaries
+- Includes plain English explanations
+- Output: `ogz-meta/logs/trading-proof.jsonl`
+
+### Purpose
+1. Verifiable proof of profitability for website
+2. Audit trail for debugging
+3. Learning data for pattern improvement
+4. Transparency (per ogz-meta rules)
 
 
 ---
@@ -663,12 +743,35 @@ AI session must obey these.
 - Never place orders on unintended brokers.
 - Never assume matching APIs across exchanges.
 
-## 7. Logging Rules
+## 7. Logging Rules (ENHANCED 2026-01-25)
 
-- All decisions must be logged.
-- All errors must be logged.
+### ClauditoLogger (for AI/Agent activity)
+- All hook emissions must be logged.
+- All decisions must be logged with reason + confidence.
+- All errors must be logged with full context.
+- All mission status changes must be logged.
+- All metrics must be tracked (patterns, bugs, time).
 - No silent exits EVER.
 - ML layer improvements must be logged for traceability.
+
+### TradingProofLogger (for trading activity)
+- Every BUY must be logged with price, size, reason, confidence.
+- Every SELL must be logged with P&L calculation.
+- Every position update must be logged.
+- Daily summaries must be generated.
+- All decisions must include plain English explanation.
+- Logs stored in `ogz-meta/logs/` as JSONL for audit trail.
+
+### Log Files
+- `ogz-meta/logs/claudito-activity.jsonl` - All Claudito system activity
+- `ogz-meta/logs/trading-proof.jsonl` - All trades for website proof
+
+### Why This Matters
+These logs serve as:
+1. Verifiable proof of profitability for the website.
+2. Audit trail for debugging issues.
+3. Learning data for pattern improvement.
+4. Transparency for users (per ogz-meta rules).
 
 ## 8. Transparency Rules
 
@@ -677,16 +780,55 @@ AI session must obey these.
 - All signals must be understandable.
 - TRAI must be able to explain any trade in plain English.
 
-## 9. Claudito System Rules
+## 9. Claudito System Rules (MANDATORY)
 
+```
+*************************************************************
+*                                                           *
+*   ALL CODE CHANGES MUST GO THROUGH CLAUDITO PIPELINE      *
+*                                                           *
+*   *** NO EXCEPTIONS ***                                   *
+*                                                           *
+*************************************************************
+```
+
+No "quick fixes." No "I'll just tweak this one thing." No shortcuts.
+
+### The Chain (in order)
+1. **Warden** - Scope check first. Rejects scope creep.
+2. **Forensics** - Audits code, finds bugs/landmines.
+3. **Architect** - Plans the fix (minimal change only).
+4. **Fixer** - Applies the fix. ONE job.
+5. **Debugger** - Tests it works.
+6. **Critic** - Reviews, rejects if weak.
+7. **Validator** - Quality gate.
+8. **Scribe** - Documents everything.
+9. **Committer** - Git commit with proper message.
+10. **Learning** - Records lessons for future.
+
+### Core Rules
 - Each Claudito handles ONE job.
 - Orchestrator delegates — he does not fix.
-- Forensics audits.
-- Fixer applies minimal change.
-- Debugger tests.
-- Committer commits.
 - No Claudito may skip another in chain.
 - Hooks must be used for communication.
+- ALL decisions logged via ClauditoLogger.
+- ALL errors logged - no silent failures.
+- If Critic rejects → loop back to Fixer.
+- If Forensics finds landmine → mini fix cycle.
+
+### Pipeline Invocation
+- Use `/pipeline` for full chain.
+- Use `/orchestrate` to coordinate multi-Claudito missions.
+- Never bypass pipeline for "small" changes.
+
+### Logging (MANDATORY)
+All Claudito activity must be logged:
+```javascript
+const { ClauditoLogger } = require('./claudito-logger');
+ClauditoLogger.hook(command, state, details);
+ClauditoLogger.decision(claudito, action, reason, confidence);
+ClauditoLogger.error(claudito, error, context);
+```
 
 ## 10. Forbidden Actions
 
@@ -875,9 +1017,128 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 - No structural or cross-module changes without:
   - a clear architectural summary from the AI,
   - confirmation it understands “who does what.”
-- If an AI can’t explain:
+- If an AI can't explain:
   - how a change fits into the architecture,
-  - it’s not allowed to make it.
+  - it's not allowed to make it.
+
+---
+
+## Infrastructure Landmines (Added 2026-01-22)
+
+### TRAI_GPU_007 – GPU Acceleration Disabled by Default
+
+**Symptom:**
+- TRAI takes 10-15+ seconds per inference
+- A100 GPU sits idle while CPU churns
+- TRAI removed from hot path because "too slow"
+
+**Cause:**
+- `trai_brain/inference_server_ct.py` had `gpu_layers=0`
+- This means 100% CPU, 0% GPU - regardless of hardware
+- Nobody noticed because it "worked" (just slowly)
+
+**Rule:**
+- For ctransformers with GPU: `gpu_layers=50` (or higher to use GPU)
+- Always verify with `nvidia-smi` that GPU is being used
+- Sub-second inference = GPU working. 10+ seconds = CPU fallback.
+
+---
+
+### TRAI_SYMLINK_008 – Inference Server Path Mismatch
+
+**Symptom:**
+- `[TRAI Server] python3: can't open file '/opt/ogzprime/OGZPMLV2/core/inference_server.py'`
+- TRAI falls back to rule-based reasoning
+- No LLM responses
+
+**Cause:**
+- `persistent_llm_client.js` looks for servers in `core/`
+- Actual files are in `trai_brain/`
+- Both locations gitignored, so missing symlinks not obvious
+
+**Rule:**
+- Startup script must create symlinks:
+  ```bash
+  ln -sf trai_brain/inference_server*.py core/
+  ```
+- Use `start-ogzprime.sh` which handles this automatically
+
+---
+
+### WS_URL_009 – WebSocket Path Missing
+
+**Symptom:**
+- `WebSocket connection to 'wss://ogzprime.com/' failed`
+- Constant reconnect attempts in console
+- Dashboard connects but TRAI widget doesn't
+
+**Cause:**
+- Dashboard uses `wss://ogzprime.com/ws` (correct)
+- TRAI widget used `wss://ogzprime.com/` (missing `/ws`)
+
+**Rule:**
+- All WebSocket connections must use the `/ws` path
+- When adding new WebSocket clients, copy URL from working code
+
+---
+
+### PERMS_010 – Web File Permissions
+
+**Symptom:**
+- `403 Forbidden` for JS/CSS files
+- Scripts load as `text/html` (nginx error page)
+- Features mysteriously broken
+
+**Cause:**
+- Files created with restrictive permissions (`-rw-------`)
+- nginx can't read files owned by linuxuser
+
+**Rule:**
+- Web-served files need `644` permissions
+- Startup script runs `chmod 644 public/*.js`
+- Check permissions when "403 Forbidden" appears
+
+---
+
+### VAR_NAME_011 – Referencing Non-Existent Variables
+
+**Symptom:**
+- `Uncaught TypeError: X.toFixed is not a function`
+- Spamming every second/tick
+- Dashboard features silently broken
+
+**Cause (Example):**
+- Code referenced `currentPrice` as a variable
+- Only `lastPrice` existed
+- `currentPrice` was an HTML element ID, not a JS variable
+
+**Rule:**
+- Search codebase before using variable names
+- If `let`/`const`/`var` declaration not found, variable doesn't exist
+- Don't confuse HTML element IDs with JavaScript variables
+
+---
+
+### SELL_ACCUMULATE_012 – activeTrades Adding SELL Positions
+
+**Symptom:**
+- Paper balance destroyed (90% loss)
+- Dozens of SELL "positions" stuck in activeTrades
+- Bot thinks it has short positions that can never close
+
+**Cause:**
+- `updateActiveTrade()` called for ALL trades (BUY and SELL)
+- `closePosition()` only removed trades where `type === 'BUY'`
+- SELL trades added to state, never cleaned up
+- 96 phantom shorts accumulated over time
+
+**Rule:**
+- Only call `updateActiveTrade()` for BUY trades (position opens)
+- SELL is a close action, not a new position
+- `closePosition()` should clear ALL activeTrades, not just filtered subset
+- Always verify activeTrades.size after close operations
+
+**Date Fixed:** 2026-01-23
 
 
 ---
@@ -937,247 +1198,3 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 - **✅ Worked**: Preserving features array through pipeline
 - **❌ Failed**: String signature truncation
 
-
-
----
-
-<!-- Lessons Digest -->
-
-# Lessons Digest
-
-*Generated: 2025-12-25T16:21:27.357Z*
-
-## Key Lessons
-
-- ✅ Preserving features array through pipeline
-- ❌ Never: String signature truncation
-- ✅ StateManager is now the ONLY source of truth
-- ✅ No more phantom trades or balance mismatches
-- ✅ All modules read/write to same centralized state
-- ✅ Bot never waits for TRAI decisions
-- ✅ Can react instantly to market moves
-- ✅ TRAI does post-trade learning only
-- ✅ Mathematical logic drives real-time decisions
-- ✅ Active trades persist across restarts
-- ✅ Bot remembers exact position after crash
-- ✅ No more lost trades on reboot
-- ✅ Automatic save after every state update
-- ✅ Full IBrokerAdapter compliance
-- ✅ Position tracking via StateManager
-- ✅ Account polling (compensates for no private WebSocket)
-- ✅ Working solution now, native rewrite later
-- ✅ No more stack overflow on rate limits
-- ✅ No more promise accumulation/memory leak
-- ✅ Clean queue-based retry mechanism
-
-## Common Patterns
-
-### pattern-memory
-- Fixed feature data conversion in pattern pipeline
-- Fixed feature data conversion in pattern pipeline
-
-### recording
-- Fixed feature data conversion in pattern pipeline
-- Fixed feature data conversion in pattern pipeline
-
-### state
-- - **File**: `run-empire-v2.js` (multiple locations)
-
-### trai
-- - **File**: `run-empire-v2.js` lines 931-954
-- - **File**: `core/StateManager.js` lines 326-385
-
-### performance
-- - **File**: `run-empire-v2.js` lines 931-954
-
-### rate-limit
-- - **File**: `kraken_adapter_simple.js` lines 109-204
-
-
-
----
-
-<!-- 06_recent-changes.md -->
-
-# 06 – Recent Changes
-
-Rolling summary of important changes so an AI/dev knows what reality looks like **now**, not 6 months ago.
-
----
-
-## 2025-12-07 – Pattern Memory Investigation (Claudito Chain)
-
-- Ran full Claudito chain (Orchestrator → Forensics → Fixer → Debugger → Committer) on PatternMemorySystem.
-- Confirmed:
-  - `this.memory` init now conditional:
-    - `if (!this.memory) { this.memory = {}; }`
-  - Actual persistence path:
-    - `data/pattern-memory.json`
-  - Root `pattern_memory.json` is legacy/decoy.
-- Outcome:
-  - Pattern saving working.
-  - Landmine documented as `PATTERN_PATH_003`.
-  - Pattern memory smoke test protocol established.
-
----
-
-## 2025-12-07 – OGZ Meta-Pack Bootstrap
-
-- Created `ogz-meta/` meta pack:
-  - `00_intent.md` – why this pack exists.
-  - `01_purpose-and-vision.md` – what OGZPrime is and where it’s going.
-  - `02_architecture-overview.md` – high-level lanes and runtime flow.
-  - `03_modules-overview.md` – map of major modules.
-- Added builder:
-  - `build-claudito-context.js` → outputs `claudito_context.md`.
-- Usage:
-  - First message paste for new AI/Claudito sessions touching OGZ code.
-
----
-
-## How to Use This File
-
-- When you make a **meaningful** change:
-  - new module,
-  - major fix,
-  - new brain,
-  - new broker integration,
-  - big risk behavior change,
-- Add a short entry here:
-  - date
-  - what changed
-  - why it matters.
-- This is NOT a full changelog. It’s a **high-signal summary** for AI + future Trey.
-
-
----
-
-<!-- 07_trey-brain-lessons.md -->
-
-## Git, Data Loss, and AI Trust – Trey’s Non-Negotiables
-
-I’ve been burned by:
-
-- full system wipes (multiple times),
-- losing entire bots and having to rebuild from scratch,
-- Git nukes (`reset --hard`),
-- AIs poisoning the repo with huge files,
-- assistants editing `main` like it’s a scratchpad.
-
-This is not about “unwillingness to adapt.”  
-This is about survival and sanity.
-
-### Data & Git Lessons
-
-- Assume the machine can die tomorrow.
-- Assume the repo can get into a bad state if you’re careless.
-- The job of any assistant is to **reduce** risk, not add clever new ways to lose work.
-
-What I expect from tools/agents:
-
-- Respect backups and cold copies.
-- Treat GitHub as a mirror and recovery tool, not your personal playground.
-- Never suggest `git reset --hard` as a casual fix.
-- Never:
-  - commit huge brain/log/secrets files,
-  - shove multi-GB files through pre-commit hooks,
-  - ignore `.gitignore`.
-
-If your plan involves “nuke and pray,” it’s a bad plan.
-
----
-
-### Onboarding Before Touching Code
-
-I don’t want:
-
-- cocky cold-start behavior,
-- “I got this from a quick scan,”
-- bots that refactor systems they don’t understand.
-
-What you MUST do before changing anything:
-
-1. Read the packed context (`claudito_context.md`).
-2. Read the **full** changelog, not just the top segment.
-3. Map the architecture:
-   - where data comes in,
-   - how signals are formed,
-   - how decisions are executed,
-   - where risk lives.
-4. Confirm:
-   - which branch we’re on,
-   - which directory is actually live,
-   - and whether this is production or sandbox.
-
-Only then do you propose changes. In that order.
-
----
-
-### Behavioral Red Flags (for AIs)
-
-Red flags that make me stop trusting you:
-
-- You start renaming things or “cleaning up” without being asked.
-- You propose sweeping changes without being able to explain the architecture.
-- You ignore explicit instructions (like “don’t touch main,” “don’t commit brain files,” etc.).
-- You create duplicate modules or functions that already exist.
-- You act like every new context window is a fresh universe where none of the previous burns matter.
-
-If you do any of that, you’re not helping. You’re creating babysitting work.
-
----
-
-### Good AI / Agent Behavior (Refined)
-
-Good behavior, from my point of view:
-
-- You **ask or state assumptions** when something is unclear instead of winging it.
-- You can clearly summarize:
-  - what OGZPrime is,
-  - how it’s structured,
-  - current focus,
-  - recent major changes.
-- You propose:
-  - small, reversible changes,
-  - in clearly bounded scopes,
-  - with diffs and test commands.
-- You don’t touch:
-  - risk logic,
-  - position sizing,
-  - execution wiring,
-  - git history,
-  - without clearly labeling the impact.
-
-The ideal AI doesn't make me babysit.
-It understands that I've already rebuilt this thing from scorched earth more than once and acts accordingly.
-
----
-
-## CLAUDITO MISSION LOG
-
-### Mission: Dashboard Indicator Investigation
-**Date:** 2026-01-17
-**Status:** VERIFIED WORKING - NO FIX REQUIRED
-**Pipeline:** /pipeline (full chain)
-
-#### Clauditos Deployed
-1. **Warden** - Scope check: APPROVED (single file, bug fix scope)
-2. **Forensics** - Code audit: NO BUGS FOUND (handlers exist, DOM matches)
-3. **Architect** - Design: VERIFY BEFORE FIX approach
-4. **Debugger** - Testing: PASS (17 msgs/18sec, all indicator types)
-5. **Validator** - Quality gate: PASSED
-6. **Scribe** - Documentation: This entry
-
-#### Findings
-- WebSocket data flow: WORKING
-- Bot broadcasting: WORKING (price, cvd, liquidation, fear_greed, etc.)
-- Dashboard code structure: CORRECT
-- Message types verified: price, cvd_update, market_internals, fear_greed, liquidation_data, pattern_analysis, divergence
-
-#### Outcome
-No code bug exists. Backend infrastructure confirmed functional. Frontend browser verification recommended for visual confirmation.
-
-#### Lessons Learned
-- Always verify before fixing - code may already be correct
-- Pipeline successfully caught "no bug" scenario
-- Claudito chain worked as designed

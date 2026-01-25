@@ -53,12 +53,35 @@ AI session must obey these.
 - Never place orders on unintended brokers.
 - Never assume matching APIs across exchanges.
 
-## 7. Logging Rules
+## 7. Logging Rules (ENHANCED 2026-01-25)
 
-- All decisions must be logged.
-- All errors must be logged.
+### ClauditoLogger (for AI/Agent activity)
+- All hook emissions must be logged.
+- All decisions must be logged with reason + confidence.
+- All errors must be logged with full context.
+- All mission status changes must be logged.
+- All metrics must be tracked (patterns, bugs, time).
 - No silent exits EVER.
 - ML layer improvements must be logged for traceability.
+
+### TradingProofLogger (for trading activity)
+- Every BUY must be logged with price, size, reason, confidence.
+- Every SELL must be logged with P&L calculation.
+- Every position update must be logged.
+- Daily summaries must be generated.
+- All decisions must include plain English explanation.
+- Logs stored in `ogz-meta/logs/` as JSONL for audit trail.
+
+### Log Files
+- `ogz-meta/logs/claudito-activity.jsonl` - All Claudito system activity
+- `ogz-meta/logs/trading-proof.jsonl` - All trades for website proof
+
+### Why This Matters
+These logs serve as:
+1. Verifiable proof of profitability for the website.
+2. Audit trail for debugging issues.
+3. Learning data for pattern improvement.
+4. Transparency for users (per ogz-meta rules).
 
 ## 8. Transparency Rules
 
@@ -67,16 +90,55 @@ AI session must obey these.
 - All signals must be understandable.
 - TRAI must be able to explain any trade in plain English.
 
-## 9. Claudito System Rules
+## 9. Claudito System Rules (MANDATORY)
 
+```
+*************************************************************
+*                                                           *
+*   ALL CODE CHANGES MUST GO THROUGH CLAUDITO PIPELINE      *
+*                                                           *
+*   *** NO EXCEPTIONS ***                                   *
+*                                                           *
+*************************************************************
+```
+
+No "quick fixes." No "I'll just tweak this one thing." No shortcuts.
+
+### The Chain (in order)
+1. **Warden** - Scope check first. Rejects scope creep.
+2. **Forensics** - Audits code, finds bugs/landmines.
+3. **Architect** - Plans the fix (minimal change only).
+4. **Fixer** - Applies the fix. ONE job.
+5. **Debugger** - Tests it works.
+6. **Critic** - Reviews, rejects if weak.
+7. **Validator** - Quality gate.
+8. **Scribe** - Documents everything.
+9. **Committer** - Git commit with proper message.
+10. **Learning** - Records lessons for future.
+
+### Core Rules
 - Each Claudito handles ONE job.
 - Orchestrator delegates — he does not fix.
-- Forensics audits.
-- Fixer applies minimal change.
-- Debugger tests.
-- Committer commits.
 - No Claudito may skip another in chain.
 - Hooks must be used for communication.
+- ALL decisions logged via ClauditoLogger.
+- ALL errors logged - no silent failures.
+- If Critic rejects → loop back to Fixer.
+- If Forensics finds landmine → mini fix cycle.
+
+### Pipeline Invocation
+- Use `/pipeline` for full chain.
+- Use `/orchestrate` to coordinate multi-Claudito missions.
+- Never bypass pipeline for "small" changes.
+
+### Logging (MANDATORY)
+All Claudito activity must be logged:
+```javascript
+const { ClauditoLogger } = require('./claudito-logger');
+ClauditoLogger.hook(command, state, details);
+ClauditoLogger.decision(claudito, action, reason, confidence);
+ClauditoLogger.error(claudito, error, context);
+```
 
 ## 10. Forbidden Actions
 

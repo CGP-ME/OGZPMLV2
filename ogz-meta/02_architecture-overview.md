@@ -6,12 +6,14 @@ OGZPrime is a **modular trading engine** with a clear separation between:
 
 - **Signal/Brain Layer** – decides *what* to do
 - **Execution Layer** – decides *how* to do it on real brokers
-- **Risk / Guardrail Layer** – decides *if* we’re allowed to do it
+- **Risk / Guardrail Layer** – decides *if* we're allowed to do it
 - **Pattern / Learning Layer** – watches history and adapts
 - **I/O / Infra Layer** – websockets, data feeds, logs, config, dashboards
+- **Claudito Pipeline Layer** – ALL code changes go through this (mandatory)
+- **Proof Logging Layer** – immutable audit trail for trading proof + Claudito activity
 
-Everything should plug into those lanes.  
-No module should try to be “the whole bot”.
+Everything should plug into those lanes.
+No module should try to be "the whole bot".
 
 ---
 
@@ -102,3 +104,81 @@ No module should try to be “the whole bot”.
 - **New Risk Models**
   - Attach into the **Pre-Checks** and/or **Decision** stage.
   - They should *veto* or *scale* decisions, not silently replace them.
+
+---
+
+## Claudito Pipeline (MANDATORY for Code Changes)
+
+**Added:** 2026-01-25
+
+```
+*************************************************************
+*                                                           *
+*   ALL CODE CHANGES MUST GO THROUGH CLAUDITO PIPELINE      *
+*                                                           *
+*   *** NO EXCEPTIONS ***                                   *
+*                                                           *
+*   Not "quick fixes." Not "small tweaks." Not "I'll just"  *
+*   EVERYTHING goes through the pipeline.                   *
+*                                                           *
+*************************************************************
+```
+
+### Pipeline Flow
+```
+Phase 1: Plan
+  /orchestrate → /warden → /architect → /purpose
+
+Phase 2: Fix (loop until clean)
+  /fixer → /debugger → /validator → /critic
+     ↑___________________________|
+     (if rejected)
+
+Phase 3: Verify
+  /cicd → /telemetry → /validator → /forensics
+
+Phase 4: Ship
+  /scribe → /commit → /janitor → /learning → /changelog
+```
+
+### Key Clauditos
+| Claudito | Job |
+|----------|-----|
+| Warden | Blocks scope creep |
+| Forensics | Finds bugs/landmines |
+| Fixer | Applies minimal fix |
+| Debugger | Tests fix works |
+| Critic | Adversarial review |
+| Validator | Quality gate |
+| Scribe | Documents everything |
+
+See `08_claudito-pipeline-process.md` for full details.
+
+---
+
+## Proof Logging Layer
+
+**Added:** 2026-01-25
+
+Two logging systems for full audit trail:
+
+### ClauditoLogger (AI/Agent Activity)
+- Logs all hook emissions
+- Logs all Claudito decisions with reason + confidence
+- Logs all errors with full context
+- Logs mission status changes
+- Output: `ogz-meta/logs/claudito-activity.jsonl`
+
+### TradingProofLogger (Trading Activity)
+- Logs every BUY with price, size, reason, confidence
+- Logs every SELL with P&L calculation
+- Logs position updates
+- Generates daily summaries
+- Includes plain English explanations
+- Output: `ogz-meta/logs/trading-proof.jsonl`
+
+### Purpose
+1. Verifiable proof of profitability for website
+2. Audit trail for debugging
+3. Learning data for pattern improvement
+4. Transparency (per ogz-meta rules)
