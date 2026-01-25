@@ -95,6 +95,9 @@ const indicatorEngine = new IndicatorEngine({
   ogzTpoEnabled: true
 });
 
+// CHANGE 2026-01-25: Trading Proof Logger for website transparency
+const { TradingProofLogger } = require('./ogz-meta/claudito-logger');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -2180,6 +2183,20 @@ class OGZPrimeV14Bot {
             console.log(`📡 Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
           }
 
+          // CHANGE 2026-01-25: Log trade for website proof
+          TradingProofLogger.trade({
+            action: 'BUY',
+            symbol: this.tradingPair || 'BTC/USD',
+            price: price,
+            size: positionSize,
+            value_usd: positionSize * price,
+            fees: (positionSize * price) * 0.0032,  // ~0.32% Kraken fees
+            reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based entry',
+            confidence: decision.confidence,
+            indicators: unifiedResult.indicators,
+            pattern: unifiedResult.patterns?.[0]?.name || null
+          });
+
         } else if (decision.action === 'SELL') {
           // CHECKPOINT 7: SELL execution
           const currentState = stateManager.getState();
@@ -2303,6 +2320,32 @@ class OGZPrimeV14Bot {
               }));
               console.log(`📡 Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
             }
+
+            // CHANGE 2026-01-25: Log trade for website proof
+            TradingProofLogger.trade({
+              action: 'SELL',
+              symbol: this.tradingPair || 'BTC/USD',
+              price: price,
+              size: btcAmount,
+              value_usd: sellValue,
+              fees: sellValue * 0.0032,  // ~0.32% Kraken fees
+              reason: completeTradeResult.exitReason || 'Signal exit',
+              confidence: decision.confidence,
+              indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd || 0 },
+              pattern: buyTrade.patterns?.[0]?.name || null
+            });
+
+            // Log P&L explanation for transparency
+            TradingProofLogger.explanation({
+              decision: 'SELL',
+              plain_english: `Closed position at $${price.toFixed(2)} after ${(holdDuration/60000).toFixed(1)} minutes. ${pnl >= 0 ? 'Profit' : 'Loss'} of ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)}).`,
+              factors: [
+                `Entry: $${buyTrade.entryPrice.toFixed(2)}`,
+                `Exit: $${price.toFixed(2)}`,
+                `Hold time: ${(holdDuration/60000).toFixed(1)} min`,
+                `RSI at exit: ${indicators.rsi?.toFixed(1) || 'N/A'}`
+              ]
+            });
 
             // 1. SafetyNet DISABLED - too restrictive
             // this.safetyNet.updateTradeResult(completeTradeResult);

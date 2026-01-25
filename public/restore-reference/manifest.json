@@ -1,0 +1,46 @@
+{
+  "name": "OGZPrime Trading Dashboard",
+  "short_name": "OGZPrime",
+  "description": "Live trading war room - patterns, P&L, edge analytics",
+  "start_url": "/unified-dashboard.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#00ff88",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/assets/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Dashboard",
+      "url": "/unified-dashboard.html",
+      "description": "Open the live trading dashboard"
+    }
+  ]
+}

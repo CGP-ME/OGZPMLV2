@@ -1,0 +1,873 @@
+<!--
+==========================================================================
+OGZPrime Dashboard Upgrade Additions
+Drop these into your existing unified-dashboard.html
+==========================================================================
+
+INSTALLATION:
+1. CSS: Add to your existing <style> section
+2. HTML: Add after your existing panels (before </body>)
+3. JS: Add to your existing <script> section, AFTER handleWebSocketMessage
+4. Create manifest.json and service-worker.js in public/
+
+==========================================================================
+-->
+
+<!-- =====================================================================
+     SECTION 1: CSS ADDITIONS (Add to existing <style>)
+     ===================================================================== -->
+<style>
+/* ========================================
+   PATTERN HEATMAP ANIMATIONS
+   ======================================== */
+
+/* Pulse animation for high-win patterns */
+@keyframes patternPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+    }
+}
+
+@keyframes eliteGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.4));
+    }
+    50% {
+        filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.8));
+    }
+}
+
+@keyframes lossGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px rgba(255, 51, 102, 0.3));
+    }
+    50% {
+        filter: drop-shadow(0 0 15px rgba(255, 51, 102, 0.6));
+    }
+}
+
+/* Pattern heatmap panel */
+.pattern-heatmap-panel {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 20, 20, 0.95) 100%);
+    border: 2px solid var(--profit-color);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+    transition: all 0.3s ease;
+}
+
+.pattern-heatmap-panel:hover {
+    box-shadow: 0 12px 48px rgba(0, 255, 136, 0.3);
+}
+
+.pattern-heatmap-panel.elite-active {
+    animation: patternPulse 2s infinite;
+}
+
+.heatmap-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--profit-color);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.heatmap-title .live-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--profit-color);
+    border-radius: 50%;
+    animation: statusPulse 1.5s infinite;
+}
+
+.pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.pattern-card {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.pattern-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--profit-color);
+}
+
+.pattern-card.elite {
+    border-color: var(--profit-color);
+    animation: eliteGlow 2s infinite;
+}
+
+.pattern-card.learning {
+    border-color: var(--ml-color);
+    opacity: 0.8;
+}
+
+.pattern-card.weak {
+    border-color: var(--loss-color);
+    animation: lossGlow 3s infinite;
+}
+
+.pattern-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pattern-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.win-rate {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.win-rate.high { color: var(--profit-color); }
+.win-rate.mid { color: var(--ml-color); }
+.win-rate.low { color: var(--loss-color); }
+
+.pattern-meta {
+    text-align: right;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.pattern-meta .samples {
+    color: var(--core-color);
+}
+
+.pattern-meta .boost {
+    color: var(--profit-color);
+}
+
+/* Win rate bar visualization */
+.win-bar-container {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.win-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+.win-bar.high { background: linear-gradient(90deg, var(--profit-color), #00ffaa); }
+.win-bar.mid { background: linear-gradient(90deg, var(--ml-color), #ffed4e); }
+.win-bar.low { background: linear-gradient(90deg, var(--loss-color), #ff6688); }
+
+/* ========================================
+   RISK METRICS PANEL
+   ======================================== */
+.risk-metrics-panel {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 20, 20, 0.95) 100%);
+    border: 2px solid var(--core-color);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.risk-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--core-color);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+}
+
+.risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.risk-metric {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.risk-metric .label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.risk-metric .value {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.risk-metric .value.good { color: var(--profit-color); }
+.risk-metric .value.warning { color: var(--ml-color); }
+.risk-metric .value.danger { color: var(--loss-color); }
+
+/* ========================================
+   TRADE ALERT FLASH
+   ======================================== */
+@keyframes tradeFlash {
+    0% { background: rgba(0, 255, 136, 0.3); }
+    100% { background: transparent; }
+}
+
+@keyframes tradeLossFlash {
+    0% { background: rgba(255, 51, 102, 0.3); }
+    100% { background: transparent; }
+}
+
+.trade-flash-win {
+    animation: tradeFlash 0.5s ease-out;
+}
+
+.trade-flash-loss {
+    animation: tradeLossFlash 0.5s ease-out;
+}
+
+/* ========================================
+   PATTERN DETAIL MODAL
+   ======================================== */
+.pattern-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.pattern-modal.active {
+    display: flex;
+}
+
+.pattern-modal-content {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    border: 2px solid var(--profit-color);
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.pattern-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.pattern-modal-close:hover {
+    color: var(--loss-color);
+}
+
+/* ========================================
+   PWA INSTALL BUTTON
+   ======================================== */
+.pwa-install-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, var(--profit-color) 0%, #00cc77 100%);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 15px 25px;
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+    transition: all 0.3s ease;
+    z-index: 100;
+    display: none;
+}
+
+.pwa-install-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 255, 136, 0.6);
+}
+
+.pwa-install-btn.visible {
+    display: block;
+}
+</style>
+
+
+<!-- =====================================================================
+     SECTION 2: HTML ADDITIONS (Add after existing panels, before </body>)
+     ===================================================================== -->
+
+<!-- Pattern Heatmap Panel -->
+<div class="pattern-heatmap-panel" id="patternHeatmapPanel">
+    <div class="heatmap-title">
+        <span class="live-dot"></span>
+        Pattern Edge Heatmap
+        <span style="margin-left: auto; font-size: 12px; color: var(--text-secondary);">
+            <span id="totalPatterns">0</span> patterns tracked
+        </span>
+    </div>
+    <div class="pattern-grid" id="patternGrid">
+        <!-- Pattern cards populated by JS -->
+        <div style="color: var(--text-secondary); text-align: center; padding: 40px; grid-column: 1/-1;">
+            Waiting for pattern data...
+        </div>
+    </div>
+</div>
+
+<!-- Risk Metrics Panel -->
+<div class="risk-metrics-panel" id="riskMetricsPanel">
+    <div class="risk-title">Risk Analytics</div>
+    <div class="risk-grid">
+        <div class="risk-metric">
+            <div class="label">Current DD</div>
+            <div class="value good" id="currentDD">0.00%</div>
+        </div>
+        <div class="risk-metric">
+            <div class="label">Max DD</div>
+            <div class="value good" id="maxDD">0.00%</div>
+        </div>
+        <div class="risk-metric">
+            <div class="label">Sharpe Ratio</div>
+            <div class="value good" id="sharpeRatio">--</div>
+        </div>
+        <div class="risk-metric">
+            <div class="label">Elite Win Rate</div>
+            <div class="value good" id="eliteWinRate">--</div>
+        </div>
+        <div class="risk-metric">
+            <div class="label">Win Streak</div>
+            <div class="value good" id="winStreak">0</div>
+        </div>
+        <div class="risk-metric">
+            <div class="label">Profit Factor</div>
+            <div class="value good" id="profitFactor">--</div>
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Detail Modal -->
+<div class="pattern-modal" id="patternModal">
+    <div class="pattern-modal-content">
+        <span class="pattern-modal-close" onclick="closePatternModal()">&times;</span>
+        <div id="patternModalContent">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- PWA Install Button -->
+<button class="pwa-install-btn" id="pwaInstallBtn" onclick="installPWA()">
+    Install App
+</button>
+
+
+<!-- =====================================================================
+     SECTION 3: JAVASCRIPT ADDITIONS (Add to existing <script>)
+     ===================================================================== -->
+<script>
+// ========================================
+// PATTERN HEATMAP SYSTEM
+// ========================================
+
+let patternStats = {};
+let equityCurve = [];
+let peakEquity = 0;
+let tradeReturns = [];
+let winStreak = 0;
+let totalWins = 0;
+let totalLosses = 0;
+let grossProfit = 0;
+let grossLoss = 0;
+
+// Sound system
+const sounds = {
+    win: null,
+    loss: null,
+    elite: null
+};
+
+// Preload sounds (create on first interaction due to browser autoplay policy)
+function initSounds() {
+    if (sounds.win) return; // Already initialized
+
+    // Using Web Audio API for reliable playback
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    // Simple beep generator
+    function createBeep(frequency, duration, type = 'sine') {
+        return () => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        };
+    }
+
+    sounds.win = createBeep(880, 0.15); // High A - victory ping
+    sounds.loss = createBeep(220, 0.3); // Low A - loss tone
+    sounds.elite = () => {
+        // Fanfare for elite patterns
+        createBeep(523, 0.1)(); // C
+        setTimeout(() => createBeep(659, 0.1)(), 100); // E
+        setTimeout(() => createBeep(784, 0.2)(), 200); // G
+    };
+}
+
+// Initialize sounds on first user interaction
+document.addEventListener('click', initSounds, { once: true });
+document.addEventListener('keydown', initSounds, { once: true });
+
+// Play trade sound
+function playTradeSound(pnl, isElitePattern) {
+    if (!sounds.win) return;
+
+    if (isElitePattern && pnl > 0) {
+        sounds.elite();
+    } else if (pnl > 0) {
+        sounds.win();
+    } else if (pnl < 0) {
+        sounds.loss();
+    }
+
+    // Vibrate on mobile
+    if ('vibrate' in navigator) {
+        navigator.vibrate(pnl > 0 ? [100, 50, 100] : [200]);
+    }
+}
+
+// Update pattern stats from trade data
+function updatePatternStats(data) {
+    if (!data.patternSig && !data.pattern) return;
+
+    const sig = data.patternSig || data.pattern || 'unknown';
+    const pnl = data.pnl || data.profit || 0;
+
+    if (!patternStats[sig]) {
+        patternStats[sig] = {
+            wins: 0,
+            losses: 0,
+            samples: 0,
+            totalPnl: 0,
+            avgPnl: 0,
+            winRate: 0,
+            confBoost: 0,
+            lastSeen: Date.now()
+        };
+    }
+
+    const stat = patternStats[sig];
+    stat.samples++;
+    stat.totalPnl += pnl;
+    stat.avgPnl = stat.totalPnl / stat.samples;
+    stat.lastSeen = Date.now();
+
+    if (pnl > 0) {
+        stat.wins++;
+    } else if (pnl < 0) {
+        stat.losses++;
+    }
+
+    stat.winRate = stat.samples > 0 ? stat.wins / stat.samples : 0;
+    stat.confBoost = Math.max(0, (stat.winRate - 0.5) * 0.6); // Max +30%
+
+    // Check if elite
+    const isElite = stat.winRate > 0.75 && stat.samples >= 20;
+
+    // Play sound
+    playTradeSound(pnl, isElite);
+
+    // Update display
+    renderPatternHeatmap();
+
+    return isElite;
+}
+
+// Render pattern heatmap
+function renderPatternHeatmap() {
+    const grid = document.getElementById('patternGrid');
+    const totalEl = document.getElementById('totalPatterns');
+
+    const sorted = Object.entries(patternStats)
+        .sort((a, b) => b[1].samples - a[1].samples)
+        .slice(0, 20); // Top 20
+
+    totalEl.textContent = Object.keys(patternStats).length;
+
+    if (sorted.length === 0) {
+        grid.innerHTML = `
+            <div style="color: var(--text-secondary); text-align: center; padding: 40px; grid-column: 1/-1;">
+                Waiting for pattern data...
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = sorted.map(([sig, stat]) => {
+        const winRate = (stat.winRate * 100).toFixed(1);
+        const tier = stat.winRate > 0.75 && stat.samples >= 20 ? 'elite' :
+                     stat.winRate > 0.50 ? 'mid' :
+                     stat.samples < 10 ? 'learning' : 'weak';
+
+        const cardClass = tier === 'elite' ? 'elite' :
+                          tier === 'learning' ? 'learning' :
+                          tier === 'weak' ? 'weak' : '';
+
+        const rateClass = stat.winRate > 0.70 ? 'high' :
+                          stat.winRate > 0.50 ? 'mid' : 'low';
+
+        return `
+            <div class="pattern-card ${cardClass}" onclick="showPatternDetail('${sig}')">
+                <div class="pattern-name" title="${sig}">${sig.slice(0, 20)}${sig.length > 20 ? '...' : ''}</div>
+                <div class="pattern-stats">
+                    <div class="win-rate ${rateClass}">${winRate}%</div>
+                    <div class="pattern-meta">
+                        <div class="samples">${stat.samples} trades</div>
+                        <div class="boost">+${(stat.confBoost * 100).toFixed(0)}%</div>
+                    </div>
+                </div>
+                <div class="win-bar-container">
+                    <div class="win-bar ${rateClass}" style="width: ${winRate}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Pulse panel if elite pattern active
+    const hasElite = sorted.some(([, stat]) => stat.winRate > 0.75 && stat.samples >= 20);
+    document.getElementById('patternHeatmapPanel').classList.toggle('elite-active', hasElite);
+}
+
+// Show pattern detail modal
+function showPatternDetail(sig) {
+    const stat = patternStats[sig];
+    if (!stat) return;
+
+    const modal = document.getElementById('patternModal');
+    const content = document.getElementById('patternModalContent');
+
+    const tier = stat.winRate > 0.75 && stat.samples >= 20 ? 'ELITE' :
+                 stat.winRate > 0.60 ? 'PROVEN' :
+                 stat.samples < 10 ? 'LEARNING' : 'WEAK';
+
+    content.innerHTML = `
+        <h2 style="color: var(--profit-color); margin-bottom: 20px; font-family: 'Orbitron', monospace;">
+            Pattern Analysis
+        </h2>
+        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px;">SIGNATURE</div>
+            <div style="font-family: monospace; word-break: break-all; color: var(--core-color);">${sig}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">TIER</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${tier === 'ELITE' ? 'var(--profit-color)' : tier === 'PROVEN' ? 'var(--ml-color)' : 'var(--text-secondary)'};">${tier}</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">WIN RATE</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--profit-color);">${(stat.winRate * 100).toFixed(1)}%</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">TOTAL TRADES</div>
+                <div style="font-size: 24px; font-weight: bold;">${stat.samples}</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">AVG P&L</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${stat.avgPnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)'};">
+                    ${stat.avgPnl >= 0 ? '+' : ''}${stat.avgPnl.toFixed(2)}%
+                </div>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">WINS / LOSSES</div>
+                <div style="font-size: 24px; font-weight: bold;">
+                    <span style="color: var(--profit-color);">${stat.wins}</span> /
+                    <span style="color: var(--loss-color);">${stat.losses}</span>
+                </div>
+            </div>
+            <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 12px; color: var(--text-secondary);">CONF BOOST</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--profit-color);">+${(stat.confBoost * 100).toFixed(0)}%</div>
+            </div>
+        </div>
+        <div style="margin-top: 20px; padding: 15px; background: rgba(0,255,136,0.1); border: 1px solid var(--profit-color); border-radius: 8px;">
+            <strong>Sizing Recommendation:</strong><br>
+            ${tier === 'ELITE' ? '1.5x position size - High confidence pattern' :
+              tier === 'PROVEN' ? '1.0x position size - Reliable pattern' :
+              tier === 'LEARNING' ? '0.5x position size - Needs more data' :
+              '0.25x position size - Underperforming pattern'}
+        </div>
+    `;
+
+    modal.classList.add('active');
+}
+
+function closePatternModal() {
+    document.getElementById('patternModal').classList.remove('active');
+}
+
+// Close modal on outside click
+document.getElementById('patternModal')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('pattern-modal')) {
+        closePatternModal();
+    }
+});
+
+// ========================================
+// RISK METRICS SYSTEM
+// ========================================
+
+function updateRiskMetrics(data) {
+    const pnl = data.pnl || data.profit || 0;
+    const balance = data.balance || data.equity || 0;
+
+    // Update equity curve
+    if (balance > 0) {
+        equityCurve.push(balance);
+        if (equityCurve.length > 1000) equityCurve.shift(); // Keep last 1000
+
+        // Update peak
+        if (balance > peakEquity) peakEquity = balance;
+
+        // Calculate drawdown
+        const currentDD = peakEquity > 0 ? ((peakEquity - balance) / peakEquity * 100) : 0;
+        const maxDD = calculateMaxDD();
+
+        // Update displays
+        updateDDDisplay('currentDD', currentDD);
+        updateDDDisplay('maxDD', maxDD);
+    }
+
+    // Track trade returns for Sharpe
+    if (pnl !== 0) {
+        tradeReturns.push(pnl);
+        if (tradeReturns.length > 100) tradeReturns.shift();
+
+        // Update win/loss tracking
+        if (pnl > 0) {
+            totalWins++;
+            winStreak++;
+            grossProfit += pnl;
+        } else {
+            totalLosses++;
+            winStreak = 0;
+            grossLoss += Math.abs(pnl);
+        }
+
+        // Calculate and display metrics
+        const sharpe = calculateSharpe();
+        const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : grossProfit > 0 ? 999 : 0;
+        const eliteWR = calculateEliteWinRate();
+
+        document.getElementById('sharpeRatio').textContent = sharpe.toFixed(2);
+        document.getElementById('profitFactor').textContent = profitFactor.toFixed(2);
+        document.getElementById('winStreak').textContent = winStreak;
+        document.getElementById('eliteWinRate').textContent = eliteWR ? eliteWR.toFixed(1) + '%' : '--';
+
+        // Color coding
+        updateMetricColor('sharpeRatio', sharpe, 1.5, 0.5);
+        updateMetricColor('profitFactor', profitFactor, 1.5, 1.0);
+    }
+}
+
+function updateDDDisplay(elementId, dd) {
+    const el = document.getElementById(elementId);
+    el.textContent = dd.toFixed(2) + '%';
+
+    // Color based on severity
+    el.className = 'value ' + (dd < 5 ? 'good' : dd < 10 ? 'warning' : 'danger');
+}
+
+function updateMetricColor(elementId, value, goodThreshold, warningThreshold) {
+    const el = document.getElementById(elementId);
+    el.className = 'value ' + (value >= goodThreshold ? 'good' : value >= warningThreshold ? 'warning' : 'danger');
+}
+
+function calculateMaxDD() {
+    if (equityCurve.length < 2) return 0;
+
+    let maxDD = 0;
+    let peak = equityCurve[0];
+
+    for (const equity of equityCurve) {
+        if (equity > peak) peak = equity;
+        const dd = (peak - equity) / peak * 100;
+        if (dd > maxDD) maxDD = dd;
+    }
+
+    return maxDD;
+}
+
+function calculateSharpe() {
+    if (tradeReturns.length < 10) return 0;
+
+    const mean = tradeReturns.reduce((a, b) => a + b, 0) / tradeReturns.length;
+    const variance = tradeReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / tradeReturns.length;
+    const stdDev = Math.sqrt(variance);
+
+    return stdDev > 0 ? (mean / stdDev) * Math.sqrt(252) : 0; // Annualized
+}
+
+function calculateEliteWinRate() {
+    const elitePatterns = Object.values(patternStats).filter(p => p.winRate > 0.75 && p.samples >= 20);
+    if (elitePatterns.length === 0) return null;
+
+    const totalWins = elitePatterns.reduce((sum, p) => sum + p.wins, 0);
+    const totalSamples = elitePatterns.reduce((sum, p) => sum + p.samples, 0);
+
+    return totalSamples > 0 ? (totalWins / totalSamples * 100) : null;
+}
+
+// ========================================
+// HOOK INTO EXISTING WEBSOCKET HANDLER
+// ========================================
+
+// Store reference to original handler if exists
+const originalHandleWebSocketMessage = typeof handleWebSocketMessage === 'function' ? handleWebSocketMessage : null;
+
+// Extended handler (call this from your existing handleWebSocketMessage)
+function handleTradeForUpgrades(data) {
+    // Pattern tracking
+    if (data.type === 'trade' || data.type === 'trade_closed' || data.type === 'position_closed') {
+        updatePatternStats(data);
+        updateRiskMetrics(data);
+
+        // Flash effect
+        const chartSection = document.querySelector('.unified-chart-section');
+        if (chartSection) {
+            chartSection.classList.add(data.pnl >= 0 ? 'trade-flash-win' : 'trade-flash-loss');
+            setTimeout(() => {
+                chartSection.classList.remove('trade-flash-win', 'trade-flash-loss');
+            }, 500);
+        }
+    }
+
+    // Pattern stats update from bot
+    if (data.type === 'pattern_stats' && data.patterns) {
+        Object.entries(data.patterns).forEach(([sig, stat]) => {
+            patternStats[sig] = { ...patternStats[sig], ...stat };
+        });
+        renderPatternHeatmap();
+    }
+
+    // Risk metrics update from bot
+    if (data.type === 'risk_update' || data.type === 'status') {
+        if (data.equity || data.balance) {
+            updateRiskMetrics(data);
+        }
+    }
+}
+
+// ========================================
+// PWA INSTALLATION
+// ========================================
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('pwaInstallBtn').classList.add('visible');
+});
+
+function installPWA() {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((result) => {
+        if (result.outcome === 'accepted') {
+            console.log('PWA installed');
+        }
+        deferredPrompt = null;
+        document.getElementById('pwaInstallBtn').classList.remove('visible');
+    });
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker registration failed:', err));
+}
+
+// ========================================
+// INTEGRATION INSTRUCTIONS
+// ========================================
+/*
+To integrate with your existing handleWebSocketMessage:
+
+Add this line INSIDE your existing handleWebSocketMessage function,
+right after you parse the data:
+
+    handleTradeForUpgrades(data);
+
+Example:
+    function handleWebSocketMessage(data) {
+        // ... your existing code ...
+
+        // ADD THIS LINE:
+        if (typeof handleTradeForUpgrades === 'function') {
+            handleTradeForUpgrades(data);
+        }
+
+        // ... rest of your existing code ...
+    }
+*/
+</script>
