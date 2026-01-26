@@ -4,7 +4,7 @@
  * ============================================================================
  *
  * PURPOSE: Bridge the new OGZ TPO indicator into the existing trading flow
- * 
+ *
  * ARCHITECTURAL ROLE:
  * - Wraps the pure-function ogzTwoPoleOscillator for stateful use
  * - Provides voting system integration for ensemble decisions
@@ -13,18 +13,19 @@
  * - Ready for Empire V2 migration (modular, feature-flagged)
  *
  * EMPIRE V2 READY:
- * - Uses TierFeatureFlags for tier-based behavior
+ * - Uses FeatureFlagManager (unified source of truth for feature flags)
  * - Event-driven architecture for decoupling
  * - Pure indicator math separated from strategy logic
  * - Configurable via JSON profiles
  *
  * @author OGZPrime Team (Opus-Valhalla)
- * @version 1.0.0
+ * @version 1.1.0
  * @since 2025-12
  * ============================================================================
  */
 
 const EventEmitter = require('events');
+const FeatureFlagManager = require('./FeatureFlagManager');
 
 // Import the pure-function TPO
 let computeOgzTpo, detectTpoCrossover, calculateDynamicLevels;
@@ -118,22 +119,35 @@ class OgzTpoIntegration extends EventEmitter {
     }
     
     /**
-     * Initialize from TierFeatureFlags
-     * @param {TierFeatureFlags} tierFlags - Feature flags instance
+     * Initialize from FeatureFlagManager (preferred method)
+     * Uses the unified feature flag system
+     * @returns {OgzTpoIntegration|null}
      */
-    static fromTierFlags(tierFlags) {
-        if (!tierFlags.isEnabled('ogzTpoEnabled')) {
+    static fromFeatureFlags() {
+        const flagManager = FeatureFlagManager.getInstance();
+
+        if (!flagManager.isEnabled('OGZ_TPO')) {
             return null;
         }
-        
+
         return new OgzTpoIntegration({
             enabled: true,
-            mode: tierFlags.getValue('ogzTpoMode') || 'standard',
-            dynamicSL: tierFlags.isEnabled('ogzTpoDynamicSL'),
-            confluence: tierFlags.isEnabled('ogzTpoConfluence'),
-            voteWeight: tierFlags.getValue('ogzTpoVoteWeight') || 0.25,
-            adaptive: tierFlags.isEnabled('ogzTpoAdaptive')
+            mode: flagManager.getSetting('OGZ_TPO', 'mode', 'standard'),
+            dynamicSL: flagManager.getSetting('OGZ_TPO', 'dynamicSL', true),
+            confluence: flagManager.getSetting('OGZ_TPO', 'confluence', false),
+            voteWeight: flagManager.getSetting('OGZ_TPO', 'voteWeight', 0.25),
+            adaptive: flagManager.getSetting('OGZ_TPO', 'adaptive', false)
         });
+    }
+
+    /**
+     * Initialize from TierFeatureFlags (legacy - delegates to FeatureFlagManager)
+     * @deprecated Use fromFeatureFlags() instead
+     * @param {TierFeatureFlags} tierFlags - Feature flags instance (ignored, uses singleton)
+     */
+    static fromTierFlags(tierFlags) {
+        // Delegate to unified FeatureFlagManager
+        return OgzTpoIntegration.fromFeatureFlags();
     }
     
     /**
@@ -420,5 +434,6 @@ class OgzTpoIntegration extends EventEmitter {
 
 module.exports = OgzTpoIntegration;
 
-// Also export static factory
-module.exports.fromTierFlags = OgzTpoIntegration.fromTierFlags;
+// Export static factories
+module.exports.fromFeatureFlags = OgzTpoIntegration.fromFeatureFlags;
+module.exports.fromTierFlags = OgzTpoIntegration.fromTierFlags; // Legacy

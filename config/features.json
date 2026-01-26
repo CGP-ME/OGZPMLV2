@@ -96,6 +96,46 @@
         "touchBand": 0.3,
         "skipTimeout": 20
       }
+    },
+    "ML_ENHANCED_SIGNALS": {
+      "enabled": true,
+      "description": "ML-tier enhanced signal generation with two-pole oscillator",
+      "version": "1.0.0",
+      "settings": {
+        "volumeMultiplier": 2.0,
+        "macdSensitivity": 1.0,
+        "twoPoleThreshold": 0
+      }
+    },
+    "ADVANCED_INDICATORS": {
+      "enabled": true,
+      "description": "Advanced technical indicators (EMA alignment, etc.)",
+      "version": "1.0.0",
+      "settings": {
+        "emaFastPeriod": 9,
+        "emaSlowPeriod": 20
+      }
+    },
+    "ML_VOLUME_ANALYSIS": {
+      "enabled": true,
+      "description": "ML-tier volume analysis and confirmation",
+      "version": "1.0.0",
+      "settings": {
+        "volumeMALength": 20,
+        "volumeMultiplier": 2.0
+      }
+    },
+    "OGZ_TPO": {
+      "enabled": true,
+      "description": "OGZ TPO (Time-Price-Opportunity) integration",
+      "version": "1.0.0",
+      "settings": {
+        "mode": "aggressive",
+        "dynamicSL": true,
+        "confluence": true,
+        "voteWeight": 0.35,
+        "adaptive": true
+      }
     }
   },
   "environment": {

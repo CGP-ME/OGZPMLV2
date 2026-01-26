@@ -44,11 +44,15 @@ console.log(`   DATA_DIR: ${process.env.DATA_DIR || '(default: ./data)'}`);
 console.log(`   PAPER_TRADING: ${process.env.PAPER_TRADING}`);
 console.log(`   TEST_MODE: ${process.env.TEST_MODE || 'false'}`);
 
-// Load feature flags configuration
+// Load feature flags configuration via unified FeatureFlagManager
+const FeatureFlagManager = require('./core/FeatureFlagManager');
+const flagManager = FeatureFlagManager.getInstance();
+
+// Legacy compatibility: Keep featureFlags object for existing code
 let featureFlags = {};
 try {
   featureFlags = require('./config/features.json');
-  console.log('[FEATURES] Loaded feature flags:', Object.keys(featureFlags.features).filter(f => featureFlags.features[f].enabled));
+  console.log('[FEATURES] Loaded via FeatureFlagManager:', flagManager.getEnabledFeatures());
 } catch (err) {
   console.log('[FEATURES] No feature flags config found, using defaults');
   featureFlags = { features: {}, environment: {} };

@@ -23,7 +23,10 @@ const { v4: uuidv4 } = require('uuid');
 
 // Import our modules
 const optimizedIndicators = require('../core/OptimizedIndicators.js');
-const TierFeatureFlags = require('../TierFeatureFlags.js');
+const FeatureFlagManager = require('../core/FeatureFlagManager.js');
+
+// CRITICAL: Set BACKTEST_MODE before FeatureFlagManager initializes
+process.env.BACKTEST_MODE = 'true';
 
 const app = express();
 const PORT = process.env.BACKTEST_PORT || 3011;
@@ -43,8 +46,9 @@ const wss = new WebSocket.Server({ server });
 const activeJobs = new Map();
 const completedJobs = new Map();
 
-// Initialize tier features (ML tier for best backtesting)
-const tierFlags = new TierFeatureFlags('ml');
+// Initialize unified feature flag manager
+const flagManager = FeatureFlagManager.getInstance();
+console.log(`🧪 [Backtest API] Mode: ${flagManager.getMode()}, Features: ${flagManager.getEnabledFeatures().length} enabled`);
 
 /**
  * Broadcast message to all WebSocket clients
@@ -787,7 +791,7 @@ server.listen(PORT, () => {
 ║   🚀 Server running on port ${PORT}              ║
 ║   📊 API: http://localhost:${PORT}/api          ║
 ║   🔌 WebSocket: ws://localhost:${PORT}/ws       ║
-║   🎯 Tier: ${tierFlags.tier.toUpperCase()} (ML Enhanced)          ║
+║   🎯 Tier: ${flagManager.getTier().toUpperCase()} (ML Enhanced)          ║
 ╚═══════════════════════════════════════════════╝
     `);
 });

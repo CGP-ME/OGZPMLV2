@@ -4,18 +4,24 @@
  * Integrates optimizeception logic with tier-based feature flags
  */
 
-const TierFeatureFlags = require('../core/TierFeatureFlags');
+const FeatureFlagManager = require('../core/FeatureFlagManager');
 const optimizedIndicators = require('../core/OptimizedIndicators');
 const fs = require('fs').promises;
 const path = require('path');
 
+// CRITICAL: Set BACKTEST_MODE before FeatureFlagManager initializes
+process.env.BACKTEST_MODE = 'true';
+
 class OptimizedBacktestEngine {
     constructor(tier = 'ml') {
         this.tier = tier;
-        this.featureFlags = new TierFeatureFlags(tier);
+        // Use unified FeatureFlagManager instead of TierFeatureFlags
+        this.featureFlags = FeatureFlagManager.getInstance();
         this.results = [];
         this.bestConfig = null;
         this.bestScore = -Infinity;
+
+        console.log(`🧪 [Backtest] Mode: ${this.featureFlags.getMode()}, Tier: ${tier}`);
     }
 
     /**
