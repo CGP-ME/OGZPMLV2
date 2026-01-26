@@ -146,6 +146,7 @@ Phase 4: Ship
 |----------|-----|
 | Warden | Blocks scope creep |
 | Forensics | Finds bugs/landmines |
+| Architect | Explains how affected area works (context) |
 | Fixer | Applies minimal fix |
 | Debugger | Tests fix works |
 | Critic | Adversarial review |

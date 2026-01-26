@@ -30,9 +30,9 @@ This is not a suggestion. This is not a guideline. This is THE LAW.
 ```
 /orchestrate → /warden → /architect → /purpose
 ```
-- **Orchestrator**: Coordinates the mission
+- **Orchestrator**: Coordinates the mission, plans the approach
 - **Warden**: Checks for scope creep (REJECTS if detected)
-- **Architect**: Designs minimal fix approach
+- **Architect**: Explains how the affected area works (context for Fixer)
 - **Purpose**: Verifies alignment with OGZPrime mission
 
 ### Phase 2: Fix (loop until clean)
