@@ -47,6 +47,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Feature flag PATTERN_MEMORY_PARTITION properly configured
 
 ### Fixed
+- **CRITICAL: Broken Symlink Crash** - utils/tradeLogger.js (PRODUCTION FIX)
+  - Problem: Bot crashed with "OptimizedTradingBrain is not a constructor"
+  - Root cause: utils/tradeLogger.js symlink pointed to deleted root/tradeLogger.js
+  - Previous cleanup deleted root tradeLogger.js without checking for symlinks
+  - Solution: Updated symlink to point to core/tradeLogger.js
+  - Lesson: Validator must include smoke test before commit
+
+- **Dashboard Message Forwarding** - dashboard-server.js (DASHBOARD FIX)
+  - Problem: Trade P&L showing $0.00, Chain of Thought stuck, no chart markers
+  - Root cause: dashboard-server.js only forwarded 5 message types, dropped others
+  - Solution: Added handlers for `trade`, `bot_thinking`, `pattern_analysis`
+  - All dashboard features should now receive data from bot
+
 - **Trade Log Not Receiving Live Trades** - run-empire-v2.js (DASHBOARD FIX)
   - Bug: Dashboard trade log never showed new BUY/SELL trades
   - Bot recorded trades internally but never broadcast to WebSocket clients
