@@ -16,6 +16,9 @@
 - ✅ Validator confirmed syntax valid, server stable
 - ✅ Installed GitHub CLI for future repo searches
 - 📁 Parked NeuralMeshArchitecture.js for v2.1 integration
+- ✅ Fixed `updateTradeHistory is not defined` ReferenceError
+- ✅ Implemented 8 missing indicator overlay series (SMA, RSI, MACD, Ichimoku, ATR, S/R, Trendlines)
+- ✅ Added visibility toggles and data update handlers for all new overlays
 
 ### Fixes Implemented
 
@@ -24,6 +27,20 @@
 - **Problem**: dashboard-server.js only forwarded 5 message types, dropping trade/thinking/pattern
 - **Solution**: Added handlers for `trade`, `bot_thinking`, `pattern_analysis`
 - **Result**: ✅ SUCCESS - All dashboard features should now receive data
+
+#### FIX #3: Missing updateTradeHistory Function
+- **File**: `public/unified-dashboard.html:3565`
+- **Problem**: `ReferenceError: updateTradeHistory is not defined` when plotting trade signals
+- **Solution**: Added wrapper function that calls existing `addTradeToLog()`
+- **Result**: ✅ SUCCESS - Trade signals now plot without errors
+
+#### FIX #4: 8 Missing Indicator Overlays (NEW FEATURE)
+- **File**: `public/unified-dashboard.html`
+- **Problem**: Dashboard had 11 indicator checkboxes but only 3 worked (EMA, BB, VWAP)
+- **Checkboxes with no implementation**: SMA, ATR, Fibonacci, Trendlines, RSI, MACD, Ichimoku, S/R
+- **Solution**: Added chart series, visibility toggles, and data update handlers for all 8
+- **New series**: sma20/50, rsi, macdLine/Signal, ichimokuTenkan/Kijun, atr, support/resistance, trendlineUp/Down
+- **Result**: ✅ All indicator toggles now functional (data permitting from backend)
 
 ### Root Cause Analysis
 The backend (run-empire-v2.js, TRAIDecisionModule.js) was broadcasting messages, but dashboard-server.js acted as a gatekeeper that only forwarded specific types. Messages were silently dropped.
