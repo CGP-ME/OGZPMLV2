@@ -1,1 +1,1 @@
-/opt/ogzprime/OGZPMLV2/tradeLogger.js
+/opt/ogzprime/OGZPMLV2/core/tradeLogger.js

@@ -30,6 +30,23 @@ The backend (run-empire-v2.js, TRAIDecisionModule.js) was broadcasting messages,
 
 ### Files Modified
 - `dashboard-server.js` (+10 lines)
+- `utils/tradeLogger.js` (symlink fix)
+
+#### FIX #2: Broken Symlink (CRITICAL)
+- **File**: `utils/tradeLogger.js` (symlink)
+- **Problem**: Symlink pointed to deleted `/opt/ogzprime/OGZPMLV2/tradeLogger.js`
+- **Cause**: Janitor deleted root tradeLogger.js without checking for symlinks
+- **Solution**: Updated symlink to point to `core/tradeLogger.js`
+- **Result**: ✅ SUCCESS - Bot now starts correctly
+
+### Pipeline Failure Analysis
+The previous cleanup committed code that broke production:
+1. Janitor deleted `tradeLogger.js` from root
+2. Validator checked syntax but NOT runtime dependencies
+3. Did NOT run smoke test to verify bot starts
+4. Symlink in `utils/` was left pointing to deleted file
+
+**Lesson**: Validator MUST include `./start-ogzprime.sh` smoke test before commit.
 
 ### Deferred to v2.1
 - Neural Ensemble Voting (requires NeuralMeshArchitecture integration)
