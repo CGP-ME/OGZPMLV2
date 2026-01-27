@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Unified FeatureFlagManager** - core/FeatureFlagManager.js (ARCHITECTURE)
+  - Problem: Two independent feature flag systems (features.json + TierFeatureFlags.js) didn't communicate
+  - User observed feature flags not being respected multiple times
+  - Solution: Created FeatureFlagManager singleton as single source of truth
+  - TierFeatureFlags.js now delegates to FeatureFlagManager
+  - All backtest/trading modules updated to use FeatureFlagManager
+  - Mode-aware (paper/live/backtest) with proper env var detection
+
+### Removed
+- **Dead npm packages** - package.json (CLEANUP)
+  - Removed `@anthropic-ai/sdk` - 0 uses found in codebase
+  - Removed `require-in-the-middle` - 0 uses found in codebase
+  - Dependencies reduced from 12 to 10
+
+- **Dead/duplicate files** - root + foundation/ (CLEANUP)
+  - `TierFeatureFlags2.js` - 0 imports (dead)
+  - `tradeLogger.js` (root) - duplicate of core/tradeLogger.js
+  - `trai_core.js` (root) - duplicate of core/trai_core.js
+  - `BrokerFactory.js` (root) - 0 imports (dead)
+  - `IBrokerAdapter.js` (root) - 0 imports (dead)
+  - `index.js` - broken imports to non-existent directories
+  - `foundation/BrokerFactory.js` - 0 imports (dead)
+  - `foundation/AssetConfigManager.js` - 0 imports (dead)
+  - Kept: `foundation/IBrokerAdapter.js` (8 broker adapters depend on it)
+
+- **BacktestEngine.js** - backtest/BacktestEngine.js (CLEANUP)
+  - Dead code with divergent signal logic (didn't match production)
+  - Didn't set BACKTEST_MODE (contamination risk)
+  - Real backtests use `BACKTEST_MODE=true node run-empire-v2.js`
+  - Same codebase for live/paper/backtest ensures consistency
+
+### Verified
+- **Pattern Memory Separation** - Forensics audit (VALIDATION)
+  - PatternMemoryBank mode-aware partitioning: ✅ WORKING
+  - paper=8176 patterns, live=empty, backtest=empty (proper isolation)
+  - StateManager has BACKTEST_MODE guards on load() and save()
+  - Feature flag PATTERN_MEMORY_PARTITION properly configured
+
 ### Fixed
 - **Trade Log Not Receiving Live Trades** - run-empire-v2.js (DASHBOARD FIX)
   - Bug: Dashboard trade log never showed new BUY/SELL trades
