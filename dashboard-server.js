@@ -117,6 +117,16 @@ wss.on('connection', (ws, req) => {
         // Forward TRAI response to all clients
         console.log('🧠 [TRAI] Forwarding chat response to clients');
         broadcastToClients(data);
+      } else if (data.type === 'trade') {
+        // CHANGE 2026-01-27: Forward trade messages (P&L + chart markers)
+        console.log(`📈 [TRADE] ${data.action || data.direction} @ $${data.price}`);
+        broadcastToClients(data);
+      } else if (data.type === 'bot_thinking') {
+        // CHANGE 2026-01-27: Forward chain of thought updates
+        broadcastToClients(data);
+      } else if (data.type === 'pattern_analysis') {
+        // CHANGE 2026-01-27: Forward pattern analysis for pattern box visualization
+        broadcastToClients(data);
       }
     } catch (error) {
       console.error('Error processing WebSocket message:', error);

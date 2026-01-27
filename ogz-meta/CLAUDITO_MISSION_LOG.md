@@ -2,6 +2,46 @@
 
 ---
 
+## Session: January 27, 2025
+## Goal: Dashboard WebSocket Message Forwarding Fix
+
+### Current Status
+**DASHBOARD MESSAGES NOW FORWARDING** - Trade P&L, Chart Markers, Chain of Thought, Pattern Box
+
+### Progress Today
+- ✅ Forensics identified 3 message types not being forwarded by dashboard-server.js
+- ✅ Added `trade` message forwarding (enables P&L display + chart markers)
+- ✅ Added `bot_thinking` message forwarding (enables Chain of Thought from TRAI)
+- ✅ Added `pattern_analysis` message forwarding (enables Pattern Box visualization)
+- ✅ Validator confirmed syntax valid, server stable
+- ✅ Installed GitHub CLI for future repo searches
+- 📁 Parked NeuralMeshArchitecture.js for v2.1 integration
+
+### Fixes Implemented
+
+#### FIX #1: Dashboard Message Forwarding
+- **File**: `dashboard-server.js:120-130`
+- **Problem**: dashboard-server.js only forwarded 5 message types, dropping trade/thinking/pattern
+- **Solution**: Added handlers for `trade`, `bot_thinking`, `pattern_analysis`
+- **Result**: ✅ SUCCESS - All dashboard features should now receive data
+
+### Root Cause Analysis
+The backend (run-empire-v2.js, TRAIDecisionModule.js) was broadcasting messages, but dashboard-server.js acted as a gatekeeper that only forwarded specific types. Messages were silently dropped.
+
+### Files Modified
+- `dashboard-server.js` (+10 lines)
+
+### Deferred to v2.1
+- Neural Ensemble Voting (requires NeuralMeshArchitecture integration)
+- NeuralMeshArchitecture.js parked in `ogz-meta/ledger/`
+
+### Context for Next Mission
+- Dashboard should now show Trade P&L, chart markers, and Chain of Thought
+- Neural Ensemble Voting needs NeuralMeshArchitecture wired up (v2.1)
+- Indicator overlays (8 of 11 broken) - separate implementation run
+
+---
+
 ## Session: January 26, 2025
 ## Goal: Feature Flag Unification + Dependency Cleanup + Pattern Memory Validation
 
