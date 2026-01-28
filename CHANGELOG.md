@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Collapsible Side Panel Layout** - public/unified-dashboard.html (UI/UX)
+  - Trade Manager panel moved to West (left side)
+  - Edge Analytics panel moved to East (right side)
+  - Chart fills space between panels with auto-resize on collapse
+  - Click headers to collapse - chart smoothly expands into freed space
+  - "Click to collapse" hints on panel headers
+  - Removed ML/CORE flashing badges (clutter)
+  - Indicator overlay repositioned to top-left corner
+  - Tighter spacing, darker theme, sharper edges
+  - Chart height now viewport-relative for better screen utilization
+
 - **Unified FeatureFlagManager** - core/FeatureFlagManager.js (ARCHITECTURE)
   - Problem: Two independent feature flag systems (features.json + TierFeatureFlags.js) didn't communicate
   - User observed feature flags not being respected multiple times
