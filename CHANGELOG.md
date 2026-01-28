@@ -54,6 +54,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lesson: Pipeline enforcement is mandatory - smoke test before commit
 
 ### Fixed
+- **Dashboard Candles Not Loading** - dashboard-server.js (DASHBOARD FIX)
+  - Problem: Chart showed empty/fat bars on page refresh
+  - Root cause: `type: 'price'` messages not forwarded (contained candles array)
+  - Server only handled: ping, bot_status, trade_signal, trai_*, trade, bot_thinking, pattern_analysis
+  - Solution: Added price message handler to forward candles to dashboard
+  - 4 lines changed, follows existing message handler pattern
+
 - **CRITICAL: Broken Symlink Crash** - utils/tradeLogger.js (PRODUCTION FIX)
   - Problem: Bot crashed with "OptimizedTradingBrain is not a constructor"
   - Root cause: utils/tradeLogger.js symlink pointed to deleted root/tradeLogger.js
