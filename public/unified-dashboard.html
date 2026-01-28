@@ -63,11 +63,11 @@
         
         /* Header */
         .header {
-            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
-            padding: 20px;
+            background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
+            padding: 12px 20px;
             text-align: center;
-            border-bottom: 2px solid var(--profit-color);
-            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
             position: relative;
             z-index: 10;
         }
@@ -239,22 +239,32 @@
         
         /* Main Container */
         .main-container {
-            padding: 20px;
+            padding: 10px;
+            padding-left: 340px;  /* Space for left panel (320px + 20px gap) */
+            padding-right: 340px; /* Space for right panel (320px + 20px gap) */
             position: relative;
             z-index: 5;
-            max-width: 1600px;
-            margin: 0 auto;
+            transition: padding 0.3s ease;
+        }
+
+        /* Dynamic padding when panels collapse */
+        .main-container.left-collapsed {
+            padding-left: 60px;
+        }
+
+        .main-container.right-collapsed {
+            padding-right: 60px;
         }
         
         /* Unified Chart Section */
         .unified-chart-section {
             background: var(--bg-panel);
-            border-radius: 15px;
-            padding: 20px;
-            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+            margin-bottom: 10px;
             transition: all 0.3s ease;
         }
         
@@ -266,8 +276,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid var(--border-color);
         }
         
@@ -382,12 +392,13 @@
         /* Chart Container - TradingView */
         .chart-container {
             position: relative;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 10px;
             border: 1px solid var(--border-color);
-            height: 850px;  /* CHANGE 2026-01-22: Made chart much larger */
+            height: calc(100vh - 200px);  /* CHANGE 2026-01-28: Fill viewport minus header */
+            min-height: 500px;
             width: 100%;
         }
         
@@ -442,8 +453,8 @@
         /* Indicator Overlays */
         .indicator-overlay {
             position: absolute;
-            top: 55px; /* Below bot-status-row which is at top:20px */
-            left: 20px;
+            top: 15px;
+            left: 15px;
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
             border: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 12px;
@@ -521,17 +532,17 @@
         .trading-panel {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 10px;
         }
         
         .panel-section {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(14, 14, 14, 0.95) 100%);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 8px;
+            padding: 14px;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
         }
         
         .panel-title {
@@ -854,7 +865,8 @@
             }
 
             .chart-container {
-                height: 650px;  /* CHANGE 2026-01-22: Larger chart */
+                height: calc(100vh - 180px);  /* CHANGE 2026-01-28: Viewport-relative */
+                min-height: 450px;
             }
         }
 
@@ -871,7 +883,8 @@
             }
 
             .chart-container {
-                height: 550px;  /* CHANGE 2026-01-22: Larger chart */
+                height: calc(100vh - 180px);  /* CHANGE 2026-01-28: Viewport-relative */
+                min-height: 400px;
             }
         }
 
@@ -892,7 +905,7 @@
             }
 
             .chart-container {
-                height: 450px;  /* CHANGE 2026-01-22: Larger chart */
+                height: 450px;
             }
 
             .header h1 {
@@ -1161,10 +1174,10 @@
         /* Edge Analytics Panel - THE REAL MONEY MAKERS */
         .edge-panel {
             position: fixed;
-            right: 20px;
-            top: 140px;
+            right: 10px;
+            top: 100px;
             width: 320px;
-            max-height: 80vh;
+            max-height: calc(100vh - 120px);
             overflow-y: auto;
             background: rgba(10, 10, 30, 0.95);
             border: 2px solid rgba(255, 0, 100, 0.5);
@@ -1464,48 +1477,65 @@
         .trade-manager {
             position: fixed;
             top: 80px;
-            right: 20px;
+            left: 10px;
             z-index: 999;
+            width: 320px;
+            transition: width 0.3s ease;
+        }
+
+        .trade-manager.collapsed {
+            width: 50px;
+        }
+
+        .trade-manager.collapsed .trade-panel {
+            display: none;
+        }
+
+        .trade-manager.collapsed .trade-toggle {
+            width: 50px;
+            height: 50px;
         }
 
         .trade-toggle {
-            width: 50px;
-            height: 50px;
+            width: 100%;
+            height: 40px;
             background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
-            border-radius: 50%;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            gap: 10px;
+            font-size: 14px;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0, 102, 255, 0.4);
             transition: all 0.3s ease;
+            color: #fff;
+            font-weight: bold;
         }
 
         .trade-toggle:hover {
-            transform: rotate(-20deg) scale(1.1);
             box-shadow: 0 6px 20px rgba(0, 102, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .trade-manager.collapsed .trade-toggle {
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
         }
 
         .trade-panel {
-            position: absolute;
-            top: 60px;
-            right: 0;
-            width: 350px;
-            max-height: 80vh;
+            margin-top: 10px;
+            width: 100%;
+            max-height: calc(100vh - 180px);
             overflow-y: auto;
             background: rgba(20, 20, 40, 0.98);
             border: 1px solid rgba(0, 102, 255, 0.5);
-            border-radius: 15px;
-            padding: 20px;
-            display: none;
+            border-radius: 10px;
+            padding: 15px;
+            display: block;
             backdrop-filter: blur(10px);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-        }
-
-        .trade-panel.active {
-            display: block;
-            animation: slideIn 0.3s ease;
         }
 
         .trade-panel h3 {
@@ -1926,9 +1956,9 @@
 </head>
 <body>
     <!-- Edge Analytics Panel -->
-    <div class="edge-panel collapsed" id="edgePanel">
+    <div class="edge-panel" id="edgePanel">
         <button class="edge-toggle" onclick="toggleEdgePanel()" title="Toggle Panel">−</button>
-        <div class="edge-header" onclick="toggleEdgePanel()">🎯 EDGE</div>
+        <div class="edge-header" onclick="toggleEdgePanel()">🎯 EDGE ANALYTICS <span style="font-size:10px;opacity:0.7">(click to collapse)</span></div>
         <div class="edge-content">
 
         <!-- Liquidation Heatmap -->
@@ -2087,8 +2117,8 @@
 
     <!-- Trade Management Panel -->
     <div class="trade-manager" id="tradeManager">
-        <div class="trade-toggle" onclick="toggleTradePanel()">💼</div>
-        <div class="trade-panel" id="tradePanel">
+        <div class="trade-toggle" onclick="toggleTradeManager()">💼 TRADE MANAGER <span style="font-size:11px;opacity:0.7">(click to collapse)</span></div>
+        <div class="trade-panel active" id="tradePanel">
             <h3>Trade Management</h3>
 
             <!-- Position Calculator -->
@@ -2378,12 +2408,6 @@
             <div class="chart-container">
                 <!-- TradingView Chart -->
                 <div id="tvChartContainer"></div>
-                
-                <!-- Bot Status Indicators -->
-                <div class="bot-status-row">
-                    <div class="bot-status-indicator core" id="coreStatus">CORE</div>
-                    <div class="bot-status-indicator ml active" id="mlStatus">ML</div>
-                </div>
                 
                 <!-- Dynamic Indicator Overlay -->
                 <div class="indicator-overlay" id="indicatorOverlay">
@@ -3908,18 +3932,29 @@
             console.log('Drawings cleared');
         }
 
-        // Panel Toggle Functions
+        // Panel Toggle Functions - auto-resize chart
         function toggleEdgePanel() {
             const panel = document.getElementById('edgePanel');
+            const mainContainer = document.querySelector('.main-container');
             const toggle = panel.querySelector('.edge-toggle');
+
             panel.classList.toggle('collapsed');
+            mainContainer.classList.toggle('right-collapsed');
             toggle.textContent = panel.classList.contains('collapsed') ? '+' : '−';
+
+            // Resize chart after transition
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
         }
 
-        // Trade Management Functions
-        function toggleTradePanel() {
-            const panel = document.getElementById('tradePanel');
-            panel.classList.toggle('active');
+        function toggleTradeManager() {
+            const manager = document.getElementById('tradeManager');
+            const mainContainer = document.querySelector('.main-container');
+
+            manager.classList.toggle('collapsed');
+            mainContainer.classList.toggle('left-collapsed');
+
+            // Resize chart after transition
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
         }
 
         function calculatePosition() {
