@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **WebSocket Heartbeat** - run-empire-v2.js (RELIABILITY)
+  - Bot sends ping every 30s to dashboard-server
+  - Server responds with pong (already existed at dashboard-server.js:96-97)
+  - Tracks lastPongReceived timestamp
+  - Forces reconnect if no pong within 45s timeout
+  - Prevents stale connections showing empty dashboard
+  - Clears interval on close to prevent memory leaks
+
 - **Collapsible Side Panel Layout** - public/unified-dashboard.html (UI/UX)
   - Trade Manager panel moved to West (left side)
   - Edge Analytics panel moved to East (right side)
