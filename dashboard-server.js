@@ -127,6 +127,9 @@ wss.on('connection', (ws, req) => {
       } else if (data.type === 'pattern_analysis') {
         // CHANGE 2026-01-27: Forward pattern analysis for pattern box visualization
         broadcastToClients(data);
+      } else if (data.type === 'price') {
+        // CHANGE 2026-01-28: Forward price updates (includes candles for chart!)
+        broadcastToClients(data);
       }
     } catch (error) {
       console.error('Error processing WebSocket message:', error);

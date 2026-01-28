@@ -1,5 +1,33 @@
 # OGZ Prime - Claude Code Configuration
 
+## ⚡ p: TRIGGER - MANDATORY PIPELINE
+
+**When user message starts with `p:`** → FULL PIPELINE, NO EXCEPTIONS
+
+```
+User: p: dashboard not loading candles
+Claude: [IMMEDIATELY runs full pipeline - no questions, no shortcuts]
+```
+
+### Pipeline Execution Order:
+1. `/warden` → Scope check (approve/reject)
+2. `/forensics` → Find root cause (if unknown)
+3. `/fixer` → Minimal fix ONLY
+4. `/debugger` → Smoke test (`./start-ogzprime.sh restart`)
+5. `/validator` → Quality gate
+6. `/commit` → Git commit with proper message
+7. `/changelog` → Update CHANGELOG.md
+
+**NEVER:**
+- Skip steps
+- "Just quickly fix it"
+- Apply fix without smoke test
+- Commit without running debugger
+
+**This is not optional. This is THE LAW.**
+
+---
+
 ## WARDEN IS ALWAYS WATCHING
 
 Before EVERY edit, check for these scope creep triggers. If detected, STOP and warn:
