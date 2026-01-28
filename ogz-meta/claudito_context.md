@@ -1082,6 +1082,26 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 
 ---
 
+### WS_HEARTBEAT – Bot WebSocket Heartbeat (2026-01-28)
+
+**What:**
+- Bot sends `ping` every 30s to dashboard-server
+- Server responds with `pong`
+- Bot tracks `lastPongReceived` timestamp
+- If no pong within 45s, bot calls `terminate()` to force reconnect
+
+**Why:**
+- TCP connections can go stale without either side knowing
+- Previous behavior: Bot only reconnects on `close` event
+- Stale connection = dashboard shows nothing, user sees empty page
+
+**Code Locations:**
+- `run-empire-v2.js:startHeartbeatPing()` - sends pings, checks timeout
+- `run-empire-v2.js:initializeDashboardWebSocket()` - starts heartbeat after auth_success
+- `dashboard-server.js:96-97` - handles ping, responds with pong
+
+---
+
 ### PERMS_010 – Web File Permissions
 
 **Symptom:**

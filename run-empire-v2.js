@@ -569,6 +569,7 @@ class OGZPrimeV14Bot {
       this.dashboardWs.on('open', () => {
         console.log('✅ Dashboard WebSocket connected!');
         this.dashboardWsConnected = true;
+        this.lastPongReceived = Date.now(); // CHANGE 2026-01-28: Track pong for heartbeat
 
         // 🔒 SECURITY (Change 582): Authenticate first before sending any data
         const authToken = process.env.WEBSOCKET_AUTH_TOKEN || 'CHANGE_ME_IN_PRODUCTION';
@@ -593,6 +594,11 @@ class OGZPrimeV14Bot {
       this.dashboardWs.on('close', () => {
         console.log('⚠️ Dashboard WebSocket closed - reconnecting in 5s...');
         this.dashboardWsConnected = false;
+        // CHANGE 2026-01-28: Clear heartbeat interval on close
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+          this.heartbeatInterval = null;
+        }
         if (this.isRunning) {
           setTimeout(() => this.initializeDashboardWebSocket(), 5000);
         }
@@ -627,12 +633,21 @@ class OGZPrimeV14Bot {
               this.trai.setWebSocketClient(this.dashboardWs);
             }
 
+            // CHANGE 2026-01-28: Start heartbeat ping interval after auth
+            this.startHeartbeatPing();
+
             return;
           }
 
           // Handle authentication errors
           if (msg.type === 'error') {
             console.error('❌ Dashboard error:', msg.message);
+            return;
+          }
+
+          // CHANGE 2026-01-28: Handle pong for heartbeat
+          if (msg.type === 'pong') {
+            this.lastPongReceived = Date.now();
             return;
           }
 
@@ -707,6 +722,43 @@ class OGZPrimeV14Bot {
       console.error('❌ Dashboard WebSocket initialization failed:', error.message);
       this.dashboardWsConnected = false;
     }
+  }
+
+  /**
+   * CHANGE 2026-01-28: Heartbeat ping to detect stale connections
+   * Sends ping every 30s, reconnects if no pong within 45s
+   */
+  startHeartbeatPing() {
+    // Clear any existing interval
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+
+    const PING_INTERVAL = 30000; // 30 seconds
+    const PONG_TIMEOUT = 45000;  // 45 seconds (1.5x ping interval)
+
+    this.heartbeatInterval = setInterval(() => {
+      if (!this.dashboardWs || this.dashboardWs.readyState !== 1) {
+        return; // Not connected
+      }
+
+      // Check if last pong is too old
+      const timeSinceLastPong = Date.now() - (this.lastPongReceived || 0);
+      if (timeSinceLastPong > PONG_TIMEOUT) {
+        console.log('💔 Heartbeat timeout - no pong in ' + Math.round(timeSinceLastPong/1000) + 's, forcing reconnect...');
+        this.dashboardWs.terminate(); // Force close, triggers reconnect
+        return;
+      }
+
+      // Send ping
+      try {
+        this.dashboardWs.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+      } catch (err) {
+        console.error('❌ Heartbeat ping failed:', err.message);
+      }
+    }, PING_INTERVAL);
+
+    console.log('💓 Heartbeat started (ping every 30s, timeout 45s)');
   }
 
   /**
