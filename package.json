@@ -45,6 +45,7 @@
     "node": ">=14.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@sentry/node": "^10.36.0",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
@@ -52,6 +53,7 @@
     "express": "^4.22.1",
     "express-rate-limit": "^8.2.1",
     "node-fetch": "^2.7.0",
+    "require-in-the-middle": "^7.5.2",
     "stripe": "^18.3.0",
     "uuid": "^13.0.0",
     "ws": "^8.18.3"

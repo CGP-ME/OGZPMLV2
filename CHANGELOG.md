@@ -46,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - StateManager has BACKTEST_MODE guards on load() and save()
   - Feature flag PATTERN_MEMORY_PARTITION properly configured
 
+### Reverted
+- **Dashboard Indicator Overlays** - public/unified-dashboard.html (STABILITY)
+  - Problem: Added 200+ lines for 8 indicator overlays without smoke testing
+  - Result: Fat bars (insufficient candles), broken TRAI widget
+  - Solution: Reverted to commit 6308df0 (last known working state)
+  - Lesson: Pipeline enforcement is mandatory - smoke test before commit
+
 ### Fixed
 - **CRITICAL: Broken Symlink Crash** - utils/tradeLogger.js (PRODUCTION FIX)
   - Problem: Bot crashed with "OptimizedTradingBrain is not a constructor"
