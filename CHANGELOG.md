@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dashboard Overhaul for Proof Display** - public/unified-dashboard.html (UI/UX)
+  - Commented out Trading Controls section (BUY/SELL/KILL/LONG/SHORT/HEDGE)
+    - This is a PROOF display, not an active trading interface
+  - Commented out Neural Ensemble Voting section (not functional)
+  - Enhanced Pattern Panel with educational descriptions
+    - Added 17 pattern definitions with emoji, name, and plain-English explanations
+    - Patterns now display educational content when detected
+  - Improved Trade Log display
+    - BUY trades show entry price instead of $0.00
+    - SELL trades show actual P&L with color coding
+    - Cleaner layout without N/A durations
+
+### Fixed
+- **TRAI Chain of Thought Not Updating** - run-empire-v2.js (BUG FIX)
+  - Root cause: Bot sent `type: 'trai_reasoning'` but dashboard only handled `type: 'bot_thinking'`
+  - Changed message type to 'bot_thinking' to match dashboard handler
+  - Added decisionContext to HOLD returns for continuous updates
+  - Restructured payload to match dashboard expectations (message, data.rsi, data.trend, etc.)
+  - Chain of Thought now updates on every trading cycle, not just on trades
+
 ### Added
 - **Real-time Proof Publishing** - ogz-meta/claudito-logger.js (TRANSPARENCY)
   - publishLiveProof() auto-updates `public/proof/live-trades.json` after every trade
