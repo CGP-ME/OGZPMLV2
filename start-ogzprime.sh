@@ -68,8 +68,7 @@ start() {
     echo -e "${YELLOW}[Start] Reloading nginx...${NC}"
     sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx && echo -e "${GREEN}[Start] nginx reloaded${NC}"
 
-    echo -e "${YELLOW}[Start] Dashboard server...${NC}"
-    pm2 start ogz-dashboard --update-env 2>/dev/null || pm2 restart ogz-dashboard --update-env
+    # NOTE: Dashboard served via ogz-websocket (port 3010) - no separate dashboard server needed
 
     echo -e "${YELLOW}[Start] Trading bot + TRAI...${NC}"
     pm2 start ogz-prime-v2 --update-env 2>/dev/null || pm2 restart ogz-prime-v2 --update-env
@@ -81,7 +80,7 @@ start() {
 
 stop() {
     echo -e "\n${YELLOW}[Stop] Stopping all services...${NC}"
-    pm2 stop ogz-prime-v2 ogz-dashboard ogz-websocket 2>/dev/null
+    pm2 stop ogz-prime-v2 ogz-websocket 2>/dev/null
     echo -e "${GREEN}[Stop] All services stopped${NC}"
 }
 

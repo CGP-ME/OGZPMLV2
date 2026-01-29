@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Redundant Dashboard Server (port 3008)** - dashboard-server.js (ARCHITECTURE)
+  - Decommissioned duplicate WebSocket relay server
+  - Was running alongside ogz-websocket (port 3010) causing confusion
+  - All traffic now consolidated through ogz-websocket per V2 architecture
+  - File renamed to .DECOMMISSIONED to prevent accidental launch
+  - start-ogzprime.sh updated to remove references
+  - PM2 process deleted and saved
+
 ### Added
 - **Candle History Persistence** - run-empire-v2.js (RELIABILITY)
   - Saves priceHistory to `data/candle-history.json` every 5 new candles
