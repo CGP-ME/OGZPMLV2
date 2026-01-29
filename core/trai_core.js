@@ -258,11 +258,12 @@ class TRAICore extends EventEmitter {
     
     calculateRelevance(query, messages) {
         // Simple relevance calculation based on keyword matching
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        // CHANGE 2026-01-29: Extra defensive check - ensure messages is sliceable
+        if (!messages || !Array.isArray(messages) || messages.length === 0 || typeof messages.slice !== 'function') {
             return 0;
         }
 
-        const queryWords = query.toLowerCase().split(/\s+/);
+        const queryWords = query?.toLowerCase?.()?.split?.(/\s+/) || [];
         let totalRelevance = 0;
 
         for (const message of messages.slice(0, 50)) { // Check recent messages
