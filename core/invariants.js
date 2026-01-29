@@ -5,14 +5,14 @@
  */
 
 // INVARIANT 1: TRAI must NEVER block the hot path
-export function assertNoBlockingAI() {
+function assertNoBlockingAI() {
   if (global.__awaitedTRAI__) {
     throw new Error("❌ INVARIANT VIOLATION: TRAI awaited in hot path! Must be fire-and-forget");
   }
 }
 
 // INVARIANT 2: StateManager is the ONLY source of truth
-export function assertSingleStateOwner() {
+function assertSingleStateOwner() {
   const violations = [];
   if (global.__duplicateBalance__) violations.push("Duplicate balance tracking detected");
   if (global.__duplicatePosition__) violations.push("Duplicate position tracking detected");
@@ -24,7 +24,7 @@ export function assertSingleStateOwner() {
 }
 
 // INVARIANT 3: No recursive rate limiting
-export function assertNoRecursion(depth = 0, maxDepth = 10) {
+function assertNoRecursion(depth = 0, maxDepth = 10) {
   if (depth > maxDepth) {
     throw new Error(`❌ RECURSION VIOLATION: Stack depth ${depth} exceeds max ${maxDepth}`);
   }
