@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Real-time Proof Publishing** - ogz-meta/claudito-logger.js (TRANSPARENCY)
+  - publishLiveProof() auto-updates `public/proof/live-trades.json` after every trade
+  - Shows last 20 trades with prices, reasons, confidence
+  - Includes stats: total trades, 24h activity, symbols traded
+  - Accessible at https://ogzprime.com/proof/live-trades.json
+  - Fails silently to avoid crashing bot
+
 ### Removed
 - **Redundant Dashboard Server (port 3008)** - dashboard-server.js (ARCHITECTURE)
   - Decommissioned duplicate WebSocket relay server

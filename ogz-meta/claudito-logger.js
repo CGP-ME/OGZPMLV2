@@ -20,6 +20,10 @@ const LOGS_DIR = path.join(__dirname, 'logs');
 const CLAUDITO_LOG = path.join(LOGS_DIR, 'claudito-activity.jsonl');
 const TRADING_PROOF_LOG = path.join(LOGS_DIR, 'trading-proof.jsonl');
 
+// Live proof output for website (public folder)
+const PUBLIC_PROOF_DIR = path.join(__dirname, '..', 'public', 'proof');
+const LIVE_TRADES_FILE = path.join(PUBLIC_PROOF_DIR, 'live-trades.json');
+
 // Ensure logs directory exists
 if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
@@ -184,6 +188,75 @@ const TradingProofLogger = {
 
     // File output
     fs.appendFileSync(TRADING_PROOF_LOG, JSON.stringify(entry) + '\n');
+
+    // CHANGE 2026-01-29: Auto-publish to website for real-time proof
+    this.publishLiveProof();
+  },
+
+  /**
+   * Publish live proof to public folder for website transparency
+   * CHANGE 2026-01-29: Real-time proof publishing
+   */
+  publishLiveProof() {
+    try {
+      // Ensure public proof directory exists
+      if (!fs.existsSync(PUBLIC_PROOF_DIR)) {
+        fs.mkdirSync(PUBLIC_PROOF_DIR, { recursive: true });
+      }
+
+      // Read recent entries from trading proof log
+      if (!fs.existsSync(TRADING_PROOF_LOG)) {
+        return; // No trades yet
+      }
+
+      const lines = fs.readFileSync(TRADING_PROOF_LOG, 'utf8').trim().split('\n');
+      const entries = lines.slice(-100).map(line => {
+        try { return JSON.parse(line); } catch { return null; }
+      }).filter(Boolean);
+
+      // Extract trades only
+      const trades = entries.filter(e => e.type === 'TRADE');
+      const recentTrades = trades.slice(-20); // Last 20 trades
+
+      // Calculate stats
+      const sells = trades.filter(t => t.action === 'SELL');
+      const totalTrades = sells.length;
+
+      // Build live proof summary
+      const liveProof = {
+        updated: new Date().toISOString(),
+        instance: 'ogz-prime-v2',
+        env: process.env.PAPER_TRADING === 'true' ? 'PAPER' : 'LIVE',
+        stats: {
+          total_trades: totalTrades,
+          last_24h_trades: trades.filter(t =>
+            new Date(t.timestamp) > new Date(Date.now() - 24*60*60*1000)
+          ).length,
+          symbols_traded: [...new Set(trades.map(t => t.symbol))],
+        },
+        recent_trades: recentTrades.map(t => ({
+          time: t.timestamp,
+          action: t.action,
+          symbol: t.symbol,
+          price: t.price,
+          value_usd: t.value_usd,
+          reason: t.reason,
+          confidence: t.confidence
+        })),
+        explanations: entries.filter(e => e.type === 'EXPLANATION').slice(-5).map(e => ({
+          time: e.timestamp,
+          decision: e.decision,
+          summary: e.plain_english
+        }))
+      };
+
+      // Write to public folder
+      fs.writeFileSync(LIVE_TRADES_FILE, JSON.stringify(liveProof, null, 2));
+
+    } catch (err) {
+      // Fail silently - don't crash bot for proof publishing
+      console.error(`[ProofLogger] Failed to publish live proof: ${err.message}`);
+    }
   },
 
   /**
