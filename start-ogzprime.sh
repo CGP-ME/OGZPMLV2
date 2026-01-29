@@ -35,6 +35,24 @@ setup() {
     fi
 }
 
+# Wait for a port to be ready (max 30s)
+wait_for_port() {
+    local port=$1
+    local max_wait=30
+    local waited=0
+    echo -e "${YELLOW}[Wait] Waiting for port $port to be ready...${NC}"
+    while ! curl -s -o /dev/null -w "" "http://localhost:$port/" 2>/dev/null; do
+        sleep 1
+        waited=$((waited + 1))
+        if [ $waited -ge $max_wait ]; then
+            echo -e "${RED}[Wait] Timeout waiting for port $port${NC}"
+            return 1
+        fi
+    done
+    echo -e "${GREEN}[Wait] Port $port ready (${waited}s)${NC}"
+    return 0
+}
+
 start() {
     echo -e "\n${GREEN}═══════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}                 🚀 STARTING OGZ PRIME                          ${NC}"
@@ -44,6 +62,11 @@ start() {
 
     echo -e "\n${YELLOW}[Start] WebSocket server...${NC}"
     pm2 start ogz-websocket --update-env 2>/dev/null || pm2 restart ogz-websocket --update-env
+    wait_for_port 3010
+
+    # Reload nginx to clear stale upstream connections
+    echo -e "${YELLOW}[Start] Reloading nginx...${NC}"
+    sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx && echo -e "${GREEN}[Start] nginx reloaded${NC}"
 
     echo -e "${YELLOW}[Start] Dashboard server...${NC}"
     pm2 start ogz-dashboard --update-env 2>/dev/null || pm2 restart ogz-dashboard --update-env

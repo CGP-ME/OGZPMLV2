@@ -1194,6 +1194,31 @@ module.exports = { assertNoBlockingAI, ... }
 
 ---
 
+### STARTUP_502_FIX – WebSocket Startup Race Condition (2026-01-29)
+
+**What:**
+- Added `wait_for_port()` function to start-ogzprime.sh
+- Polls localhost:3010 until websocket server responds (max 30s)
+- Reloads nginx after websocket ready to clear stale upstream connections
+
+**Why:**
+- pm2 start returns immediately before server fully ready
+- Bot connects through nginx (wss://ogzprime.com/ws)
+- nginx had stale upstream state from previous server instance
+- Result: 502 errors until nginx realizes upstream changed
+
+**Fix:**
+```bash
+wait_for_port 3010
+sudo systemctl reload nginx
+```
+
+**Code Location:**
+- `start-ogzprime.sh:40-54` - wait_for_port function
+- `start-ogzprime.sh:68-69` - nginx reload after port ready
+
+---
+
 ### PERMS_010 – Web File Permissions
 
 **Symptom:**
