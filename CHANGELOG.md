@@ -79,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lesson: Pipeline enforcement is mandatory - smoke test before commit
 
 ### Fixed
+- **invariants.js ESM/CommonJS Conflict** - core/invariants.js (STARTUP FIX)
+  - Problem: Mixed `export function` (ESM) with `module.exports` (CommonJS)
+  - Caused "module is not defined in ES module scope" error on every startup
+  - Solution: Convert to pure CommonJS (function declarations + module.exports)
+
 - **Dashboard Candles Not Loading** - dashboard-server.js (DASHBOARD FIX)
   - Problem: Chart showed empty/fat bars on page refresh
   - Root cause: `type: 'price'` messages not forwarded (contained candles array)
