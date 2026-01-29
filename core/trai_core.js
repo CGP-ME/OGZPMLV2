@@ -617,8 +617,9 @@ class TRAICore extends EventEmitter {
     integrateWithBot(bot) {
         this.bot = bot;
 
+        // CHANGE 2026-01-29: Store intervals for cleanup
         // Set up frequent AI-powered analysis (every 2 minutes)
-        setInterval(async () => {
+        this.analysisInterval = setInterval(async () => {
             try {
                 await this.analyzeBotState();
             } catch (error) {
@@ -627,7 +628,7 @@ class TRAICore extends EventEmitter {
         }, 120000); // Every 2 minutes - more responsive
 
         // Proactive monitoring for critical issues (every 30 seconds)
-        setInterval(async () => {
+        this.monitoringInterval = setInterval(async () => {
             try {
                 await this.proactiveMonitoring();
             } catch (error) {
@@ -1029,6 +1030,16 @@ Keep response under 200 words, be direct and technical.`;
      */
     shutdown() {
         console.log('🛑 Shutting down TRAI Core...');
+
+        // CHANGE 2026-01-29: Clear intervals
+        if (this.analysisInterval) {
+            clearInterval(this.analysisInterval);
+            this.analysisInterval = null;
+        }
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+            this.monitoringInterval = null;
+        }
 
         // Shutdown persistent LLM server
         if (this.persistentLLM) {

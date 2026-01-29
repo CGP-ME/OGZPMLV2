@@ -241,7 +241,8 @@ class KrakenAdapterV2 extends IBrokerAdapter {
     // Poll for account updates instead
     console.warn('[KrakenAdapterV2] Account subscription via polling (no private WS)');
 
-    setInterval(async () => {
+    // CHANGE 2026-01-29: Store interval for cleanup
+    this.accountPollingInterval = setInterval(async () => {
       try {
         const balance = await this.getBalance();
         const positions = await this.getPositions();
@@ -254,7 +255,11 @@ class KrakenAdapterV2 extends IBrokerAdapter {
 
   unsubscribeAll() {
     this.removeAllListeners();
-    // Simple adapter doesn't have unsubscribe method
+    // CHANGE 2026-01-29: Clear polling interval
+    if (this.accountPollingInterval) {
+      clearInterval(this.accountPollingInterval);
+      this.accountPollingInterval = null;
+    }
   }
 
   // =========================================================================

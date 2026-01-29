@@ -125,14 +125,15 @@ class TimeframeManager {
    * Prevents serving stale data during volatile market conditions
    */
   setupCacheCleanup() {
+    // CHANGE 2026-01-29: Assign intervals to instance vars for cleanup
     // Check cache TTL every 10 seconds
-    setInterval(() => {
+    this.cacheCleanupInterval = setInterval(() => {
       this.cleanupExpiredCache();
     }, 10000);
-    
+
     // Check volatility every 5 seconds for cache invalidation
     if (this.config.volatilityCacheInvalidation) {
-      setInterval(() => {
+      this.volatilityCheckInterval = setInterval(() => {
         this.checkVolatilityAndInvalidateCache();
       }, 5000);
     }
@@ -647,7 +648,8 @@ class TimeframeManager {
    * @private
    */
   setupAutoOptimization() {
-    setInterval(() => {
+    // CHANGE 2026-01-29: Assign to instance var for cleanup
+    this.autoOptimizationInterval = setInterval(() => {
       if (this.shouldOptimize()) {
         this.performOptimization();
       }
@@ -800,10 +802,19 @@ class TimeframeManager {
    */
   shutdown() {
     console.log('🛑 TimeframeManager shutting down...');
-    
-    // Clear intervals
+
+    // CHANGE 2026-01-29: Clear ALL intervals
     if (this.optimizationInterval) {
       clearInterval(this.optimizationInterval);
+    }
+    if (this.cacheCleanupInterval) {
+      clearInterval(this.cacheCleanupInterval);
+    }
+    if (this.volatilityCheckInterval) {
+      clearInterval(this.volatilityCheckInterval);
+    }
+    if (this.autoOptimizationInterval) {
+      clearInterval(this.autoOptimizationInterval);
     }
     
     // Final optimization

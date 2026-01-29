@@ -148,13 +148,14 @@ Houston Mission Status: PROTECTED ✅
    * Monitor lock integrity
    */
   startLockMonitoring() {
-    setInterval(() => {
+    // CHANGE 2026-01-29: Store interval for cleanup
+    this.lockMonitorInterval = setInterval(() => {
       try {
         if (!fs.existsSync(this.lockFile)) {
           console.error(`🚨 [${this.botName}] Lock file disappeared! Exiting for safety.`);
           process.exit(1);
         }
-        
+
         const lockData = JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
         if (lockData.token !== this.lockToken || lockData.pid !== this.pid) {
           console.error(`🚨 [${this.botName}] Lock file modified by another process! Exiting for safety.`);
@@ -170,10 +171,16 @@ Houston Mission Status: PROTECTED ✅
    * Release the lock
    */
   releaseLock() {
+    // CHANGE 2026-01-29: Clear monitoring interval
+    if (this.lockMonitorInterval) {
+      clearInterval(this.lockMonitorInterval);
+      this.lockMonitorInterval = null;
+    }
+
     try {
       if (fs.existsSync(this.lockFile)) {
         const lockData = JSON.parse(fs.readFileSync(this.lockFile, 'utf8'));
-        
+
         // Only remove if we own the lock
         if (lockData.pid === this.pid && lockData.token === this.lockToken) {
           fs.unlinkSync(this.lockFile);

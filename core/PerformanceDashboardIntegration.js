@@ -209,7 +209,8 @@ class PerformanceDashboardIntegration extends EventEmitter {
    * 🔄 START REAL-TIME UPDATES: For dashboard
    */
   startRealTimeUpdates() {
-    setInterval(() => {
+    // CHANGE 2026-01-29: Store interval for cleanup
+    this.realTimeUpdateInterval = setInterval(() => {
       try {
         const metrics = this.getLiveMetrics();
         this.emit('dashboardUpdate', metrics);
@@ -217,6 +218,16 @@ class PerformanceDashboardIntegration extends EventEmitter {
         console.error('❌ Real-time update error:', error);
       }
     }, this.config.updateInterval);
+  }
+
+  /**
+   * CHANGE 2026-01-29: Shutdown to clear intervals
+   */
+  shutdown() {
+    if (this.realTimeUpdateInterval) {
+      clearInterval(this.realTimeUpdateInterval);
+      this.realTimeUpdateInterval = null;
+    }
   }
   
   /**
