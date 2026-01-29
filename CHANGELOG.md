@@ -79,11 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lesson: Pipeline enforcement is mandatory - smoke test before commit
 
 ### Fixed
-- **Memory Leak: heartbeatInterval** - run-empire-v2.js (MEMORY FIX)
-  - Problem: heartbeatInterval not cleared in shutdown()
-  - Was only cleared on WebSocket close, not on graceful shutdown
-  - Solution: Added clearInterval in shutdown() function
-  - Forensics verified: priceHistory, rsiHistory, confidenceHistory all bounded
+- **Memory Leak: ALL Interval Leaks** - 6 files (MEMORY FIX)
+  - run-empire-v2.js: heartbeatInterval cleared in shutdown()
+  - TimeFrameManager.js: cacheCleanupInterval, volatilityCheckInterval, autoOptimizationInterval
+  - PerformanceDashboardIntegration.js: realTimeUpdateInterval + added shutdown()
+  - SingletonLock.js: lockMonitorInterval cleared in releaseLock()
+  - KrakenAdapterV2.js: accountPollingInterval cleared in unsubscribeAll()
+  - trai_core.js: analysisInterval, monitoringInterval cleared in shutdown()
+  - Every setInterval now has corresponding clearInterval on cleanup
 
 - **TRAI calculateRelevance slice error** - core/trai_core.js (STABILITY FIX)
   - Problem: "Cannot read properties of undefined (reading 'slice')"
