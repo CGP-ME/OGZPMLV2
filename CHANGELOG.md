@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Candle History Persistence** - run-empire-v2.js (RELIABILITY)
+  - Saves priceHistory to `data/candle-history.json` every 5 new candles
+  - Loads candles from disk on startup (filtered to last 4 hours)
+  - Prevents fat bars on dashboard after restart
+  - Max 200 candles persisted (matches existing trim logic)
+
 - **WebSocket Heartbeat** - run-empire-v2.js (RELIABILITY)
   - Bot sends ping every 30s to dashboard-server
   - Server responds with pong (already existed at dashboard-server.js:96-97)
