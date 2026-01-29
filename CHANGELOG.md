@@ -79,6 +79,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lesson: Pipeline enforcement is mandatory - smoke test before commit
 
 ### Fixed
+- **Memory Leak: heartbeatInterval** - run-empire-v2.js (MEMORY FIX)
+  - Problem: heartbeatInterval not cleared in shutdown()
+  - Was only cleared on WebSocket close, not on graceful shutdown
+  - Solution: Added clearInterval in shutdown() function
+  - Forensics verified: priceHistory, rsiHistory, confidenceHistory all bounded
+
+- **TRAI calculateRelevance slice error** - core/trai_core.js (STABILITY FIX)
+  - Problem: "Cannot read properties of undefined (reading 'slice')"
+  - Solution: Added defensive guard for typeof slice === 'function'
+  - Added optional chaining for query.toLowerCase()
+
 - **invariants.js ESM/CommonJS Conflict** - core/invariants.js (STARTUP FIX)
   - Problem: Mixed `export function` (ESM) with `module.exports` (CommonJS)
   - Caused "module is not defined in ES module scope" error on every startup
