@@ -2973,6 +2973,13 @@ class OGZPrimeV14Bot {
       console.log('🔍 Liveness watchdog interval cleaned up');
     }
 
+    // CHANGE 2026-01-29: Clear heartbeat interval (memory leak fix)
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log('💓 Heartbeat interval cleaned up');
+    }
+
     // 🔥 CRITICAL: Remove event listeners before closing (Change 575 - Memory leak fix)
     if (this.ws) {
       this.ws.removeAllListeners();
