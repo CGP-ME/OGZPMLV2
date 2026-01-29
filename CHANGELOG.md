@@ -98,6 +98,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Caused "module is not defined in ES module scope" error on every startup
   - Solution: Convert to pure CommonJS (function declarations + module.exports)
 
+- **WebSocket 502 Errors on Startup** - start-ogzprime.sh (STARTUP FIX)
+  - Problem: Bot got 502 errors connecting to wss://ogzprime.com/ws after restart
+  - Root cause: pm2 returns before server ready + nginx caches stale upstream state
+  - Solution: Added wait_for_port() to poll localhost:3010 until ready
+  - Solution: Added nginx reload after websocket server starts
+  - Startup now waits for websocket, reloads nginx, then starts bot
+
 - **Dashboard Candles Not Loading** - dashboard-server.js (DASHBOARD FIX)
   - Problem: Chart showed empty/fat bars on page refresh
   - Root cause: `type: 'price'` messages not forwarded (contained candles array)
