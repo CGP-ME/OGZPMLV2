@@ -1102,6 +1102,29 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 
 ---
 
+### CANDLE_PERSISTENCE – Candle History Disk Storage (2026-01-28)
+
+**What:**
+- Bot saves priceHistory to `data/candle-history.json` every 5 new candles
+- On startup, loads candles from disk (filtered to last 4 hours)
+- Prevents fat bars on dashboard after restart
+
+**Why:**
+- priceHistory was in-memory only, lost on every restart
+- Dashboard needs historical candles for proper chart rendering
+- Without persistence, users see empty/fat bar charts until enough candles accumulate
+
+**Code Locations:**
+- `run-empire-v2.js:loadCandleHistory()` - reads from disk, filters stale candles
+- `run-empire-v2.js:saveCandleHistory()` - writes last 200 candles to disk
+- `run-empire-v2.js:399-400` - constructor calls load, initializes save counter
+- `run-empire-v2.js:998-1001` - triggers save every 5 new candles
+
+**File:**
+- `data/candle-history.json` - persisted candle data (max 200 candles)
+
+---
+
 ### PERMS_010 – Web File Permissions
 
 **Symptom:**

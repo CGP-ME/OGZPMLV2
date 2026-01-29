@@ -396,6 +396,8 @@ class OGZPrimeV14Bot {
     this.isRunning = false;
     this.marketData = null;
     this.priceHistory = [];
+    this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
+    this.loadCandleHistory(); // CHANGE 2026-01-28: Load saved candles on startup
 
     // Stale data tracking
     this.staleFeedPaused = false;
@@ -762,6 +764,52 @@ class OGZPrimeV14Bot {
   }
 
   /**
+   * CHANGE 2026-01-28: Load candle history from disk on startup
+   * Prevents fat bars on dashboard after restart
+   */
+  loadCandleHistory() {
+    const fs = require('fs');
+    const path = require('path');
+    const candleFile = path.join(__dirname, 'data', 'candle-history.json');
+
+    try {
+      if (fs.existsSync(candleFile)) {
+        const saved = JSON.parse(fs.readFileSync(candleFile, 'utf8'));
+        if (Array.isArray(saved) && saved.length > 0) {
+          // Filter out candles older than 4 hours (stale data)
+          const fourHoursAgo = Date.now() - (4 * 60 * 60 * 1000);
+          this.priceHistory = saved.filter(c => c.t > fourHoursAgo);
+          console.log(`📂 Loaded ${this.priceHistory.length} candles from disk (filtered from ${saved.length})`);
+        }
+      } else {
+        console.log('📂 No saved candle history found - starting fresh');
+      }
+    } catch (error) {
+      console.error('⚠️ Failed to load candle history:', error.message);
+      this.priceHistory = [];
+    }
+  }
+
+  /**
+   * CHANGE 2026-01-28: Save candle history to disk
+   * Called every 5 new candles to avoid disk thrashing
+   */
+  saveCandleHistory() {
+    const fs = require('fs');
+    const path = require('path');
+    const candleFile = path.join(__dirname, 'data', 'candle-history.json');
+
+    try {
+      // Save last 200 candles
+      const toSave = this.priceHistory.slice(-200);
+      fs.writeFileSync(candleFile, JSON.stringify(toSave));
+      // Silent save - only log errors
+    } catch (error) {
+      console.error('⚠️ Failed to save candle history:', error.message);
+    }
+  }
+
+  /**
    * Start the trading bot
    */
   async start() {
@@ -944,6 +992,13 @@ class OGZPrimeV14Bot {
 
       if (this.priceHistory.length > 200) {
         this.priceHistory = this.priceHistory.slice(-200);
+      }
+
+      // CHANGE 2026-01-28: Save candles to disk every 5 new candles
+      this.candleSaveCounter++;
+      if (this.candleSaveCounter >= 5) {
+        this.saveCandleHistory();
+        this.candleSaveCounter = 0;
       }
     }
 
