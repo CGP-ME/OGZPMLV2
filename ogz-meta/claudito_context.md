@@ -1125,6 +1125,75 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 
 ---
 
+### MEMORY_LEAK_FIX – Interval Cleanup (2026-01-29)
+
+**What:**
+- ALL setInterval calls now have corresponding clearInterval on shutdown
+- 11 intervals across 6 files fixed
+
+**Files Fixed:**
+- `run-empire-v2.js` - heartbeatInterval cleared in shutdown()
+- `core/TimeFrameManager.js` - cacheCleanupInterval, volatilityCheckInterval, autoOptimizationInterval
+- `core/PerformanceDashboardIntegration.js` - realTimeUpdateInterval + added shutdown() method
+- `core/SingletonLock.js` - lockMonitorInterval cleared in releaseLock()
+- `core/KrakenAdapterV2.js` - accountPollingInterval cleared in unsubscribeAll()
+- `core/trai_core.js` - analysisInterval, monitoringInterval cleared in shutdown()
+
+**Why:**
+- Every setInterval without clearInterval leaks memory
+- Long-running bot = unbounded growth = eventual crash
+- Intervals keep callbacks alive, preventing garbage collection
+
+**Rule:**
+- Every setInterval MUST store handle: `this.myInterval = setInterval(...)`
+- Every shutdown/cleanup MUST clear: `clearInterval(this.myInterval)`
+
+---
+
+### TRAI_SLICE_FIX – Defensive Guard (2026-01-29)
+
+**What:**
+- Added defensive guard in `trai_core.js:calculateRelevance()`
+- Checks if messages has `.slice` method before calling it
+
+**Why:**
+- Error: "Cannot read properties of undefined (reading 'slice')"
+- messages can be undefined, null, or non-array
+- Was causing TRAI analysis to fail silently
+
+**Code:**
+```javascript
+if (!messages || !Array.isArray(messages) || messages.length === 0 || typeof messages.slice !== 'function') {
+  return 0;
+}
+```
+
+---
+
+### INVARIANTS_ESM_FIX – Module Syntax (2026-01-29)
+
+**What:**
+- Converted `core/invariants.js` from mixed ESM/CommonJS to pure CommonJS
+
+**Why:**
+- Was mixing `export function` (ESM) with `module.exports` (CommonJS)
+- Caused "module is not defined in ES module scope" on every startup
+- Node.js doesn't allow mixing module systems in same file
+
+**Before (broken):**
+```javascript
+export function assertNoBlockingAI() {...}
+module.exports = {...}
+```
+
+**After (fixed):**
+```javascript
+function assertNoBlockingAI() {...}
+module.exports = { assertNoBlockingAI, ... }
+```
+
+---
+
 ### PERMS_010 – Web File Permissions
 
 **Symptom:**
