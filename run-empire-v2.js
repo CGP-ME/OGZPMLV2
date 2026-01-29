@@ -395,9 +395,21 @@ class OGZPrimeV14Bot {
     // Trading state
     this.isRunning = false;
     this.marketData = null;
-    this.priceHistory = [];
+    this.priceHistory = [];  // 1m candles for trading logic
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     this.loadCandleHistory(); // CHANGE 2026-01-28: Load saved candles on startup
+
+    // CHANGE 2026-01-29: Multi-timeframe candle storage for dashboard
+    // Each timeframe has its own history from native Kraken data
+    this.timeframeHistories = {
+      '1m': [],   // same as priceHistory
+      '5m': [],
+      '15m': [],
+      '30m': [],
+      '1h': [],
+      '1d': []
+    };
+    this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants
 
     // Stale data tracking
     this.staleFeedPaused = false;
@@ -653,6 +665,35 @@ class OGZPrimeV14Bot {
             return;
           }
 
+          // CHANGE 2026-01-29: Handle timeframe change from dashboard
+          if (msg.type === 'timeframe_change') {
+            const newTimeframe = msg.timeframe || '1m';
+            console.log(`📊 Dashboard timeframe changed to: ${newTimeframe}`);
+            this.dashboardTimeframe = newTimeframe;
+
+            // Send historical candles for the new timeframe immediately
+            const candles = this.getCandlesForTimeframe(newTimeframe);
+            this.dashboardWs.send(JSON.stringify({
+              type: 'historical_candles',
+              timeframe: newTimeframe,
+              candles: candles.slice(-100)  // Last 100 candles
+            }));
+            return;
+          }
+
+          // CHANGE 2026-01-29: Handle request for historical data
+          if (msg.type === 'request_historical') {
+            const timeframe = msg.timeframe || '1m';
+            const limit = msg.limit || 100;
+            const candles = this.getCandlesForTimeframe(timeframe);
+            this.dashboardWs.send(JSON.stringify({
+              type: 'historical_candles',
+              timeframe: timeframe,
+              candles: candles.slice(-limit)
+            }));
+            return;
+          }
+
           // CHANGE 665: Handle profile switching and dashboard commands
           if (msg.type === 'command') {
             console.log('📨 Dashboard command received:', msg.command);
@@ -877,9 +918,19 @@ class OGZPrimeV14Bot {
 
       // Subscribe to OHLC events from the broker
       if (this.kraken.on) {
-        this.kraken.on('ohlc', (data) => {
-          console.log('📊 V2: Received OHLC from broker');
-          this.handleMarketData(data);
+        this.kraken.on('ohlc', (eventData) => {
+          // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
+          const timeframe = eventData.timeframe || '1m';
+          const ohlcData = eventData.data || eventData;  // Support old format too
+
+          // Store in timeframe-specific history for dashboard
+          this.storeTimeframeCandle(timeframe, ohlcData);
+
+          // Only process 1m candles through trading logic
+          if (timeframe === '1m') {
+            console.log('📊 V2: Received 1m OHLC from broker');
+            this.handleMarketData(ohlcData);
+          }
         });
 
         this.kraken.on('ticker', (data) => {
@@ -1058,7 +1109,9 @@ class OGZPrimeV14Bot {
               timestamp: Date.now()
             },
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
-            candles: this.priceHistory.slice(-50), // Last 50 candles for chart
+            // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
+            candles: this.getCandlesForTimeframe(this.dashboardTimeframe).slice(-50),
+            timeframe: this.dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             balance: currentBalance,
             position: stateManager.get('position'),
@@ -1075,6 +1128,58 @@ class OGZPrimeV14Bot {
         // Fail silently - don't let dashboard issues affect trading
       }
     }
+  }
+
+  /**
+   * CHANGE 2026-01-29: Store candle in timeframe-specific history for dashboard
+   * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '1d'
+   * @param {Array} ohlcData - Kraken OHLC array [time, etime, o, h, l, c, vwap, vol, count]
+   */
+  storeTimeframeCandle(timeframe, ohlcData) {
+    if (!this.timeframeHistories[timeframe]) {
+      this.timeframeHistories[timeframe] = [];
+    }
+
+    if (!Array.isArray(ohlcData) || ohlcData.length < 8) return;
+
+    const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
+    const candle = {
+      t: parseFloat(time) * 1000,
+      etime: parseFloat(etime) * 1000,
+      o: parseFloat(open),
+      h: parseFloat(high),
+      l: parseFloat(low),
+      c: parseFloat(close),
+      v: parseFloat(volume)
+    };
+
+    const history = this.timeframeHistories[timeframe];
+    const lastCandle = history[history.length - 1];
+
+    // Update existing candle or add new one based on etime
+    if (lastCandle && lastCandle.etime === candle.etime) {
+      history[history.length - 1] = candle;
+    } else {
+      history.push(candle);
+      // Keep max 200 candles per timeframe
+      if (history.length > 200) {
+        this.timeframeHistories[timeframe] = history.slice(-200);
+      }
+    }
+
+    // Sync 1m with priceHistory (trading logic uses this)
+    if (timeframe === '1m') {
+      this.timeframeHistories['1m'] = this.priceHistory;
+    }
+  }
+
+  /**
+   * CHANGE 2026-01-29: Get candles for a specific timeframe (for dashboard)
+   */
+  getCandlesForTimeframe(timeframe) {
+    // Default to 1m if invalid timeframe
+    const tf = this.timeframeHistories[timeframe] ? timeframe : '1m';
+    return this.timeframeHistories[tf] || this.priceHistory;
   }
 
   /**
@@ -1466,30 +1571,30 @@ class OGZPrimeV14Bot {
     }
 
     // V2 ARCHITECTURE: Broadcast TRAI chain-of-thought to dashboard
+    // CHANGE 2026-01-29: Use 'bot_thinking' type to match dashboard handler
     if (this.dashboardWsConnected && this.dashboardWs && decision.decisionContext) {
+      // CHANGE 2026-01-29: Structure matches dashboard handler expectations
+      const reasoning = decision.action === 'HOLD' ?
+        `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${this.config.minTradeConfidence * 100}% minimum` :
+        `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${decision.decisionContext.module} strategy`;
+
       const chainOfThought = {
-        type: 'trai_reasoning',
+        type: 'bot_thinking',
         timestamp: Date.now(),
-        decision: decision.action,
+        message: reasoning,
         confidence: decision.confidence,
-        context: {
-          symbol: decision.decisionContext.symbol,
-          direction: decision.decisionContext.direction,
-          patterns: decision.decisionContext.patterns,
-          patternScores: decision.decisionContext.patternScores,
-          indicators: {
-            rsi: indicators.rsi,
-            macd: indicators.macd,
-            trend: indicators.trend,
-            volatility: indicators.volatility
-          },
+        data: {
+          reasoning: reasoning,
+          pattern: decision.decisionContext.patterns?.[0] || 'Scanning...',
+          rsi: indicators.rsi,
+          trend: indicators.trend,
+          riskScore: decision.decisionContext.riskScore || 0,
+          recommendation: decision.action,
+          finalConfidence: decision.confidence,
+          price: decision.decisionContext.price,
           regime: decision.decisionContext.regime,
           module: decision.decisionContext.module,
-          price: decision.decisionContext.price,
-          brainDirection: decision.decisionContext.brainDirection,
-          reasoning: decision.action === 'HOLD' ?
-            `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${this.config.minTradeConfidence * 100}% minimum` :
-            `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${decision.decisionContext.module} strategy`
+          volatility: indicators.volatility
         }
       };
 
@@ -2043,7 +2148,8 @@ class OGZPrimeV14Bot {
 
     // HOLD means we're uncertain - should have LOW confidence, not high!
     // High confidence should only be for BUY/SELL signals
-    return { action: 'HOLD', confidence: Math.min(0.2, totalConfidence * 0.1) };
+    // CHANGE 2026-01-29: Include decisionContext for chain of thought updates
+    return { action: 'HOLD', confidence: Math.min(0.2, totalConfidence * 0.1), decisionContext };
   }
 
   /**

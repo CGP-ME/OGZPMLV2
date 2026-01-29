@@ -2466,7 +2466,7 @@
         
         <!-- Trading Panel -->
         <div class="trading-panel">
-            <!-- Controls Section -->
+            <!-- CHANGE 2026-01-29: Trading Controls commented out - this is a PROOF display, not trading interface
             <div class="panel-section">
                 <div class="panel-title">Trading Controls</div>
                 <div class="trade-controls">
@@ -2479,8 +2479,6 @@
                     <button class="trade-btn short-btn" onclick="executeTrade('short')">SHORT</button>
                     <button class="trade-btn hedge-btn" onclick="executeTrade('hedge')">HEDGE</button>
                 </div>
-
-                <!-- PAUSE/RESUME Controls -->
                 <div class="trade-controls" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
                     <button class="trade-btn pause-btn" id="pauseBtn" onclick="pauseTrading()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⏸️ PAUSE</button>
                     <button class="trade-btn resume-btn" id="resumeBtn" onclick="resumeTrading()" style="background: linear-gradient(135deg, #10b981, #059669); display: none;">▶️ RESUME</button>
@@ -2488,7 +2486,11 @@
                 <div id="pauseStatus" style="font-size: 11px; color: #f59e0b; margin-top: 5px; display: none;">
                     <span id="pauseReason"></span>
                 </div>
+            </div>
+            END TRADING CONTROLS -->
 
+            <!-- Pattern Recognition Section -->
+            <div class="panel-section">
                 <!-- Pattern Recognition Panel -->
                 <div class="pattern-panel">
                     <div class="panel-title">Pattern Analysis</div>
@@ -2541,7 +2543,7 @@
                     </div>
                 </div>
 
-                <!-- Neural Ensemble Voting -->
+                <!-- CHANGE 2026-01-29: Neural Ensemble Voting commented out for now
                 <div class="neural-ensemble">
                     <div class="panel-title">Neural Ensemble Voting</div>
                     <div class="ensemble-grid">
@@ -2572,6 +2574,7 @@
                         </div>
                     </div>
                 </div>
+                END NEURAL ENSEMBLE -->
             </div>
         </div>
     </div>
@@ -2665,7 +2668,108 @@
             superTrendUp: '#00ff88',
             superTrendDown: '#ff3366'
         };
-        
+
+        // CHANGE 2026-01-29: Pattern descriptions for customer education
+        const PATTERN_DESCRIPTIONS = {
+            // Bullish patterns
+            'double_bottom': {
+                emoji: '📈',
+                name: 'Double Bottom',
+                description: 'Price bounced twice from the same support level, signaling buyers are stepping in. Often precedes upward movement.'
+            },
+            'ascending_triangle': {
+                emoji: '📐',
+                name: 'Ascending Triangle',
+                description: 'Higher lows forming against a flat resistance. Buying pressure increasing - typically breaks upward.'
+            },
+            'bullish_engulfing': {
+                emoji: '🟢',
+                name: 'Bullish Engulfing',
+                description: 'Large green candle completely engulfs previous red candle. Strong reversal signal showing buyers taking control.'
+            },
+            'morning_star': {
+                emoji: '⭐',
+                name: 'Morning Star',
+                description: 'Three-candle reversal pattern: down candle, small body, then up candle. Dawn of a new uptrend.'
+            },
+            'hammer': {
+                emoji: '🔨',
+                name: 'Hammer',
+                description: 'Long lower wick with small body at top. Sellers pushed price down but buyers fought back hard.'
+            },
+            'inverse_head_shoulders': {
+                emoji: '👤',
+                name: 'Inverse Head & Shoulders',
+                description: 'Three troughs with middle lowest. Classic bottoming pattern - neckline break triggers rally.'
+            },
+            // Bearish patterns
+            'double_top': {
+                emoji: '📉',
+                name: 'Double Top',
+                description: 'Price rejected twice from same resistance level. Buyers exhausted - often precedes decline.'
+            },
+            'descending_triangle': {
+                emoji: '📐',
+                name: 'Descending Triangle',
+                description: 'Lower highs against flat support. Selling pressure building - typically breaks downward.'
+            },
+            'bearish_engulfing': {
+                emoji: '🔴',
+                name: 'Bearish Engulfing',
+                description: 'Large red candle completely engulfs previous green. Strong reversal showing sellers taking control.'
+            },
+            'evening_star': {
+                emoji: '🌙',
+                name: 'Evening Star',
+                description: 'Three-candle reversal: up candle, small body, then down candle. End of day for the uptrend.'
+            },
+            'shooting_star': {
+                emoji: '💫',
+                name: 'Shooting Star',
+                description: 'Long upper wick with small body at bottom. Buyers pushed up but sellers slammed it back down.'
+            },
+            'head_shoulders': {
+                emoji: '👤',
+                name: 'Head & Shoulders',
+                description: 'Three peaks with middle highest. Classic topping pattern - neckline break triggers decline.'
+            },
+            // Continuation patterns
+            'flag': {
+                emoji: '🚩',
+                name: 'Flag Pattern',
+                description: 'Brief consolidation after strong move. Price resting before continuing in same direction.'
+            },
+            'pennant': {
+                emoji: '⛳',
+                name: 'Pennant',
+                description: 'Triangular consolidation after strong move. Coiling before explosive breakout continuation.'
+            },
+            'wedge': {
+                emoji: '🔺',
+                name: 'Wedge Pattern',
+                description: 'Converging trendlines showing compression. Breakout direction confirms next major move.'
+            },
+            // Learning patterns
+            'learning_pattern': {
+                emoji: '🧠',
+                name: 'Learning Pattern',
+                description: 'AI has detected a pattern from historical memory. Confidence based on similar past outcomes.'
+            },
+            // Default
+            'unknown': {
+                emoji: '🔍',
+                name: 'Analyzing',
+                description: 'Scanning market structure for recognizable patterns...'
+            }
+        };
+
+        // Helper to get pattern info
+        function getPatternInfo(patternName) {
+            if (!patternName) return PATTERN_DESCRIPTIONS['unknown'];
+            const key = patternName.toLowerCase().replace(/[^a-z_]/g, '_');
+            return PATTERN_DESCRIPTIONS[key] || PATTERN_DESCRIPTIONS['unknown'];
+        }
+
         // ============================================
         // CHART INITIALIZATION
         // ============================================
@@ -2699,7 +2803,16 @@
                 },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
-                    vertLine: { color: 'rgba(255, 215, 0, 0.4)', width: 1, style: 2 },
+                    vertLine: {
+                        color: 'rgba(255, 215, 0, 0.4)',
+                        width: 1,
+                        style: 2,
+                        // CHANGE 2026-01-29: Fix crosshair time label timezone
+                        labelFormatter: (timestamp) => {
+                            const date = new Date(timestamp * 1000);
+                            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        },
+                    },
                     horzLine: { color: 'rgba(255, 215, 0, 0.4)', width: 1, style: 2 },
                 },
                 rightPriceScale: {
@@ -3197,6 +3310,25 @@
                 }
             }
 
+            // CHANGE 2026-01-29: Handle historical candles for timeframe changes
+            else if (data.type === 'historical_candles') {
+                console.log(`📊 Received ${data.candles?.length || 0} candles for ${data.timeframe}`);
+                if (data.candles && data.candles.length > 0) {
+                    // Clear existing chart data and load new timeframe candles
+                    if (candleSeries) candleSeries.setData([]);
+                    if (volumeSeries) volumeSeries.setData([]);
+                    loadHistoricalCandles(data.candles);
+                    window.__historicalLoaded = true;
+
+                    // Update chart title with timeframe
+                    const title = document.getElementById('chartTitle');
+                    if (title) {
+                        const tierText = currentTier === 'ml' ? 'ML VERSION' : 'CORE VERSION';
+                        title.textContent = `${tierText} - ${data.timeframe?.toUpperCase() || '1M'}`;
+                    }
+                }
+            }
+
             // Trade messages
             else if (data.type === 'trade') {
                 const botTier = data.botTier || data.tier || 'ml';
@@ -3287,25 +3419,26 @@
                 alert('Trading RESUMED');
             }
 
-            // Pattern analysis
+            // Pattern analysis - CHANGE 2026-01-29: Enhanced with descriptions
             else if (data.type === 'pattern_analysis') {
                 const pattern = data.pattern || {};
+                const patternInfo = getPatternInfo(pattern.name);
 
-                // Update pattern name
+                // Update pattern name with emoji
                 document.getElementById('currentPatternName').textContent =
-                    pattern.name || 'No Pattern';
+                    `${patternInfo.emoji} ${patternInfo.name}`;
 
-                // Update description with confidence
+                // Update description with confidence and educational content
                 document.getElementById('patternDescription').innerHTML = `
                     <p class="pattern-info"><strong>Confidence:</strong> ${pattern.confidence || 0}%</p>
-                    <p class="pattern-info">${pattern.description || 'Analyzing market structure...'}</p>
+                    <p class="pattern-info" style="color: #ddd; margin-top: 8px;">${patternInfo.description}</p>
                 `;
 
                 // Update pattern memory stats if available
                 if (data.patternMemory) {
                     const mem = data.patternMemory;
                     document.getElementById('patternDescription').innerHTML += `
-                        <p class="pattern-info" style="margin-top: 10px; color: #888;">
+                        <p class="pattern-info" style="margin-top: 10px; color: #888; font-size: 11px;">
                             🧠 ${mem.status} | ${mem.count} patterns learned | ${mem.uniquePatterns} unique
                         </p>
                     `;
@@ -3561,21 +3694,33 @@
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
         }
 
+        // CHANGE 2026-01-29: Improved trade log display for proof
         function addTradeToLog(trade) {
             const tradeLog = document.getElementById('tradeLog');
             const entry = document.createElement('div');
             entry.className = 'trade-log-entry';
 
-            const isProfit = trade.pnl >= 0;
-            const color = tradeColors[trade.type] || '#ffffff';
+            const isBuy = trade.type?.toLowerCase() === 'buy' || trade.direction === 'long';
+            const color = tradeColors[trade.type?.toLowerCase()] || (isBuy ? '#00ff41' : '#ff4444');
+            const price = trade.price ? `$${trade.price.toLocaleString()}` : '';
+
+            let valueDisplay;
+            if (isBuy) {
+                // BUY: Show entry price instead of $0 P&L
+                valueDisplay = `<span style="color: #888;">@ ${price}</span>`;
+            } else {
+                // SELL: Show actual P&L
+                const isProfit = (trade.pnl || 0) >= 0;
+                valueDisplay = `<span class="${isProfit ? 'positive' : 'negative'}">
+                    ${isProfit ? '+' : ''}$${Math.abs(trade.pnl || 0).toFixed(2)}
+                </span>`;
+            }
 
             entry.innerHTML = `
-                <span class="trade-type" style="color: ${color}">${trade.type.toUpperCase()}</span>
-                <span class="${isProfit ? 'positive' : 'negative'}">
-                    ${isProfit ? '+' : ''}$${Math.abs(trade.pnl).toFixed(2)}
-                </span>
+                <span class="trade-type" style="color: ${color}">${(trade.type || 'TRADE').toUpperCase()}</span>
+                ${valueDisplay}
                 <span class="trade-time">${new Date(trade.timestamp).toLocaleTimeString()}</span>
-                <span class="trade-duration">${trade.duration || 'N/A'}</span>
+                ${trade.duration ? `<span class="trade-duration">${trade.duration}</span>` : ''}
             `;
 
             tradeLog.insertBefore(entry, tradeLog.firstChild);
