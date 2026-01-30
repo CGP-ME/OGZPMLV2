@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Dashboard Multi-Timeframe Support** - kraken_adapter_simple.js, run-empire-v2.js (BUG FIX)
+  - All timeframes now display correct candle intervals (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+  - Added multi-timeframe OHLC subscription to Kraken WebSocket
+  - Fixed missing 4H timeframe (240 interval was not subscribed)
+  - Added timeframe-specific candle storage in run-empire-v2.js
+  - Dashboard requests historical candles when switching timeframes
+  - Bot sends correct native Kraken data per timeframe
+
+- **Dashboard Crosshair Timezone** - public/unified-dashboard.html (BUG FIX)
+  - Crosshair now shows local time instead of UTC
+  - Added `timeToLocal()` converter per Lightweight Charts docs
+  - All chart timestamps (candles, indicators, trade markers) display in user's timezone
+
+- **Start Script .env Parsing** - start-ogzprime.sh (BUG FIX)
+  - Fixed parsing of .env files with inline comments
+  - Uses sed to strip comments before export
+
 ### Changed
 - **Dashboard Overhaul for Proof Display** - public/unified-dashboard.html (UI/UX)
   - Hidden Neural Ensemble Voting section via CSS
