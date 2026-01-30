@@ -9,16 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Dashboard Overhaul for Proof Display** - public/unified-dashboard.html (UI/UX)
-  - Commented out Trading Controls section (BUY/SELL/KILL/LONG/SHORT/HEDGE)
+  - Hidden Trade Manager panel entirely (CLOSE ALL, REVERSE, HEDGE, etc.)
     - This is a PROOF display, not an active trading interface
-  - Commented out Neural Ensemble Voting section (not functional)
+  - Hidden Neural Ensemble Voting section via CSS
   - Enhanced Pattern Panel with educational descriptions
     - Added 17 pattern definitions with emoji, name, and plain-English explanations
     - Patterns now display educational content when detected
-  - Improved Trade Log display
-    - BUY trades show entry price instead of $0.00
-    - SELL trades show actual P&L with color coding
-    - Cleaner layout without N/A durations
+  - Improved Trade Log styling
+    - Grid layout with BUY/SELL, value, and timestamp columns
+    - Color-coded left border (green for BUY, red for SELL)
+    - BUY trades show entry price, SELL trades show P&L
+    - Cleaner, more readable layout
 
 ### Fixed
 - **TRAI Chain of Thought Not Updating** - run-empire-v2.js (BUG FIX)
