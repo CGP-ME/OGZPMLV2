@@ -494,18 +494,24 @@ class KrakenAdapterSimple {
           }
         };
 
-        const ohlcSub = {
-          event: 'subscribe',
-          pair: ['XBT/USD'],
-          subscription: {
-            name: 'ohlc',
-            interval: 1  // 1-minute candles for patterns
-          }
-        };
+        // CHANGE 2026-01-29: Subscribe to multiple OHLC timeframes for dashboard
+        // Kraken intervals: 1=1m, 5=5m, 15=15m, 30=30m, 60=1h, 240=4h, 1440=1d
+        const ohlcIntervals = [1, 5, 15, 30, 60, 240, 1440];
 
         this.ws.send(JSON.stringify(tickerSub));
-        this.ws.send(JSON.stringify(ohlcSub));
-        console.log('📊 V2 FIX: Single KrakenAdapter subscribed to ticker + OHLC streams');
+
+        for (const interval of ohlcIntervals) {
+          const ohlcSub = {
+            event: 'subscribe',
+            pair: ['XBT/USD'],
+            subscription: {
+              name: 'ohlc',
+              interval: interval
+            }
+          };
+          this.ws.send(JSON.stringify(ohlcSub));
+        }
+        console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d)');
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that
@@ -586,21 +592,35 @@ class KrakenAdapterSimple {
             }
           }
 
-          // V2 ARCHITECTURE: Handle OHLC data
-          if (Array.isArray(msg) && msg[2] === 'ohlc-1') {
+          // V2 ARCHITECTURE: Handle OHLC data for ALL timeframes
+          // CHANGE 2026-01-29: Support multi-timeframe (ohlc-1, ohlc-5, ohlc-15, ohlc-30, ohlc-60, ohlc-1440)
+          if (Array.isArray(msg) && typeof msg[2] === 'string' && msg[2].startsWith('ohlc-')) {
             // CHANGE 2026-01-23: Update data watchdog timestamp
             this.lastDataReceived = Date.now();
 
             // OHLC data format: [channelID, ohlcArray, channelName, pair]
             const ohlcData = msg[1];
+            const channelName = msg[2];  // e.g., 'ohlc-1', 'ohlc-5', 'ohlc-15'
             const pair = msg[3];
 
-            // Emit raw OHLC for KrakenIBrokerAdapter
+            // Extract interval from channel name (ohlc-1 → 1, ohlc-60 → 60)
+            const interval = parseInt(channelName.split('-')[1], 10);
+
+            // Map Kraken intervals to readable timeframes
+            const intervalToTimeframe = {
+              1: '1m', 5: '5m', 15: '15m', 30: '30m',
+              60: '1h', 240: '4h', 1440: '1d'
+            };
+            const timeframe = intervalToTimeframe[interval] || `${interval}m`;
+
+            // Emit raw OHLC for KrakenIBrokerAdapter with timeframe info
             if (onPriceUpdate) {
               onPriceUpdate({
                 type: 'ohlc',
                 data: ohlcData,
                 pair: pair,
+                timeframe: timeframe,
+                interval: interval,
                 timestamp: Date.now()
               });
             }

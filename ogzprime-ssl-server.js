@@ -157,6 +157,24 @@ wss.on('connection', (ws, req) => {
         });
       }
 
+      // CHANGE 2026-01-29: RELAY Dashboard → Bot (for timeframe changes)
+      if (ws.clientType === 'dashboard' && (data.type === 'timeframe_change' || data.type === 'request_historical')) {
+        const messageStr = JSON.stringify(data);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN &&
+              client.authenticated &&
+              client.clientType === 'bot') {
+            try {
+              client.send(messageStr);
+              console.log(`📊 Relayed ${data.type} (${data.timeframe}) to bot`);
+            } catch (err) {
+              console.error('Error relaying timeframe message to bot:', err.message);
+            }
+          }
+        });
+      }
+
       // 🚀 RELAY: Bot messages → Dashboard clients
       if (ws.clientType === 'bot' && data.type !== 'identify') {
         const messageStr = JSON.stringify(data);

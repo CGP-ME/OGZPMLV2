@@ -5,9 +5,11 @@
 PROJECT_ROOT="/opt/ogzprime/OGZPMLV2"
 cd "$PROJECT_ROOT" || exit 1
 
-# Load environment
+# Load environment (strip comments including inline comments)
 if [ -f "$PROJECT_ROOT/.env" ]; then
-    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+    set -a
+    source <(grep -v '^#' "$PROJECT_ROOT/.env" | sed 's/\s*#.*$//' | grep '=')
+    set +a
 fi
 
 RED='\033[0;31m'

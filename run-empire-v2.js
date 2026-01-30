@@ -407,6 +407,7 @@ class OGZPrimeV14Bot {
       '15m': [],
       '30m': [],
       '1h': [],
+      '4h': [],   // CHANGE 2026-01-29: Added missing 4H timeframe
       '1d': []
     };
     this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants

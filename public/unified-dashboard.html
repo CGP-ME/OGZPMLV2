@@ -2794,7 +2794,17 @@
         // ============================================
         // CHART INITIALIZATION
         // ============================================
-        
+
+        // CHANGE 2026-01-29: Convert UTC timestamp to local time for chart display
+        // Lightweight Charts treats all timestamps as UTC internally, so we need to
+        // convert to "fake UTC" that will display as local time
+        // See: https://tradingview.github.io/lightweight-charts/docs/time-zones
+        function timeToLocal(utcTimestamp) {
+            const d = new Date(utcTimestamp * 1000);
+            return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(),
+                           d.getHours(), d.getMinutes(), d.getSeconds()) / 1000;
+        }
+
         function initChart() {
             console.log('🔍 [Chart] Initializing TradingView chart...');
             
@@ -3042,6 +3052,9 @@
             const timeframeSeconds = 60;  // 1 minute candles
             timestamp = Math.floor(timestamp / timeframeSeconds) * timeframeSeconds;
 
+            // CHANGE 2026-01-29: Convert UTC to local time for chart display
+            timestamp = timeToLocal(timestamp);
+
             // Update candle
             if (data.candle) {
                 const candle = {
@@ -3136,10 +3149,12 @@
         
         function loadHistoricalCandles(candles) {
             if (!candleSeries || !candles || !candles.length) return;
-            
+
             const data = candles.map(c => {
                 let t = c.t || c.timestamp;
                 if (t > 9999999999) t = Math.floor(t / 1000);
+                // CHANGE 2026-01-29: Convert UTC to local time for chart display
+                t = timeToLocal(t);
                 return {
                     time: t,
                     open: parseFloat(c.o || c.open),
@@ -3801,8 +3816,11 @@
 
             // Plot marker on the chart
             const isLong = trade.type === 'BUY' || trade.side === 'buy' || trade.direction === 'long';
+            // CHANGE 2026-01-29: Convert trade timestamp to local time for chart
+            let tradeTime = trade.timestamp ? Math.floor(trade.timestamp / 1000) : Math.floor(Date.now() / 1000);
+            tradeTime = timeToLocal(tradeTime);
             const marker = {
-                time: trade.timestamp ? Math.floor(trade.timestamp / 1000) : Math.floor(Date.now() / 1000),
+                time: tradeTime,
                 position: isLong ? 'belowBar' : 'aboveBar',
                 color: isLong ? '#00ff88' : '#ff3366',
                 shape: isLong ? 'arrowUp' : 'arrowDown',

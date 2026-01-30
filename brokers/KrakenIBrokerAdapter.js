@@ -255,9 +255,12 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
           // ohlcData format: [time, etime, open, high, low, close, vwap, volume, count]
           const ohlcData = data.data;
           const pair = data.pair;
+          // CHANGE 2026-01-29: Extract timeframe from multi-timeframe subscription
+          const timeframe = data.timeframe || '1m';
 
           // V2 ARCHITECTURE: Emit raw event for subscribers (like run-empire-v2)
-          this.emit('ohlc', ohlcData);
+          // CHANGE 2026-01-29: Include timeframe in emitted event
+          this.emit('ohlc', { data: ohlcData, timeframe: timeframe });
 
           // Also process for callback if provided
           if (callback && ohlcData) {
