@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Dashboard Overhaul for Proof Display** - public/unified-dashboard.html (UI/UX)
-  - Hidden Trade Manager panel entirely (CLOSE ALL, REVERSE, HEDGE, etc.)
-    - This is a PROOF display, not an active trading interface
   - Hidden Neural Ensemble Voting section via CSS
   - Enhanced Pattern Panel with educational descriptions
     - Added 17 pattern definitions with emoji, name, and plain-English explanations
