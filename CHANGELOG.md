@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses sed to strip comments before export
 
 ### Changed
+- **Dashboard Pattern SVG Visualizations** - public/unified-dashboard.html (UI/UX)
+  - Added SVG visual representations for 17 chart patterns
+  - Pattern Analysis box now shows graphical pattern diagram (not just text)
+  - Patterns include: double bottom/top, triangles, engulfing, hammer, H&S, flags, etc.
+  - Trade log now shows BUY/SELL (not LONG/SHORT) for spot trading consistency
+  - Right panel font sizes increased from 10-11px to 12-13px for readability
+  - Enhanced pattern visual container with background and border styling
+
 - **Dashboard Overhaul for Proof Display** - public/unified-dashboard.html (UI/UX)
   - Hidden Neural Ensemble Voting section via CSS
   - Enhanced Pattern Panel with educational descriptions
