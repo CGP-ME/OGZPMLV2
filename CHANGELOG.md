@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - WebSocket provides real-time updates, REST API provides history
   - 1D/4H timeframes now show proper historical bars, not just current day
 
+- **Dashboard Indicators from Historical Data** - public/unified-dashboard.html (BUG FIX)
+  - Indicators (EMA, BB, VWAP) now calculated from historical candles
+  - Added client-side calculateEMA(), calculateBollingerBands(), calculateVWAP()
+  - Indicator lines are now smooth curves, not stepped/jagged
+  - All indicator series populated with setData() on historical load
+
 - **Dashboard Crosshair Timezone** - public/unified-dashboard.html (BUG FIX)
   - Crosshair now shows local time instead of UTC
   - Added `timeToLocal()` converter per Lightweight Charts docs
