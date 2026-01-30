@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Misleading LONG/SHORT Labels on SPOT Market** - run-empire-v2.js (ACCURACY)
+  - On SPOT crypto, you can only BUY coins or SELL coins you own
+  - Bot was displaying "SHORT" when selling, implying margin shorting
+  - Added `getDirectionDisplayLabel()` helper to detect market type
+  - SPOT crypto now displays BUY/SELL (accurate for spot trading)
+  - Options/Futures will display LONG/SHORT (accurate for derivatives)
+  - Updated comments to clarify SPOT market limitations
+
 - **Dashboard Multi-Timeframe Support** - kraken_adapter_simple.js, run-empire-v2.js (BUG FIX)
   - All timeframes now display correct candle intervals (1m, 5m, 15m, 30m, 1h, 4h, 1d)
   - Added multi-timeframe OHLC subscription to Kraken WebSocket
