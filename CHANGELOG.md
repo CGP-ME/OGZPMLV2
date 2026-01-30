@@ -18,11 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dashboard Multi-Timeframe Support** - kraken_adapter_simple.js, run-empire-v2.js (BUG FIX)
   - All timeframes now display correct candle intervals (1m, 5m, 15m, 30m, 1h, 4h, 1d)
-  - Added multi-timeframe OHLC subscription to Kraken WebSocket
+  - Added multi-timeframe OHLC subscription to Kraken WebSocket (real-time updates)
+  - Added `getHistoricalOHLC()` REST API call for historical candle data
   - Fixed missing 4H timeframe (240 interval was not subscribed)
-  - Added timeframe-specific candle storage in run-empire-v2.js
-  - Dashboard requests historical candles when switching timeframes
-  - Bot sends correct native Kraken data per timeframe
+  - Timeframe changes now fetch actual historical data from Kraken REST API
+  - WebSocket provides real-time updates, REST API provides history
+  - 1D/4H timeframes now show proper historical bars, not just current day
 
 - **Dashboard Crosshair Timezone** - public/unified-dashboard.html (BUG FIX)
   - Crosshair now shows local time instead of UTC
