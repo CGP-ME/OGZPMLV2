@@ -2865,13 +2865,16 @@
                 },
                 localization: {
                     priceFormatter: price => '$' + price.toFixed(2),
-                    // CHANGE 2026-01-30: Use getUTCHours since timestamps are pre-converted via timeToLocal()
-                    // timeToLocal() stores local time as "fake UTC", so we read UTC values directly
+                    // CHANGE 2026-01-30: Use getUTC* since timestamps are pre-converted via timeToLocal()
+                    // Format: "Jan 29 16:37" - compact date + time for all timeframes
                     timeFormatter: (timestamp) => {
                         const date = new Date(timestamp * 1000);
+                        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        const month = months[date.getUTCMonth()];
+                        const day = date.getUTCDate();
                         const hours = date.getUTCHours().toString().padStart(2, '0');
                         const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-                        return `${hours}:${minutes}`;
+                        return `${month} ${day} ${hours}:${minutes}`;
                     },
                 },
                 handleScroll: {
