@@ -670,37 +670,57 @@
         .positive { color: var(--profit-color) !important; }
         .negative { color: var(--loss-color) !important; }
         
-        /* Trade Log */
+        /* Trade Log - CHANGE 2026-01-29: Cleaner layout for proof display */
         .trade-log {
             max-height: 200px;
             overflow-y: auto;
             margin-top: 10px;
+            padding: 5px;
         }
 
         .trade-log-entry {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 60px 1fr auto;
+            gap: 10px;
             align-items: center;
-            padding: 8px;
-            margin-bottom: 5px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 5px;
-            font-size: 13px;  /* Increased for readability */
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+            font-size: 13px;
+            border-left: 3px solid transparent;
+        }
+
+        .trade-log-entry:has(.trade-type[style*="00ff41"]) {
+            border-left-color: #00ff41;
+        }
+
+        .trade-log-entry:has(.trade-type[style*="ff4444"]) {
+            border-left-color: #ff4444;
         }
 
         .trade-type {
             font-weight: 700;
             text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .trade-value {
+            font-weight: 600;
+            text-align: center;
         }
 
         .trade-time {
             color: #888;
-            font-size: 12px;  /* Increased for readability */
+            font-size: 11px;
+            text-align: right;
         }
 
         .trade-duration {
             color: #666;
-            font-size: 12px;  /* Increased for readability */
+            font-size: 11px;
+            margin-left: 5px;
         }
 
         /* Chain of Thought */
@@ -765,8 +785,9 @@
             line-height: 1.4;
         }
 
-        /* Neural Ensemble */
+        /* Neural Ensemble - HIDDEN: Commented out for proof display */
         .neural-ensemble {
+            display: none; /* CHANGE 2026-01-29: Hidden for proof-only display */
             margin-top: 20px;
         }
         
@@ -1473,8 +1494,9 @@
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
-        /* Trade Manager Panel */
+        /* Trade Manager Panel - HIDDEN: This is a PROOF dashboard, not trading interface */
         .trade-manager {
+            display: none; /* CHANGE 2026-01-29: Hidden for proof-only display */
             position: fixed;
             top: 80px;
             left: 10px;
@@ -2807,11 +2829,7 @@
                         color: 'rgba(255, 215, 0, 0.4)',
                         width: 1,
                         style: 2,
-                        // CHANGE 2026-01-29: Fix crosshair time label timezone
-                        labelFormatter: (timestamp) => {
-                            const date = new Date(timestamp * 1000);
-                            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        },
+                        labelVisible: true,
                     },
                     horzLine: { color: 'rgba(255, 215, 0, 0.4)', width: 1, style: 2 },
                 },
@@ -2838,10 +2856,12 @@
                 },
                 localization: {
                     priceFormatter: price => '$' + price.toFixed(2),
-                    // CHANGE 2026-01-21: Format time in local timezone
+                    // CHANGE 2026-01-29: Format time consistently in 24-hour local time
                     timeFormatter: (timestamp) => {
                         const date = new Date(timestamp * 1000);
-                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const hours = date.getHours().toString().padStart(2, '0');
+                        const minutes = date.getMinutes().toString().padStart(2, '0');
+                        return `${hours}:${minutes}`;
                     },
                 },
                 handleScroll: {
@@ -3706,21 +3726,20 @@
 
             let valueDisplay;
             if (isBuy) {
-                // BUY: Show entry price instead of $0 P&L
-                valueDisplay = `<span style="color: #888;">@ ${price}</span>`;
+                // BUY: Show entry price
+                valueDisplay = `@ ${price}`;
             } else {
-                // SELL: Show actual P&L
-                const isProfit = (trade.pnl || 0) >= 0;
-                valueDisplay = `<span class="${isProfit ? 'positive' : 'negative'}">
-                    ${isProfit ? '+' : ''}$${Math.abs(trade.pnl || 0).toFixed(2)}
-                </span>`;
+                // SELL: Show actual P&L with color
+                const pnl = trade.pnl || 0;
+                const isProfit = pnl >= 0;
+                const pnlClass = isProfit ? 'positive' : 'negative';
+                valueDisplay = `<span class="${pnlClass}">${isProfit ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}</span>`;
             }
 
             entry.innerHTML = `
                 <span class="trade-type" style="color: ${color}">${(trade.type || 'TRADE').toUpperCase()}</span>
-                ${valueDisplay}
-                <span class="trade-time">${new Date(trade.timestamp).toLocaleTimeString()}</span>
-                ${trade.duration ? `<span class="trade-duration">${trade.duration}</span>` : ''}
+                <span class="trade-value">${valueDisplay}</span>
+                <span class="trade-time">${new Date(trade.timestamp).toLocaleTimeString()}${trade.duration ? ` · ${trade.duration}` : ''}</span>
             `;
 
             tradeLog.insertBefore(entry, tradeLog.firstChild);
