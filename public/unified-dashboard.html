@@ -3151,6 +3151,58 @@
             }
         }
         
+        // CHANGE 2026-01-30: Calculate indicators from historical candle data
+        function calculateEMA(closes, period) {
+            const k = 2 / (period + 1);
+            const ema = [];
+            let prev = closes[0];
+            for (let i = 0; i < closes.length; i++) {
+                if (i < period - 1) {
+                    // Not enough data yet, use SMA
+                    const slice = closes.slice(0, i + 1);
+                    prev = slice.reduce((a, b) => a + b, 0) / slice.length;
+                } else {
+                    prev = closes[i] * k + prev * (1 - k);
+                }
+                ema.push(prev);
+            }
+            return ema;
+        }
+
+        function calculateBollingerBands(closes, period = 20, stdDev = 2) {
+            const bands = { upper: [], middle: [], lower: [] };
+            for (let i = 0; i < closes.length; i++) {
+                if (i < period - 1) {
+                    bands.upper.push(null);
+                    bands.middle.push(null);
+                    bands.lower.push(null);
+                } else {
+                    const slice = closes.slice(i - period + 1, i + 1);
+                    const sma = slice.reduce((a, b) => a + b, 0) / period;
+                    const variance = slice.reduce((sum, val) => sum + Math.pow(val - sma, 2), 0) / period;
+                    const std = Math.sqrt(variance);
+                    bands.middle.push(sma);
+                    bands.upper.push(sma + stdDev * std);
+                    bands.lower.push(sma - stdDev * std);
+                }
+            }
+            return bands;
+        }
+
+        function calculateVWAP(candles) {
+            const vwap = [];
+            let cumVolume = 0;
+            let cumTP = 0;
+            for (let i = 0; i < candles.length; i++) {
+                const tp = (candles[i].high + candles[i].low + candles[i].close) / 3;
+                const vol = candles[i].volume || 1;
+                cumVolume += vol;
+                cumTP += tp * vol;
+                vwap.push(cumVolume > 0 ? cumTP / cumVolume : tp);
+            }
+            return vwap;
+        }
+
         function loadHistoricalCandles(candles) {
             if (!candleSeries || !candles || !candles.length) return;
 
@@ -3165,12 +3217,49 @@
                     high: parseFloat(c.h || c.high),
                     low: parseFloat(c.l || c.low),
                     close: parseFloat(c.c || c.close),
+                    volume: parseFloat(c.v || c.volume || 0),
                 };
             });
-            
+
             candleSeries.setData(data);
             lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
             console.log(`✅ Loaded ${data.length} historical candles`);
+
+            // CHANGE 2026-01-30: Calculate and display indicators from historical data
+            if (data.length > 20) {
+                const closes = data.map(d => d.close);
+                const times = data.map(d => d.time);
+
+                // EMAs
+                const ema20 = calculateEMA(closes, 20);
+                const ema50 = calculateEMA(closes, 50);
+                const ema200 = calculateEMA(closes, 200);
+
+                ema20Series.setData(ema20.map((v, i) => ({ time: times[i], value: v })));
+                ema50Series.setData(ema50.map((v, i) => ({ time: times[i], value: v })));
+                ema200Series.setData(ema200.map((v, i) => ({ time: times[i], value: v })));
+
+                // Bollinger Bands
+                const bb = calculateBollingerBands(closes, 20, 2);
+                bbUpperSeries.setData(bb.upper.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                bbMiddleSeries.setData(bb.middle.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                bbLowerSeries.setData(bb.lower.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+
+                // VWAP
+                const vwap = calculateVWAP(data);
+                vwapSeries.setData(vwap.map((v, i) => ({ time: times[i], value: v })));
+
+                console.log(`✅ Calculated indicators for ${data.length} candles`);
+            }
+
+            // Volume bars
+            if (volumeSeries && data.some(d => d.volume > 0)) {
+                volumeSeries.setData(data.map(d => ({
+                    time: d.time,
+                    value: d.volume,
+                    color: d.close >= d.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)',
+                })));
+            }
 
             // CHANGE 2026-01-21: Auto-fit chart to show reasonable detail
             // Show last 50 candles by default for good zoom level
