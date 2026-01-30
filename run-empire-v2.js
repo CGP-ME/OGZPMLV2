@@ -167,6 +167,28 @@ const TierFeatureFlags = require('./TierFeatureFlags'); // Keep direct - in root
 const OgzTpoIntegration = loader.get('core', 'OgzTpoIntegration');
 
 /**
+ * CHANGE 2026-01-29: Get correct display labels based on market type
+ * - SPOT crypto: BUY/SELL (no shorting possible)
+ * - Futures/Options/Margin: LONG/SHORT (actual directional positions)
+ *
+ * This prevents misleading labels like "SHORT" when we're just selling on spot.
+ * @param {string} direction - 'buy' or 'sell'
+ * @param {string} assetType - 'crypto', 'options', 'futures', etc.
+ * @returns {string} Display label for the direction
+ */
+function getDirectionDisplayLabel(direction, assetType = 'crypto') {
+  const isSell = direction === 'sell' || direction === 'SELL';
+
+  // For spot crypto, use BUY/SELL (honest about what's actually happening)
+  if (assetType === 'crypto') {
+    return isSell ? 'SELL' : 'BUY';
+  }
+
+  // For futures/options/margin, use LONG/SHORT (actual directional positions)
+  return isSell ? 'SHORT' : 'LONG';
+}
+
+/**
  * Main Trading Bot Orchestrator
  * Coordinates all modules for production trading
  */
@@ -1429,9 +1451,10 @@ class OGZPrimeV14Bot {
     );
 
     // CHANGE 625: Fix directional confusion - TradingBrain doesn't know about positions
-    // TradingBrain returns 'sell' when bearish, but we CAN'T SHORT (forbidden by tier flags)
-    // So translate 'sell' to 'hold' when we have no position (can't open shorts)
-    // Let MaxProfitManager handle exits when we have a position
+    // CHANGE 2026-01-29: Updated comment - "shorts forbidden" was misleading
+    // On SPOT market, you can only SELL what you OWN - no shorting possible
+    // So 'sell' with no position = nothing to sell = HOLD
+    // 'sell' with position = close position (sell our coins)
     let tradingDirection = brainDecision.direction; // 'buy', 'sell', or 'hold'
 
     // CHANGE 2025-12-11: Use StateManager for position reads
@@ -1439,8 +1462,8 @@ class OGZPrimeV14Bot {
     console.log(`📊 DEBUG: currentPosition=${currentPosition}, tradingDirection=${tradingDirection}`);
 
     if (tradingDirection === 'sell' && currentPosition === 0) {
-      // Can't open SHORT positions - convert to HOLD
-      console.log('🚫 TradingBrain said SELL but shorts forbidden - converting to HOLD');
+      // SPOT MARKET: Can only sell what we own - no position means nothing to sell
+      console.log('🚫 TradingBrain said SELL but no position to sell (SPOT market) - converting to HOLD');
       tradingDirection = 'hold';
     } else if (tradingDirection === 'sell' && currentPosition > 0) {
       // CHANGE 638: Allow SELL to proceed when we have a position
@@ -1907,9 +1930,11 @@ class OGZPrimeV14Bot {
     const minConfidence = this.config.minTradeConfidence * 100;
 
     // CHANGE 2025-12-11: Pass 1 - Add decision context for visibility
+    // CHANGE 2026-01-29: Use correct display labels based on market type
+    const assetType = this.kraken?.getAssetType?.() || 'crypto';
     const decisionContext = tradingOptimizations.createDecisionContext({
       symbol: this.tradingPair || 'XBT/USD',
-      direction: brainDirection === 'sell' ? 'SHORT' : 'LONG',
+      direction: getDirectionDisplayLabel(brainDirection, assetType),
       confidence: totalConfidence,
       patterns: patterns || [],
       patternScores: confidenceData.patternScores || {},
