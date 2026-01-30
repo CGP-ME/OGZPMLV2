@@ -232,6 +232,59 @@ class KrakenAdapterSimple {
     this.requestTimestamps.push(Date.now());
   }
 
+  /**
+   * CHANGE 2026-01-30: Fetch historical OHLC candles from Kraken REST API
+   * This provides actual historical data, not just real-time WebSocket updates
+   * @param {string} pair - Trading pair (e.g., 'XBTUSD', 'ETHUSD')
+   * @param {number} interval - Candle interval in minutes (1, 5, 15, 30, 60, 240, 1440)
+   * @param {number} count - Number of candles to fetch (max ~720)
+   * @returns {Array} Array of OHLC candles
+   */
+  async getHistoricalOHLC(pair = 'XBTUSD', interval = 1, count = 200) {
+    try {
+      // Calculate 'since' timestamp to get approximately 'count' candles
+      const intervalMs = interval * 60 * 1000;
+      const since = Math.floor((Date.now() - (count * intervalMs)) / 1000);
+
+      const url = `${this.baseUrl}/0/public/OHLC?pair=${pair}&interval=${interval}&since=${since}`;
+      console.log(`📊 [Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
+
+      const response = await axios.get(url);
+
+      if (response.data.error && response.data.error.length > 0) {
+        throw new Error(`OHLC error: ${response.data.error.join(', ')}`);
+      }
+
+      // Kraken returns { result: { XXBTZUSD: [[time, open, high, low, close, vwap, volume, count], ...], last: ... } }
+      const result = response.data.result;
+      const pairKey = Object.keys(result).find(k => k !== 'last');
+
+      if (!pairKey || !result[pairKey]) {
+        console.warn(`⚠️ [Kraken REST] No OHLC data for ${pair}`);
+        return [];
+      }
+
+      const candles = result[pairKey];
+      console.log(`✅ [Kraken REST] Received ${candles.length} historical candles for ${pair} @ ${interval}m`);
+
+      // Convert to our standard format: { t, etime, o, h, l, c, v }
+      // Kraken format: [time, open, high, low, close, vwap, volume, count]
+      return candles.map(c => ({
+        t: parseFloat(c[0]) * 1000,       // Start time in ms
+        etime: (parseFloat(c[0]) + interval * 60) * 1000, // End time in ms
+        o: parseFloat(c[1]),
+        h: parseFloat(c[2]),
+        l: parseFloat(c[3]),
+        c: parseFloat(c[4]),
+        v: parseFloat(c[6])
+      }));
+
+    } catch (error) {
+      console.error(`❌ [Kraken REST] Failed to fetch OHLC: ${error.message}`);
+      return [];
+    }
+  }
+
   async getAccountBalance() {
     const response = await this.makePrivateRequest('/0/private/Balance');
     if (response.error && response.error.length > 0) {

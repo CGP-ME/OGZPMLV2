@@ -688,32 +688,25 @@ class OGZPrimeV14Bot {
             return;
           }
 
-          // CHANGE 2026-01-29: Handle timeframe change from dashboard
+          // CHANGE 2026-01-30: Handle timeframe change from dashboard
+          // Fetch REAL historical data from Kraken REST API, not just cached WebSocket data
           if (msg.type === 'timeframe_change') {
             const newTimeframe = msg.timeframe || '1m';
             console.log(`📊 Dashboard timeframe changed to: ${newTimeframe}`);
             this.dashboardTimeframe = newTimeframe;
 
-            // Send historical candles for the new timeframe immediately
-            const candles = this.getCandlesForTimeframe(newTimeframe);
-            this.dashboardWs.send(JSON.stringify({
-              type: 'historical_candles',
-              timeframe: newTimeframe,
-              candles: candles.slice(-100)  // Last 100 candles
-            }));
+            // Fetch historical candles from Kraken REST API
+            this.fetchAndSendHistoricalCandles(newTimeframe, 200);
             return;
           }
 
-          // CHANGE 2026-01-29: Handle request for historical data
+          // CHANGE 2026-01-30: Handle request for historical data
           if (msg.type === 'request_historical') {
             const timeframe = msg.timeframe || '1m';
-            const limit = msg.limit || 100;
-            const candles = this.getCandlesForTimeframe(timeframe);
-            this.dashboardWs.send(JSON.stringify({
-              type: 'historical_candles',
-              timeframe: timeframe,
-              candles: candles.slice(-limit)
-            }));
+            const limit = msg.limit || 200;
+
+            // Fetch historical candles from Kraken REST API
+            this.fetchAndSendHistoricalCandles(timeframe, limit);
             return;
           }
 
@@ -1203,6 +1196,64 @@ class OGZPrimeV14Bot {
     // Default to 1m if invalid timeframe
     const tf = this.timeframeHistories[timeframe] ? timeframe : '1m';
     return this.timeframeHistories[tf] || this.priceHistory;
+  }
+
+  /**
+   * CHANGE 2026-01-30: Fetch historical candles from Kraken REST API and send to dashboard
+   * This is the PROPER way to get historical data - REST API, not just WebSocket cache
+   * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '4h', '1d'
+   * @param {number} limit - Number of candles to fetch
+   */
+  async fetchAndSendHistoricalCandles(timeframe, limit = 200) {
+    try {
+      if (!this.kraken || !this.dashboardWs) {
+        console.warn('⚠️ Cannot fetch historical candles - broker or dashboard not connected');
+        return;
+      }
+
+      console.log(`📊 Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
+
+      // Fetch from Kraken REST API via broker adapter
+      const symbol = process.env.TRADING_PAIR || 'BTC/USD';
+      const candles = await this.kraken.getCandles(symbol, timeframe, limit);
+
+      if (candles && candles.length > 0) {
+        // Update our local cache with the fetched data
+        this.timeframeHistories[timeframe] = candles.slice(-200);
+
+        // Send to dashboard
+        this.dashboardWs.send(JSON.stringify({
+          type: 'historical_candles',
+          timeframe: timeframe,
+          candles: candles
+        }));
+
+        console.log(`✅ Sent ${candles.length} historical ${timeframe} candles to dashboard`);
+      } else {
+        console.warn(`⚠️ No historical candles returned for ${timeframe}`);
+        // Fall back to cached WebSocket data if available
+        const cached = this.getCandlesForTimeframe(timeframe);
+        if (cached.length > 0) {
+          this.dashboardWs.send(JSON.stringify({
+            type: 'historical_candles',
+            timeframe: timeframe,
+            candles: cached
+          }));
+          console.log(`📊 Sent ${cached.length} cached ${timeframe} candles as fallback`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to fetch historical ${timeframe} candles:`, error.message);
+      // Fall back to cached data
+      const cached = this.getCandlesForTimeframe(timeframe);
+      if (cached.length > 0 && this.dashboardWs) {
+        this.dashboardWs.send(JSON.stringify({
+          type: 'historical_candles',
+          timeframe: timeframe,
+          candles: cached
+        }));
+      }
+    }
   }
 
   /**

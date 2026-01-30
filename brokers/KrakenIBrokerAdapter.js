@@ -214,8 +214,19 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   async getCandles(symbol, timeframe = '1m', limit = 100) {
-    // kraken_adapter_simple doesn't have getCandles, would need REST call
-    throw new Error('[KrakenIBroker] getCandles not implemented - use subscribeToCandles for real-time');
+    // CHANGE 2026-01-30: Implement proper historical candle fetching via REST API
+    // Convert symbol to Kraken format (BTC/USD -> XBTUSD)
+    const krakenPair = this.toBrokerSymbol(symbol).replace('/', '');
+
+    // Convert timeframe to Kraken interval (minutes)
+    const timeframeToInterval = {
+      '1m': 1, '5m': 5, '15m': 15, '30m': 30,
+      '1h': 60, '4h': 240, '1d': 1440
+    };
+    const interval = timeframeToInterval[timeframe] || 1;
+
+    console.log(`📊 [KrakenIBroker] Fetching ${limit} historical candles for ${symbol} @ ${timeframe}`);
+    return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit);
   }
 
   async getOrderBook(symbol, depth = 20) {
