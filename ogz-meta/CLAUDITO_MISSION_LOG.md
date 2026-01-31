@@ -2,6 +2,65 @@
 
 ---
 
+## Session: January 31, 2026
+## Goal: Fix Dashboard WebSocket Silent Death
+
+### Current Status
+**HEARTBEAT HARDENED** - Added aggressive watchdog to prevent silent WebSocket death
+
+### Problem Analysis
+Dashboard kept losing connection. User had to manually restart bot. Unacceptable for launch.
+
+**Root Cause**: WebSocket dying silently - no `close` event fired, so reconnection never triggered. Old heartbeat (30s ping, 45s timeout) wasn't detecting dead connections.
+
+**Evidence**:
+- 6+ hour gaps between WebSocket reconnections in logs
+- Zero "Heartbeat timeout" messages (heartbeat never triggered)
+- 32 PM2 restarts accumulated (manual interventions)
+
+### Fixes Implemented
+
+#### FIX #1: Aggressive Heartbeat
+- **File**: `run-empire-v2.js:786-860`
+- **Old**: Ping every 30s, timeout 45s
+- **New**: Ping every 15s, timeout 30s (miss 2 pings = dead)
+- **Result**: Faster detection of stale connections
+
+#### FIX #2: Data Watchdog
+- **File**: `run-empire-v2.js:843-857`
+- **Problem**: Socket could appear "open" but receive no data
+- **Solution**: Track `lastDashboardMessageReceived`, force reconnect if no messages for 60s
+- **Result**: Catches zombie connections that heartbeat might miss
+
+#### FIX #3: Faster Reconnection
+- **File**: `run-empire-v2.js:631-646`
+- **Old**: Reconnect after 5s delay
+- **New**: Reconnect after 2s delay
+- **Result**: Faster recovery from disconnections
+
+#### FIX #4: Message Tracking
+- **File**: `run-empire-v2.js:650`
+- **Added**: `this.lastDashboardMessageReceived = Date.now()` on every message
+- **Result**: Data watchdog now has accurate activity tracking
+
+### Files Modified
+- `run-empire-v2.js` (+40 lines, heartbeat/watchdog logic)
+
+### Validation Status
+- ✅ Syntax valid
+- ✅ Bot started successfully
+- ✅ New heartbeat message: "ping every 15s, pong timeout 30s, data timeout 60s"
+- ✅ Dashboard WebSocket connected
+- ✅ Data flowing to dashboard
+- 🔄 Long-term stability pending (needs 24h+ uptime test)
+
+### Context for Next Mission
+- WebSocket should now auto-recover within 60s max
+- If connection dies, expect logs: `[Heartbeat] TIMEOUT` or `[Watchdog] NO DATA`
+- Monitor for 24h to confirm fix holds
+
+---
+
 ## Session: January 27, 2025
 ## Goal: Dashboard WebSocket Message Forwarding Fix
 
