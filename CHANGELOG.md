@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **TRAI Chat Returning JSON Instead of Text** - trai_brain/prompt_schemas.js, trai_brain/trai_core.js (BUG FIX)
+  - Root cause: ALL queries got prompt "You must respond in strict JSON"
+  - LLM was obeying the instruction and returning JSON blobs in chat
+  - Added `chat` schema type for conversational responses (no JSON required)
+  - Changed `chooseSchema()` to default to chat mode for normal queries
+  - Only use structured JSON for explicit planning keywords (plan, proposal, strategy)
+  - Built conversational prompt for chat: natural language, not JSON schema
+  - Result: TRAI chat now responds in plain English, not JSON
+
 - **V2 Architecture: Remove BrokerFactory Bypass** - run-empire-v2.js (ARCHITECTURE)
   - AI assistants had added fallback that created KrakenAdapterSimple directly
   - This violated V2 architecture where BrokerFactory is SINGLE SOURCE OF TRUTH
