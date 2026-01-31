@@ -18,16 +18,10 @@ The V2 architecture establishes **BrokerFactory** as the single source of truth 
 
 3. **Clean Data Flow**
    ```
-   MARKET DATA (single connection per broker):
-   Kraken WS → kraken_adapter_simple.js → Bot (run-empire-v2.js)
-
-   DASHBOARD RELAY (separate WebSocket server):
-   Bot → ogzprime-ssl-server.js (port 3010) → Dashboard
+   Market → Broker Adapter → BrokerFactory → Bot → Dashboard
+                    ↓
+              (Single WebSocket)
    ```
-
-   Note: "Single WebSocket" refers to market data - one Kraken connection,
-   not multiple modules connecting independently. The dashboard relay is
-   a separate concern handled by ogz-websocket.
 
 ### Implementation Details
 
@@ -121,7 +115,7 @@ The V2 architecture includes real-time TRAI decision reasoning broadcast:
 3. **WebSocket Message**
    ```javascript
    {
-     type: 'bot_thinking',  // Changed from 'trai_reasoning' - 2026-01-29
+     type: 'trai_reasoning',
      decision: 'BUY',
      confidence: 85.2,
      context: {
@@ -214,5 +208,5 @@ broker.on('ohlc', handleData);
 
 ---
 
-*Last Updated: 2026-01-31*
-*Version: 2.1.0*
+*Last Updated: 2025-12-31*
+*Version: 2.0.0*
