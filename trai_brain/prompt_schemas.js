@@ -21,9 +21,23 @@ const proposalSchema = `{
   "open_questions": ["questions to resolve"]
 }`;
 
+// CHANGE 2026-01-31: Added chat schema for conversational responses (no JSON required)
+const chatSchema = null;  // Signals to use conversational mode, not JSON
+
 function chooseSchema(query = '') {
     const normalized = query.toLowerCase();
-    if (normalized.includes('plan') || normalized.includes('proposal') || normalized.includes('strategy')) {
+
+    // CHANGE 2026-01-31: Detect conversational queries (most chat messages)
+    // Only use structured JSON for explicit planning/strategy requests
+    const planningKeywords = ['plan', 'proposal', 'strategy', 'roadmap', 'timeline', 'milestone'];
+    const isPlanningQuery = planningKeywords.some(kw => normalized.includes(kw));
+
+    // Default to CHAT mode for normal conversational queries
+    if (!isPlanningQuery) {
+        return { type: 'chat', shape: chatSchema };
+    }
+
+    if (normalized.includes('proposal')) {
         return { type: 'proposal', shape: proposalSchema };
     }
 

@@ -366,18 +366,36 @@ class TRAICore extends EventEmitter {
             const memoryLines = (memoryContext || []).map(item => `- [${item.entry.source}:${item.entry.type || 'log'}] ${item.entry.content}`).join('\n') || 'None';
             const toolList = this.readOnlyTools.listTools().map(tool => `- ${tool}`).join('\n');
 
-            const fullPrompt = [
-                contextPrompt,
-                `User Query: ${query}`,
-                `Primary Category: ${primaryCategory || 'unknown'}`,
-                `Retrieved Memory (top ${memoryContext.length}):\n${memoryLines}`,
-                'Read-only tools available (invoke only when explicitly asked and never modify files):',
-                toolList,
-                'You must respond in strict JSON using the selected schema. Do not add prose before or after the JSON.',
-                `Schema (${schema.type}):`,
-                schema.shape,
-                'Response:'
-            ].join('\n\n');
+            // CHANGE 2026-01-31: Use conversational prompt for chat, JSON only for structured queries
+            let fullPrompt;
+            if (schema.type === 'chat') {
+                // Conversational mode - natural language response
+                fullPrompt = [
+                    'You are TRAI, the AI co-founder and tech support for OGZ Prime trading system.',
+                    'Respond naturally and helpfully in plain English. Be concise but thorough.',
+                    '',
+                    contextPrompt,
+                    `User Question: ${query}`,
+                    '',
+                    `Relevant Memory:\n${memoryLines}`,
+                    '',
+                    'Response:'
+                ].join('\n');
+            } else {
+                // Structured mode - JSON response required
+                fullPrompt = [
+                    contextPrompt,
+                    `User Query: ${query}`,
+                    `Primary Category: ${primaryCategory || 'unknown'}`,
+                    `Retrieved Memory (top ${memoryContext.length}):\n${memoryLines}`,
+                    'Read-only tools available (invoke only when explicitly asked and never modify files):',
+                    toolList,
+                    'You must respond in strict JSON using the selected schema. Do not add prose before or after the JSON.',
+                    `Schema (${schema.type}):`,
+                    schema.shape,
+                    'Response:'
+                ].join('\n\n');
+            }
 
             // Call persistent server (model already loaded in GPU!)
             const startTime = Date.now();
