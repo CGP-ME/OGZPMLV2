@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **TRAI Chat Leaking Thinking Tags** - core/persistent_llm_client.js (BUG FIX)
+  - TRAI responses showed raw `<think>...</think>` tags from DeepSeek model
+  - Original regex only cleaned complete tag pairs, not incomplete/orphaned tags
+  - Added cleanup for: incomplete `<think>` blocks, orphan `</think>`, garbage tokens
+  - Added fallback response if empty after cleaning
+  - TRAI chat now returns clean, readable responses
+
+- **Dashboard Trade Log Cutoff** - public/unified-dashboard.html (UI/UX)
+  - Trade log was getting cut off at bottom of page
+  - Increased max-height from 200px to 400px
+  - Added `overflow-y: auto` to body to enable page scrolling
+
 - **Dashboard WebSocket Silent Death** - run-empire-v2.js (STABILITY)
   - Root cause: WebSocket dying silently with no close event, reconnection never triggered
   - Symptom: Dashboard showed no chart, required manual bot restart

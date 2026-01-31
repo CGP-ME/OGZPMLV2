@@ -61,6 +61,68 @@ Dashboard kept losing connection. User had to manually restart bot. Unacceptable
 
 ---
 
+## Session: January 31, 2026 (Continued)
+## Goal: Dashboard Polish + TRAI Response Fix
+
+### Fixes Implemented
+
+#### FIX #5: Trade Log Cutoff
+- **File**: `public/unified-dashboard.html:675`
+- **Problem**: Trade log getting cut off at bottom of page
+- **Old**: `max-height: 200px`
+- **New**: `max-height: 400px`
+- **Result**: Trade log now shows more entries without cutoff
+- **Commit**: `bf365a5`
+
+#### FIX #6: Page Scroll Enabled
+- **File**: `public/unified-dashboard.html:44`
+- **Problem**: Page content getting clipped, couldn't scroll
+- **Solution**: Added `overflow-y: auto` to body
+- **Result**: Page now scrolls if content overflows viewport
+- **Commit**: `bf365a5`
+
+#### FIX #7: TRAI Thinking Tags Leaking
+- **File**: `core/persistent_llm_client.js:106-122`
+- **Problem**: TRAI responses showed raw `<think>...</think>` tags from DeepSeek model
+- **Evidence**: `"response":"rend<think>First, the user is role-playing..."`
+- **Root Cause**: Original regex only cleaned COMPLETE `<think>...</think>` pairs
+- **Solution**:
+  - Remove incomplete `<think>` blocks (no closing tag)
+  - Remove orphan `</think>` tags
+  - Clean garbage tokens before `<think>`
+  - Fallback response if empty after cleaning
+- **Result**: Clean TRAI responses, no leaked thinking tags
+- **Commit**: `179a19d`
+
+### Files Modified This Session
+| File | Changes | Commit |
+|------|---------|--------|
+| `run-empire-v2.js` | Heartbeat + watchdog | `5905133` |
+| `ogz-meta/CLAUDITO_MISSION_LOG.md` | Mission logging | `5905133` |
+| `CHANGELOG.md` | WebSocket fix docs | `bd5e0f6` |
+| `public/unified-dashboard.html` | Trade log height + scroll | `bf365a5` |
+| `core/persistent_llm_client.js` | TRAI thinking tag cleanup | `179a19d` |
+
+### Commits This Session
+1. `5905133` - fix(websocket): Aggressive heartbeat and data watchdog
+2. `bd5e0f6` - docs: Add WebSocket silent death fix to CHANGELOG
+3. `bf365a5` - fix(dashboard): Increase trade log height and enable page scroll
+4. `179a19d` - fix(trai): Robust cleanup of incomplete thinking tags
+
+### PM2 Status After Fresh Start
+- ogz-websocket: **0 restarts** (fresh)
+- ogz-prime-v2: **1 restart** (from TRAI fix deployment)
+
+### Validation Status
+- ✅ All syntax valid
+- ✅ Bot running with 0/1 restarts
+- ✅ Dashboard loading
+- ✅ Trade log visible
+- ✅ TRAI response cleaning improved
+- 🔄 TRAI chat needs user testing
+
+---
+
 ## Session: January 27, 2025
 ## Goal: Dashboard WebSocket Message Forwarding Fix
 
