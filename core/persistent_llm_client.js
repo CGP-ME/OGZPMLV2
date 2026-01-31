@@ -106,8 +106,23 @@ class PersistentLLMClient {
             // Extract and clean response
             let text = response.response || '';
 
-            // Remove any thinking tags if present (DeepSeek R1 sometimes includes them)
-            text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            // CHANGE 2026-01-31: More robust thinking tag cleanup
+            // Remove complete <think>...</think> blocks
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+            // Remove incomplete <think> tags (no closing tag - model cut off)
+            text = text.replace(/<think>[\s\S]*/g, '');
+            // Remove any </think> orphans
+            text = text.replace(/<\/think>/g, '');
+            // Remove garbage/partial tokens that sometimes appear before <think>
+            text = text.replace(/^[a-z]{1,5}<think/i, '');
+            // Clean up
+            text = text.trim();
+
+            // If response is empty after cleaning, return a fallback
+            if (!text || text.length < 5) {
+                console.warn('⚠️ TRAI response empty after cleaning, using fallback');
+                text = 'I understand your question. Based on current market conditions, I recommend staying cautious and monitoring key levels.';
+            }
 
             return text;
 
