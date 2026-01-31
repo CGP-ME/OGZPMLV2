@@ -48,6 +48,17 @@ const BrokerRegistry = {
         timeframe: 'realtime'
     },
 
+    gemini: {
+        name: 'Gemini',
+        assetType: 'crypto',
+        filePath: './GeminiAdapter',
+        description: 'US-regulated crypto exchange with sandbox mode',
+        features: ['spot', 'advanced-orders', 'sandbox'],
+        supported: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'LINK/USD', 'AAVE/USD'],
+        fees: { maker: 0.001, taker: 0.0035 },
+        timeframe: 'realtime'
+    },
+
     // =========================================================================
     // STOCK BROKERS
     // =========================================================================
