@@ -291,3 +291,102 @@
 - Always verify activeTrades.size after close operations
 
 **Date Fixed:** 2026-01-23
+
+---
+
+### WS_ZOMBIE_013 – WebSocket Silent Death (No Close Event)
+
+**Symptom:**
+- Dashboard shows "no chart" / disconnected
+- Bot logs show WebSocket "connected" but no data flows
+- Manual restart required to fix
+- Heartbeat never triggers timeout
+
+**Cause:**
+- TCP connection dies but WebSocket readyState stays `OPEN` (zombie)
+- `close` event never fires, so reconnection never triggers
+- Old heartbeat (30s ping, 45s timeout) didn't detect it fast enough
+- Pings sent but never reach server, no error returned
+
+**Rule:**
+- Heartbeat must be aggressive: 15s ping, 30s timeout (miss 2 = dead)
+- Add DATA WATCHDOG: track last message received, force reconnect if stale
+- Don't trust readyState alone - check actual data flow
+- Reconnect delay should be fast (2s, not 5s)
+
+**Files:** `run-empire-v2.js` (startHeartbeatPing, dataWatchdogInterval)
+
+**Date Fixed:** 2026-01-31
+
+---
+
+### TRAI_THINK_014 – LLM Thinking Tags Leaking to Output
+
+**Symptom:**
+- TRAI chat returns: `"response":"rend<think>First, the user is..."`
+- Raw `<think>...</think>` tags visible in dashboard
+- Empty responses after "cleaning"
+
+**Cause:**
+- DeepSeek R1 model outputs thinking in `<think>` tags
+- Original cleanup regex: `/<think>[\s\S]*?<\/think>/g`
+- Only removes COMPLETE pairs - incomplete tags leak through
+- If model cuts off mid-thought, tag never closes
+
+**Rule:**
+- Clean incomplete `<think>` blocks (no closing tag)
+- Clean orphan `</think>` tags
+- Clean garbage tokens before `<think>` (partial generation)
+- Provide fallback response if empty after cleaning
+
+**Files:** `core/persistent_llm_client.js`
+
+**Date Fixed:** 2026-01-31
+
+---
+
+### MSG_TYPE_015 – WebSocket Message Type Mismatch
+
+**Symptom:**
+- Bot sends data, dashboard doesn't update
+- Specific features broken (Chain of Thought, patterns, trades)
+- No errors in console
+
+**Cause:**
+- Bot sends `type: 'trai_reasoning'`
+- Dashboard listens for `type: 'bot_thinking'`
+- Messages arrive but handler never fires
+
+**Rule:**
+- When adding new WebSocket messages:
+  - Check BOTH sender AND receiver type strings
+  - Search codebase for existing type names before inventing new ones
+  - Use consistent naming (snake_case or camelCase, not mixed)
+
+**Files:** `run-empire-v2.js`, `public/unified-dashboard.html`
+
+**Date Fixed:** 2026-01-29
+
+---
+
+### TIMEFRAME_016 – Dashboard Timeframe Shows Wrong/No Data
+
+**Symptom:**
+- Changing timeframe shows empty chart or wrong candles
+- 4H and 1D timeframes particularly broken
+- Only 1m works reliably
+
+**Cause:**
+- Kraken WebSocket subscription missing some intervals
+- No REST API fallback for historical data
+- Client expected real-time data for ALL timeframes
+
+**Rule:**
+- Subscribe to ALL timeframe intervals on Kraken WebSocket
+- Use REST API (`getHistoricalOHLC()`) for historical data on timeframe change
+- WebSocket for real-time updates, REST for history
+- Always test timeframe switching after chart changes
+
+**Files:** `kraken_adapter_simple.js`, `run-empire-v2.js`
+
+**Date Fixed:** 2026-01-30

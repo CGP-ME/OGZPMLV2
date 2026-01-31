@@ -4,6 +4,112 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ---
 
+## 2026-01-31 – Dashboard Polish & Stability Hardening
+
+### WebSocket Auto-Recovery (CRITICAL)
+- **Problem**: Dashboard WebSocket died silently (no close event), required manual restart
+- **Root Cause**: TCP connection died but readyState stayed "OPEN" (zombie socket)
+- **Fix**: Aggressive heartbeat + data watchdog in `run-empire-v2.js`
+  - Ping every 15s (was 30s)
+  - Pong timeout 30s (was 45s)
+  - Data watchdog: force reconnect if no messages for 60s
+  - Reconnect delay 2s (was 5s)
+- **Result**: Auto-recovery within 60s max, no more manual restarts
+
+### TRAI Response Cleaning
+- **Problem**: TRAI chat returned raw `<think>...</think>` tags from DeepSeek model
+- **Root Cause**: Regex only removed complete tag pairs, not incomplete/orphaned
+- **Fix**: `core/persistent_llm_client.js` now handles:
+  - Incomplete `<think>` blocks (no closing tag)
+  - Orphan `</think>` tags
+  - Garbage tokens before `<think>`
+  - Fallback response if empty after cleaning
+
+### Dashboard UI Fixes
+- Trade log max-height: 200px → 400px (no more cutoff)
+- Page scroll enabled (overflow-y: auto)
+- Theme customization: 5 presets (Default, Ocean, Sunset, Royal, Hacker)
+- Chain of Thought: gradient backgrounds, glowing decision badges
+
+---
+
+## 2026-01-30 – Dashboard Overhaul for Proof Display
+
+### Multi-Timeframe OHLC (CRITICAL)
+- **Problem**: Changing timeframes showed wrong/empty candles
+- **Fix**: `kraken_adapter_simple.js` + `run-empire-v2.js`
+  - All timeframes now subscribed (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+  - `getHistoricalOHLC()` REST API for historical data
+  - WebSocket for real-time, REST for history
+- **Result**: 4H and 1D timeframes now show proper historical bars
+
+### Indicators from Historical Data
+- **Problem**: Indicators (EMA, BB, VWAP) were flat lines / jagged steps
+- **Fix**: `public/unified-dashboard.html`
+  - Client-side calculateEMA(), calculateBollingerBands(), calculateVWAP()
+  - Indicators populated with setData() on historical load
+- **Result**: Smooth indicator curves
+
+### Pattern SVG Visualizations
+- Added 17 pattern SVG diagrams (double bottom/top, triangles, H&S, etc.)
+- Pattern Analysis box shows graphical diagram, not just text
+- `getPatternSVG()` function for pattern → SVG lookup
+
+### Trade Log BUY/SELL Priority
+- **Problem**: Trade log showed LONG/SHORT (confusing for spot trading)
+- **Fix**: Priority `action || direction` instead of `direction || action`
+- Spot trading now shows BUY/SELL consistently
+
+### Real-time Proof Publishing
+- `publishLiveProof()` auto-updates `public/proof/live-trades.json`
+- Shows last 20 trades with prices, reasons, confidence
+- Accessible at https://ogzprime.com/proof/live-trades.json
+
+---
+
+## 2026-01-29 – Architecture: Dashboard Server Consolidation
+
+### Redundant Dashboard Server Removed
+- **Old**: Separate `dashboard-server.js` on port 3008
+- **New**: `ogzprime-ssl-server.js` on port 3010 handles everything
+- nginx routes all traffic to 3010
+- Simpler architecture, fewer moving parts
+
+### TRAI Chain of Thought Fix
+- **Problem**: Chain of Thought not updating on dashboard
+- **Root Cause**: Bot sent `type: 'trai_reasoning'`, dashboard expected `type: 'bot_thinking'`
+- **Fix**: Changed message type to match dashboard handler
+- **Result**: Chain of Thought updates every trading cycle
+
+---
+
+## 2026-01-27 – Dashboard Message Forwarding
+
+### Trade/Pattern/Thinking Messages
+- **Problem**: dashboard-server.js only forwarded 5 message types
+- **Fix**: Added handlers for `trade`, `bot_thinking`, `pattern_analysis`
+- **Result**: P&L display, chart markers, Chain of Thought all work
+
+### 8 Missing Indicator Overlays
+- SMA, ATR, Fibonacci, Trendlines, RSI, MACD, Ichimoku, S/R
+- All indicator checkboxes now functional (data permitting from backend)
+
+---
+
+## 2026-01-26 – Feature Flag Unification
+
+### FeatureFlagManager Singleton
+- **Problem**: Two independent feature flag systems not communicating
+- **Fix**: `core/FeatureFlagManager.js` as single source of truth
+- All feature checks go through one manager
+
+### Dead Code Cleanup
+- Removed 10 dead/duplicate files
+- Removed 2 unused npm packages
+- Deleted `backtest/BacktestEngine.js` (dangerous divergent logic)
+
+---
+
 ## 2026-01-23 – Critical Trading Bug Fixes
 
 ### SELL Trade Accumulation Bug (CRITICAL)

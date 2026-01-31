@@ -1,6 +1,6 @@
 # OGZPrime – Curated Context Pack
-_Generated: 2026-01-25T20:38:52.022Z_
-_Size: 32109 chars (limit: 30000)_
+_Generated: 2026-01-31T11:44:14.580Z_
+_Size: 35258 chars (limit: 30000)_
 
 
 ---
@@ -270,6 +270,7 @@ Phase 4: Ship
 |----------|-----|
 | Warden | Blocks scope creep |
 | Forensics | Finds bugs/landmines |
+| Architect | Explains how affected area works (context) |
 | Fixer | Applies minimal fix |
 | Debugger | Tests fix works |
 | Critic | Adversarial review |
@@ -1082,143 +1083,6 @@ OGZPrime runs on discipline. Strict guardrails keep every AI instance in line.
 
 ---
 
-### WS_HEARTBEAT – Bot WebSocket Heartbeat (2026-01-28)
-
-**What:**
-- Bot sends `ping` every 30s to dashboard-server
-- Server responds with `pong`
-- Bot tracks `lastPongReceived` timestamp
-- If no pong within 45s, bot calls `terminate()` to force reconnect
-
-**Why:**
-- TCP connections can go stale without either side knowing
-- Previous behavior: Bot only reconnects on `close` event
-- Stale connection = dashboard shows nothing, user sees empty page
-
-**Code Locations:**
-- `run-empire-v2.js:startHeartbeatPing()` - sends pings, checks timeout
-- `run-empire-v2.js:initializeDashboardWebSocket()` - starts heartbeat after auth_success
-- `dashboard-server.js:96-97` - handles ping, responds with pong
-
----
-
-### CANDLE_PERSISTENCE – Candle History Disk Storage (2026-01-28)
-
-**What:**
-- Bot saves priceHistory to `data/candle-history.json` every 5 new candles
-- On startup, loads candles from disk (filtered to last 4 hours)
-- Prevents fat bars on dashboard after restart
-
-**Why:**
-- priceHistory was in-memory only, lost on every restart
-- Dashboard needs historical candles for proper chart rendering
-- Without persistence, users see empty/fat bar charts until enough candles accumulate
-
-**Code Locations:**
-- `run-empire-v2.js:loadCandleHistory()` - reads from disk, filters stale candles
-- `run-empire-v2.js:saveCandleHistory()` - writes last 200 candles to disk
-- `run-empire-v2.js:399-400` - constructor calls load, initializes save counter
-- `run-empire-v2.js:998-1001` - triggers save every 5 new candles
-
-**File:**
-- `data/candle-history.json` - persisted candle data (max 200 candles)
-
----
-
-### MEMORY_LEAK_FIX – Interval Cleanup (2026-01-29)
-
-**What:**
-- ALL setInterval calls now have corresponding clearInterval on shutdown
-- 11 intervals across 6 files fixed
-
-**Files Fixed:**
-- `run-empire-v2.js` - heartbeatInterval cleared in shutdown()
-- `core/TimeFrameManager.js` - cacheCleanupInterval, volatilityCheckInterval, autoOptimizationInterval
-- `core/PerformanceDashboardIntegration.js` - realTimeUpdateInterval + added shutdown() method
-- `core/SingletonLock.js` - lockMonitorInterval cleared in releaseLock()
-- `core/KrakenAdapterV2.js` - accountPollingInterval cleared in unsubscribeAll()
-- `core/trai_core.js` - analysisInterval, monitoringInterval cleared in shutdown()
-
-**Why:**
-- Every setInterval without clearInterval leaks memory
-- Long-running bot = unbounded growth = eventual crash
-- Intervals keep callbacks alive, preventing garbage collection
-
-**Rule:**
-- Every setInterval MUST store handle: `this.myInterval = setInterval(...)`
-- Every shutdown/cleanup MUST clear: `clearInterval(this.myInterval)`
-
----
-
-### TRAI_SLICE_FIX – Defensive Guard (2026-01-29)
-
-**What:**
-- Added defensive guard in `trai_core.js:calculateRelevance()`
-- Checks if messages has `.slice` method before calling it
-
-**Why:**
-- Error: "Cannot read properties of undefined (reading 'slice')"
-- messages can be undefined, null, or non-array
-- Was causing TRAI analysis to fail silently
-
-**Code:**
-```javascript
-if (!messages || !Array.isArray(messages) || messages.length === 0 || typeof messages.slice !== 'function') {
-  return 0;
-}
-```
-
----
-
-### INVARIANTS_ESM_FIX – Module Syntax (2026-01-29)
-
-**What:**
-- Converted `core/invariants.js` from mixed ESM/CommonJS to pure CommonJS
-
-**Why:**
-- Was mixing `export function` (ESM) with `module.exports` (CommonJS)
-- Caused "module is not defined in ES module scope" on every startup
-- Node.js doesn't allow mixing module systems in same file
-
-**Before (broken):**
-```javascript
-export function assertNoBlockingAI() {...}
-module.exports = {...}
-```
-
-**After (fixed):**
-```javascript
-function assertNoBlockingAI() {...}
-module.exports = { assertNoBlockingAI, ... }
-```
-
----
-
-### STARTUP_502_FIX – WebSocket Startup Race Condition (2026-01-29)
-
-**What:**
-- Added `wait_for_port()` function to start-ogzprime.sh
-- Polls localhost:3010 until websocket server responds (max 30s)
-- Reloads nginx after websocket ready to clear stale upstream connections
-
-**Why:**
-- pm2 start returns immediately before server fully ready
-- Bot connects through nginx (wss://ogzprime.com/ws)
-- nginx had stale upstream state from previous server instance
-- Result: 502 errors until nginx realizes upstream changed
-
-**Fix:**
-```bash
-wait_for_port 3010
-sudo systemctl reload nginx
-```
-
-**Code Location:**
-- `start-ogzprime.sh:40-54` - wait_for_port function
-- `start-ogzprime.sh:68-69` - nginx reload after port ready
-
----
-
 ### PERMS_010 – Web File Permissions
 
 **Symptom:**
@@ -1276,6 +1140,105 @@ sudo systemctl reload nginx
 - Always verify activeTrades.size after close operations
 
 **Date Fixed:** 2026-01-23
+
+---
+
+### WS_ZOMBIE_013 – WebSocket Silent Death (No Close Event)
+
+**Symptom:**
+- Dashboard shows "no chart" / disconnected
+- Bot logs show WebSocket "connected" but no data flows
+- Manual restart required to fix
+- Heartbeat never triggers timeout
+
+**Cause:**
+- TCP connection dies but WebSocket readyState stays `OPEN` (zombie)
+- `close` event never fires, so reconnection never triggers
+- Old heartbeat (30s ping, 45s timeout) didn't detect it fast enough
+- Pings sent but never reach server, no error returned
+
+**Rule:**
+- Heartbeat must be aggressive: 15s ping, 30s timeout (miss 2 = dead)
+- Add DATA WATCHDOG: track last message received, force reconnect if stale
+- Don't trust readyState alone - check actual data flow
+- Reconnect delay should be fast (2s, not 5s)
+
+**Files:** `run-empire-v2.js` (startHeartbeatPing, dataWatchdogInterval)
+
+**Date Fixed:** 2026-01-31
+
+---
+
+### TRAI_THINK_014 – LLM Thinking Tags Leaking to Output
+
+**Symptom:**
+- TRAI chat returns: `"response":"rend<think>First, the user is..."`
+- Raw `<think>...</think>` tags visible in dashboard
+- Empty responses after "cleaning"
+
+**Cause:**
+- DeepSeek R1 model outputs thinking in `<think>` tags
+- Original cleanup regex: `/<think>[\s\S]*?<\/think>/g`
+- Only removes COMPLETE pairs - incomplete tags leak through
+- If model cuts off mid-thought, tag never closes
+
+**Rule:**
+- Clean incomplete `<think>` blocks (no closing tag)
+- Clean orphan `</think>` tags
+- Clean garbage tokens before `<think>` (partial generation)
+- Provide fallback response if empty after cleaning
+
+**Files:** `core/persistent_llm_client.js`
+
+**Date Fixed:** 2026-01-31
+
+---
+
+### MSG_TYPE_015 – WebSocket Message Type Mismatch
+
+**Symptom:**
+- Bot sends data, dashboard doesn't update
+- Specific features broken (Chain of Thought, patterns, trades)
+- No errors in console
+
+**Cause:**
+- Bot sends `type: 'trai_reasoning'`
+- Dashboard listens for `type: 'bot_thinking'`
+- Messages arrive but handler never fires
+
+**Rule:**
+- When adding new WebSocket messages:
+  - Check BOTH sender AND receiver type strings
+  - Search codebase for existing type names before inventing new ones
+  - Use consistent naming (snake_case or camelCase, not mixed)
+
+**Files:** `run-empire-v2.js`, `public/unified-dashboard.html`
+
+**Date Fixed:** 2026-01-29
+
+---
+
+### TIMEFRAME_016 – Dashboard Timeframe Shows Wrong/No Data
+
+**Symptom:**
+- Changing timeframe shows empty chart or wrong candles
+- 4H and 1D timeframes particularly broken
+- Only 1m works reliably
+
+**Cause:**
+- Kraken WebSocket subscription missing some intervals
+- No REST API fallback for historical data
+- Client expected real-time data for ALL timeframes
+
+**Rule:**
+- Subscribe to ALL timeframe intervals on Kraken WebSocket
+- Use REST API (`getHistoricalOHLC()`) for historical data on timeframe change
+- WebSocket for real-time updates, REST for history
+- Always test timeframe switching after chart changes
+
+**Files:** `kraken_adapter_simple.js`, `run-empire-v2.js`
+
+**Date Fixed:** 2026-01-30
 
 
 ---

@@ -183,3 +183,95 @@ Two logging systems for full audit trail:
 2. Audit trail for debugging
 3. Learning data for pattern improvement
 4. Transparency (per ogz-meta rules)
+
+---
+
+## WebSocket & Dashboard Architecture
+
+**Updated:** 2026-01-31
+
+### Data Flow
+```
+Kraken WebSocket ─────────────────────────┐
+       │                                   │
+       ▼                                   │
+┌─────────────────┐                        │
+│ kraken_adapter  │ Market data (OHLC)     │
+│ _simple.js      │◄──────────────────────►│ Kraken REST API
+└────────┬────────┘   (historical data)    │
+         │                                 │
+         ▼                                 │
+┌─────────────────┐                        │
+│ run-empire-v2.js│ Trading Bot            │
+│ (ogz-prime-v2)  │ - Signal generation    │
+└────────┬────────┘ - TRAI decisions       │
+         │          - Pattern learning     │
+         │                                 │
+         ▼                                 │
+┌─────────────────┐                        │
+│ ogzprime-ssl-   │ WebSocket Server       │
+│ server.js       │ (port 3010)            │
+│ (ogz-websocket) │ - Authenticates clients│
+└────────┬────────┘ - Relays bot→dashboard │
+         │          - Relays dashboard→bot │
+         │                                 │
+         ▼                                 │
+┌─────────────────┐                        │
+│ unified-        │ Dashboard              │
+│ dashboard.html  │ - Chart (Lightweight)  │
+└─────────────────┘ - Indicators           │
+                    - TRAI chat widget     │
+                    - Trade log            │
+                    - Pattern analysis     │
+```
+
+### Key Components
+
+| Component | Port | PM2 Name | Purpose |
+|-----------|------|----------|---------|
+| Trading Bot | - | ogz-prime-v2 | Signal generation, execution, TRAI |
+| WebSocket Server | 3010 | ogz-websocket | Relay between bot and dashboard |
+| Dashboard | 443 | (nginx) | User interface |
+
+### Connection Health
+
+Bot maintains connection to WebSocket server with:
+- **Heartbeat**: Ping every 15s, timeout 30s
+- **Data Watchdog**: Force reconnect if no messages for 60s
+- **Auto-reconnect**: 2s delay on disconnect
+
+Dashboard connects via nginx (SSL termination) → WebSocket server.
+
+### Message Types
+
+**Bot → Dashboard:**
+- `price` - Real-time price updates
+- `candle` - OHLC candles
+- `trade` - Trade executions
+- `bot_thinking` - TRAI Chain of Thought
+- `pattern_analysis` - Pattern detection
+- `historical_candles` - Bulk historical data
+
+**Dashboard → Bot:**
+- `trai_query` - TRAI chat questions
+- `timeframe_change` - Switch chart timeframe
+- `request_historical` - Request historical data
+
+---
+
+## Current Infrastructure
+
+**Server:** VPS with A100 GPU
+**Services:**
+- nginx (SSL, reverse proxy)
+- PM2 (process manager)
+- Ollama (local LLM for TRAI)
+
+**PM2 Processes:**
+```
+ogz-websocket   - WebSocket relay server
+ogz-prime-v2    - Main trading bot
+ogz-prime-gates - Gates proof bot (separate)
+```
+
+**Startup:** `./start-ogzprime.sh start`
