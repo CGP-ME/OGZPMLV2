@@ -197,12 +197,10 @@ class ModuleAutoLoader {
     console.log('🚀 AUTO-LOADING ALL MODULES...\n');
     
     // Define loading order and requirements
+    // CHANGE 2026-01-31: Removed ui, analytics, deployment - directories never existed
     const loadConfig = [
       { name: 'utils', required: ['discordNotifier', 'tradeLogger'] },
-      { name: 'core', required: ['OptimizedTradingBrain', 'RiskManager'] },
-      { name: 'ui', required: [] },
-      { name: 'analytics', required: [] },
-      { name: 'deployment', required: [] }
+      { name: 'core', required: ['OptimizedTradingBrain', 'RiskManager'] }
     ];
     
     loadConfig.forEach(({ name, required }) => {
