@@ -3964,11 +3964,14 @@
                 const decision = (thought.decision || 'HOLD').toUpperCase();
                 const decisionClass = decision === 'BUY' ? 'buy' : decision === 'SELL' ? 'sell' : 'hold';
 
+                // CHANGE 2026-01-31: Handle 0 as valid value (0 || 'N/A' was returning N/A)
+                const riskDisplay = thought.riskScore !== undefined && thought.riskScore !== null ? thought.riskScore : 'N/A';
+                const trendDisplay = thought.trend !== undefined && thought.trend !== null ? thought.trend : 'N/A';
                 display.innerHTML = `
                     <p class="thought-step"><strong>📊 Analysis:</strong> ${thought.analysis}</p>
-                    <p class="thought-step"><strong>📈 Trend:</strong> ${thought.trend || 'N/A'} | <strong>RSI:</strong> ${thought.rsi ? parseFloat(thought.rsi).toFixed(1) : 'N/A'}</p>
+                    <p class="thought-step"><strong>📈 Trend:</strong> ${trendDisplay} | <strong>RSI:</strong> ${thought.rsi ? parseFloat(thought.rsi).toFixed(1) : 'N/A'}</p>
                     <p class="thought-step"><strong>🎯 Confidence:</strong> ${thought.confidence}%</p>
-                    <p class="thought-step"><strong>⚠️ Risk Score:</strong> ${thought.riskScore || 'N/A'}</p>
+                    <p class="thought-step"><strong>⚠️ Risk Score:</strong> ${riskDisplay}</p>
                     <div style="text-align: center; margin-top: 12px;">
                         <span class="decision-badge ${decisionClass}">${decision}</span>
                     </div>
