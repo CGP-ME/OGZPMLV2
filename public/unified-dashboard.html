@@ -723,18 +723,61 @@
             margin-left: 5px;
         }
 
-        /* Chain of Thought */
+        /* Chain of Thought - CHANGE 2026-01-30: Enhanced styling */
         .chain-of-thought {
-            max-height: 150px;
+            max-height: 250px;
             overflow-y: auto;
             margin-bottom: 15px;
         }
 
         .thought-entry {
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 8px;
-            border-left: 3px solid #ffd700;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 20, 40, 0.8) 100%);
+            border-radius: 12px;
+            border-left: 4px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
+        }
+
+        .thought-step {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .thought-step strong {
+            color: #ffd700;
+        }
+
+        .decision-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .decision-badge.buy {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .decision-badge.sell {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+        }
+
+        .decision-badge.hold {
+            background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
         }
 
         .thought-step {
@@ -3907,15 +3950,21 @@
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
         }
 
+        // CHANGE 2026-01-30: Enhanced Chain of Thought display
         function updateChainOfThought(thought) {
             const display = document.getElementById('thoughtDisplay');
             if (display && thought) {
+                const decision = (thought.decision || 'HOLD').toUpperCase();
+                const decisionClass = decision === 'BUY' ? 'buy' : decision === 'SELL' ? 'sell' : 'hold';
+
                 display.innerHTML = `
                     <p class="thought-step"><strong>📊 Analysis:</strong> ${thought.analysis}</p>
-                    <p class="thought-step"><strong>📈 Trend:</strong> ${thought.trend || 'N/A'} | RSI: ${thought.rsi || 'N/A'}</p>
+                    <p class="thought-step"><strong>📈 Trend:</strong> ${thought.trend || 'N/A'} | <strong>RSI:</strong> ${thought.rsi ? parseFloat(thought.rsi).toFixed(1) : 'N/A'}</p>
                     <p class="thought-step"><strong>🎯 Confidence:</strong> ${thought.confidence}%</p>
-                    <p class="thought-step"><strong>⚠️ Risk Score:</strong> ${thought.riskScore || 'N/A'}%</p>
-                    <p class="thought-step"><strong>💡 Decision:</strong> ${thought.decision}</p>
+                    <p class="thought-step"><strong>⚠️ Risk Score:</strong> ${thought.riskScore || 'N/A'}</p>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <span class="decision-badge ${decisionClass}">${decision}</span>
+                    </div>
                 `;
             }
         }
@@ -4206,6 +4255,9 @@
                 if (checkbox) checkbox.checked = true;
             });
 
+            // CHANGE 2026-01-30: Load saved theme preferences
+            loadThemePreferences();
+
             initChart();
             connectWebSocket();
             switchTier('ml');
@@ -4280,6 +4332,96 @@
 
             // Resize chart after transition
             setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
+        }
+
+        // CHANGE 2026-01-30: Theme customization functions
+        const THEMES = {
+            default: {
+                '--bg-primary': '#000000',
+                '--bg-secondary': '#0a0a0a',
+                '--text-primary': '#ffffff',
+                '--profit-color': '#00ff88',
+                '--loss-color': '#ff3366'
+            },
+            ocean: {
+                '--bg-primary': '#001a33',
+                '--bg-secondary': '#002244',
+                '--text-primary': '#e0f0ff',
+                '--profit-color': '#00ffcc',
+                '--loss-color': '#ff6699'
+            },
+            sunset: {
+                '--bg-primary': '#1a0a00',
+                '--bg-secondary': '#331100',
+                '--text-primary': '#ffe0cc',
+                '--profit-color': '#ffcc00',
+                '--loss-color': '#ff4444'
+            },
+            royal: {
+                '--bg-primary': '#0d001a',
+                '--bg-secondary': '#1a0033',
+                '--text-primary': '#e6ccff',
+                '--profit-color': '#cc99ff',
+                '--loss-color': '#ff6699'
+            },
+            hacker: {
+                '--bg-primary': '#000a00',
+                '--bg-secondary': '#001a00',
+                '--text-primary': '#00ff00',
+                '--profit-color': '#00ff00',
+                '--loss-color': '#ff0000'
+            }
+        };
+
+        function applyTheme(themeName) {
+            const theme = THEMES[themeName] || THEMES.default;
+            const root = document.documentElement;
+
+            Object.entries(theme).forEach(([property, value]) => {
+                root.style.setProperty(property, value);
+            });
+
+            // Update button states
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.theme === themeName) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Save preference
+            localStorage.setItem('ogz-theme', themeName);
+            console.log(`🎨 Theme applied: ${themeName}`);
+        }
+
+        function updateAccentColor(color) {
+            document.documentElement.style.setProperty('--ml-color', color);
+            document.getElementById('colorValue').textContent = color.toUpperCase();
+            localStorage.setItem('ogz-accent', color);
+            console.log(`🎨 Accent color: ${color}`);
+        }
+
+        function updateFont(fontFamily) {
+            document.body.style.fontFamily = fontFamily;
+            localStorage.setItem('ogz-font', fontFamily);
+            console.log(`🔤 Font: ${fontFamily}`);
+        }
+
+        // Load saved theme preferences on startup
+        function loadThemePreferences() {
+            const savedTheme = localStorage.getItem('ogz-theme');
+            const savedAccent = localStorage.getItem('ogz-accent');
+            const savedFont = localStorage.getItem('ogz-font');
+
+            if (savedTheme) applyTheme(savedTheme);
+            if (savedAccent) {
+                document.getElementById('accentColor').value = savedAccent;
+                updateAccentColor(savedAccent);
+            }
+            if (savedFont) {
+                document.getElementById('fontSelect').value = savedFont;
+                updateFont(savedFont);
+            }
         }
 
         function calculatePosition() {
