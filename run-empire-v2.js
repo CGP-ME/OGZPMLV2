@@ -372,26 +372,14 @@ class OGZPrimeV14Bot {
     console.log('🔍 [DEBUG] About to create Kraken adapter...');
     console.log('🔍 [DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
-    // EMPIRE V2: Create Kraken adapter through BrokerFactory
-    try {
-      this.kraken = createBrokerAdapter('kraken', {
-        apiKey: process.env.KRAKEN_API_KEY,
-        apiSecret: process.env.KRAKEN_API_SECRET
-      });
-      console.log('🏭 [EMPIRE V2] Created Kraken adapter via BrokerFactory');
-      console.log('🔍 [DEBUG] Kraken adapter type:', this.kraken.constructor.name);
-      console.log('🔍 [DEBUG] Kraken methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.kraken)).filter(m => typeof this.kraken[m] === 'function'));
-    } catch (error) {
-      console.error('❌ [EMPIRE V2] Failed to create Kraken adapter:', error.message);
-      console.error('Stack:', error.stack);
-      // Fallback to direct adapter
-      console.log('⚠️ [FALLBACK] Using direct KrakenAdapterSimple');
-      const KrakenAdapterSimple = require('./kraken_adapter_simple');
-      this.kraken = new KrakenAdapterSimple({
-        apiKey: process.env.KRAKEN_API_KEY,
-        apiSecret: process.env.KRAKEN_API_SECRET
-      });
-    }
+    // EMPIRE V2: Create Kraken adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
+    // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
+    this.kraken = createBrokerAdapter('kraken', {
+      apiKey: process.env.KRAKEN_API_KEY,
+      apiSecret: process.env.KRAKEN_API_SECRET
+    });
+    console.log('🏭 [EMPIRE V2] Created Kraken adapter via BrokerFactory');
+    console.log('🔍 [DEBUG] Kraken adapter type:', this.kraken.constructor.name);
 
     // Connect execution layer to Kraken
     this.executionLayer.setKrakenAdapter(this.kraken);
