@@ -41,6 +41,7 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             overflow-x: hidden;
+            overflow-y: auto;  /* CHANGE 2026-01-31: Allow page scroll for full content */
             min-height: 100vh;
             cursor: default;  /* CHANGE 2026-01-23: Fix crosshair bleeding to whole page */
             position: relative;
@@ -670,9 +671,9 @@
         .positive { color: var(--profit-color) !important; }
         .negative { color: var(--loss-color) !important; }
         
-        /* Trade Log - CHANGE 2026-01-29: Cleaner layout for proof display */
+        /* Trade Log - CHANGE 2026-01-31: Increased height to prevent cutoff */
         .trade-log {
-            max-height: 200px;
+            max-height: 400px;
             overflow-y: auto;
             margin-top: 10px;
             padding: 5px;
