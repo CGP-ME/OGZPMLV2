@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Future brokers (Coinbase, Alpaca, etc.) will ALL go through BrokerFactory
   - Data flow: Market → Broker Adapter → BrokerFactory → Bot → Dashboard
 
+- **TRAI Chat Response Extraction** - run-empire-v2.js (BUG FIX)
+  - TRAI responses showed garbage because wrong property was extracted
+  - TRAI Core returns LLM output in `response.response`, not `response.message`
+  - Fixed extraction order: `response.response || response.message || response.text`
+  - Also added leading garbage cleanup and incomplete sentence truncation
+
 - **TRAI Chat Leaking Thinking Tags** - core/persistent_llm_client.js (BUG FIX)
   - TRAI responses showed raw `<think>...</think>` tags from DeepSeek model
   - Original regex only cleaned complete tag pairs, not incomplete/orphaned tags
