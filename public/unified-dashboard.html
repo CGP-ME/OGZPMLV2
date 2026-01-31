@@ -3596,6 +3596,12 @@
                 };
                 updateChainOfThought(thought);
 
+                // CHANGE 2026-01-31: Update confidence stat from bot_thinking
+                const conf = parseFloat(data.confidence || data.data?.finalConfidence || 0);
+                if (!isNaN(conf)) {
+                    document.getElementById('confidence').textContent = `${conf.toFixed(1)}%`;
+                }
+
                 // CHANGE 2026-01-22: Update TRAI status light (chain of thought = TRAI working)
                 statusTimestamps.trai = Date.now();
                 updateStatusLight('traiLight', 'green');

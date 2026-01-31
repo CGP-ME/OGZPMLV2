@@ -1702,7 +1702,7 @@ class OGZPrimeV14Bot {
           pattern: decision.decisionContext.patterns?.[0] || 'Scanning...',
           rsi: indicators.rsi,
           trend: indicators.trend,
-          riskScore: decision.decisionContext.riskScore || 0,
+          riskScore: (isNaN(decision.decisionContext.riskScore) ? 0 : decision.decisionContext.riskScore) || 0,
           recommendation: decision.action,
           finalConfidence: decision.confidence,
           price: decision.decisionContext.price,
