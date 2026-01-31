@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Dashboard WebSocket Silent Death** - run-empire-v2.js (STABILITY)
+  - Root cause: WebSocket dying silently with no close event, reconnection never triggered
+  - Symptom: Dashboard showed no chart, required manual bot restart
+  - Reduced ping interval from 30s to 15s (faster stale detection)
+  - Reduced pong timeout from 45s to 30s (miss 2 pings = dead)
+  - Added data watchdog: force reconnect if no messages for 60s
+  - Reduced reconnect delay from 5s to 2s (faster recovery)
+  - Track `lastDashboardMessageReceived` for accurate watchdog
+
 - **Misleading LONG/SHORT Labels on SPOT Market** - run-empire-v2.js (ACCURACY)
   - On SPOT crypto, you can only BUY coins or SELL coins you own
   - Bot was displaying "SHORT" when selling, implying margin shorting
