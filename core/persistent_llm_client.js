@@ -115,7 +115,26 @@ class PersistentLLMClient {
             text = text.replace(/<\/think>/g, '');
             // Remove garbage/partial tokens that sometimes appear before <think>
             text = text.replace(/^[a-z]{1,5}<think/i, '');
-            // Clean up
+
+            // CHANGE 2026-01-31: Clean leading garbage (punctuation, newlines at start)
+            text = text.replace(/^[\s.,;:!?\-\n\r]+/, '');
+
+            // CHANGE 2026-01-31: If sentence is cut off (doesn't end with punctuation),
+            // try to end at last complete sentence
+            text = text.trim();
+            if (text.length > 20 && !/[.!?]$/.test(text)) {
+                // Find last sentence-ending punctuation
+                const lastPeriod = text.lastIndexOf('.');
+                const lastQuestion = text.lastIndexOf('?');
+                const lastExclaim = text.lastIndexOf('!');
+                const lastEnd = Math.max(lastPeriod, lastQuestion, lastExclaim);
+                if (lastEnd > text.length * 0.5) {
+                    // Only truncate if we're keeping at least half the response
+                    text = text.substring(0, lastEnd + 1);
+                }
+            }
+
+            // Final cleanup
             text = text.trim();
 
             // If response is empty after cleaning, return a fallback
