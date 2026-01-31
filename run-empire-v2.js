@@ -3156,7 +3156,7 @@ class OGZPrimeV14Bot {
           type: 'trai_response',
           queryId: queryId,
           sessionId: sessionId,
-          response: response.message || response.text || response,
+          response: response.response || response.message || response.text || response,
           timestamp: Date.now()
         }));
         console.log('🧠 [TRAI] Sent chat response');
