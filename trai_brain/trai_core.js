@@ -315,27 +315,38 @@ class TRAICore extends EventEmitter {
     
     async generateResponse(query, analysis, context) {
         // Generate response based on analysis
-        // This is where the working model (Qwen) would process the query
-        // For now, return a structured response
+        const { chooseSchema } = require('./prompt_schemas');
+        const schema = chooseSchema(query);
 
+        // Get the actual text response from LLM
+        const textResponse = await this.generateIntelligentResponse(query, analysis, context);
+
+        // CHANGE 2026-01-31: ROOT FIX - For chat queries, return JUST the text string
+        // This prevents the object structure from leaking through to the chat display
+        if (schema.type === 'chat') {
+            // Chat mode: return plain text, no object wrapper
+            return { response: textResponse };
+        }
+
+        // Structured mode: return full object for programmatic use
         const response = {
             query: query,
             analysis: analysis,
             memoryContext: context.memoryContext || [],
-            response: await this.generateIntelligentResponse(query, analysis, context),
+            response: textResponse,
             timestamp: Date.now(),
             trai_version: '1.0.0'
         };
-        
+
         // Add voice/video if enabled
         if (this.config.enableVoice) {
             response.voiceUrl = await this.generateVoiceResponse(response.response);
         }
-        
+
         if (this.config.enableVideo) {
             response.videoUrl = await this.generateVideoResponse(response.response);
         }
-        
+
         return response;
     }
     

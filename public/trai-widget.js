@@ -426,9 +426,28 @@
       pendingQueries.delete(data.queryId);
     }
 
-    const response = typeof data.response === 'string'
+    let response = typeof data.response === 'string'
       ? data.response
       : (data.response?.message || data.response?.text || JSON.stringify(data.response));
+
+    // CHANGE 2026-01-31: Client-side cleaning for TRAI responses
+    // Remove <think>...</think> blocks (DeepSeek reasoning model artifacts)
+    response = response.replace(/<think>[\s\S]*?<\/think>/g, '');
+    response = response.replace(/<think>[\s\S]*/g, ''); // Incomplete blocks
+    response = response.replace(/<\/think>/g, '');
+
+    // Remove JSON blobs that might be in the response
+    response = response.replace(/\{[\s\S]*"query"[\s\S]*"analysis"[\s\S]*\}/g, '');
+    response = response.replace(/\{[\s\S]*"schema"[\s\S]*\}/g, '');
+
+    // Clean up leading/trailing garbage
+    response = response.replace(/^[\s.,;:!?\-\n\r]+/, '');
+    response = response.trim();
+
+    // If empty after cleaning, use fallback
+    if (!response || response.length < 5) {
+      response = "I'm processing your request. Please try again in a moment.";
+    }
 
     addMessage(response, 'bot');
 
