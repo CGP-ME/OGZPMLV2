@@ -326,17 +326,30 @@ class TRAICore extends EventEmitter {
     
     async generateResponse(query, analysis, context) {
         // Generate response based on analysis
-        // This is where the working model (Qwen) would process the query
-        // For now, return a structured response
-        
+        // CHANGE 2026-01-31: For chat queries, return minimal object, not full structure
+
+        // Get the actual text response from LLM
+        const textResponse = await this.generateIntelligentResponse(query, analysis);
+
+        // Check if this is a chat query (no planning keywords)
+        const queryLower = query.toLowerCase();
+        const planningKeywords = ['plan', 'proposal', 'strategy', 'roadmap', 'timeline', 'milestone'];
+        const isChatQuery = !planningKeywords.some(kw => queryLower.includes(kw));
+
+        // For chat queries, return minimal object (just the response text)
+        if (isChatQuery) {
+            return { response: textResponse };
+        }
+
+        // For structured queries, return full object
         const response = {
             query: query,
             analysis: analysis,
-            response: await this.generateIntelligentResponse(query, analysis),
+            response: textResponse,
             timestamp: Date.now(),
             trai_version: '1.0.0'
         };
-        
+
         // Add voice/video if enabled
         if (this.config.enableVoice) {
             response.voiceUrl = await this.generateVoiceResponse(response.response);

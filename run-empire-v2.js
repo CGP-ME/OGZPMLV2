@@ -3156,7 +3156,10 @@ class OGZPrimeV14Bot {
           type: 'trai_response',
           queryId: queryId,
           sessionId: sessionId,
-          response: response.response || response.message || response.text || response,
+          // CHANGE 2026-01-31: Use explicit check - empty string is valid, don't fall through to whole object
+          response: (response.response !== undefined && response.response !== null)
+            ? response.response
+            : (response.message || response.text || 'Unable to generate response'),
           timestamp: Date.now()
         }));
         console.log('🧠 [TRAI] Sent chat response');
