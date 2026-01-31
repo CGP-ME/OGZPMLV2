@@ -31,6 +31,16 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 - Theme customization: 5 presets (Default, Ocean, Sunset, Royal, Hacker)
 - Chain of Thought: gradient backgrounds, glowing decision badges
 
+### V2 Architecture: BrokerFactory Single Source of Truth (CRITICAL)
+- **Problem**: AI assistants added fallback that bypassed BrokerFactory
+- **Root Cause**: When BrokerFactory failed for any reason, code fell back to creating KrakenAdapterSimple directly
+- **Why it matters**: When multiple brokers (Kraken, Coinbase, Alpaca, Gemini, etc.) are added, bypasses create unmaintainable spaghetti
+- **Fix**: Removed fallback from `run-empire-v2.js`
+  - If BrokerFactory fails, bot fails (no silent bypasses)
+  - ALL broker connections go through BrokerFactory
+  - Data flow: `Market → Broker Adapter → BrokerFactory → Bot → Dashboard`
+- **Result**: V2 architecture enforced, scalable for multi-broker future
+
 ---
 
 ## 2026-01-30 – Dashboard Overhaul for Proof Display
