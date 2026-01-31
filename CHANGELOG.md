@@ -41,6 +41,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses sed to strip comments before export
 
 ### Changed
+- **Dashboard Theme Customization System** - public/unified-dashboard.html (UI/UX)
+  - Added 5 color theme presets: Default, Ocean, Sunset, Royal, Hacker
+  - applyTheme() function updates CSS variables for full theme switching
+  - updateAccentColor() allows custom accent color selection
+  - updateFont() supports font family customization
+  - Theme preferences saved to localStorage for persistence across sessions
+  - Top-right color palette now fully functional for customer customization
+
+- **Dashboard Chain of Thought Redesign** - public/unified-dashboard.html (UI/UX)
+  - Increased max-height from 150px to 250px for better visibility
+  - Added gradient backgrounds (black to dark blue tones)
+  - Enhanced decision badges with glowing effects (BUY=green glow, SELL=red glow, HOLD=gold glow)
+  - Rounded corners and box shadows for modern card appearance
+  - Decision type prominently displayed with color-coded badge
+  - Improved readability with better padding and spacing
+
 - **Dashboard Pattern SVG Visualizations** - public/unified-dashboard.html (UI/UX)
   - Added SVG visual representations for 17 chart patterns
   - Pattern Analysis box now shows graphical pattern diagram (not just text)
