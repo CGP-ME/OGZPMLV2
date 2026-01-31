@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **V2 Architecture: Remove BrokerFactory Bypass** - run-empire-v2.js (ARCHITECTURE)
+  - AI assistants had added fallback that created KrakenAdapterSimple directly
+  - This violated V2 architecture where BrokerFactory is SINGLE SOURCE OF TRUTH
+  - Removed the fallback - if BrokerFactory fails, bot fails (no silent bypasses)
+  - Future brokers (Coinbase, Alpaca, etc.) will ALL go through BrokerFactory
+  - Data flow: Market → Broker Adapter → BrokerFactory → Bot → Dashboard
+
 - **TRAI Chat Leaking Thinking Tags** - core/persistent_llm_client.js (BUG FIX)
   - TRAI responses showed raw `<think>...</think>` tags from DeepSeek model
   - Original regex only cleaned complete tag pairs, not incomplete/orphaned tags
