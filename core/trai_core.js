@@ -390,6 +390,18 @@ class TRAICore extends EventEmitter {
                 if (hasWebContext) {
                     const assetLabel = context.assetName || context.asset || 'BTC';
                     const sourceLabel = context.assetType === 'stock' ? 'Yahoo Finance' : 'CoinGecko';
+                    // CHANGE 2026-02-01: Include Fear & Greed Index for crypto
+                    const fearGreedLine = (context.fearGreedIndex !== null && context.assetType === 'crypto')
+                        ? `\n- Fear & Greed Index: ${context.fearGreedIndex}/100 (${context.fearGreedLabel})`
+                        : '';
+                    // CHANGE 2026-02-01: Include news headlines for crypto
+                    let newsLines = '';
+                    if (context.newsHeadlines && context.newsHeadlines.length > 0) {
+                        newsLines = '\n\nRECENT NEWS HEADLINES:';
+                        context.newsHeadlines.forEach((h, i) => {
+                            newsLines += `\n${i + 1}. "${h.title}" (${h.source}, ${h.time})`;
+                        });
+                    }
                     marketInfo = `\n\n[YOU HAVE REAL-TIME DATA - USE IT IN YOUR RESPONSE]
 LIVE MARKET DATA (just fetched from ${sourceLabel}):
 - ${assetLabel} Price: $${context.currentPrice.toLocaleString()}
@@ -399,8 +411,8 @@ LIVE MARKET DATA (just fetched from ${sourceLabel}):
 - 24h High: $${context.high24h?.toLocaleString()}
 - 24h Low: $${context.low24h?.toLocaleString()}
 - All-Time High: $${context.ath?.toLocaleString()} (${context.athDate})
-- Distance from ATH: ${context.athChangePercent}
-- Market Sentiment: ${context.marketSentiment}
+- Distance from ATH: ${context.athChangePercent}${fearGreedLine}
+- Market Sentiment: ${context.marketSentiment}${newsLines}
 
 BOT STATUS:
 - Mode: ${context.botMode}

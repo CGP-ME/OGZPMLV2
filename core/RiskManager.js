@@ -1790,8 +1790,13 @@ class RiskManager {
       // CHANGE 659: Pass features array instead of signature string
       if (position.patterns && position.patterns.length > 0) {
         for (const pattern of position.patterns) {
-          // CRITICAL: Use features array if available, fallback to signature
-          const featuresForRecording = pattern.features || pattern.signature;
+          // CRITICAL: Use features array ONLY - signature is a string which breaks recordPatternResult
+          // BUGFIX 2026-02-01: Don't fallback to signature, skip if no features
+          const featuresForRecording = pattern.features;
+          if (!featuresForRecording || !Array.isArray(featuresForRecording) || featuresForRecording.length === 0) {
+            console.warn(`⚠️ RiskManager: Pattern ${pattern.name} has no features, skipping recording`);
+            continue;
+          }
           this.bot.patternRecognition.recordPatternResult(featuresForRecording, {
             success: pnl > 0,
             pnl: pnl,

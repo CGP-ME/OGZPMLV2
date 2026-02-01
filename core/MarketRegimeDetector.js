@@ -678,6 +678,17 @@ class MarketRegimeDetector extends EventEmitter {
   }
 
   /**
+   * Get regime-specific parameters for a given regime
+   * CHANGE 2026-01-31: Exposed for OptimizedTradingBrain to use stopLossMultiplier
+   * @param {string} regime - The regime to get parameters for
+   * @returns {Object|null} Regime parameters including stopLossMultiplier, takeProfitMultiplier, etc.
+   */
+  getRegimeParameters(regime) {
+    if (!regime) return this.regimeParameters[this.currentRegime];
+    return this.regimeParameters[regime] || this.regimeParameters[this.currentRegime];
+  }
+
+  /**
    * Generate vote from current regime
    * Returns vote structure: {tag, vote, strength}
    * @param {Object} regimeData - Current regime data (optional, uses internal state if not provided)

@@ -194,15 +194,16 @@ class StateManager {
     this.state.activeTrades.set(tradeId, trade);
     console.log(`✅ [StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
 
+    // usdCost already calculated above (line 167)
     const updates = {
-      position: this.state.position + size,
+      position: this.state.position + size,  // Track BTC position
       positionCount: this.state.positionCount + 1,
       entryPrice: this.state.position > 0
         ? (this.state.entryPrice * this.state.position + price * size) / (this.state.position + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      balance: this.state.balance - (size * price),  // FIX: Subtract USD cost, not BTC amount!
-      inPosition: this.state.inPosition + size,
+      balance: this.state.balance - usdCost,  // Subtract USD cost
+      inPosition: this.state.inPosition + usdCost,  // BUGFIX: Track USD in position, not BTC!
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,
       dailyTradeCount: this.state.dailyTradeCount + 1
@@ -221,10 +222,14 @@ class StateManager {
     }
 
     const closeSize = size || this.state.position;
-    // FIX: Calculate PnL correctly for dollar positions
-    // Position is in dollars, so we need to calculate based on price change percentage
-    const priceChangePercent = ((price - this.state.entryPrice) / this.state.entryPrice);
-    const pnl = closeSize * priceChangePercent;  // Dollar position × price change %
+    // CRITICAL BUGFIX 2026-02-01: Position is in BTC, not USD!
+    // Previous code treated closeSize as USD, causing $99.99 loss on every trade
+    // Example: 0.001 BTC position × 0.01 percent = $0.00001 PnL (WRONG!)
+    // Correct: 0.001 BTC × $1000 price change = $1 PnL
+    const pnl = closeSize * (price - this.state.entryPrice);  // BTC × price diff = USD profit
+    const priceChangePercent = this.state.entryPrice > 0
+      ? ((price - this.state.entryPrice) / this.state.entryPrice)
+      : 0;
     const pnlPercent = priceChangePercent * 100;
 
     // CRITICAL FIX: Remove closed trades from activeTrades Map
@@ -241,15 +246,25 @@ class StateManager {
       console.log(`📊 [StateManager] Cleared ${tradeCount} active trades on position close`);
     }
 
+    // CRITICAL BUGFIX 2026-02-01: Balance was adding BTC amount instead of USD value!
+    // closeSize is in BTC, we need to add back the USD value at current price
+    // Previous: balance + closeSize + pnl → balance + 0.001 + 0.00001 = wrong!
+    // Correct: balance + (closeSize * price) → balance + 101 = right!
+    const usdValueReturned = closeSize * price;  // What we get back in USD
+
+    // Calculate USD that was locked in position (at entry price)
+    const usdCostLocked = closeSize * this.state.entryPrice;
+
     const updates = {
       position: Math.max(0, this.state.position - closeSize),
       positionCount: partial ? this.state.positionCount : 0,
       entryPrice: partial ? this.state.entryPrice : 0,
       entryTime: partial ? this.state.entryTime : null,
-      balance: this.state.balance + closeSize + pnl,
-      inPosition: Math.max(0, this.state.inPosition - closeSize),
+      balance: this.state.balance + usdValueReturned,  // Add back USD at current price
+      inPosition: Math.max(0, this.state.inPosition - usdCostLocked),  // BUGFIX: Subtract USD, not BTC!
       realizedPnL: this.state.realizedPnL + pnl,
       totalPnL: this.state.totalPnL + pnl,
+      totalBalance: this.state.totalBalance + pnl,  // BUGFIX: Track total value including profits
       lastTradeTime: Date.now()
     };
 
