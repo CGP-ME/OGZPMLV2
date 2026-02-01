@@ -390,7 +390,8 @@ class TRAICore extends EventEmitter {
                 if (hasWebContext) {
                     const assetLabel = context.assetName || context.asset || 'BTC';
                     const sourceLabel = context.assetType === 'stock' ? 'Yahoo Finance' : 'CoinGecko';
-                    marketInfo = `\n\nREAL-TIME MARKET DATA (from ${sourceLabel}):
+                    marketInfo = `\n\n[YOU HAVE REAL-TIME DATA - USE IT IN YOUR RESPONSE]
+LIVE MARKET DATA (just fetched from ${sourceLabel}):
 - ${assetLabel} Price: $${context.currentPrice.toLocaleString()}
 - 24h Change: ${context.change24h}
 - 7d Change: ${context.change7d}

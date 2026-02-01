@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **TRAI Universal Web Context** - run-empire-v2.js, core/trai_core.js (FEATURE)
+  - TRAI now fetches REAL market data before responding to queries
+  - Auto-detects asset from query: "How's Ethereum?" → fetches ETH data
+  - **Crypto support (CoinGecko API):** BTC, ETH, SOL, ADA, XRP, DOGE, DOT, AVAX, LINK, MATIC, LTC
+  - **Stock support (Yahoo Finance API):** AAPL, TSLA, MSFT, GOOGL, AMZN, NVDA, META, NFLX, SPY, QQQ
+  - Data includes: 24h/7d/30d changes, ATH, distance from ATH, market sentiment
+  - No more hallucinating "near recent highs" when market is at 6-month low
+  - **Files:** `run-empire-v2.js` (fetchWebMarketContext, detectAssetFromQuery, fetchCryptoContext, fetchStockContext)
+  - **Files:** `core/trai_core.js` (rich prompt with asset-specific data from web)
+
+- **TRAI Response Quality Fixes** - core/persistent_llm_client.js, core/trai_core.js, public/trai-widget.js (BUG FIX)
+  - **maxTokens 300→2500:** DeepSeek reasoning model was getting cut off mid-thought
+    - `<think>` blocks alone consumed 1200+ tokens, leaving nothing for actual response
+    - Now has room for full reasoning + complete response
+  - **Label prefix cleanup:** LLM sometimes outputs "advice:", "response:" prefixes
+    - Added regex to strip common prefixes: `/^(advice|response|answer|output|result|reply)[\s:]+/i`
+    - Applied in both server (`persistent_llm_client.js`) and client (`trai-widget.js`)
+  - **Kraken 24h data:** Added high24h, low24h, open24h to getMarketData() return
+
 ### Fixed
 - **TRAI Chat Returning JSON Instead of Text** - trai_brain/prompt_schemas.js, trai_brain/trai_core.js (BUG FIX)
   - Root cause: ALL queries got prompt "You must respond in strict JSON"

@@ -3115,15 +3115,20 @@ class OGZPrimeV14Bot {
   async fetchWebMarketContext(query = '') {
     // Detect what asset the user is asking about
     const asset = this.detectAssetFromQuery(query);
+    console.log(`🌐 [TRAI Web] Detected asset: ${asset.type} - ${asset.symbol || asset.id}`);
 
     try {
+      let result;
       if (asset.type === 'crypto') {
-        return await this.fetchCryptoContext(asset.id, asset.symbol);
+        result = await this.fetchCryptoContext(asset.id, asset.symbol);
       } else if (asset.type === 'stock') {
-        return await this.fetchStockContext(asset.symbol);
+        result = await this.fetchStockContext(asset.symbol);
+      } else {
+        // Default to BTC if no specific asset detected
+        result = await this.fetchCryptoContext('bitcoin', 'BTC');
       }
-      // Default to BTC if no specific asset detected
-      return await this.fetchCryptoContext('bitcoin', 'BTC');
+      console.log(`✅ [TRAI Web] Fetched ${result.asset}: $${result.price} (${result.change24h} 24h)`);
+      return result;
     } catch (error) {
       console.warn('⚠️ Failed to fetch web market context:', error.message);
       return null;
