@@ -27,6 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Applied in both server (`persistent_llm_client.js`) and client (`trai-widget.js`)
   - **Kraken 24h data:** Added high24h, low24h, open24h to getMarketData() return
 
+### Documentation
+- **Comprehensive JSDoc Documentation for Critical Trading Modules** - 9 core files (DOCUMENTATION) - 2026-02-01
+  - **run-empire-v2.js:** ASCII architecture diagram, module overview, candle flow docs
+  - **StateManager.js:** State structure documentation, critical invariants, BTC vs USD notes
+  - **OptimizedTradingBrain.js:** Class docs, balance sync architecture documentation
+  - **RiskManager.js:** Architecture warning about independent balance state (not synced with StateManager)
+  - **AdvancedExecutionLayer-439-MERGED.js:** Data flow docs, removed dead closePosition() (~75 lines)
+  - **MarketRegimeDetector.js:** Regime list documentation, thresholds
+  - **EnhancedPatternRecognition.js:** Feature vector format docs (9-element arrays)
+  - **trai_core.js:** LLM integration documentation, prompt flow
+  - **kraken_adapter_simple.js:** WebSocket/REST API architecture docs
+  - **Architectural Findings:**
+    - RiskManager maintains independent balance (documented as warning in file header)
+    - Asymmetric trade flow is intentional: opens via ExecutionLayer, closes direct to StateManager
+  - **Commit:** `4e0dfd0`
+
 ### Fixed
 - **Forensic Audit Fixes - Balance Desync, Dead Code, Debug Cleanup** - Pipeline (BUG FIX + CLEANUP) - 2026-02-01
   - **Balance Desync Prevention:** `core/OptimizedTradingBrain.js` line 822
