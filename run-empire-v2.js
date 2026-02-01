@@ -1017,7 +1017,6 @@ class OGZPrimeV14Bot {
    * Kraken OHLC format: [channelID, [time, etime, open, high, low, close, vwap, volume, count], channelName, pair]
    */
   handleMarketData(ohlcData) {
-    console.log(`🔍 [CANDLE-DEBUG] handleMarketData called, priceHistory length: ${this.priceHistory.length}`);
 
     // OHLC data is array: [time, etime, open, high, low, close, vwap, volume, count]
     if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
@@ -1078,9 +1077,7 @@ class OGZPrimeV14Bot {
 
     // Update price history (use etime to detect new minutes, not actual timestamp)
     const lastCandle = this.priceHistory[this.priceHistory.length - 1];
-    console.log(`🔍 [CANDLE-DEBUG] lastCandle.etime: ${lastCandle?.etime}, lastCandle.e: ${lastCandle?.e}, candle.etime: ${candle.etime}, candle.e: ${candle.e}`);
     const isNewMinute = !lastCandle || lastCandle.etime !== candle.etime;
-    console.log(`🔍 [CANDLE-DEBUG] isNewMinute: ${isNewMinute}, priceHistory.length: ${this.priceHistory.length}`);
 
     if (!isNewMinute) {
       // Update existing candle (same minute) - Kraken sends multiple updates per minute
@@ -1140,13 +1137,10 @@ class OGZPrimeV14Bot {
     });
 
     // CHANGE 663: Broadcast market data to dashboard
-    console.log(`🔍 [DEBUG] Dashboard broadcast check: connected=${this.dashboardWsConnected}, ws exists=${!!this.dashboardWs}`);
-
     if (this.dashboardWsConnected && this.dashboardWs) {
       try {
         // CHANGE 2025-12-23: Use IndicatorEngine render packet for dashboard
         const renderPacket = indicatorEngine.getRenderPacket({ maxPoints: 200 });
-        console.log(`📤 [DEBUG] Sending to dashboard: price=${price}, ogzTpo:`, renderPacket.indicators?.ogzTpo?.tpo);
 
         // CHANGE 2026-01-23: Calculate performance stats for dashboard
         // BUGFIX 2026-01-23: Include position value in P&L calculation!
@@ -1553,8 +1547,6 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2025-12-11: Use StateManager for position reads
     const currentPosition = stateManager.get('position');
-    console.log(`📊 DEBUG: currentPosition=${currentPosition}, tradingDirection=${tradingDirection}`);
-
     if (tradingDirection === 'sell' && currentPosition === 0) {
       // SPOT MARKET: Can only sell what we own - no position means nothing to sell
       console.log('🚫 TradingBrain said SELL but no position to sell (SPOT market) - converting to HOLD');
@@ -1781,9 +1773,7 @@ class OGZPrimeV14Bot {
       }
     }
 
-    // CHANGE 625: Debug logging to understand why trades don't execute
     const pos = stateManager.get('position');
-    console.log(`🔍 makeTradeDecision: pos=${pos}, conf=${totalConfidence.toFixed(1)}%, minConf=${minConfidence}%, brain=${brainDirection}`);
 
     // CHANGE 2025-12-13: Step 5 - MaxProfitManager gets priority on exits
     // Math (stops/targets) ALWAYS wins over Brain (emotional) signals
@@ -1809,19 +1799,12 @@ class OGZPrimeV14Bot {
       // Get entry trade to calculate P&L
       // CHANGE 2025-12-13: Read from StateManager (single source of truth)
       const allTrades = stateManager.getAllTrades();
-      console.log(`🔍 DEBUG: getAllTrades returned ${allTrades.length} trades`);
-      if (allTrades.length > 0) {
-        console.log(`🔍 DEBUG: First trade has action='${allTrades[0].action}', type='${allTrades[0].type}'`);
-      }
       const buyTrades = allTrades
         .filter(t => t.action === 'BUY')
         .sort((a, b) => a.entryTime - b.entryTime);
-      console.log(`🔍 DEBUG: After filtering for BUY, found ${buyTrades.length} trades`);
 
       if (buyTrades.length > 0) {
-        console.log(`🔍 DEBUG: BUY trade found:`, JSON.stringify(buyTrades[0], null, 2));
         const entryPrice = buyTrades[0].entryPrice;
-        console.log(`🔍 DEBUG: Entry price from trade: ${entryPrice}, Current price: ${currentPrice}`);
 
         // Change 608: Analyze Fib/S&R levels to adjust trailing stops dynamically
         // BUGFIX 2026-02-01: this.candles doesn't exist, use this.priceHistory
