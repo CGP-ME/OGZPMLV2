@@ -141,9 +141,6 @@ class OptimizedIndicators {
     // Validate data structure
     const firstCandle = priceData[0];
     const lastCandle = priceData[priceData.length - 1];
-    console.log(`   First candle: ${JSON.stringify(firstCandle).substring(0, 100)}`);
-    console.log(`   Last candle: ${JSON.stringify(lastCandle).substring(0, 100)}`);
-    console.log(`   Has .c property: ${!!firstCandle?.c}`);
 
     let gains = 0;
     let losses = 0;
@@ -208,9 +205,6 @@ class OptimizedIndicators {
     // Validate data structure
     const firstCandle = priceData[0];
     const lastCandle = priceData[priceData.length - 1];
-    console.log(`   First candle: ${JSON.stringify(firstCandle).substring(0, 100)}`);
-    console.log(`   Last candle: ${JSON.stringify(lastCandle).substring(0, 100)}`);
-    console.log(`   Has .c property: first=${!!firstCandle?.c}, last=${!!lastCandle?.c}`);
 
     // CRITICAL FIX: Use most recent data, not oldest!
     // priceData stores newest at the end, so use slice(-26) not slice(0,26)
@@ -255,7 +249,6 @@ class OptimizedIndicators {
 
     // Validate data structure
     const lastCandle = priceData[priceData.length - 1];
-    console.log(`   Has .c property: ${!!lastCandle?.c}, value=${lastCandle?.c}`);
 
     if (!lastCandle?.c) {
       return 0;
@@ -322,9 +315,6 @@ class OptimizedIndicators {
     // Validate data structure
     const firstCandle = candles[0];
     const lastCandle = candles[candles.length - 1];
-    console.log(`   First: ${JSON.stringify(firstCandle).substring(0, 80)}`);
-    console.log(`   Last: ${JSON.stringify(lastCandle).substring(0, 80)}`);
-    console.log(`   Has .close: ${!!firstCandle?.close}, Has .c: ${!!firstCandle?.c}`);
 
     // Calculate SMA (middle band)
     const prices = candles.slice(-period).map(c => c.close || c.c);

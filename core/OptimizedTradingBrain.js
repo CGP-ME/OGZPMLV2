@@ -818,8 +818,14 @@ class OptimizedTradingBrain {
     }
     
     // Calculate position value and validate
+    // FIX 2026-02-01: Sync balance from StateManager (single source of truth) before position sizing
+    // Prevents desync between OptimizedTradingBrain.balance and actual account balance
+    const stateManager = getStateManager();
+    const currentBalance = stateManager.get('balance') || this.balance;
+    this.balance = currentBalance; // Sync local cache
+
     const positionValue = price * size;
-    const maxPositionValue = this.balance * this.config.maxPositionSize;
+    const maxPositionValue = currentBalance * this.config.maxPositionSize;
     
     if (positionValue > maxPositionValue) {
       console.log(`⚠️ Position size too large. Max: $${maxPositionValue.toFixed(2)}, Requested: $${positionValue.toFixed(2)}`);
@@ -977,7 +983,7 @@ class OptimizedTradingBrain {
     console.log(`   Stop Loss: $${this.position.stopLossPrice.toFixed(2)} | Take Profit: $${this.position.takeProfitPrice.toFixed(2)}`);
     
     // CHANGE 2025-12-11: Sync with StateManager for single source of truth
-    const stateManager = getStateManager();
+    // Note: stateManager already declared at line 823 for balance sync
     stateManager.openPosition(positionValue, price, { source: 'TradingBrain', reason, confidence })
       .catch(e => {
         this.errorHandler.reportCritical('OptimizedTradingBrain', e, {
@@ -1685,18 +1691,32 @@ class OptimizedTradingBrain {
     const volatilityAdjustment = (marketData.volatility && marketData.volatility > 0.03) ? 0.7 : 1.0;
     const confidenceMultiplier = 0.5 + (confidence * 0.5);
 
+    // CHANGE 2026-01-31: Use MarketRegimeDetector's riskMultiplier for position sizing
+    // VOLATILE: 0.5 (half risk), BREAKOUT: 1.5 (aggressive), TRENDING_DOWN: 0.8 (reduce risk)
+    let regimeRiskMultiplier = 1.0;
+    let regimeName = 'unknown';
+    if (this.marketRegimeDetector) {
+      const regime = this.marketRegimeDetector.currentRegime;
+      const regimeParams = this.marketRegimeDetector.getRegimeParameters?.(regime);
+      if (regimeParams?.riskMultiplier) {
+        regimeRiskMultiplier = regimeParams.riskMultiplier;
+        regimeName = regime;
+      }
+    }
+
     // Apply leverage limits based on tier
     const maxLeverage = tierFlags.enableHedgeMode ? 2 : 1; // Allow 2x leverage for hedge mode
     const leverageMultiplier = Math.min(maxLeverage, 1 + (confidence - 0.5) * 2);
 
-    const size = baseSize * volatilityAdjustment * confidenceMultiplier * leverageMultiplier * patternSizeMultiplier;
+    const size = baseSize * volatilityAdjustment * confidenceMultiplier * leverageMultiplier * patternSizeMultiplier * regimeRiskMultiplier;
 
     console.log(`📊 Final Position Size: ${(size * 100).toFixed(2)}%`);
     console.log(`   📊 Confidence: ${(confidence * 100).toFixed(1)}%`);
     console.log(`   📈 Leverage: ${leverageMultiplier.toFixed(1)}x (max ${maxLeverage}x)`);
     console.log(`   🎯 Pattern Multiplier: ${patternSizeMultiplier.toFixed(2)}x`);
+    console.log(`   🌡️ Regime Risk: ${regimeRiskMultiplier.toFixed(2)}x (${regimeName})`);
 
-    return Math.min(size, baseSize * maxLeverage * patternSizeMultiplier);
+    return Math.min(size, baseSize * maxLeverage * patternSizeMultiplier * regimeRiskMultiplier);
   }
   
   /**
@@ -1712,6 +1732,18 @@ class OptimizedTradingBrain {
     // CHANGE 611: Normalize direction to lowercase for case-insensitive comparisons
     const dirLower = (direction || '').toString().toLowerCase();
 
+    // CHANGE 2026-01-31: Use MarketRegimeDetector's stopLossMultiplier (FINALLY WIRED UP!)
+    let regimeMultiplier = 1.0;
+    let regimeName = 'unknown';
+    if (this.marketRegimeDetector) {
+      const regime = this.marketRegimeDetector.currentRegime;
+      const regimeParams = this.marketRegimeDetector.getRegimeParameters?.(regime);
+      if (regimeParams?.stopLossMultiplier) {
+        regimeMultiplier = regimeParams.stopLossMultiplier;
+        regimeName = regime;
+      }
+    }
+
     // Try to use AdaptiveRiskManagementSystem for dynamic stops if available
     if (this.bot?.adaptiveRiskSystem) {
       const signal = {
@@ -1722,18 +1754,25 @@ class OptimizedTradingBrain {
       };
 
       const dynamicStop = this.bot.adaptiveRiskSystem.calculateDynamicStopLoss(signal);
-      console.log(`🎯 [DYNAMIC STOP] ${dynamicStop.reasoning}: $${dynamicStop.stopPrice.toFixed(2)} (${(dynamicStop.stopDistance * 100).toFixed(2)}%)`);
-      return dynamicStop.stopPrice;
+      // Apply regime multiplier to dynamic stop distance
+      const adjustedDistance = (entryPrice - dynamicStop.stopPrice) * regimeMultiplier;
+      const adjustedStop = dirLower === 'buy'
+        ? entryPrice - Math.abs(adjustedDistance)
+        : entryPrice + Math.abs(adjustedDistance);
+
+      console.log(`🎯 [DYNAMIC STOP] ${regimeName}: $${adjustedStop.toFixed(2)} (${regimeMultiplier}x multiplier)`);
+      return adjustedStop;
     }
 
-    // Fallback to static percentage-based stop loss
-    // CHANGE 652: Fix stop loss calculation - was multiplying by 4 instead of 0.04
-    const stopDistance = entryPrice * (this.config.stopLossPercent / 100);
+    // CHANGE 2026-01-31: Apply regime multiplier to static stop loss
+    const baseStopPercent = this.config.stopLossPercent / 100;
+    const adjustedStopPercent = baseStopPercent * regimeMultiplier;
+    const stopDistance = entryPrice * adjustedStopPercent;
     const stopPrice = dirLower === 'buy'
       ? entryPrice - stopDistance
       : entryPrice + stopDistance;
 
-    console.log(`📏 [STATIC STOP] ${(this.config.stopLossPercent * 100).toFixed(1)}%: $${stopPrice.toFixed(2)}`);
+    console.log(`📏 [REGIME STOP] ${regimeName}: ${(adjustedStopPercent * 100).toFixed(2)}% (${regimeMultiplier}x) → $${stopPrice.toFixed(2)}`);
     return stopPrice;
   }
   
@@ -1746,13 +1785,27 @@ class OptimizedTradingBrain {
   calculateTakeProfit(entryPrice, direction) {
     // CHANGE 611: Normalize direction to lowercase to fix case-sensitivity bug
     const dirLower = (direction || '').toString().toLowerCase();
+
+    // CHANGE 2026-01-31: Use MarketRegimeDetector's takeProfitMultiplier
+    // TRENDING_UP: 2.0 (let winners run), RANGING: 1.0 (quick profits), BREAKOUT: 3.0 (big targets)
+    let regimeMultiplier = 1.0;
+    if (this.marketRegimeDetector) {
+      const regime = this.marketRegimeDetector.currentRegime;
+      const regimeParams = this.marketRegimeDetector.getRegimeParameters?.(regime);
+      if (regimeParams?.takeProfitMultiplier) {
+        regimeMultiplier = regimeParams.takeProfitMultiplier;
+      }
+    }
+
     // CHANGE 652: Fix take profit calculation - was multiplying by 15 instead of 0.15
     // OLD BUG: entryPrice * 15.0 = $16,528 * 15 = $247,920 (1400% profit target!)
     // FIXED: entryPrice * (15.0 / 100) = $16,528 * 0.15 = $2,479 profit
-    const profitDistance = entryPrice * (this.config.takeProfitPercent / 100);
+    const baseProfitDistance = entryPrice * (this.config.takeProfitPercent / 100);
+    const adjustedProfitDistance = baseProfitDistance * regimeMultiplier;
+
     return dirLower === 'buy'
-      ? entryPrice + profitDistance
-      : entryPrice - profitDistance;
+      ? entryPrice + adjustedProfitDistance
+      : entryPrice - adjustedProfitDistance;
   }
   
   // ========================================================================

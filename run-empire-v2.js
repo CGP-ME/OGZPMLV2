@@ -105,6 +105,13 @@ const { TradingProofLogger } = require('./ogz-meta/claudito-logger');
 // CHANGE 2026-01-31: Axios for TRAI web search capability
 const axios = require('axios');
 
+// CHANGE 2026-02-01: Telegram notifications for mobile alerts
+const { telegramNotifier, notifyTrade, notifyTradeClose, notifyAlert } = require('./utils/telegramNotifier');
+
+// CHANGE 2026-02-01: Discord notifications (was disconnected since v7)
+const DiscordNotifier = require('./utils/discordNotifier');
+const discordNotifier = new DiscordNotifier();
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -1445,33 +1452,27 @@ class OGZPrimeV14Bot {
         } else {
           // Create fallback array from indicators
           console.warn('⚠️ Creating fallback features array');
-          featuresForRecording = [
+          // FIX 2026-02-01: Convert trend to numeric if string (bullish=1, bearish=-1, else=0)
+        const trendNumeric = typeof indicators.trend === 'string'
+          ? (indicators.trend === 'bullish' || indicators.trend === 'uptrend' ? 1 :
+             indicators.trend === 'bearish' || indicators.trend === 'downtrend' ? -1 : 0)
+          : (indicators.trend || 0);
+        featuresForRecording = [
             indicators.rsi || 50,
             indicators.macd?.macd || 0,
             indicators.macd?.signal || 0,
-            indicators.trend || 0,
+            trendNumeric,
             this.marketData.volume || 0
           ];
         }
 
-        // Record pattern for learning - always pass features array
-        // Never fall back to signature (which is a string)
-        // Skip pattern saving in TEST mode
-        if (this.config.tradingMode !== 'TEST') {
-          this.patternChecker.recordPatternResult(featuresForRecording, {
-            detected: true,
-            confidence: pattern.confidence || 0.1,
-            timestamp: Date.now(),
-            price: this.marketData.price || 0,
-            indicators: {
-            rsi: indicators.rsi,
-            macd: indicators.macd?.macd || 0,
-            trend: indicators.trend
-          }
-        });
-      } else {
-        console.log('🧪 TEST MODE: Skipping pattern save - preserving pattern base integrity');
-      }
+        // DISABLED 2026-02-01: Entry recording creates patterns with pnl=0, polluting learning data
+        // Pattern outcomes are recorded at trade EXIT (line ~2743) with actual P&L
+        // This was causing 8000+ patterns all with wins=0, losses=0, totalPnL=0
+        // if (this.config.tradingMode !== 'TEST') {
+        //   this.patternChecker.recordPatternResult(featuresForRecording, {...});
+        // }
+        // Pattern detection is still tracked via telemetry below
 
         // TELEMETRY: Log pattern detection event
         telemetry.event('pattern_detected', {
@@ -1734,285 +1735,8 @@ class OGZPrimeV14Bot {
     }
   }
 
-  /**
-   * Calculate auto-draw levels for Fibonacci and Support/Resistance
-   * Respects the current timeframe for appropriate lookback periods
-   */
-  calculateAutoDrawLevels(currentPrice, candles) {
-    const levels = {
-      fibonacci: [],
-      support: [],
-      resistance: [],
-      pivotPoints: [],
-      timeframe: process.env.CANDLE_TIMEFRAME || '1m'
-    };
-
-    // Safety check for candles array
-    if (!candles || !Array.isArray(candles) || candles.length < 10) {
-      return levels; // Not enough data
-    }
-
-    // Adjust lookback based on timeframe
-    const timeframeLookback = {
-      '1m': { fib: 60, sr: 120, pivot: 1440 },   // 1 hour, 2 hours, 1 day
-      '5m': { fib: 48, sr: 96, pivot: 288 },     // 4 hours, 8 hours, 1 day
-      '15m': { fib: 32, sr: 64, pivot: 96 },     // 8 hours, 16 hours, 1 day
-      '30m': { fib: 24, sr: 48, pivot: 48 },     // 12 hours, 1 day, 1 day
-      '1h': { fib: 24, sr: 72, pivot: 24 },      // 1 day, 3 days, 1 day
-      '4h': { fib: 14, sr: 28, pivot: 7 },       // ~2.5 days, 5 days, 1 day
-      '1d': { fib: 20, sr: 60, pivot: 5 }        // 20 days, 2 months, 5 days
-    };
-
-    const lookback = timeframeLookback[levels.timeframe] || timeframeLookback['1m'];
-
-    // Get timeframe-adjusted recent high/low for Fibonacci
-    const fibCandles = candles.slice(-lookback.fib).filter(c => c && typeof c === 'object');
-    if (fibCandles.length < 10) return levels; // Not enough data
-
-    // Filter out any undefined/null candles and ensure h and l properties exist
-    const validCandles = fibCandles.filter(c => c && c.h !== undefined && c.l !== undefined);
-    if (validCandles.length === 0) return levels;
-
-    const high = Math.max(...validCandles.map(c => c.h));
-    const low = Math.min(...validCandles.map(c => c.l));
-    const range = high - low;
-
-    // Fibonacci levels (0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
-    const fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-
-    // Determine if uptrend or downtrend for Fib direction
-    const isUptrend = currentPrice > (high + low) / 2;
-
-    fibLevels.forEach(level => {
-      const price = isUptrend ?
-        low + (range * level) :  // Uptrend: measure from low
-        high - (range * level);  // Downtrend: measure from high
-
-      levels.fibonacci.push({
-        level: (level * 100).toFixed(1) + '%',
-        price: price.toFixed(2),
-        type: level === 0.618 ? 'golden' : 'standard'
-      });
-    });
-
-    // Find Support/Resistance using timeframe-adjusted lookback
-    const srCandles = candles.slice(-lookback.sr);
-    const priceFrequency = {};
-
-    // Adjust rounding based on timeframe (smaller TF = finer granularity)
-    const roundingFactors = {
-      '1m': 1,    // Round to nearest $1
-      '5m': 5,    // Round to nearest $5
-      '15m': 10,  // Round to nearest $10
-      '30m': 25,  // Round to nearest $25
-      '1h': 50,   // Round to nearest $50
-      '4h': 100,  // Round to nearest $100
-      '1d': 250   // Round to nearest $250
-    };
-
-    const roundFactor = roundingFactors[levels.timeframe] || 10;
-
-    // Count price touches (support/resistance zones)
-    srCandles.forEach(candle => {
-      // Round prices based on timeframe for appropriate grouping
-      const roundedHigh = Math.round(candle.high / roundFactor) * roundFactor;
-      const roundedLow = Math.round(candle.low / roundFactor) * roundFactor;
-
-      priceFrequency[roundedHigh] = (priceFrequency[roundedHigh] || 0) + 1;
-      priceFrequency[roundedLow] = (priceFrequency[roundedLow] || 0) + 1;
-    });
-
-    // Find strongest support/resistance levels (most touches)
-    const sortedLevels = Object.entries(priceFrequency)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);  // Top 10 levels
-
-    sortedLevels.forEach(([price, touches]) => {
-      const priceNum = parseFloat(price);
-      if (priceNum < currentPrice) {
-        levels.support.push({
-          price: priceNum,
-          strength: touches > 5 ? 'strong' : 'moderate',
-          touches: touches
-        });
-      } else {
-        levels.resistance.push({
-          price: priceNum,
-          strength: touches > 5 ? 'strong' : 'moderate',
-          touches: touches
-        });
-      }
-    });
-
-    // Calculate Pivot Points (Classic)
-    const lastCandle = candles[candles.length - 1];
-    const pivot = (lastCandle.high + lastCandle.low + lastCandle.close) / 3;
-    const r1 = (2 * pivot) - lastCandle.low;
-    const r2 = pivot + (lastCandle.high - lastCandle.low);
-    const s1 = (2 * pivot) - lastCandle.high;
-    const s2 = pivot - (lastCandle.high - lastCandle.low);
-
-    levels.pivotPoints = {
-      pivot: pivot.toFixed(2),
-      r1: r1.toFixed(2),
-      r2: r2.toFixed(2),
-      s1: s1.toFixed(2),
-      s2: s2.toFixed(2)
-    };
-
-    // Calculate Volume Profile (Point of Control - POC)
-    const volumeProfile = {};
-    let totalVolume = 0;
-
-    srCandles.forEach(candle => {
-      const midPrice = Math.round((candle.high + candle.low) / 2 / roundFactor) * roundFactor;
-      const volume = candle.volume || 1;
-      volumeProfile[midPrice] = (volumeProfile[midPrice] || 0) + volume;
-      totalVolume += volume;
-    });
-
-    // Find Point of Control (price with most volume)
-    const sortedVolumeProfile = Object.entries(volumeProfile)
-      .sort((a, b) => b[1] - a[1]);
-
-    if (sortedVolumeProfile.length > 0) {
-      // POC and Value Area (70% of volume)
-      const poc = sortedVolumeProfile[0][0];
-      let cumulativeVolume = 0;
-      const valueArea = [];
-
-      for (const [price, vol] of sortedVolumeProfile) {
-        cumulativeVolume += vol;
-        valueArea.push(price);
-        if (cumulativeVolume >= totalVolume * 0.7) break;
-      }
-
-      levels.volumeProfile = {
-        poc: parseFloat(poc).toFixed(2),
-        valueAreaHigh: Math.max(...valueArea).toFixed(2),
-        valueAreaLow: Math.min(...valueArea).toFixed(2),
-        totalVolume: totalVolume.toFixed(0)
-      };
-
-      // High Volume Nodes (HVN) - strong S/R levels
-      sortedVolumeProfile.slice(0, 3).forEach(([price, volume]) => {
-        const priceNum = parseFloat(price);
-        if (Math.abs(priceNum - currentPrice) > roundFactor * 2) {
-          if (priceNum < currentPrice) {
-            levels.support.push({
-              price: priceNum,
-              strength: 'HVN',
-              volume: volume
-            });
-          } else {
-            levels.resistance.push({
-              price: priceNum,
-              strength: 'HVN',
-              volume: volume
-            });
-          }
-        }
-      });
-    }
-
-    // Multi-Timeframe Highs and Lows
-    const now = Date.now();
-    const periods = {
-      day: 24 * 60,      // 1 day in minutes
-      week: 7 * 24 * 60, // 1 week
-      month: 30 * 24 * 60, // 1 month
-      year: 365 * 24 * 60  // 1 year
-    };
-
-    // Convert timeframe to minutes
-    const timeframeMinutes = {
-      '1m': 1, '5m': 5, '15m': 15, '30m': 30,
-      '1h': 60, '4h': 240, '1d': 1440
-    }[levels.timeframe] || 1;
-
-    levels.multiTimeframe = {};
-
-    for (const [period, minutes] of Object.entries(periods)) {
-      const candlesNeeded = Math.floor(minutes / timeframeMinutes);
-      const periodCandles = candles.slice(-candlesNeeded);
-
-      if (periodCandles.length > 0) {
-        const periodHigh = Math.max(...periodCandles.map(c => c.h));
-        const periodLow = Math.min(...periodCandles.map(c => c.l));
-
-        levels.multiTimeframe[period] = {
-          high: periodHigh.toFixed(2),
-          low: periodLow.toFixed(2),
-          candles: periodCandles.length
-        };
-
-        // Add as support/resistance if close to current price
-        if (Math.abs(periodHigh - currentPrice) < range * 0.5) {
-          levels.resistance.push({
-            price: periodHigh,
-            strength: `${period.toUpperCase()}_HIGH`,
-            timeframe: period
-          });
-        }
-
-        if (Math.abs(periodLow - currentPrice) < range * 0.5) {
-          levels.support.push({
-            price: periodLow,
-            strength: `${period.toUpperCase()}_LOW`,
-            timeframe: period
-          });
-        }
-      }
-    }
-
-    // Opening Range (First hour of day for intraday, first day of week for daily)
-    if (timeframeMinutes <= 60) {
-      // For intraday, get first hour of current day
-      const todayCandles = candles.slice(-Math.floor(24 * 60 / timeframeMinutes));
-      if (todayCandles.length >= 60 / timeframeMinutes) {
-        const openingCandles = todayCandles.slice(0, Math.floor(60 / timeframeMinutes));
-        const openingHigh = Math.max(...openingCandles.map(c => c.h));
-        const openingLow = Math.min(...openingCandles.map(c => c.l));
-
-        levels.openingRange = {
-          high: openingHigh.toFixed(2),
-          low: openingLow.toFixed(2),
-          type: 'Initial Balance'
-        };
-      }
-    }
-
-    // VWAP calculation (Volume Weighted Average Price)
-    let vwapSum = 0;
-    let volumeSum = 0;
-    const vwapCandles = candles.slice(-lookback.pivot);
-
-    vwapCandles.forEach(candle => {
-      const typicalPrice = (candle.high + candle.low + candle.close) / 3;
-      const volume = candle.volume || 1;
-      vwapSum += typicalPrice * volume;
-      volumeSum += volume;
-    });
-
-    if (volumeSum > 0) {
-      levels.vwap = (vwapSum / volumeSum).toFixed(2);
-    }
-
-    // Add current price for reference
-    levels.currentPrice = currentPrice.toFixed(2);
-    levels.high = high.toFixed(2);
-    levels.low = low.toFixed(2);
-
-    // Sort support and resistance by distance from current price
-    levels.support.sort((a, b) => b.price - a.price);
-    levels.resistance.sort((a, b) => a.price - b.price);
-
-    // Limit to top 5 of each
-    levels.support = levels.support.slice(0, 5);
-    levels.resistance = levels.resistance.slice(0, 5);
-
-    return levels;
-  }
+  // REMOVED 2026-02-01: calculateAutoDrawLevels() - Dead code (call was commented out)
+  // ~275 lines removed - was never invoked, only definition existed
 
   /**
    * Determine if we should trade and in which direction
@@ -2100,7 +1824,8 @@ class OGZPrimeV14Bot {
         console.log(`🔍 DEBUG: Entry price from trade: ${entryPrice}, Current price: ${currentPrice}`);
 
         // Change 608: Analyze Fib/S&R levels to adjust trailing stops dynamically
-         const levelAnalysis = this.tradingBrain.analyzeFibSRLevels(this.candles, currentPrice);
+        // BUGFIX 2026-02-01: this.candles doesn't exist, use this.priceHistory
+         const levelAnalysis = this.tradingBrain.analyzeFibSRLevels(this.priceHistory, currentPrice);
 
          // CHANGE 652: Check MaxProfitManager state before calling update
          // Prevents silent failures if state.active is false (shouldn't happen but defensive)
@@ -2170,33 +1895,35 @@ class OGZPrimeV14Bot {
         // CRITICAL FIX: Calculate P&L for exit decisions
         const pnl = ((currentPrice - entryPrice) / entryPrice) * 100;
         const holdTime = (Date.now() - (buyTrades[0]?.entryTime || Date.now())) / 60000;
+        const feeBuffer = 0.35; // Total fees are 0.32% round-trip
 
-        // FIX: Exit logic for when MaxProfitManager isn't active (old positions)
+        // BUGFIX 2026-02-01: These safety exits MUST run regardless of MaxProfitManager state!
+        // Previously inside if(!maxProfitManager.active) block = skipped when MPM active but broken
+
+        // HARD STOP LOSS - ALWAYS ENFORCED
+        if (pnl < -1.5) {
+          console.log(`🛑 HARD STOP LOSS: Exiting at ${pnl.toFixed(2)}% loss`);
+          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        }
+
+        // SHIT OR GET OFF THE POT - ALWAYS ENFORCED
+        // If stuck for 30+ minutes in dead zone, just exit
+        if (holdTime > 30 && pnl < feeBuffer && pnl > -1.5) {
+          console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
+          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        }
+
+        // MaxProfitManager-specific exits (only when MPM not active)
         if (!this.tradingBrain?.maxProfitManager?.state?.active) {
-          // Simple exit conditions when MaxProfitManager isn't tracking
-          const feeBuffer = 0.35; // Total fees are 0.32% round-trip
-
           // Exit if profitable above fees
           if (pnl > feeBuffer) {
             console.log(`✅ EXIT: Taking profit at ${pnl.toFixed(2)}% (covers ${feeBuffer}% fees)`);
             return { action: 'SELL', direction: 'close', confidence: totalConfidence };
           }
 
-          // Stop loss at -1.5%
-          if (pnl < -1.5) {
-            console.log(`🛑 STOP LOSS: Exiting at ${pnl.toFixed(2)}% loss`);
-            return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-          }
-
           // Exit on brain sell signal after minimum hold - BUT ONLY IF PROFITABLE
           if (brainDirection === 'sell' && holdTime > 0.5 && pnl > feeBuffer) {
             console.log(`🧠 Brain SELL signal: Exiting after ${holdTime.toFixed(1)} min hold (P&L: ${pnl.toFixed(2)}%)`);
-            return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-          }
-
-          // SHIT OR GET OFF THE POT: If stuck for 30+ minutes and not profitable, exit
-          if (holdTime > 30 && pnl < feeBuffer && pnl > -0.5) {
-            console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
             return { action: 'SELL', direction: 'close', confidence: totalConfidence };
           }
         }
@@ -2393,10 +2120,13 @@ class OGZPrimeV14Bot {
           size: positionSize,
           confidence: decision.confidence,
           // CHANGE 648: Store full pattern objects with signatures for learning
+          // BUGFIX 2026-02-01: Include features array for pattern outcome recording!
+          // Without features, recordPatternResult at trade close fails with "empty features array"
           patterns: patterns?.map(p => ({
             name: p.name || p.type,
             signature: p.signature || p.id || `${p.name || p.type}_${Date.now()}`,
-            confidence: p.confidence || 0
+            confidence: p.confidence || 0,
+            features: p.features || []  // CRITICAL: Required for pattern learning!
           })) || [],
           indicators: {
             rsi: indicators.rsi,
@@ -2474,6 +2204,18 @@ class OGZPrimeV14Bot {
             trend: indicators.trend || 'sideways'
           });
           console.log(`💰 MaxProfitManager started - tracking 1-2% profit targets`);
+
+          // CHANGE 2026-02-01: Send Telegram notification for trade
+          notifyTrade({
+            direction: 'BUY',
+            asset: this.config.symbol || 'BTC',
+            price: price,
+            size: positionSize / stateAfter.balance,
+            confidence: decision.confidence / 100
+          }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+
+          // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
+          discordNotifier.notifyTrade('buy', price, positionSize);
 
           // Start pattern exit tracking (shadow mode or active)
           if (this.patternExitModel) {
@@ -2581,7 +2323,7 @@ class OGZPrimeV14Bot {
               exitPrice: price,
               exitTime: Date.now(),
               pnl: pnl,
-              pnlDollars: (price - buyTrade.entryPrice) * (buyTrade.size / buyTrade.entryPrice),
+              pnlDollars: buyTrade.size * (price - buyTrade.entryPrice),  // BUGFIX 2026-02-01: BTC × price_diff = USD profit
               holdDuration: holdDuration,
               exitReason: 'signal'
             };
@@ -2590,7 +2332,7 @@ class OGZPrimeV14Bot {
 
             // CHANGE 2025-12-11: Use StateManager for atomic position close
             const positionState = stateManager.getState();
-            const positionValue = positionState.position;
+            const btcPosition = positionState.position;  // BUGFIX 2026-02-01: This is BTC amount, not USD!
             
             // Close position via StateManager (handles P&L calculation)
             const closeResult = await stateManager.closePosition(price, false, null, {
@@ -2609,10 +2351,23 @@ class OGZPrimeV14Bot {
             const afterSellState = stateManager.getState();
             
             // Calculate display values
-            const btcAmount = positionValue / buyTrade.entryPrice;
-            const sellValue = btcAmount * price;
-            const profitLoss = sellValue - positionValue;
+            // BUGFIX 2026-02-01: btcPosition IS already in BTC, no division needed!
+            const btcAmount = btcPosition;  // Already BTC, not USD
+            const sellValue = btcAmount * price;  // BTC × current price = USD received
+            const entryValue = btcAmount * buyTrade.entryPrice;  // BTC × entry price = USD spent
+            const profitLoss = sellValue - entryValue;  // USD received - USD spent = profit
             console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
+
+            // CHANGE 2026-02-01: Send notifications for trade close with P&L
+            notifyTradeClose({
+              pnl: profitLoss,
+              entryPrice: buyTrade.entryPrice,
+              exitPrice: price,
+              duration: `${Math.round((Date.now() - buyTrade.entryTime) / 60000)}m`
+            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+
+            // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
+            discordNotifier.notifyTrade('sell', price, btcAmount, profitLoss);
 
             // CHANGE 642: Record SELL trade for backtest reporting
             // CHANGE 649: Add exit indicators for ML learning
@@ -2699,11 +2454,17 @@ class OGZPrimeV14Bot {
                 featuresForRecording = pattern.features;
               } else {
                 console.warn('⚠️ Pattern features not an array in trade completion, creating fallback');
+                // FIX 2026-02-01: Convert trend to numeric if string (bullish=1, bearish=-1, else=0)
+                const entryTrend = buyTrade.entryIndicators?.trend;
+                const trendNumeric = typeof entryTrend === 'string'
+                  ? (entryTrend === 'bullish' || entryTrend === 'uptrend' ? 1 :
+                     entryTrend === 'bearish' || entryTrend === 'downtrend' ? -1 : 0)
+                  : (entryTrend || 0);
                 featuresForRecording = [
                   buyTrade.entryIndicators?.rsi || 50,
                   buyTrade.entryIndicators?.macd || 0,
                   buyTrade.entryIndicators?.macdSignal || 0,
-                  buyTrade.entryIndicators?.trend || 0,
+                  trendNumeric,
                   buyTrade.entryIndicators?.volume || 0
                 ];
               }
@@ -2807,57 +2568,12 @@ class OGZPrimeV14Bot {
     }
   }
 
+  // REMOVED 2026-02-01: calculateSimpleIndicators() and calculateEMA() - Dead code
+  // ~45 lines removed - never invoked, indicators come from OptimizedIndicators.js
+
   /**
    * Broadcast pattern analysis to dashboard for transparency
    */
-  /**
-   * Calculate simple indicators for dashboard display
-   */
-  calculateSimpleIndicators(priceHistory) {
-    if (!priceHistory || priceHistory.length < 14) {
-      return { rsi: 50, macd: 0, sma20: 0, ema12: 0, volume: 0 };
-    }
-
-    const prices = priceHistory.map(c => c.close || c.c || c.price).filter(p => p > 0);
-    if (prices.length < 14) return { rsi: 50, macd: 0, sma20: 0, ema12: 0, volume: 0 };
-
-    // Simple RSI calculation
-    let gains = 0, losses = 0;
-    for (let i = 1; i < Math.min(14, prices.length); i++) {
-      const change = prices[i] - prices[i - 1];
-      if (change > 0) gains += change;
-      else losses += Math.abs(change);
-    }
-    const avgGain = gains / 14;
-    const avgLoss = losses / 14;
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    const rsi = 100 - (100 / (1 + rs));
-
-    // Simple SMA and MACD
-    const sma20 = prices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, prices.length);
-    const ema12 = this.calculateEMA(prices, 12);
-    const ema26 = this.calculateEMA(prices, 26);
-    const macd = ema12 - ema26;
-
-    return {
-      rsi: Math.round(rsi * 10) / 10,
-      macd: Math.round(macd * 100) / 100,
-      sma20: Math.round(sma20 * 100) / 100,
-      ema12: Math.round(ema12 * 100) / 100,
-      volume: priceHistory[priceHistory.length - 1]?.volume || 0
-    };
-  }
-
-  calculateEMA(prices, period) {
-    if (prices.length < period) return prices[prices.length - 1] || 0;
-    const k = 2 / (period + 1);
-    let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < prices.length; i++) {
-      ema = (prices[i] * k) + (ema * (1 - k));
-    }
-    return ema;
-  }
-
   broadcastPatternAnalysis(patterns, indicators) {
     try {
       if (this.dashboardWs && this.dashboardWs.readyState === 1) {
@@ -3311,15 +3027,21 @@ class OGZPrimeV14Bot {
   }
 
   /**
-   * Fetch crypto market data from CoinGecko
+   * Fetch crypto market data from CoinGecko + Fear & Greed Index + News Headlines
+   * CHANGE 2026-02-01: Added Fear & Greed Index and News Headlines for full market context
    */
   async fetchCryptoContext(coinId, symbol) {
-    const response = await axios.get(
-      `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`,
-      { timeout: 5000 }
-    );
+    // Fetch all in parallel for speed
+    const [coinResponse, fearGreed, newsHeadlines] = await Promise.all([
+      axios.get(
+        `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`,
+        { timeout: 5000 }
+      ),
+      this.fetchFearGreedIndex(),
+      this.fetchCryptoNewsHeadlines()
+    ]);
 
-    const data = response.data;
+    const data = coinResponse.data;
     const market = data.market_data;
 
     return {
@@ -3340,7 +3062,12 @@ class OGZPrimeV14Bot {
       marketCap: market.market_cap?.usd || 0,
       marketCapRank: data.market_cap_rank || 0,
       sentimentUp: data.sentiment_votes_up_percentage || 50,
-      sentimentDown: data.sentiment_votes_down_percentage || 50
+      sentimentDown: data.sentiment_votes_down_percentage || 50,
+      // Fear & Greed Index (crypto-specific sentiment)
+      fearGreedIndex: fearGreed?.value || null,
+      fearGreedLabel: fearGreed?.classification || null,
+      // News Headlines (crypto market news)
+      newsHeadlines: newsHeadlines || []
     };
   }
 
@@ -3392,6 +3119,56 @@ class OGZPrimeV14Bot {
   }
 
   /**
+   * CHANGE 2026-02-01: Fetch Fear & Greed Index from alternative.me
+   * Returns current market sentiment on 0-100 scale
+   * 0-25: Extreme Fear, 26-45: Fear, 46-54: Neutral, 55-74: Greed, 75-100: Extreme Greed
+   */
+  async fetchFearGreedIndex() {
+    try {
+      const response = await axios.get(
+        'https://api.alternative.me/fng/?limit=1',
+        { timeout: 5000 }
+      );
+
+      const data = response.data.data[0];
+      return {
+        value: parseInt(data.value),
+        classification: data.value_classification,
+        timestamp: parseInt(data.timestamp) * 1000,
+        nextUpdate: data.time_until_update || 'unknown'
+      };
+    } catch (error) {
+      console.warn(`⚠️ [TRAI] Fear & Greed fetch failed: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * CHANGE 2026-02-01: Fetch crypto news headlines from CryptoCompare
+   * Returns top 3 recent headlines for market context
+   */
+  async fetchCryptoNewsHeadlines() {
+    try {
+      const response = await axios.get(
+        'https://min-api.cryptocompare.com/data/v2/news/?categories=BTC&excludeCategories=Sponsored',
+        { timeout: 5000 }
+      );
+
+      // Get top 3 headlines
+      const headlines = response.data.Data?.slice(0, 3).map(article => ({
+        title: article.title,
+        source: article.source_info?.name || article.source,
+        time: new Date(article.published_on * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      })) || [];
+
+      return headlines;
+    } catch (error) {
+      console.warn(`⚠️ [TRAI] News fetch failed: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Handle TRAI chat queries from dashboard
    * Used for tech support and customer questions
    * Includes live market context for NLP-style queries
@@ -3423,6 +3200,14 @@ class OGZPrimeV14Bot {
           ath: webContext.ath,
           athDate: webContext.athDate,
           athChangePercent: webContext.athChangePercent,
+          assetType: webContext.assetType,
+          assetName: webContext.assetName,
+          asset: webContext.asset,
+          // CHANGE 2026-02-01: Fear & Greed Index for crypto
+          fearGreedIndex: webContext.fearGreedIndex || null,
+          fearGreedLabel: webContext.fearGreedLabel || null,
+          // CHANGE 2026-02-01: News Headlines for market context
+          newsHeadlines: webContext.newsHeadlines || [],
           marketSentiment: webContext.sentimentUp > 60 ? 'BULLISH' :
                           webContext.sentimentDown > 60 ? 'BEARISH' : 'NEUTRAL'
         }),
