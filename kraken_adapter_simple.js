@@ -1,5 +1,36 @@
-// Simplified Kraken Adapter for direct integration with trading bot
-// Bypasses complex broker system due to permission issues
+/**
+ * @fileoverview KrakenAdapterSimple - Direct Kraken Exchange Integration
+ *
+ * Provides direct API integration with Kraken for order execution and
+ * real-time market data via WebSocket.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * This is the lowest-level component - it talks directly to Kraken's API.
+ * All trading commands flow through here for actual exchange execution.
+ *
+ * DATA FLOW:
+ * ```
+ * Kraken WebSocket → onMessage() → emit('ohlc') → run-empire-v2.js
+ * TradingBrain.openPosition() → executeOrder() → Kraken REST API
+ * ```
+ *
+ * KEY FEATURES:
+ * - WebSocket subscription for real-time OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+ * - Rate limiting with exponential backoff (15 req/sec limit)
+ * - Automatic reconnection with heartbeat monitoring
+ * - Data-level watchdog: forces reconnect if no data for 60s
+ *
+ * CRITICAL NOTES:
+ * - Requires KRAKEN_API_KEY and KRAKEN_API_SECRET in .env
+ * - Paper mode: Orders are logged but not sent to exchange
+ * - Live mode: Real orders - use with extreme caution!
+ *
+ * @module kraken_adapter_simple
+ * @requires axios
+ * @requires ws
+ * @requires crypto
+ */
 
 const crypto = require('crypto');
 const axios = require('axios');

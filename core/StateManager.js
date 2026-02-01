@@ -1,59 +1,137 @@
 /**
- * STATE MANAGER - Single Source of Truth
+ * @fileoverview StateManager - Single Source of Truth for Trading State
  *
- * Fixes the critical position/balance desync bug where:
- * - this.currentPosition (main bot)
- * - this.tradingBrain.position (OptimizedTradingBrain)
- * - this.executionLayer.positions (Map in AdvancedExecutionLayer)
- * All tracked different values causing phantom trades
+ * This module centralizes ALL trading state management with atomic updates.
+ * It prevents the critical position/balance desync bugs that occurred when
+ * multiple components tracked state independently.
  *
- * This centralizes ALL state management with atomic updates
+ * @description
+ * ARCHITECTURE ROLE:
+ * StateManager sits at the center of the trading system. Every component
+ * (TradingBrain, ExecutionLayer, RiskManager) MUST read from and write to
+ * StateManager rather than maintaining their own state copies.
+ *
+ * HISTORICAL BUGS FIXED:
+ * - Position desync: this.currentPosition vs this.tradingBrain.position
+ * - Balance desync: Multiple components tracking different balances
+ * - P&L calculation: BTC treated as USD (lost $99.99 per trade)
+ * - activeTrades accumulation: Closed trades not removed from Map
+ *
+ * CRITICAL INVARIANTS:
+ * 1. position is always in BTC (asset units), NOT USD
+ * 2. balance is always in USD
+ * 3. inPosition tracks USD locked in positions (position × entryPrice)
+ * 4. totalBalance = balance + inPosition + unrealizedPnL
+ * 5. All updates go through updateState() for atomicity
+ *
+ * @module core/StateManager
+ * @requires fs
+ * @requires path
+ *
+ * @example
+ * // Get the singleton instance
+ * const { getInstance } = require('./core/StateManager');
+ * const stateManager = getInstance();
+ *
+ * // Open a position (size in BTC)
+ * await stateManager.openPosition(0.001, 100000, { source: 'TradingBrain' });
+ *
+ * // Close position
+ * await stateManager.closePosition(101000);
+ *
+ * // Check current state
+ * const state = stateManager.getState();
+ * console.log(`Balance: $${state.balance}, Position: ${state.position} BTC`);
  */
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: StateManager Class
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Centralized state management for trading operations.
+ * Implements atomic updates, state persistence, and change notifications.
+ *
+ * @class StateManager
+ * @property {Object} state - The current trading state
+ * @property {number} state.position - Current position size in BTC (NOT USD!)
+ * @property {number} state.positionCount - Number of entries (for averaging)
+ * @property {number} state.entryPrice - Average entry price in USD
+ * @property {Date|null} state.entryTime - When position was opened
+ * @property {number} state.balance - Available USD balance (not in positions)
+ * @property {number} state.totalBalance - Total account value in USD
+ * @property {number} state.inPosition - USD value locked in positions
+ * @property {Map} state.activeTrades - Active trade records (orderId → trade)
+ * @property {number} state.realizedPnL - Cumulative realized profit/loss
+ * @property {number} state.unrealizedPnL - Current unrealized P&L
+ * @property {boolean} state.isTrading - Whether trading is active
+ * @property {boolean} state.recoveryMode - Emergency recovery mode flag
+ */
 class StateManager {
+  /**
+   * Creates a new StateManager instance.
+   * Initializes default state, sets up listeners, and loads persisted state.
+   *
+   * @constructor
+   * @note This should only be called by getInstance() - use the singleton!
+   */
   constructor() {
+    // ─────────────────────────────────────────────────────────────────────
+    // POSITION TRACKING
+    // CRITICAL: position is in BTC (asset units), NOT USD!
+    // ─────────────────────────────────────────────────────────────────────
     this.state = {
-      // Position tracking
-      position: 0,              // Current position size in USD
-      positionCount: 0,         // Number of positions (for multi-entry)
-      entryPrice: 0,           // Average entry price
-      entryTime: null,         // When position was opened
+      position: 0,              // Current position size in BTC (ASSET UNITS!)
+      positionCount: 0,         // Number of entries (for DCA/averaging)
+      entryPrice: 0,            // Average entry price in USD
+      entryTime: null,          // Timestamp when position was opened
 
-      // Balance tracking
-      balance: 10000,          // Available balance
-      totalBalance: 10000,     // Total account value
-      inPosition: 0,           // Amount tied up in positions
+      // ─────────────────────────────────────────────────────────────────────
+      // BALANCE TRACKING (all values in USD)
+      // Invariant: totalBalance ≈ balance + inPosition + unrealizedPnL
+      // ─────────────────────────────────────────────────────────────────────
+      balance: 10000,           // Available USD (not locked in positions)
+      totalBalance: 10000,      // Total account value in USD
+      inPosition: 0,            // USD locked in positions (position × entryPrice)
 
-      // Trade tracking
-      activeTrades: new Map(), // Trade ID -> trade details
-      lastTradeTime: null,
-      tradeCount: 0,
-      dailyTradeCount: 0,
+      // ─────────────────────────────────────────────────────────────────────
+      // TRADE TRACKING
+      // activeTrades Map persists across restarts via save()/load()
+      // ─────────────────────────────────────────────────────────────────────
+      activeTrades: new Map(),  // orderId → { size, price, entryTime, ... }
+      lastTradeTime: null,      // Timestamp of last trade execution
+      tradeCount: 0,            // Total trades (lifetime)
+      dailyTradeCount: 0,       // Trades today (resets via resetDaily())
 
-      // P&L tracking
-      realizedPnL: 0,
-      unrealizedPnL: 0,
-      totalPnL: 0,
+      // ─────────────────────────────────────────────────────────────────────
+      // P&L TRACKING (all values in USD)
+      // ─────────────────────────────────────────────────────────────────────
+      realizedPnL: 0,           // Cumulative closed trade P&L
+      unrealizedPnL: 0,         // Current open position P&L (updated externally)
+      totalPnL: 0,              // realizedPnL + unrealizedPnL
 
-      // System state
-      isTrading: false,
-      recoveryMode: false,
-      lastError: null,
-      lastUpdate: Date.now()
+      // ─────────────────────────────────────────────────────────────────────
+      // SYSTEM STATE
+      // ─────────────────────────────────────────────────────────────────────
+      isTrading: false,         // false = paused/stopped
+      recoveryMode: false,      // true = emergency mode active
+      lastError: null,          // Last error message (for pause reason)
+      lastUpdate: Date.now()    // Timestamp of last state update
     };
 
-    // State change listeners
+    /** @type {Set<Function>} Listeners notified on state changes */
     this.listeners = new Set();
 
-    // Transaction log for debugging
+    /** @type {Array<Object>} Rolling log of recent transactions for debugging */
     this.transactionLog = [];
     this.maxLogSize = 100;
 
-    // Lock for atomic operations
+    /** @type {boolean} Lock flag for atomic operations */
     this.locked = false;
+    /** @type {Array<Function>} Queue of callbacks waiting for lock */
     this.lockQueue = [];
 
-    // FIX: Bind methods to preserve 'this' context
+    // Bind methods to preserve 'this' context when passed as callbacks
     this.get = this.get.bind(this);
     this.set = this.set.bind(this);
     this.updateActiveTrade = this.updateActiveTrade.bind(this);
@@ -61,7 +139,7 @@ class StateManager {
     this.openPosition = this.openPosition.bind(this);
     this.closePosition = this.closePosition.bind(this);
 
-    // CHANGE 2025-12-13: Load saved state on initialization
+    // Load persisted state from disk (respects BACKTEST_MODE, FRESH_START)
     this.load();
   }
 
@@ -155,8 +233,41 @@ class StateManager {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION: Position Management
+  // These methods handle opening/closing positions with proper BTC↔USD math
+  // ═══════════════════════════════════════════════════════════════════════════
+
   /**
-   * Open a new position (BUY)
+   * Open a new position (BUY).
+   *
+   * @async
+   * @param {number} size - Position size in BTC (asset units, NOT USD!)
+   * @param {number} price - Current market price in USD per BTC
+   * @param {Object} [context={}] - Additional context for logging/tracking
+   * @param {string} [context.orderId] - Broker order ID
+   * @param {string} [context.source] - Calling component (e.g., 'TradingBrain')
+   * @param {string} [context.reason] - Trade reason (e.g., 'RSI oversold')
+   * @param {number} [context.confidence] - Signal confidence (0-100)
+   * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
+   *
+   * @example
+   * // Buy 0.001 BTC at $100,000
+   * await stateManager.openPosition(0.001, 100000, {
+   *   source: 'TradingBrain',
+   *   reason: 'RSI oversold bounce',
+   *   confidence: 75
+   * });
+   * // Result: balance -= $100, position = 0.001, inPosition = $100
+   *
+   * @description
+   * CRITICAL MATH:
+   * - size is in BTC (e.g., 0.001)
+   * - price is in USD per BTC (e.g., $100,000)
+   * - usdCost = size × price (e.g., 0.001 × 100,000 = $100)
+   * - balance decreases by usdCost
+   * - inPosition increases by usdCost
+   * - position increases by size (BTC)
    */
   async openPosition(size, price, context = {}) {
     if (this.state.position > 0) {
@@ -213,7 +324,33 @@ class StateManager {
   }
 
   /**
-   * Close position (SELL)
+   * Close position (SELL) - partial or full.
+   *
+   * @async
+   * @param {number} price - Current market price in USD per BTC
+   * @param {boolean} [partial=false] - true for partial close, false for full
+   * @param {number|null} [size=null] - BTC amount to close (null = full position)
+   * @param {Object} [context={}] - Additional context for logging/tracking
+   * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
+   *
+   * @example
+   * // Full close at $101,000 (1% profit on $100k entry)
+   * await stateManager.closePosition(101000);
+   * // Result: pnl = 0.001 × ($101k - $100k) = $1
+   * //         balance += 0.001 × $101,000 = $101
+   *
+   * @description
+   * CRITICAL P&L CALCULATION (fixed 2026-02-01):
+   * WRONG (old bug): pnl = closeSize × priceChangePercent
+   *   - Treated BTC as USD: 0.001 × 0.01 = $0.00001 profit (WRONG!)
+   * CORRECT: pnl = closeSize × (price - entryPrice)
+   *   - BTC × price_diff = USD: 0.001 × $1000 = $1 profit (CORRECT!)
+   *
+   * BALANCE RESTORATION (fixed 2026-02-01):
+   * WRONG (old bug): balance += closeSize + pnl
+   *   - Added BTC to USD: balance + 0.001 + 0.00001 (WRONG!)
+   * CORRECT: balance += closeSize × price
+   *   - BTC × current_price = USD returned: balance + $101 (CORRECT!)
    */
   async closePosition(price, partial = false, size = null, context = {}) {
     if (this.state.position <= 0) {
@@ -574,8 +711,18 @@ class StateManager {
     }
   }
 
-  // === INTERNAL METHODS ===
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION: Internal Methods (Lock, Validation, Logging)
+  // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * Validate state updates before applying.
+   * Throws if updates would create invalid state.
+   *
+   * @private
+   * @param {Object} updates - Proposed state updates
+   * @throws {Error} If updates would create negative position or balance
+   */
   validateUpdates(updates) {
     // Add validation logic here
     if (updates.position !== undefined && updates.position < 0) {
@@ -586,6 +733,17 @@ class StateManager {
     }
   }
 
+  /**
+   * Log a transaction for debugging/audit purposes.
+   * Maintains a rolling window of the last N transactions.
+   *
+   * @private
+   * @param {Object} transaction - Transaction record
+   * @param {number} transaction.timestamp - When transaction occurred
+   * @param {Object} transaction.updates - What was changed
+   * @param {Object} transaction.context - Why it was changed
+   * @param {Object} transaction.snapshot - State before change
+   */
   logTransaction(transaction) {
     this.transactionLog.push(transaction);
     if (this.transactionLog.length > this.maxLogSize) {
@@ -593,6 +751,14 @@ class StateManager {
     }
   }
 
+  /**
+   * Acquire exclusive lock for atomic operations.
+   * Uses a simple queue-based mutex to ensure only one update runs at a time.
+   *
+   * @private
+   * @async
+   * @returns {Promise<void>} Resolves when lock is acquired
+   */
   async acquireLock() {
     if (!this.locked) {
       this.locked = true;
@@ -693,9 +859,25 @@ class StateManager {
   }
 }
 
-// Singleton pattern
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: Module Exports (Singleton Pattern)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @type {StateManager|null} Singleton instance */
 let instance = null;
 
+/**
+ * Get the singleton StateManager instance.
+ * Creates the instance on first call, returns existing on subsequent calls.
+ *
+ * @function getInstance
+ * @returns {StateManager} The singleton StateManager instance
+ *
+ * @example
+ * const { getInstance } = require('./core/StateManager');
+ * const stateManager = getInstance();
+ * const state = stateManager.getState();
+ */
 module.exports = {
   getInstance: () => {
     if (!instance) {
@@ -703,5 +885,6 @@ module.exports = {
     }
     return instance;
   },
+  /** @type {typeof StateManager} The StateManager class (for testing) */
   StateManager
 };

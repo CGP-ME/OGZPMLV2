@@ -1,10 +1,40 @@
 /**
- * AdvancedExecutionLayer.js - Risk-Integrated Trade Execution Engine
+ * @fileoverview AdvancedExecutionLayer - Risk-Integrated Trade Execution Engine
  *
- * Combines ExecutionLayer functionality with advanced risk management integration.
- * Handles actual trade execution, position tracking, P&L calculation, and ML learning data.
+ * Handles actual trade execution with broker adapters, position tracking,
+ * P&L calculation, and integration with risk management systems.
  *
- * CHANGE 513 COMPLIANT: Stores entry indicators for ML learning
+ * @description
+ * ARCHITECTURE ROLE:
+ * ExecutionLayer is the final step before orders hit the exchange. It receives
+ * trade decisions from TradingBrain and executes them through the broker adapter.
+ *
+ * DATA FLOW:
+ * ```
+ * TradingBrain.openPosition()
+ *        ↓
+ * ExecutionLayer.executeOrder()
+ *        ↓
+ * KrakenAdapter.executeOrder()  ← Actual exchange API call
+ *        ↓
+ * StateManager.openPosition()   ← Records position
+ * ```
+ *
+ * STATE MANAGEMENT:
+ * - Reads position/balance from StateManager (single source of truth)
+ * - Local this.positions Map is for tracking submitted orders/intents
+ * - Local this.balance is fallback, but StateManager.get('balance') is preferred
+ *
+ * IDEMPOTENCY:
+ * Uses intent-based order tracking to prevent duplicate orders. Each trade
+ * generates a unique intentId that expires after 5 minutes.
+ *
+ * @module core/AdvancedExecutionLayer
+ * @requires ./StateManager
+ * @requires ../utils/discordNotifier
+ *
+ * @change 513 Stores entry indicators for ML learning
+ * @change 668 Gets balance from StateManager (single source of truth)
  */
 
 const crypto = require('crypto');
@@ -438,85 +468,10 @@ class AdvancedExecutionLayer {
     return finalSize;
   }
 
-  /**
-   * Close position at current price
-   */
-  async closePosition(positionId, currentPrice, reason = 'Manual close') {
-    const position = this.positions.get(positionId);
-    if (!position) {
-      console.log(`⚠️ Position ${positionId} not found`);
-      return null;
-    }
-
-    // Calculate P&L
-    if (position.direction === 'buy') {
-      position.pnl = (currentPrice - position.entryPrice) * position.positionSize;
-    } else {
-      position.pnl = (position.entryPrice - currentPrice) * position.positionSize;
-    }
-
-    // Update balance
-    this.balance += position.pnl;
-
-    // Update stats
-    if (position.pnl > 0) {
-      this.winningTrades++;
-    }
-
-    // Mark as closed
-    position.closed = true;
-    position.exitPrice = currentPrice;
-    position.exitTime = Date.now();
-    position.exitReason = reason;
-    position.active = false;
-
-    console.log(`✅ POSITION CLOSED: ${position.direction} ${position.id}`);
-    console.log(`   P&L: $${(position.pnl || 0).toFixed(2)}`);
-    console.log(`   New Balance: $${(this.balance || 0).toFixed(2)}`);
-
-    // Log and broadcast
-    this.logTradeToFile(position);
-    this.broadcastTrade(position);
-
-    // Send Discord notification for closed trade
-    if (this.discord) {
-      try {
-        const pnlEmoji = (position.pnl || 0) > 0 ? '💰' : '📉';
-        const pnlPercent = position.entryPrice && position.amount
-          ? ((position.pnl || 0) / (position.entryPrice * position.amount) * 100).toFixed(2)
-          : '0.00';
-        const message = `${pnlEmoji} **TRADE CLOSED**\n` +
-          `**Symbol:** ${position.symbol}\n` +
-          `**Direction:** ${position.direction?.toUpperCase() || 'UNKNOWN'}\n` +
-          `**Entry:** $${(position.entryPrice || 0).toFixed(2)}\n` +
-          `**Exit:** $${(currentPrice || 0).toFixed(2)}\n` +
-          `**P&L:** $${(position.pnl || 0).toFixed(2)} (${pnlPercent}%)\n` +
-          `**Reason:** ${reason}\n` +
-          `**Balance:** $${(this.balance || 0).toFixed(2)}\n` +
-          `**Mode:** ${this.mode}`;
-
-        await this.discord.sendMessage(message, 'stats');
-      } catch (error) {
-        console.error('❌ Discord close notification failed:', error.message);
-      }
-    }
-
-    // Notify risk manager
-    if (this.bot?.riskManager?.recordTrade) {
-      this.bot.riskManager.recordTrade({
-        profit: position.pnl > 0,
-        pnl: position.pnl,
-        confidence: position.confidence
-      });
-    }
-
-    // 🧠 TRAI PATTERN MEMORY - Let TRAI learn from this trade
-    if (this.bot?.trai?.recordTradeOutcome) {
-      this.recordTradeForTRAI(position);
-    }
-
-    return position;
-  }
+  // REMOVED 2026-02-01: closePosition() - Dead code (~75 lines)
+  // Position closing goes through StateManager.closePosition() → run-empire-v2.js
+  // All features (P&L calc, Discord, RiskManager, TRAI learning) handled elsewhere
+  // Verified: zero callers in entire codebase
 
   /**
    * Format and record trade for TRAI pattern memory learning

@@ -1,12 +1,34 @@
 /**
- * TRAI Core - AI Co-Founder & Business Automation System
- * 
- * TRAI is a comprehensive AI system designed to:
- * - Handle customer service and technical support
- * - Optimize trading strategies and execution
- * - Create marketing content and grow the business
- * - Monitor markets and execute trades autonomously
- * - Learn from interactions and improve continuously
+ * @fileoverview TRAI Core - AI Co-Founder & Business Automation System
+ *
+ * TRAI (Trading Research & Analysis Intelligence) is the AI backbone of OGZ Prime,
+ * providing natural language understanding, trading advice, and pattern learning.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * TRAI sits alongside the trading engine, providing:
+ * 1. Trading advice via natural language queries
+ * 2. Market sentiment analysis with web context
+ * 3. Pattern learning from trade outcomes
+ * 4. Dashboard chat interface
+ *
+ * LLM INTEGRATION:
+ * Uses Ollama with a local model (trai:latest) for fast inference.
+ * PersistentLLMClient keeps the model warm in GPU RAM for <2s response times.
+ *
+ * PATTERN MEMORY:
+ * TRAI's PatternMemoryBank learns from successful/failed trades over time.
+ * Patterns progress: CANDIDATE → PROMOTED/QUARANTINED/DEAD
+ *
+ * KEY METHODS:
+ * - generateTradeAdvice(marketData): BUY/SELL/HOLD recommendation
+ * - processQuery(query): Natural language chat response
+ * - recordPatternResult(features, outcome): Pattern learning
+ *
+ * @module core/trai_core
+ * @requires ./PatternMemoryBank
+ * @requires ./persistent_llm_client
+ * @extends EventEmitter
  */
 
 const fs = require('fs');

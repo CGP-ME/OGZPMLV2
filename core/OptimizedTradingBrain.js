@@ -1,26 +1,56 @@
-// OptimizedTradingBrain.js - Enhanced Trading Engine with Comprehensive Logging
-// ========================================================================
-// 🧠 ADVANCED TRADING BRAIN - OGZ PRIME VALHALLA EDITION
-// ========================================================================
-//
-// This is the core trading decision engine that:
-// - Manages positions and executes trades
-// - Integrates with MaxProfitManager for sophisticated exits
-// - Captures comprehensive market data for analysis
-// - Logs detailed trade information for performance tracking
-// - Calculates real-time P&L and risk metrics
-//
-// Built for: Houston Fund Generation & Financial Freedom
-// Author: Trey (OGZPrime Technologies)
-// Version: 10.2 Enhanced with Comprehensive Logging
-//
-// Features:
-// ✅ Advanced position management with trailing stops
-// ✅ Comprehensive trade logging with all indicators
-// ✅ Real-time profit/loss calculation and verification
-// ✅ Pattern recognition integration
-// ✅ Risk management with position sizing
-// ✅ Houston fund progress tracking
+/**
+ * @fileoverview OptimizedTradingBrain - Core Trading Decision Engine
+ *
+ * This is the brain of OGZ Prime, responsible for all trading decisions,
+ * position management, and sophisticated exit strategies.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * TradingBrain sits between signal generation and execution. It receives
+ * market data + pattern signals, decides whether to trade, sizes positions,
+ * manages trailing stops, and triggers exits.
+ *
+ * DATA FLOW:
+ * ```
+ * run-empire-v2.js (market data)
+ *        ↓
+ * TradingBrain.getDecision() → BUY/SELL/HOLD
+ *        ↓
+ * TradingBrain.openPosition() or closePosition()
+ *        ↓
+ * StateManager (single source of truth)
+ *        ↓
+ * BrokerAdapter (order execution)
+ * ```
+ *
+ * KEY FEATURES:
+ * - Dynamic position sizing based on confidence + volatility
+ * - MaxProfitManager integration for tiered exits
+ * - "Break even fast, then let winners run" strategy
+ * - Pattern learning integration
+ * - Multi-asset support (BTC, ETH, SOL, ADA)
+ *
+ * CRITICAL NOTES:
+ * 1. This class maintains a local position copy for quick access, but
+ *    StateManager is the source of truth. Always sync before decisions.
+ * 2. Balance desync was a major bug (fixed 2026-02-01) - now syncs from
+ *    StateManager in openPosition() before calculating position size.
+ * 3. All trades should be logged via logTrade() for performance tracking.
+ *
+ * @module core/OptimizedTradingBrain
+ * @requires ./MaxProfitManager
+ * @requires ./StateManager
+ * @requires ./FibonacciDetector
+ * @requires ./SupportResistanceDetector
+ * @requires ../utils/tradeLogger
+ *
+ * @author Trey (OGZPrime Technologies)
+ * @version 10.2 Enhanced with Comprehensive Logging
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: Dependencies
+// ═══════════════════════════════════════════════════════════════════════════
 
 const { logTrade } = require('../utils/tradeLogger');
 const MaxProfitManager = require('./MaxProfitManager');
@@ -31,15 +61,45 @@ const { getInstance: getStateManager } = require('./StateManager');  // CHANGE 2
 const ErrorHandler = require('./ErrorHandler');  // CHANGE 2025-12-11: Error escalation
 const { RollingWindow } = require('./MemoryManager');  // CHANGE 2025-12-11: Memory leak prevention
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION: OptimizedTradingBrain Class
+// ═══════════════════════════════════════════════════════════════════════════
+
 /**
- * Enhanced Trading Brain with comprehensive logging and analysis
- * Manages all trading decisions, position management, and performance tracking
+ * Core trading decision engine with comprehensive logging and analysis.
+ * Manages all trading decisions, position management, and performance tracking.
+ *
+ * @class OptimizedTradingBrain
+ *
+ * @property {number} balance - Current available balance (LOCAL CACHE - sync from StateManager!)
+ * @property {number} initialBalance - Starting balance for P&L calculation
+ * @property {Object|null} position - Current open position details
+ * @property {RollingWindow} tradeHistory - Last 100 trades (fixed-size to prevent memory leak)
+ * @property {MaxProfitManager} maxProfitManager - Tiered exit strategy manager
+ * @property {Object} config - Trading configuration (risk, sizing, thresholds)
+ * @property {ErrorHandler} errorHandler - Circuit breaker for error management
+ *
+ * @warning BALANCE DESYNC BUG: This class caches this.balance locally. It MUST sync
+ *          from StateManager before making position sizing decisions. See openPosition().
  */
 class OptimizedTradingBrain {
   /**
-   * Initialize the trading brain with account balance and configuration
-   * @param {number} balance - Starting account balance
-   * @param {Object} config - Configuration options
+   * Initialize the trading brain with account balance and configuration.
+   *
+   * @constructor
+   * @param {number} [balance=10000] - Starting account balance in USD
+   * @param {Object} [config={}] - Configuration options
+   * @param {number} [config.maxRiskPerTrade=0.02] - Max risk per trade (2%)
+   * @param {number} [config.stopLossPercent=0.02] - Stop loss percentage
+   * @param {number} [config.takeProfitPercent=0.04] - Take profit percentage
+   * @param {number} [config.minConfidenceThreshold=0.45] - Min confidence to trade
+   * @param {number} [config.maxPositionSize=0.05] - Max position size (5% of balance)
+   *
+   * @example
+   * const brain = new OptimizedTradingBrain(10000, {
+   *   minConfidenceThreshold: 0.50,  // Stricter entry
+   *   maxPositionSize: 0.03          // Smaller positions
+   * });
    */
   constructor(balance = 10000, config = {}) {
     // CHANGE 2025-12-11: Error handler for circuit breaker pattern

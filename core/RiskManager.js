@@ -30,6 +30,12 @@
  * - Added TTL-based cleanup for alertsTriggered array to prevent memory leaks
  * - Added exponential backoff for recovery mode to prevent flip-flopping
  * - Enhanced period reset logic with proper timezone handling
+ *
+ * ⚠️ ARCHITECTURE NOTE:
+ * RiskManager maintains its own accountBalance state for risk calculations.
+ * It does NOT sync with StateManager. Callers must ensure updateBalance()
+ * is called when StateManager balance changes to prevent drift.
+ * Consider future refactor to read from StateManager as single source of truth.
  * 
  * AUTHOR: OGZ Prime Team - Built for Sustainable Trading Success
  * DATE: Advanced Risk Management Implementation

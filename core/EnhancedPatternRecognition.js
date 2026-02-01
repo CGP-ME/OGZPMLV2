@@ -1,5 +1,32 @@
-// EnhancedPatternRecognition.js - Advanced pattern detection and memory system
-// Identifies high-probability trading setups based on historical performance
+/**
+ * @fileoverview EnhancedPatternRecognition - Advanced Pattern Detection System
+ *
+ * Identifies high-probability trading setups by analyzing price action patterns
+ * and tracking their historical performance.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * Pattern recognition feeds into the trading decision pipeline. Detected patterns
+ * with high historical win rates boost trade confidence, while weak patterns
+ * reduce it or block trades entirely.
+ *
+ * KEY COMPONENTS:
+ * - FeatureExtractor: Normalizes market data into a 9-element feature vector
+ * - PatternMemory: Stores pattern performance (wins, losses, avg P&L)
+ * - PatternMatcher: Compares current features against known patterns
+ *
+ * FEATURE VECTOR FORMAT (9 elements):
+ * [rsi, macdDelta, trend, bodySize, wickRatio, bbWidth, vol, momentum, pricePos]
+ *
+ * LEARNING FLOW:
+ * 1. Trade entry: Extract features → recordPatternResult(features, { pnl: 0 })
+ * 2. Trade exit: recordPatternResult(features, { pnl: actualPnL })
+ * 3. Pattern memory updates win/loss counts and average P&L
+ * 4. Future trades consult pattern history for confidence adjustment
+ *
+ * @module core/EnhancedPatternRecognition
+ * @requires ./OptimizedIndicators
+ */
 
 const fs = require('fs');
 const path = require('path');

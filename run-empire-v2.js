@@ -4,22 +4,70 @@
 require('./instrument.js');
 
 /**
- * OGZ PRIME V14 - FINAL MERGED REFACTORED ORCHESTRATOR
- * =====================================================
- * Combines Desktop Claude's 402-line structure with Browser Claude's 439-line AdvancedExecutionLayer
- * Clean modular architecture with zero inline logic
+ * @fileoverview OGZ PRIME V14 - Main Trading Bot Orchestrator
  *
- * MERGED FROM:
- * - Desktop Claude: 402-line orchestrator structure (Change 561)
- * - Browser Claude: 439-line AdvancedExecutionLayer (Change 513 compliant, commits d590022 + 84a2544)
+ * This is the main entry point and orchestration layer for the OGZ Prime trading bot.
+ * It coordinates all trading components: data ingestion, analysis, decision-making,
+ * and execution.
  *
- * Architecture: Pure orchestration pipeline
- * ├── Pattern Recognition → Market opportunity detection
- * ├── Trading Brain → Confidence & position sizing
- * ├── Risk Manager → Pre-trade risk assessment
- * ├── Advanced Execution → Trade execution (439-line merged version)
- * └── Performance → Analytics & dashboard updates
+ * @description
+ * ARCHITECTURE OVERVIEW:
+ * ```
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │                         run-empire-v2.js (ORCHESTRATOR)                 │
+ * │                                                                         │
+ * │  ┌─────────────┐    ┌────────────────┐    ┌──────────────────────────┐ │
+ * │  │   KRAKEN    │───▶│  INDICATORS    │───▶│  PATTERN RECOGNITION     │ │
+ * │  │  WEBSOCKET  │    │  (RSI,MACD,BB) │    │  (EnhancedPatternRecog)  │ │
+ * │  └─────────────┘    └────────────────┘    └──────────────────────────┘ │
+ * │         │                   │                        │                  │
+ * │         ▼                   ▼                        ▼                  │
+ * │  ┌─────────────┐    ┌────────────────┐    ┌──────────────────────────┐ │
+ * │  │   REGIME    │◀───│  TRADING BRAIN │◀───│      TRAI (AI)           │ │
+ * │  │  DETECTOR   │    │  (Decisions)   │    │  (Optional co-pilot)     │ │
+ * │  └─────────────┘    └────────────────┘    └──────────────────────────┘ │
+ * │                            │                                            │
+ * │                            ▼                                            │
+ * │                     ┌────────────────┐                                  │
+ * │                     │  RISK MANAGER  │                                  │
+ * │                     │  (Pre-trade)   │                                  │
+ * │                     └────────────────┘                                  │
+ * │                            │                                            │
+ * │                            ▼                                            │
+ * │  ┌─────────────┐    ┌────────────────┐    ┌──────────────────────────┐ │
+ * │  │   STATE     │◀───│  EXECUTION     │───▶│  KRAKEN API              │ │
+ * │  │  MANAGER    │    │  LAYER         │    │  (Paper or Live)         │ │
+ * │  └─────────────┘    └────────────────┘    └──────────────────────────┘ │
+ * │         │                                                               │
+ * │         ▼                                                               │
+ * │  ┌─────────────┐                                                        │
+ * │  │  DASHBOARD  │  (WebSocket to browser)                               │
+ * │  │  UPDATES    │                                                        │
+ * │  └─────────────┘                                                        │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ * ```
  *
+ * MAIN TRADING LOOP (processCandle):
+ * 1. Receive OHLC candle from Kraken WebSocket
+ * 2. Calculate indicators (RSI, MACD, Bollinger Bands, OGZ-TPO)
+ * 3. Detect patterns (EnhancedPatternRecognition)
+ * 4. Get TradingBrain decision (BUY/SELL/HOLD)
+ * 5. Optional: Consult TRAI for AI guidance
+ * 6. Manage existing position (trailing stops, exits)
+ * 7. Execute new trades if conditions met
+ * 8. Broadcast updates to dashboard
+ *
+ * KEY METHODS:
+ * - processCandle(candle): Main trading loop entry point
+ * - executeTrade(decision, ...): Executes BUY/SELL orders
+ * - manageExistingPosition(price, ...): Handles exits/trailing stops
+ * - handleMarketData(candle): Routes incoming market data
+ *
+ * STATE MANAGEMENT:
+ * All position/balance state is centralized in StateManager (single source of truth).
+ * Local caches in TradingBrain sync FROM StateManager before decisions.
+ *
+ * @module run-empire-v2
  * @version 14.0.0-FINAL-MERGED
  * @date 2025-11-20
  */

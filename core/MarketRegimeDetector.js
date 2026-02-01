@@ -1,8 +1,30 @@
-// ===================================================================
-// ULTIMATE MARKET REGIME DETECTOR - THE MARKET ORACLE! 🔮💎
-// ===================================================================
-// Combines TECHNICAL + CORRELATION + MACRO analysis for MAXIMUM EDGE
-// This is what separates AMATEUR bots from HEDGE FUND SYSTEMS!
+/**
+ * @fileoverview MarketRegimeDetector - Multi-Dimensional Market State Analysis
+ *
+ * Detects the current market regime (trending, ranging, volatile, etc.) using
+ * technical indicators, correlation analysis, and macro signals.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * Regime detection informs trading strategy selection. Different regimes
+ * require different approaches (trend-following vs mean-reversion).
+ *
+ * REGIMES DETECTED:
+ * - TRENDING_UP/DOWN: Strong directional movement
+ * - RANGING: Sideways consolidation (mean-reversion opportunities)
+ * - VOLATILE: High volatility (reduce position sizes)
+ * - QUIET: Low volatility (accumulation phase)
+ * - BREAKOUT/BREAKDOWN: Regime transition in progress
+ * - RISK_ON/RISK_OFF: Macro correlation-based regimes
+ * - PANIC/CRASH: Emergency risk-off conditions
+ *
+ * USAGE:
+ * TradingBrain and run-empire-v2.js consult the current regime to adjust
+ * confidence thresholds, position sizing, and strategy selection.
+ *
+ * @module core/MarketRegimeDetector
+ * @extends EventEmitter
+ */
 
 const EventEmitter = require('events');
 
