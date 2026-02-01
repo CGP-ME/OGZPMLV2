@@ -106,18 +106,41 @@ class PersistentLLMClient {
             // Extract and clean response
             let text = response.response || '';
 
-            // CHANGE 2026-01-31: More robust thinking tag cleanup
-            // Remove complete <think>...</think> blocks
-            text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
-            // Remove incomplete <think> tags (no closing tag - model cut off)
-            text = text.replace(/<think>[\s\S]*/g, '');
-            // Remove any </think> orphans
+            // DEBUG: Log raw response to see what we're getting
+            console.log('🔍 [TRAI DEBUG] Raw response length:', text.length);
+            console.log('🔍 [TRAI DEBUG] Has <think>:', text.includes('<think>'));
+            console.log('🔍 [TRAI DEBUG] Has </think>:', text.includes('</think>'));
+            if (text.length < 500) {
+                console.log('🔍 [TRAI DEBUG] Raw:', text.substring(0, 200));
+            }
+
+            // CHANGE 2026-01-31: Smarter thinking tag cleanup
+            // Only remove complete <think>...</think> blocks, preserve text after
+            if (text.includes('<think>') && text.includes('</think>')) {
+                // Complete block - remove just the block
+                text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+            } else if (text.includes('<think>') && !text.includes('</think>')) {
+                // Incomplete block - model cut off mid-thought
+                // Try to find if there's text BEFORE the <think> tag
+                const thinkIndex = text.indexOf('<think>');
+                if (thinkIndex > 10) {
+                    // There's content before <think>, keep it
+                    text = text.substring(0, thinkIndex);
+                } else {
+                    // <think> is at start, response is all thinking - use fallback
+                    text = '';
+                }
+            }
+            // Remove any orphan </think> tags
             text = text.replace(/<\/think>/g, '');
             // Remove garbage/partial tokens that sometimes appear before <think>
             text = text.replace(/^[a-z]{1,5}<think/i, '');
 
             // CHANGE 2026-01-31: Clean leading garbage (punctuation, newlines at start)
             text = text.replace(/^[\s.,;:!?\-\n\r]+/, '');
+
+            // CHANGE 2026-01-31: Remove LLM output labels (model sometimes prefixes with field names)
+            text = text.replace(/^(advice|response|answer|output|result|reply)[\s:]+/i, '');
 
             // CHANGE 2026-01-31: If sentence is cut off (doesn't end with punctuation),
             // try to end at last complete sentence

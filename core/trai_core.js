@@ -381,18 +381,41 @@ class TRAICore extends EventEmitter {
         }
 
         try {
-            // Build market context if available (from dashboard chat)
+            // CHANGE 2026-01-31: Build REAL market context from web data
             let marketInfo = '';
             if (context?.currentPrice) {
-                marketInfo = `\n\nCurrent Market Status:
-- BTC Price: $${context.currentPrice}
-- Price Change: ${context.priceChange24h}
-- Bot Mode: ${context.botMode}
+                // Check if we have rich web context (has change7d, ath, etc.)
+                const hasWebContext = context.change7d && context.ath;
+
+                if (hasWebContext) {
+                    const assetLabel = context.assetName || context.asset || 'BTC';
+                    const sourceLabel = context.assetType === 'stock' ? 'Yahoo Finance' : 'CoinGecko';
+                    marketInfo = `\n\nREAL-TIME MARKET DATA (from ${sourceLabel}):
+- ${assetLabel} Price: $${context.currentPrice.toLocaleString()}
+- 24h Change: ${context.change24h}
+- 7d Change: ${context.change7d}
+- 30d Change: ${context.change30d}
+- 24h High: $${context.high24h?.toLocaleString()}
+- 24h Low: $${context.low24h?.toLocaleString()}
+- All-Time High: $${context.ath?.toLocaleString()} (${context.athDate})
+- Distance from ATH: ${context.athChangePercent}
+- Market Sentiment: ${context.marketSentiment}
+
+BOT STATUS:
+- Mode: ${context.botMode}
 - Total Trades: ${context.totalTrades}
 - Win Rate: ${context.winRate}
 - Balance: $${context.balance}
 - Position: ${context.hasOpenPosition ? `${context.positionDirection} (P&L: $${context.positionPnL})` : 'None'}
 - Last Signal: ${context.lastDecision} (${(context.confidence * 100).toFixed(1)}% confidence)\n`;
+                } else {
+                    // Fallback to basic context
+                    marketInfo = `\n\nMarket Status (limited data):
+- BTC Price: $${context.currentPrice}
+- Note: Web data unavailable, using local price only
+- Bot Mode: ${context.botMode}
+- Position: ${context.hasOpenPosition ? `${context.positionDirection}` : 'None'}\n`;
+                }
             }
 
             const contextPrompt = primaryCategory ?
@@ -403,7 +426,8 @@ class TRAICore extends EventEmitter {
 
             // Call persistent server (model already loaded in GPU!)
             const startTime = Date.now();
-            const response = await this.persistentLLM.generateResponse(fullPrompt, 300);
+            // FIX: Increased from 300 to 2500 - reasoning models need room for <think> blocks + response
+            const response = await this.persistentLLM.generateResponse(fullPrompt, 2500);
             const inferenceTime = Date.now() - startTime;
 
             // Update stats (for monitoring)

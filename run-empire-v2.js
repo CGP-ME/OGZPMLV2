@@ -102,6 +102,9 @@ const indicatorEngine = new IndicatorEngine({
 // CHANGE 2026-01-25: Trading Proof Logger for website transparency
 const { TradingProofLogger } = require('./ogz-meta/claudito-logger');
 
+// CHANGE 2026-01-31: Axios for TRAI web search capability
+const axios = require('axios');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -3106,6 +3109,182 @@ class OGZPrimeV14Bot {
   }
 
   /**
+   * CHANGE 2026-01-31: Fetch real market context from web for TRAI
+   * Universal - supports any crypto (CoinGecko) or stock (Yahoo Finance)
+   */
+  async fetchWebMarketContext(query = '') {
+    // Detect what asset the user is asking about
+    const asset = this.detectAssetFromQuery(query);
+
+    try {
+      if (asset.type === 'crypto') {
+        return await this.fetchCryptoContext(asset.id, asset.symbol);
+      } else if (asset.type === 'stock') {
+        return await this.fetchStockContext(asset.symbol);
+      }
+      // Default to BTC if no specific asset detected
+      return await this.fetchCryptoContext('bitcoin', 'BTC');
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch web market context:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Detect asset from user query
+   */
+  detectAssetFromQuery(query) {
+    const q = query.toLowerCase();
+
+    // Crypto mappings (name/symbol → CoinGecko ID)
+    const cryptoMap = {
+      'bitcoin': { id: 'bitcoin', symbol: 'BTC' },
+      'btc': { id: 'bitcoin', symbol: 'BTC' },
+      'ethereum': { id: 'ethereum', symbol: 'ETH' },
+      'eth': { id: 'ethereum', symbol: 'ETH' },
+      'solana': { id: 'solana', symbol: 'SOL' },
+      'sol': { id: 'solana', symbol: 'SOL' },
+      'cardano': { id: 'cardano', symbol: 'ADA' },
+      'ada': { id: 'cardano', symbol: 'ADA' },
+      'xrp': { id: 'ripple', symbol: 'XRP' },
+      'ripple': { id: 'ripple', symbol: 'XRP' },
+      'dogecoin': { id: 'dogecoin', symbol: 'DOGE' },
+      'doge': { id: 'dogecoin', symbol: 'DOGE' },
+      'polkadot': { id: 'polkadot', symbol: 'DOT' },
+      'dot': { id: 'polkadot', symbol: 'DOT' },
+      'avalanche': { id: 'avalanche-2', symbol: 'AVAX' },
+      'avax': { id: 'avalanche-2', symbol: 'AVAX' },
+      'chainlink': { id: 'chainlink', symbol: 'LINK' },
+      'link': { id: 'chainlink', symbol: 'LINK' },
+      'polygon': { id: 'matic-network', symbol: 'MATIC' },
+      'matic': { id: 'matic-network', symbol: 'MATIC' },
+      'litecoin': { id: 'litecoin', symbol: 'LTC' },
+      'ltc': { id: 'litecoin', symbol: 'LTC' }
+    };
+
+    // Stock mappings (common names → Yahoo symbol)
+    const stockMap = {
+      'apple': 'AAPL',
+      'aapl': 'AAPL',
+      'tesla': 'TSLA',
+      'tsla': 'TSLA',
+      'microsoft': 'MSFT',
+      'msft': 'MSFT',
+      'google': 'GOOGL',
+      'googl': 'GOOGL',
+      'amazon': 'AMZN',
+      'amzn': 'AMZN',
+      'nvidia': 'NVDA',
+      'nvda': 'NVDA',
+      'meta': 'META',
+      'facebook': 'META',
+      'netflix': 'NFLX',
+      'spy': 'SPY',
+      's&p': 'SPY',
+      'qqq': 'QQQ',
+      'nasdaq': 'QQQ'
+    };
+
+    // Check for crypto
+    for (const [key, value] of Object.entries(cryptoMap)) {
+      if (q.includes(key)) {
+        return { type: 'crypto', ...value };
+      }
+    }
+
+    // Check for stocks
+    for (const [key, symbol] of Object.entries(stockMap)) {
+      if (q.includes(key)) {
+        return { type: 'stock', symbol };
+      }
+    }
+
+    // Default to Bitcoin
+    return { type: 'crypto', id: 'bitcoin', symbol: 'BTC' };
+  }
+
+  /**
+   * Fetch crypto market data from CoinGecko
+   */
+  async fetchCryptoContext(coinId, symbol) {
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`,
+      { timeout: 5000 }
+    );
+
+    const data = response.data;
+    const market = data.market_data;
+
+    return {
+      source: 'coingecko',
+      assetType: 'crypto',
+      asset: symbol,
+      assetName: data.name,
+      timestamp: Date.now(),
+      price: market.current_price?.usd || 0,
+      change24h: market.price_change_percentage_24h?.toFixed(2) + '%',
+      change7d: market.price_change_percentage_7d?.toFixed(2) + '%',
+      change30d: market.price_change_percentage_30d?.toFixed(2) + '%',
+      high24h: market.high_24h?.usd || 0,
+      low24h: market.low_24h?.usd || 0,
+      ath: market.ath?.usd || 0,
+      athDate: market.ath_date?.usd?.split('T')[0] || 'unknown',
+      athChangePercent: market.ath_change_percentage?.usd?.toFixed(2) + '%',
+      marketCap: market.market_cap?.usd || 0,
+      marketCapRank: data.market_cap_rank || 0,
+      sentimentUp: data.sentiment_votes_up_percentage || 50,
+      sentimentDown: data.sentiment_votes_down_percentage || 50
+    };
+  }
+
+  /**
+   * Fetch stock market data from Yahoo Finance (via unofficial API)
+   */
+  async fetchStockContext(symbol) {
+    // Yahoo Finance unofficial API endpoint
+    const response = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`,
+      { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+    );
+
+    const result = response.data.chart.result[0];
+    const meta = result.meta;
+    const quotes = result.indicators.quote[0];
+    const closes = quotes.close.filter(c => c !== null);
+
+    const currentPrice = meta.regularMarketPrice;
+    const prevClose = meta.chartPreviousClose || meta.previousClose;
+    const change24h = ((currentPrice - prevClose) / prevClose * 100).toFixed(2);
+
+    // Calculate 7d and 30d changes from historical data
+    const price7dAgo = closes[closes.length - 6] || closes[0];
+    const price30dAgo = closes[0];
+    const change7d = ((currentPrice - price7dAgo) / price7dAgo * 100).toFixed(2);
+    const change30d = ((currentPrice - price30dAgo) / price30dAgo * 100).toFixed(2);
+
+    return {
+      source: 'yahoo_finance',
+      assetType: 'stock',
+      asset: symbol,
+      assetName: meta.shortName || symbol,
+      timestamp: Date.now(),
+      price: currentPrice,
+      change24h: change24h + '%',
+      change7d: change7d + '%',
+      change30d: change30d + '%',
+      high24h: meta.regularMarketDayHigh || currentPrice,
+      low24h: meta.regularMarketDayLow || currentPrice,
+      ath: meta.fiftyTwoWeekHigh || currentPrice,
+      athDate: 'within 52 weeks',
+      athChangePercent: ((currentPrice - meta.fiftyTwoWeekHigh) / meta.fiftyTwoWeekHigh * 100).toFixed(2) + '%',
+      marketCap: meta.marketCap || 0,
+      marketCapRank: 0, // Not available from Yahoo
+      sentimentUp: 50,
+      sentimentDown: 50
+    };
+  }
+
+  /**
    * Handle TRAI chat queries from dashboard
    * Used for tech support and customer questions
    * Includes live market context for NLP-style queries
@@ -3114,6 +3293,9 @@ class OGZPrimeV14Bot {
     const { query, queryId, sessionId } = msg;
 
     try {
+      // CHANGE 2026-01-31: Fetch REAL market context from web (detects asset from query)
+      const webContext = await this.fetchWebMarketContext(query);
+
       // Build live market context for TRAI
       const lastCandle = this.priceHistory[this.priceHistory.length - 1];
       const stats = this.executionLayer?.getStats() || {};
@@ -3123,11 +3305,25 @@ class OGZPrimeV14Bot {
         source: 'dashboard_chat',
         sessionId: sessionId,
         timestamp: Date.now(),
-        // Live market data
-        currentPrice: lastCandle?.c || this.currentPrice,
-        priceChange24h: this.priceHistory.length > 1
-          ? ((lastCandle?.c - this.priceHistory[0]?.c) / this.priceHistory[0]?.c * 100).toFixed(2) + '%'
-          : 'N/A',
+        // REAL market data from web (if available)
+        ...(webContext && {
+          currentPrice: webContext.price,
+          change24h: webContext.change24h,
+          change7d: webContext.change7d,
+          change30d: webContext.change30d,
+          high24h: webContext.high24h,
+          low24h: webContext.low24h,
+          ath: webContext.ath,
+          athDate: webContext.athDate,
+          athChangePercent: webContext.athChangePercent,
+          marketSentiment: webContext.sentimentUp > 60 ? 'BULLISH' :
+                          webContext.sentimentDown > 60 ? 'BEARISH' : 'NEUTRAL'
+        }),
+        // Fallback to local data if web fetch failed
+        ...(!webContext && {
+          currentPrice: lastCandle?.c || this.currentPrice,
+          priceChange24h: 'N/A (web fetch failed)',
+        }),
         candleCount: this.priceHistory.length,
         // Bot status
         botMode: this.config.sandboxMode ? 'PAPER' : 'LIVE',

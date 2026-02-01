@@ -442,6 +442,8 @@
 
     // Clean up leading/trailing garbage
     response = response.replace(/^[\s.,;:!?\-\n\r]+/, '');
+    // Remove LLM output labels (model sometimes prefixes with field names)
+    response = response.replace(/^(advice|response|answer|output|result|reply)[\s:]+/i, '');
     response = response.trim();
 
     // If empty after cleaning, use fallback

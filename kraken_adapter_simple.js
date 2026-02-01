@@ -499,12 +499,20 @@ class KrakenAdapterSimple {
         throw new Error(`Invalid market data received from Kraken: price=${price}, bid=${bid}, ask=${ask}, volume=${volume}`);
       }
 
+      // FIX: Extract 24h high/low/open for accurate market context
+      const high24h = parseFloat(ticker.h?.[1] || ticker.h?.[0] || 0);
+      const low24h = parseFloat(ticker.l?.[1] || ticker.l?.[0] || 0);
+      const open24h = parseFloat(ticker.o || 0);
+
       return {
         symbol,
         price, // Last trade price
         bid,   // Bid price
         ask,   // Ask price
         volume, // 24h volume
+        high24h,  // 24h high
+        low24h,   // 24h low
+        open24h,  // 24h open (today's open)
         timestamp: Date.now()
       };
     } catch (error) {
