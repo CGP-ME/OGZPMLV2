@@ -140,7 +140,7 @@ class PersistentLLMClient {
             text = text.replace(/^[\s.,;:!?\-\n\r]+/, '');
 
             // CHANGE 2026-01-31: Remove LLM output labels (model sometimes prefixes with field names)
-            text = text.replace(/^(advice|response|answer|output|result|reply)[\s:]+/i, '');
+            text = text.replace(/^(advice|response|answer|output|result|reply|indicates|analysis|recommendation|summary)[\s:]+/i, '');
 
             // CHANGE 2026-01-31: If sentence is cut off (doesn't end with punctuation),
             // try to end at last complete sentence

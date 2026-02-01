@@ -318,15 +318,19 @@ class TRAICore extends EventEmitter {
         const { chooseSchema } = require('./prompt_schemas');
         const schema = chooseSchema(query);
 
+        console.log(`🔍 [TRAI] generateResponse - query: "${query.substring(0, 30)}", schema.type: ${schema.type}`);
+
         // Get the actual text response from LLM
         const textResponse = await this.generateIntelligentResponse(query, analysis, context);
 
         // CHANGE 2026-01-31: ROOT FIX - For chat queries, return JUST the text string
         // This prevents the object structure from leaking through to the chat display
         if (schema.type === 'chat') {
+            console.log('🔍 [TRAI] Returning chat-mode response (minimal object)');
             // Chat mode: return plain text, no object wrapper
             return { response: textResponse };
         }
+        console.log('🔍 [TRAI] Returning structured response (full object)');
 
         // Structured mode: return full object for programmatic use
         const response = {

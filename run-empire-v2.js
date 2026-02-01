@@ -3114,19 +3114,42 @@ class OGZPrimeV14Bot {
    */
   async fetchWebMarketContext(query = '') {
     // Detect what asset the user is asking about
-    const asset = this.detectAssetFromQuery(query);
-    console.log(`🌐 [TRAI Web] Detected asset: ${asset.type} - ${asset.symbol || asset.id}`);
+    let asset = this.detectAssetFromQuery(query);
+    console.log(`🌐 [TRAI Web] Detected asset: ${asset.type} - ${asset.symbol || asset.id || asset.query}`);
 
     try {
       let result;
+
+      // If type is 'search', we need to find the asset via API
+      if (asset.type === 'search') {
+        console.log(`🔍 [TRAI Web] Searching for: "${asset.query}"`);
+
+        // Try crypto search first
+        const cryptoResult = await this.searchCrypto(asset.query);
+        if (cryptoResult) {
+          asset = cryptoResult;
+        } else {
+          // Try stock search
+          const stockResult = await this.searchStock(asset.query);
+          if (stockResult) {
+            asset = stockResult;
+          } else {
+            // Fall back to BTC
+            console.log('🌐 [TRAI Web] No match found, defaulting to BTC');
+            asset = { type: 'crypto', id: 'bitcoin', symbol: 'BTC' };
+          }
+        }
+      }
+
+      // Now fetch the actual data
       if (asset.type === 'crypto') {
         result = await this.fetchCryptoContext(asset.id, asset.symbol);
       } else if (asset.type === 'stock') {
         result = await this.fetchStockContext(asset.symbol);
       } else {
-        // Default to BTC if no specific asset detected
         result = await this.fetchCryptoContext('bitcoin', 'BTC');
       }
+
       console.log(`✅ [TRAI Web] Fetched ${result.asset}: $${result.price} (${result.change24h} 24h)`);
       return result;
     } catch (error) {
@@ -3136,76 +3159,155 @@ class OGZPrimeV14Bot {
   }
 
   /**
-   * Detect asset from user query
+   * Detect asset from user query - SMART detection with fuzzy matching
    */
   detectAssetFromQuery(query) {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().replace(/[^a-z0-9\s]/g, ''); // Clean query
+    const words = q.split(/\s+/);
 
-    // Crypto mappings (name/symbol → CoinGecko ID)
-    const cryptoMap = {
-      'bitcoin': { id: 'bitcoin', symbol: 'BTC' },
-      'btc': { id: 'bitcoin', symbol: 'BTC' },
-      'ethereum': { id: 'ethereum', symbol: 'ETH' },
-      'eth': { id: 'ethereum', symbol: 'ETH' },
-      'solana': { id: 'solana', symbol: 'SOL' },
-      'sol': { id: 'solana', symbol: 'SOL' },
-      'cardano': { id: 'cardano', symbol: 'ADA' },
-      'ada': { id: 'cardano', symbol: 'ADA' },
-      'xrp': { id: 'ripple', symbol: 'XRP' },
-      'ripple': { id: 'ripple', symbol: 'XRP' },
-      'dogecoin': { id: 'dogecoin', symbol: 'DOGE' },
-      'doge': { id: 'dogecoin', symbol: 'DOGE' },
-      'polkadot': { id: 'polkadot', symbol: 'DOT' },
-      'dot': { id: 'polkadot', symbol: 'DOT' },
-      'avalanche': { id: 'avalanche-2', symbol: 'AVAX' },
-      'avax': { id: 'avalanche-2', symbol: 'AVAX' },
-      'chainlink': { id: 'chainlink', symbol: 'LINK' },
-      'link': { id: 'chainlink', symbol: 'LINK' },
-      'polygon': { id: 'matic-network', symbol: 'MATIC' },
-      'matic': { id: 'matic-network', symbol: 'MATIC' },
-      'litecoin': { id: 'litecoin', symbol: 'LTC' },
-      'ltc': { id: 'litecoin', symbol: 'LTC' }
+    // Common crypto names → CoinGecko ID (case insensitive, fuzzy)
+    const cryptoPatterns = [
+      { patterns: ['bitcoin', 'btc'], id: 'bitcoin', symbol: 'BTC' },
+      { patterns: ['ethereum', 'eth', 'ether'], id: 'ethereum', symbol: 'ETH' },
+      { patterns: ['solana', 'sol'], id: 'solana', symbol: 'SOL' },
+      { patterns: ['cardano', 'ada'], id: 'cardano', symbol: 'ADA' },
+      { patterns: ['xrp', 'ripple'], id: 'ripple', symbol: 'XRP' },
+      { patterns: ['dogecoin', 'doge'], id: 'dogecoin', symbol: 'DOGE' },
+      { patterns: ['polkadot', 'dot'], id: 'polkadot', symbol: 'DOT' },
+      { patterns: ['avalanche', 'avax'], id: 'avalanche-2', symbol: 'AVAX' },
+      { patterns: ['chainlink', 'link'], id: 'chainlink', symbol: 'LINK' },
+      { patterns: ['polygon', 'matic'], id: 'matic-network', symbol: 'MATIC' },
+      { patterns: ['litecoin', 'ltc'], id: 'litecoin', symbol: 'LTC' },
+      { patterns: ['binance', 'bnb'], id: 'binancecoin', symbol: 'BNB' },
+      { patterns: ['shiba', 'shib'], id: 'shiba-inu', symbol: 'SHIB' },
+      { patterns: ['tron', 'trx'], id: 'tron', symbol: 'TRX' },
+      { patterns: ['uniswap', 'uni'], id: 'uniswap', symbol: 'UNI' }
+    ];
+
+    // Common stock names → Yahoo symbol (fuzzy matching)
+    const stockPatterns = [
+      { patterns: ['apple', 'aapl'], symbol: 'AAPL' },
+      { patterns: ['tesla', 'tsla'], symbol: 'TSLA' },
+      { patterns: ['microsoft', 'msft'], symbol: 'MSFT' },
+      { patterns: ['google', 'googl', 'alphabet'], symbol: 'GOOGL' },
+      { patterns: ['amazon', 'amzn'], symbol: 'AMZN' },
+      { patterns: ['nvidia', 'nvda'], symbol: 'NVDA' },
+      { patterns: ['meta', 'facebook', 'fb'], symbol: 'META' },
+      { patterns: ['netflix', 'nflx'], symbol: 'NFLX' },
+      { patterns: ['spy', 'sp500', 's&p', 'snp'], symbol: 'SPY' },
+      { patterns: ['qqq', 'qq', 'nasdaq', 'nas', 'tech'], symbol: 'QQQ' },
+      { patterns: ['amd'], symbol: 'AMD' },
+      { patterns: ['intel', 'intc'], symbol: 'INTC' },
+      { patterns: ['disney', 'dis'], symbol: 'DIS' },
+      { patterns: ['boeing', 'ba'], symbol: 'BA' },
+      { patterns: ['jpmorgan', 'jpm'], symbol: 'JPM' },
+      { patterns: ['walmart', 'wmt'], symbol: 'WMT' },
+      { patterns: ['costco', 'cost'], symbol: 'COST' }
+    ];
+
+    // Fuzzy match helper - checks if any word starts with or closely matches pattern
+    const fuzzyMatch = (pattern) => {
+      for (const word of words) {
+        // Exact match
+        if (word === pattern) return true;
+        // Word starts with pattern (handles "bitcoins", "teslas")
+        if (word.startsWith(pattern)) return true;
+        // Pattern starts with word (handles "btc" matching "b")
+        if (pattern.startsWith(word) && word.length >= 2) return true;
+        // Levenshtein distance 1 for typos (simple check: same length, 1 char diff)
+        if (Math.abs(word.length - pattern.length) <= 1) {
+          let diffs = 0;
+          const longer = word.length >= pattern.length ? word : pattern;
+          const shorter = word.length < pattern.length ? word : pattern;
+          for (let i = 0; i < longer.length && diffs <= 1; i++) {
+            if (longer[i] !== shorter[i]) diffs++;
+          }
+          if (diffs <= 1 && shorter.length >= 2) return true;
+        }
+      }
+      return false;
     };
 
-    // Stock mappings (common names → Yahoo symbol)
-    const stockMap = {
-      'apple': 'AAPL',
-      'aapl': 'AAPL',
-      'tesla': 'TSLA',
-      'tsla': 'TSLA',
-      'microsoft': 'MSFT',
-      'msft': 'MSFT',
-      'google': 'GOOGL',
-      'googl': 'GOOGL',
-      'amazon': 'AMZN',
-      'amzn': 'AMZN',
-      'nvidia': 'NVDA',
-      'nvda': 'NVDA',
-      'meta': 'META',
-      'facebook': 'META',
-      'netflix': 'NFLX',
-      'spy': 'SPY',
-      's&p': 'SPY',
-      'qqq': 'QQQ',
-      'nasdaq': 'QQQ'
-    };
-
-    // Check for crypto
-    for (const [key, value] of Object.entries(cryptoMap)) {
-      if (q.includes(key)) {
-        return { type: 'crypto', ...value };
+    // Check for crypto first
+    for (const crypto of cryptoPatterns) {
+      for (const pattern of crypto.patterns) {
+        if (fuzzyMatch(pattern)) {
+          return { type: 'crypto', id: crypto.id, symbol: crypto.symbol };
+        }
       }
     }
 
     // Check for stocks
-    for (const [key, symbol] of Object.entries(stockMap)) {
-      if (q.includes(key)) {
-        return { type: 'stock', symbol };
+    for (const stock of stockPatterns) {
+      for (const pattern of stock.patterns) {
+        if (fuzzyMatch(pattern)) {
+          return { type: 'stock', symbol: stock.symbol };
+        }
       }
+    }
+
+    // Try to extract a ticker-like word (2-5 uppercase letters)
+    const tickerMatch = query.match(/\b([A-Z]{2,5})\b/);
+    if (tickerMatch) {
+      return { type: 'stock', symbol: tickerMatch[1] };
+    }
+
+    // No local match - try API search (async, but we'll handle it)
+    // Extract the most likely asset name from the query
+    const assetWords = words.filter(w =>
+      w.length >= 2 &&
+      !['how', 'what', 'is', 'the', 'are', 'doing', 'like', 'about', 'whats', 'hows'].includes(w)
+    );
+
+    if (assetWords.length > 0) {
+      // Store for async lookup
+      return { type: 'search', query: assetWords.join(' ') };
     }
 
     // Default to Bitcoin
     return { type: 'crypto', id: 'bitcoin', symbol: 'BTC' };
+  }
+
+  /**
+   * Search CoinGecko for a crypto by name
+   */
+  async searchCrypto(searchQuery) {
+    try {
+      const response = await axios.get(
+        `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(searchQuery)}`,
+        { timeout: 3000 }
+      );
+      const coins = response.data.coins || [];
+      if (coins.length > 0) {
+        const top = coins[0];
+        console.log(`🔍 [TRAI Search] Found crypto: ${top.name} (${top.symbol})`);
+        return { type: 'crypto', id: top.id, symbol: top.symbol.toUpperCase() };
+      }
+    } catch (error) {
+      console.warn('⚠️ Crypto search failed:', error.message);
+    }
+    return null;
+  }
+
+  /**
+   * Search Yahoo Finance for a stock by name
+   */
+  async searchStock(searchQuery) {
+    try {
+      const response = await axios.get(
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(searchQuery)}&quotesCount=1`,
+        { timeout: 3000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      const quotes = response.data.quotes || [];
+      if (quotes.length > 0) {
+        const top = quotes[0];
+        console.log(`🔍 [TRAI Search] Found stock: ${top.shortname || top.symbol} (${top.symbol})`);
+        return { type: 'stock', symbol: top.symbol };
+      }
+    } catch (error) {
+      console.warn('⚠️ Stock search failed:', error.message);
+    }
+    return null;
   }
 
   /**

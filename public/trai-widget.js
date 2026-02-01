@@ -443,12 +443,13 @@
     // Clean up leading/trailing garbage
     response = response.replace(/^[\s.,;:!?\-\n\r]+/, '');
     // Remove LLM output labels (model sometimes prefixes with field names)
-    response = response.replace(/^(advice|response|answer|output|result|reply)[\s:]+/i, '');
+    response = response.replace(/^(advice|response|answer|output|result|reply|indicates|analysis|recommendation|summary)[\s:]+/i, '');
     response = response.trim();
 
-    // If empty after cleaning, use fallback
+    // If empty after cleaning, don't show confusing fallback - just skip
     if (!response || response.length < 5) {
-      response = "I'm processing your request. Please try again in a moment.";
+      console.warn('[TRAI Widget] Empty response after cleaning, skipping');
+      return; // Don't add empty/garbage message
     }
 
     addMessage(response, 'bot');
