@@ -28,6 +28,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Kraken 24h data:** Added high24h, low24h, open24h to getMarketData() return
 
 ### Fixed
+- **Forensic Audit Fixes - Balance Desync, Dead Code, Debug Cleanup** - Pipeline (BUG FIX + CLEANUP) - 2026-02-01
+  - **Balance Desync Prevention:** `core/OptimizedTradingBrain.js` line 822
+    - Before: Position sizing used local `this.balance` which could drift from StateManager
+    - After: Now syncs from StateManager before calculating max position size
+    - Impact: Prevents overtrading when local balance cache is stale
+  - **Trend Type Mismatch:** `run-empire-v2.js` lines 1459, 2733
+    - Before: Feature arrays stored `trend: 0` (number) when trend was string like 'bullish'
+    - After: Converts string trends to numeric: bullish/uptrend=1, bearish/downtrend=-1, else=0
+    - Impact: Pattern learning now has consistent numeric features for trend
+  - **Dead Code Removal:** ~320 lines removed from `run-empire-v2.js`
+    - `calculateAutoDrawLevels()` lines 1742-2016: 275 lines, call was commented out
+    - `calculateSimpleIndicators()` + `calculateEMA()` lines 2577-2620: 45 lines, never called
+    - These duplicated functionality in OptimizedIndicators.js
+  - **Debug Logging Cleanup:** `core/OptimizedIndicators.js`
+    - Removed 9 verbose console.logs in RSI, MACD, EMA, Bollinger calculations
+    - These were debug aids that cluttered production logs
+  - **Commit:** `55d87fd`
+
+- **CATASTROPHIC P&L CALCULATION BUG - Bot Lost $99.99 Per Trade** - core/StateManager.js (CRITICAL BUG FIX) - 2026-02-01
+  - **ROOT CAUSE OF $10K→$0 THREE TIMES:** Position stored in BTC, but closePosition() treated it as USD
+  - Bot would spend $100 to buy 0.001 BTC, but on close only add back $0.001 instead of $101
+  - **Example of the bug:**
+    - OPEN: 0.001 BTC at $100,000 → balance = $10,000 - $100 = $9,900 ✓
+    - CLOSE at $101,000 (1% profit):
+      - OLD (broken): `pnl = 0.001 * 0.01 = $0.00001` ← treating 0.001 BTC as $0.001 USD!
+      - OLD (broken): `balance = $9,900 + 0.001 + 0.00001 = $9,900.001` ← lost $99.999!
+      - NEW (fixed): `pnl = 0.001 * ($101,000 - $100,000) = $1.00`
+      - NEW (fixed): `balance = $9,900 + (0.001 * $101,000) = $10,001` ✓
+  - **Bug 1:** `core/StateManager.js` line 227 - P&L calculation wrong
+    - Before: `const pnl = closeSize * priceChangePercent;  // Dollar position × price change %`
+    - After: `const pnl = closeSize * (price - this.state.entryPrice);  // BTC × price diff = USD profit`
+  - **Bug 2:** `core/StateManager.js` line 249 - Balance added BTC, not USD
+    - Before: `balance: this.state.balance + closeSize + pnl,`
+    - After: `balance: this.state.balance + usdValueReturned,  // closeSize * price`
+  - **Bug 3:** `core/StateManager.js` lines 205, 263 - inPosition tracking was in BTC not USD
+    - Before: `inPosition: this.state.inPosition + size,` (adding BTC)
+    - After: `inPosition: this.state.inPosition + usdCost,` (adding USD)
+  - **Impact:** Bot could have had 100% winning trades and STILL gone to $0
+  - **Why realizedPnL showed ~$0 but balance showed $57:** P&L was calculated as tiny BTC amounts
+  - **State reset to $10,000** - Fresh start with correct math
+
+- **Exit Logic Safety Nets Bypassed When MaxProfitManager Active** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-01
+  - **Root Cause:** Stop loss and 30-minute escape were inside `if (!maxProfitManager.active)` block
+  - When MaxProfitManager WAS active but not triggering exits, safety nets were SKIPPED
+  - Bot would hold positions indefinitely with no escape path
+  - **Fix:** Moved hard stop loss (-1.5%) and 30-minute timeout OUTSIDE the conditional
+  - These safety exits now ALWAYS run regardless of MaxProfitManager state
+  - **File:** `run-empire-v2.js` lines 2166-2198
+
+- **Double Trade Markers on Dashboard** - public/unified-dashboard.html (BUG FIX) - 2026-02-01
+  - Trade markers showing twice (BUY BUY, SELL SELL) on chart
+  - Two handlers were calling `plotTradeSignal()`: one for `trade` type, one for `trade_opened`
+  - Both triggered for same trade from different code paths
+  - **Fix:** Disabled duplicate `trade_opened` handler at line 3682
+
+- **Pattern Learning Pipeline Completely Broken** - run-empire-v2.js, core/RiskManager.js (CRITICAL BUG FIX) - 2026-02-01
+  - **Root Cause:** 8,176 patterns recorded with wins=0, losses=0, totalPnL=0 - bot never learned ANYTHING
+  - **Bug 1:** `run-empire-v2.js` line 2403 - patterns stored WITHOUT `features` array
+    - Before: `patterns: patterns?.map(p => ({ name, signature, confidence }))`
+    - After: `patterns: patterns?.map(p => ({ name, signature, confidence, features: p.features || [] }))`
+    - Impact: Trade close couldn't find original pattern to update with P&L
+  - **Bug 2:** `run-empire-v2.js` line 1467 - entry recording created pnl=0 patterns
+    - Before: `this.patternChecker.recordPatternResult(features, { detected: true, ... })` (no pnl field!)
+    - After: DISABLED - patterns only recorded at trade EXIT with actual P&L
+    - Impact: 8,176 useless patterns polluting memory
+  - **Bug 3:** `core/RiskManager.js` line 1794 - fallback to signature string crashed recordPatternResult
+    - Before: `const featuresForRecording = pattern.features || pattern.signature`
+    - After: Skip recording if features not available (with warning log)
+    - Impact: "Expected features array, got string" errors
+  - **Action:** Pattern memory reset (backup saved), fresh start with proper recording
+
 - **TRAI Chat Returning JSON Instead of Text** - trai_brain/prompt_schemas.js, trai_brain/trai_core.js (BUG FIX)
   - Root cause: ALL queries got prompt "You must respond in strict JSON"
   - LLM was obeying the instruction and returning JSON blobs in chat
