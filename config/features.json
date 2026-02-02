@@ -136,6 +136,20 @@
         "voteWeight": 0.35,
         "adaptive": true
       }
+    },
+    "AGGRESSIVE_LEARNING_MODE": {
+      "enabled": true,
+      "description": "Boost trading activity while pattern bank builds. More trades = faster learning.",
+      "version": "1.0.0",
+      "settings": {
+        "positionSizeMultiplier": 2.0,
+        "minConfidenceThreshold": 55,
+        "profitTargetPercent": 1.5,
+        "minHoldMinutes": 2,
+        "tpoBoost": true,
+        "twoPoleBoost": true,
+        "volumeConfirmation": true
+      }
     }
   },
   "environment": {

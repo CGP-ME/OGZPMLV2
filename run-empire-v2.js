@@ -1784,7 +1784,16 @@ class OGZPrimeV14Bot {
    */
   makeTradeDecision(confidenceData, indicators, patterns, currentPrice, brainDirection = null) {
     const { totalConfidence } = confidenceData;
-    const minConfidence = this.config.minTradeConfidence * 100;
+    let minConfidence = this.config.minTradeConfidence * 100;
+
+    // FIX 2026-02-02: AGGRESSIVE_LEARNING_MODE lowers threshold for faster learning
+    if (flagManager.isEnabled('AGGRESSIVE_LEARNING_MODE')) {
+      const aggressiveThreshold = flagManager.getSetting('AGGRESSIVE_LEARNING_MODE', 'minConfidenceThreshold', 55);
+      if (aggressiveThreshold < minConfidence) {
+        console.log(`🔥 AGGRESSIVE LEARNING: Confidence threshold ${minConfidence}% → ${aggressiveThreshold}%`);
+        minConfidence = aggressiveThreshold;
+      }
+    }
 
     // CHANGE 2025-12-11: Pass 1 - Add decision context for visibility
     // CHANGE 2026-01-29: Use correct display labels based on market type
@@ -2058,7 +2067,15 @@ class OGZPrimeV14Bot {
 
     // FIXED: Use actual balance from StateManager, not stale systemState
     const currentBalance = stateManager.get('balance') || 10000;
-    const basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
+    let basePositionPercent = parseFloat(process.env.MAX_POSITION_SIZE_PCT) || 0.01;
+
+    // FIX 2026-02-02: AGGRESSIVE_LEARNING_MODE boosts position size while pattern bank builds
+    const aggressiveLearning = flagManager.isEnabled('AGGRESSIVE_LEARNING_MODE');
+    if (aggressiveLearning) {
+      const multiplier = flagManager.getSetting('AGGRESSIVE_LEARNING_MODE', 'positionSizeMultiplier', 2.0);
+      basePositionPercent = basePositionPercent * multiplier;
+      console.log(`🔥 AGGRESSIVE LEARNING: Position size ${multiplier}x → ${(basePositionPercent * 100).toFixed(1)}%`);
+    }
     const baseSizeUSD = currentBalance * basePositionPercent;
 
     // FIX 2025-12-27: Convert USD to BTC amount (was treating $500 as 500 BTC!)
