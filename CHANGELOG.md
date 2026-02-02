@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Pattern Learning Summary in Backtest Output** - run-empire-v2.js, core/EnhancedPatternRecognition.js (FEATURE) - 2026-02-02
+  - Visual proof that pattern learning pipeline is fully functional
+  - Shows at backtest completion: Patterns Recorded, Wins, Losses, Win Rate
+  - Aggregate stats from PatternMemorySystem.getStats()
+  - **Example output:**
+    ```
+    🧠 PATTERN LEARNING SUMMARY:
+       📊 Patterns Recorded: 5
+       ✅ Wins: 3
+       ❌ Losses: 2
+       📈 Win Rate: 60.0%
+    ```
+
 - **TRAI Universal Web Context** - run-empire-v2.js, core/trai_core.js (FEATURE)
   - TRAI now fetches REAL market data before responding to queries
   - Auto-detects asset from query: "How's Ethereum?" → fetches ETH data
