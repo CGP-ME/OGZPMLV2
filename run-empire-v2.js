@@ -1,5 +1,26 @@
 #!/usr/bin/env node
 
+// SILENT MODE: Disable logging during backtest for 100x speed boost
+// Set BACKTEST_SILENT=true or it auto-enables when BACKTEST_MODE=true
+if (process.env.BACKTEST_SILENT === 'true' ||
+    (process.env.BACKTEST_MODE === 'true' && process.env.BACKTEST_VERBOSE !== 'true')) {
+  const originalLog = console.log;
+  let lastProgress = 0;
+  console.log = (...args) => {
+    // Only show critical output: COMPLETE, errors, final results
+    const msg = args[0]?.toString() || '';
+    if (msg.includes('BACKTEST COMPLETE') ||
+        msg.includes('PATTERN LEARNING') ||
+        msg.includes('Final Balance') ||
+        msg.includes('Total P&L') ||
+        msg.includes('❌ Error') ||
+        msg.includes('Report saved')) {
+      originalLog(...args);
+    }
+  };
+  console.warn = () => {};
+}
+
 // SENTRY: Must be first import - catches all unhandled errors
 require('./instrument.js');
 
@@ -159,6 +180,9 @@ const { telegramNotifier, notifyTrade, notifyTradeClose, notifyAlert } = require
 // CHANGE 2026-02-01: Discord notifications (was disconnected since v7)
 // CHANGE 2026-02-02: Use singleton - was creating duplicate instances causing double messages
 const discordNotifier = require('./utils/discordNotifier');
+
+// CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade decision tree
+const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
 
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
@@ -376,6 +400,21 @@ class OGZPrimeV14Bot {
       this.patternExitShadowMode = featureFlags.features.PATTERN_EXIT_MODEL.shadowMode !== false;
       console.log(`🎯 Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
     }
+
+    // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade evaluation
+    // Each trade evaluated on 13 dimensions (regime, momentum, structure, volume, TRAI, whales, etc.)
+    this.tradeIntelligence = new TradeIntelligenceEngine({
+      // Profit/Loss thresholds (%)
+      profitTakePartial: 1.5,
+      profitTrailTight: 2.5,
+      lossWarning: 0.5,
+      lossCut: 1.5,
+      // Time thresholds (minutes)
+      minHoldTime: 2,
+      staleTradeTime: 30
+    });
+    this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_ACTIVE !== 'true'; // Shadow by default
+    console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // CHANGE 670: Initialize Grid Trading Strategy
     this.gridStrategy = null; // Initialize on demand based on strategy mode
@@ -1862,6 +1901,90 @@ class OGZPrimeV14Bot {
 
       if (buyTrades.length > 0) {
         const entryPrice = buyTrades[0].entryPrice;
+        const activeTrade = buyTrades[0];
+
+        // =====================================================================
+        // CHANGE 2026-02-02: TradeIntelligenceEngine - Intelligent Exit Decisions
+        // Evaluates each trade on 13 dimensions instead of blanket rules
+        // =====================================================================
+        if (this.tradeIntelligence) {
+          const intelligenceContext = {
+            // Pattern bank data
+            patternBank: this.tradingBrain?.patternMemory,
+            // Trade history for similar trade analysis
+            tradeHistory: stateManager.getAllTrades().filter(t => t.pnl !== undefined),
+            // Current confidence from the bot
+            currentConfidence: totalConfidence / 100,
+            // TRAI analysis if available
+            traiAnalysis: this.lastTraiDecision || null,
+            // Risk context
+            currentDrawdown: stateManager.get('maxDrawdown') || 0,
+            consecutiveLosses: stateManager.get('consecutiveLosses') || 0,
+            dailyPnL: stateManager.get('dailyPnL') || 0,
+            // Sentiment (if available)
+            fearGreedIndex: this.marketData?.fearGreed,
+            // Whale activity (placeholder - can be connected to exchange data)
+            whaleActivity: this.marketData?.whaleActivity || null
+          };
+
+          const marketDataForIntelligence = {
+            price: currentPrice,
+            volume: this.marketData?.volume,
+            avgVolume: this.marketData?.avgVolume,
+            high24h: this.marketData?.high24h,
+            low24h: this.marketData?.low24h,
+            priceChange: this.marketData?.priceChange,
+            currentCandle: this.priceHistory?.[this.priceHistory.length - 1]
+          };
+
+          const indicatorsForIntelligence = {
+            rsi: indicators.rsi,
+            macd: indicators.macd,
+            ema9: indicators.ema9 || indicators.ema12,
+            ema20: indicators.ema20 || indicators.ema26,
+            ema50: indicators.ema50,
+            sma200: indicators.sma200,
+            atr: indicators.atr,
+            avgAtr: indicators.avgAtr,
+            trend: indicators.trend,
+            adx: indicators.adx,
+            volume: this.marketData?.volume,
+            avgVolume: this.marketData?.avgVolume
+          };
+
+          const intelligenceResult = this.tradeIntelligence.evaluate(
+            activeTrade,
+            marketDataForIntelligence,
+            indicatorsForIntelligence,
+            intelligenceContext
+          );
+
+          // Log or act on intelligence result
+          if (this.tradeIntelligenceShadowMode) {
+            // Shadow mode - just log what would happen
+            if (intelligenceResult.action !== 'HOLD_CAUTIOUS' && intelligenceResult.action !== 'HOLD_STRONG') {
+              console.log(`🧠 [INTELLIGENCE-SHADOW] Would recommend: ${intelligenceResult.action}`);
+              console.log(`   Confidence: ${(intelligenceResult.confidence * 100).toFixed(0)}%`);
+              console.log(`   Reasoning: ${intelligenceResult.reasoning.slice(0, 3).join(' | ')}`);
+              console.log(`   Score breakdown: regime=${intelligenceResult.scores.regime?.score || 0}, momentum=${intelligenceResult.scores.momentum?.score || 0}, ema=${intelligenceResult.scores.ema?.score || 0}`);
+            }
+          } else {
+            // ACTIVE MODE - actually use the intelligence
+            if (intelligenceResult.action === 'EXIT_LOSS' && intelligenceResult.confidence > 0.7) {
+              console.log(`🧠 [INTELLIGENCE] EXIT_LOSS: ${intelligenceResult.reasoning.join(' | ')}`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
+            }
+            if (intelligenceResult.action === 'EXIT_PROFIT' && intelligenceResult.confidence > 0.7) {
+              console.log(`🧠 [INTELLIGENCE] EXIT_PROFIT: ${intelligenceResult.reasoning.join(' | ')}`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
+            }
+            if (intelligenceResult.action === 'TRAIL_TIGHT') {
+              console.log(`🧠 [INTELLIGENCE] TRAIL_TIGHT - tightening stop`);
+              // Could adjust MaxProfitManager here
+            }
+          }
+        }
+        // =====================================================================
 
         // Change 608: Analyze Fib/S&R levels to adjust trailing stops dynamically
         // BUGFIX 2026-02-01: this.candles doesn't exist, use this.priceHistory
