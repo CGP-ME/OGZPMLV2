@@ -371,23 +371,9 @@ class AdvancedExecutionLayer {
           this.broadcastTrade(position);
         }
 
-        // Send Discord notification
-        if (this.discord) {
-          try {
-            const message = `🎯 **TRADE OPENED**\n` +
-              `**Symbol:** ${position.symbol}\n` +
-              `**Direction:** ${position.direction?.toUpperCase() || 'UNKNOWN'}\n` +
-              `**Price:** $${(position.entryPrice || 0).toFixed(2)}\n` +
-              `**Amount:** $${(position.amount || 0).toFixed(2)}\n` +
-              `**Confidence:** ${((position.confidence || 0) * 100).toFixed(1)}%\n` +
-              `**Balance:** $${(this.balance || 0).toFixed(2)}\n` +
-              `**Mode:** ${this.mode}`;
-
-            await this.discord.sendMessage(message, 'stats');
-          } catch (error) {
-            console.error('❌ Discord notification failed:', error.message);
-          }
-        }
+        // REMOVED 2026-02-02: Discord notification moved to run-empire-v2.js
+        // This was sending duplicate notifications with incomplete data (symbol/amount undefined)
+        // run-empire-v2.js now sends proper embed notifications via discordNotifier.notifyTrade()
 
         console.log('✅ TRADE EXECUTED SUCCESSFULLY');
         return { success: true, orderId: order.orderId || order.id, tradeId: tradeId, position: position };

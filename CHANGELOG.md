@@ -44,6 +44,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Commit:** `4e0dfd0`
 
 ### Fixed
+- **CRITICAL: Pattern Learning Pipeline Broken** - run-empire-v2.js, config/features.json (CRITICAL BUG FIX) - 2026-02-02
+  - **Root Cause:** Patterns detected at trade entry were NOT attached to the trade object
+  - At trade exit, `buyTrade.patterns` was always empty/undefined
+  - Result: 8,176 patterns stored but 0 with outcomes (wins/losses = 0)
+  - **Fix:** Pass `patterns` and `entryIndicators` to stateManager.openPosition()
+  - **Verification:** Backtest now shows "🧠 Pattern learning: Learning Pattern → 0.06%"
+  - **Files:** `run-empire-v2.js` line 2212
+
+- **New Feature: AGGRESSIVE_LEARNING_MODE** - config/features.json (FEATURE) - 2026-02-02
+  - Boosts trading activity while pattern bank builds (more trades = faster learning)
+  - **Position size:** 2x multiplier (5% → 10%)
+  - **Confidence threshold:** 55% (was 70%)
+  - **Configurable:** positionSizeMultiplier, minConfidenceThreshold, profitTargetPercent
+  - **Toggle:** Set enabled: false in features.json when pattern bank is mature
+  - **Commit:** `c01db07`
+
 - **Forensic Audit Fixes - Balance Desync, Dead Code, Debug Cleanup** - Pipeline (BUG FIX + CLEANUP) - 2026-02-01
   - **Balance Desync Prevention:** `core/OptimizedTradingBrain.js` line 822
     - Before: Position sizing used local `this.balance` which could drift from StateManager
