@@ -2780,6 +2780,22 @@ class OGZPrimeV14Bot {
       console.log(`   💰 Final Balance: $${stateManager.get('balance').toFixed(2)}`);
       console.log(`   📈 Total P&L: $${(stateManager.get('balance') - 10000).toFixed(2)} (${((stateManager.get('balance') / 10000 - 1) * 100).toFixed(2)}%)`);
 
+      // Pattern Learning Summary - Visual proof patterns are being recorded
+      if (this.patternChecker?.getMemoryStats) {
+        const patternStats = this.patternChecker.getMemoryStats();
+        const wins = patternStats.totalWins || 0;
+        const losses = patternStats.totalLosses || 0;
+        const totalTrades = wins + losses;
+        const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(1) : '0.0';
+        console.log(`\n   🧠 PATTERN LEARNING SUMMARY:`);
+        console.log(`      📊 Patterns Recorded: ${patternStats.tradeResults || 0}`);
+        console.log(`      ✅ Wins: ${wins}`);
+        console.log(`      ❌ Losses: ${losses}`);
+        console.log(`      📈 Win Rate: ${winRate}%`);
+        console.log(`      🎯 Promoted Patterns: ${patternStats.promoted || 0}`);
+        console.log(`      🔬 Candidates: ${patternStats.candidates || 0}`);
+      }
+
       // Generate backtest report
       const reportPath = path.join(__dirname, `backtest-report-v14MERGED-${Date.now()}.json`);
 

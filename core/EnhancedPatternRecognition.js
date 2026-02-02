@@ -774,9 +774,27 @@ class PatternMemorySystem {
    * @returns {Object} Memory stats
    */
   getStats() {
+    // Aggregate wins/losses from all patterns
+    let totalWins = 0;
+    let totalLosses = 0;
+    let totalTrades = 0;
+
+    for (const key of Object.keys(this.memory)) {
+      const entry = this.memory[key];
+      if (entry && typeof entry.wins === 'number') {
+        totalWins += entry.wins;
+        totalLosses += entry.losses || 0;
+        totalTrades += entry.timesSeen || 0;
+      }
+    }
+
     return {
       patterns: this.patternCount,
-      lastSaved: new Date(this.lastSaveTime).toISOString()
+      lastSaved: new Date(this.lastSaveTime).toISOString(),
+      totalWins,
+      totalLosses,
+      totalTrades,
+      overallWinRate: totalTrades > 0 ? totalWins / totalTrades : 0
     };
   }
 }
@@ -924,6 +942,8 @@ class EnhancedPatternChecker {
     // CHANGE 2026-01-21: Removed aggressive saveToDisk() call
     // PatternMemorySystem already has 5-minute periodic saves (line 234-236)
     // Calling saveToDisk on every recordPatternResult caused massive I/O spam
+    // DEBUG 2026-02-02: Confirm pattern was recorded
+    console.log(`✅ Pattern RECORDED: features[${featuresOrSignature.length}], pnl=${result?.pnl?.toFixed(2) || '?'}%, total=${this.stats.tradeResults}`);
     return true;
   }
 
