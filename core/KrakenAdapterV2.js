@@ -1,18 +1,47 @@
 /**
- * KrakenAdapterV2.js - IBrokerAdapter-compliant wrapper for KrakenAdapterSimple
+ * @fileoverview KrakenAdapterV2 - IBrokerAdapter-Compliant Kraken Exchange Interface
  *
- * TECHNICAL DEBT: This wrapper exists because:
- * - kraken_adapter_simple.js works but doesn't implement IBrokerAdapter
- * - Rewriting risks breaking working Kraken connection
- * - Need to ship fixes NOW
+ * Wraps kraken_adapter_simple.js to provide IBrokerAdapter interface compliance.
+ * Enables multi-broker architecture while preserving working Kraken connection.
  *
- * MIGRATION PLAN:
- * 1. Use wrapper to get system stable
+ * @description
+ * ARCHITECTURE ROLE:
+ * KrakenAdapterV2 is the bridge between OGZ Prime and the Kraken exchange.
+ * It implements IBrokerAdapter interface, allowing the system to support
+ * multiple exchanges through a unified API.
+ *
+ * ```
+ * ExecutionLayer
+ *       ↓
+ * BrokerFactory.create('kraken')
+ *       ↓
+ * KrakenAdapterV2 (implements IBrokerAdapter)
+ *       ↓
+ * KrakenAdapterSimple (actual API calls)
+ *       ↓
+ * Kraken Exchange API / WebSocket
+ * ```
+ *
+ * TECHNICAL DEBT NOTE:
+ * This wrapper exists because kraken_adapter_simple.js works but doesn't
+ * implement IBrokerAdapter. Rather than risk breaking a working connection,
+ * we wrapped it. Future migration plan:
+ * 1. Use wrapper to get system stable (CURRENT)
  * 2. Write proper native KrakenAdapter with tests
  * 3. Migrate once proven stable
  *
- * @author: OGZ Prime Team
- * @date: 2025-12-13
+ * @module core/KrakenAdapterV2
+ * @extends IBrokerAdapter
+ * @requires ../foundation/IBrokerAdapter
+ * @requires ../kraken_adapter_simple
+ *
+ * @example
+ * const KrakenAdapterV2 = require('./core/KrakenAdapterV2');
+ * const adapter = new KrakenAdapterV2({ apiKey, apiSecret });
+ *
+ * await adapter.connect();
+ * const balance = await adapter.getBalance();
+ * const order = await adapter.placeOrder('XBT/USD', 'buy', 0.001, { type: 'market' });
  */
 
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');

@@ -1,8 +1,45 @@
 /**
- * ERROR HANDLER - Centralized Error Management
- * 
- * Provides circuit breaker pattern, error escalation, and recovery mechanisms
- * Prevents silent failures and enables proper debugging
+ * @fileoverview ErrorHandler - Centralized Error Management with Circuit Breaker
+ *
+ * Provides circuit breaker pattern, error escalation, and recovery mechanisms.
+ * Prevents cascading failures and enables proper debugging of trading errors.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * ErrorHandler sits between all trading components and provides fault tolerance.
+ * When a module experiences repeated failures, the circuit breaker trips to
+ * prevent further damage while allowing time for recovery.
+ *
+ * CIRCUIT BREAKER PATTERN:
+ * ```
+ * Normal → (5 errors) → OPEN (blocking) → (60s) → Half-Open → (success) → Normal
+ *                                                           → (failure) → OPEN
+ * ```
+ *
+ * ERROR LEVELS:
+ * - CRITICAL: Execution failures, position errors (trips circuit breaker)
+ * - WARNING: Non-fatal issues, logged but continue operation
+ * - INFO: Debugging information, no action needed
+ *
+ * @module core/ErrorHandler
+ *
+ * @example
+ * const ErrorHandler = require('./core/ErrorHandler');
+ * const errorHandler = new ErrorHandler({
+ *   maxErrorsBeforeCircuitBreak: 5,
+ *   circuitBreakResetMs: 60000  // 1 minute cooldown
+ * });
+ *
+ * // Report critical error
+ * const result = errorHandler.reportCritical('ExecutionLayer', error, { orderId });
+ * if (result.circuitActive) {
+ *   console.log('Circuit breaker tripped - pausing module');
+ * }
+ *
+ * // Check before operation
+ * if (errorHandler.isCircuitBreakerActive('ExecutionLayer')) {
+ *   return; // Skip operation, circuit is open
+ * }
  */
 
 class ErrorHandler {

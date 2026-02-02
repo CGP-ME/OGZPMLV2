@@ -1,7 +1,50 @@
 /**
- * KILL SWITCH MODULE
- * Emergency stop for all trading operations
- * When activated, blocks ALL order execution
+ * @fileoverview KillSwitch - Emergency Trading Stop System
+ *
+ * Emergency stop mechanism that blocks ALL order execution instantly.
+ * File-based flag ensures persistence across restarts and process crashes.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * KillSwitch is the ultimate safety mechanism. When activated, it blocks
+ * every trade execution regardless of signals, patterns, or confidence.
+ * It's the "big red button" for emergency situations.
+ *
+ * ACTIVATION TRIGGERS:
+ * - Manual: Admin creates killswitch.flag file
+ * - Automatic: RiskManager hits max drawdown
+ * - Automatic: Circuit breaker reaches critical threshold
+ * - Automatic: Exchange connection lost during open position
+ *
+ * FILE-BASED DESIGN:
+ * Uses filesystem flag (killswitch.flag) rather than memory because:
+ * - Persists across process crashes/restarts
+ * - Can be activated externally (ssh, cron, monitoring)
+ * - Multiple processes can check the same flag
+ * - No database dependency during emergencies
+ *
+ * DEACTIVATION:
+ * Requires manual intervention - delete the flag file.
+ * This is intentional to force human review before resuming.
+ *
+ * @module core/KillSwitch
+ * @requires fs
+ *
+ * @example
+ * const KillSwitch = require('./core/KillSwitch');
+ * const killSwitch = new KillSwitch();
+ *
+ * // Check before any trade
+ * if (killSwitch.isKillSwitchOn()) {
+ *   console.log('Kill switch active - trade blocked');
+ *   return;
+ * }
+ *
+ * // Activate in emergency
+ * killSwitch.enableKillSwitch('Max drawdown reached');
+ *
+ * // Check status
+ * console.log(`Kill switch: ${killSwitch.isKillSwitchOn() ? 'ON' : 'OFF'}`);
  */
 
 const fs = require('fs');

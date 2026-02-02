@@ -1,24 +1,48 @@
-// utils/discordNotifier.js - Discord Integration for OGZ Prime Trading Bot
-// ===================================================================
-// 📢 ENHANCED DISCORD NOTIFICATION SYSTEM - YOUR REMOTE COMMAND CENTER
-// ===================================================================
-//
-// This system sends real-time trading alerts, win notifications, system
-// updates, and Houston fund progress to your Discord channels so you can
-// monitor your trading success from anywhere!
-//
-// Built for: Remote monitoring and celebration of your journey to Houston! 💕
-// Author: Trey (OGZPrime Technologies)
-// Version: 10.2 SS-Tier Complete
-//
-// Features:
-// ✅ Dual webhook support (stats vs status channels)
-// ✅ Rich embeds with trading data and progress tracking
-// ✅ Houston fund milestone celebrations
-// ✅ Risk management alerts with severity levels
-// ✅ Daily trading summaries with performance metrics
-// ✅ Manual trade notifications for commander control
-// ✅ System status monitoring and health alerts
+/**
+ * @fileoverview DiscordNotifier - Real-Time Trading Alerts to Discord
+ *
+ * Sends trading alerts, P&L updates, and system status to Discord channels
+ * via webhooks for remote monitoring.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * DiscordNotifier is the remote monitoring system. It sends real-time
+ * notifications to Discord so you can monitor trading from anywhere.
+ *
+ * WEBHOOK CHANNELS:
+ * - STATS: Trade executions, P&L, daily summaries, milestones
+ * - STATUS: System alerts, risk warnings, health monitoring
+ *
+ * ENVIRONMENT VARIABLES:
+ * - DISCORD_STATS_WEBHOOK_URL: Webhook for trading stats channel
+ * - DISCORD_STATUS_WEBHOOK_URL: Webhook for system status channel
+ *
+ * NOTIFICATION TYPES:
+ * - notifyTrade(): BUY/SELL execution with P&L
+ * - notifyMilestone(): Achievement notifications
+ * - notifyRiskAlert(): Risk management warnings
+ * - notifyDailySummary(): End-of-day report
+ * - notifySystemStatus(): Health updates
+ *
+ * @module utils/discordNotifier
+ * @requires https
+ * @requires dotenv
+ * @author Trey (OGZPrime Technologies)
+ * @version 10.2
+ *
+ * @example
+ * const DiscordNotifier = require('./utils/discordNotifier');
+ * const notifier = new DiscordNotifier();
+ *
+ * // Trade notification
+ * notifier.notifyTrade('buy', 100000, 0.001);
+ * notifier.notifyTrade('sell', 101000, 0.001, 1.00);  // With $1 P&L
+ *
+ * // Risk alert
+ * notifier.notifyRiskAlert('Max drawdown reached', 'critical');
+ */
+
+// Discord Integration for OGZ Prime Trading Bot
 
 // Load environment variables for webhook URLs
 require('dotenv').config();
@@ -108,9 +132,9 @@ class DiscordTradingNotifier {
                hostname: url.hostname,
                path: url.pathname + url.search,
                method: 'POST',
-               headers: { 
-                   'Content-Type': 'application/json', 
-                   'Content-Length': data.length 
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Content-Length': Buffer.byteLength(data)  // BUGFIX: Use byteLength for Unicode/emojis
                }
            };
 
@@ -441,10 +465,25 @@ class DiscordTradingNotifier {
 // MODULE EXPORTS & USAGE EXAMPLES
 // ===================================================================
 
-const notifier = new DiscordTradingNotifier();
-const sendDiscordMessage = (message) => notifier.sendMessage(message);
+// SINGLETON PATTERN: Only one instance should exist
+// Multiple instances cause duplicate Discord messages
+let instance = null;
 
-module.exports = { sendDiscordMessage, DiscordTradingNotifier };
+function getInstance() {
+  if (!instance) {
+    instance = new DiscordTradingNotifier();
+  }
+  return instance;
+}
+
+const sendDiscordMessage = (message) => getInstance().sendMessage(message);
+
+// Export singleton getter - callers use getInstance() or require directly
+// For backwards compatibility: require('./discordNotifier') returns singleton
+module.exports = getInstance();
+module.exports.getInstance = getInstance;
+module.exports.sendDiscordMessage = sendDiscordMessage;
+module.exports.DiscordTradingNotifier = DiscordTradingNotifier; // For testing only
 
 /**
 * ===================================================================
@@ -504,5 +543,5 @@ module.exports = { sendDiscordMessage, DiscordTradingNotifier };
 // connection to financial freedom! 🚀💕
 //
 // ===================================================================
-// Export the class
-module.exports = DiscordTradingNotifier;
+// Export already done above on line 447 - removed duplicate export
+// module.exports = DiscordTradingNotifier;  // REMOVED: Was overwriting the correct export

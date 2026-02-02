@@ -1,17 +1,45 @@
 /**
- * ============================================================================
- * IBrokerAdapter - Universal Broker Interface
- * ============================================================================
- * 
- * ALL broker adapters must implement this interface.
- * This ensures any asset type (crypto, stocks, options, forex, futures)
- * can be traded with the same bot logic.
- * 
- * EMPIRE V2 FOUNDATION
- * 
+ * @fileoverview IBrokerAdapter - Universal Broker Interface
+ *
+ * Abstract base class that ALL broker adapters must extend.
+ * Enables multi-broker support with a unified API.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * IBrokerAdapter is the foundation of multi-broker architecture.
+ * Any exchange/broker (Kraken, Binance, IBKR, etc.) can be integrated
+ * by implementing this interface.
+ *
+ * SUPPORTED ASSET TYPES:
+ * - Crypto (Kraken, Binance, Coinbase)
+ * - Stocks (Interactive Brokers, Alpaca)
+ * - Options (Tastyworks, IBKR)
+ * - Forex (Oanda)
+ * - Futures (CME via IBKR)
+ *
+ * INTERFACE METHODS (must implement):
+ * - connect() / disconnect() / isConnected()
+ * - getBalance() / getPositions()
+ * - placeOrder() / cancelOrder() / getOrderStatus()
+ * - subscribeToMarketData() / unsubscribeFromMarketData()
+ *
+ * EVENTS (emit these):
+ * - 'marketData' → { symbol, price, volume, timestamp }
+ * - 'orderUpdate' → { orderId, status, filledQty, avgPrice }
+ * - 'error' → Error object
+ *
+ * @module foundation/IBrokerAdapter
+ * @extends EventEmitter
+ * @abstract
  * @author OGZPrime Team
  * @version 1.0.0
- * ============================================================================
+ *
+ * @example
+ * class MyBrokerAdapter extends IBrokerAdapter {
+ *   async connect() { ... }
+ *   async placeOrder(symbol, side, qty, options) { ... }
+ *   // ... implement all required methods
+ * }
  */
 
 const EventEmitter = require('events');

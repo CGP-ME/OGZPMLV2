@@ -1,8 +1,13 @@
 /**
- * UNIFIED FEATURE FLAG MANAGER
+ * @fileoverview FeatureFlagManager - Unified Feature Toggle System
  *
  * Single source of truth for ALL feature flags in OGZ Prime.
  * Combines config/features.json (toggles) with tier-based scaling.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * FeatureFlagManager centralizes all feature toggles, replacing the previous
+ * fragmented system where toggles lived in multiple places.
  *
  * WHY THIS EXISTS:
  * Previously there were TWO independent systems:
@@ -15,9 +20,34 @@
  * - Tier logic provides SCALING on top (multipliers, limits)
  * - All code uses this singleton
  *
+ * FEATURE FLAG STRUCTURE (in config/features.json):
+ * ```json
+ * {
+ *   "TRAI_ENABLED": { "enabled": true, "settings": { "model": "ollama" } },
+ *   "PATTERN_MEMORY_PARTITION": { "enabled": true, "settings": { "live": "..." } }
+ * }
+ * ```
+ *
+ * @module core/FeatureFlagManager
  * @author Claudito Pipeline
  * @version 1.0.0
- * @created 2026-01-26
+ *
+ * @example
+ * const FeatureFlagManager = require('./core/FeatureFlagManager');
+ * const flags = FeatureFlagManager.getInstance();
+ *
+ * // Check if feature is enabled
+ * if (flags.isEnabled('TRAI_ENABLED')) {
+ *   // Use TRAI
+ * }
+ *
+ * // Get feature settings
+ * const traiSettings = flags.getSettings('TRAI_ENABLED');
+ * console.log(`Using model: ${traiSettings.model}`);
+ *
+ * // Get tier scaling
+ * const scaling = flags.getTierScaling();
+ * console.log(`Position size multiplier: ${scaling.positionSizeMultiplier}`);
  */
 
 const fs = require('fs');

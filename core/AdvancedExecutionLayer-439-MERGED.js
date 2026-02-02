@@ -49,13 +49,10 @@ class AdvancedExecutionLayer {
     this.wsClient = null;
     this.botTier = config.botTier || process.env.BOT_TIER || 'quantum';
 
-    // Initialize Discord notifications
+    // Initialize Discord notifications (use singleton to prevent duplicate messages)
     try {
-      const DiscordNotifier = require('../utils/discordNotifier');
-      this.discord = new DiscordNotifier({
-        webhookUrl: process.env.DISCORD_STATS_WEBHOOK_URL
-      });
-      console.log('📢 Discord notifications ready');
+      this.discord = require('../utils/discordNotifier');
+      console.log('📢 Discord notifications ready (singleton)');
     } catch (error) {
       console.warn('⚠️ Discord not available:', error.message);
       this.discord = null;

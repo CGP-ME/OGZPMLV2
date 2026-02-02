@@ -1,9 +1,51 @@
 /**
- * Trading Logic Optimizations - Surgical Improvements
+ * @fileoverview TradingOptimizations - Surgical Trading Logic Improvements
  *
- * Pass 1: Decision Context (visibility, no behavior change)
- * Pass 2: Pattern-based position sizing
- * Pass 3: Elite bipole pattern filtering
+ * Modular trading optimizations with safe rollout via feature flags.
+ * Each optimization pass is independently toggleable for safe deployment.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * TradingOptimizations sits between the decision layer and execution layer,
+ * applying refinements to trade signals based on pattern performance history.
+ *
+ * OPTIMIZATION PASSES:
+ * - Pass 1: Decision Context - Adds visibility/logging without behavior change
+ * - Pass 2: Pattern-based Sizing - Scales position size based on pattern win rate
+ * - Pass 3: Elite Bipole Filter - Filters trades to only elite patterns
+ *
+ * SAFE ROLLOUT:
+ * Each pass can be enabled/disabled independently via config/features.json.
+ * New optimizations should follow this pattern:
+ * 1. Add config flag (default: false)
+ * 2. Implement behind flag check
+ * 3. Test in paper mode
+ * 4. Enable in production
+ *
+ * PATTERN SIZE SCALING FORMULA:
+ * ```
+ * multiplier = clamp(winRate × avgR, minMultiplier, maxMultiplier)
+ * adjustedSize = baseSize × multiplier
+ * ```
+ *
+ * @module core/TradingOptimizations
+ * @requires ./FeatureFlagManager
+ *
+ * @example
+ * const { TradingOptimizations, PatternStatsManager } = require('./core/TradingOptimizations');
+ * const stats = new PatternStatsManager();
+ * const optimizations = new TradingOptimizations(stats, console);
+ *
+ * // Create decision context for logging
+ * const context = optimizations.createDecisionContext({
+ *   symbol: 'BTC/USD',
+ *   direction: 'BUY',
+ *   confidence: 75,
+ *   patterns: ['bullish_engulfing']
+ * });
+ *
+ * // Get pattern-adjusted position size
+ * const adjustedSize = optimizations.getPatternAdjustedSize(baseSize, patterns);
  */
 
 const fs = require('fs');

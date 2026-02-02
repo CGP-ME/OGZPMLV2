@@ -157,8 +157,8 @@ const axios = require('axios');
 const { telegramNotifier, notifyTrade, notifyTradeClose, notifyAlert } = require('./utils/telegramNotifier');
 
 // CHANGE 2026-02-01: Discord notifications (was disconnected since v7)
-const DiscordNotifier = require('./utils/discordNotifier');
-const discordNotifier = new DiscordNotifier();
+// CHANGE 2026-02-02: Use singleton - was creating duplicate instances causing double messages
+const discordNotifier = require('./utils/discordNotifier');
 
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
@@ -2209,9 +2209,12 @@ class OGZPrimeV14Bot {
 
           // CHANGE 2025-12-11: Use StateManager for atomic position updates
           // CHANGE 2025-12-11 FIX: orderId was undefined - use unifiedResult.orderId
-          const positionResult = await stateManager.openPosition(positionSize, price, { 
-            orderId: unifiedResult.orderId, 
-            confidence: decision.confidence 
+          // FIX 2026-02-02: Attach patterns + indicators for learning feedback at exit
+          const positionResult = await stateManager.openPosition(positionSize, price, {
+            orderId: unifiedResult.orderId,
+            confidence: decision.confidence,
+            patterns: patterns || [],  // Attach detected patterns for outcome learning
+            entryIndicators: indicators  // Attach indicators for feature vector reconstruction
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success

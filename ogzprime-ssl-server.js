@@ -1,10 +1,46 @@
 /**
- * ===================================================================
- * 🚀 OGZ PRIME SSL SERVER - KRAKEN INTEGRATION
- * ===================================================================
- * Direct Kraken WebSocket connection for real-time crypto data
- * No complicated broadcaster - simple direct data flow
- * ===================================================================
+ * @fileoverview OGZ Prime Dashboard Server - Web Interface & API
+ *
+ * Serves the trading dashboard and provides API endpoints for
+ * real-time data, TRAI chat, and system control.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * This server provides the web interface for monitoring and controlling
+ * OGZ Prime. It runs separately from the trading bot (run-empire-v2.js)
+ * and communicates via WebSocket.
+ *
+ * ENDPOINTS:
+ * - GET /               → Dashboard HTML (unified-dashboard.html)
+ * - POST /api/ollama/chat → Proxy to TRAI/Ollama for AI chat
+ * - WS /                → Real-time trading data stream
+ *
+ * ARCHITECTURE:
+ * ```
+ * Browser (Dashboard)
+ *        ↓ WebSocket
+ * ogzprime-ssl-server.js (this file)
+ *        ↓ HTTP proxy
+ * Ollama (TRAI inference)
+ *
+ * run-empire-v2.js ──WebSocket──→ Dashboard (real-time updates)
+ * ```
+ *
+ * SSL:
+ * SSL termination is handled by nginx reverse proxy, not this server.
+ * This server listens on HTTP (port 3010 by default).
+ *
+ * @module ogzprime-ssl-server
+ * @requires express
+ * @requires ws
+ * @requires dotenv
+ *
+ * @example
+ * // Start the dashboard server
+ * node ogzprime-ssl-server.js
+ *
+ * // Or via PM2
+ * pm2 start ogzprime-ssl-server.js --name ogz-dashboard
  */
 
 require('dotenv').config();

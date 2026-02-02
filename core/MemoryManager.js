@@ -1,8 +1,39 @@
 /**
- * MEMORY MANAGER - Prevent Unbounded Growth
- * 
- * Rolling window arrays that automatically trim old data
- * Prevents heap exhaustion after extended operation
+ * @fileoverview MemoryManager - Prevent Unbounded Memory Growth
+ *
+ * Provides rolling window data structures that automatically trim old data.
+ * Critical for long-running trading bots to prevent heap exhaustion.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * MemoryManager provides fixed-size containers that replace standard arrays
+ * throughout the codebase. Without bounded containers, arrays like priceHistory,
+ * tradeHistory, and patternLog would grow indefinitely during 24/7 operation.
+ *
+ * MEMORY BUG HISTORY:
+ * Before MemoryManager, the bot would crash after ~48 hours due to:
+ * - priceHistory: unbounded array grew to millions of entries
+ * - tradeHistory: never cleaned up old trades
+ * - patternLog: accumulated every pattern detection forever
+ *
+ * USAGE PATTERN:
+ * Replace: `this.history = []`
+ * With:    `this.history = new RollingWindow(1000)`
+ *
+ * @module core/MemoryManager
+ *
+ * @example
+ * const { RollingWindow } = require('./core/MemoryManager');
+ *
+ * // Fixed-size price history (keeps last 1000 candles)
+ * const priceHistory = new RollingWindow(1000);
+ * priceHistory.push({ price: 100000, timestamp: Date.now() });
+ *
+ * // Get last 100 candles for indicator calculation
+ * const recentPrices = priceHistory.getLast(100);
+ *
+ * // Memory stays bounded even after years of operation
+ * console.log(`Size: ${priceHistory.size()} / ${priceHistory.maxSize}`);
  */
 
 /**

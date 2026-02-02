@@ -1,5 +1,55 @@
-// core/ModuleAutoLoader.js - The Path Master for OGZ Prime Valhalla Edition
-// Drop this in your core folder and never worry about paths again!
+/**
+ * @fileoverview ModuleAutoLoader - Automatic Path Resolution & Module Loading
+ *
+ * The "Path Master" for OGZ Prime - automatically resolves paths and loads
+ * modules regardless of where code is executed from.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * ModuleAutoLoader eliminates all relative path headaches. Instead of fragile
+ * paths like `require('../../utils/tradeLogger')`, use `loader.get('tradeLogger')`.
+ *
+ * WHY THIS EXISTS:
+ * OGZ Prime has modules in many directories (core/, utils/, tools/, public/).
+ * Relative paths break when:
+ * - Files are moved
+ * - Code is called from different entry points
+ * - Tests run from different directories
+ *
+ * PATH RESOLUTION:
+ * ```
+ * loader.get('StateManager')  → /opt/ogzprime/OGZPMLV2/core/StateManager.js
+ * loader.get('tradeLogger')   → /opt/ogzprime/OGZPMLV2/utils/tradeLogger.js
+ * loader.getPath('data')      → /opt/ogzprime/OGZPMLV2/data/
+ * ```
+ *
+ * PROJECT ROOT DETECTION:
+ * Automatically finds project root by walking up from __dirname looking for
+ * package.json or OGZPrimeV10.2.js.
+ *
+ * CACHING:
+ * Loaded modules are cached to prevent duplicate require() calls.
+ *
+ * @module core/ModuleAutoLoader
+ * @requires fs
+ * @requires path
+ *
+ * @example
+ * const loader = require('./core/ModuleAutoLoader');
+ *
+ * // Load all modules at startup
+ * loader.loadAll();
+ *
+ * // Get a module by name
+ * const StateManager = loader.get('StateManager');
+ * const stateManager = StateManager.getInstance();
+ *
+ * // Get a path
+ * const dataDir = loader.getPath('data');
+ * const logsDir = loader.getPath('logs');
+ */
+
+// The Path Master for OGZ Prime Valhalla Edition
 
 const fs = require('fs');
 const path = require('path');

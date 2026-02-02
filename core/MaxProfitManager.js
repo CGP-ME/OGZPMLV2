@@ -1,9 +1,27 @@
 /**
- * MaxProfitManager.js - Advanced Profit Optimization & Exit Strategy Engine
- * 
+ * @fileoverview MaxProfitManager - Advanced Profit Optimization & Exit Strategy Engine
+ *
  * ============================================================================
- * 💰 THE PROFIT MAXIMIZER OF OGZ PRIME - TURNING WINS INTO MAXIMUM GAINS
+ * THE PROFIT MAXIMIZER OF OGZ PRIME - TURNING WINS INTO MAXIMUM GAINS
  * ============================================================================
+ *
+ * @module core/MaxProfitManager
+ *
+ * @example
+ * const MaxProfitManager = require('./core/MaxProfitManager');
+ * const profitManager = new MaxProfitManager({
+ *   enableBreakevenStop: true,
+ *   tieredExits: [0.5, 0.75, 1.0]  // Take profit at 0.5%, 0.75%, 1%
+ * });
+ *
+ * // Start tracking a position
+ * profitManager.startTracking(entryPrice, positionSize);
+ *
+ * // Update on each candle - returns exit signal if triggered
+ * const exitSignal = profitManager.update(currentPrice, { volatility, trend });
+ * if (exitSignal.shouldExit) {
+ *   console.log(`Exit at ${exitSignal.exitPrice} - Reason: ${exitSignal.reason}`);
+ * }
  * 
  * This is where good trades become GREAT trades. While the AI finds opportunities
  * and the TradingBrain executes them, the MaxProfitManager ensures you extract

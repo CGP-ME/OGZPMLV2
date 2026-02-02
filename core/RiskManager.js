@@ -1,8 +1,26 @@
 /**
- * RiskManager.js - Advanced Capital Protection & Risk Management Engine
- * 
+ * @fileoverview RiskManager - Advanced Capital Protection & Risk Management Engine
+ *
  * ============================================================================
- * 🛡️ THE GUARDIAN OF OGZ PRIME - PROTECTING YOUR PATH TO FINANCIAL FREEDOM
+ * THE GUARDIAN OF OGZ PRIME - PROTECTING YOUR PATH TO FINANCIAL FREEDOM
+ * ============================================================================
+ *
+ * @module core/RiskManager
+ * @requires ./StateManager (for balance sync - see ARCHITECTURE NOTE)
+ *
+ * @example
+ * const RiskManager = require('./core/RiskManager');
+ * const riskManager = new RiskManager({ maxDrawdownPercent: 15 }, bot);
+ *
+ * // Validate trade before execution
+ * const validation = riskManager.validateTrade(tradeRequest);
+ * if (!validation.allowed) {
+ *   console.log('Trade blocked:', validation.reason);
+ * }
+ *
+ * // Get current risk metrics
+ * const metrics = riskManager.getMetrics();
+ * console.log(`Current drawdown: ${metrics.currentDrawdown}%`);
  * ============================================================================
  * 
  * This is the most critical component for long-term trading success. While the
