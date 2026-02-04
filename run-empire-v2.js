@@ -413,7 +413,7 @@ class OGZPrimeV14Bot {
       minHoldTime: 2,
       staleTradeTime: 30
     });
-    this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_ACTIVE !== 'true'; // Shadow by default
+    this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // CHANGE 670: Initialize Grid Trading Strategy
