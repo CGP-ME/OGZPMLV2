@@ -1117,11 +1117,13 @@ class OGZPrimeV14Bot {
     this.lastDataReceived = Date.now();
 
     // STALE DATA DETECTION: Check if DATA ITSELF is old (not arrival time)
+    // FIX BACKTEST_001: Skip stale check in backtest mode - historical data is intentionally old
+    const isBacktesting = process.env.BACKTEST_MODE === 'true' || this.config?.enableBacktestMode;
     const now = Date.now();
     const dataAge = now - (etime * 1000); // etime is in SECONDS, convert to milliseconds
 
-    // If data is more than 2 minutes old, it's stale
-    if (dataAge > 120000) {
+    // If data is more than 2 minutes old, it's stale (but NOT during backtesting!)
+    if (dataAge > 120000 && !isBacktesting) {
       console.error('🚨 STALE DATA:', Math.round(dataAge / 1000), 'seconds old');
 
       // AUTO-PAUSE TRADING
@@ -1453,6 +1455,15 @@ class OGZPrimeV14Bot {
    * Core trading pipeline orchestration
    */
   async analyzeAndTrade() {
+    // FIX PAUSE_001: Check if trading is paused before any analysis
+    // StateManager.pauseTrading() sets isTrading=false but previously had no effect
+    // because this check was missing - bot kept trading with stale data
+    if (stateManager.get('isTrading') === false) {
+      const pauseReason = stateManager.get('pauseReason') || 'unknown';
+      console.log(`⏸️ Trading paused: ${pauseReason} - skipping analysis`);
+      return;
+    }
+
     const { price } = this.marketData;
 
     // CHANGE 2025-12-23: Use IndicatorEngine as single source of truth
@@ -1617,6 +1628,20 @@ class OGZPrimeV14Bot {
 
     // 🔧 FIX: Pass priceData to TradingBrain for MarketRegimeDetector
     this.tradingBrain.priceData = this.priceHistory;
+
+    // FIX BRAIN_001: Apply AGGRESSIVE_LEARNING_MODE threshold BEFORE TradingBrain decides
+    // Previously this adjustment happened AFTER TradingBrain already rejected - useless!
+    // Now we update TradingBrain's config before it makes the decision
+    if (flagManager.isEnabled('AGGRESSIVE_LEARNING_MODE')) {
+      const aggressiveThreshold = flagManager.getSetting('AGGRESSIVE_LEARNING_MODE', 'minConfidenceThreshold', 55) / 100;
+      if (!this.tradingBrain.config) this.tradingBrain.config = {};
+      this.tradingBrain.config.minConfidenceThreshold = aggressiveThreshold;
+      // Log once per minute to avoid spam
+      if (!this._lastAggLog || Date.now() - this._lastAggLog > 60000) {
+        console.log(`🔥 AGGRESSIVE LEARNING: TradingBrain threshold set to ${(aggressiveThreshold * 100).toFixed(0)}%`);
+        this._lastAggLog = Date.now();
+      }
+    }
 
     // Get full decision from TradingBrain (direction + confidence + reasoning)
     const brainDecision = await this.tradingBrain.getDecision(
