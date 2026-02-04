@@ -57,6 +57,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Commit:** `4e0dfd0`
 
 ### Fixed
+- **CRITICAL: Trading Pause Has No Effect (PAUSE_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
+  - **Root Cause:** `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
+  - Bot continued trading with frozen/stale price data while "paused" - 200 trades at $0 P&L
+  - **Fix:** Added isTrading check at start of `analyzeAndTrade()` method
+  - **File:** `run-empire-v2.js` lines 1458-1464
+  - **Before:** No check - analyzeAndTrade ran regardless of pause state
+  - **After:**
+    ```javascript
+    if (stateManager.get('isTrading') === false) {
+      const pauseReason = stateManager.get('pauseReason') || 'unknown';
+      console.log(`⏸️ Trading paused: ${pauseReason} - skipping analysis`);
+      return;
+    }
+    ```
+  - **Impact:** Pause now actually stops trading - no more phantom trades with stale data
+
+- **CRITICAL: AGGRESSIVE_LEARNING_MODE Did Nothing (BRAIN_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
+  - **Root Cause:** TradingBrain rejected trades at 70% threshold BEFORE run-empire could lower to 55%
+  - AGGRESSIVE_LEARNING_MODE adjustment happened too late in the pipeline - trades already rejected
+  - **Fix:** Set `tradingBrain.config.minConfidenceThreshold` BEFORE calling `getDecision()`
+  - **File:** `run-empire-v2.js` lines 1632-1644
+  - **Before:** Threshold adjustment after TradingBrain decision (useless)
+  - **After:**
+    ```javascript
+    if (flagManager.isEnabled('AGGRESSIVE_LEARNING_MODE')) {
+      const aggressiveThreshold = flagManager.getSetting('AGGRESSIVE_LEARNING_MODE', 'minConfidenceThreshold', 55) / 100;
+      if (!this.tradingBrain.config) this.tradingBrain.config = {};
+      this.tradingBrain.config.minConfidenceThreshold = aggressiveThreshold;
+    }
+    ```
+  - **Impact:** Pattern learning can now actually happen with 55% confidence trades
+
+- **Backtest Blocked by Stale Data Check (BACKTEST_001)** - run-empire-v2.js (BUG FIX) - 2026-02-04
+  - **Root Cause:** Stale data detection treated historical backtest data as "old" and paused
+  - All backtest runs spammed "🚨 STALE DATA: 97632544 seconds old" and failed
+  - **Fix:** Skip stale data check when `BACKTEST_MODE=true` or `config.enableBacktestMode`
+  - **File:** `run-empire-v2.js` lines 1119-1126
+  - **Before:** `if (dataAge > 120000) {`
+  - **After:**
+    ```javascript
+    const isBacktesting = process.env.BACKTEST_MODE === 'true' || this.config?.enableBacktestMode;
+    if (dataAge > 120000 && !isBacktesting) {
+    ```
+  - **Impact:** Backtests now complete successfully with historical data
+  - **Commit:** `4a828d1`
+
 - **CRITICAL: Pattern Learning Pipeline Broken** - run-empire-v2.js, config/features.json (CRITICAL BUG FIX) - 2026-02-02
   - **Root Cause:** Patterns detected at trade entry were NOT attached to the trade object
   - At trade exit, `buyTrade.patterns` was always empty/undefined
