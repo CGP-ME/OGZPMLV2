@@ -150,6 +150,23 @@
         "twoPoleBoost": true,
         "volumeConfirmation": true
       }
+    },
+    "EXIT_SYSTEM": {
+      "enabled": true,
+      "description": "Single exit system selector - prevents multiple competing exits",
+      "version": "1.0.0",
+      "settings": {
+        "activeSystem": "maxprofit",
+        "availableSystems": {
+          "maxprofit": "MaxProfitManager - tiered exits with trailing stops (RECOMMENDED)",
+          "intelligence": "TradeIntelligenceEngine - 13-dimension analysis",
+          "pattern": "PatternExitModel - pattern-based exits",
+          "brain": "TradingBrain signals - brain sell + conditions",
+          "legacy": "All systems active (old behavior - NOT RECOMMENDED)"
+        },
+        "hardStopAlwaysOn": true,
+        "hardStopPercent": -1.5
+      }
     }
   },
   "environment": {
