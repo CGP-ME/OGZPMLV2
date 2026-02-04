@@ -83,6 +83,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **After:** `this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true';`
   - **Impact:** Trade intelligence (13-dimension analysis) now actually manages trades
 
+- **EventLoopMonitor DISABLED** - run-empire-v2.js (BUG FIX) - 2026-02-04
+  - **Root Cause:** Paused trading on transient CPU spikes and never auto-resumed
+  - User never requested this feature; added by AI in commit 98fc6e9
+  - Liveness Watchdog already covers "no data" scenario (redundant)
+  - **Fix:** Commented out initialization and start() call
+  - **File:** `run-empire-v2.js` lines 486-495, 1037-1044
+  - **Before:** EventLoopMonitor active, pauses at 500ms lag
+  - **After:** `this.eventLoopMonitor = null` (disabled)
+  - **Impact:** Bot no longer pauses forever on CPU spikes
+  - **Note:** `core/EventLoopMonitor.js` kept for potential future use
+  - **Commit:** `58c815f`
+
 - **CRITICAL: Trading Pause Has No Effect (PAUSE_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
   - **Root Cause:** `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
   - Bot continued trading with frozen/stale price data while "paused" - 200 trades at $0 P&L
