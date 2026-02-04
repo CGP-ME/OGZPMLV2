@@ -36,6 +36,14 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 - **Fix**: Skip stale check when `BACKTEST_MODE=true` (lines 1119-1126)
 - **Result**: Backtesting no longer blocked by 2023 timestamps
 
+### EventLoopMonitor DISABLED
+- **Problem**: Paused trading on transient CPU spikes and never auto-resumed
+- **Root Cause**: Someone added this "stability" feature without user request (commit 98fc6e9)
+- **Why removed**: Liveness Watchdog already covers "no data" scenario; this was redundant and harmful
+- **Fix**: Commented out initialization and start() call in `run-empire-v2.js` (lines 486-495, 1037-1044)
+- **Result**: Bot no longer pauses forever on CPU spikes
+- **File NOT deleted**: `core/EventLoopMonitor.js` kept for potential future use
+
 ---
 
 ## 2026-01-31 – Dashboard Polish & Stability Hardening

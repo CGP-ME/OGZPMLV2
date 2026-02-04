@@ -483,14 +483,16 @@ class OGZPrimeV14Bot {
 
     // RECONCILER REMOVED - was causing more problems than it solved
 
-    // EVENT LOOP MONITORING: Detect freezes and high lag
-    const { getInstance: getEventLoopMonitor } = require('./core/EventLoopMonitor');
-    this.eventLoopMonitor = getEventLoopMonitor({
-      warningThreshold: 100,   // Warn at 100ms
-      criticalThreshold: 500,  // Pause trading at 500ms
-      checkInterval: 1000      // Check every second
-    });
-    console.log('⚡ Event loop monitor initialized');
+    // EVENT LOOP MONITORING: DISABLED 2026-02-04
+    // Reason: Pauses trading on transient CPU spikes and never auto-resumes
+    // Liveness Watchdog already covers "no data" scenario
+    // const { getInstance: getEventLoopMonitor } = require('./core/EventLoopMonitor');
+    // this.eventLoopMonitor = getEventLoopMonitor({
+    //   warningThreshold: 100,
+    //   criticalThreshold: 500,
+    //   checkInterval: 1000
+    // });
+    this.eventLoopMonitor = null; // Disabled
 
     // Dashboard WebSocket (Change 528) - OPTIONAL for real-time monitoring
     this.dashboardWs = null;
@@ -1034,10 +1036,12 @@ class OGZPrimeV14Bot {
 
         // RECONCILER REMOVED - was blocking trades
 
-        // EVENT LOOP MONITORING: Start monitoring for freezes
-        console.log('⚡ Starting event loop monitoring...');
-        this.eventLoopMonitor.start();
-        console.log('✅ Event loop monitor active');
+        // EVENT LOOP MONITORING: DISABLED 2026-02-04
+        // if (this.eventLoopMonitor) {
+        //   console.log('⚡ Starting event loop monitoring...');
+        //   this.eventLoopMonitor.start();
+        //   console.log('✅ Event loop monitor active');
+        // }
 
         // Start trading cycle
         this.startTradingCycle();
