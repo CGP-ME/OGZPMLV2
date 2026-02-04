@@ -1459,14 +1459,9 @@ class OGZPrimeV14Bot {
    * Core trading pipeline orchestration
    */
   async analyzeAndTrade() {
-    // FIX PAUSE_001: Check if trading is paused before any analysis
-    // StateManager.pauseTrading() sets isTrading=false but previously had no effect
-    // because this check was missing - bot kept trading with stale data
-    if (stateManager.get('isTrading') === false) {
-      const pauseReason = stateManager.get('pauseReason') || 'unknown';
-      console.log(`⏸️ Trading paused: ${pauseReason} - skipping analysis`);
-      return;
-    }
+    // PAUSE_001 REVERTED 2026-02-04: The isTrading check was a band-aid
+    // Real fix: WebSocket reconnect (this.connected = true in kraken_adapter_simple.js)
+    // Frozen price/$0 P&L was caused by WebSocket not reconnecting, not missing pause check
 
     const { price } = this.marketData;
 

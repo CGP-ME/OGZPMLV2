@@ -20,11 +20,12 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 - **Fix**: Changed default from shadow to active in `run-empire-v2.js` line 416
 - **Result**: Trade intelligence (regime, momentum, structure, volume, etc.) now actually controls exits
 
-### Trading Pause Actually Enforced (PAUSE_001)
-- **Problem**: `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
-- Bot continued trading with frozen/stale data while "paused"
-- **Fix**: Added isTrading check at start of `analyzeAndTrade()` (lines 1458-1464)
-- **Result**: Pause now actually stops trading
+### REVERTED: PAUSE_001 Was A Band-Aid
+- **Original "Fix"**: Added isTrading check at start of `analyzeAndTrade()`
+- **Why Reverted**: This was a band-aid masking the real problem
+- **Real Root Cause**: WebSocket never reconnected (`this.connected` not set)
+- **Real Fix**: `kraken_adapter_simple.js` ws.on('open') → `this.connected = true`
+- **Lesson**: Don't add checks that mask symptoms - find and fix the actual cause
 
 ### AGGRESSIVE_LEARNING_MODE Works (BRAIN_001)
 - **Problem**: TradingBrain rejected at 70% BEFORE run-empire could lower to 55%

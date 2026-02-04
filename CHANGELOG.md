@@ -95,21 +95,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Note:** `core/EventLoopMonitor.js` kept for potential future use
   - **Commit:** `58c815f`
 
-- **CRITICAL: Trading Pause Has No Effect (PAUSE_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
-  - **Root Cause:** `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
-  - Bot continued trading with frozen/stale price data while "paused" - 200 trades at $0 P&L
-  - **Fix:** Added isTrading check at start of `analyzeAndTrade()` method
-  - **File:** `run-empire-v2.js` lines 1458-1464
-  - **Before:** No check - analyzeAndTrade ran regardless of pause state
-  - **After:**
-    ```javascript
-    if (stateManager.get('isTrading') === false) {
-      const pauseReason = stateManager.get('pauseReason') || 'unknown';
-      console.log(`⏸️ Trading paused: ${pauseReason} - skipping analysis`);
-      return;
-    }
-    ```
-  - **Impact:** Pause now actually stops trading - no more phantom trades with stale data
+- **REVERTED: PAUSE_001 Was A Band-Aid** - run-empire-v2.js - 2026-02-04
+  - **Original "Fix":** Added isTrading check at start of `analyzeAndTrade()`
+  - **Why Reverted:** This was a band-aid masking the real problem
+  - **Real Root Cause:** WebSocket never reconnected (`this.connected` not set in `connectWebSocketStream()`)
+  - **Real Fix:** `kraken_adapter_simple.js` line 572: `this.connected = true` in ws.on('open')
+  - **Lesson:** Don't add checks that mask symptoms - find and fix the actual cause
 
 - **CRITICAL: AGGRESSIVE_LEARNING_MODE Did Nothing (BRAIN_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
   - **Root Cause:** TradingBrain rejected trades at 70% threshold BEFORE run-empire could lower to 55%
