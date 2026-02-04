@@ -6,6 +6,16 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ## 2026-02-04 – Critical Trading Bug Fixes (The "$0 P&L / 200 Trades" Investigation)
 
+### EXIT_SYSTEM Feature Flag (EXIT_CLEANUP_001) - ARCHITECTURE
+- **Problem**: 8 competing exit systems fighting each other → penny P&L on $500 positions
+- **Root Cause**: TradeIntelligence, PatternExit, MaxProfit, BrainSell, GradualExit, StaleExit, FeeBuffer all active simultaneously. First to fire wins → instant exits with $0.01 profit
+- **Fix**: Added `EXIT_SYSTEM` feature flag in `config/features.json`
+  - Options: `maxprofit` (default), `intelligence`, `pattern`, `brain`, `legacy`
+  - Each exit system wrapped in `if (this.activeExitSystem === 'X' || this.activeExitSystem === 'legacy')`
+  - Hard stop at -1.5% ALWAYS active (not wrapped)
+- **Result**: maxprofit-only backtest = -$0.52 vs legacy = -$500.62
+- **Usage**: `EXIT_SYSTEM=intelligence pm2 restart ogz-prime-v2 --update-env` or change `config/features.json`
+
 ### WebSocket Never Reconnected (WS_CONNECTED_017) - CRITICAL
 - **Problem**: Liveness watchdog spammed "NO DATA FOR 140 SECONDS" but WebSocket never reconnected
 - **Root Cause**: `connectWebSocketStream()` in `kraken_adapter_simple.js` never set `this.connected = true`
@@ -44,6 +54,13 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 - **Fix**: Commented out initialization and start() call in `run-empire-v2.js` (lines 486-495, 1037-1044)
 - **Result**: Bot no longer pauses forever on CPU spikes
 - **File NOT deleted**: `core/EventLoopMonitor.js` kept for potential future use
+
+### Backtest Trades Not Recording (BACKTEST_REPORT_001)
+- **Problem**: Backtest showed `totalTrades: 0` and `trades: []` despite balance changing from $10k → $9.5k
+- **Root Cause**: `AdvancedExecutionLayer` never initialized `this.trades = []` array
+- Trade recording code checked `if(this.executionLayer.trades)` which was undefined
+- **Fix**: Added `this.trades = [];` to constructor in `core/AdvancedExecutionLayer-439-MERGED.js`
+- **Result**: Backtest now reports actual trade history (totalTrades: 15, winRate, etc.)
 
 ---
 
