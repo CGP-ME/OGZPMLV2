@@ -74,6 +74,7 @@ class AdvancedExecutionLayer {
     this.totalTrades = 0;
     this.winningTrades = 0;
     this.totalPnL = 0;
+    this.trades = []; // FIX 2026-02-04: Initialize trades array for backtest reporting
 
     // IDEMPOTENCY: Track submitted orders to prevent duplicates
     this.submittedIntents = new Map(); // intentId -> { timestamp, status, orderId }
