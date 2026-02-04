@@ -4,6 +4,40 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ---
 
+## 2026-02-04 – Critical Trading Bug Fixes (The "$0 P&L / 200 Trades" Investigation)
+
+### WebSocket Never Reconnected (WS_CONNECTED_017) - CRITICAL
+- **Problem**: Liveness watchdog spammed "NO DATA FOR 140 SECONDS" but WebSocket never reconnected
+- **Root Cause**: `connectWebSocketStream()` in `kraken_adapter_simple.js` never set `this.connected = true`
+- Reconnect logic at `ws.on('close')` checked `if (this.connected)` - always false!
+- **Fix**: Added `this.connected = true` in `ws.on('open')` handler (lines 569-577)
+- **Result**: WebSocket auto-recovery actually works now
+- **Note**: Fix applied outside pipeline - Warden failed to catch this
+
+### TradeIntelligenceEngine Now ACTIVE
+- **Problem**: Built 13-dimension intelligent trade management system to solve exit problems... left in SHADOW MODE
+- **Why it matters**: Shadow mode logged decisions but never acted - trades still exited immediately with $0 P&L
+- **Fix**: Changed default from shadow to active in `run-empire-v2.js` line 416
+- **Result**: Trade intelligence (regime, momentum, structure, volume, etc.) now actually controls exits
+
+### Trading Pause Actually Enforced (PAUSE_001)
+- **Problem**: `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
+- Bot continued trading with frozen/stale data while "paused"
+- **Fix**: Added isTrading check at start of `analyzeAndTrade()` (lines 1458-1464)
+- **Result**: Pause now actually stops trading
+
+### AGGRESSIVE_LEARNING_MODE Works (BRAIN_001)
+- **Problem**: TradingBrain rejected at 70% BEFORE run-empire could lower to 55%
+- **Fix**: Set `tradingBrain.config.minConfidenceThreshold` BEFORE calling `getDecision()` (lines 1632-1644)
+- **Result**: Pattern learning can now happen with 55% confidence trades
+
+### Backtest Stale Data Check (BACKTEST_001)
+- **Problem**: Stale data detection treated historical data as "old" and paused
+- **Fix**: Skip stale check when `BACKTEST_MODE=true` (lines 1119-1126)
+- **Result**: Backtesting no longer blocked by 2023 timestamps
+
+---
+
 ## 2026-01-31 – Dashboard Polish & Stability Hardening
 
 ### WebSocket Auto-Recovery (CRITICAL)

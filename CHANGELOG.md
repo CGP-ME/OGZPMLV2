@@ -57,6 +57,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Commit:** `4e0dfd0`
 
 ### Fixed
+- **CRITICAL: WebSocket Never Reconnected (WS_CONNECTED_017)** - kraken_adapter_simple.js (CRITICAL BUG FIX) - 2026-02-04
+  - **Root Cause:** `connectWebSocketStream()` never set `this.connected = true`
+  - Reconnect logic at line 751 checks `if (this.connected)` - always false!
+  - Liveness watchdog triggered "NO DATA FOR 140 SECONDS" but reconnect never happened
+  - **Fix:** Added `this.connected = true` in `ws.on('open')` handler
+  - **File:** `kraken_adapter_simple.js` lines 569-577
+  - **Before:** `this.connected` only set in `connect()` (REST), not `connectWebSocketStream()` (WS)
+  - **After:**
+    ```javascript
+    this.ws.on('open', () => {
+      console.log('✅ Kraken WebSocket connected');
+      this.connected = true;  // FIX: Now reconnect logic will work
+      // ...
+    ```
+  - **Impact:** WebSocket auto-recovery now actually works
+  - **Note:** Fix applied outside pipeline - documented retroactively
+
+- **TradeIntelligenceEngine Now ACTIVE by Default** - run-empire-v2.js (BUG FIX) - 2026-02-04
+  - **Root Cause:** Built intelligent exit system to solve $0 P&L problem, left in SHADOW MODE
+  - Shadow mode logged decisions but never acted on them
+  - **Fix:** Changed default from shadow mode to active mode
+  - **File:** `run-empire-v2.js` line 416
+  - **Before:** `this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW !== 'false';`
+  - **After:** `this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true';`
+  - **Impact:** Trade intelligence (13-dimension analysis) now actually manages trades
+
 - **CRITICAL: Trading Pause Has No Effect (PAUSE_001)** - run-empire-v2.js (CRITICAL BUG FIX) - 2026-02-04
   - **Root Cause:** `StateManager.pauseTrading()` set `isTrading=false` but nothing checked this flag
   - Bot continued trading with frozen/stale price data while "paused" - 200 trades at $0 P&L

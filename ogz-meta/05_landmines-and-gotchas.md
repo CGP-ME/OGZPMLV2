@@ -390,3 +390,30 @@
 **Files:** `kraken_adapter_simple.js`, `run-empire-v2.js`
 
 **Date Fixed:** 2026-01-30
+
+---
+
+### WS_CONNECTED_017 – WebSocket connectWebSocketStream() Never Sets this.connected
+
+**Symptom:**
+- Liveness watchdog spams "NO DATA FOR 140 SECONDS"
+- Bot logs say WebSocket "connected" but no data flows
+- Reconnect never happens despite infinite reconnect logic
+- Manual restart required
+
+**Cause:**
+- `connect()` method (REST init) sets `this.connected = true`
+- `connectWebSocketStream()` method (WS connection) NEVER set `this.connected`
+- Reconnect logic at `ws.on('close')` line 751 checks `if (this.connected)`
+- Always false → reconnect skipped → data feed dies permanently
+
+**Rule:**
+- BOTH `connect()` and `connectWebSocketStream()` must set `this.connected = true`
+- Reconnect logic must have logging to show WHY reconnect was skipped
+- When adding "infinite reconnect", verify the trigger condition actually fires
+
+**Files:** `kraken_adapter_simple.js` (lines 569-577 for fix, line 751 for reconnect check)
+
+**Date Fixed:** 2026-02-04
+
+**Note:** This fix was applied outside the Claudito pipeline - Warden should have caught it
