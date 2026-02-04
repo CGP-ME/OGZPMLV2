@@ -569,6 +569,11 @@ class KrakenAdapterSimple {
       this.ws.on('open', () => {
         console.log('✅ Kraken WebSocket connected');
 
+        // FIX 2026-02-04: Set connected flag so onclose handler will auto-reconnect
+        // THIS WAS THE BUG: connectWebSocketStream() never set this.connected = true
+        // So when WebSocket closed, reconnect logic was skipped (if this.connected check failed)
+        this.connected = true;
+
         // CHANGE 2026-01-16: Reset reconnect counter on successful connection
         // Without this, counter accumulates across disconnects and eventually hits max
         if (this.reconnectAttempts > 0) {
