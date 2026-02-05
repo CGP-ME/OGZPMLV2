@@ -416,6 +416,12 @@ class OGZPrimeV14Bot {
     this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
+    // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
+    // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
+    // Hard stop loss + stale trade exit + confidence crash ALWAYS run regardless
+    this.activeExitSystem = process.env.EXIT_SYSTEM || featureFlags.features?.EXIT_SYSTEM?.settings?.activeSystem || 'maxprofit';
+    console.log(`🚪 Active Exit System: ${this.activeExitSystem.toUpperCase()} (set EXIT_SYSTEM env to change)`);
+
     // CHANGE 670: Initialize Grid Trading Strategy
     this.gridStrategy = null; // Initialize on demand based on strategy mode
     if (process.env.ENABLE_GRID_BOT === 'true') {
@@ -1992,7 +1998,7 @@ class OGZPrimeV14Bot {
               console.log(`   Reasoning: ${intelligenceResult.reasoning.slice(0, 3).join(' | ')}`);
               console.log(`   Score breakdown: regime=${intelligenceResult.scores.regime?.score || 0}, momentum=${intelligenceResult.scores.momentum?.score || 0}, ema=${intelligenceResult.scores.ema?.score || 0}`);
             }
-          } else {
+          } else if (this.activeExitSystem === 'intelligence' || this.activeExitSystem === 'legacy') {
             // ACTIVE MODE - actually use the intelligence
             if (intelligenceResult.action === 'EXIT_LOSS' && intelligenceResult.confidence > 0.7) {
               console.log(`🧠 [INTELLIGENCE] EXIT_LOSS: ${intelligenceResult.reasoning.join(' | ')}`);
@@ -2015,25 +2021,24 @@ class OGZPrimeV14Bot {
          const levelAnalysis = this.tradingBrain.analyzeFibSRLevels(this.priceHistory, currentPrice);
 
          // CHANGE 652: Check MaxProfitManager state before calling update
-         // Prevents silent failures if state.active is false (shouldn't happen but defensive)
+         // EXIT_SYSTEM flag: Only run MPM when activeExitSystem is maxprofit or legacy
          let profitResult = null;
-         if (!this.tradingBrain?.maxProfitManager?.state?.active) {
-           console.log('⚠️ MaxProfitManager not active for position, will check other exit conditions');
-           // Don't return HOLD - continue to check other sell conditions
-         } else {
-           // Use MaxProfitManager's sophisticated exit logic
-           // Change 608: Now enhanced with Fib/S&R level awareness
-           profitResult = this.tradingBrain.maxProfitManager.update(currentPrice, {
-           volatility: indicators.volatility || 0,
-           trend: indicators.trend || 'sideways',
-           volume: this.marketData?.volume || 0,
-           // NEW: Pass Fib/S&R trail multiplier
-           trailMultiplier: levelAnalysis.trailMultiplier || 1.0
-         });
+         if (this.activeExitSystem === 'maxprofit' || this.activeExitSystem === 'legacy') {
+           if (!this.tradingBrain?.maxProfitManager?.state?.active) {
+             console.log('⚠️ MaxProfitManager not active for position, will check other exit conditions');
+           } else {
+             profitResult = this.tradingBrain.maxProfitManager.update(currentPrice, {
+             volatility: indicators.volatility || 0,
+             trend: indicators.trend || 'sideways',
+             volume: this.marketData?.volume || 0,
+             trailMultiplier: levelAnalysis.trailMultiplier || 1.0
+           });
+           }
          }
 
          // Evaluate pattern exit model (shadow mode or active)
-         if (this.patternExitModel) {
+         // EXIT_SYSTEM flag: Only run pattern exits when activeExitSystem is pattern or legacy
+         if (this.patternExitModel && (this.activeExitSystem === 'pattern' || this.activeExitSystem === 'legacy')) {
            const profitPercent = (currentPrice - entryPrice) / entryPrice;
            const exitDecision = this.patternExitModel.evaluateExit({
              currentPrice,
@@ -2073,8 +2078,8 @@ class OGZPrimeV14Bot {
            }
          }
 
-        // Check if MaxProfitManager signals exit
-        if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full')) {
+        // Check if MaxProfitManager signals exit (only when maxprofit or legacy active)
+        if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full') && (this.activeExitSystem === 'maxprofit' || this.activeExitSystem === 'legacy')) {
           console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
           return { action: 'SELL', direction: 'close', confidence: totalConfidence };
         }
@@ -2100,8 +2105,8 @@ class OGZPrimeV14Bot {
           return { action: 'SELL', direction: 'close', confidence: totalConfidence };
         }
 
-        // MaxProfitManager-specific exits (only when MPM not active)
-        if (!this.tradingBrain?.maxProfitManager?.state?.active) {
+        // Legacy fallback exits (only when legacy mode AND MPM not active)
+        if (this.activeExitSystem === 'legacy' && !this.tradingBrain?.maxProfitManager?.state?.active) {
           // Exit if profitable above fees
           if (pnl > feeBuffer) {
             console.log(`✅ EXIT: Taking profit at ${pnl.toFixed(2)}% (covers ${feeBuffer}% fees)`);
@@ -2116,8 +2121,8 @@ class OGZPrimeV14Bot {
         }
 
         // CHANGE 2025-12-13: Step 5 - Brain sell signals ONLY after MaxProfitManager
-        // Check if Brain wants to sell (but only if MaxProfitManager didn't exit)
-        if (brainDirection === 'sell') {
+        // EXIT_SYSTEM flag: Only run brain exits when activeExitSystem is brain or legacy
+        if (brainDirection === 'sell' && (this.activeExitSystem === 'brain' || this.activeExitSystem === 'legacy')) {
           // Get the oldest BUY trade to check hold time
           const buyTrades = stateManager.getAllTrades()
             .filter(t => t.action === 'BUY')
@@ -2978,21 +2983,24 @@ class OGZPrimeV14Bot {
         timestamp: new Date().toISOString()
       };
 
+      // Write report FIRST (sync to prevent 0-byte files on timeout/exit)
+      require('fs').writeFileSync(reportPath, JSON.stringify(report, null, 2));
+      console.log(`\n📄 Report saved: ${reportPath}`);
+
       // 🤖 TRAI Analysis of Backtest Results (Change 586)
-      // Let TRAI analyze the complete backtest results and suggest optimizations
+      // Run AFTER report is saved so we always have results even if TRAI hangs
       if (this.trai && this.trai.analyzeBacktestResults) {
         console.log('\n🤖 [TRAI] Analyzing backtest results for optimization insights...');
         try {
           const traiAnalysis = await this.trai.analyzeBacktestResults(report);
           report.traiAnalysis = traiAnalysis;
           console.log('✅ TRAI Analysis Complete:', traiAnalysis.summary);
+          // Re-save with TRAI analysis appended
+          require('fs').writeFileSync(reportPath, JSON.stringify(report, null, 2));
         } catch (error) {
           console.error('⚠️ TRAI analysis failed:', error.message);
         }
       }
-
-      await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
-      console.log(`\n📄 Report saved: ${reportPath}`);
 
       // Exit after backtest
       console.log('\n🛑 Backtest complete - exiting...');
