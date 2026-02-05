@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **EXIT_SYSTEM Feature Flag** - run-empire-v2.js lines 422-423 (FEATURE) - 2026-02-05
+  - Only ONE exit system active at a time, selectable via env var or config
+  - `EXIT_SYSTEM=maxprofit` (default) - MaxProfitManager tiered exits + trailing stops
+  - `EXIT_SYSTEM=intelligence` - TradeIntelligenceEngine 13-dimension analysis
+  - `EXIT_SYSTEM=pattern` - PatternExitModel pattern-based exits
+  - `EXIT_SYSTEM=brain` - TradingBrain sell signals + conditions
+  - `EXIT_SYSTEM=legacy` - All systems active (old behavior, NOT recommended)
+  - Hard stop loss (-1.5%), stale trade (30min), confidence crash (>50 drop) ALWAYS run
+  - Config: `config/features.json` → `EXIT_SYSTEM.settings.activeSystem`
+  - Env override: `EXIT_SYSTEM=maxprofit` takes precedence over config
+  - **Verified**: maxprofit +$0.35 vs intelligence -$500 on same backtest data
+
+### Fixed
+- **Backtest Report 0-Byte Bug** - run-empire-v2.js line 2998 (BUG FIX) - 2026-02-05
+  - **Problem**: Report file created but 0 bytes when process killed by timeout
+  - **Root Cause**: `await fs.writeFile()` (async) followed by `process.exit(0)`; if timeout kills process mid-write, file is empty
+  - **Fix**: Changed to `require('fs').writeFileSync()` and moved BEFORE TRAI analysis
+  - **Result**: Report always saves completely, even if TRAI analysis hangs or process is killed
+
+### Added
 - **Pattern Learning Summary in Backtest Output** - run-empire-v2.js, core/EnhancedPatternRecognition.js (FEATURE) - 2026-02-02
   - Visual proof that pattern learning pipeline is fully functional
   - Shows at backtest completion: Patterns Recorded, Wins, Losses, Win Rate
