@@ -416,13 +416,6 @@ class OGZPrimeV14Bot {
     this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
-    // EXIT_SYSTEM: Single exit system selector (CLEANUP 2026-02-04)
-    // Prevents multiple competing exit systems from fighting each other
-    // Options: 'maxprofit', 'intelligence', 'pattern', 'brain', 'legacy'
-    this.activeExitSystem = process.env.EXIT_SYSTEM ||
-      flagManager.getSetting('EXIT_SYSTEM', 'activeSystem', 'maxprofit');
-    console.log(`🚪 Exit System: ${this.activeExitSystem.toUpperCase()} (set EXIT_SYSTEM env to change)`);
-
     // CHANGE 670: Initialize Grid Trading Strategy
     this.gridStrategy = null; // Initialize on demand based on strategy mode
     if (process.env.ENABLE_GRID_BOT === 'true') {
@@ -2001,16 +1994,13 @@ class OGZPrimeV14Bot {
             }
           } else {
             // ACTIVE MODE - actually use the intelligence
-            // EXIT_SYSTEM: Only fires when 'intelligence' or 'legacy' active
-            if (this.activeExitSystem === 'intelligence' || this.activeExitSystem === 'legacy') {
-              if (intelligenceResult.action === 'EXIT_LOSS' && intelligenceResult.confidence > 0.7) {
-                console.log(`🧠 [INTELLIGENCE] EXIT_LOSS: ${intelligenceResult.reasoning.join(' | ')}`);
-                return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
-              }
-              if (intelligenceResult.action === 'EXIT_PROFIT' && intelligenceResult.confidence > 0.7) {
-                console.log(`🧠 [INTELLIGENCE] EXIT_PROFIT: ${intelligenceResult.reasoning.join(' | ')}`);
-                return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
-              }
+            if (intelligenceResult.action === 'EXIT_LOSS' && intelligenceResult.confidence > 0.7) {
+              console.log(`🧠 [INTELLIGENCE] EXIT_LOSS: ${intelligenceResult.reasoning.join(' | ')}`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
+            }
+            if (intelligenceResult.action === 'EXIT_PROFIT' && intelligenceResult.confidence > 0.7) {
+              console.log(`🧠 [INTELLIGENCE] EXIT_PROFIT: ${intelligenceResult.reasoning.join(' | ')}`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence, source: 'TradeIntelligence' };
             }
             if (intelligenceResult.action === 'TRAIL_TIGHT') {
               console.log(`🧠 [INTELLIGENCE] TRAIL_TIGHT - tightening stop`);
@@ -2077,22 +2067,16 @@ class OGZPrimeV14Bot {
              }
            } else if (exitDecision.exitRecommended &&
                       (exitDecision.exitUrgency === 'high' || exitDecision.exitUrgency === 'critical')) {
-             // EXIT_SYSTEM: Only fires when 'pattern' or 'legacy' active
-             if (this.activeExitSystem === 'pattern' || this.activeExitSystem === 'legacy') {
-               // Active mode - actually trigger exit on high urgency
-               console.log(`🎯 Pattern Exit ACTIVE: ${exitDecision.reasons.join(', ')}`);
-               return { action: 'SELL', direction: 'close', confidence: totalConfidence * 1.2 };
-             }
+             // Active mode - actually trigger exit on high urgency
+             console.log(`🎯 Pattern Exit ACTIVE: ${exitDecision.reasons.join(', ')}`);
+             return { action: 'SELL', direction: 'close', confidence: totalConfidence * 1.2 };
            }
          }
 
         // Check if MaxProfitManager signals exit
-        // EXIT_SYSTEM: Only fires when 'maxprofit' or 'legacy' active
-        if (this.activeExitSystem === 'maxprofit' || this.activeExitSystem === 'legacy') {
-          if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full')) {
-            console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
-            return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-          }
+        if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full')) {
+          console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
+          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
         }
 
         // CRITICAL FIX: Calculate P&L for exit decisions
@@ -2109,68 +2093,60 @@ class OGZPrimeV14Bot {
           return { action: 'SELL', direction: 'close', confidence: totalConfidence };
         }
 
-        // SHIT OR GET OFF THE POT - EXIT_SYSTEM: Only in 'legacy' mode
+        // SHIT OR GET OFF THE POT - ALWAYS ENFORCED
         // If stuck for 30+ minutes in dead zone, just exit
-        if (this.activeExitSystem === 'legacy') {
-          if (holdTime > 30 && pnl < feeBuffer && pnl > -1.5) {
-            console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
+        if (holdTime > 30 && pnl < feeBuffer && pnl > -1.5) {
+          console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
+          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        }
+
+        // MaxProfitManager-specific exits (only when MPM not active)
+        if (!this.tradingBrain?.maxProfitManager?.state?.active) {
+          // Exit if profitable above fees
+          if (pnl > feeBuffer) {
+            console.log(`✅ EXIT: Taking profit at ${pnl.toFixed(2)}% (covers ${feeBuffer}% fees)`);
+            return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+          }
+
+          // Exit on brain sell signal after minimum hold - BUT ONLY IF PROFITABLE
+          if (brainDirection === 'sell' && holdTime > 0.5 && pnl > feeBuffer) {
+            console.log(`🧠 Brain SELL signal: Exiting after ${holdTime.toFixed(1)} min hold (P&L: ${pnl.toFixed(2)}%)`);
             return { action: 'SELL', direction: 'close', confidence: totalConfidence };
           }
         }
 
-        // MaxProfitManager-specific exits (only when MPM not active)
-        // EXIT_SYSTEM: Only in 'legacy' mode (fallback behavior)
-        if (this.activeExitSystem === 'legacy') {
-          if (!this.tradingBrain?.maxProfitManager?.state?.active) {
-            // Exit if profitable above fees
-            if (pnl > feeBuffer) {
-              console.log(`✅ EXIT: Taking profit at ${pnl.toFixed(2)}% (covers ${feeBuffer}% fees)`);
-              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-            }
-
-            // Exit on brain sell signal after minimum hold - BUT ONLY IF PROFITABLE
-            if (brainDirection === 'sell' && holdTime > 0.5 && pnl > feeBuffer) {
-              console.log(`🧠 Brain SELL signal: Exiting after ${holdTime.toFixed(1)} min hold (P&L: ${pnl.toFixed(2)}%)`);
-              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-            }
-          }
-        }
-
         // CHANGE 2025-12-13: Step 5 - Brain sell signals ONLY after MaxProfitManager
-        // EXIT_SYSTEM: Only fires when 'brain' or 'legacy' active
         // Check if Brain wants to sell (but only if MaxProfitManager didn't exit)
-        if (this.activeExitSystem === 'brain' || this.activeExitSystem === 'legacy') {
-          if (brainDirection === 'sell') {
-            // Get the oldest BUY trade to check hold time
-            const buyTrades = stateManager.getAllTrades()
-              .filter(t => t.action === 'BUY')
-              .sort((a, b) => a.entryTime - b.entryTime);
+        if (brainDirection === 'sell') {
+          // Get the oldest BUY trade to check hold time
+          const buyTrades = stateManager.getAllTrades()
+            .filter(t => t.action === 'BUY')
+            .sort((a, b) => a.entryTime - b.entryTime);
 
-            if (buyTrades.length > 0) {
-              const buyTrade = buyTrades[0];
-              const holdTime = (Date.now() - buyTrade.entryTime) / 60000; // Convert to minutes
-              const minHoldTime = 0.05; // 3 seconds for 5-sec candles
+          if (buyTrades.length > 0) {
+            const buyTrade = buyTrades[0];
+            const holdTime = (Date.now() - buyTrade.entryTime) / 60000; // Convert to minutes
+            const minHoldTime = 0.05; // 3 seconds for 5-sec candles
 
-              // Additional conditions for Brain to override:
-              // 1. Minimum hold time met
-              // 2. Position is in profit (don't panic sell at loss)
-              const pnl = ((currentPrice - entryPrice) / entryPrice) * 100;
+            // Additional conditions for Brain to override:
+            // 1. Minimum hold time met
+            // 2. Position is in profit (don't panic sell at loss)
+            const pnl = ((currentPrice - entryPrice) / entryPrice) * 100;
 
-              if (holdTime >= minHoldTime && pnl > 0.35) {  // MUST COVER FEES (0.32% + buffer)
-                console.log(`🧠 Brain bearish & profitable - allowing SELL (held ${holdTime.toFixed(2)} min, PnL: ${pnl.toFixed(2)}%)`);
-                return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-              } else if (holdTime >= minHoldTime && pnl < -2) {
-                // Emergency: Allow Brain to cut losses if down > 2%
-                console.log(`🚨 Brain emergency sell - cutting losses (PnL: ${pnl.toFixed(2)}%)`);
-                return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-              } else if (holdTime >= 5 && pnl < 0 && pnl >= -2) {
-                // CHANGE 2026-01-25: Gradual loss exit - don't bag hold small losses forever
-                // After 5 minutes, exit gracefully if losing but not yet at emergency threshold
-                console.log(`📉 Gradual exit - held ${holdTime.toFixed(1)} min at ${pnl.toFixed(2)}% loss, cutting loose`);
-                return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-              } else {
-                console.log(`🧠 Brain wants sell but conditions not met (hold: ${holdTime.toFixed(3)} min, PnL: ${pnl.toFixed(2)}%)`);
-              }
+            if (holdTime >= minHoldTime && pnl > 0.35) {  // MUST COVER FEES (0.32% + buffer)
+              console.log(`🧠 Brain bearish & profitable - allowing SELL (held ${holdTime.toFixed(2)} min, PnL: ${pnl.toFixed(2)}%)`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else if (holdTime >= minHoldTime && pnl < -2) {
+              // Emergency: Allow Brain to cut losses if down > 2%
+              console.log(`🚨 Brain emergency sell - cutting losses (PnL: ${pnl.toFixed(2)}%)`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else if (holdTime >= 5 && pnl < 0 && pnl >= -2) {
+              // CHANGE 2026-01-25: Gradual loss exit - don't bag hold small losses forever
+              // After 5 minutes, exit gracefully if losing but not yet at emergency threshold
+              console.log(`📉 Gradual exit - held ${holdTime.toFixed(1)} min at ${pnl.toFixed(2)}% loss, cutting loose`);
+              return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+            } else {
+              console.log(`🧠 Brain wants sell but conditions not met (hold: ${holdTime.toFixed(3)} min, PnL: ${pnl.toFixed(2)}%)`);
             }
           }
         }

@@ -3678,10 +3678,11 @@
                 }
             }
 
-            // CRITICAL ADDITION - Trade signal plotting handler
-            else if (data.type === 'trade_opened' && data.trade) {
-                plotTradeSignal(data.trade);
-            }
+            // DISABLED 2026-02-01: Duplicate handler - trade messages already handled above
+            // This was causing double markers (BUY BUY, SELL SELL) on chart
+            // else if (data.type === 'trade_opened' && data.trade) {
+            //     plotTradeSignal(data.trade);
+            // }
 
             // Neural votes
             else if (data.type === 'neural_vote') {

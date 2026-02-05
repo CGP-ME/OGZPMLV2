@@ -1,30 +1,53 @@
 /**
- * TRAI PATTERN MEMORY BANK
+ * @fileoverview PatternMemoryBank - TRAI Pattern Learning & Memory System
  *
  * Persistent learning system that remembers successful and failed trading patterns.
- * Patterns progress through: CANDIDATE → PROMOTED / QUARANTINED / DEAD
+ * Patterns progress through lifecycle: CANDIDATE → PROMOTED / QUARANTINED / DEAD
  *
- * Features:
- * - Pattern hashing for consistent identification
- * - Statistical scoring (winRate * avgR * confidence * recency - penalty)
- * - Automatic promotion/quarantine based on thresholds
- * - Pruning by score and age
+ * @description
+ * ARCHITECTURE ROLE:
+ * PatternMemoryBank is the "long-term memory" of TRAI. It stores patterns seen
+ * during trading, tracks their outcomes, and learns which patterns are profitable.
+ * This enables the bot to improve over time by favoring patterns with good track records.
  *
- * Memory Structure:
- * {
- *   patterns: {
- *     hash: {
- *       name, data, status, sampleCount, winCount, lossCount,
- *       totalPnL, avgPnLPercent, sumPnLSquared, avgHoldMs,
- *       firstSeenTs, lastSeenTs, lastOutcomeTs, score
- *     }
- *   },
- *   metadata: { lastUpdated, totalTrades, version }
- * }
+ * PATTERN LIFECYCLE:
+ * ```
+ * New Pattern → CANDIDATE (needs 30 samples)
+ *                    ↓
+ *            ┌───────┴───────┐
+ *            ↓               ↓
+ *    PROMOTED (>55% win)  QUARANTINED (<45% win)
+ *            ↓               ↓
+ *         (active)        DEAD (pruned)
+ * ```
  *
+ * MODE PARTITIONING:
+ * Memory files are separated by mode to prevent cross-contamination:
+ * - Live:     pattern_memory.live.json
+ * - Paper:    pattern_memory.paper.json
+ * - Backtest: pattern_memory.backtest.json
+ *
+ * SCORING FORMULA:
+ * score = winRate × avgR × confidence × recency − penalty
+ *
+ * @module core/PatternMemoryBank
+ * @requires fs
+ * @requires crypto (for pattern hashing)
  * @author TRAI Core Team
  * @version 2.0.0
- * @created 2025-11-22
+ *
+ * @example
+ * const PatternMemoryBank = require('./core/PatternMemoryBank');
+ * const memory = new PatternMemoryBank({ featureFlags });
+ *
+ * // Record a pattern outcome
+ * memory.recordOutcome(patternHash, { won: true, pnlPercent: 1.5, holdMs: 60000 });
+ *
+ * // Check pattern status before trading
+ * const pattern = memory.getPattern(hash);
+ * if (pattern?.status === 'QUARANTINED') {
+ *   console.log('Skipping quarantined pattern');
+ * }
  */
 
 const fs = require('fs');

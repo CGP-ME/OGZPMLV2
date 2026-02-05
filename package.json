@@ -52,6 +52,7 @@
     "dotenv": "^16.0.0",
     "express": "^4.22.1",
     "express-rate-limit": "^8.2.1",
+    "mermaid": "^11.12.2",
     "node-fetch": "^2.7.0",
     "require-in-the-middle": "^7.5.2",
     "stripe": "^18.3.0",

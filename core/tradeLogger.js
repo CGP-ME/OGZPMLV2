@@ -1,4 +1,56 @@
-// utils/tradeLogger.js - Clean Trade Logging System
+/**
+ * @fileoverview TradeLogger - Persistent Trade History & Analytics
+ *
+ * Logs all trades to daily JSON files for performance analysis,
+ * backtesting validation, and regulatory compliance.
+ *
+ * @description
+ * ARCHITECTURE ROLE:
+ * TradeLogger provides persistent trade records that survive restarts.
+ * Used for:
+ * - Performance analysis (win rate, avg P&L, etc.)
+ * - Backtesting validation (compare backtest vs live)
+ * - Audit trail for debugging trade issues
+ * - Daily/weekly reporting
+ *
+ * FILE STRUCTURE:
+ * ```
+ * logs/trades/
+ * ├── trades_2026-02-01.json
+ * ├── trades_2026-02-02.json
+ * └── ...
+ * ```
+ *
+ * TRADE RECORD FORMAT:
+ * ```json
+ * {
+ *   "timestamp": "2026-02-01T12:00:00Z",
+ *   "type": "BUY|SELL",
+ *   "price": 100000,
+ *   "amount": 0.001,
+ *   "pnl": 1.50,
+ *   "confidence": 75,
+ *   "indicators": { "rsi": 45, "macd": 0.5 }
+ * }
+ * ```
+ *
+ * @module utils/tradeLogger
+ * @requires fs
+ * @requires path
+ *
+ * @example
+ * const { logTrade } = require('./utils/tradeLogger');
+ *
+ * // Log a trade
+ * logTrade({
+ *   type: 'BUY',
+ *   price: 100000,
+ *   amount: 0.001,
+ *   confidence: 75,
+ *   indicators: { rsi: 45 }
+ * });
+ */
+
 const fs = require('fs');
 const path = require('path');
 

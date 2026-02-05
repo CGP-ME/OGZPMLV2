@@ -6,16 +6,6 @@ Rolling summary of important changes so an AI/dev knows what reality looks like 
 
 ## 2026-02-04 – Critical Trading Bug Fixes (The "$0 P&L / 200 Trades" Investigation)
 
-### EXIT_SYSTEM Feature Flag (EXIT_CLEANUP_001) - ARCHITECTURE
-- **Problem**: 8 competing exit systems fighting each other → penny P&L on $500 positions
-- **Root Cause**: TradeIntelligence, PatternExit, MaxProfit, BrainSell, GradualExit, StaleExit, FeeBuffer all active simultaneously. First to fire wins → instant exits with $0.01 profit
-- **Fix**: Added `EXIT_SYSTEM` feature flag in `config/features.json`
-  - Options: `maxprofit` (default), `intelligence`, `pattern`, `brain`, `legacy`
-  - Each exit system wrapped in `if (this.activeExitSystem === 'X' || this.activeExitSystem === 'legacy')`
-  - Hard stop at -1.5% ALWAYS active (not wrapped)
-- **Result**: maxprofit-only backtest = -$0.52 vs legacy = -$500.62
-- **Usage**: `EXIT_SYSTEM=intelligence pm2 restart ogz-prime-v2 --update-env` or change `config/features.json`
-
 ### WebSocket Never Reconnected (WS_CONNECTED_017) - CRITICAL
 - **Problem**: Liveness watchdog spammed "NO DATA FOR 140 SECONDS" but WebSocket never reconnected
 - **Root Cause**: `connectWebSocketStream()` in `kraken_adapter_simple.js` never set `this.connected = true`
