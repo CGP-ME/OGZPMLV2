@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (DeepSearch Profitability Audit - 2026-02-05)
+- **CRITICAL: BUY ignores brain direction** - run-empire-v2.js:1908 (DEEPSEARCH-001)
+  - **Problem**: Bot opened long positions when brain said 'sell' or 'hold' (~50% of trades wrong direction)
+  - **Root Cause**: BUY condition only checked `pos === 0 && confidence >= threshold`, never checked `brainDirection`
+  - **Fix**: Added `&& brainDirection === 'buy'` to BUY condition
+  - **Impact**: Eliminates ~50% of bad entries, massive win rate improvement expected
+
+- **CRITICAL: MaxProfitManager tiered exits dead** - run-empire-v2.js:2082 (DEEPSEARCH-002)
+  - **Problem**: Tiered profit-taking exits (`exit_partial`) silently ignored - only `exit` and `exit_full` handled
+  - **Root Cause**: MaxProfitManager.js:440 returns `action: 'exit_partial'` for tier hits, but run-empire-v2.js:2082 only checked `exit` and `exit_full`
+  - **Fix**: Added `|| profitResult.action === 'exit_partial'` to exit check, pass `exitSize` in return
+  - **Impact**: Tiered profit exits now fire - locks in partial gains at each profit tier
+
+- **HIGH: Fees never deducted from balance** - core/StateManager.js:316,400 (DEEPSEARCH-003)
+  - **Problem**: P&L overstated by ~108% - balance moved raw USD without fee deduction
+  - **Root Cause**: openPosition() and closePosition() transferred full USD amounts with zero fee accounting
+  - **Fix**: Added 0.26% fee deduction per side (Kraken maker/taker) on both open and close
+  - **Impact**: Backtest results now reflect real-world profitability
+
+- **HIGH: Backtest time logic uses Date.now()** - run-empire-v2.js:2090,2134,2320,2432,2522,2528 (DEEPSEARCH-004)
+  - **Problem**: holdTime calculations used wall clock time not candle timestamps - all ~0 in backtest
+  - **Root Cause**: 6 locations used `Date.now()` for entryTime and holdTime math. In backtest, candles replay in milliseconds so hold durations were microseconds instead of minutes.
+  - **Fix**: Replaced with `this.marketData?.timestamp || Date.now()` - uses candle time in backtest, real time in live
+  - **Impact**: Time-based exits (30min stale, min hold) now work correctly in backtest
+
+- **MEDIUM: Breakeven stop fee buffer too low** - core/MaxProfitManager.js:730 (DEEPSEARCH-005)
+  - **Problem**: "Breakeven" stop locked in guaranteed -0.22% loss every trigger
+  - **Root Cause**: feeBuffer was 0.001 (0.1%) but Kraken round-trip fees are 0.52% (0.26% x 2)
+  - **Fix**: Changed feeBuffer from 0.001 to 0.0035 (0.35% covers fees + slippage)
+  - **Impact**: Breakeven stops now actually break even
+
 ### Added
 - **EXIT_SYSTEM Feature Flag** - run-empire-v2.js lines 422-423 (FEATURE) - 2026-02-05
   - Only ONE exit system active at a time, selectable via env var or config

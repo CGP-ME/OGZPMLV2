@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { ragQuery, formatForContext } = require('./rag-query');
+const { getSemanticRAG } = require('./rag-embeddings');
 
 /**
  * Get current bot state
@@ -105,7 +106,7 @@ function getCurrentState() {
  * Generate context briefing for agents
  */
 function generateBriefing(issue, state) {
-  return `# MISSION BRIEFING
+  let briefing = `# MISSION BRIEFING
 Generated: ${state.timestamp}
 
 ## CURRENT BOT STATE
@@ -116,7 +117,44 @@ ${state.botStatus ? `- **Bot Status**: ${state.botStatus.running ? 'RUNNING' : '
 ## ISSUE TO INVESTIGATE
 ${issue}
 
-## RECENT CHANGES (from CHANGELOG)
+`;
+
+  // CRITICAL: Add semantic context about what worked/failed before
+  if (state.semanticContext) {
+    const ctx = state.semanticContext;
+
+    if (ctx.do_not_repeat && ctx.do_not_repeat.length > 0) {
+      briefing += `## 🛑 DO NOT REPEAT THESE APPROACHES (FAILED BEFORE)
+`;
+      ctx.do_not_repeat.forEach(failure => {
+        briefing += `### ${failure.fix_id}\n`;
+        briefing += `Similar issue: ${failure.symptom.slice(0, 80)}...\n`;
+        failure.what_failed.forEach(f => {
+          briefing += `- ❌ FAILED: ${f}\n`;
+        });
+        briefing += '\n';
+      });
+    }
+
+    if (ctx.try_these_approaches && ctx.try_these_approaches.length > 0) {
+      briefing += `## ✅ TRY THESE APPROACHES (WORKED BEFORE)
+`;
+      ctx.try_these_approaches.forEach(success => {
+        briefing += `### ${success.fix_id}\n`;
+        briefing += `Similar issue: ${success.symptom.slice(0, 80)}...\n`;
+        briefing += `Minimal fix: ${success.minimal_fix.slice(0, 100)}...\n`;
+        success.what_worked.forEach(w => {
+          briefing += `- ✅ WORKED: ${w}\n`;
+        });
+        if (success.files && success.files.length > 0) {
+          briefing += `- Files: ${success.files.join(', ')}\n`;
+        }
+        briefing += '\n';
+      });
+    }
+  }
+
+  briefing += `## RECENT CHANGES (from CHANGELOG)
 ${state.recentChanges.join('\n')}
 
 ## KNOWN FIXED ISSUES (DO NOT RE-INVESTIGATE)
@@ -126,9 +164,11 @@ ${state.knownIssues.slice(0, 5).map(i =>
 
 ## YOUR MISSION
 1. DO NOT investigate issues that are already in the Fix Ledger
-2. Focus on NEW issues not previously documented
-3. Consider the current bot configuration (confidence=${state.environment.MIN_TRADE_CONFIDENCE})
-4. Check if the issue is related to recent changes
+2. **DO NOT REPEAT approaches that FAILED before** (see above)
+3. **TRY approaches that WORKED for similar issues** (see above)
+4. Focus on NEW issues not previously documented
+5. Consider the current bot configuration (confidence=${state.environment.MIN_TRADE_CONFIDENCE})
+6. Check if the issue is related to recent changes
 
 ## CONTEXT FILES AVAILABLE
 - /opt/ogzprime/OGZPMLV2/ogz-meta/claudito_context.md (architecture)
@@ -136,6 +176,8 @@ ${state.knownIssues.slice(0, 5).map(i =>
 - /opt/ogzprime/OGZPMLV2/CHANGELOG.md (recent changes)
 - /opt/ogzprime/OGZPMLV2/.env (current configuration)
 `;
+
+  return briefing;
 }
 
 /**
@@ -204,8 +246,8 @@ async function command(issue) {
   console.log(`   Confidence: ${state.environment.MIN_TRADE_CONFIDENCE}`);
   console.log(`   Known Fixed Issues: ${state.knownIssues.length}`);
 
-  // Step 2: Check if this is a known issue
-  console.log('\n🔍 Step 2: Checking Fix Ledger...');
+  // Step 2: Check if this is a known issue (keyword search)
+  console.log('\n🔍 Step 2: Checking Fix Ledger (keyword)...');
   const ragResults = ragQuery(issue);
 
   if (ragResults.ledger.length > 0 && ragResults.ledger[0]._score > 150) {
@@ -214,6 +256,17 @@ async function command(issue) {
     console.log(`   Fixed: ${ragResults.ledger[0].date}`);
     console.log(`   Solution: ${ragResults.ledger[0].minimal_fix}`);
     console.log('\n📋 This issue was already fixed. Checking if it regressed...');
+  }
+
+  // Step 2.5: SEMANTIC RAG - Check what worked/failed before
+  console.log('\n🧠 Step 2.5: Checking Institutional Memory (semantic)...');
+  let semanticContext = null;
+  try {
+    const semanticRAG = await getSemanticRAG();
+    semanticContext = await semanticRAG.getContextForIssue(issue);
+    state.semanticContext = semanticContext;
+  } catch (e) {
+    console.log('   ⚠️ Semantic RAG unavailable, using keyword-only');
   }
 
   // Step 3: Select appropriate agent

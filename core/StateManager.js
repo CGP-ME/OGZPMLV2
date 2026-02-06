@@ -305,7 +305,8 @@ class StateManager {
     this.state.activeTrades.set(tradeId, trade);
     console.log(`✅ [StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
 
-    // usdCost already calculated above (line 167)
+    // FIX 2026-02-05: Deduct trading fee on entry (Kraken 0.26% per side)
+    const entryFee = usdCost * 0.0026;
     const updates = {
       position: this.state.position + size,  // Track BTC position
       positionCount: this.state.positionCount + 1,
@@ -313,7 +314,7 @@ class StateManager {
         ? (this.state.entryPrice * this.state.position + price * size) / (this.state.position + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      balance: this.state.balance - usdCost,  // Subtract USD cost
+      balance: this.state.balance - usdCost - entryFee,  // Subtract USD cost + fee
       inPosition: this.state.inPosition + usdCost,  // BUGFIX: Track USD in position, not BTC!
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,
@@ -389,6 +390,9 @@ class StateManager {
     // Correct: balance + (closeSize * price) → balance + 101 = right!
     const usdValueReturned = closeSize * price;  // What we get back in USD
 
+    // FIX 2026-02-05: Deduct trading fee on exit (Kraken 0.26% per side)
+    const exitFee = usdValueReturned * 0.0026;
+
     // Calculate USD that was locked in position (at entry price)
     const usdCostLocked = closeSize * this.state.entryPrice;
 
@@ -397,7 +401,7 @@ class StateManager {
       positionCount: partial ? this.state.positionCount : 0,
       entryPrice: partial ? this.state.entryPrice : 0,
       entryTime: partial ? this.state.entryTime : null,
-      balance: this.state.balance + usdValueReturned,  // Add back USD at current price
+      balance: this.state.balance + usdValueReturned - exitFee,  // Add back USD at current price minus fee
       inPosition: Math.max(0, this.state.inPosition - usdCostLocked),  // BUGFIX: Subtract USD, not BTC!
       realizedPnL: this.state.realizedPnL + pnl,
       totalPnL: this.state.totalPnL + pnl,

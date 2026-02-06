@@ -1,5 +1,32 @@
 # OGZ Prime - Claude Code Configuration
 
+## 🛑 ABSOLUTE RULE: NO CODE WITHOUT APPROVAL
+
+**NEVER change code without Trey's explicit approval.**
+
+Before ANY code edit:
+1. REPORT what you found (bug, issue, proposed fix)
+2. SHOW the exact changes you want to make
+3. WAIT for "OK", "approved", "do it", or similar confirmation
+4. ONLY THEN apply the fix
+
+```
+# WRONG - Never do this
+Claude: "I found the bug and fixed it..."
+
+# RIGHT - Always do this
+Claude: "I found the bug. Proposed fix:
+  File: run-empire-v2.js:1908
+  Before: if (pos === 0 && totalConfidence >= minConfidence)
+  After:  if (pos === 0 && totalConfidence >= minConfidence && brainDirection === 'buy')
+
+  Awaiting your approval."
+```
+
+**This is THE LAW. No exceptions.**
+
+---
+
 ## ⚡ p: TRIGGER - MANDATORY PIPELINE
 
 **When user message starts with `p:`** → FULL PIPELINE, NO EXCEPTIONS
@@ -10,17 +37,22 @@ Claude: [IMMEDIATELY runs full pipeline - no questions, no shortcuts]
 ```
 
 ### Pipeline Execution Order:
-1. `/warden` → Scope check (approve/reject)
-2. `/forensics` → Find root cause (if unknown)
-3. `/fixer` → Minimal fix ONLY
-4. `/debugger` → Smoke test (`./start-ogzprime.sh restart`)
-5. `/validator` → Quality gate
-6. `/commit` → Git commit with proper message
-7. `/changelog` → Update CHANGELOG.md
+1. `/warden` → Scope check + RAG query
+2. `/entomologist` → Find the bug (if unknown)
+3. `/forensics` → Find root cause / landmines
+4. `/architect` → Design approach
+5. **🛑 USER APPROVAL** → Report findings, WAIT for OK
+6. `/fixer` → Minimal fix ONLY (after approval)
+7. `/debugger` → Smoke test (`./start-ogzprime.sh restart`)
+8. `/validator` → Quality gate
+9. `/commit` → Git commit with proper message
+10. `/changelog` → Update CHANGELOG.md
+11. `/ledger` → Update fixes.jsonl (auto-triggers RAG reindex)
 
 **NEVER:**
 - Skip steps
 - "Just quickly fix it"
+- Apply fix without user approval
 - Apply fix without smoke test
 - Commit without running debugger
 

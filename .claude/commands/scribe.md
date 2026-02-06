@@ -104,6 +104,64 @@ You run PARALLEL to all other Clauditos:
 - They fix, you record
 - They discover, you preserve
 
+## FILES YOU MAINTAIN
+
+### Primary Docs (Always Update)
+```yaml
+- ogz-meta/claudito_context.md   # Full architecture context
+- ogz-meta/recent-changes.md     # Last 10 changes summary
+- CHANGELOG.md                   # User-facing changelog
+```
+
+### Secondary Docs (Update When Relevant)
+```yaml
+- ogz-meta/ledger/fixes.jsonl    # Via update-ledger.js
+- ogz-meta/ledger/lessons_digest.md
+- docs/ARCHITECTURE.md           # When structure changes
+```
+
+## AUTO-UPDATE PROTOCOL
+
+### After Each Fix
+```javascript
+// 1. Update recent-changes.md
+appendToRecentChanges({
+  date: new Date().toISOString(),
+  fix_id: 'FIX_2026_001',
+  summary: 'Added brainDirection check to buy logic',
+  files: ['run-empire-v2.js:1908'],
+  impact: 'Bot no longer buys on bearish signals'
+});
+
+// 2. Trigger ledger update
+const { addFixEntry } = require('./ogz-meta/update-ledger');
+await addFixEntry(fixDetails);
+
+// 3. Update claudito_context.md if architecture changed
+if (fixChangedArchitecture) {
+  updateClauditoContext(architectureChanges);
+}
+```
+
+### Hook Integration
+```yaml
+# INCOMING: After Committer creates commit
+hook: "COMMIT_COMPLETE"
+from: Committer
+payload:
+  commit_hash: "abc123"
+  files_changed: ["run-empire-v2.js"]
+  summary: "Fix buy direction check"
+action: Update all docs
+
+# OUTGOING: Docs updated
+hook: "DOCS_UPDATED"
+to: [Orchestrator, Ledger, RAG]
+payload:
+  files_updated: ["CHANGELOG.md", "recent-changes.md"]
+  fix_recorded: true
+```
+
 ## SUCCESS METRICS
 
 - Zero lost context between missions

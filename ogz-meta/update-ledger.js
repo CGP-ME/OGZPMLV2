@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getSemanticRAG } = require('./rag-embeddings');
 
 const LEDGER_DIR = path.join(__dirname, 'ledger');
 const LEDGER_FILE = path.join(LEDGER_DIR, 'fixes.jsonl');
@@ -248,10 +249,68 @@ function generateDigest(entries) {
   console.log(`\n📝 Lessons digest updated: ${digestPath}`);
 }
 
-// Run if called directly
-if (require.main === module) {
-  const entries = updateLedger();
-  generateDigest(entries);
+/**
+ * Auto-reindex RAG after ledger update
+ */
+async function reindexRAG() {
+  console.log('\n🧠 Auto-triggering RAG reindex...');
+  try {
+    const rag = await getSemanticRAG();
+    await rag.syncWithLedger();
+    console.log('   ✅ RAG reindexed with new ledger entries');
+    return true;
+  } catch (e) {
+    console.log(`   ⚠️ RAG reindex failed: ${e.message}`);
+    return false;
+  }
 }
 
-module.exports = { updateLedger, generateDigest };
+/**
+ * Add a fix entry directly (for pipeline use)
+ */
+async function addFixEntry(entry) {
+  // Ensure required fields
+  const fullEntry = {
+    id: entry.id || `FIX-${Date.now()}`,
+    date: entry.date || new Date().toISOString().split('T')[0],
+    severity: entry.severity || 'HIGH',
+    tags: entry.tags || [],
+    symptom: entry.symptom || 'Unknown symptom',
+    root_cause: entry.root_cause || 'Unknown root cause',
+    minimal_fix: entry.minimal_fix || 'See commit',
+    files: entry.files || [],
+    verification: entry.verification || [],
+    outcome: entry.outcome || 'success',
+    what_worked: entry.what_worked || [],
+    what_failed: entry.what_failed || [],
+    evidence: entry.evidence || [],
+    commit: entry.commit || null
+  };
+
+  // Check if entry already exists
+  const existingLedger = fs.readFileSync(LEDGER_FILE, 'utf8');
+  if (entryExists(existingLedger, fullEntry.id)) {
+    console.log(`   ⚠️ Entry ${fullEntry.id} already exists`);
+    return false;
+  }
+
+  // Append to ledger
+  fs.appendFileSync(LEDGER_FILE, JSON.stringify(fullEntry) + '\n');
+  console.log(`   ✅ Added fix: ${fullEntry.id}`);
+
+  // Auto-trigger RAG reindex
+  await reindexRAG();
+
+  return fullEntry;
+}
+
+// Run if called directly
+if (require.main === module) {
+  (async () => {
+    const entries = updateLedger();
+    generateDigest(entries);
+    await reindexRAG();
+  })();
+}
+
+module.exports = { updateLedger, generateDigest, addFixEntry, reindexRAG };

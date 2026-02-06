@@ -726,8 +726,9 @@ class MaxProfitManager {
       return;
     }
     
-    // Move stop to breakeven (plus small buffer for fees)
-    const feeBuffer = 0.001; // 0.1% buffer for trading fees
+    // Move stop to breakeven (plus buffer for round-trip fees)
+    // FIX 2026-02-05: Was 0.001 (0.1%) but Kraken round-trip is 0.52% (0.26% × 2 sides)
+    const feeBuffer = 0.0035; // 0.35% buffer covers fees + slippage
     let breakevenStop;
     
     if (this.state.direction === 'buy') {

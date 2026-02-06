@@ -5,6 +5,27 @@ allowed-tools: Skill, Bash, Read, Grep, Edit, Write
 
 # Pipeline - Master Chain Command
 
+## CRITICAL: USER APPROVAL GATE
+
+**NO CODE CHANGES WITHOUT TREY'S EXPLICIT APPROVAL**
+
+The pipeline ALWAYS stops after ARCHITECT and BEFORE FIXER to:
+1. REPORT all findings
+2. SHOW proposed changes with code preview
+3. WAIT for "OK" or "approved" from Trey
+4. ONLY THEN proceed to apply fixes
+
+```
+WARDEN → ENTOMOLOGIST → FORENSICS → ARCHITECT
+                                          ↓
+                                   🛑 USER APPROVAL
+                                   (Pipeline PAUSES here)
+                                          ↓
+                              (After Trey approves)
+                                          ↓
+                                       FIXER → DEBUGGER → etc.
+```
+
 ## PROMPT CHAINING EXECUTION
 
 This pipeline uses **prompt chaining** - each step outputs in XML tags that feed into the next step.

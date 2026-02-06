@@ -2,6 +2,8 @@
 
 // SILENT MODE: Disable logging during backtest for 100x speed boost
 // Set BACKTEST_SILENT=true or it auto-enables when BACKTEST_MODE=true
+// BACKTEST_FAST: Skip notifications, file I/O during backtest (explicit opt-in)
+const BACKTEST_FAST = process.env.BACKTEST_FAST === 'true';
 if (process.env.BACKTEST_SILENT === 'true' ||
     (process.env.BACKTEST_MODE === 'true' && process.env.BACKTEST_VERBOSE !== 'true')) {
   const originalLog = console.log;
@@ -1904,10 +1906,10 @@ class OGZPrimeV14Bot {
     // CHANGE 2025-12-13: Step 5 - MaxProfitManager gets priority on exits
     // Math (stops/targets) ALWAYS wins over Brain (emotional) signals
 
-    // Check if we should BUY (when flat) - High confidence OVERRIDES brain
-    if (pos === 0 && totalConfidence >= minConfidence) {
-      // CHANGE: When confidence is HIGH (70%+), we trust the signals over brain caution
-      console.log(`✅ BUY DECISION: Confidence ${totalConfidence.toFixed(1)}% >= ${minConfidence}% - HIGH CONFIDENCE TRADE!`);
+    // Check if we should BUY (when flat) - Brain direction MUST agree
+    // FIX 2026-02-05: Was buying on bearish/hold signals (~50% of positions opened wrong direction)
+    if (pos === 0 && totalConfidence >= minConfidence && brainDirection === 'buy') {
+      console.log(`✅ BUY DECISION: Confidence ${totalConfidence.toFixed(1)}% >= ${minConfidence}% | Brain: ${brainDirection} - ALIGNED TRADE!`);
 
         // CHANGE 2025-12-11: Pass 2 - Include decision context and pattern quality
         return {
@@ -2079,14 +2081,17 @@ class OGZPrimeV14Bot {
          }
 
         // Check if MaxProfitManager signals exit (only when maxprofit or legacy active)
-        if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full') && (this.activeExitSystem === 'maxprofit' || this.activeExitSystem === 'legacy')) {
-          console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'}`);
-          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        // FIX 2026-02-05: Added exit_partial - tiered profit exits were silently dropped
+        if (profitResult && (profitResult.action === 'exit' || profitResult.action === 'exit_full' || profitResult.action === 'exit_partial') && (this.activeExitSystem === 'maxprofit' || this.activeExitSystem === 'legacy')) {
+          console.log(`📉 SELL Signal: ${profitResult.reason || 'MaxProfitManager exit'} (${profitResult.action})`);
+          return { action: 'SELL', direction: 'close', confidence: totalConfidence, exitSize: profitResult.exitSize };
         }
 
         // CRITICAL FIX: Calculate P&L for exit decisions
         const pnl = ((currentPrice - entryPrice) / entryPrice) * 100;
-        const holdTime = (Date.now() - (buyTrades[0]?.entryTime || Date.now())) / 60000;
+        // FIX 2026-02-05: Use candle timestamp not Date.now() (broken in backtest - all holdTimes were ~0)
+        const currentTime = this.marketData?.timestamp || Date.now();
+        const holdTime = (currentTime - (buyTrades[0]?.entryTime || currentTime)) / 60000;
         const feeBuffer = 0.35; // Total fees are 0.32% round-trip
 
         // BUGFIX 2026-02-01: These safety exits MUST run regardless of MaxProfitManager state!
@@ -2130,7 +2135,7 @@ class OGZPrimeV14Bot {
 
           if (buyTrades.length > 0) {
             const buyTrade = buyTrades[0];
-            const holdTime = (Date.now() - buyTrade.entryTime) / 60000; // Convert to minutes
+            const holdTime = ((this.marketData?.timestamp || Date.now()) - buyTrade.entryTime) / 60000; // Convert to minutes
             const minHoldTime = 0.05; // 3 seconds for 5-sec candles
 
             // Additional conditions for Brain to override:
@@ -2316,7 +2321,7 @@ class OGZPrimeV14Bot {
           orderId: tradeResult.orderId || `SIM_${Date.now()}`,
           action: decision.action,
           entryPrice: price,
-          entryTime: Date.now(),
+          entryTime: this.marketData?.timestamp || Date.now(),
           size: positionSize,
           confidence: decision.confidence,
           // CHANGE 648: Store full pattern objects with signatures for learning
@@ -2383,7 +2388,8 @@ class OGZPrimeV14Bot {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
             patterns: patterns || [],  // Attach detected patterns for outcome learning
-            entryIndicators: indicators  // Attach indicators for feature vector reconstruction
+            entryIndicators: indicators,  // Attach indicators for feature vector reconstruction
+            entryTime: this.marketData?.timestamp || Date.now()  // FIX 2026-02-05: Use candle time in backtest
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -2409,16 +2415,19 @@ class OGZPrimeV14Bot {
           console.log(`💰 MaxProfitManager started - tracking 1-2% profit targets`);
 
           // CHANGE 2026-02-01: Send Telegram notification for trade
-          notifyTrade({
-            direction: 'BUY',
-            asset: this.config.symbol || 'BTC',
-            price: price,
-            size: positionSize / stateAfter.balance,
-            confidence: decision.confidence / 100
-          }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+          // BACKTEST_FAST: Skip notifications during backtest
+          if (!BACKTEST_FAST) {
+            notifyTrade({
+              direction: 'BUY',
+              asset: this.config.symbol || 'BTC',
+              price: price,
+              size: positionSize / stateAfter.balance,
+              confidence: decision.confidence / 100
+            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
 
-          // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
-          discordNotifier.notifyTrade('buy', price, positionSize);
+            // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
+            discordNotifier.notifyTrade('buy', price, positionSize);
+          }
 
           // Start pattern exit tracking (shadow mode or active)
           if (this.patternExitModel) {
@@ -2428,7 +2437,7 @@ class OGZPrimeV14Bot {
               size: positionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
-              entryTime: Date.now()
+              entryTime: this.marketData?.timestamp || Date.now()
             });
 
             if (this.patternExitShadowMode) {
@@ -2518,13 +2527,14 @@ class OGZPrimeV14Bot {
           if (buyTrades.length > 0) {
             const buyTrade = buyTrades[0];
             const pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
-            const holdDuration = Date.now() - buyTrade.entryTime;
+            const exitTimestamp = this.marketData?.timestamp || Date.now();
+            const holdDuration = exitTimestamp - buyTrade.entryTime;
 
             // Create complete trade result
             const completeTradeResult = {
               ...buyTrade,
               exitPrice: price,
-              exitTime: Date.now(),
+              exitTime: exitTimestamp,
               pnl: pnl,
               pnlDollars: buyTrade.size * (price - buyTrade.entryPrice),  // BUGFIX 2026-02-01: BTC × price_diff = USD profit
               holdDuration: holdDuration,
@@ -2562,15 +2572,18 @@ class OGZPrimeV14Bot {
             console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 2026-02-01: Send notifications for trade close with P&L
-            notifyTradeClose({
-              pnl: profitLoss,
-              entryPrice: buyTrade.entryPrice,
-              exitPrice: price,
-              duration: `${Math.round((Date.now() - buyTrade.entryTime) / 60000)}m`
-            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+            // BACKTEST_FAST: Skip notifications during backtest
+            if (!BACKTEST_FAST) {
+              notifyTradeClose({
+                pnl: profitLoss,
+                entryPrice: buyTrade.entryPrice,
+                exitPrice: price,
+                duration: `${Math.round((Date.now() - buyTrade.entryTime) / 60000)}m`
+              }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
 
-            // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
-            discordNotifier.notifyTrade('sell', price, btcAmount, profitLoss);
+              // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
+              discordNotifier.notifyTrade('sell', price, btcAmount, profitLoss);
+            }
 
             // CHANGE 642: Record SELL trade for backtest reporting
             // CHANGE 649: Add exit indicators for ML learning
