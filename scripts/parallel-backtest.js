@@ -132,7 +132,7 @@ if (isMainThread) {
     console.log(`\n🏆 WINNER: ${winner.toUpperCase()}`);
 
     // Save results
-    const resultsFile = '/tmp/parallel-backtest-results.json';
+    const resultsFile = path.join(process.cwd(), 'parallel-backtest-results.json');
     fs.writeFileSync(resultsFile, JSON.stringify(results, null, 2));
     console.log(`\n📁 Results saved to: ${resultsFile}`);
   }
@@ -152,7 +152,7 @@ if (isMainThread) {
     const fs = require('fs');
 
     // Save candles to temp file
-    const tempFile = `/tmp/worker-${process.pid}-${Date.now()}.json`;
+    const tempFile = path.join(os.tmpdir(), `worker-${process.pid}-${Date.now()}.json`);
     fs.writeFileSync(tempFile, JSON.stringify(candles));
 
     try {
