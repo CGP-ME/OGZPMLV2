@@ -2103,12 +2103,12 @@ class OGZPrimeV14Bot {
           return { action: 'SELL', direction: 'close', confidence: totalConfidence };
         }
 
-        // SHIT OR GET OFF THE POT - ALWAYS ENFORCED
-        // If stuck for 30+ minutes in dead zone, just exit
-        if (holdTime > 30 && pnl < feeBuffer && pnl > -1.5) {
-          console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
-          return { action: 'SELL', direction: 'close', confidence: totalConfidence };
-        }
+        // DISABLED 2026-02-06: Moving to 1-hour timeframe - 30min stale timer was killing trades
+        // SHIT OR GET OFF THE POT - DISABLED FOR HOURLY TRADING
+        // if (holdTime > 30 && pnl < feeBuffer && pnl > -1.5) {
+        //   console.log(`💩 SHIT OR GET OFF THE POT: ${holdTime.toFixed(0)} min hold, P&L: ${pnl.toFixed(2)}% - Taking the L and moving on`);
+        //   return { action: 'SELL', direction: 'close', confidence: totalConfidence };
+        // }
 
         // Legacy fallback exits (only when legacy mode AND MPM not active)
         if (this.activeExitSystem === 'legacy' && !this.tradingBrain?.maxProfitManager?.state?.active) {

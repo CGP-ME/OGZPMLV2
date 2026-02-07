@@ -3003,42 +3003,12 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
     // === PHASE 3: DIRECTIONAL SCORES VALIDATION ===
     // Check if marketData has directional scores from confidence calculation
     if (marketData.direction) {
-      // Handle NEUTRAL direction - generate trades for fresh bot learning
-      if (marketData.direction === 'neutral' && confidence >= 0.15) {
-        console.log(`📊 NEUTRAL direction - generating trade for fresh bot learning`);
-
-        // For fresh bot, make decision based on basic market conditions
-        let decision = 'hold';
-
-        // Check RSI for basic directional bias
-        if (marketData.rsi !== undefined) {
-          if (marketData.rsi > 52) {
-            decision = 'buy';
-            console.log(`📊 RSI ${marketData.rsi.toFixed(1)} > 52: BUY signal for learning`);
-          } else if (marketData.rsi < 48) {
-            decision = 'sell';
-            console.log(`📊 RSI ${marketData.rsi.toFixed(1)} < 48: SELL signal for learning`);
-          }
-        }
-
-        // If still neutral, use slight trend bias or random
-        if (decision === 'hold' && marketData.trend) {
-          if (marketData.trend.includes('up')) {
-            decision = 'buy';
-            console.log(`📊 Trend bias UP: BUY signal for learning`);
-          } else if (marketData.trend.includes('down')) {
-            decision = 'sell';
-            console.log(`📊 Trend bias DOWN: SELL signal for learning`);
-          }
-        }
-
-        // Final fallback: random direction for learning (50/50)
-        if (decision === 'hold') {
-          decision = Math.random() > 0.5 ? 'buy' : 'sell';
-          console.log(`📊 Random direction for learning: ${decision.toUpperCase()}`);
-        }
-
-        return decision;
+      // FIX 2026-02-07: REMOVED RANDOM ENTRY LOGIC
+      // Previous code used Math.random() for "learning" - that's not learning, that's gambling
+      // If direction is neutral, we HOLD. No signal = no trade. Period.
+      if (marketData.direction === 'neutral') {
+        console.log(`📊 NEUTRAL direction - NO TRADE (removed random/RSI>52 garbage)`);
+        return 'hold';
       }
 
       // Handle directional signals (buy/sell)
