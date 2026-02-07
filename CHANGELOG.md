@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Pipeline Audit - 2026-02-07)
+- **CRITICAL: Entry logic used Math.random()** - OptimizedTradingBrain.js:3035-3041 (RANDOM-001)
+  - **Problem**: ~50% of all entries were LITERAL COIN FLIPS. When direction was "neutral", bot used `Math.random() > 0.5 ? 'buy' : 'sell'`
+  - **Root Cause**: "Learning mode" fallback from months ago still in production, bypassing all real signals
+  - **Fix**: Removed Math.random() fallback entirely. Neutral direction now returns 'hold'. Also removed RSI > 52 = buy (RSI centers at 50, so this was noise)
+  - **Impact**: Entries now come ONLY from real signals (EMA crossovers, RSI extremes, MACD momentum, patterns)
+
+- **MEDIUM: 30-min stale trade timer kills hourly trades** - run-empire-v2.js:2106-2111 (TIMER-001)
+  - **Problem**: Trades held > 30 minutes in dead zone were force-exited before profit targets could hit
+  - **Root Cause**: Timer designed for 1-min scalping, breaks on hourly timeframe
+  - **Fix**: Disabled for hourly trading testing (can be re-enabled with larger threshold)
+  - **Impact**: Trades can now hold long enough for hourly moves to play out
+
 ### Fixed (DeepSearch Profitability Audit - 2026-02-05)
 - **CRITICAL: BUY ignores brain direction** - run-empire-v2.js:1908 (DEEPSEARCH-001)
   - **Problem**: Bot opened long positions when brain said 'sell' or 'hold' (~50% of trades wrong direction)
