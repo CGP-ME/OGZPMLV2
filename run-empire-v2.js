@@ -186,6 +186,10 @@ const discordNotifier = require('./utils/discordNotifier');
 // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade decision tree
 const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
 
+// CHANGE 2026-02-09: MA Entry System - modular bolt-on for MA-based signals
+const EMASMACrossoverSignal = require('./core/EMASMACrossoverSignal');
+const MADynamicSR = require('./core/MADynamicSR');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -417,6 +421,11 @@ class OGZPrimeV14Bot {
     });
     this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+
+    // CHANGE 2026-02-09: MA Entry System - EMA/SMA crossovers + dynamic S/R
+    this.crossoverSignal = new EMASMACrossoverSignal();
+    this.maDynamicSR = new MADynamicSR();
+    console.log('📊 MA Entry System: Crossovers + Dynamic S/R initialized');
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
@@ -1623,6 +1632,16 @@ class OGZPrimeV14Bot {
     // Detect market regime
     const regime = this.regimeDetector.detectRegime(this.priceHistory);
 
+    // CHANGE 2026-02-09: MA Entry System updates
+    const crossoverResult = this.crossoverSignal.update(engineState);
+    const currentCandle = {
+      open: this.priceHistory[this.priceHistory.length - 1]?.open || price,
+      high: this.priceHistory[this.priceHistory.length - 1]?.high || price,
+      low: this.priceHistory[this.priceHistory.length - 1]?.low || price,
+      close: price
+    };
+    const maSRResult = this.maDynamicSR.update(engineState, currentCandle);
+
     // Change 596: Use TradingBrain.getDecision() instead of calculateRealConfidence()
     // This properly integrates direction + confidence from TradingBrain's analysis
     const marketDataForConfidence = {
@@ -1630,7 +1649,10 @@ class OGZPrimeV14Bot {
       macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
       macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
       rsi: indicators.rsi,
-      volume: this.marketData.volume || 0
+      volume: this.marketData.volume || 0,
+      // CHANGE 2026-02-09: Add MA system signals
+      crossover: crossoverResult,
+      maSR: maSRResult
     };
 
     // 🔧 FIX: Pass priceData to TradingBrain for MarketRegimeDetector

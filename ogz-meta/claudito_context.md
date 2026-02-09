@@ -424,6 +424,27 @@ patterns save to disk reliably (fixed)
 
 This is the system that lets the bot learn what setups work and what setups fail.
 
+4b. MA Entry System (2026-02-09)
+EMASMACrossoverSignal.js + MADynamicSR.js
+
+Modular bolt-on for MA-based entry signals:
+
+EMASMACrossoverSignal:
+- Detects Golden/Death crosses across 5 MA pairs
+- Tracks divergence velocity (how fast MAs spread)
+- Detects snapback zones (overextended MAs + narrowing = mean reversion)
+- Blowoff warnings (exponential divergence = don't chase)
+
+MADynamicSR:
+- Treats MAs as living support/resistance levels
+- Bounce detection (price touches MA and bounces)
+- Break detection (price crashes through MA)
+- Retest detection (price comes back to test after break)
+- Compression zones (MAs clustered = explosive move incoming)
+
+Plugs into: TradingBrain.calculateRealConfidence()
+Adds confidence for: bullish/bearish crosses, S/R bounces/breaks, snapbacks
+
 5. Market Regime Layer (Weather Station)
 MarketRegimeDetector.js
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-02-09)
+- **MA Entry System** - Modular bolt-on for MA-based entry signals
+  - `core/EMASMACrossoverSignal.js` - Golden/Death cross detection, divergence velocity, snapback zones
+  - `core/MADynamicSR.js` - MAs as living S/R (bounce, break, retest, compression detection)
+  - Integration: Signals flow to TradingBrain → boost bullish/bearish confidence
+  - Origin: Built by Claude Desktop, wired via pipeline by Opus
+
 ### Fixed (Pipeline Audit - 2026-02-07)
 - **CRITICAL: Entry logic used Math.random()** - OptimizedTradingBrain.js:3035-3041 (RANDOM-001)
   - **Problem**: ~50% of all entries were LITERAL COIN FLIPS. When direction was "neutral", bot used `Math.random() > 0.5 ? 'buy' : 'sell'`

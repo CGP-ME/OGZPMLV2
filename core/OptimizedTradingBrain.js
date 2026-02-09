@@ -2791,6 +2791,38 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       }
     }
 
+    // CHANGE 2026-02-09: MA CROSSOVER SIGNALS
+    if (marketData.crossover && marketData.crossover.hasSignal) {
+      const xover = marketData.crossover;
+      if (xover.direction === 'bullish') {
+        bullishConfidence += xover.confidence;
+        console.log(`   ✅ MA CROSSOVER: ${xover.activePairs} bullish +${(xover.confidence * 100).toFixed(1)}%`);
+      } else if (xover.direction === 'bearish') {
+        bearishConfidence += xover.confidence;
+        console.log(`   ✅ MA CROSSOVER: ${xover.activePairs} bearish +${(xover.confidence * 100).toFixed(1)}%`);
+      }
+    }
+
+    // CHANGE 2026-02-09: MA SNAPBACK SIGNALS
+    if (marketData.crossover && marketData.crossover.snapback?.hasSignal) {
+      const snap = marketData.crossover.snapback;
+      if (snap.direction === 'bullish') bullishConfidence += snap.confidence;
+      else if (snap.direction === 'bearish') bearishConfidence += snap.confidence;
+      console.log(`   🔄 MA SNAPBACK: ${snap.direction} +${(snap.confidence * 100).toFixed(1)}%`);
+    }
+
+    // CHANGE 2026-02-09: MA DYNAMIC S/R SIGNALS
+    if (marketData.maSR && marketData.maSR.hasSignal) {
+      const sr = marketData.maSR;
+      if (sr.direction === 'bullish') {
+        bullishConfidence += sr.confidence;
+        console.log(`   🎯 MA S/R: ${sr.activeLevels} bullish +${(sr.confidence * 100).toFixed(1)}%`);
+      } else if (sr.direction === 'bearish') {
+        bearishConfidence += sr.confidence;
+        console.log(`   🎯 MA S/R: ${sr.activeLevels} bearish +${(sr.confidence * 100).toFixed(1)}%`);
+      }
+    }
+
     // VOLUME-BASED CONFIDENCE ADJUSTMENT (10-20%) - Change 477
     if (marketData.avgVolume && marketData.volume) {
       const volumeRatio = marketData.volume / marketData.avgVolume;
