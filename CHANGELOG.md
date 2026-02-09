@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (2026-02-09)
+- **Multi-Timeframe Adapter** - Aggregates 1m candles into all higher timeframes
+  - `core/MultiTimeframeAdapter.js` - Full MTF analysis engine (953 lines)
+  - `core/mtf-integration-hook.js` - Integration helpers (162 lines)
+  - Timeframes: 1m → 5m → 15m → 30m → 1h → 4h → 1d → 5d → 1M
+  - Historical backfill from Polygon REST API on startup
+  - Confluence scoring: weighted average of direction signals across timeframes
+  - **MTF Gate**: Checks higher timeframes before BUY execution
+  - Skipped in BACKTEST_MODE (no API calls during testing)
+  - Origin: Built by Claude Desktop, wired via pipeline by Opus
+
 - **MA Entry System** - Modular bolt-on for MA-based entry signals
   - `core/EMASMACrossoverSignal.js` - Golden/Death cross detection, divergence velocity, snapback zones
   - `core/MADynamicSR.js` - MAs as living S/R (bounce, break, retest, compression detection)
