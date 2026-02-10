@@ -3029,6 +3029,12 @@ class OGZPrimeV14Bot {
       require('fs').writeFileSync(reportPath, JSON.stringify(report, null, 2));
       console.log(`\n📄 Report saved: ${reportPath}`);
 
+      // FIX 2026-02-10: Save pattern memory after backtest (was never being saved!)
+      if (this.patternChecker?.cleanup) {
+        this.patternChecker.cleanup();
+        console.log('🧠 Backtest patterns saved to disk');
+      }
+
       // 🤖 TRAI Analysis of Backtest Results (Change 586)
       // Run AFTER report is saved so we always have results even if TRAI hangs
       if (this.trai && this.trai.analyzeBacktestResults) {
@@ -3587,6 +3593,12 @@ class OGZPrimeV14Bot {
     if (this.riskManager) {
       this.riskManager.shutdown();
       console.log('🛡️ RiskManager timers cleaned up');
+    }
+
+    // FIX 2026-02-10: Save pattern memory before exit (was never being saved!)
+    if (this.patternChecker?.cleanup) {
+      this.patternChecker.cleanup();
+      console.log('🧠 Pattern memory saved to disk');
     }
 
     // Print final performance stats

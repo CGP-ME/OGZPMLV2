@@ -235,8 +235,10 @@ class OptimizedTradingBrain {
       currentStreakType: null
     };
     
-    // Pattern learning data - CHANGE 631: Use PersistentPatternMap that actually saves!
-    this.patternMemory = new PersistentPatternMap('./pattern_memory.json');
+    // KILLED SYSTEM 2 (2026-02-10): This was competing with EnhancedPatternRecognition's pattern memory
+    // The correct pattern memory is in EnhancedPatternRecognition → data/pattern-memory.{mode}.json
+    // This one (./pattern_memory.json) was never being updated because closePosition() was never called
+    this.patternMemory = null; // DISABLED - Let System 1 (EnhancedPatternRecognition) handle patterns
     this.currentPatternId = null;
     
     // CHANGE 623: SCALPER CONFIG from .env instead of hardcoding
@@ -588,25 +590,25 @@ class OptimizedTradingBrain {
     // Update session stats
     this.sessionStats.tradesCount++;
     
-    // Store trade for pattern learning
-    if (patterns && patterns.length > 0) {
-      const patternKey = patterns.map(p => p.type).join('_');
-      if (!this.patternMemory.has(patternKey)) {
-        this.patternMemory.set(patternKey, {
-          trades: [],
-          successRate: 0,
-          avgProfit: 0
-        });
-      }
-      
-      this.patternMemory.get(patternKey).trades.push({
-        id,
-        direction,
-        entryPrice,
-        confidence,
-        timestamp: Date.now()
-      });
-    }
+    // Store trade for pattern learning (DISABLED - System 2 killed, EnhancedPatternRecognition handles this)
+    // if (patterns && patterns.length > 0 && this.patternMemory) {
+    //   const patternKey = patterns.map(p => p.type).join('_');
+    //   if (!this.patternMemory.has(patternKey)) {
+    //     this.patternMemory.set(patternKey, {
+    //       trades: [],
+    //       successRate: 0,
+    //       avgProfit: 0
+    //     });
+    //   }
+    //
+    //   this.patternMemory.get(patternKey).trades.push({
+    //     id,
+    //     direction,
+    //     entryPrice,
+    //     confidence,
+    //     timestamp: Date.now()
+    //   });
+    // }
     
     // Calculate Houston fund progress (only if currentBalance provided)
     if (currentBalance !== undefined) {
@@ -2922,23 +2924,37 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
 
     let direction = 'neutral';
 
+    // FIX 2026-02-10: Cap aggregate confidence to prevent runaway stacking
+    bullishConfidence = Math.min(1.0, bullishConfidence);
+    bearishConfidence = Math.min(1.0, bearishConfidence);
+
+    // FIX 2026-02-10: REGIME FILTER - Block weak buys in downtrends
+    if (marketData.marketRegime?.regime === 'trending_down' && bullishConfidence < 0.60) {
+      console.log(`🚫 REGIME FILTER: Blocking weak buy in downtrend (bull: ${(bullishConfidence * 100).toFixed(1)}%)`);
+      marketData.direction = 'neutral';
+      marketData.bullishScore = bullishConfidence;
+      marketData.bearishScore = bearishConfidence;
+      return Math.max(0, Math.min(1.0, confidence));
+    }
+
     console.log(`📊 CONFIDENCE CALCULATION SUMMARY:`);
     console.log(`   Base confidence: ${(confidence * 100).toFixed(1)}%`);
     console.log(`   Bullish signals: ${(bullishConfidence * 100).toFixed(1)}%`);
     console.log(`   Bearish signals: ${(bearishConfidence * 100).toFixed(1)}%`);
 
-    if (bullishConfidence > bearishConfidence && bullishConfidence > 0.15) {
+    // FIX 2026-02-10: Raised threshold from 0.15 to 0.40 to require stronger signals
+    if (bullishConfidence > bearishConfidence && bullishConfidence > 0.40) {
       direction = 'buy';
       // CHANGE 622: Combine base + directional confidence instead of replacing
       finalConfidence = confidence + bullishConfidence;  // ADD don't REPLACE!
       console.log(`   ✅ Direction: BUY (base ${(confidence * 100).toFixed(1)}% + bullish ${(bullishConfidence * 100).toFixed(1)}% = ${(finalConfidence * 100).toFixed(1)}%)`);
-    } else if (bearishConfidence > bullishConfidence && bearishConfidence > 0.15) {
+    } else if (bearishConfidence > bullishConfidence && bearishConfidence > 0.40) {
       direction = 'sell';
       // CHANGE 622: Combine base + directional confidence instead of replacing
       finalConfidence = confidence + bearishConfidence;  // ADD don't REPLACE!
       console.log(`   ✅ Direction: SELL (base ${(confidence * 100).toFixed(1)}% + bearish ${(bearishConfidence * 100).toFixed(1)}% = ${(finalConfidence * 100).toFixed(1)}%)`);
     } else {
-      console.log(`   ⚠️ Direction: NEUTRAL (neither exceeded 15% threshold, keeping base ${(confidence * 100).toFixed(1)}%)`);
+      console.log(`   ⚠️ Direction: NEUTRAL (neither exceeded 40% threshold, keeping base ${(confidence * 100).toFixed(1)}%)`);
     }
 
     // CRITICAL FIX: RSI Safety Override - prevent buying at tops and selling at bottoms
