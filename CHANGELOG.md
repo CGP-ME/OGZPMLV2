@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Modular Entry System - 2026-02-10)
+- **Modular Entry System** - 4 self-contained signal modules (V2 Kraken format)
+  - `modules/MultiTimeframeAdapter.js` - Aggregates 1m candles to 5m/15m/1h/4h/1d with per-TF indicators
+  - `modules/EMASMACrossoverSignal.js` - EMA/SMA crossover detection with confluence scoring
+  - `modules/MADynamicSR.js` - MAs as dynamic support/resistance (bounce, break, retest)
+  - `modules/LiquiditySweepDetector.js` - Institutional manipulation detection (sweep + reclaim)
+  - All modules use V2 candle format (c/o/h/l/v/t), calculate own indicators, have destroy() methods
+  - Reverted broken Claude Desktop integration that used wrong candle format
+
 ### Fixed (Pipeline Audit - 2026-02-07)
 - **CRITICAL: Entry logic used Math.random()** - OptimizedTradingBrain.js:3035-3041 (RANDOM-001)
   - **Problem**: ~50% of all entries were LITERAL COIN FLIPS. When direction was "neutral", bot used `Math.random() > 0.5 ? 'buy' : 'sell'`

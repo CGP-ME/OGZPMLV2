@@ -1,0 +1,530 @@
+/**
+ * LiquiditySweepDetector.js — V2-Compatible Rebuild
+ * ==================================================
+ * Detects institutional liquidity grabs at session open.
+ * 7-step system: ATR filter → manip candle → box → exit → reversal → entry → SL/TP
+ *
+ * V2 FIXES:
+ *   • Single entry point: feedCandle(candle) takes 1m candles in V2 format { c, o, h, l, v, t }
+ *   • Auto-aggregates 1m → 5m and 1m → 15m internally
+ *   • Auto-builds daily candles from 1m data for ATR calculation
+ *   • Auto-detects session boundaries (configurable UTC hour/minute)
+ *   • Bounded arrays throughout
+ *   • Returns unified signal compatible with calculateRealConfidence()
+ *
+ * Integration:
+ *   const sweep = new LiquiditySweepDetector({ sessionOpenHour: 14, sessionOpenMinute: 30 });
+ *   // In your 1m candle loop:
+ *   const signal = sweep.feedCandle(candle);
+ *   // signal = { module, hasSignal, direction, confidence, ... }
+ */
+
+'use strict';
+
+class LiquiditySweepDetector {
+  constructor(config = {}) {
+    this.config = {
+      atrMultiplier: config.atrMultiplier || 0.25,
+      atrPeriod: config.atrPeriod || 14,
+      entryWindowBars: config.entryWindowBars || 18,       // 18 × 5min = 90min
+      hammerBodyMaxPct: config.hammerBodyMaxPct || 0.35,
+      hammerWickMinRatio: config.hammerWickMinRatio || 2.0,
+      engulfMinRatio: config.engulfMinRatio || 1.0,
+      stopBufferPct: config.stopBufferPct || 0.05,
+      sweepMinExtensionPct: config.sweepMinExtensionPct || 0.05,
+      sweepLookbackBars: config.sweepLookbackBars || 20,
+      weights: {
+        manipCandle:   config.weights?.manipCandle   || 0.20,
+        wickSweep:     config.weights?.wickSweep     || 0.15,
+        sweepReject:   config.weights?.sweepReject   || 0.15,
+        hammerPattern: config.weights?.hammerPattern  || 0.25,
+        engulfPattern: config.weights?.engulfPattern  || 0.25,
+      },
+      // Session open in UTC — default 14:30 = 9:30 AM ET
+      sessionOpenHour: config.sessionOpenHour ?? 14,
+      sessionOpenMinute: config.sessionOpenMinute ?? 30,
+    };
+
+    // Internal aggregation buffers
+    this._minuteBuffer5m = [];    // collect 1m candles, flush every 5
+    this._minuteBuffer15m = [];   // collect 1m candles, flush at 15
+    this._dailyCandle = null;     // current day's running OHLCV
+    this._currentDay = null;      // 'YYYY-MM-DD'
+    this._openingCandleFed = false;
+    this._minutesSinceOpen = 0;
+
+    this.reset();
+
+    this.stats = {
+      totalSessionsAnalyzed: 0,
+      manipCandlesDetected: 0,
+      manipCandlesValidated: 0,
+      signalsGenerated: 0,
+      hammersDetected: 0,
+      engulfingsDetected: 0,
+      lastSignalTime: null,
+    };
+  }
+
+  // ─── RESET ──────────────────────────────────────────────────
+  reset() {
+    this.state = {
+      phase: 'waiting_for_open',
+      sessionDate: null,
+      dailyCandles: this.state?.dailyCandles || [],  // preserve across resets
+      dailyATR: this.state?.dailyATR || null,
+      manipThreshold: this.state?.manipThreshold || null,
+      box: null,
+      priorHighs: this.state?.priorHighs || [],
+      priorLows: this.state?.priorLows || [],
+      barsAfterOpen: 0,
+      exitSide: null,
+      exitBar: null,
+      prevBar: null,
+      signal: null,
+    };
+    this._minuteBuffer5m = [];
+    this._minuteBuffer15m = [];
+    this._openingCandleFed = false;
+    this._minutesSinceOpen = 0;
+  }
+
+  // ─── UNIFIED ENTRY POINT ────────────────────────────────────
+  /**
+   * Feed a 1-minute candle in V2 format.
+   * Handles all aggregation and state management internally.
+   *
+   * @param {Object} candle — { c, o, h, l, v, t } (V2 Kraken)
+   * @returns {Object} signal
+   */
+  feedCandle(candle) {
+    if (!candle || candle.c == null) return this._emptySignal();
+
+    const ts = candle.t;  // milliseconds
+    const date = new Date(ts);
+    const dayStr = date.toISOString().split('T')[0];
+    const utcHour = date.getUTCHours();
+    const utcMinute = date.getUTCMinutes();
+
+    // ── Day rollover: finalize yesterday's daily candle ──
+    if (this._currentDay && this._currentDay !== dayStr) {
+      this._finalizeDailyCandle();
+      this._newSession(dayStr);
+    }
+    this._currentDay = dayStr;
+
+    // ── Build running daily candle ──
+    this._updateDailyCandle(candle);
+
+    // ── Detect session open ──
+    const isSessionOpenMinute = (utcHour === this.config.sessionOpenHour &&
+                                  utcMinute === this.config.sessionOpenMinute);
+
+    if (isSessionOpenMinute && this.state.phase === 'waiting_for_open') {
+      // Start collecting the opening range
+      this.state.phase = 'building_box';
+      this._minuteBuffer15m = [];
+      this._minutesSinceOpen = 0;
+      this._openingCandleFed = false;
+    }
+
+    // ── Aggregate into 15m for opening candle ──
+    if (this.state.phase === 'building_box') {
+      this._minuteBuffer15m.push(candle);
+      this._minutesSinceOpen++;
+
+      if (this._minutesSinceOpen >= 15 && !this._openingCandleFed) {
+        const candle15m = this._aggregate(this._minuteBuffer15m);
+        this._processOpeningCandle(candle15m);
+        this._openingCandleFed = true;
+        this._minuteBuffer5m = [];  // reset 5m buffer
+      }
+      return this.getSignal();
+    }
+
+    // ── Aggregate into 5m for box exit + pattern detection ──
+    if (this.state.phase === 'watching_for_exit' || this.state.phase === 'watching_for_pattern') {
+      this._minuteBuffer5m.push(candle);
+
+      if (this._minuteBuffer5m.length >= 5) {
+        const candle5m = this._aggregate(this._minuteBuffer5m);
+        this._minuteBuffer5m = [];
+        this._process5mCandle(candle5m);
+      }
+    }
+
+    return this.getSignal();
+  }
+
+  // ─── AGGREGATION ────────────────────────────────────────────
+  _aggregate(candles) {
+    if (!candles.length) return null;
+    return {
+      o: candles[0].o,
+      h: Math.max(...candles.map(c => c.h)),
+      l: Math.min(...candles.map(c => c.l)),
+      c: candles[candles.length - 1].c,
+      v: candles.reduce((s, c) => s + (c.v || 0), 0),
+      t: candles[candles.length - 1].t,
+    };
+  }
+
+  // ─── DAILY CANDLE TRACKING ──────────────────────────────────
+  _updateDailyCandle(candle) {
+    if (!this._dailyCandle) {
+      this._dailyCandle = {
+        o: candle.o, h: candle.h, l: candle.l, c: candle.c,
+        v: candle.v || 0, t: candle.t
+      };
+    } else {
+      this._dailyCandle.h = Math.max(this._dailyCandle.h, candle.h);
+      this._dailyCandle.l = Math.min(this._dailyCandle.l, candle.l);
+      this._dailyCandle.c = candle.c;
+      this._dailyCandle.v += (candle.v || 0);
+    }
+  }
+
+  _finalizeDailyCandle() {
+    if (!this._dailyCandle) return;
+
+    const dc = this._dailyCandle;
+    this.state.dailyCandles.push({ high: dc.h, low: dc.l, close: dc.c });
+
+    const maxBars = this.config.atrPeriod + 1;
+    if (this.state.dailyCandles.length > maxBars) {
+      this.state.dailyCandles = this.state.dailyCandles.slice(-maxBars);
+    }
+
+    // Update ATR
+    this._computeDailyATR();
+
+    // Track prior highs/lows for sweep validation
+    this.state.priorHighs.push(dc.h);
+    this.state.priorLows.push(dc.l);
+    if (this.state.priorHighs.length > this.config.sweepLookbackBars) {
+      this.state.priorHighs = this.state.priorHighs.slice(-this.config.sweepLookbackBars);
+    }
+    if (this.state.priorLows.length > this.config.sweepLookbackBars) {
+      this.state.priorLows = this.state.priorLows.slice(-this.config.sweepLookbackBars);
+    }
+
+    this._dailyCandle = null;
+  }
+
+  _newSession(dayStr) {
+    this.state.phase = 'waiting_for_open';
+    this.state.sessionDate = dayStr;
+    this.state.box = null;
+    this.state.exitSide = null;
+    this.state.exitBar = null;
+    this.state.prevBar = null;
+    this.state.barsAfterOpen = 0;
+    this.state.signal = null;
+    this._openingCandleFed = false;
+    this._minutesSinceOpen = 0;
+    this._minuteBuffer5m = [];
+    this._minuteBuffer15m = [];
+  }
+
+  // ─── OPENING CANDLE PROCESSING (Step 1-3) ──────────────────
+  _processOpeningCandle(candle15m) {
+    if (!candle15m || !this.state.dailyATR) {
+      this.state.phase = 'done';
+      return;
+    }
+
+    const range = candle15m.h - candle15m.l;
+    const threshold = this.config.atrMultiplier * this.state.dailyATR;
+    const isManipCandle = range >= threshold;
+
+    this.stats.totalSessionsAnalyzed++;
+
+    this.state.box = {
+      high: candle15m.h,
+      low: candle15m.l,
+      range,
+      open: candle15m.o,
+      close: candle15m.c,
+      isManipCandle,
+      atrThreshold: threshold,
+      atrPct: (range / this.state.dailyATR * 100).toFixed(1),
+      validations: { passesATR: isManipCandle, sweepsHighs: false, sweepsLows: false, closesInsideRange: false },
+      timestamp: candle15m.t,
+    };
+
+    if (!isManipCandle) {
+      this.state.phase = 'done';
+      return;
+    }
+
+    this.stats.manipCandlesDetected++;
+
+    // Wick sweep validation
+    const upperWick = candle15m.h - Math.max(candle15m.o, candle15m.c);
+    const lowerWick = Math.min(candle15m.o, candle15m.c) - candle15m.l;
+    const sweepExt = candle15m.h * (this.config.sweepMinExtensionPct / 100);
+
+    const sweepsHighs = this.state.priorHighs.some(h =>
+      candle15m.h > h && candle15m.h <= h + sweepExt * 5 && upperWick > 0
+    );
+    const sweepsLows = this.state.priorLows.some(l =>
+      candle15m.l < l && candle15m.l >= l - sweepExt * 5 && lowerWick > 0
+    );
+
+    this.state.box.validations.sweepsHighs = sweepsHighs;
+    this.state.box.validations.sweepsLows = sweepsLows;
+
+    // Close inside range check
+    const bodyMid = (candle15m.o + candle15m.c) / 2;
+    const rangeMid = (candle15m.h + candle15m.l) / 2;
+    const closeFromExtreme = Math.abs(bodyMid - rangeMid) / range;
+    this.state.box.validations.closesInsideRange = closeFromExtreme < 0.35;
+
+    const validationsPassed = [sweepsHighs || sweepsLows, this.state.box.validations.closesInsideRange].filter(Boolean).length;
+    this.state.box.validationScore = validationsPassed;
+
+    if (validationsPassed > 0) {
+      this.stats.manipCandlesValidated++;
+      console.log(`🔴 MANIPULATION CANDLE CONFIRMED (${validationsPassed}/2) — ${this.state.box.atrPct}% of daily ATR`);
+    }
+
+    this.state.phase = 'watching_for_exit';
+    this.state.barsAfterOpen = 0;
+  }
+
+  // ─── 5-MIN CANDLE PROCESSING (Steps 4-7) ───────────────────
+  _process5mCandle(c5m) {
+    if (!c5m || !this.state.box || this.state.phase === 'done' || this.state.phase === 'waiting_for_open') return;
+
+    this.state.barsAfterOpen++;
+    const box = this.state.box;
+
+    // Time gate
+    if (this.state.barsAfterOpen > this.config.entryWindowBars) {
+      if (this.state.phase !== 'signal_active') this.state.phase = 'done';
+      return;
+    }
+
+    // Step 4: Watch for box exit
+    if (this.state.phase === 'watching_for_exit') {
+      if (c5m.c > box.high) {
+        this.state.exitSide = 'above';
+        this.state.exitBar = { ...c5m };
+        this.state.phase = 'watching_for_pattern';
+      } else if (c5m.c < box.low) {
+        this.state.exitSide = 'below';
+        this.state.exitBar = { ...c5m };
+        this.state.phase = 'watching_for_pattern';
+      }
+      this.state.prevBar = { ...c5m };
+      return;
+    }
+
+    // Steps 5-7: Watch for reversal pattern
+    if (this.state.phase === 'watching_for_pattern') {
+      const isOutsideBox = (this.state.exitSide === 'above' && c5m.c > box.high) ||
+                           (this.state.exitSide === 'below' && c5m.c < box.low);
+
+      if (!isOutsideBox) {
+        this.state.phase = 'watching_for_exit';
+        this.state.prevBar = { ...c5m };
+        return;
+      }
+
+      const pattern = this._detectReversalPattern(c5m, this.state.prevBar, this.state.exitSide);
+      if (pattern) this._generateSignal(pattern, c5m, this.state.prevBar);
+      this.state.prevBar = { ...c5m };
+    }
+  }
+
+  // ─── REVERSAL PATTERNS ──────────────────────────────────────
+  _detectReversalPattern(candle, prev, exitSide) {
+    if (!candle || !prev) return null;
+
+    const body = Math.abs(candle.c - candle.o);
+    const range = candle.h - candle.l;
+    const upperWick = candle.h - Math.max(candle.o, candle.c);
+    const lowerWick = Math.min(candle.o, candle.c) - candle.l;
+    const isBullish = candle.c > candle.o;
+
+    if (range === 0 || body === 0) return null;
+    const bodyRatio = body / range;
+
+    // Hammer (bullish, below box)
+    if (exitSide === 'below') {
+      if (bodyRatio <= this.config.hammerBodyMaxPct &&
+          lowerWick / body >= this.config.hammerWickMinRatio &&
+          lowerWick > upperWick * 1.5) {
+        this.stats.hammersDetected++;
+        return { type: 'hammer', direction: 'bullish', wickExtreme: candle.l };
+      }
+      // Bullish engulfing
+      if (isBullish && prev.c < prev.o) {
+        const prevBody = Math.abs(prev.c - prev.o);
+        if (prevBody > 0 && body / prevBody >= this.config.engulfMinRatio &&
+            candle.c >= prev.o && candle.o <= prev.c) {
+          this.stats.engulfingsDetected++;
+          return { type: 'bullish_engulfing', direction: 'bullish', entryLevel: prev.h, stopLevel: candle.l };
+        }
+      }
+    }
+
+    // Inverted hammer (bearish, above box)
+    if (exitSide === 'above') {
+      if (bodyRatio <= this.config.hammerBodyMaxPct &&
+          upperWick / body >= this.config.hammerWickMinRatio &&
+          upperWick > lowerWick * 1.5) {
+        this.stats.hammersDetected++;
+        return { type: 'inverted_hammer', direction: 'bearish', wickExtreme: candle.h };
+      }
+      // Bearish engulfing
+      if (!isBullish && prev.c > prev.o) {
+        const prevBody = Math.abs(prev.c - prev.o);
+        if (prevBody > 0 && body / prevBody >= this.config.engulfMinRatio &&
+            candle.o >= prev.c && candle.c <= prev.o) {
+          this.stats.engulfingsDetected++;
+          return { type: 'bearish_engulfing', direction: 'bearish', entryLevel: prev.l, stopLevel: candle.h };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // ─── SIGNAL GENERATION ──────────────────────────────────────
+  _generateSignal(pattern, signalCandle, prevCandle) {
+    const box = this.state.box;
+    const bufUp = 1 + (this.config.stopBufferPct / 100);
+    const bufDn = 1 - (this.config.stopBufferPct / 100);
+
+    let entry, stopLoss, takeProfit, direction;
+
+    if (pattern.type === 'hammer') {
+      direction = 'bullish'; entry = null;
+      stopLoss = pattern.wickExtreme * bufDn;
+      takeProfit = box.high;
+    } else if (pattern.type === 'inverted_hammer') {
+      direction = 'bearish'; entry = null;
+      stopLoss = pattern.wickExtreme * bufUp;
+      takeProfit = box.low;
+    } else if (pattern.type === 'bullish_engulfing') {
+      direction = 'bullish';
+      entry = pattern.entryLevel;
+      stopLoss = pattern.stopLevel * bufDn;
+      takeProfit = box.high;
+    } else if (pattern.type === 'bearish_engulfing') {
+      direction = 'bearish';
+      entry = pattern.entryLevel;
+      stopLoss = pattern.stopLevel * bufUp;
+      takeProfit = box.low;
+    }
+
+    // Confidence scoring
+    let confidence = this.config.weights.manipCandle;
+    if (box.validations.sweepsHighs || box.validations.sweepsLows) confidence += this.config.weights.wickSweep;
+    if (box.validations.closesInsideRange) confidence += this.config.weights.sweepReject;
+    if (pattern.type.includes('hammer')) confidence += this.config.weights.hammerPattern;
+    else confidence += this.config.weights.engulfPattern;
+
+    // R:R bonus
+    if (entry != null && stopLoss != null && takeProfit != null) {
+      const risk = Math.abs(entry - stopLoss);
+      const reward = Math.abs(takeProfit - entry);
+      if (risk > 0) {
+        const rr = reward / risk;
+        if (rr >= 2.0) confidence += 0.10;
+        else if (rr >= 1.5) confidence += 0.05;
+        else if (rr < 1.0) confidence -= 0.10;
+      }
+    }
+
+    confidence = Math.min(1.0, Math.max(0, confidence));
+
+    this.state.signal = {
+      hasSignal: true,
+      direction: direction === 'bullish' ? 'buy' : 'sell',  // V2 convention
+      confidence,
+      pattern: pattern.type,
+      entry,
+      entryType: pattern.type.includes('hammer') ? 'next_candle_open' : 'limit_order',
+      stopLoss,
+      takeProfit,
+      box: { high: box.high, low: box.low, range: box.range, atrPct: box.atrPct },
+      validations: { ...box.validations },
+      exitSide: this.state.exitSide,
+      barsSinceOpen: this.state.barsAfterOpen,
+      timestamp: Date.now(),
+    };
+
+    this.state.phase = 'signal_active';
+    this.stats.signalsGenerated++;
+    this.stats.lastSignalTime = Date.now();
+
+    console.log(`🎯 LIQUIDITY SWEEP: ${direction.toUpperCase()} via ${pattern.type} | Conf: ${(confidence * 100).toFixed(1)}%`);
+  }
+
+  // ─── ATR ────────────────────────────────────────────────────
+  _computeDailyATR() {
+    const candles = this.state.dailyCandles;
+    if (candles.length < this.config.atrPeriod + 1) {
+      this.state.dailyATR = null;
+      return;
+    }
+    const trs = [];
+    for (let i = 1; i < candles.length; i++) {
+      const curr = candles[i];
+      const prevClose = candles[i - 1].close;
+      trs.push(Math.max(curr.high - curr.low, Math.abs(curr.high - prevClose), Math.abs(curr.low - prevClose)));
+    }
+    const recent = trs.slice(-this.config.atrPeriod);
+    this.state.dailyATR = recent.reduce((s, t) => s + t, 0) / recent.length;
+    this.state.manipThreshold = this.config.atrMultiplier * this.state.dailyATR;
+  }
+
+  // ─── GETTERS ────────────────────────────────────────────────
+  getSignal() {
+    if (!this.state.signal) {
+      return {
+        module: 'LiquiditySweep',
+        hasSignal: false,
+        direction: 'neutral',
+        confidence: 0,
+        phase: this.state.phase,
+        box: this.state.box ? {
+          high: this.state.box.high, low: this.state.box.low,
+          range: this.state.box.range, isManipCandle: this.state.box.isManipCandle,
+          atrPct: this.state.box.atrPct, validations: this.state.box.validations,
+        } : null,
+        dailyATR: this.state.dailyATR,
+        barsRemaining: Math.max(0, this.config.entryWindowBars - this.state.barsAfterOpen),
+      };
+    }
+    return { module: 'LiquiditySweep', ...this.state.signal };
+  }
+
+  _emptySignal() {
+    return { module: 'LiquiditySweep', hasSignal: false, direction: 'neutral', confidence: 0, phase: 'waiting' };
+  }
+
+  getStatus() {
+    return {
+      phase: this.state.phase,
+      dailyATR: this.state.dailyATR?.toFixed(2) || 'N/A',
+      box: this.state.box,
+      exitSide: this.state.exitSide,
+      barsAfterOpen: this.state.barsAfterOpen,
+      barsRemaining: Math.max(0, this.config.entryWindowBars - this.state.barsAfterOpen),
+      signal: this.state.signal,
+      stats: { ...this.stats },
+    };
+  }
+
+  destroy() {
+    this.state = {};
+    this._minuteBuffer5m = [];
+    this._minuteBuffer15m = [];
+    this._dailyCandle = null;
+  }
+}
+
+module.exports = LiquiditySweepDetector;

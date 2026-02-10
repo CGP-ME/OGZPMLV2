@@ -2791,6 +2791,66 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       }
     }
 
+    // CHANGE 2026-02-10: MODULAR ENTRY SYSTEM SIGNALS
+    // EMA/SMA Crossover Signal
+    if (marketData.emaCrossoverSignal && marketData.emaCrossoverSignal.confidence > 0) {
+      const sig = marketData.emaCrossoverSignal;
+      if (sig.direction === 'buy') {
+        bullishConfidence += sig.confidence;
+        console.log(`   ✅ EMACrossover: +${(sig.confidence * 100).toFixed(1)}% bullish (confluence: ${(sig.confluence * 100).toFixed(0)}%)`);
+      } else if (sig.direction === 'sell') {
+        bearishConfidence += sig.confidence;
+        console.log(`   ✅ EMACrossover: +${(sig.confidence * 100).toFixed(1)}% bearish (confluence: ${(sig.confluence * 100).toFixed(0)}%)`);
+      }
+      if (sig.blowoff) {
+        console.log(`   ⚠️ EMACrossover: BLOWOFF warning — don't chase!`);
+      }
+    }
+
+    // MA Dynamic S/R Signal
+    if (marketData.maDynamicSRSignal && marketData.maDynamicSRSignal.confidence > 0) {
+      const sig = marketData.maDynamicSRSignal;
+      if (sig.direction === 'buy') {
+        bullishConfidence += sig.confidence;
+        console.log(`   ✅ MADynamicSR: +${(sig.confidence * 100).toFixed(1)}% bullish (${sig.events.length} events)`);
+      } else if (sig.direction === 'sell') {
+        bearishConfidence += sig.confidence;
+        console.log(`   ✅ MADynamicSR: +${(sig.confidence * 100).toFixed(1)}% bearish (${sig.events.length} events)`);
+      }
+      if (sig.compression) {
+        console.log(`   🔥 MADynamicSR: COMPRESSION — ${sig.compression.masInvolved} MAs within ${sig.compression.rangePct.toFixed(1)}%`);
+      }
+    }
+
+    // Liquidity Sweep Signal
+    if (marketData.liquiditySweepSignal && marketData.liquiditySweepSignal.hasSignal) {
+      const sig = marketData.liquiditySweepSignal;
+      if (sig.direction === 'buy') {
+        bullishConfidence += sig.confidence * 0.5;  // Scale down — rare high-conviction signal
+        console.log(`   🎯 LiquiditySweep: +${(sig.confidence * 50).toFixed(1)}% bullish (${sig.pattern})`);
+      } else if (sig.direction === 'sell') {
+        bearishConfidence += sig.confidence * 0.5;
+        console.log(`   🎯 LiquiditySweep: +${(sig.confidence * 50).toFixed(1)}% bearish (${sig.pattern})`);
+      }
+    }
+
+    // Multi-Timeframe Confluence
+    if (marketData.mtfAdapter) {
+      const confluence = marketData.mtfAdapter.getConfluenceScore();
+      if (confluence.shouldTrade && confluence.confidence > 0.5) {
+        const mtfBoost = confluence.confidence * 0.20;  // Max 20% boost from MTF
+        if (confluence.direction === 'buy') {
+          bullishConfidence += mtfBoost;
+          console.log(`   ✅ MTF Confluence: +${(mtfBoost * 100).toFixed(1)}% bullish (${confluence.readyTimeframes.length} TFs aligned)`);
+        } else if (confluence.direction === 'sell') {
+          bearishConfidence += mtfBoost;
+          console.log(`   ✅ MTF Confluence: +${(mtfBoost * 100).toFixed(1)}% bearish (${confluence.readyTimeframes.length} TFs aligned)`);
+        }
+      }
+      // Set flag for existing multiTimeframeAligned check
+      marketData.multiTimeframeAligned = confluence.trendAlignment > 0.7;
+    }
+
     // VOLUME-BASED CONFIDENCE ADJUSTMENT (10-20%) - Change 477
     if (marketData.avgVolume && marketData.volume) {
       const volumeRatio = marketData.volume / marketData.avgVolume;

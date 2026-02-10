@@ -186,6 +186,12 @@ const discordNotifier = require('./utils/discordNotifier');
 // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade decision tree
 const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
 
+// CHANGE 2026-02-10: Modular Entry System (V2 Kraken format: c/o/h/l/v/t)
+const MultiTimeframeAdapter = require('./modules/MultiTimeframeAdapter');
+const EMASMACrossoverSignal = require('./modules/EMASMACrossoverSignal');
+const MADynamicSR = require('./modules/MADynamicSR');
+const LiquiditySweepDetector = require('./modules/LiquiditySweepDetector');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -417,6 +423,18 @@ class OGZPrimeV14Bot {
     });
     this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+
+    // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
+    this.mtfAdapter = new MultiTimeframeAdapter({
+      activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
+    });
+    this.emaCrossover = new EMASMACrossoverSignal();
+    this.maDynamicSR = new MADynamicSR();
+    this.liquiditySweep = new LiquiditySweepDetector({
+      sessionOpenHour: 0,    // Midnight UTC for crypto (24/7 market)
+      sessionOpenMinute: 0,
+    });
+    console.log('📊 Modular Entry System: MTF + Crossovers + S/R + Liquidity initialized');
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
@@ -1198,6 +1216,12 @@ class OGZPrimeV14Bot {
       // New candle (new minute) - etime changed
       this.priceHistory.push(candle);
 
+      // CHANGE 2026-02-10: Feed modular entry system with new candle
+      if (this.mtfAdapter) this.mtfAdapter.ingestCandle(candle);
+      if (this.emaCrossover) this.emaCrossoverSignal = this.emaCrossover.update(candle, this.priceHistory);
+      if (this.maDynamicSR) this.maDynamicSRSignal = this.maDynamicSR.update(candle, this.priceHistory);
+      if (this.liquiditySweep) this.liquiditySweepSignal = this.liquiditySweep.feedCandle(candle);
+
       // Only log during warmup phase (first 20 candles)
       if (this.priceHistory.length <= 20) {
         const candleTime = new Date(candle.t).toLocaleTimeString();
@@ -1630,7 +1654,12 @@ class OGZPrimeV14Bot {
       macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
       macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
       rsi: indicators.rsi,
-      volume: this.marketData.volume || 0
+      volume: this.marketData.volume || 0,
+      // CHANGE 2026-02-10: Modular entry system signals
+      emaCrossoverSignal: this.emaCrossoverSignal,
+      maDynamicSRSignal: this.maDynamicSRSignal,
+      liquiditySweepSignal: this.liquiditySweepSignal,
+      mtfAdapter: this.mtfAdapter
     };
 
     // 🔧 FIX: Pass priceData to TradingBrain for MarketRegimeDetector
@@ -3534,6 +3563,13 @@ class OGZPrimeV14Bot {
       this.ws.close();
       console.log('📡 Market data WebSocket cleaned up');
     }
+
+    // CHANGE 2026-02-10: Cleanup modular entry system
+    if (this.mtfAdapter) this.mtfAdapter.destroy();
+    if (this.emaCrossover) this.emaCrossover.destroy();
+    if (this.maDynamicSR) this.maDynamicSR.destroy();
+    if (this.liquiditySweep) this.liquiditySweep.destroy();
+    console.log('📊 Modular Entry System cleaned up');
 
     if (this.dashboardWs) {
       this.dashboardWs.removeAllListeners();
