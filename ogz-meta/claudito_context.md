@@ -424,46 +424,6 @@ patterns save to disk reliably (fixed)
 
 This is the system that lets the bot learn what setups work and what setups fail.
 
-4b. MA Entry System (2026-02-09)
-EMASMACrossoverSignal.js + MADynamicSR.js
-
-Modular bolt-on for MA-based entry signals:
-
-EMASMACrossoverSignal:
-- Detects Golden/Death crosses across 5 MA pairs
-- Tracks divergence velocity (how fast MAs spread)
-- Detects snapback zones (overextended MAs + narrowing = mean reversion)
-- Blowoff warnings (exponential divergence = don't chase)
-
-MADynamicSR:
-- Treats MAs as living support/resistance levels
-- Bounce detection (price touches MA and bounces)
-- Break detection (price crashes through MA)
-- Retest detection (price comes back to test after break)
-- Compression zones (MAs clustered = explosive move incoming)
-
-Plugs into: TradingBrain.calculateRealConfidence()
-Adds confidence for: bullish/bearish crosses, S/R bounces/breaks, snapbacks
-
-4c. Multi-Timeframe Adapter (2026-02-09)
-MultiTimeframeAdapter.js + mtf-integration-hook.js
-
-Aggregates 1-minute candles into all higher timeframes:
-- 1m → 5m → 15m → 30m → 1h → 4h → 1d → 5d → 1M
-- Self-contained indicators per timeframe (RSI, MACD, MAs)
-- Historical backfill from Polygon REST API on startup
-- Confluence scoring: weighted average of direction signals
-
-Key methods:
-- ingestCandle(candle): Feed 1m candles for aggregation
-- getConfluenceScore(): Returns {shouldTrade, overallBias, confidence, trendAlignment}
-- enhanceTradeDecision(): Gate function to boost/block trades based on MTF alignment
-
-Integration:
-- Skipped in BACKTEST_MODE (no API calls)
-- Feeds mtfConfluence to TradingBrain for confidence scoring
-- Acts as gate before BUY execution (MTF BLOCKED if higher timeframes disagree)
-
 5. Market Regime Layer (Weather Station)
 MarketRegimeDetector.js
 

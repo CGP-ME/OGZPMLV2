@@ -186,13 +186,6 @@ const discordNotifier = require('./utils/discordNotifier');
 // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade decision tree
 const TradeIntelligenceEngine = require('./core/TradeIntelligenceEngine');
 
-// CHANGE 2026-02-09: MA Entry System - modular bolt-on for MA-based signals
-const EMASMACrossoverSignal = require('./core/EMASMACrossoverSignal');
-const MADynamicSR = require('./core/MADynamicSR');
-
-// CHANGE 2026-02-09: Multi-Timeframe Adapter - aggregates 1m into all higher timeframes
-const { initMultiTimeframe, enhanceTradeDecision } = require('./core/mtf-integration-hook');
-
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -424,30 +417,6 @@ class OGZPrimeV14Bot {
     });
     this.tradeIntelligenceShadowMode = process.env.TRADE_INTELLIGENCE_SHADOW === 'true'; // ACTIVE by default
     console.log(`🧠 Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
-
-    // CHANGE 2026-02-09: MA Entry System - EMA/SMA crossovers + dynamic S/R
-    this.crossoverSignal = new EMASMACrossoverSignal();
-    this.maDynamicSR = new MADynamicSR();
-    console.log('📊 MA Entry System: Crossovers + Dynamic S/R initialized');
-
-    // CHANGE 2026-02-09: Multi-Timeframe Adapter (skip in backtest - no API calls)
-    this.mtf = null;
-    if (process.env.BACKTEST_MODE !== 'true') {
-      // Initialize async - don't block startup
-      initMultiTimeframe({
-        polygonApiKey: process.env.POLYGON_API_KEY,
-        ticker: 'X:BTCUSD',
-        backfillDays: 365,
-        apiCallDelayMs: 13000  // Free tier rate limit
-      }).then(mtf => {
-        this.mtf = mtf;
-        console.log('🕐 MTF Adapter ready - all timeframes active');
-      }).catch(err => {
-        console.warn('⚠️ MTF init failed (continuing without):', err.message);
-      });
-    } else {
-      console.log('⏭️ MTF skipped (BACKTEST_MODE)');
-    }
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
@@ -1235,18 +1204,6 @@ class OGZPrimeV14Bot {
         console.log(`✅ Candle #${this.priceHistory.length}/15 [${candleTime}]`);
       }
 
-      // CHANGE 2026-02-09: Feed completed candle to MTF adapter for aggregation
-      if (this.mtf) {
-        this.mtf.ingestCandle({
-          timestamp: candle.t,
-          open: candle.o,
-          high: candle.h,
-          low: candle.l,
-          close: candle.c,
-          volume: candle.v
-        });
-      }
-
       if (this.priceHistory.length > 200) {
         this.priceHistory = this.priceHistory.slice(-200);
       }
@@ -1666,16 +1623,6 @@ class OGZPrimeV14Bot {
     // Detect market regime
     const regime = this.regimeDetector.detectRegime(this.priceHistory);
 
-    // CHANGE 2026-02-09: MA Entry System updates
-    const crossoverResult = this.crossoverSignal.update(engineState);
-    const currentCandle = {
-      open: this.priceHistory[this.priceHistory.length - 1]?.open || price,
-      high: this.priceHistory[this.priceHistory.length - 1]?.high || price,
-      low: this.priceHistory[this.priceHistory.length - 1]?.low || price,
-      close: price
-    };
-    const maSRResult = this.maDynamicSR.update(engineState, currentCandle);
-
     // Change 596: Use TradingBrain.getDecision() instead of calculateRealConfidence()
     // This properly integrates direction + confidence from TradingBrain's analysis
     const marketDataForConfidence = {
@@ -1683,12 +1630,7 @@ class OGZPrimeV14Bot {
       macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
       macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
       rsi: indicators.rsi,
-      volume: this.marketData.volume || 0,
-      // CHANGE 2026-02-09: Add MA system signals
-      crossover: crossoverResult,
-      maSR: maSRResult,
-      // CHANGE 2026-02-09: Add MTF confluence (null in backtest)
-      mtfConfluence: this.mtf ? this.mtf.getConfluenceScore() : null
+      volume: this.marketData.volume || 0
     };
 
     // 🔧 FIX: Pass priceData to TradingBrain for MarketRegimeDetector
@@ -1900,22 +1842,6 @@ class OGZPrimeV14Bot {
     }
 
     if (decision.action !== 'HOLD') {
-      // CHANGE 2026-02-09: MTF confluence gate - check higher timeframes before entry
-      if (this.mtf && decision.action === 'BUY') {
-        const mtfCheck = enhanceTradeDecision(
-          this.mtf,
-          { confidence: decision.confidence / 100 },
-          'buy'
-        );
-        if (!mtfCheck.shouldProceed) {
-          console.log(`🕐 MTF BLOCKED: ${mtfCheck.reasons.slice(0, 2).join(' | ')}`);
-          return;  // Skip this trade - higher timeframes disagree
-        }
-        console.log(`✅ MTF APPROVED | Conf: ${(mtfCheck.originalConfidence * 100).toFixed(0)}% → ${(mtfCheck.adjustedConfidence * 100).toFixed(0)}%`);
-        // Use MTF-adjusted confidence
-        decision.confidence = mtfCheck.adjustedConfidence * 100;
-      }
-
       await this.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision);
     }
   }
