@@ -209,8 +209,9 @@ class PatternMemorySystem {
    */
   constructor(options = {}) {
     // FIX 2025-12-27: Use mode-based pattern memory files
-    const mode = process.env.PAPER_TRADING === 'true' ? 'paper' :
-                 process.env.BACKTEST_MODE === 'true' ? 'backtest' : 'live';
+    // FIX 2026-02-11: Check BACKTEST_MODE first (was being overridden by PAPER_TRADING)
+    const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
+                 process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
     const memoryFileName = `pattern-memory.${mode}.json`;
     console.log(`📁 Pattern Memory: Using ${memoryFileName} (mode: ${mode})`);
 
