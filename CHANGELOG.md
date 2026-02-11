@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Trade Journal + Multi-Asset + Replay - 2026-02-11)
+- **Trade Journal System** - Complete trade analytics engine
+  - `core/TradeJournal.js` - 40+ metrics, append-only ledger, tax-ready CSV export
+  - `core/TradeJournalBridge.js` - Auto-wires journal + replay into bot
+  - `core/TradeReplayCapture.js` - Captures candle context for visual replay
+  - `public/trade-journal.html` - Dashboard with equity curve, calendar heatmap
+  - `public/trade-replay.html` - TradingView-style instant replay cards
+  - Every trade close: auto-records → captures candles → pushes "View Replay" to dashboard
+
+- **Multi-Asset Manager** - 15 crypto asset support
+  - `core/MultiAssetManager.js` - Symbol mapping, WS resubscription, candle caching
+  - `kraken_adapter_simple.js` - Full 15-asset symbol mapping (XBT, ETH, SOL, etc.)
+  - Dashboard can switch assets via WebSocket `asset_change` message
+
+- **Server Routes**
+  - `ogzprime-ssl-server.js` - Added `/journal`, `/replay` routes + WebSocket relay
+
 ### Fixed (Pipeline Session Form Test - 2026-02-11)
 - **BACKTEST_MODE override bug** - core/EnhancedPatternRecognition.js:212-213
   - **Problem**: Backtest patterns were writing to `paper.json` instead of `backtest.json`
