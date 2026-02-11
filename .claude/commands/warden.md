@@ -249,6 +249,25 @@ node ogz-meta/rag-embeddings.js failed "pattern memory retry"
 node ogz-meta/rag-embeddings.js worked "pattern memory persistence"
 ```
 
+## SESSION FORM: CONFIRM CONTEXT READ
+
+**MANDATORY**: As the first gate, Warden confirms required reading:
+
+```javascript
+const { confirmContextRead } = require('./ogz-meta/session-form');
+
+// Confirm you've read the architecture docs before approving anything
+confirmContextRead(mission.sessionForm, 'warden', {
+  guardrails: true,      // ogz-meta/04_guardrails-and-rules.md
+  landmines: true,       // ogz-meta/05_landmines-and-gotchas.md
+  architecture: true,    // ogzprime-*.mermaid charts (REQUIRED!)
+  recentChanges: true,   // ogz-meta/06_recent-changes.md
+  pipeline: true         // Confirmed no code without approval
+});
+```
+
+**If you haven't read the mermaid architecture charts, you CANNOT approve work.**
+
 ## INTEGRATION WITH PIPELINE SUPERVISOR
 
 The Warden is the FIRST gate in every pipeline mission:

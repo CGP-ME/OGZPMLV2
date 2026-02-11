@@ -160,6 +160,29 @@ else
 fi
 ```
 
+## SESSION FORM: LOG YOUR TESTS
+
+**MANDATORY**: After running tests, log results to the session form:
+
+```javascript
+const { appendWorkLog } = require('./ogz-meta/session-form');
+
+appendWorkLog(mission.sessionForm, {
+  claudito: 'debugger',
+  action: 'Verified fix with smoke test',
+  filesModified: [],  // Debugger doesn't modify files
+  bugsFound: [],      // Or new bugs discovered during testing
+  decisions: [
+    'PASSED: Pattern memory grew from 2 to 47 after 30s',
+    'PASSED: No new errors in PM2 logs',
+    'PASSED: Bot reached candle #15 without crash'
+  ],
+  notes: 'Fix verified. Ready for commit.'
+});
+```
+
+**No test is complete without logging it.**
+
 ## YOUR MOTTO
 "Trust but verify."
 

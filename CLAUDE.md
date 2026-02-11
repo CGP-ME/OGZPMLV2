@@ -91,11 +91,43 @@ If scope creep detected:
 2. Warn user: "WARDEN: Scope creep detected - [what I was about to do]"
 3. Ask permission before proceeding
 
-## REQUIRED READING
+## REQUIRED READING (MANDATORY - NO EXCEPTIONS)
 
-Before touching code, read:
+Before touching ANY code, you MUST read these files:
+
+### Architecture (CRITICAL)
+- `ogz-meta/ledger/ogzprime-architecture.mermaid` - System component map
+- `ogz-meta/ledger/ogzprime-broker-chain.mermaid` - Broker layer chain
+- `ogz-meta/ledger/ogzprime-data-structures.mermaid` - Data formats
+
+### Context
 - `ogz-meta/claudito_context.md` - Full system context
+- `ogz-meta/04_guardrails-and-rules.md` - What NOT to do
+- `ogz-meta/05_landmines-and-gotchas.md` - Known traps
 - `CHANGELOG.md` - Recent changes (at least top 50 lines)
+
+### Session Tracking
+- `ogz-meta/ledger/SESSION-HANDOFF-FORM.md` - Form template (know the structure)
+- `ogz-meta/sessions/` - Previous session logs (for context continuity)
+
+**If you haven't read the mermaid charts, you DO NOT understand the architecture.**
+**If you don't understand the architecture, you WILL break something.**
+**No excuses. Read them.**
+
+---
+
+## SESSION FORM (MANDATORY)
+
+Every session MUST use the session handoff form:
+
+1. **START**: Orchestrator initializes form with `initializeSessionForm()`
+2. **DURING**: Each claudito logs work with `appendWorkLog()`
+3. **END**: Scribe finalizes with `finalizeSessionForm()` and saves
+
+Form helper: `ogz-meta/session-form.js`
+Form storage: `ogz-meta/sessions/`
+
+**This is how context survives between sessions. This is THE LAW.**
 
 ## PIPELINE ORDER
 

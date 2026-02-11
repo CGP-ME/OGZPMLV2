@@ -142,6 +142,33 @@ Before creating commit:
 - [ ] Commit message descriptive
 - [ ] CHANGELOG will be updated
 
+## SESSION FORM: LOG YOUR COMMIT
+
+**MANDATORY**: After creating a commit, log it to the session form:
+
+```javascript
+const { appendWorkLog } = require('./ogz-meta/session-form');
+
+appendWorkLog(mission.sessionForm, {
+  claudito: 'committer',
+  action: 'Created git commit',
+  filesModified: [{
+    file: 'core/EnhancedPatternRecognition.js',
+    lines: '850',
+    what: 'Added savePatternMemory() call',
+    why: 'Fix pattern persistence'
+  }],
+  decisions: [
+    'Committed to feature branch fix-pattern-save',
+    'Commit hash: abc123',
+    'Ready for PR'
+  ],
+  notes: 'Commit message includes bug ID and test results'
+});
+```
+
+**No commit is complete without logging it.**
+
 ## HANDOFF PROTOCOL
 
 After COMMIT_READY:

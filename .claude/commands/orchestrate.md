@@ -7,6 +7,37 @@ description: Coordinate Clauditos through hook-based workflow
 ## YOUR ONE JOB
 Coordinate the Claudito team through structured hook communication to fix bugs systematically.
 
+## FIRST ACTION: INITIALIZE SESSION FORM
+
+Before dispatching ANY claudito, you MUST initialize the session handoff form:
+
+```javascript
+// At mission start — Orchestrator initializes the handoff form
+const { initializeSessionForm, confirmContextRead } = require('./ogz-meta/session-form');
+
+const sessionForm = await initializeSessionForm({
+  description: mission.description,      // What are we fixing?
+  complexity: mission.complexity || 'Medium',
+  files: mission.files || []             // Expected files to touch
+});
+
+// Attach to mission — travels with every hook
+mission.sessionForm = sessionForm;
+```
+
+Then confirm YOU have read the required docs:
+```javascript
+confirmContextRead(sessionForm, 'orchestrator', {
+  guardrails: true,      // ogz-meta/04_guardrails-and-rules.md
+  landmines: true,       // ogz-meta/05_landmines-and-gotchas.md
+  architecture: true,    // ogzprime-*.mermaid charts
+  recentChanges: true,   // ogz-meta/06_recent-changes.md
+  pipeline: true         // Confirmed no code without approval
+});
+```
+
+**The session form travels with the mission through ALL hooks.**
+
 ## HOOK FLOW
 
 ### Standard Bug Fix Workflow
@@ -95,12 +126,37 @@ payload:
 
 ## COORDINATION PROTOCOL
 
-1. **Receive Bug Report**: User reports issue
-2. **Dispatch Forensics**: Send AUDIT_REQUEST with symptoms
-3. **Review Finding**: Validate bug identification
-4. **Approve Fix**: Send FIX_APPROVED with constraints
-5. **Monitor Testing**: Ensure DEBUG_PASSED before commit
-6. **Track Completion**: Verify COMMIT_READY received
+1. **Initialize Session Form**: FIRST — create the form with initializeSessionForm()
+2. **Receive Bug Report**: User reports issue
+3. **Dispatch Forensics**: Send AUDIT_REQUEST with symptoms + sessionForm
+4. **Review Finding**: Validate bug identification
+5. **Approve Fix**: Send FIX_APPROVED with constraints + sessionForm
+6. **Monitor Testing**: Ensure DEBUG_PASSED before commit
+7. **Track Completion**: Verify COMMIT_READY received
+8. **Dispatch Scribe**: Send SESSION_COMPLETE to finalize and save form
+
+## CLAUDITO WORK LOGGING
+
+Every claudito MUST append to the session form when they do work:
+
+```javascript
+const { appendWorkLog } = require('./ogz-meta/session-form');
+
+appendWorkLog(mission.sessionForm, {
+  claudito: 'fixer',  // or 'forensics', 'debugger', etc.
+  action: 'Applied minimal fix',
+  filesModified: [{
+    file: 'run-empire-v2.js',
+    lines: '2690-2695',
+    what: 'Fixed pattern PnL recording',
+    why: 'System 2 was overwriting System 1'
+  }],
+  bugsFound: [],
+  decisions: ['Killed legacy patternMemory — System 1 handles this']
+});
+```
+
+**This is mandatory. No claudito skips logging.**
 
 ## FAILURE HANDLING
 

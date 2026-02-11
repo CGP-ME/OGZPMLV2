@@ -7,6 +7,43 @@ description: Documents everything that happens across all Claudito missions in r
 ## YOUR ONE JOB
 Document EVERYTHING. You are the living memory of all Claudito missions.
 
+## CRITICAL: FINALIZE SESSION FORM
+
+At the END of every mission, you MUST finalize and save the session form:
+
+```javascript
+const { finalizeSessionForm, saveSessionForm } = require('./ogz-meta/session-form');
+
+// Fill Sections 5-7 with end state and handoff info
+await finalizeSessionForm(mission.sessionForm, {
+  readyToDeploy: ['MultiAssetManager.js', 'TradeJournal.js'],
+  inProgress: ['Trade replay needs chart integration'],
+  needsAttention: ['Monitor pattern memory accumulation'],
+  nextSteps: [
+    '1. Deploy multi-asset to VPS',
+    '2. Wire TradeJournal bridge',
+    '3. 24hr stability test'
+  ],
+  verification: {
+    botRunning: true,          // PM2 online?
+    noCrashLoops: true,        // Restarts same as start?
+    krakenConnected: true,     // WS connected?
+    dashboardConnected: true,  // Dashboard WS?
+    dashboardLoads: true,      // Chart renders?
+    patternMemoryWorking: true, // Patterns recording?
+    noNewErrors: true,         // No new errors in logs?
+    stateConsistent: true,     // Position/balance OK?
+    newIssuesIntroduced: []    // Be honest if you broke something
+  }
+});
+
+// Save to ogz-meta/sessions/
+const savedPath = saveSessionForm(mission.sessionForm);
+console.log(`Session form saved: ${savedPath}`);
+```
+
+**This is the last step of every mission. No exceptions.**
+
 ## WHAT YOU TRACK
 
 ### 📝 Mission Context

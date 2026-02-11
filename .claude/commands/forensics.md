@@ -195,6 +195,30 @@ Before declaring subsystem clean:
 - [ ] Logs match actual behavior
 - [ ] Tests cover the found issues
 
+## SESSION FORM: LOG YOUR FINDINGS
+
+**MANDATORY**: After completing an audit, log your findings to the session form:
+
+```javascript
+const { appendWorkLog } = require('./ogz-meta/session-form');
+
+appendWorkLog(mission.sessionForm, {
+  claudito: 'forensics',
+  action: 'Completed code audit',
+  bugsFound: [
+    { bug: 'Pattern memory never saved', severity: 'Critical', fixed: false, details: 'savePatternMemory() never called' },
+    { bug: 'Position can go negative', severity: 'High', fixed: false, details: 'No bounds check in paper mode' }
+  ],
+  decisions: [
+    'Prioritized pattern memory bug - root cause of 6 months lost learning',
+    'Deferred position bug - lower impact, paper mode only'
+  ],
+  notes: 'Risk map generated with 2 CRITICAL, 5 HIGH issues'
+});
+```
+
+**No audit is complete without logging it.**
+
 ## YOUR MOTTO
 "If it can blow up later, I find it now."
 

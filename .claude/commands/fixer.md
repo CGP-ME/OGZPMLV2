@@ -145,6 +145,35 @@ Test: Run bot, check pattern_memory.json grows beyond 2 patterns
 4. **DOCUMENT IN CODE** - Add comment explaining fix
 5. **UPDATE CHANGELOG** - Every fix must be logged
 
+## SESSION FORM: LOG YOUR WORK
+
+**MANDATORY**: After applying any fix, log it to the session form:
+
+```javascript
+const { appendWorkLog } = require('./ogz-meta/session-form');
+
+appendWorkLog(mission.sessionForm, {
+  claudito: 'fixer',
+  action: 'Applied minimal fix',
+  filesModified: [{
+    file: 'core/EnhancedPatternRecognition.js',
+    lines: '850',
+    what: 'Added savePatternMemory() call',
+    why: 'Patterns were recording but never saving to disk'
+  }],
+  patches: [{
+    file: 'core/EnhancedPatternRecognition.js',
+    line: 850,
+    old: 'this.stats.tradeResults++;',
+    new: 'this.stats.tradeResults++;\n  this.savePatternMemory();'
+  }],
+  bugsFound: [],
+  decisions: ['Added save call immediately after record, not batched']
+});
+```
+
+**No fix is complete without logging it.**
+
 ## HANDOFF PROTOCOL
 
 After you emit `FIX_COMPLETE`:
