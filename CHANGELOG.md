@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Pipeline Session Form Test - 2026-02-11)
+- **BACKTEST_MODE override bug** - core/EnhancedPatternRecognition.js:212-213
+  - **Problem**: Backtest patterns were writing to `paper.json` instead of `backtest.json`
+  - **Root Cause**: PAPER_TRADING checked before BACKTEST_MODE in mode detection. Since .env has PAPER_TRADING=true, backtest mode was ignored
+  - **Fix**: Swapped condition order - BACKTEST_MODE now checked first
+  - **Impact**: Backtest patterns now save to correct file, won't pollute paper trading patterns
+
+### Added (Session Handoff Form - 2026-02-11)
+- **Session form pipeline** - Accountability system for all Claudito missions
+  - `ogz-meta/session-form.js` - Helper module for form lifecycle
+  - `ogz-meta/sessions/` - Storage for completed session forms
+  - Updated skills: orchestrate, warden, fixer, forensics, debugger, commit, scribe
+  - Form travels with mission: init → work log → finalize → save
+  - Mandatory mermaid chart reading added to CLAUDE.md
+
 ### Added (Modular Entry System - 2026-02-10)
 - **Modular Entry System** - 4 self-contained signal modules (V2 Kraken format)
   - `modules/MultiTimeframeAdapter.js` - Aggregates 1m candles to 5m/15m/1h/4h/1d with per-TF indicators
