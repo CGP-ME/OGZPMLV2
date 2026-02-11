@@ -192,6 +192,12 @@ const EMASMACrossoverSignal = require('./modules/EMASMACrossoverSignal');
 const MADynamicSR = require('./modules/MADynamicSR');
 const LiquiditySweepDetector = require('./modules/LiquiditySweepDetector');
 
+// CHANGE 2026-02-10: Multi-Asset Manager for asset switching
+const MultiAssetManager = require('./core/MultiAssetManager');
+
+// CHANGE 2026-02-10: Trade Journal + Instant Replay
+const { TradeJournalBridge } = require('./core/TradeJournalBridge');
+
 // CRITICAL: SingletonLock to prevent multiple instances
 console.log('[CHECKPOINT-005] Getting SingletonLock...');
 const SingletonLock = loader.get('core', 'SingletonLock') || require('./core/SingletonLock');
@@ -831,6 +837,14 @@ class OGZPrimeV14Bot {
             return;
           }
 
+          // CHANGE 2026-02-10: Handle asset switching from dashboard (Multi-Asset Manager)
+          if (msg.type === 'asset_change') {
+            if (this.assetManager) {
+              this.assetManager.switchAsset(msg.asset);
+            }
+            return;
+          }
+
           // CHANGE 665: Handle profile switching and dashboard commands
           if (msg.type === 'command') {
             console.log('📨 Dashboard command received:', msg.command);
@@ -1068,6 +1082,12 @@ class OGZPrimeV14Bot {
         //   this.eventLoopMonitor.start();
         //   console.log('✅ Event loop monitor active');
         // }
+
+        // CHANGE 2026-02-10: Initialize Multi-Asset Manager
+        this.assetManager = new MultiAssetManager(this);
+
+        // CHANGE 2026-02-10: Initialize Trade Journal + Replay Bridge
+        this.journalBridge = new TradeJournalBridge(this);
 
         // Start trading cycle
         this.startTradingCycle();
@@ -1381,8 +1401,10 @@ class OGZPrimeV14Bot {
 
       console.log(`📊 Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
 
-      // Fetch from Kraken REST API via broker adapter
-      const symbol = process.env.TRADING_PAIR || 'BTC/USD';
+      // CHANGE 2026-02-10: Use active asset from MultiAssetManager if available
+      const symbol = this.assetManager
+        ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
+        : (process.env.TRADING_PAIR || 'BTC/USD');
       const candles = await this.kraken.getCandles(symbol, timeframe, limit);
 
       if (candles && candles.length > 0) {

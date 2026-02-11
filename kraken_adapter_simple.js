@@ -376,12 +376,25 @@ class KrakenAdapterSimple {
   }
 
   convertToKrakenSymbol(symbol) {
-    // Convert standard format to Kraken format
-    if (symbol === 'BTC-USD' || symbol === 'BTC/USD') {
-      return 'XXBTZUSD';
-    }
-    // Add more conversions as needed
-    return symbol.replace('-', '').replace('/', '');
+    // CHANGE 2026-02-10: Full Kraken symbol mapping for all supported assets
+    const map = {
+      'BTC-USD':   'XXBTZUSD',  'BTC/USD':   'XXBTZUSD',
+      'ETH-USD':   'XETHZUSD',  'ETH/USD':   'XETHZUSD',
+      'SOL-USD':   'SOLUSD',    'SOL/USD':   'SOLUSD',
+      'XRP-USD':   'XXRPZUSD',  'XRP/USD':   'XXRPZUSD',
+      'ADA-USD':   'ADAUSD',    'ADA/USD':   'ADAUSD',
+      'DOT-USD':   'DOTUSD',    'DOT/USD':   'DOTUSD',
+      'AVAX-USD':  'AVAXUSD',   'AVAX/USD':  'AVAXUSD',
+      'LINK-USD':  'LINKUSD',   'LINK/USD':  'LINKUSD',
+      'MATIC-USD': 'MATICUSD',  'MATIC/USD': 'MATICUSD',
+      'UNI-USD':   'UNIUSD',    'UNI/USD':   'UNIUSD',
+      'ATOM-USD':  'ATOMUSD',   'ATOM/USD':  'ATOMUSD',
+      'LTC-USD':   'XLTCZUSD',  'LTC/USD':   'XLTCZUSD',
+      'DOGE-USD':  'XDGUSD',    'DOGE/USD':  'XDGUSD',
+      'SHIB-USD':  'SHIBUSD',   'SHIB/USD':  'SHIBUSD',
+      'APT-USD':   'APTUSD',    'APT/USD':   'APTUSD',
+    };
+    return map[symbol] || symbol.replace('-', '').replace('/', '');
   }
 
   validateOrder(order) {

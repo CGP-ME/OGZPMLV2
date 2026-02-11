@@ -57,6 +57,14 @@ const httpServer = http.createServer(app);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// CHANGE 2026-02-10: Trade Journal and Replay page routes
+app.get('/journal', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'trade-journal.html'));
+});
+app.get('/replay', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'trade-replay.html'));
+});
+
 // CHANGE 2026-01-23: Ollama proxy for TRAI widget
 app.post('/api/ollama/chat', async (req, res) => {
   try {
@@ -206,6 +214,27 @@ wss.on('connection', (ws, req) => {
               console.log(`📊 Relayed ${data.type} (${data.timeframe}) to bot`);
             } catch (err) {
               console.error('Error relaying timeframe message to bot:', err.message);
+            }
+          }
+        });
+      }
+
+      // CHANGE 2026-02-10: RELAY Dashboard → Bot (for journal/replay/asset requests)
+      if (ws.clientType === 'dashboard' && (
+          data.type === 'asset_change' ||
+          data.type.startsWith('request_journal') ||
+          data.type.startsWith('request_replay'))) {
+        const messageStr = JSON.stringify(data);
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN &&
+              client.authenticated &&
+              client.clientType === 'bot') {
+            try {
+              client.send(messageStr);
+              console.log(`📒 Relayed ${data.type} to bot`);
+            } catch (err) {
+              console.error('Error relaying journal/replay message to bot:', err.message);
             }
           }
         });
