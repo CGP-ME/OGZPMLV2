@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OGZPrime — Trade Replay</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --bg-panel: #0c0c10;
+            --border: rgba(255,255,255,0.06);
+            --border-bright: rgba(255,255,255,0.12);
+            --text: #e8e8ec;
+            --text-dim: #6e6e7a;
+            --text-muted: #3e3e48;
+            --accent: #00ccff;
+            --profit: #00ff88;
+            --profit-dim: rgba(0,255,136,0.12);
+            --loss: #ff3366;
+            --loss-dim: rgba(255,51,102,0.12);
+            --gold: #ffd700;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* ── Header ─────────────────────────────────────────────────── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .header .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--accent), #66e0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .btn {
+            padding: 6px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid var(--border-bright);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .controls { display: flex; gap: 8px; }
+
+        /* ── Trade Verdict Banner ───────────────────────────────────── */
+        .verdict {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 14px 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+        .verdict.win { background: var(--profit-dim); border-color: rgba(0,255,136,0.15); }
+        .verdict.loss { background: var(--loss-dim); border-color: rgba(255,51,102,0.15); }
+        .verdict .v-emoji { font-size: 1.8rem; }
+        .verdict .v-pnl { font-size: 1.6rem; font-weight: 800; }
+        .verdict .v-meta { font-size: 0.7rem; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
+        .verdict .v-meta strong { color: var(--text); }
+
+        /* ── Stats Grid ─────────────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .stat {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .stat .s-label {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+        .stat .s-value { font-size: 0.95rem; font-weight: 700; }
+
+        /* ── Chart ──────────────────────────────────────────────────── */
+        .chart-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .chart-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .chart-toolbar h2 {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+        }
+        .indicator-toggles { display: flex; gap: 4px; }
+        .ind-toggle {
+            padding: 3px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.55rem;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ind-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(0,204,255,0.08); }
+        #chart-container { height: 440px; }
+
+        /* ── Pattern Tags ──────────────────────────────────────────── */
+        .pattern-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+        .pattern-tag {
+            padding: 4px 10px;
+            font-size: 0.6rem;
+            font-weight: 500;
+            border-radius: 4px;
+            background: rgba(255,215,0,0.08);
+            border: 1px solid rgba(255,215,0,0.15);
+            color: var(--gold);
+        }
+        .pattern-tag .p-conf { color: var(--text-muted); margin-left: 4px; }
+
+        /* ── Trade Timeline ─────────────────────────────────────────── */
+        .timeline {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 12px 16px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .tl-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+        }
+        .tl-node .tl-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-bottom: 6px;
+        }
+        .tl-node.entry .tl-dot { background: var(--profit); box-shadow: 0 0 8px rgba(0,255,136,0.4); }
+        .tl-node.exit .tl-dot { background: var(--loss); box-shadow: 0 0 8px rgba(255,51,102,0.4); }
+        .tl-node.exit.win .tl-dot { background: var(--profit); box-shadow: 0 0 8px rgba(0,255,136,0.4); }
+        .tl-node .tl-price { font-size: 0.8rem; font-weight: 700; }
+        .tl-node .tl-time { font-size: 0.55rem; color: var(--text-muted); margin-top: 2px; }
+        .tl-line {
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, var(--profit), var(--accent));
+            margin: 0 8px;
+            margin-bottom: 20px;
+        }
+        .tl-hold {
+            text-align: center;
+            flex: 1;
+            margin-bottom: 20px;
+        }
+        .tl-hold .tl-label { font-size: 0.5rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .tl-hold .tl-dur { font-size: 0.75rem; font-weight: 600; color: var(--accent); }
+
+        /* ── Loading ────────────────────────────────────────────────── */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            color: var(--text-muted);
+        }
+        .loading .spinner {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Export bar ─────────────────────────────────────────────── */
+        .export-bar {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            padding: 16px 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.35s ease forwards;
+            opacity: 0;
+        }
+        .d1 { animation-delay: 0.05s; }
+        .d2 { animation-delay: 0.1s; }
+        .d3 { animation-delay: 0.15s; }
+        .d4 { animation-delay: 0.2s; }
+        .d5 { animation-delay: 0.25s; }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- Loading state -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Loading trade replay…</span>
+    </div>
+
+    <!-- Content (hidden until loaded) -->
+    <div id="content" style="display:none;">
+
+        <div class="header fade-in">
+            <div class="brand">
+                <h1>OGZPrime</h1>
+                <span class="subtitle">Trade Replay</span>
+            </div>
+            <div class="controls">
+                <a href="/journal" class="btn">← Journal</a>
+                <button class="btn" id="btn-prev" title="Previous trade">◄ Prev</button>
+                <button class="btn" id="btn-next" title="Next trade">Next ►</button>
+                <button class="btn" id="btn-screenshot" title="Save as image">📷 Screenshot</button>
+            </div>
+        </div>
+
+        <!-- Verdict Banner -->
+        <div class="verdict fade-in d1" id="verdict">
+            <span class="v-emoji" id="v-emoji">✅</span>
+            <span class="v-pnl" id="v-pnl">+$0.00</span>
+            <div class="v-meta">
+                <span id="v-direction"></span>
+                <span id="v-percent"></span>
+                <span id="v-orderid"></span>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline fade-in d2" id="timeline">
+            <div class="tl-node entry">
+                <div class="tl-dot"></div>
+                <span class="tl-price" id="tl-entry-price">—</span>
+                <span class="tl-time" id="tl-entry-time">—</span>
+            </div>
+            <div class="tl-hold">
+                <div class="tl-label">Hold Time</div>
+                <div class="tl-dur" id="tl-hold-time">—</div>
+            </div>
+            <div class="tl-node exit" id="tl-exit-node">
+                <div class="tl-dot"></div>
+                <span class="tl-price" id="tl-exit-price">—</span>
+                <span class="tl-time" id="tl-exit-time">—</span>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid fade-in d2">
+            <div class="stat"><div class="s-label">Confidence</div><div class="s-value accent-val" id="s-conf">—</div></div>
+            <div class="stat"><div class="s-label">Regime</div><div class="s-value" id="s-regime">—</div></div>
+            <div class="stat"><div class="s-label">Exit Reason</div><div class="s-value" id="s-reason">—</div></div>
+            <div class="stat"><div class="s-label">RSI</div><div class="s-value" id="s-rsi">—</div></div>
+            <div class="stat"><div class="s-label">MACD</div><div class="s-value" id="s-macd">—</div></div>
+            <div class="stat"><div class="s-label">Trend</div><div class="s-value" id="s-trend">—</div></div>
+        </div>
+
+        <!-- Pattern Tags -->
+        <div class="pattern-tags fade-in d3" id="pattern-tags"></div>
+
+        <!-- Chart -->
+        <div class="chart-panel fade-in d3">
+            <div class="chart-toolbar">
+                <h2>Price Action</h2>
+                <div class="indicator-toggles">
+                    <button class="ind-toggle active" data-ind="ema20">EMA 20</button>
+                    <button class="ind-toggle active" data-ind="ema50">EMA 50</button>
+                    <button class="ind-toggle" data-ind="ema200">EMA 200</button>
+                    <button class="ind-toggle active" data-ind="bb">Bollinger</button>
+                    <button class="ind-toggle" data-ind="vwap">VWAP</button>
+                    <button class="ind-toggle active" data-ind="volume">Volume</button>
+                </div>
+            </div>
+            <div id="chart-container"></div>
+        </div>
+
+        <!-- Export Bar -->
+        <div class="export-bar fade-in d5">
+            <button class="btn" onclick="downloadJSON()">↓ Raw JSON</button>
+            <button class="btn" onclick="window.print()">🖨️ Print</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// Trade Replay Card — Client Logic
+// ══════════════════════════════════════════════════════════════════════════
+
+let replayData = null;
+let chart = null;
+let candleSeries = null;
+let volumeSeries = null;
+let ema20Series = null;
+let ema50Series = null;
+let ema200Series = null;
+let bbUpperSeries = null;
+let bbMiddleSeries = null;
+let bbLowerSeries = null;
+let vwapSeries = null;
+
+// ── Get orderId from URL ──────────────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const orderId = params.get('id');
+
+if (!orderId) {
+    document.getElementById('loading').innerHTML = '<span style="color:var(--loss);">No trade ID specified. Use ?id=ORDER_ID</span>';
+} else {
+    loadReplay(orderId);
+}
+
+// ── Load replay data via WebSocket or fetch ───────────────────────────
+async function loadReplay(id) {
+    // Try HTTP first (simpler)
+    try {
+        const resp = await fetch(`/api/replay/${id}`);
+        if (resp.ok) {
+            replayData = await resp.json();
+            renderReplay();
+            return;
+        }
+    } catch { /* fall through to WebSocket */ }
+
+    // Fallback: WebSocket request
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'request_replay', orderId: id }));
+    };
+    ws.onmessage = (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'replay_data' && msg.data) {
+                replayData = msg.data;
+                renderReplay();
+                ws.close();
+            } else if (msg.type === 'replay_not_found') {
+                document.getElementById('loading').innerHTML =
+                    `<span style="color:var(--loss);">Replay not found for ${id}</span>`;
+            }
+        } catch {}
+    };
+    ws.onerror = () => {
+        document.getElementById('loading').innerHTML =
+            '<span style="color:var(--loss);">Connection error</span>';
+    };
+}
+
+
+// ── Render everything ─────────────────────────────────────────────────
+function renderReplay() {
+    const d = replayData;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    const isWin = (d.exit?.pnl || 0) >= 0;
+    const pnl = d.exit?.pnl || 0;
+    const pnlPct = d.exit?.pnlPercent || 0;
+
+    // ── Verdict Banner ──
+    const verdict = document.getElementById('verdict');
+    verdict.classList.add(isWin ? 'win' : 'loss');
+    setText('v-emoji', isWin ? '✅' : '❌');
+    const pnlEl = document.getElementById('v-pnl');
+    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}`;
+    pnlEl.style.color = isWin ? 'var(--profit)' : 'var(--loss)';
+    setText('v-direction', `${d.direction} Trade`);
+    setText('v-percent', `${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`);
+    setText('v-orderid', d.orderId);
+
+    // ── Timeline ──
+    setText('tl-entry-price', `$${(d.entry?.price || 0).toLocaleString()}`);
+    setText('tl-entry-time', d.entry?.time ? new Date(d.entry.time).toLocaleString() : '—');
+    setText('tl-exit-price', `$${(d.exit?.price || 0).toLocaleString()}`);
+    setText('tl-exit-time', d.exit?.time ? new Date(d.exit.time).toLocaleString() : '—');
+    setText('tl-hold-time', formatDuration(d.exit?.holdTimeMs || 0));
+    if (isWin) document.getElementById('tl-exit-node').classList.add('win');
+
+    // ── Stats ──
+    setText('s-conf', `${d.entry?.confidence || 0}%`);
+    setText('s-regime', d.entry?.regime || '—');
+    setText('s-reason', d.exit?.reason || '—');
+    setText('s-rsi', (d.entry?.indicators?.rsi || 0).toFixed(1));
+    setText('s-macd', (d.entry?.indicators?.macd || 0).toFixed(4));
+    setText('s-trend', d.entry?.indicators?.trend || '—');
+
+    // ── Patterns ──
+    const tagContainer = document.getElementById('pattern-tags');
+    const patterns = d.entry?.patterns || [];
+    if (patterns.length === 0) {
+        tagContainer.innerHTML = '<span style="font-size:0.6rem;color:var(--text-muted);">No patterns detected</span>';
+    } else {
+        tagContainer.innerHTML = patterns.map(p =>
+            `<span class="pattern-tag">${p.name}<span class="p-conf">${(p.confidence || 0).toFixed(0)}%</span></span>`
+        ).join('');
+    }
+
+    // ── Chart ──
+    renderChart(d);
+
+    // ── Title ──
+    document.title = `${isWin ? '✅' : '❌'} ${d.direction} ${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)} — OGZPrime Replay`;
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// CHART RENDERING — Harvested from unified-dashboard.html
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderChart(d) {
+    const container = document.getElementById('chart-container');
+    const candles = d.candles || [];
+
+    if (candles.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">No candle data captured for this trade</div>';
+        return;
+    }
+
+    // ── Create chart (same config as dashboard) ──
+    chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: 440,
+        layout: {
+            background: { type: 'solid', color: '#0a0a0a' },
+            textColor: '#6e6e7a',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+        },
+        grid: {
+            vertLines: { color: 'rgba(255,255,255,0.03)' },
+            horzLines: { color: 'rgba(255,255,255,0.03)' },
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: 'rgba(255,215,0,0.4)', width: 1, style: 2, labelVisible: true },
+            horzLine: { color: 'rgba(255,215,0,0.4)', width: 1, style: 2 },
+        },
+        rightPriceScale: {
+            borderColor: 'rgba(255,255,255,0.06)',
+            scaleMargins: { top: 0.05, bottom: 0.15 },
+            autoScale: true,
+        },
+        timeScale: {
+            borderColor: 'rgba(255,255,255,0.06)',
+            timeVisible: true,
+            secondsVisible: false,
+            barSpacing: 10,
+            rightOffset: 3,
+        },
+        localization: {
+            priceFormatter: price => '$' + price.toFixed(2),
+        },
+        handleScroll: { pressedMouseMove: true },
+        handleScale: { pinch: true },
+    });
+
+    // ── Candlestick series ──
+    candleSeries = chart.addCandlestickSeries({
+        upColor: '#00ff88',
+        downColor: '#ff3366',
+        borderUpColor: '#00ff88',
+        borderDownColor: '#ff3366',
+        wickUpColor: '#00ff88',
+        wickDownColor: '#ff3366',
+    });
+
+    // Convert candle data
+    const chartData = candles.map(c => {
+        let t = c.t;
+        if (t > 9999999999) t = Math.floor(t / 1000);
+        return { time: t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v || 0 };
+    }).sort((a, b) => a.time - b.time);
+
+    // Deduplicate
+    const seen = new Set();
+    const uniqueData = chartData.filter(c => {
+        if (seen.has(c.time)) return false;
+        seen.add(c.time);
+        return true;
+    });
+
+    candleSeries.setData(uniqueData);
+
+    // ── Entry/Exit markers ──
+    const markers = [];
+    const entryTime = d.entry?.time ? Math.floor(d.entry.time / 1000) : null;
+    const exitTime = d.exit?.time ? Math.floor(d.exit.time / 1000) : null;
+    const isLong = d.direction === 'BUY';
+
+    // Find closest candle times for markers
+    if (entryTime) {
+        const closestEntry = findClosestTime(uniqueData, entryTime);
+        markers.push({
+            time: closestEntry,
+            position: 'belowBar',
+            color: '#00ff88',
+            shape: 'arrowUp',
+            text: `ENTRY $${(d.entry?.price || 0).toFixed(0)}`
+        });
+    }
+    if (exitTime) {
+        const closestExit = findClosestTime(uniqueData, exitTime);
+        const exitColor = (d.exit?.pnl || 0) >= 0 ? '#00ff88' : '#ff3366';
+        markers.push({
+            time: closestExit,
+            position: 'aboveBar',
+            color: exitColor,
+            shape: 'arrowDown',
+            text: `EXIT $${(d.exit?.price || 0).toFixed(0)}`
+        });
+    }
+
+    if (markers.length > 0) {
+        markers.sort((a, b) => a.time - b.time);
+        candleSeries.setMarkers(markers);
+    }
+
+    // ── Entry/Exit price lines ──
+    if (d.entry?.price) {
+        candleSeries.createPriceLine({
+            price: d.entry.price,
+            color: 'rgba(0,255,136,0.4)',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: 'Entry',
+        });
+    }
+    if (d.exit?.price) {
+        const exitLineColor = (d.exit?.pnl || 0) >= 0 ? 'rgba(0,255,136,0.4)' : 'rgba(255,51,102,0.4)';
+        candleSeries.createPriceLine({
+            price: d.exit.price,
+            color: exitLineColor,
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: 'Exit',
+        });
+    }
+
+    // ── Indicators (harvested from dashboard) ──
+    const closes = uniqueData.map(c => c.close);
+    const times = uniqueData.map(c => c.time);
+
+    // EMA 20
+    ema20Series = chart.addLineSeries({ color: '#00ccff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    const ema20 = calculateEMA(closes, 20);
+    ema20Series.setData(ema20.map((v, i) => ({ time: times[i], value: v })));
+
+    // EMA 50
+    ema50Series = chart.addLineSeries({ color: '#ffd700', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    const ema50 = calculateEMA(closes, 50);
+    ema50Series.setData(ema50.map((v, i) => ({ time: times[i], value: v })));
+
+    // EMA 200
+    ema200Series = chart.addLineSeries({ color: '#ff66cc', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, visible: false });
+    const ema200 = calculateEMA(closes, 200);
+    ema200Series.setData(ema200.map((v, i) => ({ time: times[i], value: v })));
+
+    // Bollinger Bands
+    const bb = calculateBollingerBands(closes, 20, 2);
+    bbUpperSeries = chart.addLineSeries({ color: 'rgba(255,255,255,0.15)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    bbMiddleSeries = chart.addLineSeries({ color: 'rgba(255,255,255,0.08)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    bbLowerSeries = chart.addLineSeries({ color: 'rgba(255,255,255,0.15)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+    bbUpperSeries.setData(bb.upper.map((v, i) => v ? { time: times[i], value: v } : null).filter(Boolean));
+    bbMiddleSeries.setData(bb.middle.map((v, i) => v ? { time: times[i], value: v } : null).filter(Boolean));
+    bbLowerSeries.setData(bb.lower.map((v, i) => v ? { time: times[i], value: v } : null).filter(Boolean));
+
+    // VWAP
+    vwapSeries = chart.addLineSeries({ color: '#ff8800', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, visible: false });
+    const vwap = calculateVWAP(uniqueData);
+    vwapSeries.setData(vwap.map((v, i) => ({ time: times[i], value: v })));
+
+    // Volume
+    volumeSeries = chart.addHistogramSeries({
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volume',
+    });
+    chart.priceScale('volume').applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+    });
+    volumeSeries.setData(uniqueData.map(c => ({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(0,255,136,0.2)' : 'rgba(255,51,102,0.2)',
+    })));
+
+    // ── Fit to content ──
+    chart.timeScale().fitContent();
+
+    // ── Resize handler ──
+    const ro = new ResizeObserver(() => {
+        chart.applyOptions({ width: container.clientWidth });
+    });
+    ro.observe(container);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// INDICATOR CALCULATIONS — Harvested from unified-dashboard.html
+// ══════════════════════════════════════════════════════════════════════════
+
+function calculateEMA(closes, period) {
+    const k = 2 / (period + 1);
+    const ema = [];
+    let prev = closes[0];
+    for (let i = 0; i < closes.length; i++) {
+        if (i < period - 1) {
+            const slice = closes.slice(0, i + 1);
+            prev = slice.reduce((a, b) => a + b, 0) / slice.length;
+        } else {
+            prev = closes[i] * k + prev * (1 - k);
+        }
+        ema.push(prev);
+    }
+    return ema;
+}
+
+function calculateBollingerBands(closes, period = 20, stdDev = 2) {
+    const bands = { upper: [], middle: [], lower: [] };
+    for (let i = 0; i < closes.length; i++) {
+        if (i < period - 1) {
+            bands.upper.push(null); bands.middle.push(null); bands.lower.push(null);
+        } else {
+            const slice = closes.slice(i - period + 1, i + 1);
+            const sma = slice.reduce((a, b) => a + b, 0) / period;
+            const variance = slice.reduce((sum, val) => sum + Math.pow(val - sma, 2), 0) / period;
+            const std = Math.sqrt(variance);
+            bands.middle.push(sma);
+            bands.upper.push(sma + stdDev * std);
+            bands.lower.push(sma - stdDev * std);
+        }
+    }
+    return bands;
+}
+
+function calculateVWAP(candles) {
+    const vwap = [];
+    let cumVol = 0, cumTP = 0;
+    for (const c of candles) {
+        const tp = (c.high + c.low + c.close) / 3;
+        const vol = c.volume || 1;
+        cumVol += vol; cumTP += tp * vol;
+        vwap.push(cumVol > 0 ? cumTP / cumVol : tp);
+    }
+    return vwap;
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// INDICATOR TOGGLES
+// ══════════════════════════════════════════════════════════════════════════
+
+const seriesMap = {
+    ema20: () => ema20Series,
+    ema50: () => ema50Series,
+    ema200: () => ema200Series,
+    bb: () => [bbUpperSeries, bbMiddleSeries, bbLowerSeries],
+    vwap: () => vwapSeries,
+    volume: () => volumeSeries,
+};
+
+document.querySelectorAll('.ind-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
+        const ind = btn.dataset.ind;
+        const series = seriesMap[ind]?.();
+        if (!series) return;
+        const visible = btn.classList.contains('active');
+        if (Array.isArray(series)) {
+            series.forEach(s => s?.applyOptions({ visible }));
+        } else {
+            series?.applyOptions({ visible });
+        }
+    });
+});
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btn-prev')?.addEventListener('click', () => navigateTrade(-1));
+document.getElementById('btn-next')?.addEventListener('click', () => navigateTrade(1));
+
+async function navigateTrade(direction) {
+    try {
+        const resp = await fetch(`/api/replay/adjacent?id=${orderId}&direction=${direction}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.orderId) {
+                window.location.href = `/replay?id=${data.orderId}`;
+            }
+        }
+    } catch { /* silent */ }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCREENSHOT
+// ══════════════════════════════════════════════════════════════════════════
+
+document.getElementById('btn-screenshot')?.addEventListener('click', async () => {
+    // Use html2canvas if available, otherwise just screenshot the chart
+    try {
+        if (chart) {
+            const canvas = chart.takeScreenshot();
+            const link = document.createElement('a');
+            link.download = `ogzprime-replay-${orderId}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    } catch (err) {
+        alert('Screenshot: Use your browser screenshot tool (Ctrl+Shift+S)');
+    }
+});
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════════════════════
+
+function downloadJSON() {
+    if (!replayData) return;
+    const blob = new Blob([JSON.stringify(replayData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `ogzprime-replay-${orderId}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════════
+
+function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function findClosestTime(data, targetTime) {
+    let closest = data[0]?.time || 0;
+    let minDiff = Infinity;
+    for (const c of data) {
+        const diff = Math.abs(c.time - targetTime);
+        if (diff < minDiff) { minDiff = diff; closest = c.time; }
+    }
+    return closest;
+}
+
+function formatDuration(ms) {
+    if (!ms || ms <= 0) return '0s';
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ${s % 60}s`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ${m % 60}m`;
+    return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+</script>
+</body>
+</html>
