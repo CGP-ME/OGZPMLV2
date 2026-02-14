@@ -2484,6 +2484,19 @@ class OptimizedTradingBrain {
     let bearishConfidence = 0;
     let confidence = 0.1; // START WITH BASE 10% CONFIDENCE NOT 0!
 
+    // CHANGE 2026-02-13: Signal breakdown tracker — captures every contributor for trade log
+    const signalBreakdown = {
+      baseConfidence: 0.1,
+      signals: [],           // Array of { source, direction, contribution, detail }
+      bullishTotal: 0,
+      bearishTotal: 0,
+      finalConfidence: 0,
+      finalDirection: 'neutral',
+      filters: [],            // Regime filter, RSI safety, etc.
+      adjustments: [],        // Volatility, momentum, learning system adjustments
+      timestamp: Date.now()
+    };
+
     // OFFENSIVE MODULE: Pattern Recognition (CRITICAL: 15-30% confidence boost)
     if (this.patternRecognition && this.priceData && this.priceData.length >= 30) {
       try {
@@ -2500,15 +2513,19 @@ class OptimizedTradingBrain {
           detectedPatterns.forEach(pattern => {
             if (pattern.direction === 'bullish' && pattern.confidence > 0.6) {
               bullishConfidence += 0.25;
+              signalBreakdown.signals.push({ source: 'PatternRecognition', direction: 'bullish', contribution: 0.25, detail: `${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) STRONG` });
               console.log(`   ✅ PATTERN: ${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) +25% bullish`);
             } else if (pattern.direction === 'bullish' && pattern.confidence > 0.5) {
               bullishConfidence += 0.15;
+              signalBreakdown.signals.push({ source: 'PatternRecognition', direction: 'bullish', contribution: 0.15, detail: `${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%)` });
               console.log(`   ✅ PATTERN: ${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) +15% bullish`);
             } else if (pattern.direction === 'bearish' && pattern.confidence > 0.6) {
               bearishConfidence += 0.25;
+              signalBreakdown.signals.push({ source: 'PatternRecognition', direction: 'bearish', contribution: 0.25, detail: `${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) STRONG` });
               console.log(`   ✅ PATTERN: ${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) +25% bearish`);
             } else if (pattern.direction === 'bearish' && pattern.confidence > 0.5) {
               bearishConfidence += 0.15;
+              signalBreakdown.signals.push({ source: 'PatternRecognition', direction: 'bearish', contribution: 0.15, detail: `${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%)` });
               console.log(`   ✅ PATTERN: ${pattern.name} (${(pattern.confidence * 100).toFixed(1)}%) +15% bearish`);
             }
           });
@@ -2529,14 +2546,17 @@ class OptimizedTradingBrain {
       if (regimeAnalysis) {
         if (regimeAnalysis.regime === 'trending_up' && regimeAnalysis.confidence > 0.7) {
           bullishConfidence += 0.25; // Strong uptrend
+          signalBreakdown.signals.push({ source: 'MarketRegime', direction: 'bullish', contribution: 0.25, detail: `trending_up (${(regimeAnalysis.confidence * 100).toFixed(0)}% conf)` });
           console.log(`   ✅ Added 25% bullish (uptrend)`);
         } else if (regimeAnalysis.regime === 'trending_down' && regimeAnalysis.confidence > 0.7) {
           bearishConfidence += 0.25; // Strong downtrend
+          signalBreakdown.signals.push({ source: 'MarketRegime', direction: 'bearish', contribution: 0.25, detail: `trending_down (${(regimeAnalysis.confidence * 100).toFixed(0)}% conf)` });
           console.log(`   ✅ Added 25% bearish (downtrend)`);
         } else if (regimeAnalysis.regime === 'ranging') {
           // Ranging markets slightly favor mean reversion
           bullishConfidence += 0.075;
           bearishConfidence += 0.075;
+          signalBreakdown.signals.push({ source: 'MarketRegime', direction: 'neutral', contribution: 0.075, detail: 'ranging (7.5% both)' });
           console.log(`   ✅ Added 7.5% both (ranging)`);
         }
         marketData.marketRegime = regimeAnalysis;
@@ -2603,20 +2623,26 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
         if (rsi) {
           if (rsi < 25) {
             bullishConfidence += 0.25; // STRONG oversold - bullish signal
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'bullish', contribution: 0.25, detail: `RSI ${rsi.toFixed(1)} STRONG oversold` });
             console.log(`   ✅ RSI ${rsi.toFixed(1)} < 25: Added 25% bullish (STRONG oversold)`);
           } else if (rsi < 30) {
             bullishConfidence += 0.20; // Oversold - bullish signal
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'bullish', contribution: 0.20, detail: `RSI ${rsi.toFixed(1)} oversold` });
             console.log(`   ✅ RSI ${rsi.toFixed(1)} < 30: Added 20% bullish (oversold)`);
           } else if (rsi > 75) {
             bearishConfidence += 0.25; // STRONG overbought - bearish signal
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'bearish', contribution: 0.25, detail: `RSI ${rsi.toFixed(1)} STRONG overbought` });
             console.log(`   ✅ RSI ${rsi.toFixed(1)} > 75: Added 25% bearish (STRONG overbought)`);
           } else if (rsi > 70) {
             bearishConfidence += 0.20; // Overbought - bearish signal
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'bearish', contribution: 0.20, detail: `RSI ${rsi.toFixed(1)} overbought` });
             console.log(`   ✅ RSI ${rsi.toFixed(1)} > 70: Added 20% bearish (overbought)`);
           } else if (rsi >= 45 && rsi <= 55) {
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'neutral', contribution: 0, detail: `RSI ${rsi.toFixed(1)} neutral zone` });
             console.log(`   ⚪ RSI ${rsi.toFixed(1)} in neutral zone (45-55): No confidence added`);
             // Neutral zone - no directional bias
           } else {
+            signalBreakdown.signals.push({ source: 'RSI', direction: 'neutral', contribution: 0, detail: `RSI ${rsi.toFixed(1)} no signal` });
             console.log(`   ⚪ RSI ${rsi.toFixed(1)} not in signal range: No confidence added`);
           }
           marketData.rsi = rsi;
@@ -2630,12 +2656,16 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
           // Use correct property names: macd.macd and macd.signal
           if (macd.macd > 0 && macd.signal > 0 && histogram > 0) {
             bullishConfidence += 0.20; // Strong bullish momentum
+            signalBreakdown.signals.push({ source: 'MACD', direction: 'bullish', contribution: 0.20, detail: `MACD+Signal+Hist all positive` });
           } else if (macd.macd > 0 && macd.signal > 0) {
             bullishConfidence += 0.15; // Bullish momentum
+            signalBreakdown.signals.push({ source: 'MACD', direction: 'bullish', contribution: 0.15, detail: `MACD+Signal positive` });
           } else if (macd.macd < 0 && macd.signal < 0 && histogram < 0) {
             bearishConfidence += 0.20; // Strong bearish momentum
+            signalBreakdown.signals.push({ source: 'MACD', direction: 'bearish', contribution: 0.20, detail: `MACD+Signal+Hist all negative` });
           } else if (macd.macd < 0 && macd.signal < 0) {
             bearishConfidence += 0.15; // Bearish momentum
+            signalBreakdown.signals.push({ source: 'MACD', direction: 'bearish', contribution: 0.15, detail: `MACD+Signal negative` });
           }
           // Persist on marketData with consistent naming
           marketData.macd = macd.macd;
@@ -2647,9 +2677,11 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
         if (bb && marketData.price) {
           if (marketData.price <= bb.lower) {
             bullishConfidence += 0.10; // Price at lower band - oversold
+            signalBreakdown.signals.push({ source: 'BollingerBands', direction: 'bullish', contribution: 0.10, detail: `Price at lower band` });
             console.log(`   ✅ BB: Price at lower band +10% bullish`);
           } else if (marketData.price >= bb.upper) {
             bearishConfidence += 0.10; // Price at upper band - overbought
+            signalBreakdown.signals.push({ source: 'BollingerBands', direction: 'bearish', contribution: 0.10, detail: `Price at upper band` });
             console.log(`   ✅ BB: Price at upper band +10% bearish`);
           }
           marketData.bbUpper = bb.upper;
@@ -2664,21 +2696,25 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
           // Golden cross: EMA9 > EMA20 > EMA50 = strong bullish
           if (ema9 > ema20 && ema20 > ema50) {
             bullishConfidence += 0.20;
+            signalBreakdown.signals.push({ source: 'EMA_Alignment', direction: 'bullish', contribution: 0.20, detail: `Golden alignment (9>20>50)` });
             console.log(`   ✅ EMA: Golden alignment (9>20>50) +20% bullish`);
           } 
           // Death cross: EMA9 < EMA20 < EMA50 = strong bearish
           else if (ema9 < ema20 && ema20 < ema50) {
             bearishConfidence += 0.20;
+            signalBreakdown.signals.push({ source: 'EMA_Alignment', direction: 'bearish', contribution: 0.20, detail: `Death alignment (9<20<50)` });
             console.log(`   ✅ EMA: Death alignment (9<20<50) +20% bearish`);
           }
           // Price above all EMAs = bullish
           else if (price > ema9 && price > ema20 && price > ema50) {
             bullishConfidence += 0.15;
+            signalBreakdown.signals.push({ source: 'EMA_Alignment', direction: 'bullish', contribution: 0.15, detail: `Price above all EMAs` });
             console.log(`   ✅ EMA: Price above all EMAs +15% bullish`);
           }
           // Price below all EMAs = bearish
           else if (price < ema9 && price < ema20 && price < ema50) {
             bearishConfidence += 0.15;
+            signalBreakdown.signals.push({ source: 'EMA_Alignment', direction: 'bearish', contribution: 0.15, detail: `Price below all EMAs` });
             console.log(`   ✅ EMA: Price below all EMAs +15% bearish`);
           }
           
@@ -2799,12 +2835,15 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       const sig = marketData.emaCrossoverSignal;
       if (sig.direction === 'buy') {
         bullishConfidence += sig.confidence;
+        signalBreakdown.signals.push({ source: 'EMACrossover', direction: 'bullish', contribution: sig.confidence, detail: `confluence: ${(sig.confluence * 100).toFixed(0)}%` });
         console.log(`   ✅ EMACrossover: +${(sig.confidence * 100).toFixed(1)}% bullish (confluence: ${(sig.confluence * 100).toFixed(0)}%)`);
       } else if (sig.direction === 'sell') {
         bearishConfidence += sig.confidence;
+        signalBreakdown.signals.push({ source: 'EMACrossover', direction: 'bearish', contribution: sig.confidence, detail: `confluence: ${(sig.confluence * 100).toFixed(0)}%` });
         console.log(`   ✅ EMACrossover: +${(sig.confidence * 100).toFixed(1)}% bearish (confluence: ${(sig.confluence * 100).toFixed(0)}%)`);
       }
       if (sig.blowoff) {
+        signalBreakdown.signals.push({ source: 'EMACrossover', direction: 'warning', contribution: 0, detail: 'BLOWOFF detected' });
         console.log(`   ⚠️ EMACrossover: BLOWOFF warning — don't chase!`);
       }
     }
@@ -2814,12 +2853,15 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       const sig = marketData.maDynamicSRSignal;
       if (sig.direction === 'buy') {
         bullishConfidence += sig.confidence;
+        signalBreakdown.signals.push({ source: 'MADynamicSR', direction: 'bullish', contribution: sig.confidence, detail: `${sig.events.length} events` });
         console.log(`   ✅ MADynamicSR: +${(sig.confidence * 100).toFixed(1)}% bullish (${sig.events.length} events)`);
       } else if (sig.direction === 'sell') {
         bearishConfidence += sig.confidence;
+        signalBreakdown.signals.push({ source: 'MADynamicSR', direction: 'bearish', contribution: sig.confidence, detail: `${sig.events.length} events` });
         console.log(`   ✅ MADynamicSR: +${(sig.confidence * 100).toFixed(1)}% bearish (${sig.events.length} events)`);
       }
       if (sig.compression) {
+        signalBreakdown.signals.push({ source: 'MADynamicSR', direction: 'compression', contribution: 0, detail: `${sig.compression.masInvolved} MAs within ${sig.compression.rangePct.toFixed(1)}%` });
         console.log(`   🔥 MADynamicSR: COMPRESSION — ${sig.compression.masInvolved} MAs within ${sig.compression.rangePct.toFixed(1)}%`);
       }
     }
@@ -2829,9 +2871,11 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       const sig = marketData.liquiditySweepSignal;
       if (sig.direction === 'buy') {
         bullishConfidence += sig.confidence * 0.5;  // Scale down — rare high-conviction signal
+        signalBreakdown.signals.push({ source: 'LiquiditySweep', direction: 'bullish', contribution: sig.confidence * 0.5, detail: `${sig.pattern} (scaled 50%)` });
         console.log(`   🎯 LiquiditySweep: +${(sig.confidence * 50).toFixed(1)}% bullish (${sig.pattern})`);
       } else if (sig.direction === 'sell') {
         bearishConfidence += sig.confidence * 0.5;
+        signalBreakdown.signals.push({ source: 'LiquiditySweep', direction: 'bearish', contribution: sig.confidence * 0.5, detail: `${sig.pattern} (scaled 50%)` });
         console.log(`   🎯 LiquiditySweep: +${(sig.confidence * 50).toFixed(1)}% bearish (${sig.pattern})`);
       }
     }
@@ -2843,9 +2887,11 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
         const mtfBoost = confluence.confidence * 0.20;  // Max 20% boost from MTF
         if (confluence.direction === 'buy') {
           bullishConfidence += mtfBoost;
+          signalBreakdown.signals.push({ source: 'MTF_Confluence', direction: 'bullish', contribution: mtfBoost, detail: `${confluence.readyTimeframes.length} TFs aligned` });
           console.log(`   ✅ MTF Confluence: +${(mtfBoost * 100).toFixed(1)}% bullish (${confluence.readyTimeframes.length} TFs aligned)`);
         } else if (confluence.direction === 'sell') {
           bearishConfidence += mtfBoost;
+          signalBreakdown.signals.push({ source: 'MTF_Confluence', direction: 'bearish', contribution: mtfBoost, detail: `${confluence.readyTimeframes.length} TFs aligned` });
           console.log(`   ✅ MTF Confluence: +${(mtfBoost * 100).toFixed(1)}% bearish (${confluence.readyTimeframes.length} TFs aligned)`);
         }
       }
@@ -2931,9 +2977,15 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
     // FIX 2026-02-10: REGIME FILTER - Block weak buys in downtrends
     if (marketData.marketRegime?.regime === 'trending_down' && bullishConfidence < 0.60) {
       console.log(`🚫 REGIME FILTER: Blocking weak buy in downtrend (bull: ${(bullishConfidence * 100).toFixed(1)}%)`);
+      signalBreakdown.filters.push({ type: 'REGIME_FILTER', action: 'BLOCKED', detail: `Weak buy in downtrend (bull: ${(bullishConfidence * 100).toFixed(1)}%)` });
+      signalBreakdown.bullishTotal = bullishConfidence;
+      signalBreakdown.bearishTotal = bearishConfidence;
+      signalBreakdown.finalConfidence = Math.max(0, Math.min(1.0, confidence));
+      signalBreakdown.finalDirection = 'neutral';
       marketData.direction = 'neutral';
       marketData.bullishScore = bullishConfidence;
       marketData.bearishScore = bearishConfidence;
+      marketData.signalBreakdown = signalBreakdown;
       return Math.max(0, Math.min(1.0, confidence));
     }
 
@@ -2961,10 +3013,12 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
     if (marketData && marketData.indicators && marketData.indicators.rsi) {
       if (marketData.indicators.rsi > 80 && direction === 'buy') {
         console.log(`🚫 RSI SAFETY: Blocking BUY at RSI ${marketData.indicators.rsi.toFixed(1)} (>80) - preventing top buying!`);
+        signalBreakdown.filters.push({ type: 'RSI_SAFETY', action: 'BLOCKED_BUY', detail: `RSI ${marketData.indicators.rsi.toFixed(1)} > 80` });
         direction = 'hold';
         finalConfidence = 0;
       } else if (marketData.indicators.rsi < 20 && direction === 'sell') {
         console.log(`🚫 RSI SAFETY: Blocking SELL at RSI ${marketData.indicators.rsi.toFixed(1)} (<20) - preventing bottom selling!`);
+        signalBreakdown.filters.push({ type: 'RSI_SAFETY', action: 'BLOCKED_SELL', detail: `RSI ${marketData.indicators.rsi.toFixed(1)} < 20` });
         direction = 'hold';
         finalConfidence = 0;
       }
@@ -3004,6 +3058,13 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
     marketData.bullishScore = bullishConfidence;
     marketData.bearishScore = bearishConfidence;
     marketData.direction = direction;
+
+    // CHANGE 2026-02-13: Store complete signal breakdown on marketData for trade logging
+    signalBreakdown.bullishTotal = bullishConfidence;
+    signalBreakdown.bearishTotal = bearishConfidence;
+    signalBreakdown.finalConfidence = finalConfidence;
+    signalBreakdown.finalDirection = direction;
+    marketData.signalBreakdown = signalBreakdown;
 
     // Log significant directional signals
     if (finalConfidence > 0.30 && direction !== 'neutral') {
@@ -3458,6 +3519,9 @@ console.log(`   📊 EMA9=${ema9?.toFixed(2) || 'null'}, EMA20=${ema20?.toFixed(
       confidence,
       size,
       reasoning,
+      signalBreakdown: marketData.signalBreakdown || null,
+      bullishScore: marketData.bullishScore || 0,
+      bearishScore: marketData.bearishScore || 0,
       patternTier: PATTERN_DOMINANCE_ENABLED ? patternTier : undefined,
       patternGated: PATTERN_DOMINANCE_ENABLED ? !patternGateApproved : undefined
     };

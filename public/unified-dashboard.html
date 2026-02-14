@@ -680,48 +680,66 @@
         }
 
         .trade-log-entry {
-            display: grid;
-            grid-template-columns: 60px 1fr auto;
-            gap: 10px;
+            display: flex;
             align-items: center;
-            padding: 10px 12px;
-            margin-bottom: 6px;
-            background: rgba(0, 0, 0, 0.7);
+            gap: 8px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            background: rgba(0, 0, 0, 0.6);
             border-radius: 6px;
-            font-size: 13px;
-            border-left: 3px solid transparent;
-        }
-
-        .trade-log-entry:has(.trade-type[style*="00ff41"]) {
-            border-left-color: #00ff41;
-        }
-
-        .trade-log-entry:has(.trade-type[style*="ff4444"]) {
-            border-left-color: #ff4444;
-        }
-
-        .trade-type {
-            font-weight: 700;
-            text-transform: uppercase;
             font-size: 12px;
-            letter-spacing: 0.5px;
+            border-left: 3px solid transparent;
+            transition: background 0.15s;
         }
 
-        .trade-value {
-            font-weight: 600;
+        .trade-log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .trade-log-entry.entry-buy {
+            border-left-color: #00ff88;
+        }
+
+        .trade-log-entry.entry-sell {
+            border-left-color: #ff3366;
+        }
+
+        .trade-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 800;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            min-width: 38px;
             text-align: center;
         }
 
-        .trade-time {
-            color: #888;
-            font-size: 11px;
+        .trade-badge.buy { background: rgba(0, 255, 136, 0.15); color: #00ff88; }
+        .trade-badge.sell { background: rgba(255, 51, 102, 0.15); color: #ff3366; }
+
+        .trade-price {
+            color: #ccc;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .trade-pnl {
+            font-weight: 700;
+            font-size: 12px;
+            min-width: 70px;
             text-align: right;
         }
 
-        .trade-duration {
-            color: #666;
-            font-size: 11px;
-            margin-left: 5px;
+        .trade-pnl.profit { color: #00ff88; }
+        .trade-pnl.loss { color: #ff3366; }
+        .trade-pnl.neutral { color: #888; }
+
+        .trade-meta {
+            color: #555;
+            font-size: 10px;
+            min-width: 60px;
+            text-align: right;
         }
 
         /* Chain of Thought - CHANGE 2026-01-30: Enhanced styling */
@@ -1072,6 +1090,11 @@
 
         /* Tablet Portrait (768px) - Collapse panels by default */
         @media screen and (max-width: 768px) {
+            .main-container {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
             .edge-panel {
                 width: 260px;
                 right: 10px;
@@ -1137,6 +1160,60 @@
 
         /* Mobile (480px) - Stack vertically, bottom sheet approach */
         @media screen and (max-width: 480px) {
+            .main-container {
+                padding-left: 5px !important;
+                padding-right: 5px !important;
+            }
+
+            .header {
+                flex-direction: column;
+                padding: 8px;
+                gap: 5px;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .header .subtitle {
+                font-size: 9px;
+                letter-spacing: 1px;
+            }
+
+            .unified-chart-section {
+                padding: 6px;
+                border-radius: 4px;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-start;
+            }
+
+            .chart-header .chart-title {
+                font-size: 14px;
+            }
+
+            #indicatorCheckboxes {
+                flex-wrap: wrap;
+                gap: 2px;
+            }
+
+            .indicator-check {
+                font-size: 9px;
+            }
+
+            .signal-overlay {
+                top: auto !important;
+                bottom: 10px !important;
+                right: 10px !important;
+                left: 10px !important;
+                min-width: auto !important;
+                max-height: 120px;
+                overflow-y: auto;
+            }
+
             .edge-panel {
                 position: fixed;
                 bottom: 10px;
@@ -2539,10 +2616,17 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Signal Pipeline Panel -->
+                <div class="signal-overlay" id="signalOverlay" style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.85); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:10px; min-width:220px; z-index:100; font-family:monospace; display:none;">
+                    <h4 style="margin:0 0 6px 0; font-size:12px; color:#888;">📡 SIGNAL PIPELINE</h4>
+                    <div id="signalDirection" style="font-size:15px; font-weight:bold; color:#888;">WAITING...</div>
+                    <div id="signalConfidence" style="font-size:11px; color:#aaa; margin-bottom:6px;"></div>
+                    <div id="signalList" style="font-size:10px; max-height:140px; overflow-y:auto;"></div>
+                    <div id="moduleStatus" style="font-size:9px; color:#666; margin-top:6px; border-top:1px solid rgba(255,255,255,0.08); padding-top:4px;"></div>
+                </div>
             </div>
         </div>
-        
-        <!-- Trading Panel -->
         <div class="trading-panel">
             <!-- CHANGE 2026-01-29: Trading Controls commented out - this is a PROOF display, not trading interface
             <div class="panel-section">
@@ -2693,6 +2777,20 @@
         let bbLowerSeries = null;
         let vwapSeries = null;
         let superTrendSeries = null;
+
+        // 2026-02-12: New overlay series
+        let sma20Series = null;
+        let sma50Series = null;
+        let sma200Series = null;
+        let rsiOverlaySeries = null;      // RSI plotted in separate pane
+        let macdLineSeries = null;        // MACD line in separate pane
+        let macdSignalSeries = null;      // MACD signal in separate pane
+        let atrSeries = null;             // ATR in separate pane
+        let ichimokuTenkanSeries = null;
+        let ichimokuKijunSeries = null;
+        let ichimokuSenkouASeries = null;
+        let ichimokuSenkouBSeries = null;
+        let srPriceLines = [];            // Support/resistance as horizontal price lines
         
         // Active indicator overlays (all OFF by default - user preference)
         let activeOverlays = [];
@@ -3069,6 +3167,53 @@
                 lineWidth: 2,
                 visible: false,
             });
+
+            // 2026-02-12: SMA lines
+            sma20Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'SMA20' });
+            sma50Series = tvChart.addLineSeries({ color: '#0088ff', lineWidth: 1, visible: false, title: 'SMA50' });
+            sma200Series = tvChart.addLineSeries({ color: '#0044cc', lineWidth: 2, visible: false, title: 'SMA200' });
+
+            // 2026-02-12: Indicator sub-panes — stacked ABOVE volume bars (volume is 85-100%)
+            // RSI pane: 62-78% of chart (above volume)
+            rsiOverlaySeries = tvChart.addLineSeries({
+                color: '#ff0066', lineWidth: 1.5, visible: false, title: 'RSI',
+                priceScaleId: 'rsi',
+                priceFormat: { type: 'custom', formatter: v => v.toFixed(0) },
+            });
+            tvChart.priceScale('rsi').applyOptions({
+                scaleMargins: { top: 0.62, bottom: 0.22 },
+                visible: false,
+            });
+
+            // MACD pane: 62-78% of chart (shares space with RSI — user picks one)
+            macdLineSeries = tvChart.addLineSeries({
+                color: '#6600ff', lineWidth: 1.5, visible: false, title: 'MACD',
+                priceScaleId: 'macd',
+            });
+            macdSignalSeries = tvChart.addLineSeries({
+                color: '#ff6600', lineWidth: 1, visible: false, title: 'Signal',
+                priceScaleId: 'macd',
+            });
+            tvChart.priceScale('macd').applyOptions({
+                scaleMargins: { top: 0.62, bottom: 0.22 },
+                visible: false,
+            });
+
+            // ATR pane: 62-78% of chart (shares space — user picks one at a time)
+            atrSeries = tvChart.addLineSeries({
+                color: '#ff9800', lineWidth: 1, visible: false, title: 'ATR',
+                priceScaleId: 'atr',
+            });
+            tvChart.priceScale('atr').applyOptions({
+                scaleMargins: { top: 0.62, bottom: 0.22 },
+                visible: false,
+            });
+
+            // Ichimoku Cloud lines (on main price scale)
+            ichimokuTenkanSeries = tvChart.addLineSeries({ color: '#00bcd4', lineWidth: 1, visible: false, title: 'Tenkan' });
+            ichimokuKijunSeries = tvChart.addLineSeries({ color: '#ff5722', lineWidth: 1, visible: false, title: 'Kijun' });
+            ichimokuSenkouASeries = tvChart.addLineSeries({ color: '#4caf50', lineWidth: 1, visible: false, lineStyle: 2, title: 'SenkouA' });
+            ichimokuSenkouBSeries = tvChart.addLineSeries({ color: '#f44336', lineWidth: 1, visible: false, lineStyle: 2, title: 'SenkouB' });
             
             // Resize handler
             window.addEventListener('resize', () => {
@@ -3289,6 +3434,134 @@
             return vwap;
         }
 
+        // ============================================
+        // MISSING INDICATOR CALCULATIONS - 2026-02-12
+        // ============================================
+
+        function calculateSMA(closes, period) {
+            const sma = [];
+            for (let i = 0; i < closes.length; i++) {
+                if (i < period - 1) { sma.push(null); continue; }
+                const slice = closes.slice(i - period + 1, i + 1);
+                sma.push(slice.reduce((a, b) => a + b, 0) / period);
+            }
+            return sma;
+        }
+
+        function calculateRSIOverlay(closes, period = 14) {
+            // Returns RSI scaled to price range for overlay on main chart
+            const rsi = [];
+            let gains = 0, losses = 0;
+            for (let i = 0; i < closes.length; i++) {
+                if (i === 0) { rsi.push(null); continue; }
+                const change = closes[i] - closes[i - 1];
+                if (i <= period) {
+                    if (change > 0) gains += change; else losses -= change;
+                    if (i < period) { rsi.push(null); continue; }
+                    gains /= period; losses /= period;
+                } else {
+                    if (change > 0) { gains = (gains * (period - 1) + change) / period; losses = (losses * (period - 1)) / period; }
+                    else { gains = (gains * (period - 1)) / period; losses = (losses * (period - 1) - change) / period; }
+                }
+                const rs = losses === 0 ? 100 : gains / losses;
+                rsi.push(100 - (100 / (1 + rs)));
+            }
+            return rsi; // 0-100 values
+        }
+
+        function calculateMACDOverlay(closes) {
+            const ema12 = calculateEMA(closes, 12);
+            const ema26 = calculateEMA(closes, 26);
+            const macdLine = ema12.map((v, i) => v - ema26[i]);
+            const signalLine = calculateEMA(macdLine, 9);
+            return { macd: macdLine, signal: signalLine };
+        }
+
+        function calculateATR(candles, period = 14) {
+            const atr = [];
+            const trs = [];
+            for (let i = 0; i < candles.length; i++) {
+                if (i === 0) { trs.push(candles[i].high - candles[i].low); atr.push(null); continue; }
+                const tr = Math.max(
+                    candles[i].high - candles[i].low,
+                    Math.abs(candles[i].high - candles[i - 1].close),
+                    Math.abs(candles[i].low - candles[i - 1].close)
+                );
+                trs.push(tr);
+                if (i < period) { atr.push(null); continue; }
+                if (i === period) {
+                    atr.push(trs.slice(0, period).reduce((a, b) => a + b, 0) / period);
+                } else {
+                    atr.push((atr[atr.length - 1] * (period - 1) + tr) / period);
+                }
+            }
+            return atr;
+        }
+
+        function calculateIchimoku(candles) {
+            const tenkan = [], kijun = [], senkouA = [], senkouB = [];
+            const highLow = (data, start, len) => {
+                const slice = data.slice(Math.max(0, start - len + 1), start + 1);
+                return { high: Math.max(...slice.map(c => c.high)), low: Math.min(...slice.map(c => c.low)) };
+            };
+            for (let i = 0; i < candles.length; i++) {
+                // Tenkan-sen (9 period)
+                if (i >= 8) {
+                    const hl9 = highLow(candles, i, 9);
+                    tenkan.push((hl9.high + hl9.low) / 2);
+                } else { tenkan.push(null); }
+                // Kijun-sen (26 period)
+                if (i >= 25) {
+                    const hl26 = highLow(candles, i, 26);
+                    kijun.push((hl26.high + hl26.low) / 2);
+                } else { kijun.push(null); }
+                // Senkou A (average of tenkan + kijun, plotted 26 ahead)
+                if (tenkan[i] && kijun[i]) { senkouA.push((tenkan[i] + kijun[i]) / 2); }
+                else { senkouA.push(null); }
+                // Senkou B (52 period, plotted 26 ahead)
+                if (i >= 51) {
+                    const hl52 = highLow(candles, i, 52);
+                    senkouB.push((hl52.high + hl52.low) / 2);
+                } else { senkouB.push(null); }
+            }
+            return { tenkan, kijun, senkouA, senkouB };
+        }
+
+        function calculateSupportResistance(candles) {
+            // Simple pivot-based S/R levels
+            const levels = [];
+            if (candles.length < 10) return levels;
+            const lookback = Math.min(50, candles.length);
+            const recent = candles.slice(-lookback);
+            // Find local highs and lows
+            for (let i = 2; i < recent.length - 2; i++) {
+                if (recent[i].high > recent[i - 1].high && recent[i].high > recent[i - 2].high &&
+                    recent[i].high > recent[i + 1].high && recent[i].high > recent[i + 2].high) {
+                    levels.push({ price: recent[i].high, type: 'resistance' });
+                }
+                if (recent[i].low < recent[i - 1].low && recent[i].low < recent[i - 2].low &&
+                    recent[i].low < recent[i + 1].low && recent[i].low < recent[i + 2].low) {
+                    levels.push({ price: recent[i].low, type: 'support' });
+                }
+            }
+            // Cluster nearby levels (within 0.3%)
+            const clustered = [];
+            const used = new Set();
+            for (let i = 0; i < levels.length; i++) {
+                if (used.has(i)) continue;
+                let sum = levels[i].price, count = 1;
+                for (let j = i + 1; j < levels.length; j++) {
+                    if (used.has(j)) continue;
+                    if (Math.abs(levels[j].price - levels[i].price) / levels[i].price < 0.003) {
+                        sum += levels[j].price; count++; used.add(j);
+                    }
+                }
+                clustered.push({ price: sum / count, type: levels[i].type, strength: count });
+                used.add(i);
+            }
+            return clustered.sort((a, b) => b.strength - a.strength).slice(0, 6);
+        }
+
         function loadHistoricalCandles(candles) {
             if (!candleSeries || !candles || !candles.length) return;
 
@@ -3335,7 +3608,42 @@
                 const vwap = calculateVWAP(data);
                 vwapSeries.setData(vwap.map((v, i) => ({ time: times[i], value: v })));
 
-                console.log(`✅ Calculated indicators for ${data.length} candles`);
+                // 2026-02-12: SMA
+                const sma20 = calculateSMA(closes, 20);
+                const sma50 = calculateSMA(closes, 50);
+                const sma200 = calculateSMA(closes, 200);
+                sma20Series.setData(sma20.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                sma50Series.setData(sma50.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                sma200Series.setData(sma200.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+
+                // RSI overlay (separate pane, 0-100)
+                const rsiVals = calculateRSIOverlay(closes, 14);
+                rsiOverlaySeries.setData(rsiVals.map((v, i) => v !== null ? { time: times[i], value: v } : null).filter(x => x));
+
+                // MACD overlay (separate pane)
+                const macdData = calculateMACDOverlay(closes);
+                macdLineSeries.setData(macdData.macd.map((v, i) => ({ time: times[i], value: v })));
+                macdSignalSeries.setData(macdData.signal.map((v, i) => ({ time: times[i], value: v })));
+
+                // ATR (separate pane)
+                const atrVals = calculateATR(data, 14);
+                atrSeries.setData(atrVals.map((v, i) => v !== null ? { time: times[i], value: v } : null).filter(x => x));
+
+                // Ichimoku Cloud
+                if (data.length >= 52) {
+                    const ich = calculateIchimoku(data);
+                    ichimokuTenkanSeries.setData(ich.tenkan.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                    ichimokuKijunSeries.setData(ich.kijun.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                    ichimokuSenkouASeries.setData(ich.senkouA.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                    ichimokuSenkouBSeries.setData(ich.senkouB.map((v, i) => v ? { time: times[i], value: v } : null).filter(x => x));
+                }
+
+                // Support/Resistance levels
+                const srLevels = calculateSupportResistance(data);
+                window.__srLevels = srLevels;
+                // S/R only shows when checkbox is checked (handled in updateIndicatorOverlays)
+
+                console.log(`✅ Calculated indicators for ${data.length} candles (incl. SMA, RSI, MACD, ATR, Ichimoku, S/R)`);
             }
 
             // Volume bars
@@ -3355,6 +3663,9 @@
                     from: data.length - barsToShow,
                     to: data.length
                 });
+                // 2026-02-12: Force Y-axis to rescale to new asset's price range
+                tvChart.priceScale('right').applyOptions({ autoScale: true });
+                tvChart.timeScale().fitContent();
             }
         }
         
@@ -3500,21 +3811,8 @@
                 statusTimestamps.bot = Date.now();
                 updateStatusLight('botLight', 'green');
 
-                // CHANGE 2026-01-23: Update performance stats from price message
-                if (data.data.totalPnL !== undefined) {
-                    const pnl = data.data.totalPnL;
-                    const el = document.getElementById('totalPnl');
-                    if (el) {
-                        el.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-                        el.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
-                    }
-                }
-                if (data.data.winRate !== undefined) {
-                    const el = document.getElementById('winRate');
-                    if (el) {
-                        el.textContent = `${data.data.winRate.toFixed(1)}%`;
-                    }
-                }
+                // 2026-02-12: P&L and winRate removed from price handler
+                // Server sends these via state_update and performance_update only (single source of truth)
 
                 // Historical candles on FIRST load only
                 if (!window.__historicalLoaded && data.data.candles && data.data.candles.length > 0) {
@@ -3639,8 +3937,7 @@
                 alert('Trading RESUMED');
             }
 
-            // Pattern analysis - CHANGE 2026-01-29: Enhanced with descriptions
-            // CHANGE 2026-01-30: Added SVG pattern visualizations
+            // Pattern analysis - 2026-02-12: REWRITTEN for real candlestick detection
             else if (data.type === 'pattern_analysis') {
                 const pattern = data.pattern || {};
                 const patternInfo = getPatternInfo(pattern.name);
@@ -3649,33 +3946,70 @@
                 document.getElementById('currentPatternName').textContent =
                     `${patternInfo.emoji} ${patternInfo.name}`;
 
-                // CHANGE 2026-01-30: Render pattern SVG visualization
+                // Render pattern SVG visualization
                 const patternVisual = document.getElementById('patternVisual');
                 if (patternVisual && pattern.name) {
                     const svg = getPatternSVG(pattern.name);
                     patternVisual.innerHTML = svg;
                 }
 
-                // Update description with confidence and educational content
-                document.getElementById('patternDescription').innerHTML = `
-                    <p class="pattern-info"><strong>Confidence:</strong> ${pattern.confidence || 0}%</p>
-                    <p class="pattern-info" style="color: #ddd; margin-top: 8px;">${patternInfo.description}</p>
-                `;
+                // Build pattern info display
+                let descHTML = '';
 
-                // Update pattern memory stats if available
+                // Primary pattern confidence (real number now, not always 0.1%)
+                const conf = parseFloat(pattern.confidence) || 0;
+                const confColor = conf >= 60 ? '#00ff88' : conf >= 40 ? '#ffd700' : '#ff6b6b';
+                descHTML += `<p class="pattern-info"><strong>Confidence:</strong> <span style="color:${confColor};font-size:15px;font-weight:700">${conf}%</span></p>`;
+
+                // Direction badge
+                if (pattern.direction && pattern.direction !== 'neutral') {
+                    const dirColor = pattern.direction === 'buy' ? '#00ff88' : '#ff3366';
+                    const dirIcon = pattern.direction === 'buy' ? '▲' : '▼';
+                    descHTML += `<p class="pattern-info"><span style="color:${dirColor};font-weight:700">${dirIcon} ${pattern.direction.toUpperCase()}</span></p>`;
+                }
+
+                // Description
+                if (pattern.description) {
+                    descHTML += `<p class="pattern-info" style="color: #ddd; margin-top: 6px;">${pattern.description}</p>`;
+                } else {
+                    descHTML += `<p class="pattern-info" style="color: #ddd; margin-top: 6px;">${patternInfo.description}</p>`;
+                }
+
+                // Additional detected patterns (if multiple)
+                if (pattern.allPatterns && pattern.allPatterns.length > 1) {
+                    descHTML += `<div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">`;
+                    descHTML += `<p style="color:#888;font-size:10px;margin-bottom:4px;">ALSO DETECTED:</p>`;
+                    pattern.allPatterns.slice(1, 4).forEach(p => {
+                        const pInfo = getPatternInfo(p.name);
+                        const pColor = p.direction === 'buy' ? '#00ff88' : p.direction === 'sell' ? '#ff3366' : '#888';
+                        descHTML += `<p style="font-size:11px;color:${pColor};margin:2px 0;">${pInfo.emoji} ${pInfo.name} — ${p.confidence}%</p>`;
+                    });
+                    descHTML += `</div>`;
+                }
+
+                // Detection status (real count, not 8000+ fake patterns)
                 if (data.patternMemory) {
                     const mem = data.patternMemory;
-                    document.getElementById('patternDescription').innerHTML += `
-                        <p class="pattern-info" style="margin-top: 10px; color: #888; font-size: 11px;">
-                            🧠 ${mem.status} | ${mem.count} patterns learned | ${mem.uniquePatterns} unique
-                        </p>
-                    `;
+                    descHTML += `<p class="pattern-info" style="margin-top: 8px; color: #666; font-size: 10px;">
+                        📊 ${mem.status}${mem.uniquePatterns > 0 ? ` · ${mem.uniquePatterns} unique types` : ''}
+                    </p>`;
                 }
 
-                // Draw pattern visualization if we have pattern data
-                if (pattern.allPatterns && pattern.allPatterns.length > 0) {
-                    drawPatternVisualization(pattern.allPatterns);
-                }
+                document.getElementById('patternDescription').innerHTML = descHTML;
+
+                // Update confidence display in ML panel
+                const confML = document.getElementById('confidenceML');
+                if (confML) confML.textContent = `${conf}%`;
+
+                // 2026-02-12: Cross-update the INDICATORS overlay box with real pattern name
+                const patternName = patternInfo.name || 'None';
+                ['patternCore', 'patternML'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.textContent = patternName;
+                        el.style.color = pattern.direction === 'buy' ? '#00ff88' : pattern.direction === 'sell' ? '#ff3366' : '#ccc';
+                    }
+                });
             }
 
             // DISABLED 2026-02-01: Duplicate handler - trade messages already handled above
@@ -3683,6 +4017,59 @@
             // else if (data.type === 'trade_opened' && data.trade) {
             //     plotTradeSignal(data.trade);
             // }
+
+            // Handle SignalGenerator pipeline data
+            else if (data.type === 'signal_analysis') {
+                const sig = data.signal;
+                const mods = data.modules;
+
+                // Show the signal panel when we start receiving data
+                const panel = document.getElementById('signalOverlay');
+                if (panel) panel.style.display = 'block';
+
+                // Direction with color
+                const dirEl = document.getElementById('signalDirection');
+                if (dirEl) {
+                    const colors = { buy: '#00e676', sell: '#ff5252', hold: '#888' };
+                    const icons = { buy: '📈', sell: '📉', hold: '⏸️' };
+                    dirEl.style.color = colors[sig.direction] || '#888';
+                    dirEl.textContent = `${icons[sig.direction] || ''} ${sig.direction.toUpperCase()} @ ${(sig.confidence * 100).toFixed(0)}%`;
+                }
+
+                // Signal count
+                const confEl = document.getElementById('signalConfidence');
+                if (confEl) {
+                    confEl.textContent = `${sig.meta.signalsFired} signals | Bull: ${sig.meta.bullishCount || 0} Bear: ${sig.meta.bearishCount || 0}`;
+                }
+
+                // Individual signals that voted
+                const listEl = document.getElementById('signalList');
+                if (listEl && sig.signals) {
+                    listEl.innerHTML = sig.signals.map(s => {
+                        const color = s.direction === 'buy' ? '#00e676' : s.direction === 'sell' ? '#ff5252' : '#666';
+                        const icon = s.direction === 'buy' ? '▲' : s.direction === 'sell' ? '▼' : '─';
+                        const bar = '█'.repeat(Math.round(s.strength * 8));
+                        return `<div style="color:${color}; margin:1px 0;">${icon} ${s.name} <span style="opacity:0.4">${bar}</span></div>`;
+                    }).join('');
+                }
+
+                // Module status strip
+                const modEl = document.getElementById('moduleStatus');
+                if (modEl && mods) {
+                    const m = [];
+                    m.push(mods.emaCrossover?.active ? '<span style="color:#00bcd4">EMA✓</span>' : '<span style="color:#333">EMA✗</span>');
+                    m.push(mods.liquiditySweep?.active ? '<span style="color:#ff9800">SWEEP✓</span>' : '<span style="color:#333">SWEEP✗</span>');
+                    m.push(mods.maDynamicSR?.active ? '<span style="color:#9c27b0">MASR✓</span>' : '<span style="color:#333">MASR✗</span>');
+                    m.push(mods.tpo?.active ? '<span style="color:#ffeb3b">TPO✓</span>' : '<span style="color:#333">TPO✗</span>');
+                    if (mods.regime?.regime && mods.regime.regime !== 'unknown') m.push(`<span style="color:#4caf50">${mods.regime.regime}</span>`);
+                    if (mods.patterns?.length > 0) m.push(`<span style="color:#e91e63">${mods.patterns.length}pat</span>`);
+                    modEl.innerHTML = m.join(' │ ');
+                }
+
+                // Also update the Confidence indicator in ML panel
+                const confML = document.getElementById('confidenceML');
+                if (confML) confML.textContent = `${(sig.confidence * 100).toFixed(0)}%`;
+            }
 
             // Neural votes
             else if (data.type === 'neural_vote') {
@@ -3889,7 +4276,8 @@
         function updateBotStatus(tier, data) {
             if (tier && botStates[tier]) {
                 botStates[tier].connected = true;
-                if (data.pnl !== undefined) botStates[tier].pnl += data.pnl;
+                // 2026-02-12: DON'T accumulate pnl locally — server sends authoritative totalPnL
+                // via state_update and performance_update messages
                 if (data.confidence !== undefined) botStates[tier].confidence = data.confidence;
                 botStates[tier].trades++;
                 updateBotStatusIndicators();
@@ -3897,27 +4285,20 @@
         }
         
         function updateStats(data) {
-            let totalPnl = 0;
+            // 2026-02-12: P&L and winRate are set ONLY by server messages 
+            // (state_update, performance_update, price). No local accumulation.
+            // This function only updates trades count and confidence.
             let avgConfidence = 0;
             let activeCount = 0;
 
             Object.keys(botStates).forEach(tier => {
                 if (botStates[tier].connected) {
-                    totalPnl += botStates[tier].pnl || 0;
                     avgConfidence += botStates[tier].confidence || 0;
                     activeCount++;
                 }
             });
 
             if (activeCount > 0) avgConfidence /= activeCount;
-
-            const pnlEl = document.getElementById('totalPnl');
-            pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
-            pnlEl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
-
-            if (data.winRate !== undefined) {
-                document.getElementById('winRate').textContent = `${data.winRate.toFixed(1)}%`;
-            }
 
             document.getElementById('confidence').textContent = `${avgConfidence.toFixed(1)}%`;
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
@@ -3927,32 +4308,39 @@
         function addTradeToLog(trade) {
             const tradeLog = document.getElementById('tradeLog');
             const entry = document.createElement('div');
-            entry.className = 'trade-log-entry';
 
-            const isBuy = trade.type?.toLowerCase() === 'buy' || trade.direction === 'long';
-            const color = tradeColors[trade.type?.toLowerCase()] || (isBuy ? '#00ff41' : '#ff4444');
-            const price = trade.price ? `$${trade.price.toLocaleString()}` : '';
+            const isBuy = trade.type?.toUpperCase() === 'BUY' || trade.direction === 'long';
+            const price = trade.price || lastPrice;
+            const time = new Date(trade.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-            let valueDisplay;
+            entry.className = `trade-log-entry ${isBuy ? 'entry-buy' : 'entry-sell'}`;
+
             if (isBuy) {
-                // BUY: Show entry price
-                valueDisplay = `@ ${price}`;
+                // ENTRY — just show price
+                entry.innerHTML = `
+                    <span class="trade-badge buy">BUY</span>
+                    <span class="trade-price">$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span class="trade-pnl neutral">OPEN</span>
+                    <span class="trade-meta">${time}</span>
+                `;
             } else {
-                // SELL: Show actual P&L with color
+                // EXIT — show P&L prominently
                 const pnl = trade.pnl || 0;
                 const isProfit = pnl >= 0;
-                const pnlClass = isProfit ? 'positive' : 'negative';
-                valueDisplay = `<span class="${pnlClass}">${isProfit ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}</span>`;
+                const pnlClass = isProfit ? 'profit' : 'loss';
+                const pnlSign = isProfit ? '+' : '';
+                const duration = trade.duration || '';
+
+                entry.innerHTML = `
+                    <span class="trade-badge sell">SELL</span>
+                    <span class="trade-price">$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span class="trade-pnl ${pnlClass}">${pnlSign}$${pnl.toFixed(2)}</span>
+                    <span class="trade-meta">${time}${duration ? '<br>' + duration : ''}</span>
+                `;
             }
 
-            entry.innerHTML = `
-                <span class="trade-type" style="color: ${color}">${(trade.type || 'TRADE').toUpperCase()}</span>
-                <span class="trade-value">${valueDisplay}</span>
-                <span class="trade-time">${new Date(trade.timestamp).toLocaleTimeString()}${trade.duration ? ` · ${trade.duration}` : ''}</span>
-            `;
-
             tradeLog.insertBefore(entry, tradeLog.firstChild);
-            while (tradeLog.children.length > 20) tradeLog.removeChild(tradeLog.lastChild);
+            while (tradeLog.children.length > 30) tradeLog.removeChild(tradeLog.lastChild);
 
             tradesExecuted++;
             document.getElementById('tradesExecuted').textContent = tradesExecuted;
@@ -4018,33 +4406,38 @@
                 return;
             }
 
-            // Plot marker on the chart
             const isLong = trade.type === 'BUY' || trade.side === 'buy' || trade.direction === 'long';
-            // CHANGE 2026-01-29: Convert trade timestamp to local time for chart
             let tradeTime = trade.timestamp ? Math.floor(trade.timestamp / 1000) : Math.floor(Date.now() / 1000);
             tradeTime = timeToLocal(tradeTime);
+
+            // 2026-02-12: Snap marker to nearest candle time so it actually shows
+            // TradingView lightweight charts silently drops markers that don't match a candle
+            const existingData = candleSeries.data ? candleSeries.data() : [];
+            if (existingData.length > 0) {
+                let closestTime = existingData[existingData.length - 1].time; // default to last candle
+                let minDiff = Infinity;
+                for (let i = existingData.length - 1; i >= Math.max(0, existingData.length - 10); i--) {
+                    const diff = Math.abs(existingData[i].time - tradeTime);
+                    if (diff < minDiff) { minDiff = diff; closestTime = existingData[i].time; }
+                }
+                tradeTime = closestTime;
+            }
+
             const marker = {
                 time: tradeTime,
                 position: isLong ? 'belowBar' : 'aboveBar',
                 color: isLong ? '#00ff88' : '#ff3366',
                 shape: isLong ? 'arrowUp' : 'arrowDown',
-                text: `${isLong ? 'BUY' : 'SELL'} @ ${trade.price || lastPrice}`
+                text: `${isLong ? '▲ BUY' : '▼ SELL'} $${(trade.price || lastPrice).toLocaleString()}`
             };
 
-            // Get existing markers and add new one
+            // Get existing markers, add new, sort by time (required by lightweight charts)
             const existingMarkers = candleSeries.markers() || [];
             existingMarkers.push(marker);
+            existingMarkers.sort((a, b) => a.time - b.time);
             candleSeries.setMarkers(existingMarkers);
 
-            // Also add to trade log
-            const tradeData = {
-                type: isLong ? 'buy' : 'sell',
-                pnl: trade.pnl || 0,
-                timestamp: trade.timestamp || Date.now()
-            };
-            updateTradeHistory(tradeData);
-
-            console.log(`📍 Trade signal plotted: ${marker.text}`);
+            console.log(`📍 Trade marker: ${marker.text} snapped to candle time ${tradeTime}`);
         }
         
         function executeTrade(action) {
@@ -4117,9 +4510,45 @@
 
         function changeAsset(asset) {
             console.log('Asset changed to:', asset);
-            candleSeries.setData([]);
-            lineSeries.setData([]);
-            window.__historicalLoaded = false; // Reset to reload history
+
+            // 2026-02-12: Clear EVERYTHING — candles, volume, all indicators, markers
+            if (candleSeries) { candleSeries.setData([]); candleSeries.setMarkers([]); }
+            if (lineSeries) lineSeries.setData([]);
+            if (volumeSeries) volumeSeries.setData([]);
+
+            // Clear all indicator overlay series
+            if (sma20Series) sma20Series.setData([]);
+            if (sma50Series) sma50Series.setData([]);
+            if (sma200Series) sma200Series.setData([]);
+            if (bbUpperSeries) bbUpperSeries.setData([]);
+            if (bbMiddleSeries) bbMiddleSeries.setData([]);
+            if (bbLowerSeries) bbLowerSeries.setData([]);
+            if (vwapSeries) vwapSeries.setData([]);
+            if (rsiOverlaySeries) rsiOverlaySeries.setData([]);
+            if (macdLineSeries) macdLineSeries.setData([]);
+            if (macdSignalSeries) macdSignalSeries.setData([]);
+            if (atrSeries) atrSeries.setData([]);
+            if (ichimokuTenkanSeries) ichimokuTenkanSeries.setData([]);
+            if (ichimokuKijunSeries) ichimokuKijunSeries.setData([]);
+            if (ichimokuSenkouASeries) ichimokuSenkouASeries.setData([]);
+            if (ichimokuSenkouBSeries) ichimokuSenkouBSeries.setData([]);
+
+            // Clear S/R price lines
+            if (srPriceLines && srPriceLines.length > 0) {
+                srPriceLines.forEach(line => {
+                    try { candleSeries.removePriceLine(line); } catch(e) {}
+                });
+                srPriceLines = [];
+            }
+
+            // Force chart to reset its Y-axis scale for new asset's price range
+            tvChart.timeScale().fitContent();
+
+            window.__historicalLoaded = false;
+
+            // Reset indicator overlay display
+            document.getElementById('patternCore').textContent = 'None';
+            document.getElementById('patternML').textContent = 'None';
 
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'asset_change', asset }));
@@ -4132,10 +4561,33 @@
             console.log('Timeframe changed to:', timeframe);
             currentTimeframe = timeframe;
 
-            // Clear current chart data
-            if (candleSeries) candleSeries.setData([]);
+            // 2026-02-12: Clear ALL series on timeframe change (same as asset change)
+            if (candleSeries) { candleSeries.setData([]); candleSeries.setMarkers([]); }
             if (lineSeries) lineSeries.setData([]);
-            window.__historicalLoaded = false; // Reset to reload history
+            if (volumeSeries) volumeSeries.setData([]);
+            if (sma20Series) sma20Series.setData([]);
+            if (sma50Series) sma50Series.setData([]);
+            if (sma200Series) sma200Series.setData([]);
+            if (bbUpperSeries) bbUpperSeries.setData([]);
+            if (bbMiddleSeries) bbMiddleSeries.setData([]);
+            if (bbLowerSeries) bbLowerSeries.setData([]);
+            if (vwapSeries) vwapSeries.setData([]);
+            if (rsiOverlaySeries) rsiOverlaySeries.setData([]);
+            if (macdLineSeries) macdLineSeries.setData([]);
+            if (macdSignalSeries) macdSignalSeries.setData([]);
+            if (atrSeries) atrSeries.setData([]);
+            if (ichimokuTenkanSeries) ichimokuTenkanSeries.setData([]);
+            if (ichimokuKijunSeries) ichimokuKijunSeries.setData([]);
+            if (ichimokuSenkouASeries) ichimokuSenkouASeries.setData([]);
+            if (ichimokuSenkouBSeries) ichimokuSenkouBSeries.setData([]);
+            if (srPriceLines && srPriceLines.length > 0) {
+                srPriceLines.forEach(line => {
+                    try { candleSeries.removePriceLine(line); } catch(e) {}
+                });
+                srPriceLines = [];
+            }
+            tvChart.timeScale().fitContent();
+            window.__historicalLoaded = false;
 
             // Request new data with the selected timeframe
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -4167,7 +4619,7 @@
             activeOverlays = Array.from(checkboxes).map(cb => cb.value);
             console.log('Selected indicators:', activeOverlays);
 
-            // Toggle visibility
+            // Toggle visibility — original overlays
             ema20Series.applyOptions({ visible: activeOverlays.includes('ema') });
             ema50Series.applyOptions({ visible: activeOverlays.includes('ema') });
             ema200Series.applyOptions({ visible: activeOverlays.includes('ema') });
@@ -4175,6 +4627,49 @@
             bbMiddleSeries.applyOptions({ visible: activeOverlays.includes('bollinger') });
             bbLowerSeries.applyOptions({ visible: activeOverlays.includes('bollinger') });
             vwapSeries.applyOptions({ visible: activeOverlays.includes('vwap') });
+
+            // 2026-02-12: Toggle new overlays
+            if (sma20Series) sma20Series.applyOptions({ visible: activeOverlays.includes('sma') });
+            if (sma50Series) sma50Series.applyOptions({ visible: activeOverlays.includes('sma') });
+            if (sma200Series) sma200Series.applyOptions({ visible: activeOverlays.includes('sma') });
+
+            const showRsi = activeOverlays.includes('rsi');
+            if (rsiOverlaySeries) rsiOverlaySeries.applyOptions({ visible: showRsi });
+            tvChart.priceScale('rsi').applyOptions({ visible: showRsi });
+
+            const showMacd = activeOverlays.includes('macd');
+            if (macdLineSeries) macdLineSeries.applyOptions({ visible: showMacd });
+            if (macdSignalSeries) macdSignalSeries.applyOptions({ visible: showMacd });
+            tvChart.priceScale('macd').applyOptions({ visible: showMacd });
+
+            const showAtr = activeOverlays.includes('atr');
+            if (atrSeries) atrSeries.applyOptions({ visible: showAtr });
+            tvChart.priceScale('atr').applyOptions({ visible: showAtr });
+
+            if (ichimokuTenkanSeries) ichimokuTenkanSeries.applyOptions({ visible: activeOverlays.includes('ichimoku') });
+            if (ichimokuKijunSeries) ichimokuKijunSeries.applyOptions({ visible: activeOverlays.includes('ichimoku') });
+            if (ichimokuSenkouASeries) ichimokuSenkouASeries.applyOptions({ visible: activeOverlays.includes('ichimoku') });
+            if (ichimokuSenkouBSeries) ichimokuSenkouBSeries.applyOptions({ visible: activeOverlays.includes('ichimoku') });
+
+            // S/R - toggle price lines
+            const showSR = activeOverlays.includes('sr');
+            srPriceLines.forEach(line => {
+                try { candleSeries.removePriceLine(line); } catch(e) {}
+            });
+            if (showSR && window.__srLevels) {
+                srPriceLines = window.__srLevels.map(level => {
+                    return candleSeries.createPriceLine({
+                        price: level.price,
+                        color: level.type === 'resistance' ? '#ff4444' : '#00ff88',
+                        lineWidth: 1,
+                        lineStyle: 2,
+                        axisLabelVisible: true,
+                        title: `${level.type === 'resistance' ? 'R' : 'S'} (${level.strength})`,
+                    });
+                });
+            } else {
+                srPriceLines = [];
+            }
 
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'indicator_selection', indicators: activeOverlays }));
@@ -4273,6 +4768,22 @@
             connectWebSocket();
             switchTier('ml');
 
+            // Auto-collapse panels on mobile
+            if (window.innerWidth <= 768) {
+                const edge = document.getElementById('edgePanel');
+                const trade = document.getElementById('tradeManager');
+                if (edge && !edge.classList.contains('collapsed')) {
+                    edge.classList.add('collapsed');
+                    const mainC = document.querySelector('.main-container');
+                    if (mainC) mainC.classList.add('right-collapsed');
+                    const toggle = edge.querySelector('.edge-toggle');
+                    if (toggle) toggle.textContent = '+';
+                }
+                if (trade) {
+                    const panel = trade.querySelector('.trade-panel');
+                    if (panel) panel.style.display = 'none';
+                }
+            }
             setTimeout(() => {
                 ['core', 'ml'].forEach(tier => {
                     botStates[tier].connected = true;

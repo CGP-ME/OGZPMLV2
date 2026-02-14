@@ -251,7 +251,8 @@ const GridTradingStrategy = loader.get('core', 'GridTradingStrategy');
 // Change 587: Wire SafetyNet and TradeLogger into live loop
 // Both removed - SafetyNet too restrictive, TradeLogger doesn't exist
 // const TradingSafetyNet = require('./core/TradingSafetyNet');
-// const TradeLogger = require('./core/TradeLogger');
+// CHANGE 2026-02-13: Re-enable TradeLogger for comprehensive trade logging
+const { logTrade, getTodayStats } = require('./core/tradeLogger');
 
 // 🤖 AI Co-Founder (Change 574 - Opus Architecture + Codex Fix)
 const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
@@ -2435,12 +2436,17 @@ class OGZPrimeV14Bot {
           // CHANGE 2025-12-11: Use StateManager for atomic position updates
           // CHANGE 2025-12-11 FIX: orderId was undefined - use unifiedResult.orderId
           // FIX 2026-02-02: Attach patterns + indicators for learning feedback at exit
+          // CHANGE 2026-02-13: Attach signalBreakdown for comprehensive trade logging
           const positionResult = await stateManager.openPosition(positionSize, price, {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
             patterns: patterns || [],  // Attach detected patterns for outcome learning
             entryIndicators: indicators,  // Attach indicators for feature vector reconstruction
-            entryTime: this.marketData?.timestamp || Date.now()  // FIX 2026-02-05: Use candle time in backtest
+            entryTime: this.marketData?.timestamp || Date.now(),  // FIX 2026-02-05: Use candle time in backtest
+            signalBreakdown: brainDecision.signalBreakdown || null,  // Full decision reasoning
+            bullishScore: brainDecision.bullishScore || 0,
+            bearishScore: brainDecision.bearishScore || 0,
+            reasoning: brainDecision.reasoning || ''
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -2753,8 +2759,78 @@ class OGZPrimeV14Bot {
             // 3. Update PerformanceAnalyzer (using processTrade, not recordTrade)
             this.performanceAnalyzer.processTrade(completeTradeResult);
 
-            // 4. TradeLogger removed (module doesn't exist)
-            // this.tradeLogger.logTrade(completeTradeResult);
+            // 3.5 CHANGE 2026-02-14: Wire RiskManager trade tracking (was NEVER CALLED)
+            // Updates daily/weekly/monthly loss limits, drawdown, streaks, recovery mode
+            if (this.riskManager) {
+              this.riskManager.recordTradeResult({
+                success: pnl >= 0,
+                pnl: completeTradeResult.pnlDollars || 0
+              });
+            }
+
+            // 4. CHANGE 2026-02-13: Re-enable TradeLogger with comprehensive breakdown
+            try {
+              logTrade({
+                // Basic trade info
+                type: completeTradeResult.action || 'BUY',
+                entryPrice: buyTrade.entryPrice || buyTrade.price,
+                exitPrice: price,
+                currentPrice: price,
+                size: buyTrade.size,
+
+                // Financial results
+                pnl: completeTradeResult.pnlDollars || 0,
+                pnlPercent: pnl || 0,
+                fees: 0,
+
+                // Timing
+                entryTime: new Date(buyTrade.entryTime).toISOString(),
+                exitTime: new Date().toISOString(),
+                holdTime: holdDuration,
+
+                // Account
+                balanceBefore: stateManager.get('balance') - (completeTradeResult.pnlDollars || 0),
+                balanceAfter: stateManager.get('balance'),
+
+                // Technical indicators at entry
+                rsi: buyTrade.entryIndicators?.rsi || buyTrade.indicators?.rsi || 0,
+                macd: buyTrade.entryIndicators?.macd?.macd || buyTrade.indicators?.macd || 0,
+                macdSignal: buyTrade.entryIndicators?.macd?.signal || buyTrade.indicators?.macdSignal || 0,
+                trend: buyTrade.entryIndicators?.trend || buyTrade.indicators?.trend || 'unknown',
+                volatility: buyTrade.entryIndicators?.volatility || buyTrade.indicators?.volatility || 0,
+
+                // CHANGE 2026-02-13: Decision reasoning breakdown
+                confidence: buyTrade.confidence || 0,
+                signalBreakdown: buyTrade.signalBreakdown || null,
+                bullishScore: buyTrade.bullishScore || 0,
+                bearishScore: buyTrade.bearishScore || 0,
+                entryReason: buyTrade.reasoning || 'no reason stored',
+
+                // Exit analysis
+                exitReason: completeTradeResult.exitReason || 'signal',
+                exitIndicators: {
+                  rsi: indicators.rsi,
+                  macd: indicators.macd?.macd || 0,
+                  macdSignal: indicators.macd?.signal || 0,
+                  trend: indicators.trend,
+                  volatility: indicators.volatility || 0
+                },
+
+                // Pattern data
+                patternType: buyTrade.patterns?.[0]?.name || null,
+                patternConfidence: buyTrade.patterns?.[0]?.confidence || 0,
+
+                // Risk management
+                positionSize: buyTrade.size * buyTrade.entryPrice,
+                riskPercent: (Math.abs(completeTradeResult.pnlDollars || 0) / (stateManager.get('balance') || 1)) * 100,
+
+                // Session context
+                totalTrades: stateManager.get('tradeCount') || 0,
+                winRate: this.performanceAnalyzer?.getWinRate?.() || 0
+              });
+            } catch (logErr) {
+              console.warn(`⚠️ TradeLogger error: ${logErr.message}`);
+            }
 
             // 5. TRAI learning (if applicable)
             if (this.trai && this.pendingTraiDecisions?.has(buyTrade.orderId)) {

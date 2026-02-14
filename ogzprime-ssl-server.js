@@ -165,8 +165,8 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // Handle bot identification
-      if (data.type === 'identify' && data.source === 'trading_bot') {
+      // Handle bot 
+            if (data.type === 'identify' && data.source === 'trading_bot') {
         console.log('🤖 TRADING BOT IDENTIFIED!');
         ws.clientType = 'bot';
 

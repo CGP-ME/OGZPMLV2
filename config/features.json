@@ -143,7 +143,7 @@
       "version": "1.0.0",
       "settings": {
         "positionSizeMultiplier": 2.0,
-        "minConfidenceThreshold": 55,
+        "minConfidenceThreshold": 20,
         "profitTargetPercent": 1.5,
         "minHoldMinutes": 2,
         "tpoBoost": true,

@@ -1,0 +1,141 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "createdAt": "2026-02-11T07:58:01.997Z",
+    "lastUpdatedAt": "2026-02-11T07:58:02.289Z",
+    "filename": "SESSION-2026-02-11-07-58-01-test-session-form-pipeline.md"
+  },
+  "identity": {
+    "date": "2026-02-11",
+    "time": "07:58:01",
+    "platform": "Claude Code",
+    "sessionGoal": "Test session form pipeline",
+    "complexity": "Low",
+    "modulesInScope": [
+      "ogz-meta/session-form.js"
+    ]
+  },
+  "botStateStart": {
+    "process": {
+      "pm2Status": "online",
+      "uptime": "1489 minutes",
+      "restarts": 29,
+      "memoryUsage": "512 MB",
+      "cpuUsage": "1.1%"
+    },
+    "trading": {
+      "mode": "PAPER",
+      "inPosition": "Yes (0.007386418435517106 @ 66975.5)",
+      "balance": "$9398.19",
+      "activeAsset": "BTC-USD",
+      "dailyPnL": "$0.00",
+      "totalTradesToday": "unknown",
+      "winRate": "unknown"
+    },
+    "connections": {
+      "krakenWs": "unknown",
+      "dashboardWs": "unknown",
+      "lastDataReceived": "unknown",
+      "sslServer": "Running",
+      "dashboardAccessible": "unknown"
+    },
+    "knownIssues": []
+  },
+  "contextCheck": {
+    "guardrailsRead": false,
+    "landminesRead": false,
+    "architectureRead": false,
+    "recentChangesRead": false,
+    "pipelineAcknowledged": false,
+    "confirmedBy": []
+  },
+  "workLog": [
+    {
+      "claudito": "fixer",
+      "timestamp": "2026-02-11T07:58:02.142Z",
+      "action": "Applied test fix",
+      "filesCreated": [],
+      "filesModified": [
+        {
+          "file": "test-file.js",
+          "lines": "10-15",
+          "what": "Test change",
+          "why": "Testing session form"
+        }
+      ],
+      "filesDeleted": [],
+      "bugsFound": [],
+      "decisions": [
+        "Used minimal fix approach"
+      ],
+      "notes": null
+    }
+  ],
+  "filesCreated": [],
+  "filesModified": [
+    {
+      "file": "test-file.js",
+      "changes": [
+        {
+          "file": "test-file.js",
+          "lines": "10-15",
+          "what": "Test change",
+          "why": "Testing session form"
+        }
+      ]
+    }
+  ],
+  "filesDeleted": [],
+  "patches": [],
+  "bugsFound": [],
+  "decisions": [
+    "Used minimal fix approach"
+  ],
+  "botStateEnd": {
+    "process": {
+      "pm2Status": "online",
+      "uptime": "1489 minutes",
+      "restarts": 29,
+      "memoryUsage": "512 MB",
+      "cpuUsage": "0%"
+    },
+    "trading": {
+      "mode": "PAPER",
+      "inPosition": "Yes (0.007386418435517106 @ 66975.5)",
+      "balance": "$9398.19",
+      "activeAsset": "BTC-USD",
+      "dailyPnL": "$0.00",
+      "totalTradesToday": "unknown",
+      "winRate": "unknown"
+    },
+    "connections": {
+      "krakenWs": "unknown",
+      "dashboardWs": "unknown",
+      "lastDataReceived": "unknown",
+      "sslServer": "Running",
+      "dashboardAccessible": "unknown"
+    },
+    "knownIssues": []
+  },
+  "handoff": {
+    "readyToDeploy": [
+      "session-form.js"
+    ],
+    "inProgress": [],
+    "needsAttention": [],
+    "nextSteps": [
+      "Deploy to production"
+    ]
+  },
+  "verification": {
+    "botRunning": true,
+    "noCrashLoops": true,
+    "krakenConnected": false,
+    "dashboardConnected": false,
+    "dashboardLoads": false,
+    "patternMemoryWorking": false,
+    "noNewErrors": true,
+    "stateConsistent": false,
+    "newIssuesIntroduced": []
+  }
+}
