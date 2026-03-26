@@ -110,14 +110,26 @@ class OrderExecutor {
       // Phase 4 REWRITE: executionLayer deleted - use orderRouter for live, simulate for backtest/paper
       let tradeResult;
       if (this.ctx.backtestMode || this.ctx.paperTrading) {
-        // Backtest/Paper: Simulate trade execution
+        // Backtest/Paper: Simulate trade execution with slippage
         if (this.ctx.paperTrading) console.log('📝 PAPER MODE: Simulating order (no real execution)');
+
+        // FIX 2026-03-26 Bug 7: Apply slippage to simulated fills
+        // BUY/COVER pay more, SELL/SELL_SHORT receive less
+        const slippagePercent = TradingConfig.get('fees.slippage') || 0.0005;  // 0.05% default
+        const isBuyAction = decision.action === 'BUY' || decision.action === 'COVER';
+        const fillPrice = isBuyAction
+          ? price * (1 + slippagePercent)   // BUY/COVER: pay more
+          : price * (1 - slippagePercent);  // SELL/SELL_SHORT: receive less
+
         tradeResult = {
           success: true,
           orderId: `SIM_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          price: price,
+          price: fillPrice,
           amount: positionSize
         };
+
+        // Use slippage-adjusted price for position tracking
+        price = fillPrice;
       } else {
         // Live: Route through OrderRouter to exchange
         const symbol = this.ctx.tradingPair || 'BTC/USD';
