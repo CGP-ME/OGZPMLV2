@@ -36,6 +36,7 @@ class TradingLoop {
     // Local state
     this.rsiHistory = [];
     this._lastAggLog = null;
+    this.analyzing = false;  // FIX 2026-03-26 Bug 12: Concurrency control
 
     console.log('[TradingLoop] Initialized (Phase 15 - exact copy)');
   }
@@ -44,6 +45,14 @@ class TradingLoop {
    * Analyze market and make trade decisions - EXACT COPY from run-empire-v2.js
    */
   async analyzeAndTrade() {
+    // FIX 2026-03-26 Bug 12: Prevent re-entrant calls
+    if (this.analyzing) {
+      console.log('[TradingLoop] Already analyzing - skipping re-entrant call');
+      return;
+    }
+    this.analyzing = true;
+
+    try {
     // PAUSE_001 REVERTED 2026-02-04: The isTrading check was a band-aid
     // Real fix: WebSocket reconnect (this.connected = true in kraken_adapter_simple.js)
     // Frozen price/$0 P&L was caused by WebSocket not reconnecting, not missing pause check
@@ -611,6 +620,10 @@ class TradingLoop {
       await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult);
 
       // REMOVED 2026-03-17: Immediate re-entry after SELL deleted (churn loop fix)
+    }
+    } finally {
+      // FIX 2026-03-26 Bug 12: Always reset flag
+      this.analyzing = false;
     }
   }
 }
