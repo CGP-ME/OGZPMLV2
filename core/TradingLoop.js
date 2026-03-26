@@ -137,7 +137,9 @@ class TradingLoop {
     // ─── STEP 1: EXIT CHECK ───
     // Check each active position for exit conditions
     // This is INDEPENDENT of entry signals
-    for (const activeTrade of activeTrades) {
+    const currentPosition = stateManager.get('position');
+    const hasOpenPosition = currentPosition !== 0 && activeTrades.length > 0;
+    if (hasOpenPosition) for (const activeTrade of activeTrades) {
       exitContractManager.updateMaxProfit(activeTrade, price);
 
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
