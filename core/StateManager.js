@@ -281,17 +281,18 @@ class StateManager {
 
     // DEBUG: Log what we're doing
     const usdCost = size * price;  // Calculate USD cost
-    console.log(`📊 [StateManager] Opening position:`);
+    const tradeDirection = context.direction || 'long';
+    console.log(`📊 [StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
     console.log(`   Size: ${size} BTC`);
     console.log(`   Price: $${price}`);
     console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
+    console.log(`   Direction: ${tradeDirection}`);
     console.log(`   Current Balance: $${this.state.balance}`);
-    console.log(`   New Balance: $${(this.state.balance - usdCost).toFixed(2)}`);
 
     // CRITICAL FIX: Add trade to activeTrades Map
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
     const tradeAction = context.action || 'BUY';
-    const tradeDirection = context.direction || 'long';
+    // FIX 2026-03-26: Removed duplicate tradeDirection declaration (already set at line 284)
     const trade = {
       id: tradeId,
       action: tradeAction,  // BUY or SELL_SHORT
