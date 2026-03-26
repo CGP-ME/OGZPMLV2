@@ -11,7 +11,12 @@
 
 'use strict';
 
-const ROUND_TRIP_FEE = 0.52; // 0.26% × 2 sides (Kraken)
+const TradingConfig = require('../TradingConfig');
+
+// FIX 2026-03-26: Read fee from TradingConfig instead of hardcoding
+function getRoundTripFee() {
+  return TradingConfig.get('fees.totalRoundTrip') * 100; // Convert decimal to percentage
+}
 
 class MaxHoldChecker {
   /**
@@ -44,7 +49,8 @@ class MaxHoldChecker {
     // === STRATEGY-SPECIFIC MAX HOLD ===
     if (contract.maxHoldTimeMinutes && holdTimeMinutes >= contract.maxHoldTimeMinutes) {
       // Tag as winner only if P&L exceeds round-trip fees
-      const holdExitType = pnlPercent > ROUND_TRIP_FEE ? 'max_hold_winner' : 'max_hold_loser';
+      const roundTripFee = getRoundTripFee();
+      const holdExitType = pnlPercent > roundTripFee ? 'max_hold_winner' : 'max_hold_loser';
       return {
         shouldExit: true,
         exitReason: holdExitType,
