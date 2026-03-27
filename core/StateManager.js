@@ -183,6 +183,29 @@ class StateManager {
       const snapshot = { ...this.state };
       const timestamp = Date.now();
 
+      // FIX 2026-03-27: Handle delta fields INSIDE the lock
+      // This prevents race conditions when multiple closes happen on same candle
+      if (updates._balanceDelta !== undefined) {
+        updates.balance = this.state.balance + updates._balanceDelta;
+        delete updates._balanceDelta;
+      }
+      if (updates._inPositionDelta !== undefined) {
+        updates.inPosition = Math.max(0, this.state.inPosition + updates._inPositionDelta);
+        delete updates._inPositionDelta;
+      }
+      if (updates._realizedPnLDelta !== undefined) {
+        updates.realizedPnL = this.state.realizedPnL + updates._realizedPnLDelta;
+        delete updates._realizedPnLDelta;
+      }
+      if (updates._totalPnLDelta !== undefined) {
+        updates.totalPnL = this.state.totalPnL + updates._totalPnLDelta;
+        delete updates._totalPnLDelta;
+      }
+      if (updates._totalBalanceDelta !== undefined) {
+        updates.totalBalance = this.state.totalBalance + updates._totalBalanceDelta;
+        delete updates._totalBalanceDelta;
+      }
+
       // Validate updates
       this.validateUpdates(updates);
 
@@ -327,6 +350,7 @@ class StateManager {
 
     console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
+    // FIX 2026-03-27: Use deltas to avoid race conditions
     const updates = {
       position: newPosition,  // Positive for long, negative for short
       positionCount: this.state.positionCount + 1,
@@ -334,8 +358,8 @@ class StateManager {
         ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      balance: this.state.balance + balanceChange,
-      inPosition: this.state.inPosition + usdCost,  // Track USD exposure (abs value)
+      _balanceDelta: balanceChange,  // Applied inside lock
+      _inPositionDelta: usdCost,  // Applied inside lock
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,
       dailyTradeCount: this.state.dailyTradeCount + 1
@@ -463,16 +487,19 @@ class StateManager {
 
     console.log('[BAL-DEBUG] CLOSE isShort=' + isShort + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
+    // FIX 2026-03-27: Pass DELTAS instead of computed values
+    // updateState will apply deltas inside the lock to avoid race conditions
+    // when two positions close on the same candle
     const updates = {
       position: finalPosition,
       positionCount: partial ? this.state.positionCount : 0,
       entryPrice: partial ? this.state.entryPrice : 0,
       entryTime: partial ? this.state.entryTime : null,
-      balance: this.state.balance + balanceChange,
-      inPosition: Math.max(0, this.state.inPosition - usdCostLocked),
-      realizedPnL: this.state.realizedPnL + pnl,
-      totalPnL: this.state.totalPnL + pnl,
-      totalBalance: this.state.totalBalance + pnl,  // BUGFIX: Track total value including profits
+      _balanceDelta: balanceChange,  // Applied inside lock
+      _inPositionDelta: -usdCostLocked,  // Applied inside lock
+      _realizedPnLDelta: pnl,  // Applied inside lock
+      _totalPnLDelta: pnl,  // Applied inside lock
+      _totalBalanceDelta: pnl,  // Applied inside lock
       lastTradeTime: Date.now()
     };
 
