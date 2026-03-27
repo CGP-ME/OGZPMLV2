@@ -279,13 +279,12 @@ class StateManager {
       console.warn('[StateManager] Already in position, adding to it');
     }
 
-    // DEBUG: Log what we're doing
-    const usdCost = size * price;  // Calculate USD cost
+    // FIX 2026-03-27: Dollar-based sizing - size IS the USD amount
+    const usdCost = size;  // size already in USD, no multiplication needed
     const tradeDirection = context.direction || 'long';
     console.log(`📊 [StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
-    console.log(`   Size: ${size} BTC`);
+    console.log(`   Size: $${size.toFixed(2)} USD`);
     console.log(`   Price: $${price}`);
-    console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
     console.log(`   Direction: ${tradeDirection}`);
     console.log(`   Current Balance: $${this.state.balance}`);
 
@@ -316,17 +315,15 @@ class StateManager {
 
     // FIX 2026-02-05: Deduct trading fee on entry (from TradingConfig)
     const entryFee = usdCost * TradingConfig.get('fees.makerFee');
-    // For shorts, position is negative
+    // For shorts, position is negative (tracking direction)
     const positionDelta = tradeDirection === 'short' ? -size : size;
     const newPosition = this.state.position + positionDelta;
 
-    // BALANCE ACCOUNTING:
-    // LONG: We BUY assets → spend cash → balance DECREASES
-    // SHORT: We SELL borrowed assets → receive cash → balance INCREASES
-    // (For backtesting, shorts are margin-simulated: we "receive" proceeds upfront)
-    const balanceChange = tradeDirection === 'short'
-      ? usdCost - entryFee   // SHORT: receive cash minus fee
-      : -(usdCost + entryFee); // LONG: spend cash plus fee
+    // FIX 2026-03-27: Dollar-based balance accounting (same for both directions)
+    // OPEN: Lock up position USD + fee (balance decreases)
+    // CLOSE: Get back position USD + PnL - fee (balance increases)
+    // Net effect = PnL - fees (works for both longs and shorts)
+    const balanceChange = -(usdCost + entryFee);
 
     console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
@@ -377,6 +374,7 @@ class StateManager {
    *   - BTC × current_price = USD returned: balance + $101 (CORRECT!)
    */
   async closePosition(price, partial = false, size = null, context = {}) {
+    console.log('[CLOSE-TRACE] WHO CALLED closePosition? position=' + this.state.position + ' caller=' + new Error().stack.split('\n')[2]);
     // Allow closing both long (positive) and short (negative) positions
     if (this.state.position === 0) {
       console.error('[StateManager] No position to close!');
@@ -388,21 +386,20 @@ class StateManager {
     const rawCloseSize = size || this.state.position;
     const closeSize = Math.abs(rawCloseSize);  // Always positive for USD calculations
 
-    // CRITICAL: PnL depends on direction
-    // LONG: profit when price goes UP (exit - entry)
-    // SHORT: profit when price goes DOWN (entry - exit)
-    let pnl, priceChangePercent;
+    // FIX 2026-03-27: Dollar-based PnL - apply percentage return to USD position
+    // LONG: profit when price goes UP (exit - entry) / entry
+    // SHORT: profit when price goes DOWN (entry - exit) / entry
+    let priceChangePercent;
     if (isShort) {
-      pnl = closeSize * (this.state.entryPrice - price);  // SHORT: entry - exit
       priceChangePercent = this.state.entryPrice > 0
         ? ((this.state.entryPrice - price) / this.state.entryPrice)
         : 0;
     } else {
-      pnl = closeSize * (price - this.state.entryPrice);  // LONG: exit - entry
       priceChangePercent = this.state.entryPrice > 0
         ? ((price - this.state.entryPrice) / this.state.entryPrice)
         : 0;
     }
+    const pnl = closeSize * priceChangePercent;  // USD position × % return = USD profit
     const pnlPercent = priceChangePercent * 100;
 
     // FIX 2026-03-19: Remove ONLY the specific trade being closed, not all trades
@@ -429,22 +426,20 @@ class StateManager {
       }
     }
 
-    // closeSize is in BTC (always positive after Math.abs)
-    const usdValueAtClose = closeSize * price;  // USD value at exit price
+    // FIX 2026-03-27: Dollar-based sizing - closeSize IS the USD amount
+    // usdValueAtClose = original USD + PnL
+    const usdValueAtClose = closeSize + pnl;
 
     // FIX 2026-02-05: Deduct trading fee on exit (from TradingConfig)
-    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+    const exitFee = closeSize * TradingConfig.get('fees.takerFee');
 
-    // Calculate USD that was locked in position (at entry price)
-    const usdCostLocked = closeSize * this.state.entryPrice;
+    // usdCostLocked = original USD invested (same as closeSize in dollar-based)
+    const usdCostLocked = closeSize;
 
-    // BALANCE ACCOUNTING:
-    // LONG close (SELL): We sell assets → receive cash → balance INCREASES
-    // SHORT close (COVER): We buy back assets → spend cash → balance DECREASES
-    // Net effect includes P&L which is already calculated correctly above
-    const balanceChange = isShort
-      ? -(usdValueAtClose + exitFee)  // SHORT: spend cash to buy back + fee
-      : (usdValueAtClose - exitFee);   // LONG: receive cash from sale - fee
+    // BALANCE ACCOUNTING (dollar-based):
+    // LONG close (SELL): Return original USD + PnL - fee
+    // SHORT close (COVER): Return original USD + PnL - fee (PnL already direction-aware)
+    const balanceChange = usdValueAtClose - exitFee;
 
     // FIX 2026-03-19: Force position to 0 when all activeTrades are closed
     // This ensures position scalar stays in sync with activeTrades Map

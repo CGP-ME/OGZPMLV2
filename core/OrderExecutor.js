@@ -76,18 +76,15 @@ class OrderExecutor {
     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
     const baseSizeUSD = currentBalance * basePositionPercent;
 
-    // FIX 2025-12-27: Convert USD to BTC amount (was treating $500 as 500 BTC!)
+    // FIX 2026-03-27: Dollar-based sizing for stocks (Option B)
+    // Position size stays in USD - no conversion to shares/BTC
     const positionSizeUSD = baseSizeUSD;
-    const positionSizeBTC = positionSizeUSD / price;
+    const positionSize = positionSizeUSD;  // Dollar amount, NOT asset units
 
-    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSizeUSD.toFixed(2)}, BTC=${positionSizeBTC.toFixed(8)}`);
-
-    // Phase 4 REWRITE: tradingOptimizations deleted - use position size directly
-    // Pattern-based adjustments can be added to TradingConfig later if needed
-    const positionSize = positionSizeBTC; // Final position size in BTC
+    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSizeUSD.toFixed(2)}`);
 
     // CHECKPOINT 2: Position sizing
-    console.log(`📍 CP2: Position size calculated: ${positionSize.toFixed(8)} BTC`);
+    console.log(`📍 CP2: Position size calculated: $${positionSize.toFixed(2)} USD`);
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
@@ -99,8 +96,8 @@ class OrderExecutor {
 
     try {
       // CHECKPOINT 3: Before ExecutionLayer call
-      const usdAmount = positionSize * price;
-      console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${usdAmount.toFixed(2)} (${positionSize.toFixed(8)} BTC)`);
+      // FIX 2026-03-27: positionSize is already in USD (dollar-based sizing)
+      console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${positionSize.toFixed(2)}`);
 
       // Phase 4 REWRITE: Circuit breaker removed (tradingBrain deleted in Phase 2)
 
@@ -350,8 +347,8 @@ class OrderExecutor {
             symbol: this.ctx.tradingPair || 'BTC/USD',
             price: price,
             size: positionSize,
-            value_usd: positionSize * price,
-            fees: (positionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),  // From TradingConfig
+            value_usd: positionSize,  // FIX 2026-03-27: positionSize already in USD
+            fees: positionSize * TradingConfig.get('fees.makerFee', 0.0025),  // From TradingConfig
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
@@ -465,8 +462,8 @@ class OrderExecutor {
             symbol: this.ctx.tradingPair || 'BTC/USD',
             price: price,
             size: positionSize,
-            value_usd: positionSize * price,
-            fees: (positionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),
+            value_usd: positionSize,  // FIX 2026-03-27: positionSize already in USD
+            fees: positionSize * TradingConfig.get('fees.makerFee', 0.0025),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based short entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
@@ -519,12 +516,14 @@ class OrderExecutor {
 
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
+            // FIX 2026-03-27: Dollar-based sizing - pnl = USD × %change
+            const priceChangePercent = (price - buyTrade.entryPrice) / buyTrade.entryPrice;
             const completeTradeResult = {
               ...buyTrade,
               exitPrice: price,
               exitTime: exitTimestamp,
               pnl: pnl,
-              pnlDollars: buyTrade.size * (price - buyTrade.entryPrice),  // BUGFIX 2026-02-01: BTC × price_diff = USD profit
+              pnlDollars: buyTrade.size * priceChangePercent,  // FIX 2026-03-27: USD × %change = USD profit
               holdDuration: holdDuration,
               exitReason: decision.exitReason || 'signal'
             };
@@ -743,7 +742,7 @@ class OrderExecutor {
                 // Financial results
                 pnl: completeTradeResult.pnlDollars || 0,
                 pnlPercent: pnl || 0,
-                fees: (buyTrade.size * price) * TradingConfig.get('fees.totalRoundTrip'),  // From TradingConfig
+                fees: buyTrade.size * TradingConfig.get('fees.totalRoundTrip'),  // FIX 2026-03-27: size already USD
 
                 // Timing
                 entryTime: new Date(buyTrade.entryTime).toISOString(),
@@ -783,7 +782,7 @@ class OrderExecutor {
                 patternConfidence: buyTrade.patterns?.[0]?.confidence || 0,
 
                 // Risk management
-                positionSize: buyTrade.size * buyTrade.entryPrice,
+                positionSize: buyTrade.size,  // FIX 2026-03-27: size already in USD
                 riskPercent: (Math.abs(completeTradeResult.pnlDollars || 0) / (stateManager.get('balance') || 1)) * 100,
 
                 // Session context
@@ -892,7 +891,8 @@ class OrderExecutor {
 
           const shortTrade = shortTrades[0];
           // SHORT PnL: profit when price goes DOWN (entry - exit)
-          const pnl = ((shortTrade.entryPrice - price) / shortTrade.entryPrice) * 100;
+          const priceChangePercent = (shortTrade.entryPrice - price) / shortTrade.entryPrice;
+          const pnl = priceChangePercent * 100;
           const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
           const holdDuration = exitTimestamp - shortTrade.entryTime;
 
@@ -901,7 +901,7 @@ class OrderExecutor {
             exitPrice: price,
             exitTime: exitTimestamp,
             pnl: pnl,
-            pnlDollars: shortTrade.size * (shortTrade.entryPrice - price),  // SHORT: entry - exit
+            pnlDollars: shortTrade.size * priceChangePercent,  // FIX 2026-03-27: USD × %change
             holdDuration: holdDuration,
             exitReason: decision.exitReason || 'signal'
           };

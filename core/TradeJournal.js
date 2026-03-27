@@ -120,7 +120,7 @@ class TradeJournal {
       direction: entry.direction || 'BUY',
       entryPrice: Number(entry.entryPrice),
       size: Number(entry.size || 0),
-      usdValue: Number(entry.usdValue || (entry.size * entry.entryPrice) || 0),
+      usdValue: Number(entry.usdValue || entry.size || 0),  // FIX 2026-03-27: size is now USD
       confidence: Number(entry.confidence || 0),
       regime: entry.regime || 'unknown',
       patterns: (entry.patterns || []).map(p => ({
