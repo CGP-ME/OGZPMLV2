@@ -392,7 +392,10 @@ class StateManager {
     // Use specific trade's values, fall back to state only if not found
     const tradeEntryPrice = tradeEntry?.entryPrice || tradeEntry?.price || this.state.entryPrice;
     const closeSize = tradeEntry?.size || size || Math.abs(this.state.position);
-    const isShort = tradeEntry?.direction === 'short' || context.direction === 'short' || this.state.position < 0;
+    // FIX 2026-03-27: If we have the trade, use ONLY its direction - don't let context override!
+    const isShort = tradeEntry
+      ? tradeEntry.direction === 'short'
+      : (context.direction === 'short' || this.state.position < 0);
 
     console.log(`[BAL-DEBUG] CLOSE using trade=${tradeId || 'NONE'} entryPrice=${tradeEntryPrice} size=${closeSize} isShort=${isShort}`);
 
