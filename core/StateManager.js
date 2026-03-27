@@ -328,6 +328,8 @@ class StateManager {
       ? usdCost - entryFee   // SHORT: receive cash minus fee
       : -(usdCost + entryFee); // LONG: spend cash plus fee
 
+    console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
+
     const updates = {
       position: newPosition,  // Positive for long, negative for short
       positionCount: this.state.positionCount + 1,
@@ -453,6 +455,8 @@ class StateManager {
       ? Math.min(0, this.state.position + closeSize)  // Short: add to move toward 0
       : Math.max(0, this.state.position - closeSize); // Long: subtract to move toward 0
     const finalPosition = noActiveTradesRemaining ? 0 : calculatedPosition;
+
+    console.log('[BAL-DEBUG] CLOSE isShort=' + isShort + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
     const updates = {
       position: finalPosition,
