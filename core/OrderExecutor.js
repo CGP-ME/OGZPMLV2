@@ -201,7 +201,7 @@ class OrderExecutor {
             console.error(`   Full error:`, error);
           }
         } else {
-          console.log(`📍 CP4.7: SKIPPING updateActiveTrade for ${decision.action} (only BUY trades stored)`);
+          console.log(`📍 CP4.7: updateActiveTrade disabled - openPosition() handles activeTrades storage for ${decision.action}`);
         }
 
         // FIX 2026-02-14: Store TRAI decision for learning feedback loop
