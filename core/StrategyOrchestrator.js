@@ -793,11 +793,18 @@ class StrategyOrchestrator {
       // If the winning strategy provided its own levels (e.g. TPO), use them
       const signalOverrides = {};
       if (winner.overrideLevels) {
+        const isShort = winner.direction === 'sell';
         if (winner.overrideLevels.stopLoss && price) {
-          signalOverrides.stopLossPercent = ((winner.overrideLevels.stopLoss - price) / price) * 100;
+          // FIX 2026-03-27: SL% must always be negative (how far price can move against you)
+          // For shorts, stopLoss is ABOVE entry → raw calc is positive → negate it
+          const rawSL = ((winner.overrideLevels.stopLoss - price) / price) * 100;
+          signalOverrides.stopLossPercent = isShort ? -Math.abs(rawSL) : rawSL;
         }
         if (winner.overrideLevels.takeProfit && price) {
-          signalOverrides.takeProfitPercent = ((winner.overrideLevels.takeProfit - price) / price) * 100;
+          // FIX 2026-03-27: TP% must always be positive (how far price needs to move in your favor)
+          // For shorts, takeProfit is BELOW entry → raw calc is negative → make positive
+          const rawTP = ((winner.overrideLevels.takeProfit - price) / price) * 100;
+          signalOverrides.takeProfitPercent = isShort ? Math.abs(rawTP) : rawTP;
         }
       }
 
