@@ -381,22 +381,32 @@ class StateManager {
       return { success: false, error: 'No position to close' };
     }
 
-    // Determine direction from position sign or context
-    const isShort = this.state.position < 0 || context.direction === 'short';
-    const rawCloseSize = size || this.state.position;
-    const closeSize = Math.abs(rawCloseSize);  // Always positive for USD calculations
+    // FIX 2026-03-27: Look up SPECIFIC trade first for multi-position support
+    // When both long and short are open, we MUST use the specific trade's values
+    const tradeId = context.tradeId || context.orderId;
+    let tradeEntry = null;
+    if (tradeId && this.state.activeTrades?.has(tradeId)) {
+      tradeEntry = this.state.activeTrades.get(tradeId);
+    }
+
+    // Use specific trade's values, fall back to state only if not found
+    const tradeEntryPrice = tradeEntry?.entryPrice || tradeEntry?.price || this.state.entryPrice;
+    const closeSize = tradeEntry?.size || size || Math.abs(this.state.position);
+    const isShort = tradeEntry?.direction === 'short' || context.direction === 'short' || this.state.position < 0;
+
+    console.log(`[BAL-DEBUG] CLOSE using trade=${tradeId || 'NONE'} entryPrice=${tradeEntryPrice} size=${closeSize} isShort=${isShort}`);
 
     // FIX 2026-03-27: Dollar-based PnL - apply percentage return to USD position
     // LONG: profit when price goes UP (exit - entry) / entry
     // SHORT: profit when price goes DOWN (entry - exit) / entry
     let priceChangePercent;
     if (isShort) {
-      priceChangePercent = this.state.entryPrice > 0
-        ? ((this.state.entryPrice - price) / this.state.entryPrice)
+      priceChangePercent = tradeEntryPrice > 0
+        ? ((tradeEntryPrice - price) / tradeEntryPrice)
         : 0;
     } else {
-      priceChangePercent = this.state.entryPrice > 0
-        ? ((price - this.state.entryPrice) / this.state.entryPrice)
+      priceChangePercent = tradeEntryPrice > 0
+        ? ((price - tradeEntryPrice) / tradeEntryPrice)
         : 0;
     }
     const pnl = closeSize * priceChangePercent;  // USD position × % return = USD profit
@@ -404,16 +414,13 @@ class StateManager {
 
     // FIX 2026-03-19: Remove ONLY the specific trade being closed, not all trades
     // Previous bug: Closing any trade wiped ALL activeTrades, breaking multi-position
-    // Now: If context.tradeId provided, remove only that trade
+    // Now: If tradeEntry found, remove only that trade
     //      If full close (position → 0), clear all remaining trades
     if (this.state.activeTrades && this.state.activeTrades.size > 0) {
-      const tradeId = context.tradeId || context.orderId;
-
-      if (tradeId && this.state.activeTrades.has(tradeId)) {
-        // Remove only the specific trade being closed
-        const trade = this.state.activeTrades.get(tradeId);
+      if (tradeEntry && tradeId) {
+        // Remove only the specific trade being closed (already looked up above)
         this.state.activeTrades.delete(tradeId);
-        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade.action || trade.type}) from activeTrades`);
+        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${tradeEntry.action || tradeEntry.type}) from activeTrades`);
         console.log(`📊 [StateManager] ${this.state.activeTrades.size} active trades remaining`);
       } else if (!partial && (this.state.position - closeSize) <= 0) {
         // Full close with no position remaining - clear all trades
