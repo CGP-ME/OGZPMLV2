@@ -322,9 +322,12 @@ class StateManager {
     const newPosition = this.state.position + positionDelta;
 
     // BALANCE ACCOUNTING:
-    // FIX 2026-03-28: Both directions subtract from balance on open (allocating capital)
-    // Stock trading: you allocate capital for both longs and shorts
-    const balanceChange = -(usdCost + entryFee);
+    // BALANCE ACCOUNTING:
+    // LONG: We BUY assets → spend cash → balance DECREASES
+    // SHORT: We SELL borrowed assets → receive cash → balance INCREASES
+    const balanceChange = tradeDirection === 'short'
+      ? usdCost - entryFee   // SHORT: receive cash minus fee
+      : -(usdCost + entryFee); // LONG: spend cash plus fee
 
     console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
@@ -436,10 +439,12 @@ class StateManager {
     // FIX 2026-03-28: closeSize is already USD (cost locked = closeSize)
     const usdCostLocked = closeSize;
 
-    // FIX 2026-03-28: Both directions add to balance on close (returning capital + PnL)
-    // Stock trading: you get back capital + PnL for both longs and shorts
-    // PnL already handles direction correctly through priceChangePercent
-    const balanceChange = usdValueAtClose - exitFee;
+    // BALANCE ACCOUNTING:
+    // LONG close (SELL): We sell assets → receive cash → balance INCREASES
+    // SHORT close (COVER): We buy back assets → spend cash → balance DECREASES
+    const balanceChange = isShort
+      ? -(usdValueAtClose + exitFee)  // SHORT: spend cash to buy back + fee
+      : (usdValueAtClose - exitFee);   // LONG: receive cash from sale - fee
 
     // FIX 2026-03-19: Force position to 0 when all activeTrades are closed
     // This ensures position scalar stays in sync with activeTrades Map
