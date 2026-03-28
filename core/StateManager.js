@@ -183,29 +183,6 @@ class StateManager {
       const snapshot = { ...this.state };
       const timestamp = Date.now();
 
-      // FIX 2026-03-27: Handle delta fields INSIDE the lock
-      // This prevents race conditions when multiple closes happen on same candle
-      if (updates._balanceDelta !== undefined) {
-        updates.balance = this.state.balance + updates._balanceDelta;
-        delete updates._balanceDelta;
-      }
-      if (updates._inPositionDelta !== undefined) {
-        updates.inPosition = Math.max(0, this.state.inPosition + updates._inPositionDelta);
-        delete updates._inPositionDelta;
-      }
-      if (updates._realizedPnLDelta !== undefined) {
-        updates.realizedPnL = this.state.realizedPnL + updates._realizedPnLDelta;
-        delete updates._realizedPnLDelta;
-      }
-      if (updates._totalPnLDelta !== undefined) {
-        updates.totalPnL = this.state.totalPnL + updates._totalPnLDelta;
-        delete updates._totalPnLDelta;
-      }
-      if (updates._totalBalanceDelta !== undefined) {
-        updates.totalBalance = this.state.totalBalance + updates._totalBalanceDelta;
-        delete updates._totalBalanceDelta;
-      }
-
       // Validate updates
       this.validateUpdates(updates);
 
@@ -302,12 +279,13 @@ class StateManager {
       console.warn('[StateManager] Already in position, adding to it');
     }
 
-    // FIX 2026-03-27: Dollar-based sizing - size IS the USD amount
-    const usdCost = size;  // size already in USD, no multiplication needed
+    // DEBUG: Log what we're doing
+    const usdCost = size * price;  // Calculate USD cost
     const tradeDirection = context.direction || 'long';
     console.log(`📊 [StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
-    console.log(`   Size: $${size.toFixed(2)} USD`);
+    console.log(`   Size: ${size} BTC`);
     console.log(`   Price: $${price}`);
+    console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
     console.log(`   Direction: ${tradeDirection}`);
     console.log(`   Current Balance: $${this.state.balance}`);
 
@@ -338,19 +316,20 @@ class StateManager {
 
     // FIX 2026-02-05: Deduct trading fee on entry (from TradingConfig)
     const entryFee = usdCost * TradingConfig.get('fees.makerFee');
-    // For shorts, position is negative (tracking direction)
+    // For shorts, position is negative
     const positionDelta = tradeDirection === 'short' ? -size : size;
     const newPosition = this.state.position + positionDelta;
 
-    // FIX 2026-03-27: Dollar-based balance accounting (same for both directions)
-    // OPEN: Lock up position USD + fee (balance decreases)
-    // CLOSE: Get back position USD + PnL - fee (balance increases)
-    // Net effect = PnL - fees (works for both longs and shorts)
-    const balanceChange = -(usdCost + entryFee);
+    // BALANCE ACCOUNTING:
+    // LONG: We BUY assets → spend cash → balance DECREASES
+    // SHORT: We SELL borrowed assets → receive cash → balance INCREASES
+    // (For backtesting, shorts are margin-simulated: we "receive" proceeds upfront)
+    const balanceChange = tradeDirection === 'short'
+      ? usdCost - entryFee   // SHORT: receive cash minus fee
+      : -(usdCost + entryFee); // LONG: spend cash plus fee
 
     console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
-    // FIX 2026-03-27: Use deltas to avoid race conditions
     const updates = {
       position: newPosition,  // Positive for long, negative for short
       positionCount: this.state.positionCount + 1,
@@ -358,8 +337,8 @@ class StateManager {
         ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      _balanceDelta: balanceChange,  // Applied inside lock
-      _inPositionDelta: usdCost,  // Applied inside lock
+      balance: this.state.balance + balanceChange,
+      inPosition: this.state.inPosition + usdCost,  // Track USD exposure (abs value)
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,
       dailyTradeCount: this.state.dailyTradeCount + 1
@@ -398,56 +377,46 @@ class StateManager {
    *   - BTC × current_price = USD returned: balance + $101 (CORRECT!)
    */
   async closePosition(price, partial = false, size = null, context = {}) {
-    console.log('[CLOSE-TRACE] WHO CALLED closePosition? position=' + this.state.position + ' caller=' + new Error().stack.split('\n')[2]);
     // Allow closing both long (positive) and short (negative) positions
     if (this.state.position === 0) {
       console.error('[StateManager] No position to close!');
       return { success: false, error: 'No position to close' };
     }
 
-    // FIX 2026-03-27: Look up SPECIFIC trade first for multi-position support
-    // When both long and short are open, we MUST use the specific trade's values
-    const tradeId = context.tradeId || context.orderId;
-    let tradeEntry = null;
-    if (tradeId && this.state.activeTrades?.has(tradeId)) {
-      tradeEntry = this.state.activeTrades.get(tradeId);
-    }
+    // Determine direction from position sign or context
+    const isShort = this.state.position < 0 || context.direction === 'short';
+    const rawCloseSize = size || this.state.position;
+    const closeSize = Math.abs(rawCloseSize);  // Always positive for USD calculations
 
-    // Use specific trade's values, fall back to state only if not found
-    const tradeEntryPrice = tradeEntry?.entryPrice || tradeEntry?.price || this.state.entryPrice;
-    const closeSize = tradeEntry?.size || size || Math.abs(this.state.position);
-    // FIX 2026-03-27: If we have the trade, use ONLY its direction - don't let context override!
-    const isShort = tradeEntry
-      ? tradeEntry.direction === 'short'
-      : (context.direction === 'short' || this.state.position < 0);
-
-    console.log(`[BAL-DEBUG] CLOSE using trade=${tradeId || 'NONE'} entryPrice=${tradeEntryPrice} size=${closeSize} isShort=${isShort}`);
-
-    // FIX 2026-03-27: Dollar-based PnL - apply percentage return to USD position
-    // LONG: profit when price goes UP (exit - entry) / entry
-    // SHORT: profit when price goes DOWN (entry - exit) / entry
-    let priceChangePercent;
+    // CRITICAL: PnL depends on direction
+    // LONG: profit when price goes UP (exit - entry)
+    // SHORT: profit when price goes DOWN (entry - exit)
+    let pnl, priceChangePercent;
     if (isShort) {
-      priceChangePercent = tradeEntryPrice > 0
-        ? ((tradeEntryPrice - price) / tradeEntryPrice)
+      pnl = closeSize * (this.state.entryPrice - price);  // SHORT: entry - exit
+      priceChangePercent = this.state.entryPrice > 0
+        ? ((this.state.entryPrice - price) / this.state.entryPrice)
         : 0;
     } else {
-      priceChangePercent = tradeEntryPrice > 0
-        ? ((price - tradeEntryPrice) / tradeEntryPrice)
+      pnl = closeSize * (price - this.state.entryPrice);  // LONG: exit - entry
+      priceChangePercent = this.state.entryPrice > 0
+        ? ((price - this.state.entryPrice) / this.state.entryPrice)
         : 0;
     }
-    const pnl = closeSize * priceChangePercent;  // USD position × % return = USD profit
     const pnlPercent = priceChangePercent * 100;
 
     // FIX 2026-03-19: Remove ONLY the specific trade being closed, not all trades
     // Previous bug: Closing any trade wiped ALL activeTrades, breaking multi-position
-    // Now: If tradeEntry found, remove only that trade
+    // Now: If context.tradeId provided, remove only that trade
     //      If full close (position → 0), clear all remaining trades
     if (this.state.activeTrades && this.state.activeTrades.size > 0) {
-      if (tradeEntry && tradeId) {
-        // Remove only the specific trade being closed (already looked up above)
+      const tradeId = context.tradeId || context.orderId;
+
+      if (tradeId && this.state.activeTrades.has(tradeId)) {
+        // Remove only the specific trade being closed
+        const trade = this.state.activeTrades.get(tradeId);
         this.state.activeTrades.delete(tradeId);
-        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${tradeEntry.action || tradeEntry.type}) from activeTrades`);
+        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade.action || trade.type}) from activeTrades`);
         console.log(`📊 [StateManager] ${this.state.activeTrades.size} active trades remaining`);
       } else if (!partial && (this.state.position - closeSize) <= 0) {
         // Full close with no position remaining - clear all trades
@@ -460,20 +429,22 @@ class StateManager {
       }
     }
 
-    // FIX 2026-03-27: Dollar-based sizing - closeSize IS the USD amount
-    // usdValueAtClose = original USD + PnL
-    const usdValueAtClose = closeSize + pnl;
+    // closeSize is in BTC (always positive after Math.abs)
+    const usdValueAtClose = closeSize * price;  // USD value at exit price
 
     // FIX 2026-02-05: Deduct trading fee on exit (from TradingConfig)
-    const exitFee = closeSize * TradingConfig.get('fees.takerFee');
+    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
 
-    // usdCostLocked = original USD invested (same as closeSize in dollar-based)
-    const usdCostLocked = closeSize;
+    // Calculate USD that was locked in position (at entry price)
+    const usdCostLocked = closeSize * this.state.entryPrice;
 
-    // BALANCE ACCOUNTING (dollar-based):
-    // LONG close (SELL): Return original USD + PnL - fee
-    // SHORT close (COVER): Return original USD + PnL - fee (PnL already direction-aware)
-    const balanceChange = usdValueAtClose - exitFee;
+    // BALANCE ACCOUNTING:
+    // LONG close (SELL): We sell assets → receive cash → balance INCREASES
+    // SHORT close (COVER): We buy back assets → spend cash → balance DECREASES
+    // Net effect includes P&L which is already calculated correctly above
+    const balanceChange = isShort
+      ? -(usdValueAtClose + exitFee)  // SHORT: spend cash to buy back + fee
+      : (usdValueAtClose - exitFee);   // LONG: receive cash from sale - fee
 
     // FIX 2026-03-19: Force position to 0 when all activeTrades are closed
     // This ensures position scalar stays in sync with activeTrades Map
@@ -487,19 +458,16 @@ class StateManager {
 
     console.log('[BAL-DEBUG] CLOSE isShort=' + isShort + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
 
-    // FIX 2026-03-27: Pass DELTAS instead of computed values
-    // updateState will apply deltas inside the lock to avoid race conditions
-    // when two positions close on the same candle
     const updates = {
       position: finalPosition,
       positionCount: partial ? this.state.positionCount : 0,
       entryPrice: partial ? this.state.entryPrice : 0,
       entryTime: partial ? this.state.entryTime : null,
-      _balanceDelta: balanceChange,  // Applied inside lock
-      _inPositionDelta: -usdCostLocked,  // Applied inside lock
-      _realizedPnLDelta: pnl,  // Applied inside lock
-      _totalPnLDelta: pnl,  // Applied inside lock
-      _totalBalanceDelta: pnl,  // Applied inside lock
+      balance: this.state.balance + balanceChange,
+      inPosition: Math.max(0, this.state.inPosition - usdCostLocked),
+      realizedPnL: this.state.realizedPnL + pnl,
+      totalPnL: this.state.totalPnL + pnl,
+      totalBalance: this.state.totalBalance + pnl,  // BUGFIX: Track total value including profits
       lastTradeTime: Date.now()
     };
 
