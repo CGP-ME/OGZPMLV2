@@ -48,8 +48,9 @@ class OrderExecutor {
     // CHECKPOINT 1: Entry
     console.log(`📍 CP1: executeTrade ENTRY - Balance: $${stateManager.get('balance')}, Position: ${stateManager.get('position')}`);
 
-    // FIXED: Use actual balance from StateManager, not stale systemState
-    const currentBalance = stateManager.get('balance') || 10000;
+    // FIX 2026-03-28: Use available capital (equity minus reserved in open trades)
+    // This prevents sizing off full equity while positions are open
+    const currentBalance = stateManager.getAvailableCapital(price) || 10000;
     // CHANGE 2026-02-28: Use TradingConfig for position sizing
     // NOTE: DynamicPositionSizer.js exists in core/ but is NOT WIRED - needs tuning first
     let basePositionPercent = TradingConfig.get('positionSizing.maxPositionSize');

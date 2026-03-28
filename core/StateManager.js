@@ -201,6 +201,25 @@ class StateManager {
   }
 
   /**
+   * Get available capital for position sizing
+   * FIX 2026-03-28: Available = Equity - capital already reserved in open trades
+   * This prevents sizing off full equity while positions are open
+   */
+  getAvailableCapital(currentPrice) {
+    const equity = this.getEquity(currentPrice);
+
+    // Sum capital reserved in open trades
+    let reservedCapital = 0;
+    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
+      for (const trade of this.state.activeTrades.values()) {
+        reservedCapital += trade.sizeUsd || trade.size || 0;
+      }
+    }
+
+    return Math.max(0, equity - reservedCapital);
+  }
+
+  /**
    * ATOMIC state update with transaction safety
    * All state changes MUST go through this
    */
