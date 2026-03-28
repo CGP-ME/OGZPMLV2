@@ -280,10 +280,11 @@ class StateManager {
     }
 
     // DEBUG: Log what we're doing
-    const usdCost = size * price;  // Calculate USD cost
+    // FIX 2026-03-28: size is already USD, no multiplication needed
+    const usdCost = size;
     const tradeDirection = context.direction || 'long';
     console.log(`📊 [StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
-    console.log(`   Size: ${size} BTC`);
+    console.log(`   Size: $${size.toFixed(2)} USD`);
     console.log(`   Price: $${price}`);
     console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
     console.log(`   Direction: ${tradeDirection}`);
@@ -391,18 +392,18 @@ class StateManager {
     // CRITICAL: PnL depends on direction
     // LONG: profit when price goes UP (exit - entry)
     // SHORT: profit when price goes DOWN (entry - exit)
-    let pnl, priceChangePercent;
+    // FIX 2026-03-28: Use percentage-based PnL since closeSize is USD
+    let priceChangePercent;
     if (isShort) {
-      pnl = closeSize * (this.state.entryPrice - price);  // SHORT: entry - exit
       priceChangePercent = this.state.entryPrice > 0
         ? ((this.state.entryPrice - price) / this.state.entryPrice)
         : 0;
     } else {
-      pnl = closeSize * (price - this.state.entryPrice);  // LONG: exit - entry
       priceChangePercent = this.state.entryPrice > 0
         ? ((price - this.state.entryPrice) / this.state.entryPrice)
         : 0;
     }
+    const pnl = closeSize * priceChangePercent;  // USD P&L
     const pnlPercent = priceChangePercent * 100;
 
     // FIX 2026-03-19: Remove ONLY the specific trade being closed, not all trades
@@ -429,14 +430,14 @@ class StateManager {
       }
     }
 
-    // closeSize is in BTC (always positive after Math.abs)
-    const usdValueAtClose = closeSize * price;  // USD value at exit price
+    // FIX 2026-03-28: closeSize is USD, usdValueAtClose = principal + P&L
+    const usdValueAtClose = closeSize + pnl;
 
     // FIX 2026-02-05: Deduct trading fee on exit (from TradingConfig)
     const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
 
-    // Calculate USD that was locked in position (at entry price)
-    const usdCostLocked = closeSize * this.state.entryPrice;
+    // FIX 2026-03-28: closeSize is already USD (cost locked = closeSize)
+    const usdCostLocked = closeSize;
 
     // BALANCE ACCOUNTING:
     // LONG close (SELL): We sell assets → receive cash → balance INCREASES

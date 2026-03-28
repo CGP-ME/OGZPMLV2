@@ -76,18 +76,13 @@ class OrderExecutor {
     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
     const baseSizeUSD = currentBalance * basePositionPercent;
 
-    // FIX 2025-12-27: Convert USD to BTC amount (was treating $500 as 500 BTC!)
-    const positionSizeUSD = baseSizeUSD;
-    const positionSizeBTC = positionSizeUSD / price;
+    // FIX 2026-03-28: Position size stays in USD (no BTC conversion for stocks)
+    const positionSize = baseSizeUSD;
 
-    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSizeUSD.toFixed(2)}, BTC=${positionSizeBTC.toFixed(8)}`);
-
-    // Phase 4 REWRITE: tradingOptimizations deleted - use position size directly
-    // Pattern-based adjustments can be added to TradingConfig later if needed
-    const positionSize = positionSizeBTC; // Final position size in BTC
+    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
 
     // CHECKPOINT 2: Position sizing
-    console.log(`📍 CP2: Position size calculated: ${positionSize.toFixed(8)} BTC`);
+    console.log(`📍 CP2: Position size calculated: $${positionSize.toFixed(2)} USD`);
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
