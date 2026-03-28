@@ -145,8 +145,8 @@ class TradingLoop {
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
         indicators,
         currentTime: this.ctx.marketData?.timestamp || Date.now(),
-        accountBalance: stateManager.get('balance'),
-        initialBalance: stateManager.get('initialBalance') || 10000,
+        accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.get('balance'),
+        initialBalance: this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance') ?? 10000,
         currentPosition: stateManager.get('position'),
         currentPrice: price
       });
