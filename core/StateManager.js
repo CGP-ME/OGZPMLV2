@@ -171,6 +171,36 @@ class StateManager {
   }
 
   /**
+   * Get equity (true account value for backtesting)
+   * FIX 2026-03-28: Per-trade equity accounting
+   * Equity = initialBalance + realizedPnL + unrealizedPnL
+   * unrealizedPnL computed LIVE from activeTrades
+   * Does NOT change get('balance') behavior
+   */
+  getEquity(currentPrice) {
+    const initialBalance = this.state.initialBalance || 10000;
+    const realizedPnL = this.state.realizedPnL || 0;
+
+    // Compute unrealizedPnL live from activeTrades
+    let unrealizedPnL = 0;
+    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
+      for (const trade of this.state.activeTrades.values()) {
+        const entry = trade.entryPrice;
+        const size = trade.sizeUsd || trade.size;
+        const direction = trade.direction;
+
+        if (direction === 'long') {
+          unrealizedPnL += size * ((currentPrice - entry) / entry);
+        } else {
+          unrealizedPnL += size * ((entry - currentPrice) / entry);
+        }
+      }
+    }
+
+    return initialBalance + realizedPnL + unrealizedPnL;
+  }
+
+  /**
    * ATOMIC state update with transaction safety
    * All state changes MUST go through this
    */
@@ -290,19 +320,24 @@ class StateManager {
     console.log(`   Direction: ${tradeDirection}`);
     console.log(`   Current Balance: $${this.state.balance}`);
 
-    // CRITICAL FIX: Add trade to activeTrades Map
+    // FIX 2026-03-28: Per-trade equity accounting
+    // Entry fee calculated upfront
+    const entryFee = usdCost * TradingConfig.get('fees.makerFee');
+
+    // Store trade in activeTrades with all required fields
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
     const tradeAction = context.action || 'BUY';
-    // FIX 2026-03-26: Removed duplicate tradeDirection declaration (already set at line 284)
     const trade = {
       id: tradeId,
       action: tradeAction,  // BUY or SELL_SHORT
       type: tradeAction,    // Keep both for compatibility
       direction: tradeDirection,  // 'long' or 'short'
-      size: size,
+      sizeUsd: size,        // Position size in USD
+      size: size,           // Keep for compatibility
       price: price,
-      entryPrice: price,  // Add entryPrice field that run-empire expects
-      entryTime: Date.now(),  // Add entryTime field
+      entryPrice: price,
+      entryFee: entryFee,   // Store fee for accounting
+      entryTime: Date.now(),
       timestamp: Date.now(),
       status: 'open',
       ...context
@@ -315,31 +350,24 @@ class StateManager {
     this.state.activeTrades.set(tradeId, trade);
     console.log(`✅ [StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
 
-    // FIX 2026-02-05: Deduct trading fee on entry (from TradingConfig)
-    const entryFee = usdCost * TradingConfig.get('fees.makerFee');
-    // For shorts, position is negative
+    // For position scalar (kept for compatibility)
     const positionDelta = tradeDirection === 'short' ? -size : size;
     const newPosition = this.state.position + positionDelta;
 
-    // BALANCE ACCOUNTING:
-    // BALANCE ACCOUNTING:
-    // LONG: We BUY assets → spend cash → balance DECREASES
-    // SHORT: We SELL borrowed assets → receive cash → balance INCREASES
-    const balanceChange = tradeDirection === 'short'
-      ? usdCost - entryFee   // SHORT: receive cash minus fee
-      : -(usdCost + entryFee); // LONG: spend cash plus fee
-
-    console.log('[BAL-DEBUG] OPEN direction=' + tradeDirection + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
+    // FIX 2026-03-28: Per-trade equity accounting
+    // Only entryFee affects realizedPnL on open - NO principal movement
+    console.log('[EQUITY-DEBUG] OPEN direction=' + tradeDirection + ' entryFee=' + entryFee.toFixed(4) + ' realizedPnL=' + this.state.realizedPnL);
 
     const updates = {
-      position: newPosition,  // Positive for long, negative for short
+      position: newPosition,  // Positive for long, negative for short (kept for compatibility)
       positionCount: this.state.positionCount + 1,
       entryPrice: Math.abs(this.state.position) > 0
         ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
         : price,
       entryTime: this.state.entryTime || Date.now(),
-      balance: this.state.balance + balanceChange,
-      inPosition: this.state.inPosition + usdCost,  // Track USD exposure (abs value)
+      // FIX 2026-03-28: No balance principal movement - only fee deducted from realizedPnL
+      realizedPnL: this.state.realizedPnL - entryFee,
+      inPosition: this.state.inPosition + usdCost,  // Track USD exposure
       lastTradeTime: Date.now(),
       tradeCount: this.state.tradeCount + 1,
       dailyTradeCount: this.state.dailyTradeCount + 1
@@ -384,90 +412,87 @@ class StateManager {
       return { success: false, error: 'No position to close' };
     }
 
-    // Determine direction from position sign or context
-    const isShort = this.state.position < 0 || context.direction === 'short';
-    const rawCloseSize = size || this.state.position;
-    const closeSize = Math.abs(rawCloseSize);  // Always positive for USD calculations
+    // FIX 2026-03-28: Per-trade equity accounting - look up trade FIRST
+    // CRITICAL: No fallback to global state - require valid tradeId
+    const tradeId = context.tradeId || context.orderId;
+    if (!tradeId) {
+      console.error('[StateManager] closePosition called without tradeId!');
+      return { success: false, error: 'tradeId required for closePosition' };
+    }
 
-    // CRITICAL: PnL depends on direction
+    const trade = this.state.activeTrades?.get(tradeId);
+    if (!trade) {
+      console.error(`[StateManager] Trade ${tradeId} not found in activeTrades!`);
+      return { success: false, error: `Trade ${tradeId} not found` };
+    }
+
+    // Use trade's values - NO fallback to global state
+    const tradeEntryPrice = trade.entryPrice;
+    const tradeSizeUsd = trade.sizeUsd || trade.size;
+    const tradeDirection = trade.direction;
+    const isShort = tradeDirection === 'short';
+    const closeSize = Math.abs(tradeSizeUsd);
+
+    // CRITICAL: PnL depends on direction, using TRADE's entryPrice
     // LONG: profit when price goes UP (exit - entry)
     // SHORT: profit when price goes DOWN (entry - exit)
-    // FIX 2026-03-28: Use percentage-based PnL since closeSize is USD
     let priceChangePercent;
     if (isShort) {
-      priceChangePercent = this.state.entryPrice > 0
-        ? ((this.state.entryPrice - price) / this.state.entryPrice)
+      priceChangePercent = tradeEntryPrice > 0
+        ? ((tradeEntryPrice - price) / tradeEntryPrice)
         : 0;
     } else {
-      priceChangePercent = this.state.entryPrice > 0
-        ? ((price - this.state.entryPrice) / this.state.entryPrice)
+      priceChangePercent = tradeEntryPrice > 0
+        ? ((price - tradeEntryPrice) / tradeEntryPrice)
         : 0;
     }
     const pnl = closeSize * priceChangePercent;  // USD P&L
     const pnlPercent = priceChangePercent * 100;
 
-    // FIX 2026-03-19: Remove ONLY the specific trade being closed, not all trades
-    // Previous bug: Closing any trade wiped ALL activeTrades, breaking multi-position
-    // Now: If context.tradeId provided, remove only that trade
-    //      If full close (position → 0), clear all remaining trades
-    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
-      const tradeId = context.tradeId || context.orderId;
+    // Calculate exit fee
+    const usdValueAtClose = closeSize + pnl;
+    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
 
+    // Remove trade from activeTrades
+    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
       if (tradeId && this.state.activeTrades.has(tradeId)) {
-        // Remove only the specific trade being closed
-        const trade = this.state.activeTrades.get(tradeId);
         this.state.activeTrades.delete(tradeId);
-        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade.action || trade.type}) from activeTrades`);
+        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);
         console.log(`📊 [StateManager] ${this.state.activeTrades.size} active trades remaining`);
       } else if (!partial && (this.state.position - closeSize) <= 0) {
         // Full close with no position remaining - clear all trades
         const tradeCount = this.state.activeTrades.size;
-        for (const [id, trade] of this.state.activeTrades.entries()) {
+        for (const [id, t] of this.state.activeTrades.entries()) {
           this.state.activeTrades.delete(id);
-          console.log(`🔒 [StateManager] Removed trade ${id} (${trade.action || trade.type}) from activeTrades`);
+          console.log(`🔒 [StateManager] Removed trade ${id} (${t.action || t.type}) from activeTrades`);
         }
         console.log(`📊 [StateManager] Cleared ${tradeCount} active trades (position fully closed)`);
       }
     }
 
-    // FIX 2026-03-28: closeSize is USD, usdValueAtClose = principal + P&L
-    const usdValueAtClose = closeSize + pnl;
+    // FIX 2026-03-28: Per-trade equity accounting
+    // Net realized result = pnl - exitFee (added to realizedPnL)
+    // NO balance principal movement
+    const netRealizedResult = pnl - exitFee;
 
-    // FIX 2026-02-05: Deduct trading fee on exit (from TradingConfig)
-    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
-
-    // FIX 2026-03-28: closeSize is already USD (cost locked = closeSize)
-    const usdCostLocked = closeSize;
-
-    // BALANCE ACCOUNTING:
-    // LONG close (SELL): We sell assets → receive cash → balance INCREASES
-    // SHORT close (COVER): We buy back assets → spend cash → balance DECREASES
-    const balanceChange = isShort
-      ? -(usdValueAtClose + exitFee)  // SHORT: spend cash to buy back + fee
-      : (usdValueAtClose - exitFee);   // LONG: receive cash from sale - fee
-
-    // FIX 2026-03-19: Force position to 0 when all activeTrades are closed
-    // This ensures position scalar stays in sync with activeTrades Map
+    // Position scalar update (kept for compatibility)
     const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
-    // For longs: position - closeSize (positive - positive)
-    // For shorts: position + closeSize (negative + positive) moves toward 0
     const calculatedPosition = isShort
-      ? Math.min(0, this.state.position + closeSize)  // Short: add to move toward 0
-      : Math.max(0, this.state.position - closeSize); // Long: subtract to move toward 0
+      ? Math.min(0, this.state.position + closeSize)
+      : Math.max(0, this.state.position - closeSize);
     const finalPosition = noActiveTradesRemaining ? 0 : calculatedPosition;
 
-    console.log('[BAL-DEBUG] CLOSE isShort=' + isShort + ' balanceChange=' + balanceChange + ' balance=' + this.state.balance);
+    console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
 
     const updates = {
       position: finalPosition,
       positionCount: partial ? this.state.positionCount : 0,
       entryPrice: partial ? this.state.entryPrice : 0,
       entryTime: partial ? this.state.entryTime : null,
-      balance: this.state.balance + balanceChange,
-      inPosition: Math.max(0, this.state.inPosition - usdCostLocked),
-      realizedPnL: this.state.realizedPnL + pnl,
+      // FIX 2026-03-28: No balance principal movement - only realizedPnL changes
+      inPosition: Math.max(0, this.state.inPosition - closeSize),
+      realizedPnL: this.state.realizedPnL + netRealizedResult,
       totalPnL: this.state.totalPnL + pnl,
-      totalBalance: this.state.totalBalance + pnl,  // BUGFIX: Track total value including profits
       lastTradeTime: Date.now()
     };
 
