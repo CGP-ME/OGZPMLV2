@@ -34,25 +34,29 @@ class BacktestRecorder {
      * @param {Object} trade - Trade data from exit handler
      */
     recordTrade(trade) {
-        const entryValue = trade.entryPrice * (trade.size || 1);
-        const exitValue = trade.exitPrice * (trade.size || 1);
+        // FIX 2026-03-28: trade.size is already USD, no multiplication needed
+        const positionSizeUsd = trade.size || trade.sizeUsd || 1;
+        const entryPrice = trade.entryPrice || 0;
+        const exitPrice = trade.exitPrice || 0;
 
-        // Calculate fees (both entry and exit)
-        const entryFee = entryValue * this.feePerSide;
-        const exitFee = exitValue * this.feePerSide;
+        // Calculate fees based on USD position size
+        const entryFee = positionSizeUsd * this.feePerSide;
+        const exitFee = positionSizeUsd * this.feePerSide;
         const totalFees = entryFee + exitFee;
 
-        // Calculate raw P&L
+        // Calculate raw P&L using percentage-based math
         let rawPnlDollars;
         if (trade.direction === 'long' || trade.direction === 'buy') {
-            rawPnlDollars = exitValue - entryValue;
+            // Long: profit when price goes UP
+            rawPnlDollars = entryPrice > 0 ? positionSizeUsd * ((exitPrice - entryPrice) / entryPrice) : 0;
         } else {
-            rawPnlDollars = entryValue - exitValue;
+            // Short: profit when price goes DOWN
+            rawPnlDollars = entryPrice > 0 ? positionSizeUsd * ((entryPrice - exitPrice) / entryPrice) : 0;
         }
 
         // Net P&L after fees
         const netPnlDollars = rawPnlDollars - totalFees;
-        const netPnlPercent = (netPnlDollars / entryValue) * 100;
+        const netPnlPercent = positionSizeUsd > 0 ? (netPnlDollars / positionSizeUsd) * 100 : 0;
 
         // Update balance
         const balanceBefore = this.balance;

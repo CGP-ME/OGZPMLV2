@@ -247,8 +247,9 @@ class OrderExecutor {
           const adjustedPositionSize = positionSize * sizingMultiplier;
 
           // PERMANENT TRADE RECEIPT - shows actual dollars/percent on EVERY trade (live, paper, backtest)
-          const actualDollars = adjustedPositionSize * price;
-          const actualPercent = (actualDollars / currentBalance) * 100;
+          // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
+          const actualDollars = adjustedPositionSize;
+          const actualPercent = currentBalance > 0 ? (actualDollars / currentBalance) * 100 : 0;
           console.log(`[TRADE-RECEIPT] $${actualDollars.toFixed(2)} / $${currentBalance.toFixed(2)} = ${actualPercent.toFixed(1)}% of account | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
 
           console.log(`[ORCHESTRATOR-ENTRY] Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
@@ -371,8 +372,9 @@ class OrderExecutor {
 
           const adjustedPositionSize = positionSize * sizingMultiplier;
 
-          const actualDollars = adjustedPositionSize * price;
-          const actualPercent = (actualDollars / currentBalance) * 100;
+          // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
+          const actualDollars = adjustedPositionSize;
+          const actualPercent = currentBalance > 0 ? (actualDollars / currentBalance) * 100 : 0;
           console.log(`[TRADE-RECEIPT] SHORT $${actualDollars.toFixed(2)} / $${currentBalance.toFixed(2)} = ${actualPercent.toFixed(1)}% of account | Conf: ${(tradeConfidence * 100).toFixed(0)}% | Confluence: ${sizingMultiplier}x | Strategy: ${entryStrategy}`);
 
           console.log(`[ORCHESTRATOR-ENTRY] SHORT Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
@@ -520,7 +522,8 @@ class OrderExecutor {
               exitPrice: price,
               exitTime: exitTimestamp,
               pnl: pnl,
-              pnlDollars: buyTrade.size * (price - buyTrade.entryPrice),  // BUGFIX 2026-02-01: BTC × price_diff = USD profit
+              // FIX 2026-03-28: USD position × percentage change = USD profit
+              pnlDollars: buyTrade.entryPrice > 0 ? buyTrade.size * ((price - buyTrade.entryPrice) / buyTrade.entryPrice) : 0,
               holdDuration: holdDuration,
               exitReason: decision.exitReason || 'signal'
             };
@@ -897,7 +900,8 @@ class OrderExecutor {
             exitPrice: price,
             exitTime: exitTimestamp,
             pnl: pnl,
-            pnlDollars: shortTrade.size * (shortTrade.entryPrice - price),  // SHORT: entry - exit
+            // FIX 2026-03-28: USD position × percentage change = USD profit
+            pnlDollars: shortTrade.entryPrice > 0 ? shortTrade.size * ((shortTrade.entryPrice - price) / shortTrade.entryPrice) : 0,
             holdDuration: holdDuration,
             exitReason: decision.exitReason || 'signal'
           };
