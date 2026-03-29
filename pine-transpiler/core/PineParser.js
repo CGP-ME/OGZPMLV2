@@ -69,17 +69,96 @@ class PineParser {
       if (idx !== -1) return this.functionDefinition();
     }
 
+    // Regular variable declaration: identifier = expression or type identifier = expression
+    // (non-persistent, recalculated each candle)
+    const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+    if ((tok.type === 'identifier' || tok.type === 'keyword') &&
+        this.peek(1).type === 'operator' && this.peek(1).value === '=') {
+      return this.regularVarDeclaration();
+    }
+    // Type-annotated declaration: float x = expr or float[] x = expr
+    if (tok.type === 'identifier' && typeKeywords.includes(tok.value)) {
+      // Look ahead to find = after type and optional [] and identifier
+      let lookAhead = 1;
+      if (this.peek(lookAhead).type === 'punct' && this.peek(lookAhead).value === '[') {
+        lookAhead += 2; // skip []
+      }
+      if (this.peek(lookAhead).type === 'identifier' &&
+          this.peek(lookAhead + 1).type === 'operator' &&
+          this.peek(lookAhead + 1).value === '=') {
+        return this.regularVarDeclaration();
+      }
+    }
+
+    // Compound assignment: identifier += expression or identifier -= expression
+    if ((tok.type === 'identifier' || tok.type === 'keyword') &&
+        this.peek(1).type === 'operator' && ['+=', '-='].includes(this.peek(1).value)) {
+      return this.compoundAssignment();
+    }
+
     // expression statement (including strategy.* calls)
     return this.expressionStatement();
   }
 
+  // Regular (non-persistent) variable declaration: x = expr or type x = expr
+  regularVarDeclaration() {
+    const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+    let id;
+
+    // Check if first token is a type annotation
+    if (typeKeywords.includes(this.peek().value)) {
+      this.consume(); // consume type
+      // handle array type: float[]
+      if (this.peek().type === 'punct' && this.peek().value === '[') {
+        this.consume('punct', '[');
+        this.consume('punct', ']');
+      }
+      id = this.consume('identifier').value;
+    } else {
+      id = this.consume().value; // identifier or keyword
+    }
+
+    this.consume('operator', '=');
+    const init = this.expression();
+    return { type: 'RegularVarDecl', id, init };
+  }
+
+  // Compound assignment: x += expr or x -= expr
+  compoundAssignment() {
+    const id = this.consume().value;
+    const op = this.consume('operator').value; // += or -=
+    const right = this.expression();
+    // Desugar to: x := x + expr or x := x - expr
+    const binaryOp = op === '+=' ? '+' : '-';
+    return {
+      type: 'AssignmentExpression',
+      operator: ':=',
+      left: { type: 'Identifier', name: id },
+      right: {
+        type: 'BinaryExpression',
+        operator: binaryOp,
+        left: { type: 'Identifier', name: id },
+        right
+      }
+    };
+  }
+
   varDeclaration() {
     this.consume('keyword', 'var');
-    const id = this.consume('identifier').value;
-    // optional type (float, int, etc.) - we ignore it for execution
-    if (this.peek().type === 'identifier' && ['float', 'int', 'bool', 'string'].includes(this.peek().value)) {
-      this.consume();
+    // optional type annotation (float, int, bool, string, float[], etc.)
+    // Note: some type names like 'table' are lexed as keywords
+    const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+    if ((this.peek().type === 'identifier' || this.peek().type === 'keyword') &&
+        typeKeywords.includes(this.peek().value)) {
+      this.consume(); // consume type
+      // handle array type: float[]
+      if (this.peek().type === 'punct' && this.peek().value === '[') {
+        this.consume('punct', '[');
+        this.consume('punct', ']');
+      }
     }
+    // now get the actual variable name
+    const id = this.consume('identifier').value;
     // optional initializer
     let init = null;
     if (this.peek().type === 'operator' && this.peek().value === '=') {
@@ -91,9 +170,9 @@ class PineParser {
 
   ifStatement() {
     this.consume('keyword', 'if');
-    this.consume('punct', '(');
+    // Pine v5: condition is just an expression, no mandatory parens
+    // The expression parser handles parentheses naturally
     const test = this.expression();
-    this.consume('punct', ')');
     const consequent = this.block();
     let alternate = null;
     if (this.peek().type === 'keyword' && this.peek().value === 'else') {
@@ -126,26 +205,71 @@ class PineParser {
     this.consume('punct', '(');
     const params = [];
     while (this.peek().type !== 'punct' || this.peek().value !== ')') {
+      // Handle typed parameters: float x, int y
+      const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+      if (typeKeywords.includes(this.peek().value)) {
+        this.consume(); // skip type
+      }
       const p = this.consume('identifier').value;
       params.push(p);
       if (this.peek().type === 'punct' && this.peek().value === ',') this.consume('punct', ',');
     }
     this.consume('punct', ')');
     this.consume('operator', '=>');
-    const body = this.expression(); // arrow functions in SMS are single-expression
-    return { type: 'FunctionDecl', name, params, body };
+
+    // Multi-line functions have statements followed by a return expression.
+    // Without indentation tracking, we parse greedily until we hit something
+    // that looks like a new top-level definition.
+    const statements = [];
+
+    // Keep parsing statements while we can
+    while (this.peek().type !== 'eof') {
+      // Stop if we hit a new function definition (identifier followed by () =>)
+      if (this.peek().type === 'identifier') {
+        // Look ahead for () =>
+        let i = 1;
+        if (this.peek(i).type === 'punct' && this.peek(i).value === '(') {
+          // Skip to matching )
+          let depth = 1;
+          i++;
+          while (depth > 0 && this.peek(i).type !== 'eof') {
+            if (this.peek(i).value === '(') depth++;
+            if (this.peek(i).value === ')') depth--;
+            i++;
+          }
+          // Check for =>
+          if (this.peek(i).type === 'operator' && this.peek(i).value === '=>') {
+            break; // New function def starts here
+          }
+        }
+      }
+
+      // Stop if we hit control flow keywords at top level
+      // (they indicate we're past the function body)
+      if (this.peek().type === 'keyword' &&
+          ['if', 'for', 'while', 'var', 'strategy', 'plot', 'plotshape', 'bgcolor', 'alertcondition'].includes(this.peek().value)) {
+        break;
+      }
+
+      statements.push(this.statement());
+    }
+
+    // The last statement is the return value (should be an expression)
+    // Earlier statements are local variable declarations
+    const body = statements.length > 0 ? statements[statements.length - 1] : null;
+    const locals = statements.slice(0, -1);
+
+    return { type: 'FunctionDecl', name, params, body, locals };
   }
 
   block() {
     const stmts = [];
-    // In Pine a block is simply a series of statements (no braces)
-    // we stop when we encounter a token that ends the block:
-    //   - another top-level keyword (if, for, while, var, etc.)
-    //   - eof
-    while (true) {
-      const tok = this.peek();
-      if (tok.type === 'eof') break;
-      if (tok.type === 'keyword' && ['if', 'for', 'while', 'var', 'else', 'break', 'continue'].includes(tok.value)) break;
+    // Pine uses indentation for blocks, which we can't track without a proper lexer.
+    // Workaround: parse ONE statement for the block.
+    // This handles simple cases like: if x > 0  y := 1
+    // For complex nested blocks, they'll be parsed as separate top-level statements.
+    const tok = this.peek();
+    if (tok.type !== 'eof') {
       stmts.push(this.statement());
     }
     return { type: 'BlockStatement', body: stmts };

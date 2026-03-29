@@ -59,9 +59,14 @@ class PineRuntime {
   _execStatement(node) {
     switch (node.type) {
       case 'VarDecl':
+        // Persistent variable - only initialize once
         if (!(node.id in this.state)) {
           this.state[node.id] = node.init ? this._evalExpression(node.init) : null;
         }
+        break;
+      case 'RegularVarDecl':
+        // Non-persistent variable - recalculate every candle
+        this.state[node.id] = node.init ? this._evalExpression(node.init) : null;
         break;
       case 'ExpressionStatement':
         this._evalExpression(node.expression);
@@ -215,6 +220,15 @@ class PineRuntime {
           if (obj === null || obj === undefined) return null;
           return obj[node.property];
         }
+      case 'AssignmentExpression':
+        {
+          // Handle := assignment as expression (returns the assigned value)
+          const value = this._evalExpression(node.right);
+          if (node.left.type === 'Identifier') {
+            this.state[node.left.name] = value;
+          }
+          return value;
+        }
       default:
         throw new Error(`Unsupported expression type ${node.type}`);
     }
@@ -257,7 +271,8 @@ class PineRuntime {
       const method = callee.property;
 
       if (obj === null || obj === undefined) {
-        throw new Error(`Cannot call method on null/undefined`);
+        // Some Pine built-ins resolve to null - just return null for their method calls
+        return null;
       }
 
       // Special handling for ta.* - pass series arrays instead of scalars
@@ -271,6 +286,12 @@ class PineRuntime {
         return this._callStrategyMethod(method, evaluatedArgs);
       }
 
+      // Special handling for input.* - return the default value
+      if (callee.object.name === 'input') {
+        const positional = evaluatedArgs.filter(a => !a || !a.name);
+        return positional[0]; // First arg is the default value
+      }
+
       // For other objects (array, math, etc.)
       if (typeof obj[method] === 'function') {
         // Extract positional args (ignore named args for simple methods)
@@ -278,11 +299,37 @@ class PineRuntime {
         return obj[method](...positional);
       }
 
-      throw new Error(`Method ${method} not found on object`);
+      // For objects without the method, return null (handles things like plot.style_linebr)
+      return obj[method] !== undefined ? obj[method] : null;
     }
 
     // If callee is an Identifier (simple function call or user function)
     if (typeof callee === 'object' && callee.type === 'Identifier') {
+      // Special case: strategy(...) header is configuration, not a function call
+      if (callee.name === 'strategy') {
+        // Store config but don't try to call it
+        const config = {};
+        evaluatedArgs.forEach((a, i) => {
+          if (a && a.name) config[a.name] = a.value;
+          else if (i === 0) config.title = a;
+        });
+        this.bridge.config = config;
+        return null;
+      }
+
+      // Special case: input.*() returns the default value
+      if (callee.name === 'input') {
+        const positional = evaluatedArgs.filter(a => !a || !a.name);
+        return positional[0];
+      }
+
+      // Ignore visualization/alerting functions - they don't affect trading logic
+      if (['plot', 'plotshape', 'plotchar', 'plotarrow', 'plotbar', 'plotcandle',
+           'bgcolor', 'fill', 'hline', 'line', 'label', 'box', 'table',
+           'alertcondition', 'alert'].includes(callee.name)) {
+        return null;
+      }
+
       const target = this._resolveCallee(callee.name);
 
       // If target is a function (built-in)
@@ -298,7 +345,19 @@ class PineRuntime {
         target.params.forEach((p, i) => {
           this.state[p] = positional[i];
         });
-        const result = this._evalExpression(target.body);
+        // Execute local variable declarations first
+        if (target.locals) {
+          for (const local of target.locals) {
+            this._execStatement(local);
+          }
+        }
+        // The body is the return expression (wrapped in ExpressionStatement)
+        let result;
+        if (target.body && target.body.type === 'ExpressionStatement') {
+          result = this._evalExpression(target.body.expression);
+        } else if (target.body) {
+          result = this._evalExpression(target.body);
+        }
         this.state = previousState;
         return result;
       }
@@ -310,6 +369,11 @@ class PineRuntime {
       if (typeof target === 'function') {
         return target.apply(null, evaluatedArgs);
       }
+    }
+
+    // If callee is a Literal (e.g., null), just return null
+    if (typeof callee === 'object' && callee.type === 'Literal') {
+      return callee.value;
     }
 
     throw new Error(`Unable to resolve callee ${JSON.stringify(callee)}`);
@@ -469,6 +533,10 @@ class PineRuntime {
     if (name === 'session') return this.session;
     if (name === 'nz') return (val, replacement = 0) => (val === null || val === undefined || Number.isNaN(val)) ? replacement : val;
     if (name === 'na') return (val) => val === null || val === undefined || Number.isNaN(val);
+    if (name === 'time') return (session) => this._getCurrentCandle()?.timestamp || Date.now();
+    if (name === 'timeframe') return { multiplier: 15, isminutes: true }; // default 15m
+    if (name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
+    if (name === 'dayofweek') return new Date(this._getCurrentCandle()?.timestamp || Date.now()).getDay();
 
     // user variable / function
     return this.state[name];

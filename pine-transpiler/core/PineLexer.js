@@ -12,22 +12,22 @@ class PineLexer {
       'array', 'math', 'ta', 'order', 'color', 'size', 'location',
       'shape', 'table', 'str', 'barstate',
     ]);
-    this.operators = new Set(['+', '-', '*', '/', '%', '=', ':=', '>', '<', '>=', '<=', '==', '!=', '+=', '-=', '?']);
+    this.operators = new Set(['+', '-', '*', '/', '%', '=', ':=', '=>', '>', '<', '>=', '<=', '==', '!=', '+=', '-=', '?']);
     this.punctuations = new Set(['(', ')', '[', ']', '{', '}', ',', ';', ':', '.']);
     // and/or/not are operators, not keywords - they need operator type for parser
     this.logicalOperators = new Set(['and', 'or', 'not']);
   }
 
   isWhitespace(ch) {
-    return /\s/.test(ch);
+    return ch !== undefined && /\s/.test(ch);
   }
 
   isDigit(ch) {
-    return /[0-9]/.test(ch);
+    return ch !== undefined && /[0-9]/.test(ch);
   }
 
   isAlpha(ch) {
-    return /[a-zA-Z_]/.test(ch);
+    return ch !== undefined && /[a-zA-Z_]/.test(ch);
   }
 
   peek(offset = 0) {
