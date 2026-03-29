@@ -729,6 +729,15 @@ class OrderExecutor {
               });
             }
 
+            // 3.6 FIX 2026-03-29: Wire SMS daily loss tracking (was NEVER CALLED)
+            // Updates dailyLosses counter so 3-loss-per-day limit works
+            if (this.ctx.strategyOrchestrator && buyTrade.entryStrategy) {
+              this.ctx.strategyOrchestrator.recordTradeResult(
+                buyTrade.entryStrategy,
+                completeTradeResult.pnlDollars || 0
+              );
+            }
+
             // 4. CHANGE 2026-02-13: Re-enable TradeLogger with comprehensive breakdown
             try {
               this.ctx.logTrade({
@@ -995,6 +1004,14 @@ class OrderExecutor {
               success: pnl >= 0,
               pnl: completeTradeResult.pnlDollars || 0
             });
+          }
+
+          // FIX 2026-03-29: Wire SMS daily loss tracking for shorts
+          if (this.ctx.strategyOrchestrator && shortTrade.entryStrategy) {
+            this.ctx.strategyOrchestrator.recordTradeResult(
+              shortTrade.entryStrategy,
+              completeTradeResult.pnlDollars || 0
+            );
           }
 
           // Pattern exit model

@@ -921,6 +921,19 @@ class StrategyOrchestrator {
   }
 
   /**
+   * Forward trade result to strategy module for daily loss tracking
+   * FIX 2026-03-29: Wire up SMS dailyLosses counter
+   * @param {string} strategyName - The strategy that made the trade
+   * @param {number} pnl - The P&L of the closed trade (positive = win, negative = loss)
+   */
+  recordTradeResult(strategyName, pnl) {
+    if (strategyName === 'SmartMoneySweep' && this.smartMoneySweepModule) {
+      this.smartMoneySweepModule.recordTradeResult(pnl);
+      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} → dailyLosses=${this.smartMoneySweepModule.dailyLosses}`);
+    }
+  }
+
+  /**
    * Get stats for monitoring
    */
   getStats() {
