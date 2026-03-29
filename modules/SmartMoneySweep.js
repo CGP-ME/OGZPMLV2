@@ -76,7 +76,7 @@ class SmartMoneySweep {
     this.ivbLocked = false;
     this.ivbBarCount = 0;
     this.ivbDirection = 0;  // 0=none, 1=long, -1=short
-    this.sessionDay = -1;
+    this.sessionDay = '';
 
     this.cvd = 0;
     this.dailyLosses = 0;
@@ -281,7 +281,7 @@ class SmartMoneySweep {
     this.ivbLocked = false;
     this.ivbBarCount = 0;
     this.ivbDirection = 0;
-    this.sessionDay = -1;
+    this.sessionDay = '';
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -417,7 +417,9 @@ class SmartMoneySweep {
     if (!candleDate) return;
 
     const inCash = this._inCashSession(candleDate);
-    const currentDay = candleDate.getUTCDay();
+    // FIX 2026-03-29: Use actual date string, not day-of-week (getUTCDay returns 0-6)
+    // This ensures daily reset happens per calendar day, not per weekday
+    const currentDay = candleDate.toISOString().slice(0, 10);
 
     // Detect new session
     const newSession = currentDay !== this.sessionDay && inCash;

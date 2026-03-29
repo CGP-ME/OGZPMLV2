@@ -813,7 +813,9 @@ class OGZPrimeV14Bot {
       notifyTrade: notifyTrade,
       notifyTradeClose: notifyTradeClose,
       discordNotifier: discordNotifier,
-      logTrade: logTrade
+      logTrade: logTrade,
+      // FIX 2026-03-29: Add strategyOrchestrator for SMS daily loss tracking
+      strategyOrchestrator: this.strategyOrchestrator
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies

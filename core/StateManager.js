@@ -418,7 +418,8 @@ class StateManager {
    */
   async closePosition(price, partial = false, size = null, context = {}) {
     // Allow closing both long (positive) and short (negative) positions
-    if (this.state.position === 0) {
+    // FIX 2026-03-29: Allow close when position=0 but activeTrades exist (hedged positions)
+    if (this.state.position === 0 && !(this.state.activeTrades && this.state.activeTrades.size > 0)) {
       console.error('[StateManager] No position to close!');
       return { success: false, error: 'No position to close' };
     }
