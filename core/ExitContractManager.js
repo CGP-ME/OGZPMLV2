@@ -311,6 +311,9 @@ class ExitContractManager {
     contract.strategyName = (typeof strategyName === 'string' && strategyName) ? strategyName : 'default';
     contract.signalConfidence = (typeof signal.confidence === 'number' && !isNaN(signal.confidence)) ? signal.confidence : 0;
 
+    // DEBUG: Log FINAL exit contract values after all overrides and adjustments
+    console.log(`[ECM-FINAL] ${strategyName} → SL%=${contract.stopLossPercent?.toFixed(2)} TP%=${contract.takeProfitPercent?.toFixed(2)} Trail%=${contract.trailingStopPercent?.toFixed(2)} (signal had SL%=${signal.stopLossPercent?.toFixed(2)} TP%=${signal.takeProfitPercent?.toFixed(2)})`);
+
     return contract;
   }
 }
