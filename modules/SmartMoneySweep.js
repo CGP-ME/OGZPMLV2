@@ -221,6 +221,8 @@ class SmartMoneySweep {
     // ─── Step 7: Compute SL/TP ───
     const price = c(candle);
     const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
+    // DEBUG: Log computed exit levels
+    console.log(`[SMS-LEVELS] price=$${price?.toFixed(2)} SL=$${levels?.stopLoss?.toFixed(2)} TP=$${levels?.takeProfit?.toFixed(2)}`);
 
     // ─── Normalize confidence to match PineScript position sizing tiers ───
     // OrderExecutor formula: multiplier = 0.5 + (conf - 0.5) × 4.0

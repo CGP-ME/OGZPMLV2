@@ -605,6 +605,13 @@ class StrategyOrchestrator {
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
 
+        // DEBUG: Log what SMS module returned
+        if (sig.overrideLevels) {
+          console.log(`[SMS-DEBUG] Signal has overrideLevels: SL=$${sig.overrideLevels.stopLoss?.toFixed(2)} TP=$${sig.overrideLevels.takeProfit?.toFixed(2)}`);
+        } else {
+          console.log(`[SMS-DEBUG] Signal MISSING overrideLevels! sig keys: ${Object.keys(sig).join(', ')}`);
+        }
+
         return {
           direction: sig.direction,
           confidence: conf,
@@ -792,6 +799,9 @@ class StrategyOrchestrator {
 
       // If the winning strategy provided its own levels (e.g. TPO), use them
       const signalOverrides = {};
+      // DEBUG: Log winner object keys to trace overrideLevels flow
+      console.log(`[EXIT-DEBUG] Winner "${winner.strategyName}" keys: ${Object.keys(winner).join(', ')}`);
+      console.log(`[EXIT-DEBUG] Winner overrideLevels type: ${typeof winner.overrideLevels}, value: ${JSON.stringify(winner.overrideLevels)}`);
       if (winner.overrideLevels) {
         const isShort = winner.direction === 'sell';
         if (winner.overrideLevels.stopLoss && price) {
