@@ -822,7 +822,14 @@ class SmartMoneySweep {
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepLow - slBuffer;
       const maxLossSL = price - (price * this.maxLossPct / 100);
-      const stopLoss = Math.max(wickSL, maxLossSL);
+      let stopLoss = Math.max(wickSL, maxLossSL);
+
+      // FIX 2026-03-29: Safety check - long SL must be BELOW entry
+      // If wick-based SL is above entry (prior candles higher than current), force to maxLossSL
+      if (stopLoss > price) {
+        console.log(`[SL-CALC] SAFETY: Long SL $${stopLoss.toFixed(2)} was ABOVE entry $${price.toFixed(2)} → forcing to maxLossSL $${maxLossSL.toFixed(2)}`);
+        stopLoss = maxLossSL;
+      }
 
       console.log(`[SL-CALC] wickSL=$${wickSL?.toFixed(2)} maxLossSL=$${maxLossSL?.toFixed(2)} → final SL=$${stopLoss?.toFixed(2)} (${stopLoss > price ? 'ABOVE' : 'BELOW'} entry)`);
 
@@ -849,7 +856,14 @@ class SmartMoneySweep {
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepHigh + slBuffer;
       const maxLossSL = price + (price * this.maxLossPct / 100);
-      const stopLoss = Math.min(wickSL, maxLossSL);
+      let stopLoss = Math.min(wickSL, maxLossSL);
+
+      // FIX 2026-03-29: Safety check - short SL must be ABOVE entry
+      // If wick-based SL is below entry (prior candles lower than current), force to maxLossSL
+      if (stopLoss < price) {
+        console.log(`[SL-CALC] SAFETY: Short SL $${stopLoss.toFixed(2)} was BELOW entry $${price.toFixed(2)} → forcing to maxLossSL $${maxLossSL.toFixed(2)}`);
+        stopLoss = maxLossSL;
+      }
 
       const atrTPLow = price - atrVal * this.lowConvATRMult;
       const atrTPMid = price - atrVal * this.midConvATRMult;
