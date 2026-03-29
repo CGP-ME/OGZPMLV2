@@ -199,8 +199,36 @@ class TradingLoop {
         return false;
       });
 
+      // FIX 2026-03-29: Opposite direction = close existing + open new (PineScript behavior)
+      // On same ticker, don't hedge - flip the position instead
+      const hasOppositePosition = activeTrades.some(t => {
+        if (finalDirection === 'buy') return t.direction === 'short' || t.action === 'SELL_SHORT';
+        if (finalDirection === 'sell') return t.direction === 'long' || t.action === 'BUY';
+        return false;
+      });
+
       if (hasPositionInDirection) {
         console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
+      } else if (hasOppositePosition) {
+        // Close opposite position first, then open new in next candle
+        // This mimics PineScript's strategy.entry which replaces positions
+        const oppositeTrade = activeTrades.find(t => {
+          if (finalDirection === 'buy') return t.direction === 'short' || t.action === 'SELL_SHORT';
+          if (finalDirection === 'sell') return t.direction === 'long' || t.action === 'BUY';
+          return false;
+        });
+        if (oppositeTrade) {
+          const isClosingShort = oppositeTrade.direction === 'short' || oppositeTrade.action === 'SELL_SHORT';
+          console.log(`[FLIP] Closing ${isClosingShort ? 'short' : 'long'} to flip to ${finalDirection}`);
+          decision = {
+            action: isClosingShort ? 'COVER' : 'SELL',
+            direction: 'close',
+            confidence: confidence,
+            exitReason: 'flip_position',
+            tradeId: oppositeTrade.id
+          };
+          // Note: New position opens on next signal after close completes
+        }
       } else if (activeTrades.length >= maxPositions) {
         console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
       } else {
