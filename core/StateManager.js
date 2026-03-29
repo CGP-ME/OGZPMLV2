@@ -14,13 +14,13 @@
  * HISTORICAL BUGS FIXED:
  * - Position desync: this.currentPosition vs this.tradingBrain.position
  * - Balance desync: Multiple components tracking different balances
- * - P&L calculation: BTC treated as USD (lost $99.99 per trade)
+ * - P&L calculation: Wrong unit conversion (lost $99.99 per trade)
  * - activeTrades accumulation: Closed trades not removed from Map
  *
  * CRITICAL INVARIANTS:
- * 1. position is always in BTC (asset units), NOT USD
+ * 1. position is always in USD (position size in dollars)
  * 2. balance is always in USD
- * 3. inPosition tracks USD locked in positions (position × entryPrice)
+ * 3. inPosition tracks USD locked in positions
  * 4. totalBalance = balance + inPosition + unrealizedPnL
  * 5. All updates go through updateState() for atomicity
  *
@@ -33,15 +33,15 @@
  * const { getInstance } = require('./core/StateManager');
  * const stateManager = getInstance();
  *
- * // Open a position (size in BTC)
- * await stateManager.openPosition(0.001, 100000, { source: 'TradingBrain' });
+ * // Open a position (size in USD)
+ * await stateManager.openPosition(500, 100, { source: 'TradingBrain' });
  *
  * // Close position
- * await stateManager.closePosition(101000);
+ * await stateManager.closePosition(101);
  *
  * // Check current state
  * const state = stateManager.getState();
- * console.log(`Balance: $${state.balance}, Position: ${state.position} BTC`);
+ * console.log(`Balance: $${state.balance}, Position: $${state.position}`);
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -54,7 +54,7 @@
  *
  * @class StateManager
  * @property {Object} state - The current trading state
- * @property {number} state.position - Current position size in BTC (NOT USD!)
+ * @property {number} state.position - Current position size in USD
  * @property {number} state.positionCount - Number of entries (for averaging)
  * @property {number} state.entryPrice - Average entry price in USD
  * @property {Date|null} state.entryTime - When position was opened
@@ -82,10 +82,10 @@ class StateManager {
   constructor() {
     // ─────────────────────────────────────────────────────────────────────
     // POSITION TRACKING
-    // CRITICAL: position is in BTC (asset units), NOT USD!
+    // Position is in USD (position size in dollars)
     // ─────────────────────────────────────────────────────────────────────
     this.state = {
-      position: 0,              // Current position size in BTC (ASSET UNITS!)
+      position: 0,              // Current position size in USD
       positionCount: 0,         // Number of entries (for DCA/averaging)
       entryPrice: 0,            // Average entry price in USD
       entryTime: null,          // Timestamp when position was opened
@@ -289,15 +289,15 @@ class StateManager {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SECTION: Position Management
-  // These methods handle opening/closing positions with proper BTC↔USD math
+  // These methods handle opening/closing positions with USD-based accounting
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
    * Open a new position (BUY).
    *
    * @async
-   * @param {number} size - Position size in BTC (asset units, NOT USD!)
-   * @param {number} price - Current market price in USD per BTC
+   * @param {number} size - Position size in USD
+   * @param {number} price - Current market price
    * @param {Object} [context={}] - Additional context for logging/tracking
    * @param {string} [context.orderId] - Broker order ID
    * @param {string} [context.source] - Calling component (e.g., 'TradingBrain')
@@ -306,22 +306,21 @@ class StateManager {
    * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
    *
    * @example
-   * // Buy 0.001 BTC at $100,000
-   * await stateManager.openPosition(0.001, 100000, {
+   * // Open $500 position at $100/share
+   * await stateManager.openPosition(500, 100, {
    *   source: 'TradingBrain',
    *   reason: 'RSI oversold bounce',
    *   confidence: 75
    * });
-   * // Result: balance -= $100, position = 0.001, inPosition = $100
+   * // Result: position = 500 USD, inPosition = $500
    *
    * @description
    * CRITICAL MATH:
-   * - size is in BTC (e.g., 0.001)
-   * - price is in USD per BTC (e.g., $100,000)
-   * - usdCost = size × price (e.g., 0.001 × 100,000 = $100)
-   * - balance decreases by usdCost
-   * - inPosition increases by usdCost
-   * - position increases by size (BTC)
+   * - size is in USD (e.g., $500)
+   * - price is current market price
+   * - Per-trade equity accounting: only fees affect realizedPnL on open
+   * - No principal movement on balance
+   * - position increases by size (USD)
    */
   async openPosition(size, price, context = {}) {
     if (this.state.position > 0) {
@@ -399,30 +398,23 @@ class StateManager {
    * Close position (SELL) - partial or full.
    *
    * @async
-   * @param {number} price - Current market price in USD per BTC
+   * @param {number} price - Current market price
    * @param {boolean} [partial=false] - true for partial close, false for full
-   * @param {number|null} [size=null] - BTC amount to close (null = full position)
+   * @param {number|null} [size=null] - USD amount to close (null = full position)
    * @param {Object} [context={}] - Additional context for logging/tracking
    * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
    *
    * @example
-   * // Full close at $101,000 (1% profit on $100k entry)
-   * await stateManager.closePosition(101000);
-   * // Result: pnl = 0.001 × ($101k - $100k) = $1
-   * //         balance += 0.001 × $101,000 = $101
+   * // Full close at $101 (1% profit on $100 entry)
+   * await stateManager.closePosition(101, false, null, { tradeId: 'TRADE_123' });
+   * // Result: pnl = $500 × 1% = $5 profit
    *
    * @description
-   * CRITICAL P&L CALCULATION (fixed 2026-02-01):
-   * WRONG (old bug): pnl = closeSize × priceChangePercent
-   *   - Treated BTC as USD: 0.001 × 0.01 = $0.00001 profit (WRONG!)
-   * CORRECT: pnl = closeSize × (price - entryPrice)
-   *   - BTC × price_diff = USD: 0.001 × $1000 = $1 profit (CORRECT!)
-   *
-   * BALANCE RESTORATION (fixed 2026-02-01):
-   * WRONG (old bug): balance += closeSize + pnl
-   *   - Added BTC to USD: balance + 0.001 + 0.00001 (WRONG!)
-   * CORRECT: balance += closeSize × price
-   *   - BTC × current_price = USD returned: balance + $101 (CORRECT!)
+   * Per-trade equity accounting (fixed 2026-03-28):
+   * - Looks up trade by tradeId (required, no fallback)
+   * - Uses trade's entryPrice for percentage-based P&L
+   * - pnl = positionUSD × ((exitPrice - entryPrice) / entryPrice)
+   * - Only fees and P&L affect realizedPnL, no principal movement
    */
   async closePosition(price, partial = false, size = null, context = {}) {
     // Allow closing both long (positive) and short (negative) positions

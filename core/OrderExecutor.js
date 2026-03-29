@@ -96,7 +96,7 @@ class OrderExecutor {
     try {
       // CHECKPOINT 3: Before ExecutionLayer call
       const usdAmount = positionSize * price;
-      console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${usdAmount.toFixed(2)} (${positionSize.toFixed(8)} BTC)`);
+      console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${positionSize.toFixed(2)}`);
 
       // Phase 4 REWRITE: Circuit breaker removed (tradingBrain deleted in Phase 2)
 
@@ -134,7 +134,7 @@ class OrderExecutor {
           const orderResult = await this.ctx.orderRouter.sendOrder({
             symbol,
             side,
-            amount: positionSize,  // BTC amount
+            amount: positionSize,  // USD amount
             type: 'market'
           });
           tradeResult = {
@@ -553,12 +553,12 @@ class OrderExecutor {
 
             // CHANGE 2025-12-11: Use StateManager for atomic position close
             const positionState = stateManager.getState();
-            const btcPosition = positionState.position;  // BUGFIX 2026-02-01: This is BTC amount, not USD!
+            const positionAmount = positionState.position;  // Position in USD
 
             // Close position via StateManager (handles P&L calculation)
             // FIX 2026-02-23: Wire partial close - use exitSize when present (tiered exits)
             const isPartialClose = decision.exitSize && decision.exitSize > 0 && decision.exitSize < 1;
-            const partialSize = isPartialClose ? btcPosition * decision.exitSize : null;
+            const partialSize = isPartialClose ? positionAmount * decision.exitSize : null;
             const closeResult = await stateManager.closePosition(price, isPartialClose, partialSize, {
               orderId: buyTrade.orderId,
               exitReason: decision.exitReason || 'signal'
@@ -575,11 +575,11 @@ class OrderExecutor {
             const afterSellState = stateManager.getState();
 
             // Calculate display values
-            // BUGFIX 2026-02-01: btcPosition IS already in BTC, no division needed!
-            const btcAmount = btcPosition;  // Already BTC, not USD
-            const sellValue = btcAmount * price;  // BTC × current price = USD received
-            const entryValue = btcAmount * buyTrade.entryPrice;  // BTC × entry price = USD spent
-            const profitLoss = sellValue - entryValue;  // USD received - USD spent = profit
+            // Position is already in USD
+            const usdAmount = positionAmount;
+            const sellValue = usdAmount * price;  // USD position × price (for display)
+            const entryValue = usdAmount * buyTrade.entryPrice;  // USD position × entry price
+            const profitLoss = sellValue - entryValue;
             console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 2026-02-01: Send notifications for trade close with P&L
@@ -593,7 +593,7 @@ class OrderExecutor {
               }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
 
               // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
-              this.ctx.discordNotifier.notifyTrade('sell', price, btcAmount, profitLoss);
+              this.ctx.discordNotifier.notifyTrade('sell', price, usdAmount, profitLoss);
             }
 
             // Phase 4 REWRITE: executionLayer.trades deleted - backtestRecorder handles trade recording
@@ -618,7 +618,7 @@ class OrderExecutor {
               action: 'SELL',
               symbol: this.ctx.tradingPair || 'BTC/USD',
               price: price,
-              size: btcAmount,
+              size: usdAmount,
               value_usd: sellValue,
               fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),  // From TradingConfig (taker on exit)
               reason: completeTradeResult.exitReason || 'Signal exit',
