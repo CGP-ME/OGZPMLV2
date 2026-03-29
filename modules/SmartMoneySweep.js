@@ -808,15 +808,23 @@ class SmartMoneySweep {
   _computeExitLevels(direction, price, priceHistory, atrVal, vp, conditionsMet) {
     if (direction === 'buy') {
       // SL = lowest low of sweep bars minus buffer, capped by maxLossPct
-      const sweepLow = Math.min(
-        l(priceHistory[priceHistory.length - 2]),
-        l(priceHistory[priceHistory.length - 3]),
-        l(priceHistory[priceHistory.length - 4])
-      );
+      const candle2 = priceHistory[priceHistory.length - 2];
+      const candle3 = priceHistory[priceHistory.length - 3];
+      const candle4 = priceHistory[priceHistory.length - 4];
+      const low2 = l(candle2);
+      const low3 = l(candle3);
+      const low4 = l(candle4);
+      const sweepLow = Math.min(low2, low3, low4);
+
+      // DEBUG: Show sweep low calculation
+      console.log(`[SL-CALC] LONG price=$${price?.toFixed(2)} | candle lows: [-2]=$${low2?.toFixed(2)} [-3]=$${low3?.toFixed(2)} [-4]=$${low4?.toFixed(2)} → sweepLow=$${sweepLow?.toFixed(2)}`);
+
       const slBuffer = price * (this.slBufferPct / 100);
       const wickSL = sweepLow - slBuffer;
       const maxLossSL = price - (price * this.maxLossPct / 100);
       const stopLoss = Math.max(wickSL, maxLossSL);
+
+      console.log(`[SL-CALC] wickSL=$${wickSL?.toFixed(2)} maxLossSL=$${maxLossSL?.toFixed(2)} → final SL=$${stopLoss?.toFixed(2)} (${stopLoss > price ? 'ABOVE' : 'BELOW'} entry)`);
 
       // TP: ATR-based scaled by conviction + VP/VWAP structural targets
       const atrTPLow = price + atrVal * this.lowConvATRMult;
