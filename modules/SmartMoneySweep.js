@@ -193,8 +193,10 @@ class SmartMoneySweep {
     const longFresh = sweepLongAny && currentLongSweepBar !== this.lastLongSweepBar;
     const shortFresh = sweepShortAny && currentShortSweepBar !== this.lastShortSweepBar;
 
-    const longValid = longFresh && longResult && (longResult.conditionsMet >= 1 || longResult.confidence > 0);
-    const shortValid = shortFresh && shortResult && (shortResult.conditionsMet >= 1 || shortResult.confidence > 0);
+    // NO BINARY GATES: sweep detected + fresh = signal flows through
+    // Confidence score reflects progress toward conditions, position sizer handles allocation
+    const longValid = longFresh && longResult !== null;
+    const shortValid = shortFresh && shortResult !== null;
 
     // Pick the stronger signal if both fire
     let winner = null;
