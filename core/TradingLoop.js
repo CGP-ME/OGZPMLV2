@@ -138,7 +138,8 @@ class TradingLoop {
     // Check each active position for exit conditions
     // This is INDEPENDENT of entry signals
     const currentPosition = stateManager.get('position');
-    const hasOpenPosition = currentPosition !== 0 && activeTrades.length > 0;
+    // FIX 2026-03-29: Use activeTrades.length only - net position=0 when long+short cancel out
+    const hasOpenPosition = activeTrades.length > 0;
     if (hasOpenPosition) for (const activeTrade of activeTrades) {
       exitContractManager.updateMaxProfit(activeTrade, price);
 
