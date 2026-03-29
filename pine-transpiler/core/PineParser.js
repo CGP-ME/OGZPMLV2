@@ -164,13 +164,26 @@ class PineParser {
   }
 
   assignment() {
-    const left = this.logicalOr();
+    const left = this.ternary();
     if (this.peek().type === 'operator' && this.peek().value === ':=') {
       this.consume('operator', ':=');
       const right = this.assignment();
       return { type: 'AssignmentExpression', operator: ':=', left, right };
     }
     return left;
+  }
+
+  // Ternary: condition ? trueExpr : falseExpr
+  ternary() {
+    let node = this.logicalOr();
+    if (this.peek().type === 'operator' && this.peek().value === '?') {
+      this.consume('operator', '?');
+      const consequent = this.expression();
+      this.consume('punct', ':');
+      const alternate = this.ternary();
+      node = { type: 'ConditionalExpression', test: node, consequent, alternate };
+    }
+    return node;
   }
 
   logicalOr() {
@@ -235,12 +248,84 @@ class PineParser {
 
   unary() {
     const tok = this.peek();
-    if (tok.type === 'operator' && ['+', '-', '!'].includes(tok.value)) {
+    // Handle +, -, !, and 'not' as unary operators
+    if (tok.type === 'operator' && ['+', '-', '!', 'not'].includes(tok.value)) {
       const op = this.consume('operator').value;
       const argument = this.unary();
-      return { type: 'UnaryExpression', operator: op, argument };
+      // Normalize 'not' to '!' for the runtime
+      return { type: 'UnaryExpression', operator: op === 'not' ? '!' : op, argument };
     }
-    return this.primary();
+    return this.postfix();
+  }
+
+  // Handle postfix operations: member access (.), array access ([]), function calls (())
+  postfix() {
+    let node = this.primary();
+
+    while (true) {
+      const tok = this.peek();
+
+      // Member access: obj.property
+      if (tok.type === 'punct' && tok.value === '.') {
+        this.consume('punct', '.');
+        const next = this.peek();
+        // Property can be identifier or keyword (strategy.long, ta.sma, etc.)
+        if (next.type !== 'identifier' && next.type !== 'keyword') {
+          this.error('Expected property name after dot');
+        }
+        const property = this.consume().value;
+        node = { type: 'MemberExpression', object: node, property };
+        continue;
+      }
+
+      // Array/series access: arr[index]
+      if (tok.type === 'punct' && tok.value === '[') {
+        this.consume('punct', '[');
+        const index = this.expression();
+        this.consume('punct', ']');
+        // If node is an identifier, this is a series lookup (close[1])
+        if (node.type === 'Identifier') {
+          node = { type: 'SeriesLookup', series: node.name, offset: index };
+        } else {
+          node = { type: 'IndexExpression', object: node, index };
+        }
+        continue;
+      }
+
+      // Function call: func(args)
+      if (tok.type === 'punct' && tok.value === '(') {
+        this.consume('punct', '(');
+        const args = this.parseCallArgs();
+        this.consume('punct', ')');
+        node = { type: 'CallExpression', callee: node, arguments: args };
+        continue;
+      }
+
+      break;
+    }
+
+    return node;
+  }
+
+  // Parse function call arguments, handling named args (name=value)
+  parseCallArgs() {
+    const args = [];
+    while (this.peek().type !== 'punct' || this.peek().value !== ')') {
+      // Check for named argument: identifier followed by =
+      if ((this.peek().type === 'identifier' || this.peek().type === 'keyword') &&
+          this.peek(1).type === 'operator' && this.peek(1).value === '=') {
+        const name = this.consume().value;
+        this.consume('operator', '=');
+        const value = this.expression();
+        args.push({ type: 'NamedArgument', name, value });
+      } else {
+        args.push(this.expression());
+      }
+      if (this.peek().type === 'punct' && this.peek().value === ',') {
+        this.consume('punct', ',');
+      }
+    }
+    return args;
   }
 
   primary() {
@@ -255,7 +340,9 @@ class PineParser {
       this.consume();
       return { type: 'Literal', value: tok.value };
     }
-    if (tok.type === 'identifier' && ['true', 'false', 'na', 'null'].includes(tok.value)) {
+    // Boolean/null literals (can be keyword or identifier depending on lexer)
+    if ((tok.type === 'keyword' || tok.type === 'identifier') &&
+        ['true', 'false', 'na', 'null'].includes(tok.value)) {
       this.consume();
       const map = { true: true, false: false, na: null, null: null };
       return { type: 'Literal', value: map[tok.value] };
@@ -269,31 +356,11 @@ class PineParser {
       return expr;
     }
 
-    // identifier (variable, function call, series look-back)
-    if (tok.type === 'identifier') {
-      const id = this.consume('identifier').value;
-
-      // look-back e.g. close[3]
-      if (this.peek().type === 'punct' && this.peek().value === '[') {
-        this.consume('punct', '[');
-        const offset = this.expression(); // must evaluate to number
-        this.consume('punct', ']');
-        return { type: 'SeriesLookup', series: id, offset };
-      }
-
-      // function call
-      if (this.peek().type === 'punct' && this.peek().value === '(') {
-        this.consume('punct', '(');
-        const args = [];
-        while (this.peek().type !== 'punct' || this.peek().value !== ')') {
-          args.push(this.expression());
-          if (this.peek().type === 'punct' && this.peek().value === ',') this.consume('punct', ',');
-        }
-        this.consume('punct', ')');
-        return { type: 'CallExpression', callee: id, arguments: args };
-      }
-
-      // simple identifier reference
+    // identifier or keyword used as identifier (strategy, ta, array, etc.)
+    // Keywords can be used as identifiers in expression positions for member access
+    if (tok.type === 'identifier' || tok.type === 'keyword') {
+      const id = this.consume().value;
+      // postfix() handles ., [], () - just return the identifier
       return { type: 'Identifier', name: id };
     }
 

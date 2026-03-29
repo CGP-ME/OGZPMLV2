@@ -12,8 +12,10 @@ class PineLexer {
       'array', 'math', 'ta', 'order', 'color', 'size', 'location',
       'shape', 'table', 'str', 'barstate',
     ]);
-    this.operators = new Set(['+', '-', '*', '/', '%', '=', ':=', '>', '<', '>=', '<=', '==', '!=']);
-    this.punctuations = new Set(['(', ')', '[', ']', '{', '}', ',', ';', ':']);
+    this.operators = new Set(['+', '-', '*', '/', '%', '=', ':=', '>', '<', '>=', '<=', '==', '!=', '+=', '-=', '?']);
+    this.punctuations = new Set(['(', ')', '[', ']', '{', '}', ',', ';', ':', '.']);
+    // and/or/not are operators, not keywords - they need operator type for parser
+    this.logicalOperators = new Set(['and', 'or', 'not']);
   }
 
   isWhitespace(ch) {
@@ -96,14 +98,22 @@ class PineLexer {
         continue;
       }
 
-      // Identifiers / keywords
+      // Identifiers / keywords / logical operators
       if (this.isAlpha(ch)) {
         let id = '';
         while (this.isAlpha(this.peek()) || this.isDigit(this.peek())) {
           id += this.peek();
           this.advance();
         }
-        const type = this.keywords.has(id) ? 'keyword' : 'identifier';
+        // and/or/not are operators for the parser
+        let type;
+        if (this.logicalOperators.has(id)) {
+          type = 'operator';
+        } else if (this.keywords.has(id)) {
+          type = 'keyword';
+        } else {
+          type = 'identifier';
+        }
         this.addToken(type, id);
         continue;
       }
