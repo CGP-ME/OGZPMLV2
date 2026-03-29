@@ -806,6 +806,10 @@ class StrategyOrchestrator {
           const rawTP = ((winner.overrideLevels.takeProfit - price) / price) * 100;
           signalOverrides.takeProfitPercent = isShort ? Math.abs(rawTP) : rawTP;
         }
+        // DEBUG: Log override level conversion
+        console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${price?.toFixed(2)} SL=$${winner.overrideLevels.stopLoss?.toFixed(2)} TP=$${winner.overrideLevels.takeProfit?.toFixed(2)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
+      } else {
+        console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use TradingConfig defaults`);
       }
 
       // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
