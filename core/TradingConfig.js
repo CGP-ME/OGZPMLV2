@@ -342,6 +342,9 @@ const BASE_CONFIG = {
       maxLossPct: env('SMS_MAX_LOSS', 0.3),
       maxHoldBars: env('SMS_MAX_HOLD', 60),
       maxDailyLosses: env('SMS_MAX_DAILY_LOSSES', 3),
+      vpRthOnly: envBool('SMS_VP_RTH_ONLY', true),
+      vpLookbackBars: env('SMS_VP_LOOKBACK_BARS', 0),
+      sweepMaxOffset: env('SMS_SWEEP_MAX_OFFSET', 3),
       enabled: true,
     },
     OpeningRangeBreakout: {

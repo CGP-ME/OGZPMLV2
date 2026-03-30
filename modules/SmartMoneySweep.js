@@ -89,6 +89,11 @@ class SmartMoneySweep {
 
     // ─── Debug Mode ───
     this.DEBUG = config.debug || process.env.SMS_DEBUG === 'true';
+
+    // ─── VP slice config ───
+    this.sweepMaxOffset = config.sweepMaxOffset != null ? Number(config.sweepMaxOffset) : 3;
+    this.vpRthOnly = config.vpRthOnly !== false;
+    this.vpLookbackBars = config.vpLookbackBars || 0;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -109,13 +114,13 @@ class SmartMoneySweep {
     if (tfMinutes <= 0) return null;
 
     const barsPerDay = Math.round(390 / tfMinutes);
-    const vpLookback = this.vpDays * barsPerDay;
+    const vpLookback = this.vpLookbackBars > 0 ? this.vpLookbackBars : this.vpDays * barsPerDay;
 
     // Need enough history for VP
     if (priceHistory.length < vpLookback) return null;
 
     // ─── Step 1: Volume Profile ───
-    const vpSlice = priceHistory.slice(-vpLookback);
+    const vpSlice = this._buildVpSlice(priceHistory, vpLookback);
     const vp = this._computeVolumeProfile(vpSlice);
     if (!vp) return null;
 
@@ -284,6 +289,29 @@ class SmartMoneySweep {
     this.ivbBarCount = 0;
     this.ivbDirection = 0;
     this.sessionDay = '';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // VP SLICE BUILDER — RTH filter for cleaner volume profile
+  // ═══════════════════════════════════════════════════════════════════
+
+  _buildVpSlice(priceHistory, lookbackBars) {
+    if (!this.vpRthOnly) return priceHistory.slice(-lookbackBars);
+    const rthCandles = [];
+    for (let i = priceHistory.length - 1; i >= 0 && rthCandles.length < lookbackBars; i--) {
+      if (this._inCashSession(this._getCandleDate(priceHistory[i]))) {
+        rthCandles.push(priceHistory[i]);
+      }
+    }
+    rthCandles.reverse();
+    if (rthCandles.length < lookbackBars * 0.5) {
+      if (!this._vpRthFallbackWarned) {
+        console.warn(`[SMS] VP RTH filter: only ${rthCandles.length}/${lookbackBars} RTH bars, falling back`);
+        this._vpRthFallbackWarned = true;
+      }
+      return priceHistory.slice(-lookbackBars);
+    }
+    return rthCandles;
   }
 
   // ═══════════════════════════════════════════════════════════════════
