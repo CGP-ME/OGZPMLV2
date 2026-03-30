@@ -266,7 +266,28 @@
 
     document.body.appendChild(container);
     setupEventListeners();
-    connectWebSocket();
+    // CHANGE 2026-03-30: Check HTTP API status instead of WebSocket
+    checkTraiStatus();
+  }
+
+  // Check TRAI API status via HTTP
+  async function checkTraiStatus() {
+    try {
+      const response = await fetch('/api/trai/status');
+      if (response.ok) {
+        const status = await response.json();
+        isConnected = status.ready;
+        updateStatus(true);
+        console.log('[TRAI Widget] Connected to', status.providerName, '-', status.model);
+      } else {
+        updateStatus(false);
+      }
+    } catch (e) {
+      console.warn('[TRAI Widget] Status check failed:', e.message);
+      updateStatus(false);
+    }
+    // Re-check every 30 seconds
+    setTimeout(checkTraiStatus, 30000);
   }
 
   // Setup event listeners
@@ -292,7 +313,7 @@
     });
 
     input.addEventListener('input', () => {
-      sendButton.disabled = !input.value.trim() || !isConnected;
+      sendButton.disabled = !input.value.trim();  // CHANGE 2026-03-30: No longer requires WebSocket
     });
 
     sendButton.addEventListener('click', sendMessage);
@@ -367,16 +388,12 @@
     }
   }
 
-  // CHANGE 2026-01-25: Send via WebSocket to bot brain (gets 58K message context)
-  function sendMessage() {
+  // CHANGE 2026-03-30: Use Mercury-2 via HTTP API (faster, cleaner responses)
+  async function sendMessage() {
     const input = document.getElementById('trai-input');
     const query = input.value.trim();
 
     if (!query) return;
-    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-      addMessage('Not connected to TRAI. Please wait...', 'system');
-      return;
-    }
 
     // Add user message to chat
     addMessage(query, 'user');
@@ -387,30 +404,40 @@
     const typingEl = addMessage('Thinking...', 'bot typing');
     typingEl.id = 'trai-typing';
 
-    // Generate unique query ID for response matching
-    const queryId = 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    try {
+      const response = await fetch('/api/trai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: query,
+          maxTokens: 300
+        })
+      });
 
-    // Track pending query with timeout
-    const timeoutId = setTimeout(() => {
-      if (pendingQueries.has(queryId)) {
-        removeTyping();
-        addMessage('Request timed out. TRAI may be processing a complex query.', 'system');
-        pendingQueries.delete(queryId);
+      removeTyping();
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-    }, 60000); // 60 second timeout for reasoning model
 
-    pendingQueries.set(queryId, { timeoutId, query });
+      const data = await response.json();
 
-    // Send via WebSocket to bot brain (routes through trai_core with full context)
-    ws.send(JSON.stringify({
-      type: 'trai_query',
-      query: query,
-      queryId: queryId,
-      sessionId: sessionId,
-      timestamp: Date.now()
-    }));
+      if (data.response) {
+        addMessage(data.response, 'bot');
+        // Show provider info subtly
+        const providerInfo = `${data.provider} • ${data.latency}ms`;
+        console.log('[TRAI Widget] Response from:', providerInfo);
+      } else if (data.error) {
+        addMessage(`Error: ${data.error}`, 'system');
+      }
+    } catch (error) {
+      removeTyping();
+      console.error('[TRAI Widget] Error:', error);
+      addMessage('Failed to reach TRAI. Please try again.', 'system');
+    }
 
-    console.log('[TRAI Widget] Sent query via brain routing:', queryId);
+    // Re-enable input
+    document.getElementById('trai-send').disabled = !document.getElementById('trai-input').value.trim();
   }
 
   // Handle response from TRAI (via bot's brain)

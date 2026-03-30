@@ -134,9 +134,9 @@ class PersistentLLMClient {
   async generateResponse(prompt, maxTokens = null) {
     let tokens = maxTokens || this.maxTokens;
 
-    // Mercury-2 uses internal reasoning tokens, so enforce minimum
-    if (this.providerName === 'mercury' && tokens < 150) {
-      tokens = 150;
+    // Mercury-2 uses internal reasoning tokens (~50-100), so enforce higher minimum
+    if (this.providerName === 'mercury' && tokens < 400) {
+      tokens = 400;
     }
 
     if (!this.isReady && this.requestCount > 0) {
@@ -183,7 +183,12 @@ class PersistentLLMClient {
     } catch (error) {
       this.errors++;
       console.error(`❌ TRAI inference error (${this.provider.name}):`, error.message);
-      
+
+      // Check for content filter error
+      if (error.message && error.message.includes('content_filter')) {
+        return "I can help with technical analysis, chart patterns, and market data — but I can't give direct buy/sell recommendations. Try asking about indicators, setups, or what a pattern means instead!";
+      }
+
       // Don't throw — return degraded response
       return this._fallbackResponse(prompt);
     }

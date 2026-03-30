@@ -81,6 +81,57 @@ app.post('/api/ollama/chat', async (req, res) => {
   }
 });
 
+// CHANGE 2026-03-30: TRAI analyze endpoint with Mercury-2 support
+const PersistentLLMClient = require('./core/persistent_llm_client');
+let traiClient = null;
+
+async function getTraiClient() {
+  if (!traiClient) {
+    traiClient = new PersistentLLMClient();
+    await traiClient.initialize();
+  }
+  return traiClient;
+}
+
+app.post('/api/trai/analyze', async (req, res) => {
+  try {
+    const { prompt, context, maxTokens } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+
+    const client = await getTraiClient();
+    const fullPrompt = context
+      ? `Context: ${JSON.stringify(context)}\n\nQuestion: ${prompt}`
+      : prompt;
+
+    const startTime = Date.now();
+    const response = await client.generateResponse(fullPrompt, maxTokens || 200);
+    const latency = Date.now() - startTime;
+
+    res.json({
+      response,
+      provider: client.providerName,
+      model: client.model,
+      latency,
+      status: client.getStatus()
+    });
+  } catch (error) {
+    console.error('[TRAI Analyze] Error:', error.message);
+    res.status(500).json({ error: 'TRAI analysis failed', details: error.message });
+  }
+});
+
+app.get('/api/trai/status', async (req, res) => {
+  try {
+    const client = await getTraiClient();
+    res.json(client.getStatus());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // CHANGE 2026-03-06: Restore /api/health endpoint for proof page
 app.get('/api/health', (req, res) => {
   res.json({
