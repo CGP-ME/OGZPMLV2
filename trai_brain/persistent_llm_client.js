@@ -264,7 +264,19 @@ class PersistentLLMClient {
     );
 
     const data = JSON.parse(response);
-    return data.response || '';
+    // DeepSeek R1 puts reasoning in 'thinking' field, final answer in 'response'
+    // If response is empty but thinking exists, extract useful content from thinking
+    if (data.response) {
+      return data.response;
+    }
+    if (data.thinking) {
+      // Extract the conclusion/answer from thinking (last sentence often has the answer)
+      const thinking = data.thinking.trim();
+      const sentences = thinking.split(/[.!?]\s+/);
+      // Return last meaningful sentence as the "answer"
+      return sentences[sentences.length - 1] || thinking.slice(-200);
+    }
+    return '';
   }
 
   async _ollamaHealthCheck() {
