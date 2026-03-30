@@ -174,6 +174,33 @@
           animation: typing 1.5s infinite;
         }
 
+        /* Markdown rendering styles */
+        .trai-message h2, .trai-message h3, .trai-message h4 {
+          margin: 8px 0 4px 0;
+          color: #a78bfa;
+        }
+        .trai-message h2 { font-size: 16px; }
+        .trai-message h3 { font-size: 14px; }
+        .trai-message h4 { font-size: 13px; }
+        .trai-message strong { color: #fbbf24; }
+        .trai-message em { color: #93c5fd; }
+        .trai-message code {
+          background: #1e1e3f;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+        }
+        .trai-message li {
+          margin-left: 16px;
+          list-style: disc;
+        }
+        .trai-message hr {
+          border: none;
+          border-top: 1px solid #444;
+          margin: 8px 0;
+        }
+
         @keyframes typing {
           0%, 20% { content: '.'; }
           40% { content: '..'; }
@@ -410,7 +437,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: query,
-          maxTokens: 800  // Enough for full market snapshots
+          maxTokens: 1500  // Enough for full market analysis
         })
       });
 
@@ -492,12 +519,46 @@
     }
   }
 
+  // Simple markdown to HTML converter
+  function renderMarkdown(text) {
+    return text
+      // Escape HTML first
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Headers
+      .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      // Bold and italic
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Lists
+      .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+      .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+      // Tables - convert to simple formatted text
+      .replace(/\|([^|]+)\|/g, (match, content) => {
+        return content.split('|').map(c => c.trim()).filter(c => c && !c.match(/^[-:]+$/)).join(' • ') + '\n';
+      })
+      // Horizontal rules
+      .replace(/^---+$/gm, '<hr>')
+      // Line breaks
+      .replace(/\n/g, '<br>');
+  }
+
   // Add message to chat
   function addMessage(text, type) {
     const messages = document.getElementById('trai-messages');
     const msg = document.createElement('div');
     msg.className = `trai-message ${type}`;
-    msg.textContent = text;
+    // Render markdown for bot messages, plain text for user/system
+    if (type === 'bot' || type === 'bot typing') {
+      msg.innerHTML = renderMarkdown(text);
+    } else {
+      msg.textContent = text;
+    }
     messages.appendChild(msg);
     messages.scrollTop = messages.scrollHeight;
     return msg;
