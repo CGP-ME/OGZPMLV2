@@ -15,6 +15,16 @@ class PineStrategyBridge {
   // -----------------------------------------------------------------
   entry(id, direction, opts = {}) {
     // direction is either strategy.long (1) or strategy.short (-1)
+    // TradingView behavior:
+    //   Already long + long entry = ignore
+    //   Already long + short entry = flip (close long, open short)
+    //   Already short + short entry = ignore
+    //   Already short + long entry = flip (close short, open long)
+    //   Flat + any entry = open position
+
+    if (this.positionSize > 0 && direction === 1) return;  // Already long, ignore
+    if (this.positionSize < 0 && direction === -1) return; // Already short, ignore
+
     const qty = opts.qty || 1;
     this.pendingEntry = { id, direction, qty };
   }
@@ -27,6 +37,9 @@ class PineStrategyBridge {
 
   close(id, opts = {}) {
     this.pendingClose = { id };
+    // Go flat immediately (TradingView behavior)
+    this.positionSize = 0;
+    this.positionAvgPrice = null;
   }
 
   // -----------------------------------------------------------------
@@ -79,6 +92,10 @@ class PineStrategyBridge {
       signal.sizingMultiplier = qty; // qty is already a % of equity in the original script
       signal.reason = `Pine ${signal.direction === 'buy' ? 'Long' : 'Short'} entry`;
       signal.confidence = 0.75;
+
+      // Update position state (TradingView behavior)
+      // Opposite direction entry = flip position
+      this.positionSize = direction; // 1 for long, -1 for short
     }
 
     // EXIT / CLOSE - we expose stopLoss / takeProfit via overrideLevels

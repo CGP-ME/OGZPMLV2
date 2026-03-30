@@ -12,6 +12,35 @@ class PineArray {
     return new PineArray(size, init);
   }
 
+  // Static versions that Pine expects (array.set(arr, idx, val) syntax)
+  static set(arr, idx, value) {
+    arr.set(idx, value);
+  }
+
+  static get(arr, idx) {
+    return arr.get(idx);
+  }
+
+  static size(arr) {
+    return arr.size();
+  }
+
+  static push(arr, value) {
+    arr.push(value);
+  }
+
+  static clear(arr) {
+    arr.clear();
+  }
+
+  static copy(arr) {
+    return arr.copy();
+  }
+
+  static sort(arr, order) {
+    arr.sort(order);
+  }
+
   size() {
     return this._data.length;
   }
