@@ -410,7 +410,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: query,
-          maxTokens: 300
+          maxTokens: 600  // Enough for full technical analysis
         })
       });
 
