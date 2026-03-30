@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
+const TRAIPatternIntegration = require('./TRAIPatternIntegration');  // CHANGE 2026-03-30: Pattern pack integration
 
 // Version hash for telemetry
 const VERSION_HASH = 'v2.0.0-telem';
@@ -81,6 +82,11 @@ class TRAIDecisionModule extends EventEmitter {
     
     // TRAI Core instance (will be initialized)
     this.traiCore = null;
+
+    // Pattern pack integration (loads harvested patterns for confidence adjustment)
+    this.patternIntegration = new TRAIPatternIntegration(
+      process.env.TRAI_PATTERN_PACK_PATH || './data/pattern-pack.json'
+    );
 
     // WebSocket client for dashboard broadcasts
     this.wsClient = null;
@@ -173,11 +179,31 @@ class TRAIDecisionModule extends EventEmitter {
       console.log('[TRAI-CHECKPOINT-4] Calling analyzeMarketConditions');
       const marketAnalysis = await this.analyzeMarketConditions(context);
       console.log(`[TRAI-CHECKPOINT-5] Market analysis - volatility: ${marketAnalysis.volatility}, trend: ${marketAnalysis.trend}`);
-      
+
+      // Step 1.5: Evaluate against harvested pattern pack
+      const patternEval = this.patternIntegration.evaluate(signal, {
+        entryPrice: context.price,
+        timestamp: Date.now(),
+        direction: signal.action,
+        confidence: signal.confidence,
+        ...context
+      });
+      decision.patternEval = patternEval;
+      if (patternEval.matchedPatterns.length > 0 || patternEval.matchedAntiPatterns.length > 0) {
+        console.log(`[TRAI] Pattern eval: ${patternEval.recommendation} (${patternEval.confidenceMultiplier.toFixed(2)}x) - ${patternEval.matchedPatterns.length} patterns, ${patternEval.matchedAntiPatterns.length} anti-patterns`);
+      }
+
       // Step 2: Calculate TRAI's independent confidence score
       console.log('[TRAI-CHECKPOINT-6] Calling calculateConfidence');
       decision.traiConfidence = await this.calculateConfidence(signal, context, marketAnalysis);
       console.log(`[TRAI-CHECKPOINT-7] TRAI confidence calculated: ${decision.traiConfidence}`);
+
+      // Step 2.5: Apply pattern pack multiplier to TRAI confidence
+      if (patternEval.confidenceMultiplier !== 1.0) {
+        const adjustedConf = decision.traiConfidence * patternEval.confidenceMultiplier;
+        console.log(`[TRAI] Pattern multiplier ${patternEval.confidenceMultiplier.toFixed(2)}x: ${(decision.traiConfidence * 100).toFixed(1)}% → ${(adjustedConf * 100).toFixed(1)}%`);
+        decision.traiConfidence = Math.max(0, Math.min(1, adjustedConf));
+      }
       
       // Step 3: Blend confidences based on mode
       decision.finalConfidence = this.blendConfidences(
