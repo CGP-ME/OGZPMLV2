@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pine Script v5 Transpiler (2026-03-30)
+
+#### Feature: Pine Transpiler Core
+- **Files:** `pine-transpiler/core/PineRuntime.js`, `pine-transpiler/core/PineArray.js`, `pine-transpiler/core/PineStrategyBridge.js`
+- **Purpose:** Run SmartMoneySweep Pine v4 directly in Node.js without manual port
+- **Validation:** 422 signals on 25,037 bars (18mo TSLA 15m), target ~397 (6.3% variance acceptable)
+
+#### Fix: Array Static Methods (`9d2e7c7`)
+- **Problem:** Pine uses `array.set(arr, idx, val)` (static), not `arr.set(idx, val)` (instance)
+- **Fix:** Added static wrappers to PineArray.js delegating to instance methods
+- **Result:** Volume profile arrays now populate correctly
+
+#### Fix: Position State Machine (`9d2e7c7`)
+- **Problem:** Signal count inflated (5,461 vs 397 target) - no position tracking
+- **Fix:** PineStrategyBridge now tracks position: long+long=ignore, long+short=flip, close=flat
+- **Result:** Signal count dropped to 419 (matches TradingView behavior)
+
+#### Feature: Mintick Rounding (`80ab7d5`)
+- **Files:** `pine-transpiler/core/PineRuntime.js`
+- **Fix:** All TA functions (sma, ema, highest, lowest, atr, vwap) round to syminfo.mintick (0.01)
+- **Result:** Matches TradingView precision
+
+#### Fix: Function Locals Storage (`2fc6dcf`)
+- **Problem:** `getLongTP()` returned undefined - user function locals not stored
+- **Fix:** FunctionDecl handler now stores `locals: node.locals` array
+- **Result:** takeProfit calculation works (TP values: 216.06, 215.91, 217.97, etc.)
+
+### SMS Module Updates (2026-03-30)
+
+#### Feature: VP RTH Filter (`e39e047`)
+- **Files:** `modules/SmartMoneySweep.js`, `core/TradingConfig.js`
+- **Added:** `vpRthOnly`, `vpLookbackBars`, `sweepMaxOffset` config options
+- **Added:** `_buildVpSlice()` method for RTH-filtered volume profile calculation
+- **Config:** `SMS_VP_RTH_ONLY=true`, `SMS_VP_LOOKBACK_BARS=0`, `SMS_SWEEP_MAX_OFFSET=3`
+
+---
+
 ### Feature: SmartMoneySweep Strategy Module (2026-03-25)
 
 #### New Strategy: SmartMoneySweep
