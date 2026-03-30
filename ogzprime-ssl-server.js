@@ -64,6 +64,10 @@ app.get('/journal', (req, res) => {
 app.get('/replay', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'trade-replay.html'));
 });
+// CHANGE 2026-03-30: Market snapshot page (full-size chart + TRAI analysis)
+app.get('/snapshot', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'snapshot.html'));
+});
 
 // CHANGE 2026-01-23: Ollama proxy for TRAI widget
 app.post('/api/ollama/chat', async (req, res) => {

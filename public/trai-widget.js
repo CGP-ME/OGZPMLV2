@@ -164,6 +164,18 @@
           font-size: 12px;
         }
 
+        .trai-message.link {
+          align-self: flex-start;
+          background: linear-gradient(135deg, #1e1e3f 0%, #2d2d44 100%);
+          border: 1px solid #6366f1;
+          padding: 8px 14px;
+          font-size: 13px;
+        }
+
+        .trai-message.link:hover {
+          background: linear-gradient(135deg, #2d2d44 0%, #3d3d54 100%);
+        }
+
         .trai-message.typing {
           background: #2d2d44;
           color: #888;
@@ -451,6 +463,12 @@
 
       if (data.response) {
         addMessage(data.response, 'bot');
+        // Detect stock symbols in the query and offer snapshot link
+        const symbols = extractSymbols(query);
+        if (symbols.length > 0) {
+          const symbol = symbols[0];
+          addMessage(`View full chart and analysis for ${symbol}`, 'link', `/snapshot?symbol=${symbol}&analyze=true`);
+        }
         // Show provider info subtly
         const providerInfo = `${data.provider} • ${data.latency}ms`;
         console.log('[TRAI Widget] Response from:', providerInfo);
@@ -519,6 +537,13 @@
     }
   }
 
+  // Extract stock symbols from text (uppercase 1-5 letter words)
+  function extractSymbols(text) {
+    const commonWords = ['I', 'A', 'THE', 'AND', 'OR', 'FOR', 'TO', 'IN', 'ON', 'AT', 'IS', 'IT', 'BE', 'AS', 'ARE', 'WAS', 'IF', 'MY', 'SO', 'DO', 'OF', 'BY', 'UP', 'AN', 'NO', 'US', 'AM', 'GO', 'OK', 'HI', 'VS', 'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'AI'];
+    const matches = text.match(/\b[A-Z]{1,5}\b/g) || [];
+    return matches.filter(m => !commonWords.includes(m) && m.length >= 2);
+  }
+
   // Simple markdown to HTML converter
   function renderMarkdown(text) {
     return text
@@ -549,13 +574,22 @@
   }
 
   // Add message to chat
-  function addMessage(text, type) {
+  function addMessage(text, type, url) {
     const messages = document.getElementById('trai-messages');
     const msg = document.createElement('div');
     msg.className = `trai-message ${type}`;
     // Render markdown for bot messages, plain text for user/system
     if (type === 'bot' || type === 'bot typing') {
       msg.innerHTML = renderMarkdown(text);
+    } else if (type === 'link') {
+      // Clickable link to open snapshot page
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.textContent = text;
+      link.style.cssText = 'color: #818cf8; text-decoration: none; display: flex; align-items: center; gap: 6px;';
+      link.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>' + text;
+      msg.appendChild(link);
     } else {
       msg.textContent = text;
     }

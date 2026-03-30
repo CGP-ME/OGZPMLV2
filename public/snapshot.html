@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market Snapshot - OGZ Prime</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0a1a;
+      color: #e5e5e5;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16162a 100%);
+      padding: 15px 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #333;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      color: #a78bfa;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header .symbol {
+      background: #6366f1;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .symbol-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .symbol-input input {
+      background: #1a1a2e;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 8px 14px;
+      color: white;
+      font-size: 14px;
+      width: 120px;
+      text-transform: uppercase;
+    }
+
+    .symbol-input input:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .symbol-input button {
+      background: #6366f1;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .symbol-input button:hover {
+      background: #818cf8;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 20px;
+      padding: 20px;
+      height: calc(100vh - 70px);
+    }
+
+    @media (max-width: 1200px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 60vh auto;
+      }
+    }
+
+    .chart-panel {
+      background: #1a1a2e;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-panel h2 {
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #888;
+      border-bottom: 1px solid #333;
+    }
+
+    #tradingview-chart {
+      flex: 1;
+      min-height: 400px;
+    }
+
+    .analysis-panel {
+      background: #1a1a2e;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .analysis-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .analysis-header h2 {
+      font-size: 16px;
+      color: #a78bfa;
+    }
+
+    .analysis-header .status {
+      margin-left: auto;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .analysis-header .status.loading {
+      color: #fbbf24;
+    }
+
+    .analysis-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .analysis-content h2, .analysis-content h3, .analysis-content h4 {
+      margin: 12px 0 8px 0;
+      color: #a78bfa;
+    }
+    .analysis-content h2 { font-size: 18px; }
+    .analysis-content h3 { font-size: 16px; }
+    .analysis-content h4 { font-size: 14px; }
+
+    .analysis-content p {
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .analysis-content strong {
+      color: #fbbf24;
+    }
+
+    .analysis-content em {
+      color: #93c5fd;
+    }
+
+    .analysis-content code {
+      background: #0a0a1a;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+    }
+
+    .analysis-content ul, .analysis-content ol {
+      margin: 12px 0;
+      padding-left: 24px;
+    }
+
+    .analysis-content li {
+      margin: 6px 0;
+      line-height: 1.5;
+    }
+
+    .analysis-content hr {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 16px 0;
+    }
+
+    .analysis-content .search-results {
+      background: #0d0d20;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      border-left: 3px solid #6366f1;
+    }
+
+    .analysis-content .search-results h4 {
+      margin-top: 0;
+      color: #6366f1;
+    }
+
+    .analysis-content a {
+      color: #818cf8;
+      text-decoration: none;
+    }
+
+    .analysis-content a:hover {
+      text-decoration: underline;
+    }
+
+    .quick-ask {
+      padding: 15px 20px;
+      border-top: 1px solid #333;
+      display: flex;
+      gap: 10px;
+    }
+
+    .quick-ask input {
+      flex: 1;
+      background: #0a0a1a;
+      border: 1px solid #444;
+      border-radius: 20px;
+      padding: 10px 16px;
+      color: white;
+      font-size: 14px;
+    }
+
+    .quick-ask input:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+
+    .quick-ask button {
+      background: #6366f1;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quick-ask button:hover {
+      background: #818cf8;
+    }
+
+    .quick-ask button svg {
+      fill: white;
+      width: 18px;
+      height: 18px;
+    }
+
+    .quick-ask button:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #444;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .back-link {
+      color: #888;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <a href="/" class="back-link">&larr; Dashboard</a>
+      <span>Market Snapshot</span>
+      <span class="symbol" id="current-symbol">AAPL</span>
+    </h1>
+    <div class="symbol-input">
+      <input type="text" id="symbol-input" placeholder="Symbol" maxlength="10" />
+      <button onclick="loadSymbol()">Analyze</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="chart-panel">
+      <h2>TradingView Chart</h2>
+      <div id="tradingview-chart"></div>
+    </div>
+
+    <div class="analysis-panel">
+      <div class="analysis-header">
+        <h2>TRAI Analysis</h2>
+        <span class="status" id="analysis-status">Ready</span>
+      </div>
+      <div class="analysis-content" id="analysis-content">
+        <p>Enter a symbol and click <strong>Analyze</strong> to get TRAI's market analysis.</p>
+        <p>TRAI will provide:</p>
+        <ul>
+          <li>Current technical indicators (RSI, EMA, ATR)</li>
+          <li>Key support and resistance levels</li>
+          <li>Volume profile insights</li>
+          <li>Recent news (if relevant)</li>
+          <li>Overall market sentiment</li>
+        </ul>
+      </div>
+      <div class="quick-ask">
+        <input type="text" id="quick-ask-input" placeholder="Ask TRAI about this symbol..." />
+        <button id="quick-ask-btn" onclick="quickAsk()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TradingView Widget -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    let currentSymbol = 'AAPL';
+    let tvWidget = null;
+
+    // Parse URL for symbol
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('symbol')) {
+      currentSymbol = urlParams.get('symbol').toUpperCase();
+    }
+
+    // Initialize
+    document.getElementById('current-symbol').textContent = currentSymbol;
+    document.getElementById('symbol-input').value = currentSymbol;
+
+    // Load TradingView chart
+    function loadChart(symbol) {
+      document.getElementById('tradingview-chart').innerHTML = '';
+      tvWidget = new TradingView.widget({
+        "width": "100%",
+        "height": "100%",
+        "symbol": symbol,
+        "interval": "15",
+        "timezone": "America/New_York",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#1a1a2e",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview-chart",
+        "studies": [
+          "RSI@tv-basicstudies",
+          "MAExp@tv-basicstudies"
+        ]
+      });
+    }
+
+    // Load symbol and get analysis
+    function loadSymbol() {
+      const input = document.getElementById('symbol-input');
+      const symbol = input.value.trim().toUpperCase();
+      if (!symbol) return;
+
+      currentSymbol = symbol;
+      document.getElementById('current-symbol').textContent = symbol;
+
+      // Update URL without reload
+      const url = new URL(window.location);
+      url.searchParams.set('symbol', symbol);
+      window.history.pushState({}, '', url);
+
+      loadChart(symbol);
+      getAnalysis(symbol);
+    }
+
+    // Get TRAI analysis
+    async function getAnalysis(symbol) {
+      const statusEl = document.getElementById('analysis-status');
+      const contentEl = document.getElementById('analysis-content');
+
+      statusEl.textContent = 'Analyzing...';
+      statusEl.className = 'status loading';
+      contentEl.innerHTML = '<div class="loading-spinner"></div> Fetching analysis from TRAI...';
+
+      try {
+        const prompt = `Give me a comprehensive technical analysis snapshot for ${symbol}. Include:
+1. Current price action and trend direction
+2. Key technical indicators (RSI, EMA 9/21/50, ATR)
+3. Important support and resistance levels
+4. Volume analysis
+5. Any notable patterns
+6. Overall sentiment (bullish/bearish/neutral)
+
+Be specific with numbers. Format with headers and bullet points.`;
+
+        const response = await fetch('/api/trai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            maxTokens: 2000,
+            enableSearch: true
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        statusEl.textContent = data.searchUsed ? 'Web search included' : 'Analysis complete';
+        statusEl.className = 'status';
+
+        contentEl.innerHTML = renderMarkdown(data.response);
+
+        // Add latency info
+        const latencyNote = document.createElement('p');
+        latencyNote.style.cssText = 'font-size: 11px; color: #666; margin-top: 20px; text-align: right;';
+        latencyNote.textContent = `${data.provider} | ${data.latency}ms`;
+        contentEl.appendChild(latencyNote);
+
+      } catch (error) {
+        statusEl.textContent = 'Error';
+        statusEl.className = 'status';
+        contentEl.innerHTML = `<p style="color: #f87171;">Failed to get analysis: ${error.message}</p>`;
+      }
+    }
+
+    // Quick ask follow-up
+    async function quickAsk() {
+      const input = document.getElementById('quick-ask-input');
+      const question = input.value.trim();
+      if (!question) return;
+
+      const statusEl = document.getElementById('analysis-status');
+      const contentEl = document.getElementById('analysis-content');
+      const btn = document.getElementById('quick-ask-btn');
+
+      btn.disabled = true;
+      statusEl.textContent = 'Thinking...';
+      statusEl.className = 'status loading';
+
+      // Append question to content
+      const questionEl = document.createElement('div');
+      questionEl.innerHTML = `<hr><p><strong>You asked:</strong> ${escapeHtml(question)}</p>`;
+      contentEl.appendChild(questionEl);
+
+      input.value = '';
+
+      try {
+        const prompt = `Regarding ${currentSymbol}: ${question}`;
+
+        const response = await fetch('/api/trai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            maxTokens: 1500,
+            enableSearch: true
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        statusEl.textContent = 'Ready';
+        statusEl.className = 'status';
+
+        const answerEl = document.createElement('div');
+        answerEl.innerHTML = renderMarkdown(data.response);
+        contentEl.appendChild(answerEl);
+        contentEl.scrollTop = contentEl.scrollHeight;
+
+      } catch (error) {
+        const errorEl = document.createElement('p');
+        errorEl.style.color = '#f87171';
+        errorEl.textContent = `Error: ${error.message}`;
+        contentEl.appendChild(errorEl);
+        statusEl.textContent = 'Error';
+        statusEl.className = 'status';
+      }
+
+      btn.disabled = false;
+    }
+
+    // Markdown renderer
+    function renderMarkdown(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+        .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+        .replace(/^---+$/gm, '<hr>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Enter key handlers
+    document.getElementById('symbol-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadSymbol();
+    });
+
+    document.getElementById('quick-ask-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') quickAsk();
+    });
+
+    // Initial load
+    loadChart(currentSymbol);
+    if (urlParams.get('analyze') === 'true' || urlParams.get('symbol')) {
+      getAnalysis(currentSymbol);
+    }
+  </script>
+</body>
+</html>
