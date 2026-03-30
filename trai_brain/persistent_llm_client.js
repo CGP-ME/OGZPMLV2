@@ -184,9 +184,28 @@ class PersistentLLMClient {
       this.errors++;
       console.error(`❌ TRAI inference error (${this.provider.name}):`, error.message);
 
-      // Check for content filter error
+      // Check for content filter error - provide educational guidance instead
       if (error.message && error.message.includes('content_filter')) {
-        return "I can help with technical analysis, chart patterns, and market data — but I can't give direct buy/sell recommendations. Try asking about indicators, setups, or what a pattern means instead!";
+        return `I can't give direct buy/sell recommendations, but here are the factors you should consider:
+
+**Technical Factors:**
+• Trend direction (EMA crossovers, higher highs/lows)
+• RSI position (overbought >70, oversold <30, divergences)
+• Volume confirmation (is volume supporting the move?)
+• Key support/resistance levels nearby
+
+**Risk Factors:**
+• Position sizing relative to account
+• Stop loss placement (ATR-based or structure-based)
+• Risk/reward ratio (aim for 2:1 minimum)
+• Correlation with existing positions
+
+**Market Context:**
+• Overall market regime (bull, bear, chop)
+• Sector rotation and relative strength
+• Upcoming catalysts (earnings, FOMC, etc.)
+
+Ask me about any of these specifically and I'll give you the data!`;
       }
 
       // Don't throw — return degraded response
