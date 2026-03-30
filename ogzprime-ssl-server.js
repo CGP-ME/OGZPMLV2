@@ -93,15 +93,87 @@ async function getTraiClient() {
   return traiClient;
 }
 
+// CHANGE 2026-03-30: Tavily web search for TRAI (must be before analyze endpoint)
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
+
+async function tavilySearch(query, maxResults = 5) {
+  if (!TAVILY_API_KEY) {
+    return null;  // Silently skip if no API key
+  }
+
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        search_depth: 'basic',
+        max_results: maxResults,
+        include_answer: true,
+        include_raw_content: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Tavily API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      answer: data.answer || null,
+      results: (data.results || []).map(r => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.content?.substring(0, 300)
+      }))
+    };
+  } catch (error) {
+    console.error('[TRAI Search] Error:', error.message);
+    return null;
+  }
+}
+
+// Detect if query needs web search (news, current events, etc.)
+function needsWebSearch(prompt) {
+  const lower = prompt.toLowerCase();
+  const searchTriggers = [
+    'news', 'latest', 'today', 'recent', 'current',
+    'what is happening', 'what happened', 'why is',
+    'earnings', 'announced', 'report', 'sec filing',
+    'lawsuit', 'merger', 'acquisition', 'ipo',
+    'fed', 'fomc', 'inflation', 'interest rate'
+  ];
+  return searchTriggers.some(trigger => lower.includes(trigger));
+}
+
 app.post('/api/trai/analyze', async (req, res) => {
   try {
-    const { prompt, context, maxTokens } = req.body;
+    const { prompt, context, maxTokens, enableSearch } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'prompt is required' });
     }
 
     const client = await getTraiClient();
+    let searchContext = '';
+    let searchUsed = false;
+
+    // Auto-search for news/current events if enabled or detected
+    if (enableSearch !== false && TAVILY_API_KEY && needsWebSearch(prompt)) {
+      console.log('[TRAI Analyze] Query needs web search, fetching...');
+      const searchResults = await tavilySearch(prompt, 3);
+      if (searchResults) {
+        searchUsed = true;
+        searchContext = `\n\n**Recent Web Search Results:**\n`;
+        if (searchResults.answer) {
+          searchContext += `Summary: ${searchResults.answer}\n`;
+        }
+        searchResults.results.forEach((r, i) => {
+          searchContext += `${i + 1}. ${r.title}: ${r.snippet}\n`;
+        });
+      }
+    }
 
     // Rephrase to avoid content filter - focus on analysis not recommendations
     const analysisPrompt = prompt.toLowerCase().includes('should i')
@@ -111,8 +183,8 @@ app.post('/api/trai/analyze', async (req, res) => {
       : prompt;
 
     const fullPrompt = context
-      ? `Market Context: ${JSON.stringify(context)}\n\nQuestion: ${analysisPrompt}`
-      : analysisPrompt;
+      ? `Market Context: ${JSON.stringify(context)}${searchContext}\n\nQuestion: ${analysisPrompt}`
+      : `${searchContext}\n\nQuestion: ${analysisPrompt}`;
 
     const startTime = Date.now();
     const response = await client.generateResponse(fullPrompt, maxTokens || 200);
@@ -123,6 +195,7 @@ app.post('/api/trai/analyze', async (req, res) => {
       provider: client.providerName,
       model: client.model,
       latency,
+      searchUsed,
       status: client.getStatus()
     });
   } catch (error) {
@@ -134,7 +207,30 @@ app.post('/api/trai/analyze', async (req, res) => {
 app.get('/api/trai/status', async (req, res) => {
   try {
     const client = await getTraiClient();
-    res.json(client.getStatus());
+    const status = client.getStatus();
+    status.searchEnabled = !!TAVILY_API_KEY;
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/trai/search', async (req, res) => {
+  try {
+    const { query, maxResults } = req.body;
+    if (!query) {
+      return res.status(400).json({ error: 'query is required' });
+    }
+
+    if (!TAVILY_API_KEY) {
+      return res.status(503).json({
+        error: 'Web search not configured',
+        hint: 'Set TAVILY_API_KEY in .env (free at tavily.com)'
+      });
+    }
+
+    const results = await tavilySearch(query, maxResults || 5);
+    res.json(results || { answer: null, results: [] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
