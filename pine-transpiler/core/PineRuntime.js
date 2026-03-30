@@ -118,10 +118,11 @@ class PineRuntime {
         }
         break;
       case 'FunctionDecl':
-        // store the function object (params + body) in state
+        // store the function object (params + body + locals) in state
         this.state[node.name] = {
           params: node.params,
           body: node.body,
+          locals: node.locals,
         };
         break;
       case 'AssignmentExpression':
