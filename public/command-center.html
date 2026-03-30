@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OGZPrime Command Center v3</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #08080A; --bg-card: rgba(255,200,50,0.02); --bg-card-hover: rgba(255,200,50,0.04);
+      --border: rgba(255,180,0,0.08); --border-active: rgba(255,180,0,0.25);
+      --gold: #FFB800; --gold-dim: #FFB80055; --gold-bright: #FFD54F;
+      --red: #FF2D2D; --red-dim: #FF2D2D55; --red-bg: rgba(255,45,45,0.08);
+      --green: #00E676; --green-dim: #00E67655; --green-bg: rgba(0,230,118,0.08);
+      --text: #D4C9A8; --text-dim: #665E45; --text-mid: #998F6E; --white: #F0E8D0;
+    }
+    body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .landing { max-width: 700px; margin: 0 auto; padding: 60px 24px; }
+    .logo { text-align: center; margin-bottom: 40px; }
+    .logo-text { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; }
+    .logo-gold { color: var(--gold); }
+    .logo-red { color: var(--red); }
+    .logo-sub { font-size: 14px; color: var(--text-mid); margin-top: 4px; }
+    .dropzone { border: 2px dashed var(--border); border-radius: 12px; padding: 50px 30px; text-align: center; background: var(--bg-card); cursor: pointer; transition: border-color 0.2s; }
+    .dropzone:hover, .dropzone.drag { border-color: var(--gold); }
+    .dropzone-icon { font-size: 28px; margin-bottom: 10px; }
+    .dropzone-title { font-size: 16px; color: var(--gold); margin-bottom: 6px; }
+    .dropzone-sub { font-size: 12px; color: var(--text-dim); }
+    .format-info { margin-top: 12px; padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text-mid); }
+    .saved-runs { margin-top: 32px; }
+    .saved-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    .run-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; }
+    .run-item:hover { background: var(--bg-card-hover); }
+    .run-name { color: var(--gold); font-size: 13px; font-weight: 500; }
+    .run-date { color: var(--text-dim); font-size: 11px; margin-left: 12px; }
+    .run-stats { display: flex; gap: 12px; align-items: center; font-size: 12px; }
+    .run-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0 4px; }
+
+    /* Dashboard */
+    .dashboard { display: none; }
+    .header { border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-title { font-size: 18px; font-weight: 700; }
+    .header-divider { width: 1px; height: 18px; background: var(--border); }
+    .header-source { font-size: 12px; color: var(--text-mid); }
+    .header-right { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-dim); }
+    .strategy-badge { background: rgba(255,184,0,0.1); color: var(--gold); padding: 3px 10px; border-radius: 4px; }
+    .back-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--gold); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+    .content { padding: 16px 24px; max-width: 1400px; margin: 0 auto; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+    .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+    .metric-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+    .metric-value { font-size: 22px; font-weight: 700; }
+    .metric-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .tab { background: none; border: none; color: var(--text-dim); padding: 10px 20px; cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+    .panel-title { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .overview-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+    .side-panels { display: flex; flex-direction: column; gap: 14px; }
+
+    .exit-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+    .exit-item { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 11px; }
+    .exit-dot { width: 6px; height: 6px; border-radius: 2px; margin-right: 6px; display: inline-block; }
+
+    .streaks-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .streak-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 3px; }
+    .streak-value { font-size: 18px; font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 8px; text-align: left; color: var(--text-dim); font-size: 9px; text-transform: uppercase; font-weight: 500; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+    td { padding: 5px 8px; border-bottom: 1px solid rgba(255,184,0,0.03); }
+    .dir-badge { padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+    .dir-long { color: var(--gold); background: rgba(255,184,0,0.1); }
+    .dir-short { color: var(--red); background: var(--red-bg); }
+    .pnl-pos { color: var(--green); font-weight: 600; }
+    .pnl-neg { color: var(--red); font-weight: 600; }
+
+    .pagination { display: flex; justify-content: space-between; margin-top: 10px; padding: 0 8px; }
+    .page-info { font-size: 11px; color: var(--text-dim); }
+    .page-btns { display: flex; gap: 4px; }
+    .page-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--gold); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+    .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .split-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,184,0,0.04); }
+    .tier-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(255,184,0,0.03); font-size: 12px; }
+
+    .footer { margin-top: 20px; padding: 12px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); }
+
+    @media (max-width: 1000px) { .metrics-grid { grid-template-columns: repeat(3, 1fr); } .overview-grid, .analysis-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div id="landing" class="landing">
+    <div class="logo">
+      <div class="logo-text"><span class="logo-gold">OGZ</span><span class="logo-red">Prime</span></div>
+      <div class="logo-sub">Command Center</div>
+    </div>
+    <div id="dropzone" class="dropzone">
+      <div class="dropzone-icon">📊</div>
+      <div class="dropzone-title">Drop CSV here</div>
+      <div class="dropzone-sub">OGZPrime backtests · TradingView exports · MT4 reports · Any OHLCV</div>
+      <div class="dropzone-sub mono" style="margin-top:12px">Auto-detects format</div>
+    </div>
+    <div id="format-info" class="format-info" style="display:none"></div>
+    <div id="saved-runs" class="saved-runs" style="display:none">
+      <div class="saved-label">Saved Runs</div>
+      <div id="runs-list"></div>
+    </div>
+  </div>
+
+  <div id="dashboard" class="dashboard">
+    <div class="header">
+      <div class="header-left">
+        <div class="header-title"><span class="logo-gold">OGZ</span><span class="logo-red">Prime</span></div>
+        <div class="header-divider"></div>
+        <span id="source" class="header-source"></span>
+      </div>
+      <div class="header-right">
+        <span id="strategy" class="strategy-badge mono"></span>
+        <span id="date-range"></span>
+        <button id="back-btn" class="back-btn">← Back</button>
+      </div>
+    </div>
+    <div class="content">
+      <div id="metrics" class="metrics-grid"></div>
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="trades">Trades</button>
+        <button class="tab" data-tab="analysis">Analysis</button>
+      </div>
+      <div id="tab-overview" class="tab-content"></div>
+      <div id="tab-trades" class="tab-content" style="display:none"></div>
+      <div id="tab-analysis" class="tab-content" style="display:none"></div>
+      <div class="footer">
+        <span>OGZPrime v14 · Command Center</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const C = { gold: '#FFB800', red: '#FF2D2D', green: '#00E676', text: '#D4C9A8', textDim: '#665E45', textMid: '#998F6E', white: '#F0E8D0' };
+    const fmt = (n, d = 2) => Number(n).toFixed(d);
+    const fmtUsd = n => (n >= 0 ? '+$' : '-$') + Math.abs(n).toFixed(2);
+    const fmtPct = n => (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%';
+
+    let state = { data: null, tab: 'overview', tradePage: 0, savedRuns: [] };
+
+    // Storage (localStorage fallback)
+    const storage = {
+      get: k => { try { return { value: localStorage.getItem(k) }; } catch { return null; } },
+      set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+      delete: k => { try { localStorage.removeItem(k); } catch {} }
+    };
+
+    // CSV Parser
+    function detectFormat(headers) {
+      const h = headers.map(x => x.toLowerCase().trim());
+      if (h.includes('trade_number') && h.includes('entry_price')) return 'ogzprime';
+      if (h.includes('vah') && h.includes('val') && h.includes('long')) return 'tradingview';
+      if (h.includes('type') && h.includes('profit')) return 'mt4';
+      return 'generic';
+    }
+
+    function parseCSV(text) {
+      const sep = text.indexOf('\t') > -1 && text.indexOf(',') === -1 ? '\t' : ',';
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(sep).map(h => h.trim().replace(/^["']|["']$/g, ''));
+      const format = detectFormat(headers);
+      const rows = lines.slice(1).filter(l => l.trim()).map(line => {
+        const vals = line.split(sep).map(v => v.trim().replace(/^["']|["']$/g, ''));
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = vals[i] || '');
+        return obj;
+      });
+      return { format, headers, rows };
+    }
+
+    function processData(parsed) {
+      if (parsed.format === 'ogzprime') return processOGZPrime(parsed.rows);
+      if (parsed.format === 'tradingview') return processTradingView(parsed.rows);
+      return processGeneric(parsed.rows, parsed.headers);
+    }
+
+    function processOGZPrime(rows) {
+      const trades = rows.map((r, i) => ({
+        id: Number(r.trade_number) || i + 1,
+        date: r.entry_time ? new Date(Number(r.entry_time)).toISOString().slice(0, 10) : r.date || '',
+        direction: r.direction || 'long',
+        entry: Number(r.entry_price) || 0,
+        exit: Number(r.exit_price) || 0,
+        pnl: Number(r.net_pnl_dollars) || Number(r.pnl) || 0,
+        pnlPct: Number(r.net_pnl_percent) || 0,
+        fees: Number(r.fees_dollars) || 0,
+        strategy: r.strategy_name || 'Unknown',
+        confidence: Number(r.confidence) || 0,
+        exitReason: r.exit_reason || 'unknown',
+        balance: Number(r.balance_after) || 0,
+        holdMins: Number(r.hold_time_minutes) || 0,
+      }));
+      return buildMetrics(trades, 'OGZPrime Backtest');
+    }
+
+    function processTradingView(rows) {
+      const trades = [];
+      let openTrade = null, tradeId = 0;
+      for (const r of rows) {
+        const price = Number(r.close), time = Number(r.time) * 1000;
+        const isLong = r.Long === '1', isShort = r.Short === '1';
+        if (!isLong && !isShort) {
+          if (openTrade) {
+            const isL = openTrade.direction === 'long';
+            const sl = openTrade.sl, tp = openTrade.tp;
+            const lo = Number(r.low), hi = Number(r.high);
+            if (sl && ((isL && lo <= sl) || (!isL && hi >= sl))) {
+              openTrade.exit = sl; openTrade.exitReason = 'stop_loss';
+              openTrade.pnl = isL ? sl - openTrade.entry : openTrade.entry - sl;
+              trades.push({ ...openTrade }); openTrade = null;
+            } else if (tp && ((isL && hi >= tp) || (!isL && lo <= tp))) {
+              openTrade.exit = tp; openTrade.exitReason = 'take_profit';
+              openTrade.pnl = isL ? tp - openTrade.entry : openTrade.entry - tp;
+              trades.push({ ...openTrade }); openTrade = null;
+            }
+          }
+          continue;
+        }
+        if (openTrade) {
+          openTrade.exit = price;
+          openTrade.pnl = openTrade.direction === 'long' ? price - openTrade.entry : openTrade.entry - price;
+          openTrade.exitReason = 'signal_flip';
+          trades.push({ ...openTrade }); openTrade = null;
+        }
+        tradeId++;
+        openTrade = {
+          id: tradeId, date: new Date(time).toISOString().slice(0, 10),
+          direction: isLong ? 'long' : 'short', entry: price, exit: 0, pnl: 0, pnlPct: 0, fees: 0,
+          strategy: 'TradingView Signal', confidence: 75, exitReason: '', balance: 0, holdMins: 0,
+          sl: isLong ? (Number(r['Long SL']) || 0) : (Number(r['Short SL']) || 0),
+          tp: isLong ? (Number(r['Long TP']) || 0) : (Number(r['Short TP']) || 0),
+        };
+      }
+      let bal = 10000;
+      trades.forEach(t => { bal += t.pnl; t.balance = bal; });
+      return buildMetrics(trades.filter(t => t.exit > 0), 'TradingView Signals');
+    }
+
+    function processGeneric(rows, headers) {
+      const pnlCol = headers.find(h => /pnl|profit|return/i.test(h));
+      const dirCol = headers.find(h => /dir|side|type/i.test(h));
+      const dateCol = headers.find(h => /date|time/i.test(h));
+      const entryCol = headers.find(h => /entry|open|buy/i.test(h));
+      const exitCol = headers.find(h => /exit|close|sell/i.test(h));
+      const trades = rows.map((r, i) => ({
+        id: i + 1, date: dateCol ? r[dateCol] : '',
+        direction: dirCol ? (r[dirCol].toLowerCase().includes('short') || r[dirCol].toLowerCase().includes('sell') ? 'short' : 'long') : 'long',
+        entry: entryCol ? Number(r[entryCol]) || 0 : 0, exit: exitCol ? Number(r[exitCol]) || 0 : 0,
+        pnl: pnlCol ? Number(r[pnlCol]) || 0 : 0, pnlPct: 0, fees: 0, strategy: 'Imported',
+        confidence: 0, exitReason: 'unknown', balance: 0, holdMins: 0,
+      }));
+      let bal = 10000;
+      trades.forEach(t => { bal += t.pnl; t.balance = bal; });
+      return buildMetrics(trades, 'Imported Strategy');
+    }
+
+    function buildMetrics(trades, source) {
+      if (!trades.length) return null;
+      const winners = trades.filter(t => t.pnl > 0), losers = trades.filter(t => t.pnl <= 0);
+      const grossW = winners.reduce((s, t) => s + t.pnl, 0);
+      const grossL = Math.abs(losers.reduce((s, t) => s + t.pnl, 0));
+      const totalPnl = trades.reduce((s, t) => s + t.pnl, 0);
+      const startBal = trades[0].balance ? trades[0].balance - trades[0].pnl : 10000;
+      const endBal = trades[trades.length - 1].balance || startBal + totalPnl;
+      let peak = startBal, maxDD = 0;
+      const eq = [{ trade: 0, equity: startBal }];
+      let runBal = startBal;
+      for (const t of trades) {
+        runBal = t.balance || runBal + t.pnl;
+        if (runBal > peak) peak = runBal;
+        const dd = peak > 0 ? ((peak - runBal) / peak) * 100 : 0;
+        if (dd > maxDD) maxDD = dd;
+        eq.push({ trade: t.id, equity: runBal, pnl: t.pnl });
+      }
+      let ws = 0, ls = 0, maxWs = 0, maxLs = 0;
+      for (const t of trades) {
+        if (t.pnl > 0) { ws++; ls = 0; if (ws > maxWs) maxWs = ws; }
+        else { ls++; ws = 0; if (ls > maxLs) maxLs = ls; }
+      }
+      const exitMap = {};
+      for (const t of trades) {
+        const r = t.exitReason || 'unknown';
+        if (!exitMap[r]) exitMap[r] = { count: 0, pnl: 0 };
+        exitMap[r].count++; exitMap[r].pnl += t.pnl;
+      }
+      const exitColors = { take_profit: C.green, stop_loss: C.red, trailing_stop: '#00B0FF', break_even: C.gold, max_hold_universal: '#B388FF', flip_position: '#FF9100', signal_flip: '#FF9100', hard_stop: C.red, profit_tier_1: '#69F0AE', account_drawdown: '#D50000' };
+      const exitBreakdown = Object.entries(exitMap).map(([r, d]) => ({ reason: r, ...d, color: exitColors[r] || C.textDim })).sort((a, b) => b.count - a.count);
+      return {
+        source,
+        summary: {
+          strategyName: [...new Set(trades.map(t => t.strategy))].join(', '),
+          startDate: trades[0].date, endDate: trades[trades.length - 1].date,
+          startBalance: startBal, finalBalance: endBal,
+          netPnL: totalPnl, netPnLPct: startBal > 0 ? (totalPnl / startBal) * 100 : 0,
+          totalTrades: trades.length, winners: winners.length, losers: losers.length,
+          winRate: trades.length > 0 ? (winners.length / trades.length) * 100 : 0,
+          profitFactor: grossL > 0 ? grossW / grossL : grossW > 0 ? Infinity : 0,
+          avgWin: winners.length > 0 ? grossW / winners.length : 0,
+          avgLoss: losers.length > 0 ? -(grossL / losers.length) : 0,
+          maxDrawdownPct: maxDD, losingStreak: maxLs, winningStreak: maxWs,
+          totalFees: trades.reduce((s, t) => s + (t.fees || 0), 0),
+        },
+        equityCurve: eq, exitBreakdown, trades,
+      };
+    }
+
+    // Render functions
+    function renderMetrics(s) {
+      const pnlClr = s.netPnL >= 0 ? C.green : C.red;
+      const pfClr = s.profitFactor >= 1.2 ? C.green : s.profitFactor >= 1.0 ? C.gold : C.red;
+      return `
+        <div class="metric-card"><div class="metric-label">Net P&L</div><div class="metric-value mono" style="color:${pnlClr}">${fmtUsd(s.netPnL)}</div><div class="metric-sub">${fmtPct(s.netPnLPct)}</div></div>
+        <div class="metric-card"><div class="metric-label">Profit Factor</div><div class="metric-value mono" style="color:${pfClr}">${s.profitFactor === Infinity ? '∞' : fmt(s.profitFactor)}</div><div class="metric-sub">${s.winners}W / ${s.losers}L</div></div>
+        <div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value mono" style="color:${s.winRate >= 50 ? C.green : C.gold}">${fmt(s.winRate, 1)}%</div><div class="metric-sub">${s.totalTrades} trades</div></div>
+        <div class="metric-card"><div class="metric-label">Max Drawdown</div><div class="metric-value mono" style="color:${C.red}">${fmt(s.maxDrawdownPct, 1)}%</div></div>
+        <div class="metric-card"><div class="metric-label">Avg Win</div><div class="metric-value mono" style="color:${C.green}">${fmtUsd(s.avgWin)}</div></div>
+        <div class="metric-card"><div class="metric-label">Avg Loss</div><div class="metric-value mono" style="color:${C.red}">$${fmt(Math.abs(s.avgLoss))}</div></div>
+      `;
+    }
+
+    function renderEquityCurve(data) {
+      const w = 800, h = 260, pad = { t: 20, r: 20, b: 25, l: 60 };
+      const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+      const mn = Math.min(...data.map(d => d.equity)), mx = Math.max(...data.map(d => d.equity)), rng = mx - mn || 1;
+      const tx = i => pad.l + (i / (data.length - 1)) * iw;
+      const ty = eq => pad.t + (1 - (eq - mn) / rng) * ih;
+      const pth = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${ty(d.equity).toFixed(1)}`).join(' ');
+      const area = pth + ` L${tx(data.length - 1).toFixed(1)},${(pad.t + ih).toFixed(1)} L${pad.l},${(pad.t + ih).toFixed(1)} Z`;
+      const up = data[data.length - 1]?.equity >= data[0]?.equity;
+      const clr = up ? C.gold : C.red;
+      const gridLines = Array.from({ length: 5 }, (_, i) => mn + (rng * i) / 4).map(v =>
+        `<line x1="${pad.l}" y1="${ty(v)}" x2="${w - pad.r}" y2="${ty(v)}" stroke="rgba(255,184,0,0.04)"/>
+         <text x="${pad.l - 8}" y="${ty(v) + 4}" text-anchor="end" fill="${C.textDim}" font-size="9" font-family="'JetBrains Mono', monospace">$${fmt(v, 0)}</text>`
+      ).join('');
+      return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto">
+        <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${clr}" stop-opacity="0.15"/><stop offset="100%" stop-color="${clr}" stop-opacity="0"/></linearGradient></defs>
+        ${gridLines}
+        <path d="${area}" fill="url(#eg)"/><path d="${pth}" fill="none" stroke="${clr}" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="${tx(data.length - 1)}" cy="${ty(data[data.length - 1]?.equity)}" r="3" fill="${clr}"/>
+      </svg>`;
+    }
+
+    function renderOverview(data) {
+      const { summary: s, equityCurve, exitBreakdown } = data;
+      const exitBar = exitBreakdown.map(d => `<div style="width:${(d.count / s.totalTrades) * 100}%;background:${d.color}"></div>`).join('');
+      const exitItems = exitBreakdown.map(d => `
+        <div class="exit-item"><div><span class="exit-dot" style="background:${d.color}"></span><span style="color:${C.textMid}">${d.reason.replace(/_/g, ' ')}</span></div>
+        <span class="mono" style="color:${d.pnl >= 0 ? C.green : C.red}">${d.count} · ${fmtUsd(d.pnl)}</span></div>
+      `).join('');
+      return `<div class="overview-grid">
+        <div class="panel"><div class="panel-title">Equity Curve</div>${renderEquityCurve(equityCurve)}</div>
+        <div class="side-panels">
+          <div class="panel"><div class="panel-title">Exit Breakdown</div><div class="exit-bar">${exitBar}</div>${exitItems}</div>
+          <div class="panel"><div class="streaks-grid">
+            <div><div class="streak-label">Win Streak</div><div class="streak-value mono" style="color:${C.gold}">${s.winningStreak}</div></div>
+            <div><div class="streak-label">Loss Streak</div><div class="streak-value mono" style="color:${C.red}">${s.losingStreak}</div></div>
+            <div><div class="streak-label">Fees</div><div class="streak-value mono" style="color:${C.textMid}">$${fmt(s.totalFees)}</div></div>
+          </div></div>
+        </div>
+      </div>`;
+    }
+
+    function renderTrades(trades, page) {
+      const pp = 20, tp = Math.ceil(trades.length / pp), sl = trades.slice(page * pp, (page + 1) * pp);
+      const rows = sl.map(t => `<tr>
+        <td style="color:${C.textDim}">${t.id}</td>
+        <td style="color:${C.textMid}">${t.date}</td>
+        <td><span class="dir-badge ${t.direction === 'long' ? 'dir-long' : 'dir-short'}">${(t.direction || '?').toUpperCase()}</span></td>
+        <td class="mono" style="color:${C.text}">$${t.entry.toFixed(2)}</td>
+        <td class="mono" style="color:${C.text}">$${t.exit.toFixed(2)}</td>
+        <td class="mono ${t.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">${fmtUsd(t.pnl)}</td>
+        <td style="color:${C.textMid};font-size:11px">${(t.exitReason || '').replace(/_/g, ' ')}</td>
+        <td style="color:${C.textDim}">${t.confidence > 0 ? t.confidence.toFixed(0) + '%' : ''}</td>
+      </tr>`).join('');
+      return `<div class="panel"><div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Date</th><th>Dir</th><th>Entry</th><th>Exit</th><th>P&L</th><th>Exit</th><th>Conf</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="pagination"><span class="page-info">${page * pp + 1}–${Math.min((page + 1) * pp, trades.length)} of ${trades.length}</span>
+        <div class="page-btns"><button class="page-btn" data-page="${Math.max(0, page - 1)}">←</button><button class="page-btn" data-page="${Math.min(tp - 1, page + 1)}">→</button></div>
+      </div></div>`;
+    }
+
+    function renderAnalysis(trades) {
+      const dirSplit = ['long', 'short'].map(dir => {
+        const dt = trades.filter(t => t.direction === dir);
+        const wins = dt.filter(t => t.pnl > 0).length;
+        const pnl = dt.reduce((s, t) => s + t.pnl, 0);
+        return `<div class="split-row"><div><span class="dir-badge ${dir === 'long' ? 'dir-long' : 'dir-short'}">${dir.toUpperCase()}</span><span style="color:${C.textMid};font-size:12px;margin-left:8px">${dt.length}</span></div>
+          <div class="mono" style="font-size:12px"><span style="color:${C.textMid};margin-right:14px">${dt.length > 0 ? ((wins / dt.length) * 100).toFixed(0) : 0}%</span><span style="color:${pnl >= 0 ? C.green : C.red};font-weight:600">${fmtUsd(pnl)}</span></div></div>`;
+      }).join('');
+      const tiers = [{ l: 'Low (0-40%)', a: 0, b: 40 }, { l: 'Mid (40-70%)', a: 40, b: 70 }, { l: 'High (70-90%)', a: 70, b: 90 }, { l: 'Max (90%+)', a: 90, b: 101 }].map(tier => {
+        const tt = trades.filter(t => t.confidence >= tier.a && t.confidence < tier.b);
+        const w = tt.filter(t => t.pnl > 0).length, p = tt.reduce((s, t) => s + t.pnl, 0);
+        return `<div class="tier-row"><span style="color:${C.textMid}">${tier.l}</span>
+          <div class="mono"><span style="color:${C.textDim};margin-right:14px">${tt.length}</span><span style="color:${C.textMid};margin-right:14px">${tt.length > 0 ? ((w / tt.length) * 100).toFixed(0) : 0}%</span><span style="color:${p >= 0 ? C.green : C.red}">${fmtUsd(p)}</span></div></div>`;
+      }).join('');
+      return `<div class="analysis-grid">
+        <div class="panel"><div class="panel-title">Direction Split</div>${dirSplit}</div>
+        <div class="panel"><div class="panel-title">Confidence Tiers</div>${tiers}</div>
+      </div>`;
+    }
+
+    function render() {
+      const { data, tab, tradePage } = state;
+      if (!data) {
+        document.getElementById('landing').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        return;
+      }
+      document.getElementById('landing').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      const { summary: s } = data;
+      document.getElementById('source').textContent = data.source;
+      document.getElementById('strategy').textContent = s.strategyName;
+      document.getElementById('date-range').textContent = `${s.startDate} → ${s.endDate}`;
+      document.getElementById('timestamp').textContent = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      document.getElementById('metrics').innerHTML = renderMetrics(s);
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
+      document.getElementById('tab-trades').style.display = tab === 'trades' ? 'block' : 'none';
+      document.getElementById('tab-analysis').style.display = tab === 'analysis' ? 'block' : 'none';
+      if (tab === 'overview') document.getElementById('tab-overview').innerHTML = renderOverview(data);
+      if (tab === 'trades') document.getElementById('tab-trades').innerHTML = renderTrades(data.trades, tradePage);
+      if (tab === 'analysis') document.getElementById('tab-analysis').innerHTML = renderAnalysis(data.trades);
+    }
+
+    // Storage
+    async function saveRun(data) {
+      const key = `run:${Date.now()}`;
+      const runs = JSON.parse(storage.get('ogz-run-list')?.value || '[]');
+      runs.push({ key, name: data.source, date: new Date().toISOString(), trades: data.summary.totalTrades, pf: data.summary.profitFactor, pnl: data.summary.netPnL });
+      storage.set('ogz-run-list', JSON.stringify(runs));
+      storage.set(key, JSON.stringify(data));
+      return key;
+    }
+
+    function loadRunList() {
+      return JSON.parse(storage.get('ogz-run-list')?.value || '[]');
+    }
+
+    function renderSavedRuns() {
+      const runs = loadRunList();
+      state.savedRuns = runs;
+      if (runs.length === 0) { document.getElementById('saved-runs').style.display = 'none'; return; }
+      document.getElementById('saved-runs').style.display = 'block';
+      document.getElementById('runs-list').innerHTML = runs.map(r => `
+        <div class="run-item" data-key="${r.key}">
+          <div><span class="run-name">${r.name}</span><span class="run-date">${new Date(r.date).toLocaleDateString()}</span></div>
+          <div class="run-stats mono">
+            <span style="color:${C.textMid}">${r.trades} trades</span>
+            <span style="color:${r.pf >= 1 ? C.green : C.red}">PF ${Number(r.pf).toFixed(2)}</span>
+            <span style="color:${r.pnl >= 0 ? C.green : C.red}">${fmtUsd(r.pnl)}</span>
+            <button class="run-delete" data-key="${r.key}">×</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Event handlers
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const parsed = parseCSV(e.target.result);
+        document.getElementById('format-info').style.display = 'block';
+        document.getElementById('format-info').innerHTML = `Detected: <span style="color:${C.gold}">${parsed.format}</span> · ${parsed.rows.length} rows · ${parsed.headers.length} columns`;
+        const metrics = processData(parsed);
+        if (metrics) { state.data = metrics; saveRun(metrics); render(); }
+      };
+      reader.readAsText(file);
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSavedRuns();
+
+      const dz = document.getElementById('dropzone');
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+      dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+      dz.addEventListener('click', () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,.tsv,.txt'; inp.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); }; inp.click(); });
+
+      document.getElementById('runs-list').addEventListener('click', e => {
+        const del = e.target.closest('.run-delete');
+        if (del) { e.stopPropagation(); const key = del.dataset.key; storage.delete(key); const runs = loadRunList().filter(r => r.key !== key); storage.set('ogz-run-list', JSON.stringify(runs)); renderSavedRuns(); return; }
+        const item = e.target.closest('.run-item');
+        if (item) { const d = JSON.parse(storage.get(item.dataset.key)?.value || 'null'); if (d) { state.data = d; render(); } }
+      });
+
+      document.querySelector('.tabs').addEventListener('click', e => { if (e.target.classList.contains('tab')) { state.tab = e.target.dataset.tab; state.tradePage = 0; render(); } });
+      document.getElementById('back-btn').addEventListener('click', () => { state.data = null; render(); });
+      document.getElementById('tab-trades').addEventListener('click', e => { const btn = e.target.closest('.page-btn'); if (btn) { state.tradePage = parseInt(btn.dataset.page); render(); } });
+
+      render();
+    });
+  </script>
+</body>
+</html>
