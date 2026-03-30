@@ -163,6 +163,9 @@ class PineRuntime {
         if (node.name === 'low') return this._getCurrentCandle()?.low;
         if (node.name === 'volume') return this._getCurrentCandle()?.volume;
         if (node.name === 'bar_index') return this.history.length - 1;
+        // built-in objects for member access
+        if (node.name === 'timeframe') return { multiplier: 15, period: '15', isminutes: true };
+        if (node.name === 'syminfo') return { ticker: 'TSLA', mintick: 0.01 };
         // user variable
         return this.state[node.name];
       case 'SeriesLookup':
@@ -258,6 +261,15 @@ class PineRuntime {
   // -----------------------------------------------------------------
   _getCurrentCandle() {
     return this.history[this.history.length - 1];
+  }
+
+  // -----------------------------------------------------------------
+  // Round to tick - match TradingView's precision behavior
+  // -----------------------------------------------------------------
+  _roundToTick(value) {
+    if (value === null || value === undefined || isNaN(value)) return value;
+    const tick = 0.01; // syminfo.mintick for TSLA
+    return Math.round(value / tick) * tick;
   }
 
   // -----------------------------------------------------------------
@@ -460,21 +472,23 @@ class PineRuntime {
         }
 
         const length = this._evalExpression(lengthArg);
-        return PineTALib[method](series, length);
+        // Round to mintick to match TradingView precision
+        return this._roundToTick(PineTALib[method](series, length));
       }
       case 'atr': {
         // Pine: ta.atr(length) - implicitly uses high, low, close
         const length = this._evalExpression(rawArgs[0]);
-        return PineTALib.atr(getSeries('high'), getSeries('low'), getSeries('close'), length);
+        // Round to mintick to match TradingView precision
+        return this._roundToTick(PineTALib.atr(getSeries('high'), getSeries('low'), getSeries('close'), length));
       }
       case 'vwap': {
         // Pine: ta.vwap(src) or ta.vwap() - default src is hlc3
-        return PineTALib.vwap(
+        return this._roundToTick(PineTALib.vwap(
           getSeries('high'),
           getSeries('low'),
           getSeries('close'),
           getSeries('volume')
-        );
+        ));
       }
       case 'crossover':
       case 'crossunder': {
@@ -491,7 +505,7 @@ class PineRuntime {
         const series = evalOrSeries(rawArgs[0]);
         const length = rawArgs[1] ? this._evalExpression(rawArgs[1]) : 1;
         if (!Array.isArray(series) || series.length < length + 1) return null;
-        return series[series.length - 1] - series[series.length - 1 - length];
+        return this._roundToTick(series[series.length - 1] - series[series.length - 1 - length]);
       }
       case 'valuewhen': {
         // ta.valuewhen(condition, source, occurrence)
