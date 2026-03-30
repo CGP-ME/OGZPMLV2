@@ -20,6 +20,9 @@ class PineRuntime {
     // Keep a reference to the whole history (array of candle objects)
     this.history = [];
 
+    // State history - snapshot of state after each candle (for series lookback on user vars)
+    this.stateHistory = [];
+
     // Session tracker (IVB, daily loss, etc.)
     this.session = new SessionTracker();
 
@@ -42,6 +45,10 @@ class PineRuntime {
 
     // run the whole program
     this._execBlock(this.ast.body);
+
+    // Save state snapshot for series lookback on user variables
+    this.stateHistory.push({ ...this.state });
+    if (this.stateHistory.length > maxLookback) this.stateHistory.shift();
 
     // after execution, ask the bridge for the signal
     return this.bridge.flushSignal();
@@ -84,7 +91,13 @@ class PineRuntime {
           const end = Math.floor(this._evalExpression(node.end));
           for (let i = start; i <= end; i++) {
             this.state[node.id] = i;
-            this._execBlock(node.body.body);
+            try {
+              this._execBlock(node.body.body);
+            } catch (e) {
+              if (e && e.type === 'BreakSignal') break;
+              if (e && e.type === 'ContinueSignal') continue;
+              throw e;
+            }
           }
         }
         break;
@@ -93,7 +106,13 @@ class PineRuntime {
           // safeguard - max 1000 iterations to avoid infinite loops
           let iter = 0;
           while (this._evalExpression(node.test) && iter < 1000) {
-            this._execBlock(node.body.body);
+            try {
+              this._execBlock(node.body.body);
+            } catch (e) {
+              if (e && e.type === 'BreakSignal') break;
+              if (e && e.type === 'ContinueSignal') { iter++; continue; }
+              throw e;
+            }
             iter++;
           }
         }
@@ -245,11 +264,22 @@ class PineRuntime {
   // Series look-back - e.g. close[3]
   // -----------------------------------------------------------------
   _lookupSeries(name, offset) {
-    // offset must be a non-negative integer
-    const idx = Math.max(0, this.history.length - 1 - Math.floor(offset));
-    const candle = this.history[idx];
+    const offsetInt = Math.floor(offset);
+    const currentIdx = this.history.length - 1;
+    const targetIdx = Math.max(0, currentIdx - offsetInt);
+
+    // Check if this is a user variable (exists in stateHistory)
+    // For user variables, we need to look at the state snapshot from that bar
+    if (this.stateHistory.length > targetIdx && targetIdx >= 0) {
+      const historicalState = this.stateHistory[targetIdx];
+      if (historicalState && name in historicalState) {
+        return historicalState[name];
+      }
+    }
+
+    // Otherwise, look up from candle OHLCV
+    const candle = this.history[targetIdx];
     if (!candle) return null;
-    // Pine series names are lower-case properties of the candle object
     return candle[name];
   }
 
@@ -267,6 +297,12 @@ class PineRuntime {
 
     // If callee is a MemberExpression (ta.sma, strategy.entry, etc.)
     if (typeof callee === 'object' && callee.type === 'MemberExpression') {
+      // Special handling for input.* - return the default value (before evaluating obj)
+      if (callee.object.type === 'Identifier' && callee.object.name === 'input') {
+        const positional = evaluatedArgs.filter(a => !a || !a.name);
+        return positional[0]; // First arg is the default value
+      }
+
       const obj = this._evalExpression(callee.object);
       const method = callee.property;
 
@@ -284,12 +320,6 @@ class PineRuntime {
       // Special handling for strategy.* - pass evaluated args including named ones
       if (obj === this.bridge) {
         return this._callStrategyMethod(method, evaluatedArgs);
-      }
-
-      // Special handling for input.* - return the default value
-      if (callee.object.name === 'input') {
-        const positional = evaluatedArgs.filter(a => !a || !a.name);
-        return positional[0]; // First arg is the default value
       }
 
       // For other objects (array, math, etc.)

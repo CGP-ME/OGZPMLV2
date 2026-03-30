@@ -62,6 +62,12 @@ class PineParser {
       return this.whileStatement();
     }
 
+    // break / continue
+    if (tok.type === 'keyword' && (tok.value === 'break' || tok.value === 'continue')) {
+      this.consume('keyword');
+      return { type: tok.value };
+    }
+
     // function definition (arrow)
     if (tok.type === 'identifier' && this.peek(1).type === 'punct' && this.peek(1).value === '(') {
       // could be a call or a definition - we look ahead for => token
@@ -218,37 +224,49 @@ class PineParser {
     this.consume('operator', '=>');
 
     // Multi-line functions have statements followed by a return expression.
-    // Without indentation tracking, we parse greedily until we hit something
-    // that looks like a new top-level definition.
+    // With indentation tracking, we consume indent and parse until dedent.
     const statements = [];
+
+    // Check for indent token (multi-line function body)
+    const hasIndent = this.peek().type === 'indent';
+    if (hasIndent) {
+      this.consume('indent');
+    }
 
     // Keep parsing statements while we can
     while (this.peek().type !== 'eof') {
-      // Stop if we hit a new function definition (identifier followed by () =>)
-      if (this.peek().type === 'identifier') {
-        // Look ahead for () =>
-        let i = 1;
-        if (this.peek(i).type === 'punct' && this.peek(i).value === '(') {
-          // Skip to matching )
-          let depth = 1;
-          i++;
-          while (depth > 0 && this.peek(i).type !== 'eof') {
-            if (this.peek(i).value === '(') depth++;
-            if (this.peek(i).value === ')') depth--;
-            i++;
-          }
-          // Check for =>
-          if (this.peek(i).type === 'operator' && this.peek(i).value === '=>') {
-            break; // New function def starts here
-          }
+      // Stop at dedent token
+      if (this.peek().type === 'dedent') {
+        if (hasIndent) {
+          this.consume('dedent');
         }
+        break;
       }
 
-      // Stop if we hit control flow keywords at top level
-      // (they indicate we're past the function body)
-      if (this.peek().type === 'keyword' &&
-          ['if', 'for', 'while', 'var', 'strategy', 'plot', 'plotshape', 'bgcolor', 'alertcondition'].includes(this.peek().value)) {
-        break;
+      // For non-indented functions, use heuristics:
+      if (!hasIndent) {
+        // Stop if we hit a new function definition (identifier followed by () =>)
+        if (this.peek().type === 'identifier') {
+          let i = 1;
+          if (this.peek(i).type === 'punct' && this.peek(i).value === '(') {
+            let depth = 1;
+            i++;
+            while (depth > 0 && this.peek(i).type !== 'eof') {
+              if (this.peek(i).value === '(') depth++;
+              if (this.peek(i).value === ')') depth--;
+              i++;
+            }
+            if (this.peek(i).type === 'operator' && this.peek(i).value === '=>') {
+              break;
+            }
+          }
+        }
+
+        // Stop if we hit control flow keywords at top level
+        if (this.peek().type === 'keyword' &&
+            ['if', 'for', 'while', 'var', 'strategy', 'plot', 'plotshape', 'bgcolor', 'alertcondition'].includes(this.peek().value)) {
+          break;
+        }
       }
 
       statements.push(this.statement());
@@ -264,14 +282,71 @@ class PineParser {
 
   block() {
     const stmts = [];
-    // Pine uses indentation for blocks, which we can't track without a proper lexer.
-    // Workaround: parse ONE statement for the block.
-    // This handles simple cases like: if x > 0  y := 1
-    // For complex nested blocks, they'll be parsed as separate top-level statements.
-    const tok = this.peek();
-    if (tok.type !== 'eof') {
-      stmts.push(this.statement());
+
+    // Check for indent token - if present, this block has indented content
+    const hasIndent = this.peek().type === 'indent';
+    if (hasIndent) {
+      this.consume('indent'); // Consume the indent token
     }
+
+    // Parse statements until we see dedent, EOF, or block-ending pattern
+    while (this.peek().type !== 'eof') {
+      const tok = this.peek();
+
+      // Stop at dedent token (block ends)
+      if (tok.type === 'dedent') {
+        if (hasIndent) {
+          this.consume('dedent'); // Consume the dedent token
+        }
+        break;
+      }
+
+      // Stop at else keyword (for if-else chains)
+      if (tok.type === 'keyword' && tok.value === 'else') {
+        break;
+      }
+
+      // For blocks without explicit indent tokens, use heuristics:
+      if (!hasIndent && stmts.length > 0) {
+        // Stop at control flow keywords (new statement at same level)
+        if (tok.type === 'keyword' &&
+            ['if', 'for', 'while', 'var'].includes(tok.value)) {
+          break;
+        }
+
+        // Stop at type-annotated declarations (float x = ...)
+        const typeKeywords = ['float', 'int', 'bool', 'string', 'color', 'line', 'label', 'box', 'table'];
+        if (tok.type === 'identifier' && typeKeywords.includes(tok.value)) {
+          break;
+        }
+
+        // Stop at plot/alertcondition (top-level directives)
+        if (tok.type === 'keyword' &&
+            ['plot', 'plotshape', 'bgcolor', 'alertcondition'].includes(tok.value)) {
+          break;
+        }
+
+        // Stop at strategy() header declaration
+        if (tok.type === 'keyword' && tok.value === 'strategy') {
+          if (this.peek(1).type === 'punct' && this.peek(1).value === '(') {
+            break;
+          }
+        }
+      }
+
+      const stmt = this.statement();
+      stmts.push(stmt);
+
+      // Stop after break/continue - code after them belongs to outer scope
+      if (stmt.type === 'break' || stmt.type === 'continue') {
+        // Consume any dedent that matches our indent level
+        if (hasIndent && this.peek().type === 'dedent') {
+          this.consume('dedent');
+        }
+        break;
+      }
+    }
+
     return { type: 'BlockStatement', body: stmts };
   }
 

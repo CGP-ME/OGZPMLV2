@@ -16,6 +16,9 @@ class PineLexer {
     this.punctuations = new Set(['(', ')', '[', ']', '{', '}', ',', ';', ':', '.']);
     // and/or/not are operators, not keywords - they need operator type for parser
     this.logicalOperators = new Set(['and', 'or', 'not']);
+    // Indentation tracking
+    this.indentStack = [0]; // Stack of indentation levels
+    this.atLineStart = true; // Are we at the start of a line?
   }
 
   isWhitespace(ch) {
@@ -46,7 +49,42 @@ class PineLexer {
     while (this.pos < this.source.length) {
       const ch = this.peek();
 
-      // Whitespace
+      // Handle line starts - measure indentation
+      if (this.atLineStart) {
+        let indent = 0;
+        while (this.peek() === ' ' || this.peek() === '\t') {
+          indent += this.peek() === '\t' ? 4 : 1; // Treat tab as 4 spaces
+          this.advance();
+        }
+        // Skip empty lines and comment-only lines
+        if (this.peek() === '\n' || (this.peek() === '/' && this.peek(1) === '/')) {
+          this.atLineStart = false;
+          continue;
+        }
+        // Check indentation level
+        const currentIndent = this.indentStack[this.indentStack.length - 1];
+        if (indent > currentIndent) {
+          this.indentStack.push(indent);
+          this.addToken('indent', indent);
+        } else if (indent < currentIndent) {
+          // Pop indentation levels and emit dedent tokens
+          while (this.indentStack.length > 1 && this.indentStack[this.indentStack.length - 1] > indent) {
+            this.indentStack.pop();
+            this.addToken('dedent', indent);
+          }
+        }
+        this.atLineStart = false;
+        continue;
+      }
+
+      // Newline - next iteration will check indentation
+      if (ch === '\n') {
+        this.advance();
+        this.atLineStart = true;
+        continue;
+      }
+
+      // Whitespace (non-newline)
       if (this.isWhitespace(ch)) {
         this.advance();
         continue;

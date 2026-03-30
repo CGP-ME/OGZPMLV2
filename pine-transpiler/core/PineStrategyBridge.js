@@ -87,8 +87,8 @@ class PineStrategyBridge {
       if (stop !== undefined) signal.overrideLevels.stopLoss = stop;
       if (limit !== undefined) signal.overrideLevels.takeProfit = limit;
     }
-    if (this.pendingClose) {
-      // closing a position is equivalent to a market exit - we just clear direction
+    if (this.pendingClose && !this.pendingEntry) {
+      // closing a position is equivalent to a market exit - but entry takes priority
       signal.direction = null;
     }
 
