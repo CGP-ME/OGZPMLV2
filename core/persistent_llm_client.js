@@ -29,7 +29,7 @@ const PROVIDERS = {
   mercury: {
     name: 'Mercury-2 (Inception Labs)',
     baseUrl: 'https://api.inceptionlabs.ai/v1',
-    defaultModel: 'mercury-coder-small',
+    defaultModel: 'mercury-2',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     requestFormat: 'openai',  // Mercury uses OpenAI-compatible format
@@ -73,7 +73,7 @@ class PersistentLLMClient {
     this.provider = providerConfig;
     this.baseUrl = config.baseUrl || process.env.LLM_BASE_URL || providerConfig.baseUrl;
     this.model = config.model || process.env.LLM_MODEL || providerConfig.defaultModel;
-    this.apiKey = config.apiKey || process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.MERCURY_API_KEY || '';
+    this.apiKey = config.apiKey || process.env.LLM_API_KEY || process.env.INCEPTION_API_KEY || process.env.MERCURY_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '';
     this.maxTokens = config.maxTokens || Number(process.env.LLM_MAX_TOKENS || 1000);
     this.temperature = config.temperature || Number(process.env.LLM_TEMPERATURE || 0.6);
     
@@ -132,7 +132,12 @@ class PersistentLLMClient {
    * @returns {Promise<string>} - The generated response text
    */
   async generateResponse(prompt, maxTokens = null) {
-    const tokens = maxTokens || this.maxTokens;
+    let tokens = maxTokens || this.maxTokens;
+
+    // Mercury-2 uses internal reasoning tokens, so enforce minimum
+    if (this.providerName === 'mercury' && tokens < 150) {
+      tokens = 150;
+    }
 
     if (!this.isReady && this.requestCount > 0) {
       return this._fallbackResponse(prompt);
