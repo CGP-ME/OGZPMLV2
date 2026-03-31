@@ -151,73 +151,70 @@ function needsWebSearch(prompt) {
   return searchTriggers.some(trigger => lower.includes(trigger));
 }
 
-// CHANGE 2026-03-30: Fetch real market data (Yahoo Finance - no API key needed)
-async function fetchMarketData(symbol) {
-  try {
-    // Yahoo Finance quote endpoint (free, no key)
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+// CHANGE 2026-03-30: Fetch real market data from Polygon.io
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY || '';
 
-    if (!response.ok) {
-      console.warn(`[Market Data] Yahoo Finance returned ${response.status} for ${symbol}`);
+async function fetchMarketData(symbol) {
+  if (!POLYGON_API_KEY) {
+    console.warn('[Market Data] No POLYGON_API_KEY set');
+    return null;
+  }
+
+  try {
+    // Fetch previous day data and current snapshot in parallel
+    const [prevDayRes, snapshotRes] = await Promise.all([
+      fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`),
+      fetch(`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`)
+    ]);
+
+    if (!prevDayRes.ok || !snapshotRes.ok) {
+      console.warn(`[Market Data] Polygon returned error for ${symbol}`);
       return null;
     }
 
-    const data = await response.json();
-    const result = data.chart?.result?.[0];
-    if (!result) return null;
+    const prevDay = await prevDayRes.json();
+    const snapshot = await snapshotRes.json();
 
-    const meta = result.meta || {};
-    const quote = result.indicators?.quote?.[0] || {};
-    const closes = quote.close || [];
-    const volumes = quote.volume || [];
-    const highs = quote.high || [];
-    const lows = quote.low || [];
+    const prev = prevDay.results?.[0] || {};
+    const ticker = snapshot.ticker || {};
+    const day = ticker.day || {};
+    const lastTrade = ticker.lastTrade || {};
+    const prevDayData = ticker.prevDay || {};
 
-    // Get latest values
-    const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
-    const prevClose = meta.chartPreviousClose || closes[closes.length - 2];
+    // Use snapshot data (more current) with prevDay fallback
+    const currentPrice = lastTrade.p || day.c || prev.c;
+    const prevClose = prevDayData.c || prev.c;
     const change = currentPrice - prevClose;
-    const changePct = ((change / prevClose) * 100).toFixed(2);
+    const changePct = prevClose ? ((change / prevClose) * 100).toFixed(2) : '0.00';
 
-    // Calculate simple indicators
-    const avgVolume = volumes.slice(-5).reduce((a, b) => a + b, 0) / 5;
-    const latestVolume = volumes[volumes.length - 1] || 0;
-    const volumeRatio = (latestVolume / avgVolume).toFixed(2);
+    // Volume
+    const todayVolume = day.v || 0;
+    const avgVolume = prevDayData.v || prev.v || todayVolume;
+    const volumeRatio = avgVolume > 0 ? (todayVolume / avgVolume).toFixed(2) : '1.00';
 
-    // Simple RSI approximation (14-period would need more data)
-    const recentCloses = closes.slice(-5);
-    let gains = 0, losses = 0;
-    for (let i = 1; i < recentCloses.length; i++) {
-      const diff = recentCloses[i] - recentCloses[i - 1];
-      if (diff > 0) gains += diff;
-      else losses += Math.abs(diff);
-    }
-    const rs = losses === 0 ? 100 : gains / losses;
-    const rsi = Math.round(100 - (100 / (1 + rs)));
-
-    // Support/resistance from recent highs/lows
-    const recentHigh = Math.max(...highs.slice(-5).filter(Boolean));
-    const recentLow = Math.min(...lows.slice(-5).filter(Boolean));
+    // Calculate RSI from recent bars (need separate call for more accuracy)
+    // For now, use simple momentum indicator based on change
+    const rsi = changePct > 2 ? 65 : changePct > 0 ? 55 : changePct > -2 ? 45 : 35;
 
     return {
-      symbol: meta.symbol || symbol.toUpperCase(),
+      symbol: symbol.toUpperCase(),
       price: currentPrice?.toFixed(2),
       change: change?.toFixed(2),
       changePct: changePct,
       prevClose: prevClose?.toFixed(2),
-      dayHigh: meta.regularMarketDayHigh?.toFixed(2) || recentHigh?.toFixed(2),
-      dayLow: meta.regularMarketDayLow?.toFixed(2) || recentLow?.toFixed(2),
-      volume: latestVolume,
+      open: (day.o || prev.o)?.toFixed(2),
+      dayHigh: (day.h || prev.h)?.toFixed(2),
+      dayLow: (day.l || prev.l)?.toFixed(2),
+      volume: todayVolume,
       avgVolume: Math.round(avgVolume),
       volumeRatio: volumeRatio,
+      vwap: day.vw?.toFixed(2) || 'N/A',
       rsi: rsi,
-      resistance: recentHigh?.toFixed(2),
-      support: recentLow?.toFixed(2),
-      marketState: meta.marketState || 'UNKNOWN',
+      resistance: (day.h || prev.h)?.toFixed(2),
+      support: (day.l || prev.l)?.toFixed(2),
+      marketState: ticker.market === 'extended_hours' ? 'EXTENDED' : 'REGULAR',
       fetchedAt: new Date().toISOString(),
+      source: 'polygon.io'
     };
   } catch (error) {
     console.error('[Market Data] Error fetching:', error.message);
@@ -285,17 +282,18 @@ app.post('/api/trai/analyze', async (req, res) => {
       if (marketData) {
         marketDataUsed = true;
         dataContext = `
-**REAL MARKET DATA FOR ${marketData.symbol} (fetched ${marketData.fetchedAt}):**
+**REAL MARKET DATA FOR ${marketData.symbol} (source: ${marketData.source}, fetched ${marketData.fetchedAt}):**
 - Current Price: $${marketData.price} (${marketData.change >= 0 ? '+' : ''}${marketData.change}, ${marketData.changePct}%)
 - Previous Close: $${marketData.prevClose}
+- Open: $${marketData.open}
 - Day Range: $${marketData.dayLow} - $${marketData.dayHigh}
-- Volume: ${marketData.volume?.toLocaleString()} (${marketData.volumeRatio}x avg)
-- RSI (5-period approx): ${marketData.rsi}
-- Recent Support: $${marketData.support}
-- Recent Resistance: $${marketData.resistance}
+- VWAP: $${marketData.vwap}
+- Volume: ${marketData.volume?.toLocaleString()} (${marketData.volumeRatio}x avg volume)
+- Day Support: $${marketData.support}
+- Day Resistance: $${marketData.resistance}
 - Market State: ${marketData.marketState}
 
-IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, prices, or percentages.
+IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, prices, or percentages. If you need EMA, MACD, or other indicators, say "data not available".
 `;
       }
     }
