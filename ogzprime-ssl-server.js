@@ -151,6 +151,119 @@ function needsWebSearch(prompt) {
   return searchTriggers.some(trigger => lower.includes(trigger));
 }
 
+// CHANGE 2026-03-30: Fetch real market data (Yahoo Finance - no API key needed)
+async function fetchMarketData(symbol) {
+  try {
+    // Yahoo Finance quote endpoint (free, no key)
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+
+    if (!response.ok) {
+      console.warn(`[Market Data] Yahoo Finance returned ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = data.chart?.result?.[0];
+    if (!result) return null;
+
+    const meta = result.meta || {};
+    const quote = result.indicators?.quote?.[0] || {};
+    const closes = quote.close || [];
+    const volumes = quote.volume || [];
+    const highs = quote.high || [];
+    const lows = quote.low || [];
+
+    // Get latest values
+    const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
+    const prevClose = meta.chartPreviousClose || closes[closes.length - 2];
+    const change = currentPrice - prevClose;
+    const changePct = ((change / prevClose) * 100).toFixed(2);
+
+    // Calculate simple indicators
+    const avgVolume = volumes.slice(-5).reduce((a, b) => a + b, 0) / 5;
+    const latestVolume = volumes[volumes.length - 1] || 0;
+    const volumeRatio = (latestVolume / avgVolume).toFixed(2);
+
+    // Simple RSI approximation (14-period would need more data)
+    const recentCloses = closes.slice(-5);
+    let gains = 0, losses = 0;
+    for (let i = 1; i < recentCloses.length; i++) {
+      const diff = recentCloses[i] - recentCloses[i - 1];
+      if (diff > 0) gains += diff;
+      else losses += Math.abs(diff);
+    }
+    const rs = losses === 0 ? 100 : gains / losses;
+    const rsi = Math.round(100 - (100 / (1 + rs)));
+
+    // Support/resistance from recent highs/lows
+    const recentHigh = Math.max(...highs.slice(-5).filter(Boolean));
+    const recentLow = Math.min(...lows.slice(-5).filter(Boolean));
+
+    return {
+      symbol: meta.symbol || symbol.toUpperCase(),
+      price: currentPrice?.toFixed(2),
+      change: change?.toFixed(2),
+      changePct: changePct,
+      prevClose: prevClose?.toFixed(2),
+      dayHigh: meta.regularMarketDayHigh?.toFixed(2) || recentHigh?.toFixed(2),
+      dayLow: meta.regularMarketDayLow?.toFixed(2) || recentLow?.toFixed(2),
+      volume: latestVolume,
+      avgVolume: Math.round(avgVolume),
+      volumeRatio: volumeRatio,
+      rsi: rsi,
+      resistance: recentHigh?.toFixed(2),
+      support: recentLow?.toFixed(2),
+      marketState: meta.marketState || 'UNKNOWN',
+      fetchedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[Market Data] Error fetching:', error.message);
+    return null;
+  }
+}
+
+// Extract stock symbols from prompt
+function extractSymbol(prompt) {
+  // Known stock tickers to look for first (high priority)
+  const knownTickers = ['AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'INTC', 'NFLX', 'DIS', 'PYPL', 'COIN', 'SQ', 'SHOP', 'ROKU', 'PLTR', 'SNOW', 'CRM', 'ORCL', 'IBM', 'CSCO', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'ASML', 'TSM', 'BABA', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'RIVN', 'LCID', 'F', 'GM', 'TM', 'BA', 'LMT', 'RTX', 'GE', 'CAT', 'DE', 'UNH', 'JNJ', 'PFE', 'MRK', 'ABBV', 'LLY', 'BMY', 'AMGN', 'GILD', 'BIIB', 'MRNA', 'BNTX', 'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'BLK', 'SCHW', 'V', 'MA', 'AXP', 'WMT', 'TGT', 'COST', 'HD', 'LOW', 'NKE', 'SBUX', 'MCD', 'CMG', 'DPZ', 'YUM', 'KO', 'PEP', 'MNST', 'BTC', 'ETH', 'SOL', 'SPY', 'QQQ', 'IWM', 'DIA', 'VTI', 'VOO'];
+
+  const upperPrompt = prompt.toUpperCase();
+
+  // Check for known tickers first
+  for (const ticker of knownTickers) {
+    if (upperPrompt.includes(ticker)) {
+      return ticker;
+    }
+  }
+
+  // Fallback: Look for uppercase words that look like tickers
+  const match = upperPrompt.match(/\b([A-Z]{2,5})\b/g);
+  if (!match) return null;
+
+  // Filter out ALL common English words
+  const stopWords = new Set([
+    // 2-letter
+    'IF', 'IS', 'IT', 'IN', 'ON', 'AT', 'TO', 'BY', 'OF', 'OR', 'AS', 'AN', 'SO', 'DO', 'GO', 'NO', 'UP', 'WE', 'BE', 'HE', 'ME', 'MY', 'US',
+    // 3-letter
+    'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HAD', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'LET', 'MAY', 'OLD', 'SEE', 'TWO', 'WAY', 'WHO', 'DID', 'GET', 'SAY', 'SHE', 'TOO', 'USE', 'HIM', 'NOW', 'NEW', 'ANY', 'DAY', 'GOT', 'WHY', 'OWN', 'SAW', 'PUT', 'YET', 'ASK', 'TRY', 'RUN', 'BIG', 'FEW', 'END', 'BAD', 'OFF', 'TOP', 'SET', 'KEY',
+    // 4-letter
+    'JUST', 'KNOW', 'TAKE', 'COME', 'MAKE', 'LIKE', 'BACK', 'ONLY', 'OVER', 'SUCH', 'YEAR', 'INTO', 'MOST', 'ALSO', 'MADE', 'WELL', 'BEEN', 'MANY', 'SOME', 'TIME', 'VERY', 'WHEN', 'WILL', 'MORE', 'WANT', 'WHAT', 'WITH', 'YOUR', 'THAT', 'THIS', 'FROM', 'THEY', 'HAVE', 'SAID', 'EACH', 'THAN', 'THEM', 'THEN', 'BEEN', 'CALL', 'FIND', 'GIVE', 'GOOD', 'HELP', 'HERE', 'KEEP', 'LAST', 'LONG', 'LOOK', 'MUCH', 'NEED', 'NEXT', 'PART', 'SAME', 'TELL', 'TURN', 'WORK', 'HIGH', 'REAL', 'SHOW', 'EVEN', 'DOES', 'GOES',
+    // 5-letter
+    'WOULD', 'THEIR', 'COULD', 'OTHER', 'ABOUT', 'WHICH', 'THESE', 'AFTER', 'THERE', 'FIRST', 'BEING', 'WHERE', 'THOSE', 'STILL', 'EVERY', 'GOING', 'NEVER', 'THINK', 'AGAIN', 'MIGHT', 'UNDER', 'THING', 'SINCE', 'RIGHT', 'POINT', 'WORLD', 'PLACE', 'WHILE', 'GREAT', 'SMALL', 'THREE', 'FOUND', 'BEING', 'NIGHT', 'DOING', 'TODAY', 'PRICE', 'TRADE', 'STOCK', 'SHARE', 'SHORT',
+    // Trading terms that aren't tickers
+    'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'STOP', 'LIMIT', 'ALERT'
+  ]);
+
+  // Find the first non-stopword symbol (prefer 3-4 letter words as more likely tickers)
+  const candidates = match.filter(w => !stopWords.has(w));
+  // Prefer 3-4 letter symbols
+  const preferred = candidates.find(w => w.length >= 3 && w.length <= 4);
+  return preferred || candidates[0] || null;
+}
+
 app.post('/api/trai/analyze', async (req, res) => {
   try {
     const { prompt, context, maxTokens, enableSearch } = req.body;
@@ -160,8 +273,32 @@ app.post('/api/trai/analyze', async (req, res) => {
     }
 
     const client = await getTraiClient();
-    let searchContext = '';
+    let dataContext = '';
     let searchUsed = false;
+    let marketDataUsed = false;
+
+    // CHANGE 2026-03-30: Fetch REAL market data for stock symbols
+    const symbol = extractSymbol(prompt.toUpperCase());
+    if (symbol) {
+      console.log(`[TRAI Analyze] Fetching real market data for: ${symbol}`);
+      const marketData = await fetchMarketData(symbol);
+      if (marketData) {
+        marketDataUsed = true;
+        dataContext = `
+**REAL MARKET DATA FOR ${marketData.symbol} (fetched ${marketData.fetchedAt}):**
+- Current Price: $${marketData.price} (${marketData.change >= 0 ? '+' : ''}${marketData.change}, ${marketData.changePct}%)
+- Previous Close: $${marketData.prevClose}
+- Day Range: $${marketData.dayLow} - $${marketData.dayHigh}
+- Volume: ${marketData.volume?.toLocaleString()} (${marketData.volumeRatio}x avg)
+- RSI (5-period approx): ${marketData.rsi}
+- Recent Support: $${marketData.support}
+- Recent Resistance: $${marketData.resistance}
+- Market State: ${marketData.marketState}
+
+IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, prices, or percentages.
+`;
+      }
+    }
 
     // Auto-search for news/current events if enabled or detected
     if (enableSearch !== false && TAVILY_API_KEY && needsWebSearch(prompt)) {
@@ -169,26 +306,50 @@ app.post('/api/trai/analyze', async (req, res) => {
       const searchResults = await tavilySearch(prompt, 3);
       if (searchResults) {
         searchUsed = true;
-        searchContext = `\n\n**Recent Web Search Results:**\n`;
+        dataContext += `\n**Recent News:**\n`;
         if (searchResults.answer) {
-          searchContext += `Summary: ${searchResults.answer}\n`;
+          dataContext += `Summary: ${searchResults.answer}\n`;
         }
         searchResults.results.forEach((r, i) => {
-          searchContext += `${i + 1}. ${r.title}: ${r.snippet}\n`;
+          dataContext += `${i + 1}. ${r.title}: ${r.snippet}\n`;
         });
       }
     }
 
-    // Rephrase to avoid content filter - focus on analysis not recommendations
-    const analysisPrompt = prompt.toLowerCase().includes('should i')
-      ? `Analyze the technical setup for: ${prompt.replace(/should i (buy|sell|trade)/gi, 'considering')}.
-         Start with "Well, I can't tell you whether to buy or sell, but let's look at the facts..."
-         Then provide current technical indicators, key levels, and what the data suggests. Be conversational.`
-      : prompt;
+    // CRITICAL: Enforce NO TRADING ADVICE - liability protection
+    const noAdvicePrefix = `CRITICAL RULES - YOU MUST FOLLOW THESE:
+1. NEVER say "buy", "sell", "enter", "exit", or any trading recommendation
+2. NEVER say "this is a good setup" or "this looks bullish/bearish for entry"
+3. ONLY present FACTS from the data provided
+4. Start every response with: "I can't give trading advice, but here are the facts:"
+5. Use ONLY the numbers provided - do NOT invent any data points
+
+`;
+
+    let analysisPrompt;
+    if (prompt.toLowerCase().includes('should i')) {
+      analysisPrompt = `${noAdvicePrefix}
+The user asked: "${prompt}"
+
+Respond with ONLY factual data analysis. Do NOT tell them what to do.
+Present the data, explain what it means technically, but explicitly state you cannot recommend any action.`;
+    } else if (marketDataUsed) {
+      analysisPrompt = `${noAdvicePrefix}
+Question: ${prompt}
+
+Analyze using ONLY the real market data provided above. Reference the actual prices, RSI, and volume.
+Do NOT make up any numbers. If data isn't provided, say "data not available".
+Do NOT suggest any trading action.`;
+    } else {
+      analysisPrompt = `${noAdvicePrefix}
+Question: ${prompt}
+
+Provide educational information only. Do NOT suggest any trading action.`;
+    }
 
     const fullPrompt = context
-      ? `Market Context: ${JSON.stringify(context)}${searchContext}\n\nQuestion: ${analysisPrompt}`
-      : `${searchContext}\n\nQuestion: ${analysisPrompt}`;
+      ? `Market Context: ${JSON.stringify(context)}${dataContext}\n\nQuestion: ${analysisPrompt}`
+      : `${dataContext}\n\nQuestion: ${analysisPrompt}`;
 
     const startTime = Date.now();
     const response = await client.generateResponse(fullPrompt, maxTokens || 200);
@@ -200,6 +361,8 @@ app.post('/api/trai/analyze', async (req, res) => {
       model: client.model,
       latency,
       searchUsed,
+      marketDataUsed,
+      symbol: symbol || null,
       status: client.getStatus()
     });
   } catch (error) {

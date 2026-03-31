@@ -1,0 +1,77 @@
+{
+  "version": "1.0-seed",
+  "generated": "2026-03-31T01:45:24.293Z",
+  "source": "seed-defaults",
+  "totalTrades": 0,
+  "filters": {
+    "minTrades": 5,
+    "boostThreshold": 0.55
+  },
+  "patterns": [
+    {
+      "id": "PAT-SEED-1",
+      "dimensions": {
+        "direction": "long",
+        "dayOfWeek": "Fri"
+      },
+      "confidenceBoost": 1.15,
+      "stats": {
+        "note": "Friday trend continuation"
+      }
+    },
+    {
+      "id": "PAT-SEED-2",
+      "dimensions": {
+        "direction": "long",
+        "session": "morning"
+      },
+      "confidenceBoost": 1.12,
+      "stats": {
+        "note": "Morning momentum"
+      }
+    },
+    {
+      "id": "PAT-SEED-3",
+      "dimensions": {
+        "confidenceTier": "very_high"
+      },
+      "confidenceBoost": 1.2,
+      "stats": {
+        "note": "High conviction signals"
+      }
+    }
+  ],
+  "antiPatterns": [
+    {
+      "id": "ANTI-SEED-1",
+      "dimensions": {
+        "holdEstimate": "scalp"
+      },
+      "confidencePenalty": 0.85,
+      "stats": {
+        "note": "Scalps have high slippage"
+      }
+    },
+    {
+      "id": "ANTI-SEED-2",
+      "dimensions": {
+        "session": "midday"
+      },
+      "confidencePenalty": 0.9,
+      "stats": {
+        "note": "Midday chop zone"
+      }
+    },
+    {
+      "id": "ANTI-SEED-3",
+      "dimensions": {
+        "dayOfWeek": "Mon",
+        "session": "opening"
+      },
+      "confidencePenalty": 0.8,
+      "stats": {
+        "note": "Monday gap fills"
+      }
+    }
+  ]
+}
