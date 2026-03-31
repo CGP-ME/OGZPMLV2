@@ -48,6 +48,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const http = require('http');
 const path = require('path');
+const PineTALib = require('./pine-transpiler/core/PineTALib');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
@@ -161,10 +162,15 @@ async function fetchMarketData(symbol) {
   }
 
   try {
-    // Fetch previous day data and current snapshot in parallel
-    const [prevDayRes, snapshotRes] = await Promise.all([
+    // Calculate date range for 60 days of candles (need 50+ for indicators)
+    const toDate = new Date().toISOString().split('T')[0];
+    const fromDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Fetch previous day data, current snapshot, and candles for indicators in parallel
+    const [prevDayRes, snapshotRes, candlesRes] = await Promise.all([
       fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`),
-      fetch(`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`)
+      fetch(`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`),
+      fetch(`https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${fromDate}/${toDate}?limit=60&apiKey=${POLYGON_API_KEY}`)
     ]);
 
     if (!prevDayRes.ok || !snapshotRes.ok) {
@@ -174,12 +180,14 @@ async function fetchMarketData(symbol) {
 
     const prevDay = await prevDayRes.json();
     const snapshot = await snapshotRes.json();
+    const candlesData = await candlesRes.json();
 
     const prev = prevDay.results?.[0] || {};
     const ticker = snapshot.ticker || {};
     const day = ticker.day || {};
     const lastTrade = ticker.lastTrade || {};
     const prevDayData = ticker.prevDay || {};
+    const candles = candlesData.results || [];
 
     // Use snapshot data (more current) with prevDay fallback
     const currentPrice = lastTrade.p || day.c || prev.c;
@@ -192,9 +200,24 @@ async function fetchMarketData(symbol) {
     const avgVolume = prevDayData.v || prev.v || todayVolume;
     const volumeRatio = avgVolume > 0 ? (todayVolume / avgVolume).toFixed(2) : '1.00';
 
-    // Calculate RSI from recent bars (need separate call for more accuracy)
-    // For now, use simple momentum indicator based on change
-    const rsi = changePct > 2 ? 65 : changePct > 0 ? 55 : changePct > -2 ? 45 : 35;
+    // Compute real indicators from candle data using PineTALib
+    let rsi = null, ema9 = null, ema21 = null, atr = null;
+    if (candles.length >= 21) {
+      const closes = candles.map(c => c.c);
+      const highs = candles.map(c => c.h);
+      const lows = candles.map(c => c.l);
+
+      rsi = PineTALib.rsi(closes, 14);
+      ema9 = PineTALib.ema(closes, 9);
+      ema21 = PineTALib.ema(closes, 21);
+      atr = PineTALib.atr(highs, lows, closes, 14);
+
+      console.log(`[Market Data] ${symbol} indicators: RSI=${rsi?.toFixed(1)}, EMA9=${ema9?.toFixed(2)}, EMA21=${ema21?.toFixed(2)}, ATR=${atr?.toFixed(2)}`);
+    } else {
+      console.warn(`[Market Data] Not enough candles for ${symbol} (${candles.length}), using fallback`);
+      // Fallback: simple momentum indicator
+      rsi = changePct > 2 ? 65 : changePct > 0 ? 55 : changePct > -2 ? 45 : 35;
+    }
 
     return {
       symbol: symbol.toUpperCase(),
@@ -209,7 +232,10 @@ async function fetchMarketData(symbol) {
       avgVolume: Math.round(avgVolume),
       volumeRatio: volumeRatio,
       vwap: day.vw?.toFixed(2) || 'N/A',
-      rsi: rsi,
+      rsi: rsi?.toFixed(1) || 'N/A',
+      ema9: ema9?.toFixed(2) || 'N/A',
+      ema21: ema21?.toFixed(2) || 'N/A',
+      atr: atr?.toFixed(2) || 'N/A',
       resistance: (day.h || prev.h)?.toFixed(2),
       support: (day.l || prev.l)?.toFixed(2),
       marketState: ticker.market === 'extended_hours' ? 'EXTENDED' : 'REGULAR',
@@ -289,11 +315,15 @@ app.post('/api/trai/analyze', async (req, res) => {
 - Day Range: $${marketData.dayLow} - $${marketData.dayHigh}
 - VWAP: $${marketData.vwap}
 - Volume: ${marketData.volume?.toLocaleString()} (${marketData.volumeRatio}x avg volume)
+- RSI(14): ${marketData.rsi}
+- EMA(9): $${marketData.ema9}
+- EMA(21): $${marketData.ema21}
+- ATR(14): $${marketData.atr}
 - Day Support: $${marketData.support}
 - Day Resistance: $${marketData.resistance}
 - Market State: ${marketData.marketState}
 
-IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, prices, or percentages. If you need EMA, MACD, or other indicators, say "data not available".
+IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, prices, or percentages.
 `;
       }
     }
