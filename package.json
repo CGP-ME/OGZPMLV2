@@ -17,6 +17,7 @@
     "test:smoke": "node scripts/smoke-test.js",
     "test:patterns": "node scripts/test-patterns.js",
     "test:deterministic": "jest test/rsi-deterministic.test.js",
+    "test:pine-ta": "npx jest pine-transpiler/__tests__/PineTALib.golden.test.js --runInBand",
     "start:prod": "pm2 start run-empire-v2.js --name ogzprime",
     "telemetry:report": "node scripts/telemetry-report.js",
     "lint:dto": "node scripts/lint-dto.js",
