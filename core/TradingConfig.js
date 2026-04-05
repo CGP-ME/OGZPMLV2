@@ -95,6 +95,46 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // REGIME-BASED STRATEGY BOOSTING (for matrix sweep optimization)
+  // =========================================================================
+  // FIX 2026-04-05: Multipliers applied after confidence sort
+  // Trend strategies boosted in trending markets, suppressed in ranging
+  // Losers still fire, just sized smaller. Winners get sized bigger.
+  regimeBoosts: {
+    trending: {
+      EMASMACrossover: env('REGIME_TREND_EMA', 1.15),
+      MADynamicSR: env('REGIME_TREND_MASR', 1.15),
+      RSI: env('REGIME_TREND_RSI', 0.85),
+      LiquiditySweep: env('REGIME_TREND_SWEEP', 1.00),
+      SmartMoneySweep: env('REGIME_TREND_SMS', 1.00),
+    },
+    ranging: {
+      EMASMACrossover: env('REGIME_RANGE_EMA', 0.85),
+      MADynamicSR: env('REGIME_RANGE_MASR', 0.85),
+      RSI: env('REGIME_RANGE_RSI', 1.15),
+      LiquiditySweep: env('REGIME_RANGE_SWEEP', 1.00),
+      SmartMoneySweep: env('REGIME_RANGE_SMS', 1.10),
+    },
+    volatile: {
+      EMASMACrossover: env('REGIME_VOL_EMA', 0.70),
+      MADynamicSR: env('REGIME_VOL_MASR', 0.70),
+      RSI: env('REGIME_VOL_RSI', 1.10),
+      LiquiditySweep: env('REGIME_VOL_SWEEP', 1.20),
+      SmartMoneySweep: env('REGIME_VOL_SMS', 1.15),
+      _positionSizeMultiplier: env('REGIME_VOL_POS_MULT', 0.60),
+    },
+    dead: {
+      EMASMACrossover: env('REGIME_DEAD_EMA', 0.60),
+      MADynamicSR: env('REGIME_DEAD_MASR', 0.70),
+      RSI: env('REGIME_DEAD_RSI', 0.70),
+      LiquiditySweep: env('REGIME_DEAD_SWEEP', 0.50),
+      SmartMoneySweep: env('REGIME_DEAD_SMS', 0.50),
+      _positionSizeMultiplier: env('REGIME_DEAD_POS_MULT', 0.50),
+    },
+    unknown: {},
+  },
+
+  // =========================================================================
   // STOP LOSS / TAKE PROFIT - Defaults (strategies override via EXIT_CONTRACTS)
   // =========================================================================
   // NOTE: All percentages in PERCENT form (1.5 = 1.5%, not 0.015)

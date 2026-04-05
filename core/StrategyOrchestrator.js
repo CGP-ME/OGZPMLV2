@@ -736,6 +736,46 @@ class StrategyOrchestrator {
     // ─── Step 2: Sort by confidence (highest first) ───
     results.sort((a, b) => b.confidence - a.confidence);
 
+    // ─── Step 2.5: Regime-based strategy boosting ───
+    // FIX 2026-04-05: Read from TradingConfig for matrix sweep optimization
+    // Multipliers, not gates. Losers still fire, just sized smaller.
+    const regimeBoosts = TradingConfig.get('regimeBoosts') || {};
+
+    // Classify regime name to category (trending_up/trending_down → trending, etc.)
+    const rawRegime = regime?.currentRegime?.toLowerCase() || 'unknown';
+    const regimeConfidence = regime?.confidence || 0;
+    let regimeType = 'unknown';
+    if (regimeConfidence >= 0.25) {
+      if (rawRegime.includes('bull') || rawRegime.includes('uptrend') ||
+          rawRegime.includes('bear') || rawRegime.includes('downtrend') ||
+          rawRegime.includes('trending') || rawRegime.includes('momentum')) {
+        regimeType = 'trending';
+      } else if (rawRegime.includes('rang') || rawRegime.includes('sideways') ||
+                 rawRegime.includes('consolidat') || rawRegime.includes('accumulation')) {
+        regimeType = 'ranging';
+      } else if (rawRegime.includes('volat') || rawRegime.includes('chaos') ||
+                 rawRegime.includes('distribution') || rawRegime.includes('crash')) {
+        regimeType = 'volatile';
+      } else if (rawRegime.includes('dead') || rawRegime.includes('quiet') ||
+                 rawRegime.includes('low_vol') || rawRegime.includes('flat')) {
+        regimeType = 'dead';
+      }
+    }
+
+    const boosts = regimeBoosts[regimeType] || {};
+    const regimePositionMultiplier = boosts._positionSizeMultiplier || 1.0;
+
+    if (Object.keys(boosts).length > 0 && results.length > 0) {
+      for (const result of results) {
+        const boost = boosts[result.strategyName] || 1.0;
+        if (boost !== 1.0) {
+          result.confidence *= boost;
+        }
+      }
+      // Re-sort after boosting
+      results.sort((a, b) => b.confidence - a.confidence);
+    }
+
     // DEBUG 2026-03-06: Why is confidence 0?
     if (results.length > 0) {
       console.log(`🔍 [ORCH] ${results.length} strategies returned signals:`);
@@ -787,9 +827,10 @@ class StrategyOrchestrator {
       };
     }
 
-    // ─── Step 6: Position sizing multiplier from confluence ───
+    // ─── Step 6: Position sizing multiplier from confluence × regime ───
     const cappedCount = Math.min(confluenceCount, 4);
-    const sizingMultiplier = this.confluenceSizing[cappedCount] || this.confluenceSizing[4] || 2.5;
+    const rawSizingMultiplier = this.confluenceSizing[cappedCount] || this.confluenceSizing[4] || 2.5;
+    const sizingMultiplier = rawSizingMultiplier * regimePositionMultiplier;
 
     // ─── Step 7: Create exit contract from winning strategy ───
     let exitContract = null;
