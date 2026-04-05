@@ -776,6 +776,58 @@ class StrategyOrchestrator {
       results.sort((a, b) => b.confidence - a.confidence);
     }
 
+    // ─── Step 2.6: Volume Profile-based strategy boosting ───
+    // FIX 2026-04-05: Auction Market Theory - boost based on price position
+    const volumeProfileBoosts = TradingConfig.get('volumeProfileBoosts') || {};
+    const volumeProfile = extras.volumeProfile;
+    const currentPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
+
+    if (volumeProfile && currentPrice && Object.keys(volumeProfileBoosts).length > 0 && results.length > 0) {
+      const vpProfile = typeof volumeProfile.getProfile === 'function' ? volumeProfile.getProfile() : volumeProfile;
+
+      if (vpProfile && vpProfile.poc && vpProfile.vah && vpProfile.val) {
+        // Classify price position relative to VP levels
+        let vpZone = 'inValueArea';  // Default
+        const pocThreshold = 0.002;  // Within 0.2% of POC = "at POC"
+        const lvnProximity = 0.003;  // Within 0.3% of nearest LVN = "in LVN"
+
+        const priceToPocPct = Math.abs(currentPrice - vpProfile.poc) / vpProfile.poc;
+
+        if (currentPrice > vpProfile.vah) {
+          vpZone = 'aboveVAH';
+        } else if (currentPrice < vpProfile.val) {
+          vpZone = 'belowVAL';
+        } else if (priceToPocPct <= pocThreshold) {
+          vpZone = 'atPOC';
+        } else {
+          // Check if near an LVN
+          const lvns = vpProfile.lvns || [];
+          for (const lvn of lvns) {
+            const distPct = Math.abs(currentPrice - lvn.price) / currentPrice;
+            if (distPct <= lvnProximity) {
+              vpZone = 'inLVN';
+              break;
+            }
+          }
+        }
+
+        const vpBoosts = volumeProfileBoosts[vpZone] || {};
+
+        if (Object.keys(vpBoosts).length > 0) {
+          for (const result of results) {
+            // Check for _allStrategies (used in inLVN)
+            const boost = vpBoosts._allStrategies || vpBoosts[result.strategyName] || 1.0;
+            if (boost !== 1.0) {
+              result.confidence *= boost;
+            }
+          }
+          // Re-sort after VP boosting
+          results.sort((a, b) => b.confidence - a.confidence);
+          console.log(`📊 [VP] Zone: ${vpZone} | POC: ${vpProfile.poc?.toFixed(0)} | VAH: ${vpProfile.vah?.toFixed(0)} | VAL: ${vpProfile.val?.toFixed(0)}`);
+        }
+      }
+    }
+
     // DEBUG 2026-03-06: Why is confidence 0?
     if (results.length > 0) {
       console.log(`🔍 [ORCH] ${results.length} strategies returned signals:`);

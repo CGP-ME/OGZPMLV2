@@ -134,6 +134,44 @@ const BASE_CONFIG = {
     unknown: {},
   },
 
+  // VOLUME PROFILE BOOSTS (Auction Market Theory - Fabio Valentino)
+  // =========================================================================
+  // FIX 2026-04-05: Multipliers based on price position relative to VP levels
+  // aboveVAH = breakout zone (boost trend), atPOC = mean reversion zone, inLVN = unpredictable
+  volumeProfileBoosts: {
+    aboveVAH: {  // Price broke above Value Area High = bullish breakout
+      EMASMACrossover: env('VP_ABOVE_VAH_EMA', 1.20),
+      MADynamicSR: env('VP_ABOVE_VAH_MASR', 1.20),
+      RSI: env('VP_ABOVE_VAH_RSI', 0.80),
+      LiquiditySweep: env('VP_ABOVE_VAH_SWEEP', 1.10),
+      SmartMoneySweep: env('VP_ABOVE_VAH_SMS', 1.10),
+    },
+    belowVAL: {  // Price broke below Value Area Low = bearish breakdown
+      EMASMACrossover: env('VP_BELOW_VAL_EMA', 1.20),
+      MADynamicSR: env('VP_BELOW_VAL_MASR', 1.20),
+      RSI: env('VP_BELOW_VAL_RSI', 0.80),
+      LiquiditySweep: env('VP_BELOW_VAL_SWEEP', 1.10),
+      SmartMoneySweep: env('VP_BELOW_VAL_SMS', 1.10),
+    },
+    atPOC: {  // Price at Point of Control = mean reversion zone
+      EMASMACrossover: env('VP_AT_POC_EMA', 0.85),
+      MADynamicSR: env('VP_AT_POC_MASR', 0.85),
+      RSI: env('VP_AT_POC_RSI', 1.25),
+      LiquiditySweep: env('VP_AT_POC_SWEEP', 0.90),
+      SmartMoneySweep: env('VP_AT_POC_SMS', 0.90),
+    },
+    inLVN: {  // Price in Low Volume Node = unpredictable air pocket
+      _allStrategies: env('VP_IN_LVN_ALL', 0.90),
+    },
+    inValueArea: {  // Inside VA but not at POC = neutral/slight mean reversion
+      EMASMACrossover: env('VP_IN_VA_EMA', 0.95),
+      MADynamicSR: env('VP_IN_VA_MASR', 0.95),
+      RSI: env('VP_IN_VA_RSI', 1.10),
+      LiquiditySweep: env('VP_IN_VA_SWEEP', 1.00),
+      SmartMoneySweep: env('VP_IN_VA_SMS', 1.00),
+    },
+  },
+
   // =========================================================================
   // STOP LOSS / TAKE PROFIT - Defaults (strategies override via EXIT_CONTRACTS)
   // =========================================================================
