@@ -13,9 +13,9 @@
  * - Reads results from JSON report file as fallback
  * 
  * Usage:
- *   node tools/parallel-backtest.js --quick
- *   node tools/parallel-backtest.js --full
- *   node tools/parallel-backtest.js --boosters
+ *   node tools/parallel-backtest.js --real     (HONORED env vars only - default)
+ *   node tools/parallel-backtest.js --full     (all HONORED sweeps)
+ *   node tools/parallel-backtest.js --atr      (ATR filter sweep)
  * 
  * @author Claude (Opus) for Trey / OGZPrime
  * @date 2026-03-16
@@ -119,35 +119,56 @@ function generateGauntletExits() {
 // PARAMETER SWEEP DEFINITIONS
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+// ENV VAR AUDIT (2026-04-07)
+// ═══════════════════════════════════════════════════════════════
+// HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, RISK_MANAGER_BYPASS,
+//          ACCOUNT_DRAWDOWN_BYPASS, MAX_POSITION_SIZE_PCT, TIER1/2/3_TARGET
+// IGNORED: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
+//          (overridden by locked exitContracts per strategy)
+// GHOST:   TRAILING_STOP_ENABLED, REGIME_FILTER_ENABLED, REGIME_ALLOW_*
+//          (never read by trading code)
+// PARTIAL: MIN_TRADE_CONFIDENCE (entry gate works, but strategies have own minConfidence)
+// ═══════════════════════════════════════════════════════════════
+
 const SWEEP_PRESETS = {
-  quick: [
+  // ═══════════════════════════════════════════════════════════════
+  // REAL — Only HONORED env vars that actually affect trading
+  // ═══════════════════════════════════════════════════════════════
+  real: [
     { name: 'baseline', env: {} },
-    { name: 'wide-stops', env: { STOP_LOSS_PERCENT: '2.0', TAKE_PROFIT_PERCENT: '2.5' } },
-    { name: 'tight-stops', env: { STOP_LOSS_PERCENT: '0.5', TAKE_PROFIT_PERCENT: '1.0' } },
-    { name: 'high-conf', env: { MIN_TRADE_CONFIDENCE: '0.60' } },
-    { name: 'low-conf', env: { MIN_TRADE_CONFIDENCE: '0.25' } },
+    // ATR filter
+    { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
+    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
+    { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
+    // Position sizing
+    { name: 'size-3pct', env: { MAX_POSITION_SIZE_PCT: '0.03' } },
+    { name: 'size-5pct', env: { MAX_POSITION_SIZE_PCT: '0.05' } },
+    { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
+    // Profit tiers
+    { name: 'tiers-tight', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
+    { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.025', TIER3_TARGET: '0.040' } },
+    // Risk bypasses
+    { name: 'risk-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+    { name: 'risk-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
   ],
 
-  boosters: [
-    { name: 'baseline-no-boosters', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15', RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'atr-040', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.40', RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'risk-mgr-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'drawdown-on', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-    { name: 'atr+risk', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15', RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-  ],
+  // Quick is now an alias to real (old quick was theater)
+  quick: function() { return SWEEP_PRESETS.real; },
 
-  exits: generateExitSweep(),
+  // ═══════════════════════════════════════════════════════════════
+  // FOCUSED SWEEPS — One variable at a time (HONORED only)
+  // ═══════════════════════════════════════════════════════════════
 
-  confidence: [
-    { name: 'conf-10', env: { MIN_TRADE_CONFIDENCE: '0.10' } },
-    { name: 'conf-20', env: { MIN_TRADE_CONFIDENCE: '0.20' } },
-    { name: 'conf-30', env: { MIN_TRADE_CONFIDENCE: '0.30' } },
-    { name: 'conf-35', env: { MIN_TRADE_CONFIDENCE: '0.35' } },
-    { name: 'conf-40', env: { MIN_TRADE_CONFIDENCE: '0.40' } },
-    { name: 'conf-50', env: { MIN_TRADE_CONFIDENCE: '0.50' } },
-    { name: 'conf-60', env: { MIN_TRADE_CONFIDENCE: '0.60' } },
-    { name: 'conf-70', env: { MIN_TRADE_CONFIDENCE: '0.70' } },
+  atr: [
+    { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
+    { name: 'atr-010', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.10' } },
+    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
+    { name: 'atr-020', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.20' } },
+    { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
+    { name: 'atr-030', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.30' } },
+    { name: 'atr-035', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.35' } },
+    { name: 'atr-040', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.40' } },
   ],
 
   sizing: [
@@ -167,46 +188,16 @@ const SWEEP_PRESETS = {
     { name: 'tiers-no-early', env: { TIER1_TARGET: '0.020', TIER2_TARGET: '0.030', TIER3_TARGET: '0.050' } },
   ],
 
+  risk: [
+    { name: 'all-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
+    { name: 'risk-on-dd-bypass', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
+    { name: 'risk-bypass-dd-on', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+    { name: 'all-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+  ],
+
   // ═══════════════════════════════════════════════════════════════
-  // FOCUSED OPTIMIZATION SWEEPS (one variable at a time)
+  // STRATEGY ISOLATION — Test each strategy individually
   // ═══════════════════════════════════════════════════════════════
-
-  // ATR filter sweep - find optimal volatility threshold
-  atr: [
-    { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
-    { name: 'atr-010', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.10' } },
-    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
-    { name: 'atr-020', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.20' } },
-    { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
-    { name: 'atr-030', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.30' } },
-    { name: 'atr-035', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.35' } },
-    { name: 'atr-040', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.40' } },
-  ],
-
-  // RSI thresholds sweep - oversold x overbought grid
-  rsi: generateRSISweep(),
-
-  // Trailing stop sweep - find optimal trail percentage
-  trailing: [
-    { name: 'trail-off', env: { TRAILING_STOP_ENABLED: 'false' } },
-    { name: 'trail-03', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '0.3' } },
-    { name: 'trail-05', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '0.5' } },
-    { name: 'trail-08', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '0.8' } },
-    { name: 'trail-10', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '1.0' } },
-    { name: 'trail-15', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '1.5' } },
-    { name: 'trail-20', env: { TRAILING_STOP_ENABLED: 'true', TRAILING_STOP_PERCENT: '2.0' } },
-  ],
-
-  // Market regime sweep - which regimes to trade in
-  regime: [
-    { name: 'regime-all', env: { REGIME_FILTER_ENABLED: 'false' } },
-    { name: 'regime-trend-only', env: { REGIME_FILTER_ENABLED: 'true', REGIME_ALLOW_TRENDING: 'true', REGIME_ALLOW_RANGING: 'false' } },
-    { name: 'regime-range-only', env: { REGIME_FILTER_ENABLED: 'true', REGIME_ALLOW_TRENDING: 'false', REGIME_ALLOW_RANGING: 'true' } },
-    { name: 'regime-volatile', env: { REGIME_FILTER_ENABLED: 'true', REGIME_ALLOW_VOLATILE: 'true', REGIME_ALLOW_QUIET: 'false' } },
-  ],
-
-  // Strategy isolation sweep - test each strategy individually
-  // Usage: node tools/parallel-backtest.js --strategy-sweep --stocks --data tuning/tsla-15m-2y.json
   'strategy-sweep': [
     { name: 'RSI-only', env: { SOLO_STRATEGY: 'RSI' } },
     { name: 'EMA-only', env: { SOLO_STRATEGY: 'EMASMACrossover' } },
@@ -216,42 +207,27 @@ const SWEEP_PRESETS = {
     { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
     { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
     { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
+    { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
   ],
 
-  // ═══════════════════════════════════════════════════════════════
-  // GAUNTLET SWEEPS — All strategies x all parameter values
-  // One run, full isolation, complete picture
-  // ═══════════════════════════════════════════════════════════════
+  // RSI thresholds sweep - oversold x overbought grid
+  rsi: generateRSISweep(),
 
-  // All strategies x all confidence levels (64 configs)
-  'gauntlet-confidence': generateGauntlet('confidence', [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75]),
-
-  // All strategies x all ATR levels (72 configs)
+  // ═══════════════════════════════════════════════════════════════
+  // GAUNTLET SWEEPS — All strategies x HONORED parameters
+  // ═══════════════════════════════════════════════════════════════
   'gauntlet-atr': generateGauntlet('atr', [0, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]),
 
-  // All strategies x key exit combos (48 configs)
-  'gauntlet-exits': generateGauntletExits(),
-
-  // Strategy confidence sweep - per-strategy minimum confidence
-  stratconf: [
-    { name: 'stratconf-25', env: { MIN_STRATEGY_CONFIDENCE: '0.25' } },
-    { name: 'stratconf-30', env: { MIN_STRATEGY_CONFIDENCE: '0.30' } },
-    { name: 'stratconf-35', env: { MIN_STRATEGY_CONFIDENCE: '0.35' } },
-    { name: 'stratconf-40', env: { MIN_STRATEGY_CONFIDENCE: '0.40' } },
-    { name: 'stratconf-45', env: { MIN_STRATEGY_CONFIDENCE: '0.45' } },
-    { name: 'stratconf-50', env: { MIN_STRATEGY_CONFIDENCE: '0.50' } },
-    { name: 'stratconf-55', env: { MIN_STRATEGY_CONFIDENCE: '0.55' } },
-    { name: 'stratconf-60', env: { MIN_STRATEGY_CONFIDENCE: '0.60' } },
-  ],
-
+  // ═══════════════════════════════════════════════════════════════
+  // FULL — All HONORED sweeps combined
+  // ═══════════════════════════════════════════════════════════════
   full: function() {
     return [
-      ...SWEEP_PRESETS.quick,
-      ...SWEEP_PRESETS.boosters,
-      ...SWEEP_PRESETS.exits,
-      ...SWEEP_PRESETS.confidence,
+      ...SWEEP_PRESETS.real,
+      ...SWEEP_PRESETS.atr,
       ...SWEEP_PRESETS.sizing,
       ...SWEEP_PRESETS.tiers,
+      ...SWEEP_PRESETS.risk,
     ];
   },
 };
@@ -601,7 +577,7 @@ const DATA_SHORTCUTS = {
 
 async function main() {
   const args = process.argv.slice(2);
-  let sweepName = 'quick';
+  let sweepName = 'real';  // Default to HONORED env vars only
   let dataFile = DEFAULT_DATA;
   let stockMode = false;
 
@@ -617,22 +593,16 @@ async function main() {
       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
       if (['tsla', 'spy', 'qqq'].includes(val)) stockMode = true;
     }
-    else if (args[i] === '--quick') sweepName = 'quick';
+    else if (args[i] === '--real') sweepName = 'real';
+    else if (args[i] === '--quick') sweepName = 'quick';  // alias to real
     else if (args[i] === '--full') sweepName = 'full';
-    else if (args[i] === '--boosters') sweepName = 'boosters';
-    else if (args[i] === '--exits') sweepName = 'exits';
-    else if (args[i] === '--confidence') sweepName = 'confidence';
     else if (args[i] === '--sizing') sweepName = 'sizing';
     else if (args[i] === '--tiers') sweepName = 'tiers';
     else if (args[i] === '--atr') sweepName = 'atr';
+    else if (args[i] === '--risk') sweepName = 'risk';
     else if (args[i] === '--rsi') sweepName = 'rsi';
-    else if (args[i] === '--trailing') sweepName = 'trailing';
-    else if (args[i] === '--regime') sweepName = 'regime';
-    else if (args[i] === '--stratconf') sweepName = 'stratconf';
     else if (args[i] === '--strategy-sweep') sweepName = 'strategy-sweep';
-    else if (args[i] === '--gauntlet-confidence') sweepName = 'gauntlet-confidence';
     else if (args[i] === '--gauntlet-atr') sweepName = 'gauntlet-atr';
-    else if (args[i] === '--gauntlet-exits') sweepName = 'gauntlet-exits';
     else if (args[i] === '--strategy' && args[i+1]) {
       // Single strategy isolation mode - adds SOLO_STRATEGY to all configs
       const strat = args[++i];
@@ -655,46 +625,41 @@ async function main() {
     }
     else if (args[i] === '--help') {
       console.log(`
-OGZPrime Parallel Backtester v2
+OGZPrime Parallel Backtester v2 (AUDITED 2026-04-07)
 Usage: node tools/parallel-backtest.js [options]
 
-Quick Sweeps:
-  --quick        5 configs (default)
-  --full         Everything (~60 configs)
+REAL Sweeps (HONORED env vars only):
+  --real         11 configs - ATR, sizing, tiers, risk (default)
+  --quick        Alias to --real
+  --full         All HONORED sweeps combined (~30 configs)
 
 Focused Optimization (one variable at a time):
-  --confidence   Trade confidence gate (8 configs: 0.10-0.70)
-  --stratconf    Strategy confidence (8 configs: 0.25-0.60)
   --atr          ATR volatility filter (8 configs: off, 0.10-0.40)
-  --rsi          RSI oversold/overbought grid (15 configs)
-  --exits        SL/TP grid search (30 configs)
-  --trailing     Trailing stop sweep (7 configs: off, 0.3%-2.0%)
-  --regime       Market regime filter (4 configs)
+  --sizing       Position size sweep (6 configs: 2%-10%)
   --tiers        Profit tier sweep (5 configs)
+  --risk         Risk manager + drawdown bypass (4 configs)
+  --rsi          RSI oversold/overbought grid (15 configs)
 
 Strategy Isolation:
-  --strategy-sweep  Test each strategy individually (8 configs)
-  --strategy NAME   Run sweep with ONLY this strategy enabled
+  --strategy-sweep  Test each strategy individually (9 configs)
+  --solo=NAME       Run sweep with ONLY this strategy enabled
 
-Gauntlet (all strategies x all values):
-  --gauntlet-confidence  8 strategies x 8 confidence levels (64 configs)
-  --gauntlet-atr         8 strategies x 8 ATR levels (64 configs)
-  --gauntlet-exits       8 strategies x 6 exit combos (48 configs)
-
-Other:
-  --boosters     Alpha booster toggles
-  --sizing       Position size sweep (6 configs)
+Gauntlet:
+  --gauntlet-atr    9 strategies x 8 ATR levels (72 configs)
 
 Options:
   --data FILE    Candle data file (default: ${DEFAULT_DATA})
                  Shortcuts: tsla, spy, qqq, btc, btc-5sec
-  --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, etc)
+  --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, SmartMoneySweep, etc)
   --stocks       Zero commission mode (for stocks)
   --help         Show this help
 
+NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are IGNORED
+      (overridden by locked exitContracts per strategy). See ENV-VAR-AUDIT.md.
+
 Examples:
-  node tools/parallel-backtest.js --data=tsla --solo=RSI --exits
-  node tools/parallel-backtest.js --data=spy --stocks --gauntlet-exits
+  node tools/parallel-backtest.js --real --stocks --data=tsla
+  node tools/parallel-backtest.js --atr --solo=RSI --stocks
 
 Walk-Forward Validation:
   After finding winners, test on unseen data:
