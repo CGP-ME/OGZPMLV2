@@ -172,6 +172,35 @@ const BASE_CONFIG = {
     },
   },
 
+  // PID CONTROLLER — Adaptive Parameter Optimization
+  // =========================================================================
+  // FIX 2026-04-05: Meta-controller that self-tunes system parameters
+  // Runs every N trades, adjusts position size, regime boosts, trailing stops
+  // All Kp/Ki/Kd gains sweepable via matrix for optimal feedback response
+  pid: {
+    enabled: env('PID_ENABLED', true),
+    updateInterval: env('PID_UPDATE_INTERVAL', 10),      // Run every N trades
+    warmupTrades: env('PID_WARMUP_TRADES', 50),          // Min trades before active
+    windowSize: env('PID_WINDOW_SIZE', 20),              // Rolling trade window
+
+    // Loop 1: Position Sizing — equity slope → size multiplier
+    positionKp: env('PID_POSITION_KP', 0.30),            // Proportional gain
+    positionKi: env('PID_POSITION_KI', 0.05),            // Integral gain
+    positionKd: env('PID_POSITION_KD', 0.10),            // Derivative gain
+    targetEquitySlope: env('PID_TARGET_SLOPE', 0.005),   // Target equity curve slope
+
+    // Loop 2: Regime Boost Adaptation — per-strategy P&L → boost adjustment
+    regimeKp: env('PID_REGIME_KP', 0.02),
+    regimeKi: env('PID_REGIME_KI', 0.005),
+    regimeKd: env('PID_REGIME_KD', 0.01),
+
+    // Loop 3: Trailing Stop Adaptation — MFE capture → ATR multiplier
+    trailKp: env('PID_TRAIL_KP', 0.15),
+    trailKi: env('PID_TRAIL_KI', 0.03),
+    trailKd: env('PID_TRAIL_KD', 0.05),
+    targetMFERatio: env('PID_TARGET_MFE', 0.60),         // Target: capture 60% of max profit
+  },
+
   // =========================================================================
   // STOP LOSS / TAKE PROFIT - Defaults (strategies override via EXIT_CONTRACTS)
   // =========================================================================
@@ -334,6 +363,109 @@ const BASE_CONFIG = {
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
       invalidationConditions: [],
+    },
+  },
+
+  // =========================================================================
+  // EXIT LOGIC CONFIGURATION (read by MaxProfitManager - the sole exit authority)
+  // All values overridable via env vars for matrix sweep tuning
+  // =========================================================================
+  exitLogic: {
+    // ─── Break-Even Scale-Out (PATCH 1: the 50% sell at BE) ───
+    beScaleOut: {
+      enabled: envBool('BE_SCALEOUT_ENABLED', true),
+      triggerType: env('BE_SCALEOUT_TRIGGER', 'one_to_one_r'),  // 'one_to_one_r' | 'fixed_percent'
+      fixedPercentTrigger: parseFloat(env('BE_SCALEOUT_TRIGGER_PCT', 0.5)),  // if triggerType=fixed_percent, fire at 0.5%
+      scaleOutFraction: parseFloat(env('BE_SCALEOUT_FRACTION', 0.5)),  // sell 50% by default
+      feeBufferPercent: parseFloat(env('BE_SCALEOUT_FEE_BUFFER', 0.05)),  // -0.05% below entry for fees
+    },
+
+    // ─── Dynamic Trailing Stop (lifted from DynamicTrailingStop.js into MPM) ───
+    trail: {
+      enabled: envBool('TRAIL_ENABLED', true),
+      minActivation: parseFloat(env('TRAIL_MIN_ACTIVATION', 0.5)),  // % profit before trail arms
+      atrMultiplier: parseFloat(env('TRAIL_ATR_MULTIPLIER', 2.0)),
+      trendWidenMultiplier: parseFloat(env('TRAIL_TREND_WIDEN', 1.5)),
+      structureTightenMultiplier: parseFloat(env('TRAIL_STRUCTURE_TIGHTEN', 0.5)),
+      structureDistanceThreshold: parseFloat(env('TRAIL_STRUCTURE_DIST', 1.0)),  // % from structure
+      profitRatchetThreshold: parseFloat(env('TRAIL_RATCHET_THRESHOLD', 3.0)),  // tighten past 3% profit
+      profitRatchetRate: parseFloat(env('TRAIL_RATCHET_RATE', 0.1)),  // 10% tighter per 1% above threshold
+      profitRatchetFloor: parseFloat(env('TRAIL_RATCHET_FLOOR', 0.6)),  // never tighter than 60% of base
+      minTrailPercent: parseFloat(env('TRAIL_MIN_PCT', 0.3)),
+      maxTrailPercent: parseFloat(env('TRAIL_MAX_PCT', 3.0)),
+      feeBufferPercent: parseFloat(env('TRAIL_FEE_BUFFER', 0.65)),  // round-trip fee threshold
+      roundNumberProximity: parseFloat(env('TRAIL_ROUND_PROXIMITY', 0.5)),
+      roundNumberTighten: parseFloat(env('TRAIL_ROUND_TIGHTEN', 0.7)),
+    },
+
+    // ─── Profit Floor Ladder (lifted from PatternBasedExitModel) ───
+    // As profit grows, raise the stop to lock in this fraction of peak profit
+    profitFloor: {
+      enabled: envBool('PROFIT_FLOOR_ENABLED', true),
+      tiers: [
+        { profit: parseFloat(env('PROFIT_FLOOR_T1_AT', 0.5)), protect: parseFloat(env('PROFIT_FLOOR_T1_LOCK', 0.30)) },
+        { profit: parseFloat(env('PROFIT_FLOOR_T2_AT', 1.0)), protect: parseFloat(env('PROFIT_FLOOR_T2_LOCK', 0.50)) },
+        { profit: parseFloat(env('PROFIT_FLOOR_T3_AT', 1.5)), protect: parseFloat(env('PROFIT_FLOOR_T3_LOCK', 0.70)) },
+        { profit: parseFloat(env('PROFIT_FLOOR_T4_AT', 2.0)), protect: parseFloat(env('PROFIT_FLOOR_T4_LOCK', 0.85)) },
+      ],
+    },
+
+    // ─── Chart Reversal Detection (lifted from PatternBasedExitModel) ───
+    reversalDetection: {
+      enabled: envBool('REVERSAL_DETECT_ENABLED', true),
+      minProfitRequired: parseFloat(env('REVERSAL_MIN_PROFIT', 0.3)),  // only act on reversals if in profit
+      patterns: [
+        'double_top', 'double_bottom', 'head_shoulders', 'inv_head_shoulders',
+        'evening_star', 'morning_star', 'bearish_engulfing', 'bullish_engulfing',
+        'shooting_star', 'hammer', 'doji_star', 'dark_cloud', 'piercing_line',
+      ],
+      exitFraction: parseFloat(env('REVERSAL_EXIT_FRACTION', 1.0)),  // close 100% on reversal by default
+    },
+
+    // ─── Universal safety limits (read by ExitContractManager — circuit breakers only) ───
+    // These are absolute kill-switches, not strategy-specific
+    safety: {
+      hardStopLossPercent: parseFloat(env('UNIVERSAL_HARD_STOP', -3.0)),  // never let any single trade lose more than 3%
+      accountDrawdownPercent: parseFloat(env('ACCOUNT_DRAWDOWN_PCT', -5.0)),  // Apex 5% wall
+      accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
+      maxHoldTimeMinutes: parseInt(env('UNIVERSAL_MAX_HOLD_MIN', 480), 10),  // 8 hours absolute max
+    },
+  },
+
+  // =========================================================================
+  // ENTRY LOGIC CONFIGURATION (read by DynamicPositionSizer + StrategyOrchestrator)
+  // =========================================================================
+  entryLogic: {
+    // ─── Dynamic position sizing curves ───
+    sizing: {
+      enabled: envBool('DYNAMIC_SIZING_ENABLED', true),
+      basePositionPercent: parseFloat(env('BASE_POSITION_PCT', 0.01)),
+      maxPositionPercent: parseFloat(env('MAX_POSITION_PCT', 0.05)),
+      absoluteCapPercent: parseFloat(env('ABSOLUTE_POSITION_CAP', 0.15)),  // hard ceiling even with all multipliers
+      confidenceCurve: [
+        { confidence: 0.00, multiplier: 0.25 },
+        { confidence: 0.50, multiplier: 0.50 },
+        { confidence: 0.60, multiplier: 1.00 },
+        { confidence: 0.75, multiplier: 1.50 },
+        { confidence: 0.90, multiplier: 2.50 },
+        { confidence: 1.00, multiplier: 2.50 },
+      ],
+      volatilityCurve: [
+        { atrPercent: 0.00, multiplier: 1.50 },
+        { atrPercent: 0.15, multiplier: 1.20 },
+        { atrPercent: 0.30, multiplier: 1.00 },
+        { atrPercent: 0.60, multiplier: 0.80 },
+        { atrPercent: 1.00, multiplier: 0.60 },
+        { atrPercent: 2.00, multiplier: 0.40 },
+      ],
+      patternMultipliers: {
+        promoted:    parseFloat(env('PATTERN_MULT_PROMOTED', 1.50)),
+        neutral:     parseFloat(env('PATTERN_MULT_NEUTRAL', 1.00)),
+        learning:    parseFloat(env('PATTERN_MULT_LEARNING', 1.00)),
+        quarantined: parseFloat(env('PATTERN_MULT_QUARANTINED', 0.25)),
+        unknown:     parseFloat(env('PATTERN_MULT_UNKNOWN', 1.00)),
+      },
+      confluenceMultipliers: [1.0, 1.0, 1.25, 1.5, 1.75, 2.0],  // by confluence count
     },
   },
 
