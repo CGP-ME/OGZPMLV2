@@ -3,22 +3,23 @@
 # OGZPrime Backtest Runner — Boomer-Proof Edition (Linux/VPS)
 #
 # Usage:  ./backtest.sh baseline
-#         ./backtest.sh sms-18mo --shorts
+#         ./backtest.sh sms-18mo --long-only
 #         ./backtest.sh baseline --receipts
 #
 # Presets: baseline, sms-10mo, sms-18mo, rsi-only, ema-only
-# Options: --shorts, --verbose, --receipts
+# Options: --long-only, --verbose, --receipts
+# Note: All presets default to shorts=true. Use --long-only to override.
 # ═══════════════════════════════════════════════════════════════
 
 PRESET="${1:-help}"
-SHORTS_OVERRIDE=false
+LONG_ONLY_OVERRIDE=false
 VERBOSE=false
 RECEIPTS=false
 
 shift 2>/dev/null
 for arg in "$@"; do
     case $arg in
-        --shorts) SHORTS_OVERRIDE=true ;;
+        --long-only) LONG_ONLY_OVERRIDE=true ;;
         --verbose) VERBOSE=true ;;
         --receipts) RECEIPTS=true ;;
     esac
@@ -30,7 +31,7 @@ case $PRESET in
         STRATEGY="RSI,EMASMACrossover"
         DATAFILE="tuning/tsla-15m-2y.json"
         DESC="RSI+EMA Baseline — TSLA 15m 2 Years"
-        SHORTS=false
+        SHORTS=true
         ;;
     sms-10mo)
         STRATEGY="SmartMoneySweep"
@@ -48,32 +49,36 @@ case $PRESET in
         STRATEGY="RSI"
         DATAFILE="tuning/tsla-15m-2y.json"
         DESC="RSI Solo — TSLA 15m 2 Years"
-        SHORTS=false
+        SHORTS=true
         ;;
     ema-only)
         STRATEGY="EMASMACrossover"
         DATAFILE="tuning/tsla-15m-2y.json"
         DESC="EMA Solo — TSLA 15m 2 Years"
-        SHORTS=false
+        SHORTS=true
         ;;
     *)
         echo ""
         echo "  OGZPrime Backtest Runner"
-        echo "  Available presets:"
+        echo "  Available presets (all default to shorts=true):"
         echo "    baseline  — RSI+EMA Baseline — TSLA 15m 2 Years"
         echo "    sms-10mo  — SmartMoneySweep — TSLA 15m 10 Months"
         echo "    sms-18mo  — SmartMoneySweep — TSLA 15m 18 Months"
         echo "    rsi-only  — RSI Solo — TSLA 15m 2 Years"
         echo "    ema-only  — EMA Solo — TSLA 15m 2 Years"
         echo ""
-        echo "  Usage: ./backtest.sh <preset> [--shorts] [--verbose] [--receipts]"
+        echo "  Usage: ./backtest.sh <preset> [--long-only] [--verbose] [--receipts]"
+        echo "  Options:"
+        echo "    --long-only  Override preset to disable shorts"
+        echo "    --verbose    Show full output (no filtering)"
+        echo "    --receipts   Include TRADE-RECEIPT lines in output"
         echo ""
         exit 0
         ;;
 esac
 
-if [ "$SHORTS_OVERRIDE" = true ]; then
-    SHORTS=true
+if [ "$LONG_ONLY_OVERRIDE" = true ]; then
+    SHORTS=false
 fi
 
 echo ""
@@ -111,12 +116,15 @@ fi
 
 echo "Running backtest..."
 
+# Grep pattern for filtered output (includes ENV fingerprint and BACKTEST SUMMARY)
+GREP_PATTERN="ENV FINGERPRINT|SOLO_STRATEGY|EXECUTION_MODE|CANDLE_|BACKTEST_|FEE_|ENABLE_|DIRECTION_|ACCOUNT_DRAWDOWN|Final Balance|BACKTEST|ACCOUNT|PERFORMANCE|RISK|STRATEGY|EXIT|P&L|Total Trades|Win Rate|Profit Factor|Max Drawdown|Report saved|trades\.csv"
+
 if [ "$VERBOSE" = true ]; then
     node run-empire-v2.js
 elif [ "$RECEIPTS" = true ]; then
-    node run-empire-v2.js 2>&1 | grep -E "TRADE-RECEIPT|Final Balance|BACKTEST|ACCOUNT|PERFORMANCE|RISK|STRATEGY|EXIT|P&L|Total Trades|Win Rate|Profit Factor|Max Drawdown"
+    node run-empire-v2.js 2>&1 | grep -E "TRADE-RECEIPT|$GREP_PATTERN"
 else
-    node run-empire-v2.js 2>&1 | grep -E "Final Balance|BACKTEST|ACCOUNT|PERFORMANCE|RISK|STRATEGY|EXIT|P&L|Total Trades|Win Rate|Profit Factor|Max Drawdown"
+    node run-empire-v2.js 2>&1 | grep -E "$GREP_PATTERN"
 fi
 
 echo ""
