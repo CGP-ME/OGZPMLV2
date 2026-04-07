@@ -166,12 +166,18 @@ class TradingLoop {
         break; // Exit one position per candle
       }
 
-      // MaxProfitManager check
+      // MaxProfitManager check (PATCH 1: enriched context)
       if (this.ctx.maxProfitManager?.state?.active) {
+        const recentCandles = this.ctx.priceHistory.slice(-20);
         const profitResult = this.ctx.maxProfitManager.update(price, {
           volatility: indicators.volatility || 0,
           trend: indicators.trend || 'sideways',
-          volume: this.ctx.marketData?.volume || 0
+          volume: this.ctx.marketData?.volume || 0,
+          atr: indicators.atr,
+          rsi: indicators.rsi,
+          candle: this.ctx.priceHistory[this.ctx.priceHistory.length - 1],
+          recentCandles,
+          nearestStructure: null  // TODO: wire in structure levels later
         });
 
         if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {

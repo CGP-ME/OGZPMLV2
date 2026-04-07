@@ -220,6 +220,10 @@ class MaxProfitManager {
     
     console.log('💰 MaxProfitManager initialized with advanced profit optimization');
     this.log('Configuration loaded with tiered exits and dynamic trailing', 'info');
+
+    // ═══ PATCH 1: Read exitLogic config ═══
+    this.beScaleOutConfig = TradingConfig.get('exitLogic.beScaleOut') || {};
+    this.trailConfig = TradingConfig.get('exitLogic.trail') || {};
   }
   
   /**
@@ -290,9 +294,13 @@ class MaxProfitManager {
       unrealizedPnL: 0,
       realizedPnL: 0,
       maxUnrealizedPnL: 0,
-      totalFeesEstimated: 0
+      totalFeesEstimated: 0,
+      // ═══ PATCH 1: Add state fields for consolidated exit logic ═══
+      maxProfitPercent: 0,
+      initialStopPercent: null,
+      beScaleOutFired: false
     };
-    
+
     // ====================================================================
     // MARKET CONDITION ANALYSIS
     // ====================================================================
@@ -417,7 +425,47 @@ class MaxProfitManager {
     if (this.state.unrealizedPnL > this.state.maxUnrealizedPnL) {
       this.state.maxUnrealizedPnL = this.state.unrealizedPnL;
     }
-    
+    if (profitPercent > this.state.maxProfitPercent) {
+      this.state.maxProfitPercent = profitPercent;
+    }
+
+    // ====================================================================
+    // PATCH 1: BREAK-EVEN SCALE-OUT CHECK
+    // ====================================================================
+    if (this.beScaleOutConfig.enabled && !this.state.beScaleOutFired) {
+      const trigger = this.beScaleOutConfig.triggerType === 'one_to_one_r'
+        ? (this.state.initialStopPercent || this.config.initialStopLossPercent)
+        : this.beScaleOutConfig.fixedPercentTrigger;
+
+      if (profitPercent >= trigger) {
+        this.state.beScaleOutFired = true;
+        const scaleOutFraction = this.beScaleOutConfig.scaleOutFraction || 0.5;
+        const scaleOutSize = this.state.remainingSize * scaleOutFraction;
+        this.state.remainingSize -= scaleOutSize;
+        this.state.realizedPnL += scaleOutSize * this.state.entryPrice * profitPercent;
+
+        // Move stop to break-even + fee buffer
+        const feeBuffer = this.beScaleOutConfig.feeBufferPercent || 0.05;
+        if (this.state.direction === 'buy') {
+          this.state.currentStop = this.state.entryPrice * (1 + feeBuffer / 100);
+        } else {
+          this.state.currentStop = this.state.entryPrice * (1 - feeBuffer / 100);
+        }
+
+        this.log(`BE Scale-Out: Sold ${(scaleOutFraction * 100).toFixed(0)}% at ${(profitPercent * 100).toFixed(2)}% profit, stop→BE`, 'info');
+
+        return {
+          action: 'exit_partial',
+          price: currentPrice,
+          exitSize: scaleOutSize,
+          remainingSize: this.state.remainingSize,
+          reason: 'be_scaleout',
+          profitPercent: profitPercent,
+          newStopPrice: this.state.currentStop
+        };
+      }
+    }
+
     // ====================================================================
     // STOP LOSS CHECK (HIGHEST PRIORITY)
     // ====================================================================
@@ -656,74 +704,78 @@ class MaxProfitManager {
   }
   
   /**
-   * Update Trailing Stop - Dynamic Stop Management
-   * 
-   * TRAILING OPTIMIZATION: Adjusts trailing stop based on profit levels,
-   * volatility conditions, and time-based factors.
-   * 
+   * Update Trailing Stop - Dynamic Stop Management (PATCH 1: ATR-based)
+   *
+   * TRAILING OPTIMIZATION: Adjusts trailing stop based on ATR, RSI,
+   * profit levels, and trend conditions.
+   *
    * @param {number} currentPrice - Current market price
    * @param {number} profitPercent - Current profit percentage
    * @param {number} volatility - Current market volatility
+   * @param {Object} context - Additional context (atr, rsi, candle, etc.)
    * @returns {Object} - Update result
    */
-  updateTrailingStop(currentPrice, profitPercent, volatility = null) {
-    if (!this.config.enableTrailingStop) {
+  updateTrailingStop(currentPrice, profitPercent, volatility = null, context = {}) {
+    if (!this.trailConfig.enabled && !this.config.enableTrailingStop) {
       return { updated: false, reason: 'trailing_disabled' };
     }
-    
-    // Only activate trailing after minimum profit reached
-    if (profitPercent < this.config.minProfit) {
+
+    const minActivation = this.trailConfig.minActivationPercent || this.config.minProfit || 0.3;
+    if (profitPercent * 100 < minActivation) {
       return { updated: false, reason: 'insufficient_profit' };
     }
-    
-    // Activate trailing stop if not already active
+
     if (!this.state.trailingActive) {
       this.state.trailingActive = true;
       this.log('Trailing stop activated', 'info');
     }
-    
-    // Determine trail distance based on profit level
-    let trailDistance = this.config.trailDistance;
-    if (profitPercent >= this.config.tightTrailThreshold) {
-      trailDistance = this.config.tightTrailDistance;
+
+    // Dynamic trail distance based on ATR if available
+    let trailDistance;
+    const atr = context.atr || volatility;
+    if (atr && this.trailConfig.atrMultiplier) {
+      trailDistance = (atr / currentPrice) * this.trailConfig.atrMultiplier;
+    } else {
+      trailDistance = (this.trailConfig.minTrailPercent || 0.3) / 100;
     }
-    
-    // Adjust for volatility if provided
-    if (volatility && this.config.enableVolatilityAdjustment) {
-      const volatilityAdjustment = this.calculateVolatilityAdjustment(volatility);
-      trailDistance *= volatilityAdjustment.trailFactor;
+
+    // Trend widening
+    if (context.rsi && this.trailConfig.trendWidening) {
+      if (this.state.direction === 'buy' && context.rsi > 70) {
+        trailDistance *= 1.2; // Wider in overbought
+      } else if (this.state.direction === 'sell' && context.rsi < 30) {
+        trailDistance *= 1.2; // Wider in oversold
+      }
     }
-    
-    // Calculate new stop price
+
+    // Profit ratchet
+    if (this.trailConfig.profitRatchet && profitPercent > 0.02) {
+      trailDistance *= 0.8; // Tighten as profits grow
+    }
+
+    // Calculate new stop
     let newStop;
     if (this.state.direction === 'buy') {
       newStop = this.state.highestPrice * (1 - trailDistance);
     } else {
       newStop = this.state.lowestPrice * (1 + trailDistance);
     }
-    
-    // Only update if new stop is better (closer to current price)
+
+    // Only update if better
     let shouldUpdate = false;
     if (this.state.direction === 'buy') {
       shouldUpdate = newStop > this.state.currentStop;
     } else {
       shouldUpdate = newStop < this.state.currentStop;
     }
-    
+
     if (shouldUpdate) {
       const oldStop = this.state.currentStop;
       this.state.currentStop = newStop;
-      
-      this.log(`Trailing stop: ${oldStop.toFixed(2)} → ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}% trail)`, 'debug');
-      
-      return {
-        updated: true,
-        oldStop: oldStop,
-        newStop: newStop,
-        trailDistance: trailDistance
-      };
+      this.log(`Trail: ${oldStop?.toFixed(2)} → ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}%)`, 'debug');
+      return { updated: true, oldStop, newStop, trailDistance };
     }
-    
+
     return { updated: false, reason: 'no_improvement' };
   }
   
