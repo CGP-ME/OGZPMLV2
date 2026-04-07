@@ -41,7 +41,7 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const DEFAULT_DATA = 'tuning/full-45k.json';
+const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
 
