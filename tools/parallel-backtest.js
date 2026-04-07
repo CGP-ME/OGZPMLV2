@@ -61,7 +61,7 @@ try {
 // STRATEGY LIST & GAUNTLET GENERATORS (must be before SWEEP_PRESETS)
 // ═══════════════════════════════════════════════════════════════
 
-const STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout'];
+const STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep'];
 
 function generateGauntlet(paramType, values) {
   const configs = [];
