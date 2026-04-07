@@ -876,7 +876,8 @@ class OGZPrimeV14Bot {
       __dirname: __dirname,
       patternChecker: this.patternChecker,
       trai: this.trai,
-      backtestRecorder: this.backtestRecorder
+      backtestRecorder: this.backtestRecorder,
+      maxProfitManager: this.maxProfitManager  // PATCH 1 FIX: make MPM available to TradingLoop in backtest mode
       // DynamicPositionSizer NOT WIRED - stats printing disabled
     });
 
