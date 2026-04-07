@@ -29,43 +29,37 @@ done
 case $PRESET in
     baseline)
         STRATEGY="RSI,EMASMACrossover"
-        DATAFILE="tuning/tsla-15m-2y.json"
-        DESC="RSI+EMA Baseline — TSLA 15m 2 Years"
+        DATAFILE="tuning/tsla-15m-18mo.json"
+        DESC="RSI+EMA Baseline — TSLA 15m 18mo"
         SHORTS=true
         ;;
-    sms-10mo)
-        STRATEGY="SmartMoneySweep"
-        DATAFILE="tuning/tsla-15m-10mo.json"
-        DESC="SmartMoneySweep — TSLA 15m 10 Months"
-        SHORTS=true
-        ;;
-    sms-18mo)
+    sms)
         STRATEGY="SmartMoneySweep"
         DATAFILE="tuning/tsla-15m-18mo.json"
-        DESC="SmartMoneySweep — TSLA 15m 18 Months"
+        DESC="SmartMoneySweep — TSLA 15m 18mo"
         SHORTS=true
         ;;
     rsi-only)
         STRATEGY="RSI"
-        DATAFILE="tuning/tsla-15m-2y.json"
-        DESC="RSI Solo — TSLA 15m 2 Years"
+        DATAFILE="tuning/tsla-15m-18mo.json"
+        DESC="RSI Solo — TSLA 15m 18mo"
         SHORTS=true
         ;;
     ema-only)
         STRATEGY="EMASMACrossover"
-        DATAFILE="tuning/tsla-15m-2y.json"
-        DESC="EMA Solo — TSLA 15m 2 Years"
+        DATAFILE="tuning/tsla-15m-18mo.json"
+        DESC="EMA Solo — TSLA 15m 18mo"
         SHORTS=true
         ;;
     *)
         echo ""
         echo "  OGZPrime Backtest Runner"
+        echo "  All presets use tsla-15m-18mo.json (same data, fair comparison)"
         echo "  Available presets (all default to shorts=true):"
-        echo "    baseline  — RSI+EMA Baseline — TSLA 15m 2 Years"
-        echo "    sms-10mo  — SmartMoneySweep — TSLA 15m 10 Months"
-        echo "    sms-18mo  — SmartMoneySweep — TSLA 15m 18 Months"
-        echo "    rsi-only  — RSI Solo — TSLA 15m 2 Years"
-        echo "    ema-only  — EMA Solo — TSLA 15m 2 Years"
+        echo "    baseline  — RSI+EMA combined"
+        echo "    sms       — SmartMoneySweep"
+        echo "    rsi-only  — RSI Solo"
+        echo "    ema-only  — EMA Solo"
         echo ""
         echo "  Usage: ./backtest.sh <preset> [--long-only] [--verbose] [--receipts]"
         echo "  Options:"
@@ -114,6 +108,12 @@ else
     export ENABLE_SHORTS="false"
 fi
 
+# SMS-specific env vars (required for SmartMoneySweep to fire)
+if [[ "$STRATEGY" == *"SmartMoneySweep"* ]]; then
+    export ENABLE_SMS="true"
+    export SMS_VP_RTH_ONLY="true"
+fi
+
 echo "Running backtest..."
 
 # Grep pattern for filtered output (includes ENV fingerprint and BACKTEST SUMMARY)
@@ -136,4 +136,4 @@ echo "════════════════════════�
 unset SOLO_STRATEGY EXECUTION_MODE CANDLE_SOURCE CANDLE_DATA_FILE
 unset BACKTEST_MODE BACKTEST_FAST BACKTEST_NO_PATTERN_SAVE
 unset FEE_MAKER FEE_TAKER ENABLE_TRAI ACCOUNT_DRAWDOWN_BYPASS
-unset DIRECTION_FILTER ENABLE_SHORTS
+unset DIRECTION_FILTER ENABLE_SHORTS ENABLE_SMS SMS_VP_RTH_ONLY

@@ -22,32 +22,26 @@ param(
 $presets = @{
     "baseline" = @{
         Strategy = "RSI,EMASMACrossover"
-        DataFile = "tuning/tsla-15m-2y.json"
-        Desc     = "RSI+EMA Baseline — TSLA 15m 2 Years"
+        DataFile = "tuning/tsla-15m-18mo.json"
+        Desc     = "RSI+EMA Baseline — TSLA 15m 18mo"
         Shorts   = $true
     }
-    "sms-10mo" = @{
-        Strategy = "SmartMoneySweep"
-        DataFile = "tuning/tsla-15m-10mo.json"
-        Desc     = "SmartMoneySweep — TSLA 15m 10 Months"
-        Shorts   = $true
-    }
-    "sms-18mo" = @{
+    "sms" = @{
         Strategy = "SmartMoneySweep"
         DataFile = "tuning/tsla-15m-18mo.json"
-        Desc     = "SmartMoneySweep — TSLA 15m 18 Months"
+        Desc     = "SmartMoneySweep — TSLA 15m 18mo"
         Shorts   = $true
     }
     "rsi-only" = @{
         Strategy = "RSI"
-        DataFile = "tuning/tsla-15m-2y.json"
-        Desc     = "RSI Solo — TSLA 15m 2 Years"
+        DataFile = "tuning/tsla-15m-18mo.json"
+        Desc     = "RSI Solo — TSLA 15m 18mo"
         Shorts   = $true
     }
     "ema-only" = @{
         Strategy = "EMASMACrossover"
-        DataFile = "tuning/tsla-15m-2y.json"
-        Desc     = "EMA Solo — TSLA 15m 2 Years"
+        DataFile = "tuning/tsla-15m-18mo.json"
+        Desc     = "EMA Solo — TSLA 15m 18mo"
         Shorts   = $true
     }
 }
@@ -55,10 +49,12 @@ $presets = @{
 if ($Preset -eq "help" -or -not $presets.ContainsKey($Preset)) {
     Write-Host ""
     Write-Host "  OGZPrime Backtest Runner" -ForegroundColor Yellow
+    Write-Host "  All presets use tsla-15m-18mo.json (same data, fair comparison)" -ForegroundColor Cyan
     Write-Host "  Available presets (all default to shorts=true):" -ForegroundColor Cyan
-    foreach ($key in $presets.Keys) {
-        Write-Host "    $key — $($presets[$key].Desc)" -ForegroundColor White
-    }
+    Write-Host "    baseline  — RSI+EMA combined" -ForegroundColor White
+    Write-Host "    sms       — SmartMoneySweep" -ForegroundColor White
+    Write-Host "    rsi-only  — RSI Solo" -ForegroundColor White
+    Write-Host "    ema-only  — EMA Solo" -ForegroundColor White
     Write-Host ""
     Write-Host "  Usage: .\backtest.ps1 <preset> [-longonly] [-verbose] [-receipts]"
     Write-Host "  Options:"
@@ -105,6 +101,12 @@ if ($useShorts) {
     $env:ENABLE_SHORTS = "false"
 }
 
+# SMS-specific env vars (required for SmartMoneySweep to fire)
+if ($config.Strategy -match "SmartMoneySweep") {
+    $env:ENABLE_SMS = "true"
+    $env:SMS_VP_RTH_ONLY = "true"
+}
+
 Write-Host "Running backtest..." -ForegroundColor Yellow
 
 # Grep pattern for filtered output (includes ENV fingerprint and BACKTEST SUMMARY)
@@ -137,3 +139,5 @@ Remove-Item Env:ENABLE_TRAI -ErrorAction SilentlyContinue
 Remove-Item Env:ACCOUNT_DRAWDOWN_BYPASS -ErrorAction SilentlyContinue
 Remove-Item Env:DIRECTION_FILTER -ErrorAction SilentlyContinue
 Remove-Item Env:ENABLE_SHORTS -ErrorAction SilentlyContinue
+Remove-Item Env:ENABLE_SMS -ErrorAction SilentlyContinue
+Remove-Item Env:SMS_VP_RTH_ONLY -ErrorAction SilentlyContinue
