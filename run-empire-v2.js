@@ -645,7 +645,14 @@ class OGZPrimeV14Bot {
     this.priceHistory = [];  // 1m candles for trading logic
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
-    this.loadCandleHistory(); // CHANGE 2026-01-28: Load saved candles on startup
+    // CHANGE 2026-01-28: Load saved candles on startup
+    // FIX 2026-04-06: Skip in backtest mode - backtest provides its own candles
+    // Bug: Was loading cached BTC live data into TSLA backtests, corrupting VP calculations
+    if (!resolvedConfig.config.mode.backtest &&
+        resolvedConfig.config.mode.execution !== 'backtest' &&
+        resolvedConfig.config.mode.candleSource !== 'file') {
+      this.loadCandleHistory();
+    }
 
     // FIX 2026-03-06: Replay saved candles through IndicatorEngine on startup
     // Bug: priceHistory loaded from disk but IndicatorEngine started empty
@@ -1003,7 +1010,31 @@ class OGZPrimeV14Bot {
    * Start the trading bot
    */
   async start() {
-    console.log('ðŸš€ Starting OGZ Prime V14 MERGED...\n');
+    console.log('🚀 Starting OGZ Prime V14 MERGED...\n');
+
+    // ENV FINGERPRINT — print all trading-relevant env vars for reproducibility
+    console.log('═'.repeat(60));
+    console.log('ENV FINGERPRINT:');
+    console.log(`  SOLO_STRATEGY=${process.env.SOLO_STRATEGY || 'all'}`);
+    console.log(`  EXECUTION_MODE=${process.env.EXECUTION_MODE || 'paper'}`);
+    console.log(`  CANDLE_SOURCE=${process.env.CANDLE_SOURCE || 'live'}`);
+    console.log(`  CANDLE_DATA_FILE=${process.env.CANDLE_DATA_FILE || 'default'}`);
+    console.log(`  DIRECTION_FILTER=${process.env.DIRECTION_FILTER || 'both'}`);
+    console.log(`  BACKTEST_MODE=${process.env.BACKTEST_MODE || 'false'}`);
+    console.log(`  BACKTEST_FAST=${process.env.BACKTEST_FAST || 'false'}`);
+    console.log(`  BACKTEST_NO_PATTERN_SAVE=${process.env.BACKTEST_NO_PATTERN_SAVE || 'false'}`);
+    console.log(`  FEE_MAKER=${process.env.FEE_MAKER || 'default'}`);
+    console.log(`  FEE_TAKER=${process.env.FEE_TAKER || 'default'}`);
+    console.log(`  ACCOUNT_DRAWDOWN_BYPASS=${process.env.ACCOUNT_DRAWDOWN_BYPASS || 'false'}`);
+    console.log(`  ENABLE_TRAI=${process.env.ENABLE_TRAI || 'true'}`);
+    console.log(`  ENABLE_SHORTS=${process.env.ENABLE_SHORTS || 'false'}`);
+    console.log(`  ENABLE_RSI=${process.env.ENABLE_RSI || 'true'}`);
+    console.log(`  ENABLE_EMA=${process.env.ENABLE_EMA || 'true'}`);
+    console.log(`  ENABLE_SMS=${process.env.ENABLE_SMS || 'false'}`);
+    console.log(`  SMS_VP_RTH_ONLY=${process.env.SMS_VP_RTH_ONLY || 'true'}`);
+    console.log('═'.repeat(60));
+    console.log('');
+
     this.isRunning = true;
 
     // ðŸ¤– Initialize TRAI Decision Module (Change 574)
@@ -1646,11 +1677,11 @@ class OGZPrimeV14Bot {
     }
 
     // Print final performance stats
-    console.log('\nðŸ“Š Final Performance:');
+    console.log('\n📊 Final Performance:');
     console.log(`   Session Duration: ${((Date.now() - this.startTime) / 1000 / 60).toFixed(1)} minutes`);
-    console.log(`   Final Balance: $${stateManager.get('balance').toFixed(2)}`);
+    // Final Balance removed — BacktestRecorder's BACKTEST SUMMARY is the source of truth
 
-    console.log('\nâœ… Shutdown complete\n');
+    console.log('\n✅ Shutdown complete\n');
     process.exit(0);
   }
 
