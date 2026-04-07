@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtesting Framework Audit (2026-04-07)
+
+#### Audit: ENV VAR Classification
+- **Files:** `tools/parallel-backtest.js`, `core/TradingConfig.js`, `foundation/ConfigLoader.js`
+- **Discovery:** Most sweep presets were "theater" - varying env vars that locked exit contracts override
+- **HONORED:** `ATR_FILTER_ENABLED`, `ATR_MIN_PERCENT`, `MAX_POSITION_SIZE_PCT`, `TIER1/2/3_TARGET`, `RISK_MANAGER_BYPASS`, `ACCOUNT_DRAWDOWN_BYPASS`
+- **IGNORED:** `STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `TRAILING_STOP_PERCENT` (locked exitContracts override)
+- **GHOST:** `TRAILING_STOP_ENABLED`, `REGIME_FILTER_ENABLED`, `REGIME_ALLOW_*` (never read by trading code)
+
+#### Fix: Remove Theater Presets (`c6993b3`)
+- **File:** `tools/parallel-backtest.js`
+- **Removed:** `wide-stops`, `tight-stops`, `trailing`, `regime`, `gauntlet-confidence`, `gauntlet-exits`
+- **Added:** `--real` sweep with only HONORED env vars (11 configs)
+- **Result:** Sweep results now show real variance instead of duplicates
+
+#### Docs: Core Documentation Suite
+- **BACKTESTING-GUIDE.md** (repo root): Cold-reader guide with 5-test playbook
+- **ENV-VAR-AUDIT.md** (repo root): Short pointer to detailed audit
+- **ogz-meta/BACKTESTING_GUIDE.md**: Detailed cold-reader guide (user-authored)
+- **ogz-meta/ENV-VAR-AUDIT.md**: Full audit with code traces (user-authored)
+- **ogz-meta/GRAND-SCHEME.md**: North star vision document
+
+#### Test: First Honest Sweep
+- **Command:** `node tools/parallel-backtest.js --real --stocks --data tsla`
+- **Winner:** `tiers-tight` (+$297.25, 1368 trades, 46.8% WR)
+- **Insight:** Profit tier targets (1%/1.5%/2%) are the biggest lever
+
+#### Test: Solo Strategy Baselines (TSLA 2Y)
+- **RSI Solo:** -$140.74 (-1.41%)
+- **EMA Solo:** -$508.51 (-5.09%)
+- **Insight:** Neither strategy has positive edge solo - orchestrator confluence or tier exits create the edge
+
 ### Pine Script v5 Transpiler (2026-03-30)
 
 #### Feature: Pine Transpiler Core
