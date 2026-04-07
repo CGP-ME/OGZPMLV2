@@ -383,7 +383,7 @@ const BASE_CONFIG = {
     // ─── Dynamic Trailing Stop (lifted from DynamicTrailingStop.js into MPM) ───
     trail: {
       enabled: envBool('TRAIL_ENABLED', true),
-      minActivation: parseFloat(env('TRAIL_MIN_ACTIVATION', 0.5)),  // % profit before trail arms
+      minActivationPercent: parseFloat(env('TRAIL_MIN_ACTIVATION', 0.5)),  // % profit before trail arms
       atrMultiplier: parseFloat(env('TRAIL_ATR_MULTIPLIER', 2.0)),
       trendWidenMultiplier: parseFloat(env('TRAIL_TREND_WIDEN', 1.5)),
       structureTightenMultiplier: parseFloat(env('TRAIL_STRUCTURE_TIGHTEN', 0.5)),

@@ -17,6 +17,7 @@ const exitContractManager = require('./ExitContractManager');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
+const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Adaptive parameter optimization
 
 const stateManager = getStateManager();
 
@@ -738,6 +739,24 @@ class OrderExecutor {
               );
             }
 
+            // 3.7 FIX 2026-04-05: Wire PID Controller for adaptive parameter optimization
+            // Updates position sizing, regime boosts, trailing stops based on performance
+            try {
+              const pidController = getPIDController();
+              pidController.onTradeClose({
+                strategyName: buyTrade.entryStrategy || buyTrade.strategy || 'unknown',
+                netPnlDollars: completeTradeResult.pnlDollars || 0,
+                netPnlPercent: completeTradeResult.pnl || 0,
+                exitReason: completeTradeResult.exitReason || 'signal',
+                maxProfitPercent: buyTrade.maxProfitPercent || 0,
+                maxFavorableExcursion: buyTrade.maxFavorableExcursion || 0,
+                holdDuration: completeTradeResult.holdDuration || 0,
+              });
+            } catch (err) {
+              // PID is optional - don't break trade flow if it fails
+              console.warn(`[PID] onTradeClose failed: ${err.message}`);
+            }
+
             // 4. CHANGE 2026-02-13: Re-enable TradeLogger with comprehensive breakdown
             try {
               this.ctx.logTrade({
@@ -1012,6 +1031,22 @@ class OrderExecutor {
               shortTrade.entryStrategy,
               completeTradeResult.pnlDollars || 0
             );
+          }
+
+          // FIX 2026-04-05: Wire PID Controller for short exits
+          try {
+            const pidController = getPIDController();
+            pidController.onTradeClose({
+              strategyName: shortTrade.entryStrategy || shortTrade.strategy || 'unknown',
+              netPnlDollars: completeTradeResult.pnlDollars || 0,
+              netPnlPercent: completeTradeResult.pnl || 0,
+              exitReason: completeTradeResult.exitReason || 'signal',
+              maxProfitPercent: shortTrade.maxProfitPercent || 0,
+              maxFavorableExcursion: shortTrade.maxFavorableExcursion || 0,
+              holdDuration: completeTradeResult.holdDuration || 0,
+            });
+          } catch (err) {
+            console.warn(`[PID] onTradeClose (short) failed: ${err.message}`);
           }
 
           // Pattern exit model
