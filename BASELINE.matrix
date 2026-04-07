@@ -1,0 +1,26 @@
+# OGZPrime Baseline Matrix
+# Generated: 2026-04-07
+# Commit: 76b2885
+# Branch: tradingloop-clean-rewrite
+# Tool: tools/parallel-backtest.js
+# Data: tuning/full-45k.json
+
+# THIS FILE IS LOCKED. NO AI MODIFIES WITHOUT EXPLICIT WRITTEN APPROVAL FROM TREY.
+
+## Matrix Results
+
+| Config | P&L | Trades | Win Rate |
+|--------|-----|--------|----------|
+| baseline | -$4,844.11 | 990 | 14.5% |
+| wide-stops | -$4,844.11 | 990 | 14.5% |
+| low-conf | -$4,844.11 | 990 | 14.5% |
+| high-conf | -$4,853.40 | 986 | 14.6% |
+| tight-stops | -$4,898.51 | 1017 | 14.9% |
+
+## Full Results JSON
+backtest-results/sweep-1775531118969.json
+
+## Verification Command
+node tools/parallel-backtest.js
+
+If results don't match this matrix, something changed.
