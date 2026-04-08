@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury-Bridge Layer 4: Agentic ReAct Loop (2026-04-08)
+
+#### Feature: ReAct Loop with Tool Access (`b2f3016`)
+- **Files:** `trai_brain/mercury-bridge/react-loop.js` (new), `trai_brain/mercury-bridge/tool-adapter.js` (new)
+- **Purpose:** Give Mercury-2 iterative tool access (grep, open_file, get_chunk, list_files) to search the actual codebase instead of relying solely on RAG retrieval
+- **Architecture:** Mercury emits tool calls per turn, adapter executes against repo, results fed back into conversation history until Mercury has enough ground truth to answer
+- **Validation:** Query 1 (StopLossChecker.js) — full ReAct loop in 5.3s: grep -> open_file -> grounded answer with real file:line citations (lines 14-21, 31-42, 44-60, 63-80, 85-93, 96). Zero confabulation.
+- **Validation:** Query 3 (contract bug) — Mercury independently found the exitSize mismatch between MaxProfitManager.js:458 and OrderExecutor.js:561 via iterative grep + open_file
+
+#### Feature: Additive generateRawResponse() (`b2f3016`)
+- **File:** `core/persistent_llm_client.js`
+- **Purpose:** Bypass _cleanResponse() sentence-truncation post-processing for structured output (tool calls, JSON, XML)
+- **Root cause:** _cleanResponse() truncates responses not ending in sentence punctuation — destroys valid JSON tool call output
+- **Blast radius:** Zero on TRAI chat mode. generateResponse() completely unchanged. New public method, additive only.
+
+#### Fix: Markdown Fence Tool Call Format (`b2f3016`)
+- **Files:** `trai_brain/mercury-bridge/react-loop.js`
+- **Problem:** Inception Labs API server chokes on angle-bracket content in model output (HTTP 503 "unexpected tokens remaining in message header"). XML `<tool_call>` tags triggered this.
+- **Fix:** Switched to markdown fenced blocks (` ```tool_call `) which contain zero angle brackets
+- **Insight:** Mercury-2 is a diffusion LLM — pattern-matches on concrete examples, not abstract schemas. Tool docs rewritten from arg-schema style to example-driven with real filled-in calls.
+
+#### Feature: Bare-JSON Fallback Parser (`b2f3016`)
+- **File:** `trai_brain/mercury-bridge/react-loop.js`
+- **Purpose:** When Mercury drops fence format but intent is clear, salvage the tool call from bare JSON using arg-pattern inference (query -> grep, path -> open_file, id -> get_chunk)
+- **Validation:** `bare_json_inferred_as_grep` fired correctly in independent test run
+
+#### Feature: Exponential Backoff Retry (`b2f3016`)
+- **File:** `trai_brain/mercury-bridge/react-loop.js`
+- **Purpose:** Per Inception Labs API docs, 503/429 are expected — retry with exponential backoff (500ms/1s/2s) plus jitter
+- **Validation:** Turn 2 of Query 3 hit 503 -> retried -> recovered. Turn 5 hit empty -> retried -> recovered. Both `Recovered after N retry(ies)` log lines confirmed.
+
+#### Fix: --top-k=0 Falsy Bug (`b2f3016`)
+- **File:** `trai_brain/mercury-bridge/ask.js`
+- **Problem:** `opts.topK || config.RETRIEVE_TOP_K` — when topK is 0, JS falsy evaluation falls through to default 8
+- **Fix:** `opts.topK != null ? opts.topK : config.RETRIEVE_TOP_K`
+
+#### Refactor: Remove dotenv Side-Effect from Config (`7f3db69`)
+- **File:** `trai_brain/mercury-bridge/config.js`
+- **Change:** Moved `require('dotenv').config()` from config module to ask.js CLI entry point. Config modules should not have side effects on process.env at require time.
+
+#### Known Issues
+- Inception Labs API intermittently returns empty responses or 503s on longer conversation histories. Retry mitigates but does not fully eliminate. Next: migrate to Mercury-2 native tool calling via `tools` parameter.
+- _cleanResponse() in persistent_llm_client.js strips valid short responses ("OK" -> empty) in TRAI chat mode. Separate investigation needed.
+
+---
+
 ### Backtesting Framework Audit (2026-04-07)
 
 #### Audit: ENV VAR Classification
