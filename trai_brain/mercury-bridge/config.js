@@ -9,9 +9,6 @@
 
 const path = require('path');
 
-// Load .env from repo root
-require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
-
 // ─── Repo root ────────────────────────────────────────────────
 // Default assumes this file lives at trai_brain/mercury-bridge/
 // Going up 2 levels lands at the repo root.
