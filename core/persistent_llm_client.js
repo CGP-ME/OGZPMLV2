@@ -254,6 +254,68 @@ Ask me about any of these specifically and I'll give you the data!`;
     return responseText || '';
   }
 
+  /**
+   * Generate a response using Mercury-2 native tool calling via OpenAI-compatible
+   * tools parameter. Returns the full assistant message object from the API.
+   *
+   * messages: array of {role, content, tool_call_id?, tool_calls?}
+   * tools: array of {type: "function", function: {name, description, parameters}}
+   * options: {maxTokens?, toolChoice?, temperature?}
+   *
+   * Returns: {role: "assistant", content: string|null, tool_calls?: [...]}
+   *
+   * Added 2026-04-08 for mercury-bridge Layer 4 native tool calling rewrite.
+   */
+  async generateWithTools(messages, tools, options = {}) {
+    if (this.provider.requestFormat !== 'openai') {
+      throw new Error(`generateWithTools requires OpenAI-format provider, got: ${this.provider.requestFormat}`);
+    }
+
+    let tokens = options.maxTokens || this.maxTokens;
+    if (this.providerName === 'mercury' && tokens < 400) {
+      tokens = 400;
+    }
+
+    const body = {
+      model: this.model,
+      messages: messages,
+      tools: tools,
+      max_tokens: tokens,
+    };
+
+    if (options.toolChoice) {
+      body.tool_choice = options.toolChoice;
+    }
+    if (options.temperature != null) {
+      body.temperature = options.temperature;
+    }
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.apiKey) {
+      headers[this.provider.authHeader] = `${this.provider.authPrefix}${this.apiKey}`;
+    }
+
+    const startTime = Date.now();
+
+    const response = await this._httpRequest(
+      `${this.baseUrl}/chat/completions`,
+      'POST',
+      body,
+      headers
+    );
+
+    const latency = Date.now() - startTime;
+    this.requestCount++;
+    this.totalLatency += latency;
+
+    const data = JSON.parse(response);
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error(`Unexpected response shape: ${JSON.stringify(data).slice(0, 500)}`);
+    }
+
+    return data.choices[0].message;
+  }
+
   // ─── Provider-Specific Call Methods ────────────────────────────
 
   async _callAnthropic(prompt, maxTokens) {

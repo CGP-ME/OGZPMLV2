@@ -490,7 +490,73 @@ Example call:
 Use list_files to discover what files exist in a directory.`;
   }
 
-  return { execute, buildToolDocs, tools };
+  function buildToolSchema() {
+    return [
+      {
+        type: "function",
+        function: {
+          name: "grep",
+          description: "Literal string search across the entire repo using ripgrep. Returns file path, line number, and matching text. Use this as your ground-truth lookup to find where a symbol, function name, or phrase appears in the codebase.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "The literal text to search for" },
+              file_pattern: { type: "string", description: "Optional glob filter like '*.js' or 'core/**/*.js'" },
+              limit: { type: "integer", description: "Maximum matches to return (default 40)" }
+            },
+            required: ["query"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "open_file",
+          description: "Read a specific line range from a file in the repo. Use after grep to see the exact code around a match. Before citing any line in your final answer, open a narrow range (5-10 lines) around that line to confirm the claim is in the visible text.",
+          parameters: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "File path relative to repo root" },
+              start_line: { type: "integer", description: "First line to read, 1-indexed (default 1)" },
+              end_line: { type: "integer", description: "Last line to read, max 500 line span (default start_line+50)" }
+            },
+            required: ["path"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_chunk",
+          description: "Fetch a specific indexed chunk by MongoDB id from the RAG index.",
+          parameters: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "MongoDB _id of the chunk" }
+            },
+            required: ["id"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "list_files",
+          description: "List files and directories at a path within the repo. Use this when you need to discover what files exist in a directory.",
+          parameters: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Directory path relative to repo root (default '.')" },
+              pattern: { type: "string", description: "Optional filter — only return entries whose name contains this substring" }
+            },
+            required: []
+          }
+        }
+      }
+    ];
+  }
+
+  return { execute, buildToolDocs, buildToolSchema, tools };
 }
 
 module.exports = { createToolAdapter };

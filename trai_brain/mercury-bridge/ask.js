@@ -141,26 +141,36 @@ async function runAgentic(query, opts) {
     }
 
     // 2. Build the tool adapter with both repo access and mongo (for get_chunk)
-    const adapter = createToolAdapter({
+    const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
-      // readOnlyToolbox: not provided — adapter will use direct ripgrep/JS fallback
     });
 
     if (verbose) {
-      console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(adapter.tools).join(', ')}`);
+      console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
+    }
+
+    // 3. Initialize Mercury client for native tool calling
+    const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
+    const client = new PersistentLLMClient({ provider: 'mercury' });
+    await client.initialize();
+
+    if (verbose) {
       console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
     }
 
-    // 3. Run the loop
+    // 4. Run the loop with native tool calling
+    const t0 = Date.now();
     const result = await runReactLoop({
-      query,
+      client,
+      toolAdapter,
+      userQuery: query,
       starterContext,
-      toolAdapter: adapter,
       maxIterations,
       maxTokens,
       verbose,
     });
+    result.totalLatencyMs = Date.now() - t0;
 
     return result;
 
@@ -189,24 +199,19 @@ async function main() {
       console.log('');
       console.log('═══ ANSWER ═══');
       console.log('');
-      console.log(result.finalAnswer);
+      console.log(result.answer);
       console.log('');
-      console.log(`[iterations: ${result.iterations} | termination: ${result.terminationReason} | latency: ${result.totalLatencyMs}ms]`);
+      console.log(`[iterations: ${result.iterations} | termination: ${result.termination} | latency: ${result.totalLatencyMs}ms]`);
 
       if (args.showHistory && result.history.length > 0) {
         console.log('');
         console.log('─── TOOL CALL TRACE ───');
         for (const turn of result.history) {
           console.log('');
-          console.log(`## Turn ${turn.turnNumber}`);
-          if (turn.toolCall) {
-            console.log(`TOOL: ${turn.toolCall.name}(${JSON.stringify(turn.toolCall.args)})`);
-            const resultStr = JSON.stringify(turn.toolResult, null, 2);
-            console.log(`RESULT: ${resultStr.slice(0, 1000)}${resultStr.length > 1000 ? '...[truncated]' : ''}`);
-          } else {
-            console.log(`(no tool call — parse error or intermediate response)`);
-            console.log(`RESPONSE: ${turn.assistantResponse.slice(0, 500)}`);
-          }
+          console.log(`## Iteration ${turn.iteration} — ${turn.toolName}`);
+          console.log(`TOOL: ${turn.toolName}(${JSON.stringify(turn.toolArgs)})`);
+          const resultStr = JSON.stringify(turn.toolResult, null, 2);
+          console.log(`RESULT: ${resultStr.slice(0, 1000)}${resultStr.length > 1000 ? '...[truncated]' : ''}`);
         }
         console.log('');
         console.log('─── END TRACE ───');
