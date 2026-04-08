@@ -114,6 +114,7 @@ const INDEX_FILE_EXTENSIONS = new Set([
   '.js', '.mjs', '.cjs',
   '.md',
   '.json',    // only small config/docs, guarded by file size
+  '.jsonl',   // structured records (fixes.jsonl, etc.)
 ]);
 
 // ─── Mercury prompt guidance ──────────────────────────────────

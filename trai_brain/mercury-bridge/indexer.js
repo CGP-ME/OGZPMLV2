@@ -21,8 +21,35 @@ const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
 
+// Load .env from repo root so OPENAI_API_KEY is available for embeddings
+require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
+
 const config = require('./config');
 const MongoStore = require('./mongo-store');
+
+// ─────────────────────────────────────────────────────────────
+// CONTENT TYPE RESOLVER
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Assign a semantic content_type to chunks based on file path.
+ * Used by future hybrid retrieval and query router to boost/filter
+ * chunks by meaning rather than just by file extension.
+ */
+function resolveContentType(relPath) {
+  const p = relPath.replace(/\\/g, '/');
+
+  if (p === 'ogz-meta/ledger/fixes.jsonl') return 'fix_history';
+  if (p === 'CHANGELOG.md') return 'changelog';
+  if (p === 'ogz-meta/claudito_context.md') return 'project_context';
+  if (p === 'ogz-meta/05_landmines-and-gotchas.md') return 'landmine';
+  if (p === 'ogz-meta/04_guardrails-and-rules.md') return 'guardrails';
+  if (p === 'ogz-meta/recent-changes.md') return 'recent_changes';
+  if (p.startsWith('ogz-meta/proposals/') && p.endsWith('-PROPOSAL.md')) return 'proposal';
+  if (p === 'CLAUDITO_MISSION_LOG.md') return 'mission_log';
+
+  return 'general';
+}
 
 // ─────────────────────────────────────────────────────────────
 // REPO WALKER
@@ -358,6 +385,72 @@ function chunkMarkdown(text, filePath) {
 }
 
 /**
+ * Chunk a JSONL file. Each non-empty line is parsed as a JSON object
+ * and becomes one chunk. The chunk text is a human-readable rendering
+ * (header line + pretty-printed JSON body) so embedding captures the
+ * semantic meaning and Mercury can read the content naturally via tools.
+ *
+ * Designed for structured records like fixes.jsonl where each line is
+ * one bug-fix entry with fields like id, symptom, root_cause, lesson.
+ *
+ * Invalid lines (parse errors) are skipped with a warning, not a crash.
+ */
+function chunkJsonl(text, filePath) {
+  const chunks = [];
+  const lines = text.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch (err) {
+      console.warn(`[chunkJsonl] ${filePath}:${i + 1} parse error: ${err.message.slice(0, 80)}`);
+      continue;
+    }
+
+    // Build a human-readable text representation
+    const headerParts = [];
+    if (record.id) headerParts.push(`ID: ${record.id}`);
+    if (record.date) headerParts.push(`Date: ${record.date}`);
+    if (record.severity) headerParts.push(`Severity: ${record.severity}`);
+    if (Array.isArray(record.tags) && record.tags.length > 0) {
+      headerParts.push(`Tags: ${record.tags.join(', ')}`);
+    }
+
+    const header = headerParts.join(' | ');
+    const body = JSON.stringify(record, null, 2);
+    const chunkText = header ? `${header}\n\n${body}` : body;
+
+    // Guard oversized records
+    if (chunkText.length > config.MAX_CHUNK_CHARS) {
+      const windows = slidingWindow(chunkText, config.CHUNK_WINDOW_SIZE, config.CHUNK_WINDOW_OVERLAP);
+      windows.forEach((winText, idx) => {
+        chunks.push({
+          kind: 'jsonl_record',
+          name: `${record.id || `line_${i + 1}`}#part${idx + 1}`,
+          start_line: i + 1,
+          end_line: i + 1,
+          text: winText,
+        });
+      });
+    } else {
+      chunks.push({
+        kind: 'jsonl_record',
+        name: record.id || `line_${i + 1}`,
+        start_line: i + 1,
+        end_line: i + 1,
+        text: chunkText,
+      });
+    }
+  }
+
+  return chunks;
+}
+
+/**
  * Sliding window chunker. Generic fallback.
  */
 function slidingWindow(text, windowSize, overlap) {
@@ -526,6 +619,8 @@ async function processFile(fullPath, repoRoot) {
     rawChunks = chunkMarkdown(text, relPath);
   } else if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
     rawChunks = chunkJavaScript(text, relPath);
+  } else if (ext === '.jsonl') {
+    rawChunks = chunkJsonl(text, relPath);
   } else if (ext === '.json') {
     // JSON: treat as a single chunk if small enough
     if (text.length <= config.MAX_CHUNK_CHARS) {
@@ -545,12 +640,14 @@ async function processFile(fullPath, repoRoot) {
 
   // Compute file content hash for potential incremental reindex later
   const fileSha = crypto.createHash('sha1').update(text).digest('hex');
+  const contentType = resolveContentType(relPath);
 
   // Decorate chunks with file metadata
   return rawChunks.map((ch) => ({
     file_path: relPath,
     kind: ch.kind,
     name: ch.name,
+    content_type: contentType,
     start_line: ch.start_line,
     end_line: ch.end_line,
     text: ch.text,
@@ -716,4 +813,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { walkRepo, chunkJavaScript, chunkMarkdown, embedText, processFile };
+module.exports = { walkRepo, chunkJavaScript, chunkMarkdown, chunkJsonl, embedText, processFile };
