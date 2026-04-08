@@ -1,0 +1,432 @@
+/**
+ * TradingLoop - Clean Rewrite
+ *
+ * Direction-agnostic. Broker-agnostic. No legacy filters.
+ * 
+ * FLOW:
+ *   1. Gather data (indicators, patterns, regime, orchestrator)
+ *   2. Check exits on active positions
+ *   3. Check entries (any direction, same logic)
+ *   4. Execute
+ *
+ * RULES:
+ *   - Direction is DATA, not a special case. Buy and sell use identical paths.
+ *   - Config is the ONLY source of truth. No hardcoded strings, no buried overrides.
+ *   - Exit decisions and entry decisions are INDEPENDENT. An exit does not block an entry.
+ *   - All actions flow through a single decision object to OrderExecutor.
+ *
+ * @module core/TradingLoop
+ */
+
+'use strict';
+
+const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('./CandleHelper');
+const { getInstance: getStateManager } = require('./StateManager');
+const { RegimeDetector } = require('./RegimeDetector');
+const FeatureExtractor = require('./FeatureExtractor');
+const FeatureFlagManager = require('./FeatureFlagManager');
+const TradingConfig = require('./TradingConfig');
+const { getInstance: getExitContractManager } = require('./ExitContractManager');
+const CandlePatternDetector = require('./CandlePatternDetector');
+const flagManager = FeatureFlagManager.getInstance();
+
+const candlePatternDetector = new CandlePatternDetector();
+const stateManager = getStateManager();
+const exitContractManager = getExitContractManager();
+
+class TradingLoop {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.analyzing = false;
+    console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
+  }
+
+  /**
+   * Main analysis loop. Called on every candle.
+   */
+  async analyzeAndTrade() {
+    // Concurrency guard — one analysis at a time
+    if (this.analyzing) return;
+    this.analyzing = true;
+
+    try {
+      await this._analyze();
+    } finally {
+      this.analyzing = false;
+    }
+  }
+
+  async _analyze() {
+    const { price } = this.ctx.marketData;
+
+    // ─── WARMUP CHECK ───
+    if (this.ctx.priceHistory.length < 15) return;
+
+    // ─── GATHER DATA ───
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel } = this._gatherData(price);
+
+    // ─── RUN ORCHESTRATOR ───
+    const orchResult = this.ctx.strategyOrchestrator.evaluate(
+      indicators, patterns, regime, this.ctx.priceHistory,
+      {
+        emaCrossoverSignal: this.ctx.runner?.emaCrossoverSignal || this.ctx.emaCrossoverSignal,
+        maDynamicSRSignal: this.ctx.runner?.maDynamicSRSignal || this.ctx.maDynamicSRSignal,
+        breakRetestSignal: this.ctx.runner?.breakRetestSignal || this.ctx.breakRetestSignal,
+        liquiditySweepSignal: this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal,
+        mtfAdapter: this.ctx.runner?.mtfAdapter || this.ctx.mtfAdapter,
+        tpoResult,
+        price,
+        fibLevels,
+        nearestFibLevel,
+        volumeProfile: this.ctx.runner?.volumeProfile || this.ctx.volumeProfile,
+      }
+    );
+
+    const tradingDirection = orchResult.direction; // 'buy', 'sell', or 'hold'
+    const confidence = orchResult.confidence / 100; // normalize to 0-1
+    const confidenceData = { totalConfidence: orchResult.confidence };
+
+    // ─── DIRECTION FILTER (configurable, not hardcoded) ───
+    const directionFilter = TradingConfig.get('pipeline.directionFilter') || 'both';
+    if (directionFilter === 'long_only' && tradingDirection === 'sell') {
+      console.log(`🚫 Direction filter: long_only — sell blocked`);
+      this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
+      return;
+    }
+    if (directionFilter === 'short_only' && tradingDirection === 'buy') {
+      console.log(`🚫 Direction filter: short_only — buy blocked`);
+      this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
+      return;
+    }
+
+    // ─── TRAI (async observer, non-blocking) ───
+    this._runTRAI(tradingDirection, orchResult, indicators, patterns, regime, price);
+
+    // ─── LOG ───
+    const cleanPrice = Math.round(price).toLocaleString();
+    console.log(`\n📊 $${cleanPrice} | Conf: ${orchResult.confidence.toFixed(0)}% | RSI: ${Math.round(indicators.rsi)} | ${indicators.trend} | ${regime.currentRegime || 'analyzing'}`);
+    console.log(`🔍 PRE-DECISION: direction=${tradingDirection}, conf=${orchResult.confidence.toFixed(1)}%`);
+
+    // ─── TPO OVERRIDE ───
+    let overrideSignal = null;
+    let signalSource = null;
+    let finalDirection = tradingDirection;
+
+    if (tpoResult?.signal?.highProbability) {
+      if (tpoResult.signal.strength > TradingConfig.get('confidence.tpoStrengthMin')) {
+        overrideSignal = tpoResult.signal;
+        signalSource = 'TPO';
+        finalDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DECISION ENGINE — Direction agnostic
+    // Step 1: Check exits on ALL active positions
+    // Step 2: Check if a new entry is valid
+    // Step 3: Execute whatever decision was made
+    // ═══════════════════════════════════════════════════════════════
+
+    const allTrades = stateManager.getAllTrades();
+    const activeTrades = allTrades.filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    const maxPositions = TradingConfig.get('positionSizing.maxPositions') || 3;
+    const minConfidence = this.ctx.config.minTradeConfidence;
+
+    let decision = { action: 'HOLD', confidence: orchResult.confidence };
+
+    // ─── STEP 1: EXIT CHECK ───
+    // Check each active position for exit conditions
+    // This is INDEPENDENT of entry signals
+    for (const activeTrade of activeTrades) {
+      exitContractManager.updateMaxProfit(activeTrade, price);
+
+      const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
+        indicators,
+        currentTime: this.ctx.marketData?.timestamp || Date.now(),
+        accountBalance: stateManager.get('balance'),
+        initialBalance: stateManager.get('initialBalance') || 10000,
+        currentPosition: stateManager.get('position'),
+        currentPrice: price
+      });
+
+      if (exitCheck.shouldExit) {
+        console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
+        // Determine correct exit action based on what we're closing
+        const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+        decision = {
+          action: isClosingShort ? 'COVER' : 'SELL',
+          direction: 'close',
+          confidence: exitCheck.confidence || 100,
+          exitReason: exitCheck.exitReason,
+          tradeId: activeTrade.id
+        };
+        break; // Exit one position per candle
+      }
+
+      // MaxProfitManager check
+      if (this.ctx.maxProfitManager?.state?.active) {
+        const profitResult = this.ctx.maxProfitManager.update(price, {
+          volatility: indicators.volatility || 0,
+          trend: indicators.trend || 'sideways',
+          volume: this.ctx.marketData?.volume || 0
+        });
+
+        if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
+          const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+          decision = {
+            action: isClosingShort ? 'COVER' : 'SELL',
+            direction: 'close',
+            confidence: orchResult.confidence,
+            exitSize: profitResult.exitSize,
+            exitReason: profitResult.reason
+          };
+          break;
+        }
+      }
+    }
+
+    // ─── STEP 2: ENTRY CHECK ───
+    // Only if no exit was triggered AND we have a directional signal
+    if (decision.action === 'HOLD' && finalDirection !== 'hold' && confidence >= minConfidence) {
+
+      // Same-direction stacking check
+      const hasPositionInDirection = activeTrades.some(t => {
+        if (finalDirection === 'buy') return t.direction === 'long' || t.action === 'BUY';
+        if (finalDirection === 'sell') return t.direction === 'short' || t.action === 'SELL_SHORT';
+        return false;
+      });
+
+      if (hasPositionInDirection) {
+        console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
+      } else if (activeTrades.length >= maxPositions) {
+        console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
+      } else {
+        // ─── RISK CHECK ───
+        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence);
+      }
+    }
+
+    // ─── ATTACH OVERRIDE LEVELS ───
+    if (overrideSignal && decision.action !== 'HOLD') {
+      decision.signalSource = signalSource;
+      decision.overrideSignal = overrideSignal;
+      if (overrideSignal.levels) {
+        decision.suggestedStopLoss = overrideSignal.levels.stopLoss || overrideSignal.stop;
+        decision.suggestedTakeProfit = overrideSignal.levels.takeProfit || overrideSignal.target1;
+      } else if (overrideSignal.stop && overrideSignal.target1) {
+        decision.suggestedStopLoss = overrideSignal.stop;
+        decision.suggestedTakeProfit = overrideSignal.target1;
+      }
+    }
+
+    // ─── STORE STATE ───
+    this.ctx.lastConfidence = confidenceData.totalConfidence;
+    this.ctx.lastDirection = finalDirection;
+
+    // ─── BROADCAST ───
+    this._broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence);
+
+    // ─── EXECUTE ───
+    if (decision.action !== 'HOLD') {
+      await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
+    }
+  }
+
+  /**
+   * Risk check + build decision — SAME LOGIC for buy and sell.
+   * The ONLY difference is the action string and direction label.
+   */
+  _checkRiskAndBuildDecision(direction, orchResult, minConfidence) {
+    // Map direction to action/label
+    const actionMap = {
+      buy:  { action: 'BUY',        direction: 'long'  },
+      sell: { action: 'SELL_SHORT',  direction: 'short' }
+    };
+    const mapped = actionMap[direction];
+    if (!mapped) return { action: 'HOLD', confidence: 0 };
+
+    if (this.ctx.riskManager) {
+      const riskCheck = this.ctx.riskManager.isTradingAllowed();
+      if (!riskCheck.allowed) {
+        console.log(`🛑 RISK BLOCK: ${riskCheck.reason} — ${mapped.direction} rejected`);
+        return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason };
+      }
+
+      const riskAssessment = this.ctx.riskManager.assessTradeRisk({
+        confidence: orchResult.confidence / 100,
+        direction
+      });
+
+      if (!riskAssessment.approved) {
+        console.log(`🛑 RISK BLOCK: ${riskAssessment.reason} — ${mapped.direction} rejected`);
+        return { action: 'HOLD', confidence: 0, blockReason: riskAssessment.reason };
+      }
+
+      console.log(`✅ ${mapped.action} DECISION: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
+      if (riskAssessment.riskLevel !== 'LOW') {
+        console.log(`   ⚠️ Risk level: ${riskAssessment.riskLevel} — ${riskAssessment.recommendation}`);
+      }
+
+      return {
+        action: mapped.action,
+        direction: mapped.direction,
+        confidence: orchResult.confidence,
+        riskLevel: riskAssessment.riskLevel,
+        riskRecommendation: riskAssessment.recommendation
+      };
+    }
+
+    // Fallback if no riskManager
+    console.log(`✅ ${mapped.action} DECISION: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
+    return {
+      action: mapped.action,
+      direction: mapped.direction,
+      confidence: orchResult.confidence
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DATA GATHERING — unchanged from original, just extracted
+  // ═══════════════════════════════════════════════════════════════
+
+  _gatherData(price) {
+    // Indicators
+    const dtoState = this.ctx.indicatorEngine.getSnapshot();
+    const indicators = dtoState.indicators;
+    indicators.ema12 = indicators.ema9 || price;
+    indicators.ema26 = indicators.ema21 || price;
+    indicators.volatility = indicators.atr || 0;
+    indicators.bbWidth = indicators.bb?.bandwidth || 0;
+    indicators.bollingerBands = indicators.bb;
+    indicators.trend = indicators.superTrendDirection || 'sideways';
+
+    // Patterns
+    const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
+      candles: this.ctx.priceHistory,
+      trend: indicators.trend,
+      macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
+      macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
+      rsi: indicators.rsi,
+      volume: this.ctx.marketData.volume || 0
+    });
+    const rawCandlePatterns = []; // Disabled — memoryPatterns only
+    const minPatternConf = TradingConfig.get('confidence.candlePatternMinConfidence') || 0.70;
+    const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
+    const patterns = [...candlePatterns, ...memoryPatterns];
+
+    // Record patterns for learning (skip in fast backtest)
+    if (patterns.length > 0 && !this.ctx.backtestFast) {
+      const telemetry = require('./Telemetry').getTelemetry();
+      patterns.forEach(pattern => {
+        const signature = pattern.signature || pattern.name || 'unknown_pattern';
+        if (!Array.isArray(pattern.features)) {
+          pattern.features = FeatureExtractor.extractArray({ indicators, candles: this.ctx.priceHistory });
+        }
+        telemetry.event('pattern_detected', { signature, confidence: pattern.confidence, price });
+      });
+    }
+    this.ctx.broadcastPatternAnalysis(patterns, indicators);
+
+    // Regime
+    const _regimeDetector = new RegimeDetector();
+    const regimeResult = _regimeDetector.detect(indicators, this.ctx.priceHistory);
+    const regime = {
+      currentRegime: regimeResult.regime || 'unknown',
+      confidence: regimeResult.confidence || 0,
+      parameters: regimeResult.details || {}
+    };
+    this.ctx.marketRegime = regime;
+
+    // Fibonacci
+    let fibLevels = null;
+    let nearestFibLevel = null;
+    if (this.ctx.fibonacciDetector && this.ctx.priceHistory.length >= 30) {
+      fibLevels = this.ctx.fibonacciDetector.update(this.ctx.priceHistory);
+      if (fibLevels) nearestFibLevel = this.ctx.fibonacciDetector.getNearestLevel(price);
+    }
+
+    // TPO
+    let tpoResult = null;
+    if (this.ctx.ogzTpo && this.ctx.priceHistory.length > 0) {
+      const latestCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+      tpoResult = this.ctx.ogzTpo.update({
+        o: _o(latestCandle), h: _h(latestCandle), l: _l(latestCandle), c: _c(latestCandle),
+        t: latestCandle.time || Date.now()
+      });
+      if (tpoResult?.signal) {
+        console.log(`\n🎯 OGZ TPO Signal: ${tpoResult.signal.action} (${tpoResult.signal.zone}) | Strength: ${(tpoResult.signal.strength * 100).toFixed(2)}%`);
+      }
+    }
+
+    return { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TRAI — async observer, non-blocking
+  // ═══════════════════════════════════════════════════════════════
+
+  _runTRAI(direction, orchResult, indicators, patterns, regime, price) {
+    const skipTRAI = this.ctx.config.enableBacktestMode && !this.ctx.traiEnableBacktest;
+    if (!this.ctx.trai || skipTRAI) return;
+
+    try {
+      this.ctx.trai.processDecision(
+        { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now() },
+        { volatility: indicators.volatility, trend: indicators.trend, volume: this.ctx.marketData.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position') }
+      ).then(d => { if (d?.id) this.ctx._lastTraiDecision = d; })
+       .catch(err => console.warn('⚠️ [TRAI] Error:', err.message));
+    } catch (e) {
+      console.error('⚠️ TRAI error:', e.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DASHBOARD BROADCAST
+  // ═══════════════════════════════════════════════════════════════
+
+  _broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData) {
+    this._broadcastDecision(price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0);
+  }
+
+  _broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
+    // Signal analysis broadcast
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
+      try {
+        const signals = orchResult?.signalBreakdown?.signals || [];
+        this.ctx.dashboardWs.send(JSON.stringify({
+          type: 'signal_analysis',
+          timestamp: Date.now(),
+          signal: {
+            direction: orchResult.direction,
+            confidence: orchResult.confidence,
+            reasons: orchResult.reasons || [],
+            meta: { signalsFired: signals.length, bullishCount: signals.filter(s => s.direction === 'buy').length, bearishCount: signals.filter(s => s.direction === 'sell').length },
+            signals
+          },
+          modules: {
+            orchestrator: orchResult ? { winner: orchResult.winnerStrategy, direction: orchResult.direction, confidence: orchResult.confidence, confluence: orchResult.confluence, sizingMultiplier: orchResult.sizingMultiplier } : null,
+            regime: { regime: regime?.currentRegime || 'unknown', confidence: regime?.confidence || 0 }
+          }
+        }));
+      } catch (e) { /* fail silently */ }
+    }
+
+    // Chain-of-thought broadcast
+    if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
+      try {
+        const reasoning = decision.action === 'HOLD'
+          ? `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${minConfidence}% minimum`
+          : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
+        this.ctx.dashboardWs.send(JSON.stringify({
+          type: 'bot_thinking',
+          timestamp: Date.now(),
+          message: reasoning,
+          confidence: decision.confidence,
+          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' }
+        }));
+      } catch (e) { /* fail silently */ }
+    }
+  }
+}
+
+module.exports = TradingLoop;
