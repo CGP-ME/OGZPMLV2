@@ -213,6 +213,47 @@ Ask me about any of these specifically and I'll give you the data!`;
     }
   }
 
+  /**
+   * Generate a response WITHOUT applying _cleanResponse() post-processing.
+   * Use this for structured output (tool calls, JSON, XML, code) where
+   * sentence-truncation heuristics would destroy valid content.
+   *
+   * Added 2026-04-08 to unblock mercury-bridge Layer 4 (ReAct loop).
+   * The default generateResponse() remains unchanged for TRAI chat mode.
+   */
+  async generateRawResponse(prompt, maxTokens = null) {
+    let tokens = maxTokens || this.maxTokens;
+
+    // Mercury-2 uses internal reasoning tokens (~50-100), so enforce higher minimum
+    if (this.providerName === 'mercury' && tokens < 400) {
+      tokens = 400;
+    }
+
+    const startTime = Date.now();
+
+    let responseText;
+
+    switch (this.provider.requestFormat) {
+      case 'anthropic':
+        responseText = await this._callAnthropic(prompt, tokens);
+        break;
+      case 'openai':
+        responseText = await this._callOpenAI(prompt, tokens);
+        break;
+      case 'ollama':
+        responseText = await this._callOllama(prompt, tokens);
+        break;
+      default:
+        throw new Error(`Unknown request format: ${this.provider.requestFormat}`);
+    }
+
+    const latency = Date.now() - startTime;
+    this.requestCount++;
+    this.totalLatency += latency;
+
+    return responseText || '';
+  }
+
   // ─── Provider-Specific Call Methods ────────────────────────────
 
   async _callAnthropic(prompt, maxTokens) {
