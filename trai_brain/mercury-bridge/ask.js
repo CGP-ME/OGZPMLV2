@@ -46,6 +46,8 @@ function parseArgs(argv) {
     showChunks: false,
     showHistory: false,
     agentic: false,
+    retrievalMode: null,   // semantic | hybrid | hybrid-classified
+    boostType: null,       // manual content_type boost (e.g. fix_history)
   };
   const positional = [];
 
@@ -64,6 +66,10 @@ function parseArgs(argv) {
       args.maxTokens = parseInt(arg.split('=')[1], 10);
     } else if (arg.startsWith('--max-iterations=')) {
       args.maxIterations = parseInt(arg.split('=')[1], 10);
+    } else if (arg.startsWith('--retrieval-mode=')) {
+      args.retrievalMode = arg.split('=')[1];
+    } else if (arg.startsWith('--boost-type=')) {
+      args.boostType = arg.split('=')[1];
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -130,7 +136,10 @@ async function runAgentic(query, opts) {
     }
 
     const queryEmbedding = await embedText(query);
-    const starterContext = await retrieveTopK(store, queryEmbedding, topK);
+    const starterContext = await retrieveTopK(store, queryEmbedding, topK, query, {
+      retrievalMode: opts.retrievalMode,
+      boostType: opts.boostType,
+    });
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Starter context: ${starterContext.length} chunks`);

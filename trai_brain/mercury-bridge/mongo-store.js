@@ -104,10 +104,12 @@ class MongoStore {
           file_path: 1,
           kind: 1,
           name: 1,
+          content_type: 1,
           start_line: 1,
           end_line: 1,
           embedding: 1,
-          // text omitted — too big to hold for all chunks
+          text: 1,
+          // text included for BM25 scoring in Layer 2 hybrid retrieval
         },
       }
     );

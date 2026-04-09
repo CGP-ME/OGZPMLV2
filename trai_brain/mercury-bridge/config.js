@@ -76,6 +76,25 @@ const MAX_CHUNK_CHARS = parseInt(process.env.MAX_CHUNK_CHARS || '6000', 10);  //
 // ─── Retrieval ────────────────────────────────────────────────
 const RETRIEVE_TOP_K = parseInt(process.env.RETRIEVE_TOP_K || '8', 10);
 
+// ─── Layer 2: Hybrid retrieval ────────────────────────────────
+// BM25 parameters (Robertson 1995 standard values)
+const BM25_K1 = parseFloat(process.env.BM25_K1 || '1.2');
+const BM25_B = parseFloat(process.env.BM25_B || '0.75');
+
+// Reciprocal Rank Fusion constant — controls how aggressively low-ranked
+// results are discounted. Standard value from Cormack et al. 2009.
+const RRF_K = parseInt(process.env.RRF_K || '60', 10);
+
+// How many candidates each scorer returns before RRF merge
+const HYBRID_CANDIDATE_POOL = parseInt(process.env.HYBRID_CANDIDATE_POOL || '50', 10);
+
+// Content-type boost multipliers applied to RRF score.
+const CONTENT_TYPE_BOOST_STRONG = parseFloat(process.env.CONTENT_TYPE_BOOST_STRONG || '1.5');
+const CONTENT_TYPE_BOOST_WEAK = parseFloat(process.env.CONTENT_TYPE_BOOST_WEAK || '1.2');
+
+// Feature flag — set to false to fall back to pure semantic search
+const HYBRID_ENABLED = (process.env.HYBRID_ENABLED || 'true').toLowerCase() !== 'false';
+
 // ─── Skip patterns ────────────────────────────────────────────
 // Directories and files excluded from indexing
 const SKIP_DIRS = new Set([
@@ -147,6 +166,13 @@ module.exports = {
   MAX_FILE_BYTES,
   MAX_CHUNK_CHARS,
   RETRIEVE_TOP_K,
+  BM25_K1,
+  BM25_B,
+  RRF_K,
+  HYBRID_CANDIDATE_POOL,
+  CONTENT_TYPE_BOOST_STRONG,
+  CONTENT_TYPE_BOOST_WEAK,
+  HYBRID_ENABLED,
   SKIP_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,
