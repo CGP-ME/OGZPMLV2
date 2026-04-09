@@ -104,8 +104,8 @@ async function runReactLoop(params) {
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
     userQuery,
     starterContext = [],
-    maxIterations = 10,
-    maxTokens = 2000,
+    maxIterations = parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10),
+    maxTokens = 7750,
     verbose = false,
   } = params;
 
@@ -138,8 +138,23 @@ async function runReactLoop(params) {
   messages.push({ role: 'user', content: userQuery });
 
   const history = [];
-  const SYNTHESIS_NUDGE_THRESHOLD = parseInt(process.env.SYNTHESIS_NUDGE_THRESHOLD || '6', 10);
-  let nudgeFired = false;
+
+  // Loop detection: track recent tool calls to catch Mercury repeating itself
+  const RECENT_WINDOW = 8;
+  const DUP_THRESHOLD = 3;
+  const recentToolHashes = [];
+
+  function hashToolCall(tc) {
+    return `${tc.function?.name}:${JSON.stringify(tc.function?.arguments || {})}`;
+  }
+
+  function detectLoop(toolCall) {
+    const hash = hashToolCall(toolCall);
+    recentToolHashes.push(hash);
+    if (recentToolHashes.length > RECENT_WINDOW) recentToolHashes.shift();
+    const count = recentToolHashes.filter(h => h === hash).length;
+    return count >= DUP_THRESHOLD;
+  }
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (verbose) {
@@ -147,26 +162,13 @@ async function runReactLoop(params) {
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
-    // Synthesis nudge: after N tool-calling iterations, tell Mercury to stop and answer
-    if (iteration === SYNTHESIS_NUDGE_THRESHOLD && !nudgeFired) {
-      nudgeFired = true;
-      messages.push({
-        role: 'user',
-        content: `You have gathered substantial evidence through ${iteration - 1} tool calls. Review what you have and provide your final answer now with file:line citations. If critical evidence is missing, name exactly what is missing and answer with the evidence you have. Do not call more tools unless absolutely necessary.`,
-      });
-      if (verbose) console.error(`[REACT] Synthesis nudge injected at iteration ${iteration}`);
-    }
-
-    // After synthesis nudge, force Mercury to answer (no more tool calls)
-    const effectiveToolChoice = nudgeFired ? 'none' : 'auto';
-
     let assistantMsg;
     try {
       assistantMsg = await callMercuryWithRetry(
         client,
         messages,
         tools,
-        { maxTokens, toolChoice: effectiveToolChoice },
+        { maxTokens, toolChoice: 'auto' },
         verbose
       );
     } catch (err) {
@@ -186,6 +188,20 @@ async function runReactLoop(params) {
 
     if (hasToolCalls) {
       if (verbose) console.error(`[REACT] Assistant requested ${assistantMsg.tool_calls.length} tool call(s)`);
+
+      // Loop detection: if Mercury is repeating the same exact tool call, break out
+      const loopDetected = assistantMsg.tool_calls.some(tc => detectLoop(tc));
+      if (loopDetected) {
+        if (verbose) console.error(`[REACT] Loop detected — Mercury is repeating tool calls. Forcing synthesis.`);
+        // Remove the assistant message with tool_calls (can't leave it dangling)
+        messages.pop();
+        // Add a synthesis-forcing user message
+        messages.push({
+          role: 'user',
+          content: 'You have been repeating the same tool calls. Stop searching and provide your final answer now using the evidence you have already gathered. Cite file:line for every claim.',
+        });
+        continue;
+      }
 
       for (const toolCall of assistantMsg.tool_calls) {
         const toolName = toolCall.function && toolCall.function.name;

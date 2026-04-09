@@ -28,6 +28,24 @@ const { spawnSync } = require('child_process');
 
 const config = require('./config');
 
+// ─── Ripgrep availability check ──────────────────────────────
+// Warn loudly if rg is not installed. Without ripgrep, the grep tool
+// falls back to a JS implementation with broken subdirectory glob matching
+// that silently returns 0 results for files in nested paths. This caused
+// an entire debugging session on 2026-04-08/09 before the root cause was
+// identified. Scream early, don't fail silently.
+const _rgCheck = spawnSync('which', ['rg'], { encoding: 'utf8' });
+if (_rgCheck.status !== 0) {
+  console.error('');
+  console.error('═══════════════════════════════════════════════════════════');
+  console.error('  WARNING: ripgrep (rg) not found on PATH');
+  console.error('  mercury-bridge grep tool will use SLOW JS FALLBACK');
+  console.error('  with BROKEN subdirectory glob matching!');
+  console.error('  Install: apt install ripgrep (Linux) or brew install ripgrep (Mac)');
+  console.error('═══════════════════════════════════════════════════════════');
+  console.error('');
+}
+
 // ─────────────────────────────────────────────────────────────
 // JS GREP FALLBACK
 // ─────────────────────────────────────────────────────────────

@@ -117,7 +117,7 @@ function usage() {
 
 async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
-  const maxIterations = opts.maxIterations || 10;
+  const maxIterations = opts.maxIterations || parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10);
   const maxTokens = opts.maxTokens || 2000;
 
   // Route the query unless caller has overridden
