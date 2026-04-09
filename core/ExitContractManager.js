@@ -116,27 +116,15 @@ class ExitContractManager {
     // Ensure trade has contract for checkers
     if (!trade.exitContract) trade.exitContract = contract;
 
-    // PRIORITY ORDER: StopLoss > TakeProfit > TrailingStop > MaxHold > Invalidation
+    // PRIORITY ORDER: StopLoss > MaxHold > Invalidation
+    // PATCH 2: TakeProfit + TrailingStop removed — MaxProfitManager owns profit-side exits.
+    // ECM is now safety-only: hard stop, account drawdown, strategy SL/BE, max hold timeout, invalidation.
 
-    // 1. Stop loss + universal circuit breakers
+    // 1. Stop loss + universal circuit breakers (hard stop, account drawdown, strategy SL with BE)
     const slResult = this.stopLossChecker.check(trade, currentPrice, pnlPercent, context);
     if (slResult.shouldExit) return slResult;
 
-    // 2. Take profit
-    const tpResult = this.takeProfitChecker.check(trade, pnlPercent);
-    if (tpResult.shouldExit) return tpResult;
-
-    // 3. Dynamic trailing stop (passes market context for ATR/trend-aware trailing)
-    const tsResult = this.trailingStopChecker.check(trade, pnlPercent, {
-      atr: context.indicators?.atr || 0,
-      price: currentPrice,
-      trend: context.indicators?.trend || context.indicators?.regime || 'sideways',
-      rsi: context.indicators?.rsi || 50,
-      nearestStructure: context.indicators?.nearestStructure || null
-    });
-    if (tsResult.shouldExit) return tsResult;
-
-    // 4. Max hold time
+    // 2. Max hold time (safety timeout)
     const mhResult = this.maxHoldChecker.check(trade, holdTimeMinutes, pnlPercent);
     if (mhResult.shouldExit) return mhResult;
 
