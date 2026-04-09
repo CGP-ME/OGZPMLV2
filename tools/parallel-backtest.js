@@ -305,6 +305,9 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       SKIP_CSV_EXPORT: 'true',
       // Disable dashboard WebSocket (no server on local PC = infinite reconnect loop)
       ENABLE_DASHBOARD: 'false',
+      // FIX 2026-04-09: Enable SMS in sweeps (was silent-killed by _applyPipelineToggles)
+      ENABLE_SMS: 'true',
+      SMS_VP_RTH_ONLY: 'true',
       // Disable Sentry (hooks every async op = massive overhead on 45K candles)
       SENTRY_DSN: '',
       NODE_ENV: 'test',
