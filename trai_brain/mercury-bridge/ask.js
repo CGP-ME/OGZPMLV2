@@ -33,6 +33,7 @@ const { ask } = require('./searcher');
 const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
+const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, ensureTraceIndexes } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
@@ -50,6 +51,7 @@ function parseArgs(argv) {
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
     boostType: null,       // manual content_type boost (e.g. fix_history)
     explainRoute: false,   // print routing decision and exit
+    explainTrace: false,   // print trace hint and exit
   };
   const positional = [];
 
@@ -74,6 +76,8 @@ function parseArgs(argv) {
       args.boostType = arg.split('=')[1];
     } else if (arg === '--explain-route') {
       args.explainRoute = true;
+    } else if (arg === '--explain-trace') {
+      args.explainTrace = true;
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -174,7 +178,22 @@ async function runAgentic(query, opts) {
       });
     }
 
-    // 2. Build the tool adapter with both repo access and mongo (for get_chunk)
+    // 2. Investigation trace memory — retrieve prior hint if available
+    await ensureTraceIndexes(store);
+    let traceHintText = null;
+    if (config.TRACE_MEMORY_ENABLED) {
+      const traceResult = await retrieveSimilarTrace({ store, query });
+      if (traceResult) {
+        traceHintText = formatTraceAsHint(traceResult);
+        if (verbose) {
+          console.log(`[MERCURY-BRIDGE] Prior trace hint found (similarity: ${traceResult.similarity.toFixed(2)}, ${traceResult.trace.iterations} iters)`);
+        }
+      } else if (verbose) {
+        console.log('[MERCURY-BRIDGE] No similar prior trace found');
+      }
+    }
+
+    // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
     const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
@@ -184,7 +203,7 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
     }
 
-    // 3. Initialize Mercury client for native tool calling
+    // 4. Initialize Mercury client for native tool calling
     const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
     const client = new PersistentLLMClient({ provider: 'mercury' });
     await client.initialize();
@@ -193,18 +212,42 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
     }
 
-    // 4. Run the loop with native tool calling
+    // 5. Run the loop with native tool calling
     const t0 = Date.now();
     const result = await runReactLoop({
       client,
       toolAdapter,
       userQuery: query,
       starterContext,
+      traceHint: traceHintText,
       maxIterations,
       maxTokens,
       verbose,
     });
     result.totalLatencyMs = Date.now() - t0;
+
+    // 6. Capture successful investigation trace
+    if (config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
+      const toolCallSequence = (result.history || []).map(h => ({
+        name: h.toolName,
+        args: h.toolArgs,
+        result_summary: JSON.stringify(h.toolResult || {}).slice(0, 500),
+      }));
+
+      await captureTrace({
+        store,
+        query,
+        toolCallSequence,
+        finalAnswer: result.answer,
+        metadata: {
+          iterations: result.iterations,
+          latencyMs: result.totalLatencyMs,
+          termination: result.termination,
+        },
+      });
+
+      if (verbose) console.log('[MERCURY-BRIDGE] Investigation trace captured');
+    }
 
     return result;
 
@@ -226,6 +269,25 @@ async function main() {
   }
 
   try {
+    // --explain-trace: print trace hint and exit
+    if (args.explainTrace) {
+      const store = new MongoStore();
+      await store.connect();
+      const traceResult = await retrieveSimilarTrace({ store, query: args.query });
+      if (traceResult) {
+        console.log(`Similarity: ${traceResult.similarity.toFixed(3)}`);
+        console.log(`Prior query: "${traceResult.trace.query}"`);
+        console.log(`Iterations: ${traceResult.trace.iterations}`);
+        console.log(`Tool calls: ${traceResult.trace.tool_call_sequence.length}`);
+        console.log('');
+        console.log(formatTraceAsHint(traceResult));
+      } else {
+        console.log('No similar prior trace found (threshold: ' + config.TRACE_SIMILARITY_THRESHOLD + ')');
+      }
+      await store.disconnect();
+      return;
+    }
+
     // --explain-route: print routing decision and exit
     if (args.explainRoute) {
       const route = routeQuery(args.query);

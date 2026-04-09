@@ -37,7 +37,15 @@ ANSWER FORMAT:
 - Lead with the direct answer to the user's question.
 - Cite file:line for every factual claim. Never invent paths or line numbers.
 - Do not recap your search process — the user cares about the answer, not the path you took.
-- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.`;
+- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.
+
+PRIOR INVESTIGATION HINTS:
+You may see a "PRIOR INVESTIGATION HINT" block in your context. This
+contains the tool-call sequence that successfully answered a SIMILAR
+query in the past. Treat it as a starting suggestion, not an answer:
+- If the prior sequence looks relevant, follow it as your opening strategy.
+- If irrelevant or the current question is meaningfully different, ignore it.
+- Never copy the prior final answer into your response.`;
 
 /**
  * Wrap generateWithTools with exponential backoff retry.
@@ -104,6 +112,7 @@ async function runReactLoop(params) {
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
     userQuery,
     starterContext = [],
+    traceHint = null,
     maxIterations = parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10),
     maxTokens = 7750,
     verbose = false,
@@ -132,6 +141,14 @@ async function runReactLoop(params) {
     messages.push({
       role: 'system',
       content: `Starter context from RAG retrieval (may or may not be relevant — trust tool results over this if they conflict):\n\n${contextText}`,
+    });
+  }
+
+  // Investigation trace hint: inject prior successful path as bias
+  if (traceHint) {
+    messages.push({
+      role: 'system',
+      content: traceHint,
     });
   }
 

@@ -95,6 +95,10 @@ const CONTENT_TYPE_BOOST_WEAK = parseFloat(process.env.CONTENT_TYPE_BOOST_WEAK |
 // Feature flag — set to false to fall back to pure semantic search
 const HYBRID_ENABLED = (process.env.HYBRID_ENABLED || 'true').toLowerCase() !== 'false';
 
+// ─── Investigation trace memory ──────────────────────────────
+const TRACE_SIMILARITY_THRESHOLD = parseFloat(process.env.TRACE_SIMILARITY_THRESHOLD || '0.75');
+const TRACE_MEMORY_ENABLED = process.env.TRACE_MEMORY_ENABLED !== 'false';
+
 // ─── Skip patterns ────────────────────────────────────────────
 // Directories and files excluded from indexing
 const SKIP_DIRS = new Set([
@@ -173,6 +177,8 @@ module.exports = {
   CONTENT_TYPE_BOOST_STRONG,
   CONTENT_TYPE_BOOST_WEAK,
   HYBRID_ENABLED,
+  TRACE_SIMILARITY_THRESHOLD,
+  TRACE_MEMORY_ENABLED,
   SKIP_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,
