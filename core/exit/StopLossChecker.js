@@ -47,8 +47,10 @@ class StopLossChecker {
     // Account drawdown check (controlled by config injection, not process.env)
     const drawdownEnabled = !this.universalLimits.accountDrawdownBypass;
     if (drawdownEnabled && context.accountBalance && context.initialBalance) {
-      const positionValue = Math.abs(context.currentPosition || 0);
-      const totalEquity = context.accountBalance + positionValue;
+      // FIX 2026-04-09: accountBalance already represents total equity
+      // Backtest: backtestRecorder.balance (includes all P&L)
+      // Live: stateManager.getEquity() (initialBalance + realizedPnL + unrealizedPnL)
+      const totalEquity = context.accountBalance;
       const accountDrawdown = ((totalEquity - context.initialBalance) / context.initialBalance) * 100;
       if (accountDrawdown <= this.universalLimits.accountDrawdownPercent) {
         return {
