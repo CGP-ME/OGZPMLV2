@@ -32,6 +32,7 @@ const config = require('./config');
 const { ask } = require('./searcher');
 const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
+const { routeQuery } = require('./query-router');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
@@ -48,6 +49,7 @@ function parseArgs(argv) {
     agentic: false,
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
     boostType: null,       // manual content_type boost (e.g. fix_history)
+    explainRoute: false,   // print routing decision and exit
   };
   const positional = [];
 
@@ -70,6 +72,8 @@ function parseArgs(argv) {
       args.retrievalMode = arg.split('=')[1];
     } else if (arg.startsWith('--boost-type=')) {
       args.boostType = arg.split('=')[1];
+    } else if (arg === '--explain-route') {
+      args.explainRoute = true;
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -113,9 +117,23 @@ function usage() {
 
 async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
-  const topK = opts.topK != null ? opts.topK : config.RETRIEVE_TOP_K;
   const maxIterations = opts.maxIterations || 10;
   const maxTokens = opts.maxTokens || 2000;
+
+  // Route the query unless caller has overridden
+  const route = routeQuery(query);
+  const mode = opts.retrievalMode || route.mode;
+  const boostType = opts.boostType != null ? opts.boostType : route.boostType;
+
+  // Starter context policy: respect --top-k if caller set it, otherwise route decides
+  let topK;
+  if (opts.topK != null) {
+    topK = opts.topK;
+  } else if (route.starterContextPolicy === 'skip') {
+    topK = 0;
+  } else {
+    topK = config.RETRIEVE_TOP_K;
+  }
 
   // 1. Retrieve starter context from the existing indexed corpus
   const store = new MongoStore();
@@ -132,14 +150,21 @@ async function runAgentic(query, opts) {
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Index contains ${health.chunkCount} chunks`);
-      console.log('[MERCURY-BRIDGE] Embedding query for starter context...');
+      console.log(`[MERCURY-BRIDGE] Query router: type=${route.queryType} mode=${mode} boost=${boostType || 'none'} top-k=${topK}`);
+      console.log(`[MERCURY-BRIDGE] Rationale: ${route.rationale}`);
     }
 
-    const queryEmbedding = await embedText(query);
-    const starterContext = await retrieveTopK(store, queryEmbedding, topK, query, {
-      retrievalMode: opts.retrievalMode,
-      boostType: opts.boostType,
-    });
+    let starterContext = [];
+    if (topK > 0) {
+      if (verbose) console.log('[MERCURY-BRIDGE] Embedding query for starter context...');
+      const queryEmbedding = await embedText(query);
+      starterContext = await retrieveTopK(store, queryEmbedding, topK, query, {
+        retrievalMode: mode,
+        boostType: boostType,
+      });
+    } else {
+      if (verbose) console.log('[MERCURY-BRIDGE] Starter context: skipped (router policy=skip)');
+    }
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Starter context: ${starterContext.length} chunks`);
@@ -201,6 +226,13 @@ async function main() {
   }
 
   try {
+    // --explain-route: print routing decision and exit
+    if (args.explainRoute) {
+      const route = routeQuery(args.query);
+      console.log(JSON.stringify(route, null, 2));
+      return;
+    }
+
     if (args.agentic) {
       // Agentic mode — ReAct loop with tool access
       const result = await runAgentic(args.query, args);

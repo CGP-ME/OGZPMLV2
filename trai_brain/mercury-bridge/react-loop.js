@@ -23,17 +23,21 @@
 
 const DEFAULT_SYSTEM_PROMPT = `You are a code review and architecture assistant for the OGZPrime algorithmic trading platform, a Node.js codebase.
 
-Your job is to answer the user's question about the codebase accurately, with file:line citations for every factual claim, using the tools provided.
+Your job is to answer the user's question accurately with file:line citations, using the tools provided.
 
-You can iteratively call tools to search the repo, open files, and verify ground truth. Starter context (if provided) comes from initial RAG retrieval and may surface documentation instead of actual code. Trust tool results over starter context when they disagree.
+You have access to tools (grep, open_file, get_chunk, list_files) for gathering evidence from the codebase. Use them deliberately, not exhaustively.
 
-Core principles:
-1. Accuracy over speed. Use tools to verify before stating.
-2. Cite file:line for every factual claim. Never invent paths or line numbers.
-3. Before citing a specific line in your final answer, open a narrow range (5-10 lines) around that line with open_file to confirm the claim is in the visible text. Do not cite from grep snippets alone.
-4. If tool results contradict each other, surface the contradiction.
-5. If you cannot find an answer after reasonable tool use, say so plainly. Do not confabulate.
-6. Be terse in your final answer. Lead with the conclusion, then show the evidence.`;
+STOPPING DISCIPLINE:
+- Tools are for gathering evidence you don't already have, NOT for cross-checking evidence you already gathered.
+- After each tool call, ask yourself: "Do I now have enough to answer the user's question with specific file:line citations?" If yes, STOP CALLING TOOLS and write your final answer immediately.
+- If starter context already contains a direct answer (e.g. a fix_history record for a historical bug query), cite it and answer. Do not re-verify via tools unless starter context is clearly insufficient.
+- Budget: aim to answer within 4-6 tool calls. If you are on call 7+, you should be synthesizing, not searching.
+
+ANSWER FORMAT:
+- Lead with the direct answer to the user's question.
+- Cite file:line for every factual claim. Never invent paths or line numbers.
+- Do not recap your search process — the user cares about the answer, not the path you took.
+- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.`;
 
 /**
  * Wrap generateWithTools with exponential backoff retry.
@@ -134,6 +138,8 @@ async function runReactLoop(params) {
   messages.push({ role: 'user', content: userQuery });
 
   const history = [];
+  const SYNTHESIS_NUDGE_THRESHOLD = parseInt(process.env.SYNTHESIS_NUDGE_THRESHOLD || '6', 10);
+  let nudgeFired = false;
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (verbose) {
@@ -141,13 +147,26 @@ async function runReactLoop(params) {
       console.error(`[REACT] Message history: ${messages.length} messages`);
     }
 
+    // Synthesis nudge: after N tool-calling iterations, tell Mercury to stop and answer
+    if (iteration === SYNTHESIS_NUDGE_THRESHOLD && !nudgeFired) {
+      nudgeFired = true;
+      messages.push({
+        role: 'user',
+        content: `You have gathered substantial evidence through ${iteration - 1} tool calls. Review what you have and provide your final answer now with file:line citations. If critical evidence is missing, name exactly what is missing and answer with the evidence you have. Do not call more tools unless absolutely necessary.`,
+      });
+      if (verbose) console.error(`[REACT] Synthesis nudge injected at iteration ${iteration}`);
+    }
+
+    // After synthesis nudge, force Mercury to answer (no more tool calls)
+    const effectiveToolChoice = nudgeFired ? 'none' : 'auto';
+
     let assistantMsg;
     try {
       assistantMsg = await callMercuryWithRetry(
         client,
         messages,
         tools,
-        { maxTokens, toolChoice: 'auto' },
+        { maxTokens, toolChoice: effectiveToolChoice },
         verbose
       );
     } catch (err) {
