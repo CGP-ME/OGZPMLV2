@@ -96,8 +96,12 @@ const CONTENT_TYPE_BOOST_WEAK = parseFloat(process.env.CONTENT_TYPE_BOOST_WEAK |
 const HYBRID_ENABLED = (process.env.HYBRID_ENABLED || 'true').toLowerCase() !== 'false';
 
 // ─── Investigation trace memory ──────────────────────────────
-const TRACE_SIMILARITY_THRESHOLD = parseFloat(process.env.TRACE_SIMILARITY_THRESHOLD || '0.75');
 const TRACE_MEMORY_ENABLED = process.env.TRACE_MEMORY_ENABLED !== 'false';
+const TRACE_INJECT_THRESHOLD = parseFloat(process.env.TRACE_INJECT_THRESHOLD || '0.75');
+const TRACE_DEDUP_THRESHOLD = parseFloat(process.env.TRACE_DEDUP_THRESHOLD || '0.92');
+const TRACE_STALE_DAYS = parseInt(process.env.TRACE_STALE_DAYS || '30', 10);
+const TRACE_MAX_COUNT = parseInt(process.env.TRACE_MAX_COUNT || '10000', 10);
+const TRACE_PROTECTED_USAGE_COUNT = parseInt(process.env.TRACE_PROTECTED_USAGE_COUNT || '3', 10);
 
 // ─── Skip patterns ────────────────────────────────────────────
 // Directories and files excluded from indexing
@@ -177,8 +181,12 @@ module.exports = {
   CONTENT_TYPE_BOOST_STRONG,
   CONTENT_TYPE_BOOST_WEAK,
   HYBRID_ENABLED,
-  TRACE_SIMILARITY_THRESHOLD,
   TRACE_MEMORY_ENABLED,
+  TRACE_INJECT_THRESHOLD,
+  TRACE_DEDUP_THRESHOLD,
+  TRACE_STALE_DAYS,
+  TRACE_MAX_COUNT,
+  TRACE_PROTECTED_USAGE_COUNT,
   SKIP_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,

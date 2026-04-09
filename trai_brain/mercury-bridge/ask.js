@@ -33,7 +33,7 @@ const { ask } = require('./searcher');
 const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
-const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, ensureTraceIndexes } = require('./trace-memory');
+const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
@@ -52,6 +52,8 @@ function parseArgs(argv) {
     boostType: null,       // manual content_type boost (e.g. fix_history)
     explainRoute: false,   // print routing decision and exit
     explainTrace: false,   // print trace hint and exit
+    traceStats: false,     // dump trace stats and exit
+    pruneTraces: false,    // force eviction and exit
   };
   const positional = [];
 
@@ -78,6 +80,10 @@ function parseArgs(argv) {
       args.explainRoute = true;
     } else if (arg === '--explain-trace') {
       args.explainTrace = true;
+    } else if (arg === '--trace-stats') {
+      args.traceStats = true;
+    } else if (arg === '--prune-traces') {
+      args.pruneTraces = true;
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -179,14 +185,18 @@ async function runAgentic(query, opts) {
     }
 
     // 2. Investigation trace memory — retrieve prior hint if available
-    await ensureTraceIndexes(store);
     let traceHintText = null;
+    let traceUsed = null;
     if (config.TRACE_MEMORY_ENABLED) {
+      await ensureTraceIndexes(store);
+      await evictStaleTraces({ store, verbose });
+
       const traceResult = await retrieveSimilarTrace({ store, query });
       if (traceResult) {
         traceHintText = formatTraceAsHint(traceResult);
+        traceUsed = traceResult.trace;
         if (verbose) {
-          console.log(`[MERCURY-BRIDGE] Prior trace hint found (similarity: ${traceResult.similarity.toFixed(2)}, ${traceResult.trace.iterations} iters)`);
+          console.log(`[MERCURY-BRIDGE] Prior trace hint found (similarity: ${traceResult.similarity.toFixed(2)}, ${traceResult.trace.iterations} iters, used ${traceResult.trace.usage_count}x)`);
         }
       } else if (verbose) {
         console.log('[MERCURY-BRIDGE] No similar prior trace found');
@@ -226,7 +236,12 @@ async function runAgentic(query, opts) {
     });
     result.totalLatencyMs = Date.now() - t0;
 
-    // 6. Capture successful investigation trace
+    // 6. Mark trace as used if we injected one
+    if (traceUsed && result.termination === 'answer_given') {
+      await markTraceUsed({ store, traceId: traceUsed._id });
+    }
+
+    // 7. Capture successful investigation trace (with dedup + quality)
     if (config.TRACE_MEMORY_ENABLED && result.termination === 'answer_given') {
       const toolCallSequence = (result.history || []).map(h => ({
         name: h.toolName,
@@ -234,7 +249,7 @@ async function runAgentic(query, opts) {
         result_summary: JSON.stringify(h.toolResult || {}).slice(0, 500),
       }));
 
-      await captureTrace({
+      const captureResult = await captureTrace({
         store,
         query,
         toolCallSequence,
@@ -246,7 +261,13 @@ async function runAgentic(query, opts) {
         },
       });
 
-      if (verbose) console.log('[MERCURY-BRIDGE] Investigation trace captured');
+      if (verbose) {
+        if (captureResult.captured) {
+          console.log(`[MERCURY-BRIDGE] Trace ${captureResult.action} (quality=${(captureResult.new_quality || captureResult.quality || 0).toFixed(1)})`);
+        } else {
+          console.log(`[MERCURY-BRIDGE] Trace not captured: ${captureResult.reason || captureResult.action}`);
+        }
+      }
     }
 
     return result;
@@ -263,6 +284,37 @@ async function runAgentic(query, opts) {
 async function main() {
   const args = parseArgs(process.argv);
 
+  // Flags that don't require a query
+  try {
+    if (args.traceStats) {
+      const store = new MongoStore();
+      await store.connect();
+      await ensureTraceIndexes(store);
+      const stats = await getTraceStats(store);
+      console.log('Trace memory stats:');
+      console.log(`  total:       ${stats.total}`);
+      console.log(`  used:        ${stats.used}`);
+      console.log(`  protected:   ${stats.protected}`);
+      console.log(`  unused:      ${stats.unused}`);
+      console.log(`  avg quality: ${stats.avg_quality.toFixed(2)}`);
+      await store.disconnect();
+      return;
+    }
+
+    if (args.pruneTraces) {
+      const store = new MongoStore();
+      await store.connect();
+      await ensureTraceIndexes(store);
+      const result = await evictStaleTraces({ store, verbose: true });
+      console.log(`Eviction result: ${JSON.stringify(result)}`);
+      await store.disconnect();
+      return;
+    }
+  } catch (err) {
+    console.error('Error:', err.message);
+    process.exit(1);
+  }
+
   if (!args.query) {
     usage();
     process.exit(1);
@@ -273,16 +325,19 @@ async function main() {
     if (args.explainTrace) {
       const store = new MongoStore();
       await store.connect();
+      await ensureTraceIndexes(store);
       const traceResult = await retrieveSimilarTrace({ store, query: args.query });
       if (traceResult) {
         console.log(`Similarity: ${traceResult.similarity.toFixed(3)}`);
         console.log(`Prior query: "${traceResult.trace.query}"`);
         console.log(`Iterations: ${traceResult.trace.iterations}`);
+        console.log(`Quality: ${traceResult.trace.quality_score.toFixed(1)}`);
+        console.log(`Usage count: ${traceResult.trace.usage_count}`);
         console.log(`Tool calls: ${traceResult.trace.tool_call_sequence.length}`);
         console.log('');
         console.log(formatTraceAsHint(traceResult));
       } else {
-        console.log('No similar prior trace found (threshold: ' + config.TRACE_SIMILARITY_THRESHOLD + ')');
+        console.log('No similar prior trace found (threshold: ' + config.TRACE_INJECT_THRESHOLD + ')');
       }
       await store.disconnect();
       return;
