@@ -8,6 +8,14 @@
     let tvChart, candleSeries, volumeSeries, ghostSeries;
     let tpoLines = [], wallLines = [];
 
+    // Indicator overlay series
+    let ema20Series, ema50Series, ema200Series;
+    let bbUpperSeries, bbMiddleSeries, bbLowerSeries;
+    let vwapSeries, sma20Series, sma50Series, sma200Series;
+    let rsiOverlaySeries, macdLineSeries, macdSignalSeries, atrSeries;
+    let activeOverlays = [];
+    let storedCandles = []; // For recalculating indicators from historical data
+
     const Chart = {
         init: function() {
             const container = document.getElementById('tvChartContainer');
@@ -49,6 +57,25 @@
                 lineStyle: 3,
                 priceLineVisible: false
             });
+
+            // Indicator overlay series
+            ema20Series = tvChart.addLineSeries({ color: '#ffcc00', lineWidth: 1, visible: false, title: 'EMA20', lastValueVisible: false, priceLineVisible: false });
+            ema50Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'EMA50', lastValueVisible: false, priceLineVisible: false });
+            ema200Series = tvChart.addLineSeries({ color: '#ff8800', lineWidth: 2, visible: false, title: 'EMA200', lastValueVisible: false, priceLineVisible: false });
+            bbUpperSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.4)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
+            bbMiddleSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.6)', lineWidth: 1, visible: false, lastValueVisible: false, priceLineVisible: false });
+            bbLowerSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.4)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
+            vwapSeries = tvChart.addLineSeries({ color: '#ff00ff', lineWidth: 2, visible: false, lastValueVisible: false, priceLineVisible: false });
+            sma20Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'SMA20', lastValueVisible: false, priceLineVisible: false });
+            sma50Series = tvChart.addLineSeries({ color: '#0088ff', lineWidth: 1, visible: false, title: 'SMA50', lastValueVisible: false, priceLineVisible: false });
+            sma200Series = tvChart.addLineSeries({ color: '#0044cc', lineWidth: 2, visible: false, title: 'SMA200', lastValueVisible: false, priceLineVisible: false });
+            rsiOverlaySeries = tvChart.addLineSeries({ color: '#ff0066', lineWidth: 1.5, visible: false, title: 'RSI', priceScaleId: 'rsi', priceFormat: { type: 'custom', formatter: v => v.toFixed(0) }, lastValueVisible: false, priceLineVisible: false });
+            tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
+            macdLineSeries = tvChart.addLineSeries({ color: '#6600ff', lineWidth: 1.5, visible: false, title: 'MACD', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
+            macdSignalSeries = tvChart.addLineSeries({ color: '#ff6600', lineWidth: 1, visible: false, title: 'Signal', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
+            tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
+            atrSeries = tvChart.addLineSeries({ color: '#ff9800', lineWidth: 1, visible: false, title: 'ATR', priceScaleId: 'atr', lastValueVisible: false, priceLineVisible: false });
+            tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
 
             // Flicker Fix: maintain live price display during crosshair hover
             tvChart.subscribeCrosshairMove(param => {
@@ -153,14 +180,14 @@
                 console.log('[Chart] Timeframe:', e.target.value);
             });
 
-            // Indicator checkboxes
+            // Indicator checkboxes — toggle visibility + recalculate from stored candles
             document.querySelectorAll('#indicatorCheckboxes input[type="checkbox"]').forEach(chk => {
                 chk.addEventListener('change', () => {
-                    const active = [];
-                    document.querySelectorAll('#indicatorCheckboxes input:checked').forEach(c => active.push(c.value));
-                    const socket = OGZ.get('Socket');
-                    if (socket) socket.send({ type: 'indicator_selection', indicators: active });
-                    console.log('[Chart] Indicators:', active);
+                    activeOverlays = [];
+                    document.querySelectorAll('#indicatorCheckboxes input:checked').forEach(c => activeOverlays.push(c.value));
+                    this.toggleIndicators(activeOverlays);
+                    if (storedCandles.length > 0) this.calculateIndicators(storedCandles);
+                    console.log('[Chart] Indicators:', activeOverlays);
                 });
             });
 
@@ -171,6 +198,73 @@
                 document.body.className = `tier-${e.target.value}`;
                 console.log('[Chart] Tier:', e.target.value);
             });
+        },
+
+        toggleIndicators: function(active) {
+            ema20Series.applyOptions({ visible: active.includes('ema') });
+            ema50Series.applyOptions({ visible: active.includes('ema') });
+            ema200Series.applyOptions({ visible: active.includes('ema') });
+            bbUpperSeries.applyOptions({ visible: active.includes('bollinger') });
+            bbMiddleSeries.applyOptions({ visible: active.includes('bollinger') });
+            bbLowerSeries.applyOptions({ visible: active.includes('bollinger') });
+            vwapSeries.applyOptions({ visible: active.includes('vwap') });
+            sma20Series.applyOptions({ visible: active.includes('sma') });
+            sma50Series.applyOptions({ visible: active.includes('sma') });
+            sma200Series.applyOptions({ visible: active.includes('sma') });
+            rsiOverlaySeries.applyOptions({ visible: active.includes('rsi') });
+            macdLineSeries.applyOptions({ visible: active.includes('macd') });
+            macdSignalSeries.applyOptions({ visible: active.includes('macd') });
+            atrSeries.applyOptions({ visible: active.includes('atr') });
+        },
+
+        calculateIndicators: function(candles) {
+            if (!candles || candles.length < 30) return;
+            const Ind = OGZ.get('Indicators');
+            if (!Ind) return;
+
+            const closes = candles.map(c => c.close);
+            const times = candles.map(c => c.time);
+            const mapSeries = (values) => values.map((v, i) => v != null ? { time: times[i], value: v } : null).filter(Boolean);
+
+            try {
+                // EMAs
+                const ema20 = Ind.calculateEMA(closes, 20);
+                const ema50 = Ind.calculateEMA(closes, 50);
+                const ema200 = Ind.calculateEMA(closes, 200);
+                ema20Series.setData(mapSeries(ema20));
+                ema50Series.setData(mapSeries(ema50));
+                ema200Series.setData(mapSeries(ema200));
+
+                // SMAs
+                const sma20 = Ind.calculateSMA(closes, 20);
+                const sma50 = Ind.calculateSMA(closes, 50);
+                const sma200 = Ind.calculateSMA(closes, 200);
+                sma20Series.setData(mapSeries(sma20));
+                sma50Series.setData(mapSeries(sma50));
+                sma200Series.setData(mapSeries(sma200));
+
+                // Bollinger Bands
+                const bb = Ind.calculateBollinger(closes, 20, 2);
+                bbUpperSeries.setData(mapSeries(bb.upper));
+                bbMiddleSeries.setData(mapSeries(bb.middle));
+                bbLowerSeries.setData(mapSeries(bb.lower));
+
+                // VWAP
+                const vwap = Ind.calculateVWAP(candles);
+                vwapSeries.setData(mapSeries(vwap));
+
+                // RSI
+                const rsi = Ind.calculateRSI(closes, 14);
+                rsiOverlaySeries.setData(mapSeries(rsi));
+
+                // ATR
+                const atr = Ind.calculateATR(candles, 14);
+                atrSeries.setData(mapSeries(atr));
+
+                console.log('[Chart] Indicators calculated for', candles.length, 'candles');
+            } catch (e) {
+                console.error('[Chart] Indicator calc error:', e.message);
+            }
         },
 
         clearAll: function() {
@@ -292,8 +386,13 @@
                     })));
                 }
 
-                // Scroll to most recent candles — do NOT use fitContent()
-                // fitContent() includes volume range which crushes candle Y-axis
+                // Store for indicator recalculation
+                storedCandles = formatted;
+
+                // Auto-calculate indicators if any are active
+                if (activeOverlays.length > 0) this.calculateIndicators(formatted);
+
+                // Scroll to most recent candles
                 if (tvChart) tvChart.timeScale().scrollToRealTime();
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
