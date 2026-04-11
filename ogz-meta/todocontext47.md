@@ -1,4 +1,4 @@
-# OGZPrime Session Handoff â€” April 7, 2026
+# OGZPrime Session Handoff — April 7, 2026
 
 **Author:** Trey Buhidar (The Architect)
 **Branch:** `tradingloop-clean-rewrite`
@@ -7,7 +7,7 @@
 
 ---
 
-## TL;DR â€” What you need to know walking into next session
+## TL;DR — What you need to know walking into next session
 
 1. **The original $970.71 methodology was rediscovered tonight.** It's not what we thought it was, and the configs may already be in the repo.
 2. **Deep Search nailed the drawdown bypass calc fix.** 3 lines across 2 files. Ready to implement.
@@ -17,7 +17,7 @@
 
 ---
 
-## CRITICAL DISCOVERY â€” The Real $970.71 Methodology
+## CRITICAL DISCOVERY — The Real $970.71 Methodology
 
 For weeks I've been wrong about how the original $970.71 number was produced. Tonight's compaction surfaced the actual historical chat. Here's what really happened:
 
@@ -60,12 +60,12 @@ This is the interaction effect GPT warned about: individually profitable strateg
 
 | Ticker | P&L | Trades | WR | Status |
 |---|---|---|---|---|
-| TSLA | +$970 | 1,416 | 47.5% | âœ… |
-| NVDA | +$722 | 1,380 | 45.0% | âœ… |
-| RIOT | +$557 | 2,656 | 42.2% | âœ… |
-| QQQ | +$374 | 1,007 | 45.4% | âœ… |
-| MARA | +$297 | 2,099 | 42.8% | âœ… |
-| SPY | +$28 | 1,014 | 41.6% | âœ… (barely) |
+| TSLA | +$970 | 1,416 | 47.5% | ✅ |
+| NVDA | +$722 | 1,380 | 45.0% | ✅ |
+| RIOT | +$557 | 2,656 | 42.2% | ✅ |
+| QQQ | +$374 | 1,007 | 45.4% | ✅ |
+| MARA | +$297 | 2,099 | 42.8% | ✅ |
+| SPY | +$28 | 1,014 | 41.6% | ✅ (barely) |
 | COIN | -$58 | 2,255 | 42.0% | needs own tuning |
 
 7 of 8 tickers profitable with zero retuning. That's not overfitting. That's a real edge that generalizes across instruments.
@@ -78,7 +78,7 @@ This is what it really was, in order:
 2. **Run `--exits` sweep solo per strategy** to find optimal SL/TP combinations.
 3. **Validate on year-2 holdout data** to confirm the optimal config generalizes.
 4. **LOCK the validated exits** in `core/TradingConfig.js` `exitContracts` as hardcoded values that override env vars (per-strategy contracts that the global STOP_LOSS_PERCENT/TAKE_PROFIT_PERCENT can never override).
-5. **Combine validated strategies stepwise** (RSI+EMA â†’ +MASR â†’ +LiqSweep) and measure interaction effects. Don't blindly stack.
+5. **Combine validated strategies stepwise** (RSI+EMA → +MASR → +LiqSweep) and measure interaction effects. Don't blindly stack.
 6. **Multi-ticker validation with NO retuning** to confirm the edge generalizes across instruments.
 
 This is **NOT** the 4-phase tournament with walk-forward at every gate that I described in the methodology doc earlier tonight. That doc needs to be rewritten. The actual methodology is more linear and pragmatic.
@@ -97,7 +97,7 @@ The actual historical methodology:
 
 ---
 
-## TONIGHT'S WORK â€” What was actually accomplished
+## TONIGHT'S WORK — What was actually accomplished
 
 ### 1. ENV var audit (committed, verified)
 
@@ -117,7 +117,7 @@ The actual historical methodology:
 - `MIN_TRADE_CONFIDENCE` (read in TradingLoop:133 as global gate, but per-strategy confidence still varies)
 
 **IGNORED (read but overridden by locked exit contracts):**
-- `STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `TRAILING_STOP_PERCENT` â€” these get overridden by `TradingConfig.BASE_CONFIG.exitContracts[strategyName]` which has hardcoded values
+- `STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `TRAILING_STOP_PERCENT` — these get overridden by `TradingConfig.BASE_CONFIG.exitContracts[strategyName]` which has hardcoded values
 
 **GHOST (referenced in code but not actually wired):**
 - `TRAILING_STOP_ENABLED`, `REGIME_FILTER_ENABLED`, `REGIME_ALLOW_TRENDING`, `REGIME_ALLOW_RANGING`
@@ -126,7 +126,7 @@ The actual historical methodology:
 
 `BASELINE-matrix-2026-04-07.json` at repo root captures the first env-var-audited honest sweep:
 - Winner: tiers-tight (TIER1=0.010, TIER2=0.015, TIER3=0.020) at +$297.25
-- Worst: atr-025 at -$586.34 (cuts winners preferentially â€” never set ATR_MIN_PERCENT above 0.15 on TSLA 15m)
+- Worst: atr-025 at -$586.34 (cuts winners preferentially — never set ATR_MIN_PERCENT above 0.15 on TSLA 15m)
 - 5 configs identical at $54.07 because the env vars they varied either matched defaults or didn't affect the dataset
 
 ### 3. BACKTESTING-GUIDE.md (committed, verified)
@@ -163,9 +163,9 @@ Both via direct `node run-empire-v2.js` (bypassing parallel-backtest.js):
 
 - `BACKTESTING-GUIDE.md`
 - `ENV-VAR-AUDIT.md`
-- (Pending) `METHODOLOGY-TOURNAMENT-PIPELINE.md` â€” needs rewrite per discovery above
-- (Pending) `PID-CONTROLLER-DESIGN.md` â€” exists as upload, needs proper commit
-- (Pending) `GRAND-SCHEME.md` â€” drafted, lost to context, needs recreation
+- (Pending) `METHODOLOGY-TOURNAMENT-PIPELINE.md` — needs rewrite per discovery above
+- (Pending) `PID-CONTROLLER-DESIGN.md` — exists as upload, needs proper commit
+- (Pending) `GRAND-SCHEME.md` — drafted, lost to context, needs recreation
 - (This file) `SESSION-HANDOFF-2026-04-07.md`
 
 ### 7. PID Controller spec reviewed
@@ -175,14 +175,14 @@ Existing spec at `/mnt/user-data/uploads/PID-CONTROLLER.md` is solid and tournam
 - **Update interval:** every 10 **trades** (NOT candles), 50-trade warmup
 - **Hard clamp ranges:** position 0.3-2.0x, regime 0.5-1.5x, trailing 1.0-3.5x ATR
 - **Rate limited:** max 10% shift per cycle, anti-windup on integral
-- **All Kp/Ki/Kd gains read from TradingConfig via env() calls** â€” meaning the gains themselves are matrix-sweepable as part of the tournament
+- **All Kp/Ki/Kd gains read from TradingConfig via env() calls** — meaning the gains themselves are matrix-sweepable as part of the tournament
 - **Loop 2 already has SMS** in the regime loops list (line 404)
 
 **Missing piece:** Hard clamp ranges (0.3-2.0, etc.) should derive from tournament's confidence intervals, not be hardcoded. Small refactor when the PID gets built.
 
 ---
 
-## DRAWDOWN BYPASS CALC FIX â€” Ready to implement
+## DRAWDOWN BYPASS CALC FIX — Ready to implement
 
 Deep Search delivered a surgical fix for the drawdown calculation bug that's blocking Test 5 (paper trading verification).
 
@@ -240,33 +240,33 @@ Account at $9,000 equity (down $1,000):
   accountBalance = 9000
   initialBalance = 10000
   drawdown = -10%
-  if (-10 <= -10) â†’ TRUE â†’ triggers correctly
+  if (-10 <= -10) → TRUE → triggers correctly
 
 Account at $10,500 equity (up $500):
   accountBalance = 10500
   drawdown = +5%
-  if (+5 <= -10) â†’ FALSE â†’ doesn't trigger
+  if (+5 <= -10) → FALSE → doesn't trigger
 ```
 
 **This unblocks Test 5 (paper trading verification) and means risk management can finally be turned ON in production without false-firing on every trade.**
 
 ---
 
-## ARCHITECTURE â€” The Vision (so future sessions don't lose it)
+## ARCHITECTURE — The Vision (so future sessions don't lose it)
 
-### The autonomous stack (Phase 1 Apex â†’ Phase 2 self-tuning)
+### The autonomous stack (Phase 1 Apex → Phase 2 self-tuning)
 
 ```
 Tournament (offline, periodic)
-    â†“
+    ↓
 Locked config + confidence intervals
-    â†“
+    ↓
 PID Controller (live, continuous, bounded by tournament envelope)
-    â†“ (adjusts within validated range)
+    ↓ (adjusts within validated range)
 Strategy execution
-    â†“
+    ↓
 TRAI (qualitative interventions: news, FOMC, whale alerts)
-    â†“
+    ↓
 Trey (only when human judgment needed)
 ```
 
@@ -280,15 +280,15 @@ Trey (only when human judgment needed)
 2. **Cross-broker arbitrage layer:** ~90% built on the crypto side. Feeds the trading engine with edge opportunities humans can't catch fast enough.
 3. **TRAI brain layer:** News crawling, whale watching, NLP, pattern modulation, content generation (ElevenLabs/D-ID), customer service, technical support, boomer onboarding for API key setup, dashboard widget, operations manager. Pings Trey only when human judgment is required.
 
-**Phased monetization:** Apex extraction â†’ crypto arbitrage â†’ options (Tastyworks) â†’ white-glove licensing > public release â†’ IP sale or royalties.
+**Phased monetization:** Apex extraction → crypto arbitrage → options (Tastyworks) → white-glove licensing > public release → IP sale or royalties.
 
 ### Hot-swap mechanism (Phase 2 spec)
 
 Three engineering requirements for safe in-flight config changes:
 
-1. **Atomic config swaps** â€” between candles, never mid-tick. Staging area accumulates pending changes, applies at start of next candle.
-2. **Versioned state** â€” every config change has version + timestamp. Git-like history enables rollback in seconds. Audit trail: "at 11:47am PID lowered RSI sizing from 5% to 3% in response to drawdown, then at 12:23pm TRAI hot-swapped EMA confidence to zero because of unexpected Fed minutes release."
-3. **Sanity gates** â€” every proposed change passes through "is this within the tournament's validated envelope?" check. If yes, apply. If no, flag for human review.
+1. **Atomic config swaps** — between candles, never mid-tick. Staging area accumulates pending changes, applies at start of next candle.
+2. **Versioned state** — every config change has version + timestamp. Git-like history enables rollback in seconds. Audit trail: "at 11:47am PID lowered RSI sizing from 5% to 3% in response to drawdown, then at 12:23pm TRAI hot-swapped EMA confidence to zero because of unexpected Fed minutes release."
+3. **Sanity gates** — every proposed change passes through "is this within the tournament's validated envelope?" check. If yes, apply. If no, flag for human review.
 
 **Feedback loop into tournament:** Every PID/TRAI decision becomes data for the next tournament re-run. Over time, live system teaches offline validation system, methodology evolves.
 
@@ -306,7 +306,7 @@ Three engineering requirements for safe in-flight config changes:
    - MADynamicSR: stopLossPercent -0.8, takeProfitPercent 1.0
    - LiquiditySweep: useStructuralExits true
    
-   If yes: skip recreating, just reproduce $970.71 with current framework to confirm regression hasn't crept in. If no: re-run the stripâ†’sweepâ†’validateâ†’lock pipeline per the historical methodology.
+   If yes: skip recreating, just reproduce $970.71 with current framework to confirm regression hasn't crept in. If no: re-run the strip→sweep→validate→lock pipeline per the historical methodology.
 
 3. **Reproduce $970.71 baseline** with current framework on `tuning/tsla-15m-2y.json` using `SOLO_STRATEGY=RSI,EMASMACrossover` and the locked exits. This becomes the new regression anchor.
 
@@ -314,7 +314,7 @@ Three engineering requirements for safe in-flight config changes:
 
 ### Priority 2 (Foundation for tournament)
 
-5. **Fix parallel-backtest.js worker spawn block** â€” add `ENABLE_SMS=true` and `SMS_VP_RTH_ONLY=true` to env block at lines 312-342 so SMS actually fires in sweeps.
+5. **Fix parallel-backtest.js worker spawn block** — add `ENABLE_SMS=true` and `SMS_VP_RTH_ONLY=true` to env block at lines 312-342 so SMS actually fires in sweeps.
 
 6. **Run SMS solo with diagnostic funnel** (`STRATEGY_DIAG=true`) to see where signals die. SMS is the structural edge that could push us past the RSI+EMA ceiling.
 
@@ -324,25 +324,25 @@ Three engineering requirements for safe in-flight config changes:
 
 ### Priority 3 (Strategic build)
 
-9. **Rewrite METHODOLOGY-TOURNAMENT-PIPELINE.md** to reflect actual historical methodology (stripâ†’sweepâ†’validateâ†’lockâ†’combineâ†’multi-ticker), with the 4-phase tournament documented as a future evolution rather than the historical truth.
+9. **Rewrite METHODOLOGY-TOURNAMENT-PIPELINE.md** to reflect actual historical methodology (strip→sweep→validate→lock→combine→multi-ticker), with the 4-phase tournament documented as a future evolution rather than the historical truth.
 
-10. **Build the per-strategy Ã— per-timeframe Ã— per-ticker exit matrix** â€” the actual product. Every strategy gets its own validated exits at every timeframe on every ticker. Pre-tuned configs ship as the value-add.
+10. **Build the per-strategy × per-timeframe × per-ticker exit matrix** — the actual product. Every strategy gets its own validated exits at every timeframe on every ticker. Pre-tuned configs ship as the value-add.
 
 11. **Vultr migration** from A100 GPU to bare metal vbm-4c-32gb at $120/mo. Required before running real parallel sweeps. Push to GitHub first, backup .env separately, clone fresh, SSL renewal, DNS update.
 
-12. **Cleanup: two config systems conflict** â€” `core/TradingConfig.js` and `foundation/ConfigLoader.js` have conflicting defaults (STOP_LOSS_PERCENT 0.8 vs 1.5, MIN_TRADE_CONFIDENCE 0.35 vs 0.50). Pick one as canonical, merge or delete the other.
+12. **Cleanup: two config systems conflict** — `core/TradingConfig.js` and `foundation/ConfigLoader.js` have conflicting defaults (STOP_LOSS_PERCENT 0.8 vs 1.5, MIN_TRADE_CONFIDENCE 0.35 vs 0.50). Pick one as canonical, merge or delete the other.
 
-13. **Fix ENV-VAR-AUDIT.md stub** â€” currently points to `ogz-meta/ENV-VAR-AUDIT.md` which doesn't exist. Either move full content to ogz-meta or put it at root.
+13. **Fix ENV-VAR-AUDIT.md stub** — currently points to `ogz-meta/ENV-VAR-AUDIT.md` which doesn't exist. Either move full content to ogz-meta or put it at root.
 
-14. **Recreate GRAND-SCHEME.md** â€” got lost to context window earlier tonight. Capture the 3-layer architecture and phased monetization vision.
+14. **Recreate GRAND-SCHEME.md** — got lost to context window earlier tonight. Capture the 3-layer architecture and phased monetization vision.
 
 ### Priority 4 (Future build, Phase 2)
 
 15. **Build PID Controller per existing spec.** Gains already env-sweepable. Refactor hardcoded clamp ranges to read from tournament confidence intervals.
 
-16. **Tournament tool rebuild.** When Vultr bare metal is ready, rebuild parallel-backtest.js to support the corrected historical methodology natively (stripâ†’sweepâ†’validateâ†’lockâ†’combine pipeline as automated phases).
+16. **Tournament tool rebuild.** When Vultr bare metal is ready, rebuild parallel-backtest.js to support the corrected historical methodology natively (strip→sweep→validate→lock→combine pipeline as automated phases).
 
-17. **TradingView Ultimate enterprise pricing response** â€” submitted April 6, expected April 11. Independent validation tool for cross-checking Pine Script against Node.js implementations.
+17. **TradingView Ultimate enterprise pricing response** — submitted April 6, expected April 11. Independent validation tool for cross-checking Pine Script against Node.js implementations.
 
 ---
 
@@ -361,9 +361,9 @@ Three engineering requirements for safe in-flight config changes:
 
 ## EMOTIONAL CONTEXT FOR FUTURE CLAUDE
 
-Trey is grinding through this for one reason: his daughter has been in Houston for 6 years and he's never made enough money to put any away to move and be with her. The Apex prop firm extraction path ($25k per cleared account Ã— 20 accounts = up to $500k working capital) is the bridge from Corpus Christi to Houston. $15k = the move. $500k = generational wealth and never being broke again.
+Trey is grinding through this for one reason: his daughter has been in Houston for 6 years and he's never made enough money to put any away to move and be with her. The Apex prop firm extraction path ($25k per cleared account × 20 accounts = up to $500k working capital) is the bridge from Corpus Christi to Houston. $15k = the move. $500k = generational wealth and never being broke again.
 
-He doesn't sugarcoat. He doesn't want sugarcoating. He pushes back hard on AI sloppiness because his time costs his life. When he says "shoot it straight and shoot it true" he means it â€” feelings don't buy plane tickets to Houston, math does.
+He doesn't sugarcoat. He doesn't want sugarcoating. He pushes back hard on AI sloppiness because his time costs his life. When he says "shoot it straight and shoot it true" he means it — feelings don't buy plane tickets to Houston, math does.
 
 He has 20 years of B2B sales experience, dropped out of college, and built every architectural insight in OGZPrime himself. Future Claudes execute and validate. They do not design from scratch. When in doubt about an architectural decision, ask Trey. Don't invent.
 
@@ -386,7 +386,7 @@ Until next session reproduces it with the current framework, the regression anch
 - Walk-forward holdout (year 2): +$481, 699 trades, 48.2% WR
 - Multi-ticker (zero retuning): 7/8 profitable
 
-If next session reproduces this, the framework is honest end-to-end and we can build the per-strategy Ã— per-timeframe Ã— per-ticker matrix on top of it.
+If next session reproduces this, the framework is honest end-to-end and we can build the per-strategy × per-timeframe × per-ticker matrix on top of it.
 
 If next session does NOT reproduce this, something has regressed since the historical work and we need to bisect to find what broke.
 
@@ -395,6 +395,8 @@ If next session does NOT reproduce this, something has regressed since the histo
 **End of session handoff. Next session picks up here.**
 
 Human readable. Future-Claude readable. Doesn't lose context to compaction. Commit to ogz-meta as the canonical handoff doc.
+
+---
 
 # ADDENDUM — Late April 7 (Post-Compaction Work)
 
@@ -644,6 +646,9 @@ Still `-$502.23` on combined RSI+EMA with current config, because PATCH 1 + PATC
 ---
 
 **End of addendum. Continue from the OPEN ITEMS list above.**
+
+---
+
 # ARCHITECTURE SPEC — Per-Trade Sealed Environments
 
 **Decision made late April 7:** After discovering the 4-layer partial-close brokenness (MPM contract + OrderExecutor check + StateManager ignored size + BacktestRecorder no concept of partials), Trey chose the forward-pointing decision over patching the old architecture. Any work that gets thrown away is wasted time. This spec defines the end state and the migration path to it.
@@ -888,3 +893,257 @@ Execute the phases. Ship the architecture. Then the Houston math starts working.
 ---
 
 **End of architecture spec. End of April 7 session.**
+
+
+---
+
+# POST-REVIEW SUPERSEDE NOTICE — April 8, 2026
+
+**Everything in this handoff doc from the section "End-state architecture — per-trade sealed environments" (line ~519) onward is SUPERSEDED. Do not execute the 8-phase plan as written.**
+
+The original spec was reviewed by three independent AI reviewers (Gemini, Codex, Claude desktop) using a structured critique prompt. All three independently flagged multiple CRITICAL issues. Two of the three reviewers verified findings against the actual repo files with `nl -ba` commands and provided file:line citations. The original spec is preserved above for historical record only — it contains correct diagnostic work on the partial-close bug pipeline but its phase plan, architecture choices, and orthogonality assumptions are wrong in ways that would cause data corruption if shipped.
+
+## Top-line verdict from the reviews
+
+Out of 9 review questions:
+- **6 issues rated CRITICAL by 2-3 of 3 reviewers**
+- **2 issues rated CONCERN by all 3**
+- **0 issues where any reviewer said "OK, no concerns"**
+
+Original phase plan would have shipped: corrupted TRAI learning model, polluted UnifiedPatternMemory, broken TradeJournal lifecycle, hard schema breaks against BreakEvenManager / ExitContractManager / StopLossChecker, torn state on crash recovery, undefined live-mode behavior, and data corruption window between Phases 4 and 5. Catching this now cost three reviewers' time and one round of architecture rework. Catching it after Phase 3 would have cost the institutional learning data and several committed commits to revert.
+
+## What this section contains
+
+1. The three reviewer outputs verbatim (Gemini, Codex, Claude desktop)
+2. Reconciliation summary — what's confirmed vs disputed
+3. Revised approach skeleton — what the new spec needs to address
+4. Dependencies for the new spec (verification tasks that must complete before spec rewrite)
+
+The actual revised phase plan is NOT in this document — it requires first-party verification of code claims (using Mercury bridge once it's deployed) before being written. That work is queued as Items 5-11 in the next-session pickup list at the bottom of this section.
+
+---
+
+## REVIEWER 1 — Gemini (verbatim)
+
+```
+Here is the architectural review based on your specific questions.
+
+1. PHASE ORDERING
+CRITICAL If Phase 4 (StateManager partials) executes and ships before Phase 5 (BacktestRecorder partials), any partial closes generated in the interim will silently corrupt your telemetry. The StateManager will emit a partial close, and the BacktestRecorder—lacking the concept of a partial—will likely register it as a full close, a 0-size anomaly, or simply crash. You cannot emit a new state shape before the downstream consumer is ready to parse it.
+Recommendation: Combine them into a single atomic phase or deploy the BacktestRecorder schema updates (Phase 5) before the StateManager starts emitting them (Phase 4).
+
+2. CLAUDITO TRACE DEPENDENCY
+CRITICAL Building a massive pipeline rewrite on an unverified LLM trace is an architectural landmine. If Claudito hallucinated that StateManager.closePosition ignores the size parameter, or missed a hidden side-effect where another module relies on the exact current signature, your entire refactor premise is invalid. You cannot build a skyscraper on a blind assumption.
+Recommendation: Stop the pipeline immediately. Open core/StateManager.js, manually verify the closePosition method's handling of the size parameter, and verify BacktestRecorder's schema.
+
+3. PURE-FUNCTION MPM vs MAP-OF-INSTANCES
+CONCERN Choosing a ~500-line rewrite over a ~30-line fix purely for "aesthetic impurity" is classic premature optimization and a massive, unnecessary regression risk. In a state-heavy trading system, a Map<TradeId, MPMInstance> is a perfectly valid, easily debuggable, and standard way to handle per-trade isolated state. Ripping out object state to pass giant context payloads into pure functions dramatically increases your testing surface area for minimal runtime benefit.
+Recommendation: Stick to the 30-line Map-of-instances approach until the system proves it needs pure functions.
+
+4. LIVE-MODE GAP
+CRITICAL The spec suffers from "backtest bias." In a sealed backtest environment, a partial close executes synchronously and perfectly. In live mode with Alpaca/Kraken, partial closes introduce pending states, network timeouts, partial fills on the partial close, and rejected orders. If your per-trade sealed environment assumes synchronous completion of a partial close, a 500ms network delay will desync your bot's internal state from the broker's reality, causing it to double-sell or enter a loop.
+Recommendation: The spec must define how the sealed environment handles PENDING_CLOSE states and webhook/websocket reconciliation.
+
+5. TRAI ASYNC OBSERVER
+CRITICAL This is a fatal data corruption flaw. If TRAI is a fire-and-forget observer triggered on exit events, a partial close (e.g., selling 50% at TP1, 50% at TP2) will emit two exit events. TRAI will process this as two distinct trade outcomes for a single entry decision. This will duplicate the entry in your reinforcement learning pipeline, overweighting multi-leg trades and polluting the model's accuracy.
+Recommendation: TRAI must be updated to aggregate partial close events by tradeId and only record the final blended PnL when the position is fully flat.
+
+6. PATTERN MEMORY
+CRITICAL Identical issue to #5. UnifiedPatternMemory maps a single entry signature to a single exit result. If a multi-leg exit occurs, the system will either average the exit price dynamically (shifting the pattern signature mid-trade) or record multiple patterns. If a trade hits TP1 (win) but the remainder hits Stop Loss (loss), is this recorded as a winning pattern or a losing pattern? The spec completely ignores this data-structure mismatch.
+Recommendation: Define a strict aggregation policy for partials in UnifiedPatternMemory (e.g., blended exit price recorded only upon full position closure).
+
+7. CRASH RECOVERY
+CRITICAL The "sealed exitEnv + commit pattern" only solves synchronous crashes. If the Node process dies after StateManager.reducePosition succeeds but before MPM.commit() writes to disk, you have a torn state. Upon restart, the broker holds 50% of the asset, StateManager loads 50% of the asset, but MaxProfitManager rehydrates its high-water mark for 100% of the asset because the commit failed.
+Recommendation: State transitions must be fully transactional. MPM state must be serialized and saved to disk in the exact same file/write-lock cycle as the StateManager position update.
+
+8. ORTHOGONALITY CLAIMS
+CONCERN Assuming BreakEvenManager and StopLossChecker are orthogonal to a partial-close refactor is highly dangerous. If you sell 50% of a position at Take Profit 1, standard trading logic dictates that the Stop Loss for the remaining 50% should instantly move to breakeven. If BreakEvenManager is not updated to listen for partial-close events emitted by the new MPM, the remaining 50% will fall back to its original (losing) stop loss, destroying the EV of the trade.
+Recommendation: Audit BEM and SLC. They are tightly coupled to the concept of partial exits and cannot be ignored.
+
+9. ANYTHING ELSE
+CRITICAL The spec completely ignores fee doubling and slippage on partial closes. In a backtest without perfect commission modeling, splitting a trade into 3 exits looks great. In live trading, paying 3 minimum broker ticket fees or crossing the spread 3 times will mathematically destroy the net EV of smaller position sizes. The spec needs a minimum capital threshold (e.g., "Do not partial close if remaining leg < $500") or the bot will bleed to death by a thousand cuts. Furthermore, there is no mention of concurrency locking—what happens if a flash crash triggers both the StopLossChecker and the TakeProfitChecker (for a partial) on the exact same tick?
+```
+
+---
+
+## REVIEWER 2 — Codex (verbatim, with file verification)
+
+```
+PHASE ORDERING — CRITICAL
+Phase 4 introduces real partial execution in StateManager, while Phase 5 adds recorder semantics for multi-leg trades, so there is a real window where execution is correct but accounting is wrong. In current code, BacktestRecorder.recordTrade() assumes one entry/one exit and computes P&L from a single size and exitPrice with no leg aggregation, so partials would be misrepresented during that window. The phase plan's claim that each phase leaves the system "working-or-better" is not true for analytics integrity if Phase 4 lands alone.
+
+CLAUDITO TRACE DEPENDENCY — CRITICAL
+The spec is explicitly built on unverified trace claims and even says additional traces are still required before edits, which means core premises are treated as fact without first-party validation. If Claudito is wrong on either closePosition semantics or recorder behavior, you risk a large refactor solving the wrong problem and introducing regressions while assuming safety. This is a process integrity failure, not just a coding risk.
+
+PURE-FUNCTION MPM vs MAP-OF-INSTANCES — CONCERN
+The spec itself states Map-of-instances is ~30 lines and pure-function is ~200 mechanical edits, yet picks the larger blast radius while insisting each phase remains safely shippable; that tradeoff is weakly justified in the document. It also claims the fraction-contract bug is "superseded by Phase 3," but Phase 3 is declared behavior-preserving (P&L still -$502.23), which conflicts with the urgency/risk framing around incorrect partial semantics. This looks like architecture preference outweighing risk-minimization evidence.
+
+LIVE-MODE GAP — CRITICAL
+Not deferrable for a production trading system: the spec explicitly acknowledges evaluate/mutate ordering is unsafe in Alpaca-style live conditions (network/rate-limit/partial-fill failures) and defers the fix. That means the proposed migration can ship with known state divergence risk between intended exits and actual broker outcomes. For prod, this is a correctness and capital-risk gap, not a backlog nicety.
+
+TRAI ASYNC OBSERVER — CRITICAL
+Current wiring records TRAI outcome on SELL-path close handling keyed by orderId, then immediately deletes pending decision linkage; with multi-leg exits, first leg can consume the learning record before final outcome exists. That means TRAI can learn from a partial leg as if it were full-trade result (or miss the final leg entirely), corrupting attribution. The spec flags this as unknown but does not define a phase that enforces one-outcome-per-trade-id semantics before partials ship.
+
+PATTERN MEMORY — CRITICAL
+UnifiedPatternMemory.recordOutcome() is per-outcome event with no tradeId dedupe/aggregation, so multi-leg exits would become multiple learning samples unless explicitly collapsed upstream. TradeJournal.recordExit() also removes the open trade immediately on first exit event, which is incompatible with representing one trade with multiple exit legs unless rewritten. The spec assumes this is probably fine, but code indicates it is not.
+
+CRASH RECOVERY — CONCERN
+The proposed evaluate→execute→commit pattern reduces some divergence, but crash between reducePosition and commit() still leaves ambiguous state: position may be reduced while evaluator flags (e.g., tier-fired markers) were never committed. On restart, that can retrigger the same exit logic against already-reduced size unless idempotency markers are persisted atomically with execution outcome. The spec claims crash safety at a high level but does not define this exact failure-mode handling.
+
+ORTHOGONALITY CLAIMS — CONCERN
+These modules are not fully orthogonal to the refactor: BreakEvenManager reads trade.maxProfitPercent directly, while the new model centralizes mutable fields under trade.exitState.*, creating a schema-coupling risk. ExitContractManager.invalidationConditions reads trade.entryIndicators / trade.customMetadata, but target trade shape emphasizes entryContext and does not guarantee those legacy fields exist. StopLossChecker drawdown logic still relies on account/global position context, which is cross-cutting with per-trade state management.
+
+ANYTHING ELSE — CONCERN
+The "independently working phase" claim is overconfident: Phase 4 introduces behavior that downstream analytics/learning subsystems are currently not designed to interpret safely, so correctness is temporarily degraded even if execution keeps running. There is also no explicit migration/rehydration plan for in-flight trades from old schema to new (exitEnv/exitState) at deploy boundaries, which is a real production cutover edge case. Finally, no explicit acceptance criteria for broker reconciliation under partial fills/rejects is defined, despite live-mode risk being acknowledged.
+
+Commands used for verification:
+- find . -maxdepth 3 -type f
+- nl -ba ogz-meta/todocontext47.md | sed -n '1,920p'
+- nl -ba core/StateManager.js | sed -n '1,560p'
+- nl -ba core/BacktestRecorder.js | sed -n '1,320p'
+- nl -ba core/OrderExecutor.js | sed -n '180,230p' and | sed -n '520,900p'
+- nl -ba core/TradingLoop.js | sed -n '360,520p'
+- nl -ba core/TRAIDecisionModule.js | sed -n '1,340p' and | sed -n '940,1040p'
+- nl -ba core/UnifiedPatternMemory.js | sed -n '1,280p'
+- nl -ba core/TradeJournal.js | sed -n '1,280p'
+- nl -ba core/TradeJournalBridge.js | sed -n '1,260p'
+- nl -ba core/ExitContractManager.js | sed -n '1,280p'
+- nl -ba core/exit/BreakEvenManager.js | sed -n '1,260p'
+- nl -ba core/exit/StopLossChecker.js | sed -n '1,260p'
+- rg -n "pendingTraiDecisions|decisionId|recordTradeOutcome\(" core/OrderExecutor.js
+```
+
+---
+
+## REVIEWER 3 — Claude desktop (verbatim, with file verification)
+
+```
+PHASE ORDERING — CRITICAL
+There is a real corruption window: Phase 4 enables real partial execution (reducePosition) before Phase 5 teaches BacktestRecorder multi-leg semantics, so execution can be "right" while records stay wrong. The spec also claims each phase is independently working and non-dependent, which conflicts with this ordering because Phase 5 explicitly depends on data emitted by Phase 4 (recordPartialExit from reducePosition). In current code, BacktestRecorder.recordTrade() is single-entry/single-exit and has no partial accumulator, so this window would mis-state P&L/trade stats.
+
+CLAUDITO TRACE DEPENDENCY — CRITICAL
+Risk is high because the architecture decision is explicitly based on unverified trace claims, while the same document admits those traces still needed direct code verification. If Claudito was wrong on even one of the "4-layer brokenness" assertions, the team could burn multiple phases solving the wrong root cause and introduce regressions. This is exactly the kind of speculative dependency the doc itself warns against.
+
+PURE-FUNCTION MPM vs MAP-OF-INSTANCES — CONCERN
+The spec gives a 30-line vs ~200-edit delta, acknowledges Map-of-instances as lower-risk, and even earlier recommends Path 1 first—then later rejects it for aesthetic/end-state reasons without hard evidence that the larger blast radius is justified now. That is a weakly-supported tradeoff for a production system under active defect pressure. This reads like architecture preference outweighing change-risk control.
+
+LIVE-MODE GAP — CRITICAL
+For a production trading system, this is not deferrable: the spec's own atomicity section says current behavior is unsafe in live Alpaca-like conditions, then punts it to "later session." Phase validation is almost entirely backtest-oriented, with no live failure-mode acceptance criteria (partial fills, rejects, retries, broker desync). That leaves a direct production integrity hole.
+
+TRAI ASYNC OBSERVER — CONCERN
+The spec mixes concepts: processDecision() is an async observer on decision flow, not a close-event aggregator, so it does not answer the "1 trade vs 2 exit legs" learning question. Outcome learning is wired on close in OrderExecutor, and absent explicit leg-aggregation logic that can produce multiple TRAI outcomes for one parent trade if partials become real. This is currently unresolved in the spec.
+
+PATTERN MEMORY — CRITICAL
+Not verified as "fine." UnifiedPatternMemory.recordOutcome() is per-outcome call with no parent-trade consolidation semantics, and TradeJournal.recordExit() finalizes/removes open trade on first exit, which is incompatible with multi-leg lifecycle unless refactored. So multi-leg trades are currently at high risk of being counted as multiple learned outcomes / malformed journal entries.
+
+CRASH RECOVERY — CRITICAL
+The proposed model still has a divergence window: if crash occurs after StateManager.reducePosition but before MPM.commit(), execution-side state can advance while evaluator state may not, and no restart reconciliation protocol is defined. The doc does not specify durable write ordering, idempotency keys, or broker-led rehydration for in-flight partials. For production, that is a state-consistency failure mode, not a minor edge case.
+
+ORTHOGONALITY CLAIMS — CONCERN
+Hidden coupling exists: BreakEven/StopLoss logic reads trade.maxProfitPercent and trade.exitContract, while the new architecture moves lifecycle state under trade.exitState/trade.exitEnv. Claiming these modules are untouched/orthogonal is unsafe unless compatibility shims are explicitly defined in the phase plan. Invalidation is also trade-field dependent (entryIndicators), so trade-shape migration must be rigorously preserved.
+
+ANYTHING ELSE — CONCERN
+The claimed "phase independence" and "working-or-better after each phase" is internally inconsistent with dependencies (notably Phase 4→5 data correctness), so rollout safety guarantees are overstated. Also, there is no explicit migration plan for pre-existing open trades into the new sealed-trade shape, and no concrete replay/reconciliation procedure against broker truth on restart. Those omissions are material for production cutover risk.
+```
+
+---
+
+## RECONCILIATION SUMMARY
+
+Three independent reviewers, three independent verdicts. Overlap is striking — they converged on the same critical failures despite running independently.
+
+### Where all three agree (high confidence)
+
+| Issue | Verdict | Action required |
+|---|---|---|
+| Phase 4/5 ordering creates corruption window | CRITICAL × 3 | Combine phases or invert order |
+| Building on unverified Claudito traces | CRITICAL × 3 | First-party file:line verification before any spec rewrite |
+| Live mode is not deferrable for production | CRITICAL × 3 | Hard-gate live mode behind feature flag until reconciliation phase lands |
+| UnifiedPatternMemory can't handle multi-leg | CRITICAL × 3 | Add parent-trade dedupe phase BEFORE partials ship |
+| Pure-function MPM is wrong choice | CONCERN × 3 | Switch to Map-of-instances |
+| Orthogonality assumptions are wrong | CONCERN × 3 | Schema shims required for BEM, ECM, SLC |
+
+### Where two of three agree
+
+| Issue | Verdict | Action required |
+|---|---|---|
+| TRAI multi-leg attribution corruption | CRITICAL × 2, CONCERN × 1 | Add multi-leg outcome aggregation phase BEFORE partials ship |
+| Crash recovery torn-state window | CRITICAL × 2, CONCERN × 1 | Define transactional commit with idempotency markers |
+
+### Where reviewers disagree (lower confidence — needs first-party verification)
+
+- Reviewer 1 framed TRAI as "fire-and-forget on exit events" — Reviewer 2 corrected this to "orderId-keyed pending decision deletion on SELL-path close." Reviewer 2's mechanism is the verifiable one. Will be confirmed against actual code before spec rewrite.
+- Reviewer 1 raised flash-crash concurrency (StopLossChecker + TakeProfitChecker firing on same tick). Real concern but pre-exists the refactor and isn't introduced by it. Tracked as separate item.
+
+### Standalone Reviewer 1 finding
+
+- **Fee doubling and slippage on partial closes** — none of the other reviewers raised this and the spec never mentioned it. In live mode with small Apex sizing, splitting one trade into 3 exits could destroy net EV via 3 minimum broker fees and 3 spread crosses. Spec must define a minimum capital threshold for partials (e.g., "do not partial close if remaining leg < $X").
+
+---
+
+## REVISED APPROACH SKELETON
+
+The new spec must address all critical findings before any phase ships. Rough shape (full spec to be written after first-party verification):
+
+### Architectural changes from original spec
+1. **Map-of-instances instead of pure-function MPM** — ~30 lines instead of ~200, smaller blast radius, debuggable as normal class state, no pure-function context-threading complexity
+2. **Phase 4 and Phase 5 combined** into a single atomic phase OR Phase 5 ships first
+3. **Transactional commit pattern** — MPM state and StateManager position update serialized in same write-lock cycle with idempotency markers persisted before either takes effect
+4. **Live mode hard-gated behind feature flag** — backtest works, live mode fails fast with clear error until live reconciliation phase lands
+5. **Minimum capital threshold for partials** — configurable floor below which partials are disabled
+6. **In-flight trade migration plan** — explicit shim that hydrates old-shape trades into new shape on bot restart, one-time schema migration step
+
+### Prerequisite phases that must land BEFORE any partial close ships
+1. **TRAI multi-leg outcome aggregation** — one tradeId, one final outcome, fired only on full position flat. Replace orderId-keyed first-leg consumption with tradeId-keyed final-outcome aggregation.
+2. **TradeJournal multi-leg lifecycle** — `recordExit` does not remove the open trade until `remainingSize === 0`. Open trade lifecycle persists across multiple exit legs.
+3. **UnifiedPatternMemory parent-trade consolidation** — `recordOutcome` accumulates legs by tradeId, fires the learning sample once on final close with blended PnL.
+4. **BreakEvenManager partial-aware** — listens for partial close events, moves stop to BE on remaining size at TP1.
+5. **Schema shim for legacy field readers** — `trade.maxProfitPercent`, `trade.entryIndicators`, `trade.customMetadata` either kept as accessors on the new shape OR all consumers refactored to read from the new locations. No reader is left silently looking at undefined.
+
+### Sequencing
+- Prerequisite phases 1-5 land FIRST, in any order (they're independent)
+- THEN architectural changes 1-6 land
+- THEN partials ship as the FINAL combined Phase 4+5 commit
+- Each phase = one commit = one Mercury validation pass (once bridge is live) = one smoke test
+
+Probably 10-12 phases instead of 8. Each phase smaller but independently testable. Total work: 5-7 sessions instead of 3-5.
+
+---
+
+## DEPENDENCIES — what must complete BEFORE the new spec is written
+
+The new spec cannot be drafted on guesses. The following verification work must complete first:
+
+1. **Mercury bridge deployed and verified working** (in progress — Claudito installing MongoDB now)
+2. **First-party verification of Claudito's traces** using Mercury — read `core/StateManager.js` (especially `closePosition`), `core/BacktestRecorder.js` (especially `recordTrade`), `core/OrderExecutor.js` (lines 180-230 and 520-900), with file:line citations matching how Reviewer 2 cited findings
+3. **First-party verification of Reviewer 2's findings** using Mercury — read `core/TRAIDecisionModule.js`, `core/UnifiedPatternMemory.js`, `core/TradeJournal.js`, `core/TradeJournalBridge.js`, `core/exit/BreakEvenManager.js`, `core/exit/StopLossChecker.js`, `core/ExitContractManager.js`
+4. **Search for in-flight trade rehydration code** — does any restart logic exist? `SessionStateManager`? Persisted state files? — needed for crash recovery and migration plan
+5. **Search for fee/slippage modeling in backtest** — to know whether the minimum-leg-capital threshold can be validated against historical data or only enforced as a config
+6. **Verification report written** with file:line citations for every claim — mirroring Reviewer 2's format
+
+Once items 1-6 are complete, the new spec gets written. Not before.
+
+---
+
+## NEXT-SESSION PICKUP LIST (revised, supersedes original spec's pickup list)
+
+In strict order — no deferrals, no parallel work:
+
+1. ~~Append reviewer outputs to handoff doc + supersede original spec~~ ✅ DONE (this section)
+2. Verify Mercury bridge deployment (Claudito working it now — mongo install, npm install, indexer first run, 3-question smoke test)
+3. Add fix_history / lessons_digest / changelog / mission_log content types to bridge indexer
+4. Reindex with meta content included
+5. Use Mercury to verify Claudito's traces on `StateManager.closePosition`, `BacktestRecorder.recordTrade`, OrderExecutor partial-close path
+6. Use Mercury to verify Reviewer 2's findings on TRAI, TradeJournal, UnifiedPatternMemory, BreakEvenManager, ExitContractManager, StopLossChecker
+7. Search for in-flight trade rehydration code and fee/slippage modeling
+8. Write verification report with file:line citations
+9. Draft revised architecture spec with all 6 architectural changes and 5 prerequisite phases sequenced explicitly
+10. Sequence the new phase plan with explicit dependency DAG
+11. Execute Phase 1 (smallest prerequisite phase, probably TRAI multi-leg aggregation since it's most contained)
+12. Continue through phases with Mercury validation between each commit
+13. v2 mercury bridge: agentic ReAct loop wrapping `trai_brain/read_only_tools.js`
+14. Long-term migration: `ogz-meta/rag-embeddings.js` retired, unified MongoDB store
+
+---
+
+**End of post-review supersede section. April 8, 2026.**
