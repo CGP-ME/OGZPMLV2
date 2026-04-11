@@ -1428,9 +1428,26 @@ class OGZPrimeV14Bot {
         const patternMemoryCount = this.patternChecker?.memory?.patternCount || 0;
         const patternMemorySize = Object.keys(this.patternChecker?.memory?.memory || {}).length;
 
+        // Generate ghost path projection when a pattern is detected with confidence > 50%
+        let projectionPath = undefined;
+        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5) {
+          const direction = primaryPattern.direction === 'bullish' ? 1 : -1;
+          const currentTime = Math.floor(Date.now() / 1000);
+          const atr = indicators.atr || (price * 0.005); // fallback to 0.5% of price
+          projectionPath = [];
+          for (let i = 1; i <= 15; i++) {
+            const drift = direction * atr * 0.1 * i + (Math.random() - 0.5) * atr * 0.05;
+            projectionPath.push({
+              time: currentTime + (i * 900), // 15-min increments
+              value: price + drift
+            });
+          }
+        }
+
         const message = {
           type: 'pattern_analysis',
           timestamp: Date.now(),
+          projection_path: projectionPath,
           pattern: {
             name: primaryPattern?.name || primaryPattern?.type || 'No strong pattern',
             confidence: primaryPattern?.confidence || 0,

@@ -449,7 +449,7 @@ class TradingLoop {
       } catch (e) { /* fail silently */ }
     }
 
-    // Chain-of-thought broadcast
+    // Chain-of-thought broadcast + Strategy Winner HUD
     if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
       try {
         const reasoning = decision.action === 'HOLD'
@@ -460,7 +460,33 @@ class TradingLoop {
           timestamp: Date.now(),
           message: reasoning,
           confidence: decision.confidence,
-          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' }
+          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
+          // Strategy Winner HUD: full battleground for confidence bar chart
+          strategy_stack: orchResult.allResults ? orchResult.allResults.map(s => ({
+            id: s.strategyName,
+            name: s.strategyName,
+            confidence: s.confidence
+          })) : undefined,
+          winner_id: orchResult.winnerStrategy || null
+        }));
+      } catch (e) { /* fail silently */ }
+
+      // Golden Setup Emitter: proximity score + confluence matrix
+      try {
+        const conditions = [
+          { label: 'RSI Oversold/Overbought', status: (indicators.rsi < 30 || indicators.rsi > 70) ? 'MET' : 'WAITING', weight: 0.2 },
+          { label: 'EMA Trend Alignment', status: (indicators.ema20 > indicators.ema50) ? 'MET' : 'WAITING', weight: 0.2 },
+          { label: 'Strategy Confluence', status: (orchResult.confluence?.count >= 2) ? 'MET' : 'WAITING', weight: 0.2 },
+          { label: 'High Confidence', status: (orchResult.confidence >= 65) ? 'MET' : 'WAITING', weight: 0.2 },
+          { label: 'Regime Favorable', status: (regime?.currentRegime === 'trending_up' || regime?.currentRegime === 'trending_down') ? 'MET' : 'WAITING', weight: 0.2 }
+        ];
+        const proximity = conditions.reduce((acc, c) => acc + (c.status === 'MET' ? c.weight : 0), 0);
+        this.ctx.dashboardWs.send(JSON.stringify({
+          type: 'golden_setup_state',
+          proximity,
+          is_golden: proximity >= 0.8,
+          conditions,
+          timestamp: Date.now()
         }));
       } catch (e) { /* fail silently */ }
     }
