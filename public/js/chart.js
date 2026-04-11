@@ -262,6 +262,7 @@
 
         loadHistorical: (candles) => {
             if (!candleSeries || !candles || candles.length === 0) return;
+            console.log('[Chart] Raw historical candle sample:', JSON.stringify(candles[candles.length - 1]));
             try {
                 const formatted = candles.map(c => {
                     const rawTime = c.time || c.t || c.timestamp || 0;
