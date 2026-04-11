@@ -124,9 +124,7 @@
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'asset_change', asset: e.target.value });
-                    // Clear chart and request new data
-                    if (candleSeries) candleSeries.setData([]);
-                    if (volumeSeries) volumeSeries.setData([]);
+                    this.clearAll();
                     setTimeout(() => {
                         const tf = document.getElementById('timeframeSelector')?.value || '1m';
                         socket.send({ type: 'request_historical', timeframe: tf, asset: e.target.value, limit: 500 });
@@ -141,9 +139,7 @@
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'timeframe_change', timeframe: e.target.value });
-                    // Clear and reload
-                    if (candleSeries) candleSeries.setData([]);
-                    if (volumeSeries) volumeSeries.setData([]);
+                    this.clearAll();
                     socket.send({
                         type: 'request_historical',
                         timeframe: e.target.value,
@@ -172,6 +168,18 @@
                 document.body.className = `tier-${e.target.value}`;
                 console.log('[Chart] Tier:', e.target.value);
             });
+        },
+
+        clearAll: function() {
+            if (candleSeries) candleSeries.setData([]);
+            if (volumeSeries) volumeSeries.setData([]);
+            if (this._lineSeries) this._lineSeries.setData([]);
+            if (this._areaSeries) this._areaSeries.setData([]);
+            if (this._barSeries) this._barSeries.setData([]);
+            if (ghostSeries) ghostSeries.setData([]);
+            wallLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
+            tpoLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
+            wallLines = []; tpoLines = [];
         },
 
         update: (d) => {
