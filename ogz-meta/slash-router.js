@@ -92,6 +92,11 @@ async function route(command, args) {
         stack: (err.stack || '').split('\n').slice(0, 3).join('\n')
       });
     }
+    // Persistent error log for post-mortem
+    try {
+      fs.appendFileSync(path.join(__dirname, 'claudito-errors.log'),
+        JSON.stringify({ timestamp: Date.now(), command: cmd, error: err.message, stack: err.stack }) + '\n');
+    } catch (_) { /* best effort — don't let logging kill the pipeline */ }
   }
 
   // Save updated manifest (always — even on error, preserves state for post-mortem)

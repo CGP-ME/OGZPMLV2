@@ -168,6 +168,11 @@ function loadManifest(path) {
     const backupPath = path + '.corrupt-' + Date.now();
     try { fs.copyFileSync(path, backupPath); } catch (_) { /* best effort */ }
     console.error(`❌ Manifest corrupted at ${path}: ${e.message} — backed up to ${backupPath}, creating fresh scaffold`);
+    // Persistent error log for post-mortem
+    try {
+      fs.appendFileSync(require('path').join(__dirname, 'claudito-errors.log'),
+        JSON.stringify({ timestamp: Date.now(), command: 'loadManifest', error: e.message, stack: e.stack }) + '\n');
+    } catch (_) { /* best effort */ }
     const fresh = createManifest();
     saveManifest(fresh, path);
     return fresh;

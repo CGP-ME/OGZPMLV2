@@ -190,6 +190,12 @@ async function execute(issue) {
       if (manifest && manifest.stop_conditions) {
         manifest.stop_conditions.warden_blocked = true;
       }
+      // Persistent error log for post-mortem
+      try {
+        require('fs').appendFileSync(
+          require('path').join(__dirname, 'claudito-errors.log'),
+          JSON.stringify({ timestamp: Date.now(), command, error: err.message, stack: err.stack }) + '\n');
+      } catch (_) { /* best effort */ }
       break;
     }
 
