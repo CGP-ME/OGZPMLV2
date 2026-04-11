@@ -95,7 +95,17 @@
 
         reset: function() {
             localStorage.removeItem('ogz_theme');
-            window.location.reload();
+            // Reset in place — no reload, no disconnect appearance
+            const root = document.documentElement;
+            root.style.setProperty('--ml-color', '#ffd700');
+            root.style.setProperty('--profit-color', '#00ff88');
+            root.style.setProperty('--loss-color', '#ff3366');
+            document.body.className = 'tier-ml';
+            const colorInput = document.getElementById('accentColor');
+            if (colorInput) colorInput.value = '#ffd700';
+            const colorVal = document.getElementById('colorValue');
+            if (colorVal) colorVal.textContent = '#FFD700';
+            console.log('[Theme] Reset to defaults');
         }
     };
 
