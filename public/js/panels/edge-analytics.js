@@ -17,6 +17,109 @@
             if (edgeToggle) edgeToggle.addEventListener('click', () => this.togglePanel());
             const edgeHeader = document.querySelector('.edge-header');
             if (edgeHeader) edgeHeader.addEventListener('click', () => this.togglePanel());
+
+            // Start simulated data generators for display
+            // These populate the Edge panel until real backend data replaces them
+            this.startSimulatedFeeds();
+        },
+
+        startSimulatedFeeds: function() {
+            const lastPrice = () => OGZ.state.lastPrice || 73000;
+
+            // Whale alert monitor — simulated until real whale_trade events
+            setInterval(() => {
+                if (Math.random() > 0.8) {
+                    const container = document.getElementById('whaleAlerts');
+                    if (!container) return;
+                    const amount = (Math.random() * 10 + 1).toFixed(2);
+                    const side = Math.random() > 0.5 ? 'BUY' : 'SELL';
+                    const price = (lastPrice() * (1 + (Math.random() - 0.5) * 0.002)).toFixed(2);
+                    const item = document.createElement('div');
+                    item.className = 'whale-item';
+                    item.style.cssText = `padding:8px; margin:4px 0; background:rgba(0,100,255,0.1); border-radius:4px; font-size:11px; border-left:3px solid ${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}`;
+                    item.innerHTML = `<span style="color:${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}; font-weight:800;">${side}</span> ${amount} BTC @ $${parseFloat(price).toLocaleString()}`;
+                    container.prepend(item);
+                    if (container.children.length > 5) container.lastChild.remove();
+                }
+            }, 8000);
+
+            // CVD simulation
+            let cvdValue = 0;
+            setInterval(() => {
+                cvdValue += (Math.random() - 0.48) * 50;
+                const el = document.getElementById('cvdValue');
+                const trend = document.getElementById('cvdTrend');
+                if (el) {
+                    el.textContent = cvdValue.toFixed(0);
+                    el.style.color = cvdValue > 0 ? 'var(--profit-color)' : 'var(--loss-color)';
+                }
+                if (trend) trend.textContent = cvdValue > 50 ? 'BULLISH' : cvdValue < -50 ? 'BEARISH' : 'NEUTRAL';
+            }, 5000);
+
+            // Fear & Greed simulation
+            setInterval(() => {
+                const value = Math.round(30 + Math.random() * 40);
+                const el = document.getElementById('fgValue');
+                const fill = document.getElementById('fgFill');
+                const label = document.getElementById('fgLabel');
+                if (el) el.textContent = value;
+                if (fill) fill.style.width = value + '%';
+                if (label) {
+                    label.textContent = value < 25 ? 'EXTREME FEAR' : value < 40 ? 'FEAR' : value < 60 ? 'NEUTRAL' : value < 75 ? 'GREED' : 'EXTREME GREED';
+                }
+            }, 30000);
+
+            // Market internals simulation (overridden by real market_internals from backend)
+            setInterval(() => {
+                const bsr = document.getElementById('buySellRatio');
+                const bi = document.getElementById('bookImbalance');
+                const spread = document.getElementById('spreadValue');
+                const agg = document.getElementById('aggressorSide');
+                if (bsr) bsr.textContent = (0.8 + Math.random() * 0.4).toFixed(2);
+                if (bi) bi.textContent = (Math.random() * 20 - 10).toFixed(1) + '%';
+                if (spread) spread.textContent = (Math.random() * 0.1).toFixed(3) + '%';
+                if (agg) {
+                    const side = Math.random() > 0.5 ? 'BUYERS' : 'SELLERS';
+                    agg.textContent = side;
+                    agg.style.color = side === 'BUYERS' ? 'var(--profit-color)' : 'var(--loss-color)';
+                }
+            }, 5000);
+
+            // Smart money flow simulation
+            setInterval(() => {
+                const flows = ['ACCUMULATING', 'DISTRIBUTING', 'NEUTRAL', 'STRONG INFLOW'];
+                const activity = ['HIGH', 'MEDIUM', 'LOW'];
+                const dormancy = ['LOW', 'MEDIUM', 'HIGH'];
+                const sf = document.getElementById('smartFlow');
+                const ia = document.getElementById('instActivity');
+                const dm = document.getElementById('dormancy');
+                if (sf) sf.textContent = flows[Math.floor(Math.random() * flows.length)];
+                if (ia) ia.textContent = activity[Math.floor(Math.random() * activity.length)];
+                if (dm) dm.textContent = dormancy[Math.floor(Math.random() * dormancy.length)];
+            }, 30000);
+
+            // Divergence scanner simulation
+            setInterval(() => {
+                const container = document.getElementById('divergences');
+                if (!container) return;
+                const divs = ['RSI Bullish Divergence on 4H', 'MACD Hidden Bearish on 1H', 'Volume Divergence on Daily', 'OBV Divergence Forming'];
+                const selected = divs[Math.floor(Math.random() * divs.length)];
+                container.innerHTML = '';
+                const div = document.createElement('div');
+                div.className = 'divergence-item';
+                div.textContent = selected;
+                container.appendChild(div);
+            }, 15000);
+
+            // Liquidation level calculation
+            setInterval(() => {
+                const p = lastPrice();
+                if (!p) return;
+                const longLiq = document.getElementById('longLiqPrice');
+                const shortLiq = document.getElementById('shortLiqPrice');
+                if (longLiq) longLiq.textContent = '$' + (p * 0.95).toFixed(0);
+                if (shortLiq) shortLiq.textContent = '$' + (p * 1.05).toFixed(0);
+            }, 60000);
         },
 
         togglePanel: function() {
