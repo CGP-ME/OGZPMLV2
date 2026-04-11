@@ -43,17 +43,14 @@
                 document.documentElement.style.setProperty('--ml-color', e.target.value);
             });
 
-            // Font select
+            // Font select — applies to all text elements
             const fontSelect = document.getElementById('fontSelect');
             if (fontSelect) fontSelect.addEventListener('change', (e) => {
+                document.documentElement.style.setProperty('font-family', e.target.value, 'important');
                 document.body.style.fontFamily = e.target.value;
-            });
-
-            // Chart style select
-            const chartStyle = document.getElementById('chartStyle');
-            if (chartStyle) chartStyle.addEventListener('change', (e) => {
-                // Chart style changes route through OGZ if Chart module supports it
-                console.log('[Theme] Chart style:', e.target.value);
+                // Also update panels and data displays
+                document.querySelectorAll('.edge-panel, .panel-title, .edge-section, .stat-value, .indicator-bar')
+                    .forEach(el => el.style.fontFamily = e.target.value);
             });
 
             // Animations toggle

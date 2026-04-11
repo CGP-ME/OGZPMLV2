@@ -53,6 +53,9 @@ body.golden-alert-pulse {
     to { opacity: 0.4; }
 }
 
+/* Hide trade manager on proof display page — available for trading interface later */
+.trade-manager { display: none !important; }
+
 /* Golden Mode Lock — execution button glow during high-conviction setups */
 .golden-mode {
     box-shadow: 0 0 20px var(--ml-color, #ffd700) !important;
@@ -62,70 +65,93 @@ body.golden-alert-pulse {
 /* ═══ Theme Presets ═══ */
 body.theme-cyberpunk {
     --ml-color: #ff00ff;
-    --bg-primary: #0a0010;
     --profit-color: #ff00ff;
     --loss-color: #00ffff;
 }
-body.theme-cyberpunk .header { background: linear-gradient(135deg, #1a0030 0%, #0a0010 100%); }
-body.theme-cyberpunk .edge-panel { border-color: rgba(255, 0, 255, 0.3); }
-body.theme-cyberpunk .chart-title { color: #ff00ff; }
+body.theme-cyberpunk .header { background: linear-gradient(135deg, #2a0040 0%, #0a0020 100%); }
+body.theme-cyberpunk .edge-panel { border-color: rgba(255, 0, 255, 0.4); box-shadow: 0 0 15px rgba(255, 0, 255, 0.15); }
+body.theme-cyberpunk .chart-title { color: #ff00ff; text-shadow: 0 0 10px rgba(255, 0, 255, 0.5); }
+body.theme-cyberpunk .edge-section h4 { color: #ff00ff; }
+body.theme-cyberpunk .panel-title { color: #ff00ff; }
+body.theme-cyberpunk .price-display { color: #ff00ff; border-color: #ff00ff; }
+body.theme-cyberpunk .status-lights-bar { border-color: rgba(255, 0, 255, 0.2); }
 
 body.theme-matrix {
     --ml-color: #00ff00;
     --profit-color: #00ff00;
     --loss-color: #ff0000;
 }
-body.theme-matrix .header { background: linear-gradient(135deg, #001a00 0%, #000a00 100%); }
-body.theme-matrix .edge-panel { border-color: rgba(0, 255, 0, 0.3); }
-body.theme-matrix .chart-title { color: #00ff00; }
+body.theme-matrix .header { background: linear-gradient(135deg, #002a00 0%, #001000 100%); }
+body.theme-matrix .edge-panel { border-color: rgba(0, 255, 0, 0.4); box-shadow: 0 0 15px rgba(0, 255, 0, 0.15); }
+body.theme-matrix .chart-title { color: #00ff00; text-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+body.theme-matrix .edge-section h4 { color: #00ff00; }
+body.theme-matrix .panel-title { color: #00ff00; }
+body.theme-matrix .price-display { color: #00ff00; border-color: #00ff00; }
+body.theme-matrix * { font-family: 'Courier New', monospace !important; }
 
 body.theme-neon {
     --ml-color: #ff6600;
     --profit-color: #00ff88;
     --loss-color: #ff3366;
 }
-body.theme-neon .header { background: linear-gradient(135deg, #1a0a00 0%, #0a0500 100%); }
-body.theme-neon .edge-panel { border-color: rgba(255, 102, 0, 0.3); }
+body.theme-neon .header { background: linear-gradient(135deg, #2a1500 0%, #150a00 100%); }
+body.theme-neon .edge-panel { border-color: rgba(255, 102, 0, 0.4); box-shadow: 0 0 15px rgba(255, 102, 0, 0.15); }
+body.theme-neon .chart-title { color: #ff6600; text-shadow: 0 0 10px rgba(255, 102, 0, 0.5); }
+body.theme-neon .edge-section h4 { color: #ff6600; }
+body.theme-neon .price-display { color: #ff6600; border-color: #ff6600; }
 
 body.theme-ocean {
-    --ml-color: #0077cc;
+    --ml-color: #0099ff;
     --profit-color: #00ccff;
     --loss-color: #ff6666;
 }
-body.theme-ocean .header { background: linear-gradient(135deg, #001a2e 0%, #000a15 100%); }
-body.theme-ocean .edge-panel { border-color: rgba(0, 119, 204, 0.3); }
-body.theme-ocean .chart-title { color: #0077cc; }
+body.theme-ocean .header { background: linear-gradient(135deg, #002040 0%, #001020 100%); }
+body.theme-ocean .edge-panel { border-color: rgba(0, 153, 255, 0.4); box-shadow: 0 0 15px rgba(0, 153, 255, 0.15); }
+body.theme-ocean .chart-title { color: #0099ff; text-shadow: 0 0 10px rgba(0, 153, 255, 0.5); }
+body.theme-ocean .edge-section h4 { color: #0099ff; }
+body.theme-ocean .price-display { color: #0099ff; border-color: #0099ff; }
 
 body.theme-sunset {
     --ml-color: #ff4444;
     --profit-color: #ff8844;
     --loss-color: #4444ff;
 }
-body.theme-sunset .header { background: linear-gradient(135deg, #2a0a0a 0%, #1a0505 100%); }
-body.theme-sunset .edge-panel { border-color: rgba(255, 68, 68, 0.3); }
+body.theme-sunset .header { background: linear-gradient(135deg, #3a0a0a 0%, #200505 100%); }
+body.theme-sunset .edge-panel { border-color: rgba(255, 68, 68, 0.4); box-shadow: 0 0 15px rgba(255, 68, 68, 0.15); }
+body.theme-sunset .chart-title { color: #ff4444; text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+body.theme-sunset .edge-section h4 { color: #ff8844; }
+body.theme-sunset .price-display { color: #ff4444; border-color: #ff4444; }
 
 body.theme-royal {
     --ml-color: #8844ff;
     --profit-color: #aa88ff;
     --loss-color: #ff4488;
 }
-body.theme-royal .header { background: linear-gradient(135deg, #100030 0%, #080018 100%); }
-body.theme-royal .edge-panel { border-color: rgba(136, 68, 255, 0.3); }
-body.theme-royal .chart-title { color: #8844ff; }
+body.theme-royal .header { background: linear-gradient(135deg, #180040 0%, #0c0020 100%); }
+body.theme-royal .edge-panel { border-color: rgba(136, 68, 255, 0.4); box-shadow: 0 0 15px rgba(136, 68, 255, 0.15); }
+body.theme-royal .chart-title { color: #8844ff; text-shadow: 0 0 10px rgba(136, 68, 255, 0.5); }
+body.theme-royal .edge-section h4 { color: #8844ff; }
+body.theme-royal .price-display { color: #8844ff; border-color: #8844ff; }
+body.theme-royal * { font-family: 'Georgia', serif !important; }
 
 body.theme-hacker {
     --ml-color: #00ff88;
     --profit-color: #00ff88;
     --loss-color: #ff0044;
 }
-body.theme-hacker .header { background: linear-gradient(135deg, #001a0a 0%, #000a05 100%); }
-body.theme-hacker .edge-panel { border-color: rgba(0, 255, 136, 0.3); }
-body.theme-hacker .chart-title { color: #00ff88; }
+body.theme-hacker .header { background: linear-gradient(135deg, #002a10 0%, #001508 100%); }
+body.theme-hacker .edge-panel { border-color: rgba(0, 255, 136, 0.4); box-shadow: 0 0 15px rgba(0, 255, 136, 0.15); }
+body.theme-hacker .chart-title { color: #00ff88; text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
+body.theme-hacker .edge-section h4 { color: #00ff88; }
+body.theme-hacker .price-display { color: #00ff88; border-color: #00ff88; }
+body.theme-hacker * { font-family: 'JetBrains Mono', 'Fira Code', monospace !important; }
 
 body.theme-dark {
     --ml-color: #888888;
     --profit-color: #aaaaaa;
     --loss-color: #666666;
 }
-body.theme-dark .header { background: linear-gradient(135deg, #111 0%, #0a0a0a 100%); }
+body.theme-dark .header { background: linear-gradient(135deg, #151515 0%, #0a0a0a 100%); }
 body.theme-dark .edge-panel { border-color: rgba(136, 136, 136, 0.2); }
+body.theme-dark .chart-title { color: #888; }
+body.theme-dark .price-display { color: #aaa; border-color: #666; }
