@@ -156,9 +156,22 @@ function createManifest(missionId) {
 function loadManifest(path) {
   const fs = require('fs');
   if (!fs.existsSync(path)) {
-    throw new Error(`Manifest not found: ${path}`);
+    console.warn(`⚠️ Manifest not found: ${path} — creating fresh scaffold`);
+    const fresh = createManifest();
+    saveManifest(fresh, path);
+    return fresh;
   }
-  return JSON.parse(fs.readFileSync(path, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(path, 'utf8'));
+  } catch (e) {
+    // Backup corrupted manifest for post-mortem before overwriting
+    const backupPath = path + '.corrupt-' + Date.now();
+    try { fs.copyFileSync(path, backupPath); } catch (_) { /* best effort */ }
+    console.error(`❌ Manifest corrupted at ${path}: ${e.message} — backed up to ${backupPath}, creating fresh scaffold`);
+    const fresh = createManifest();
+    saveManifest(fresh, path);
+    return fresh;
+  }
 }
 
 /**
