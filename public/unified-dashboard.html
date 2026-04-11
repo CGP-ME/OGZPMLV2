@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/dashboard.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
+        /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
         
         * {
             margin: 0;
@@ -2393,14 +2394,12 @@
             <div class="theme-section">
                 <label>Font</label>
                 <select id="fontSelect">
-                    <option value="monospace">Monospace</option>
-                    <option value="'Courier New'">Courier New</option>
-                    <option value="'Roboto Mono'">Roboto Mono</option>
-                    <option value="'Fira Code'">Fira Code</option>
-                    <option value="'JetBrains Mono'">JetBrains Mono</option>
-                    <option value="'SF Mono'">SF Mono</option>
-                    <option value="Arial">Arial</option>
-                    <option value="'Segoe UI'">Segoe UI</option>
+                    <option value="'JetBrains Mono', monospace" selected>JetBrains Mono</option>
+                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="monospace">System Mono</option>
+                    <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                    <option value="Arial, sans-serif">Arial</option>
                 </select>
             </div>
 
