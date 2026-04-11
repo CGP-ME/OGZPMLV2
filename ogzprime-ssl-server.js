@@ -565,21 +565,56 @@ wss.on('connection', (ws, req) => {
       }
 
       // CHANGE 2026-01-29: RELAY Dashboard → Bot (for timeframe changes)
+      // CHANGE 2026-04-11: Stock tickers go to Alpaca, crypto goes to bot/Kraken
       if (ws.clientType === 'dashboard' && (data.type === 'timeframe_change' || data.type === 'request_historical')) {
-        const messageStr = JSON.stringify(data);
+        const asset = data.asset || '';
+        let handled = false;
 
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN &&
-              client.authenticated &&
-              client.clientType === 'bot') {
-            try {
-              client.send(messageStr);
-              console.log(`📊 Relayed ${data.type} (${data.timeframe}) to bot`);
-            } catch (err) {
-              console.error('Error relaying timeframe message to bot:', err.message);
+        // Check if this is a stock ticker — route to Alpaca
+        if (data.type === 'request_historical') {
+          try {
+            const { isStock, fetchStockCandles } = require('./server/stock-data-adapter');
+            if (isStock(asset)) {
+              handled = true;
+              const tf = data.timeframe || '15m';
+              const limit = data.limit || 500;
+              console.log(`📊 [StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
+              fetchStockCandles(asset, tf, limit).then(candles => {
+                if (candles && candles.length > 0 && ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({
+                    type: 'historical_candles',
+                    timeframe: tf,
+                    candles: candles
+                  }));
+                  console.log(`📊 [StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
+                } else {
+                  console.warn(`📊 [StockAdapter] No data for ${asset} @ ${tf}`);
+                }
+              }).catch(err => {
+                console.error(`📊 [StockAdapter] Error: ${err.message}`);
+              });
             }
+          } catch (err) {
+            console.error('[StockAdapter] Module error:', err.message);
           }
-        });
+        }
+
+        // Crypto or timeframe_change — relay to bot as before
+        if (!handled) {
+          const messageStr = JSON.stringify(data);
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN &&
+                client.authenticated &&
+                client.clientType === 'bot') {
+              try {
+                client.send(messageStr);
+                console.log(`📊 Relayed ${data.type} (${data.timeframe}) to bot`);
+              } catch (err) {
+                console.error('Error relaying timeframe message to bot:', err.message);
+              }
+            }
+          });
+        }
       }
 
       // CHANGE 2026-02-10: RELAY Dashboard → Bot (for journal/replay/asset requests)
