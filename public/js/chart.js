@@ -30,11 +30,16 @@
             // Candle scale auto-fits — volume is on its own isolated 'vol' scale
 
             volumeSeries = tvChart.addHistogramSeries({
-                priceScaleId: '',
+                priceScaleId: 'vol',
                 color: '#26a69a',
                 priceFormat: { type: 'volume' },
-                lastValueVisible: false,
-                priceLineVisible: false
+                scaleMargins: { top: 0.8, bottom: 0 }
+            });
+            // Volume on its own invisible scale — no axis labels, no ticks
+            tvChart.priceScale('vol').applyOptions({
+                scaleMargins: { top: 0.8, bottom: 0 },
+                drawTicks: false,
+                borderVisible: false
             });
 
             // Ghost Layer for pattern projections (LIVE-SAFE-GUARDED)
@@ -287,10 +292,8 @@
                     })));
                 }
 
-                // Scroll to show most recent candles with some right padding
-                if (tvChart) {
-                    tvChart.timeScale().scrollToRealTime();
-                }
+                // Auto-fit chart to show all loaded data
+                if (tvChart) tvChart.timeScale().fitContent();
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
