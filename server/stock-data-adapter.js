@@ -9,7 +9,8 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 
 const API_KEY = process.env.ALPACA_API_KEY;
 const API_SECRET = process.env.ALPACA_API_SECRET;
-const DATA_URL = 'https://data.sandbox.alpaca.markets/v2/stocks';
+// Use IEX feed for free/basic plans (SIP requires paid subscription)
+const DATA_URL = 'https://data.alpaca.markets/v2/stocks';
 
 // Stock tickers this adapter handles — everything else goes to Kraken
 const STOCK_TICKERS = new Set([
@@ -62,7 +63,8 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
         end: now.toISOString(),
         timeframe: alpacaTf,
         limit: String(limit),
-        adjustment: 'split'
+        adjustment: 'split',
+        feed: 'iex'
     });
 
     const url = `${DATA_URL}/${symbol}/bars?${params}`;
