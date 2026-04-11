@@ -292,8 +292,9 @@
                     })));
                 }
 
-                // Auto-fit chart to show all loaded data
-                if (tvChart) tvChart.timeScale().fitContent();
+                // Scroll to most recent candles — do NOT use fitContent()
+                // fitContent() includes volume range which crushes candle Y-axis
+                if (tvChart) tvChart.timeScale().scrollToRealTime();
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
