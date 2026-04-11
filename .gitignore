@@ -166,3 +166,8 @@ data/pattern-memory.paper.json.bak-*
 
 # Mercury bridge vector index (regenerated on each indexing run)
 ogz-meta/ledger/vector_index.json
+
+# Pine transpiler local debug scripts
+pine-transpiler/debug-*.js
+pine-transpiler/test-*.js
+pine-transpiler/signal-count-test.js
