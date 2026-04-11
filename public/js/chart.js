@@ -293,6 +293,9 @@
                     })));
                 }
 
+                // Auto-fit chart to show all loaded data
+                if (tvChart) tvChart.timeScale().fitContent();
+
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
                 console.error('[Chart] loadHistorical error:', e.message);

@@ -34,7 +34,7 @@
                     if (data.type === 'auth_success') {
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // Request historical candles to fill the chart on load
-                        this.send({ type: 'request_historical', timeframe: '1m', limit: 200 });
+                        this.send({ type: 'request_historical', timeframe: '1m', limit: 500 });
                     }
 
                     // Dispatch to registered handlers
