@@ -30,17 +30,11 @@
                         OGZ.state.lastPrice = data.tick.price;
                     }
 
-                    // Auth success → identify + sync asset + request historical candles
+                    // Auth success → identify + request historical candles
                     if (data.type === 'auth_success') {
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
-                        // Sync the bot to whatever asset the dropdown shows
-                        const activeAsset = document.getElementById('assetSelector')?.value || 'BTC-USD';
-                        this.send({ type: 'asset_change', asset: activeAsset });
-                        // Request historical candles for that asset
-                        const activeTf = document.getElementById('timeframeSelector')?.value || '1m';
-                        setTimeout(() => {
-                            this.send({ type: 'request_historical', timeframe: activeTf, asset: activeAsset, limit: 500 });
-                        }, 300);
+                        // Request historical candles for the bot's current active asset
+                        this.send({ type: 'request_historical', timeframe: '1m', limit: 500 });
                     }
 
                     // Dispatch to registered handlers
