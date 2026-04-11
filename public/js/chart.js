@@ -77,6 +77,16 @@
             atrSeries = tvChart.addLineSeries({ color: '#ff9800', lineWidth: 1, visible: false, title: 'ATR', priceScaleId: 'atr', lastValueVisible: false, priceLineVisible: false });
             tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
 
+            // Ichimoku series
+            this._ichiTenkan = tvChart.addLineSeries({ color: '#00bcd4', lineWidth: 1, visible: false, title: 'Tenkan', lastValueVisible: false, priceLineVisible: false });
+            this._ichiKijun = tvChart.addLineSeries({ color: '#ff5722', lineWidth: 1, visible: false, title: 'Kijun', lastValueVisible: false, priceLineVisible: false });
+            this._ichiSenkouA = tvChart.addLineSeries({ color: 'rgba(76,175,80,0.5)', lineWidth: 1, visible: false, title: 'Senkou A', lastValueVisible: false, priceLineVisible: false });
+            this._ichiSenkouB = tvChart.addLineSeries({ color: 'rgba(244,67,54,0.5)', lineWidth: 1, visible: false, title: 'Senkou B', lastValueVisible: false, priceLineVisible: false });
+
+            // Fibonacci and S/R use price lines (created dynamically)
+            this._fibLines = [];
+            this._srLines = [];
+
             // Flicker Fix: maintain live price display during crosshair hover
             tvChart.subscribeCrosshairMove(param => {
                 const priceEl = document.getElementById('currentPrice');
@@ -215,6 +225,17 @@
             macdLineSeries.applyOptions({ visible: active.includes('macd') });
             macdSignalSeries.applyOptions({ visible: active.includes('macd') });
             atrSeries.applyOptions({ visible: active.includes('atr') });
+            // Ichimoku
+            this._ichiTenkan.applyOptions({ visible: active.includes('ichimoku') });
+            this._ichiKijun.applyOptions({ visible: active.includes('ichimoku') });
+            this._ichiSenkouA.applyOptions({ visible: active.includes('ichimoku') });
+            this._ichiSenkouB.applyOptions({ visible: active.includes('ichimoku') });
+            // Fibonacci — show/hide price lines
+            this._fibLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
+            this._fibLines = [];
+            // S/R — show/hide price lines
+            this._srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
+            this._srLines = [];
         },
 
         calculateIndicators: function(candles) {
@@ -260,6 +281,46 @@
                 // ATR
                 const atr = Ind.calculateATR(candles, 14);
                 atrSeries.setData(mapSeries(atr));
+
+                // MACD
+                const macd = Ind.calculateMACD(closes);
+                macdLineSeries.setData(mapSeries(macd.macd));
+                macdSignalSeries.setData(mapSeries(macd.signal));
+
+                // Ichimoku
+                const ichi = Ind.calculateIchimoku(candles);
+                this._ichiTenkan.setData(mapSeries(ichi.tenkan));
+                this._ichiKijun.setData(mapSeries(ichi.kijun));
+                this._ichiSenkouA.setData(mapSeries(ichi.senkouA));
+                this._ichiSenkouB.setData(mapSeries(ichi.senkouB));
+
+                // Fibonacci price lines
+                if (activeOverlays.includes('fibonacci')) {
+                    const fibColors = ['#00cc00', '#33cc33', '#66cc66', '#999900', '#cc6600', '#cc3300', '#cc0000'];
+                    const fibs = Ind.calculateFibonacci(candles);
+                    fibs.forEach((f, i) => {
+                        const line = candleSeries.createPriceLine({
+                            price: f.price, color: fibColors[i] || '#888',
+                            lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+                            title: `Fib ${f.label}`
+                        });
+                        this._fibLines.push(line);
+                    });
+                }
+
+                // Support/Resistance price lines
+                if (activeOverlays.includes('sr')) {
+                    const sr = Ind.calculateSupportResistance(candles);
+                    sr.forEach(level => {
+                        const line = candleSeries.createPriceLine({
+                            price: level.price,
+                            color: level.type === 'resistance' ? '#ff3366' : '#00ff88',
+                            lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+                            title: `${level.type === 'resistance' ? 'R' : 'S'} (${level.strength})`
+                        });
+                        this._srLines.push(line);
+                    });
+                }
 
                 console.log('[Chart] Indicators calculated for', candles.length, 'candles');
             } catch (e) {
