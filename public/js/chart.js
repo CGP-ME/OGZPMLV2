@@ -216,14 +216,36 @@
         loadHistorical: (candles) => {
             if (!candleSeries || !candles || candles.length === 0) return;
             try {
-                const formatted = candles.map(c => ({
-                    time: Math.floor((c.time || c.t || c.timestamp || 0) / (c.time > 1e12 || c.t > 1e12 || c.timestamp > 1e12 ? 1000 : 1)),
-                    open: c.open || c.o || 0,
-                    high: c.high || c.h || 0,
-                    low: c.low || c.l || 0,
-                    close: c.close || c.c || 0
-                })).filter(c => c.time > 0 && c.open > 0);
-                if (formatted.length > 0) candleSeries.setData(formatted);
+                const formatted = candles.map(c => {
+                    const rawTime = c.time || c.t || c.timestamp || 0;
+                    const time = Math.floor(rawTime / (rawTime > 1e12 ? 1000 : 1));
+                    return {
+                        time,
+                        open: c.open || c.o || 0,
+                        high: c.high || c.h || 0,
+                        low: c.low || c.l || 0,
+                        close: c.close || c.c || 0,
+                        volume: c.volume || c.v || 0
+                    };
+                }).filter(c => c.time > 0 && c.open > 0);
+
+                if (formatted.length === 0) return;
+
+                // Set candle data
+                candleSeries.setData(formatted.map(c => ({
+                    time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
+                })));
+
+                // Set volume data
+                if (volumeSeries) {
+                    volumeSeries.setData(formatted.map(c => ({
+                        time: c.time,
+                        value: c.volume,
+                        color: c.close >= c.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)'
+                    })));
+                }
+
+                console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
                 console.error('[Chart] loadHistorical error:', e.message);
             }
