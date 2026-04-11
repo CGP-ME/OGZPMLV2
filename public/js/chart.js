@@ -75,11 +75,29 @@
         },
 
         bindControls: function() {
-            // Chart type selector
+            // Chart type selector — switch between candlestick and line
             const chartType = document.getElementById('chartTypeSelector');
             if (chartType) chartType.addEventListener('change', (e) => {
-                console.log('[Chart] Type:', e.target.value);
-                // Chart type switching handled by LightweightCharts
+                const type = e.target.value;
+                if (type === 'line') {
+                    candleSeries.applyOptions({ visible: false });
+                    if (!this._lineSeries) {
+                        this._lineSeries = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2 });
+                    }
+                    // Copy candle closes to line series
+                    try {
+                        const data = candleSeries.data ? candleSeries.data() : [];
+                        if (data.length > 0) {
+                            this._lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+                        }
+                    } catch(e) { /* data() may not be available */ }
+                    this._lineSeries.applyOptions({ visible: true });
+                } else {
+                    // Candlestick mode
+                    candleSeries.applyOptions({ visible: true });
+                    if (this._lineSeries) this._lineSeries.applyOptions({ visible: false });
+                }
+                console.log('[Chart] Type:', type);
             });
 
             // Asset selector — sends asset_change + requests new historical data

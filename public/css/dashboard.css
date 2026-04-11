@@ -58,3 +58,74 @@ body.golden-alert-pulse {
     box-shadow: 0 0 20px var(--ml-color, #ffd700) !important;
     border-color: var(--ml-color, #ffd700) !important;
 }
+
+/* ═══ Theme Presets ═══ */
+body.theme-cyberpunk {
+    --ml-color: #ff00ff;
+    --bg-primary: #0a0010;
+    --profit-color: #ff00ff;
+    --loss-color: #00ffff;
+}
+body.theme-cyberpunk .header { background: linear-gradient(135deg, #1a0030 0%, #0a0010 100%); }
+body.theme-cyberpunk .edge-panel { border-color: rgba(255, 0, 255, 0.3); }
+body.theme-cyberpunk .chart-title { color: #ff00ff; }
+
+body.theme-matrix {
+    --ml-color: #00ff00;
+    --profit-color: #00ff00;
+    --loss-color: #ff0000;
+}
+body.theme-matrix .header { background: linear-gradient(135deg, #001a00 0%, #000a00 100%); }
+body.theme-matrix .edge-panel { border-color: rgba(0, 255, 0, 0.3); }
+body.theme-matrix .chart-title { color: #00ff00; }
+
+body.theme-neon {
+    --ml-color: #ff6600;
+    --profit-color: #00ff88;
+    --loss-color: #ff3366;
+}
+body.theme-neon .header { background: linear-gradient(135deg, #1a0a00 0%, #0a0500 100%); }
+body.theme-neon .edge-panel { border-color: rgba(255, 102, 0, 0.3); }
+
+body.theme-ocean {
+    --ml-color: #0077cc;
+    --profit-color: #00ccff;
+    --loss-color: #ff6666;
+}
+body.theme-ocean .header { background: linear-gradient(135deg, #001a2e 0%, #000a15 100%); }
+body.theme-ocean .edge-panel { border-color: rgba(0, 119, 204, 0.3); }
+body.theme-ocean .chart-title { color: #0077cc; }
+
+body.theme-sunset {
+    --ml-color: #ff4444;
+    --profit-color: #ff8844;
+    --loss-color: #4444ff;
+}
+body.theme-sunset .header { background: linear-gradient(135deg, #2a0a0a 0%, #1a0505 100%); }
+body.theme-sunset .edge-panel { border-color: rgba(255, 68, 68, 0.3); }
+
+body.theme-royal {
+    --ml-color: #8844ff;
+    --profit-color: #aa88ff;
+    --loss-color: #ff4488;
+}
+body.theme-royal .header { background: linear-gradient(135deg, #100030 0%, #080018 100%); }
+body.theme-royal .edge-panel { border-color: rgba(136, 68, 255, 0.3); }
+body.theme-royal .chart-title { color: #8844ff; }
+
+body.theme-hacker {
+    --ml-color: #00ff88;
+    --profit-color: #00ff88;
+    --loss-color: #ff0044;
+}
+body.theme-hacker .header { background: linear-gradient(135deg, #001a0a 0%, #000a05 100%); }
+body.theme-hacker .edge-panel { border-color: rgba(0, 255, 136, 0.3); }
+body.theme-hacker .chart-title { color: #00ff88; }
+
+body.theme-dark {
+    --ml-color: #888888;
+    --profit-color: #aaaaaa;
+    --loss-color: #666666;
+}
+body.theme-dark .header { background: linear-gradient(135deg, #111 0%, #0a0a0a 100%); }
+body.theme-dark .edge-panel { border-color: rgba(136, 136, 136, 0.2); }
