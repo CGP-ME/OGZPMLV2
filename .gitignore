@@ -141,3 +141,28 @@ test/btc-10k.json
 ogz-meta/prodlock-portable
 # SonarQube - uncomment if you put token in properties file\n# sonar-project.properties
 .scannerwork/
+
+# Runtime artifacts (regenerated every cycle)
+data/journal/journal-stats.json
+data/pipeline-snapshots.jsonl
+ogz-meta/gates/runs/latest.json
+public/proof/gates/latest.json
+public/proof/live-trades.json
+
+# Auto-generated health reports (every 30min)
+ogz-meta/health-reports/*.txt
+
+# Backtest output
+backtest-output.txt
+backtest-results/
+data/backtest/
+
+# Local AI scratch
+.ai-specs/
+trees/
+
+# Pattern memory backups (point-in-time recoveries, not source)
+data/pattern-memory.paper.json.bak-*
+
+# Mercury bridge vector index (regenerated on each indexing run)
+ogz-meta/ledger/vector_index.json
