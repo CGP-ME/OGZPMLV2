@@ -1630,15 +1630,8 @@
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
-        /* Trade Manager Panel — HIDDEN on proof display page */
-        .trade-manager {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        .trade-toggle {
-            display: none !important;
-            visibility: hidden !important;
-        }
+        /* Trade Manager — REMOVED */
+        .trade-manager, .trade-toggle, #tradeManager { display: none !important; visibility: hidden !important; width: 0 !important; height: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; }
 
         .trade-manager.collapsed {
             width: 50px;
@@ -2253,9 +2246,8 @@
         <button class="tool-btn" onclick="clearDrawings()" title="Clear All">🗑️</button>
     </div>
 
-    <!-- Trade Management Panel — removed from proof display page, available in trading interface -->
-    <div class="trade-manager" id="tradeManager" style="display:none !important;">
-        <div class="trade-toggle" style="display:none !important;"></div>
+    <!-- Trade Management Panel — REMOVED from proof display page -->
+    <div id="tradeManager" style="display:none !important;position:absolute;left:-9999px;">
         <div class="trade-panel active" id="tradePanel">
             <h3>Trade Management</h3>
 
