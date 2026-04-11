@@ -36,6 +36,15 @@ window.OGZ = (function() {
             if (this.get('Operator')) this.get('Operator').init();
             if (this.get('Edge')) this.get('Edge').init();
             if (this.get('DrawingTools')) this.get('DrawingTools').init();
+
+            // Check TRAI status light
+            fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
+                const traiLight = document.getElementById('traiLight');
+                if (traiLight && d && d.ready) {
+                    traiLight.classList.remove('red','yellow');
+                    traiLight.classList.add('green');
+                }
+            }).catch(() => {});
         },
 
         bindGlobalHandlers: function() {
@@ -94,11 +103,15 @@ window.OGZ = (function() {
                     if (data.stats.tradesExecuted != null) set('tradesExecuted', data.stats.tradesExecuted);
                 }
 
-                // Update status lights
-                const dataLight = document.getElementById('dataLight');
-                if (dataLight) dataLight.classList.add('green');
+                // Update status lights — all three
+                ['dataLight', 'botLight'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.classList.remove('red','yellow'); el.classList.add('green'); }
+                });
                 const statusText = document.getElementById('statusText');
                 if (statusText) statusText.textContent = 'Connected';
+                const connDot = document.getElementById('connectionStatus');
+                if (connDot) { connDot.classList.remove('red'); connDot.classList.add('green'); }
             });
 
             // LIVE: Intelligence Routing (Strategy HUD)
