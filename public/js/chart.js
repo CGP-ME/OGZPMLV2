@@ -79,27 +79,41 @@
         },
 
         bindControls: function() {
-            // Chart type selector — switch between candlestick and line
+            // Chart type selector — switch between candlestick, line, area, bar
             const chartType = document.getElementById('chartTypeSelector');
             if (chartType) chartType.addEventListener('change', (e) => {
                 const type = e.target.value;
-                if (type === 'line') {
-                    candleSeries.applyOptions({ visible: false });
-                    if (!this._lineSeries) {
-                        this._lineSeries = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2 });
-                    }
-                    // Copy candle closes to line series
-                    try {
-                        const data = candleSeries.data ? candleSeries.data() : [];
-                        if (data.length > 0) {
-                            this._lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
-                        }
-                    } catch(e) { /* data() may not be available */ }
-                    this._lineSeries.applyOptions({ visible: true });
-                } else {
-                    // Candlestick mode
+                // Hide all alt series
+                if (this._lineSeries) this._lineSeries.applyOptions({ visible: false });
+                if (this._areaSeries) this._areaSeries.applyOptions({ visible: false });
+                if (this._barSeries) this._barSeries.applyOptions({ visible: false });
+
+                if (type === 'candlestick') {
                     candleSeries.applyOptions({ visible: true });
-                    if (this._lineSeries) this._lineSeries.applyOptions({ visible: false });
+                } else {
+                    candleSeries.applyOptions({ visible: false });
+                    // Get candle data for alt series
+                    let data = [];
+                    try { data = candleSeries.data ? candleSeries.data() : []; } catch(err) {}
+
+                    if (type === 'line') {
+                        if (!this._lineSeries) this._lineSeries = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2 });
+                        if (data.length) this._lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+                        this._lineSeries.applyOptions({ visible: true });
+                    } else if (type === 'area') {
+                        if (!this._areaSeries) this._areaSeries = tvChart.addAreaSeries({
+                            topColor: 'rgba(0, 255, 136, 0.4)', bottomColor: 'rgba(0, 255, 136, 0.0)',
+                            lineColor: '#00ff88', lineWidth: 2
+                        });
+                        if (data.length) this._areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
+                        this._areaSeries.applyOptions({ visible: true });
+                    } else if (type === 'bar') {
+                        if (!this._barSeries) this._barSeries = tvChart.addBarSeries({
+                            upColor: '#00ff88', downColor: '#ff3366'
+                        });
+                        if (data.length) this._barSeries.setData(data);
+                        this._barSeries.applyOptions({ visible: true });
+                    }
                 }
                 console.log('[Chart] Type:', type);
             });
