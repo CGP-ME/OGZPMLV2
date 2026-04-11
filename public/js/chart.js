@@ -33,14 +33,16 @@
             });
 
             volumeSeries = tvChart.addHistogramSeries({
-                priceScaleId: 'volume',
+                priceScaleId: 'vol',
                 color: '#26a69a',
-                priceFormat: { type: 'volume' }
+                priceFormat: { type: 'volume' },
+                scaleMargins: { top: 0.8, bottom: 0 }
             });
-            // Volume bars render in bottom 20% of chart
-            tvChart.priceScale('volume').applyOptions({
+            // Volume on its own invisible scale — no axis labels, no ticks
+            tvChart.priceScale('vol').applyOptions({
                 scaleMargins: { top: 0.8, bottom: 0 },
-                drawTicks: false
+                drawTicks: false,
+                borderVisible: false
             });
 
             // Ghost Layer for pattern projections (LIVE-SAFE-GUARDED)
