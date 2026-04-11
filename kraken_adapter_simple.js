@@ -621,7 +621,14 @@ class KrakenAdapterSimple {
           };
           this.ws.send(JSON.stringify(ohlcSub));
         }
-        console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d)');
+        // Subscribe to order book for depth/whale wall detection
+        const bookSub = {
+          event: 'subscribe',
+          pair: [this.tradingPair],
+          subscription: { name: 'book', depth: 25 }
+        };
+        this.ws.send(JSON.stringify(bookSub));
+        console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that
@@ -733,6 +740,21 @@ class KrakenAdapterSimple {
                 interval: interval,
                 timestamp: Date.now()
               });
+            }
+          }
+
+          // Handle order book data for depth/whale wall detection
+          if (Array.isArray(msg) && typeof msg[1] === 'object' && (msg[1].bs || msg[1].as || msg[1].b || msg[1].a)) {
+            const bookData = msg[1];
+            const bids = bookData.bs || bookData.b || [];
+            const asks = bookData.as || bookData.a || [];
+            if (bids.length > 0 || asks.length > 0) {
+              // Store for depth adapter consumption
+              this.lastBookSnapshot = { bids, asks, timestamp: Date.now() };
+              // Emit to callback if registered
+              if (this.onBookUpdate) {
+                this.onBookUpdate(this.lastBookSnapshot);
+              }
             }
           }
         } catch (err) {

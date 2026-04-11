@@ -51,6 +51,12 @@ class DashboardBroadcaster {
         };
       }
 
+      // God Mode: Delta tick emission for zero-lag chart updates
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'delta',
+        tick: { price, volume, timestamp: Date.now() }
+      }));
+
       // Calculate CVD (Cumulative Volume Delta)
       const isBuy = _c(candle) >= _o(candle);  // Simple: close >= open = buy pressure
       const volumeDelta = isBuy ? volume : -volume;
