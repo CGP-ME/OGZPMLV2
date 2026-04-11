@@ -62,12 +62,43 @@ window.OGZ = (function() {
                 if (this.get('Operator')) this.get('Operator').syncWithGoldenSetup(d.is_golden);
             });
 
-            // LIVE: Standard Price Routing
+            // LIVE: Standard Price Routing + Bottom Panel Updates
             socket.registerHandler('price', (d) => {
-                const p = parseFloat(d.data?.price || d.data?.close || d.price || 0);
+                const data = d.data || d;
+                const p = parseFloat(data.price || data.close || 0);
                 state.lastPriceDelta = p - state.lastPrice;
                 state.lastPrice = p;
-                if (this.get('Chart')) this.get('Chart').update(d.data || d);
+                if (this.get('Chart')) this.get('Chart').update(data);
+
+                // Update indicator bar from price message
+                if (data.indicators) {
+                    const ind = data.indicators;
+                    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+                    set('rsiCore', ind.rsi != null ? ind.rsi.toFixed(1) : '--');
+                    set('macdCore', ind.macd != null ? (typeof ind.macd === 'object' ? (ind.macd.macd || 0).toFixed(2) : ind.macd.toFixed(2)) : '--');
+                    set('volumeCore', data.volume ? data.volume.toFixed(0) : '--');
+                    set('atrML', ind.atr != null ? ind.atr.toFixed(2) : '--');
+                    set('confidenceML', data.confidence != null ? data.confidence.toFixed(0) + '%' : '--');
+                }
+
+                // Update performance stats if included
+                if (data.stats) {
+                    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+                    if (data.stats.totalPnl != null) {
+                        const pnl = data.stats.totalPnl;
+                        set('totalPnl', (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2));
+                        const el = document.getElementById('totalPnl');
+                        if (el) el.style.color = pnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)';
+                    }
+                    if (data.stats.winRate != null) set('winRate', data.stats.winRate.toFixed(1) + '%');
+                    if (data.stats.tradesExecuted != null) set('tradesExecuted', data.stats.tradesExecuted);
+                }
+
+                // Update status lights
+                const dataLight = document.getElementById('dataLight');
+                if (dataLight) dataLight.classList.add('green');
+                const statusText = document.getElementById('statusText');
+                if (statusText) statusText.textContent = 'Connected';
             });
 
             // LIVE: Intelligence Routing (Strategy HUD)
@@ -75,16 +106,61 @@ window.OGZ = (function() {
                 if (this.get('Intelligence')) this.get('Intelligence').updateWinnerHUD(d);
             });
 
-            // LIVE-SAFE-GUARDED: Pattern Analysis (Ghost Projections)
+            // LIVE: Pattern Analysis — updates pattern panel + ghost projection
             socket.registerHandler('pattern_analysis', (d) => {
+                // Ghost projection (guarded)
                 if (this.get('Chart') && d.projection_path) {
                     this.get('Chart').plotGhost(d.projection_path);
                 }
+
+                // Pattern display panel
+                if (d.pattern) {
+                    const nameEl = document.getElementById('currentPatternName');
+                    const descEl = document.getElementById('patternDescription');
+                    const patternCore = document.getElementById('patternCore');
+                    const patternML = document.getElementById('patternML');
+                    const confEl = document.getElementById('confidence');
+
+                    if (nameEl) nameEl.textContent = d.pattern.name || 'No pattern';
+                    if (descEl) descEl.innerHTML = `<p class="pattern-info">${d.pattern.description || 'Analyzing market structure...'}</p>`;
+                    if (patternCore) patternCore.textContent = d.pattern.name || 'None';
+                    if (patternML) patternML.textContent = d.pattern.name || 'None';
+                    if (confEl && d.pattern.confidence != null) {
+                        confEl.textContent = (d.pattern.confidence * 100).toFixed(0) + '%';
+                    }
+                }
+
+                // Indicator values from pattern_analysis (the bot sends these here too)
+                if (d.indicators) {
+                    const ind = d.indicators;
+                    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+                    if (ind.rsi != null) set('rsiCore', ind.rsi.toFixed(1));
+                    if (ind.macd != null) set('macdCore', (typeof ind.macd === 'object' ? (ind.macd.macd || ind.macd).toFixed(2) : ind.macd.toFixed(2)));
+                    if (ind.atr != null) set('atrML', ind.atr.toFixed(2));
+                }
             });
 
-            // LIVE: Trade execution events
+            // LIVE: Trade execution events — trade log + performance stats update
             socket.registerHandler('trade', (d) => {
                 if (this.get('TradeLog')) this.get('TradeLog').addEntry(d);
+
+                // Update trade count
+                const tcEl = document.getElementById('tradesExecuted');
+                if (tcEl) {
+                    const current = parseInt(tcEl.textContent) || 0;
+                    tcEl.textContent = current + 1;
+                }
+
+                // Update PnL if trade has it
+                if (d.pnl != null) {
+                    const pnlEl = document.getElementById('totalPnl');
+                    if (pnlEl) {
+                        const currentPnl = parseFloat(pnlEl.textContent.replace(/[^-\d.]/g, '')) || 0;
+                        const newPnl = currentPnl + d.pnl;
+                        pnlEl.textContent = (newPnl >= 0 ? '+' : '') + '$' + newPnl.toFixed(2);
+                        pnlEl.style.color = newPnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)';
+                    }
+                }
             });
 
             // LIVE: Market Internals (Whale Absorption)
