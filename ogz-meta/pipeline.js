@@ -183,7 +183,15 @@ async function execute(issue) {
     }
 
     // Execute command
-    manifest = await route(command, { manifest: `ogz-meta/manifests/current.json` });
+    try {
+      manifest = await route(command, { manifest: `ogz-meta/manifests/current.json` });
+    } catch (err) {
+      console.error(`❌ Pipeline command ${command} failed: ${err.message}`);
+      if (manifest && manifest.stop_conditions) {
+        manifest.stop_conditions.warden_blocked = true;
+      }
+      break;
+    }
 
     // Pipeline status
     console.log(`   State: ${manifest.state}`);
