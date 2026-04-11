@@ -2233,18 +2233,7 @@
         </div><!-- end edge-content -->
     </div>
 
-    <!-- Drawing Tools Panel -->
-    <div class="drawing-tools collapsed" id="drawingTools" onclick="if(this.classList.contains('collapsed')) this.classList.remove('collapsed')">
-        <div class="tool-header">📊<button class="edge-toggle" onclick="event.stopPropagation(); document.getElementById('drawingTools').classList.add('collapsed')" style="margin-left:5px">−</button></div>
-        <button class="tool-btn" onclick="activateDrawingTool('trendline')" title="Trend Line">📈</button>
-        <button class="tool-btn" onclick="activateDrawingTool('horizontal')" title="Horizontal Line">➖</button>
-        <button class="tool-btn" onclick="activateDrawingTool('vertical')" title="Vertical Line">│</button>
-        <button class="tool-btn" onclick="activateDrawingTool('rectangle')" title="Rectangle">▭</button>
-        <button class="tool-btn" onclick="activateDrawingTool('fibonacci')" title="Fibonacci">🌀</button>
-        <button class="tool-btn" onclick="activateDrawingTool('arrow')" title="Arrow">➤</button>
-        <button class="tool-btn" onclick="activateDrawingTool('text')" title="Text">T</button>
-        <button class="tool-btn" onclick="clearDrawings()" title="Clear All">🗑️</button>
-    </div>
+    <!-- Drawing Tools: moved inline to chart controls bar -->
 
     <!-- Trade Management Panel — REMOVED from proof display page -->
     <div id="tradeManager" style="display:none !important;position:absolute;left:-9999px;">
@@ -2450,6 +2439,15 @@
                         <option value="4h">4H</option>
                         <option value="1d">1D</option>
                     </select>
+                    <div class="drawing-tools-inline" id="drawingTools" style="display:inline-flex; gap:4px; margin-right:10px; align-items:center;">
+                        <span style="font-size:10px; color:#666; margin-right:2px;">Draw:</span>
+                        <button class="tool-btn" onclick="activateDrawingTool('trendline', this)" title="Trend Line" style="font-size:10px; padding:2px 6px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer;">Trend</button>
+                        <button class="tool-btn" onclick="activateDrawingTool('horizontal', this)" title="Horizontal Line" style="font-size:10px; padding:2px 6px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer;">H-Line</button>
+                        <button class="tool-btn" onclick="activateDrawingTool('vertical', this)" title="Vertical Line" style="font-size:10px; padding:2px 6px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer;">V-Line</button>
+                        <button class="tool-btn" onclick="activateDrawingTool('rectangle', this)" title="Rectangle" style="font-size:10px; padding:2px 6px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer;">Rect</button>
+                        <button class="tool-btn" onclick="activateDrawingTool('fibonacci', this)" title="Fibonacci" style="font-size:10px; padding:2px 6px; background:#222; border:1px solid #444; color:#ccc; border-radius:3px; cursor:pointer;">Fib</button>
+                        <button class="tool-btn" onclick="clearDrawings()" title="Clear All" style="font-size:10px; padding:2px 6px; background:#331111; border:1px solid #663333; color:#ff6666; border-radius:3px; cursor:pointer;">Clear</button>
+                    </div>
                     <div class="indicator-checkboxes" id="indicatorCheckboxes">
                         <label class="indicator-check">
                             <input type="checkbox" id="chk-ema" value="ema">
