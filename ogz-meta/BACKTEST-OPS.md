@@ -308,7 +308,7 @@ Open `public/command-center.html` in browser, drag `backtest-trades.csv` onto it
 `full-45k.json` is BTC. Stock strategies on BTC = meaningless results. Always specify `CANDLE_DATA_FILE`.
 
 ### 2. ACCOUNT_DRAWDOWN_BYPASS
-If not set to `true`, the account drawdown check may kill the backtest early, producing truncated results that look worse than reality.
+Drawdown calculation was fixed on 2026-03-14 (core/StateManager.js:99). Safe to run with `ACCOUNT_DRAWDOWN_BYPASS=false` now. Set to `true` only for isolated strategy testing where you want to skip drawdown checks entirely.
 
 ### 3. ENABLE_SMS Default
 SMS is `false` by default. If testing SMS, you MUST set `ENABLE_SMS=true` explicitly.

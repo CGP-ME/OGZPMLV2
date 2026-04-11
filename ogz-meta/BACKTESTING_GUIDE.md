@@ -70,7 +70,7 @@ ENABLE_<strategy>=true            # Master switch on
 ENABLE_TRAI=false                 # No LLM modulation
 ATR_FILTER_ENABLED=false          # No volatility gating
 RISK_MANAGER_BYPASS=true          # No risk-mgr cuts
-ACCOUNT_DRAWDOWN_BYPASS=true      # Drawdown check is broken
+ACCOUNT_DRAWDOWN_BYPASS=false     # Drawdown calc fixed 2026-03-14
 DIRECTION_FILTER=both
 ENABLE_SHORTS=true
 FEE_MAKER=0
@@ -127,14 +127,14 @@ CANDLE_SOURCE=live
 ENABLE_TRAI=true                  # Now we want LLM modulation
 ATR_FILTER_ENABLED=true           # Real environmental gating
 RISK_MANAGER_BYPASS=false         # Real risk checks
-ACCOUNT_DRAWDOWN_BYPASS=false     # ⚠️ ONLY when drawdown calc is fixed
+ACCOUNT_DRAWDOWN_BYPASS=false     # Drawdown calc fixed 2026-03-14
 FEE_MAKER=<real broker rate>
 FEE_TAKER=<real broker rate>
-WARNING: Test 5 is currently UNSAFE because ACCOUNT_DRAWDOWN_BYPASS=false triggers the broken drawdown calculation. Do not run Test 5 until the drawdown bug is fixed. Until then, paper test with bypass=true and accept that you're not exercising the drawdown circuit breaker.
+Test 5 is now safe to run with ACCOUNT_DRAWDOWN_BYPASS=false. The drawdown calculation was fixed on 2026-03-14 (core/StateManager.js:99).
 
 6. Landmines (read these before running anything)
 
-ACCOUNT_DRAWDOWN_BYPASS=true is currently REQUIRED in backtests. The drawdown calculation is broken and fires on every trade when enabled, killing legitimate trades. This bypass must stay on until the calc is fixed. This means the production drawdown safety net is currently UNTESTED in backtest. Treat live deployment with caution.
+ACCOUNT_DRAWDOWN_BYPASS defaults to false. The drawdown calculation was fixed on 2026-03-14 (core/StateManager.js:99 — initialBalance reference point). Set to true only if you want to explicitly skip drawdown checks for isolated strategy testing.
 SOLO_STRATEGY and ENABLE_* are independent gates. Setting one without the other gives you silent zero-trade results. Always set both.
 Locked exit contracts override most env vars. Setting STOP_LOSS_PERCENT=0.5 does nothing for any strategy in the codebase. Edit the strategy's contract directly in TradingConfig.js if you need to change exits.
 The StateManager balance print at end of backtest is STALE. Trust BacktestRecorder's summary block, not the Final Balance: $XXX line that comes from StateManager. They will disagree. BacktestRecorder is the truth source.
@@ -144,7 +144,7 @@ TRADING_VIEW PineScript and Polygon.io disagree on volume profile levels by $6�
 
 
 7. Quick Reference: Which test for which question?
-QuestionTestDoes my new strategy work?Test 1Should I add an ATR filter?Test 2Should I run RSI alone or combined with EMA?Test 3Can I improve RSI's stop loss?Test 4Is my bot ready for live trading?Test 5 (when drawdown is fixed)Why is SMS producing 0 trades?Test 1 with STRATEGY_DIAG=trueWhy are my sweep results all the same number?Read Section 5 — you're probably sweeping IGNORED env varsWhy does my Windows backtest produce different results than VPS?You almost certainly have an env var mismatch. Diff .env files.
+QuestionTestDoes my new strategy work?Test 1Should I add an ATR filter?Test 2Should I run RSI alone or combined with EMA?Test 3Can I improve RSI's stop loss?Test 4Is my bot ready for live trading?Test 5Why is SMS producing 0 trades?Test 1 with STRATEGY_DIAG=trueWhy are my sweep results all the same number?Read Section 5 — you're probably sweeping IGNORED env varsWhy does my Windows backtest produce different results than VPS?You almost certainly have an env var mismatch. Diff .env files.
 
 8. Change Log
 
