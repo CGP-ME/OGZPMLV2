@@ -82,19 +82,39 @@
                 // Chart type switching handled by LightweightCharts
             });
 
-            // Asset selector — sends asset_change to backend via WebSocket
+            // Asset selector — sends asset_change + requests new historical data
             const assetSel = document.getElementById('assetSelector');
             if (assetSel) assetSel.addEventListener('change', (e) => {
                 const socket = OGZ.get('Socket');
-                if (socket) socket.send({ type: 'asset_change', asset: e.target.value });
+                if (socket) {
+                    socket.send({ type: 'asset_change', asset: e.target.value });
+                    // Clear chart and request new data
+                    if (candleSeries) candleSeries.setData([]);
+                    if (volumeSeries) volumeSeries.setData([]);
+                    setTimeout(() => {
+                        const tf = document.getElementById('timeframeSelector')?.value || '1m';
+                        socket.send({ type: 'request_historical', timeframe: tf, asset: e.target.value, limit: 500 });
+                    }, 500);
+                }
                 console.log('[Chart] Asset:', e.target.value);
             });
 
-            // Timeframe selector — sends timeframe_change to backend
+            // Timeframe selector — sends timeframe_change + requests new historical data
             const tfSel = document.getElementById('timeframeSelector');
             if (tfSel) tfSel.addEventListener('change', (e) => {
                 const socket = OGZ.get('Socket');
-                if (socket) socket.send({ type: 'timeframe_change', timeframe: e.target.value });
+                if (socket) {
+                    socket.send({ type: 'timeframe_change', timeframe: e.target.value });
+                    // Clear and reload
+                    if (candleSeries) candleSeries.setData([]);
+                    if (volumeSeries) volumeSeries.setData([]);
+                    socket.send({
+                        type: 'request_historical',
+                        timeframe: e.target.value,
+                        asset: document.getElementById('assetSelector')?.value || 'BTC-USD',
+                        limit: 500
+                    });
+                }
                 console.log('[Chart] Timeframe:', e.target.value);
             });
 
