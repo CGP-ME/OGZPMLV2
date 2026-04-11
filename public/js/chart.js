@@ -194,8 +194,18 @@
         },
 
         loadHistorical: (candles) => {
-            if (candleSeries && candles && candles.length > 0) {
-                candleSeries.setData(candles);
+            if (!candleSeries || !candles || candles.length === 0) return;
+            try {
+                const formatted = candles.map(c => ({
+                    time: Math.floor((c.time || c.t || c.timestamp || 0) / (c.time > 1e12 || c.t > 1e12 || c.timestamp > 1e12 ? 1000 : 1)),
+                    open: c.open || c.o || 0,
+                    high: c.high || c.h || 0,
+                    low: c.low || c.l || 0,
+                    close: c.close || c.c || 0
+                })).filter(c => c.time > 0 && c.open > 0);
+                if (formatted.length > 0) candleSeries.setData(formatted);
+            } catch (e) {
+                console.error('[Chart] loadHistorical error:', e.message);
             }
         },
 
