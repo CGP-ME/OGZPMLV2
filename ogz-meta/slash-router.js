@@ -78,9 +78,23 @@ async function route(command, args) {
 
   // Execute handler
   console.log(`\n🔧 Executing: ${cmd}`);
-  const result = await handler(manifest, params);
+  try {
+    await handler(manifest, params);
+  } catch (err) {
+    const agent = cmd.replace('/', '');
+    console.error(`❌ [${cmd}] Handler threw: ${err.message}`);
+    if (!manifest.stop_conditions) manifest.stop_conditions = {};
+    manifest.stop_conditions[`${agent}_error`] = err.message;
+    // Safe updateSection — only if the agent section exists on the manifest
+    if (manifest[agent]) {
+      updateSection(manifest, agent, {
+        error: err.message,
+        stack: (err.stack || '').split('\n').slice(0, 3).join('\n')
+      });
+    }
+  }
 
-  // Save updated manifest
+  // Save updated manifest (always — even on error, preserves state for post-mortem)
   saveManifest(manifest, manifestPath);
 
   // Emit hook
