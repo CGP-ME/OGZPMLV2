@@ -90,47 +90,70 @@ const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
 // ===================================================================
 
 // Strategies that have validated walk-forward results
-const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep'];
+const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'SmartMoneySweep'];
 
 // All registered strategies (for exploratory sweeps)
 const ALL_STRATEGIES = [
   ...VALIDATED_STRATEGIES,
-  'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout',
+  'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
 ];
 
 const GRID = {
-  // Full grid
+  // Full grid: SL × Tier targets × Confidence
+  // NOTE: takeProfit is IGNORED by the code — MPM tier targets control profit exits.
+  // We sweep TIER1_TARGET/TIER2_TARGET/TIER3_TARGET instead.
   full: {
     stopLoss:   [0.5, 0.8, 1.0, 1.5, 2.0, 3.0],
-    takeProfit: [1.0, 1.5, 2.0, 2.5, 3.0, 4.0],
+    tierPresets: [
+      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
+      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
+      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
+      { t1: 0.015, t2: 0.020, t3: 0.030, label: 'ultra-wide' },
+    ],
     confidence: [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75],
   },
   // Quick sanity check (reduced grid)
   quick: {
     stopLoss:   [0.5, 0.8, 1.5],
-    takeProfit: [1.0, 2.0, 3.0],
+    tierPresets: [
+      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
+      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
+      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
+    ],
     confidence: [0.40, 0.55, 0.70],
   },
-  // Exit-only phase (locked confidence at current best)
+  // Exit-only phase (locked confidence, sweep SL + tiers)
   exits: {
     stopLoss:   [0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0],
-    takeProfit: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
+    tierPresets: [
+      { t1: 0.003, t2: 0.006, t3: 0.010, label: 'scalp' },
+      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
+      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
+      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
+      { t1: 0.015, t2: 0.020, t3: 0.030, label: 'ultra-wide' },
+    ],
     confidence: [0.60],  // Locked at current validated value
   },
   // Confidence-only phase (locked exits at current best per strategy)
   conf: {
     stopLoss:   null,  // Uses per-strategy locked exits
-    takeProfit: null,
+    tierPresets: null,  // Uses current MPM defaults
     confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
   },
 };
 
 // Locked exits per strategy (from walk-forward validation)
 const LOCKED_EXITS = {
-  RSI:              { sl: 0.8, tp: 1.0 },
-  EMASMACrossover:  { sl: 0.5, tp: 1.0 },
-  MADynamicSR:      { sl: 0.8, tp: 1.0 },
-  LiquiditySweep:   { sl: 2.0, tp: 2.5 },  // Fallback - uses structural exits
+  RSI:                  { sl: 0.8 },
+  EMASMACrossover:      { sl: 0.5 },
+  MADynamicSR:          { sl: 0.8 },
+  LiquiditySweep:       { sl: 2.0 },  // Fallback - uses structural exits
+  SmartMoneySweep:      { sl: 1.5 },
+  MarketRegime:         { sl: 0.8 },
+  MultiTimeframe:       { sl: 0.8 },
+  OGZTPO:               { sl: 0.8 },
+  OpeningRangeBreakout: { sl: 1.0 },
+  CandlePattern:        { sl: 0.8 },
 };
 
 // ===================================================================
@@ -141,36 +164,49 @@ function generateMatrix(strategies, grid, phase) {
   const configs = [];
 
   for (const strat of strategies) {
-    // Get exit grid: if phase='conf', use locked exits
-    let slValues, tpValues;
+    // Get SL values: if phase='conf', use locked exits
+    let slValues;
     if (phase === 'conf' || !grid.stopLoss) {
-      const locked = LOCKED_EXITS[strat] || { sl: 1.0, tp: 2.0 };
+      const locked = LOCKED_EXITS[strat] || { sl: 1.0 };
       slValues = [locked.sl];
-      tpValues = [locked.tp];
     } else {
       slValues = grid.stopLoss;
-      tpValues = grid.takeProfit;
     }
 
-    for (const sl of slValues) {
-      for (const tp of tpValues) {
-        // Skip invalid combos: TP must be > SL for positive expectancy
-        if (tp <= sl && slValues.length > 1) continue;
+    // Get tier presets: if phase='conf', use defaults (null = don't set env var)
+    const tierPresets = grid.tierPresets || [null];
 
+    for (const sl of slValues) {
+      for (const tiers of tierPresets) {
         for (const conf of grid.confidence) {
           const shortName = strat.substring(0, 4);
-          const name = shortName + '_sl' + sl + '_tp' + tp + '_c' + (conf * 100).toFixed(0);
+          const tierLabel = tiers ? tiers.label : 'def';
+          const name = shortName + '_sl' + sl + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
+
+          const env = {
+            SOLO_STRATEGY: strat,
+            STOP_LOSS_PERCENT: String(sl),
+            MIN_TRADE_CONFIDENCE: String(conf),
+          };
+
+          // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
+          if (tiers) {
+            env.TIER1_TARGET = String(tiers.t1);
+            env.TIER2_TARGET = String(tiers.t2);
+            env.TIER3_TARGET = String(tiers.t3);
+          }
+
+          // SMS needs explicit enable
+          if (strat === 'SmartMoneySweep') {
+            env.ENABLE_SMS = 'true';
+            env.SMS_VP_RTH_ONLY = 'true';
+          }
 
           configs.push({
             name,
             strategy: strat,
-            sl, tp, conf,
-            env: {
-              SOLO_STRATEGY: strat,
-              STOP_LOSS_PERCENT: String(sl),
-              TAKE_PROFIT_PERCENT: String(tp),
-              MIN_TRADE_CONFIDENCE: String(conf),
-            },
+            sl, tiers, conf,
+            env,
           });
         }
       }
