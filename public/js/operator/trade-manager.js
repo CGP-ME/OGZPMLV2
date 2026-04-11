@@ -12,7 +12,7 @@
             console.log('[Operator] Controls Active.');
 
             // Auto-calculate whenever risk/entry/stop inputs change
-            ['riskPercent', 'entryPrice', 'stopLoss', 'tp1'].forEach(id => {
+            ['accountBalance', 'riskPercent', 'entryPrice', 'stopLoss', 'tp1'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('input', () => this.calculatePosition());
             });
@@ -24,6 +24,61 @@
                     entryInput.value = OGZ.state.lastPrice.toFixed(2);
                 }
             }, 1000);
+
+            this.bindTradeControls();
+        },
+
+        bindTradeControls: function() {
+            // Trade manager panel toggle
+            const tmToggle = document.querySelector('.trade-toggle');
+            if (tmToggle) tmToggle.addEventListener('click', () => {
+                const panel = document.getElementById('tradePanel');
+                if (panel) panel.classList.toggle('active');
+            });
+
+            // SL mode buttons (already have window.setSLMode but strip inline onclick)
+            document.querySelectorAll('.sl-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const mode = this.textContent.toLowerCase().includes('trail') ? 'trailing'
+                        : this.textContent.toLowerCase().includes('break') ? 'breakeven' : 'fixed';
+                    OGZ.get('Operator').setSLMode(mode, this);
+                });
+            });
+
+            // Apply Stop Loss button
+            const applySlBtn = document.querySelector('.sl-section .apply-btn');
+            if (applySlBtn) applySlBtn.addEventListener('click', () => {
+                const socket = OGZ.get('Socket');
+                if (socket) socket.send({
+                    type: 'update_stop_loss',
+                    mode: stopLossMode,
+                    stopLoss: parseFloat(document.getElementById('currentSL')?.value) || 0,
+                    trailDistance: parseFloat(document.getElementById('trailDistance')?.value) || 50,
+                    breakEvenTarget: parseFloat(document.getElementById('beTarget')?.value) || 100
+                });
+            });
+
+            // Quick action buttons
+            const quickActions = document.querySelectorAll('.quick-actions button');
+            const actionMap = ['close_half', 'close_all', 'reverse', 'hedge'];
+            quickActions.forEach((btn, i) => {
+                if (actionMap[i]) {
+                    btn.addEventListener('click', () => {
+                        const socket = OGZ.get('Socket');
+                        if (socket) socket.send({ type: 'command', action: actionMap[i], timestamp: Date.now() });
+                    });
+                }
+            });
+
+            // Set Take Profits button
+            const tpApply = document.querySelector('.tp-section .apply-btn');
+            if (tpApply) tpApply.addEventListener('click', () => {
+                const targets = ['tp1', 'tp2', 'tp3'].map(id => ({
+                    level: parseFloat(document.getElementById(id)?.value) || 0
+                })).filter(t => t.level > 0);
+                const socket = OGZ.get('Socket');
+                if (socket) socket.send({ type: 'set_take_profits', targets });
+            });
         },
 
         // CP1: Golden Setup Integration — highlights exec buttons on high-conviction setup

@@ -2113,8 +2113,8 @@
 <body>
     <!-- Edge Analytics Panel -->
     <div class="edge-panel" id="edgePanel">
-        <button class="edge-toggle" onclick="toggleEdgePanel()" title="Toggle Panel">−</button>
-        <div class="edge-header" onclick="toggleEdgePanel()">🎯 EDGE ANALYTICS <span style="font-size:10px;opacity:0.7">(click to collapse)</span></div>
+        <button class="edge-toggle" title="Toggle Panel">−</button>
+        <div class="edge-header">🎯 EDGE ANALYTICS <span style="font-size:10px;opacity:0.7">(click to collapse)</span></div>
         <div class="edge-content">
 
         <!-- Liquidation Heatmap -->
@@ -2275,7 +2275,7 @@
 
     <!-- Trade Management Panel -->
     <div class="trade-manager" id="tradeManager">
-        <div class="trade-toggle" onclick="toggleTradeManager()">💼 TRADE MANAGER <span style="font-size:11px;opacity:0.7">(click to collapse)</span></div>
+        <div class="trade-toggle">💼 TRADE MANAGER <span style="font-size:11px;opacity:0.7">(click to collapse)</span></div>
         <div class="trade-panel active" id="tradePanel">
             <h3>Trade Management</h3>
 
@@ -2284,19 +2284,19 @@
                 <h4>Position Calculator</h4>
                 <div class="calc-row">
                     <label>Account Balance:</label>
-                    <input type="number" id="accountBalance" value="10000" onchange="calculatePosition()">
+                    <input type="number" id="accountBalance" value="10000">
                 </div>
                 <div class="calc-row">
                     <label>Risk %:</label>
-                    <input type="number" id="riskPercent" value="1" step="0.1" onchange="calculatePosition()">
+                    <input type="number" id="riskPercent" value="1" step="0.1">
                 </div>
                 <div class="calc-row">
                     <label>Entry Price:</label>
-                    <input type="number" id="entryPrice" step="0.01" onchange="calculatePosition()">
+                    <input type="number" id="entryPrice" step="0.01">
                 </div>
                 <div class="calc-row">
                     <label>Stop Loss:</label>
-                    <input type="number" id="stopLoss" step="0.01" onchange="calculatePosition()">
+                    <input type="number" id="stopLoss" step="0.01">
                 </div>
                 <div class="calc-result">
                     <div>Position Size: <span id="positionSize">0</span></div>
@@ -2309,9 +2309,9 @@
             <div class="sl-section">
                 <h4>Stop Loss Manager</h4>
                 <div class="sl-modes">
-                    <button class="sl-btn" onclick="setSLMode('fixed', this)">Fixed SL</button>
-                    <button class="sl-btn" onclick="setSLMode('trailing', this)">Trailing SL</button>
-                    <button class="sl-btn" onclick="setSLMode('breakeven', this)">Breakeven</button>
+                    <button class="sl-btn">Fixed SL</button>
+                    <button class="sl-btn">Trailing SL</button>
+                    <button class="sl-btn">Breakeven</button>
                 </div>
                 <div class="sl-settings">
                     <div class="sl-row">
@@ -2327,16 +2327,16 @@
                         <input type="number" id="beTarget" value="100" step="1">
                     </div>
                 </div>
-                <button class="apply-btn" onclick="applyStopLoss()">Apply Changes</button>
+                <button class="apply-btn">Apply Changes</button>
             </div>
 
             <!-- Quick Actions -->
             <div class="quick-actions">
                 <h4>Quick Actions</h4>
-                <button onclick="closeHalf()">Close 50%</button>
-                <button onclick="closeAll()">Close All</button>
-                <button onclick="reversePosition()">Reverse</button>
-                <button onclick="hedgePosition()">Hedge</button>
+                <button>Close 50%</button>
+                <button>Close All</button>
+                <button>Reverse</button>
+                <button>Hedge</button>
             </div>
 
             <!-- Take Profit Targets -->
@@ -2354,7 +2354,7 @@
                     <label>TP3 (25%):</label>
                     <input type="number" id="tp3" step="0.01">
                 </div>
-                <button class="apply-btn" onclick="setTakeProfits()">Set Targets</button>
+                <button class="apply-btn">Set Targets</button>
             </div>
         </div>
     </div>
@@ -2437,7 +2437,7 @@
         <div class="tagline">Neural Ensemble • Real-Time Data</div>
         <div class="tier-selector-container">
             <span class="tier-label">SELECT VERSION:</span>
-            <select id="tierSelector" class="tier-selector" onchange="switchTier(this.value)">
+            <select id="tierSelector" class="tier-selector">
                 <option value="ml">🧠 ML VERSION - ALL FEATURES</option>
                 <option value="core">⚡ CORE VERSION</option>
             </select>
@@ -2473,11 +2473,11 @@
                     <span class="price-display" id="currentPrice">$0.00</span>
                 </div>
                 <div class="chart-controls">
-                    <select id="chartTypeSelector" onchange="changeChartType(this.value)">
+                    <select id="chartTypeSelector">
                         <option value="candlestick" selected>Candlestick</option>
                         <option value="line">Line</option>
                     </select>
-                    <select id="assetSelector" onchange="changeAsset(this.value)">
+                    <select id="assetSelector">
                         <option value="BTC-USD" selected>Bitcoin (BTC)</option>
                         <option value="ETH-USD">Ethereum (ETH)</option>
                         <option value="SOL-USD">Solana (SOL)</option>
@@ -2494,7 +2494,7 @@
                         <option value="SHIB-USD">Shiba Inu (SHIB)</option>
                         <option value="APT-USD">Aptos (APT)</option>
                     </select>
-                    <select id="timeframeSelector" onchange="changeTimeframe(this.value)">
+                    <select id="timeframeSelector">
                         <option value="1m" selected>1M</option>
                         <option value="5m">5M</option>
                         <option value="15m">15M</option>
@@ -2505,57 +2505,57 @@
                     </select>
                     <div class="indicator-checkboxes" id="indicatorCheckboxes">
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-ema" value="ema" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-ema" value="ema">
                             <span class="color-dot" style="background: #ffcc00;"></span>
                             <span>EMA</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-sma" value="sma" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-sma" value="sma">
                             <span class="color-dot" style="background: #00ccff;"></span>
                             <span>SMA</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-bollinger" value="bollinger" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-bollinger" value="bollinger">
                             <span class="color-dot" style="background: #ff00cc;"></span>
                             <span>Bollinger Bands</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-atr" value="atr" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-atr" value="atr">
                             <span class="color-dot" style="background: #ff6600;"></span>
                             <span>ATR</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-fibonacci" value="fibonacci" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-fibonacci" value="fibonacci">
                             <span class="color-dot" style="background: #9900ff;"></span>
                             <span>Fibonacci</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-trendlines" value="trendlines" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-trendlines" value="trendlines">
                             <span class="color-dot" style="background: #00ff00;"></span>
                             <span>Trend Lines</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-rsi" value="rsi" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-rsi" value="rsi">
                             <span class="color-dot" style="background: #ff0066;"></span>
                             <span>RSI Overlay</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-macd" value="macd" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-macd" value="macd">
                             <span class="color-dot" style="background: #6600ff;"></span>
                             <span>MACD Overlay</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-vwap" value="vwap" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-vwap" value="vwap">
                             <span class="color-dot" style="background: #00ffcc;"></span>
                             <span>VWAP</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-ichimoku" value="ichimoku" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-ichimoku" value="ichimoku">
                             <span class="color-dot" style="background: #ccff00;"></span>
                             <span>Ichimoku Cloud</span>
                         </label>
                         <label class="indicator-check">
-                            <input type="checkbox" id="chk-sr" value="sr" onchange="updateIndicatorOverlays()">
+                            <input type="checkbox" id="chk-sr" value="sr">
                             <span class="color-dot" style="background: #ff9900;"></span>
                             <span>Support/Resistance</span>
                         </label>

@@ -34,6 +34,8 @@ window.OGZ = (function() {
                 this.get('Socket').connect();
             }
             if (this.get('Operator')) this.get('Operator').init();
+            if (this.get('Edge')) this.get('Edge').init();
+            if (this.get('DrawingTools')) this.get('DrawingTools').init();
         },
 
         bindGlobalHandlers: function() {

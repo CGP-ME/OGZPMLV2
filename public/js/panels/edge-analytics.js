@@ -10,6 +10,20 @@
     'use strict';
 
     const Edge = {
+        // Bind panel toggle events
+        init: function() {
+            // Edge panel toggle
+            const edgeToggle = document.querySelector('.edge-toggle');
+            if (edgeToggle) edgeToggle.addEventListener('click', () => this.togglePanel());
+            const edgeHeader = document.querySelector('.edge-header');
+            if (edgeHeader) edgeHeader.addEventListener('click', () => this.togglePanel());
+        },
+
+        togglePanel: function() {
+            const panel = document.getElementById('edgePanel');
+            if (panel) panel.classList.toggle('collapsed');
+        },
+
         // DORMANT: Confluence Matrix rendering (awaits golden_setup_state emitter)
         renderConfluenceMatrix: function(conditions) {
             const container = document.getElementById('divergences');

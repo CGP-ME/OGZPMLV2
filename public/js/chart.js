@@ -61,6 +61,9 @@
             window.tvChart = tvChart;
             window.candleSeries = candleSeries;
 
+            // Bind chart control events
+            this.bindControls();
+
             // Resize handler
             window.addEventListener('resize', () => {
                 if (tvChart && container) {
@@ -69,6 +72,50 @@
             });
 
             console.log('[Chart] Initialized.');
+        },
+
+        bindControls: function() {
+            // Chart type selector
+            const chartType = document.getElementById('chartTypeSelector');
+            if (chartType) chartType.addEventListener('change', (e) => {
+                console.log('[Chart] Type:', e.target.value);
+                // Chart type switching handled by LightweightCharts
+            });
+
+            // Asset selector — sends asset_change to backend via WebSocket
+            const assetSel = document.getElementById('assetSelector');
+            if (assetSel) assetSel.addEventListener('change', (e) => {
+                const socket = OGZ.get('Socket');
+                if (socket) socket.send({ type: 'asset_change', asset: e.target.value });
+                console.log('[Chart] Asset:', e.target.value);
+            });
+
+            // Timeframe selector — sends timeframe_change to backend
+            const tfSel = document.getElementById('timeframeSelector');
+            if (tfSel) tfSel.addEventListener('change', (e) => {
+                const socket = OGZ.get('Socket');
+                if (socket) socket.send({ type: 'timeframe_change', timeframe: e.target.value });
+                console.log('[Chart] Timeframe:', e.target.value);
+            });
+
+            // Indicator checkboxes
+            document.querySelectorAll('#indicatorCheckboxes input[type="checkbox"]').forEach(chk => {
+                chk.addEventListener('change', () => {
+                    const active = [];
+                    document.querySelectorAll('#indicatorCheckboxes input:checked').forEach(c => active.push(c.value));
+                    const socket = OGZ.get('Socket');
+                    if (socket) socket.send({ type: 'indicator_selection', indicators: active });
+                    console.log('[Chart] Indicators:', active);
+                });
+            });
+
+            // Tier selector
+            const tierSel = document.getElementById('tierSelector');
+            if (tierSel) tierSel.addEventListener('change', (e) => {
+                OGZ.state.tier = e.target.value;
+                document.body.className = `tier-${e.target.value}`;
+                console.log('[Chart] Tier:', e.target.value);
+            });
         },
 
         update: (d) => {
