@@ -27,6 +27,10 @@
                 borderUpColor: '#00ff88', borderDownColor: '#ff3366',
                 wickUpColor: '#00ff88', wickDownColor: '#ff3366'
             });
+            // Keep candles in top 80%, leave bottom 20% for volume
+            tvChart.priceScale('right').applyOptions({
+                scaleMargins: { top: 0.05, bottom: 0.2 }
+            });
 
             volumeSeries = tvChart.addHistogramSeries({
                 priceScaleId: 'volume',
