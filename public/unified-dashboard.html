@@ -1630,14 +1630,14 @@
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
-        /* Trade Manager Panel */
+        /* Trade Manager Panel — HIDDEN on proof display page */
         .trade-manager {
-            position: fixed;
-            top: 80px;
-            left: 10px;
-            z-index: 999;
-            width: 320px;
-            transition: width 0.3s ease;
+            display: none !important;
+            visibility: hidden !important;
+        }
+        .trade-toggle {
+            display: none !important;
+            visibility: hidden !important;
         }
 
         .trade-manager.collapsed {

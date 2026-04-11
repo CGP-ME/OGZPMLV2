@@ -43,10 +43,14 @@
                 }
             }, 8000);
 
-            // CVD simulation
+            // CVD simulation with chart
             let cvdValue = 0;
+            const cvdHistory = [];
             setInterval(() => {
                 cvdValue += (Math.random() - 0.48) * 50;
+                cvdHistory.push(cvdValue);
+                if (cvdHistory.length > 60) cvdHistory.shift();
+
                 const el = document.getElementById('cvdValue');
                 const trend = document.getElementById('cvdTrend');
                 if (el) {
@@ -54,6 +58,44 @@
                     el.style.color = cvdValue > 0 ? 'var(--profit-color)' : 'var(--loss-color)';
                 }
                 if (trend) trend.textContent = cvdValue > 50 ? 'BULLISH' : cvdValue < -50 ? 'BEARISH' : 'NEUTRAL';
+
+                // Draw CVD chart on canvas
+                const canvas = document.getElementById('cvdChart');
+                if (canvas && cvdHistory.length > 2) {
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width, h = canvas.height;
+                    ctx.clearRect(0, 0, w, h);
+
+                    const min = Math.min(...cvdHistory);
+                    const max = Math.max(...cvdHistory);
+                    const range = max - min || 1;
+
+                    // Zero line
+                    const zeroY = h - ((0 - min) / range) * h;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                    ctx.beginPath();
+                    ctx.moveTo(0, zeroY);
+                    ctx.lineTo(w, zeroY);
+                    ctx.stroke();
+
+                    // CVD line
+                    ctx.strokeStyle = cvdValue > 0 ? '#00ff88' : '#ff3366';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    cvdHistory.forEach((v, i) => {
+                        const x = (i / (cvdHistory.length - 1)) * w;
+                        const y = h - ((v - min) / range) * h;
+                        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+
+                    // Fill under the line
+                    ctx.lineTo(w, h);
+                    ctx.lineTo(0, h);
+                    ctx.closePath();
+                    ctx.fillStyle = cvdValue > 0 ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,102,0.1)';
+                    ctx.fill();
+                }
             }, 5000);
 
             // Fear & Greed simulation
