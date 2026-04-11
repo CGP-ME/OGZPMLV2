@@ -2361,7 +2361,7 @@
 
     <!-- Theme Customizer -->
     <div class="theme-customizer" id="themeCustomizer">
-        <div class="theme-toggle" onclick="toggleThemePanel()">🎨</div>
+        <div class="theme-toggle">🎨</div>
         <div class="theme-panel" id="themePanel">
             <h3>Customize Your Dashboard</h3>
 
@@ -2369,14 +2369,14 @@
             <div class="theme-section">
                 <label>Theme</label>
                 <div class="theme-options">
-                    <button class="theme-btn" data-theme="cyberpunk" onclick="applyTheme('cyberpunk')">🌃 Cyberpunk</button>
-                    <button class="theme-btn" data-theme="matrix" onclick="applyTheme('matrix')">💚 Matrix</button>
-                    <button class="theme-btn" data-theme="neon" onclick="applyTheme('neon')">🌈 Neon</button>
-                    <button class="theme-btn" data-theme="dark" onclick="applyTheme('dark')">🌑 Dark</button>
-                    <button class="theme-btn" data-theme="ocean" onclick="applyTheme('ocean')">🌊 Ocean</button>
-                    <button class="theme-btn" data-theme="sunset" onclick="applyTheme('sunset')">🌅 Sunset</button>
-                    <button class="theme-btn" data-theme="royal" onclick="applyTheme('royal')">👑 Royal</button>
-                    <button class="theme-btn" data-theme="hacker" onclick="applyTheme('hacker')">💻 Hacker</button>
+                    <button class="theme-btn" data-theme="cyberpunk">🌃 Cyberpunk</button>
+                    <button class="theme-btn" data-theme="matrix">💚 Matrix</button>
+                    <button class="theme-btn" data-theme="neon">🌈 Neon</button>
+                    <button class="theme-btn" data-theme="dark">🌑 Dark</button>
+                    <button class="theme-btn" data-theme="ocean">🌊 Ocean</button>
+                    <button class="theme-btn" data-theme="sunset">🌅 Sunset</button>
+                    <button class="theme-btn" data-theme="royal">👑 Royal</button>
+                    <button class="theme-btn" data-theme="hacker">💻 Hacker</button>
                 </div>
             </div>
 
@@ -2384,7 +2384,7 @@
             <div class="theme-section">
                 <label>Accent Color</label>
                 <div class="color-picker">
-                    <input type="color" id="accentColor" onchange="updateAccentColor(this.value)">
+                    <input type="color" id="accentColor">
                     <span id="colorValue">#FFD700</span>
                 </div>
             </div>
@@ -2392,7 +2392,7 @@
             <!-- Font Selection -->
             <div class="theme-section">
                 <label>Font</label>
-                <select id="fontSelect" onchange="updateFont(this.value)">
+                <select id="fontSelect">
                     <option value="monospace">Monospace</option>
                     <option value="'Courier New'">Courier New</option>
                     <option value="'Roboto Mono'">Roboto Mono</option>
@@ -2407,7 +2407,7 @@
             <!-- Chart Style -->
             <div class="theme-section">
                 <label>Chart Style</label>
-                <select id="chartStyle" onchange="updateChartStyle(this.value)">
+                <select id="chartStyle">
                     <option value="candlestick">Candlestick</option>
                     <option value="line">Line</option>
                     <option value="area">Area</option>
@@ -2419,15 +2419,15 @@
             <div class="theme-section">
                 <label>Animations</label>
                 <div class="toggle-switch">
-                    <input type="checkbox" id="animToggle" checked onchange="toggleAnimations(this.checked)">
+                    <input type="checkbox" id="animToggle" checked>
                     <label for="animToggle">Enable</label>
                 </div>
             </div>
 
             <!-- Save/Reset -->
             <div class="theme-actions">
-                <button onclick="saveTheme()">💾 Save</button>
-                <button onclick="resetTheme()">🔄 Reset</button>
+                <button>💾 Save</button>
+                <button>🔄 Reset</button>
             </div>
         </div>
     </div>
