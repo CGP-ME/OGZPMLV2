@@ -83,6 +83,10 @@
             this._ichiSenkouA = tvChart.addLineSeries({ color: 'rgba(76,175,80,0.5)', lineWidth: 1, visible: false, title: 'Senkou A', lastValueVisible: false, priceLineVisible: false });
             this._ichiSenkouB = tvChart.addLineSeries({ color: 'rgba(244,67,54,0.5)', lineWidth: 1, visible: false, title: 'Senkou B', lastValueVisible: false, priceLineVisible: false });
 
+            // Trend lines (auto-detected)
+            this._trendResistance = tvChart.addLineSeries({ color: '#ff3366', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
+            this._trendSupport = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
+
             // Fibonacci and S/R use price lines (created dynamically)
             this._fibLines = [];
             this._srLines = [];
@@ -230,6 +234,9 @@
             this._ichiKijun.applyOptions({ visible: active.includes('ichimoku') });
             this._ichiSenkouA.applyOptions({ visible: active.includes('ichimoku') });
             this._ichiSenkouB.applyOptions({ visible: active.includes('ichimoku') });
+            // Trend lines
+            this._trendResistance.applyOptions({ visible: active.includes('trendlines') });
+            this._trendSupport.applyOptions({ visible: active.includes('trendlines') });
             // Fibonacci — show/hide price lines
             this._fibLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
             this._fibLines = [];
@@ -281,6 +288,15 @@
                 // ATR
                 const atr = Ind.calculateATR(candles, 14);
                 atrSeries.setData(mapSeries(atr));
+
+                // Trend Lines (auto-detected from swing highs/lows)
+                if (activeOverlays.includes('trendlines')) {
+                    const trendLines = Ind.calculateTrendLines(candles);
+                    trendLines.forEach(tl => {
+                        if (tl.type === 'resistance') this._trendResistance.setData(tl.points);
+                        if (tl.type === 'support') this._trendSupport.setData(tl.points);
+                    });
+                }
 
                 // MACD
                 const macd = Ind.calculateMACD(closes);

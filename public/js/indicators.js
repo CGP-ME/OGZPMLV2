@@ -137,6 +137,34 @@
             ];
         },
 
+        calculateTrendLines: (candles, lookback = 80) => {
+            const recent = candles.slice(-lookback);
+            const highs = [], lows = [];
+            // Find swing highs and lows
+            for (let i = 3; i < recent.length - 3; i++) {
+                if (recent[i].high > recent[i-1].high && recent[i].high > recent[i-2].high &&
+                    recent[i].high > recent[i+1].high && recent[i].high > recent[i+2].high) {
+                    highs.push({ index: i, price: recent[i].high, time: recent[i].time });
+                }
+                if (recent[i].low < recent[i-1].low && recent[i].low < recent[i-2].low &&
+                    recent[i].low < recent[i+1].low && recent[i].low < recent[i+2].low) {
+                    lows.push({ index: i, price: recent[i].low, time: recent[i].time });
+                }
+            }
+            const lines = [];
+            // Resistance trend line: connect last two swing highs
+            if (highs.length >= 2) {
+                const h1 = highs[highs.length - 2], h2 = highs[highs.length - 1];
+                lines.push({ type: 'resistance', points: [{ time: h1.time, value: h1.price }, { time: h2.time, value: h2.price }] });
+            }
+            // Support trend line: connect last two swing lows
+            if (lows.length >= 2) {
+                const l1 = lows[lows.length - 2], l2 = lows[lows.length - 1];
+                lines.push({ type: 'support', points: [{ time: l1.time, value: l1.price }, { time: l2.time, value: l2.price }] });
+            }
+            return lines;
+        },
+
         calculateSupportResistance: (candles, lookback = 50) => {
             const recent = candles.slice(-lookback);
             const levels = [];
