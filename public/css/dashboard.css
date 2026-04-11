@@ -54,8 +54,7 @@ body.golden-alert-pulse {
 }
 
 /* Hide trade manager on proof display page — available for trading interface later */
-.trade-manager { display: none !important; }
-.trade-toggle { display: none !important; }
+.trade-manager, #tradeManager, .trade-toggle { display: none !important; visibility: hidden !important; }
 
 /* Reclaim left panel space when trade manager is hidden */
 .main-container { padding-left: 20px !important; }
