@@ -238,7 +238,12 @@ async function commander(manifest, params) {
 async function architect(manifest, params) {
   // Read architecture from claudito_context
   const contextPath = path.join(__dirname, 'claudito_context.md');
-  const context = fs.readFileSync(contextPath, 'utf8');
+  let context = '';
+  try {
+    context = fs.readFileSync(contextPath, 'utf8');
+  } catch (e) {
+    console.warn(`⚠️ Architect: claudito_context.md not found at ${contextPath} — proceeding with minimal context`);
+  }
 
   updateSection(manifest, 'architect', {
     system_map: [
