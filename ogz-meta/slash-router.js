@@ -90,12 +90,12 @@ async function route(command, args) {
 }
 
 /**
- * Branch: Creates a mission branch off main (read-only main rule)
+ * Branch: Creates a mission branch off the CURRENT branch
  *
  * Three modes:
  * - --stay: Skip dirty check, skip branching, work on current branch as-is
  * - --refactor: Require clean tree, stay on current branch
- * - No flag (bugfix): Require clean tree, checkout main, create mission branch
+ * - No flag (bugfix): Require clean tree, branch from current branch
  */
 async function branch(manifest, params) {
   const missionBranch = `mission/${manifest.mission_id}`;
@@ -129,7 +129,10 @@ async function branch(manifest, params) {
     return manifest;
   }
 
-  // BUG FIX MODE: Require clean tree, base off latest main
+  // BUG FIX MODE: Require clean tree, branch from current branch
+  const baseBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+  console.log(`🔀 Branch: current branch is ${baseBranch}`);
+
   const dirty = execSync('git status --porcelain', { encoding: 'utf8' })
     .split('\n')
     .filter(line => !line.startsWith('??'))
@@ -151,17 +154,10 @@ async function branch(manifest, params) {
   }
 
   try {
-    execSync('git checkout main', { stdio: 'pipe' });
-    execSync('git pull origin main', { stdio: 'pipe' });
+    execSync(`git pull origin ${baseBranch}`, { stdio: 'pipe' });
   } catch (e) {
-    manifest.stop_conditions.warden_blocked = true;
-    updateSection(manifest, 'branch', {
-      blocked: true,
-      reason: 'Failed to checkout/pull main',
-      error: e.message
-    });
-    console.log('🛑 Branch: BLOCKED (could not sync main)');
-    return manifest;
+    // Pull may fail if no remote tracking — that's OK, continue with local state
+    console.log(`⚠️ Branch: pull from origin/${baseBranch} failed (continuing with local state)`);
   }
 
   try {
@@ -182,11 +178,11 @@ async function branch(manifest, params) {
   }
 
   updateSection(manifest, 'branch', {
-    base: 'main',
+    base: baseBranch,
     branch: missionBranch
   });
 
-  console.log(`✅ Branch: on ${missionBranch} (based on main)`);
+  console.log(`✅ Branch: on ${missionBranch} (branched from ${baseBranch})`);
   return manifest;
 }
 

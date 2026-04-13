@@ -206,6 +206,15 @@ async function execute(issue) {
     console.log(`   Execution mode: ${manifest.mode || 'ADVISORY'}`)
     console.log(`   Tests passed: ${manifest.debugger?.results?.filter(r => r.passed).length || 0}`);
     console.log(`   Warden approved: ${manifest.warden?.final_approval ? 'YES' : 'NO'}`);
+
+    // Merge-back guidance
+    const baseBranch = manifest.branch?.base;
+    const missionBranch = manifest.branch?.branch;
+    if (baseBranch && missionBranch && missionBranch.startsWith('mission/')) {
+      console.log(`\n   🔀 MERGE BACK: This mission branched from ${baseBranch}`);
+      console.log(`   To merge back:  git checkout ${baseBranch} && git merge ${missionBranch}`);
+      console.log(`   To discard:     git checkout ${baseBranch} && git branch -D ${missionBranch}`);
+    }
   } else {
     const stopCheck = shouldStop(manifest);
     console.log(`   ⚠️  INCOMPLETE: ${stopCheck.reason || 'Unknown'}`);
