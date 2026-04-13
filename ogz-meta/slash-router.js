@@ -314,123 +314,60 @@ async function bombardier(manifest, params) {
  * Entomologist: FINDS bugs via code scanning + RAG
  */
 async function entomologist(manifest, params) {
-  const { ragQuery } = require('./rag-query');
+  const { callMercury } = require('./cognition/mercury-bridge');
   const issue = manifest.issue || '';
-  const bugs = [];
 
-  // 1. SCAN CODE: Parse issue for file/line/pattern references
+  // Extract file references from issue text (reuse existing parser as input to Mercury)
   const codeScans = parseIssueForCodeRefs(issue);
-  for (const scan of codeScans) {
-    try {
-      const found = scanCodeForBug(scan);
-      if (found) {
-        // Build newCode from semantic.changeValue or changeCodeExpr if available
-        let newCode = null;
-        const semantic = found.semantic || scan.semantic;
-        if (semantic?.changeValue && semantic.changeValue.length === 2) {
-          const [oldVal, newVal] = semantic.changeValue;
-          // Generate newCode by replacing old value with new in the found code
-          if (found.code.includes(oldVal)) {
-            newCode = found.code.replace(oldVal, newVal);
+  const targetFiles = codeScans.map(s => s.file).filter(Boolean);
 
-            // Also update percentage values in comments (e.g., "0.50%" → "0.65%")
-            // Convert decimal to percentage for comment updates
-            const oldPct = (parseFloat(oldVal) * 100).toFixed(2).replace(/\.?0+$/, '');
-            const newPct = (parseFloat(newVal) * 100).toFixed(2).replace(/\.?0+$/, '');
-            if (oldPct !== newPct && newCode.includes(oldPct + '%')) {
-              newCode = newCode.replace(oldPct + '%', newPct + '%');
-            }
-          }
-        }
-        // Handle code expression changes: (oldExpr) → newExpr
-        if (!newCode && semantic?.changeCodeExpr && semantic.changeCodeExpr.length === 2) {
-          const [oldExpr, newExpr] = semantic.changeCodeExpr;
-          // The old expression was in parentheses, so we need to match "(oldExpr)"
-          const oldWithParens = `(${oldExpr})`;
-          if (found.code.includes(oldWithParens)) {
-            newCode = found.code.replace(oldWithParens, newExpr);
-          } else if (found.code.includes(oldExpr)) {
-            // Try without parens as fallback
-            newCode = found.code.replace(oldExpr, newExpr);
-          }
-        }
-        // Handle text substitutions: c.c → _c(c), prev.c → _c(prev)
-        if (!newCode && semantic?.changeText) {
-          // changeText is an array of [old, new] pairs from global regex matches
-          // Re-parse from issue to get all substitutions
-          const textPattern = /(\w+(?:\.\w+)?)\s*[→\->]+\s*(\w+\([^)]*\)|\w+(?:\.\w+)?)/g;
-          let match;
-          let tempCode = found.code;
-          let anyMatch = false;
-          while ((match = textPattern.exec(scan.description || '')) !== null) {
-            const [, oldText, newText] = match;
-            if (tempCode.includes(oldText)) {
-              tempCode = tempCode.split(oldText).join(newText);
-              anyMatch = true;
-            }
-          }
-          if (anyMatch) {
-            newCode = tempCode;
-          }
-        }
-
-        bugs.push({
-          type: 'CODE_SCAN',
-          location: `${found.file}:${found.line}`,
-          description: found.description,
-          code: found.code,
-          newCode: newCode,  // Auto-generated from semantic.changeValue
-          fix_hint: scan.fixHint || null,
-          bugType: found.bugType || 'LINE',  // STRUCTURAL, SEMANTIC, or LINE
-          semantic: semantic,
-          function_name: scan.function || null
-        });
-      }
-    } catch (err) {
-      console.log(`   ⚠️  Scan error: ${err.message}`);
+  // Call Mercury as the cognition layer
+  const result = await callMercury({
+    role: 'entomologist',
+    task: `identify bugs for: ${issue}`,
+    target: {
+      files: targetFiles,
+      issue,
+      context: manifest.commander?.rag_results || manifest.commander?.known_issues || []
+    },
+    outputFormat: 'structured_bugs',
+    options: {
+      maxIterations: 15,
+      quiet: true,
+      missionId: manifest.mission_id
     }
-  }
+  });
 
-  // 2. Query RAG for known similar issues
-  const ragResults = ragQuery(issue);
-
-  // 3. Add RAG results if no code scan found bugs
-  if (ragResults.reports.length > 0 && bugs.length === 0) {
-    ragResults.reports.slice(0, 3).forEach(report => {
-      bugs.push({
-        type: 'DOCUMENTED',
-        location: report.file || 'unknown',
-        description: report.excerpt || 'See report for details',
-        score: report.score
-      });
+  if (!result.success) {
+    console.log(`⚠️  Entomologist: Mercury call failed (${result.reason})`);
+    updateSection(manifest, 'entomologist', {
+      bugs_found: [],
+      mercury_failed: true,
+      reason: result.reason
     });
+    return manifest;
   }
 
-  // 4. Check for common patterns not in ledger (existing functionality)
-  if (manifest.issue.includes('trade') && !manifest.commander?.known_issues?.some(i => i.symptom?.includes('trade'))) {
-    bugs.push({
-      type: 'RATE_LIMIT',
-      location: 'run-empire-v2.js:1451',
-      description: 'Rate limiter may not apply to all paths'
-    });
-  }
-
-  if (manifest.issue.includes('dashboard') && !manifest.commander?.known_issues?.some(i => i.symptom?.includes('dashboard'))) {
-    bugs.push({
-      type: 'DISPLAY',
-      location: 'WebSocket server',
-      description: 'Indicators may not be broadcasted'
-    });
-  }
+  // Map Mercury bugs to manifest format (preserve backward compat with downstream stages)
+  const bugs = (result.data.bugs || []).map(b => ({
+    type: b.type || 'MERCURY_FOUND',
+    location: `${b.file}:${b.line}`,
+    description: b.description,
+    code: b.evidence || '',
+    severity: b.severity,
+    bugType: b.type,
+  }));
 
   updateSection(manifest, 'entomologist', {
     bugs_found: bugs,
     classifications: bugs.map(b => b.type),
-    code_scans: codeScans,
-    rag_reports: ragResults.reports.slice(0, 3)
+    files_analyzed: result.data.files_analyzed || targetFiles,
+    mercury_iterations: result.iterations,
+    mercury_duration_ms: result.duration_ms,
+    confidence: result.data.confidence
   });
 
-  console.log(`✅ Entomologist: Found ${bugs.length} bugs (${codeScans.length} code scans, ${ragResults.reports.length} RAG reports)`);
+  console.log(`✅ Entomologist: Found ${bugs.length} bugs (${result.iterations} Mercury iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
   return manifest;
 }
 
