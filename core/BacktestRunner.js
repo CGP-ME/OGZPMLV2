@@ -144,6 +144,9 @@ class BacktestRunner {
       const finalBalance = initialBalance + totalPnL;
       const totalReturn = ((finalBalance / initialBalance - 1) * 100);
 
+      // L8: Flush any buffered decision ledger entries
+      try { require('./DecisionLedgerLogger').flush(); } catch (_) {}
+
       console.log(`\n✅ BACKTEST COMPLETE!`);
       console.log(`   📊 Candles processed: ${processedCount.toLocaleString()}`);
       console.log(`   ⏱️  Duration: ${totalTime}s`);

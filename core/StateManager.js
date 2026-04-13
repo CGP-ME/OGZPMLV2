@@ -506,6 +506,26 @@ class StateManager {
     // NO balance principal movement
     const netRealizedResult = pnl - exitFee;
 
+    // L8: Persist decision ledger to JSONL on full close (after netRealizedResult computed)
+    if (trade.decisionLedger) {
+      try {
+        const ledgerLogger = require('./DecisionLedgerLogger');
+        trade.decisionLedger.outcome = {
+          exitPrice: price,
+          exitTime: Date.now(),
+          pnlDollars: pnl,
+          pnlPercent,
+          exitFee,
+          netPnlDollars: netRealizedResult,
+          exitReason: context.exitReason || 'unknown',
+          holdTimeMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
+        };
+        ledgerLogger.writeOnClose(trade.decisionLedger);
+      } catch (e) {
+        console.warn('[LEDGER] Failed to persist decision ledger:', e.message);
+      }
+    }
+
     // Position scalar update (kept for compatibility)
     const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
     const calculatedPosition = isShort
