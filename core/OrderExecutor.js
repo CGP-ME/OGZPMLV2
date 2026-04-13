@@ -267,7 +267,9 @@ class OrderExecutor {
             reasoning: orchResult?.reasoning || '',
             // FIX 2026-02-17: Strategy-owned exit conditions
             entryStrategy: entryStrategy,
-            exitContract: exitContract
+            exitContract: exitContract,
+            // L1: Pass decision ledger data through to StateManager
+            ledgerData: decision.ledgerData || null,
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -393,7 +395,8 @@ class OrderExecutor {
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
-            exitContract: exitContract
+            exitContract: exitContract,
+            ledgerData: decision.ledgerData || null
           });
 
           if (!positionResult.success) {

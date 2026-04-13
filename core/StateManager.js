@@ -361,6 +361,25 @@ class StateManager {
       ...context
     };
 
+    // L1: Attach decision ledger skeleton at trade birth
+    if (context.ledgerData) {
+      const { createLedgerSkeleton } = require('./dto/DecisionLedgerSchema');
+      trade.decisionLedger = createLedgerSkeleton({
+        tradeId,
+        candleTimestamp: context.ledgerData.candleTimestamp || Date.now(),
+        symbol: context.ledgerData.symbol || context.symbol || 'unknown',
+        timeframe: context.ledgerData.timeframe || '15m',
+        executionMode: context.ledgerData.executionMode || 'backtest',
+        entryPrice: price,
+        direction: tradeDirection,
+        strategySignals: context.ledgerData.strategySignals || [],
+        orchestratorDecision: context.ledgerData.orchestratorDecision || null,
+        confluence: context.ledgerData.confluence || null,
+        positionSizing: context.ledgerData.positionSizing || null,
+        exitContract: context.ledgerData.exitContract || null,
+      });
+    }
+
     // Add to activeTrades Map
     if (!this.state.activeTrades) {
       this.state.activeTrades = new Map();

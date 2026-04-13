@@ -266,6 +266,30 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
+      // L1: Attach ledger data to decision for StateManager.openPosition
+      decision.ledgerData = {
+        candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
+        symbol: this.ctx.config?.tradingPair || this.ctx.config?.symbol || 'unknown',
+        timeframe: this.ctx.config?.timeframe || '15m',
+        executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || 'paper'),
+        strategySignals: (orchResult.allResults || []).map(s => ({
+          name: s.strategyName || s.name || 'unknown',
+          direction: s.direction === 'buy' ? 'long' : s.direction === 'sell' ? 'short' : 'hold',
+          baseConfidence: (s.confidence || 0) / 100,
+          reason: s.reason || s.reasons?.join('; ') || 'signal fired',
+        })),
+        orchestratorDecision: {
+          winnerStrategy: orchResult.winnerStrategy || null,
+          finalConfidence: (orchResult.confidence || 0) / 100,
+          reason: `${orchResult.winnerStrategy || 'none'} selected at ${(orchResult.confidence || 0).toFixed(1)}%`,
+        },
+        confluence: orchResult.confluence ? {
+          count: orchResult.confluence.count || 1,
+          agreeingStrategies: orchResult.confluence.strategies || [],
+          sizingMultiplier: orchResult.sizingMultiplier || 1.0,
+        } : { count: 1, sizingMultiplier: 1.0 },
+        exitContract: orchResult.exitContract || null,
+      };
       await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
     }
   }
