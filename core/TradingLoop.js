@@ -266,27 +266,47 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
-      // L1: Attach ledger data to decision for StateManager.openPosition
+      // L1+L2: Attach full ledger data to decision for StateManager.openPosition
+      const allResults = orchResult.allResults || [];
+      const winnerName = orchResult.winnerStrategy || null;
       decision.ledgerData = {
         candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
         symbol: this.ctx.config?.tradingPair || this.ctx.config?.symbol || 'unknown',
         timeframe: this.ctx.config?.timeframe || '15m',
         executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || 'paper'),
-        strategySignals: (orchResult.allResults || []).map(s => ({
+        // L2: every strategy that fired — winner AND losers with indicator values
+        strategySignals: allResults.map(s => ({
           name: s.strategyName || s.name || 'unknown',
           direction: s.direction === 'buy' ? 'long' : s.direction === 'sell' ? 'short' : 'hold',
           baseConfidence: (s.confidence || 0) / 100,
           reason: s.reason || s.reasons?.join('; ') || 'signal fired',
+          indicatorValues: {
+            rsi: indicators.rsi,
+            ema20: indicators.ema20,
+            ema50: indicators.ema50,
+            atr: indicators.atr,
+            trend: indicators.trend,
+          },
         })),
+        // L2: orchestrator decision with competing strategies
         orchestratorDecision: {
-          winnerStrategy: orchResult.winnerStrategy || null,
+          winnerStrategy: winnerName,
           finalConfidence: (orchResult.confidence || 0) / 100,
-          reason: `${orchResult.winnerStrategy || 'none'} selected at ${(orchResult.confidence || 0).toFixed(1)}%`,
+          reason: allResults.length > 1
+            ? `${winnerName} (${(orchResult.confidence || 0).toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
+            : `${winnerName} selected at ${(orchResult.confidence || 0).toFixed(1)}%`,
+          competingStrategies: allResults.map(r => ({
+            name: r.strategyName || r.name || 'unknown',
+            adjustedConfidence: (r.confidence || 0) / 100,
+            rejected: (r.strategyName || r.name) !== winnerName,
+            rejectReason: (r.strategyName || r.name) !== winnerName ? 'Lower confidence than winner' : null,
+          })),
         },
         confluence: orchResult.confluence ? {
           count: orchResult.confluence.count || 1,
           agreeingStrategies: orchResult.confluence.strategies || [],
           sizingMultiplier: orchResult.sizingMultiplier || 1.0,
+          reason: `${orchResult.confluence.count || 1} strategies agree on ${orchResult.direction}`,
         } : { count: 1, sizingMultiplier: 1.0 },
         exitContract: orchResult.exitContract || null,
       };
