@@ -255,20 +255,33 @@ class OrderExecutor {
 
           console.log(`[ORCHESTRATOR-ENTRY] Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
 
+          // L4: Enrich ledger with actual computed position sizing
+          if (decision.ledgerData) {
+            const baseP = TradingConfig.get('positionSizing.maxPositionSize');
+            decision.ledgerData.positionSizing = {
+              basePercent: baseP,
+              confidenceMultiplier,
+              confidencePercent: baseP * confidenceMultiplier,
+              confluenceMultiplier: sizingMultiplier,
+              finalPercent: currentBalance > 0 ? adjustedPositionSize / currentBalance : 0,
+              accountBalance: currentBalance,
+              finalSizeUsd: adjustedPositionSize,
+              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence = ${actualPercent.toFixed(2)}% of $${currentBalance.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
+            };
+          }
+
           const positionResult = await stateManager.openPosition(adjustedPositionSize, price, {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
-            patterns: patterns || [],  // Attach detected patterns for outcome learning
-            entryIndicators: indicators,  // Attach indicators for feature vector reconstruction
-            entryTime: this.ctx.marketData?.timestamp || Date.now(),  // FIX 2026-02-05: Use candle time in backtest
-            signalBreakdown: orchResult?.signalBreakdown || null,  // Full decision reasoning
+            patterns: patterns || [],
+            entryIndicators: indicators,
+            entryTime: this.ctx.marketData?.timestamp || Date.now(),
+            signalBreakdown: orchResult?.signalBreakdown || null,
             bullishScore: orchResult?.bullishScore || 0,
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
-            // FIX 2026-02-17: Strategy-owned exit conditions
             entryStrategy: entryStrategy,
             exitContract: exitContract,
-            // L1: Pass decision ledger data through to StateManager
             ledgerData: decision.ledgerData || null,
           });
 
@@ -382,10 +395,25 @@ class OrderExecutor {
 
           console.log(`[ORCHESTRATOR-ENTRY] SHORT Winner: ${entryStrategy} | Sizing: ${sizingMultiplier}x | SL=${exitContract.stopLossPercent}%, TP=${exitContract.takeProfitPercent}%`);
 
+          // L4: Enrich ledger with actual computed position sizing (short path)
+          if (decision.ledgerData) {
+            const baseP = TradingConfig.get('positionSizing.maxPositionSize');
+            decision.ledgerData.positionSizing = {
+              basePercent: baseP,
+              confidenceMultiplier,
+              confidencePercent: baseP * confidenceMultiplier,
+              confluenceMultiplier: sizingMultiplier,
+              finalPercent: currentBalance > 0 ? adjustedPositionSize / currentBalance : 0,
+              accountBalance: currentBalance,
+              finalSizeUsd: adjustedPositionSize,
+              formula: `${(baseP*100).toFixed(1)}% base × ${confidenceMultiplier.toFixed(2)} conf × ${sizingMultiplier.toFixed(2)} confluence = ${actualPercent.toFixed(2)}% of $${currentBalance.toFixed(0)} = $${adjustedPositionSize.toFixed(2)}`,
+            };
+          }
+
           const positionResult = await stateManager.openPosition(adjustedPositionSize, price, {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
-            direction: 'short',  // KEY: Mark as short position
+            direction: 'short',
             action: 'SELL_SHORT',
             patterns: patterns || [],
             entryIndicators: indicators,
