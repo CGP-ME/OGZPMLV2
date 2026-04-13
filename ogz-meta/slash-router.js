@@ -917,32 +917,63 @@ function runSmokeTest() {
  */
 async function exterminator(manifest, params) {
   const bugs = manifest.entomologist.bugs_found || [];
-  const proposals = [];
   const fixes = [];
 
-  // For each bug, create a proposal
-  bugs.forEach(bug => {
-    const proposal = {
-      bug_id: bug.type,
-      location: bug.location,
-      description: bug.description,
-      proposed_fix: `Fix for ${bug.type} at ${bug.location}`,
-      impact: 'See proposal document for full analysis',
-      status: bug.newCode ? 'READY_TO_APPLY' : 'PENDING_REVIEW',
-      code: bug.code,
-      newCode: bug.newCode,
-      replacement_block: bug.newCode || null  // Use newCode as replacement_block for template
-    };
-    proposals.push(proposal);
-  });
-
-  // ADVISORY MODE (default): Only propose, never apply
+  // ADVISORY MODE (default): Call Mercury for intelligent fix proposals
   if (manifest.mode === 'ADVISORY' || !manifest.mode) {
+    let proposals = [];
+
+    if (bugs.length > 0) {
+      const { callMercury } = require('./cognition/mercury-bridge');
+      const result = await callMercury({
+        role: 'exterminator',
+        task: `propose fixes for ${bugs.length} bugs`,
+        target: {
+          bugs,
+          issue: manifest.issue,
+          context: manifest.commander?.rag_results || []
+        },
+        outputFormat: 'structured_proposals',
+        options: {
+          maxIterations: 15,
+          quiet: true,
+          missionId: manifest.mission_id
+        }
+      });
+
+      if (result.success) {
+        proposals = (result.data.proposals || []).map(p => ({
+          bug_id: p.bug_id,
+          location: `${p.file}:${p.line_start}`,
+          description: p.rationale,
+          proposed_fix: p.proposed_code,
+          code: p.current_code,
+          newCode: p.proposed_code,
+          replacement_block: p.proposed_code,
+          status: 'READY_TO_APPLY',
+          side_effects: p.side_effects,
+          tests_needed: p.tests_needed,
+        }));
+        console.log(`🧠 Exterminator: Mercury proposed ${proposals.length} fixes (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
+      } else {
+        console.log(`⚠️  Exterminator: Mercury call failed (${result.reason}), falling back to template proposals`);
+        bugs.forEach(bug => {
+          proposals.push({
+            bug_id: bug.type,
+            location: bug.location,
+            description: bug.description,
+            proposed_fix: `Fix for ${bug.type} at ${bug.location}`,
+            status: 'PENDING_REVIEW',
+            code: bug.code,
+          });
+        });
+      }
+    }
+
     // Generate proposal document
     const proposalDoc = generateProposalDocument(manifest, proposals);
     const proposalPath = path.join(__dirname, 'proposals', `${manifest.mission_id}-PROPOSAL.md`);
 
-    // Ensure proposals directory exists
     if (!fs.existsSync(path.join(__dirname, 'proposals'))) {
       fs.mkdirSync(path.join(__dirname, 'proposals'), { recursive: true });
     }
@@ -951,7 +982,7 @@ async function exterminator(manifest, params) {
     manifest.artifacts.proposals.push(proposalPath);
 
     updateSection(manifest, 'exterminator', {
-      fixes_applied: [],  // Empty in advisory mode
+      fixes_applied: [],
       patches: [],
       proposals: proposals
     });
@@ -1442,27 +1473,62 @@ async function debuggerHandler(manifest, params) {
  * Critic: Lists weaknesses
  */
 async function critic(manifest, params) {
-  const weaknesses = [];
+  const proposals = manifest.exterminator?.proposals || [];
+  const bugs = manifest.entomologist?.bugs_found || [];
 
-  // Check for issues
-  if (!manifest.entomologist.bugs_found?.length) {
-    weaknesses.push('No bugs found - insufficient analysis');
+  // Mechanical checks first (fast, no LLM needed)
+  const mechanicalWeaknesses = [];
+  if (!bugs.length) mechanicalWeaknesses.push('No bugs found - insufficient analysis');
+  if (!manifest.debugger?.results?.every(r => r.passed)) mechanicalWeaknesses.push('Tests failing - fixes incomplete');
+
+  // Mercury-powered semantic review if there are proposals to review
+  let reviews = [];
+  let overallVerdict = 'approve_all';
+  let loopBack = false;
+
+  if (proposals.length > 0) {
+    const { callMercury } = require('./cognition/mercury-bridge');
+    const result = await callMercury({
+      role: 'critic',
+      task: `review ${proposals.length} fix proposals for quality`,
+      target: { proposals, bugs },
+      outputFormat: 'structured_critique',
+      options: {
+        maxIterations: 10,
+        quiet: true,
+        missionId: manifest.mission_id
+      }
+    });
+
+    if (result.success) {
+      reviews = result.data.reviews || [];
+      overallVerdict = result.data.overall_verdict || 'approve_all';
+      loopBack = result.data.loop_back_required || false;
+
+      // Convert Mercury rejections to weaknesses
+      reviews.filter(r => r.verdict === 'reject' || r.verdict === 'needs_revision').forEach(r => {
+        mechanicalWeaknesses.push(`Proposal ${r.proposal_id}: ${r.verdict} — ${(r.issues || []).join('; ')}`);
+      });
+
+      console.log(`🧠 Critic: Mercury reviewed ${proposals.length} proposals → ${overallVerdict} (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
+    } else {
+      console.log(`⚠️  Critic: Mercury call failed (${result.reason}), falling back to mechanical checks`);
+    }
   }
 
-  if (!manifest.debugger.results?.every(r => r.passed)) {
-    weaknesses.push('Tests failing - fixes incomplete');
-  }
-
-  if (weaknesses.length >= 3) {
-    manifest.stop_conditions.critic_failures++;
+  if (mechanicalWeaknesses.length >= 3 || loopBack) {
+    manifest.stop_conditions.critic_failures = (manifest.stop_conditions.critic_failures || 0) + 1;
   }
 
   updateSection(manifest, 'critic', {
-    weaknesses,
-    force_rerun: weaknesses.length >= 3
+    weaknesses: mechanicalWeaknesses,
+    reviews,
+    overall_verdict: overallVerdict,
+    loop_back_required: loopBack,
+    force_rerun: mechanicalWeaknesses.length >= 3 || loopBack
   });
 
-  console.log(`✅ Critic: Found ${weaknesses.length} weaknesses`);
+  console.log(`✅ Critic: Found ${mechanicalWeaknesses.length} weaknesses, verdict: ${overallVerdict}`);
   return manifest;
 }
 
@@ -1495,44 +1561,68 @@ async function validator(manifest, params) {
  * Forensics: Secondary verification
  */
 async function forensics(manifest, params) {
-  const silentBugs = [];
-  const regressionRisks = [];
+  const proposals = manifest.exterminator?.proposals || [];
+  const targetFiles = [...new Set(proposals.map(p => p.location?.split(':')[0]).filter(Boolean))];
+
+  // Mechanical checks (fast, always run)
   let catalyzeVerification = false;
+  const mechanicalRisks = [];
 
-  // Check for silent issues
-  if (manifest.issue.includes('memory')) {
-    silentBugs.push('Potential memory leak in pattern storage');
-    catalyzeVerification = true;
-  }
-
-  // Check if any tests failed - needs deeper verification
   if (manifest.debugger?.results?.some(r => !r.passed && !r.skipped)) {
     catalyzeVerification = true;
-    regressionRisks.push('Test failures indicate potential regression');
+    mechanicalRisks.push('Test failures indicate potential regression');
   }
-
-  // Check if critic found major issues
   if (manifest.critic?.weaknesses?.length >= 2) {
     catalyzeVerification = true;
   }
 
+  // Mercury-powered semantic analysis if there are proposals to verify
+  let risks = [];
+  let silentBugs = [];
+  let loopBack = false;
+
+  if (proposals.length > 0) {
+    const { callMercury } = require('./cognition/mercury-bridge');
+    const result = await callMercury({
+      role: 'forensics',
+      task: `semantic risk analysis of ${proposals.length} proposed changes`,
+      target: { proposals, files: targetFiles },
+      outputFormat: 'structured_risks',
+      options: {
+        maxIterations: 15,
+        quiet: true,
+        missionId: manifest.mission_id
+      }
+    });
+
+    if (result.success) {
+      risks = result.data.risks || [];
+      silentBugs = result.data.silent_bugs || [];
+      loopBack = result.data.loop_back_required || false;
+      catalyzeVerification = catalyzeVerification || risks.some(r => r.severity === 'critical' || r.severity === 'high');
+
+      console.log(`🧠 Forensics: Mercury found ${risks.length} risks, ${silentBugs.length} silent bugs (${result.iterations} iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
+    } else {
+      console.log(`⚠️  Forensics: Mercury call failed (${result.reason}), mechanical checks only`);
+    }
+  }
+
+  const allRisks = [...mechanicalRisks, ...risks.map(r => `${r.severity}: ${r.description}`)];
+
   updateSection(manifest, 'forensics', {
     silent_bugs: silentBugs,
-    regression_risks: regressionRisks,
+    regression_risks: allRisks,
+    semantic_risks: risks,
     catalyze_verification: catalyzeVerification,
-    severity: silentBugs.length > 0 ? 'P1' : 'P2',
-    recommended_verifications: catalyzeVerification ? [
-      'node --check run-empire-v2.js',
-      'pm2 status',
-      'ps aux | grep node'
-    ] : []
+    loop_back_required: loopBack,
+    severity: risks.some(r => r.severity === 'critical') ? 'P0' : silentBugs.length > 0 ? 'P1' : 'P2',
   });
 
-  if (silentBugs.some(b => b.includes('leak'))) {
+  if (risks.some(r => r.severity === 'critical') || loopBack) {
     manifest.stop_conditions.forensics_critical = true;
   }
 
-  console.log(`✅ Forensics: ${silentBugs.length} silent bugs, ${regressionRisks.length} risks`);
+  console.log(`✅ Forensics: ${silentBugs.length} silent bugs, ${allRisks.length} risks`);
   if (catalyzeVerification) {
     console.log('   🔄 Will trigger verification pass 2');
   }
