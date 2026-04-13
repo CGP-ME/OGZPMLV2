@@ -45,6 +45,144 @@ The current parallel‑sweep harness is the file **`tools/parallel-backtest.js`*
 
 ---
 
+## PART 2 — Deliverables 3-6 (continuation, 22 iterations, 26.8s)
+
+**3️⃣ Env‑var isolation coverage – what the harness clears / sets and what leaks**
+
+| Action in `tools/parallel‑backtest.js` | Where it occurs |
+|--------------------------------------|-----------------|
+| **Clear / delete** the following parent‑process vars so they are **not** inherited by children: `STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `MIN_TRADE_CONFIDENCE`, `TRAILING_STOP_PERCENT`, `ATR_MIN_PERCENT` | `cleanEnv` deletions – lines 282‑286【open_file → tools/parallel-backtest.js:282‑286】 |
+| **Set / override** the following vars in the child‑spawn env object (explicitly, not via `...cleanEnv`) | `env` definition – lines 288‑321【open_file → tools/parallel-backtest.js:288‑321】 |
+| `EXECUTION_MODE='backtest'` | line 290 |
+| `CANDLE_SOURCE='file'` | line 291 |
+| `BACKTEST_MODE='true'` | line 292 |
+| `BACKTEST_SILENT='true'` | line 293 |
+| `BACKTEST_VERBOSE='false'` | line 294 |
+| `BACKTEST_FAST='true'` | line 295 |
+| `INITIAL_BALANCE='10000'` | line 296 |
+| `CANDLE_DATA_FILE=…` | line 297 |
+| `STATE_FILE=…` | line 298 |
+| `DATA_DIR=…` | line 299 |
+| `PAPER_TRADING='true'` | line 300 |
+| `TEST_MODE='true'` | line 302 |
+| `BACKTEST_NO_PATTERN_SAVE='true'` | line 304 |
+| `SKIP_CSV_EXPORT='true'` | line 305 |
+| `ENABLE_DASHBOARD='false'` | line 307 |
+| `ENABLE_SMS='true'` | line 309 |
+| `SMS_VP_RTH_ONLY='true'` | line 310 |
+| `SENTRY_DSN=''` | line 312 |
+| `NODE_ENV='test'` | line 313 |
+| `BACKTEST_REPORT_TAG=reportTag` | line 315 |
+| `STRATEGY_DIAG=process.env.STRATEGY_DIAG||'false'` | line 317 |
+| `FEE_MAKER='0'` & `FEE_TAKER='0'` (only when `stockMode` is true) | line 319 |
+| `...config.env` (any env vars supplied by the per‑worker config) | line 320 |
+
+**Pollution‑vector env vars (read by children but *not* set explicitly by the harness)**  
+
+| Env‑var | Where it is **read** (file : line) | Not set in the harness (→ leaks) |
+|---------|-----------------------------------|-----------------------------------|
+| `SOLO_STRATEGY` | `run-empire-v2.js:1019`【grep → run-empire-v2.js:1019】; `core/StrategyOrchestrator.js:95‑96`【grep → core/StrategyOrchestrator.js:95】 | Not in the env block |
+| `MTF_TIMEFRAMES` | `core/TradingConfig.js:597`【grep → core/TradingConfig.js:597】 | Not in the env block |
+| `DOTENV_CONFIG_PATH` | `foundation/ConfigLoader.js:314`【grep → foundation/ConfigLoader.js:314】 | Not in the env block |
+| `DIRECTION_FILTER` | `run-empire-v2.js:1023`【grep → run-empire-v2.js:1023】 | Not in the env block |
+| `ACCOUNT_DRAWDOWN_BYPASS` | `run-empire-v2.js:1029`【grep → run-empire-v2.js:1029】 | Not in the env block |
+| `ENABLE_TRAI` | `run-empire-v2.js:1030`【grep → run-empire-v2.js:1030】 | Not in the env block |
+| `ENABLE_SHORTS` | `run-empire-v2.js:1031`【grep → run-empire-v2.js:1031】 | Not in the env block |
+| `ENABLE_RSI` | `run-empire-v2.js:1032`【grep → run-empire-v2.js:1032】 | Not in the env block |
+| `ENABLE_EMA` | `run-empire-v2.js:1033`【grep → run-empire-v2.js:1033】 | Not in the env block |
+| `FEE_MAKER` (when not in `stockMode`) | `run-empire-v2.js:1027`【grep → run-empire-v2.js:1027】 | Not set unless `stockMode` is true |
+| `FEE_TAKER` (when not in `stockMode`) | `run-empire-v2.js:1028`【grep → run-empire-v2.js:1028】 | Not set unless `stockMode` is true |
+| `EXECUTION_MODE`, `CANDLE_SOURCE`, `BACKTEST_MODE`, `BACKTEST_FAST`, `BACKTEST_NO_PATTERN_SAVE`, `CANDLE_DATA_FILE`, `STATE_FILE`, `DATA_DIR`, `PAPER_TRADING`, `TEST_MODE`, `BACKTEST_REPORT_TAG`, `STRATEGY_DIAG`, `ENABLE_DASHBOARD`, `ENABLE_SMS`, `SMS_VP_RTH_ONLY`, `SENTRY_DSN`, `NODE_ENV` – **these are set** by the harness, so they are *not* pollution vectors. |
+
+*The deleted vars (`STOP_LOSS_PERCENT`, `TAKE_PROFIT_PERCENT`, `MIN_TRADE_CONFIDENCE`, `TRAILING_STOP_PERCENT`, `ATR_MIN_PERCENT`) are **removed** from the child env (lines 282‑286), so if any of the listed files read them they will be `undefined`. None of the five target files read those five vars, so they are not a current leakage issue.*
+
+---
+
+**4️⃣ Canonical PowerShell invocation (Windows 7800X3D, 14‑worker parallel sweep)**  
+
+```powershell
+# ----- Set every env‑var that the pipeline reads (explicitly) -----
+$env:EXECUTION_MODE          = 'backtest'
+$env:CANDLE_SOURCE           = 'file'
+$env:CANDLE_DATA_FILE        = 'tuning/tsla-15m-2y.json'   # 2‑year TSLA 15‑min data
+$env:DIRECTION_FILTER        = 'both'
+$env:ACCOUNT_DRAWDOWN_BYPASS = 'true'
+$env:ENABLE_TRAI             = 'false'
+$env:ENABLE_SHORTS           = 'true'
+$env:ENABLE_RSI              = 'true'
+$env:ENABLE_EMA              = 'true'
+$env:ENABLE_SMS              = 'true'          # forced by harness, but we set explicitly
+$env:SMS_VP_RTH_ONLY        = 'true'          # forced by harness
+$env:SOLO_STRATEGY          = ''              # leave empty → all enabled strategies run
+$env:STRATEGY_DIAG          = 'false'         # default for diagnostics
+$env:BACKTEST_MODE          = 'true'
+$env:BACKTEST_SILENT        = 'true'
+$env:BACKTEST_VERBOSE       = 'false'
+$env:BACKTEST_FAST          = 'true'
+$env:BACKTEST_NO_PATTERN_SAVE = 'true'
+$env:SKIP_CSV_EXPORT        = 'true'
+$env:ENABLE_DASHBOARD       = 'false'
+$env:TEST_MODE              = 'true'
+$env:INITIAL_BALANCE        = '10000'
+$env:BACKTEST_REPORT_TAG    = 'parallel-run-$(Get-Date -Format yyyyMMdd-HHmmss)'
+$env:NODE_ENV               = 'test'
+$env:SENTRY_DSN             = ''              # disable Sentry
+$env:MTF_TIMEFRAMES        = '1m,5m,15m,1h,4h'   # default fallback, but we set explicitly
+# (any additional per‑worker vars can be added via $env:… before the loop)
+
+# ----- Run the parallel‑backtest harness with 14 workers -----
+# The
+
+---
+
+## PART 3 — Deliverables 5-6 (continuation, 21 iterations, 31.9s, trace reuse 0.89)
+
+**5️⃣ Delta – what the docs say vs. what the code actually reads**
+
+| Env‑var | How it is **documented** (BACKTEST‑OPS.md / BACKTESTING‑GUIDE.md) | How it is **read / set** in the current code (parallel‑backtest.js, TradingConfig.js, ConfigLoader.js) | Contradiction / Gap |
+|---------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|---------------------|
+| `EXECUTION_MODE` | Listed in the “Execution Control” table with default **paper** (BACKTEST‑OPS.md) | Hard‑coded to **'backtest'** in the child‑env (lines 290‑291 of `tools/parallel‑backtest.js`) | Docs default differs from code default |
+| `CANDLE_SOURCE` | Listed, default **live** (BACKTEST‑OPS.md) | Hard‑coded to **'file'** (line 291) | Docs default differs |
+| `CANDLE_DATA_FILE` | Listed, default `tuning/full‑45k.json` (BACKTEST‑OPS.md) | Supplied by the harness (line 297) – no fallback in code | Docs default not used |
+| `BACKTEST_MODE` | Listed, default **false** (BACKTEST‑OPS.md) | Set to **'true'** (line 292) | Docs default differs |
+| `BACKTEST_FAST` | Listed, default **false** (BACKTEST‑OPS.md) | Set to **'true'** (line 295) | Docs default differs |
+| `BACKTEST_NO_PATTERN_SAVE` | Listed, default **false** (BACKTEST‑OPS.md) | Set to **'true'** (line 304) | Docs default differs |
+| `BACKTEST_SILENT` | **Not mentioned** in either doc | Set to **'true'** (line 293) | Undocumented env‑var |
+| `BACKTEST_VERBOSE` | **Not mentioned** in either doc | Set to **'false'** (line 294) | Undocumented env‑var |
+| `INITIAL_BALANCE` | **Not mentioned** in either doc | Set to **'10000'** (line 296) | Undocumented env‑var |
+| `STATE_FILE` | **Not mentioned** in either doc | Set from `stateFile` (line 298) | Undocumented env‑var |
+| `DATA_DIR` | **Not mentioned** in either doc | Set to `path.join(PROJECT_ROOT,'data','backtest')` (line 299) | Undocumented env‑var |
+| `PAPER_TRADING` | **Not mentioned** in either doc | Set to **'true'** (line 300) | Undocumented env‑var |
+| `TEST_MODE` | **Not mentioned** in either doc | Set to **'true'** (line 302) | Undocumented env‑var |
+| `SKIP_CSV_EXPORT` | **Not mentioned** in either doc | Set to **'true'** (line 305) | Undocumented env‑var |
+| `ENABLE_DASHBOARD` | **Not mentioned** in either doc | Set to **'false'** (line 307) | Undocumented env‑var |
+| `SENTRY_DSN` | **Not mentioned** in either doc | Set to empty string (line 312) | Undocumented env‑var |
+| `NODE_ENV` | **Not mentioned** in either doc | Set to **'test'** (line 313) | Undocumented env‑var |
+| `BACKTEST_REPORT_TAG` | **Not mentioned** in either doc | Set from `reportTag` (line 315) | Undocumented env‑var |
+| `STRATEGY_DIAG` | Listed as a diagnostic flag (BACKTEST‑OPS.md) | Passed through from the parent or defaults to **'false'** (line 317) | No default in code other than the fallback; docs do not note the fallback |
+| `FEE_MAKER` / `FEE_TAKER` | Listed in “Fee Configuration” (BACKTEST‑OPS.md) | Forced to **'0'** when `stockMode` is true (lines 319‑320) – otherwise inherited from parent | Docs do not document the “stock‑mode” override |
+| `SOLO_STRATEGY` | Listed (BACKTEST‑OPS.md) | Written into the child env before spawning (lines 612‑618 of `tools/parallel‑backtest.js`) | No default in docs – must be set by caller if used |
+| `MTF_TIMEFRAMES` | Listed in “Strategy Toggles” (BACKTEST‑OPS.md) | Read in `core/TradingConfig.js` (line 597) – default list **['1m','5m','15m','1h','4h']** | Docs give no default, so the code default is undocumented |
+| `SMS_VP_RTH_ONLY` | Listed (BACKTEST‑OPS.md) | Read via `envBool('SMS_VP_RTH_ONLY', true)` (line 555 of `core/TradingConfig.js`) – default **true** | No contradiction – defaults match |
+| `ENABLE_RSI`, `ENABLE_MASR`, `ENABLE_EMA`, `ENABLE_LIQSWEEP`, `ENABLE_TPO`, `ENABLE_MTF`, `ENABLE_ORB`, `ENABLE_BREAKRETEST`, `ENABLE_REGIME`, `ENABLE
+
+---
+
+## PART 4 — Deliverable 6: Mandatory caller-set vars (47 iterations, 48.1s, quality 518.1)
+
+**Env vars that have no default value defined in `core/TradingConfig.js` or `foundation/ConfigLoader.js` (must be set by the caller)**  
+
+| Env var | Default value | Citation |
+|---------|---------------|----------|
+| STRATEGY_DIAG | **NO DEFAULT — MUST SET** | `tools/parallel-backtest.js` line 317 (`process.env.STRATEGY_DIAG`)【grep】; also used in `core/StrategyOrchestrator.js` line 189【grep】 |
+| SOLO_STRATEGY | **NO DEFAULT — MUST SET** | `tools/parallel-backtest.js` line 612 (`process.env.SOLO_STRATEGY = …`)【grep】; also read in `core/StrategyOrchestrator.js` line 95【grep】 |
+| BACKTEST_MODE | **NO DEFAULT — MUST SET** | `run-empire-v2.js` line 1024 (`process.env.BACKTEST_MODE || 'false'`)【grep】 |
+| ENABLE_SHORTS | **NO DEFAULT — MUST SET** | `run-empire-v2.js` line 1031 (`process.env.ENABLE_SHORTS || 'false'`)【grep】 |
+
+*All other env vars that appear in the listed files have a default assignment either via `env()`, `envBool()`, `envFloat()`, or a `process.env.X || 'default'` pattern in `core/TradingConfig.js` or `foundation/ConfigLoader.js`, so they are **not** required to be set explicitly.*
+
+---
+
 ## AUDIT METADATA
 
 - **Mercury iterations:** 43
