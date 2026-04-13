@@ -1,0 +1,343 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OGZPrime Decision Ledger",
+  "description": "Structured record of every force acting on a trade decision, from signal generation through final close. One ledger per trade, accumulated across the lifecycle, persisted on full close.",
+  "version": "1.0.0",
+  "lastUpdated": "2026-04-13",
+  "type": "object",
+  "required": ["tradeId", "candleTimestamp", "symbol", "timeframe", "strategySignals", "orchestratorDecision", "positionSizing", "exitContract"],
+  "properties": {
+    "tradeId": {
+      "type": "string",
+      "description": "Unique trade identifier, matches StateManager.activeTrades key",
+      "example": "TRADE_1712514267000"
+    },
+    "candleTimestamp": {
+      "type": "integer",
+      "description": "Unix ms timestamp of the candle that generated the entry signal"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Asset symbol, e.g. TSLA, BTC/USD",
+      "example": "TSLA"
+    },
+    "timeframe": {
+      "type": "string",
+      "description": "Candle timeframe",
+      "enum": ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
+    },
+    "executionMode": {
+      "type": "string",
+      "enum": ["live", "paper", "backtest"],
+      "description": "Mode the trade was generated in"
+    },
+
+    "strategySignals": {
+      "type": "array",
+      "description": "Every strategy that fired a signal on this candle, winner and losers alike",
+      "items": {
+        "type": "object",
+        "required": ["name", "direction", "baseConfidence", "reason"],
+        "properties": {
+          "name": {"type": "string", "example": "EMASMACrossover"},
+          "direction": {"type": "string", "enum": ["long", "short", "hold"]},
+          "baseConfidence": {"type": "number", "minimum": 0, "maximum": 1, "description": "Pre-modifier confidence from strategy.evaluate()"},
+          "reason": {"type": "string", "description": "Human-readable signal explanation"},
+          "indicatorValues": {
+            "type": "object",
+            "description": "Indicator values at the moment the signal fired",
+            "additionalProperties": {"type": "number"}
+          }
+        }
+      }
+    },
+
+    "confidenceModifiers": {
+      "type": "array",
+      "description": "Every force that adjusted confidence after strategy signal, in order of application",
+      "items": {
+        "type": "object",
+        "required": ["source", "adjustment", "reason"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "pattern_match",
+              "fib_proximity",
+              "regime_filter",
+              "volatility_filter",
+              "vp_confluence",
+              "mtf_alignment",
+              "trai_overlay",
+              "session_filter",
+              "structural_level",
+              "other"
+            ]
+          },
+          "adjustment": {
+            "type": "number",
+            "description": "Additive adjustment (e.g. +0.12 means +12 percentage points to confidence)"
+          },
+          "reason": {"type": "string"},
+          "patternId": {"type": "string", "description": "If source is pattern_match"},
+          "patternStats": {
+            "type": "object",
+            "properties": {
+              "winRate": {"type": "number"},
+              "sampleSize": {"type": "integer"},
+              "avgPnlPercent": {"type": "number"}
+            }
+          },
+          "regime": {"type": "string", "description": "If source is regime_filter"},
+          "preValue": {"type": "number", "description": "Confidence before this modifier"},
+          "postValue": {"type": "number", "description": "Confidence after this modifier"}
+        }
+      }
+    },
+
+    "orchestratorDecision": {
+      "type": "object",
+      "required": ["winnerStrategy", "finalConfidence", "reason"],
+      "properties": {
+        "winnerStrategy": {"type": "string"},
+        "finalConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason": {"type": "string", "example": "EMASMACrossover (0.83) > RSI (0.72) after modifiers"},
+        "competingStrategies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "adjustedConfidence": {"type": "number"},
+              "rejected": {"type": "boolean"},
+              "rejectReason": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+
+    "confluence": {
+      "type": "object",
+      "required": ["count", "sizingMultiplier"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 1, "maximum": 10},
+        "agreeingStrategies": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "sizingMultiplier": {
+          "type": "number",
+          "description": "1.0 for single, 1.5 for two, 2.0 for three, 2.5 for four+"
+        },
+        "reason": {"type": "string"}
+      }
+    },
+
+    "positionSizing": {
+      "type": "object",
+      "required": ["basePercent", "confidenceMultiplier", "confluenceMultiplier", "finalPercent", "finalSizeUsd", "formula"],
+      "properties": {
+        "basePercent": {"type": "number", "description": "From TradingConfig.maxPositionSize, e.g. 0.05"},
+        "confidenceMultiplier": {"type": "number", "minimum": 0.5, "maximum": 2.5},
+        "confidencePercent": {"type": "number", "description": "basePercent * confidenceMultiplier"},
+        "confluenceMultiplier": {"type": "number", "minimum": 1.0, "maximum": 2.5},
+        "pidPositionMultiplier": {
+          "type": "number",
+          "description": "PIDController position-loop output applied at decision time"
+        },
+        "finalPercent": {"type": "number", "description": "Final position as fraction of account"},
+        "accountBalance": {"type": "number"},
+        "finalSizeUsd": {"type": "number"},
+        "finalSizeShares": {"type": "number"},
+        "formula": {
+          "type": "string",
+          "description": "Human-readable formula showing the math",
+          "example": "5% base × 1.82 confidence × 1.5 confluence × 1.05 PID = 14.33% of $10,000 = $1,433 = 5.85 shares @ $245.10"
+        }
+      }
+    },
+
+    "riskGates": {
+      "type": "array",
+      "description": "Every risk check that ran, pass or fail",
+      "items": {
+        "type": "object",
+        "required": ["gate", "passed"],
+        "properties": {
+          "gate": {
+            "type": "string",
+            "enum": [
+              "min_confidence",
+              "atr_filter",
+              "max_positions",
+              "daily_loss_limit",
+              "drawdown_circuit",
+              "same_direction_block",
+              "kill_switch",
+              "warmup",
+              "direction_filter"
+            ]
+          },
+          "threshold": {"type": "number"},
+          "value": {"type": "number"},
+          "passed": {"type": "boolean"},
+          "rejectReason": {"type": "string", "description": "If passed=false, why this gate killed the trade"}
+        }
+      }
+    },
+
+    "pidState": {
+      "type": "object",
+      "description": "PIDController snapshot at decision time",
+      "properties": {
+        "positionMultiplier": {"type": "number"},
+        "trailMultiplier": {"type": "number"},
+        "regimeBoosts": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "totalTradesObserved": {"type": "integer"},
+        "warmupComplete": {"type": "boolean"}
+      }
+    },
+
+    "exitContract": {
+      "type": "object",
+      "required": ["source", "stopLossPercent", "takeProfitPercent"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "example": "TradingConfig.exitContracts.EMASMACrossover"
+        },
+        "validatedDate": {"type": "string", "format": "date"},
+        "stopLossPercent": {"type": "number"},
+        "takeProfitPercent": {"type": "number"},
+        "trailingStopPercent": {"type": "number"},
+        "trailingActivation": {"type": "number"},
+        "maxHoldMinutes": {"type": "integer"},
+        "minConfidence": {"type": "number"},
+        "useStructuralExits": {"type": "boolean"},
+        "invalidationConditions": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+
+    "traiInput": {
+      "type": "object",
+      "description": "TRAI overlay state at decision time (observer mode)",
+      "properties": {
+        "fired": {"type": "boolean"},
+        "decisionId": {"type": "integer"},
+        "confidenceBand": {"type": "string", "example": "0.40-0.70"},
+        "overrideApplied": {"type": "boolean", "description": "TRAI never overrides risk, only adjusts confidence within its band"},
+        "reasoning": {"type": "string"},
+        "modelUsed": {"type": "string", "example": "mercury-2"}
+      }
+    },
+
+    "exits": {
+      "type": "array",
+      "description": "Every exit event, ordered by occurrence. Empty until first leg closes.",
+      "items": {
+        "type": "object",
+        "required": ["legNumber", "exitReason", "exitPrice", "exitFraction", "realizedPnL", "triggeredBy"],
+        "properties": {
+          "legNumber": {"type": "integer", "minimum": 1},
+          "exitReason": {
+            "type": "string",
+            "enum": [
+              "stop_loss",
+              "take_profit",
+              "trailing_stop",
+              "be_scaleout",
+              "profit_tier_1",
+              "profit_tier_2",
+              "profit_tier_3",
+              "max_hold",
+              "invalidation",
+              "flip_position",
+              "kill_switch",
+              "manual_close",
+              "drawdown_circuit",
+              "session_end"
+            ]
+          },
+          "exitPrice": {"type": "number"},
+          "exitFraction": {"type": "number", "minimum": 0, "maximum": 1, "description": "0.30 = closed 30% of remaining position"},
+          "exitSize": {"type": "number", "description": "Absolute size closed (USD or shares)"},
+          "realizedPnL": {"type": "number"},
+          "realizedPnLPercent": {"type": "number"},
+          "triggeredBy": {
+            "type": "string",
+            "description": "Module that fired the exit",
+            "example": "MaxProfitManager.checkTierExits"
+          },
+          "indicatorState": {
+            "type": "object",
+            "additionalProperties": {"type": "number"}
+          },
+          "reasoning": {"type": "string"},
+          "remainingSizeAfter": {"type": "number"}
+        }
+      }
+    },
+
+    "outcome": {
+      "type": "object",
+      "description": "Final summary, populated only on full close (remainingSize === 0)",
+      "properties": {
+        "totalRealizedPnL": {"type": "number"},
+        "totalRealizedPercent": {"type": "number"},
+        "totalHoldMinutes": {"type": "integer"},
+        "legCount": {"type": "integer"},
+        "finalReason": {"type": "string", "description": "Aggregated exit reason for the parent trade"},
+        "maxProfitPercent": {"type": "number", "description": "Peak unrealized profit during trade"},
+        "mfeRatio": {"type": "number", "description": "Final realized / max profit (capture ratio)"},
+        "totalFees": {"type": "number"},
+        "wasWin": {"type": "boolean"}
+      }
+    },
+
+    "lessonLearned": {
+      "type": "object",
+      "description": "Post-hoc analysis written by TRAI or pattern engine after trade closes",
+      "properties": {
+        "patternRecorded": {"type": "string", "description": "Pattern signature this trade contributed to"},
+        "patternStatsBefore": {
+          "type": "object",
+          "properties": {
+            "winRate": {"type": "number"},
+            "sampleSize": {"type": "integer"}
+          }
+        },
+        "patternStatsAfter": {
+          "type": "object",
+          "properties": {
+            "winRate": {"type": "number"},
+            "sampleSize": {"type": "integer"}
+          }
+        },
+        "premiumPackEligible": {"type": "boolean"},
+        "anomalyFlags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "e.g. unusual_drawdown, unexpected_reversal, modifier_mismatch"
+        }
+      }
+    },
+
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "ledgerVersion": {"type": "string", "default": "1.0.0"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "lastUpdatedAt": {"type": "string", "format": "date-time"},
+        "configFingerprint": {"type": "string", "description": "TradingConfig fingerprint at trade birth"},
+        "gitCommit": {"type": "string", "description": "Git SHA at trade birth"}
+      }
+    }
+  }
+}
