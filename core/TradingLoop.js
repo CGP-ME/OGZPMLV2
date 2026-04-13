@@ -266,6 +266,15 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
+      // L5: Capture risk gates that were checked during entry evaluation
+      const riskGates = [
+        { gate: 'warmup', threshold: 15, value: this.ctx.priceHistory.length, passed: this.ctx.priceHistory.length >= 15 },
+        { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
+        { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
+        { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
+        { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
+      ];
+
       // L1+L2: Attach full ledger data to decision for StateManager.openPosition
       const allResults = orchResult.allResults || [];
       const winnerName = orchResult.winnerStrategy || null;
@@ -309,6 +318,8 @@ class TradingLoop {
           reason: `${orchResult.confluence.count || 1} strategies agree on ${orchResult.direction}`,
         } : { count: 1, sizingMultiplier: 1.0 },
         exitContract: orchResult.exitContract || null,
+        // L5: risk gates checked before entry
+        riskGates,
       };
       await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
     }
