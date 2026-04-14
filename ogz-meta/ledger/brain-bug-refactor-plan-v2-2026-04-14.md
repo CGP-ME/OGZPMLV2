@@ -392,3 +392,49 @@ The most logical place is **`StateManager`**, because it already owns the centra
 
 ```js
 // core/StateManager.js – inside the constructor (around
+
+---
+
+## FINAL: Map-of-MPM + Commit Ordering + Verification
+
+**1️⃣ MAP‑OF‑MPM‑INSTANCES – full implementation**
+
+| What you need | Where to put it (file : line) | Code (exact) |
+|---|---|---|
+| **a) Declare the Map in the `StateManager` constructor** | `core/StateManager.js` – after the `activeTrades` entry (line 106‑108) | ```js\n  106\t      activeTrades: new Map(),  // orderId → { size, price, entryTime, ... }\n  107\t      // NEW: hold a MaxProfitManager per trade\n  108\t      profitManagers: new Map(), // tradeId → MaxProfitManager instance\n``` |
+| **b) Create a new `MaxProfitManager` on `openPosition`** | `core/StateManager.js` – immediately after the `activeTrades.set(tradeId, trade);` statement (line 387) | ```js\n  387\t    this.state.activeTrades.set(tradeId, trade);\n  388\t    // NEW: instantiate a MaxProfitManager for this trade and store it\n  389\t    const MaxProfitManager = require('./MaxProfitManager');\n  390\t    this.state.profitManagers.set(tradeId, new MaxProfitManager({ tradeId, entryPrice: price, direction: tradeDirection }));\n``` |
+| **c) Destroy the instance on full close** | `core/StateManager.js` – right after the trade is removed from `activeTrades` (line 490‑492) and also after the “clear‑all‑trades” branch (line 500) | ```js\n  490\t        this.state.activeTrades.delete(tradeId);\n  491\t        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);\n  492\t        // NEW: clean up the MaxProfitManager for this trade\n  493\t        if (this.state.profitManagers) this.state.profitManagers.delete(tradeId);\n``` |
+| **d) Get the correct MPM instance from a loop / executor** | `core/TradingLoop.js` – replace the old `this.ctx.maxProfitManager` reference (around line 170‑172) with a lookup in the `StateManager` map | ```js\n  170\t      // MaxProfitManager check (PATCH 1: enriched context)\n  171\t      const mpm = this.ctx.stateManager.profitManagers.get(activeTrade.id);\n  172\t      if (mpm?.state?.active) {\n``` |
+
+*All of the above lines are added **exactly** where indicated, preserving the surrounding code.*
+
+
+---
+
+**2️⃣ COMMIT ORDERING – dependency graph for the 8 layers**
+
+| # | Layer (module) | Must land **atomically** (single‑transaction) | Can be **sequenced** after previous layer |
+|---|----------------|----------------------------------------------|------------------------------------------|
+| 1 | `core/StateManager.js` (global state, `profitManagers` map) | **Yes** – any change to `state` or `profitManagers` must be a single atomic `updateState` call. | – |
+| 2 | `core/MaxProfitManager.js` (per‑trade profit optimisation) | **No** – independent per‑trade objects; they are created/destroyed by the StateManager. | After StateManager is live. |
+| 3 | `core/OrderExecutor.js` (executes decisions, calls `stateManager.reducePosition`) | **Yes** – the call to `reducePosition` (new method) must be atomic with the trade‑exit logic. | After StateManager and MaxProfitManager exist. |
+| 4 | `core/TradingLoop.js` (decision engine, reads `stateManager` & `profitManagers`) | **No** – reads only; can run after OrderExecutor. | After OrderExecutor is deployed. |
+| 5 | `core/BacktestRecorder.js` (records legs, groups by `tradeId`) | **Yes** – each `recordTrade` must be atomic with the trade‑exit event. | After OrderExecutor writes the exit. |
+| 6 | `core/TRAIDecisionModule.js` (aggregates outcomes) | **No** – aggregates over multiple legs; can be sequenced after BacktestRecorder. | After BacktestRecorder. |
+| 7 | `core/UnifiedPatternMemory.js` (stores pattern memory per parent trade) | **Yes** – writes must be atomic per‑trade to avoid duplicate samples. | After TRAIDecisionModule aggregates a full‑close. |
+| 8 | `core/TradeJournal.js` (human‑readable log) | **No** – only logs; can be sequenced after UnifiedPatternMemory. | After UnifiedPatternMemory. |
+
+**Atomic‑only layers** are 1, 3, 5, 7 – they modify shared state that must not be interleaved. All other layers can be applied in the order shown.
+
+---
+
+**3️⃣ VERIFICATION CRITERIA – back‑test to prove the fix**
+
+| Goal | Command / Check | What to look for |
+|------|----------------|------------------|
+| **a) Run the back‑test** | ```bash\nnode backtest/backtest.js --config config/backtest.json --output results/2026-04-14.jsonl\n``` | The script should finish without errors and write a JSONL file (`results/2026-04-14.jsonl`). |
+| **b) Verify multi‑leg trades** | ```bash\njq 'select(.exits | length > 1)' results/2026-04-14.jsonl | wc -l\n``` | The count should be > 0, confirming at least one trade has `exits.length > 1`. |
+| **c) Expected P&L change** | After the run, grep the final P&L line: <br>```bash\njq '.finalPnL' results/2026-04-14.jsonl | tail -1\n``` | The value should be **different** from the old buggy result (`-282.35`). With the new MPM logic you should see a *higher* (less negative) P&L, e.g. `‑150.00` → `‑30.00` (exact number depends on data). |
+| **d) Pattern‑memory single‑sample per parent trade** | ```bash\njq 'select(.type=="patternMemory") | .parentTradeId' results/2026-04-14.jsonl | sort | uniq -c | awk '$1>1{print $2}'\n``` | The command must output **nothing** – each `parentTradeId` appears only once, confirming the duplicate‑sample bug is fixed. |
+
+Running the above steps and confirming the three checks (multi‑leg trades exist, P&L improves, and pattern‑memory has a single entry per parent) demonstrates that the MAP‑OF‑MPM‑INSTANCES refactor works as intended.
