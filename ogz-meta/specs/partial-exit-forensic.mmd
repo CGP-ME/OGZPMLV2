@@ -1,0 +1,59 @@
+flowchart TD
+    subgraph MPM["MaxProfitManager (singleton)"]
+        MPM_TIER["checkProfitTiers() :494"]
+        MPM_BE["BE scaleout :440-465"]
+        MPM_EXEC["executePartialExit() :691"]
+        MPM_RET["return {exitSize: ABSOLUTE_USD} :460,504"]
+
+        MPM_TIER --> MPM_EXEC
+        MPM_EXEC -->|"mutates remainingSize BEFORE return"| MPM_RET
+        MPM_BE --> MPM_RET
+    end
+
+    subgraph OE["OrderExecutor :506-660"]
+        OE_FILTER["getAllTrades().filter(BUY).sort(entryTime)[0] :514-517"]
+        OE_CHECK["isPartialClose = exitSize > 0 && exitSize < 1 :592"]
+        OE_CLOSE["closePosition(price, FALSE, null, ctx) :594"]
+        OE_REMOVE["removeActiveTrade(orderId) :905"]
+        OE_RESET["maxProfitManager.reset() :910"]
+
+        OE_FILTER -->|"BUG F6: ignores tradeId"| OE_CHECK
+        OE_CHECK -->|"BUG F2: absolute USD > 1 = always false"| OE_CLOSE
+        OE_CLOSE --> OE_REMOVE
+        OE_REMOVE -->|"BUG F7: trade already deleted"| OE_RESET
+        OE_RESET -->|"BUG F8: kills tier state"| END_OE
+    end
+
+    subgraph SM["StateManager :438-560"]
+        SM_SIZE["closeSize = Math.abs(tradeSizeUsd) :465"]
+        SM_PNL["pnl = closeSize * priceChange :480"]
+        SM_DELETE["activeTrades.delete(tradeId) :490"]
+        SM_UPDATE["updateState({position, realizedPnL}) :552"]
+
+        SM_SIZE -->|"BUG F3: ignores size param"| SM_PNL
+        SM_PNL --> SM_DELETE
+        SM_DELETE -->|"BUG F4: no remainingSize check"| SM_UPDATE
+    end
+
+    MPM_RET -->|"exitSize: $250 (absolute USD)"| OE_CHECK
+    OE_CLOSE -->|"partial=false, size=null"| SM_SIZE
+
+    subgraph RESULT["What Actually Happens"]
+        R1["Every 'partial' exit = FULL CLOSE"]
+        R2["Trade deleted from activeTrades immediately"]
+        R3["MPM tier state destroyed"]
+        R4["No multi-leg trades ever complete"]
+        R5["Winners truncated at tier 1"]
+    end
+
+    END_OE --> R1
+
+    style MPM_RET fill:#ff6666,color:#000
+    style OE_CHECK fill:#ff6666,color:#000
+    style SM_SIZE fill:#ff6666,color:#000
+    style SM_DELETE fill:#ff6666,color:#000
+    style OE_REMOVE fill:#ff9999,color:#000
+    style OE_RESET fill:#ff9999,color:#000
+    style OE_FILTER fill:#ff9999,color:#000
+    style R1 fill:#ff4444,color:#fff
+    style R5 fill:#ff4444,color:#fff

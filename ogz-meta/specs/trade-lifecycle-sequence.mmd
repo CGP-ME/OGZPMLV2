@@ -1,0 +1,54 @@
+sequenceDiagram
+    participant TL as TradingLoop<br/>core/TradingLoop.js
+    participant OE as OrderExecutor<br/>core/OrderExecutor.js
+    participant SM as StateManager<br/>core/StateManager.js
+    participant MPM as MaxProfitManager<br/>core/MaxProfitManager.js
+    participant ECM as ExitContractManager<br/>core/ExitContractManager.js
+    participant BR as BacktestRecorder<br/>core/BacktestRecorder.js
+    participant DLL as DecisionLedgerLogger<br/>core/DecisionLedgerLogger.js
+
+    Note over TL: analyzeAndTrade() :47
+
+    rect rgb(200, 255, 200)
+        Note right of TL: BUY ENTRY PATH
+        TL->>OE: executeTrade(decision, confidenceData, price, indicators, patterns, orchResult) :324
+        OE->>SM: openPosition(adjustedPositionSize, price, {orderId, confidence, entryStrategy, exitContract, ledgerData, ...}) :273-286
+        SM->>SM: trade = {id, action, direction, sizeUsd, entryPrice, entryFee, ...context} :348-362
+        SM->>SM: trade.decisionLedger = createLedgerSkeleton(ledgerData) :364-366
+        SM->>SM: activeTrades.set(tradeId, trade) :387
+        OE->>MPM: start(price, direction, positionSize) :302-309
+        Note right of OE: BUG F16: uses positionSize<br/>not adjustedPositionSize
+    end
+
+    rect rgb(255, 200, 200)
+        Note right of TL: SELL CLOSE PATH
+        TL->>TL: Exit check: ECM.checkExitConditions OR MPM.update :137-194
+        TL->>OE: executeTrade(decision{action:SELL, exitSize, exitReason}) :324
+
+        OE->>SM: getAllTrades().filter(BUY).sort(entryTime) :514-517
+        Note right of OE: BUG F6: picks oldest BUY<br/>ignores decision.tradeId
+
+        OE->>OE: isPartialClose = exitSize > 0 && exitSize < 1 :592
+        Note right of OE: BUG F2: exitSize is absolute USD<br/>always > 1, always false
+
+        OE->>SM: closePosition(price, false, null, {orderId, exitReason}) :594
+        Note right of SM: BUG F3: size param ignored
+
+        SM->>SM: closeSize = Math.abs(tradeSizeUsd) :465
+        Note right of SM: Always full trade size
+
+        SM->>SM: pnl = closeSize * priceChangePercent :480
+        SM->>SM: activeTrades.delete(tradeId) :490
+        Note right of SM: BUG F4: unconditional delete<br/>no remainingSize check
+
+        SM->>SM: netRealizedResult = pnl - exitFee :527
+        SM->>DLL: writeOnClose(trade.decisionLedger) :530-542
+        SM->>SM: updateState({position, realizedPnL, ...}) :552-559
+
+        OE->>BR: recordTrade({entry/exit, direction, prices, size, strategy, confidence, exitReason}) :564
+        OE->>SM: removeActiveTrade(buyTrade.orderId) :905
+        Note right of OE: BUG F7: double-delete<br/>trade already gone
+
+        OE->>MPM: reset() :910-912
+        Note right of OE: BUG F8: unconditional reset<br/>kills all tier state
+    end
