@@ -14,6 +14,8 @@ const PROMPT_BUILDERS = {
   exterminator: prompts.buildExterminatorPrompt,
   critic: prompts.buildCriticPrompt,
   forensics: prompts.buildForensicsPrompt,
+  architect: prompts.buildArchitectPrompt,
+  fixer: prompts.buildFixerPrompt,
 };
 
 // Output parsers keyed by format
@@ -22,6 +24,8 @@ const OUTPUT_PARSERS = {
   structured_proposals: parsers.parseExterminatorOutput,
   structured_critique: parsers.parseCriticOutput,
   structured_risks: parsers.parseForensicsOutput,
+  structured_plan: parsers.parseArchitectOutput,
+  structured_edits: parsers.parseFixerOutput,
 };
 
 function logActivity(entry) {
@@ -146,6 +150,10 @@ function summarizeResult(role, data) {
       return `Verdict: ${data.overall_verdict || '?'}, ${(data.reviews || []).length} reviews`;
     case 'forensics':
       return `${(data.risks || []).length} risks, ${(data.silent_bugs || []).length} silent bugs`;
+    case 'architect':
+      return `Plan: ${(data.plan?.files || []).length} files, ${(data.plan?.ordering || []).length} ordering steps`;
+    case 'fixer':
+      return `${(data.edits || []).length} verified edits`;
     default:
       return 'completed';
   }

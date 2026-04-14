@@ -218,21 +218,44 @@ async function commander(manifest, params) {
  * Architect: Maps system
  */
 async function architect(manifest, params) {
-  // Read architecture from claudito_context
-  const contextPath = path.join(__dirname, 'claudito_context.md');
-  const context = fs.readFileSync(contextPath, 'utf8');
+  const { callMercury } = require('./cognition/mercury-bridge');
+  const issue = manifest.issue || '';
 
-  updateSection(manifest, 'architect', {
-    system_map: [
-      'run-empire-v2.js (main)',
-      'core/indicators/IndicatorEngine.js',
-      'brokers/BrokerFactory.js',
-      'core/StateManager.js'
-    ],
-    dependencies: ['Empire V2 Architecture', 'IBrokerAdapter']
+  const result = await callMercury({
+    role: 'architect',
+    task: `design refactor plan for: ${issue}`,
+    target: {
+      issue,
+      context: manifest.commander?.rag_results || manifest.commander?.known_issues || []
+    },
+    outputFormat: 'structured_plan',
+    options: {
+      maxIterations: 30,
+      quiet: true,
+      missionId: manifest.mission_id
+    }
   });
 
-  console.log('✅ Architect: System mapped');
+  if (!result.success) {
+    console.log(`⚠️  Architect: Mercury call failed (${result.reason})`);
+    updateSection(manifest, 'architect', {
+      plan: null,
+      mercury_failed: true,
+      reason: result.reason
+    });
+    return manifest;
+  }
+
+  const plan = result.data.plan || {};
+  updateSection(manifest, 'architect', {
+    plan,
+    system_map: (plan.files || []).map(f => f.path),
+    dependencies: (plan.files || []).flatMap(f => f.dependencies || []),
+    mercury_iterations: result.iterations,
+    mercury_duration_ms: result.duration_ms,
+  });
+
+  console.log(`✅ Architect: Plan designed — ${(plan.files || []).length} files, ${(plan.ordering || []).length} ordering steps (${result.iterations} Mercury iterations, ${(result.duration_ms/1000).toFixed(1)}s)`);
   return manifest;
 }
 
@@ -1183,8 +1206,31 @@ async function fixer(manifest, params) {
   const isExecuteMode = manifest.mode === 'EXECUTE' && manifest.approval?.status === 'APPROVED';
 
   if (!isExecuteMode) {
-    // ADVISORY MODE: Generate proposal, don't apply
-    const proposalDoc = generateRefactorProposal(manifest);
+    // ADVISORY MODE: Use Mercury to verify architect plan against actual code
+    const { callMercury } = require('./cognition/mercury-bridge');
+
+    let fixerResult = null;
+    if (plan && plan.files && plan.files.length > 0) {
+      fixerResult = await callMercury({
+        role: 'fixer',
+        task: `verify and concretize refactor plan for: ${manifest.issue}`,
+        target: {
+          plan,
+          issue: manifest.issue,
+          context: manifest.commander?.rag_results || []
+        },
+        outputFormat: 'structured_edits',
+        options: {
+          maxIterations: 30,
+          quiet: true,
+          missionId: manifest.mission_id
+        }
+      });
+    }
+
+    // Build proposal from Mercury's verified edits or architect plan
+    const edits = fixerResult?.success ? fixerResult.data.edits : [];
+    const proposalDoc = generateRefactorProposal(manifest, edits);
     const proposalPath = path.join(__dirname, 'proposals', `${manifest.mission_id}-REFACTOR-PROPOSAL.md`);
 
     if (!fs.existsSync(path.join(__dirname, 'proposals'))) {
@@ -1197,13 +1243,18 @@ async function fixer(manifest, params) {
     updateSection(manifest, 'fixer', {
       changes_applied: [],
       plan: plan,
-      proposal_path: proposalPath
+      edits: edits,
+      proposal_path: proposalPath,
+      mercury_iterations: fixerResult?.iterations || 0,
+      mercury_duration_ms: fixerResult?.duration_ms || 0,
     });
 
+    if (fixerResult?.success) {
+      console.log(`🧠 Fixer: Mercury verified ${edits.length} edits (${fixerResult.iterations} iterations, ${(fixerResult.duration_ms/1000).toFixed(1)}s)`);
+    }
     console.log(`📋 Fixer: Generated refactor proposal (ADVISORY MODE)`);
     console.log(`   📄 Proposal document: ${proposalPath}`);
     console.log(`   ⏳ Awaiting human approval before any changes`);
-    console.log(`   💡 Run with approved manifest to apply changes`);
     return manifest;
   }
 
@@ -1283,7 +1334,21 @@ async function fixer(manifest, params) {
 /**
  * Generate refactor proposal document
  */
-function generateRefactorProposal(manifest) {
+function generateRefactorProposal(manifest, edits) {
+  const plan = manifest.architect?.plan || {};
+  const fileList = (plan.files || []).map(f => `- \`${f.path}\` — ${(f.changes || []).length} changes`).join('\n') || 'None specified';
+  const orderList = (plan.ordering || []).map((o, i) => `${i + 1}. ${o}`).join('\n') || 'Not specified';
+
+  let editsSection = '';
+  if (edits && edits.length > 0) {
+    editsSection = `## Verified Edits (Mercury-confirmed against actual code)\n\n`;
+    edits.forEach((e, i) => {
+      editsSection += `### Edit ${i + 1}: ${e.file}:${e.line_start}-${e.line_end}\n`;
+      editsSection += `**Verified:** ${e.verified ? 'YES' : 'NO'}${e.drift_note ? ` (${e.drift_note})` : ''}\n\n`;
+      editsSection += `\`\`\`javascript\n// BEFORE:\n${e.current_code}\n// AFTER:\n${e.new_code}\n\`\`\`\n\n`;
+    });
+  }
+
   return `# REFACTOR PROPOSAL: ${manifest.mission_id}
 Generated: ${new Date().toISOString()}
 
@@ -1297,16 +1362,18 @@ This document proposes refactoring changes for human review.
 ${manifest.issue}
 
 ## Architect Plan
-${manifest.architect?.plan?.description || 'No plan generated'}
-
-### Files to Create
-${manifest.architect?.plan?.files_to_create?.map(f => `- \`${f}\``).join('\n') || 'None specified'}
+${plan.summary || 'No plan generated'}
 
 ### Files to Modify
-${manifest.architect?.plan?.files_to_modify?.map(f => `- \`${f}\``).join('\n') || 'None specified'}
+${fileList}
 
-### Extraction Details
-${manifest.architect?.plan?.details || 'See architect analysis'}
+### Commit Ordering
+${orderList}
+
+### Verification
+${plan.verification || 'Not specified'}
+
+${editsSection}
 
 ## RAG Context
 ${manifest.commander?.known_issues?.map(i => `- [${i.severity}] ${i.id}: ${i.symptom?.slice(0, 80)}...`).join('\n') || 'No prior issues found'}
@@ -1314,12 +1381,13 @@ ${manifest.commander?.known_issues?.map(i => `- [${i.severity}] ${i.id}: ${i.sym
 ---
 
 ## Approval
-To approve and execute:
-1. Review the plan above
-2. Set \`manifest.approval.status = 'APPROVED'\` in the manifest
-3. Re-run the pipeline
+Run: \`node ogz-meta/approve.js ${manifest.mission_id}\`
 
-Or manually apply the changes following the architect plan.
+## Rejection
+Run: \`node ogz-meta/reject.js ${manifest.mission_id}\`
+
+---
+Generated by Claudito Pipeline (Refactor Mode, Advisory)
 `;
 }
 

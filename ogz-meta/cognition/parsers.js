@@ -123,10 +123,60 @@ function parseForensicsOutput(mercuryResponse) {
   };
 }
 
+function parseArchitectOutput(mercuryResponse) {
+  const parsed = extractJSON(mercuryResponse);
+  if (!parsed || !parsed.plan) {
+    logParseFailure('architect', mercuryResponse);
+    return { plan: { summary: 'No plan generated', files: [], ordering: [], verification: '' } };
+  }
+  return {
+    plan: {
+      summary: parsed.plan.summary || '',
+      files: (parsed.plan.files || []).map(f => ({
+        path: f.path || 'unknown',
+        changes: (f.changes || []).map(c => ({
+          line_start: c.line_start || 0,
+          line_end: c.line_end || 0,
+          current_code: c.current_code || '',
+          new_code: c.new_code || '',
+          rationale: c.rationale || '',
+        })),
+        dependencies: f.dependencies || [],
+        test: f.test || '',
+      })),
+      ordering: parsed.plan.ordering || [],
+      verification: parsed.plan.verification || '',
+    },
+  };
+}
+
+function parseFixerOutput(mercuryResponse) {
+  const parsed = extractJSON(mercuryResponse);
+  if (!parsed || !Array.isArray(parsed.edits)) {
+    logParseFailure('fixer', mercuryResponse);
+    return { edits: [], scope_violations: [], risks_identified: [] };
+  }
+  return {
+    edits: parsed.edits.map(e => ({
+      file: e.file || 'unknown',
+      line_start: e.line_start || 0,
+      line_end: e.line_end || 0,
+      current_code: e.current_code || '',
+      new_code: e.new_code || '',
+      verified: !!e.verified,
+      drift_note: e.drift_note || '',
+    })),
+    scope_violations: parsed.scope_violations || [],
+    risks_identified: parsed.risks_identified || [],
+  };
+}
+
 module.exports = {
   parseEntomologistOutput,
   parseExterminatorOutput,
   parseCriticOutput,
   parseForensicsOutput,
+  parseArchitectOutput,
+  parseFixerOutput,
   extractJSON,
 };

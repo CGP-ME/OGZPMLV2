@@ -169,9 +169,102 @@ Output as JSON:
 }`;
 }
 
+function buildArchitectPrompt({ issue, context }) {
+  const ragContext = (context || [])
+    .map(c => `[${c.severity || 'INFO'}] ${c.description || c.text || ''}`.slice(0, 300))
+    .join('\n') || 'No prior context';
+
+  return `You are the Architect stage of the Claudito pipeline. Your job is to design a refactor plan by reading the actual source code.
+
+TASK: ${issue}
+
+PRIOR CONTEXT:
+${ragContext}
+
+Use your tools (grep, open_file, list_files) to read every file mentioned in the task. For each file:
+1. Read the current implementation at the relevant lines
+2. Identify what needs to change and why
+3. Specify the exact before/after code with file:line targets
+4. List cross-file dependencies (what other files break if this file changes alone)
+
+Then produce a coordinated plan:
+- Which files change
+- What each change does
+- Dependency ordering (what must land first)
+- Integration points between files
+- What tests verify the refactor worked
+
+Output as JSON:
+{
+  "plan": {
+    "summary": "one-line description of the refactor",
+    "files": [
+      {
+        "path": "core/SomeFile.js",
+        "changes": [
+          {
+            "line_start": 123,
+            "line_end": 125,
+            "current_code": "exact current text",
+            "new_code": "exact replacement text",
+            "rationale": "why this change"
+          }
+        ],
+        "dependencies": ["core/OtherFile.js"],
+        "test": "how to verify this file's changes work"
+      }
+    ],
+    "ordering": ["file1 first because...", "file2 after because..."],
+    "verification": "end-to-end test command and pass criteria"
+  }
+}`;
+}
+
+function buildFixerPrompt({ plan, issue, context }) {
+  const planText = JSON.stringify(plan || {}, null, 2);
+  const ragContext = (context || [])
+    .map(c => `[${c.severity || 'INFO'}] ${c.description || c.text || ''}`.slice(0, 200))
+    .join('\n') || 'No prior context';
+
+  return `You are the Fixer stage of the Claudito pipeline. The Architect has produced a refactor plan. Your job is to verify the plan against the actual code and produce concrete file edits.
+
+ARCHITECT'S PLAN:
+${planText}
+
+ORIGINAL TASK: ${issue}
+
+PRIOR CONTEXT:
+${ragContext}
+
+For each file in the plan:
+1. Use open_file to read the current code at the specified lines
+2. Verify the plan's "current_code" matches what's actually in the file (lines may have drifted)
+3. If lines drifted, find the correct location using grep
+4. Produce the final concrete edits with verified line numbers
+
+Output as JSON:
+{
+  "edits": [
+    {
+      "file": "core/SomeFile.js",
+      "line_start": 123,
+      "line_end": 125,
+      "current_code": "verified current text from file",
+      "new_code": "exact replacement text",
+      "verified": true,
+      "drift_note": "if lines moved, explain"
+    }
+  ],
+  "scope_violations": [],
+  "risks_identified": []
+}`;
+}
+
 module.exports = {
   buildEntomologistPrompt,
   buildExterminatorPrompt,
   buildCriticPrompt,
   buildForensicsPrompt,
+  buildArchitectPrompt,
+  buildFixerPrompt,
 };
