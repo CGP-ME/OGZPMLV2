@@ -68,7 +68,7 @@ async function callMercury({ role, task, target, outputFormat, options = {} }) {
       const result = await runAgentic(prompt, {
         quiet: options.quiet ?? true,
         maxIterations: options.maxIterations ?? 10,
-        maxTokens: options.maxTokens ?? 3000,
+        maxTokens: options.maxTokens ?? 7750,
       });
 
       const duration_ms = Date.now() - t0;
