@@ -118,6 +118,17 @@ const SKIP_DIRS = new Set([
   'backtest',
   'pinescript',
   '.claude',
+  // RAG hygiene: exclude non-canonical ogz-meta subdirs from indexing
+  'proposals',       // historical pipeline proposals — not ground truth
+  'manifests',       // pipeline mission state files — not ground truth
+  'ledger',          // audits, handoffs, plans, screenshots — not ground truth
+  'health-reports',  // runtime health logs
+  'sessions',        // session form outputs
+  'replacements',    // pipeline replacement blocks
+  'reports',         // pipeline mission reports
+  'ogz-ledger',      // everything explicitly moved out of canonical space
+  'cold-traces',     // forensic traces — reference only, not prescriptive
+  'audits',          // audit outputs — reference, not canonical
 ]);
 
 const SKIP_FILE_EXTENSIONS = new Set([
@@ -135,6 +146,13 @@ const SKIP_FILE_PATTERNS = [
   /\.min\.js$/,
   /package-lock\.json$/,
   /yarn\.lock$/,
+  // RAG hygiene: skip large noise files and non-canonical ogz-meta top-level files
+  /call-graph-cache\.json$/,    // 12MB call graph cache
+  /rag_index\.json$/,           // old pre-Mercury RAG index
+  /todocontext\d+\.md$/,        // session handoff megadocs
+  /\.last-rag-query\.json$/,    // ephemeral query state
+  /MISSION-.*\.md$/,            // proposal docs (anywhere in tree)
+  /backtest-report-.*\.json$/,  // backtest report outputs
 ];
 
 const INDEX_FILE_EXTENSIONS = new Set([
