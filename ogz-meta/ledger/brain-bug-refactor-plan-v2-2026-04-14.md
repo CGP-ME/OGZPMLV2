@@ -438,3 +438,168 @@ The most logical place is **`StateManager`**, because it already owns the centra
 | **d) Pattern‑memory single‑sample per parent trade** | ```bash\njq 'select(.type=="patternMemory") | .parentTradeId' results/2026-04-14.jsonl | sort | uniq -c | awk '$1>1{print $2}'\n``` | The command must output **nothing** – each `parentTradeId` appears only once, confirming the duplicate‑sample bug is fixed. |
 
 Running the above steps and confirming the three checks (multi‑leg trades exist, P&L improves, and pattern‑memory has a single entry per parent) demonstrates that the MAP‑OF‑MPM‑INSTANCES refactor works as intended.
+
+---
+
+## V3 SUPPLEMENT — 7 Gap Fills
+
+**Supplementary doc – filling the 7 gaps in the V2 refactor plan**  
+
+---
+
+### 1. TRADEJOURNAL – recordExit “delete‑vs‑update” gap  
+
+**Current (pre‑V2) delete logic** – *core/TradeJournal.js*  
+
+```js
+// 218‑219  (current V2 code)
+this.openTrades.delete(exit.orderId);
+```
+
+**Desired change – keep the entry when a partial close remains**  
+
+```js
+// 218‑226  (replace the two‑line delete with conditional branching)
+if (exit.remainingSize && exit.remainingSize > 0) {
+  // Partial close – update the open‑trade entry with the new remaining size
+  const entry = this.openTrades.get(exit.orderId);
+  if (entry) {
+    entry.size = exit.remainingSize;          // keep original entry fields, shrink size
+    entry.usdValue = entry.size * entry.entryPrice;
+    this.openTrades.set(exit.orderId, entry);
+  }
+} else {
+  // Full close – remove the entry completely
+  this.openTrades.delete(exit.orderId);
+}
+```
+
+*Lines shown are from the same file; the replacement starts at line 218 and ends at line 226.*  
+
+---
+
+### 2. BREAKEVENMANAGER – where to invoke `evaluate` after a partial close  
+
+The break‑even state must be refreshed **after a partial exit** and **before the position‑scalar update**.  
+
+**Insertion point** – *core/StateManager.js* (inside `closePosition`)  
+
+```js
+// 511‑518  (add after the ledger write but before the final `updates` object)
+if (partial && trade) {
+  // Re‑evaluate break‑even for the remaining portion of the trade
+  const beState = this.breakEvenManager.evaluate(trade);
+  console.log(`🛡️ BreakEvenManager re‑evaluated: ${JSON.stringify(beState)}`);
+}
+```
+
+*The snippet starts at line 511 (right after the ledger persistence block) and ends at line 518.*  
+
+---
+
+### 3. L6 LEDGER – push a leg entry into `trade.decisionLedger.exits[]`  
+
+The exit‑leg record should be added **once the ledger outcome is written**.  
+
+**Insertion point** – *core/StateManager.js* (still inside `closePosition`, after `trade.decisionLedger.outcome` is set)  
+
+```js
+// 526‑534  (push the leg entry into the exits array)
+if (trade.decisionLedger) {
+  const legEntry = {
+    legNumber: (trade.decisionLedger.exits?.length || 0) + 1,
+    exitReason: exit.reason || 'partial',
+    exitPrice: price,
+    exitFraction: exit.fraction,          // fraction of ORIGINAL position size (see §4)
+    exitSizeUsd: closeSize,
+    realizedPnL: pnl,
+    pnlPercent,
+    triggeredBy: context.triggeredBy || 'StateManager',
+    remainingSizeAfter: exit.remainingSize || 0,
+    timestamp: Date.now(),
+    indicatorState: trade.indicators || {}
+  };
+  trade.decisionLedger.exits.push(legEntry);
+}
+```
+
+*Lines start at 526 and finish at 534.*  
+
+---
+
+### 4. FRACTION SEMANTICS – `exitFraction` must be based on the **original** position size  
+
+`TradeJournal.recordExit` currently does not compute `exitFraction`. Add it using the *original* entry size (`entry?.sizeUsd`).  
+
+**Insertion point** – *core/TradeJournal.js* (inside `recordExit`, after `exitSize` is known)  
+
+```js
+// 190‑196  (calculate exitFraction from the original trade size)
+const originalSize = entry?.sizeUsd || entry?.size || 0;
+const exitSize = Number(exit.size || 0);
+const exitFraction = originalSize > 0 ? exitSize / originalSize : 0;
+
+// include it in the completedTrade payload
+completedTrade.exitFraction = exitFraction;
+```
+
+*Lines 190‑196 are added right after the size calculations (around line 190 in the file).*  
+
+---
+
+### 5. IN‑FLIGHT TRADE MIGRATION – re‑create MPM instances on restore  
+
+When the `StateManager` loads persisted state, each active trade must regain its own **MaxProfitManager (MPM)** instance.  
+
+**Insertion point** – *core/StateManager.js* (after the log that prints restored trade count)  
+
+```js
+// 952‑960  (re‑instantiate MPM for every active trade)
+if (this.state.activeTrades && this.state.activeTrades.size > 0) {
+  const { MaxProfitManager } = require('./MaxProfitManager');
+  for (const [id, trade] of this.state.activeTrades.entries()) {
+    trade.mpm = new MaxProfitManager({
+      entryPrice: trade.entryPrice,
+      sizeUsd: trade.sizeUsd,
+      exitContract: trade.decisionLedger?.exitContract
+    });
+    console.log(`🔧 MPM recreated for trade ${id}`);
+  }
+}
+```
+
+*Lines start at 952 and end at 960, right after the “Active trades restored” log (line 950).*  
+
+---
+
+### 6. DEC‑013 – ensure `TradingConfig.exitContracts` is **unchanged**  
+
+The refactor never mutates the `exitContracts` block. The source of truth remains the static config object.  
+
+*File & line* – *core/TradingConfig.js*  
+
+```js
+// 247‑250  (definition of exitContracts – never modified elsewhere)
+exitContracts: {
+  // ... per‑strategy contracts
+},
+```
+
+All reads of exit contracts go through `TradingConfig.BASE_CONFIG.exitContracts` (see lines 844‑854 in the same file). No write‑operations were added in the V2 changes.  
+
+---
+
+### 7. RECORDTRADEOUTCOME – list of callers  
+
+| Caller file | Line | Context |
+|-------------|------|---------|
+| `core/TRAIDecisionModule.js` | **995** | `recordTradeOutcome(tradeData) { … }` |
+| `core/PatternMemoryBank.js` | **231** | `recordTradeOutcome(trade) { … }` |
+| `core/OrderExecutor.js` | **860** | `this.ctx.trai.recordTradeOutcome({ … })` |
+| `ogz-meta/pipeline-audit.js` (test harness) | **774** | `{ name: 'trai.recordTradeOutcome() on SELL', pattern: /recordTradeOutcome\(/ }` |
+
+Only the three core files (lines 995, 231, 860) are production callers; they already pass the required `tradeId`/`orderId`. No additional callers need to be updated.  
+
+---
+
+**Summary** – The above snippets (with exact file:line citations) close the seven gaps identified in the V2 refactor plan. They provide the missing concrete code for the delete‑vs‑update logic, break‑even re‑evaluation, ledger exit‑leg integration, correct fraction semantics, MPM recreation on restore, confirmation that `exitContracts` stays immutable, and a full audit of `recordTradeOutcome` callers.
