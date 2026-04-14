@@ -165,7 +165,123 @@ When running full pipeline (`/pipeline`), execute in this order:
 ## GIT RULES
 
 - Never `git reset --hard`
-- Never commit to main directly
 - Never commit large files (>1MB)
 - Never commit secrets (.env, keys, etc.)
 - Check `.gitignore` before staging
+- **Work on main.** Branches are rollback snapshots only. CC does not create feature branches unless Trey explicitly asks.
+- **Push after every commit.** Don't batch commits without pushing.
+- **Sync main after force-push:** `git branch -f main broker/alpaca-integration && git push origin main --force` when branch work is done.
+
+---
+
+## REPOSITORY ARCHITECTURE (UPDATED 2026-04-14)
+
+### ogz-meta vs ogz-ledger
+
+**`ogz-meta/specs/`** = CANONICAL TRUTH. Mercury indexes this. Verified specs, schemas, architecture docs.
+
+**`ogz-meta/` top-level** = Pipeline infrastructure code + Claude alignment docs. Mercury indexes these as code context.
+
+**`ogz-ledger/`** = EVERYTHING ELSE. Mercury does NOT index this. Proposals, audits, session handoffs, cold traces, historical artifacts.
+
+**Rule:** Before committing ANY new file, ask: "Is this verified canonical truth?" YES → `ogz-meta/specs/`. NO → `ogz-ledger/`.
+
+### Mercury RAG Hygiene
+
+Mercury's RAG index determines what it retrieves as context. Contaminated index = bad proposals.
+
+**What Mercury indexes:**
+- `core/**`, `brokers/**`, `modules/**`, `run-empire-v2.js` (source code)
+- `ogz-meta/specs/**` (canonical specs)
+- `ogz-meta/*.js` (pipeline infrastructure code)
+- `ogz-meta/*.md` (alignment docs — guardrails, landmines, etc.)
+
+**What Mercury DOES NOT index (excluded via config.js SKIP_DIRS + SKIP_FILE_PATTERNS):**
+- `ogz-meta/proposals/` — historical pipeline proposals
+- `ogz-meta/manifests/` — pipeline mission state
+- `ogz-meta/ledger/` — audits, handoffs, plans, screenshots
+- `ogz-meta/health-reports/` — runtime health logs
+- `ogz-meta/sessions/` — session form outputs
+- `ogz-meta/audits/` — cold traces, reference material
+- `ogz-ledger/**` — everything explicitly non-canonical
+- `backtest-report-*.json`, `call-graph-cache.json`, `todocontext*.md`
+
+**NEVER commit proposals, session handoffs, or working docs to `ogz-meta/specs/`.**
+**NEVER commit runtime artifacts (health reports, manifests, logs) to git.**
+
+### Document Accuracy Rule (CRITICAL)
+
+**When a spec, handoff form, architecture doc, or any canonical artifact is proven wrong — FIX THE DOC IMMEDIATELY or ARCHIVE IT.**
+
+Do NOT:
+- Leave a wrong doc in `ogz-meta/` and just "note it in conversation"
+- Create a new doc that supersedes the old one without updating or removing the old one
+- Let Mercury index stale specs as if they're current truth
+- Assume someone will "clean it up later"
+
+Do:
+- If the doc is fixable: edit it to match reality, commit with message explaining the correction
+- If the doc is superseded: `git mv` it to `ogz-ledger/superseded/` with a commit message explaining what replaced it
+- If findings prove a spec wrong: update the spec BEFORE implementing the fix, not after
+- If a mermaid chart drifts from code: regenerate from source, replace the old chart
+
+**Every wrong doc left in place is a future Mercury hallucination waiting to happen.**
+Mercury cannot distinguish "this doc describes the current system" from "this doc described an old version of the system." It retrieves both equally. Stale docs in indexed paths actively degrade Mercury's output quality.
+
+This was proven on 2026-04-14 when Mercury's output degraded progressively as more flawed proposals accumulated in the index. The fix was excluding non-canonical artifacts from indexing. The prevention is never letting them accumulate in the first place.
+
+### Reindex Rule
+After any significant code changes, reindex Mercury: `node trai_brain/mercury-bridge/indexer.js`
+Mercury clears chunks and rebuilds. Trace memory (learned investigation patterns) is preserved.
+
+---
+
+## COGNITION PIPELINE (UPDATED 2026-04-14)
+
+The Claudito pipeline now has Mercury-powered cognition at 6 stages:
+
+### Bugfix Pipeline
+Commander → Branch → **Architect** → **Entomologist** → **Exterminator** → Debugger → **Critic** → Validator → **Forensics** → CICD → Committer → Scribe → Janitor → Warden
+
+### Refactor Pipeline (prefix issue with `refactor:`)
+Commander → Branch → **Architect** → **Fixer** → Debugger → **Critic** → Validator → **Forensics** → Committer → Scribe → Janitor → Warden
+
+**Bold = Mercury-powered stages** that call `callMercury()` via `ogz-meta/cognition/mercury-bridge.js`.
+
+- **Architect:** Designs refactor plans by reading source code (30 iter max)
+- **Entomologist:** Finds bugs with file:line citations
+- **Exterminator:** Proposes fixes with code replacements
+- **Fixer:** Verifies architect plan against actual code
+- **Critic:** Reviews proposals, rejects weak fixes, loops back
+- **Forensics:** Semantic risk analysis (race conditions, state mutation, etc.)
+
+Pipeline runs in ADVISORY mode by default (proposals only, no code changes).
+To execute: approve mission via `node ogz-meta/approve.js <MISSION_ID>`, then re-run with `--execute`.
+
+### External Verification Sources
+- **Mercury-2** (Inception Labs) — primary cognition layer, tool calling via ReAct loop
+- **Ollama Cloud** — DeepSeek 671B + Qwen Coder 480B via REST API at `api.ollama.com`
+  - Auth: Bearer token from `OLLAMA_API_KEY` env var
+  - Use for independent cold-trace verification (different model families)
+
+---
+
+## BRAIN BUG STATUS (2026-04-14)
+
+### What it is
+7-week-old coordinated 4-layer bug across 8+ files that silently full-closes every multi-leg trade since Feb 23. MaxProfitManager returns absolute USD size, OrderExecutor treats it as a fraction, StateManager ignores the size param, trade gets deleted immediately.
+
+### Verified scope
+19 findings across 7 independent AI cold traces, all 19 confirmed by Mercury cross-verification against current HEAD. Canonical spec: `ogz-meta/specs/brain-bug-mission-05-spec.md` (if committed) or `ogz-meta/audits/cold-traces/brain-bug-mission-05-spec.md`.
+
+### Implementation status
+- Decision ledger L1-L8 shipped (JSONL persistence working)
+- Set A (partial close core) proposal generated, under review
+- Sets B-F queued per Mission 0.5 execution order
+- Asset-agnostic requirement: `reducePosition` must operate on `trade.size` (native unit), not `trade.sizeUsd`
+
+### Key decisions (do NOT override without Trey's explicit approval)
+- **DEC-008:** Map-of-MPM-instances pattern (one MaxProfitManager per trade, not singleton)
+- **DEC-013:** TradingConfig.exitContracts sealed at birth — do NOT modify
+- **DEC-014:** Mercury IS the cognition layer — don't rebuild it inside Claudito
+- **exitFraction:** Fraction of REMAINING position, computed BEFORE state mutation

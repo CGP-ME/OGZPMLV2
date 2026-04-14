@@ -129,6 +129,12 @@ const SKIP_DIRS = new Set([
   'ogz-ledger',      // everything explicitly moved out of canonical space
   'cold-traces',     // forensic traces — reference only, not prescriptive
   'audits',          // audit outputs — reference, not canonical
+  'backups',         // old file backups
+  'prodlock-portable', // separate product, not OGZPrime system truth
+  'test-fixtures',   // pipeline test bait files
+  'performance',     // old performance snapshot JSONs
+  'restore-reference', // dashboard restore reference
+  'support-missions',  // old support mission artifacts
 ]);
 
 const SKIP_FILE_EXTENSIONS = new Set([
@@ -146,13 +152,21 @@ const SKIP_FILE_PATTERNS = [
   /\.min\.js$/,
   /package-lock\.json$/,
   /yarn\.lock$/,
-  // RAG hygiene: skip large noise files and non-canonical ogz-meta top-level files
+  // RAG hygiene: skip large noise files and non-canonical artifacts
   /call-graph-cache\.json$/,    // 12MB call graph cache
   /rag_index\.json$/,           // old pre-Mercury RAG index
   /todocontext\d+\.md$/,        // session handoff megadocs
   /\.last-rag-query\.json$/,    // ephemeral query state
   /MISSION-.*\.md$/,            // proposal docs (anywhere in tree)
   /backtest-report-.*\.json$/,  // backtest report outputs
+  /equity_\d{4}.*\.json$/,     // old performance snapshots
+  /metrics_\d{4}.*\.json$/,    // old metrics snapshots
+  /trades_\d{4}.*\.json$/,     // old trade snapshots
+  /debug-.*\.js$/,             // pine transpiler debug scripts
+  /tuning-report-.*\.json$/,   // tuning result snapshots
+  /round\d+-results\.json$/,   // round result snapshots
+  /mission0\.md$/,             // superseded by Mission 0.5
+  /claudito-cognition-refactor-plan\.md$/,  // superseded — cognition layer exists
 ];
 
 const INDEX_FILE_EXTENSIONS = new Set([
