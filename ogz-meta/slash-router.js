@@ -1261,7 +1261,99 @@ async function fixer(manifest, params) {
   // EXECUTE MODE: Apply changes
   console.log(`🔧 Fixer: Applying changes (EXECUTE MODE - APPROVED)`);
 
-  // Parse issue for FULL_FILE pattern
+  // NEW: Apply Mercury's verified edits if available
+  const mercuryEdits = manifest.fixer?.edits || manifest.architect?.plan?.files?.flatMap(f =>
+    (f.changes || []).map(c => ({ file: f.path, ...c }))
+  ) || [];
+
+  if (mercuryEdits.length > 0) {
+    console.log(`🧠 Fixer: Applying ${mercuryEdits.length} Mercury-verified edits`);
+    const appliedChanges = [];
+
+    for (const edit of mercuryEdits) {
+      const filePath = path.join(projectRoot, edit.file);
+      if (!fs.existsSync(filePath)) {
+        console.log(`   ❌ ABORT: File not found: ${edit.file} — rolling back ALL edits`);
+        for (const prev of appliedChanges) {
+          if (prev.backup) {
+            const prevPath = path.join(projectRoot, prev.file);
+            fs.copyFileSync(prev.backup, prevPath);
+            console.log(`   ↩️  Rolled back: ${prev.file}`);
+          }
+        }
+        updateSection(manifest, 'fixer', { changes_applied: [], error: `File not found: ${edit.file}`, rollback: true });
+        return manifest;
+      }
+
+      // Backup before edit
+      const backupPath = filePath + '.pre-brainbug-' + Date.now();
+      fs.copyFileSync(filePath, backupPath);
+
+      let content = fs.readFileSync(filePath, 'utf8');
+      const before = (edit.current_code || '').trim();
+      const after = (edit.new_code || '').trim();
+
+      if (!before || !after) {
+        // New code insertion (no before block) — append after the file's last line matching context
+        if (after && !before && edit.line_start) {
+          const lines = content.split('\n');
+          lines.splice(edit.line_start - 1, 0, after);
+          content = lines.join('\n');
+          fs.writeFileSync(filePath, content, 'utf8');
+          appliedChanges.push({ file: edit.file, type: 'INSERT', backup: backupPath });
+          console.log(`   ✅ Inserted new code in ${edit.file}`);
+        } else {
+          console.log(`   ⚠️  Skipped edit in ${edit.file}: missing before/after code`);
+        }
+        continue;
+      }
+
+      if (content.includes(before)) {
+        content = content.replace(before, after);
+        fs.writeFileSync(filePath, content, 'utf8');
+        appliedChanges.push({ file: edit.file, type: 'REPLACE', lines: `${edit.line_start}-${edit.line_end}`, backup: backupPath });
+        console.log(`   ✅ Applied edit to ${edit.file}:${edit.line_start}-${edit.line_end}`);
+      } else {
+        console.log(`   ❌ ABORT: Code block not found in ${edit.file} — rolling back ALL edits`);
+        fs.copyFileSync(backupPath, filePath);
+        for (const prev of appliedChanges) {
+          if (prev.backup) {
+            const prevPath = path.join(projectRoot, prev.file);
+            fs.copyFileSync(prev.backup, prevPath);
+            console.log(`   ↩️  Rolled back: ${prev.file}`);
+          }
+        }
+        updateSection(manifest, 'fixer', { changes_applied: [], error: `Code block not found in ${edit.file}`, rollback: true });
+        return manifest;
+      }
+    }
+
+    // Run smoke test after all edits
+    if (appliedChanges.length > 0) {
+      console.log(`\n🧪 Running smoke test after ${appliedChanges.length} edits...`);
+      const smokeResult = runSmokeTest();
+      if (!smokeResult.success && !smokeResult.skipped) {
+        console.log(`   ❌ Smoke test FAILED — rolling back all changes`);
+        for (const change of appliedChanges) {
+          if (change.backup) {
+            const targetPath = path.join(projectRoot, change.file);
+            fs.copyFileSync(change.backup, targetPath);
+            console.log(`   ↩️  Rolled back: ${change.file}`);
+          }
+        }
+        updateSection(manifest, 'fixer', { changes_applied: [], error: 'Smoke test failed after Mercury edits', rollback: true });
+        return manifest;
+      }
+      console.log(`   ✅ Smoke test ${smokeResult.skipped ? 'skipped' : 'PASSED'}`);
+    }
+
+    changes.push(...appliedChanges);
+    updateSection(manifest, 'fixer', { changes_applied: appliedChanges, plan, execute_mode: true });
+    console.log(`✅ Fixer: Applied ${appliedChanges.length} Mercury-verified changes (EXECUTE MODE)`);
+    return manifest;
+  }
+
+  // LEGACY: Parse issue for FULL_FILE pattern (old pipeline format)
   const refs = parseIssueForCodeRefs(manifest.issue);
   const fullFileRef = refs.find(r => r.bugType === 'FULL_FILE');
 

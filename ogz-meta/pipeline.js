@@ -61,14 +61,28 @@ const REFACTOR_PIPELINE = [
   '/warden'
 ];
 
+const EXECUTE_PIPELINE = [
+  '/commander',
+  '/branch --stay',
+  '/architect',
+  '/warden',
+  '/fixer',
+  '/entomologist',
+  '/forensics',
+  '/critic',
+  '/forensics',
+  '/critic',
+  '/warden',
+  '/fixer --execute',
+  '/committer',
+  '/janitor'
+];
+
 // Detect mode from issue prefix or CLI flags
 function detectMode(issue) {
-  // Clean flags before checking prefix
-  const cleaned = issue.replace(/--stay|--refactor|--execute/g, '').trim().toLowerCase();
-  // refactor/extract/replace all skip bug hunting and go straight to fixer
-  if (cleaned.startsWith('refactor:') || cleaned.startsWith('extract:') || cleaned.startsWith('replace:')) {
-    return 'refactor';
-  }
+  if (issue.includes('--execute')) return 'execute';
+  if (issue.startsWith('refactor:') || issue.startsWith('extract:') || issue.includes('--refactor')) return 'refactor';
+  if (issue.includes('--debug') || issue.startsWith('fix:') || issue.startsWith('bug:')) return 'bugfix';
   return 'bugfix';
 }
 
@@ -97,7 +111,7 @@ async function execute(issue) {
   const cleanIssue = issue.replace(/--stay|--refactor|--execute/g, '').trim();
 
   // Build pipeline, inject --stay if needed
-  let pipeline = pipelineType === 'refactor' ? [...REFACTOR_PIPELINE] : [...BUGFIX_PIPELINE];
+  let pipeline = pipelineType === 'execute' ? [...EXECUTE_PIPELINE] : pipelineType === 'refactor' ? [...REFACTOR_PIPELINE] : [...BUGFIX_PIPELINE];
   if (stayOnBranch && pipelineType !== 'refactor') {
     // Replace /branch with /branch --stay for bugfix mode
     pipeline = pipeline.map(cmd => cmd === '/branch' ? '/branch --stay' : cmd);
@@ -263,4 +277,4 @@ if (require.main === module) {
   execute(issue).catch(console.error);
 }
 
-module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, detectMode };
+module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, EXECUTE_PIPELINE, detectMode };
