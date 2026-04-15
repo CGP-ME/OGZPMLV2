@@ -84,6 +84,12 @@ function createManifest(missionId) {
       checks_failed: []
     },
 
+    locator: {
+      timestamp: null,
+      corrections: [],
+      unlocatable: []
+    },
+
     forensics: {
       timestamp: null,
       silent_bugs: [],

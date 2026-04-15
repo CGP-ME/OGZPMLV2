@@ -73,6 +73,7 @@ const EXECUTE_PIPELINE = [
   '/forensics',
   '/critic',
   '/warden',
+  '/locator',
   '/fixer --execute',
   '/committer',
   '/janitor'

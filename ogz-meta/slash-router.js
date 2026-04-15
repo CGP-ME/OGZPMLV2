@@ -67,7 +67,8 @@ async function route(command, args) {
     '/committer': committer,
     '/scribe': scribe,
     '/janitor': janitor,
-    '/warden': warden
+    '/warden': warden,
+    '/locator': locator
   };
 
   const handler = handlers[cmd];
@@ -1115,6 +1116,86 @@ async function exterminator(manifest, params) {
  * Fixer: For refactor mode - applies extractions/refactors based on architect plan
  * Similar to exterminator but works from architect's plan instead of entomologist's bugs
  */
+
+/**
+ * Locator: Reverify Mercury's edit line numbers against actual file content
+ * before Fixer applies. Catches drift between Architect read and Fixer apply.
+ */
+async function locator(manifest, params) {
+  const edits = manifest.fixer?.edits || [];
+  const projectRoot = path.resolve(__dirname, '..');
+  const corrections = [];
+  const unlocatable = [];
+
+  // Whitespace normalizer (same as Fixer uses)
+  const normalize = (s) => s.split('\n').map(l => l.trim()).filter(l => l.length).join('\n');
+
+  for (const edit of edits) {
+    if (!edit.current_code || !edit.file) continue;
+    const filePath = path.join(projectRoot, edit.file);
+    if (!fs.existsSync(filePath)) {
+      unlocatable.push({ file: edit.file, original_lines: `${edit.line_start}-${edit.line_end}`, reason: 'file not found' });
+      continue;
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+    const beforeNormalized = normalize(edit.current_code);
+    const editLineCount = (edit.line_end || edit.line_start) - (edit.line_start || 1) + 1;
+
+    // First check: does the original location still match?
+    const originalSlice = lines.slice((edit.line_start || 1) - 1, edit.line_end || edit.line_start).join('\n');
+    if (normalize(originalSlice) === beforeNormalized) {
+      continue;  // already correct
+    }
+
+    // Search the entire file for matching content
+    let foundAt = -1;
+    for (let i = 1; i <= lines.length - editLineCount + 1; i++) {
+      const candidate = lines.slice(i - 1, i - 1 + editLineCount).join('\n');
+      if (normalize(candidate) === beforeNormalized) {
+        foundAt = i;
+        break;
+      }
+    }
+
+    if (foundAt > 0) {
+      const originalLines = `${edit.line_start}-${edit.line_end}`;
+      edit.line_start = foundAt;
+      edit.line_end = foundAt + editLineCount - 1;
+      corrections.push({ file: edit.file, original_lines: originalLines, corrected_lines: `${edit.line_start}-${edit.line_end}` });
+      console.log(`   🎯 Locator: ${edit.file} corrected ${originalLines} → ${edit.line_start}-${edit.line_end}`);
+    } else {
+      unlocatable.push({
+        file: edit.file,
+        original_lines: `${edit.line_start}-${edit.line_end}`,
+        snippet: edit.current_code.slice(0, 80),
+        reason: 'content not found in file'
+      });
+      console.log(`   ❌ Locator: ${edit.file}:${edit.line_start}-${edit.line_end} content NOT FOUND in file`);
+    }
+  }
+
+  // Persist corrected edits back to manifest
+  if (manifest.fixer) {
+    manifest.fixer.edits = edits;
+  }
+
+  updateSection(manifest, 'locator', {
+    corrections,
+    unlocatable,
+  });
+
+  if (unlocatable.length > 0) {
+    manifest.stop_conditions.warden_blocked = true;
+    console.log(`🛑 Locator: BLOCKED — ${unlocatable.length} edits could not be located. Pipeline halted.`);
+    return manifest;
+  }
+
+  console.log(`✅ Locator: ${corrections.length} corrections, ${edits.length - corrections.length} edits already correct`);
+  return manifest;
+}
+
 async function fixer(manifest, params) {
   const plan = manifest.architect?.plan || {};
   const changes = [];
