@@ -1293,6 +1293,21 @@ async function fixer(manifest, params) {
         appliedChanges.push({ file: edit.file, type: 'REPLACE', lines: `${lineStart}-${lineEnd}`, backup: backupPath });
         console.log(`   ✅ Applied edit to ${edit.file}:${lineStart}-${lineEnd}`);
       } else {
+        // Byte-level diagnostic — find first divergent character
+        const minLen = Math.min(targetNormalized.length, beforeNormalized.length);
+        for (let i = 0; i < minLen; i++) {
+          if (targetNormalized[i] !== beforeNormalized[i]) {
+            console.log(`   🔬 First byte mismatch at index ${i} of ${minLen}:`);
+            console.log(`      Expected char: ${JSON.stringify(beforeNormalized[i])} (code ${beforeNormalized.charCodeAt(i)})`);
+            console.log(`      Found    char: ${JSON.stringify(targetNormalized[i])} (code ${targetNormalized.charCodeAt(i)})`);
+            console.log(`      Expected ctx:  ${JSON.stringify(beforeNormalized.slice(Math.max(0, i - 10), i + 20))}`);
+            console.log(`      Found    ctx:  ${JSON.stringify(targetNormalized.slice(Math.max(0, i - 10), i + 20))}`);
+            break;
+          }
+        }
+        if (targetNormalized.length !== beforeNormalized.length) {
+          console.log(`   🔬 Length differs: expected ${beforeNormalized.length}, found ${targetNormalized.length}`);
+        }
         console.log(`   ❌ ABORT: Content mismatch at ${edit.file}:${lineStart}-${lineEnd} — rolling back ALL edits`);
         console.log(`   Expected (normalized): ${beforeNormalized.slice(0, 80)}...`);
         console.log(`   Found    (normalized): ${targetNormalized.slice(0, 80)}...`);
