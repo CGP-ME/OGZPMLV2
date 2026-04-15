@@ -25,7 +25,7 @@ const { shouldStop } = require('./manifest-schema');
 // Bug fix pipeline - hunts for bugs, applies fixes
 const BUGFIX_PIPELINE = [
   '/commander',
-  '/branch',              // Creates mission branch off master
+  '/branch',              // Stays on current branch
   '/architect',
   '/entomologist',        // Find bugs
   '/exterminator',        // Fix bugs
@@ -45,7 +45,7 @@ const BUGFIX_PIPELINE = [
 // Refactor pipeline - extraction/refactoring tasks, no bug hunting
 const REFACTOR_PIPELINE = [
   '/commander',
-  '/branch --refactor',   // Stay on current branch (no checkout master)
+  '/branch',
   '/architect',
   // NO entomologist - we're not hunting bugs
   // NO exterminator - architect + fixer handles extraction
@@ -63,7 +63,7 @@ const REFACTOR_PIPELINE = [
 
 const EXECUTE_PIPELINE = [
   '/commander',
-  '/branch --stay',
+  '/branch',
   '/architect',
   '/warden',
   '/fixer',
@@ -86,10 +86,6 @@ function detectMode(issue) {
   return 'bugfix';
 }
 
-// Check for --stay flag in args
-function hasStayFlag(issue) {
-  return issue.includes('--stay') || issue.includes('--refactor');
-}
 
 // Check for --execute flag in args (runs with approval, applies changes)
 function hasExecuteFlag(issue) {
@@ -104,22 +100,17 @@ const PIPELINE = BUGFIX_PIPELINE;
  */
 async function execute(issue) {
   const pipelineType = detectMode(issue);
-  const stayOnBranch = hasStayFlag(issue);
   const executeMode = hasExecuteFlag(issue);
 
   // Clean issue text (remove all flags)
-  const cleanIssue = issue.replace(/--stay|--refactor|--execute/g, '').trim();
+  const cleanIssue = issue.replace(/--refactor|--execute|--debug/g, '').trim();
 
-  // Build pipeline, inject --stay if needed
+  // Build pipeline based on detected mode
   let pipeline = pipelineType === 'execute' ? [...EXECUTE_PIPELINE] : pipelineType === 'refactor' ? [...REFACTOR_PIPELINE] : [...BUGFIX_PIPELINE];
-  if (stayOnBranch && pipelineType !== 'refactor') {
-    // Replace /branch with /branch --stay for bugfix mode
-    pipeline = pipeline.map(cmd => cmd === '/branch' ? '/branch --stay' : cmd);
-  }
 
   console.log('🚀 CLAUDITO PIPELINE INITIATED');
   console.log('=' .repeat(50));
-  console.log(`🔧 Pipeline: ${pipelineType.toUpperCase()}${stayOnBranch ? ' (staying on branch)' : ''}`);
+  console.log(`🔧 Pipeline: ${pipelineType.toUpperCase()}`);
   console.log(`📋 Mode: ${executeMode ? 'EXECUTE (will apply changes)' : 'ADVISORY (proposals only)'}`);
 
   let manifest;
@@ -246,7 +237,6 @@ if (require.main === module) {
     console.log('\nUsage: node ogz-meta/pipeline.js "<issue description>" [flags]');
     console.log('\nFLAGS:');
     console.log('  --execute  Apply fixes instead of just proposing (requires prior approval)');
-    console.log('  --stay     Stay on current branch (don\'t create mission branch)');
     console.log('\nPIPELINE TYPES:');
     console.log('  BUG FIX (default): Any issue without prefix');
     console.log('  REFACTOR: Start with "refactor:" or "extract:"');

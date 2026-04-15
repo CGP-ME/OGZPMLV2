@@ -90,99 +90,17 @@ async function route(command, args) {
 }
 
 /**
- * Branch: Creates a mission branch off the CURRENT branch
- *
- * Three modes:
- * - --stay: Skip dirty check, skip branching, work on current branch as-is
- * - --refactor: Require clean tree, stay on current branch
- * - No flag (bugfix): Require clean tree, branch from current branch
+ * Branch: Always stays on current branch.
+ * Wolf manages branching manually for rollback snapshots.
  */
 async function branch(manifest, params) {
-  const missionBranch = `mission/${manifest.mission_id}`;
-  const isRefactor = params.includes('--refactor') || manifest.mode === 'refactor';
-  const isStay = params.includes('--stay');
-
-  // STAY MODE: Skip dirty check and branching — work on current branch as-is
-  if (isStay) {
-    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-    console.log(`✅ Branch: Staying on ${currentBranch} (stay mode)`);
-    updateSection(manifest, 'branch', {
-      success: true,
-      branch: currentBranch,
-      mode: 'stay',
-      based_on: currentBranch
-    });
-    return manifest;
-  }
-
-  // REFACTOR MODE: Stay on current branch, NO dirty check needed
-  // (We're not switching branches, so dirty tree doesn't matter)
-  if (isRefactor) {
-    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-    console.log(`✅ Branch: Staying on ${currentBranch} (refactor mode)`);
-    updateSection(manifest, 'branch', {
-      success: true,
-      branch: currentBranch,
-      mode: 'refactor',
-      based_on: currentBranch
-    });
-    return manifest;
-  }
-
-  // BUG FIX MODE: Require clean tree, branch from current branch
-  const baseBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-  console.log(`🔀 Branch: current branch is ${baseBranch}`);
-
-  const dirty = execSync('git status --porcelain', { encoding: 'utf8' })
-    .split('\n')
-    .filter(line => !line.startsWith('??'))
-    .filter(line => !line.includes('ogz-meta/manifests/'))
-    .filter(line => !line.includes('prodlock-portable'))
-    .filter(line => !line.includes('data/'))
-    .filter(line => !line.includes('public/proof/'))
-    .join('\n')
-    .trim();
-  if (dirty) {
-    manifest.stop_conditions.warden_blocked = true;
-    updateSection(manifest, 'branch', {
-      blocked: true,
-      reason: 'Working tree not clean; refusing to branch',
-      dirty_preview: dirty.split('\n').slice(0, 10)
-    });
-    console.log('🛑 Branch: BLOCKED (dirty working tree)');
-    return manifest;
-  }
-
-  try {
-    execSync(`git pull origin ${baseBranch}`, { stdio: 'pipe' });
-  } catch (e) {
-    // Pull may fail if no remote tracking — that's OK, continue with local state
-    console.log(`⚠️ Branch: pull from origin/${baseBranch} failed (continuing with local state)`);
-  }
-
-  try {
-    execSync(`git checkout -b ${missionBranch}`, { stdio: 'pipe' });
-  } catch (e) {
-    try {
-      execSync(`git checkout ${missionBranch}`, { stdio: 'pipe' });
-    } catch (e2) {
-      manifest.stop_conditions.warden_blocked = true;
-      updateSection(manifest, 'branch', {
-        blocked: true,
-        reason: 'Failed to create/switch mission branch',
-        error: e2.message
-      });
-      console.log('🛑 Branch: BLOCKED (could not create/switch mission branch)');
-      return manifest;
-    }
-  }
-
+  const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+  console.log(`✅ Branch: Staying on ${currentBranch}`);
   updateSection(manifest, 'branch', {
-    base: baseBranch,
-    branch: missionBranch
+    success: true,
+    branch: currentBranch,
+    based_on: currentBranch
   });
-
-  console.log(`✅ Branch: on ${missionBranch} (branched from ${baseBranch})`);
   return manifest;
 }
 
