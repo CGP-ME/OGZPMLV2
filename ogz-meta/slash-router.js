@@ -1240,13 +1240,28 @@ async function fixer(manifest, params) {
         continue;
       }
 
-      if (content.includes(before)) {
-        content = content.replace(before, after);
+      // Verified line-range replacement: use line numbers to locate, verify content before replacing
+      const lines = content.split('\n');
+      const lineStart = edit.line_start || 1;
+      const lineEnd = edit.line_end || lineStart;
+      const targetLines = lines.slice(lineStart - 1, lineEnd).join('\n');
+
+      // Normalize whitespace for comparison (strip leading spaces per line, collapse blanks)
+      const normalize = (s) => s.split('\n').map(l => l.trim()).filter(l => l.length).join('\n');
+      const targetNormalized = normalize(targetLines);
+      const beforeNormalized = normalize(before);
+
+      if (targetNormalized === beforeNormalized) {
+        // Content verified — replace by line range
+        lines.splice(lineStart - 1, lineEnd - lineStart + 1, after);
+        content = lines.join('\n');
         fs.writeFileSync(filePath, content, 'utf8');
-        appliedChanges.push({ file: edit.file, type: 'REPLACE', lines: `${edit.line_start}-${edit.line_end}`, backup: backupPath });
-        console.log(`   ✅ Applied edit to ${edit.file}:${edit.line_start}-${edit.line_end}`);
+        appliedChanges.push({ file: edit.file, type: 'REPLACE', lines: `${lineStart}-${lineEnd}`, backup: backupPath });
+        console.log(`   ✅ Applied edit to ${edit.file}:${lineStart}-${lineEnd}`);
       } else {
-        console.log(`   ❌ ABORT: Code block not found in ${edit.file} — rolling back ALL edits`);
+        console.log(`   ❌ ABORT: Content mismatch at ${edit.file}:${lineStart}-${lineEnd} — rolling back ALL edits`);
+        console.log(`   Expected (normalized): ${beforeNormalized.slice(0, 80)}...`);
+        console.log(`   Found    (normalized): ${targetNormalized.slice(0, 80)}...`);
         fs.copyFileSync(backupPath, filePath);
         for (const prev of appliedChanges) {
           if (prev.backup) {
@@ -1255,7 +1270,7 @@ async function fixer(manifest, params) {
             console.log(`   ↩️  Rolled back: ${prev.file}`);
           }
         }
-        updateSection(manifest, 'fixer', { changes_applied: [], error: `Code block not found in ${edit.file}`, rollback: true });
+        updateSection(manifest, 'fixer', { changes_applied: [], error: `Content mismatch at ${edit.file}:${lineStart}-${lineEnd}`, rollback: true });
         return manifest;
       }
     }
