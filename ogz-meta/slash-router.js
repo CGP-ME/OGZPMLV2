@@ -1188,7 +1188,21 @@ async function fixer(manifest, params) {
     console.log(`🧠 Fixer: Applying ${mercuryEdits.length} Mercury-verified edits`);
     const appliedChanges = [];
 
+    // Group edits by file and sort descending by line_start
+    // so earlier edits don't shift later edits' positions
+    const editsByFile = {};
     for (const edit of mercuryEdits) {
+      if (!editsByFile[edit.file]) editsByFile[edit.file] = [];
+      editsByFile[edit.file].push(edit);
+    }
+
+    const orderedEdits = [];
+    for (const file of Object.keys(editsByFile)) {
+      const sorted = editsByFile[file].sort((a, b) => (b.line_start || 0) - (a.line_start || 0));
+      orderedEdits.push(...sorted);
+    }
+
+    for (const edit of orderedEdits) {
       const filePath = path.join(projectRoot, edit.file);
       if (!fs.existsSync(filePath)) {
         console.log(`   ❌ ABORT: File not found: ${edit.file} — rolling back ALL edits`);
