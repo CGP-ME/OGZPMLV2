@@ -20,18 +20,79 @@ function logParseFailure(role, raw) {
 
 function extractJSON(text) {
   if (!text || typeof text !== 'string') return null;
+
   // Try direct parse first
   try { return JSON.parse(text); } catch (_) {}
+
   // Try extracting from markdown code fence
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
   if (fenceMatch) {
     try { return JSON.parse(fenceMatch[1].trim()); } catch (_) {}
+    // Fence content might be truncated — try repair
+    const repaired = repairTruncatedJSON(fenceMatch[1].trim());
+    if (repaired) return repaired;
   }
-  // Try finding first { ... } block
-  const braceMatch = text.match(/\{[\s\S]*\}/);
-  if (braceMatch) {
-    try { return JSON.parse(braceMatch[0]); } catch (_) {}
+
+  // Try finding first { ... } block (greedy)
+  const braceStart = text.indexOf('{');
+  if (braceStart >= 0) {
+    const candidate = text.slice(braceStart);
+    try { return JSON.parse(candidate); } catch (_) {}
+    // Likely truncated — try repair
+    const repaired = repairTruncatedJSON(candidate);
+    if (repaired) return repaired;
   }
+
+  return null;
+}
+
+/**
+ * Attempt to repair truncated JSON by progressively trimming from the end
+ * and closing open brackets/braces. Handles Mercury responses that exceed
+ * token limit and cut off mid-object/array/string.
+ */
+function repairTruncatedJSON(text) {
+  if (!text || typeof text !== 'string') return null;
+
+  // Try progressively shorter versions of the text
+  let candidate = text;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    // Strip trailing noise: incomplete strings, dangling commas, partial keys
+    candidate = candidate
+      .replace(/,?\s*"[^"]*$/s, '')     // incomplete string at end
+      .replace(/,?\s*\d+$/s, '')         // incomplete number at end
+      .replace(/:\s*$/s, '')             // dangling colon
+      .replace(/,\s*$/s, '');            // dangling comma
+
+    // Count unclosed brackets/braces (outside strings)
+    let openBraces = 0, openBrackets = 0;
+    let inString = false, escape = false;
+    for (let i = 0; i < candidate.length; i++) {
+      const ch = candidate[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{') openBraces++;
+      if (ch === '}') openBraces--;
+      if (ch === '[') openBrackets++;
+      if (ch === ']') openBrackets--;
+    }
+
+    // Build closing suffix
+    let suffix = '';
+    for (let i = 0; i < openBrackets; i++) suffix += ']';
+    for (let i = 0; i < openBraces; i++) suffix += '}';
+
+    try {
+      return JSON.parse(candidate + suffix);
+    } catch (_) {
+      // Trim one more character and retry
+      candidate = candidate.slice(0, -1);
+      if (candidate.length < 2) return null;
+    }
+  }
+
   return null;
 }
 

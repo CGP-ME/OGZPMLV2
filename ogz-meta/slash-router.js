@@ -230,7 +230,7 @@ async function architect(manifest, params) {
     },
     outputFormat: 'structured_plan',
     options: {
-      maxIterations: 30,
+      maxIterations: 60,
       quiet: true,
       missionId: manifest.mission_id
     }
@@ -1221,7 +1221,7 @@ async function fixer(manifest, params) {
         },
         outputFormat: 'structured_edits',
         options: {
-          maxIterations: 30,
+          maxIterations: 60,
           quiet: true,
           missionId: manifest.mission_id
         }
