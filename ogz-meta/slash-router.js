@@ -1251,6 +1251,40 @@ async function fixer(manifest, params) {
       const targetNormalized = normalize(targetLines);
       const beforeNormalized = normalize(before);
 
+      // If exact line range doesn't match, search ±10 lines for the content
+      let actualStart = lineStart;
+      let actualEnd = lineEnd;
+      if (targetNormalized !== beforeNormalized) {
+        const windowStart = Math.max(1, lineStart - 10);
+        const windowEnd = Math.min(lines.length, lineEnd + 10);
+        const editLineCount = lineEnd - lineStart + 1;
+        let foundAt = -1;
+
+        for (let i = windowStart; i <= windowEnd - editLineCount + 1; i++) {
+          const candidate = lines.slice(i - 1, i - 1 + editLineCount).join('\n');
+          if (normalize(candidate) === beforeNormalized) {
+            foundAt = i;
+            break;
+          }
+        }
+
+        if (foundAt > 0) {
+          console.log(`   ⚠️  Mercury line drift detected — content found at line ${foundAt} instead of ${lineStart}`);
+          actualStart = foundAt;
+          actualEnd = foundAt + editLineCount - 1;
+          // Re-extract for verification
+          const newTarget = lines.slice(actualStart - 1, actualEnd).join('\n');
+          if (normalize(newTarget) === beforeNormalized) {
+            lines.splice(actualStart - 1, actualEnd - actualStart + 1, after);
+            content = lines.join('\n');
+            fs.writeFileSync(filePath, content, 'utf8');
+            appliedChanges.push({ file: edit.file, type: 'REPLACE', lines: `${actualStart}-${actualEnd} (drift from ${lineStart})`, backup: backupPath });
+            console.log(`   ✅ Applied edit to ${edit.file}:${actualStart}-${actualEnd} (drift-corrected)`);
+            continue;
+          }
+        }
+      }
+
       if (targetNormalized === beforeNormalized) {
         // Content verified — replace by line range
         lines.splice(lineStart - 1, lineEnd - lineStart + 1, after);
