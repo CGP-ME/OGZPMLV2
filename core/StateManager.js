@@ -436,6 +436,11 @@ class StateManager {
    * - Only fees and P&L affect realizedPnL, no principal movement
    */
   async closePosition(price, partial = false, size = null, context = {}) {
+    // Reject partial closes — use reducePosition instead
+    if (partial) {
+      console.error('[StateManager] closePosition does not support partial closes; use reducePosition.');
+      return { success: false, error: 'closePosition does not support partial closes; use reducePosition' };
+    }
     // Allow closing both long (positive) and short (negative) positions
     // FIX 2026-03-29: Allow close when position=0 but activeTrades exist (hedged positions)
     if (this.state.position === 0 && !(this.state.activeTrades && this.state.activeTrades.size > 0)) {
@@ -555,6 +560,79 @@ class StateManager {
       size: closeSize,
       pnl,
       partial,
+      ...context
+    });
+  }
+
+  /**
+   * Reduce a position partially — handles multi-leg exits.
+   * @param {string} tradeId - Identifier of the trade to reduce.
+   * @param {number} fraction - Fraction of the trade to close (0-1).
+   * @param {number} price - Exit price.
+   * @param {Object} context - Additional context (orderId, exitReason, etc.).
+   */
+  async reducePosition(tradeId, fraction, price, context = {}) {
+    if (fraction <= 0 || fraction >= 1) {
+      console.error('[StateManager] reducePosition called with invalid fraction:', fraction);
+      return { success: false, error: 'Invalid fraction for reducePosition' };
+    }
+    const trade = this.state.activeTrades?.get(tradeId);
+    if (!trade) {
+      console.error(`[StateManager] Trade ${tradeId} not found for reducePosition`);
+      return { success: false, error: `Trade ${tradeId} not found` };
+    }
+
+    const tradeSizeUsd = trade.sizeUsd || trade.size;
+    const closeSize = tradeSizeUsd * fraction;
+    const tradeEntryPrice = trade.entryPrice;
+    const isShort = trade.direction === 'short';
+    const priceChangePercent = isShort
+      ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
+      : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
+    const pnl = closeSize * priceChangePercent;
+    const usdValueAtClose = closeSize + pnl;
+    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+    const netRealizedResult = pnl - exitFee;
+
+    // Update trade size (and possibly delete)
+    const remainingSize = tradeSizeUsd - closeSize;
+    if (remainingSize <= 0) {
+      this.state.activeTrades.delete(tradeId);
+    } else {
+      trade.sizeUsd = remainingSize;
+    }
+
+    // Append exit info to decision ledger
+    if (trade.decisionLedger) {
+      const exitEntry = {
+        exitSize: closeSize,
+        exitFraction: fraction,
+        remainingSize: Math.max(0, remainingSize),
+        exitPrice: price,
+        exitReason: context.exitReason || 'partial',
+        netPnlDollars: netRealizedResult,
+        timestamp: Date.now()
+      };
+      trade.decisionLedger.exits = trade.decisionLedger.exits || [];
+      trade.decisionLedger.exits.push(exitEntry);
+    }
+
+    // Update global state metrics
+    const positionDelta = isShort ? closeSize : -closeSize;
+    const updates = {
+      position: this.state.position + positionDelta,
+      inPosition: Math.max(0, this.state.inPosition + positionDelta),
+      realizedPnL: this.state.realizedPnL + netRealizedResult,
+      totalPnL: this.state.totalPnL + pnl,
+      lastTradeTime: Date.now()
+    };
+    return this.updateState(updates, {
+      action: 'REDUCE_POSITION',
+      tradeId,
+      fraction,
+      price,
+      pnl,
+      netRealizedResult,
       ...context
     });
   }

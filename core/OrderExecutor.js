@@ -588,13 +588,29 @@ class OrderExecutor {
             const positionAmount = positionState.position;  // Position in USD
 
             // Close position via StateManager (handles P&L calculation)
-            // FIX 2026-02-23: Wire partial close - use exitSize when present (tiered exits)
-            const isPartialClose = decision.exitSize && decision.exitSize > 0 && decision.exitSize < 1;
-            const partialSize = isPartialClose ? positionAmount * decision.exitSize : null;
-            const closeResult = await stateManager.closePosition(price, isPartialClose, partialSize, {
-              orderId: buyTrade.orderId,
-              exitReason: decision.exitReason || 'signal'
-            });
+            // FIX 2026-04-16: Route partial exits to reducePosition, full exits to closePosition
+            let isPartialClose = false;
+            let fraction = null;
+            if (typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1) {
+              isPartialClose = true;
+              fraction = decision.exitFraction;
+            } else if (decision.exitSize && decision.exitSize > 0 && decision.exitSize < 1) {
+              // Legacy behavior: treat exitSize as fraction
+              isPartialClose = true;
+              fraction = decision.exitSize;
+            }
+            let closeResult;
+            if (isPartialClose) {
+              closeResult = await stateManager.reducePosition(buyTrade.orderId, fraction, price, {
+                orderId: buyTrade.orderId,
+                exitReason: decision.exitReason || 'signal'
+              });
+            } else {
+              closeResult = await stateManager.closePosition(price, false, null, {
+                orderId: buyTrade.orderId,
+                exitReason: decision.exitReason || 'signal'
+              });
+            }
 
             // CHANGE 2025-12-12: Validate StateManager.closePosition() success
             if (!closeResult.success) {

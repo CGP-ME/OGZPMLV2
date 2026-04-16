@@ -458,6 +458,7 @@ class MaxProfitManager {
           action: 'exit_partial',
           price: currentPrice,
           exitSize: scaleOutSize,
+          exitFraction: scaleOutFraction,
           remainingSize: this.state.remainingSize,
           reason: 'be_scaleout',
           profitPercent: profitPercent,
@@ -494,14 +495,17 @@ class MaxProfitManager {
     const tierExit = this.checkProfitTiers(currentPrice, profitPercent);
     if (tierExit.shouldExit) {
       this.log(`Profit tier ${tierExit.tier} triggered at ${currentPrice} (${(profitPercent * 100).toFixed(2)}%)`, 'info');
-      
-      // Execute partial exit
+
+      // Compute fraction before mutating remainingSize
+      const exitFraction = this.state.remainingSize > 0 ? tierExit.exitSize / this.state.remainingSize : 0;
+      // Execute partial exit (mutates remainingSize)
       this.executePartialExit(tierExit);
-      
+
       return {
         action: 'exit_partial',
         price: currentPrice,
         exitSize: tierExit.exitSize,
+        exitFraction: exitFraction,
         remainingSize: this.state.remainingSize,
         reason: `profit_tier_${tierExit.tier}`,
         profitPercent: profitPercent,
