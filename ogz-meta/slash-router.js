@@ -1411,6 +1411,8 @@ async function fixer(manifest, params) {
       const smokeResult = runSmokeTest();
       if (!smokeResult.success && !smokeResult.skipped) {
         console.log(`   ❌ Smoke test FAILED — rolling back all changes`);
+        if (smokeResult.output) console.log(`   📋 Smoke test output:\n${smokeResult.output}`);
+        if (smokeResult.error) console.log(`   💥 Smoke test error:\n${smokeResult.error}`);
         for (const change of appliedChanges) {
           if (change.backup) {
             const targetPath = path.join(projectRoot, change.file);
