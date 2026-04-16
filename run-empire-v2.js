@@ -607,8 +607,8 @@ class OGZPrimeV14Bot {
     console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
 
     // Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
-    this.maxProfitManager = new MaxProfitManager();
-    console.log('[EMPIRE V2] MaxProfitManager initialized - tiered exits ready');
+    this.maxProfitManagers = new Map();
+    console.log('[EMPIRE V2] MaxProfitManager Map initialized - per-trade tiered exits ready');
 
     // DynamicPositionSizer NOT WIRED - needs tuning. Using inline confidence multiplier.
     // See core/DynamicPositionSizer.js for the module (curves need calibration).
@@ -814,7 +814,7 @@ class OGZPrimeV14Bot {
       testMode: resolvedConfig.config.mode.testMode,
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
       orderRouter: this.orderRouter,
-      maxProfitManager: this.maxProfitManager,
+      maxProfitManagers: this.maxProfitManagers,
       // DynamicPositionSizer NOT WIRED - using inline confidence multiplier
       // Module-level functions
       notifyTrade: notifyTrade,
@@ -845,7 +845,7 @@ class OGZPrimeV14Bot {
       testMode: resolvedConfig.config.mode.testMode,
       traiEnableBacktest: TradingConfig.get('features.traiEnableBacktest'),
       // Phase 4 REWRITE: MaxProfitManager standalone
-      maxProfitManager: this.maxProfitManager,
+      maxProfitManagers: this.maxProfitManagers,
       // Additional context for strategy orchestration
       strategyOrchestrator: this.strategyOrchestrator,
       emaCrossoverSignal: this.emaCrossoverSignal,
@@ -877,7 +877,7 @@ class OGZPrimeV14Bot {
       patternChecker: this.patternChecker,
       trai: this.trai,
       backtestRecorder: this.backtestRecorder,
-      maxProfitManager: this.maxProfitManager  // PATCH 1 FIX: make MPM available to TradingLoop in backtest mode
+      maxProfitManagers: this.maxProfitManagers  // Per-trade MPM instances for backtest mode
       // DynamicPositionSizer NOT WIRED - stats printing disabled
     });
 

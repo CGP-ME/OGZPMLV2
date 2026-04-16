@@ -119,13 +119,19 @@ class BacktestRunner {
       // FIX 2026-03-12: Force-close any open position at backtest end
       // This prevents money from staying "locked" in inPosition when backtest ends mid-trade
       // FIX 2026-03-26 Bug 11: Use !== 0 to also close short positions (negative values)
-      const openPosition = stateManager.get('position');
-      if (openPosition !== 0) {
+      const activeTrades = stateManager.getAllTrades();
+      if (activeTrades.length > 0) {
         const lastCandle = historicalCandles[historicalCandles.length - 1];
         const lastPrice = lastCandle.close ?? lastCandle.c;
-        const direction = openPosition > 0 ? 'LONG' : 'SHORT';
-        console.log(`\n⚠️ BACKTEST_END_CLOSE: Force-closing ${direction} position of ${Math.abs(openPosition).toFixed(6)} BTC at $${lastPrice.toFixed(2)}`);
-        await stateManager.closePosition(lastPrice, false, null, { reason: 'BACKTEST_END_CLOSE' });
+        for (const trade of activeTrades) {
+          const direction = trade.direction === 'short' || trade.action === 'SELL_SHORT' ? 'SHORT' : 'LONG';
+          console.log(`\n⚠️ BACKTEST_END_CLOSE: Force-closing ${direction} trade ${trade.orderId || trade.id} at $${lastPrice.toFixed(2)}`);
+          try {
+            await stateManager.closePosition(lastPrice, false, null, { tradeId: trade.orderId || trade.id, reason: 'BACKTEST_END_CLOSE' });
+          } catch (err) {
+            console.error(`❌ BACKTEST_END_CLOSE failed for trade ${trade.orderId || trade.id}: ${err.message}`);
+          }
+        }
       }
 
       // Final summary

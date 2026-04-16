@@ -167,10 +167,11 @@ class TradingLoop {
         break; // Exit one position per candle
       }
 
-      // MaxProfitManager check (PATCH 1: enriched context)
-      if (this.ctx.maxProfitManager?.state?.active) {
+      // MaxProfitManager check — per-trade instance from Map
+      const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id);
+      if (mpm?.state?.active) {
         const recentCandles = this.ctx.priceHistory.slice(-20);
-        const profitResult = this.ctx.maxProfitManager.update(price, {
+        const profitResult = mpm.update(price, {
           volatility: indicators.volatility || 0,
           trend: indicators.trend || 'sideways',
           volume: this.ctx.marketData?.volume || 0,
@@ -188,7 +189,9 @@ class TradingLoop {
             direction: 'close',
             confidence: orchResult.confidence,
             exitSize: profitResult.exitSize,
-            exitReason: profitResult.reason
+            exitFraction: profitResult.exitFraction,
+            exitReason: profitResult.reason,
+            tradeId: activeTrade.id
           };
           break;
         }

@@ -14,6 +14,7 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const TradingConfig = require('./TradingConfig');
 const exitContractManager = require('./ExitContractManager');
+const MaxProfitManager = require('./MaxProfitManager');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
@@ -301,12 +302,14 @@ class OrderExecutor {
 
           // Change 605: Start MaxProfitManager on BUY to track profit targets
           // Phase 4 REWRITE: Access maxProfitManager directly (was inside deleted tradingBrain)
-          this.ctx.maxProfitManager.start(price, 'buy', positionSize, {
+          const mpmInstance = new MaxProfitManager();
+          mpmInstance.start(price, 'buy', adjustedPositionSize, {
             volatility: indicators.volatility || 0,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways'
           });
-          console.log(`💰 MaxProfitManager started - tracking 1-2% profit targets`);
+          this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmInstance);
+          console.log(`💰 MaxProfitManager started for trade ${unifiedResult.orderId} - tracking profit targets`);
 
           // CHANGE 2026-02-01: Send Telegram notification for trade
           // Skip notifications during fast backtest
@@ -437,12 +440,14 @@ class OrderExecutor {
           console.log(`📍 CP6-SHORT: AFTER SHORT - Position: ${stateAfter.position}, Balance: $${stateAfter.balance}`);
 
           // MaxProfitManager for short direction
-          this.ctx.maxProfitManager.start(price, 'sell', positionSize, {
+          const mpmShortInstance = new MaxProfitManager();
+          mpmShortInstance.start(price, 'sell', adjustedPositionSize, {
             volatility: indicators.volatility || 0,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways'
           });
-          console.log(`💰 MaxProfitManager started (SHORT) - tracking 1-2% profit targets`);
+          this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmShortInstance);
+          console.log(`💰 MaxProfitManager started (SHORT) for trade ${unifiedResult.orderId} - tracking profit targets`);
 
           // Notifications
           if (!this.ctx.backtestFast) {
@@ -533,16 +538,24 @@ class OrderExecutor {
             await stateManager.emergencyReset();
             // CHANGE 2025-12-13: No local balance sync needed
 
-            // Stop MaxProfitManager if it's tracking
-            // Phase 4 REWRITE: Access maxProfitManager directly
-            if (this.ctx.maxProfitManager) {
-              this.ctx.maxProfitManager.reset();
+            // Stop all MaxProfitManager instances on emergency reset
+            if (this.ctx.maxProfitManagers) {
+              for (const [id, mpm] of this.ctx.maxProfitManagers) {
+                mpm.reset();
+              }
+              this.ctx.maxProfitManagers.clear();
             }
             return; // Exit early, don't process invalid SELL
           }
 
           if (buyTrades.length > 0) {
-            const buyTrade = buyTrades[0];
+            let buyTrade;
+            if (decision.tradeId) {
+              buyTrade = buyTrades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
+            }
+            if (!buyTrade) {
+              buyTrade = buyTrades[0];
+            }
             const pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
             const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
             const holdDuration = exitTimestamp - buyTrade.entryTime;
@@ -918,14 +931,20 @@ class OrderExecutor {
             }
             // Clean up active trade
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
-            stateManager.removeActiveTrade(buyTrade.orderId);
+            if (!isPartialClose) {
+              stateManager.removeActiveTrade(buyTrade.orderId);
+            }
           }
 
           // CHANGE 645: Reset MaxProfitManager after successful SELL
-          // Phase 4 REWRITE: Access maxProfitManager directly
-          if (this.ctx.maxProfitManager) {
-            this.ctx.maxProfitManager.reset();
-            console.log(`💰 MaxProfitManager deactivated - ready for next trade`);
+          // Only reset and remove per-trade MPM on full close
+          if (!isPartialClose && this.ctx.maxProfitManagers) {
+            const mpm = this.ctx.maxProfitManagers.get(buyTrade.orderId);
+            if (mpm) {
+              mpm.reset();
+              this.ctx.maxProfitManagers.delete(buyTrade.orderId);
+              console.log(`💰 MaxProfitManager removed for trade ${buyTrade.orderId}`);
+            }
           }
 
           // Stop pattern exit tracking
@@ -958,8 +977,11 @@ class OrderExecutor {
             const allTrades = stateManager.getAllTrades();
             console.log('   Active trades:', allTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
             await stateManager.emergencyReset();
-            if (this.ctx.maxProfitManager) {
-              this.ctx.maxProfitManager.reset();
+            if (this.ctx.maxProfitManagers) {
+              for (const [id, mpm] of this.ctx.maxProfitManagers) {
+                mpm.reset();
+              }
+              this.ctx.maxProfitManagers.clear();
             }
             return;
           }
