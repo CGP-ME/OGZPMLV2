@@ -510,6 +510,9 @@ class OrderExecutor {
 
         } else if (decision.action === 'SELL') {
           // CHECKPOINT 7: SELL execution (close long)
+          // FIX 2026-04-16: Hoist isPartialClose/fraction to SELL scope so MPM cleanup at line 941 can see them
+          let isPartialClose = false;
+          let fraction = null;
           const currentState = stateManager.getState();
           console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
@@ -602,8 +605,7 @@ class OrderExecutor {
 
             // Close position via StateManager (handles P&L calculation)
             // FIX 2026-04-16: Route partial exits to reducePosition, full exits to closePosition
-            let isPartialClose = false;
-            let fraction = null;
+            // (isPartialClose/fraction hoisted to SELL-block scope above for MPM cleanup access)
             if (typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1) {
               isPartialClose = true;
               fraction = decision.exitFraction;
