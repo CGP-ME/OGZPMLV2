@@ -97,9 +97,14 @@ const BASE_CONFIG = {
   // =========================================================================
   // REGIME-BASED STRATEGY BOOSTING (for matrix sweep optimization)
   // =========================================================================
-  // FIX 2026-04-05: Multipliers applied after confidence sort
+  // FIX 2026-04-05: Multipliers applied during confidence evaluation
   // Trend strategies boosted in trending markets, suppressed in ranging
-  // Losers still fire, just sized smaller. Winners get sized bigger.
+  // IMPORTANT 2026-04-16: Multipliers MUTATE result.confidence in-place
+  // (StrategyOrchestrator.js:772). This affects winner selection AND
+  // the MIN_TRADE_CONFIDENCE gate — not only position sizing.
+  // A strategy whose raw confidence is below threshold can pass the gate
+  // after regime boost. A raw-higher strategy can lose winner selection
+  // to a raw-lower strategy with more favorable regime boost.
   regimeBoosts: {
     trending: {
       EMASMACrossover: env('REGIME_TREND_EMA', 1.15),
