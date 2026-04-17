@@ -510,9 +510,10 @@ class OrderExecutor {
 
         } else if (decision.action === 'SELL') {
           // CHECKPOINT 7: SELL execution (close long)
-          // FIX 2026-04-16: Hoist isPartialClose/fraction to SELL scope so MPM cleanup at line 941 can see them
+          // FIX 2026-04-16: Hoist variables to SELL scope so MPM cleanup can see them
           let isPartialClose = false;
           let fraction = null;
+          let buyTrade = null;
           const currentState = stateManager.getState();
           console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
@@ -552,7 +553,7 @@ class OrderExecutor {
           }
 
           if (buyTrades.length > 0) {
-            let buyTrade;
+            // buyTrade hoisted to SELL scope above
             if (decision.tradeId) {
               buyTrade = buyTrades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
             }
