@@ -510,10 +510,11 @@ class OrderExecutor {
 
         } else if (decision.action === 'SELL') {
           // CHECKPOINT 7: SELL execution (close long)
-          // FIX 2026-04-16: Hoist variables to SELL scope so MPM cleanup can see them
+          // FIX 2026-04-16: Hoist variables to SELL scope so post-block cleanup can see them
           let isPartialClose = false;
           let fraction = null;
           let buyTrade = null;
+          let pnl = 0;
           const currentState = stateManager.getState();
           console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
@@ -560,7 +561,7 @@ class OrderExecutor {
             if (!buyTrade) {
               buyTrade = buyTrades[0];
             }
-            const pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
+            pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
             const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
             const holdDuration = exitTimestamp - buyTrade.entryTime;
 
@@ -942,10 +943,8 @@ class OrderExecutor {
 
           // Stop pattern exit tracking
           if (this.ctx.patternExitModel) {
-            // FIX: closeResult might not exist - use pnl if available
-            const pnlValue = typeof pnl !== 'undefined' ? pnl : 0;
             this.ctx.patternExitModel.stopTracking({
-              pnl: pnlValue,
+              pnl: pnl,
               exitReason: 'manual_sell'
             });
             if (this.ctx.patternExitShadowMode) {
