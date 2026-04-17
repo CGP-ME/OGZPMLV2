@@ -129,7 +129,7 @@ class TradeJournalBridge {
         const result = await originalLogTrade(exitRecord);
 
         try {
-          if (exitRecord && exitRecord.type === 'exit') {
+          if (exitRecord && (exitRecord.type === 'exit' || exitRecord.type === 'SELL' || exitRecord.type === 'COVER')) {
             const stateManager = bot.stateManager;
             const balance = stateManager?.get('balance') || 0;
             const orderId = exitRecord.id || exitRecord.orderId;

@@ -756,19 +756,9 @@ class OrderExecutor {
               }
               console.log(`🧠 Pattern learning: ${patternName} → ${pnl.toFixed(2)}%`);
 
-              // CHANGE 2026-03-18: Direct call to UnifiedPatternMemory for explicit outcome recording
-              // This ensures the outcome is recorded with full metadata
-              try {
-                getUnifiedPatternMemory().recordOutcome(featuresForRecording, {
-                  pnl: pnl,
-                  pnlPercent: pnl,
-                  holdTimeMs: holdDuration,
-                  exitReason: completeTradeResult.exitReason || 'signal',
-                  strategy: buyTrade.entryStrategy || buyTrade.strategy || 'unknown',
-                });
-              } catch (err) {
-                console.warn(`⚠️ UnifiedPatternMemory.recordOutcome failed: ${err.message}`);
-              }
+              // REMOVED 2026-04-16: Direct UnifiedPatternMemory call was double-counting.
+              // TRAI.recordTradeOutcome (below) is the sole recording path — it calls
+              // UnifiedPatternMemory.recordOutcome internally via trai_core.recordTradeResult.
             }
 
             // FIX 2026-02-26: Run health check every 10 trade exits to detect broken pattern recording
@@ -1118,6 +1108,53 @@ class OrderExecutor {
             });
           } catch (err) {
             console.warn(`[PID] onTradeClose (short) failed: ${err.message}`);
+          }
+
+          // TRAI learning — mirror SELL path for short trade outcomes
+          if (this.ctx.trai && this.pendingTraiDecisions?.has(shortTrade.orderId)) {
+            const traiDecisionData = this.pendingTraiDecisions.get(shortTrade.orderId);
+            this.ctx.trai.recordTradeOutcome({
+              tradeId: shortTrade.orderId,
+              decisionId: traiDecisionData.decisionId,
+              symbol: this.ctx.tradingPair || 'BTC-USD',
+              profitLoss: profitLoss,
+              profitLossPercent: pnl,
+              holdDuration: holdDuration,
+              entry: {
+                price: shortTrade.entryPrice || shortTrade.price,
+                timestamp: shortTrade.entryTime,
+                indicators: {
+                  rsi: shortTrade.entryIndicators?.rsi,
+                  macd: shortTrade.entryIndicators?.macd?.macd || shortTrade.entryIndicators?.macd || 0,
+                  macdHistogram: shortTrade.entryIndicators?.macd?.histogram || 0,
+                  primaryPattern: shortTrade.patterns?.[0]?.name || 'none'
+                },
+                trend: shortTrade.entryIndicators?.trend || 'neutral',
+                volatility: shortTrade.entryIndicators?.volatility || 0
+              },
+              exit: {
+                price: price,
+                timestamp: Date.now(),
+                indicators: {
+                  rsi: indicators.rsi,
+                  macd: indicators.macd?.macd || 0,
+                  macdHistogram: indicators.macd?.histogram || 0
+                },
+                trend: indicators.trend || 'neutral'
+              },
+              indicators: {
+                rsi: shortTrade.entryIndicators?.rsi,
+                macd: shortTrade.entryIndicators?.macd?.macd || shortTrade.entryIndicators?.macd || 0,
+                macdHistogram: shortTrade.entryIndicators?.macd?.histogram || 0,
+                primaryPattern: shortTrade.patterns?.[0]?.name || 'none'
+              },
+              trend: shortTrade.entryIndicators?.trend || 'neutral',
+              volatility: shortTrade.entryIndicators?.volatility || 0,
+              traiConfidence: traiDecisionData.traiConfidence,
+              originalConfidence: traiDecisionData.originalConfidence
+            });
+            this.pendingTraiDecisions.delete(shortTrade.orderId);
+            console.log(`🤖 [TRAI] Learning from SHORT ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
           }
 
           // Pattern exit model
