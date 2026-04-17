@@ -104,7 +104,7 @@ const GRID = {
   // NOTE: takeProfit is IGNORED by the code — MPM tier targets control profit exits.
   // We sweep TIER1_TARGET/TIER2_TARGET/TIER3_TARGET instead.
   full: {
-    stopLoss:   [0.5, 0.8, 1.0, 1.5, 2.0, 3.0],
+    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0],
     tierPresets: [
       { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
       { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },

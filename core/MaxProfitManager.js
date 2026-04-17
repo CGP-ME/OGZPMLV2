@@ -102,12 +102,13 @@ class MaxProfitManager {
       // --------------------------------------------------------------------
       enableTieredExit: true,         // Enable multi-tier profit taking
       // FIX 2026-03-17: Read from TradingConfig for backtester env var support
+      // FIX 2026-04-16: Tier exit fractions extracted to exitLogic.tieredExit
       firstTierTarget: TradingConfig.get('exits.profitTiers.tier1') || 0.007,
-      firstTierExit: 0.30,            // Exit 30% to lock in profit
+      firstTierExit: TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction', 0.30),
       secondTierTarget: TradingConfig.get('exits.profitTiers.tier2') || 0.010,
-      secondTierExit: 0.30,           // Exit another 30%
+      secondTierExit: TradingConfig.get('exitLogic.tieredExit.tier2ExitFraction', 0.30),
       thirdTierTarget: TradingConfig.get('exits.profitTiers.tier3') || 0.015,
-      thirdTierExit: 0.20,            // Exit 20%
+      thirdTierExit: TradingConfig.get('exitLogic.tieredExit.tier3ExitFraction', 0.20),
       finalTarget: TradingConfig.get('exits.profitTiers.final') || 0.025,
       
       // --------------------------------------------------------------------
@@ -151,8 +152,9 @@ class MaxProfitManager {
       // MARKET CONDITION ADAPTATIONS
       // --------------------------------------------------------------------
       enableMarketAdaptation: true,         // Adapt to market conditions
-      trendingMarketMultiplier: 1.3,        // 30% larger targets in trending markets
-      rangeboundMarketMultiplier: 0.8,      // 20% smaller targets in range-bound
+      // FIX 2026-04-16: Market multipliers extracted to exitLogic.tieredExit
+      trendingMarketMultiplier: TradingConfig.get('exitLogic.tieredExit.trendingTargetMultiplier', 1.3),
+      rangeboundMarketMultiplier: TradingConfig.get('exitLogic.tieredExit.rangingTargetMultiplier', 0.8),
       
       // --------------------------------------------------------------------
       // PERFORMANCE TRACKING
@@ -601,11 +603,16 @@ class MaxProfitManager {
     }
     
     // Adjust targets based on confidence
+    // FIX 2026-04-16: Thresholds + multipliers extracted to exitLogic.tieredExit
+    const highConfThreshold = TradingConfig.get('exitLogic.tieredExit.highConfidenceThreshold', 0.8);
+    const highConfMult = TradingConfig.get('exitLogic.tieredExit.highConfidenceMultiplier', 1.2);
+    const lowConfThreshold = TradingConfig.get('exitLogic.tieredExit.lowConfidenceThreshold', 0.6);
+    const lowConfMult = TradingConfig.get('exitLogic.tieredExit.lowConfidenceMultiplier', 0.8);
     let confidenceMultiplier = 1.0;
-    if (confidence > 0.8) {
-      confidenceMultiplier = 1.2; // 20% higher targets for high confidence
-    } else if (confidence < 0.6) {
-      confidenceMultiplier = 0.8; // 20% lower targets for low confidence
+    if (confidence > highConfThreshold) {
+      confidenceMultiplier = highConfMult;
+    } else if (confidence < lowConfThreshold) {
+      confidenceMultiplier = lowConfMult;
     }
     
     // Create tier definitions

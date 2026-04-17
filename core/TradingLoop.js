@@ -290,7 +290,7 @@ class TradingLoop {
         strategySignals: allResults.map(s => ({
           name: s.strategyName || s.name || 'unknown',
           direction: s.direction === 'buy' ? 'long' : s.direction === 'sell' ? 'short' : 'hold',
-          baseConfidence: (s.confidence || 0) / 100,
+          baseConfidence: (s.confidence || 0),
           reason: s.reason || s.reasons?.join('; ') || 'signal fired',
           indicatorValues: {
             rsi: indicators.rsi,
@@ -309,7 +309,7 @@ class TradingLoop {
             : `${winnerName} selected at ${(orchResult.confidence || 0).toFixed(1)}%`,
           competingStrategies: allResults.map(r => ({
             name: r.strategyName || r.name || 'unknown',
-            adjustedConfidence: (r.confidence || 0) / 100,
+            adjustedConfidence: (r.confidence || 0),
             rejected: (r.strategyName || r.name) !== winnerName,
             rejectReason: (r.strategyName || r.name) !== winnerName ? 'Lower confidence than winner' : null,
           })),

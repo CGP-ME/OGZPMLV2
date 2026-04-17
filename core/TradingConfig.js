@@ -380,6 +380,27 @@ const BASE_CONFIG = {
       feeBufferPercent: parseFloat(env('BE_SCALEOUT_FEE_BUFFER', 0.05)),  // -0.05% below entry for fees
     },
 
+    // ─── Tiered Exit Scale-Out (MPM multi-tier profit taking) ───
+    // Lifted from MaxProfitManager constructor hardcodes 2026-04-16
+    // All values env-backed for matrix sweep tuning
+    tieredExit: {
+      // Fraction of original position to sell at each tier
+      tier1ExitFraction: parseFloat(env('TIER1_EXIT_FRACTION', 0.30)),
+      tier2ExitFraction: parseFloat(env('TIER2_EXIT_FRACTION', 0.30)),
+      tier3ExitFraction: parseFloat(env('TIER3_EXIT_FRACTION', 0.20)),
+      // Tier 4 (final) fraction is computed: 1.0 - (tier1 + tier2 + tier3) = 0.20 default
+
+      // Market regime target multipliers (applied when enableMarketAdaptation=true)
+      trendingTargetMultiplier: parseFloat(env('TIER_TREND_MULT', 1.3)),
+      rangingTargetMultiplier: parseFloat(env('TIER_RANGE_MULT', 0.8)),
+
+      // Confidence-based target adjustment
+      highConfidenceThreshold: parseFloat(env('TIER_HIGH_CONF_THRESHOLD', 0.8)),
+      highConfidenceMultiplier: parseFloat(env('TIER_HIGH_CONF_MULT', 1.2)),
+      lowConfidenceThreshold: parseFloat(env('TIER_LOW_CONF_THRESHOLD', 0.6)),
+      lowConfidenceMultiplier: parseFloat(env('TIER_LOW_CONF_MULT', 0.8)),
+    },
+
     // ─── Dynamic Trailing Stop (lifted from DynamicTrailingStop.js into MPM) ───
     trail: {
       enabled: envBool('TRAIL_ENABLED', true),
