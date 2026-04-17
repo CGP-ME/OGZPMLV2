@@ -179,7 +179,14 @@ class BacktestRunner {
       }
 
       // Generate backtest report
-      const reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${Date.now()}.json`);
+      // FIX 2026-04-16: Route to unified output directory
+      const { getRunDir } = require('./OutputPaths');
+      const runTimestamp = Date.now();
+      const runDir = getRunDir(runTimestamp);
+      const envRoot = process.env.BACKTEST_OUTPUT_DIR;
+      const reportPath = envRoot
+        ? path.join(runDir, 'report.json')
+        : path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
 
       // FIX 2026-04-02: report.summary and report.metrics now use the SAME source (BacktestRecorder)
       // Previously summary used StateManager (wrong) while metrics used BacktestRecorder (right)
@@ -246,9 +253,13 @@ class BacktestRunner {
       }
 
       // CHANGE 2026-02-23: Print BacktestRecorder summary with fees and export CSV
+      // FIX 2026-04-16: Route CSV to same unified run directory as JSON report
       if (this.ctx.backtestRecorder) {
         this.ctx.backtestRecorder.printSummary();
-        this.ctx.backtestRecorder.exportCSV('./backtest-trades.csv');
+        const csvPath = process.env.BACKTEST_OUTPUT_DIR
+          ? path.join(runDir, 'trades.csv')
+          : './backtest-trades.csv';
+        this.ctx.backtestRecorder.exportCSV(csvPath);
       }
 
       // DynamicPositionSizer NOT WIRED - stats printing disabled

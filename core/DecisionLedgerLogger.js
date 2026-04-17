@@ -3,7 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const DECISIONS_DIR = path.join(__dirname, '..', 'logs', 'decisions');
+// FIX 2026-04-16: Route ledger to unified output directory (via OutputPaths)
+const { getLedgerDir } = require('./OutputPaths');
+const DECISIONS_DIR = getLedgerDir();
 const LEDGER_BUFFER_SIZE = parseInt(process.env.LEDGER_BUFFER_SIZE || '1', 10);
 const LEDGER_VALIDATE = process.env.LEDGER_VALIDATE !== 'false';
 

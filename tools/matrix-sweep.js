@@ -64,8 +64,9 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ===================================================================
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
-if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
+// FIX 2026-04-16: Route matrix output to unified output directory
+const { getMatrixDir } = require('../core/OutputPaths');
+const RESULTS_DIR = getMatrixDir();
 
 // ===================================================================
 // DATA FILE SHORTCUTS
@@ -227,16 +228,24 @@ function runWorker(config, dataFile, stockMode) {
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
     var stateFile = path.join(PROJECT_ROOT, 'data', 'state-' + uid + '.json');
 
-    // Clean env: dont inherit stale trading vars from shell
-    var cleanEnv = Object.assign({}, process.env);
-    delete cleanEnv.STOP_LOSS_PERCENT;
-    delete cleanEnv.TAKE_PROFIT_PERCENT;
-    delete cleanEnv.MIN_TRADE_CONFIDENCE;
-    delete cleanEnv.TRAILING_STOP_PERCENT;
-    delete cleanEnv.ATR_MIN_PERCENT;
-    delete cleanEnv.SOLO_STRATEGY;
+    // FIX 2026-04-16: Build worker env from scratch (not clone-and-scrub).
+    // Previous approach cloned process.env and deleted 6 known-bad vars.
+    // ~180+ trading env vars could leak from a dirty shell (ENABLE_*,
+    // REGIME_*, VP_*, TRAIL_*, BE_*, etc). Now we build from a whitelist
+    // of only what matrix workers need. Leakage is impossible regardless
+    // of shell state.
+    var workerBaseEnv = {};
+    var SYSTEM_VARS = ['PATH', 'NODE_PATH', 'HOME', 'USERPROFILE',
+                       'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP',
+                       'BACKTEST_OUTPUT_DIR', 'NODE_OPTIONS'];
+    for (var i = 0; i < SYSTEM_VARS.length; i++) {
+      var key = SYSTEM_VARS[i];
+      if (process.env[key] !== undefined) {
+        workerBaseEnv[key] = process.env[key];
+      }
+    }
 
-    var env = Object.assign({}, cleanEnv, {
+    var env = Object.assign({}, workerBaseEnv, {
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',
