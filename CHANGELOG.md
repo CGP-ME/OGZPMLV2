@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Config Consolidation Migration — Phase 0 Baseline (2026-04-20)
+
+#### Baseline: reference backtest recorded (`2dbec67`)
+- **Files:** `ogz-meta/specs/baseline-phase0-2026-04-20.md` (new)
+- **Branch:** `config/consolidation` off `broker/alpaca-integration`
+- **Purpose:** Pre-migration match-to-the-cent reference per CONFIG-CONSOLIDATION-SPEC.md §4.2. Every subsequent migration phase must reproduce these numbers before advancing.
+- **Numbers:** Final $17,950.589592711076 | +79.5% | 1,430 trades | 57.55% WR (823W/607L) | 2.63% max DD | $15.37 avg win / -$7.75 avg loss | 44.4s | 0 errors on tuning/tsla-15m-2y.json (15,889 candles)
+- **Command:** SOLO_STRATEGY=EMASMACrossover + SL=2.5 + Conf=0.60 + FEE=0 + ACCOUNT_DRAWDOWN_BYPASS=true at git SHA c49c9ab
+- **Gotcha:** First run hung at 27min CPU (stuck process). Resolved by killing and re-running with `timeout 300` wrapper. Baseline doc now mandates explicit timeout + "BACKTEST COMPLETE" marker check for every phase re-verify.
+
 ### Mercury-Bridge Layer 4: Agentic ReAct Loop (2026-04-08)
 
 #### Feature: ReAct Loop with Tool Access (`b2f3016`)
