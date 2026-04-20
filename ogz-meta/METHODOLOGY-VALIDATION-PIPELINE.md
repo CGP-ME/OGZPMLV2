@@ -1,7 +1,7 @@
 # OGZPrime Strategy Validation Methodology
 
 **Author:** Trey Buhidar (The Architect)
-**Status:** Canonical methodology document. Captures both the historical methodology that produced the $970.71 regression anchor AND the upgraded tournament methodology designed for future strategy validation.
+**Status:** Canonical methodology document. Describes historical linear methodology AND upgraded tournament methodology. SUPERSEDED REGRESSION ANCHOR: the prior $970.71 RSI+EMA combined-run reference is RETIRED per MASTER-ROLLOUT DEC-001. Each strategy ships solo with its own walk-forward-validated contract. No combined reference number exists.
 **Last updated:** 2026-04-07
 
 ---
@@ -20,7 +20,7 @@ Until the upgraded methodology is implemented, the historical methodology is the
 
 # PART 1 — The Historical Methodology (proven, in use today)
 
-This is the methodology that produced the $970.71 RSI+EMASMACrossover regression anchor and the 7-of-8 multi-ticker validation result. It is linear, manual, and currently the only methodology that has been actually executed end-to-end.
+This is the methodology that HISTORICALLY produced a combined RSI+EMASMACrossover snapshot (prior anchor `$970.71`, now RETIRED per DEC-001) and the 7-of-8 multi-ticker validation result. It is linear, manual, and currently the only methodology that has been actually executed end-to-end. Future strategy validation uses this methodology per-strategy solo, not combined.
 
 ## Phase H1 — Strip the strategy
 
@@ -116,7 +116,7 @@ Take the locked individual configurations and combine them stepwise. Don't blind
 
 | Stack | P&L | Trades |
 |---|---|---|
-| RSI + EMA | $970 | 1,416 |
+| RSI + EMA (HISTORICAL, retired per DEC-001) | $970 | 1,416 |
 | RSI + EMA + MASR | $656 | 1,525 |
 | RSI + EMA + MASR + LiqSweep | $696 | 1,550 |
 | RSI + EMA + LiqSweep | $956 | 1,440 |
@@ -135,7 +135,7 @@ Take the winning combo with NO retuning and run it across multiple tickers. This
 
 | Ticker | P&L | Trades | WR | Status |
 |---|---|---|---|---|
-| TSLA | +$970 | 1,416 | 47.5% | ✅ |
+| TSLA (HISTORICAL combined RSI+EMA snapshot, no longer the production config) | +$970 | 1,416 | 47.5% | ✅ |
 | NVDA | +$722 | 1,380 | 45.0% | ✅ |
 | RIOT | +$557 | 2,656 | 42.2% | ✅ |
 | QQQ | +$374 | 1,007 | 45.4% | ✅ |
@@ -156,7 +156,7 @@ The historical methodology produced these validated results that should still be
 - MADynamicSR exits: locked at SL -0.8% / TP 1.0%
 - LiquiditySweep: uses structural exits (overrideLevels true)
 
-The current regression anchor is **$970.71 / 1416 trades / 47.5% WR** on `tuning/tsla-15m-2y.json` with `SOLO_STRATEGY=RSI,EMASMACrossover`.
+There is NO current combined-strategies regression anchor. Per DEC-001 each strategy is tested in isolation and ships with its own validated exit contract. The prior $970.71 / 1416 trades / 47.5% WR number was a combined RSI+EMA snapshot that cannot be reproduced under current orchestrator selection semantics (single winner per candle, not blended). Current reference baselines live at `ogz-meta/specs/baseline-phase0-*.md` per-run.
 
 If the next session can reproduce this number with the current framework, the historical methodology is fully intact and the system is ready to build upward. If not, something has regressed since the historical work and bisection is required to find the cause.
 
@@ -330,7 +330,9 @@ The historical methodology is in use today. The upgraded methodology is the targ
 
 ## Step 1: Reproduce the historical baseline first
 
-Before changing anything, the next session must reproduce $970.71 with the current framework using the historical methodology. This confirms the locked TradingConfig values are still intact and the framework is honest end-to-end. If reproduction fails, bisect to find the regression before doing anything else.
+Before changing anything, the next session must reproduce the most-recent baseline recorded at `ogz-meta/specs/baseline-phase0-*.md` with the current framework. This confirms the locked TradingConfig values are still intact and the framework is honest end-to-end. If reproduction fails, bisect to find the regression before doing anything else.
+
+NOTE (2026-04-20): The prior gate of "reproduce $970.71" is RETIRED per DEC-001 — the $970.71 figure was a combined RSI+EMA snapshot that is not reproducible under current orchestrator winner-selection semantics.
 
 ## Step 2: Build the tooling upgrades on a side branch
 

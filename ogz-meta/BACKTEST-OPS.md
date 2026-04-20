@@ -34,7 +34,7 @@ There is NO separate backtest engine. `EXECUTION_MODE=backtest` disables broker 
 |---|---|---|---|---|
 | `RSI` | `ENABLE_RSI=true` | strategies.RSI | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0%, min conf 60% |
 | `MADynamicSR` | `ENABLE_MASR=true` | strategies.MADynamicSR | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.8%, TP 1.0% |
-| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMACrossover | ✅ Active | Decay 10 bars, snapback 2.5% |
+| `EMASMACrossover` | `ENABLE_EMA=true` | strategies.EMACrossover | ✅ LOCKED | Walk-forward validated 2026-03-20. SL -0.5%, TP 1.0% (per TradingConfig.exitContracts.EMASMACrossover). Decay 10 bars, snapback 2.5%. |
 | `LiquiditySweep` | `ENABLE_LIQSWEEP=true` | strategies.LiquiditySweep | ✅ Active | 50-bar lookback, disableSessionCheck=true |
 | `SmartMoneySweep` | `ENABLE_SMS=true` | strategies.SmartMoneySweep | ⚠️ Validating | VP-based sweeps, 5-day lookback, RTH-only VP |
 | `OpeningRangeBreakout` | `ENABLE_ORB=true` | strategies.OpeningRangeBreakout | ⚠️ Disabled | ICT-style, needs tuning |
@@ -308,7 +308,11 @@ Open `public/command-center.html` in browser, drag `backtest-trades.csv` onto it
 `full-45k.json` is BTC. Stock strategies on BTC = meaningless results. Always specify `CANDLE_DATA_FILE`.
 
 ### 2. ACCOUNT_DRAWDOWN_BYPASS
-Drawdown calculation was fixed on 2026-03-14 (core/StateManager.js:99). Safe to run with `ACCOUNT_DRAWDOWN_BYPASS=false` now. Set to `true` only for isolated strategy testing where you want to skip drawdown checks entirely.
+Drawdown calculation was fixed at core/StateManager.js:99 on 2026-03-14. Setting `ACCOUNT_DRAWDOWN_BYPASS=false` enables the halt — bot force-closes at `accountDrawdownPercent` threshold (default -10%, StopLossChecker.js:48-62).
+
+STATUS 2026-04-20: operator's `.env` currently has `ACCOUNT_DRAWDOWN_BYPASS=true`, and Phase 0 baseline (ogz-meta/specs/baseline-phase0-2026-04-20.md) runs with bypass=true. Prior walkback runs exceeded -10% account drawdown but did not halt because bypass was true. Exact halt-point verification is deferred to a post-fix baseline re-run with bypass=false.
+
+NOTE: This item CONTRADICTS `ogz-meta/BACKTESTING_GUIDE.md:48` which claims the bypass is "Currently REQUIRED in backtests because the drawdown calculation is broken" — that claim is stale (pre-2026-03-14 fix) and is corrected in the 2026-04-20 alignment sweep.
 
 ### 3. ENABLE_SMS Default
 SMS is `false` by default. If testing SMS, you MUST set `ENABLE_SMS=true` explicitly.

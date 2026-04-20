@@ -7,9 +7,9 @@ Persistent ideas and future work. One change at a time rule - pick one, finish i
 ## IN PROGRESS
 
 ### SmartMoneySweep Strategy (#5)
-**Status:** VALIDATED on TradingView - ready for Node.js port
+**Status (updated 2026-04-20):** Node.js module exists at modules/SmartMoneySweep.js + registered in StrategyOrchestrator. Cross-ticker matrix sweeps ran 2026-04-17/18/19 producing $5.8K-$11K P&L across TSLA/COIN/MARA with zero parameter retuning — strategy generalizes. Pending: walkback/walkforward out-of-sample validation and locked exit contract finalization.
 
-**TradingView Results (2026-03-24):**
+**Original TradingView Results (2026-03-24, kept for historical reference):**
 - TSLA: 207 trades, 49.76% WR, 1.555 PF, +$202.71
 - NFLX: 223 trades, 55.16% WR, 1.071 PF, +$30.83
 - NVDA: 185 trades, 51.35% WR, 1.212 PF, +$70.60

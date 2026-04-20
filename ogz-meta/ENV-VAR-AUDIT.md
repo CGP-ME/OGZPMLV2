@@ -45,9 +45,9 @@ The locked per-strategy exit contracts in `core/TradingConfig.js` (`BASE_CONFIG.
 
 | Env Var | Where Read | Trading Impact | Status |
 |---|---|---|---|
-| `STOP_LOSS_PERCENT` | `TradingConfig.js:211` | NO — Every strategy has LOCKED `exitContract` that overrides this | **IGNORED** |
-| `TAKE_PROFIT_PERCENT` | `TradingConfig.js:212` | NO — Every strategy has LOCKED `exitContract` that overrides this | **IGNORED** |
-| `TRAILING_STOP_PERCENT` | `TradingConfig.js:213` | NO — Every strategy has LOCKED `exitContract` that overrides this | **IGNORED** |
+| `STOP_LOSS_PERCENT` | `TradingConfig.js:216` (global) + `MaxProfitManager.js:118` (MPM initialStopLossPercent) | **PARTIAL** — IGNORED by locked exit contracts (primary strategy SL). HONORED by MaxProfitManager's initialStopLossPercent at MPM:118 which reads `exits.stopLossPercent` via TradingConfig.get(). |
+| `TAKE_PROFIT_PERCENT` | `TradingConfig.js:217` (global) — no direct MPM consumer found | **IGNORED by all verified consumers**. Profit-side tuning uses TIER1_TARGET/TIER2_TARGET/TIER3_TARGET/FINAL_TARGET via exits.profitTiers.* at MPM:106,108,110,112. |
+| `TRAILING_STOP_PERCENT` | `TradingConfig.js:218` (global) — no direct MPM consumer found | **IGNORED by verified consumers**. Trail tuning via TRAIL_* env vars via exitLogic.trail bundle at MPM:228. |
 | `TRAILING_STOP_ENABLED` | NOT FOUND in trading code | Ghost var — referenced nowhere that affects behavior | **IGNORED** |
 | `MIN_TRADE_CONFIDENCE` | `TradingLoop.js:133` | PARTIAL — Used at entry gate, but per-strategy `exitContract.minConfidence` (e.g., RSI: 0.60) may override downstream | **PARTIAL** |
 | `ATR_FILTER_ENABLED` | `StrategyOrchestrator.js:725` | YES — Checked before allowing trades | **HONORED** |

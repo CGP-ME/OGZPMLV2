@@ -334,7 +334,26 @@ updates = {
 Each strategy has its own SL/TP defaults in `DEFAULT_CONTRACTS`:
 ```javascript
 // ACTUAL LOCKED VALUES from TradingConfig.js (lines 146-194):
-EMASMACrossover: { stopLossPercent: -0.5, takeProfitPercent: 1.0 }  // LOCKED - validated
+EMASMACrossover: { stopLossPercent: -0.5, takeProfitPercent: 1.0 }  // LOCKED - walk-forward validated 2026-03-20
+//
+// POST-DEC-013 STATE (2026-04-13 onward): Matrix sweeps probe STOP_LOSS_PERCENT values in the
+// 0.5%-5.0% range (see tools/matrix-sweep.js grid). Those sweep values are GHOST for the primary
+// strategy SL path — every worker runs with the locked -0.5% regardless of what the matrix grid
+// says, because locked exit contracts in TradingConfig.exitContracts override env-supplied
+// STOP_LOSS_PERCENT per ENV-VAR-AUDIT.md.
+//
+// HOWEVER — MaxProfitManager has a SEPARATE SL path that IS env-swappable at
+// core/MaxProfitManager.js:118: `initialStopLossPercent: TradingConfig.get('exits.stopLossPercent', 1.5) / 100`
+// reads the env-backed global default. Full 18-site MPM TradingConfig.get() enumeration:
+//   :106,108,110,112 → profit tiers (TIER*_TARGET → exits.profitTiers.*)
+//   :107,109,111     → tier exit fractions (TIER*_EXIT_FRACTION → exitLogic.tieredExit.tier*ExitFraction)
+//   :118             → initial SL (STOP_LOSS_PERCENT → exits.stopLossPercent) — primary env-swap
+//   :134             → min hold time (holdTimes.minHoldTimeMinutes)
+//   :156,157         → market regime multipliers (exitLogic.tieredExit.trending/rangingTargetMultiplier)
+//   :227             → BE scaleout bundle (exitLogic.beScaleOut → BE_SCALEOUT_*)
+//   :228             → trail bundle (exitLogic.trail → TRAIL_*)
+//   :607-610         → confidence thresholds/multipliers (exitLogic.tieredExit.high/lowConfidence*)
+//   :808             → fee buffer for breakeven stop (fees.takerFee)
 MADynamicSR:     { stopLossPercent: -0.8, takeProfitPercent: 1.0 }  // LOCKED - validated
 RSI:             { stopLossPercent: -0.8, takeProfitPercent: 1.0 }  // LOCKED - validated
 OGZTPO:          { stopLossPercent: -0.8, takeProfitPercent: 1.0 }  // LOCKED - validated

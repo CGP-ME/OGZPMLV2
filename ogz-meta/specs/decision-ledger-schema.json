@@ -31,6 +31,20 @@
       "enum": ["live", "paper", "backtest"],
       "description": "Mode the trade was generated in"
     },
+    "entryPrice": {
+      "type": "number",
+      "description": "Fill price at trade entry. Added 2026-04-20 — always emitted by writer."
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["long", "short"],
+      "description": "Trade direction. Added 2026-04-20 — always emitted by writer."
+    },
+    "_persistedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the ledger entry was written to JSONL. Added 2026-04-20 — always emitted by writer."
+    },
 
     "strategySignals": {
       "type": "array",

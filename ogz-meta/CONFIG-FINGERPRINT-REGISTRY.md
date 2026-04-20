@@ -8,6 +8,10 @@
 
 ## Active Fingerprints
 
+**STATUS 2026-04-20:** This registry is SUPERSEDED by the Phase 6 snapshot manifest (`config/snapshots/manifest.jsonl`) defined in CONFIG-CONSOLIDATION-SPEC.md. No new fingerprints will be recorded here — Phase 6 writes every process-start snapshot automatically. The rows below are preserved as historical record of pre-migration state.
+
+Phase 0 baseline (post-this-doc) recorded at `ogz-meta/specs/baseline-phase0-2026-04-20.md` uses git SHA `c49c9ab` on branch `config/consolidation`.
+
 | Fingerprint | Date | Description | Verified By |
 |---|---|---|---|
 | `4aef3ea0cf32e1bd` | 2026-03-17 | VPS production baseline — env var wiring confirmed working. Exit contracts reading from .env. | Claude Opus + config-audit.js |

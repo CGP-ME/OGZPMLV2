@@ -26,6 +26,7 @@
  *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only (200 configs)
  *   node tools/matrix-sweep.js --data tsla --phase exits # Just SL/TP sweep, locked conf
  *   node tools/matrix-sweep.js --data tsla --phase conf  # Just confidence, locked exits
+ *   # --phase atr is NOT IMPLEMENTED. ATR dimension tuning is tracked in POST-MATRIX-BACKLOG. To add when U-methodology extends.
  *   node tools/matrix-sweep.js --data tsla --quick       # Reduced grid (fast sanity check)
  *
  * Output:

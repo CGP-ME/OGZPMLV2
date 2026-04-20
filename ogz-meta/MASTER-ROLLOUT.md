@@ -50,11 +50,15 @@ Each item is a discrete deliverable. Cross off as completed (`[x]`). Update with
 
 ### Phase 1: Decision ledger build (W2)
 
-- [ ] **L1** — Skeleton ledger creation at trade birth (`core/StateManager.js` + `core/dto/DecisionLedgerSchema.js` new file)
-- [ ] **L2** — Strategy signals + orchestrator decision capture (`StrategyOrchestrator.js` returns allResults including losers)
-- [ ] **L4** — Position sizing breakdown with formula string (`OrderExecutor.js:55-81`)
-- [ ] **L5** — Risk gates structured logging + rejections file (`RiskManager.js` + `TradingLoop.js:393-514`)
-- [ ] **L8** — JSONL persistence on full close (`core/DecisionLedgerLogger.js` new file)
+- [x] **L1** — Skeleton ledger creation at trade birth. SHIPPED. `core/dto/DecisionLedgerSchema.js:85-117` createLedgerSkeleton() called from StateManager/TradingLoop.
+- [x] **L2** — Strategy signals + orchestrator decision capture. SHIPPED. `orchestratorDecision.competingStrategies[]` populated with losers, verified in live ledger sample.
+- [x] **L4** — Position sizing breakdown. SHIPPED. `positionSizing` block populated with base/confidence/confluence multipliers.
+- [ ] **L5** — Risk gates structured logging. NOT WIRED. Zero `riskGates.push()` sites in source (verified 2026-04-20). Skeleton initializes array empty, nothing writes to it.
+- [x] **L8** — JSONL persistence on full close. SHIPPED. 720 MB/day `logs/decisions/decisions_*.jsonl` proves writer is live.
+
+ADDITIONAL SHIPPED (not originally listed as part of Phase 1 bundle): **L6** — `core/StateManager.js:617` `trade.decisionLedger.exits.push(exitEntry)` populates multi-leg exits. 95,423 of 377,243 sample entries have non-empty exits[]. **L7** — outcome block populated on full close.
+
+STILL NOT WIRED: L3 (confidenceModifiers — zero push-sites), L9 (lessonLearned), plus schema fields `pidState`, `traiInput`, `metadata` never populated.
 
 **Bundling:** L1+L2+L4+L5 can land as one commit. L8 separate. Total ~1-2 sessions.
 
@@ -62,11 +66,11 @@ Each item is a discrete deliverable. Cross off as completed (`[x]`). Update with
 
 ### Phase 2: Matrix run on home rig
 
-- [ ] Run `node tools/parallel-backtest.js --real --stocks --data tsla --solo=RSI` with ledger writing active
-- [ ] Confirm ledger files populate correctly during sweep
-- [ ] Run full per-strategy sweep across all 9 active strategies
-- [ ] Walk-forward validation against held-out datasets
-- [ ] Multi-ticker generalization (TSLA-tuned configs against NVDA, RIOT, QQQ, MARA, SPY, COIN with zero retuning)
+- [x] Matrix sweeps ran on home rig via tools/matrix-sweep.js (evolved from parallel-backtest.js). SHIPPED.
+- [x] Confirm ledger files populate correctly during sweep. VERIFIED 2026-04-20 — 720MB/day decision-ledger JSONL with schema-valid records.
+- [~] Run full per-strategy sweep across all 9 active strategies. PARTIAL — EMA + RSI matrix-swept, SMS cross-ticker validated, MADynamicSR/LiquiditySweep/OGZTPO pending per-strategy runs.
+- [~] Walk-forward validation against held-out datasets. PARTIAL — walkback (2023-03→2024-03) and walkforward (2026-02→2026-04) data pulled and committed on config/consolidation branch; actual walk-forward runs pending.
+- [x] Multi-ticker generalization (TSLA, COIN, MARA verified 100% profitable across all configs 2026-04-17/18/19). NVDA/RIOT/QQQ/SPY pending.
 - [ ] Lock new validated exit contracts in `TradingConfig.exitContracts` with new `_validated` dates
 - [ ] Pick best single strategy for Apex eval account based on validated numbers
 
@@ -74,17 +78,17 @@ Each item is a discrete deliverable. Cross off as completed (`[x]`). Update with
 
 ### Phase 3: Partial-close pipeline fix + remaining ledger phases
 
-- [ ] **TRAI multi-leg outcome aggregation** — wrap `recordTradeOutcome` to aggregate by tradeId, fire learning sample once on full close
-- [ ] **TradeJournal multi-leg lifecycle** — `recordExit` waits for `remainingSize === 0` before deleting open trade
-- [ ] **UnifiedPatternMemory parent-trade consolidation** — accumulate legs by tradeId, single learning sample per parent trade
-- [ ] **BreakEvenManager partial-aware** — listens for partial close events
+- [x] **TRAI multi-leg outcome aggregation** — SHIPPED in Set C brain-bug fix (commit `dcb8391`).
+- [x] **TradeJournal multi-leg lifecycle** — SHIPPED in Set C.
+- [x] **UnifiedPatternMemory parent-trade consolidation** — SHIPPED in Set C.
+- [ ] **BreakEvenManager partial-aware** — status unverified, check before proceeding.
 - [ ] **Schema shim for legacy field readers** — preserve `trade.maxProfitPercent`, `trade.entryIndicators`, `trade.customMetadata` accessors
-- [ ] **MaxProfitManager state ownership** — Map-of-MPM-instances refactor (~30 lines per reviewer-corrected plan)
-- [ ] **StateManager.reducePosition** — actual partial close that reduces remainingSize without deleting trade
-- [ ] **OrderExecutor partial-close fraction handling** — fix the `exitSize > 0 && exitSize < 1` check that currently full-closes everything
-- [ ] **BacktestRecorder leg accumulation** — aggregate legs by tradeId, single trade record per parent
-- [ ] **L6** — Exit ledger entries (every exit appends to `decisionLedger.exits[]`)
-- [ ] **L7** — Outcome summary on full close (`decisionLedger.outcome` populated with aggregates)
+- [x] **MaxProfitManager state ownership** (Map-of-instances) — SHIPPED in Set A (commit `50eff2a`).
+- [x] **StateManager.reducePosition** — SHIPPED in Set A. Verified at StateManager.js:574.
+- [x] **OrderExecutor partial-close fraction handling** — SHIPPED in Set A. Fixed `exitFraction > 0 && < 1` check at OrderExecutor.js:611.
+- [x] **BacktestRecorder leg accumulation** — SHIPPED in Set B (commit `cb04261`).
+- [x] **L6** — Exit ledger entries. SHIPPED. StateManager.js:617.
+- [x] **L7** — Outcome summary on full close. SHIPPED.
 
 **Pass criteria for moving to Phase 4:** Multi-leg trades fire correctly. Sum of leg P&L reconciles. Ledger shows full lifecycle.
 
