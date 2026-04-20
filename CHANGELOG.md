@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Doc Alignment Sweep — 15 items across 11 files (2026-04-20)
+
+#### Docs-only batched commit (`70d0566`)
+- **Files:** `ogz-meta/BACKTEST-OPS.md`, `ogz-meta/BACKTEST-PIPELINE-AUDIT.md`, `ogz-meta/BACKTESTING_GUIDE.md`, `ogz-meta/CONFIG-FINGERPRINT-REGISTRY.md`, `ogz-meta/ENV-VAR-AUDIT.md`, `ogz-meta/MASTER-ROLLOUT.md`, `ogz-meta/METHODOLOGY-VALIDATION-PIPELINE.md`, `ogz-meta/RUNNING-TODO.md`, `ogz-meta/TODO-NEXT-SESSION.md`, `ogz-meta/specs/decision-ledger-schema.json`, `tools/matrix-sweep.js` (header comment only)
+- **Purpose:** Consolidate alignment-doc state after brain-bug fixes (`50eff2a`/`cb04261`/`dcb8391`), config-consolidation Phase 0 (`2dbec67`), and DEC-001 retirement of the $970.71 combined-strategy anchor. Full BEFORE/AFTER delta in `ogz-meta/specs/doc-alignment-sweep-2026-04-20.md`.
+- **Key corrections:** ACCOUNT_DRAWDOWN_BYPASS drawdown-broken claim retired (fixed 2026-03-14). STOP_LOSS_PERCENT reclassified IGNORED→PARTIAL with MaxProfitManager:118 verified as direct consumer. 18-site MPM TradingConfig.get() enumeration recorded. Phase 1 L1/L2/L4/L6/L7/L8 marked SHIPPED; L5 explicitly NOT WIRED (zero push-sites). $970.71 anchor rewritten in all 6 METHODOLOGY-VALIDATION-PIPELINE occurrences. MASTER-ROLLOUT Phase 2/3 checkboxes updated (brain-bug fixes landed, cross-ticker sweeps ran).
+- **Schema edit:** `decision-ledger-schema.json` gained `entryPrice`, `direction`, `_persistedAt` (always emitted by writer). Kept `lessonLearned`, `pidState`, `traiInput`, `metadata` as roadmap fields pending L3/L5/L9 wiring.
+
 ### Config Consolidation Migration — Phase 0 Baseline (2026-04-20)
 
 #### Baseline: reference backtest recorded (`2dbec67`)

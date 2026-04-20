@@ -1,6 +1,30 @@
 
 ---
 
+## 2026-04-20: Doc Alignment Sweep — 15 items across 11 alignment files
+
+**Impact:** DOCS ONLY — zero execution-path code changes
+
+**Summary:** Batched doc commit consolidating alignment state after brain-bug fixes + config consolidation Phase 0 + DEC-001 $970.71 anchor retirement. Full BEFORE/AFTER delta table at `ogz-meta/specs/doc-alignment-sweep-2026-04-20.md`.
+
+**Files Changed:**
+- ogz-meta/BACKTEST-OPS.md (Items 1, 11)
+- ogz-meta/BACKTEST-PIPELINE-AUDIT.md (Item 2)
+- ogz-meta/BACKTESTING_GUIDE.md (Items 3, 10, 13)
+- ogz-meta/MASTER-ROLLOUT.md (Items 4, 15)
+- ogz-meta/ENV-VAR-AUDIT.md (Item 7)
+- tools/matrix-sweep.js (Item 8 — header comment only)
+- ogz-meta/METHODOLOGY-VALIDATION-PIPELINE.md (Item 9 — 6 edits)
+- ogz-meta/CONFIG-FINGERPRINT-REGISTRY.md (Item 12)
+- ogz-meta/specs/decision-ledger-schema.json (Item 6)
+- ogz-meta/TODO-NEXT-SESSION.md (Item 14a)
+- ogz-meta/RUNNING-TODO.md (Item 14b)
+- ogz-meta/specs/doc-alignment-sweep-2026-04-20.md (new summary doc)
+
+**Status:** Committed `70d0566` + pushed. Desktop v1+v2 audit rounds applied before commit. Mercury reindex + fixes.jsonl entry follow-up commit.
+
+---
+
 ## 2026-04-20: Config Consolidation Migration — Phase 0 Baseline
 
 **Impact:** BASELINE — reference numbers for 14-phase config migration
