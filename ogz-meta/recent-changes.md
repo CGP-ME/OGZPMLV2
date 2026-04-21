@@ -1,6 +1,26 @@
 
 ---
 
+## 2026-04-21: Matrix-Sweep Reporter Bug Chain Fix — 4 bugs + expectancy
+
+**Impact:** CRITICAL for tuning — matrix-sweep JSON now has full 23-field summary instead of 7
+
+**Summary:** Atomic fix for reporter bug chain discovered during Phase 0 validation. `BacktestRunner` never called `BacktestRecorder.getSummary()` — silently dropped 16 metric fields (profit factor, drawdown, streaks, strategy/exit breakdowns) from every backtest JSON. `matrix-sweep` downstream then parsed a partial set via broken regex that missed 4 of 10 fields (`Net P&L` + prefix, `Avg Winner`/`Avg Loser` name mismatches, `Expectancy` never emitted). Plus `unlinkSync` destroyed per-worker reports post-read.
+
+**Files Changed:**
+- core/BacktestRecorder.js (expectancy added to getSummary + printSummary)
+- core/BacktestRunner.js (spread getSummary into report.summary, preserve totalReturn alias)
+- tools/matrix-sweep.js (4 regex fixes, tryReadReport expanded to 10 fields, unlink removed, header updated)
+
+**Not fixed (tracked in backlog):**
+- Per-worker BACKTEST_OUTPUT_DIR routing (race condition under parallelism, tryReadReport grabs newest-by-mtime which may not be your worker's file). Tracked in POST-MATRIX-BACKLOG.
+
+**Verification:** Unit-level smoke test on BacktestRecorder confirmed 24 fields in getSummary, expectancy computation correct, printSummary emits Expectancy line. Regex validation: all 10 matrix-sweep patterns match live printSummary output.
+
+**Status:** Committed `643a3c9` + pushed. Mercury reindex follow-up.
+
+---
+
 ## 2026-04-20: Doc Alignment Sweep — 15 items across 11 alignment files
 
 **Impact:** DOCS ONLY — zero execution-path code changes

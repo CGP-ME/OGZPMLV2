@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Matrix-Sweep Reporter Bug Chain Fix (2026-04-21)
+
+#### Atomic fix: 4 bugs + 1 missing feature across 3 files (`643a3c9`)
+- **Files:** `core/BacktestRecorder.js`, `core/BacktestRunner.js`, `tools/matrix-sweep.js`
+- **Bug A:** `BacktestRunner.js:193-226` never called `BacktestRecorder.getSummary()` — JSON `report.summary` had 7 inline fields instead of the 23 `getSummary` produces. Fixed by spreading `recorder.getSummary()` into `report.summary`. `totalReturn` preserved as alias for `tools/grid-search-confidence.js:77` back-compat.
+- **Bug B:** `matrix-sweep.js:tryReadReport` only returned 5 of 10 metric fields. Now populates `maxDrawdown`, `profitFactor`, `expectancy`, `avgWin`, `avgLoss` from the expanded summary (fallback path null-safe for older reports).
+- **Bug C:** 4 regex patterns in `matrix-sweep.js:parseOutput` mismatched `printSummary` format — `Net P&L` missed the `+$` prefix, `Avg Win:` should have been `Avg Winner:`, `Avg Loss:` should have been `Avg Loser:`, `Expectancy:` was never printed. All 10 patterns now pass live validation.
+- **Bug D:** `matrix-sweep.js:360` `unlinkSync` destroyed per-worker reports right after reading. Removed. Per-worker race condition (multiple workers writing to PROJECT_ROOT, `tryReadReport` grabs newest by mtime) NOT fixed here — tracked in POST-MATRIX-BACKLOG for per-worker `BACKTEST_OUTPUT_DIR` routing.
+- **Expectancy added:** `(winRate × avgWinner) + ((1 − winRate) × avgLoser)` — straight addition because `avgLoserDollars` is stored negative. Verified via smoke test: 3W@+$45, 2L@−$30 → $15.00 per trade.
+- **Smoke test:** Unit test on BacktestRecorder (24 fields in getSummary, expectancy math verified, printSummary emits Expectancy line) + regex validation (all 10 matrix-sweep patterns match live printSummary output).
+
 ### Doc Alignment Sweep — 15 items across 11 files (2026-04-20)
 
 #### Docs-only batched commit (`70d0566`)
