@@ -21,6 +21,11 @@
  *   = 4 strategies x 25 valid SL/TP combos x 8 confidence levels = 800 configs
  *   At ~30s each with 14 workers on 7800X3D = ~30 minutes total
  *
+ * Metrics captured per run (FIX 2026-04-21):
+ *   finalBalance, trades, winRate, netPnl, fees,
+ *   maxDrawdown, profitFactor, expectancy, avgWin, avgLoss
+ *   (previously only 5 of 10 — stdout regex + JSON read now both emit full set)
+ *
  * Usage:
  *   node tools/matrix-sweep.js --data tsla              # Full matrix, all strategies
  *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only (200 configs)
@@ -318,16 +323,20 @@ function parseOutput(output, config) {
     conf: config.conf,
   };
 
+  // FIX 2026-04-21: regex patterns aligned with BacktestRecorder.printSummary actual format
+  //   - "Net P&L:" prints with "+$" prefix on positive values → allow optional +
+  //   - "Avg Winner:" / "Avg Loser:" (not "Win" / "Loss") → match Winner/Loser
+  //   - "Expectancy:" is now emitted by BacktestRecorder (was missing entirely before)
   var bal = output.match(/Final Balance:\s*\$?([\d,.]+)/);
   var trades = output.match(/Total Trades:\s*(\d+)/);
   var wr = output.match(/Win Rate:\s*([\d.]+)%/);
-  var pnl = output.match(/Net P&L:\s*\$?([-\d,.]+)/);
+  var pnl = output.match(/Net P&L:\s*\+?\$?([-\d,.]+)/);
   var fees = output.match(/Total Fees.*?:\s*\$?([\d,.]+)/);
   var dd = output.match(/Max Drawdown:\s*([\d.]+)%/);
   var pf = output.match(/Profit Factor:\s*([\d.]+)/);
-  var exp = output.match(/Expectancy:\s*\$?([-\d,.]+)/);
-  var avgWin = output.match(/Avg Win:\s*\$?([\d,.]+)/);
-  var avgLoss = output.match(/Avg Loss:\s*\$?([-\d,.]+)/);
+  var exp = output.match(/Expectancy:\s*\+?\$?([-\d,.]+)/);
+  var avgWin = output.match(/Avg Winner:\s*\+?\$?([-\d,.]+)/);
+  var avgLoss = output.match(/Avg Loser:\s*\$?([-\d,.]+)/);
 
   r.finalBalance = bal ? parseFloat(bal[1].replace(',', '')) : null;
   r.trades = trades ? parseInt(trades[1]) : null;
@@ -357,7 +366,9 @@ function tryReadReport(projectRoot) {
     if (reports.length === 0) return null;
     var reportPath = path.join(projectRoot, reports[0].name);
     var data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    try { fs.unlinkSync(reportPath); } catch (e) {}
+    // FIX 2026-04-21: removed unlinkSync — per-worker reports are kept for postmortem analysis.
+    // Race condition with parallel workers sharing PROJECT_ROOT is tracked in POST-MATRIX-BACKLOG
+    // (fix via per-worker BACKTEST_OUTPUT_DIR). Reports now accumulate until manually cleaned.
 
     var tradeList = data.trades || [];
     var summary = data.summary || {};
@@ -368,12 +379,22 @@ function tryReadReport(projectRoot) {
     var netPnl = summary.finalBalance ? summary.finalBalance - 10000 :
                  tradeList.reduce(function(s, t) { return s + (t.netPnlDollars || 0); }, 0);
 
+    // FIX 2026-04-21: expanded return shape — BacktestRunner.js now merges BacktestRecorder.getSummary()
+    // into report.summary, so these fields are available on JSON read (fallback path still returns null
+    // for absent values). Matches parseOutput() return shape for downstream consumers.
     return {
       finalBalance: summary.finalBalance || null,
       trades: tradeList.length || (summary.totalTrades || null),
-      winRate: tradeList.length > 0 ? (winners.length / tradeList.length) * 100 : null,
+      winRate: tradeList.length > 0 ? (winners.length / tradeList.length) * 100 :
+               (summary.winRate != null ? parseFloat(summary.winRate) : null),
       netPnl: netPnl,
-      fees: totalFees || null,
+      fees: totalFees || summary.totalFeesPaid || null,
+      maxDrawdown: summary.maxDrawdownPercent != null ? parseFloat(summary.maxDrawdownPercent) : null,
+      profitFactor: summary.profitFactor != null && summary.profitFactor !== 'N/A'
+                    ? parseFloat(summary.profitFactor) : null,
+      expectancy: summary.expectancy != null ? parseFloat(summary.expectancy) : null,
+      avgWin: summary.avgWinnerDollars != null ? summary.avgWinnerDollars : null,
+      avgLoss: summary.avgLoserDollars != null ? summary.avgLoserDollars : null,
     };
   } catch (e) { return null; }
 }

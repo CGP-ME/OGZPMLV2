@@ -188,10 +188,17 @@ class BacktestRunner {
         ? path.join(runDir, 'report.json')
         : path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
 
-      // FIX 2026-04-02: report.summary and report.metrics now use the SAME source (BacktestRecorder)
-      // Previously summary used StateManager (wrong) while metrics used BacktestRecorder (right)
+      // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)
+      //   Previously summary was a 7-field inline rebuild — matrix-sweep and grid-search consumers
+      //   only saw finalBalance/totalReturn/totalPnL. Now full metric set (profitFactor, expectancy,
+      //   drawdown, streaks, strategy/exit breakdowns) flows into JSON.
+      //   `totalReturn` preserved as alias for grid-search-confidence.js:77 back-compat.
+      const recorderSummary = this.ctx.backtestRecorder?.getSummary
+        ? this.ctx.backtestRecorder.getSummary()
+        : {};
       const report = {
         summary: {
+          ...recorderSummary,
           initialBalance: initialBalance,
           finalBalance: finalBalance,
           totalReturn: totalReturn,

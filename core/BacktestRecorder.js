@@ -269,6 +269,9 @@ class BacktestRecorder {
             profitFactor: losers.length > 0
                 ? (winners.reduce((sum, t) => sum + t.netPnlDollars, 0) / Math.abs(losers.reduce((sum, t) => sum + t.netPnlDollars, 0))).toFixed(2)
                 : 'N/A',
+            expectancy: this.trades.length > 0
+                ? (((winners.length / this.trades.length) * avgWinner) + ((losers.length / this.trades.length) * avgLoser)).toFixed(2)
+                : '0.00',
             maxLosingStreak,
             maxWinningStreak,
 
@@ -317,6 +320,7 @@ class BacktestRecorder {
         console.log(`   Avg Winner:        +$${s.avgWinnerDollars.toFixed(2)} (+${s.avgWinnerPercent}%)`);
         console.log(`   Avg Loser:         $${s.avgLoserDollars.toFixed(2)} (${s.avgLoserPercent}%)`);
         console.log(`   Profit Factor:     ${s.profitFactor}`);
+        console.log(`   Expectancy:        ${String(s.expectancy).startsWith('-') ? '' : '+'}$${s.expectancy} per trade`);
 
         console.log(`\n⚠️  RISK:`);
         console.log(`   Max Drawdown:      ${s.maxDrawdownPercent}% ($${s.maxDrawdownDollars})`);
