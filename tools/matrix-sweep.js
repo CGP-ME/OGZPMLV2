@@ -163,19 +163,20 @@ const GRID = {
   },
 };
 
-// Locked exits per strategy (from walk-forward validation)
-const LOCKED_EXITS = {
-  RSI:                  { sl: 0.8 },
-  EMASMACrossover:      { sl: 0.5 },
-  MADynamicSR:          { sl: 0.8 },
-  LiquiditySweep:       { sl: 2.0 },  // Fallback - uses structural exits
-  SmartMoneySweep:      { sl: 1.5 },
-  MarketRegime:         { sl: 0.8 },
-  MultiTimeframe:       { sl: 0.8 },
-  OGZTPO:               { sl: 0.8 },
-  OpeningRangeBreakout: { sl: 1.0 },
-  CandlePattern:        { sl: 0.8 },
-};
+// Locked exits per strategy — pulled from canonical source TradingConfig.exitContracts
+// (DEC-013: contracts are sealed with _validated markers). Previously this was a hardcoded
+// dict that had drifted from TradingConfig — 4 strategies (MultiTimeframe, OGZTPO,
+// OpeningRangeBreakout, SmartMoneySweep) had values that didn't match the real contract,
+// so sweeps were using the wrong locked-SL baseline. Reading from BASE_CONFIG keeps the
+// two in sync automatically.
+//
+// TradingConfig stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
+// Matrix-sweep passes STOP_LOSS_PERCENT env var to workers as positive absolute. Math.abs() bridges.
+const { BASE_CONFIG } = require('../core/TradingConfig.js');
+function getLockedSL(strat) {
+  const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
+  return Math.abs(contract.stopLossPercent);
+}
 
 // ===================================================================
 // MATRIX GENERATOR - Builds the combinatorial config list
@@ -185,11 +186,10 @@ function generateMatrix(strategies, grid, phase) {
   const configs = [];
 
   for (const strat of strategies) {
-    // Get SL values: if phase='conf', use locked exits
+    // Get SL values: if phase='conf', use locked exits from TradingConfig
     let slValues;
     if (phase === 'conf' || !grid.stopLoss) {
-      const locked = LOCKED_EXITS[strat] || { sl: 1.0 };
-      slValues = [locked.sl];
+      slValues = [getLockedSL(strat)];
     } else {
       slValues = grid.stopLoss;
     }
