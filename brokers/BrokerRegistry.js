@@ -63,6 +63,17 @@ const BrokerRegistry = {
     // STOCK BROKERS
     // =========================================================================
 
+    alpaca: {
+        name: 'Alpaca',
+        assetType: 'stocks',
+        filePath: './AlpacaAdapter',
+        description: 'Commission-free US equities, paper + live, REST + WebSocket',
+        features: ['stocks', 'paper', 'fractional'],
+        supported: ['TSLA', 'SPY', 'QQQ', 'NVDA', 'AAPL', 'AMD', 'MSFT'],
+        fees: { commission: 0 },
+        timeframe: '930-1600 EST'
+    },
+
     interactivebrokers: {
         name: 'Interactive Brokers',
         assetType: 'stocks',
