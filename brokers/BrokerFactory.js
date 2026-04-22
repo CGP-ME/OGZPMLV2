@@ -28,7 +28,7 @@ function createBrokerAdapter(brokerId, options = {}) {
     throw new Error(`[BrokerFactory] Unknown broker: ${brokerId}`);
   }
 
-  console.log(`🏭 [BrokerFactory] Creating adapter for ${info.name} (${info.assetType})`);
+  console.log(`[BrokerFactory] Creating adapter for ${info.name} (${info.assetType})`);
 
   // Resolve adapter path relative to /brokers directory
   const adapterPath = path.resolve(__dirname, info.filePath);
@@ -53,11 +53,11 @@ function createBrokerAdapter(brokerId, options = {}) {
       }
     }
 
-    console.log(`✅ [BrokerFactory] ${info.name} adapter created successfully`);
+    console.log(`[BrokerFactory] ${info.name} adapter created successfully`);
     return adapter;
 
   } catch (error) {
-    console.error(`❌ [BrokerFactory] Failed to create ${brokerId} adapter:`, error.message);
+    console.error(`[BrokerFactory] Failed to create ${brokerId} adapter:`, error.message);
     throw error;
   }
 }

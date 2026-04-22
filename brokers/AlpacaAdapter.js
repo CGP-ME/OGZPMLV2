@@ -31,12 +31,12 @@ class AlpacaAdapter extends IBrokerAdapter {
             this.baseUrl = 'https://api.alpaca.markets';
             this.dataUrl = 'https://data.alpaca.markets';
             this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
-            console.log('⚠️ [Alpaca] LIVE MODE — real money at risk');
+            console.log('[Alpaca] LIVE MODE - real money at risk');
         } else {
             this.baseUrl = 'https://paper-api.alpaca.markets';
             this.dataUrl = 'https://data.alpaca.markets'; // Data API is same for paper
             this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
-            console.log('📋 [Alpaca] Paper trading mode');
+            console.log('[Alpaca] Paper trading mode');
         }
 
         this.connected = false;
@@ -65,13 +65,13 @@ class AlpacaAdapter extends IBrokerAdapter {
             const account = await this.getBalance();
             if (account) {
                 this.connected = true;
-                console.log('✅ [Alpaca] Connected — account verified');
+                console.log('[Alpaca] Connected - account verified');
                 this.emit('connected', { broker: 'alpaca', ready: true });
                 return true;
             }
             return false;
         } catch (error) {
-            console.error('❌ [Alpaca] Connection failed:', error.message);
+            console.error('[Alpaca] Connection failed:', error.message);
             this.connected = false;
             return false;
         }
@@ -83,7 +83,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             this.ws = null;
         }
         this.connected = false;
-        console.log('📴 [Alpaca] Disconnected');
+        console.log('[Alpaca] Disconnected');
     }
 
     isConnected() {
@@ -264,12 +264,12 @@ class AlpacaAdapter extends IBrokerAdapter {
             const response = await axios.delete(`${this.baseUrl}/v2/positions`, {
                 headers: this._authHeaders()
             });
-            console.log('🔥 [Alpaca] All positions liquidated');
+            console.log('[Alpaca] All positions liquidated');
             return response.data || [];
         } catch (error) {
             // 404 means no positions to close — that's success
             if (error.response?.status === 404) {
-                console.log('✅ [Alpaca] No positions to liquidate — already flat');
+                console.log('[Alpaca] No positions to liquidate - already flat');
                 return [];
             }
             throw new Error(`[Alpaca] Failed to liquidate positions: ${error.message}`);
@@ -385,7 +385,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         // wss://paper-api.alpaca.markets/stream or wss://api.alpaca.markets/stream
         // For now, store the callback — full implementation in next commit
         this.subscriptions.set('account', callback);
-        console.log('⚠️ [Alpaca] Account stream subscription stored — wire in next commit');
+        console.log('[Alpaca] Account stream subscription stored - wire in next commit');
     }
 
     unsubscribeAll() {
@@ -508,13 +508,13 @@ class AlpacaAdapter extends IBrokerAdapter {
                 for (const msg of Array.isArray(messages) ? messages : [messages]) {
                     // Auth success
                     if (msg.T === 'success' && msg.msg === 'authenticated') {
-                        console.log('✅ [Alpaca] Data stream authenticated');
+                        console.log('[Alpaca] Data stream authenticated');
                         callback();
                         continue;
                     }
                     // Auth failure
                     if (msg.T === 'error') {
-                        console.error('❌ [Alpaca] Stream error:', msg.msg);
+                        console.error('[Alpaca] Stream error:', msg.msg);
                         continue;
                     }
                     // Trade updates
@@ -539,11 +539,11 @@ class AlpacaAdapter extends IBrokerAdapter {
         });
 
         this.ws.on('close', () => {
-            console.log('📴 [Alpaca] Data stream closed');
+            console.log('[Alpaca] Data stream closed');
         });
 
         this.ws.on('error', (err) => {
-            console.error('❌ [Alpaca] Data stream error:', err.message);
+            console.error('[Alpaca] Data stream error:', err.message);
         });
     }
 }
