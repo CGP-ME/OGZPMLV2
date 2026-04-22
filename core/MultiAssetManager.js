@@ -27,12 +27,9 @@ class MultiAssetManager {
   constructor(bot) {
     this.bot = bot;
 
-    // Current active asset
-    this.activeAsset = process.env.TRADING_PAIR || 'BTC-USD';
-
     // ══════════════════════════════════════════════════════════════════
-    // KRAKEN SYMBOL MAPPING
-    // Standard (BTC-USD) → Kraken REST (XXBTZUSD) → Kraken WS (XBT/USD)
+    // ASSET REGISTRY — map of standard symbol to broker + metadata.
+    // Initialized FIRST so the broker-aware default (below) can look it up.
     // ══════════════════════════════════════════════════════════════════
     this.assetRegistry = {
       // ── CRYPTO (Kraken) ─────────────────────────────────────────────
@@ -70,10 +67,24 @@ class MultiAssetManager {
       'PLTR':      { broker: 'alpaca', base: 'PLTR',  decimals: 2, minOrder: 1, label: 'Palantir',       assetClass: 'stocks' },
     };
 
+    // Broker-aware default asset — prevents crypto/stock mismatch when BROKER
+    // is changed without also updating TRADING_PAIR. Mercury 2026-04-22 catch:
+    // the prior hardcoded 'BTC-USD' default fired even on Alpaca broker runs.
+    // When TRADING_PAIR is explicitly set, that always wins.
+    let defaultAsset = 'BTC-USD';
+    const activeBroker = (process.env.BROKER || 'kraken').toLowerCase();
+    if (activeBroker !== 'kraken') {
+      const match = Object.entries(this.assetRegistry).find(
+        ([, info]) => info.broker === activeBroker
+      );
+      if (match) defaultAsset = match[0];
+    }
+    this.activeAsset = process.env.TRADING_PAIR || defaultAsset;
+
     // Per-asset candle history cache (so switching back doesn't lose data)
     this.candleCache = {};
 
-    console.log(`📊 MultiAssetManager initialized | Active: ${this.activeAsset} | ${Object.keys(this.assetRegistry).length} assets available`);
+    console.log(`[MultiAssetManager] Initialized | Active: ${this.activeAsset} | ${Object.keys(this.assetRegistry).length} assets available`);
   }
 
 

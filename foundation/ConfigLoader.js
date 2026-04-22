@@ -173,7 +173,10 @@ function buildConfig() {
     broker: {
       apiKey: track('broker.apiKey', envStr('KRAKEN_API_KEY', '')),
       apiSecret: track('broker.apiSecret', envStr('KRAKEN_API_SECRET', '')),
-      tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR', 'BTC-USD')),
+      // Default asset derived from BROKER: kraken -> BTC-USD, else -> TSLA.
+      // Prevents crypto default on stock brokers. Explicit TRADING_PAIR wins.
+      tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR',
+        envStr('BROKER', 'kraken').toLowerCase() === 'kraken' ? 'BTC-USD' : 'TSLA')),
       candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
       tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
     },
