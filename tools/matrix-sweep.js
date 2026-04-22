@@ -31,7 +31,7 @@
  *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only (200 configs)
  *   node tools/matrix-sweep.js --data tsla --phase exits # Just SL/TP sweep, locked conf
  *   node tools/matrix-sweep.js --data tsla --phase conf  # Just confidence, locked exits
- *   # --phase atr is NOT IMPLEMENTED. ATR dimension tuning is tracked in POST-MATRIX-BACKLOG. To add when U-methodology extends.
+ *   # ATR dimension tuning: use `node tools/parallel-backtest.js --atr --data <ticker>`
  *   node tools/matrix-sweep.js --data tsla --quick       # Reduced grid (fast sanity check)
  *
  * Output:
@@ -392,8 +392,8 @@ function tryReadReport(projectRoot, tag) {
     var reportPath = path.join(scanDir, reports[0].name);
     var data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     // FIX 2026-04-21: removed unlinkSync — per-worker reports are kept for postmortem analysis.
-    // Race condition with parallel workers sharing PROJECT_ROOT is tracked in POST-MATRIX-BACKLOG
-    // (fix via per-worker BACKTEST_OUTPUT_DIR). Reports now accumulate until manually cleaned.
+    // Race fix (2026-04-22, commit 747909d): workers route to backtest-results/worker-reports/
+    // via BACKTEST_REPORT_TAG uid, and tryReadReport filters by tag (scanDir logic above).
 
     var tradeList = data.trades || [];
     var summary = data.summary || {};
