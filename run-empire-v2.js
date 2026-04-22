@@ -586,12 +586,12 @@ class OGZPrimeV14Bot {
     // this.safetyNet = new TradingSafetyNet(); // DISABLED - blocking everything
     // this.tradeLogger = new TradeLogger(); // Module doesn't exist
 
-    console.log('ðŸ” [DEBUG] About to create Kraken adapter...');
-    console.log('ðŸ” [DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
+    console.log('[DEBUG] About to create ' + (process.env.BROKER || 'alpaca') + ' adapter...');
+    console.log('[DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
-    // EMPIRE V2: Create Kraken adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
+    // EMPIRE V2: Create broker adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
     // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
-    // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default → stocks paper).
+    // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default -> stocks paper).
     // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
     // adapter BrokerFactory returns. SessionRouter (pre-Apex) will replace with dual-broker.
     const brokerId = process.env.BROKER || 'alpaca';
@@ -599,8 +599,8 @@ class OGZPrimeV14Bot {
       ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
       : {};
     this.kraken = createBrokerAdapter(brokerId, adapterOptions);
-    console.log('ðŸ­ [EMPIRE V2] Created Kraken adapter via BrokerFactory');
-    console.log('ðŸ” [DEBUG] Kraken adapter type:', this.kraken.constructor.name);
+    console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
+    console.log('[DEBUG] Broker adapter type:', this.kraken.constructor.name);
 
     // Phase 2 REWRITE: executionLayer deleted - OrderRouter handles routing directly
 
