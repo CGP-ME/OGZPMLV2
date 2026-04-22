@@ -106,6 +106,27 @@ function getDataLabel(dataFile) {
   return base;
 }
 
+// Build the full strict-monotonic tier cube (tier1 < tier2 < tier3) from a
+// single grid of decimal percentages. N values produce C(N,3) tier combinations.
+// e.g. 10 values → 120 combos. Each combo is a {t1, t2, t3, label} object that
+// matches the existing tierPreset contract in generateMatrix.
+function buildMonotonicTierCube(grid) {
+  var combos = [];
+  for (var i = 0; i < grid.length - 2; i++) {
+    for (var j = i + 1; j < grid.length - 1; j++) {
+      for (var k = j + 1; k < grid.length; k++) {
+        combos.push({
+          t1: grid[i],
+          t2: grid[j],
+          t3: grid[k],
+          label: 't' + (grid[i] * 100).toFixed(2) + '_' + (grid[j] * 100).toFixed(2) + '_' + (grid[k] * 100).toFixed(2),
+        });
+      }
+    }
+  }
+  return combos;
+}
+
 // ===================================================================
 // MATRIX DIMENSIONS - The search space
 // ===================================================================
@@ -143,16 +164,14 @@ const GRID = {
     ],
     confidence: [0.40, 0.55, 0.70],
   },
-  // Exit-only phase (locked confidence, sweep SL + tiers)
+  // Exit-only phase (locked confidence, sweep SL × strict-monotonic tier cube).
+  // FIX 2026-04-22: expanded per operator directive — was 8 irregular SL × 5 named
+  // presets = 40 configs. Now 10 regular-step SL × C(10,3) = 120 strict-monotonic
+  // tier combos = 1,200 configs per strategy. Captures full SL×tier1×tier2×tier3
+  // interaction surface that the prior hand-picked-presets approach missed.
   exits: {
-    stopLoss:   [0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0],
-    tierPresets: [
-      { t1: 0.003, t2: 0.006, t3: 0.010, label: 'scalp' },
-      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
-      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
-      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
-      { t1: 0.015, t2: 0.020, t3: 0.030, label: 'ultra-wide' },
-    ],
+    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75],
+    tierPresets: buildMonotonicTierCube([0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275]),
     confidence: [0.60],  // Locked at current validated value
   },
   // Confidence-only phase (locked exits at current best per strategy)
