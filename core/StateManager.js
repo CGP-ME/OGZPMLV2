@@ -575,7 +575,7 @@ class StateManager {
    * @param {Object} context - Additional context (orderId, exitReason, etc.).
    */
   async reducePosition(tradeId, fraction, price, context = {}) {
-    if (fraction <= 0 || fraction >= 1) {
+    if (fraction <= 0 || fraction > 1) {
       console.error('[StateManager] reducePosition called with invalid fraction:', fraction);
       return { success: false, error: 'Invalid fraction for reducePosition' };
     }
