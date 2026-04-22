@@ -1,0 +1,714 @@
+{
+  "confidence": {
+    "minTradeConfidence": 0.5,
+    "maxConfidence": 0.95,
+    "minStrategyConfidence": 0.35,
+    "candlePatternMinConfidence": 0.7,
+    "regimeMinConfidence": 0.3,
+    "confluenceMinScore": 0.3,
+    "tpoStrengthMin": 0.03
+  },
+  "risk": {
+    "maxRiskPerTrade": 0.02,
+    "maxDrawdown": 18,
+    "maxDailyLoss": 10,
+    "recoveryModeReduction": 0.5,
+    "counterTrendReduction": 0.3,
+    "lowConfidenceReduction": 0.25,
+    "highConfidenceBoost": 1.3
+  },
+  "positionSizing": {
+    "basePositionSize": 0.01,
+    "maxPositionSize": 0.05,
+    "maxPositions": 3,
+    "lowVolMultiplier": 1.5,
+    "highVolMultiplier": 0.6,
+    "lowVolThreshold": 0.015,
+    "highVolThreshold": 0.035,
+    "confidenceSizeMin": 0.5,
+    "confidenceSizeMax": 2.5,
+    "confidenceSizeSlope": 4,
+    "confluenceMultipliers": {
+      "1": 1,
+      "2": 1.5,
+      "3": 2,
+      "4": 2.5
+    }
+  },
+  "regimeBoosts": {
+    "trending": {
+      "EMASMACrossover": 1.15,
+      "MADynamicSR": 1.15,
+      "RSI": 0.85,
+      "LiquiditySweep": 1,
+      "SmartMoneySweep": 1
+    },
+    "ranging": {
+      "EMASMACrossover": 0.85,
+      "MADynamicSR": 0.85,
+      "RSI": 1.15,
+      "LiquiditySweep": 1,
+      "SmartMoneySweep": 1.1
+    },
+    "volatile": {
+      "EMASMACrossover": 0.7,
+      "MADynamicSR": 0.7,
+      "RSI": 1.1,
+      "LiquiditySweep": 1.2,
+      "SmartMoneySweep": 1.15,
+      "_positionSizeMultiplier": 0.6
+    },
+    "dead": {
+      "EMASMACrossover": 0.6,
+      "MADynamicSR": 0.7,
+      "RSI": 0.7,
+      "LiquiditySweep": 0.5,
+      "SmartMoneySweep": 0.5,
+      "_positionSizeMultiplier": 0.5
+    },
+    "unknown": {}
+  },
+  "volumeProfileBoosts": {
+    "aboveVAH": {
+      "EMASMACrossover": 1.2,
+      "MADynamicSR": 1.2,
+      "RSI": 0.8,
+      "LiquiditySweep": 1.1,
+      "SmartMoneySweep": 1.1
+    },
+    "belowVAL": {
+      "EMASMACrossover": 1.2,
+      "MADynamicSR": 1.2,
+      "RSI": 0.8,
+      "LiquiditySweep": 1.1,
+      "SmartMoneySweep": 1.1
+    },
+    "atPOC": {
+      "EMASMACrossover": 0.85,
+      "MADynamicSR": 0.85,
+      "RSI": 1.25,
+      "LiquiditySweep": 0.9,
+      "SmartMoneySweep": 0.9
+    },
+    "inLVN": {
+      "_allStrategies": 0.9
+    },
+    "inValueArea": {
+      "EMASMACrossover": 0.95,
+      "MADynamicSR": 0.95,
+      "RSI": 1.1,
+      "LiquiditySweep": 1,
+      "SmartMoneySweep": 1
+    }
+  },
+  "pid": {
+    "enabled": true,
+    "updateInterval": 10,
+    "warmupTrades": 50,
+    "windowSize": 20,
+    "positionKp": 0.3,
+    "positionKi": 0.05,
+    "positionKd": 0.1,
+    "targetEquitySlope": 0.005,
+    "regimeKp": 0.02,
+    "regimeKi": 0.005,
+    "regimeKd": 0.01,
+    "trailKp": 0.15,
+    "trailKi": 0.03,
+    "trailKd": 0.05,
+    "targetMFERatio": 0.6
+  },
+  "exits": {
+    "stopLossPercent": 0.8,
+    "takeProfitPercent": 1,
+    "trailingStopPercent": 0.6,
+    "trailingActivation": 0.8,
+    "breakevenTrigger": 0.005,
+    "breakevenExitPercent": 0.5,
+    "postBreakevenTrail": 0.05,
+    "profitProtectionLevel": 0.015,
+    "profitTiers": {
+      "tier1": 0.007,
+      "tier2": 0.01,
+      "tier3": 0.015,
+      "final": 0.025
+    },
+    "normalTrailDistance": 0.025,
+    "tightTrailDistance": 0.015,
+    "volatilityThreshold": 5,
+    "volatilitySlMultiplier": 1.15,
+    "volatilityTpMultiplier": 1.2
+  },
+  "exitContracts": {
+    "EMASMACrossover": {
+      "stopLossPercent": -0.5,
+      "takeProfitPercent": 1,
+      "trailingStopPercent": 0.8,
+      "trailingActivation": 1,
+      "maxHoldTimeMinutes": 300,
+      "invalidationConditions": [
+        "ema_cross_reversal"
+      ],
+      "_validated": "2026-03-20"
+    },
+    "LiquiditySweep": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.5,
+      "trailingActivation": 0.7,
+      "maxHoldTimeMinutes": 180,
+      "useStructuralExits": true,
+      "invalidationConditions": [
+        "liquidity_absorbed"
+      ],
+      "_validated": "2026-03-20"
+    },
+    "RSI": {
+      "stopLossPercent": -0.8,
+      "takeProfitPercent": 1,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "minConfidence": 0.6,
+      "invalidationConditions": [],
+      "_validated": "2026-03-20"
+    },
+    "MADynamicSR": {
+      "stopLossPercent": -0.8,
+      "takeProfitPercent": 1,
+      "trailingStopPercent": 0.5,
+      "trailingActivation": 0.7,
+      "maxHoldTimeMinutes": 180,
+      "invalidationConditions": [
+        "sr_break"
+      ],
+      "_validated": "2026-03-20"
+    },
+    "CandlePattern": {
+      "stopLossPercent": -0.8,
+      "takeProfitPercent": 1,
+      "trailingStopPercent": 0.5,
+      "trailingActivation": 0.7,
+      "maxHoldTimeMinutes": 150,
+      "invalidationConditions": [
+        "pattern_invalidated"
+      ]
+    },
+    "MarketRegime": {
+      "stopLossPercent": -0.8,
+      "takeProfitPercent": 1,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 360,
+      "invalidationConditions": [
+        "regime_change"
+      ]
+    },
+    "MultiTimeframe": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.8,
+      "trailingActivation": 1,
+      "maxHoldTimeMinutes": 300,
+      "invalidationConditions": []
+    },
+    "OGZTPO": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "invalidationConditions": []
+    },
+    "OpeningRangeBreakout": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 180,
+      "invalidationConditions": [
+        "fvg_filled",
+        "or_break_reversal"
+      ]
+    },
+    "SmartMoneySweep": {
+      "stopLossPercent": -0.3,
+      "takeProfitPercent": 1.5,
+      "trailingStopPercent": 0.5,
+      "trailingActivation": 0.5,
+      "maxHoldTimeMinutes": 900,
+      "useStructuralExits": true,
+      "invalidationConditions": [
+        "sweep_absorbed"
+      ]
+    },
+    "default": {
+      "stopLossPercent": -2,
+      "takeProfitPercent": 2.5,
+      "trailingStopPercent": 0.6,
+      "trailingActivation": 0.8,
+      "maxHoldTimeMinutes": 240,
+      "invalidationConditions": []
+    }
+  },
+  "exitLogic": {
+    "beScaleOut": {
+      "enabled": true,
+      "triggerType": "one_to_one_r",
+      "fixedPercentTrigger": 0.5,
+      "scaleOutFraction": 0.5,
+      "feeBufferPercent": 0.05
+    },
+    "tieredExit": {
+      "tier1ExitFraction": 0.3,
+      "tier2ExitFraction": 0.3,
+      "tier3ExitFraction": 0.2,
+      "trendingTargetMultiplier": 1.3,
+      "rangingTargetMultiplier": 0.8,
+      "highConfidenceThreshold": 0.8,
+      "highConfidenceMultiplier": 1.2,
+      "lowConfidenceThreshold": 0.6,
+      "lowConfidenceMultiplier": 0.8
+    },
+    "trail": {
+      "enabled": true,
+      "minActivationPercent": 0.5,
+      "atrMultiplier": 2,
+      "trendWidenMultiplier": 1.5,
+      "structureTightenMultiplier": 0.5,
+      "structureDistanceThreshold": 1,
+      "profitRatchetThreshold": 3,
+      "profitRatchetRate": 0.1,
+      "profitRatchetFloor": 0.6,
+      "minTrailPercent": 0.3,
+      "maxTrailPercent": 3,
+      "feeBufferPercent": 0.65,
+      "roundNumberProximity": 0.5,
+      "roundNumberTighten": 0.7
+    },
+    "profitFloor": {
+      "enabled": true,
+      "tiers": [
+        {
+          "profit": 0.5,
+          "protect": 0.3
+        },
+        {
+          "profit": 1,
+          "protect": 0.5
+        },
+        {
+          "profit": 1.5,
+          "protect": 0.7
+        },
+        {
+          "profit": 2,
+          "protect": 0.85
+        }
+      ]
+    },
+    "reversalDetection": {
+      "enabled": true,
+      "minProfitRequired": 0.3,
+      "patterns": [
+        "double_top",
+        "double_bottom",
+        "head_shoulders",
+        "inv_head_shoulders",
+        "evening_star",
+        "morning_star",
+        "bearish_engulfing",
+        "bullish_engulfing",
+        "shooting_star",
+        "hammer",
+        "doji_star",
+        "dark_cloud",
+        "piercing_line"
+      ],
+      "exitFraction": 1
+    },
+    "safety": {
+      "hardStopLossPercent": -3,
+      "accountDrawdownPercent": -5,
+      "accountDrawdownBypass": true,
+      "maxHoldTimeMinutes": 480
+    }
+  },
+  "entryLogic": {
+    "sizing": {
+      "enabled": true,
+      "basePositionPercent": 0.01,
+      "maxPositionPercent": 0.05,
+      "absoluteCapPercent": 0.15,
+      "confidenceCurve": [
+        {
+          "confidence": 0,
+          "multiplier": 0.25
+        },
+        {
+          "confidence": 0.5,
+          "multiplier": 0.5
+        },
+        {
+          "confidence": 0.6,
+          "multiplier": 1
+        },
+        {
+          "confidence": 0.75,
+          "multiplier": 1.5
+        },
+        {
+          "confidence": 0.9,
+          "multiplier": 2.5
+        },
+        {
+          "confidence": 1,
+          "multiplier": 2.5
+        }
+      ],
+      "volatilityCurve": [
+        {
+          "atrPercent": 0,
+          "multiplier": 1.5
+        },
+        {
+          "atrPercent": 0.15,
+          "multiplier": 1.2
+        },
+        {
+          "atrPercent": 0.3,
+          "multiplier": 1
+        },
+        {
+          "atrPercent": 0.6,
+          "multiplier": 0.8
+        },
+        {
+          "atrPercent": 1,
+          "multiplier": 0.6
+        },
+        {
+          "atrPercent": 2,
+          "multiplier": 0.4
+        }
+      ],
+      "patternMultipliers": {
+        "promoted": 1.5,
+        "neutral": 1,
+        "learning": 1,
+        "quarantined": 0.25,
+        "unknown": 1
+      },
+      "confluenceMultipliers": [
+        1,
+        1,
+        1.25,
+        1.5,
+        1.75,
+        2
+      ]
+    }
+  },
+  "strategies": {
+    "MADynamicSR": {
+      "entryMaPeriod": 20,
+      "srMaPeriod": 200,
+      "touchZonePct": 0.6,
+      "srTestCount": 2,
+      "swingLookback": 3,
+      "srZonePct": 1,
+      "slopeLookback": 5,
+      "minSlopePct": 0.03,
+      "extensionPct": 2,
+      "skipFirstTouch": true,
+      "atrPeriod": 14,
+      "patternPersistBars": 15,
+      "enabled": true
+    },
+    "EMACrossover": {
+      "decayBars": 10,
+      "snapbackThreshold": 2.5,
+      "blowoffThreshold": 0.15,
+      "enabled": true
+    },
+    "LiquiditySweep": {
+      "sweepLookbackBars": 50,
+      "sweepMinExtensionPct": 0.1,
+      "atrMultiplier": 0.25,
+      "atrPeriod": 14,
+      "entryWindowMinutes": 90,
+      "hammerBodyMaxPct": 0.35,
+      "hammerWickMinRatio": 2,
+      "engulfMinRatio": 1,
+      "stopBufferPct": 0.05,
+      "disableSessionCheck": true,
+      "enabled": true
+    },
+    "RSI": {
+      "period": 14,
+      "oversoldLevel": 30,
+      "overboughtLevel": 70,
+      "enabled": true
+    },
+    "VolumeProfile": {
+      "sessionLookback": 96,
+      "numBins": 50,
+      "valueAreaPct": 0.7,
+      "outOfBalancePct": 0.5,
+      "recalcInterval": 5,
+      "enabled": true
+    },
+    "SmartMoneySweep": {
+      "vpDays": 5,
+      "vpBins": 50,
+      "valueAreaPct": 70,
+      "bodyWeightPct": 70,
+      "lvnPctile": 20,
+      "ivbMinutes": 30,
+      "volAvgLen": 20,
+      "absorbBodyPct": 35,
+      "absorbWickPct": 60,
+      "absorbVolMult": 1.2,
+      "initBodyPct": 60,
+      "absorbBodyProgPct": 50,
+      "absorbWickProgPct": 40,
+      "absorbVolProgMult": 0.9,
+      "initBodyProgPct": 45,
+      "cvdDivLen": 10,
+      "atrLen": 14,
+      "lowConvATRMult": 0.5,
+      "midConvATRMult": 1,
+      "highConvATRMult": 1.5,
+      "slBufferPct": 0.15,
+      "maxLossPct": 0.3,
+      "maxHoldBars": 60,
+      "maxDailyLosses": 3,
+      "vpRthOnly": true,
+      "vpLookbackBars": 0,
+      "sweepMaxOffset": 3,
+      "enabled": true
+    },
+    "OpeningRangeBreakout": {
+      "sessionOpenHourUTC": 14,
+      "orDurationMinutes": 15,
+      "fvgScanBars": 10,
+      "minFVGPercent": 0.05,
+      "maxFVGPercent": 2,
+      "entryLevel": "top",
+      "stopBufferPct": 0.05,
+      "targetRR": 2,
+      "enabled": true
+    }
+  },
+  "orchestrator": {
+    "minCandlesEMA": 20,
+    "minCandlesMASR": 50,
+    "minCandlesSweep": 20,
+    "minCandlesMTF": 30,
+    "minCandlesTPO": 30,
+    "fibDistanceEMA": 0.5,
+    "fibDistanceMASR": 0.5,
+    "fibDistanceSweep": 0.8,
+    "fibBoostNormal": 0.1,
+    "fibBoostGolden": 0.15,
+    "tpoStrengthMultiplier": 10,
+    "mtfTimeframes": [
+      "1m",
+      "5m",
+      "15m",
+      "1h",
+      "4h"
+    ]
+  },
+  "universalLimits": {
+    "hardStopLossPercent": -5,
+    "accountDrawdownPercent": -10,
+    "maxHoldTimeMinutes": 360,
+    "accountDrawdownBypass": true
+  },
+  "holdTimes": {
+    "defaultMaxHold": 180,
+    "minHoldTimeMinutes": 0,
+    "tighteningSchedule": [
+      {
+        "minutes": 30,
+        "trailFactor": 1
+      },
+      {
+        "minutes": 60,
+        "trailFactor": 0.8
+      },
+      {
+        "minutes": 120,
+        "trailFactor": 0.6
+      },
+      {
+        "minutes": 180,
+        "trailFactor": 0.4
+      }
+    ]
+  },
+  "fees": {
+    "makerFee": 0.0025,
+    "takerFee": 0.004,
+    "slippage": 0.0005,
+    "totalRoundTrip": 0.005,
+    "safetyBuffer": 0.001,
+    "minProfitAfterFees": 0.006
+  },
+  "filters": {
+    "atrEnabled": true,
+    "atrMinPercent": 0.15
+  },
+  "timeframeConfig": {
+    "1m": {
+      "trailPct": 0.003,
+      "maxHoldMin": 15,
+      "slPct": 0.005,
+      "tpPct": 0.008
+    },
+    "5m": {
+      "trailPct": 0.006,
+      "maxHoldMin": 60,
+      "slPct": 0.01,
+      "tpPct": 0.018
+    },
+    "15m": {
+      "trailPct": 0.01,
+      "maxHoldMin": 120,
+      "slPct": 0.015,
+      "tpPct": 0.025
+    },
+    "30m": {
+      "trailPct": 0.015,
+      "maxHoldMin": 240,
+      "slPct": 0.02,
+      "tpPct": 0.035
+    },
+    "1h": {
+      "trailPct": 0.02,
+      "maxHoldMin": 480,
+      "slPct": 0.025,
+      "tpPct": 0.045
+    },
+    "4h": {
+      "trailPct": 0.03,
+      "maxHoldMin": 1440,
+      "slPct": 0.035,
+      "tpPct": 0.07
+    },
+    "1d": {
+      "trailPct": 0.04,
+      "maxHoldMin": 4320,
+      "slPct": 0.05,
+      "tpPct": 0.1
+    }
+  },
+  "regimeMultipliers": {
+    "strong_uptrend": {
+      "slMultiplier": 1.5,
+      "tpMultiplier": 2
+    },
+    "mild_uptrend": {
+      "slMultiplier": 1.2,
+      "tpMultiplier": 1.5
+    },
+    "trading_range": {
+      "slMultiplier": 0.8,
+      "tpMultiplier": 1
+    },
+    "accumulation": {
+      "slMultiplier": 2,
+      "tpMultiplier": 1.5
+    },
+    "volatile_spike": {
+      "slMultiplier": 0.5,
+      "tpMultiplier": 0.8
+    },
+    "breakout": {
+      "slMultiplier": 1,
+      "tpMultiplier": 3
+    },
+    "consolidation": {
+      "slMultiplier": 1,
+      "tpMultiplier": 2
+    }
+  },
+  "profiles": {
+    "scalper": {
+      "minConfidence": 0.4,
+      "maxPositionSize": 0.1,
+      "riskPercent": 0.005,
+      "maxHoldMinutes": 30
+    },
+    "day_trader": {
+      "minConfidence": 0.5,
+      "maxPositionSize": 0.15,
+      "riskPercent": 0.01,
+      "maxHoldMinutes": 480
+    },
+    "swing": {
+      "minConfidence": 0.6,
+      "maxPositionSize": 0.25,
+      "riskPercent": 0.02,
+      "maxHoldMinutes": 4320
+    },
+    "conservative": {
+      "minConfidence": 0.7,
+      "maxPositionSize": 0.1,
+      "riskPercent": 0.01,
+      "maxHoldMinutes": 1440
+    },
+    "balanced": {
+      "minConfidence": 0.55,
+      "maxPositionSize": 0.2,
+      "riskPercent": 0.015,
+      "maxHoldMinutes": 720
+    },
+    "quantum": {
+      "minConfidence": 0.5,
+      "maxPositionSize": 0.15,
+      "riskPercent": 0.01,
+      "maxHoldMinutes": 480
+    }
+  },
+  "scalper": {
+    "microProfitTarget": 0.005,
+    "quickProfitTarget": 0.008,
+    "momentumShiftExit": 0.15,
+    "stopMultiplier": 0.5,
+    "maxHoldTime": 300000
+  },
+  "features": {
+    "enableDynamicSizing": true,
+    "enableVolatilityScaling": true,
+    "enableLearning": true,
+    "enableArbitrage": true,
+    "enableHedging": true,
+    "enableShorts": false
+  },
+  "pipeline": {
+    "enableRSI": true,
+    "enableMADynamicSR": true,
+    "enableEMACrossover": true,
+    "enableLiquiditySweep": true,
+    "enableBreakRetest": false,
+    "enableMarketRegime": false,
+    "enableMultiTimeframe": true,
+    "enableOGZTPO": true,
+    "enableOpeningRangeBreakout": false,
+    "enableSmartMoneySweep": false,
+    "enableRiskManager": true,
+    "enableTRAI": false,
+    "traiEnableBacktest": true,
+    "enableDashboard": true,
+    "enableNotifications": true,
+    "executionMode": "paper",
+    "candleSource": "live",
+    "candleFile": "tuning/full-45k.json",
+    "directionFilter": "long_only",
+    "positionMode": "single"
+  },
+  "fundTarget": 25000,
+  "startingBalance": 10000
+}

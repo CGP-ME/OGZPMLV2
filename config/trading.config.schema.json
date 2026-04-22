@@ -1,0 +1,297 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ogzprime.com/schemas/trading.config.schema.json",
+  "title": "OGZPrime Trading Config",
+  "description": "Canonical schema for config/trading.config.json. Mirrors the shape of TradingConfig.BASE_CONFIG at commit 747909d. Phase 1 of config consolidation — matches current shape, validates top-level keys and critical constraints; nested objects allow additional properties so _validated / _meta markers on locked exit contracts pass through unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "confidence",
+    "risk",
+    "positionSizing",
+    "regimeBoosts",
+    "volumeProfileBoosts",
+    "pid",
+    "exits",
+    "exitContracts",
+    "exitLogic",
+    "entryLogic",
+    "strategies",
+    "orchestrator",
+    "universalLimits",
+    "holdTimes",
+    "fees",
+    "filters",
+    "timeframeConfig",
+    "regimeMultipliers",
+    "profiles",
+    "scalper",
+    "features",
+    "pipeline",
+    "fundTarget",
+    "startingBalance"
+  ],
+  "properties": {
+    "confidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "minTradeConfidence",
+        "maxConfidence",
+        "minStrategyConfidence"
+      ],
+      "properties": {
+        "minTradeConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minStrategyConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "candlePatternMinConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "regimeMinConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confluenceMinScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tpoStrengthMin": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["maxRiskPerTrade", "maxDrawdown", "maxDailyLoss"],
+      "properties": {
+        "maxRiskPerTrade": { "type": "number", "minimum": 0, "maximum": 1, "description": "Decimal (0.02 = 2%)" },
+        "maxDrawdown": { "type": "number", "description": "DECIMAL form. 0.18 = 18%. Values > 1.0 rejected in Phase 3 validator." },
+        "maxDailyLoss": { "type": "number", "description": "DECIMAL form. See maxDrawdown." },
+        "recoveryModeReduction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "counterTrendReduction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "lowConfidenceReduction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "highConfidenceBoost": { "type": "number", "minimum": 1 }
+      }
+    },
+    "positionSizing": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["basePositionSize", "maxPositionSize", "maxPositions"],
+      "properties": {
+        "basePositionSize": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxPositionSize": { "type": "number", "minimum": 0, "maximum": 1, "description": "BASE multiplier, not hard cap (see Phase 0 notes)" },
+        "maxPositions": { "type": "integer", "minimum": 1 },
+        "lowVolMultiplier": { "type": "number", "minimum": 0 },
+        "highVolMultiplier": { "type": "number", "minimum": 0 },
+        "lowVolThreshold": { "type": "number", "minimum": 0 },
+        "highVolThreshold": { "type": "number", "minimum": 0 },
+        "confidenceSizeMin": { "type": "number", "minimum": 0 },
+        "confidenceSizeMax": { "type": "number", "minimum": 0 },
+        "confidenceSizeSlope": { "type": "number" },
+        "confluenceMultipliers": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "regimeBoosts": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Confidence multipliers per strategy per regime. Mutates confidence at StrategyOrchestrator.js:772.",
+      "required": ["trending", "ranging", "volatile", "dead", "unknown"],
+      "properties": {
+        "trending": { "type": "object", "additionalProperties": { "type": "number" } },
+        "ranging": { "type": "object", "additionalProperties": { "type": "number" } },
+        "volatile": { "type": "object", "additionalProperties": { "type": "number" } },
+        "dead": { "type": "object", "additionalProperties": { "type": "number" } },
+        "unknown": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "volumeProfileBoosts": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["aboveVAH", "belowVAL", "atPOC", "inLVN", "inValueArea"],
+      "properties": {
+        "aboveVAH": { "type": "number" },
+        "belowVAL": { "type": "number" },
+        "atPOC": { "type": "number" },
+        "inLVN": { "type": "number" },
+        "inValueArea": { "type": "number" }
+      }
+    },
+    "pid": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["enabled", "windowSize"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "updateInterval": { "type": "integer", "minimum": 1 },
+        "warmupTrades": { "type": "integer", "minimum": 0 },
+        "windowSize": { "type": "integer", "minimum": 1 },
+        "positionKp": { "type": "number" },
+        "positionKi": { "type": "number" }
+      }
+    },
+    "exits": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["stopLossPercent", "takeProfitPercent"],
+      "properties": {
+        "stopLossPercent": { "type": "number", "description": "Decimal, 0.025 = 2.5%" },
+        "takeProfitPercent": { "type": "number" },
+        "trailingStopPercent": { "type": "number" },
+        "trailingActivation": { "type": "number" },
+        "breakevenTrigger": { "type": "number" },
+        "breakevenExitPercent": { "type": "number" }
+      }
+    },
+    "exitContracts": {
+      "type": "object",
+      "additionalProperties": {
+        "description": "Per-strategy locked exit contract. DEC-013: contracts are sealed at birth and must not be modified — _validated marker is the audit trail.",
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "exitLogic": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "beScaleOut": { "type": "object", "additionalProperties": true },
+        "tieredExit": { "type": "object", "additionalProperties": true },
+        "trail": { "type": "object", "additionalProperties": true },
+        "profitFloor": { "type": "object", "additionalProperties": true },
+        "reversalDetection": { "type": "object", "additionalProperties": true },
+        "safety": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "entryLogic": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sizing": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "strategies": {
+      "type": "object",
+      "additionalProperties": {
+        "description": "Per-strategy configuration.",
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "orchestrator": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "minCandlesEMA": { "type": "integer", "minimum": 0 },
+        "minCandlesMASR": { "type": "integer", "minimum": 0 },
+        "minCandlesSweep": { "type": "integer", "minimum": 0 },
+        "minCandlesMTF": { "type": "integer", "minimum": 0 },
+        "minCandlesTPO": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "universalLimits": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["hardStopLossPercent", "accountDrawdownPercent", "maxHoldTimeMinutes"],
+      "properties": {
+        "hardStopLossPercent": { "type": "number" },
+        "accountDrawdownPercent": { "type": "number" },
+        "maxHoldTimeMinutes": { "type": "integer", "minimum": 1 },
+        "accountDrawdownBypass": { "type": "boolean" }
+      }
+    },
+    "holdTimes": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "defaultMaxHold": { "type": "integer", "minimum": 1 },
+        "minHoldTimeMinutes": { "type": "integer", "minimum": 0 },
+        "tighteningSchedule": { "type": ["object", "array", "null"] }
+      }
+    },
+    "fees": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["makerFee", "takerFee"],
+      "properties": {
+        "makerFee": { "type": "number", "minimum": 0 },
+        "takerFee": { "type": "number", "minimum": 0 },
+        "slippage": { "type": "number", "minimum": 0 },
+        "totalRoundTrip": { "type": "number", "minimum": 0 },
+        "safetyBuffer": { "type": "number", "minimum": 0 },
+        "minProfitAfterFees": { "type": "number" }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "atrEnabled": { "type": "boolean" },
+        "atrMinPercent": { "type": "number", "minimum": 0 }
+      }
+    },
+    "timeframeConfig": {
+      "type": "object",
+      "description": "Per-timeframe ('1m', '5m', '15m', '30m', '1h', '4h', '1d') settings.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "regimeMultipliers": {
+      "type": "object",
+      "description": "Per-regime confidence multipliers (strong_uptrend, mild_uptrend, trading_range, accumulation, volatile_spike, breakout, etc).",
+      "additionalProperties": {
+        "type": ["number", "object"]
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Named config profiles (scalper, day_trader, swing, conservative, balanced, quantum). Selected via --profile CLI flag (Phase 2+).",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "scalper": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "microProfitTarget": { "type": "number" },
+        "quickProfitTarget": { "type": "number" },
+        "momentumShiftExit": { "type": "boolean" },
+        "stopMultiplier": { "type": "number" },
+        "maxHoldTime": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags — boolean toggles for major subsystems.",
+      "additionalProperties": true,
+      "properties": {
+        "enableDynamicSizing": { "type": "boolean" },
+        "enableVolatilityScaling": { "type": "boolean" },
+        "enableLearning": { "type": "boolean" },
+        "enableArbitrage": { "type": "boolean" },
+        "enableHedging": { "type": "boolean" },
+        "enableShorts": { "type": "boolean" }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Per-module enable flags for the trading pipeline. All envBool-backed, so additional enableX flags may appear during migration.",
+      "additionalProperties": true,
+      "properties": {
+        "enableRSI": { "type": "boolean" },
+        "enableMADynamicSR": { "type": "boolean" },
+        "enableEMACrossover": { "type": "boolean" },
+        "enableLiquiditySweep": { "type": "boolean" },
+        "enableBreakRetest": { "type": "boolean" },
+        "enableMarketRegime": { "type": "boolean" }
+      }
+    },
+    "fundTarget": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Apex fund target in USD. Baseline $25k (entry-level Apex eval)."
+    },
+    "startingBalance": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Backtest starting balance."
+    }
+  }
+}

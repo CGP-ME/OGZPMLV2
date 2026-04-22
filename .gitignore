@@ -164,6 +164,14 @@ trees/
 # Pattern memory backups (point-in-time recoveries, not source)
 data/pattern-memory.paper.json.bak-*
 
+# Config consolidation Phase 1+ — runtime artifacts, not source
+# (see ogz-meta/ledger/CONFIG-CONSOLIDATION-SPEC.md §4.3)
+config/snapshots/*
+!config/snapshots/.gitkeep
+!config/snapshots/README.md
+config/matrix-runs/*
+!config/matrix-runs/.gitkeep
+
 # Mercury bridge vector index (regenerated on each indexing run)
 ogz-meta/ledger/vector_index.json
 
