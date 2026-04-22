@@ -289,7 +289,7 @@ function runWorker(config, dataFile, stockMode) {
 
       // Try reading report JSON as fallback
       if (result.trades == null) {
-        var reportResult = tryReadReport(PROJECT_ROOT);
+        var reportResult = tryReadReport(PROJECT_ROOT, uid);
         if (reportResult) Object.assign(result, reportResult);
       }
 
@@ -356,10 +356,17 @@ function parseOutput(output, config) {
   return r;
 }
 
-function tryReadReport(projectRoot) {
+function tryReadReport(projectRoot, tag) {
   try {
+    // FIX 2026-04-22: per-worker tag filter — prevents race condition under parallelism.
+    // When tag is provided (matrix-sweep call), match only files containing that tag.
+    // When tag is absent (hypothetical future callers), falls back to mtime-sort behavior.
     var reports = fs.readdirSync(projectRoot)
-      .filter(function(f) { return f.startsWith('backtest-report-') && f.endsWith('.json'); })
+      .filter(function(f) {
+        if (!f.startsWith('backtest-report-') || !f.endsWith('.json')) return false;
+        if (tag) return f.indexOf(tag) !== -1;
+        return true;
+      })
       .map(function(f) { return { name: f, mtime: fs.statSync(path.join(projectRoot, f)).mtimeMs }; })
       .sort(function(a, b) { return b.mtime - a.mtime; });
 

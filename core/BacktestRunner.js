@@ -184,9 +184,13 @@ class BacktestRunner {
       const runTimestamp = Date.now();
       const runDir = getRunDir(runTimestamp);
       const envRoot = process.env.BACKTEST_OUTPUT_DIR;
+      // FIX 2026-04-22: append BACKTEST_REPORT_TAG (uid) to filename when set.
+      // Matrix-sweep sets it per worker — prevents tryReadReport from grabbing another
+      // worker's report via mtime-sort under parallelism. Unset = unchanged filename.
+      const reportTag = process.env.BACKTEST_REPORT_TAG || '';
       const reportPath = envRoot
         ? path.join(runDir, 'report.json')
-        : path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
+        : path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}${reportTag ? '-' + reportTag : ''}.json`);
 
       // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)
       //   Previously summary was a 7-field inline rebuild — matrix-sweep and grid-search consumers
