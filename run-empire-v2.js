@@ -409,7 +409,7 @@ class OGZPrimeV14Bot {
     // Phase 2 REWRITE: TradingProfileManager, OptimizedTradingBrain, tradingOptimizations deleted
     // Profiles now in TradingConfig, orchestrator replaced brain, PatternStatsManager unused
     const initialProfile = resolvedConfig.config.misc.tradingProfile;
-    console.log(`📊 Trading Profile: ${initialProfile.toUpperCase()} (from TradingConfig)`);
+    console.log(`Trading Profile: ${initialProfile.toUpperCase()} (from TradingConfig)`);
 
     // CHANGE 2026-02-21: Isolated strategy entry pipeline (replaces soupy pooled confidence)
     // Each strategy evaluates independently. Highest confidence WINS and OWNS the trade.
@@ -668,9 +668,9 @@ class OGZPrimeV14Bot {
     // Result: RSI was null because IndicatorEngine had 0 candles while priceHistory had 16
     // Fix: Use computeBatch() to replay all saved candles through indicator calculations
     if (this.priceHistory.length > 0) {
-      console.log(`🔄 Replaying ${this.priceHistory.length} saved candles through IndicatorEngine...`);
+      console.log(`Replaying ${this.priceHistory.length} saved candles through IndicatorEngine...`);
       indicatorEngine.computeBatch(this.priceHistory);
-      console.log(`✅ IndicatorEngine synced with priceHistory (RSI: ${indicatorEngine.getSnapshot().indicators?.rsi?.toFixed(1) || 'warming up'})`);
+      console.log(`IndicatorEngine synced with priceHistory (RSI: ${indicatorEngine.getSnapshot().indicators?.rsi?.toFixed(1) || 'warming up'})`);
     }
 
     // FIX 2026-03-06: Replay saved candles through signal modules on startup
@@ -678,7 +678,7 @@ class OGZPrimeV14Bot {
     // EMASMACrossoverSignal: crossoverState, prevSpreads, divergenceHistory
     // MADynamicSR: swings, srLevels, pattern123, barCount
     if (this.priceHistory.length > 0 && this.emaCrossover && this.maDynamicSR) {
-      console.log(`🔄 Replaying ${this.priceHistory.length} saved candles through signal modules...`);
+      console.log(`Replaying ${this.priceHistory.length} saved candles through signal modules...`);
       for (let i = 0; i < this.priceHistory.length; i++) {
         const candle = this.priceHistory[i];
         const historyUpToNow = this.priceHistory.slice(0, i + 1);
@@ -687,7 +687,7 @@ class OGZPrimeV14Bot {
       }
       const emaSnap = this.emaCrossover.getSnapshot();
       const srSnap = this.maDynamicSR.getSnapshot();
-      console.log(`✅ Signal modules synced (EMA states: ${Object.values(emaSnap.crossoverState).filter(s => s.side !== 'none').length}, SR swings: ${srSnap.swings?.length || 0})`);
+      console.log(`Signal modules synced (EMA states: ${Object.values(emaSnap.crossoverState).filter(s => s.side !== 'none').length}, SR swings: ${srSnap.swings?.length || 0})`);
     }
 
     // CHANGE 2026-01-29: Multi-timeframe candle storage for dashboard
@@ -1020,7 +1020,7 @@ class OGZPrimeV14Bot {
    * Start the trading bot
    */
   async start() {
-    console.log('🚀 Starting OGZ Prime V14 MERGED...\n');
+    console.log('Starting OGZ Prime V14 MERGED...\n');
 
     // ENV FINGERPRINT — print all trading-relevant env vars for reproducibility
     console.log('═'.repeat(60));
@@ -1137,14 +1137,14 @@ class OGZPrimeV14Bot {
           if (timeframe === '5m' && this.timeframeSelector) {
             const tfResult = this.timeframeSelector.evaluate();
             if (tfResult.switched) {
-              console.log(`🔄 Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
+              console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
             }
           }
 
           // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
           const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
           if (timeframe === activeTf) {
-            console.log(`📊 V2: ${activeTf} candle closed — running trading analysis`);
+            console.log(`V2: ${activeTf} candle closed - running trading analysis`);
             this.run15mTradingCycle();
           }
         });
@@ -1327,13 +1327,13 @@ class OGZPrimeV14Bot {
       const silenceDuration = Date.now() - this.lastDataReceived;
 
       if (silenceDuration > MAX_DATA_SILENCE && !this.staleFeedPaused) {
-        console.warn('⚠️ LIVENESS WATCHDOG: No data for', Math.round(silenceDuration / 1000), 'seconds - attempting REST backfill...');
+        console.warn('[WATCHDOG] LIVENESS: No data for', Math.round(silenceDuration / 1000), 'seconds - attempting REST backfill...');
 
         // ATTEMPT BACKFILL FIRST before halting
         try {
           const candles = await this.kraken.getHistoricalOHLC('XBTUSD', 15, 10);
           if (candles && candles.length > 0) {
-            console.log(`✅ REST backfill success: ${candles.length} candles recovered`);
+            console.log(`REST backfill success: ${candles.length} candles recovered`);
             // Feed candles through CandleProcessor one at a time (uses canonical processNewCandle)
             for (const candle of candles) {
               this.candleProcessor.handleMarketData([
@@ -1349,15 +1349,15 @@ class OGZPrimeV14Bot {
               ]);
             }
             this.lastDataReceived = Date.now();
-            console.log('🔄 Data feed recovered via REST backfill - continuing');
+            console.log('Data feed recovered via REST backfill - continuing');
             return; // Don't halt - we recovered
           }
         } catch (backfillError) {
-          console.error('❌ REST backfill failed:', backfillError.message);
+          console.error('REST backfill failed:', backfillError.message);
         }
 
         // Backfill failed - now halt
-        console.error('🚨🚨🚨 LIVENESS WATCHDOG: BACKFILL FAILED - HALTING');
+        console.error('[CRITICAL] LIVENESS WATCHDOG: BACKFILL FAILED - HALTING');
         console.error('⸏ PAUSING TRADING - DATA FEED APPEARS DEAD');
         this.staleFeedPaused = true;
 
@@ -1704,11 +1704,11 @@ class OGZPrimeV14Bot {
     }
 
     // Print final performance stats
-    console.log('\n📊 Final Performance:');
+    console.log('\nFinal Performance:');
     console.log(`   Session Duration: ${((Date.now() - this.startTime) / 1000 / 60).toFixed(1)} minutes`);
     // Final Balance removed — BacktestRecorder's BACKTEST SUMMARY is the source of truth
 
-    console.log('\n✅ Shutdown complete\n');
+    console.log('\nShutdown complete\n');
     process.exit(0);
   }
 
