@@ -18,35 +18,48 @@ Prior history: Trey had previously raised the need for separate pattern banks. T
 
 ## Required taxonomy
 
-Pattern banks are separated along two dimensions:
+Pattern banks are separated along two axes. **Granularity differs by mode** — live/paper collapses to asset class, backtest stays per-ticker.
 
 1. **Mode** — backtest, paper, live. Never share across these. A backtest's hallucinated outcomes must never touch live pattern win-rates.
-2. **Asset** — per ticker OR per asset-class-session. Never share crypto signatures with stock signatures.
+2. **Asset granularity:**
+   - **Live and paper → asset class** (`stocks` or `crypto`). Stocks share one bank across tickers (TSLA/NVDA/SPY all write to `unified-patterns.paper.stocks.json`); crypto shares another. Class-level is right here because asset-class behavior traits (RTH vs 24/7, liquidity profile, volatility regime) dominate pattern signatures — a signature that works on TSLA likely transfers to NVDA within the same class.
+   - **Backtest → per ticker.** Backtests are isolated research environments with no external pattern system mutating the file. Each ticker produces pure training data. Per-ticker banks feed the Phase 2 premium harvesting step.
 
 Plus one special "promotion" bank:
 
-3. **Premium** — patterns harvested and validated from backtests. Read-only during live/paper runs. Supplements the live bank without being mutated by live outcomes.
+3. **Premium** — patterns harvested and validated from backtests, **per ticker**. Read-only during live/paper runs. Supplements the live bank without being mutated by live outcomes.
 
 ### File path contract
 
 ```
-data/unified-patterns.{mode}.{asset}.json       # primary bank, read+write by bot
-data/unified-patterns.premium.{asset}.json      # read-only curated bank, asset-specific
-data/unified-patterns.premium.all.json          # read-only asset-agnostic curated bank (optional)
+data/unified-patterns.{mode}.{bucket}.json
+  where bucket = 'stocks'|'crypto'|'default' when mode is live|paper
+  where bucket = ticker (TSLA, BTC, COIN, ...) when mode is backtest
+
+data/unified-patterns.premium.{ticker}.json     # read-only curated per-ticker bank
+data/unified-patterns.premium.all.json          # read-only asset-agnostic curated (optional)
 ```
 
-Examples:
+Resolution examples:
 
-| Mode | Asset | Path |
-|---|---|---|
-| Live crypto BTC | live | BTC-USD | `data/unified-patterns.live.BTC-USD.json` |
-| Live stock TSLA | live | TSLA | `data/unified-patterns.live.TSLA.json` |
-| Paper crypto ETH | paper | ETH-USD | `data/unified-patterns.paper.ETH-USD.json` |
-| Paper stock TSLA | paper | TSLA | `data/unified-patterns.paper.TSLA.json` |
-| Backtest TSLA | backtest | TSLA | `data/unified-patterns.backtest.TSLA.json` |
-| Premium TSLA (curated from backtests) | premium | TSLA | `data/unified-patterns.premium.TSLA.json` |
+| Context | TRADING_PAIR | Mode | Resolved bucket | Path |
+|---|---|---|---|---|
+| Paper TSLA (current bot) | `TSLA` | paper | `stocks` | `unified-patterns.paper.stocks.json` |
+| Paper NVDA | `NVDA` | paper | `stocks` | `unified-patterns.paper.stocks.json` *(shared)* |
+| Paper BTC | `BTC/USD` | paper | `crypto` | `unified-patterns.paper.crypto.json` |
+| Paper ETH | `ETH/USD` | paper | `crypto` | `unified-patterns.paper.crypto.json` *(shared)* |
+| Live SPY | `SPY` | live | `stocks` | `unified-patterns.live.stocks.json` |
+| Backtest TSLA (explicit) | `TSLA` | backtest | `TSLA` | `unified-patterns.backtest.TSLA.json` |
+| Backtest no pair, tsla file | (unset) | backtest | `TSLA` | `unified-patterns.backtest.TSLA.json` |
+| Backtest NVDA | `NVDA` | backtest | `NVDA` | `unified-patterns.backtest.NVDA.json` *(separate)* |
+| Polygon BTC backtest | (unset), file=`polygon-btc-1y` | backtest | `BTC` | `unified-patterns.backtest.BTC.json` |
+| Edge (nothing set) live | (unset) | live | `default` | `unified-patterns.live.default.json` |
+| Premium TSLA | N/A | premium | `TSLA` | `unified-patterns.premium.TSLA.json` |
 
-**Symbol normalization:** `/` in crypto pairs (`BTC/USD`) replaced with `-` for filesystem safety (`BTC-USD`).
+**Resolution logic:**
+- Live/paper bucket: prefer explicit `ASSET_CLASS` env, else infer from TRADING_PAIR (`/` present → `crypto`, plain ticker → `stocks`).
+- Backtest bucket: prefer TRADING_PAIR (normalized), else extract ticker from CANDLE_DATA_FILE filename (strip `polygon-` prefix, take first hyphen-segment, uppercase).
+- `/` in crypto pairs normalized to `-` for filesystem safety.
 
 ---
 

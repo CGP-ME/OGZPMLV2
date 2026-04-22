@@ -144,26 +144,50 @@ class UnifiedPatternMemory {
       saveIntervalMs: config.saveIntervalMs || 5 * 60 * 1000, // 5 minutes
     };
 
-    // Storage file is keyed by BOTH mode and asset. Mixing asset classes
-    // (e.g. BTC/USD and TSLA) into the same file silently corrupts win rates —
-    // bug hit 2026-04-22 on broker flip. Spec: ogz-meta/specs/pattern-bank-separation-spec.md
+    // Storage path is keyed by mode and an asset bucket. Rules:
+    //   Live/paper: asset CLASS (stocks vs crypto) — stocks share one bank across
+    //   tickers (TSLA/NVDA/SPY all write to unified-patterns.paper.stocks.json),
+    //   crypto shares another (BTC/ETH/SOL all write to unified-patterns.paper.crypto.json).
+    //   Class-level is the right granularity for live/paper because asset-class
+    //   behavior traits (RTH vs 24/7, liquidity profile) dominate pattern signatures.
+    //
+    //   Backtest: per-TICKER — backtests are isolated research (no external pattern
+    //   system writing to the same file), so each ticker produces pure training data.
+    //   Per-ticker backtest banks feed the Phase 2 premium harvesting step.
+    //
+    // Spec: ogz-meta/specs/pattern-bank-separation-spec.md
+    // Incident: 2026-04-22 crypto bank corruption on broker flip before this fix existed.
     const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
                  process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
 
-    // Asset: prefer TRADING_PAIR (explicit), fall back to ticker extracted from
-    // CANDLE_DATA_FILE filename (e.g. 'tuning/tsla-15m-2y.json' -> 'TSLA'),
-    // finally 'default' if neither present. Prevents the BTC-USD-default landmine
-    // for backtest commands that forget TRADING_PAIR (Wolf's 2026-04-22 catch).
-    let asset = (process.env.TRADING_PAIR || '').replace(/\//g, '-');
-    if (!asset && process.env.CANDLE_DATA_FILE) {
-      const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
-        .replace(/^polygon-/, '');
-      asset = base.split('-')[0].toUpperCase();
+    let assetBucket;
+    if (mode === 'backtest') {
+      // Per-ticker. Prefer TRADING_PAIR, fall back to ticker from CANDLE_DATA_FILE
+      // filename (e.g. 'tuning/tsla-15m-2y.json' -> 'TSLA'), finally 'default'.
+      // Wolf's 2026-04-22 catch: backtest commands without TRADING_PAIR otherwise
+      // would fall to ConfigLoader's 'BTC-USD' default and poison the wrong bank.
+      let ticker = (process.env.TRADING_PAIR || '').replace(/\//g, '-');
+      if (!ticker && process.env.CANDLE_DATA_FILE) {
+        const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
+          .replace(/^polygon-/, '');
+        ticker = base.split('-')[0].toUpperCase();
+      }
+      assetBucket = ticker || 'default';
+    } else {
+      // Asset class. Priority: explicit ASSET_CLASS env, then infer from TRADING_PAIR.
+      // Slash in pair (e.g. BTC/USD) => crypto. Plain ticker (e.g. TSLA) => stocks.
+      let cls = process.env.ASSET_CLASS;
+      if (!cls) {
+        const tp = process.env.TRADING_PAIR || '';
+        if (tp.includes('/')) cls = 'crypto';
+        else if (tp) cls = 'stocks';
+        else cls = 'default';
+      }
+      assetBucket = cls;
     }
-    if (!asset) asset = 'default';
 
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-    this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${asset}.json`);
+    this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${assetBucket}.json`);
 
     // Pattern storage — keyed by signature
     this.patterns = {};
