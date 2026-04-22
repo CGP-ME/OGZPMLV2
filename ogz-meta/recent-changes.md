@@ -1,6 +1,29 @@
 
 ---
 
+## 2026-04-22: Alpaca Paper Trading Flip + Pattern Bank Isolation (14 commits)
+
+**Impact:** CRITICAL — bot moved from Kraken BTC paper to Alpaca TSLA paper. Pattern bank architecture fixed after corruption incident.
+
+**Summary:** `broker/alpaca-integration` branch had the AlpacaAdapter built (551 lines) but never registered in BrokerRegistry. Today flipped that switch: env-driven broker selection (`BROKER=alpaca` default), Alpaca registered, dashboard defaults switched BTC→TSLA. Midway through the flip, caught a pattern-bank corruption where `UnifiedPatternMemory` was keying storage by MODE only — 35 min of TSLA outcomes blended into 69K crypto patterns before catch. Recovery: nuked the contaminated file + contaminated runtime state. Architecture fix: asset-aware path resolution (live/paper = class bucket, backtest = per-ticker), plus `forceBackup()` method for future SessionRouter transitions.
+
+**Mercury verification:** 7/7 claims CONFIRMED. One defensive flag on `MultiAssetManager.js:31` hardcoded BTC-USD fallback (runtime correct because .env has TRADING_PAIR=TSLA, but latent trap).
+
+**Branch:** `alpaca/stocks-paper-flip`, 14 commits 419befd..24dea89
+
+**Files Changed (code):**
+- run-empire-v2.js (broker flip + extensive emoji/mojibake cleanup)
+- brokers/BrokerRegistry.js (alpaca registered)
+- brokers/BrokerFactory.js + brokers/AlpacaAdapter.js (emoji strip)
+- core/BacktestRunner.js, core/BacktestRecorder.js, tools/matrix-sweep.js (matrix reporter + race + LOCKED_EXITS canonical + naming/routing)
+- core/UnifiedPatternMemory.js (asset-aware path + forceBackup)
+- public/unified-dashboard.html, public/js/chart.js, public/js/ChartManager.js (default asset TSLA)
+- .env (TRADING_PAIR flipped BTC/USD → TSLA)
+
+**Status:** Pushed. Bot running on Alpaca paper TSLA, pattern bank writing to `unified-patterns.paper.stocks.json`. 
+
+---
+
 ## 2026-04-22: Matrix-Sweep — LOCKED_EXITS Canonical-Read Fix
 
 **Impact:** CRITICAL — fixes silent-drift bug in matrix-sweep conf phase

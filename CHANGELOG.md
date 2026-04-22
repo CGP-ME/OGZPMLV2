@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Paper Trading Flip + Pattern Bank Isolation Architecture (2026-04-22)
+
+#### Branch: `alpaca/stocks-paper-flip` (14 commits, Mercury-verified 7/7 claims)
+
+**Broker flip (`419befd`, `af29738`, `193be3a`, `5ed9873`, `102c98f`, `81fa909`):**
+- `run-empire-v2.js:589-618`: env-driven broker selection (`BROKER=alpaca` default), empty adapter options let AlpacaAdapter read keys from env, `ALPACA_SYMBOLS` env (default `TSLA`) drives OrderRouter symbol list
+- `brokers/BrokerRegistry.js`: registered `alpaca` entry (was missing despite 551-line AlpacaAdapter existing) — this was the actual blocker for months
+- `run-empire-v2.js` cleanup: stripped 15 clean-UTF8 emojis, 41 `ðŸ`-prefix mojibake, 12 `âœ…`-prefix mojibake, 82 box-drawing mojibake, 7 warning mojibake across 5 commits. Box-drawing `═` preserved correctly; emoji removed per professional-codebase rule
+- `brokers/BrokerFactory.js` + `brokers/AlpacaAdapter.js`: 15 emoji strips for clean log output
+- `public/unified-dashboard.html` + `public/js/chart.js` + `public/js/ChartManager.js`: default asset switched BTC-USD → TSLA (UI was still showing BTC while bot traded stocks)
+- `.env`: `TRADING_PAIR` flipped BTC/USD → TSLA
+
+**Pattern bank corruption incident + fix (`6850a20`, `52c0847`, `24dea89`):**
+- **Incident:** `UnifiedPatternMemory` keyed storage path by MODE only, so Kraken BTC paper and Alpaca TSLA paper both wrote to `data/unified-patterns.paper.json`. Broker flip blended 35 min of TSLA outcomes into 69,052 crypto patterns before Trey caught it asking "is this saving to a non-crypto pattern bank." Prior ask for separate banks had not been implemented.
+- **Recovery:** Corrupted file deleted. Contaminated runtime state (decisions ledger, journal stats, pipeline snapshots, candle history, telemetry, backtest-trades CSV) wiped. PM2 logs flushed + restart counter reset.
+- **Architecture fix:** `core/UnifiedPatternMemory.js` now resolves storage path by mode+bucket. Live/paper collapses to asset CLASS (`stocks` or `crypto` — shared across tickers within class). Backtest stays per-TICKER (purest data, feeds premium harvesting). Fallback chain: `ASSET_CLASS` env → infer from `TRADING_PAIR` (slash=crypto) for live/paper; `TRADING_PAIR` → extract ticker from `CANDLE_DATA_FILE` for backtest. Wolf caught the no-TRADING_PAIR backtest-command trap.
+- **Backup method:** `forceBackup(reason)` added for future SessionRouter integration. Creates gzipped snapshot to `data/backups/{basename}.{ts}.json.gz`. Called on session transitions (no-swing-across-sessions rule: bot liquidates + backs up + swaps bank).
+
+**Mercury verification:** 7/7 claims CONFIRMED on final branch state. One defensive-hardening flag noted: `core/MultiAssetManager.js:31` has `process.env.TRADING_PAIR || 'BTC-USD'` — current `.env` has TRADING_PAIR=TSLA so runtime is correct, but the default is a latent trap if TRADING_PAIR is ever unset.
+
+**Pending for Phase 2/3/4 of pattern-bank-separation spec:**
+- Phase 2: Premium companion bank (per-ticker, read-only, backtest-harvested)
+- Phase 3: SessionRouter integration (bank-swap on market transition, liquidate-first)
+- Phase 4 (extended): retention + timer for backup beyond explicit calls
+
+**Spec:** `ogz-meta/specs/pattern-bank-separation-spec.md` (committed with Phase 1 APPLIED marker, Wolf's catch + class-vs-ticker taxonomy documented)
+
+**Memory entries added (permanent):**
+- `architecture-asset-bank-isolation.md` (never lose this rule again)
+- `feedback-working-vs-correct.md` (celebrate "it's saving" only after verifying "to the right target")
+- `feedback-mercury-before-delete.md` (Mercury forensic extraction before destructive deletion)
+- `feedback-no-emojis.md`, `feedback-no-sed-scrub.md`, `feedback-no-backtest-timeout.md` (earlier rules captured)
+
 ### Matrix-Sweep: LOCKED_EXITS Canonical-Read Fix (2026-04-22)
 
 #### Atomic fix: 1 file, 16/-16 lines (`d78b6e4`)
