@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Matrix-Sweep Per-Worker Report Isolation — Race Condition Fix (2026-04-22)
+
+#### Atomic fix: 2 files, 15/-4 lines (`747909d`)
+- **Files:** `core/BacktestRunner.js`, `tools/matrix-sweep.js`
+- **Problem:** Under 14-worker parallel matrix sweeps, all workers wrote `backtest-report-v14MERGED-{ts}.json` to `PROJECT_ROOT`. `tryReadReport()` sorted by `mtimeMs` and grabbed newest — could be a different worker's file. Silently wrong data; metric fields looked valid but belonged to another config's run. Worse than null fields because it looked correct.
+- **Fix:** Filename now suffixed with `BACKTEST_REPORT_TAG` env var (set per-worker to `uid`) when present. `tryReadReport` accepts an optional tag and filters filename matches instead of mtime-sorting. Infrastructure was already wired (matrix-sweep generates uid at `:234` and passes `BACKTEST_REPORT_TAG=uid` to worker env at `:272`) — just never consumed.
+- **Back-compat:** Standalone backtests (no tag env) produce unchanged filenames. `grid-search-confidence.js:70` regex matches any `.json` name → no breakage.
+- **Regression verification:** Full TSLA 2y backtest with exact Phase 0 env + race-fix = `$17,950.589592711076` (match-to-the-cent with Phase 0 baseline). Report filename included tag suffix.
+- **Still deferred:** Cleanup of accumulated `backtest-report-v14MERGED-*.json` files in project root. Safe to `rm backtest-report-v14MERGED-*.json` post-verification.
+
 ### Matrix-Sweep Reporter Bug Chain Fix (2026-04-21)
 
 #### Atomic fix: 4 bugs + 1 missing feature across 3 files (`643a3c9`)

@@ -1,6 +1,28 @@
 
 ---
 
+## 2026-04-22: Matrix-Sweep Per-Worker Report Isolation — Race Condition Fix
+
+**Impact:** CRITICAL for parallel matrix sweeps — eliminates silent cross-worker data contamination
+
+**Summary:** Under parallelism, all 14 matrix workers wrote reports to project root; `tryReadReport` grabbed newest by mtime which wasn't guaranteed to be this worker's file. Each worker's report filename now suffixed with its `BACKTEST_REPORT_TAG` (uid); `tryReadReport` filters by that tag. Infrastructure was pre-wired at matrix-sweep.js:234 (uid generation) and :272 (env pass) but consumer end was unwired.
+
+**Files Changed:**
+- core/BacktestRunner.js (tag reads from BACKTEST_REPORT_TAG env, appended to filename when present)
+- tools/matrix-sweep.js (tryReadReport accepts optional tag param + filters by it, call site passes uid)
+
+**Regression:** Full Phase 0 baseline replay with race-fix = $17,950.589592711076 / 1,430 trades / 57.6% WR / 2.63% DD — match-to-the-cent.
+
+**Smoke test:** BACKTEST_REPORT_TAG=smoke-race-test-tag produced file `backtest-report-v14MERGED-1776821581939-smoke-race-test-tag.json`.
+
+**Back-compat:** Standalone backtests (no tag) get unchanged filenames. grid-search-confidence.js regex matches any `.json` → no breakage.
+
+**Post-commit cleanup:** Safe to `rm backtest-report-v14MERGED-*.json` to clean accumulated pre-fix reports from project root.
+
+**Status:** Committed `747909d` + pushed. Mercury reindex follow-up.
+
+---
+
 ## 2026-04-21: Matrix-Sweep Reporter Bug Chain Fix — 4 bugs + expectancy
 
 **Impact:** CRITICAL for tuning — matrix-sweep JSON now has full 23-field summary instead of 7
