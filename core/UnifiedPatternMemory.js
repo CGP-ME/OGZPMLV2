@@ -602,6 +602,44 @@ class UnifiedPatternMemory {
     }
   }
 
+  /**
+   * forceBackup - Snapshot the current pattern file to data/backups/ as a gzipped copy.
+   *
+   * Called by SessionRouter (future) on market session transition so crypto state is
+   * preserved before the stocks session overwrites (and vice versa). No timer, no
+   * retention — one call = one backup. Retention is a future concern.
+   *
+   * @param {string} reason - Audit trail label (e.g. 'session_transition_to_stocks')
+   * @returns {Promise<string|null>} Path of the backup file, or null if nothing to back up
+   */
+  async forceBackup(reason = 'manual') {
+    try {
+      if (!fs.existsSync(this.storagePath)) {
+        console.log(`[UnifiedPatternMemory] forceBackup skipped: ${this.storagePath} does not exist (nothing to back up)`);
+        return null;
+      }
+
+      const zlib = require('zlib');
+      const baseName = path.basename(this.storagePath, '.json');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const backupDir = path.join(path.dirname(this.storagePath), 'backups');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+      const backupPath = path.join(backupDir, `${baseName}.${ts}.json.gz`);
+      const raw = fs.readFileSync(this.storagePath);
+      const gz = zlib.gzipSync(raw);
+      fs.writeFileSync(backupPath, gz);
+
+      const srcMB = (raw.length / 1024 / 1024).toFixed(2);
+      const dstMB = (gz.length / 1024 / 1024).toFixed(2);
+      console.log(`[UnifiedPatternMemory] forceBackup (${reason}): ${srcMB} MB -> ${dstMB} MB gzipped at ${backupPath}`);
+      return backupPath;
+    } catch (err) {
+      console.error(`[UnifiedPatternMemory] forceBackup failed: ${err.message}`);
+      return null;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════════════════════════════
