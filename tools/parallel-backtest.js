@@ -396,35 +396,55 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
 
 function tryReadReport(projectRoot, tag) {
   try {
-    const reports = fs.readdirSync(projectRoot)
-      .filter(f => f.startsWith('backtest-report-') && f.endsWith('.json'))
-      .map(f => ({ name: f, mtime: fs.statSync(path.join(projectRoot, f)).mtimeMs }))
+    // FIX 2026-04-22: sibling of matrix-sweep's reporter fix.
+    // Scan backtest-results/worker-reports/ first (tagged reports land there per
+    // BacktestRunner.js 3-way path branch), fallback to project root for legacy.
+    const workerDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
+    const scanDir = fs.existsSync(workerDir) ? workerDir : projectRoot;
+
+    const reports = fs.readdirSync(scanDir)
+      .filter(f => {
+        if (!f.startsWith('backtest-report-') || !f.endsWith('.json')) return false;
+        // If tag provided, match only this worker's report (prevents cross-worker race)
+        if (tag) return f.indexOf(tag) !== -1;
+        return true;
+      })
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(scanDir, f)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
-    
+
     if (reports.length === 0) return null;
 
-    const reportPath = path.join(projectRoot, reports[0].name);
+    const reportPath = path.join(scanDir, reports[0].name);
     const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    
-    // Clean up
-    try { fs.unlinkSync(reportPath); } catch(e) {}
+
+    // FIX 2026-04-22: removed unlinkSync — reports retained for postmortem.
 
     const trades = data.trades || [];
     const summary = data.summary || {};
-    
+
     if (trades.length === 0 && !summary.finalBalance) return null;
 
     const winners = trades.filter(t => (t.netPnlDollars || t.pnl || 0) > 0);
     const totalFees = trades.reduce((s, t) => s + (t.feesDollars || 0), 0);
-    const netPnl = summary.finalBalance ? summary.finalBalance - 10000 : 
+    const netPnl = summary.finalBalance ? summary.finalBalance - 10000 :
                    trades.reduce((s, t) => s + (t.netPnlDollars || 0), 0);
 
+    // FIX 2026-04-22: expanded return shape — BacktestRunner now spreads the full
+    // BacktestRecorder.getSummary() into report.summary, so these extra fields are
+    // available and downstream leaderboard can render Trades/WR/DD/PF columns.
     return {
       finalBalance: summary.finalBalance || null,
       trades: trades.length > 0 ? trades.length : (summary.totalTrades || null),
-      winRate: trades.length > 0 ? (winners.length / trades.length) * 100 : null,
+      winRate: trades.length > 0 ? (winners.length / trades.length) * 100 :
+               (summary.winRate != null ? parseFloat(summary.winRate) : null),
       netPnl: netPnl,
-      fees: totalFees || null,
+      fees: totalFees || summary.totalFeesPaid || null,
+      maxDrawdown: summary.maxDrawdownPercent != null ? parseFloat(summary.maxDrawdownPercent) : null,
+      profitFactor: summary.profitFactor != null && summary.profitFactor !== 'N/A'
+                    ? parseFloat(summary.profitFactor) : null,
+      expectancy: summary.expectancy != null ? parseFloat(summary.expectancy) : null,
+      avgWin: summary.avgWinnerDollars != null ? summary.avgWinnerDollars : null,
+      avgLoss: summary.avgLoserDollars != null ? summary.avgLoserDollars : null,
     };
   } catch(e) {
     return null;
