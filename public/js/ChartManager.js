@@ -14,7 +14,7 @@ class ChartManager {
 
   /**
    * Add or update a candle
-   * @param {string} asset - Asset symbol (BTC, ETH, etc)
+   * @param {string} asset - Asset symbol (TSLA, SPY, NVDA, BTC-USD, etc)
    * @param {string} timeframe - Timeframe (1m, 5m, 1h, etc)
    * @param {object} candle - OHLCV candle data
    */

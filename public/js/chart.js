@@ -187,7 +187,7 @@
                     socket.send({
                         type: 'request_historical',
                         timeframe: e.target.value,
-                        asset: document.getElementById('assetSelector')?.value || 'BTC-USD',
+                        asset: document.getElementById('assetSelector')?.value || 'TSLA',
                         limit: 500
                     });
                 }
