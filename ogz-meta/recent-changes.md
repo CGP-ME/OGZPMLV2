@@ -1,6 +1,36 @@
 
 ---
 
+## 2026-04-22: Matrix-Sweep — LOCKED_EXITS Canonical-Read Fix
+
+**Impact:** CRITICAL — fixes silent-drift bug in matrix-sweep conf phase
+
+**Summary:** matrix-sweep had its own hardcoded `LOCKED_EXITS` dict that had drifted from `TradingConfig.exitContracts` for 4 strategies. Confidence sweeps on MultiTimeframe/OGZTPO/OpeningRangeBreakout/SmartMoneySweep were silently using wrong baselines. Fix: read directly from `BASE_CONFIG.exitContracts`. Validated-4 strategies (RSI/EMASMA/MADynamicSR/LiquiditySweep) unchanged.
+
+**File Changed:** tools/matrix-sweep.js
+
+**Regression:** Full Phase 0 baseline replay = $17,950.589592711076 — match-to-the-cent.
+
+**Status:** Committed `d78b6e4` + pushed.
+
+---
+
+## 2026-04-22: Matrix-Sweep — Output Naming + Worker Report Routing (Wolf spec)
+
+**Impact:** QoL — readable leaderboard names + clean project root
+
+**Summary:** Per Wolf's CC-SPEC-MATRIX-OUTPUT-NAMING.md. Two wins: (1) leaderboard files now named `matrix-{ticker}-{strategy}-{phase}-{date}-{ts}.json/csv` instead of opaque `matrix-{ts}.json`. (2) Per-worker reports route to `backtest-results/worker-reports/` instead of project root when `BACKTEST_REPORT_TAG` is set (matrix workers only). Standalone backtests keep legacy project-root path.
+
+**Files Changed:**
+- tools/matrix-sweep.js (getDataLabel helper, naming context in runMatrix, tryReadReport scan path)
+- core/BacktestRunner.js (3-way reportPath branch: envRoot → workerDir → legacy root)
+
+**Smoke test verified:** report lands in worker-reports/, Final Balance $17,950.589592711076 (no drift).
+
+**Status:** Committed `102c98f` + pushed.
+
+---
+
 ## 2026-04-22: Config Consolidation — Phase 1 Scaffold
 
 **Impact:** SCAFFOLDING — Phase 1 of 14. Zero execution-path changes.

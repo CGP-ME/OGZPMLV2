@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Matrix-Sweep: LOCKED_EXITS Canonical-Read Fix (2026-04-22)
+
+#### Atomic fix: 1 file, 16/-16 lines (`d78b6e4`)
+- **File:** `tools/matrix-sweep.js`
+- **Problem:** `LOCKED_EXITS` was a hardcoded dict duplicating `TradingConfig.exitContracts`. Verified drift against 4 strategies: `MultiTimeframe` (0.8 vs canonical 2.0), `OGZTPO` (0.8 vs 2.0), `OpeningRangeBreakout` (1.0 vs 2.0), `SmartMoneySweep` (1.5 vs 0.3 — opposite direction!). Every confidence sweep on those 4 strategies was silently using wrong locked-SL baseline.
+- **Fix:** `getLockedSL()` helper reads from `BASE_CONFIG.exitContracts` and `Math.abs()`'s the negative stored value to positive for `STOP_LOSS_PERCENT` env. Deletes the duplication entirely.
+- **Regression:** Full TSLA 2y backtest = `$17,950.589592711076` — match-to-the-cent with Phase 0 baseline. Validated-4 strategies (RSI/EMASMA/MADynamicSR/LiquiditySweep) unchanged, the 4 drifted strategies now use canonical contract values.
+
+### Matrix-Sweep: Output Naming + Worker Report Routing (2026-04-22)
+
+#### Atomic fix: 2 files, 46/-10 lines (`102c98f`)
+- **Files:** `tools/matrix-sweep.js`, `core/BacktestRunner.js`
+- **Problem 1:** Leaderboard JSON/CSV filenames were `matrix-{timestamp}.json` — unreadable without opening each file.
+- **Problem 2:** Per-worker reports dumped into project root (`/opt/ogzprime/OGZPMLV2/backtest-report-v14MERGED-*.json`), polluting the repo root.
+- **Fix 1:** `getDataLabel()` helper strips timeframe infixes → readable names like `matrix-tsla-2y-EMASMACrossover-full-2026-04-22-{ts}.json`. Timestamp suffix preserved for uniqueness within same day.
+- **Fix 2:** Three-way report path branch in `BacktestRunner.js` — `BACKTEST_OUTPUT_DIR` uses that, `BACKTEST_REPORT_TAG` (matrix workers) routes to `backtest-results/worker-reports/`, standalone backtests keep legacy project-root path. `tryReadReport` scans worker-reports first, falls back to project root for legacy files.
+- **Smoke test verified:** report lands in `worker-reports/`, not project root. Final Balance `$17,950.589592711076` — no trading behavior drift.
+
 ### Config Consolidation — Phase 1 Scaffold (2026-04-22)
 
 #### Pure scaffold commit: 7 new files / .gitignore edit (`cb1f0a5`)
