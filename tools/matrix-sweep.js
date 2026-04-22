@@ -92,6 +92,20 @@ const DATA_SHORTCUTS = {
 const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
                         'tsla-train', 'tsla-test'];
 
+// Extract human-readable label from data file path
+// 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
+// 'tuning/tsla-15m-train.json' → 'tsla-train'
+// 'data/polygon-btc-1y.json'   → 'btc-1y'
+function getDataLabel(dataFile) {
+  var base = path.basename(dataFile, '.json');
+  base = base.replace(/^polygon-/, '');
+  base = base.replace(/-15m-/, '-');
+  base = base.replace(/-1m-/, '-');
+  base = base.replace(/-5m-/, '-');
+  base = base.replace(/-1h-/, '-');
+  return base;
+}
+
 // ===================================================================
 // MATRIX DIMENSIONS - The search space
 // ===================================================================
@@ -361,17 +375,21 @@ function tryReadReport(projectRoot, tag) {
     // FIX 2026-04-22: per-worker tag filter — prevents race condition under parallelism.
     // When tag is provided (matrix-sweep call), match only files containing that tag.
     // When tag is absent (hypothetical future callers), falls back to mtime-sort behavior.
-    var reports = fs.readdirSync(projectRoot)
+    // FIX 2026-04-22 (2nd pass): scan backtest-results/worker-reports/ first (new routing
+    // for tagged workers), fall back to project root for legacy files still lingering there.
+    var workerDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
+    var scanDir = fs.existsSync(workerDir) ? workerDir : projectRoot;
+    var reports = fs.readdirSync(scanDir)
       .filter(function(f) {
         if (!f.startsWith('backtest-report-') || !f.endsWith('.json')) return false;
         if (tag) return f.indexOf(tag) !== -1;
         return true;
       })
-      .map(function(f) { return { name: f, mtime: fs.statSync(path.join(projectRoot, f)).mtimeMs }; })
+      .map(function(f) { return { name: f, mtime: fs.statSync(path.join(scanDir, f)).mtimeMs }; })
       .sort(function(a, b) { return b.mtime - a.mtime; });
 
     if (reports.length === 0) return null;
-    var reportPath = path.join(projectRoot, reports[0].name);
+    var reportPath = path.join(scanDir, reports[0].name);
     var data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     // FIX 2026-04-21: removed unlinkSync — per-worker reports are kept for postmortem analysis.
     // Race condition with parallel workers sharing PROJECT_ROOT is tracked in POST-MATRIX-BACKLOG
@@ -410,7 +428,7 @@ function tryReadReport(projectRoot, tag) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
   var totalStart = Date.now();
 
   console.log('\n' + '='.repeat(72));
@@ -524,9 +542,17 @@ async function runMatrix(configs, dataFile, stockMode) {
   });
 
   // -- Save results --
+  // FIX 2026-04-22: human-readable leaderboard filenames — ticker/strategy/phase/date
+  // before the timestamp suffix so multiple sweeps in a day don't collide but are
+  // still identifiable at a glance.
+  var dataLabel = getDataLabel(dataFile);
+  var stratLabel = soloStrategy || 'all';
+  var phaseLabel = phase || 'full';
+  var dateStr = new Date().toISOString().slice(0, 10);
+  var sweepName = dataLabel + '-' + stratLabel + '-' + phaseLabel + '-' + dateStr;
   var timestamp = Date.now();
-  var reportPath = path.join(RESULTS_DIR, 'matrix-' + timestamp + '.json');
-  var csvPath = path.join(RESULTS_DIR, 'matrix-' + timestamp + '.csv');
+  var reportPath = path.join(RESULTS_DIR, 'matrix-' + sweepName + '-' + timestamp + '.json');
+  var csvPath = path.join(RESULTS_DIR, 'matrix-' + sweepName + '-' + timestamp + '.csv');
 
   // JSON report
   var report = {
@@ -686,7 +712,7 @@ async function main() {
   console.log('  Strategies: ' + strategies.join(', '));
   console.log('  Total configs: ' + configs.length);
 
-  await runMatrix(configs, dataFile, stockMode);
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase);
 }
 
 main().catch(function(err) {

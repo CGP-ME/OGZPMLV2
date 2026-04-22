@@ -187,10 +187,20 @@ class BacktestRunner {
       // FIX 2026-04-22: append BACKTEST_REPORT_TAG (uid) to filename when set.
       // Matrix-sweep sets it per worker — prevents tryReadReport from grabbing another
       // worker's report via mtime-sort under parallelism. Unset = unchanged filename.
+      // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
+      // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
       const reportTag = process.env.BACKTEST_REPORT_TAG || '';
-      const reportPath = envRoot
-        ? path.join(runDir, 'report.json')
-        : path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}${reportTag ? '-' + reportTag : ''}.json`);
+      let reportPath;
+      if (envRoot) {
+        reportPath = path.join(runDir, 'report.json');
+      } else if (reportTag) {
+        const fs = require('fs');
+        const workerDir = path.join(this.ctx.__dirname, 'backtest-results', 'worker-reports');
+        if (!fs.existsSync(workerDir)) fs.mkdirSync(workerDir, { recursive: true });
+        reportPath = path.join(workerDir, `backtest-report-${runTimestamp}-${reportTag}.json`);
+      } else {
+        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
+      }
 
       // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)
       //   Previously summary was a 7-field inline rebuild — matrix-sweep and grid-search consumers
