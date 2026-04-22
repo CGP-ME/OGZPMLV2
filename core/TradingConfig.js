@@ -261,6 +261,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['ema_cross_reversal'],
       _validated: '2026-03-20',
     },
@@ -276,6 +277,7 @@ const BASE_CONFIG = {
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
       useStructuralExits: true,       // LOCKED - uses sweep-specific exit logic
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['liquidity_absorbed'],
       _validated: '2026-03-20',
     },
@@ -293,6 +295,7 @@ const BASE_CONFIG = {
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
       minConfidence: 0.60,      // LOCKED - 60% gate filters garbage signals
+      atrMinPercent: null,      // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
       _validated: '2026-03-20', // Fingerprint - triggers warning if changed
     },
@@ -307,6 +310,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sr_break'],
       _validated: '2026-03-20',
     },
@@ -317,6 +321,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 150,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['pattern_invalidated'],
     },
     // MarketRegime - uses validated baseline exits
@@ -326,6 +331,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 360,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['regime_change'],
     },
     MultiTimeframe: {
@@ -334,6 +340,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },
     OGZTPO: {
@@ -342,6 +349,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },
     OpeningRangeBreakout: {
@@ -350,6 +358,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 180,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['fvg_filled', 'or_break_reversal'],
     },
     SmartMoneySweep: {
@@ -359,6 +368,7 @@ const BASE_CONFIG = {
       trailingActivation: 0.5,
       maxHoldTimeMinutes: 900,        // 60 candles x 15 min
       useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
     },
     default: {
@@ -367,6 +377,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },
   },

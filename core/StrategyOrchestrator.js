@@ -721,16 +721,23 @@ class StrategyOrchestrator {
     const filterATR = indicators?.atr || 0;
     const filterATRpct = (filterATR && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
 
-    // ATR filter: Skip trades in dead markets (controlled by TradingConfig, not process.env)
+    // ATR filter: Per-strategy threshold via exitContracts.{strategy}.atrMinPercent
+    // null = fall back to global filters.atrMinPercent (zero behavior change default)
     const atrFilterEnabled = TradingConfig.get('filters.atrEnabled');
-    const atrMinPercent = TradingConfig.get('filters.atrMinPercent');
-    if (atrFilterEnabled && filterATRpct > 0 && filterATRpct < atrMinPercent && results.length > 0) {
-      for (const r of results) {
-        if (this.evalCount % 200 === 0) {
-          console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below minimum ${atrMinPercent}%`);
+    const globalAtrMin = TradingConfig.get('filters.atrMinPercent');
+    if (atrFilterEnabled && filterATRpct > 0 && results.length > 0) {
+      const contracts = TradingConfig.BASE_CONFIG.exitContracts;
+      for (let i = results.length - 1; i >= 0; i--) {
+        const r = results[i];
+        const contract = contracts[r.strategyName] || contracts.default || {};
+        const threshold = contract.atrMinPercent != null ? contract.atrMinPercent : globalAtrMin;
+        if (filterATRpct < threshold) {
+          if (this.evalCount % 200 === 0) {
+            console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below ${threshold}% (${contract.atrMinPercent != null ? 'per-strategy' : 'global'})`);
+          }
+          results.splice(i, 1);
         }
       }
-      results.length = 0; // Kill all signals — market is too dead
     }
 
     // ─── Step 2: Sort by confidence (highest first) ───
