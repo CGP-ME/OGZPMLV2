@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Post-Apex Pre-Matrix Work: L5 Observability + Per-Strategy ATR + ConfigLoader Crash Fix (2026-04-22 late session)
+
+#### Commit range: `1d8835f..2992f28` (7 commits on `alpaca/stocks-paper-flip`)
+
+**Matrix-sweep grid expansion (`c7cef09`, `1d8835f`):**
+- `tools/matrix-sweep.js` exits phase: stopLoss grid expanded to `[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75]` (10 points) × strict-monotonic tier cube `C(10,3) = 120` combos = **1,200 configs per strategy**. New helper `buildMonotonicTierCube(grid)` enforces `t1 < t2 < t3` to eliminate duplicate labels Trey flagged from the earlier cube.
+- `tools/parallel-backtest.js` — propagated the matrix-sweep reporter fixes (scan `backtest-results/worker-reports/`, filter by tag, remove unlinkSync, return 10 fields instead of 5) that were missing on the sibling tool and caused Trey's Windows ATR sweep to show `Trades: ?`.
+
+**Apex shipping boundary doc (`2f5d44f`):**
+- `ogz-meta/specs/apex-shipping-boundary.md` — Mercury-drafted classification of PRE-APEX work (strategy parity, PID wiring, multi-tier audit, L5 logging, pattern-bank Phases 1-2) vs POST-APEX (SessionRouter, Phase 3-4, multi-account clone). No code change.
+
+**MultiAsset broker-aware default + IT CRASHED (`1f3050f`, `57e8daa`):**
+- `1f3050f` applied Wolf's `CC-SPEC-MULTI-ASSET-DEFAULT-FIX.md`: `MultiAssetManager.js:31` now scans `assetRegistry` for first asset matching `BROKER` env (alpaca → TSLA, kraken → BTC-USD); `ConfigLoader.js:176` got matching 2-way heuristic. Constructor order in MAM swapped so `assetRegistry` initializes before `activeAsset`.
+- **CRITICAL INCIDENT (`57e8daa`):** Spec's ConfigLoader edit read `envStr('BROKER', 'kraken').toLowerCase()`. `envStr()` returns `{value, source}` for source tracking, not a bare string — so `.toLowerCase` was undefined. JS eager-evaluates function args, so this crashed at module load **regardless of whether TRADING_PAIR was set**. `run-empire-v2.js:3` imports ConfigLoader, meaning every trading-bot entry point (live, paper, backtest, all matrix-sweep workers, all parallel-backtest workers) was **dead-on-arrival** for 24 hours between `1f3050f` and `57e8daa`.
+- **Fix:** `ConfigLoader.js:179` switched to raw `(process.env.BROKER || 'kraken').toLowerCase()` — raw `process.env` read is legal inside the loader per its own header rule: "ONLY this file reads process.env". The `envStr` wrapper is for schema values exported from buildConfig; nested defaults should read raw env directly.
+- **Only caller affected**: grep across entire codebase returned zero other chains of `envStr(...).toLowerCase()` — isolated to that one line.
+- **Discovery path**: Found during Phase 0 baseline verification after the per-strategy ATR commit. The reproduction run crashed at `ConfigLoader.js:179` before the ATR code was ever exercised.
+
+**L5 riskGates observability (`a719edb`):**
+- `core/RiskManager.js`: `assessTradeRisk()` and `isTradingAllowed()` now build a local `riskGates` array via `_gate()` helper and return alongside existing decision fields. Bypass short-circuit still returns empty array (no behavior change).
+- `core/TradingLoop.js:272-283`: 5 existing pre-trade gates spread `decision.riskGates`; `_checkRiskAndBuildDecision` (344-378) collects from both RiskManager calls via `[...(riskCheck.riskGates || [])]` then `riskGates.push(...(riskAssessment.riskGates || []))`.
+- `core/StateManager.js:365-384`: `createLedgerSkeleton` call now includes `riskGates: context.ledgerData.riskGates || []`.
+- `core/dto/DecisionLedgerSchema.js`: `createLedgerSkeleton` signature destructures `riskGates`; defaults to `[]` if not passed.
+- Every trade decision now carries the exact gate chain that allowed or blocked it — observability without changing any gate logic.
+
+**Per-strategy ATR filter (`2992f28`):**
+- `core/StrategyOrchestrator.js:724-741`: ATR filter replaced. Was a blanket kill (`results.length = 0`) when global ATR was below threshold — one filter nuked every strategy's signal. Now reverse-splices per-result against each strategy's own `exitContracts.<name>.atrMinPercent`; falls back to global when null.
+- `core/TradingConfig.js`: `atrMinPercent: null` added to all 11 exit contracts (EMASMACrossover, LiquiditySweep, RSI, MADynamicSR, CandlePattern, MarketRegime, MultiTimeframe, OGZTPO, OpeningRangeBreakout, SmartMoneySweep, default).
+- **Motivation**: Ensemble ATR sweep winner (`0.35`) hurt 3 of 4 strategies when tested in isolation — each strategy has a different optimal threshold. Per Trey's rule: every strategy has everything independent of others. ATR joins SL, TP, confidence, and tiers as a per-strategy knob.
+- **Verification**:
+  - Mercury agentic audit (9 iterations, quality 98.7): **7/7 SAFE/EQUIVALENT** on equivalence, reverse-splice safety, unknown-strategy fallback, mutation footprint, race conditions, log throttle, baseline reproduction.
+  - Phase 0 baseline reproduction: **bit-for-bit match** on `tuning/tsla-15m-2y.json` → `$17,950.589592711076 / 1430 trades / 57.55% WR / 2.63% DD`. Final balance equal to the 14th decimal.
+- All contracts ship `null` → zero behavior change until per-strategy ATR sweeps produce validated values to lock in.
+
+**Files changed this batch:**
+- `core/StrategyOrchestrator.js`, `core/TradingConfig.js`, `core/RiskManager.js`, `core/TradingLoop.js`, `core/StateManager.js`, `core/dto/DecisionLedgerSchema.js`, `core/MultiAssetManager.js`, `foundation/ConfigLoader.js`, `tools/matrix-sweep.js`, `tools/parallel-backtest.js`, `ogz-meta/specs/apex-shipping-boundary.md`
+
+---
+
 ### Alpaca Paper Trading Flip + Pattern Bank Isolation Architecture (2026-04-22)
 
 #### Branch: `alpaca/stocks-paper-flip` (14 commits, Mercury-verified 7/7 claims)

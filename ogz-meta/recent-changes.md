@@ -1,6 +1,39 @@
 
 ---
 
+## 2026-04-22 (late session): Pre-Matrix Plumbing — L5 Obs, Per-Strategy ATR, ConfigLoader Crash Fix (7 commits)
+
+**Impact:** CRITICAL — a 24-hour dormant crash in ConfigLoader blocked every entry point (live, paper, backtest, every sweep worker) between `1f3050f` and `57e8daa`. Plus architectural wins for observability (L5 riskGates) and per-strategy ATR isolation.
+
+**Summary:** Wolf's MultiAsset broker-aware default spec (`1f3050f`) shipped a `envStr('BROKER', 'kraken').toLowerCase()` call inside `ConfigLoader.js`'s `tradingPair` default expression — but `envStr()` returns `{value, source}` for source tracking, not a bare string, so `.toLowerCase` was undefined. JS eager-evaluates function args, so it crashed at module load regardless of whether `TRADING_PAIR` was set. `run-empire-v2.js:3` imports ConfigLoader → every entry point dead-on-arrival. Discovered during Phase 0 baseline verification of the per-strategy ATR refactor, 24 hours after introduction. Fixed with raw `process.env.BROKER` read (the file's own header doctrine: ONLY ConfigLoader reads process.env — but nested defaults must use the raw read, not the tracking wrapper).
+
+**Wins this session:**
+- **L5 riskGates observability** (`a719edb`): every trade decision now carries the exact gate chain that allowed or blocked it. RiskManager `assessTradeRisk` and `isTradingAllowed` build arrays, TradingLoop collects from both, StateManager stores in ledger. No gate-logic changes.
+- **Per-strategy ATR** (`2992f28`): Wolf spec executed. `exitContracts.<name>.atrMinPercent` per strategy (null = fall back to global). Reverse-splice loop replaces blanket-kill. Mercury 7/7 SAFE/EQUIVALENT + Phase 0 baseline reproduced bit-for-bit to the 14th decimal (`$17,950.589592711076 / 1430 trades / 57.55% WR / 2.63% DD`).
+- **Matrix-sweep exits grid expansion** (`c7cef09`): 10 stopLoss points × `C(10,3) = 120` strict-monotonic tier cube = 1,200 configs per strategy. Eliminates duplicate tier labels Trey flagged earlier.
+- **parallel-backtest reporter parity** (`1d8835f`): propagated the matrix-sweep reporter fixes that were missing on the sibling tool (Windows ATR sweep was showing `Trades: ?`).
+
+**Mercury verification:** Per-strategy ATR static audit + empirical Phase 0 baseline reproduction, both clean. ConfigLoader crash discovered AFTER commit via Phase 0 rerun — Mercury was not dispatched before applying the 1f3050f spec. Going forward: Mercury audits specs before application, not after.
+
+**Branch:** `alpaca/stocks-paper-flip`, commits `1d8835f..2992f28`
+
+**Files Changed (code):**
+- `core/StrategyOrchestrator.js`, `core/TradingConfig.js` (per-strategy ATR)
+- `core/RiskManager.js`, `core/TradingLoop.js`, `core/StateManager.js`, `core/dto/DecisionLedgerSchema.js` (L5 riskGates)
+- `core/MultiAssetManager.js`, `foundation/ConfigLoader.js` (broker-aware default + crash fix)
+- `tools/matrix-sweep.js`, `tools/parallel-backtest.js` (sweep grid + reporter parity)
+
+**Docs:** `ogz-meta/specs/apex-shipping-boundary.md` (PRE-APEX vs POST-APEX work classification, Mercury-drafted)
+
+**Pending after this batch:**
+- SessionRouter design + impl (blocks pattern-bank Phase 3 + clean market-transition swaps)
+- PID coupling doc (Trey handling)
+- Mercury Audit 2 (MaxProfitManager multi-tier wiring) + Audit 3 (7 unvalidated strategies infra parity)
+- Asset-isolation audit (decision ledger, journal, pipeline snapshots, candle history)
+- Per-strategy ATR sweeps to populate the null `atrMinPercent` values with validated numbers
+
+---
+
 ## 2026-04-22: Alpaca Paper Trading Flip + Pattern Bank Isolation (14 commits)
 
 **Impact:** CRITICAL — bot moved from Kraken BTC paper to Alpaca TSLA paper. Pattern bank architecture fixed after corruption incident.
