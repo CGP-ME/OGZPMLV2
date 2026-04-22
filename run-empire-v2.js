@@ -591,10 +591,14 @@ class OGZPrimeV14Bot {
 
     // EMPIRE V2: Create Kraken adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
     // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
-    this.kraken = createBrokerAdapter('kraken', {
-      apiKey: resolvedConfig.config.broker.apiKey,
-      apiSecret: resolvedConfig.config.broker.apiSecret
-    });
+    // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default → stocks paper).
+    // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
+    // adapter BrokerFactory returns. SessionRouter (pre-Apex) will replace with dual-broker.
+    const brokerId = process.env.BROKER || 'alpaca';
+    const adapterOptions = brokerId === 'kraken'
+      ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
+      : {};
+    this.kraken = createBrokerAdapter(brokerId, adapterOptions);
     console.log('ðŸ­ [EMPIRE V2] Created Kraken adapter via BrokerFactory');
     console.log('ðŸ” [DEBUG] Kraken adapter type:', this.kraken.constructor.name);
 
@@ -603,7 +607,12 @@ class OGZPrimeV14Bot {
     // REFACTOR Phase 5: OrderRouter for multi-broker routing
     // Future: Add more brokers with orderRouter.registerBroker(adapter, symbols)
     this.orderRouter = new OrderRouter();
-    this.orderRouter.registerBroker(this.kraken, ['BTC/USD', 'XBT/USD', 'ETH/USD', 'SOL/USD']);
+    // FIX 2026-04-22: symbols match broker — ALPACA_SYMBOLS env for stocks (default 'TSLA'),
+    // hardcoded crypto list for Kraken. Override stocks with e.g. ALPACA_SYMBOLS='TSLA,NVDA,SPY'.
+    const routedSymbols = brokerId === 'alpaca'
+      ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
+      : ['BTC/USD', 'XBT/USD', 'ETH/USD', 'SOL/USD'];
+    this.orderRouter.registerBroker(this.kraken, routedSymbols);
     console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
 
     // Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
