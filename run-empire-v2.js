@@ -327,7 +327,7 @@ const PerformanceAnalyzer = loader.get('core', 'PerformanceAnalyzer');
 // CHANGE 2026-02-13: Re-enable TradeLogger for comprehensive trade logging
 const { logTrade, getTodayStats } = require('./core/tradeLogger');
 
-// ðŸ¤– AI Co-Founder (Change 574 - Opus Architecture + Codex Fix)
+// AI Co-Founder (Change 574 - Opus Architecture + Codex Fix)
 const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
 
 // Infrastructure
@@ -364,8 +364,8 @@ function getDirectionDisplayLabel(direction, assetType = 'crypto') {
  */
 class OGZPrimeV14Bot {
   constructor() {
-    console.log('\nðŸš€ OGZ PRIME V14 FINAL MERGED - INITIALIZING');
-    console.log('ðŸ“Š Desktop Claude (402-line) + Browser Claude (439-line) = MERGED');
+    console.log('\nOGZ PRIME V14 FINAL MERGED - INITIALIZING');
+    console.log('Desktop Claude (402-line) + Browser Claude (439-line) = MERGED');
     console.log('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
 
     // REFACTOR Phase 21: ModuleInitializer for configuration helpers
@@ -381,7 +381,7 @@ class OGZPrimeV14Bot {
     this.tier = resolvedConfig.config.misc.botTier;
     this.tierFlagManager = new TierFeatureFlags(this.tier);
     this.tierFlags = this.tierFlagManager.getTierSummary();
-    console.log(`ðŸŽ¯ Tier: ${this.tier.toUpperCase()}`);
+    console.log(`Tier: ${this.tier.toUpperCase()}`);
 
     // PIPELINE: Read toggles early for component initialization
     this.pipeline = TradingConfig.get('pipeline') || {};
@@ -401,7 +401,7 @@ class OGZPrimeV14Bot {
       : null;
 
     if (this.ogzTpo) {
-      console.log('ðŸŽ¯ OGZ TPO initialized with mode:', this.tierFlagManager.getValue('ogzTpoMode'));
+      console.log('OGZ TPO initialized with mode:', this.tierFlagManager.getValue('ogzTpoMode'));
     }
 
     // CHANGE 665: Initialize TradingProfileManager for manual profile switching
@@ -454,7 +454,7 @@ class OGZPrimeV14Bot {
       const PatternBasedExitModel = require('./core/PatternBasedExitModel');
       this.patternExitModel = new PatternBasedExitModel(featureFlags.features.PATTERN_EXIT_MODEL.settings || {});
       this.patternExitShadowMode = featureFlags.features.PATTERN_EXIT_MODEL.shadowMode !== false;
-      console.log(`ðŸŽ¯ Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+      console.log(`Pattern Exit Model: ${this.patternExitShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
     }
 
     // CHANGE 2026-02-02: TradeIntelligenceEngine - intelligent per-trade evaluation
@@ -470,7 +470,7 @@ class OGZPrimeV14Bot {
       staleTradeTime: 30
     });
     this.tradeIntelligenceShadowMode = resolvedConfig.config.misc.tradeIntelligenceShadow; // ACTIVE by default
-    console.log(`ðŸ§  Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
+    console.log(`Trade Intelligence Engine: ${this.tradeIntelligenceShadowMode ? 'SHADOW MODE' : 'ACTIVE'}`);
 
     // CHANGE 2026-02-10: Modular Entry System (V2 format: c/o/h/l/v/t)
     this.mtfAdapter = new MultiTimeframeAdapter({
@@ -545,13 +545,13 @@ class OGZPrimeV14Bot {
       recalcInterval: vpConfig.recalcInterval || 5,
     });
 
-    console.log('ðŸ"Š Modular Entry System: MTF + Crossovers + S/R + Liquidity initialized');
+    console.log('"Š Modular Entry System: MTF + Crossovers + S/R + Liquidity initialized');
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
     // Hard stop loss + stale trade exit + confidence crash ALWAYS run regardless
     this.activeExitSystem = resolvedConfig.config.exits.exitSystem || featureFlags.features?.EXIT_SYSTEM?.settings?.activeSystem || 'maxprofit';
-    console.log(`ðŸšª Active Exit System: ${this.activeExitSystem.toUpperCase()} (set EXIT_SYSTEM env to change)`);
+    console.log(`Active Exit System: ${this.activeExitSystem.toUpperCase()} (set EXIT_SYSTEM env to change)`);
 
     // Phase 2 REWRITE: GridTradingStrategy deleted - different trading style, feature-flagged off
 
@@ -559,7 +559,7 @@ class OGZPrimeV14Bot {
     // Rate limiting now handled by MIN_TRADE_CONFIDENCE threshold + position sizing
     this.rateLimiter = null;
 
-    // ðŸ¤– TRAI DECISION MODULE (Change 574 - Opus Architecture + Codex Fix)
+    // TRAI DECISION MODULE (Change 574 - Opus Architecture + Codex Fix)
     // OPTIMIZECEPTION FIX: Skip TRAI initialization when disabled (4x faster backtests)
     // PIPELINE: Check both legacy env var AND new pipeline toggle
     if (this.pipeline.enableTRAI !== false && resolvedConfig.config.trai.enabled !== false) {
@@ -644,7 +644,7 @@ class OGZPrimeV14Bot {
     // CHANGE 661: Connect to dashboard WebSocket (defaults to localhost)
     // PIPELINE: Skip dashboard in backtest mode for faster runs
     if (this.pipeline.enableDashboard !== false) {
-      console.log('ðŸ"Œ Initializing Dashboard WebSocket connection...');
+      console.log('"Œ Initializing Dashboard WebSocket connection...');
       this.initializeDashboardWebSocket();
     }
 
@@ -724,7 +724,7 @@ class OGZPrimeV14Bot {
     // CRITICAL FIX: Don't overwrite saved state on startup!
     const currentState = stateManager.getState();
     if (!currentState.balance || currentState.balance === 0) {
-      console.log('ðŸ†• Initializing fresh state with balance:', initialBalance);
+      console.log('Initializing fresh state with balance:', initialBalance);
       stateManager.updateState({
         balance: initialBalance,
         totalBalance: initialBalance,
@@ -782,7 +782,7 @@ class OGZPrimeV14Bot {
     if (enableBacktestMode) tradingMode = 'BACKTEST';
     if (enableTestMode) {
       tradingMode = 'TEST';
-      console.log('ðŸ§ª TEST MODE ACTIVATED:');
+      console.log('TEST MODE ACTIVATED:');
       console.log('   âœ… Patterns will NOT be saved');
       console.log('   âœ… Trades are simulated');
       console.log('   âœ… To inject signal: Set TEST_CONFIDENCE env var (0-100)');
@@ -799,7 +799,7 @@ class OGZPrimeV14Bot {
       tradingMode
     };
 
-    console.log(`ðŸŽ¯ Trading Mode: ${tradingMode}`);
+    console.log(`Trading Mode: ${tradingMode}`);
 
     // REFACTOR Phase 14: OrderExecutor - context with all dependencies
     // Phase 2 REWRITE: executionLayer, tradingBrain, tradingOptimizations deleted
@@ -941,7 +941,7 @@ class OGZPrimeV14Bot {
         console.log('\nTo enable LIVE trading, you must set BOTH:');
         console.log('  LIVE_TRADING=true');
         console.log('  CONFIRM_LIVE_TRADING=true');
-        console.log('\nðŸ›¡ï¸ Starting in PAPER TRADING mode for safety');
+        console.log('\nStarting in PAPER TRADING mode for safety');
         console.log('â•'.repeat(70) + '\n');
 
         // Force paper mode (via instance flag, config is frozen)
@@ -962,13 +962,13 @@ class OGZPrimeV14Bot {
           process.stdout.write(`\r  ${i} seconds...`);
           require('child_process').execSync('sleep 1');
         }
-        console.log('\r  ðŸš€ LIVE TRADING ENGAGED!\n');
+        console.log('\r  LIVE TRADING ENGAGED!\n');
 
         this.mode = 'LIVE';
       }
     } else {
       // Paper mode
-      console.log('ðŸ“ PAPER TRADING MODE (safe mode)');
+      console.log('PAPER TRADING MODE (safe mode)');
       this.mode = 'PAPER';
     }
   }
@@ -1047,7 +1047,7 @@ class OGZPrimeV14Bot {
 
     this.isRunning = true;
 
-    // ðŸ¤– Initialize TRAI Decision Module (Change 574)
+    // Initialize TRAI Decision Module (Change 574)
     if (this.trai) {
       try {
         await this.trai.initialize();
@@ -1062,10 +1062,10 @@ class OGZPrimeV14Bot {
     try {
       // FEATURE FLAG: Backtest mode uses historical data, Live/Paper use WebSocket
       if (this.config.enableBacktestMode) {
-        console.log('ðŸ“Š BACKTEST MODE: Loading historical data...');
+        console.log('BACKTEST MODE: Loading historical data...');
         await this.loadHistoricalDataAndBacktest();
       } else {
-        console.log('ðŸ"¡ LIVE/PAPER MODE: Connecting to real-time data...');
+        console.log('"¡ LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
         await this.kraken.connect();
         // Subscribe to broker events instead of direct connection
@@ -1105,7 +1105,7 @@ class OGZPrimeV14Bot {
    * Single source of truth - no direct connections
    */
   subscribeToMarketData() {
-    console.log('ðŸ“¡ V2 ARCHITECTURE: Subscribing to market data from BrokerFactory...');
+    console.log('V2 ARCHITECTURE: Subscribing to market data from BrokerFactory...');
 
     if (this.kraken) {
       // Start market data subscription immediately
@@ -1114,7 +1114,7 @@ class OGZPrimeV14Bot {
 
       // Subscribe to candles if method exists
       if (this.kraken.subscribeToCandles) {
-        console.log(`ðŸ”Œ Starting ${symbol} ${timeframe} subscription...`);
+        console.log(`Starting ${symbol} ${timeframe} subscription...`);
         this.kraken.subscribeToCandles(symbol, timeframe);
       }
 
@@ -1151,7 +1151,7 @@ class OGZPrimeV14Bot {
 
         this.kraken.on('ticker', (data) => {
           if (data && data.price) {
-            console.log(`ðŸ’¹ V2 Ticker: $${data.price}`);
+            console.log(`V2 Ticker: $${data.price}`);
           }
         });
 
@@ -1236,7 +1236,7 @@ class OGZPrimeV14Bot {
         return;
       }
 
-      console.log(`ðŸ“Š Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
+      console.log(`Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
 
       // CHANGE 2026-02-10: Use active asset from MultiAssetManager if available
       const symbol = this.assetManager
@@ -1266,7 +1266,7 @@ class OGZPrimeV14Bot {
             timeframe: timeframe,
             candles: cached
           }));
-          console.log(`ðŸ“Š Sent ${cached.length} cached ${timeframe} candles as fallback`);
+          console.log(`Sent ${cached.length} cached ${timeframe} candles as fallback`);
         }
       }
     } catch (error) {
@@ -1372,7 +1372,7 @@ class OGZPrimeV14Bot {
       }
     }, LIVENESS_CHECK_INTERVAL);
 
-    console.log('ðŸ” Liveness watchdog started (checks every 60s, attempts REST backfill before halting)');
+    console.log('Liveness watchdog started (checks every 60s, attempts REST backfill before halting)');
   }
 
   /**
@@ -1470,7 +1470,7 @@ class OGZPrimeV14Bot {
             count: patternMemoryCount,
             uniquePatterns: patternMemorySize,
             growthRate: `${(patternMemoryCount / Math.max(1, this.candleCount)).toFixed(2)} patterns/candle`,
-            status: patternMemoryCount > 100 ? 'Learning Active ðŸ§ ' : 'Building Memory ðŸ“š'
+            status: patternMemoryCount > 100 ? 'Learning Active ' : 'Building Memory '
           },
           indicators: {
             rsi: indicators.rsi,
@@ -1621,7 +1621,7 @@ class OGZPrimeV14Bot {
             : (response.message || response.text || 'Unable to generate response'),
           timestamp: Date.now()
         }));
-        console.log('ðŸ§  [TRAI] Sent chat response');
+        console.log('[TRAI] Sent chat response');
       }
     } catch (error) {
       console.error('âŒ [TRAI] Chat query failed:', error.message);
@@ -1644,7 +1644,7 @@ class OGZPrimeV14Bot {
    * Graceful shutdown
    */
   async shutdown() {
-    console.log('\nðŸ›‘ Shutting down OGZ Prime V14 MERGED...');
+    console.log('\nShutting down OGZ Prime V14 MERGED...');
     this.isRunning = false;
 
     if (this.tradingInterval) {
@@ -1654,21 +1654,21 @@ class OGZPrimeV14Bot {
     // CHANGE 2026-01-21: Clear liveness watchdog interval (memory leak fix)
     if (this.livenessCheckInterval) {
       clearInterval(this.livenessCheckInterval);
-      console.log('ðŸ” Liveness watchdog interval cleaned up');
+      console.log('Liveness watchdog interval cleaned up');
     }
 
     // CHANGE 2026-01-29: Clear heartbeat interval (memory leak fix)
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
-      console.log('ðŸ’“ Heartbeat interval cleaned up');
+      console.log('Heartbeat interval cleaned up');
     }
 
-    // ðŸ”¥ CRITICAL: Remove event listeners before closing (Change 575 - Memory leak fix)
+    // CRITICAL: Remove event listeners before closing (Change 575 - Memory leak fix)
     if (this.ws) {
       this.ws.removeAllListeners();
       this.ws.close();
-      console.log('ðŸ“¡ Market data WebSocket cleaned up');
+      console.log('Market data WebSocket cleaned up');
     }
 
     // CHANGE 2026-02-10: Cleanup modular entry system
@@ -1676,31 +1676,31 @@ class OGZPrimeV14Bot {
     if (this.emaCrossover) this.emaCrossover.destroy();
     if (this.maDynamicSR) this.maDynamicSR.destroy();
     if (this.liquiditySweep) this.liquiditySweep.destroy();
-    console.log('ðŸ“Š Modular Entry System cleaned up');
+    console.log('Modular Entry System cleaned up');
 
     if (this.dashboardWs) {
       this.dashboardWs.removeAllListeners();
       this.dashboardWs.close();
-      console.log('ðŸ“Š Dashboard WebSocket cleaned up');
+      console.log('Dashboard WebSocket cleaned up');
     }
 
-    // ðŸ¤– Shutdown TRAI LLM server (Change 579)
+    // Shutdown TRAI LLM server (Change 579)
     if (this.trai && this.trai.traiCore) {
       this.trai.traiCore.shutdown();
-      console.log('ðŸ¤– TRAI Core shutdown complete');
+      console.log('TRAI Core shutdown complete');
     }
 
     // CHANGE 2025-12-12: Cleanup RiskManager timer leak
     if (this.riskManager) {
       this.riskManager.shutdown();
-      console.log('ðŸ›¡ï¸ RiskManager timers cleaned up');
+      console.log('RiskManager timers cleaned up');
     }
 
     // FIX 2026-02-10: Save pattern memory before exit (was never being saved!)
     // FIX 2026-02-19: Await async cleanup
     if (this.patternChecker?.cleanup) {
       await this.patternChecker.cleanup();
-      console.log('ðŸ§  Pattern memory saved to disk');
+      console.log('Pattern memory saved to disk');
     }
 
     // Print final performance stats
@@ -1754,7 +1754,7 @@ async function main() {
     bot.shutdown();
   });
 
-  // ðŸ”¥ CRITICAL: Handle unhandled promise rejections (Change 575)
+  // CRITICAL: Handle unhandled promise rejections (Change 575)
   process.on('unhandledRejection', (reason, promise) => {
     console.error('âŒ Unhandled Promise Rejection:', reason);
     console.error('   Promise:', promise);
