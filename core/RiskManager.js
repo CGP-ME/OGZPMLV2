@@ -84,43 +84,65 @@ class RiskManager {
    * @returns {Object} - { approved, reason, riskLevel, ... }
    */
   assessTradeRisk(tradeParams) {
+    // L5 observability: accumulate pass/fail for every gate evaluated.
+    // Pure instrumentation — never changes gate behavior or trade decisions.
+    // Matches decision-ledger-schema riskGates enum + shape.
+    const riskGates = [];
+    const _gate = (gate, threshold, value, passed, rejectReason) => {
+      riskGates.push({ gate, threshold, value, passed, ...(rejectReason ? { rejectReason } : {}) });
+    };
+
     // Bypass for backtest (controlled by config injection)
-    if (this.config.riskManagerBypass) return { approved: true, riskLevel: 'LOW' };
+    if (this.config.riskManagerBypass) return { approved: true, riskLevel: 'LOW', riskGates };
     const { confidence = 0 } = tradeParams;
     const ddState = this.drawdownTracker.getState();
     const breaches = this.pnlTracker.getLimitBreaches();
     const pnlState = this.pnlTracker.getState();
 
     // Max drawdown check
-    if (this.drawdownTracker.isMaxDrawdownExceeded()) {
+    const maxDDExceeded = this.drawdownTracker.isMaxDrawdownExceeded();
+    _gate('drawdown_circuit', this.config.maxDrawdownPercent, ddState.currentDrawdown, !maxDDExceeded,
+          maxDDExceeded ? `Max drawdown exceeded (${ddState.currentDrawdown.toFixed(2)}%)` : null);
+    if (maxDDExceeded) {
       return {
         approved: false,
         reason: `Max drawdown exceeded (${ddState.currentDrawdown.toFixed(2)}%)`,
         riskLevel: 'CRITICAL',
         blockType: 'DRAWDOWN_LIMIT',
+        riskGates,
       };
     }
 
     // Loss limit checks
+    _gate('daily_loss_limit', 0, breaches.daily ? 1 : 0, !breaches.daily,
+          breaches.daily ? 'Daily loss limit exceeded' : null);
     if (breaches.daily) {
-      return { approved: false, reason: 'Daily loss limit exceeded', riskLevel: 'HIGH', blockType: 'DAILY_LIMIT' };
+      return { approved: false, reason: 'Daily loss limit exceeded', riskLevel: 'HIGH', blockType: 'DAILY_LIMIT', riskGates };
     }
+    _gate('daily_loss_limit', 0, breaches.weekly ? 1 : 0, !breaches.weekly,
+          breaches.weekly ? 'Weekly loss limit exceeded' : null);
     if (breaches.weekly) {
-      return { approved: false, reason: 'Weekly loss limit exceeded', riskLevel: 'HIGH', blockType: 'WEEKLY_LIMIT' };
+      return { approved: false, reason: 'Weekly loss limit exceeded', riskLevel: 'HIGH', blockType: 'WEEKLY_LIMIT', riskGates };
     }
+    _gate('daily_loss_limit', 0, breaches.monthly ? 1 : 0, !breaches.monthly,
+          breaches.monthly ? 'Monthly loss limit exceeded' : null);
     if (breaches.monthly) {
-      return { approved: false, reason: 'Monthly loss limit exceeded', riskLevel: 'HIGH', blockType: 'MONTHLY_LIMIT' };
+      return { approved: false, reason: 'Monthly loss limit exceeded', riskLevel: 'HIGH', blockType: 'MONTHLY_LIMIT', riskGates };
     }
 
     // Recovery mode confidence check
     if (ddState.recoveryMode) {
       const required = this.config.baseConfidenceThreshold * this.config.recoveryConfidenceMultiplier;
-      if (confidence < required) {
+      const passedRecovery = confidence >= required;
+      _gate('min_confidence', required, confidence, passedRecovery,
+            passedRecovery ? null : `Recovery mode: Confidence ${(confidence * 100).toFixed(1)}% below required ${(required * 100).toFixed(1)}%`);
+      if (!passedRecovery) {
         return {
           approved: false,
           reason: `Recovery mode: Confidence ${(confidence * 100).toFixed(1)}% below required ${(required * 100).toFixed(1)}%`,
           riskLevel: 'MEDIUM',
           blockType: 'RECOVERY_CONFIDENCE',
+          riskGates,
         };
       }
     }
@@ -147,24 +169,46 @@ class RiskManager {
       consecutiveLosses: pnlState.consecutiveLosses,
       currentDrawdown: ddState.currentDrawdown,
       recommendation: riskLevel === 'HIGH' ? 'REDUCE_SIZE' : riskLevel === 'MEDIUM' ? 'STANDARD_SIZE' : 'FULL_SIZE',
+      riskGates,
     };
   }
 
   /**
    * Check if trading is allowed
-   * @returns {{ allowed: boolean, reason?: string }}
+   * @returns {{ allowed: boolean, reason?: string, riskGates: Array }}
    */
   isTradingAllowed() {
+    // L5 observability: same pattern as assessTradeRisk — record pass/fail per gate.
+    const riskGates = [];
+    const _gate = (gate, threshold, value, passed, rejectReason) => {
+      riskGates.push({ gate, threshold, value, passed, ...(rejectReason ? { rejectReason } : {}) });
+    };
+
     // Bypass for backtest (controlled by config injection)
-    if (this.config.riskManagerBypass) return { allowed: true };
-    if (this.drawdownTracker.isMaxDrawdownExceeded()) {
-      return { allowed: false, reason: 'Max drawdown exceeded' };
+    if (this.config.riskManagerBypass) return { allowed: true, riskGates };
+
+    const ddState = this.drawdownTracker.getState();
+    const maxDDExceeded = this.drawdownTracker.isMaxDrawdownExceeded();
+    _gate('drawdown_circuit', this.config.maxDrawdownPercent, ddState.currentDrawdown, !maxDDExceeded,
+          maxDDExceeded ? 'Max drawdown exceeded' : null);
+    if (maxDDExceeded) {
+      return { allowed: false, reason: 'Max drawdown exceeded', riskGates };
     }
+
     const breaches = this.pnlTracker.getLimitBreaches();
-    if (breaches.daily) return { allowed: false, reason: 'Daily loss limit' };
-    if (breaches.weekly) return { allowed: false, reason: 'Weekly loss limit' };
-    if (breaches.monthly) return { allowed: false, reason: 'Monthly loss limit' };
-    return { allowed: true };
+    _gate('daily_loss_limit', 0, breaches.daily ? 1 : 0, !breaches.daily,
+          breaches.daily ? 'Daily loss limit' : null);
+    if (breaches.daily) return { allowed: false, reason: 'Daily loss limit', riskGates };
+
+    _gate('daily_loss_limit', 0, breaches.weekly ? 1 : 0, !breaches.weekly,
+          breaches.weekly ? 'Weekly loss limit' : null);
+    if (breaches.weekly) return { allowed: false, reason: 'Weekly loss limit', riskGates };
+
+    _gate('daily_loss_limit', 0, breaches.monthly ? 1 : 0, !breaches.monthly,
+          breaches.monthly ? 'Monthly loss limit' : null);
+    if (breaches.monthly) return { allowed: false, reason: 'Monthly loss limit', riskGates };
+
+    return { allowed: true, riskGates };
   }
 
   /**

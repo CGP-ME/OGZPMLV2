@@ -95,6 +95,7 @@ function createLedgerSkeleton({
   confluence,
   positionSizing,
   exitContract,
+  riskGates,
 }) {
   return {
     tradeId,
@@ -110,7 +111,7 @@ function createLedgerSkeleton({
     positionSizing: positionSizing || { basePercent: 0, confidenceMultiplier: 1, confluenceMultiplier: 1, finalPercent: 0, finalSizeUsd: 0, formula: 'N/A' },
     exitContract: exitContract || { strategyName: 'unknown', stopLossPercent: -1, takeProfitPercent: 1 },
     confidenceModifiers: [],
-    riskGates: [],
+    riskGates: riskGates || [],
     exits: [],
     outcome: null,
   };

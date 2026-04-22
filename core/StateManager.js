@@ -377,6 +377,9 @@ class StateManager {
         confluence: context.ledgerData.confluence || null,
         positionSizing: context.ledgerData.positionSizing || null,
         exitContract: context.ledgerData.exitContract || null,
+        // L5: pre-trade + RiskManager gate observability (pass/fail per gate).
+        // Pure instrumentation — never changes trade logic.
+        riskGates: context.ledgerData.riskGates || [],
       });
     }
 

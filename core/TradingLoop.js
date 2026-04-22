@@ -269,13 +269,17 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
-      // L5: Capture risk gates that were checked during entry evaluation
+      // L5: Capture risk gates that were checked during entry evaluation.
+      // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
+      // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
+      // loss limits, recovery min_confidence) via decision.riskGates — appended below.
       const riskGates = [
         { gate: 'warmup', threshold: 15, value: this.ctx.priceHistory.length, passed: this.ctx.priceHistory.length >= 15 },
         { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
         { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
         { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
         { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
+        ...(decision.riskGates || []),
       ];
 
       // L1+L2: Attach full ledger data to decision for StateManager.openPosition
@@ -342,20 +346,25 @@ class TradingLoop {
     if (!mapped) return { action: 'HOLD', confidence: 0 };
 
     if (this.ctx.riskManager) {
+      // L5 observability: collect riskGates arrays from both RiskManager calls.
+      // Each call returns its own array of {gate, threshold, value, passed, rejectReason}.
+      // Concatenated and surfaced to caller so StateManager can attach to the trade ledger.
       const riskCheck = this.ctx.riskManager.isTradingAllowed();
+      const riskGates = [...(riskCheck.riskGates || [])];
       if (!riskCheck.allowed) {
         console.log(`🛑 RISK BLOCK: ${riskCheck.reason} — ${mapped.direction} rejected`);
-        return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason };
+        return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason, riskGates };
       }
 
       const riskAssessment = this.ctx.riskManager.assessTradeRisk({
         confidence: orchResult.confidence / 100,
         direction
       });
+      riskGates.push(...(riskAssessment.riskGates || []));
 
       if (!riskAssessment.approved) {
         console.log(`🛑 RISK BLOCK: ${riskAssessment.reason} — ${mapped.direction} rejected`);
-        return { action: 'HOLD', confidence: 0, blockReason: riskAssessment.reason };
+        return { action: 'HOLD', confidence: 0, blockReason: riskAssessment.reason, riskGates };
       }
 
       console.log(`✅ ${mapped.action} DECISION: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
@@ -368,7 +377,8 @@ class TradingLoop {
         direction: mapped.direction,
         confidence: orchResult.confidence,
         riskLevel: riskAssessment.riskLevel,
-        riskRecommendation: riskAssessment.recommendation
+        riskRecommendation: riskAssessment.recommendation,
+        riskGates,
       };
     }
 
