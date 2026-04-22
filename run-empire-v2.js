@@ -366,7 +366,7 @@ class OGZPrimeV14Bot {
   constructor() {
     console.log('\nOGZ PRIME V14 FINAL MERGED - INITIALIZING');
     console.log('Desktop Claude (402-line) + Browser Claude (439-line) = MERGED');
-    console.log('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
+    console.log('═══════════════════════════════════════════════════════════════════\n');
 
     // REFACTOR Phase 21: ModuleInitializer for configuration helpers
     this.moduleInitializer = new ModuleInitializer();
@@ -933,28 +933,28 @@ class OGZPrimeV14Bot {
     // Check if attempting live mode
     if (enableLive) {
       if (!confirmLive) {
-        console.log('\n' + 'â•'.repeat(70));
-        console.log('âš ï¸  TWO-KEY SAFETY CHECK FAILED');
-        console.log('â•'.repeat(70));
+        console.log('\n' + '═'.repeat(70));
+        console.log('[WARNING]  TWO-KEY SAFETY CHECK FAILED');
+        console.log('═'.repeat(70));
         console.log('You have set LIVE_TRADING=true');
         console.log('But CONFIRM_LIVE_TRADING is not set to true');
         console.log('\nTo enable LIVE trading, you must set BOTH:');
         console.log('  LIVE_TRADING=true');
         console.log('  CONFIRM_LIVE_TRADING=true');
         console.log('\nStarting in PAPER TRADING mode for safety');
-        console.log('â•'.repeat(70) + '\n');
+        console.log('═'.repeat(70) + '\n');
 
         // Force paper mode (via instance flag, config is frozen)
         this.mode = 'PAPER';
       } else {
         // BOTH keys confirmed - show BIG warning
-        console.log('\n' + 'â•”'.repeat(70));
-        console.log('â•‘' + ' '.repeat(20) + 'âš ï¸  LIVE TRADING MODE ACTIVE  âš ï¸' + ' '.repeat(17) + 'â•‘');
-        console.log('â•‘' + ' '.repeat(68) + 'â•‘');
-        console.log('â•‘' + ' '.repeat(20) + '    REAL MONEY AT RISK!' + ' '.repeat(25) + 'â•‘');
-        console.log('â•‘' + ' '.repeat(68) + 'â•‘');
-        console.log('â•‘' + ' '.repeat(15) + 'Two-key safety confirmed. Proceeding...' + ' '.repeat(14) + 'â•‘');
-        console.log('â•š'.repeat(70) + '\n');
+        console.log('\n' + '═”'.repeat(70));
+        console.log('═‘' + ' '.repeat(20) + '[WARNING]  LIVE TRADING MODE ACTIVE  [WARNING]' + ' '.repeat(17) + '═‘');
+        console.log('═‘' + ' '.repeat(68) + '═‘');
+        console.log('═‘' + ' '.repeat(20) + '    REAL MONEY AT RISK!' + ' '.repeat(25) + '═‘');
+        console.log('═‘' + ' '.repeat(68) + '═‘');
+        console.log('═‘' + ' '.repeat(15) + 'Two-key safety confirmed. Proceeding...' + ' '.repeat(14) + '═‘');
+        console.log('═š'.repeat(70) + '\n');
 
         // 10-second countdown
         console.log('Starting in:');
@@ -1053,7 +1053,7 @@ class OGZPrimeV14Bot {
         await this.trai.initialize();
         console.log('TRAI Decision Module initialized - IN THE HOT PATH!\n');
       } catch (error) {
-        console.error('âš ï¸ TRAI initialization failed:', error.message);
+        console.error('[WARNING] TRAI initialization failed:', error.message);
         console.log('   Bot will continue without TRAI...\n');
         this.trai = null;
       }
@@ -1232,7 +1232,7 @@ class OGZPrimeV14Bot {
   async fetchAndSendHistoricalCandles(timeframe, limit = 200) {
     try {
       if (!this.kraken || !this.dashboardWs) {
-        console.warn('âš ï¸ Cannot fetch historical candles - broker or dashboard not connected');
+        console.warn('[WARNING] Cannot fetch historical candles - broker or dashboard not connected');
         return;
       }
 
@@ -1257,7 +1257,7 @@ class OGZPrimeV14Bot {
 
         console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard`);
       } else {
-        console.warn(`âš ï¸ No historical candles returned for ${timeframe}`);
+        console.warn(`[WARNING] No historical candles returned for ${timeframe}`);
         // Fall back to cached WebSocket data if available
         const cached = this.getCandlesForTimeframe(timeframe);
         if (cached.length > 0) {
@@ -1497,7 +1497,7 @@ class OGZPrimeV14Bot {
       }
     } catch (error) {
       // Fail silently - don't let dashboard issues affect trading
-      console.error('âš ï¸ Pattern broadcast failed:', error.message);
+      console.error('[WARNING] Pattern broadcast failed:', error.message);
     }
   }
 
