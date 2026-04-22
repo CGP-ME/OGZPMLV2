@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Config Consolidation — Phase 1 Scaffold (2026-04-22)
+
+#### Pure scaffold commit: 7 new files / .gitignore edit (`cb1f0a5`)
+- **Files:** `config/trading.config.json`, `config/trading.config.schema.json`, `config/snapshots/.gitkeep` + `README.md`, `config/matrix-runs/.gitkeep`, `ogz-meta/specs/phase1-env-gates-investigation.md`, `.gitignore`
+- **Zero code changes** — pure scaffolding per `CONFIG-CONSOLIDATION-SPEC.md §4.3`. Phase 2 wires consumption.
+- **JSON:** exact serialization of `TradingConfig.BASE_CONFIG` at HEAD (16.4KB, 24 top-level keys). All 4 `_validated` markers on locked exit contracts (EMASMACrossover, LiquiditySweep, RSI, MADynamicSR — all 2026-03-20) preserved verbatim per DEC-013 seal.
+- **Schema:** Draft-07, top-level `additionalProperties: false` with all 24 keys required. Nested objects use `additionalProperties: true` so `_validated` markers and operator-added fields pass through during migration.
+- **`.env.gates` investigation (PATCH 4):** Local-only secrets sidecar used exclusively by `scripts/generate-live-proof.js`. PM2 runtime inspection confirmed no live process loads it via `DOTENV_CONFIG_PATH`. Verdict: **keep as sidecar, no Phase 5 action required**. Mercury agentic investigation + manual PM2 cross-check. Full investigation at `ogz-meta/specs/phase1-env-gates-investigation.md`.
+- **Approval gates pending:** (1) Operator review of `config/trading.config.json` — "does this represent my current config intent?" (2) Mercury diff of JSON values vs current `.env`-resolved values (Phase 2 prereq).
+
 ### Matrix-Sweep Per-Worker Report Isolation — Race Condition Fix (2026-04-22)
 
 #### Atomic fix: 2 files, 15/-4 lines (`747909d`)

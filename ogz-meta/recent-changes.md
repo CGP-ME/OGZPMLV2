@@ -1,6 +1,32 @@
 
 ---
 
+## 2026-04-22: Config Consolidation — Phase 1 Scaffold
+
+**Impact:** SCAFFOLDING — Phase 1 of 14. Zero execution-path changes.
+
+**Summary:** Per `CONFIG-CONSOLIDATION-SPEC.md §4.3` + V2 PATCH 4. Materializes `TradingConfig.BASE_CONFIG` to a canonical JSON at `config/trading.config.json` with a JSON Schema companion. Creates snapshot/matrix-run output dirs (gitignored contents) for Phase 6+ to populate. Resolves the `.env.gates` Phase-5-blocker investigation.
+
+**Files Changed:**
+- config/trading.config.json (new — 16.4KB, 24 keys, 4 _validated markers preserved)
+- config/trading.config.schema.json (new — Draft-07 schema)
+- config/snapshots/.gitkeep + README.md (new)
+- config/matrix-runs/.gitkeep (new)
+- .gitignore (added config/snapshots/* and config/matrix-runs/* runtime excludes)
+- ogz-meta/specs/phase1-env-gates-investigation.md (new — Mercury + PM2 runtime verdict)
+
+**.env.gates verdict:** Local-only sidecar for scripts/generate-live-proof.js. None of 3 live PM2 processes set DOTENV_CONFIG_PATH=.env.gates. Keep as sidecar, no Phase 5 action.
+
+**Approval gates pending:**
+1. Operator review — does config/trading.config.json represent current config intent?
+2. Mercury diff — JSON values vs .env-resolved values must match before Phase 2 starts.
+
+**Also:** CC issued false "Mercury hallucinated" accusation mid-investigation. Manual re-read of cited lines 239-242 proved Mercury correct. Corrected in feedback-verify-before-claiming.md memory with specific pattern: when cross-checking Mercury, inspect the EXACT cited lines, not a nearby range.
+
+**Status:** Committed `cb1f0a5` + pushed. Mercury reindex follow-up.
+
+---
+
 ## 2026-04-22: Matrix-Sweep Per-Worker Report Isolation — Race Condition Fix
 
 **Impact:** CRITICAL for parallel matrix sweeps — eliminates silent cross-worker data contamination
