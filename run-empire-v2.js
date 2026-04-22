@@ -732,7 +732,7 @@ class OGZPrimeV14Bot {
         activeTrades: new Map()  // CHANGE 2025-12-13: Centralized active trades
       }, { action: 'INIT' });
     } else {
-      console.log('âœ… Using existing state - Balance:', currentState.balance, 'Trades:', currentState.activeTrades?.size || 0);
+      console.log('Using existing state - Balance:', currentState.balance, 'Trades:', currentState.activeTrades?.size || 0);
       // FIX 2026-03-14: Ensure initialBalance exists on state restore
       if (!currentState.initialBalance) {
         stateManager.updateState({ initialBalance: initialBalance }, { action: 'SET_INITIAL_BALANCE' });
@@ -783,10 +783,10 @@ class OGZPrimeV14Bot {
     if (enableTestMode) {
       tradingMode = 'TEST';
       console.log('TEST MODE ACTIVATED:');
-      console.log('   âœ… Patterns will NOT be saved');
-      console.log('   âœ… Trades are simulated');
-      console.log('   âœ… To inject signal: Set TEST_CONFIDENCE env var (0-100)');
-      console.log('   âœ… Example: TEST_CONFIDENCE=75 npm start');
+      console.log('   Patterns will NOT be saved');
+      console.log('   Trades are simulated');
+      console.log('   To inject signal: Set TEST_CONFIDENCE env var (0-100)');
+      console.log('   Example: TEST_CONFIDENCE=75 npm start');
     }
 
     this.config = {
@@ -895,9 +895,9 @@ class OGZPrimeV14Bot {
     this.indicatorEngine = indicatorEngine;
     this.candleProcessor = new CandleProcessor(this);
 
-    console.log('âœ… All modules initialized successfully');
+    console.log('All modules initialized successfully');
     console.log(`   Risk Management: ENABLED`);
-    console.log(`   Change 513 Compliance: âœ…\n`);
+    console.log(`   Change 513 Compliance: \n`);
   }
 
   /**
@@ -1051,7 +1051,7 @@ class OGZPrimeV14Bot {
     if (this.trai) {
       try {
         await this.trai.initialize();
-        console.log('âœ… TRAI Decision Module initialized - IN THE HOT PATH!\n');
+        console.log('TRAI Decision Module initialized - IN THE HOT PATH!\n');
       } catch (error) {
         console.error('âš ï¸ TRAI initialization failed:', error.message);
         console.log('   Bot will continue without TRAI...\n');
@@ -1077,7 +1077,7 @@ class OGZPrimeV14Bot {
         // if (this.eventLoopMonitor) {
         //   console.log('âš¡ Starting event loop monitoring...');
         //   this.eventLoopMonitor.start();
-        //   console.log('âœ… Event loop monitor active');
+        //   console.log('Event loop monitor active');
         // }
 
         // CHANGE 2026-02-10: Initialize Multi-Asset Manager
@@ -1092,7 +1092,7 @@ class OGZPrimeV14Bot {
         // Start trading cycle
         this.startTradingCycle();
 
-        console.log('âœ… Bot is now LIVE and trading\n');
+        console.log('Bot is now LIVE and trading\n');
       }
     } catch (error) {
       console.error('âŒ Startup failed:', error.message);
@@ -1155,7 +1155,7 @@ class OGZPrimeV14Bot {
           }
         });
 
-        console.log('âœ… V2: Subscribed to BrokerFactory events (single source of truth)');
+        console.log('V2: Subscribed to BrokerFactory events (single source of truth)');
       }
     } else {
       console.error('âŒ Broker not initialized');
@@ -1255,7 +1255,7 @@ class OGZPrimeV14Bot {
           candles: candles
         }));
 
-        console.log(`âœ… Sent ${candles.length} historical ${timeframe} candles to dashboard`);
+        console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard`);
       } else {
         console.warn(`âš ï¸ No historical candles returned for ${timeframe}`);
         // Fall back to cached WebSocket data if available
