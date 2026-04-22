@@ -144,11 +144,26 @@ class UnifiedPatternMemory {
       saveIntervalMs: config.saveIntervalMs || 5 * 60 * 1000, // 5 minutes
     };
 
-    // Determine storage file based on mode
+    // Storage file is keyed by BOTH mode and asset. Mixing asset classes
+    // (e.g. BTC/USD and TSLA) into the same file silently corrupts win rates —
+    // bug hit 2026-04-22 on broker flip. Spec: ogz-meta/specs/pattern-bank-separation-spec.md
     const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
                  process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
+
+    // Asset: prefer TRADING_PAIR (explicit), fall back to ticker extracted from
+    // CANDLE_DATA_FILE filename (e.g. 'tuning/tsla-15m-2y.json' -> 'TSLA'),
+    // finally 'default' if neither present. Prevents the BTC-USD-default landmine
+    // for backtest commands that forget TRADING_PAIR (Wolf's 2026-04-22 catch).
+    let asset = (process.env.TRADING_PAIR || '').replace(/\//g, '-');
+    if (!asset && process.env.CANDLE_DATA_FILE) {
+      const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
+        .replace(/^polygon-/, '');
+      asset = base.split('-')[0].toUpperCase();
+    }
+    if (!asset) asset = 'default';
+
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-    this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.json`);
+    this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${asset}.json`);
 
     // Pattern storage — keyed by signature
     this.patterns = {};

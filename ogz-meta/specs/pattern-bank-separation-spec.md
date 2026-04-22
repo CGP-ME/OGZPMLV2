@@ -50,13 +50,19 @@ Examples:
 
 ---
 
-## Phase 1 — UnifiedPatternMemory asset-aware path (READY TO APPLY)
+## Phase 1 — UnifiedPatternMemory asset-aware path (APPLIED)
 
-**File:** `core/UnifiedPatternMemory.js:147-151`
+**File:** `core/UnifiedPatternMemory.js:147-166`
 
-**Change:** Include asset in the storage path. Source asset from `process.env.TRADING_PAIR`, normalizing `/` to `-`.
+**Change:** Include asset in the storage path. Source asset from three fallbacks:
 
-**Diff:**
+1. `process.env.TRADING_PAIR` (primary) — normalize `/` to `-` for filesystem safety
+2. Ticker extracted from `process.env.CANDLE_DATA_FILE` filename (fallback for backtests that don't set TRADING_PAIR)
+3. Literal `'default'` if neither present
+
+**Wolf's 2026-04-22 catch:** The initial spec draft only read `TRADING_PAIR`. Standalone backtests — including the Phase 0 baseline command and any manual backtest run — typically don't set `TRADING_PAIR`, so the ConfigLoader default `BTC-USD` would have fired. This would have meant a TSLA backtest quietly saving patterns to `unified-patterns.backtest.BTC-USD.json` — the same class of bug that hit on 2026-04-22, just in backtest mode. The `CANDLE_DATA_FILE` filename fallback closes that hole. Matrix-sweep is separately safe because its worker env sets `BACKTEST_NO_PATTERN_SAVE: 'true'` (tools/matrix-sweep.js:281) which disables save entirely.
+
+**Final diff applied:**
 ```javascript
 // Before:
 const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
@@ -67,14 +73,33 @@ this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${
 // After:
 const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
              process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
-const asset = (process.env.TRADING_PAIR || 'default').replace(/\//g, '-');
+
+let asset = (process.env.TRADING_PAIR || '').replace(/\//g, '-');
+if (!asset && process.env.CANDLE_DATA_FILE) {
+  const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
+    .replace(/^polygon-/, '');
+  asset = base.split('-')[0].toUpperCase();
+}
+if (!asset) asset = 'default';
+
 const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${asset}.json`);
 ```
 
-**Effect:** Existing `unified-patterns.paper.json` is abandoned (already deleted). New bot runs create `unified-patterns.paper.{asset}.json` fresh. Each asset keeps its own bank, cannot cross-contaminate.
+**Fallback resolution table:**
 
-**Risk:** None to active trades (the storage path is pure reporting layer). Risk to historical pattern learning: already zeroed out by the incident — starting fresh either way.
+| Context | TRADING_PAIR | CANDLE_DATA_FILE | Resolved asset | Path |
+|---|---|---|---|---|
+| Live paper TSLA | `TSLA` | (any) | `TSLA` | `unified-patterns.paper.TSLA.json` |
+| Live paper BTC | `BTC/USD` | (any) | `BTC-USD` | `unified-patterns.paper.BTC-USD.json` |
+| Manual backtest (explicit pair) | `COIN` | `coin-15m-2y.json` | `COIN` | `unified-patterns.backtest.COIN.json` |
+| Manual backtest (no pair) | (unset) | `tuning/tsla-15m-2y.json` | `TSLA` | `unified-patterns.backtest.TSLA.json` |
+| Polygon BTC backtest | (unset) | `data/polygon-btc-1y.json` | `BTC` | `unified-patterns.backtest.BTC.json` |
+| Edge case (nothing set) | (unset) | (unset) | `default` | `unified-patterns.backtest.default.json` |
+
+**Effect:** Existing `unified-patterns.paper.json` is abandoned (already deleted in the 2026-04-22 incident cleanup). New bot runs create `unified-patterns.{mode}.{asset}.json` fresh. Each asset keeps its own bank, cannot cross-contaminate. Backtest commands without TRADING_PAIR no longer poison any specific asset's bank — they route based on the data file being backtested.
+
+**Risk:** None to active trading. Pure storage path layer.
 
 ---
 
@@ -145,7 +170,7 @@ Implementation: ~60 lines in UnifiedPatternMemory + a cron or internal timer for
 
 | Phase | State |
 |---|---|
-| 1 (asset-aware path) | Diff written, awaiting Trey's approval to apply |
+| 1 (asset-aware path) | **APPLIED 2026-04-22** — includes Wolf's CANDLE_DATA_FILE fallback |
 | 2 (premium companion) | Spec'd, not implemented |
 | 3 (SessionRouter wire) | Spec'd, awaiting SessionRouter |
 | 4 (backups) | Spec'd, not implemented |
