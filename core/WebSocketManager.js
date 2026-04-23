@@ -13,6 +13,7 @@
 
 const WebSocket = require('ws');
 const { getInstance: getStateManager } = require('./StateManager');
+const { getNarrator } = require('./TradeNarrator');
 const stateManager = getStateManager();
 
 class WebSocketManager {
@@ -108,6 +109,14 @@ class WebSocketManager {
             // Connect TRAI for chain-of-thought broadcasts
             if (this.ctx.trai) {
               this.ctx.trai.setWebSocketClient(this.ctx.dashboardWs);
+            }
+
+            // Wire narrator for USER-mode broadcasts. Does nothing if
+            // USER_NARRATOR env flag is not set (narrator.user === false).
+            try {
+              getNarrator().setWebSocketClient(this.ctx.dashboardWs);
+            } catch (e) {
+              console.warn('⚠️ [Narrator] setWebSocketClient failed:', e.message);
             }
 
             // CHANGE 2026-01-28: Start heartbeat ping interval after auth
