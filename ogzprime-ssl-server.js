@@ -143,11 +143,14 @@ async function tavilySearch(query, maxResults = 5) {
 function needsWebSearch(prompt) {
   const lower = prompt.toLowerCase();
   const searchTriggers = [
-    'news', 'latest', 'today', 'recent', 'current',
-    'what is happening', 'what happened', 'why is',
-    'earnings', 'announced', 'report', 'sec filing',
-    'lawsuit', 'merger', 'acquisition', 'ipo',
-    'fed', 'fomc', 'inflation', 'interest rate'
+    'news', 'latest', 'today', 'recent', 'current', 'now',
+    'what is happening', 'what happened', 'why is', 'why did', 'why are',
+    'earnings', 'announced', 'report', 'sec filing', 'guidance', 'beat', 'miss',
+    'lawsuit', 'merger', 'acquisition', 'ipo', 'spinoff', 'buyback', 'dividend',
+    'fed', 'fomc', 'powell', 'inflation', 'interest rate', 'cpi', 'jobs',
+    'moving', 'rally', 'dropping', 'selling off', 'popping', 'tanking',
+    'upgrade', 'downgrade', 'analyst', 'price target',
+    'market', 'stock', 'shares', 'trading'
   ];
   return searchTriggers.some(trigger => lower.includes(trigger));
 }
@@ -328,13 +331,20 @@ IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, pr
       }
     }
 
-    // Auto-search for news/current events if enabled or detected
-    if (enableSearch !== false && TAVILY_API_KEY && needsWebSearch(prompt)) {
-      console.log('[TRAI Analyze] Query needs web search, fetching...');
-      const searchResults = await tavilySearch(prompt, 3);
-      if (searchResults) {
+    // Auto-search for news/current events. CHANGE 2026-04-22: broadened — we
+    // also fetch news any time a stock symbol is present OR the question is
+    // about a company/market, so TRAI is actually aware of what's happening
+    // instead of falling back to generic output.
+    const shouldSearch = enableSearch !== false && TAVILY_API_KEY && (needsWebSearch(prompt) || symbol);
+    if (shouldSearch) {
+      console.log('[TRAI Analyze] Fetching news context via Tavily...');
+      const newsQuery = symbol
+        ? `${symbol} stock news today ${new Date().toISOString().slice(0, 10)}`
+        : prompt;
+      const searchResults = await tavilySearch(newsQuery, 4);
+      if (searchResults && (searchResults.answer || searchResults.results?.length)) {
         searchUsed = true;
-        dataContext += `\n**Recent News:**\n`;
+        dataContext += `\n**Recent news (last 24-48h):**\n`;
         if (searchResults.answer) {
           dataContext += `Summary: ${searchResults.answer}\n`;
         }
@@ -344,43 +354,53 @@ IMPORTANT: Use ONLY the data above. Do NOT invent or hallucinate any numbers, pr
       }
     }
 
-    // CRITICAL: Enforce NO TRADING ADVICE - liability protection
-    const noAdvicePrefix = `CRITICAL RULES - YOU MUST FOLLOW THESE:
-1. NEVER say "buy", "sell", "enter", "exit", or any trading recommendation
-2. NEVER say "this is a good setup" or "this looks bullish/bearish for entry"
-3. ONLY present FACTS from the data provided
-4. Start every response with: "I can't give trading advice, but here are the facts:"
-5. Use ONLY the numbers provided - do NOT invent any data points
+    // CHANGE 2026-04-22: Rewrote system prompt. Removed the canned
+    // "I can't give trading advice, but here are the facts:" prefix that made
+    // every answer feel like a fallback. Still enforces no-advice via rules
+    // rather than a forced opener.
+    const systemRules = `You are TRAI, an analyst inside the OGZ Prime trading system.
 
+Answer the user's question directly and conversationally. Be specific. Reference the exact numbers and news provided below.
+
+Rules you MUST follow (but do NOT narrate them):
+- Never recommend buying, selling, entering, exiting, sizing, holding, or any action. No "this is a good setup", no "looks bullish for entry".
+- If asked "should I..." — explain what the data shows and what traders commonly watch for in that condition, WITHOUT prescribing an action.
+- Use ONLY the numbers and news provided. Never invent data. If something isn't provided, say so briefly.
+- Do NOT open with a disclaimer. Do NOT say "I can't give trading advice". Just answer.
+- Keep it tight: 2-4 short paragraphs unless the question clearly demands more.
 `;
 
     let analysisPrompt;
-    if (prompt.toLowerCase().includes('should i')) {
-      analysisPrompt = `${noAdvicePrefix}
-The user asked: "${prompt}"
+    if (marketDataUsed && searchUsed) {
+      analysisPrompt = `${systemRules}
+Question: ${prompt}
 
-Respond with ONLY factual data analysis. Do NOT tell them what to do.
-Present the data, explain what it means technically, but explicitly state you cannot recommend any action.`;
+Answer using the live market data and recent news above. Explain what's happening with this name today — price action, volume, any news catalyst — and what the indicators are showing. Be conversational, not a bulleted list.`;
     } else if (marketDataUsed) {
-      analysisPrompt = `${noAdvicePrefix}
+      analysisPrompt = `${systemRules}
 Question: ${prompt}
 
-Analyze using ONLY the real market data provided above. Reference the actual prices, RSI, and volume.
-Do NOT make up any numbers. If data isn't provided, say "data not available".
-Do NOT suggest any trading action.`;
+Answer using only the live market data above. Reference actual price, RSI, volume, VWAP as relevant. Explain what the numbers mean right now.`;
+    } else if (searchUsed) {
+      analysisPrompt = `${systemRules}
+Question: ${prompt}
+
+Answer using the news/context above. Summarize what's actually happening. Be specific about names, events, numbers from the sources.`;
     } else {
-      analysisPrompt = `${noAdvicePrefix}
+      analysisPrompt = `${systemRules}
 Question: ${prompt}
 
-Provide educational information only. Do NOT suggest any trading action.`;
+Give an educational, specific answer. If the question is about current events or a specific ticker and you don't have data, say "I don't have live data on that right now" — do not guess.`;
     }
 
     const fullPrompt = context
-      ? `Market Context: ${JSON.stringify(context)}${dataContext}\n\nQuestion: ${analysisPrompt}`
-      : `${dataContext}\n\nQuestion: ${analysisPrompt}`;
+      ? `Market Context: ${JSON.stringify(context)}${dataContext}\n\n${analysisPrompt}`
+      : `${dataContext}\n\n${analysisPrompt}`;
 
     const startTime = Date.now();
-    const response = await client.generateResponse(fullPrompt, maxTokens || 200);
+    // CHANGE 2026-04-22: raised default token budget so answers don't get
+    // cut off mid-sentence when explaining market context + news.
+    const response = await client.generateResponse(fullPrompt, maxTokens || 600);
     const latency = Date.now() - startTime;
 
     res.json({
