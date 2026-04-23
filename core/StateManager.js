@@ -70,6 +70,7 @@
 
 const TradingConfig = require('./TradingConfig');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
+const { getNarrator } = require('./TradeNarrator');
 
 class StateManager {
   /**
@@ -413,7 +414,30 @@ class StateManager {
       dailyTradeCount: this.state.dailyTradeCount + 1
     };
 
-    return this.updateState(updates, { action: 'OPEN_POSITION', price, size, ...context });
+    const result = this.updateState(updates, { action: 'OPEN_POSITION', price, size, ...context });
+
+    // Narrator: entered event. No-op when env vars are unset.
+    // Wrapped in try/catch so narrator bugs can never break an open path.
+    try {
+      const narrator = getNarrator();
+      if (narrator.enabled) {
+        narrator.entered({
+          tradeId,
+          strategy: context.entryStrategy || 'default',
+          direction: tradeDirection,
+          price,
+          sizeUsd: size,
+          confidence: context.confidence,
+          exitContract: context.exitContract || null,
+          confluence: context.signalBreakdown ? {
+            count: context.signalBreakdown.confluenceCount,
+          } : null,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (_) { /* narrator must never break trading */ }
+
+    return result;
   }
 
   /**
@@ -557,7 +581,7 @@ class StateManager {
 
     console.log(`📊 Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
 
-    return this.updateState(updates, {
+    const result = this.updateState(updates, {
       action: 'CLOSE_POSITION',
       price,
       size: closeSize,
@@ -565,6 +589,31 @@ class StateManager {
       partial,
       ...context
     });
+
+    // Narrator: closed event. No-op when env vars are unset.
+    // Uses the trade record captured BEFORE delete() above so we always have
+    // a consistent snapshot of entryStrategy / entryTime / direction.
+    try {
+      const narrator = getNarrator();
+      if (narrator.enabled) {
+        const heldMs = trade.entryTime
+          ? Date.now() - trade.entryTime
+          : (trade.timestamp ? Date.now() - trade.timestamp : 0);
+        narrator.closed({
+          tradeId,
+          strategy: trade.entryStrategy || trade.strategy || 'default',
+          direction: tradeDirection,
+          entryPrice: tradeEntryPrice,
+          exitPrice: price,
+          pnl,
+          pnlPercent,
+          reason: context.exitReason || context.reason || 'closed',
+          holdMs: heldMs,
+        });
+      }
+    } catch (_) { /* narrator must never break trading */ }
+
+    return result;
   }
 
   /**
