@@ -62,6 +62,7 @@
  */
 
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
+const { getNarrator } = require('./TradeNarrator');
 
 /**
  * MaxProfitManager Class - Advanced Profit Optimization Engine
@@ -300,7 +301,10 @@ class MaxProfitManager {
       // ═══ PATCH 1: Add state fields for consolidated exit logic ═══
       maxProfitPercent: 0,
       initialStopPercent: null,
-      beScaleOutFired: false
+      beScaleOutFired: false,
+      // Narrator correlation: optional tradeId stashed from caller options.
+      // Used only for narrator output; does not affect any trading logic.
+      tradeId: options.tradeId || null
     };
 
     // ====================================================================
@@ -500,8 +504,26 @@ class MaxProfitManager {
 
       // Compute fraction before mutating remainingSize
       const exitFraction = this.state.remainingSize > 0 ? tierExit.exitSize / this.state.remainingSize : 0;
+      // Capture pre-exit remaining size for narrator P&L math
+      const _preExitRemaining = this.state.remainingSize;
       // Execute partial exit (mutates remainingSize)
       this.executePartialExit(tierExit);
+
+      // Narrator: tier-exit event. Partial P&L = exitSize × entryPrice × profitPercent.
+      // No-op when env vars are unset.
+      const narrator = getNarrator();
+      if (narrator.enabled) {
+        const partialPnl = (tierExit.exitSize || 0) * (this.state.entryPrice || 0) * (profitPercent || 0);
+        narrator.tierExit({
+          tradeId: this.state.tradeId,
+          tier: tierExit.tier,
+          exitPrice: currentPrice,
+          exitSize: tierExit.exitSize,
+          remainingSize: this.state.remainingSize,
+          profitPercent,
+          partialPnl,
+        });
+      }
 
       return {
         action: 'exit_partial',
