@@ -392,24 +392,65 @@
             transform: translateY(-2px);
         }
         
-        /* Chart Container - TradingView */
+        /* Chart Container - TradingView.  Phase A polish: subtle red inner
+           border + outer glow so the chart feels like a focal panel. */
         .chart-container {
             position: relative;
-            background: rgba(0, 0, 0, 0.9);
-            border-radius: 6px;
-            padding: 6px;
+            background: #0a0a0a;
+            border-radius: 10px;
+            padding: 8px;
             margin-bottom: 10px;
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(220, 38, 38, 0.18);
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.02) inset,
+                0 8px 40px -12px rgba(220, 38, 38, 0.25),
+                0 0 60px -20px rgba(220, 38, 38, 0.15);
             height: calc(100vh - 200px);  /* CHANGE 2026-01-28: Fill viewport minus header */
             min-height: 500px;
             width: 100%;
         }
-        
+
         #tvChartContainer {
             width: 100%;
             height: 100%;
             border-radius: 8px;
             cursor: crosshair;  /* CHANGE 2026-01-23: Crosshair only on chart */
+        }
+
+        /* Phase A · Floating price HUD inside the chart, top-right corner.
+           Updated from chart.js on every tick. Orbitron for the price,
+           JetBrains Mono for the OHLC line. Pointer-events off so it
+           doesn't steal hovers from candles underneath. */
+        #chartHud {
+            position: absolute;
+            top: 16px;
+            right: 60px;
+            z-index: 20;
+            pointer-events: none;
+            padding: 10px 16px;
+            background: rgba(10, 10, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            box-shadow: 0 8px 30px -14px rgba(0,0,0,0.8);
+            user-select: none;
+        }
+        #chartHudPrice {
+            font-family: 'Orbitron', 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            line-height: 1;
+            color: #22c55e;
+            text-shadow: 0 0 10px rgba(34,197,94,0.45);
+            letter-spacing: 0.5px;
+        }
+        #chartHudOhlc {
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 0.3px;
         }
         
         /* Multiple Bot Status Display */
@@ -2533,6 +2574,13 @@
                 <!-- Feed Status Pill (visible when bot feed is stale). Driven by core.js watchdog. -->
                 <div id="feedStatusPill" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(255,51,102,0.15); border:1px solid rgba(255,51,102,0.5); color:#ff6b8a; padding:6px 14px; border-radius:20px; font-size:11px; font-family:monospace; z-index:998; letter-spacing:0.5px;">
                     ⚠ Bot offline — waiting for feed
+                </div>
+
+                <!-- Phase A · Floating in-chart price HUD (top-right). Updated
+                     from chart.js on every tick. Styling in the stylesheet. -->
+                <div id="chartHud" aria-hidden="true">
+                    <div id="chartHudPrice">$0.00</div>
+                    <div id="chartHudOhlc">O 0.00  H 0.00  L 0.00  C 0.00</div>
                 </div>
 
                 <!-- Dynamic Indicator Overlay - MOVED to Trade Log panel for readability -->

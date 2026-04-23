@@ -1,6 +1,15 @@
 /**
  * chart.js - High-Performance Chart Rendering
- * LightweightCharts with Ghost projections, TPO heatmap, and flicker fix
+ * LightweightCharts with Ghost projections, TPO heatmap, and flicker fix.
+ *
+ * Phase A polish:
+ *   - ogzprime brand palette (candles + every overlay, no red-family collisions)
+ *   - RSI 70/30 overbought/oversold bands on the RSI scale
+ *   - Gradient-opacity volume bars driven by 98th-percentile cap
+ *   - Outlier-robust autoscale on candle + volume series (2nd/98th pct)
+ *   - Dynamic layout: legacy 80/20 when no oscillator on, rebalanced when any on
+ *   - Visible-range listener nudges autoscale on scroll/zoom
+ *   - Floating in-chart HUD (#chartHud) driven by live price ticks
  */
 (function(OGZ) {
     'use strict';
@@ -30,6 +39,22 @@
         return TF_SECONDS[tf] || 60;
     }
 
+    // ─── Phase A helpers (visible-window outlier clipping) ───
+    // Both series use these to compute autoscale bounds that ignore flash-crash
+    // wicks / mega-volume spikes. Normal bars stay readable.
+    function visibleSlice() {
+        if (!storedCandles.length) return [];
+        try {
+            const lr = tvChart.timeScale().getVisibleLogicalRange();
+            if (lr && lr.from != null && lr.to != null) {
+                const from = Math.max(0, Math.floor(lr.from));
+                const to = Math.min(storedCandles.length - 1, Math.ceil(lr.to));
+                if (to > from) return storedCandles.slice(from, to + 1);
+            }
+        } catch (_) { /* fall through */ }
+        return storedCandles;
+    }
+
     const Chart = {
         init: function() {
             const container = document.getElementById('tvChartContainer');
@@ -40,33 +65,64 @@
                 height: container.clientHeight,
                 layout: { background: { color: '#0a0a0a' }, textColor: '#d1d4dc' },
                 grid: { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
-                crosshair: { mode: 0, vertLine: { color: 'rgba(255, 215, 0, 0.4)' }, horzLine: { color: 'rgba(255, 215, 0, 0.4)' } },
+                crosshair: { mode: 0, vertLine: { color: 'rgba(220, 38, 38, 0.45)' }, horzLine: { color: 'rgba(220, 38, 38, 0.45)' } },
                 timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false }
             });
 
             candleSeries = tvChart.addCandlestickSeries({
-                upColor: '#00ff88', downColor: '#ff3366',
-                borderUpColor: '#00ff88', borderDownColor: '#ff3366',
-                wickUpColor: '#00ff88', wickDownColor: '#ff3366'
-            });
-            // Candles + all price-scale overlays (EMA/SMA/VWAP/BB/Ichimoku/Fibs/S-R)
-            // occupy the top 72% of the chart.
-            tvChart.priceScale('right').applyOptions({
-                scaleMargins: { top: 0.02, bottom: 0.28 },
-                borderVisible: false
+                // Phase A — ogzprime-safe palette. Distinct from brand #dc2626 so
+                // brand elements on the page don't collide with candle coloring.
+                upColor: '#22c55e', downColor: '#ef4444',
+                borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+                wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+                // Outlier-robust autoscale: 2nd/98th percentile of visible highs/lows.
+                // One flash-crash wick can't squish 400 normal bars into a flat band.
+                autoscaleInfoProvider: (baseImpl) => {
+                    try {
+                        const base = baseImpl();
+                        const slice = visibleSlice();
+                        if (slice.length < 10) return base;
+                        const lows  = slice.map(c => c.low).sort((a, b) => a - b);
+                        const highs = slice.map(c => c.high).sort((a, b) => a - b);
+                        const loIdx = Math.max(0, Math.floor(lows.length * 0.02));
+                        const hiIdx = Math.min(highs.length - 1, Math.ceil(highs.length * 0.98) - 1);
+                        const pLow = lows[loIdx];
+                        const pHigh = highs[hiIdx];
+                        if (!(pLow < pHigh)) return base;
+                        const pad = (pHigh - pLow) * 0.05;
+                        return {
+                            priceRange: { minValue: pLow - pad, maxValue: pHigh + pad },
+                            margins: base?.margins || { above: 10, below: 20 }
+                        };
+                    } catch (_) { return baseImpl(); }
+                }
             });
 
             volumeSeries = tvChart.addHistogramSeries({
                 priceScaleId: 'vol',
                 color: '#26a69a',
-                priceFormat: { type: 'volume' }
+                priceFormat: { type: 'volume' },
+                // One mega-volume bar (flash-crash print, halt cross) shouldn't
+                // make every normal bar invisible. Cap at 98th percentile.
+                autoscaleInfoProvider: (baseImpl) => {
+                    try {
+                        const base = baseImpl();
+                        const slice = visibleSlice();
+                        const vols = slice.map(c => Number(c.volume || 0)).filter(v => v > 0).sort((a, b) => a - b);
+                        if (vols.length < 10) return base;
+                        const capIdx = Math.min(vols.length - 1, Math.ceil(vols.length * 0.98) - 1);
+                        const cap = vols[capIdx];
+                        if (!(cap > 0)) return base;
+                        return {
+                            priceRange: { minValue: 0, maxValue: cap * 1.15 },
+                            margins: base?.margins || { above: 10, below: 0 }
+                        };
+                    } catch (_) { return baseImpl(); }
+                }
             });
-            // Volume sits in the 72%-84% band (middle strip), own invisible scale.
-            tvChart.priceScale('vol').applyOptions({
-                scaleMargins: { top: 0.72, bottom: 0.16 },
-                drawTicks: false,
-                borderVisible: false
-            });
+            // Volume scale cosmetics only — layout margins applied via _applyLayout().
+            tvChart.priceScale('vol').applyOptions({ drawTicks: false, borderVisible: false });
+            tvChart.priceScale('right').applyOptions({ borderVisible: false });
 
             // Ghost Layer for pattern projections (LIVE-SAFE-GUARDED)
             ghostSeries = tvChart.addLineSeries({
@@ -76,41 +132,80 @@
                 priceLineVisible: false
             });
 
-            // Indicator overlay series
-            ema20Series = tvChart.addLineSeries({ color: '#ffcc00', lineWidth: 1, visible: false, title: 'EMA20', lastValueVisible: false, priceLineVisible: false });
-            ema50Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'EMA50', lastValueVisible: false, priceLineVisible: false });
-            ema200Series = tvChart.addLineSeries({ color: '#ff8800', lineWidth: 2, visible: false, title: 'EMA200', lastValueVisible: false, priceLineVisible: false });
-            bbUpperSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.4)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
-            bbMiddleSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.6)', lineWidth: 1, visible: false, lastValueVisible: false, priceLineVisible: false });
-            bbLowerSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.4)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
-            vwapSeries = tvChart.addLineSeries({ color: '#ff00ff', lineWidth: 2, visible: false, lastValueVisible: false, priceLineVisible: false });
-            sma20Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'SMA20', lastValueVisible: false, priceLineVisible: false });
-            sma50Series = tvChart.addLineSeries({ color: '#0088ff', lineWidth: 1, visible: false, title: 'SMA50', lastValueVisible: false, priceLineVisible: false });
-            sma200Series = tvChart.addLineSeries({ color: '#0044cc', lineWidth: 2, visible: false, title: 'SMA200', lastValueVisible: false, priceLineVisible: false });
-            // Oscillators (RSI/MACD/ATR) share the bottom 16% strip, below volume.
-            // Each has its own isolated scale so the values don't fight for range.
-            const OSC_MARGIN = { top: 0.84, bottom: 0 };
-            rsiOverlaySeries = tvChart.addLineSeries({ color: '#ff0066', lineWidth: 1.5, visible: false, title: 'RSI', priceScaleId: 'rsi', priceFormat: { type: 'custom', formatter: v => v.toFixed(0) }, lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('rsi').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
-            macdLineSeries = tvChart.addLineSeries({ color: '#6600ff', lineWidth: 1.5, visible: false, title: 'MACD', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
-            macdSignalSeries = tvChart.addLineSeries({ color: '#ff6600', lineWidth: 1, visible: false, title: 'Signal', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('macd').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
-            atrSeries = tvChart.addLineSeries({ color: '#ff9800', lineWidth: 1, visible: false, title: 'ATR', priceScaleId: 'atr', lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('atr').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
+            // Phase A — overlay palette. Every hue chosen so overlays remain
+            // legible on both profit-green AND loss-red candles. Zero red-family
+            // colors — purple/amber/cyan/blue/pink spread.
+            ema20Series  = tvChart.addLineSeries({ color: '#fbbf24', lineWidth: 1.5, visible: false, title: 'EMA20',  lastValueVisible: false, priceLineVisible: false });
+            ema50Series  = tvChart.addLineSeries({ color: '#22d3ee', lineWidth: 1.5, visible: false, title: 'EMA50',  lastValueVisible: false, priceLineVisible: false });
+            ema200Series = tvChart.addLineSeries({ color: '#a78bfa', lineWidth: 2,   visible: false, title: 'EMA200', lastValueVisible: false, priceLineVisible: false });
+            bbUpperSeries  = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.35)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
+            bbMiddleSeries = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.55)', lineWidth: 1, visible: false,               lastValueVisible: false, priceLineVisible: false });
+            bbLowerSeries  = tvChart.addLineSeries({ color: 'rgba(255,255,255,0.35)', lineWidth: 1, visible: false, lineStyle: 2, lastValueVisible: false, priceLineVisible: false });
+            vwapSeries   = tvChart.addLineSeries({ color: '#e879f9', lineWidth: 2, visible: false, title: 'VWAP',   lastValueVisible: false, priceLineVisible: false });
+            sma20Series  = tvChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, visible: false, title: 'SMA20',  lastValueVisible: false, priceLineVisible: false });
+            sma50Series  = tvChart.addLineSeries({ color: '#3b82f6', lineWidth: 1, visible: false, title: 'SMA50',  lastValueVisible: false, priceLineVisible: false });
+            sma200Series = tvChart.addLineSeries({ color: '#1d4ed8', lineWidth: 2, visible: false, title: 'SMA200', lastValueVisible: false, priceLineVisible: false });
 
-            // Ichimoku series
-            this._ichiTenkan = tvChart.addLineSeries({ color: '#00bcd4', lineWidth: 1, visible: false, title: 'Tenkan', lastValueVisible: false, priceLineVisible: false });
-            this._ichiKijun = tvChart.addLineSeries({ color: '#ff5722', lineWidth: 1, visible: false, title: 'Kijun', lastValueVisible: false, priceLineVisible: false });
-            this._ichiSenkouA = tvChart.addLineSeries({ color: 'rgba(76,175,80,0.5)', lineWidth: 1, visible: false, title: 'Senkou A', lastValueVisible: false, priceLineVisible: false });
-            this._ichiSenkouB = tvChart.addLineSeries({ color: 'rgba(244,67,54,0.5)', lineWidth: 1, visible: false, title: 'Senkou B', lastValueVisible: false, priceLineVisible: false });
+            // Oscillators — each on its own isolated scale. Margins applied
+            // dynamically via _applyLayout() so they collapse to zero when no
+            // oscillator is active and legacy layout is preserved.
+            rsiOverlaySeries = tvChart.addLineSeries({
+                color: '#ec4899', lineWidth: 1.5, visible: false, title: 'RSI',
+                priceScaleId: 'rsi',
+                priceFormat: { type: 'custom', formatter: v => v.toFixed(0) },
+                lastValueVisible: false, priceLineVisible: false
+            });
+            tvChart.priceScale('rsi').applyOptions({ visible: false, borderVisible: false });
+            // RSI 70/30 overbought/oversold bands. Attached to the RSI series
+            // itself so they inherit series visibility (hide when RSI off).
+            this._rsiBand70 = rsiOverlaySeries.createPriceLine({
+                price: 70, color: 'rgba(239,68,68,0.45)', lineWidth: 1, lineStyle: 2,
+                axisLabelVisible: true, title: '70'
+            });
+            this._rsiBand30 = rsiOverlaySeries.createPriceLine({
+                price: 30, color: 'rgba(34,197,94,0.45)', lineWidth: 1, lineStyle: 2,
+                axisLabelVisible: true, title: '30'
+            });
 
-            // Trend lines (auto-detected)
-            this._trendResistance = tvChart.addLineSeries({ color: '#ff3366', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
-            this._trendSupport = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
+            macdLineSeries   = tvChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1.5, visible: false, title: 'MACD',   priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
+            macdSignalSeries = tvChart.addLineSeries({ color: '#fbbf24', lineWidth: 1,   visible: false, title: 'Signal', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
+            tvChart.priceScale('macd').applyOptions({ visible: false, borderVisible: false });
+            atrSeries = tvChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, visible: false, title: 'ATR', priceScaleId: 'atr', lastValueVisible: false, priceLineVisible: false });
+            tvChart.priceScale('atr').applyOptions({ visible: false, borderVisible: false });
+
+            // Ichimoku — distinct palette so it can coexist with EMAs.
+            this._ichiTenkan  = tvChart.addLineSeries({ color: '#06b6d4', lineWidth: 1, visible: false, title: 'Tenkan',   lastValueVisible: false, priceLineVisible: false });
+            this._ichiKijun   = tvChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, visible: false, title: 'Kijun',    lastValueVisible: false, priceLineVisible: false });
+            this._ichiSenkouA = tvChart.addLineSeries({ color: 'rgba(34,197,94,0.45)', lineWidth: 1, visible: false, title: 'Senkou A', lastValueVisible: false, priceLineVisible: false });
+            this._ichiSenkouB = tvChart.addLineSeries({ color: 'rgba(239,68,68,0.45)', lineWidth: 1, visible: false, title: 'Senkou B', lastValueVisible: false, priceLineVisible: false });
+
+            // Trend lines — semantic colors: support=profit green, resistance=loss red.
+            // Matches the candle palette.
+            this._trendResistance = tvChart.addLineSeries({ color: '#ef4444', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
+            this._trendSupport    = tvChart.addLineSeries({ color: '#22c55e', lineWidth: 2, visible: false, lineStyle: 0, lastValueVisible: false, priceLineVisible: false });
 
             // Fibonacci and S/R use price lines (created dynamically)
             this._fibLines = [];
             this._srLines = [];
+
+            // Apply legacy layout at init — candles 80%, volume 20%, no osc strip.
+            // Layout will rebalance on first oscillator toggle.
+            this._applyLayout(false);
+
+            // Visible-range listener: nudge both scales to recompute autoscale
+            // against the newly-visible candles on scroll/zoom. Throttled so
+            // panning stays smooth.
+            let _rescaleTimer = null;
+            tvChart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                if (_rescaleTimer) return;
+                _rescaleTimer = setTimeout(() => {
+                    _rescaleTimer = null;
+                    try {
+                        tvChart.priceScale('right').applyOptions({});
+                        tvChart.priceScale('vol').applyOptions({});
+                    } catch (_) { /* best-effort */ }
+                }, 80);
+            });
 
             // Crosshair driver: (1) keep header price live, (2) feed floating
             // tooltip near the cursor so you see exact time + price at any point.
@@ -140,7 +235,7 @@
                     hour: '2-digit', minute: '2-digit'
                 });
                 const priceAt = candleSeries.coordinateToPrice(param.point.y);
-                const dir = candleData.close >= candleData.open ? '#00ff88' : '#ff3366';
+                const dir = candleData.close >= candleData.open ? '#22c55e' : '#ef4444';
                 tooltipEl.innerHTML = `
                     <div style="color:#888;font-size:10px;letter-spacing:0.5px;">${dateStr}</div>
                     <div style="color:${dir};font-family:Orbitron,monospace;font-size:13px;font-weight:700;margin-top:2px;">
@@ -179,6 +274,30 @@
             console.log('[Chart] Initialized.');
         },
 
+        /**
+         * Apply scale margins based on whether any oscillator is active.
+         * - hasOsc=false: candles use library defaults (top:0.1, bottom:0.1 = 80%
+         *   band, legacy), volume bottom 20%. Oscillator scales collapse to zero
+         *   so they claim no space. Baseline chart is pixel-identical to pre-polish.
+         * - hasOsc=true: candles give up ~20% so a clean oscillator strip can
+         *   render at the bottom. Volume keeps its 20% breathing room.
+         */
+        _applyLayout: function(hasOsc) {
+            if (hasOsc) {
+                tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.02, bottom: 0.38 } });
+                tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.18 } });
+                tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+                tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+                tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+            } else {
+                tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+                tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+                tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
+                tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
+                tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
+            }
+        },
+
         bindControls: function() {
             // Chart type selector — switch between candlestick, line, area, bar
             const chartType = document.getElementById('chartTypeSelector');
@@ -198,19 +317,19 @@
                     try { data = candleSeries.data ? candleSeries.data() : []; } catch(err) {}
 
                     if (type === 'line') {
-                        if (!this._lineSeries) this._lineSeries = tvChart.addLineSeries({ color: '#00ff88', lineWidth: 2 });
+                        if (!this._lineSeries) this._lineSeries = tvChart.addLineSeries({ color: '#22c55e', lineWidth: 2 });
                         if (data.length) this._lineSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
                         this._lineSeries.applyOptions({ visible: true });
                     } else if (type === 'area') {
                         if (!this._areaSeries) this._areaSeries = tvChart.addAreaSeries({
-                            topColor: 'rgba(0, 255, 136, 0.4)', bottomColor: 'rgba(0, 255, 136, 0.0)',
-                            lineColor: '#00ff88', lineWidth: 2
+                            topColor: 'rgba(34, 197, 94, 0.4)', bottomColor: 'rgba(34, 197, 94, 0.0)',
+                            lineColor: '#22c55e', lineWidth: 2
                         });
                         if (data.length) this._areaSeries.setData(data.map(d => ({ time: d.time, value: d.close })));
                         this._areaSeries.applyOptions({ visible: true });
                     } else if (type === 'bar') {
                         if (!this._barSeries) this._barSeries = tvChart.addBarSeries({
-                            upColor: '#00ff88', downColor: '#ff3366'
+                            upColor: '#22c55e', downColor: '#ef4444'
                         });
                         if (data.length) this._barSeries.setData(data);
                         this._barSeries.applyOptions({ visible: true });
@@ -300,6 +419,10 @@
             // S/R — show/hide price lines
             this._srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
             this._srLines = [];
+
+            // Rebalance layout based on whether any oscillator strip is needed.
+            const hasOsc = active.includes('rsi') || active.includes('macd') || active.includes('atr');
+            this._applyLayout(hasOsc);
         },
 
         calculateIndicators: function(candles) {
@@ -387,7 +510,7 @@
                     sr.forEach(level => {
                         const line = candleSeries.createPriceLine({
                             price: level.price,
-                            color: level.type === 'resistance' ? '#ff3366' : '#00ff88',
+                            color: level.type === 'resistance' ? '#ef4444' : '#22c55e',
                             lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
                             title: `${level.type === 'resistance' ? 'R' : 'S'} (${level.strength})`
                         });
@@ -466,30 +589,58 @@
             }
 
             if (candle.volume || candle.v) {
+                // Live-bar volume alpha — clamp against the stored 98th-percentile
+                // cap so the live bar doesn't leap to 100% opacity and pop.
+                const up = tickClose >= tickOpen;
+                let liveAlpha = 0.5;
+                if (storedCandles.length > 20) {
+                    const sortedVols = storedCandles.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
+                    const capVol = sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * 0.98) - 1)] || 1;
+                    const ratio = Math.min(1, (candle.volume || candle.v) / capVol);
+                    liveAlpha = 0.25 + 0.55 * ratio;
+                }
+                const rgb = up ? '34,197,94' : '239,68,68';
                 volumeSeries.update({
                     time: timeAligned,
                     value: candle.volume || candle.v,
-                    color: tickClose >= tickOpen ? 'rgba(0, 255, 136, 0.35)' : 'rgba(255, 51, 102, 0.35)'
+                    color: `rgba(${rgb},${liveAlpha.toFixed(3)})`
                 });
             }
 
-            // Live price readout + subtle tick flash so you can SEE it updating
+            // Live price readout + floating HUD + tick flash with ogzprime palette.
             if (price != null) {
                 OGZ.state.lastPriceDelta = price - OGZ.state.lastPrice;
                 OGZ.state.lastPrice = price;
+                const up = OGZ.state.lastPriceDelta >= 0;
+                const flashColor = up ? '#22c55e' : '#ef4444';
+                const flashShadow = up ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
+
                 const priceEl = document.getElementById('currentPrice');
                 if (priceEl) {
                     priceEl.textContent = `$${price.toLocaleString()}`;
-                    const up = OGZ.state.lastPriceDelta >= 0;
                     priceEl.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
-                    priceEl.style.color = up ? '#00ff88' : '#ff3366';
-                    priceEl.style.textShadow = up
-                        ? '0 0 12px rgba(0,255,136,0.75)'
-                        : '0 0 12px rgba(255,51,102,0.75)';
+                    priceEl.style.color = flashColor;
+                    priceEl.style.textShadow = `0 0 12px ${flashShadow}`;
                     clearTimeout(priceEl._flashTimer);
-                    priceEl._flashTimer = setTimeout(() => {
-                        priceEl.style.textShadow = '';
+                    priceEl._flashTimer = setTimeout(() => { priceEl.style.textShadow = ''; }, 180);
+                }
+
+                // Floating in-chart HUD (top-right inside chart container).
+                const hudPrice = document.getElementById('chartHudPrice');
+                if (hudPrice) {
+                    hudPrice.textContent = `$${Number(price).toFixed(2)}`;
+                    hudPrice.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
+                    hudPrice.style.color = flashColor;
+                    hudPrice.style.textShadow = `0 0 14px ${flashShadow}`;
+                    clearTimeout(hudPrice._flashTimer);
+                    hudPrice._flashTimer = setTimeout(() => {
+                        hudPrice.style.textShadow = `0 0 6px ${flashShadow}`;
                     }, 180);
+                }
+                const hudOhlc = document.getElementById('chartHudOhlc');
+                if (hudOhlc && storedCandles.length) {
+                    const lc = storedCandles[storedCandles.length - 1];
+                    hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
                 }
             }
         },
@@ -517,7 +668,7 @@
                 data.density.forEach(level => {
                     const line = candleSeries.createPriceLine({
                         price: level.price,
-                        color: `rgba(255, 215, 0, ${Math.min(level.weight * 0.01, 0.15)})`,
+                        color: `rgba(220, 38, 38, ${Math.min(level.weight * 0.01, 0.15)})`,
                         lineWidth: 1, lineStyle: 0, axisLabelVisible: false
                     });
                     tpoLines.push(line);
@@ -527,7 +678,7 @@
             // Whale Walls
             if (data.walls) {
                 data.walls.forEach(wall => {
-                    const color = wall.side === 'BID' ? 'rgba(0, 255, 136, 0.4)' : 'rgba(255, 51, 102, 0.4)';
+                    const color = wall.side === 'BID' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
                     const line = candleSeries.createPriceLine({
                         price: wall.price, color: color,
                         lineWidth: 3, lineStyle: 0, axisLabelVisible: true,
@@ -561,13 +712,21 @@
                     time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
                 })));
 
-                // Set volume data
+                // Volume with GRADIENT OPACITY — alpha scales with bar height
+                // against the 98th-percentile cap. Tiny bars fade, dominant
+                // bars pop. One flash-crash bar can't bleach the rest.
                 if (volumeSeries) {
-                    volumeSeries.setData(formatted.map(c => ({
-                        time: c.time,
-                        value: c.volume,
-                        color: c.close >= c.open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)'
-                    })));
+                    const sortedVols = formatted.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
+                    const capVol = sortedVols.length
+                        ? sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * 0.98) - 1)]
+                        : 1;
+                    volumeSeries.setData(formatted.map(c => {
+                        const up = c.close >= c.open;
+                        const ratio = capVol > 0 ? Math.min(1, (c.volume || 0) / capVol) : 0;
+                        const alpha = 0.25 + 0.55 * ratio; // 0.25 floor, up to 0.80
+                        const rgb = up ? '34,197,94' : '239,68,68';
+                        return { time: c.time, value: c.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
+                    }));
                 }
 
                 // Store for indicator recalculation
