@@ -399,37 +399,40 @@ class StrategyOrchestrator {
           console.log(`[DIAG] MarketRegime: regime=${regime?.currentRegime || 'null'} trend=${trend || 'null'} conf=${regime?.confidence || 0}`);
         }
 
-        if (!regime || !regime.currentRegime || regime.currentRegime === 'unknown') return null;
+        // Structural: no regime data at all → can't vote
+        if (!regime || !regime.currentRegime) return null;
 
         const regimeConf = regime.confidence || 0;
-        if (regimeConf < this.regimeMinConfidence) return null;
-
-        // Only fire on strong trending regimes with trend confirmation
         const regimeName = regime.currentRegime.toLowerCase();
         const isBullRegime = regimeName.includes('bull') || regimeName.includes('uptrend') || regimeName.includes('accumulation');
         const isBearRegime = regimeName.includes('bear') || regimeName.includes('downtrend') || regimeName.includes('distribution');
 
+        // Structural: no directional regime (ranging/volatile/unknown) → no directional vote
+        if (!isBullRegime && !isBearRegime) return null;
+
         const isBullTrend = trend === 'bullish' || trend === 'uptrend';
         const isBearTrend = trend === 'bearish' || trend === 'downtrend';
 
-        // Need BOTH regime AND trend to agree
-        if (isBullRegime && isBullTrend) {
-          return {
-            direction: 'buy',
-            confidence: regimeConf * 0.8, // Discount slightly — regime is slow
-            reason: `Regime: ${regime.currentRegime} + Trend: ${trend}`,
-            signalData: regime
-          };
+        // Trend alignment modulates confidence — multipliers, not gates (let it flow)
+        let trendMult;
+        if ((isBullRegime && isBullTrend) || (isBearRegime && isBearTrend)) {
+          trendMult = 1.0;   // full agreement
+        } else if ((isBullRegime && isBearTrend) || (isBearRegime && isBullTrend)) {
+          trendMult = 0.4;   // direct conflict — signal survives, heavily damped
+        } else {
+          trendMult = 0.7;   // trend unknown/neutral — moderate damping
         }
-        if (isBearRegime && isBearTrend) {
-          return {
-            direction: 'sell',
-            confidence: regimeConf * 0.8,
-            reason: `Regime: ${regime.currentRegime} + Trend: ${trend}`,
-            signalData: regime
-          };
-        }
-        return null;
+
+        const direction = isBullRegime ? 'buy' : 'sell';
+        const finalConf = regimeConf * 0.8 * trendMult;
+        const agreementLabel = trendMult === 1.0 ? 'aligned' : trendMult === 0.4 ? 'conflict' : 'partial';
+
+        return {
+          direction,
+          confidence: finalConf,
+          reason: `Regime: ${regime.currentRegime} + Trend: ${trend || 'unknown'} [${agreementLabel}]`,
+          signalData: regime
+        };
       }
     });
 
