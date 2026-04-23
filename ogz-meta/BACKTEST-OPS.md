@@ -157,6 +157,50 @@ Set both to 0 for gross P&L comparison. Set to realistic values for net P&L.
 
 **NOTE:** Per-strategy configs in TradingConfig override these globals. RSI has minConfidence=0.60, for example.
 
+### Trade Narrator (Phase C — `core/TradeNarrator.js`)
+
+The narrator walks the operator / customer through every phase of a trade
+(pattern spotted → strategies evaluated → sized → entered → tiered exits →
+closed). **OFF BY DEFAULT.** When both env flags are unset every hook is a
+cheap branch (`if (!narrator.enabled) return`) with zero allocation and
+zero stdout / WebSocket traffic. Phase 0 regression runs must produce
+byte-identical trade output vs. pre-narrator code.
+
+| Variable | Default | Values | What it does |
+|---|---|---|---|
+| `ARCHITECT_NARRATOR` | unset (off) | `1`, `true`, `on`, `yes` | Detailed operator-facing stdout: exact strategy names, exact confidence, exact sizing math, full SL/TP percents. **Never** broadcast to the dashboard — stdout only. Use for your own console while paper / live trading. |
+| `USER_NARRATOR` | unset (off) | `1`, `true`, `on`, `yes` | Sanitized customer-facing narration. Strategy names replaced with session-seeded anonymous labels (`Strategy-A`, `Strategy-B`…), confidence bucketed (Low/Medium/High/Peak), win rate bucketed (Learning/Emerging/Validated/Proven), sample counts bucketed (New/Emerging/Established/Mature). Emitted to stdout AND broadcast to the dashboard as `narrator_event` messages (scope: `USER`) for the Chain-of-Thought panel. Safe to run with customers watching. |
+| `NARRATOR_LABEL_SEED` | random per process | any string | Optional pin for USER-mode strategy anonymization. Leave unset and labels reshuffle on every restart (maximizes opacity to outside observers). Set a stable value if you want reproducible USER transcripts across runs. |
+
+Both flags are independent — run either, both, or neither:
+
+```bash
+# Operator console only (no customer visibility)
+ARCHITECT_NARRATOR=true node run-empire-v2.js
+
+# Customer-facing dashboard narration only (sanitized)
+USER_NARRATOR=true node run-empire-v2.js
+
+# Both modes simultaneously (your console + customer dashboard)
+ARCHITECT_NARRATOR=true USER_NARRATOR=true node run-empire-v2.js
+
+# Pin anonymization labels across runs (reproducible transcripts)
+USER_NARRATOR=true NARRATOR_LABEL_SEED=ogz-2026-q2 node run-empire-v2.js
+```
+
+**Safety guarantees:**
+- Narrator code is wrapped in try/catch at every hook site — a narrator
+  bug cannot take down the trading pipeline.
+- Narrator is a pure sink: it formats events callers push in. It never
+  reaches back into `StateManager` / `TradingConfig` / live trades.
+- USER-mode WebSocket broadcast uses the dashboard's existing auth'd
+  connection; never opens a new socket.
+- USER-mode output never contains raw strategy names, raw multipliers,
+  raw win rates, or config values — only qualitative buckets.
+- Scope recommendation: `paper` and `live` modes. Backtest is supported
+  but will flood stdout at ~45k candle runs; prefer narrator OFF for
+  matrix sweeps / Phase 0 regressions.
+
 ---
 
 ## BACKTEST COMMANDS
