@@ -512,10 +512,14 @@
     response = response.replace(/\{[\s\S]*"query"[\s\S]*"analysis"[\s\S]*\}/g, '');
     response = response.replace(/\{[\s\S]*"schema"[\s\S]*\}/g, '');
 
-    // Clean up leading/trailing garbage
+    // Strip the old canned disclaimer if the model still emits it out of habit
+    response = response.replace(/^I can'?t give trading advice,? but (here are the facts:?|here's what|)\s*/i, '');
+
+    // Clean up leading whitespace/punctuation (but NOT leading words — the old
+    // broad regex was eating real first words like "Analysis shows..." → "shows...")
     response = response.replace(/^[\s.,;:!?\-\n\r]+/, '');
-    // Remove LLM output labels (model sometimes prefixes with field names)
-    response = response.replace(/^(advice|response|answer|output|result|reply|indicates|analysis|recommendation|summary)[\s:]+/i, '');
+    // Only strip label-style prefixes that end with a colon (e.g. "Answer: ...")
+    response = response.replace(/^(advice|response|answer|output|result|reply|recommendation|summary)\s*:\s+/i, '');
     response = response.trim();
 
     // If empty after cleaning, don't show confusing fallback - just skip
