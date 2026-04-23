@@ -2527,6 +2527,14 @@
                     <div id="tooltipContent"></div>
                 </div>
 
+                <!-- Crosshair Tooltip (live time + price at cursor). Driven by chart.js. -->
+                <div id="crosshairTooltip" style="display:none; position:absolute; background:rgba(10,10,10,0.96); border:1px solid rgba(255,215,0,0.35); border-radius:6px; padding:6px 10px; z-index:999; pointer-events:none; min-width:150px; box-shadow:0 4px 20px rgba(0,0,0,0.6);"></div>
+
+                <!-- Feed Status Pill (visible when bot feed is stale). Driven by core.js watchdog. -->
+                <div id="feedStatusPill" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(255,51,102,0.15); border:1px solid rgba(255,51,102,0.5); color:#ff6b8a; padding:6px 14px; border-radius:20px; font-size:11px; font-family:monospace; z-index:998; letter-spacing:0.5px;">
+                    ⚠ Bot offline — waiting for feed
+                </div>
+
                 <!-- Dynamic Indicator Overlay - MOVED to Trade Log panel for readability -->
 
                 <!-- Signal Pipeline Panel - HIDDEN: Clutters the chart, info available in Edge Analytics -->
