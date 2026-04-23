@@ -166,6 +166,10 @@
     function detectFormat(headers) {
       const h = headers.map(x => x.toLowerCase().trim());
       if (h.includes('trade_number') && h.includes('entry_price')) return 'ogzprime';
+      // CHANGE 2026-04-22: matrix-sweep leaderboards (tools/matrix-sweep.js).
+      // Each row is a full backtest with aggregate stats — NOT a single trade.
+      // Detect early so we don't misread them as individual trades.
+      if (h.includes('strategy') && h.includes('netpnl') && h.includes('profitfactor') && h.includes('winrate')) return 'matrix';
       if (h.includes('vah') && h.includes('val') && h.includes('long')) return 'tradingview';
       if (h.includes('type') && h.includes('profit')) return 'mt4';
       return 'generic';
@@ -187,8 +191,71 @@
 
     function processData(parsed) {
       if (parsed.format === 'ogzprime') return processOGZPrime(parsed.rows);
+      if (parsed.format === 'matrix') return processMatrixSweep(parsed.rows);
       if (parsed.format === 'tradingview') return processTradingView(parsed.rows);
       return processGeneric(parsed.rows, parsed.headers);
+    }
+
+    // CHANGE 2026-04-22: matrix-sweep leaderboard format.
+    // Each row is a completed backtest with aggregate stats — we render these
+    // as a strategy-optimization leaderboard (sortable parameter combos) rather
+    // than treating each row as one trade.
+    function processMatrixSweep(rows) {
+      const configs = rows.map((r, i) => ({
+        rank: i + 1,
+        strategy: r.strategy || 'Unknown',
+        stopLoss: r.stopLoss !== '' ? Number(r.stopLoss) : null,
+        takeProfit: r.takeProfit !== '' ? Number(r.takeProfit) : null,
+        confidence: Number(r.confidence) || 0,
+        netPnl: Number(r.netPnl) || 0,
+        trades: Number(r.trades) || 0,
+        winRate: Number(r.winRate) || 0,
+        maxDrawdown: Number(r.maxDrawdown) || 0,
+        profitFactor: Number(r.profitFactor) || 0,
+        expectancy: Number(r.expectancy) || 0,
+        avgWin: Number(r.avgWin) || 0,
+        avgLoss: Number(r.avgLoss) || 0,
+        fees: Number(r.fees) || 0,
+        elapsed: Number(r.elapsed) || 0,
+      })).sort((a, b) => b.netPnl - a.netPnl).map((c, i) => ({ ...c, rank: i + 1 }));
+
+      const best = configs[0] || {};
+      const worst = configs[configs.length - 1] || {};
+      const positives = configs.filter(c => c.netPnl > 0);
+      const totalTrades = configs.reduce((s, c) => s + c.trades, 0);
+      const avgPF = configs.length ? configs.reduce((s, c) => s + c.profitFactor, 0) / configs.length : 0;
+      const strategyName = [...new Set(configs.map(c => c.strategy))].join(', ');
+
+      return {
+        source: `Matrix Sweep · ${strategyName}`,
+        isMatrix: true,
+        summary: {
+          strategyName,
+          startDate: '—', endDate: '—',
+          startBalance: 0, finalBalance: 0,
+          netPnL: best.netPnl,
+          netPnLPct: 0,
+          totalTrades,
+          winners: positives.length, losers: configs.length - positives.length,
+          winRate: configs.length ? (positives.length / configs.length) * 100 : 0,
+          profitFactor: best.profitFactor,
+          avgWin: best.avgWin, avgLoss: best.avgLoss,
+          maxDrawdownPct: best.maxDrawdown,
+          losingStreak: 0, winningStreak: 0,
+          totalFees: 0,
+          // Matrix-specific
+          configCount: configs.length,
+          bestNetPnl: best.netPnl,
+          bestStrategy: best.strategy,
+          bestParams: `SL ${best.stopLoss ?? '—'} · TP ${best.takeProfit ?? '—'} · conf ${(best.confidence * 100).toFixed(0)}%`,
+          worstNetPnl: worst.netPnl,
+          avgProfitFactor: avgPF,
+          profitableConfigs: positives.length,
+        },
+        configs,
+        trades: [], // matrix view has no individual trades
+        equityCurve: [], exitBreakdown: [],
+      };
     }
 
     function processOGZPrime(rows) {
@@ -322,7 +389,20 @@
     }
 
     // Render functions
-    function renderMetrics(s) {
+    function renderMetrics(s, isMatrix) {
+      if (isMatrix) {
+        const bestClr = s.bestNetPnl >= 0 ? C.green : C.red;
+        const worstClr = s.worstNetPnl >= 0 ? C.green : C.red;
+        const pfClr = s.profitFactor >= 1.2 ? C.green : s.profitFactor >= 1.0 ? C.gold : C.red;
+        return `
+          <div class="metric-card"><div class="metric-label">Best Net P&L</div><div class="metric-value mono" style="color:${bestClr}">${fmtUsd(s.bestNetPnl)}</div><div class="metric-sub">${s.bestStrategy}</div></div>
+          <div class="metric-card"><div class="metric-label">Best PF</div><div class="metric-value mono" style="color:${pfClr}">${fmt(s.profitFactor)}</div><div class="metric-sub">top config</div></div>
+          <div class="metric-card"><div class="metric-label">Configs Tested</div><div class="metric-value mono" style="color:${C.gold}">${s.configCount}</div><div class="metric-sub">${s.profitableConfigs} profitable</div></div>
+          <div class="metric-card"><div class="metric-label">Best Max DD</div><div class="metric-value mono" style="color:${C.red}">${fmt(s.maxDrawdownPct, 2)}%</div><div class="metric-sub">of top config</div></div>
+          <div class="metric-card"><div class="metric-label">Total Trades</div><div class="metric-value mono" style="color:${C.textMid}">${s.totalTrades.toLocaleString()}</div><div class="metric-sub">across sweep</div></div>
+          <div class="metric-card"><div class="metric-label">Avg PF</div><div class="metric-value mono" style="color:${s.avgProfitFactor >= 1 ? C.green : C.red}">${fmt(s.avgProfitFactor)}</div><div class="metric-sub">sweep-wide</div></div>
+        `;
+      }
       const pnlClr = s.netPnL >= 0 ? C.green : C.red;
       const pfClr = s.profitFactor >= 1.2 ? C.green : s.profitFactor >= 1.0 ? C.gold : C.red;
       return `
@@ -333,6 +413,94 @@
         <div class="metric-card"><div class="metric-label">Avg Win</div><div class="metric-value mono" style="color:${C.green}">${fmtUsd(s.avgWin)}</div></div>
         <div class="metric-card"><div class="metric-label">Avg Loss</div><div class="metric-value mono" style="color:${C.red}">$${fmt(Math.abs(s.avgLoss))}</div></div>
       `;
+    }
+
+    // CHANGE 2026-04-22: leaderboard view for matrix-sweep CSVs
+    function renderMatrixLeaderboard(data, page) {
+      const pp = 25;
+      const configs = data.configs;
+      const tp = Math.max(1, Math.ceil(configs.length / pp));
+      const slice = configs.slice(page * pp, (page + 1) * pp);
+      const rows = slice.map(c => {
+        const pnlClr = c.netPnl >= 0 ? C.green : C.red;
+        const pfClr = c.profitFactor >= 1.2 ? C.green : c.profitFactor >= 1.0 ? C.gold : C.red;
+        const wrClr = c.winRate >= 50 ? C.green : C.gold;
+        return `<tr>
+          <td style="color:${C.textDim}">${c.rank}</td>
+          <td style="color:${C.gold};font-weight:600">${c.strategy}</td>
+          <td class="mono" style="color:${C.textMid}">${c.stopLoss ?? '—'}</td>
+          <td class="mono" style="color:${C.textMid}">${c.takeProfit ?? '—'}</td>
+          <td class="mono" style="color:${C.textMid}">${(c.confidence * 100).toFixed(0)}%</td>
+          <td class="mono" style="color:${pnlClr};font-weight:600">${fmtUsd(c.netPnl)}</td>
+          <td class="mono" style="color:${C.text}">${c.trades}</td>
+          <td class="mono" style="color:${wrClr}">${fmt(c.winRate, 1)}%</td>
+          <td class="mono" style="color:${pfClr}">${fmt(c.profitFactor)}</td>
+          <td class="mono" style="color:${C.textMid}">${fmt(c.maxDrawdown, 2)}%</td>
+          <td class="mono" style="color:${c.expectancy >= 0 ? C.green : C.red}">${fmt(c.expectancy)}</td>
+        </tr>`;
+      }).join('');
+      return `<div class="panel"><div class="panel-title">Parameter Leaderboard · Sorted by Net P&L</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr>
+            <th>#</th><th>Strategy</th><th>SL</th><th>TP</th><th>Conf</th>
+            <th>Net P&L</th><th>Trades</th><th>Win %</th><th>PF</th><th>Max DD</th><th>Expectancy</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div class="pagination">
+          <span class="page-info">${page * pp + 1}–${Math.min((page + 1) * pp, configs.length)} of ${configs.length} configs</span>
+          <div class="page-btns">
+            <button class="page-btn" data-page="${Math.max(0, page - 1)}">←</button>
+            <button class="page-btn" data-page="${Math.min(tp - 1, page + 1)}">→</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function renderMatrixOverview(data) {
+      const configs = data.configs;
+      const top = configs.slice(0, 10);
+      const bestBars = (() => {
+        const w = 800, h = 240, pad = { t: 20, r: 20, b: 40, l: 60 };
+        const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+        const values = top.map(c => c.netPnl);
+        const mn = Math.min(0, ...values), mx = Math.max(0, ...values), rng = (mx - mn) || 1;
+        const bw = iw / top.length;
+        const zeroY = pad.t + (mx / rng) * ih;
+        const bars = top.map((c, i) => {
+          const x = pad.l + i * bw + 3;
+          const vy = pad.t + ((mx - c.netPnl) / rng) * ih;
+          const bh = Math.abs(vy - zeroY);
+          const y = c.netPnl >= 0 ? vy : zeroY;
+          const clr = c.netPnl >= 0 ? C.green : C.red;
+          return `<rect x="${x}" y="${y}" width="${bw - 6}" height="${Math.max(1, bh)}" fill="${clr}" opacity="0.8"/>
+            <text x="${x + (bw - 6) / 2}" y="${pad.t + ih + 14}" text-anchor="middle" fill="${C.textDim}" font-size="9" font-family="'JetBrains Mono', monospace">#${c.rank}</text>`;
+        }).join('');
+        return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto">
+          <line x1="${pad.l}" y1="${zeroY}" x2="${w - pad.r}" y2="${zeroY}" stroke="${C.textDim}" stroke-dasharray="2,3"/>
+          <text x="${pad.l - 8}" y="${zeroY + 4}" text-anchor="end" fill="${C.textDim}" font-size="9">$0</text>
+          ${bars}
+        </svg>`;
+      })();
+      const topRows = top.map(c => `<div class="tier-row">
+        <span style="color:${C.textMid}">#${c.rank} · <span style="color:${C.gold}">${c.strategy}</span> · SL ${c.stopLoss ?? '—'} · conf ${(c.confidence * 100).toFixed(0)}%</span>
+        <span class="mono" style="color:${c.netPnl >= 0 ? C.green : C.red};font-weight:600">${fmtUsd(c.netPnl)}</span>
+      </div>`).join('');
+      return `<div class="overview-grid">
+        <div class="panel"><div class="panel-title">Top 10 Configs · Net P&L</div>${bestBars}</div>
+        <div class="side-panels">
+          <div class="panel"><div class="panel-title">Best Config</div>
+            <div style="font-size:13px;color:${C.gold};font-weight:600;margin-bottom:4px">${data.summary.bestStrategy}</div>
+            <div style="font-size:11px;color:${C.textMid};font-family:'JetBrains Mono',monospace;margin-bottom:8px">${data.summary.bestParams}</div>
+            <div class="streaks-grid">
+              <div><div class="streak-label">Net P&L</div><div class="streak-value mono" style="color:${data.summary.bestNetPnl >= 0 ? C.green : C.red}">${fmtUsd(data.summary.bestNetPnl)}</div></div>
+              <div><div class="streak-label">PF</div><div class="streak-value mono" style="color:${C.gold}">${fmt(data.summary.profitFactor)}</div></div>
+              <div><div class="streak-label">Max DD</div><div class="streak-value mono" style="color:${C.red}">${fmt(data.summary.maxDrawdownPct, 2)}%</div></div>
+            </div>
+          </div>
+          <div class="panel"><div class="panel-title">Top 10 Leaderboard</div>${topRows}</div>
+        </div>
+      </div>`;
     }
 
     function renderEquityCurve(data) {
@@ -428,18 +596,39 @@
       document.getElementById('landing').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
       const { summary: s } = data;
+      const isMatrix = !!data.isMatrix;
       document.getElementById('source').textContent = data.source;
       document.getElementById('strategy').textContent = s.strategyName;
-      document.getElementById('date-range').textContent = `${s.startDate} → ${s.endDate}`;
+      document.getElementById('date-range').textContent = isMatrix
+        ? `${s.configCount} configs`
+        : `${s.startDate} → ${s.endDate}`;
       document.getElementById('timestamp').textContent = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      document.getElementById('metrics').innerHTML = renderMetrics(s);
+      document.getElementById('metrics').innerHTML = renderMetrics(s, isMatrix);
+
+      // Relabel the middle tab for matrix sweeps ("Trades" → "Configs")
+      const tradesTab = document.querySelector('.tab[data-tab="trades"]');
+      if (tradesTab) tradesTab.textContent = isMatrix ? 'Configs' : 'Trades';
+      const analysisTab = document.querySelector('.tab[data-tab="analysis"]');
+      if (analysisTab) analysisTab.style.display = isMatrix ? 'none' : '';
+
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
       document.getElementById('tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
       document.getElementById('tab-trades').style.display = tab === 'trades' ? 'block' : 'none';
-      document.getElementById('tab-analysis').style.display = tab === 'analysis' ? 'block' : 'none';
-      if (tab === 'overview') document.getElementById('tab-overview').innerHTML = renderOverview(data);
-      if (tab === 'trades') document.getElementById('tab-trades').innerHTML = renderTrades(data.trades, tradePage);
-      if (tab === 'analysis') document.getElementById('tab-analysis').innerHTML = renderAnalysis(data.trades);
+      document.getElementById('tab-analysis').style.display = tab === 'analysis' && !isMatrix ? 'block' : 'none';
+
+      if (tab === 'overview') {
+        document.getElementById('tab-overview').innerHTML = isMatrix
+          ? renderMatrixOverview(data)
+          : renderOverview(data);
+      }
+      if (tab === 'trades') {
+        document.getElementById('tab-trades').innerHTML = isMatrix
+          ? renderMatrixLeaderboard(data, tradePage)
+          : renderTrades(data.trades, tradePage);
+      }
+      if (tab === 'analysis' && !isMatrix) {
+        document.getElementById('tab-analysis').innerHTML = renderAnalysis(data.trades);
+      }
     }
 
     // Storage
