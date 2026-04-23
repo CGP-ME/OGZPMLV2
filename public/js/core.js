@@ -11,6 +11,7 @@ window.OGZ = (function() {
         lastPriceDelta: 0,
         proximityToGolden: 0,
         isGolden: false,
+        lastBotMessageAt: 0,
         activeModules: {}
     };
 
@@ -45,6 +46,39 @@ window.OGZ = (function() {
                     traiLight.classList.add('green');
                 }
             }).catch(() => {});
+
+            // Bot feed watchdog: if no price/pattern/trade message arrives for
+            // >15s, surface a visible "bot offline" state + seed placeholders
+            // so the empty bottom panels aren't silent.
+            state.lastBotMessageAt = 0;
+            setInterval(() => {
+                const pill = document.getElementById('feedStatusPill');
+                const stale = Date.now() - (state.lastBotMessageAt || 0) > 15000;
+                if (pill) pill.style.display = stale ? 'block' : 'none';
+                ['botLight'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.classList.remove(stale ? 'green' : 'red');
+                    el.classList.add(stale ? 'red' : 'green');
+                });
+                if (stale) {
+                    const thought = document.getElementById('thoughtDisplay');
+                    if (thought && !thought.dataset.stale) {
+                        thought.dataset.stale = '1';
+                        thought.innerHTML = '<p style="color:#888;font-size:11px;">Bot offline — no feed received in 15s. Check <code>pm2 list</code> for <code>ogz-prime-v2</code>.</p>';
+                    }
+                    const patternName = document.getElementById('currentPatternName');
+                    if (patternName && !patternName.dataset.stale) {
+                        patternName.dataset.stale = '1';
+                        patternName.textContent = 'Waiting for bot…';
+                    }
+                } else {
+                    const thought = document.getElementById('thoughtDisplay');
+                    if (thought) delete thought.dataset.stale;
+                    const patternName = document.getElementById('currentPatternName');
+                    if (patternName) delete patternName.dataset.stale;
+                }
+            }, 3000);
         },
 
         bindGlobalHandlers: function() {
@@ -73,6 +107,7 @@ window.OGZ = (function() {
 
             // LIVE: Standard Price Routing + Bottom Panel Updates
             socket.registerHandler('price', (d) => {
+                state.lastBotMessageAt = Date.now();
                 const data = d.data || d;
                 const p = parseFloat(data.price || data.close || 0);
                 state.lastPriceDelta = p - state.lastPrice;
@@ -116,11 +151,13 @@ window.OGZ = (function() {
 
             // LIVE: Intelligence Routing (Strategy HUD)
             socket.registerHandler('bot_thinking', (d) => {
+                state.lastBotMessageAt = Date.now();
                 if (this.get('Intelligence')) this.get('Intelligence').updateWinnerHUD(d);
             });
 
             // LIVE: Pattern Analysis — updates pattern panel + ghost projection
             socket.registerHandler('pattern_analysis', (d) => {
+                state.lastBotMessageAt = Date.now();
                 // Ghost projection (guarded)
                 if (this.get('Chart') && d.projection_path) {
                     this.get('Chart').plotGhost(d.projection_path);
@@ -155,6 +192,7 @@ window.OGZ = (function() {
 
             // LIVE: Trade execution events — trade log + performance stats update
             socket.registerHandler('trade', (d) => {
+                state.lastBotMessageAt = Date.now();
                 if (this.get('TradeLog')) this.get('TradeLog').addEntry(d);
 
                 // Update trade count
