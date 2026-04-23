@@ -611,10 +611,6 @@ class OrderExecutor {
             if (typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1) {
               isPartialClose = true;
               fraction = decision.exitFraction;
-            } else if (decision.exitSize && decision.exitSize > 0 && decision.exitSize < 1) {
-              // Legacy behavior: treat exitSize as fraction
-              isPartialClose = true;
-              fraction = decision.exitSize;
             }
             let closeResult;
             if (isPartialClose) {
