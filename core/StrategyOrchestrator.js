@@ -605,13 +605,6 @@ class StrategyOrchestrator {
           fibBoost = ` + Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
         }
 
-        // DEBUG: Log what SMS module returned
-        if (sig.overrideLevels) {
-          console.log(`[SMS-DEBUG] Signal has overrideLevels: SL=$${sig.overrideLevels.stopLoss?.toFixed(2)} TP=$${sig.overrideLevels.takeProfit?.toFixed(2)}`);
-        } else {
-          console.log(`[SMS-DEBUG] Signal MISSING overrideLevels! sig keys: ${Object.keys(sig).join(', ')}`);
-        }
-
         return {
           direction: sig.direction,
           confidence: conf,
