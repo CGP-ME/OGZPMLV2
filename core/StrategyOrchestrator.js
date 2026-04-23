@@ -29,6 +29,7 @@
 'use strict';
 
 const { getInstance: getExitContractManager } = require('./ExitContractManager');
+const { getNarrator } = require('./TradeNarrator');
 const MAExtensionFilter = require('./MAExtensionFilter');
 const TradingConfig = require('./TradingConfig');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
@@ -675,6 +676,12 @@ class StrategyOrchestrator {
 
     const ctx = { indicators, patterns, regime, priceHistory, extras };
 
+    // Narrator: pattern-spotted event. No-op when narrator env vars are unset.
+    const narrator = getNarrator();
+    if (narrator.enabled && Array.isArray(patterns) && patterns.length > 0) {
+      narrator.patternSpotted(patterns);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // CHANGE 2026-02-23: Volume Profile Chop Filter (Fabio Valentino)
     // Only trend follow when OUT OF BALANCE (price outside value area)
@@ -837,6 +844,14 @@ class StrategyOrchestrator {
       results.slice(0, 5).forEach(r => console.log(`   - ${r.strategyName}: ${(r.confidence * 100).toFixed(1)}% ${r.direction}`));
     } else {
       console.log(`🔍 [ORCH] 0 strategies returned signals (all returned null or conf=0)`);
+    }
+
+    // Narrator: strategy-eval event. Shows the field (top by confidence).
+    // Leader here is the unconfirmed favorite; the actual winner is still
+    // gated by min-confidence + confluence filters below. The narrator
+    // treats results[0] as the leader; ARCHITECT output is informational.
+    if (narrator.enabled && results.length > 0) {
+      narrator.strategyEval(results, results[0]);
     }
 
     // ─── Step 3: Filter by minimum confidence threshold ───
