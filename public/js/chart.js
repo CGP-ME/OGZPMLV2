@@ -16,6 +16,20 @@
     let activeOverlays = [];
     let storedCandles = []; // For recalculating indicators from historical data
 
+    // Timeframe string -> seconds per bar. Used to align live ticks to the
+    // correct bucket so 5m/15m/1h charts actually build in real time instead
+    // of appearing as a single fat bar every N minutes.
+    const TF_SECONDS = {
+        '1s': 1, '5s': 5, '15s': 15, '30s': 30,
+        '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
+        '1h': 3600, '2h': 7200, '4h': 14400, '6h': 21600, '12h': 43200,
+        '1d': 86400
+    };
+    function currentBucketSeconds() {
+        const tf = document.getElementById('timeframeSelector')?.value || '1m';
+        return TF_SECONDS[tf] || 60;
+    }
+
     const Chart = {
         init: function() {
             const container = document.getElementById('tvChartContainer');
@@ -35,17 +49,21 @@
                 borderUpColor: '#00ff88', borderDownColor: '#ff3366',
                 wickUpColor: '#00ff88', wickDownColor: '#ff3366'
             });
-            // Candle scale auto-fits — volume is on its own isolated 'vol' scale
+            // Candles + all price-scale overlays (EMA/SMA/VWAP/BB/Ichimoku/Fibs/S-R)
+            // occupy the top 72% of the chart.
+            tvChart.priceScale('right').applyOptions({
+                scaleMargins: { top: 0.02, bottom: 0.28 },
+                borderVisible: false
+            });
 
             volumeSeries = tvChart.addHistogramSeries({
                 priceScaleId: 'vol',
                 color: '#26a69a',
-                priceFormat: { type: 'volume' },
-                scaleMargins: { top: 0.8, bottom: 0 }
+                priceFormat: { type: 'volume' }
             });
-            // Volume on its own invisible scale — no axis labels, no ticks
+            // Volume sits in the 72%-84% band (middle strip), own invisible scale.
             tvChart.priceScale('vol').applyOptions({
-                scaleMargins: { top: 0.8, bottom: 0 },
+                scaleMargins: { top: 0.72, bottom: 0.16 },
                 drawTicks: false,
                 borderVisible: false
             });
@@ -69,13 +87,16 @@
             sma20Series = tvChart.addLineSeries({ color: '#00ccff', lineWidth: 1, visible: false, title: 'SMA20', lastValueVisible: false, priceLineVisible: false });
             sma50Series = tvChart.addLineSeries({ color: '#0088ff', lineWidth: 1, visible: false, title: 'SMA50', lastValueVisible: false, priceLineVisible: false });
             sma200Series = tvChart.addLineSeries({ color: '#0044cc', lineWidth: 2, visible: false, title: 'SMA200', lastValueVisible: false, priceLineVisible: false });
+            // Oscillators (RSI/MACD/ATR) share the bottom 16% strip, below volume.
+            // Each has its own isolated scale so the values don't fight for range.
+            const OSC_MARGIN = { top: 0.84, bottom: 0 };
             rsiOverlaySeries = tvChart.addLineSeries({ color: '#ff0066', lineWidth: 1.5, visible: false, title: 'RSI', priceScaleId: 'rsi', priceFormat: { type: 'custom', formatter: v => v.toFixed(0) }, lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
+            tvChart.priceScale('rsi').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
             macdLineSeries = tvChart.addLineSeries({ color: '#6600ff', lineWidth: 1.5, visible: false, title: 'MACD', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
             macdSignalSeries = tvChart.addLineSeries({ color: '#ff6600', lineWidth: 1, visible: false, title: 'Signal', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
+            tvChart.priceScale('macd').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
             atrSeries = tvChart.addLineSeries({ color: '#ff9800', lineWidth: 1, visible: false, title: 'ATR', priceScaleId: 'atr', lastValueVisible: false, priceLineVisible: false });
-            tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.22 }, visible: false });
+            tvChart.priceScale('atr').applyOptions({ scaleMargins: OSC_MARGIN, visible: false, borderVisible: false });
 
             // Ichimoku series
             this._ichiTenkan = tvChart.addLineSeries({ color: '#00bcd4', lineWidth: 1, visible: false, title: 'Tenkan', lastValueVisible: false, priceLineVisible: false });
@@ -91,18 +112,54 @@
             this._fibLines = [];
             this._srLines = [];
 
-            // Flicker Fix: maintain live price display during crosshair hover
+            // Crosshair driver: (1) keep header price live, (2) feed floating
+            // tooltip near the cursor so you see exact time + price at any point.
+            const tooltipEl = document.getElementById('crosshairTooltip');
             tvChart.subscribeCrosshairMove(param => {
                 const priceEl = document.getElementById('currentPrice');
-                if (!priceEl) return;
-                if (!param.time || !param.seriesData.get(candleSeries)) {
-                    // Crosshair left chart area — show persistent dollar price
-                    priceEl.textContent = `$${OGZ.state.lastPrice.toLocaleString()}`;
+                const candleData = param.seriesData ? param.seriesData.get(candleSeries) : null;
+
+                // Header readout
+                if (priceEl) {
+                    if (!param.time || !candleData) {
+                        priceEl.textContent = `$${OGZ.state.lastPrice.toLocaleString()}`;
+                    } else {
+                        priceEl.textContent = `O:${candleData.open.toFixed(2)} H:${candleData.high.toFixed(2)} L:${candleData.low.toFixed(2)} C:${candleData.close.toFixed(2)}`;
+                    }
+                }
+
+                // Floating tooltip near cursor
+                if (!tooltipEl) return;
+                if (!param.time || !candleData || !param.point) {
+                    tooltipEl.style.display = 'none';
                     return;
                 }
-                // Crosshair over valid candle — show OHLC
-                const d = param.seriesData.get(candleSeries);
-                priceEl.textContent = `O:${d.open.toFixed(2)} H:${d.high.toFixed(2)} L:${d.low.toFixed(2)} C:${d.close.toFixed(2)}`;
+                const ts = (typeof param.time === 'number' ? param.time : (param.time.timestamp || 0)) * 1000;
+                const dateStr = new Date(ts).toLocaleString([], {
+                    month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                const priceAt = candleSeries.coordinateToPrice(param.point.y);
+                const dir = candleData.close >= candleData.open ? '#00ff88' : '#ff3366';
+                tooltipEl.innerHTML = `
+                    <div style="color:#888;font-size:10px;letter-spacing:0.5px;">${dateStr}</div>
+                    <div style="color:${dir};font-family:Orbitron,monospace;font-size:13px;font-weight:700;margin-top:2px;">
+                        ${priceAt != null ? '$' + priceAt.toFixed(2) : '--'}
+                    </div>
+                    <div style="color:#aaa;font-size:10px;margin-top:4px;font-family:monospace;">
+                        O ${candleData.open.toFixed(2)} &nbsp; H ${candleData.high.toFixed(2)}<br>
+                        L ${candleData.low.toFixed(2)} &nbsp; C ${candleData.close.toFixed(2)}
+                    </div>`;
+                // Position: offset so cursor doesn't cover the box, flip left if near right edge
+                const containerRect = container.getBoundingClientRect();
+                const tipW = 150, tipH = 78;
+                let x = param.point.x + 18;
+                let y = param.point.y + 18;
+                if (x + tipW > containerRect.width) x = param.point.x - tipW - 18;
+                if (y + tipH > containerRect.height) y = param.point.y - tipH - 18;
+                tooltipEl.style.left = Math.max(4, x) + 'px';
+                tooltipEl.style.top = Math.max(4, y) + 'px';
+                tooltipEl.style.display = 'block';
             });
 
             // Expose for legacy code compatibility
@@ -359,31 +416,81 @@
         update: (d) => {
             if (!candleSeries) return;
             const candle = d.candle || d;
-            const t = Math.floor((candle.timestamp || candle.t || Date.now()) / 1000);
-            const timeAligned = Math.floor(t / 60) * 60;
-            candleSeries.update({
-                time: timeAligned,
-                open: candle.open || candle.o,
-                high: candle.high || candle.h,
-                low: candle.low || candle.l,
-                close: candle.close || candle.c
-            });
+            const price = candle.close || candle.c;
+            const open = candle.open || candle.o;
+            const high = candle.high || candle.h;
+            const low = candle.low || candle.l;
+            const rawMs = candle.timestamp || candle.t || Date.now();
+            const t = Math.floor(rawMs / 1000);
+
+            // Align to the bucket size of the currently selected timeframe so
+            // sub-bar ticks continuously update the in-progress candle — this
+            // is what made it "feel real-time" before.
+            const bucket = currentBucketSeconds();
+            const timeAligned = Math.floor(t / bucket) * bucket;
+
+            // If bot only sent a bare `price` (no OHLC), synthesize a tick on
+            // the in-progress candle so the wick/body extends live.
+            let tickOpen = open, tickHigh = high, tickLow = low, tickClose = price;
+            if (price != null && (open == null || high == null || low == null)) {
+                const last = storedCandles[storedCandles.length - 1];
+                if (last && last.time === timeAligned) {
+                    tickOpen = last.open;
+                    tickHigh = Math.max(last.high, price);
+                    tickLow = Math.min(last.low, price);
+                    tickClose = price;
+                    // mutate stored candle so crosshair/tooltip reflects live bar
+                    last.high = tickHigh; last.low = tickLow; last.close = tickClose;
+                } else if (price != null) {
+                    tickOpen = tickHigh = tickLow = tickClose = price;
+                    storedCandles.push({ time: timeAligned, open: price, high: price, low: price, close: price, volume: 0 });
+                }
+            } else if (open != null) {
+                // Full candle provided — upsert into storedCandles
+                const last = storedCandles[storedCandles.length - 1];
+                if (last && last.time === timeAligned) {
+                    last.open = open; last.high = high; last.low = low; last.close = price;
+                } else {
+                    storedCandles.push({ time: timeAligned, open, high, low, close: price, volume: candle.volume || candle.v || 0 });
+                }
+            }
+
+            if (tickClose != null) {
+                candleSeries.update({
+                    time: timeAligned,
+                    open: tickOpen,
+                    high: tickHigh,
+                    low: tickLow,
+                    close: tickClose
+                });
+            }
+
             if (candle.volume || candle.v) {
-                const close = candle.close || candle.c;
-                const open = candle.open || candle.o;
                 volumeSeries.update({
                     time: timeAligned,
                     value: candle.volume || candle.v,
-                    color: close >= open ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 51, 102, 0.3)'
+                    color: tickClose >= tickOpen ? 'rgba(0, 255, 136, 0.35)' : 'rgba(255, 51, 102, 0.35)'
                 });
             }
-            // Update live price display
-            const price = candle.close || candle.c;
-            if (price) {
+
+            // Live price readout + subtle tick flash so you can SEE it updating
+            if (price != null) {
                 OGZ.state.lastPriceDelta = price - OGZ.state.lastPrice;
                 OGZ.state.lastPrice = price;
                 const priceEl = document.getElementById('currentPrice');
-                if (priceEl) priceEl.textContent = `$${price.toLocaleString()}`;
+                if (priceEl) {
+                    priceEl.textContent = `$${price.toLocaleString()}`;
+                    const up = OGZ.state.lastPriceDelta >= 0;
+                    priceEl.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
+                    priceEl.style.color = up ? '#00ff88' : '#ff3366';
+                    priceEl.style.textShadow = up
+                        ? '0 0 12px rgba(0,255,136,0.75)'
+                        : '0 0 12px rgba(255,51,102,0.75)';
+                    clearTimeout(priceEl._flashTimer);
+                    priceEl._flashTimer = setTimeout(() => {
+                        priceEl.style.textShadow = '';
+                    }, 180);
+                }
             }
         },
 
