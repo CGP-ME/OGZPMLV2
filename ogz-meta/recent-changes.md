@@ -1,6 +1,28 @@
 
 ---
 
+## 2026-04-23 (overnight): Dashboard deploy + exit-path unit-safety + SMS cleanup (9 commits)
+
+**Impact:** HIGH — 6 new dashboard files from Cursor Claude shipped (chart polish, bot-offline watchdog, pill, matrix CSV leaderboard, TRAI backend tuning). Plus 3 exit-path safety fixes with Mercury audits (tier4 guard, OrderExecutor legacy branch deletion, SMS dead-log cleanup). Strategy roster went from 4 validated to 8 after Audit 3 added CandlePattern + MarketRegime + MultiTimeframe + SmartMoneySweep.
+
+**Highlights:**
+- **Exit-path unit-safety**: StateManager tier4 guard `>=` → `>` (`95225ba`), OrderExecutor legacy `exitSize`-as-fraction branch deleted (`d7a485c`), SMS dead debug logs deleted (`0e20116`). All Mercury-verified, all Phase 0 baseline bit-for-bit.
+- **Dashboard deploy**: 6 files from Cursor Claude — chart scale split, real-time feel restored, crosshair tooltip, bot-offline pill + watchdog, TRAI disclaimer drop + token budget 200→600, command-center matrix CSV leaderboard.
+- **Mercury verdicts**: Audit 2b (tier4 edge case confirmed), Audit 3 (3 strategies FULL PARITY added to sweep roster, BreakRetest confirmed DISABLED dead code), SMS reachability (MISSING branch UNREACHABLE).
+
+**Branch:** `alpaca/stocks-paper-flip`, commits `95225ba..0e20116`
+
+**Files Changed (code):**
+- `core/StateManager.js`, `core/OrderExecutor.js`, `core/StrategyOrchestrator.js`
+- `public/js/chart.js`, `public/js/core.js`, `public/unified-dashboard.html`
+- `public/trai-widget.js`, `public/command-center.html`, `ogzprime-ssl-server.js`
+
+**Phase 0 baseline across this window:** $17,950.589592711076 / 1430 trades / 57.55% WR / 2.63% DD / 2.69 PF — reproduced bit-for-bit after every core-touching commit.
+
+**Ready for Cursor's multi-phase product build:** NLP layer, narrator system, Phase 1-3 dashboard, 7 new widgets, TRAI JSON endpoints, MarketEventGuard, Whale activity widget, Command Palette. 12-phase plan drawn up. Cursor builds + tests locally + posts verification; we install + re-verify + commit on VPS.
+
+---
+
 ## 2026-04-22 (late session): Pre-Matrix Plumbing — L5 Obs, Per-Strategy ATR, ConfigLoader Crash Fix (7 commits)
 
 **Impact:** CRITICAL — a 24-hour dormant crash in ConfigLoader blocked every entry point (live, paper, backtest, every sweep worker) between `1f3050f` and `57e8daa`. Plus architectural wins for observability (L5 riskGates) and per-strategy ATR isolation.

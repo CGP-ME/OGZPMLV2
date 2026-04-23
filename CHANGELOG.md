@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Deploy + Exit-Path Unit-Safety + SMS Cleanup (2026-04-23 overnight)
+
+#### Commit range: `95225ba..0e20116` (9 commits on `alpaca/stocks-paper-flip`)
+
+**Exit-path unit-safety fixes (`95225ba`, `d7a485c`):**
+- `core/StateManager.js:578` — reducePosition guard loosened from `>= 1` to `> 1`. Mercury-audited discovery of a theoretical tier4 edge case where `fraction = 1.0` would hit the guard and leave positions stuck. Bit-for-bit baseline preservation proved the path was unreachable in TSLA/USD sizing, but fix makes the existing delete branch at line 602 active for the crypto-native-unit case where fraction=1.0 could reach reducePosition.
+- `core/OrderExecutor.js:614-618` — deleted dead legacy `exitSize`-as-fraction branch. Mercury-verified grep across codebase confirmed zero callers emit `exitSize` without `exitFraction` (MPM always emits both). The legacy branch was a unit-safety landmine for native-crypto units where 0.05 BTC would be misinterpreted as 5% fraction. Per "no backward-compatibility hacks" rule, deleted outright rather than guarded.
+
+**Dashboard deploy — 6 files from Cursor Claude (`37a21e3`, `337b236`, `0104863`, `82a9223`, `31528c8`, `b0d8340`):**
+- `public/js/chart.js` — scale margins re-docked (candles 0-72%, volume 72-84%, oscillators 84-100%), `update()` aligned to selected timeframe (was hardcoded 60s — 5m/15m felt like "oh a candle just appeared"), crosshair tooltip restored showing exact time/price/OHLC at cursor, green/red flash on currentPrice per tick. Bot-offline pill DOM added.
+- `public/js/core.js` — 3s watchdog, 15s no-feed threshold flips `botLight` red + shows pill + shows "Bot offline — no feed received in 15s" in Chain of Thought / Pattern panels instead of silent empty. Auto-clears on tick resume.
+- `public/unified-dashboard.html` — watchdog UI hooks + bot-offline pill DOM.
+- `public/trai-widget.js` — cleaner no longer eats legitimate leading words like "Analysis shows…" or "TSLA is…" (was pattern-matching the canned disclaimer prefix it used to filter).
+- `public/command-center.html` — auto-detects matrix-sweep CSV format (columns `strategy, stopLoss, takeProfit, confidence, netPnl, trades, winRate, maxDrawdown, profitFactor, …`), renders as sortable paginated leaderboard instead of treating each row as a single trade. Middle tab auto-relabels "Trades" → "Configs". Analysis tab hidden for matrix mode.
+- `ogzprime-ssl-server.js` — TRAI backend: dropped canned "I can't give trading advice, but here are the facts:" opener. System prompt still forbids buy/sell/enter/exit recommendations but never as a fallback disclaimer. News now fetched for any market/ticker question (not just when "news"/"today" appear). Default token budget raised 200 → 600 so answers finish.
+
+**SMS log hygiene (`0e20116`):**
+- `core/StrategyOrchestrator.js:608-613` — deleted 6 lines of unreachable `[SMS-DEBUG]` console.log statements. Mercury audit (7 iterations, quality 78.2, verdict UNREACHABLE) confirmed the SMS module's `update()` method has only one non-null return path that always includes `overrideLevels`, derived from `_computeExitLevels()` which has two return sites both always returning `{ stopLoss, takeProfit }` with both fields set. The "Signal MISSING overrideLevels!" branch was dead code. No null-guard added downstream per "don't hide broken" rule — Mercury proved nothing to hide.
+
+**Mercury audits this window:**
+- Audit 2a (MPM multi-tier wiring, initial) — flagged wrong code path due to under-specified prompt, corrected via Audit 2b
+- Audit 2b (tier4 edge case) — verdict TIER1-3 WIRED, TIER4 FRACTION=1.0 STATE-MANAGER REJECTED
+- Audit 3 (7 unvalidated strategies parity) — FULL PARITY for CandlePattern/MarketRegime/MultiTimeframe, DEVIATIONS flagged for OGZTPO/OpeningRangeBreakout/SmartMoneySweep (OGZTPO and ORB deviations are by-design for time-window structural strategies; SMS was cleanup candidate), BROKEN for BreakRetest (DISABLED, returns null, no contract)
+- SMS reachability audit — verdict UNREACHABLE for `[SMS-DEBUG]` MISSING branch
+
+**Verification — every core-touching commit in this window passed Phase 0 baseline bit-for-bit:**
+- `$17,950.589592711076 / 1,430 trades / 57.55% WR / 2.63% DD / 2.69 PF` on `tuning/tsla-15m-2y.json` reproduced after every one of: `95225ba`, `d7a485c`, `0e20116`. Frontend-only commits (`37a21e3`, `337b236`, `0104863`, `82a9223`, `31528c8`) don't touch trading logic so baseline implicitly preserved.
+
+**Files changed this window (10 unique):**
+- `core/StateManager.js`, `core/OrderExecutor.js`, `core/StrategyOrchestrator.js`
+- `public/js/chart.js`, `public/js/core.js`, `public/unified-dashboard.html`
+- `public/trai-widget.js`, `public/command-center.html`
+- `ogzprime-ssl-server.js`
+
+**Strategies validated for sweep tuning post this window:** 8 (up from 4 at session start). RSI, EMASMACrossover, LiquiditySweep, MADynamicSR, CandlePattern, MarketRegime, MultiTimeframe, SmartMoneySweep. BreakRetest remains DISABLED (dead code, cleanup candidate).
+
+---
+
 ### Post-Apex Pre-Matrix Work: L5 Observability + Per-Strategy ATR + ConfigLoader Crash Fix (2026-04-22 late session)
 
 #### Commit range: `1d8835f..2992f28` (7 commits on `alpaca/stocks-paper-flip`)
