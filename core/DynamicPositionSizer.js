@@ -43,6 +43,7 @@
 'use strict';
 
 const TradingConfig = require('./TradingConfig');
+const { getNarrator } = require('./TradeNarrator');
 
 class DynamicPositionSizer {
   constructor(config = {}) {
@@ -212,7 +213,7 @@ class DynamicPositionSizer {
       parts.push(`CAPPED ${(rawPercent * 100).toFixed(2)}%→${(finalPercent * 100).toFixed(2)}%`);
     }
 
-    return {
+    const result = {
       sizeUSD,
       sizePercent: finalPercent,
       sizeAsset,
@@ -228,6 +229,12 @@ class DynamicPositionSizer {
       capped,
       reason: parts.join(' | '),
     };
+
+    // Narrator: position-sizing breakdown. No-op when env vars are unset.
+    const narrator = getNarrator();
+    if (narrator.enabled) narrator.sizing(result);
+
+    return result;
   }
 
   /**
