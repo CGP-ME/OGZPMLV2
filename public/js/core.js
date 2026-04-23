@@ -15,6 +15,14 @@ window.OGZ = (function() {
         activeModules: {}
     };
 
+    // Local HTML escaper for user-visible narrator text. Keep in-file to
+    // avoid pulling a new dependency into the core orchestrator.
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+    }
+
     return {
         register: (name, mod) => {
             state.activeModules[name] = mod;
@@ -241,6 +249,73 @@ window.OGZ = (function() {
                     this.get('Operator').updateBalance(d.state.balance);
                 }
             });
+
+            // LIVE: Narrator (USER scope) — sanitized trade-lifecycle events
+            // pushed by core/TradeNarrator.js when USER_NARRATOR=true on the bot.
+            // These are additive, UX-only messages; absence of a handler would
+            // not hurt anything. See ogz-meta/BACKTEST-OPS.md §Trade Narrator.
+            socket.registerHandler('narrator_event', (d) => {
+                state.lastBotMessageAt = Date.now();
+                try {
+                    this.renderNarratorEvent(d);
+                } catch (e) {
+                    console.warn('[narrator_event] render failed:', e);
+                }
+            });
+        },
+
+        // UI helper: render a single USER-scope narrator event as a thought card
+        renderNarratorEvent: function(ev) {
+            const chain = document.getElementById('chainOfThought');
+            if (!chain || !ev) return;
+
+            // Drop the placeholder the first time we render real content
+            const placeholder = document.getElementById('thoughtDisplay');
+            if (placeholder && placeholder.textContent.includes('Awaiting')) {
+                placeholder.remove();
+            }
+
+            // Map narrator event type → icon + accent + human-readable heading
+            const kind = (ev.event || 'event').toLowerCase();
+            const meta = ({
+                pattern_spotted: { icon: '📐', accent: '#22d3ee', heading: 'Pattern spotted' },
+                strategy_eval:   { icon: '🧠', accent: '#fbbf24', heading: 'Strategy evaluated' },
+                sizing:          { icon: '⚖️', accent: '#f59e0b', heading: 'Position sizing' },
+                entered:         { icon: '🎯', accent: '#22c55e', heading: 'Position opened' },
+                tier_exit:       { icon: '💰', accent: '#eab308', heading: 'Profit tier hit' },
+                closed:          { icon: ev.payload && ev.payload.outcome === 'win' ? '🟢' : '🔴',
+                                   accent: ev.payload && ev.payload.outcome === 'win' ? '#22c55e' : '#ef4444',
+                                   heading: 'Position closed' },
+            })[kind] || { icon: '•', accent: '#a1a1aa', heading: kind };
+
+            const line = typeof ev.line === 'string' && ev.line.trim()
+                ? ev.line
+                : (meta.heading + (ev.payload && ev.payload.symbol ? ` — ${ev.payload.symbol}` : ''));
+
+            const ts = new Date(ev.ts || Date.now());
+            const stamp = ts.toTimeString().slice(0, 8);
+
+            const card = document.createElement('div');
+            card.className = 'thought-entry narrator-entry';
+            card.style.borderLeftColor = meta.accent;
+            card.style.padding = '6px 10px';
+            card.style.marginBottom = '6px';
+            card.innerHTML = `
+                <div class="thought-step" style="display:flex;gap:8px;align-items:baseline;">
+                    <span style="font-size:14px;line-height:1;">${meta.icon}</span>
+                    <strong style="color:${meta.accent};font-size:11px;letter-spacing:.04em;text-transform:uppercase;">${meta.heading}</strong>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(244,244,245,.45);margin-left:auto;">${stamp}</span>
+                </div>
+                <div style="font-size:12px;color:#e4e4e7;margin-top:2px;line-height:1.35;">${escapeHtml(line)}</div>
+            `;
+
+            chain.insertBefore(card, chain.firstChild);
+
+            // Keep only the 40 most recent entries so the panel never grows
+            // unbounded during a long session.
+            while (chain.children.length > 40) {
+                chain.removeChild(chain.lastChild);
+            }
         }
     };
 })();
