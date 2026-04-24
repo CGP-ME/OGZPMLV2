@@ -37,6 +37,7 @@ window.OGZ = (function() {
             if (this.get('Operator')) this.get('Operator').init();
             if (this.get('Edge')) this.get('Edge').init();
             if (this.get('DrawingTools')) this.get('DrawingTools').init();
+            if (this.get('CommandPalette')) this.get('CommandPalette').init();
 
             // Check TRAI status light
             fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
@@ -240,6 +241,38 @@ window.OGZ = (function() {
                 if (d.state?.balance && this.get('Operator')) {
                     this.get('Operator').updateBalance(d.state.balance);
                 }
+            });
+
+            // LIVE: Narrator events (USER_NARRATOR only — sanitized customer story).
+            // Prepends each event to Chain of Thought so the panel fills with
+            // the trade story as it unfolds. TradeNarrator broadcasts text in
+            // payload.text (see commit 5b6845c) so we can render directly.
+            socket.registerHandler('narrator_event', (d) => {
+                state.lastBotMessageAt = Date.now();
+                const container = document.getElementById('chainOfThought');
+                if (!container) return;
+                // Clear placeholder on first narrator event
+                const placeholder = container.querySelector('#thoughtDisplay');
+                if (placeholder && !container.dataset.narratorStarted) {
+                    placeholder.remove();
+                    container.dataset.narratorStarted = '1';
+                }
+                const entry = document.createElement('div');
+                entry.className = 'thought-entry narrator-entry';
+                const ts = new Date(d.timestamp || Date.now()).toLocaleTimeString([], {
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+                // Sanitize d.text before injecting
+                const safeText = String(d.text || '').replace(/[&<>"']/g, c =>
+                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                entry.innerHTML = `
+                    <div style="display:flex;gap:10px;align-items:baseline;">
+                        <span style="color:#71717a;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">${ts}</span>
+                        <span style="color:#e4e4e7;font-size:12px;line-height:1.5;flex:1;">${safeText}</span>
+                    </div>`;
+                container.prepend(entry);
+                // Cap at 40 entries
+                while (container.children.length > 40) container.lastChild.remove();
             });
         }
     };
