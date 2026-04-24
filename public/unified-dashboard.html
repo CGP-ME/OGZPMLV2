@@ -2721,7 +2721,11 @@
                full brand-red-bright for redundant cueing. */
             outline: none;
             border-color: var(--brand-red-bright);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.85);
+            /* Focus ring dialed back 2026-04-24: user reported selects were
+               glowing more than important content. 3px/0.85 was too loud.
+               2px/0.5 is visible for keyboard users without competing with
+               chart/data for attention. Still clears WCAG 3:1 non-text. */
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5);
         }
 
         select#tierSelector option,
@@ -3174,7 +3178,12 @@
                     </select>
                     <!-- Phase F: Candle countdown ring -->
                     <span id="candleCountdown"></span>
-                    <div class="indicator-checkboxes" id="indicatorCheckboxes">
+                    <!-- Indicator checkbox strip HIDDEN 2026-04-24: cluttered top
+                         header, not in mockup design. Indicators will live in a
+                         right-rail collapsed section in the rebuild. Keeping the
+                         DOM + handlers intact (display:none) so indicator toggle
+                         state still persists if we restore them later. -->
+                    <div class="indicator-checkboxes" id="indicatorCheckboxes" style="display:none;">
                         <label class="indicator-check">
                             <input type="checkbox" id="chk-ema" value="ema">
                             <span class="color-dot" style="background: #ffcc00;"></span>
@@ -3251,9 +3260,11 @@
                     ⚠ Bot offline — waiting for feed
                 </div>
 
-                <!-- Phase A · Floating in-chart price HUD (top-right). Updated
-                     from chart.js on every tick. Styling in the stylesheet. -->
-                <div id="chartHud" aria-hidden="true">
+                <!-- Phase A HUD REMOVED 2026-04-24: redundant with top-left
+                     price display. Visible bug per user feedback. Keeping
+                     the top-left as the single source of truth for price
+                     until hero-price layout lands in the mockup rebuild. -->
+                <div id="chartHud" aria-hidden="true" style="display:none;">
                     <div id="chartHudPrice">$0.00</div>
                     <div id="chartHudOhlc">O 0.00  H 0.00  L 0.00  C 0.00</div>
                 </div>

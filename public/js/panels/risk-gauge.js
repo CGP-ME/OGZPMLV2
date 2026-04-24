@@ -365,8 +365,19 @@
             const offset = RING_CIRC * (1 - used / 100);
             ringFill.setAttribute('stroke-dashoffset', offset.toFixed(3));
         }
-        if (pctNum) pctNum.textContent = `${Math.round(used)}%`;
-        if (pctSub) pctSub.textContent = used >= 80 ? 'DANGER' : used >= 50 ? 'WATCH' : (used > 0 ? 'USED' : 'SAFE');
+        // When the gauge hasn't received authoritative balance data yet,
+        // show "—" / "WAIT" instead of the default "0% SAFE" — that was
+        // indistinguishable from a working gauge with no drawdown, so
+        // a broken pipeline looked identical to a healthy "no losses today."
+        // Empty-state signaling needs to be unambiguous.
+        if (pctNum) pctNum.textContent = m.ready ? `${Math.round(used)}%` : '—';
+        if (pctSub) {
+            if (!m.ready) {
+                pctSub.textContent = 'WAIT';
+            } else {
+                pctSub.textContent = used >= 80 ? 'DANGER' : used >= 50 ? 'WATCH' : (used > 0 ? 'USED' : 'SAFE');
+            }
+        }
 
         // State class swap
         root.classList.remove('state-ok', 'state-watch', 'state-danger');
