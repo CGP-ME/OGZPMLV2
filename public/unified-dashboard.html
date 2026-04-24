@@ -240,11 +240,15 @@
             color: #ff3366;
         }
         
-        /* Main Container */
+        /* Main Container
+           2026-04-24: Edge Analytics moved to LEFT (was right). padding-left
+           keeps 340px to make room for it; padding-right tightened from
+           340px → 20px since no right panel exists. Reclaims ~320px of
+           horizontal space for chart + narrative-panel grid. */
         .main-container {
             padding: 10px;
-            padding-left: 340px;  /* Space for left panel (320px + 20px gap) */
-            padding-right: 340px; /* Space for right panel (320px + 20px gap) */
+            padding-left: 340px;  /* Space for Edge Analytics panel */
+            padding-right: 20px;  /* No right fixed panel */
             position: relative;
             z-index: 5;
             transition: padding 0.3s ease;
@@ -1121,7 +1125,7 @@
         @media screen and (max-width: 1024px) {
             .edge-panel {
                 width: 280px;
-                right: 10px;
+                left: 10px;
             }
 
             .trade-manager {
@@ -1150,7 +1154,7 @@
 
             .edge-panel {
                 width: 260px;
-                right: 10px;
+                left: 10px;
                 top: 120px;
                 max-height: 60vh;
             }
@@ -1358,7 +1362,7 @@
         @media screen and (max-width: 768px) and (orientation: landscape) {
             .edge-panel {
                 position: fixed;
-                right: 10px;
+                left: 10px;
                 top: 60px;
                 bottom: auto;
                 width: 250px;
@@ -1377,10 +1381,12 @@
             }
         }
 
-        /* Edge Analytics Panel - THE REAL MONEY MAKERS */
+        /* Edge Analytics Panel - THE REAL MONEY MAKERS
+           MOVED TO LEFT SIDE 2026-04-24 per user feedback.
+           Main-container padding flips: right goes light, left keeps 340px. */
         .edge-panel {
             position: fixed;
-            right: 10px;
+            left: 10px;
             top: 100px;
             width: 320px;
             max-height: calc(100vh - 120px);
