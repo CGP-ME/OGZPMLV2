@@ -2466,6 +2466,12 @@
            .indicator-bar unstyled. See the base block above
            "END PHASE A / BEGIN PHASE B" boundary. */
         .trading-panel .indicator-bar {
+            /* Explicit position:relative so the scoped rule is
+               self-evidently a positioning ancestor for child
+               pseudo-elements (the base rule above already declares
+               this, but the cascade dependency isn't obvious when
+               reading this block in isolation). Defense-in-depth. */
+            position: relative;
             background: rgba(0, 0, 0, 0.45);
             border: 1px solid var(--glass-border);
             backdrop-filter: blur(8px);
@@ -2580,14 +2586,16 @@
         }
 
         .trading-panel .trade-badge.sell {
-            background: rgba(220, 38, 38, 0.14);
-            /* Text color brightened from --brand-red-bright (#ef4444)
-               to #fecaca. #ef4444 on a dim red tint gave ~3.8:1 —
-               below WCAG AA 4.5:1 for 9.5px non-bold badge text.
-               #fecaca (soft-pink) on the same composite clears 11:1.
-               Border stays brand-red for visual-identity signal. */
+            /* Bumped background from rgba(220,38,38,0.14) @ 14% alpha
+               to a near-opaque dark red. The 14% version composited
+               well against dark page bg (~12:1 with #fecaca text),
+               but if the badge ever renders on a light parent the
+               contrast collapses. Opaque dark red guarantees the
+               composite target regardless of parent background —
+               ~10:1 text contrast in every context. */
+            background: rgba(127, 15, 15, 0.95);
             color: #fecaca;
-            border: 1px solid rgba(220, 38, 38, 0.38);
+            border: 1px solid rgba(220, 38, 38, 0.55);
         }
 
         .trade-pnl.profit  { color: #4ade80; }
