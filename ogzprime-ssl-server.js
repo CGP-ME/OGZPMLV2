@@ -498,6 +498,78 @@ function _withTimeout(promise, ms, label) {
 }
 const _FETCH_TIMEOUT_MS = 25_000; // generous ceiling above Tavily p99
 
+// ─── LLM response schema validators ────────────────────────────────────
+// Defense-in-depth for prompt injection: even if the LLM is jailbroken
+// by an embedded instruction in untrusted search results, the output
+// passes through these validators which enforce exact shape, enum
+// values, and bounded strings. Invalid or unexpected fields are dropped.
+function _str(v, maxLen = 200) {
+  if (v == null) return '';
+  return String(v).slice(0, maxLen);
+}
+function _strOrNull(v, maxLen = 200) {
+  if (v == null) return null;
+  const s = String(v).slice(0, maxLen);
+  return s || null;
+}
+const _EVENT_TYPES = new Set(['earnings','fomc','fda','macro','catalyst','other']);
+function _validateEventsArray(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(0, 20).map(e => {
+    if (!e || typeof e !== 'object') return null;
+    const type = _EVENT_TYPES.has(e.type) ? e.type : 'other';
+    return {
+      type,
+      date: _str(e.date, 12),
+      title: _str(e.title, 120),
+      summary: _str(e.summary, 240),
+      source: _str(e.source, 80),
+    };
+  }).filter(Boolean);
+}
+const _REGIME_LABELS = new Set(['trending_up','trending_down','ranging','volatile','breakout','unknown']);
+function _validateRegimeObject(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return { regime: 'unknown', confidence: 0, summary: '' };
+  }
+  const regime = _REGIME_LABELS.has(obj.regime) ? obj.regime : 'unknown';
+  let confidence = Number(obj.confidence);
+  if (!isFinite(confidence)) confidence = 0;
+  confidence = Math.max(0, Math.min(1, confidence));
+  return {
+    regime,
+    confidence,
+    summary: _str(obj.summary, 240),
+  };
+}
+const _WHALE_TYPES = new Set(['insider_buy','insider_sell','institutional','sec_filing','block_trade']);
+function _validateWhalesArray(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(0, 20).map(a => {
+    if (!a || typeof a !== 'object') return null;
+    const type = _WHALE_TYPES.has(a.type) ? a.type : 'institutional';
+    return {
+      type,
+      actor: _str(a.actor, 120),
+      detail: _str(a.detail, 240),
+      date: _str(a.date, 12),
+      source: _str(a.source, 80),
+    };
+  }).filter(Boolean);
+}
+function _validateTradeSummary(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return { summary: '', lesson: '', tags: [] };
+  }
+  let tags = Array.isArray(obj.tags) ? obj.tags : [];
+  tags = tags.slice(0, 8).map(t => _str(t, 48)).filter(Boolean);
+  return {
+    summary: _str(obj.summary, 400),
+    lesson: _str(obj.lesson, 400),
+    tags,
+  };
+}
+
 /**
  * cachedFetch — stale-while-revalidate wrapper.
  * Returns cached data immediately if fresh (age < ttlMs); otherwise
@@ -561,11 +633,14 @@ If no events found, return []. ONLY output the JSON array.`;
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         events = JSON.parse(cleaned);
-        if (!Array.isArray(events)) events = [];
       } catch (e) {
         console.warn('[TRAI Events] Failed to parse TRAI JSON, returning []');
         events = [];
       }
+      // Schema-enforce even if LLM was jailbroken by a prompt-injection
+      // in the search results. Unknown event types collapse to 'other',
+      // strings get length-bounded, extra fields are dropped.
+      events = _validateEventsArray(events);
       return { events, source: 'tavily+trai', symbol, fetchedAt: new Date().toISOString() };
     });
     res.json(data || { events: [], source: 'tavily', symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
@@ -607,7 +682,11 @@ ONLY output the JSON object.`;
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleaned);
-        return { ...parsed, symbol, source: 'polygon+trai', fetchedAt: new Date().toISOString() };
+        // Schema-enforce: regime must be one of the allowed enum values,
+        // confidence clamped to [0,1], summary length-bounded. Blocks
+        // prompt-injection payloads from slipping arbitrary shapes out.
+        const validated = _validateRegimeObject(parsed);
+        return { ...validated, symbol, source: 'polygon+trai', fetchedAt: new Date().toISOString() };
       } catch (e) {
         return { regime: 'unknown', confidence: 0, summary: 'Unable to classify regime.', symbol };
       }
@@ -756,7 +835,8 @@ ONLY output the JSON object.`;
       const response = await client.generateResponse(prompt, 300);
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
-        return { tradeId, ...JSON.parse(cleaned) };
+        const validated = _validateTradeSummary(JSON.parse(cleaned));
+        return { tradeId, ...validated };
       } catch (e) {
         return { tradeId, summary: 'Unable to generate summary.', tags: [] };
       }
@@ -799,10 +879,12 @@ If no activity found, return []. ONLY output the JSON array.`;
       try {
         const cleaned = String(response || '').replace(/```json|```/g, '').trim();
         activities = JSON.parse(cleaned);
-        if (!Array.isArray(activities)) activities = [];
       } catch (e) {
         activities = [];
       }
+      // Schema-enforce: unknown whale activity types collapse to
+      // 'institutional' (benign default), strings bounded, extras dropped.
+      activities = _validateWhalesArray(activities);
       return { activities, source: 'tavily+trai', symbol, fetchedAt: new Date().toISOString() };
     });
     res.json(data || { activities: [], source: 'tavily', symbol: sanitizeSymbol(req.query.symbol, 'TSLA') });
