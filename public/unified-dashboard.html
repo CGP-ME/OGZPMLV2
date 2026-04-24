@@ -2915,6 +2915,8 @@
             </div>
             <!-- Phase E: Risk gauge mount point (inline after status triad) -->
             <div class="bot-status-row" id="botStatusRow" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;"></div>
+            <!-- Phase F: Session phase indicator -->
+            <span id="sessionPhase"></span>
         </div>
     </div>
     
@@ -2973,6 +2975,8 @@
                         <option value="4h">4H</option>
                         <option value="1d">1D</option>
                     </select>
+                    <!-- Phase F: Candle countdown ring -->
+                    <span id="candleCountdown"></span>
                     <div class="indicator-checkboxes" id="indicatorCheckboxes">
                         <label class="indicator-check">
                             <input type="checkbox" id="chk-ema" value="ema">
@@ -3145,12 +3149,18 @@
                     <span><b>Conf:</b> <span id="confidenceML">0%</span></span>
                 </div>
 
+                <!-- Phase F: Size Preview -->
+                <div class="panel-section" id="sizePreview"></div>
+
                 <!-- Trade Log -->
                 <div class="panel-title">Trade Log</div>
                 <div class="trade-log" id="tradeLog">
                 </div>
             </div>
-            
+
+            <!-- Phase F: Strategy Leaderboard -->
+            <div class="panel-section" id="strategyLeaderboard"></div>
+
             <!-- Chain of Thought Section -->
             <div class="panel-section">
                 <div class="panel-title">Chain of Thought</div>
@@ -3222,6 +3232,12 @@
     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
     <script src="/js/panels/confidence-heatbar.js"></script>
     <script src="/js/panels/risk-gauge.js"></script>
+
+    <!-- Phase F: HUD Widgets -->
+    <script src="/js/panels/candle-countdown.js"></script>
+    <script src="/js/panels/session-phase.js"></script>
+    <script src="/js/panels/size-preview.js"></script>
+    <script src="/js/panels/strategy-leaderboard.js"></script>
 
     <!-- Execution layer -->
     <script src="/js/operator/trade-manager.js"></script>

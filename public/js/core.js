@@ -40,6 +40,10 @@ window.OGZ = (function() {
             if (this.get('CommandPalette')) this.get('CommandPalette').init();
             if (this.get('Heatbar')) this.get('Heatbar').init();
             if (this.get('RiskGauge')) this.get('RiskGauge').init();
+            if (this.get('CandleCountdown')) this.get('CandleCountdown').init();
+            if (this.get('SessionPhase')) this.get('SessionPhase').init();
+            if (this.get('SizePreview')) this.get('SizePreview').init();
+            if (this.get('StrategyLeaderboard')) this.get('StrategyLeaderboard').init();
 
             // Check TRAI status light
             fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
