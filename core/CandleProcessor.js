@@ -17,6 +17,7 @@
 
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
+const { normalizeOhlc } = require('../foundation/ohlc-normalize');
 const stateManager = getStateManager();
 
 // Candle accessors (V2 format)
@@ -122,36 +123,77 @@ class CandleProcessor {
   }
 
   /**
-   * Attempt to backfill missing candles via REST API
+   * Attempt to backfill missing candles via REST API.
+   *
+   * Broker-agnostic: calls the canonical IBrokerAdapter.getCandles()
+   * method (defined at foundation/IBrokerAdapter.js:187), which every
+   * adapter past and future implements per their own API. The legacy
+   * variable name `this.ctx.kraken` is preserved — it holds whichever
+   * broker adapter BrokerFactory returned (Alpaca on stocks mode,
+   * Kraken on crypto mode, future adapters on their asset classes).
+   *
+   * Symbol + timeframe come from config, NOT hardcoded. Returned
+   * candles go through the OHLC normalizer so any broker's native
+   * shape (Kraken arrays, Alpaca objects, etc.) converges to the
+   * canonical 9-element array the rest of the pipeline expects.
+   *
    * @param {number} gapStart - Start timestamp of gap (ms)
    * @param {number} gapEnd - End timestamp of gap (ms)
    * @returns {Array} Backfilled candles or empty array on failure
    */
   async attemptBackfill(gapStart, gapEnd) {
     try {
-      if (!this.ctx.kraken || !this.ctx.kraken.getHistoricalOHLC) {
-        console.error('[GAP-RECOVERY] Kraken adapter not available');
+      const broker = this.ctx.kraken;  // Variable name legacy — holds active adapter
+      if (!broker || typeof broker.getCandles !== 'function') {
+        console.error('[GAP-RECOVERY] Active broker does not support getCandles() — adapter misconfigured');
         return [];
       }
+
+      // Resolve symbol + timeframe from context / env / fallback chain.
+      // Prefer runtime config, then the ALPACA_SYMBOLS env var (first
+      // symbol for single-instrument mode), then a safe default.
+      const resolvedConfig = this.ctx.resolvedConfig || this.ctx.config;
+      const symbol = resolvedConfig?.config?.broker?.tradingPair
+                     || (process.env.ALPACA_SYMBOLS || '').split(',')[0].trim()
+                     || 'TSLA';
+      const timeframe = resolvedConfig?.config?.broker?.candleTimeframe || '1m';
 
       // Calculate how many candles we need
       const missingCount = Math.ceil((gapEnd - gapStart) / this.candleIntervalMs);
       const fetchCount = missingCount + 5; // Small buffer
 
-      console.log(`[GAP-RECOVERY] Fetching ${fetchCount} candles to fill ${missingCount} missing`);
+      console.log(`[GAP-RECOVERY] Fetching ${fetchCount} ${timeframe} candles of ${symbol} to fill ${missingCount} missing`);
 
-      const candles = await this.ctx.kraken.getHistoricalOHLC('XBTUSD', 15, fetchCount);
+      const rawCandles = await broker.getCandles(symbol, timeframe, fetchCount);
 
-      if (!candles || candles.length === 0) {
+      if (!rawCandles || rawCandles.length === 0) {
         console.error('[GAP-RECOVERY] REST API returned no candles');
         return [];
       }
 
-      // Filter to only candles within the gap
-      const gapCandles = candles.filter(c => c.etime > gapStart && c.etime <= gapEnd);
+      // Normalize every returned candle through the shared shape-translator
+      // so both Kraken-array format and Alpaca-object format converge to
+      // the canonical 9-element array before filtering / sorting / replay.
+      const normalized = rawCandles
+        .map(c => normalizeOhlc(c))
+        .filter(Boolean);
 
-      // Sort chronologically (oldest first - critical for indicator replay)
-      gapCandles.sort((a, b) => a.t - b.t);
+      if (!normalized.length) {
+        console.error(`[GAP-RECOVERY] All ${rawCandles.length} candles failed normalization`);
+        return [];
+      }
+
+      // Filter to only candles within the gap. Canonical array positions:
+      // [0]=time(ms), [1]=etime, [2]=o, [3]=h, [4]=l, [5]=c, [6]=vwap, [7]=v, [8]=count
+      // etime not always set (e.g., Alpaca normalized); fall back to [0].
+      const gapCandles = normalized.filter(arr => {
+        const et = arr[1] != null ? arr[1] : arr[0];
+        return et > gapStart && et <= gapEnd;
+      });
+
+      // Sort chronologically by start-time [0] (oldest first — critical
+      // for indicator replay which expects monotonic time)
+      gapCandles.sort((a, b) => a[0] - b[0]);
 
       return gapCandles;
 
@@ -195,14 +237,36 @@ class CandleProcessor {
   }
 
   /**
-   * Handle successful backfill - process through canonical path
-   * @param {Array} candles - Backfilled candles (sorted chronologically)
+   * Handle successful backfill - process through canonical path.
+   *
+   * Inputs are canonical 9-element arrays from the normalizer:
+   *   [time(ms), etime(ms), open, high, low, close, vwap, volume, count]
+   *
+   * processNewCandle() expects object form { t, etime, o, h, l, c, v }.
+   * Convert here so the canonical array semantics stay inside the
+   * backfill pipeline and processNewCandle's call sites don't need to
+   * learn about arrays.
+   *
+   * @param {Array<Array>} candles - Normalized canonical arrays (sorted)
    */
   handleBackfillSuccess(candles) {
     console.log(`[GAP-RECOVERY] Processing ${candles.length} backfilled candles`);
 
     // One canonical path - dedupe + insert + indicators all in one
-    candles.forEach(c => this.processNewCandle(c));
+    candles.forEach(arr => {
+      // Normalizer output: [t(ms), etime(ms), o, h, l, c, vwap, v, count]
+      // Fall back to t if etime missing (Alpaca single-timestamp case).
+      const candle = {
+        t: arr[0],
+        etime: arr[1] != null ? arr[1] : arr[0],
+        o: arr[2],
+        h: arr[3],
+        l: arr[4],
+        c: arr[5],
+        v: arr[7] != null ? arr[7] : 0,
+      };
+      this.processNewCandle(candle);
+    });
 
     console.log(`[GAP-RECOVERY] Backfilled ${candles.length} candles via REST`);
   }
