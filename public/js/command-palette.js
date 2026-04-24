@@ -410,6 +410,13 @@
         const cmds = [];
 
         // ─── Bot controls ────────────────────────────────────────────
+        // Trading-state-mutating commands gated behind a confirm()
+        // dialog. Without the gate, any code path that opens the
+        // palette and programmatically fires run() (e.g., an iframe
+        // attack that calls OGZ.get('CommandPalette').open() +
+        // auto-executes the first command) could pause/resume the
+        // bot without user intent. The confirm() blocks unless the
+        // user actively clicks OK.
         cmds.push({
             id: 'bot-pause',
             title: 'Pause trading',
@@ -417,6 +424,10 @@
             category: 'Bot',
             icon: '⏸',
             run: () => {
+                if (!confirm('Pause trading?\n\nThis halts all new entries until resumed.')) {
+                    toast('Pause cancelled');
+                    return;
+                }
                 sendSocket({
                     type: 'command',
                     command: 'pause_trading',
@@ -432,6 +443,10 @@
             category: 'Bot',
             icon: '▶',
             run: () => {
+                if (!confirm('Resume trading?\n\nThis re-enables new entries.')) {
+                    toast('Resume cancelled');
+                    return;
+                }
                 sendSocket({ type: 'command', command: 'resume_trading' });
                 toast('Resume command sent to bot');
             }
@@ -925,22 +940,59 @@
         el.className = 'ogz-cp-toast';
         el.textContent = message;
         document.body.appendChild(el);
-        setTimeout(() => {
+        // Track the auto-dismiss timer so destroy() can cancel any in-flight
+        // toast animation if the palette is torn down mid-display.
+        const dismissTimer = setTimeout(() => {
+            _trackedToastTimers.delete(dismissTimer);
             el.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
             el.style.opacity = '0';
             el.style.transform = 'translate(-50%, 4px)';
-            setTimeout(() => el.remove(), 200);
+            const removeTimer = setTimeout(() => {
+                _trackedToastTimers.delete(removeTimer);
+                el.remove();
+            }, 200);
+            _trackedToastTimers.add(removeTimer);
         }, ms);
+        _trackedToastTimers.add(dismissTimer);
     }
 
     // ─── Public API ──────────────────────────────────────────────────────
+    // Tracking state for explicit teardown. The palette's global keydown
+    // listener (Ctrl+K) would otherwise persist for the lifetime of the
+    // page with no way to unhook it. destroy() closes the loop.
+    let _isInitialized = false;
+    const _trackedToastTimers = new Set();
+
     const CommandPalette = {
         init() {
+            if (_isInitialized) return;  // idempotent re-init guard
             injectStyles();
             ensureDom();
             state.commands = buildStaticCommands();
             window.addEventListener('keydown', onGlobalKeydown);
+            _isInitialized = true;
             console.log(`[CommandPalette] Ready — ${state.commands.length} static commands (Ctrl+K to open)`);
+        },
+        /**
+         * Explicit teardown. Removes the global keydown listener, clears
+         * pending toast timers. Useful for hot-reload / test re-mount /
+         * programmatic unload scenarios. Wired to beforeunload below so
+         * the listener never outlives the page.
+         */
+        destroy() {
+            if (!_isInitialized) return;
+            try {
+                window.removeEventListener('keydown', onGlobalKeydown);
+            } catch (e) {
+                console.warn('[CommandPalette] removeEventListener failed:', e);
+            }
+            // Cancel any in-flight toast auto-dismiss timers
+            for (const tid of _trackedToastTimers) {
+                try { clearTimeout(tid); } catch (_) { /* timer may be stale */ }
+            }
+            _trackedToastTimers.clear();
+            _isInitialized = false;
+            console.log('[CommandPalette] destroy() — teardown complete.');
         },
         open,
         close,
@@ -980,4 +1032,14 @@
     } else {
         CommandPalette.init();
     }
+
+    // Wire destroy() to beforeunload so the global keydown listener + any
+    // in-flight toast timers are torn down before the browser collects
+    // the page. Belt-and-suspenders — the browser would clean most of
+    // this anyway, but explicit teardown closes the re-mount leak gap.
+    window.addEventListener('beforeunload', () => {
+        try { CommandPalette.destroy(); } catch (e) {
+            console.warn('[CommandPalette] destroy() failed on unload:', e);
+        }
+    });
 })(window.OGZ || (window.OGZ = {}));
