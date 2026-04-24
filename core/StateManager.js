@@ -71,6 +71,10 @@
 const TradingConfig = require('./TradingConfig');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { getNarrator } = require('./TradeNarrator');
+// Cache singleton at module load — narrator.enabled is sealed from env vars.
+// Both hook sites (openPosition / closePosition) check cached narrator.enabled
+// first; try frame only entered when enabled (C1 zero-cost when OFF).
+const narrator = getNarrator();
 
 class StateManager {
   /**
@@ -416,11 +420,12 @@ class StateManager {
 
     const result = this.updateState(updates, { action: 'OPEN_POSITION', price, size, ...context });
 
-    // Narrator: entered event. No-op when env vars are unset.
-    // Wrapped in try/catch so narrator bugs can never break an open path.
-    try {
-      const narrator = getNarrator();
-      if (narrator.enabled) {
+    // Narrator: entered event. Uses module-cached singleton.
+    // Disabled path: property-access + branch-taken, zero allocation.
+    // Try frame only entered when enabled so a formatter throw can never
+    // break an open path.
+    if (narrator.enabled) {
+      try {
         narrator.entered({
           tradeId,
           strategy: context.entryStrategy || 'default',
@@ -434,8 +439,8 @@ class StateManager {
           } : null,
           timestamp: Date.now(),
         });
-      }
-    } catch (_) { /* narrator must never break trading */ }
+      } catch (_) { /* narrator must never break trading */ }
+    }
 
     return result;
   }
@@ -590,12 +595,12 @@ class StateManager {
       ...context
     });
 
-    // Narrator: closed event. No-op when env vars are unset.
-    // Uses the trade record captured BEFORE delete() above so we always have
-    // a consistent snapshot of entryStrategy / entryTime / direction.
-    try {
-      const narrator = getNarrator();
-      if (narrator.enabled) {
+    // Narrator: closed event. Uses module-cached singleton. Disabled path:
+    // property-access + branch-taken, zero allocation. Uses the trade
+    // record captured BEFORE delete() above so we always have a
+    // consistent snapshot of entryStrategy / entryTime / direction.
+    if (narrator.enabled) {
+      try {
         const heldMs = trade.entryTime
           ? Date.now() - trade.entryTime
           : (trade.timestamp ? Date.now() - trade.timestamp : 0);
@@ -610,8 +615,8 @@ class StateManager {
           reason: context.exitReason || context.reason || 'closed',
           holdMs: heldMs,
         });
-      }
-    } catch (_) { /* narrator must never break trading */ }
+      } catch (_) { /* narrator must never break trading */ }
+    }
 
     return result;
   }

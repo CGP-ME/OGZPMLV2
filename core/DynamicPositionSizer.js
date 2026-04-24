@@ -44,6 +44,10 @@
 
 const TradingConfig = require('./TradingConfig');
 const { getNarrator } = require('./TradeNarrator');
+// Cache singleton at module load — narrator.enabled is sealed from env vars
+// in the constructor. Hot-path hook below checks cached narrator.enabled
+// directly; when OFF, the try frame is never entered (C1 zero-cost).
+const narrator = getNarrator();
 
 class DynamicPositionSizer {
   constructor(config = {}) {
@@ -230,13 +234,14 @@ class DynamicPositionSizer {
       reason: parts.join(' | '),
     };
 
-    // Narrator: position-sizing breakdown. No-op when env vars are unset.
-    // Outer try/catch so a formatter throw can't break the sizing path.
-    try {
-      const narrator = getNarrator();
-      if (narrator.enabled) narrator.sizing(result);
-    } catch (e) {
-      console.warn('[Narrator] sizing hook failed:', e && e.message);
+    // Narrator: position-sizing breakdown. Uses module-cached singleton.
+    // Disabled path: property-access + branch-taken, zero allocation.
+    if (narrator.enabled) {
+      try {
+        narrator.sizing(result);
+      } catch (e) {
+        console.warn('[Narrator] sizing hook failed:', e && e.message);
+      }
     }
 
     return result;

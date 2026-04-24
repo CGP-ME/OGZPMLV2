@@ -30,6 +30,11 @@
 
 const { getInstance: getExitContractManager } = require('./ExitContractManager');
 const { getNarrator } = require('./TradeNarrator');
+// Cache singleton at module load — narrator.enabled is sealed from env vars
+// in the constructor, so one lookup lasts the process lifetime. Hot-path
+// hooks below check `narrator.enabled` directly; when OFF, the try/catch
+// frame is never entered (zero allocation per C1 contract).
+const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const TradingConfig = require('./TradingConfig');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
@@ -676,16 +681,17 @@ class StrategyOrchestrator {
 
     const ctx = { indicators, patterns, regime, priceHistory, extras };
 
-    // Narrator: pattern-spotted event. No-op when narrator env vars are unset.
-    // Outer try/catch (in addition to narrator's internal try/catch) so a
-    // formatter throw on unexpected pattern shape cannot interrupt evaluate().
-    const narrator = getNarrator();
-    try {
-      if (narrator.enabled && Array.isArray(patterns) && patterns.length > 0) {
+    // Narrator: pattern-spotted event. narrator is the module-cached
+    // singleton; disabled path is property-access + branch-taken (zero
+    // allocation). Try/catch only entered when enabled AND patterns
+    // present so a formatter throw on unexpected shape can't interrupt
+    // evaluate().
+    if (narrator.enabled && Array.isArray(patterns) && patterns.length > 0) {
+      try {
         narrator.patternSpotted(patterns);
+      } catch (e) {
+        console.warn('[Narrator] patternSpotted hook failed:', e && e.message);
       }
-    } catch (e) {
-      console.warn('[Narrator] patternSpotted hook failed:', e && e.message);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -852,17 +858,14 @@ class StrategyOrchestrator {
       console.log(`🔍 [ORCH] 0 strategies returned signals (all returned null or conf=0)`);
     }
 
-    // Narrator: strategy-eval event. Shows the field (top by confidence).
-    // Leader here is the unconfirmed favorite; the actual winner is still
-    // gated by min-confidence + confluence filters below. The narrator
-    // treats results[0] as the leader; ARCHITECT output is informational.
-    // Outer try/catch so a formatter throw can't interrupt evaluate().
-    try {
-      if (narrator.enabled && results.length > 0) {
+    // Narrator: strategy-eval event. Uses module-cached singleton.
+    // Disabled path: property-access + branch-taken, zero allocation.
+    if (narrator.enabled && results.length > 0) {
+      try {
         narrator.strategyEval(results, results[0]);
+      } catch (e) {
+        console.warn('[Narrator] strategyEval hook failed:', e && e.message);
       }
-    } catch (e) {
-      console.warn('[Narrator] strategyEval hook failed:', e && e.message);
     }
 
     // ─── Step 3: Filter by minimum confidence threshold ───

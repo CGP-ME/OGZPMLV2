@@ -63,6 +63,10 @@
 
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
 const { getNarrator } = require('./TradeNarrator');
+// Cache singleton at module load — narrator.enabled is sealed from env vars.
+// Hot-path hook below checks cached narrator.enabled first; try frame only
+// entered when enabled (C1 zero-cost when OFF).
+const narrator = getNarrator();
 
 /**
  * MaxProfitManager Class - Advanced Profit Optimization Engine
@@ -510,13 +514,13 @@ class MaxProfitManager {
       this.executePartialExit(tierExit);
 
       // Narrator: tier-exit event. Partial P&L = exitSize × entryPrice × profitPercent.
-      // No-op when env vars are unset. Outer try/catch ensures a narrator
-      // formatter throw can't interrupt the post-partial-exit return path —
-      // state was already mutated by executePartialExit() above, so we MUST
-      // return the exit receipt regardless of narrator outcome.
-      try {
-        const narrator = getNarrator();
-        if (narrator.enabled) {
+      // Uses module-cached singleton. Disabled path: property-access +
+      // branch-taken, zero allocation. Try frame only entered when
+      // enabled so a formatter throw can't break the post-partial-exit
+      // return — state was already mutated by executePartialExit() above,
+      // so we MUST return the exit receipt regardless of narrator outcome.
+      if (narrator.enabled) {
+        try {
           const partialPnl = (tierExit.exitSize || 0) * (this.state.entryPrice || 0) * (profitPercent || 0);
           narrator.tierExit({
             tradeId: this.state.tradeId,
@@ -527,9 +531,9 @@ class MaxProfitManager {
             profitPercent,
             partialPnl,
           });
+        } catch (e) {
+          console.warn('[Narrator] tierExit hook failed:', e && e.message);
         }
-      } catch (e) {
-        console.warn('[Narrator] tierExit hook failed:', e && e.message);
       }
 
       return {
