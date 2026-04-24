@@ -25,6 +25,25 @@
     let activeOverlays = [];
     let storedCandles = []; // For recalculating indicators from historical data
 
+    // ─── Teardown-tracking state ───
+    // Every listener, timer, subscription, and priceLine registered by Chart.init()
+    // is pushed into one of these buckets so Chart.destroy() can unwind cleanly.
+    // This eliminates the possibility of leaked handles on chart re-mount or
+    // page unload (the latter wires through a 'beforeunload' listener below).
+    const _trackedListeners = [];      // Array of { target, type, handler }
+    const _trackedTimers = new Set();  // setTimeout / setInterval IDs
+    let _trackedVisibleRangeCB = null; // Subscription callback for unsubscribe
+    let _trackedRsiSeries = null;      // RSI overlay series reference (for priceLine removal)
+
+    function trackListener(target, type, handler) {
+        target.addEventListener(type, handler);
+        _trackedListeners.push({ target, type, handler });
+    }
+    function trackTimer(id) {
+        _trackedTimers.add(id);
+        return id;
+    }
+
     // Timeframe string -> seconds per bar. Used to align live ticks to the
     // correct bucket so 5m/15m/1h charts actually build in real time instead
     // of appearing as a single fat bar every N minutes.
@@ -51,7 +70,13 @@
                 const to = Math.min(storedCandles.length - 1, Math.ceil(lr.to));
                 if (to > from) return storedCandles.slice(from, to + 1);
             }
-        } catch (_) { /* fall through */ }
+        } catch (e) {
+            // Chart not ready yet (createChart hasn't assigned tvChart), or
+            // timeScale threw on getVisibleLogicalRange. Fall back to full
+            // series so indicators still compute — logged so we notice if
+            // this fires on the hot path.
+            console.warn('[Chart] visibleSlice getVisibleLogicalRange failed:', e && e.message);
+        }
         return storedCandles;
     }
 
@@ -81,20 +106,35 @@
                     try {
                         const base = baseImpl();
                         const slice = visibleSlice();
+                        // Need a statistically meaningful sample before clipping —
+                        // below ~10 candles the percentile math itself becomes noise.
                         if (slice.length < 10) return base;
                         const lows  = slice.map(c => c.low).sort((a, b) => a - b);
                         const highs = slice.map(c => c.high).sort((a, b) => a - b);
-                        const loIdx = Math.max(0, Math.floor(lows.length * 0.02));
-                        const hiIdx = Math.min(highs.length - 1, Math.ceil(highs.length * 0.98) - 1);
+                        // 2nd / 98th percentile clip: discards the extreme 2% of
+                        // values on each tail. Flash-crash wicks fall in that tail
+                        // and stop dominating the visible range.
+                        const PCTILE_LOW = 0.02;
+                        const PCTILE_HIGH = 0.98;
+                        const loIdx = Math.max(0, Math.floor(lows.length * PCTILE_LOW));
+                        const hiIdx = Math.min(highs.length - 1, Math.ceil(highs.length * PCTILE_HIGH) - 1);
                         const pLow = lows[loIdx];
                         const pHigh = highs[hiIdx];
+                        // Guard: identical values (flat bar or all-highs-equal)
+                        // collapse the range to zero — fall back to library default.
                         if (!(pLow < pHigh)) return base;
-                        const pad = (pHigh - pLow) * 0.05;
+                        // 5% padding on each side so price action isn't clipped at
+                        // the frame edges after the percentile trim.
+                        const PAD_RATIO = 0.05;
+                        const pad = (pHigh - pLow) * PAD_RATIO;
                         return {
                             priceRange: { minValue: pLow - pad, maxValue: pHigh + pad },
                             margins: base?.margins || { above: 10, below: 20 }
                         };
-                    } catch (_) { return baseImpl(); }
+                    } catch (e) {
+                        console.warn('[Chart] candle autoscale clip failed:', e && e.message);
+                        return baseImpl();
+                    }
                 }
             });
 
@@ -109,15 +149,27 @@
                         const base = baseImpl();
                         const slice = visibleSlice();
                         const vols = slice.map(c => Number(c.volume || 0)).filter(v => v > 0).sort((a, b) => a - b);
+                        // Need a stable sample for percentile cap; below ~10 bars
+                        // the cap itself becomes noisy.
                         if (vols.length < 10) return base;
-                        const capIdx = Math.min(vols.length - 1, Math.ceil(vols.length * 0.98) - 1);
+                        // Cap at 98th percentile: a single mega-volume print doesn't
+                        // squish every other bar to invisibility.
+                        const VOL_CAP_PCTILE = 0.98;
+                        const capIdx = Math.min(vols.length - 1, Math.ceil(vols.length * VOL_CAP_PCTILE) - 1);
                         const cap = vols[capIdx];
+                        // All zero / empty after filter → fall back to library default.
                         if (!(cap > 0)) return base;
+                        // 15% headroom above the cap so bars that approach the cap
+                        // don't visually touch the pane ceiling.
+                        const HEADROOM_RATIO = 1.15;
                         return {
-                            priceRange: { minValue: 0, maxValue: cap * 1.15 },
+                            priceRange: { minValue: 0, maxValue: cap * HEADROOM_RATIO },
                             margins: base?.margins || { above: 10, below: 0 }
                         };
-                    } catch (_) { return baseImpl(); }
+                    } catch (e) {
+                        console.warn('[Chart] volume autoscale clip failed:', e && e.message);
+                        return baseImpl();
+                    }
                 }
             });
             // Volume scale cosmetics only — layout margins applied via _applyLayout().
@@ -158,6 +210,11 @@
             tvChart.priceScale('rsi').applyOptions({ visible: false, borderVisible: false });
             // RSI 70/30 overbought/oversold bands. Attached to the RSI series
             // itself so they inherit series visibility (hide when RSI off).
+            // Stored on both `this` AND the module-level _trackedRsiSeries so
+            // clearAll() and destroy() can remove them cleanly regardless of
+            // which access path wins.
+            _trackedRsiSeries = rsiOverlaySeries;
+            this._rsiOverlaySeries = rsiOverlaySeries;
             this._rsiBand70 = rsiOverlaySeries.createPriceLine({
                 price: 70, color: 'rgba(239,68,68,0.45)', lineWidth: 1, lineStyle: 2,
                 axisLabelVisible: true, title: '70'
@@ -193,19 +250,25 @@
             this._applyLayout(false);
 
             // Visible-range listener: nudge both scales to recompute autoscale
-            // against the newly-visible candles on scroll/zoom. Throttled so
-            // panning stays smooth.
+            // against the newly-visible candles on scroll/zoom. Throttled at 80ms
+            // so panning stays smooth. Callback reference stored on
+            // _trackedVisibleRangeCB so destroy() can unsubscribeVisibleLogicalRangeChange
+            // with the matching function identity.
             let _rescaleTimer = null;
-            tvChart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+            _trackedVisibleRangeCB = () => {
                 if (_rescaleTimer) return;
-                _rescaleTimer = setTimeout(() => {
+                _rescaleTimer = trackTimer(setTimeout(() => {
+                    _trackedTimers.delete(_rescaleTimer);
                     _rescaleTimer = null;
                     try {
                         tvChart.priceScale('right').applyOptions({});
                         tvChart.priceScale('vol').applyOptions({});
-                    } catch (_) { /* best-effort */ }
-                }, 80);
-            });
+                    } catch (e) {
+                        console.warn('[Chart] priceScale applyOptions failed:', e && e.message);
+                    }
+                }, 80));
+            };
+            tvChart.timeScale().subscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB);
 
             // Crosshair driver: (1) keep header price live, (2) feed floating
             // tooltip near the cursor so you see exact time + price at any point.
@@ -236,15 +299,38 @@
                 });
                 const priceAt = candleSeries.coordinateToPrice(param.point.y);
                 const dir = candleData.close >= candleData.open ? '#22c55e' : '#ef4444';
-                tooltipEl.innerHTML = `
-                    <div style="color:#888;font-size:10px;letter-spacing:0.5px;">${dateStr}</div>
-                    <div style="color:${dir};font-family:Orbitron,monospace;font-size:13px;font-weight:700;margin-top:2px;">
-                        ${priceAt != null ? '$' + priceAt.toFixed(2) : '--'}
-                    </div>
-                    <div style="color:#aaa;font-size:10px;margin-top:4px;font-family:monospace;">
-                        O ${candleData.open.toFixed(2)} &nbsp; H ${candleData.high.toFixed(2)}<br>
-                        L ${candleData.low.toFixed(2)} &nbsp; C ${candleData.close.toFixed(2)}
-                    </div>`;
+
+                // ─── XSS-safe tooltip construction (no innerHTML) ───
+                // All values go through textContent (never parsed as HTML) so
+                // even if a malicious WS payload ever injects HTML into a
+                // candleData field, it renders as literal text, never executes.
+                while (tooltipEl.firstChild) tooltipEl.removeChild(tooltipEl.firstChild);
+
+                const dateRow = document.createElement('div');
+                dateRow.style.cssText = 'color:#888;font-size:10px;letter-spacing:0.5px;';
+                dateRow.textContent = dateStr;
+                tooltipEl.appendChild(dateRow);
+
+                const priceRow = document.createElement('div');
+                priceRow.style.cssText =
+                    'font-family:Orbitron,monospace;font-size:13px;font-weight:700;margin-top:2px;color:' + dir;
+                priceRow.textContent =
+                    (priceAt != null && typeof priceAt === 'number' ? '$' + priceAt.toFixed(2) : '--');
+                tooltipEl.appendChild(priceRow);
+
+                const ohlcRow = document.createElement('div');
+                ohlcRow.style.cssText = 'color:#aaa;font-size:10px;margin-top:4px;font-family:monospace;';
+                const oh = document.createElement('div');
+                const ll = document.createElement('div');
+                oh.textContent =
+                    'O ' + Number(candleData.open).toFixed(2) +
+                    '   H ' + Number(candleData.high).toFixed(2);
+                ll.textContent =
+                    'L ' + Number(candleData.low).toFixed(2) +
+                    '   C ' + Number(candleData.close).toFixed(2);
+                ohlcRow.appendChild(oh);
+                ohlcRow.appendChild(ll);
+                tooltipEl.appendChild(ohlcRow);
                 // Position: offset so cursor doesn't cover the box, flip left if near right edge
                 const containerRect = container.getBoundingClientRect();
                 const tipW = 150, tipH = 78;
@@ -264,10 +350,21 @@
             // Bind chart control events
             this.bindControls();
 
-            // Resize handler
-            window.addEventListener('resize', () => {
+            // Resize handler (tracked for destroy-time cleanup)
+            trackListener(window, 'resize', () => {
                 if (tvChart && container) {
                     tvChart.resize(container.clientWidth, container.clientHeight);
+                }
+            });
+
+            // Wire beforeunload → destroy() so every listener, timer, and
+            // subscription this module created is explicitly torn down
+            // before the browser collects the page. Belt-and-suspenders:
+            // the browser would clean most of this anyway, but explicit
+            // teardown closes the "theoretical" gap.
+            trackListener(window, 'beforeunload', () => {
+                try { Chart.destroy(); } catch (e) {
+                    console.warn('[Chart] destroy() failed on unload:', e && e.message);
                 }
             });
 
@@ -301,7 +398,7 @@
         bindControls: function() {
             // Chart type selector — switch between candlestick, line, area, bar
             const chartType = document.getElementById('chartTypeSelector');
-            if (chartType) chartType.addEventListener('change', (e) => {
+            if (chartType) trackListener(chartType, 'change', (e) => {
                 const type = e.target.value;
                 // Hide all alt series
                 if (this._lineSeries) this._lineSeries.applyOptions({ visible: false });
@@ -340,22 +437,25 @@
 
             // Asset selector — sends asset_change + requests new historical data
             const assetSel = document.getElementById('assetSelector');
-            if (assetSel) assetSel.addEventListener('change', (e) => {
+            if (assetSel) trackListener(assetSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'asset_change', asset: e.target.value });
                     this.clearAll();
-                    setTimeout(() => {
+                    // Tracked setTimeout — id goes into _trackedTimers so destroy() can clear
+                    const tid = setTimeout(() => {
+                        _trackedTimers.delete(tid);
                         const tf = document.getElementById('timeframeSelector')?.value || '1m';
                         socket.send({ type: 'request_historical', timeframe: tf, asset: e.target.value, limit: 500 });
                     }, 500);
+                    trackTimer(tid);
                 }
                 console.log('[Chart] Asset:', e.target.value);
             });
 
             // Timeframe selector — sends timeframe_change + requests new historical data
             const tfSel = document.getElementById('timeframeSelector');
-            if (tfSel) tfSel.addEventListener('change', (e) => {
+            if (tfSel) trackListener(tfSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'timeframe_change', timeframe: e.target.value });
@@ -372,7 +472,7 @@
 
             // Indicator checkboxes — toggle visibility + recalculate from stored candles
             document.querySelectorAll('#indicatorCheckboxes input[type="checkbox"]').forEach(chk => {
-                chk.addEventListener('change', () => {
+                trackListener(chk, 'change', () => {
                     activeOverlays = [];
                     document.querySelectorAll('#indicatorCheckboxes input:checked').forEach(c => activeOverlays.push(c.value));
                     this.toggleIndicators(activeOverlays);
@@ -383,7 +483,7 @@
 
             // Tier selector
             const tierSel = document.getElementById('tierSelector');
-            if (tierSel) tierSel.addEventListener('change', (e) => {
+            if (tierSel) trackListener(tierSel, 'change', (e) => {
                 OGZ.state.tier = e.target.value;
                 document.body.className = `tier-${e.target.value}`;
                 console.log('[Chart] Tier:', e.target.value);
@@ -531,9 +631,80 @@
             if (this._areaSeries) this._areaSeries.setData([]);
             if (this._barSeries) this._barSeries.setData([]);
             if (ghostSeries) ghostSeries.setData([]);
-            wallLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
-            tpoLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(e){} });
+            wallLines.forEach(l => {
+                try { candleSeries.removePriceLine(l); }
+                catch (e) { console.warn('[Chart] removePriceLine wall failed:', e && e.message); }
+            });
+            tpoLines.forEach(l => {
+                try { candleSeries.removePriceLine(l); }
+                catch (e) { console.warn('[Chart] removePriceLine tpo failed:', e && e.message); }
+            });
             wallLines = []; tpoLines = [];
+
+            // ─── RSI band cleanup (Phase A audit fix) ───
+            // The 70/30 overbought/oversold priceLines were previously leaked
+            // when the RSI series was destroyed + recreated (indicator toggle
+            // off → on). Now tracked via _trackedRsiSeries and nulled after
+            // removal so the next init attaches fresh bands to the new series.
+            const rsiSeries = this._rsiOverlaySeries || _trackedRsiSeries;
+            if (rsiSeries) {
+                if (this._rsiBand70) {
+                    try { rsiSeries.removePriceLine(this._rsiBand70); }
+                    catch (e) { console.warn('[Chart] removePriceLine RSI70 failed:', e && e.message); }
+                    this._rsiBand70 = null;
+                }
+                if (this._rsiBand30) {
+                    try { rsiSeries.removePriceLine(this._rsiBand30); }
+                    catch (e) { console.warn('[Chart] removePriceLine RSI30 failed:', e && e.message); }
+                    this._rsiBand30 = null;
+                }
+            }
+        },
+
+        /**
+         * Explicit teardown. Removes every listener, cancels every tracked
+         * timer, unsubscribes the visible-range callback, and removes the
+         * RSI band priceLines. Wired to 'beforeunload' so theoretical
+         * re-mount leaks become structurally impossible — every handle this
+         * module created is reachable here.
+         */
+        destroy: function() {
+            // 1. Cancel every pending timer (flash, rescale, asset-change deferred)
+            for (const tid of _trackedTimers) {
+                try { clearTimeout(tid); } catch (e) { /* tid might be stale */ }
+            }
+            _trackedTimers.clear();
+
+            // 2. Remove every tracked event listener
+            for (const { target, type, handler } of _trackedListeners) {
+                try { target.removeEventListener(type, handler); }
+                catch (e) { console.warn('[Chart] removeEventListener failed for', type, e && e.message); }
+            }
+            _trackedListeners.length = 0;
+
+            // 3. Unsubscribe the visible-range change handler with its exact fn ref
+            if (_trackedVisibleRangeCB && tvChart && tvChart.timeScale) {
+                try { tvChart.timeScale().unsubscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB); }
+                catch (e) { console.warn('[Chart] unsubscribeVisibleLogicalRangeChange failed:', e && e.message); }
+                _trackedVisibleRangeCB = null;
+            }
+
+            // 4. Remove RSI band priceLines
+            const rsiSeries = this._rsiOverlaySeries || _trackedRsiSeries;
+            if (rsiSeries) {
+                if (this._rsiBand70) {
+                    try { rsiSeries.removePriceLine(this._rsiBand70); } catch (e) { /* already removed */ }
+                    this._rsiBand70 = null;
+                }
+                if (this._rsiBand30) {
+                    try { rsiSeries.removePriceLine(this._rsiBand30); } catch (e) { /* already removed */ }
+                    this._rsiBand30 = null;
+                }
+            }
+            _trackedRsiSeries = null;
+            this._rsiOverlaySeries = null;
+
+            console.log('[Chart] destroy() — teardown complete.');
         },
 
         update: (d) => {
@@ -621,8 +792,16 @@
                     priceEl.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
                     priceEl.style.color = flashColor;
                     priceEl.style.textShadow = `0 0 12px ${flashShadow}`;
-                    clearTimeout(priceEl._flashTimer);
-                    priceEl._flashTimer = setTimeout(() => { priceEl.style.textShadow = ''; }, 180);
+                    if (priceEl._flashTimer) {
+                        clearTimeout(priceEl._flashTimer);
+                        _trackedTimers.delete(priceEl._flashTimer);
+                    }
+                    priceEl._flashTimer = setTimeout(() => {
+                        _trackedTimers.delete(priceEl._flashTimer);
+                        priceEl._flashTimer = null;
+                        priceEl.style.textShadow = '';
+                    }, 180);
+                    trackTimer(priceEl._flashTimer);
                 }
 
                 // Floating in-chart HUD (top-right inside chart container).
@@ -632,10 +811,16 @@
                     hudPrice.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
                     hudPrice.style.color = flashColor;
                     hudPrice.style.textShadow = `0 0 14px ${flashShadow}`;
-                    clearTimeout(hudPrice._flashTimer);
+                    if (hudPrice._flashTimer) {
+                        clearTimeout(hudPrice._flashTimer);
+                        _trackedTimers.delete(hudPrice._flashTimer);
+                    }
                     hudPrice._flashTimer = setTimeout(() => {
+                        _trackedTimers.delete(hudPrice._flashTimer);
+                        hudPrice._flashTimer = null;
                         hudPrice.style.textShadow = `0 0 6px ${flashShadow}`;
                     }, 180);
+                    trackTimer(hudPrice._flashTimer);
                 }
                 const hudOhlc = document.getElementById('chartHudOhlc');
                 if (hudOhlc && storedCandles.length) {
