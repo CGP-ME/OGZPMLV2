@@ -14,6 +14,12 @@
 (function(OGZ) {
     'use strict';
 
+    // ─── Module-scoped state (intentionally NOT global) ───
+    // Every identifier in this IIFE is module-private — the only things
+    // leaking to `window` are `tvChart` and `candleSeries`, both deliberate
+    // legacy-compat exposures handled at the bottom of init(). Everything
+    // below this line is encapsulated and only reachable through the Chart
+    // object returned via OGZ.register('Chart', Chart).
     let tvChart, candleSeries, volumeSeries, ghostSeries;
     let tpoLines = [], wallLines = [];
 
@@ -24,6 +30,15 @@
     let rsiOverlaySeries, macdLineSeries, macdSignalSeries, atrSeries;
     let activeOverlays = [];
     let storedCandles = []; // For recalculating indicators from historical data
+
+    // ─── Cached hot-path DOM refs (populated in Chart.init) ───
+    // update() fires on every WS tick and crosshair callback fires on every
+    // cursor move — per-call getElementById was O(n) against the tree on a
+    // path we can't afford to slow down. These are resolved once at mount.
+    let _cachedPriceEl = null;
+    let _cachedHudPrice = null;
+    let _cachedHudOhlc = null;
+    let _cachedTooltipEl = null;
 
     // ─── Teardown-tracking state ───
     // Every listener, timer, subscription, and priceLine registered by Chart.init()
@@ -46,12 +61,56 @@
     // Price flash duration for currentPrice + HUD. Short enough to feel live,
     // long enough to actually register visually.
     const PRICE_FLASH_MS = 180;
+    // Minimum historical candles before indicator math runs. EMAs need up to
+    // a 200-period lookback, RSI/MACD need ~26; under 30 the shorter windows
+    // run but longer ones yield all-null and the chart looks broken.
+    const MIN_INDICATOR_CANDLES = 30;
+    // Minimum stored candles before live-bar volume alpha uses percentile
+    // capping. Below this the sample is too small to rank stably; fall back
+    // to a fixed alpha.
+    const MIN_VOLUME_STATS_CANDLES = 20;
+    // Volume percentile cap + alpha envelope. Shared by both the historical
+    // setData path and the live per-tick update path so volume bar sizing
+    // has one source of truth.
+    const VOL_CAP_PCTILE = 0.98;
+    const VOL_ALPHA_FLOOR = 0.25;
+    const VOL_ALPHA_RANGE = 0.55;               // final alpha = FLOOR + RANGE*ratio → caps at 0.80
+    const VOL_LIVE_ALPHA_DEFAULT = 0.5;         // fallback alpha before stats sample is ready
+    const VOL_LIVE_HEADROOM = 1.15;             // 15% ceiling padding so capped bars don't touch pane top
+
+    // ─── One-time CSS injection for price-flash transition ───
+    // The flash effect (green on up-tick, red on down-tick) used to set
+    // style.transition inline on every tick — every WS message re-parsed the
+    // same transition string through CSSOM. Now it's a class applied once
+    // at init, and ticks only toggle color/text-shadow properties.
+    const PRICE_FLASH_CLASS = 'ogz-chart-price-flash';
+    (function injectFlashStyle() {
+        if (typeof document === 'undefined') return;
+        if (document.getElementById('ogz-chart-flash-style')) return;
+        const s = document.createElement('style');
+        s.id = 'ogz-chart-flash-style';
+        s.textContent = '.' + PRICE_FLASH_CLASS +
+            '{transition:color 0.08s ease,text-shadow 0.08s ease;}';
+        if (document.head) document.head.appendChild(s);
+    })();
 
     function trackListener(target, type, handler) {
+        // Dedupe guard: if the exact (target, type, handler) triple is
+        // already tracked, don't re-add. addEventListener itself silently
+        // dedupes identical registrations, but we also keep the tracking
+        // array clean so destroy() doesn't removeEventListener the same
+        // triple twice (harmless, but noisy).
+        for (let i = 0; i < _trackedListeners.length; i++) {
+            const e = _trackedListeners[i];
+            if (e.target === target && e.type === type && e.handler === handler) return;
+        }
         target.addEventListener(type, handler);
         _trackedListeners.push({ target, type, handler });
     }
     function trackTimer(id) {
+        // setTimeout and setInterval share the same id namespace per the
+        // HTML spec, so one Set handles both. destroy() uses clearTimeout,
+        // which also cancels intervals per spec — this is intentional.
         _trackedTimers.add(id);
         return id;
     }
@@ -65,12 +124,12 @@
         if (!rsiSeries) return;
         if (chartInstance && chartInstance._rsiBand70) {
             try { rsiSeries.removePriceLine(chartInstance._rsiBand70); }
-            catch (e) { console.warn('[Chart] removePriceLine RSI70 failed:', e && e.message); }
+            catch (e) { console.warn('[Chart] removePriceLine RSI70 failed:', e); }
             chartInstance._rsiBand70 = null;
         }
         if (chartInstance && chartInstance._rsiBand30) {
             try { rsiSeries.removePriceLine(chartInstance._rsiBand30); }
-            catch (e) { console.warn('[Chart] removePriceLine RSI30 failed:', e && e.message); }
+            catch (e) { console.warn('[Chart] removePriceLine RSI30 failed:', e); }
             chartInstance._rsiBand30 = null;
         }
     }
@@ -106,7 +165,7 @@
             // timeScale threw on getVisibleLogicalRange. Fall back to full
             // series so indicators still compute — logged so we notice if
             // this fires on the hot path.
-            console.warn('[Chart] visibleSlice getVisibleLogicalRange failed:', e && e.message);
+            console.warn('[Chart] visibleSlice getVisibleLogicalRange failed:', e);
         }
         return storedCandles;
     }
@@ -115,6 +174,20 @@
         init: function() {
             const container = document.getElementById('tvChartContainer');
             if (!container) { console.error('[Chart] tvChartContainer not found'); return; }
+
+            // ─── Cache hot-path DOM refs (once, at mount) ───
+            // update() fires on every WS tick. Previous implementation called
+            // getElementById 3–4 times per tick. At 10 ticks/sec that's 36k
+            // tree walks per hour for refs that never change. Cache once.
+            _cachedPriceEl = document.getElementById('currentPrice');
+            _cachedHudPrice = document.getElementById('chartHudPrice');
+            _cachedHudOhlc = document.getElementById('chartHudOhlc');
+            _cachedTooltipEl = document.getElementById('crosshairTooltip');
+            // Apply the one-time flash-transition class once — ticks then only
+            // toggle color/text-shadow instead of re-writing the transition
+            // string per tick.
+            if (_cachedPriceEl) _cachedPriceEl.classList.add(PRICE_FLASH_CLASS);
+            if (_cachedHudPrice) _cachedHudPrice.classList.add(PRICE_FLASH_CLASS);
 
             tvChart = LightweightCharts.createChart(container, {
                 width: container.clientWidth,
@@ -164,7 +237,7 @@
                             margins: base?.margins || { above: 10, below: 20 }
                         };
                     } catch (e) {
-                        console.warn('[Chart] candle autoscale clip failed:', e && e.message);
+                        console.warn('[Chart] candle autoscale clip failed:', e);
                         return baseImpl();
                     }
                 }
@@ -199,7 +272,7 @@
                             margins: base?.margins || { above: 10, below: 0 }
                         };
                     } catch (e) {
-                        console.warn('[Chart] volume autoscale clip failed:', e && e.message);
+                        console.warn('[Chart] volume autoscale clip failed:', e);
                         return baseImpl();
                     }
                 }
@@ -296,7 +369,7 @@
                         tvChart.priceScale('right').applyOptions({});
                         tvChart.priceScale('vol').applyOptions({});
                     } catch (e) {
-                        console.warn('[Chart] priceScale applyOptions failed:', e && e.message);
+                        console.warn('[Chart] priceScale applyOptions failed:', e);
                     }
                 }, RESCALE_THROTTLE_MS));
             };
@@ -304,9 +377,11 @@
 
             // Crosshair driver: (1) keep header price live, (2) feed floating
             // tooltip near the cursor so you see exact time + price at any point.
-            const tooltipEl = document.getElementById('crosshairTooltip');
+            // Both DOM refs come from the module-level cache set at the top of
+            // init() — no per-callback getElementById.
+            const tooltipEl = _cachedTooltipEl;
             tvChart.subscribeCrosshairMove(param => {
-                const priceEl = document.getElementById('currentPrice');
+                const priceEl = _cachedPriceEl;
                 const candleData = param.seriesData ? param.seriesData.get(candleSeries) : null;
 
                 // Header readout
@@ -396,7 +471,7 @@
             // teardown closes the "theoretical" gap.
             trackListener(window, 'beforeunload', () => {
                 try { Chart.destroy(); } catch (e) {
-                    console.warn('[Chart] destroy() failed on unload:', e && e.message);
+                    console.warn('[Chart] destroy() failed on unload:', e);
                 }
             });
 
@@ -558,7 +633,7 @@
         },
 
         calculateIndicators: function(candles) {
-            if (!candles || candles.length < 30) return;
+            if (!candles || candles.length < MIN_INDICATOR_CANDLES) return;
             const Ind = OGZ.get('Indicators');
             if (!Ind) return;
 
@@ -652,7 +727,7 @@
 
                 console.log('[Chart] Indicators calculated for', candles.length, 'candles');
             } catch (e) {
-                console.error('[Chart] Indicator calc error:', e.message);
+                console.error('[Chart] Indicator calc error:', e);
             }
         },
 
@@ -665,11 +740,11 @@
             if (ghostSeries) ghostSeries.setData([]);
             wallLines.forEach(l => {
                 try { candleSeries.removePriceLine(l); }
-                catch (e) { console.warn('[Chart] removePriceLine wall failed:', e && e.message); }
+                catch (e) { console.warn('[Chart] removePriceLine wall failed:', e); }
             });
             tpoLines.forEach(l => {
                 try { candleSeries.removePriceLine(l); }
-                catch (e) { console.warn('[Chart] removePriceLine tpo failed:', e && e.message); }
+                catch (e) { console.warn('[Chart] removePriceLine tpo failed:', e); }
             });
             wallLines = []; tpoLines = [];
 
@@ -695,14 +770,14 @@
             // 2. Remove every tracked event listener
             for (const { target, type, handler } of _trackedListeners) {
                 try { target.removeEventListener(type, handler); }
-                catch (e) { console.warn('[Chart] removeEventListener failed for', type, e && e.message); }
+                catch (e) { console.warn('[Chart] removeEventListener failed for', type, e); }
             }
             _trackedListeners.length = 0;
 
             // 3. Unsubscribe the visible-range change handler with its exact fn ref
             if (_trackedVisibleRangeCB && tvChart && tvChart.timeScale) {
                 try { tvChart.timeScale().unsubscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB); }
-                catch (e) { console.warn('[Chart] unsubscribeVisibleLogicalRangeChange failed:', e && e.message); }
+                catch (e) { console.warn('[Chart] unsubscribeVisibleLogicalRangeChange failed:', e); }
                 _trackedVisibleRangeCB = null;
             }
 
@@ -710,6 +785,14 @@
             removeRsiBands(this);
             _trackedRsiSeries = null;
             this._rsiOverlaySeries = null;
+
+            // 5. Drop cached DOM refs so a subsequent init() re-resolves them
+            //    fresh (the elements may have been re-mounted under a new
+            //    dashboard shell).
+            _cachedPriceEl = null;
+            _cachedHudPrice = null;
+            _cachedHudOhlc = null;
+            _cachedTooltipEl = null;
 
             console.log('[Chart] destroy() — teardown complete.');
         },
@@ -770,12 +853,12 @@
                 // Live-bar volume alpha — clamp against the stored 98th-percentile
                 // cap so the live bar doesn't leap to 100% opacity and pop.
                 const up = tickClose >= tickOpen;
-                let liveAlpha = 0.5;
-                if (storedCandles.length > 20) {
+                let liveAlpha = VOL_LIVE_ALPHA_DEFAULT;
+                if (storedCandles.length > MIN_VOLUME_STATS_CANDLES) {
                     const sortedVols = storedCandles.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
-                    const capVol = sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * 0.98) - 1)] || 1;
+                    const capVol = sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)] || 1;
                     const ratio = Math.min(1, (candle.volume || candle.v) / capVol);
-                    liveAlpha = 0.25 + 0.55 * ratio;
+                    liveAlpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
                 }
                 const rgb = up ? '34,197,94' : '239,68,68';
                 volumeSeries.update({
@@ -793,10 +876,11 @@
                 const flashColor = up ? '#22c55e' : '#ef4444';
                 const flashShadow = up ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)';
 
-                const priceEl = document.getElementById('currentPrice');
+                // Header price readout — transition class was applied once
+                // in init(); per-tick we only flip color + text-shadow.
+                const priceEl = _cachedPriceEl;
                 if (priceEl) {
                     priceEl.textContent = `$${price.toLocaleString()}`;
-                    priceEl.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
                     priceEl.style.color = flashColor;
                     priceEl.style.textShadow = `0 0 12px ${flashShadow}`;
                     if (priceEl._flashTimer) {
@@ -812,10 +896,10 @@
                 }
 
                 // Floating in-chart HUD (top-right inside chart container).
-                const hudPrice = document.getElementById('chartHudPrice');
+                // Same one-time transition class; no inline transition writes.
+                const hudPrice = _cachedHudPrice;
                 if (hudPrice) {
                     hudPrice.textContent = `$${Number(price).toFixed(2)}`;
-                    hudPrice.style.transition = 'color 0.08s ease, text-shadow 0.08s ease';
                     hudPrice.style.color = flashColor;
                     hudPrice.style.textShadow = `0 0 14px ${flashShadow}`;
                     if (hudPrice._flashTimer) {
@@ -829,7 +913,7 @@
                     }, PRICE_FLASH_MS);
                     trackTimer(hudPrice._flashTimer);
                 }
-                const hudOhlc = document.getElementById('chartHudOhlc');
+                const hudOhlc = _cachedHudOhlc;
                 if (hudOhlc && storedCandles.length) {
                     const lc = storedCandles[storedCandles.length - 1];
                     hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
@@ -910,12 +994,12 @@
                 if (volumeSeries) {
                     const sortedVols = formatted.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
                     const capVol = sortedVols.length
-                        ? sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * 0.98) - 1)]
+                        ? sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)]
                         : 1;
                     volumeSeries.setData(formatted.map(c => {
                         const up = c.close >= c.open;
                         const ratio = capVol > 0 ? Math.min(1, (c.volume || 0) / capVol) : 0;
-                        const alpha = 0.25 + 0.55 * ratio; // 0.25 floor, up to 0.80
+                        const alpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio; // floor up to floor+range
                         const rgb = up ? '34,197,94' : '239,68,68';
                         return { time: c.time, value: c.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
                     }));
@@ -932,7 +1016,7 @@
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
-                console.error('[Chart] loadHistorical error:', e.message);
+                console.error('[Chart] loadHistorical error:', e);
             }
         },
 
