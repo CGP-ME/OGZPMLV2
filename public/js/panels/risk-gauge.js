@@ -62,14 +62,30 @@
     }
 
     // ─── Session handling ──────────────────────────────────────────────
-    function todayUTC() {
-        const d = new Date();
+    // ET-aligned session day — trading happens on NYSE hours, so session
+    // rollover MUST NOT fire at UTC midnight (which is 8 PM ET during EDT /
+    // 7 PM ET during EST, right in the middle of after-hours trading).
+    // A trade at 23:30 ET (03:30 UTC next day) would otherwise zero the
+    // session mid-position. Intl.DateTimeFormat handles the EDT/EST
+    // transition automatically via the America/New_York tz.
+    const _etDateFormatter = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+        ? new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/New_York',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+        })
+        : null;
+    function todayET() {
+        if (_etDateFormatter) return _etDateFormatter.format(new Date());
+        // Fallback for environments without Intl (very old browsers / Node
+        // without ICU): approximate ET as UTC-5. Slightly off during EDT
+        // but still beats UTC midnight rollover.
+        const d = new Date(Date.now() - 5 * 3600 * 1000);
         return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
     }
 
     function loadSession() {
         const savedDate = lsGet(LS_KEY_DATE);
-        const today = todayUTC();
+        const today = todayET();
         if (savedDate !== today) {
             // Rollover — wipe session.
             state.sessionStart = null;
@@ -274,12 +290,27 @@
             state.mounted = true;
             return true;
         }
-        const host = findMountHost();
-        if (!host) return false;
+        // Prefer a semantic host; if none exist (page still loading, DOM
+        // stripped, test harness, etc.) fall back to a fixed-position
+        // element on document.body so the gauge is always visible rather
+        // than silently failing to mount. Per spec §5 mount priority.
+        let host = findMountHost();
+        let usedFallback = false;
+        if (!host) {
+            if (!document.body) return false;  // DOM not ready yet
+            host = document.body;
+            usedFallback = true;
+        }
 
         const root = document.createElement('div');
         root.id = ROOT_ID;
         root.className = 'state-ok';
+        if (usedFallback) {
+            // Fixed top-right positioning so the gauge doesn't compete
+            // with other content for layout space when mounted outside
+            // the intended status-row host.
+            root.style.cssText = 'position:fixed;top:12px;right:12px;z-index:9999;';
+        }
         root.innerHTML = `
             <div class="rg-ring-wrap">
                 <svg viewBox="0 0 ${SVG_SIZE} ${SVG_SIZE}" width="${SVG_SIZE}" height="${SVG_SIZE}" aria-hidden="true">
@@ -362,7 +393,7 @@
     function updateBalance(balance) {
         if (!isFinite(balance) || balance <= 0) return;
         // Session rollover check on every update
-        if (todayUTC() !== state.sessionDate) loadSession();
+        if (todayET() !== state.sessionDate) loadSession();
         initSessionStart(balance);
         state.currentBalance = balance;
         if (state.sessionPeak == null || balance > state.sessionPeak) {
@@ -383,6 +414,19 @@
         // on top would double-count.
         if (state.balanceFromPriceStream) return;
         if (!isFinite(pnl)) return;
+        // Race guard: skip trade pnl accumulation until the price stream
+        // has at least once confirmed it does NOT carry authoritative
+        // balance data. Without this, a trade event arriving before the
+        // first price event (page-load race window) would accumulate
+        // into currentBalance; the first price event then overwrites
+        // with the broker-authoritative value, which may or may not
+        // include that trade's pnl depending on broker sync timing.
+        // Drop the trade-pnl path entirely during the pre-first-price
+        // window — any trade that happens then will be reflected in the
+        // very next price update anyway. Sessions that never receive a
+        // price event are degenerate (bot offline) and the gauge
+        // correctly shows "awaiting balance…" in that case.
+        if (state.currentBalance == null && state.sessionStart == null) return;
         const cur = state.currentBalance != null ? state.currentBalance : state.sessionStart;
         if (!isFinite(cur)) return;
         updateBalance(cur + pnl);
