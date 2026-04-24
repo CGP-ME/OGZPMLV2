@@ -451,6 +451,275 @@ app.post('/api/trai/search', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// PHASE G · TRAI JSON ENDPOINTS (5) + shared stale-while-revalidate cache
+// ══════════════════════════════════════════════════════════════════════
+
+const _traiCache = new Map();
+
+/**
+ * cachedFetch — stale-while-revalidate wrapper.
+ * Returns cached data immediately if fresh (age < ttlMs); otherwise
+ * refreshes in background while returning the stale copy (when available).
+ * On cold cache, awaits the fetch.
+ */
+function cachedFetch(key, ttlMs, fetcher) {
+  const cached = _traiCache.get(key);
+  if (cached && Date.now() - cached.at < ttlMs) {
+    return Promise.resolve(cached.data);
+  }
+  if (!cached) {
+    // Cold cache — must await
+    return fetcher().then(data => {
+      _traiCache.set(key, { data, at: Date.now() });
+      return data;
+    }).catch(err => {
+      console.error(`[TRAI Cache] ${key} fetch failed:`, err.message);
+      return null;
+    });
+  }
+  // Stale — serve stale, refresh in background
+  fetcher().then(data => {
+    _traiCache.set(key, { data, at: Date.now() });
+  }).catch(err => {
+    console.warn(`[TRAI Cache] ${key} background refresh failed:`, err.message);
+  });
+  return Promise.resolve(cached.data);
+}
+
+// ── Endpoint 1: /api/trai/events ──────────────────────────────────────
+// Upcoming earnings / FOMC / FDA / catalysts per symbol. Cache 30 min.
+app.get('/api/trai/events', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || 'TSLA').toUpperCase();
+    const data = await cachedFetch(`events:${symbol}`, 30 * 60 * 1000, async () => {
+      const results = await tavilySearch(
+        `${symbol} stock upcoming earnings date FOMC FDA catalyst 2026`,
+        5
+      );
+      if (!results || !results.results || !results.results.length) {
+        return { events: [], source: 'tavily', symbol };
+      }
+      const client = await getTraiClient();
+      const prompt = `Extract upcoming market events for ${symbol} from these search results.
+Return ONLY a JSON array (no markdown, no backticks, no preamble). Each element:
+{"type":"earnings|fomc|fda|macro|catalyst|other","date":"YYYY-MM-DD or 'TBD'","title":"short title","summary":"1 sentence","source":"domain"}
+
+Search results:
+${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')}
+
+If no events found, return []. ONLY output the JSON array.`;
+      const response = await client.generateResponse(prompt, 400);
+      let events = [];
+      try {
+        const cleaned = String(response || '').replace(/```json|```/g, '').trim();
+        events = JSON.parse(cleaned);
+        if (!Array.isArray(events)) events = [];
+      } catch (e) {
+        console.warn('[TRAI Events] Failed to parse TRAI JSON, returning []');
+        events = [];
+      }
+      return { events, source: 'tavily+trai', symbol, fetchedAt: new Date().toISOString() };
+    });
+    res.json(data || { events: [], source: 'tavily', symbol: (req.query.symbol || 'TSLA').toUpperCase() });
+  } catch (error) {
+    console.error('[TRAI Events] Error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch events', details: error.message });
+  }
+});
+
+// ── Endpoint 2: /api/trai/regime ──────────────────────────────────────
+// Current market regime label + confidence + summary. Cache 5 min.
+app.get('/api/trai/regime', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || 'TSLA').toUpperCase();
+    const data = await cachedFetch(`regime:${symbol}`, 5 * 60 * 1000, async () => {
+      const marketData = await fetchMarketData(symbol);
+      const news = await tavilySearch(`${symbol} stock market trend today`, 3);
+      const client = await getTraiClient();
+      const dataBlock = marketData
+        ? `Price: $${marketData.price}, Change: ${marketData.changePct}%, RSI: ${marketData.rsi}, Volume ratio: ${marketData.volumeRatio}x, ATR: $${marketData.atr}`
+        : 'No market data available.';
+      const newsBlock = news && news.results && news.results.length
+        ? news.results.map(r => r.title).join('; ')
+        : 'No recent news.';
+      const prompt = `Given this data for ${symbol}, classify the regime.
+Return ONLY a JSON object (no markdown, no backticks):
+{"regime":"trending_up|trending_down|ranging|volatile|breakout|unknown","confidence":0.0-1.0,"summary":"one sentence"}
+
+Data: ${dataBlock}
+News: ${newsBlock}
+
+ONLY output the JSON object.`;
+      const response = await client.generateResponse(prompt, 200);
+      try {
+        const cleaned = String(response || '').replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return { ...parsed, symbol, source: 'polygon+trai', fetchedAt: new Date().toISOString() };
+      } catch (e) {
+        return { regime: 'unknown', confidence: 0, summary: 'Unable to classify regime.', symbol };
+      }
+    });
+    res.json(data || { regime: 'unknown', confidence: 0, summary: 'Cache miss and fetch failed.', symbol: (req.query.symbol || 'TSLA').toUpperCase() });
+  } catch (error) {
+    console.error('[TRAI Regime] Error:', error.message);
+    res.status(500).json({ error: 'Failed to classify regime', details: error.message });
+  }
+});
+
+// ── Endpoint 3: /api/trai/session-context ─────────────────────────────
+// Market phase + "what to watch next open" narrative. Cache 10 min.
+app.get('/api/trai/session-context', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || 'TSLA').toUpperCase();
+    const data = await cachedFetch(`session:${symbol}`, 10 * 60 * 1000, async () => {
+      const now = new Date();
+      const nyParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(now);
+      const hour = parseInt((nyParts.find(p => p.type === 'hour') || { value: '0' }).value, 10) % 24;
+      const minute = parseInt((nyParts.find(p => p.type === 'minute') || { value: '0' }).value, 10);
+      const mod = hour * 60 + minute;
+      const dayOfWeek = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York', weekday: 'short'
+      }).format(now);
+
+      let phase = 'closed';
+      if (dayOfWeek === 'Sat' || dayOfWeek === 'Sun') {
+        phase = 'closed';
+      } else if (mod >= 240 && mod < 570) {
+        phase = 'pre';
+      } else if (mod >= 570 && mod < 960) {
+        phase = 'rth';
+      } else if (mod >= 960 && mod < 1200) {
+        phase = 'ah';
+      }
+
+      let watchNote = null;
+      try {
+        const news = await tavilySearch(`${symbol} stock what to watch market open`, 3);
+        if (news && news.answer) {
+          watchNote = news.answer;
+        } else if (news && news.results && news.results.length) {
+          watchNote = news.results[0].title;
+        }
+      } catch (e) { /* non-critical */ }
+
+      return {
+        symbol,
+        phase,
+        hour: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ET`,
+        dayOfWeek,
+        watchNote,
+        fetchedAt: new Date().toISOString()
+      };
+    });
+    res.json(data || { symbol: (req.query.symbol || 'TSLA').toUpperCase(), phase: 'unknown' });
+  } catch (error) {
+    console.error('[TRAI Session] Error:', error.message);
+    res.status(500).json({ error: 'Failed to get session context', details: error.message });
+  }
+});
+
+// ── Endpoint 4: /api/trai/trade-summary ───────────────────────────────
+// Decision-ledger narration for Trade Replay. Cache 60 min per tradeId.
+app.get('/api/trai/trade-summary', async (req, res) => {
+  try {
+    const tradeId = req.query.tradeId;
+    if (!tradeId) {
+      return res.status(400).json({ error: 'tradeId is required' });
+    }
+    const data = await cachedFetch(`trade:${tradeId}`, 60 * 60 * 1000, async () => {
+      const fs = require('fs');
+      const path = require('path');
+      const ledgerPath = path.join(__dirname, 'data', 'decision-ledger.jsonl');
+      let tradeEntry = null;
+      try {
+        if (fs.existsSync(ledgerPath)) {
+          const lines = fs.readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean);
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line);
+              if (entry.tradeId === tradeId || entry.orderId === tradeId) {
+                tradeEntry = entry;
+                break;
+              }
+            } catch (e) { /* skip malformed */ }
+          }
+        }
+      } catch (e) {
+        console.warn('[TRAI Trade Summary] Ledger read failed:', e.message);
+      }
+      if (!tradeEntry) {
+        return { tradeId, summary: 'Trade not found in decision ledger.', tags: [] };
+      }
+      const client = await getTraiClient();
+      const prompt = `Narrate this trade in 2-3 sentences. Then list 2-3 tags.
+Return ONLY JSON (no markdown): {"summary":"...","lesson":"...","tags":["tag1","tag2"]}
+
+Trade data: ${JSON.stringify(tradeEntry)}
+
+ONLY output the JSON object.`;
+      const response = await client.generateResponse(prompt, 300);
+      try {
+        const cleaned = String(response || '').replace(/```json|```/g, '').trim();
+        return { tradeId, ...JSON.parse(cleaned) };
+      } catch (e) {
+        return { tradeId, summary: 'Unable to generate summary.', tags: [] };
+      }
+    });
+    res.json(data || { tradeId: req.query.tradeId, summary: 'Cache miss.', tags: [] });
+  } catch (error) {
+    console.error('[TRAI Trade Summary] Error:', error.message);
+    res.status(500).json({ error: 'Failed to summarize trade', details: error.message });
+  }
+});
+
+// ── Endpoint 5: /api/trai/whales ──────────────────────────────────────
+// Insider / institutional / SEC filing activity per symbol. Cache 30 min.
+app.get('/api/trai/whales', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || 'TSLA').toUpperCase();
+    const data = await cachedFetch(`whales:${symbol}`, 30 * 60 * 1000, async () => {
+      const results = await tavilySearch(
+        `${symbol} insider trading SEC filing institutional ownership large block trade 2026`,
+        5
+      );
+      if (!results || !results.results || !results.results.length) {
+        return { activities: [], source: 'tavily', symbol };
+      }
+      const client = await getTraiClient();
+      const prompt = `Extract institutional/insider trading activity for ${symbol} from these results.
+Return ONLY a JSON array (no markdown, no backticks):
+[{"type":"insider_buy|insider_sell|institutional|sec_filing|block_trade","actor":"name or institution","detail":"1 sentence","date":"YYYY-MM-DD or 'recent'","source":"domain"}]
+
+Results:
+${results.results.map((r, i) => `${i + 1}. ${r.title}: ${r.snippet}`).join('\n')}
+
+If no activity found, return []. ONLY output the JSON array.`;
+      const response = await client.generateResponse(prompt, 400);
+      let activities = [];
+      try {
+        const cleaned = String(response || '').replace(/```json|```/g, '').trim();
+        activities = JSON.parse(cleaned);
+        if (!Array.isArray(activities)) activities = [];
+      } catch (e) {
+        activities = [];
+      }
+      return { activities, source: 'tavily+trai', symbol, fetchedAt: new Date().toISOString() };
+    });
+    res.json(data || { activities: [], source: 'tavily', symbol: (req.query.symbol || 'TSLA').toUpperCase() });
+  } catch (error) {
+    console.error('[TRAI Whales] Error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch whale activity', details: error.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// END PHASE G
+// ══════════════════════════════════════════════════════════════════════
+
 // CHANGE 2026-03-06: Restore /api/health endpoint for proof page
 app.get('/api/health', (req, res) => {
   res.json({
