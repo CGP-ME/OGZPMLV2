@@ -507,7 +507,7 @@ class TradeNarrator {
       }
 
       if (this.user) {
-        const ctxRec = tradeId ? this._ctx.get(tradeId) : null;
+        const ctxRec = this._getCtx(tradeId);
         const label = ctxRec && ctxRec.strategy
           ? this._labelFor(ctxRec.strategy)
           : 'Strategy-?';
@@ -545,7 +545,7 @@ class TradeNarrator {
         holdMs,
       } = ctx;
 
-      const ctxRec = tradeId ? this._ctx.get(tradeId) : null;
+      const ctxRec = this._getCtx(tradeId);
       const strat = strategy || (ctxRec && ctxRec.strategy) || 'unknown';
       const entry = entryPrice != null ? entryPrice : (ctxRec && ctxRec.entryPrice);
       const held = holdMs != null ? holdMs
@@ -636,9 +636,28 @@ class TradeNarrator {
     } catch (_) { /* swallow — WS must never break the bot */ }
   }
 
+  /**
+   * Read a context record with LRU refresh — per MANIFEST §6 the _ctx cache
+   * is LRU-bounded, so every read must promote the entry to the end of the
+   * Map (newest position) so it outlasts entries that haven't been touched.
+   * Without this, eviction degenerates to FIFO and a long-held trade's
+   * context can be dropped despite recent tier-exit activity on it.
+   */
+  _getCtx(tradeId) {
+    if (!tradeId) return null;
+    const rec = this._ctx.get(tradeId);
+    if (!rec) return null;
+    // Re-insert to move to the tail of the Map (LRU update).
+    this._ctx.delete(tradeId);
+    this._ctx.set(tradeId, rec);
+    return rec;
+  }
+
   _rememberCtx(tradeId, rec) {
     if (this._ctx.size >= this._ctxMax) {
-      // Drop the oldest — Map preserves insertion order
+      // Drop the oldest — Map preserves insertion order, and _getCtx
+      // refreshes on read so the oldest here is truly LRU (least
+      // recently accessed OR inserted, whichever is older).
       const firstKey = this._ctx.keys().next().value;
       if (firstKey != null) this._ctx.delete(firstKey);
     }
