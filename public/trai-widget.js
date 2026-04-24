@@ -309,6 +309,12 @@
     checkTraiStatus();
   }
 
+  // Previous connection state — used to log ONLY on transition so the
+  // 30s polling loop doesn't spam the console with a fresh "Connected"
+  // line every half-minute. First connect and every state change still
+  // surfaces; steady-state is silent.
+  let _traiWasConnected = null;
+
   // Check TRAI API status via HTTP
   async function checkTraiStatus() {
     try {
@@ -317,12 +323,22 @@
         const status = await response.json();
         isConnected = status.ready;
         updateStatus(true);
-        console.log('[TRAI Widget] Connected to', status.providerName, '-', status.model);
+        if (_traiWasConnected !== true) {
+          console.log('[TRAI Widget] Connected to', status.providerName, '-', status.model);
+          _traiWasConnected = true;
+        }
       } else {
+        if (_traiWasConnected !== false) {
+          console.warn('[TRAI Widget] Disconnected (HTTP ' + response.status + ')');
+          _traiWasConnected = false;
+        }
         updateStatus(false);
       }
     } catch (e) {
-      console.warn('[TRAI Widget] Status check failed:', e.message);
+      if (_traiWasConnected !== false) {
+        console.warn('[TRAI Widget] Status check failed:', e.message);
+        _traiWasConnected = false;
+      }
       updateStatus(false);
     }
     // Re-check every 30 seconds
