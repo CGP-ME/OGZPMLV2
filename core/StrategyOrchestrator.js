@@ -677,9 +677,15 @@ class StrategyOrchestrator {
     const ctx = { indicators, patterns, regime, priceHistory, extras };
 
     // Narrator: pattern-spotted event. No-op when narrator env vars are unset.
+    // Outer try/catch (in addition to narrator's internal try/catch) so a
+    // formatter throw on unexpected pattern shape cannot interrupt evaluate().
     const narrator = getNarrator();
-    if (narrator.enabled && Array.isArray(patterns) && patterns.length > 0) {
-      narrator.patternSpotted(patterns);
+    try {
+      if (narrator.enabled && Array.isArray(patterns) && patterns.length > 0) {
+        narrator.patternSpotted(patterns);
+      }
+    } catch (e) {
+      console.warn('[Narrator] patternSpotted hook failed:', e && e.message);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -850,8 +856,13 @@ class StrategyOrchestrator {
     // Leader here is the unconfirmed favorite; the actual winner is still
     // gated by min-confidence + confluence filters below. The narrator
     // treats results[0] as the leader; ARCHITECT output is informational.
-    if (narrator.enabled && results.length > 0) {
-      narrator.strategyEval(results, results[0]);
+    // Outer try/catch so a formatter throw can't interrupt evaluate().
+    try {
+      if (narrator.enabled && results.length > 0) {
+        narrator.strategyEval(results, results[0]);
+      }
+    } catch (e) {
+      console.warn('[Narrator] strategyEval hook failed:', e && e.message);
     }
 
     // ─── Step 3: Filter by minimum confidence threshold ───

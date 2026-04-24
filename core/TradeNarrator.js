@@ -189,8 +189,14 @@ class TradeNarrator {
 
     // Per-session seed for anonymization; keeps USER labels stable within
     // one run but opaque across restarts unless explicitly pinned via env.
-    const seed = process.env.NARRATOR_LABEL_SEED
-      || crypto.randomBytes(8).toString('hex');
+    // Edge case: NARRATOR_LABEL_SEED='' (explicitly empty) is distinct from
+    // 'unset' — `||` falsy-check would silently fall through to random seed
+    // on empty string, producing non-deterministic labels when the user set
+    // the var precisely to get deterministic-but-empty behavior. Use
+    // hasOwnProperty check to distinguish set-but-empty from unset.
+    const seed = Object.prototype.hasOwnProperty.call(process.env, 'NARRATOR_LABEL_SEED')
+      ? process.env.NARRATOR_LABEL_SEED
+      : crypto.randomBytes(8).toString('hex');
     this._labelFor = makeLabelMap(seed);
 
     // WebSocket client for USER-mode broadcast (set via setWebSocketClient).
@@ -617,6 +623,15 @@ class TradeNarrator {
     if (!ws) return;
     try {
       if (ws.readyState !== 1) return; // OPEN === 1
+      // Back-pressure guard: if the socket's send buffer is already
+      // holding more than 1MB of unsent data, the dashboard is slow
+      // or stalled. Dropping this narrator event is preferable to
+      // letting the buffer grow unbounded (memory leak) or blocking
+      // the event loop on drain. Narrator is non-critical telemetry
+      // — missing a few events beats stalling the trading loop.
+      if (typeof ws.bufferedAmount === 'number' && ws.bufferedAmount > 1_048_576) {
+        return;
+      }
       ws.send(JSON.stringify(payload));
     } catch (_) { /* swallow — WS must never break the bot */ }
   }

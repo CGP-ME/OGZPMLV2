@@ -510,19 +510,26 @@ class MaxProfitManager {
       this.executePartialExit(tierExit);
 
       // Narrator: tier-exit event. Partial P&L = exitSize × entryPrice × profitPercent.
-      // No-op when env vars are unset.
-      const narrator = getNarrator();
-      if (narrator.enabled) {
-        const partialPnl = (tierExit.exitSize || 0) * (this.state.entryPrice || 0) * (profitPercent || 0);
-        narrator.tierExit({
-          tradeId: this.state.tradeId,
-          tier: tierExit.tier,
-          exitPrice: currentPrice,
-          exitSize: tierExit.exitSize,
-          remainingSize: this.state.remainingSize,
-          profitPercent,
-          partialPnl,
-        });
+      // No-op when env vars are unset. Outer try/catch ensures a narrator
+      // formatter throw can't interrupt the post-partial-exit return path —
+      // state was already mutated by executePartialExit() above, so we MUST
+      // return the exit receipt regardless of narrator outcome.
+      try {
+        const narrator = getNarrator();
+        if (narrator.enabled) {
+          const partialPnl = (tierExit.exitSize || 0) * (this.state.entryPrice || 0) * (profitPercent || 0);
+          narrator.tierExit({
+            tradeId: this.state.tradeId,
+            tier: tierExit.tier,
+            exitPrice: currentPrice,
+            exitSize: tierExit.exitSize,
+            remainingSize: this.state.remainingSize,
+            profitPercent,
+            partialPnl,
+          });
+        }
+      } catch (e) {
+        console.warn('[Narrator] tierExit hook failed:', e && e.message);
       }
 
       return {

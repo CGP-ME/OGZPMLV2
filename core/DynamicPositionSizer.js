@@ -231,8 +231,13 @@ class DynamicPositionSizer {
     };
 
     // Narrator: position-sizing breakdown. No-op when env vars are unset.
-    const narrator = getNarrator();
-    if (narrator.enabled) narrator.sizing(result);
+    // Outer try/catch so a formatter throw can't break the sizing path.
+    try {
+      const narrator = getNarrator();
+      if (narrator.enabled) narrator.sizing(result);
+    } catch (e) {
+      console.warn('[Narrator] sizing hook failed:', e && e.message);
+    }
 
     return result;
   }
