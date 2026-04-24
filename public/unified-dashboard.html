@@ -45,8 +45,18 @@
             overflow-x: hidden;
             overflow-y: auto;  /* CHANGE 2026-01-31: Allow page scroll for full content */
             min-height: 100vh;
-            cursor: default;  /* CHANGE 2026-01-23: Fix crosshair bleeding to whole page */
+            /* CHANGE 2026-04-24: user reported "black circle cursor, can't see
+               shit with it." Forcing `cursor: auto` lets the OS theme pick
+               its default visible cursor (usually white-with-black-outline
+               on light themes, yellow/white on dark themes). The previous
+               `cursor: default` on dark backgrounds renders as a mostly-
+               black arrow on some Chrome+forced-dark-mode configs which is
+               likely what the user was seeing. */
+            cursor: auto;
             position: relative;
+        }
+        html {
+            cursor: auto;
         }
         
         /* Background effects */
