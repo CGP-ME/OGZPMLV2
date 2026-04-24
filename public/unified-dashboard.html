@@ -3088,11 +3088,16 @@
     <div class="header">
         <div class="logo">OGZPrime</div>
         <div class="tagline">Neural Ensemble • Real-Time Data</div>
-        <div class="tier-selector-container">
+        <!-- Version selector HIDDEN 2026-04-24: only one active version
+             so the "SELECT VERSION" label + dropdown took up header
+             real-estate for no user value. DOM preserved (display:none
+             on wrapper) so any JS referencing #tierSelector still
+             resolves rather than throwing. -->
+        <div class="tier-selector-container" style="display:none;">
             <span class="tier-label">SELECT VERSION:</span>
             <select id="tierSelector" class="tier-selector">
-                <option value="ml">🧠 ML VERSION - ALL FEATURES</option>
-                <option value="core">⚡ CORE VERSION</option>
+                <option value="ml">ML VERSION - ALL FEATURES</option>
+                <option value="core">CORE VERSION</option>
             </select>
             <div class="connection-status">
                 <span class="status-dot" id="connectionStatus"></span>
@@ -3126,7 +3131,12 @@
         <div class="unified-chart-section tier-ml" id="unifiedChart">
             <div class="chart-header">
                 <div class="chart-title-container">
-                    <h2 class="chart-title" id="chartTitle">ML VERSION</h2>
+                    <!-- "ML VERSION" h2 HIDDEN 2026-04-24: user feedback —
+                         useless title taking top-left real-estate. DOM
+                         kept so anything referencing #chartTitle still
+                         resolves. #currentPrice is the only thing that
+                         should be visible here. -->
+                    <h2 class="chart-title" id="chartTitle" style="display:none;">ML VERSION</h2>
                     <span class="price-display" id="currentPrice">$0.00</span>
                 </div>
                 <div class="chart-controls">
@@ -3260,12 +3270,16 @@
                     ⚠ Bot offline — waiting for feed
                 </div>
 
-                <!-- Phase A HUD REMOVED 2026-04-24: redundant with top-left
-                     price display. Visible bug per user feedback. Keeping
-                     the top-left as the single source of truth for price
-                     until hero-price layout lands in the mockup rebuild. -->
-                <div id="chartHud" aria-hidden="true" style="display:none;">
-                    <div id="chartHudPrice">$0.00</div>
+                <!-- Phase A HUD RESTORED 2026-04-24: user wanted the OHLC
+                     mouseover (crosshair → O/H/L/C readout). Previous
+                     hide was too aggressive — killed a feature they
+                     liked. Now keeping the hover OHLC visible but
+                     dropping the redundant price row (still shown in
+                     the top-left). #chartHudPrice stays in DOM so
+                     chart.js flash-color animation handler doesn't
+                     crash; it's just visually hidden. -->
+                <div id="chartHud" aria-hidden="true">
+                    <div id="chartHudPrice" style="display:none;">$0.00</div>
                     <div id="chartHudOhlc">O 0.00  H 0.00  L 0.00  C 0.00</div>
                 </div>
 
