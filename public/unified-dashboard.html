@@ -2148,20 +2148,28 @@
            .indicator-bar BASE LAYOUT (outside Phase B fence)
            ------------------------------------------------------------
            Pre-Phase-B base so rollback of the entire Phase B block
-           leaves a functional (plain) indicator bar instead of a
+           leaves a functional, visible indicator bar instead of a
            completely unstyled element. Phase B below adds the
            brand-red/glass polish on top of this base.
+
+           Base includes a minimal dark background + hairline border
+           so rollback doesn't leave the bar invisible on the dark
+           page background — reverts to a "plain dark pill" rather
+           than "nothing visible."
            ============================================================ */
         .indicator-bar {
             display: flex;
             flex-wrap: wrap;
             gap: 0;
             padding: 8px 4px;
+            background: rgba(0, 0, 0, 0.40);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 8px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             line-height: 1.3;
             margin-bottom: 12px;
+            color: #d6d6d6;
         }
         .indicator-bar > * {
             position: relative;
@@ -2327,6 +2335,12 @@
                 0 0 8px var(--brand-red-bright),
                 0 0 14px var(--brand-red-glow);
             animation: ogzBrandPulse 2.4s ease-in-out infinite;
+            /* Hint GPU to promote this element to its own compositor
+               layer — keeps the pulse animation smooth on weak hardware
+               by avoiding per-frame re-layout of the surrounding
+               flex row. Transform and box-shadow are the two properties
+               the keyframe actually animates. */
+            will-change: transform, box-shadow;
         }
 
         @keyframes ogzBrandPulse {
@@ -2510,7 +2524,11 @@
         .trade-log-entry.entry-buy  { border-left-color: #22c55e; }
         .trade-log-entry.entry-sell { border-left-color: var(--brand-red-bright); }
 
-        .trade-badge {
+        /* Scoped under .trading-panel so Phase B's .trade-badge pill
+           geometry doesn't silently clobber Phase A's global
+           .trade-badge rule at L750. Same specificity-bump pattern
+           used for .panel-section / .panel-title / .indicator-bar. */
+        .trading-panel .trade-badge {
             display: inline-block;
             padding: 3px 9px;
             border-radius: 999px;
@@ -2523,13 +2541,13 @@
             text-transform: uppercase;
         }
 
-        .trade-badge.buy  {
+        .trading-panel .trade-badge.buy  {
             background: rgba(34, 197, 94, 0.14);
             color: #4ade80;
             border: 1px solid rgba(34, 197, 94, 0.35);
         }
 
-        .trade-badge.sell {
+        .trading-panel .trade-badge.sell {
             background: rgba(220, 38, 38, 0.14);
             color: var(--brand-red-bright);
             border: 1px solid rgba(220, 38, 38, 0.38);
