@@ -38,6 +38,8 @@ window.OGZ = (function() {
             if (this.get('Edge')) this.get('Edge').init();
             if (this.get('DrawingTools')) this.get('DrawingTools').init();
             if (this.get('CommandPalette')) this.get('CommandPalette').init();
+            if (this.get('Heatbar')) this.get('Heatbar').init();
+            if (this.get('RiskGauge')) this.get('RiskGauge').init();
 
             // Check TRAI status light
             fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
@@ -121,22 +123,28 @@ window.OGZ = (function() {
                     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
                     set('rsiCore', ind.rsi != null ? ind.rsi.toFixed(1) : '--');
                     set('macdCore', ind.macd != null ? (typeof ind.macd === 'object' ? (ind.macd.macd || 0).toFixed(2) : ind.macd.toFixed(2)) : '--');
-                    set('volumeCore', data.volume ? data.volume.toFixed(0) : '--');
+                    const vol = data.volume != null ? data.volume : (data.candle && data.candle.volume);
+                    set('volumeCore', vol != null ? Number(vol).toFixed(0) : '--');
                     set('atrML', ind.atr != null ? ind.atr.toFixed(2) : '--');
                     set('confidenceML', data.confidence != null ? data.confidence.toFixed(0) + '%' : '--');
                 }
 
-                // Update performance stats if included
-                if (data.stats) {
+                // Update performance stats — supports both `data.stats.*` and flat
+                // CandleProcessor shape (`totalPnL`, `winRate`, `totalTrades` on `data`).
+                const st = data.stats || {};
+                const totalPnl = st.totalPnl != null ? st.totalPnl : (data.totalPnL != null ? data.totalPnL : data.totalPnl);
+                const winRate = st.winRate != null ? st.winRate : data.winRate;
+                const tradesCt = st.tradesExecuted != null ? st.tradesExecuted : data.totalTrades;
+                if (totalPnl != null || winRate != null || tradesCt != null) {
                     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-                    if (data.stats.totalPnl != null) {
-                        const pnl = data.stats.totalPnl;
+                    if (totalPnl != null) {
+                        const pnl = Number(totalPnl);
                         set('totalPnl', (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2));
                         const el = document.getElementById('totalPnl');
                         if (el) el.style.color = pnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)';
                     }
-                    if (data.stats.winRate != null) set('winRate', data.stats.winRate.toFixed(1) + '%');
-                    if (data.stats.tradesExecuted != null) set('tradesExecuted', data.stats.tradesExecuted);
+                    if (winRate != null) set('winRate', Number(winRate).toFixed(1) + '%');
+                    if (tradesCt != null) set('tradesExecuted', String(tradesCt));
                 }
 
                 // Update status lights — all three

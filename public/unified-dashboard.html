@@ -2603,6 +2603,18 @@
         /* ============================================================
            END PHASE B
            ============================================================ */
+
+        /* ============================================================
+           PHASE E · Risk Gauge mount — inline, not absolute-positioned
+           ============================================================ */
+        .tier-selector-container .bot-status-row {
+            position: static;
+            display: inline-flex;
+            align-items: center;
+        }
+        /* ============================================================
+           END PHASE E
+           ============================================================ */
     </style>
 </head>
 <body>
@@ -2901,6 +2913,8 @@
                     <span class="label">TRAI</span>
                 </div>
             </div>
+            <!-- Phase E: Risk gauge mount point (inline after status triad) -->
+            <div class="bot-status-row" id="botStatusRow" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;"></div>
         </div>
     </div>
     
@@ -3204,6 +3218,10 @@
     <script src="/js/panels/bot-intelligence.js"></script>
     <script src="/js/drawing-tools.js"></script>
     <script src="/js/theme-customizer.js"></script>
+
+    <!-- Phase E: Confidence Heatbar + Risk Gauge -->
+    <script src="/js/panels/confidence-heatbar.js"></script>
+    <script src="/js/panels/risk-gauge.js"></script>
 
     <!-- Execution layer -->
     <script src="/js/operator/trade-manager.js"></script>

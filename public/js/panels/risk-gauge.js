@@ -1,0 +1,479 @@
+/**
+ * risk-gauge.js — Daily Risk Budget Gauge (Phase E)
+ *
+ * Compact radial SVG ring showing what percentage of the daily loss-limit
+ * budget has been consumed.
+ *
+ *   < 50% used  → state-ok     (green)
+ *   50-80%      → state-watch  (amber)
+ *   ≥ 80%       → state-danger (red, pulsing)
+ *
+ * Session start balance, peak, date, and loss-limit % persist in
+ * localStorage. Session resets at the next UTC midnight boundary.
+ *
+ * Data sources (priority):
+ *   1. price.data.balance     — authoritative (CandleProcessor per-tick)
+ *   2. balance_update.balance  — bot heartbeat
+ *   3. state_update.state.balance — fallback
+ *   4. trade.pnl               — only if price stream is NOT active
+ *                                (balanceFromPriceStream flag prevents double-count)
+ *
+ * Self-injects its own scoped CSS; self-registers as OGZ.RiskGauge.
+ * Also exposes window.OGZRiskGauge for debug console access.
+ *
+ * Mount priority: #botStatusRow → .bot-status-row → .header
+ *
+ * @module public/js/panels/risk-gauge
+ */
+(function (OGZ) {
+    'use strict';
+
+    const STYLE_ID = 'ogz-risk-gauge-styles';
+    const ROOT_ID = 'riskGauge';
+
+    // ─── Storage keys ──────────────────────────────────────────────────
+    const LS_KEY_START = 'ogz.risk.sessionStartBalance';
+    const LS_KEY_DATE = 'ogz.risk.sessionDate';
+    const LS_KEY_PEAK = 'ogz.risk.sessionPeak';
+    const LS_KEY_LIMIT = 'ogz.riskLimit.pct';
+
+    // Ring geometry (compact, 56×56)
+    const SVG_SIZE = 56;
+    const RING_RADIUS = 23;
+    const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+
+    // ─── State ─────────────────────────────────────────────────────────
+    const state = {
+        mounted: false,
+        currentBalance: null,
+        sessionStart: null,          // balance at session open
+        sessionPeak: null,           // highest balance seen this session
+        sessionDate: null,           // UTC yyyy-mm-dd
+        lossLimitPct: 0.05,          // 5% default
+        balanceFromPriceStream: false,
+    };
+
+    // ─── localStorage helpers ──────────────────────────────────────────
+    function lsGet(k) {
+        try { return localStorage.getItem(k); } catch (_) { return null; }
+    }
+    function lsSet(k, v) {
+        try { localStorage.setItem(k, String(v)); } catch (_) { /* quota / disabled */ }
+    }
+
+    // ─── Session handling ──────────────────────────────────────────────
+    function todayUTC() {
+        const d = new Date();
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function loadSession() {
+        const savedDate = lsGet(LS_KEY_DATE);
+        const today = todayUTC();
+        if (savedDate !== today) {
+            // Rollover — wipe session.
+            state.sessionStart = null;
+            state.sessionPeak = null;
+            state.sessionDate = today;
+            lsSet(LS_KEY_DATE, today);
+            return;
+        }
+        const start = parseFloat(lsGet(LS_KEY_START));
+        const peak = parseFloat(lsGet(LS_KEY_PEAK));
+        if (isFinite(start)) state.sessionStart = start;
+        if (isFinite(peak)) state.sessionPeak = peak;
+        state.sessionDate = savedDate;
+    }
+
+    function initSessionStart(balance) {
+        if (state.sessionStart != null) return;
+        if (!isFinite(balance) || balance <= 0) return;
+        state.sessionStart = balance;
+        state.sessionPeak = balance;
+        lsSet(LS_KEY_START, balance);
+        lsSet(LS_KEY_PEAK, balance);
+    }
+
+    function loadLimit() {
+        const raw = parseFloat(lsGet(LS_KEY_LIMIT));
+        if (isFinite(raw) && raw > 0 && raw < 1) state.lossLimitPct = raw;
+    }
+
+    // ─── Compute metrics ───────────────────────────────────────────────
+    function compute() {
+        const bal = state.currentBalance;
+        const start = state.sessionStart;
+        if (!isFinite(bal) || !isFinite(start) || start <= 0) {
+            return {
+                ready: false,
+                pnl: 0,
+                pnlPct: 0,
+                usedPct: 0,
+                lossLimit: 0,
+                drawdownFromPeak: 0,
+                peak: null,
+                start: start,
+                balance: bal,
+            };
+        }
+        const pnl = bal - start;
+        const pnlPct = (pnl / start) * 100;
+        const lossLimit = start * state.lossLimitPct;   // dollar loss budget
+        // Used % = how deep in the red we are relative to the budget.
+        // Only losses consume budget; gains leave it at 0.
+        let usedPct = 0;
+        if (pnl < 0 && lossLimit > 0) {
+            usedPct = Math.min(100, (Math.abs(pnl) / lossLimit) * 100);
+        }
+        const peak = state.sessionPeak != null ? state.sessionPeak : start;
+        const drawdownFromPeak = peak > 0 ? ((peak - bal) / peak) * 100 : 0;
+        return {
+            ready: true,
+            pnl,
+            pnlPct,
+            usedPct,
+            lossLimit,
+            drawdownFromPeak: Math.max(0, drawdownFromPeak),
+            peak,
+            start,
+            balance: bal,
+        };
+    }
+
+    // ─── Style injection ───────────────────────────────────────────────
+    function injectStyles() {
+        if (document.getElementById(STYLE_ID)) return;
+        const css = `
+            #${ROOT_ID} {
+                position: relative;
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+                padding: 4px 6px;
+                min-width: 64px;
+                user-select: none;
+                cursor: default;
+            }
+            #${ROOT_ID} .rg-ring-wrap {
+                position: relative;
+                width: ${SVG_SIZE}px;
+                height: ${SVG_SIZE}px;
+            }
+            #${ROOT_ID} .rg-ring-track {
+                stroke: rgba(255,255,255,0.06);
+                fill: none;
+                stroke-width: 4;
+            }
+            #${ROOT_ID} .rg-ring-fill {
+                fill: none;
+                stroke-width: 4;
+                stroke-linecap: round;
+                transform: rotate(-90deg);
+                transform-origin: 50% 50%;
+                transition: stroke-dashoffset 0.4s cubic-bezier(0.22,0.61,0.36,1),
+                            stroke 0.3s ease;
+                stroke-dasharray: ${RING_CIRC.toFixed(3)};
+                stroke-dashoffset: ${RING_CIRC.toFixed(3)};
+            }
+            #${ROOT_ID}.state-ok .rg-ring-fill { stroke: #22c55e; }
+            #${ROOT_ID}.state-watch .rg-ring-fill { stroke: #fbbf24; }
+            #${ROOT_ID}.state-danger .rg-ring-fill {
+                stroke: #ef4444;
+                animation: rg-pulse 1.3s ease-in-out infinite;
+            }
+            @keyframes rg-pulse {
+                0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px rgba(239,68,68,0.6)); }
+                50%      { opacity: 0.55; filter: drop-shadow(0 0 8px rgba(239,68,68,0.9)); }
+            }
+            #${ROOT_ID} .rg-pct {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+            }
+            #${ROOT_ID} .rg-pct-num {
+                font-family: 'Orbitron', 'JetBrains Mono', monospace;
+                font-size: 14px;
+                font-weight: 700;
+                letter-spacing: 0.02em;
+                color: #f5f5f5;
+                line-height: 1;
+            }
+            #${ROOT_ID} .rg-pct-sub {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 7px;
+                letter-spacing: 0.14em;
+                color: #a1a1aa;
+                text-transform: uppercase;
+                margin-top: 1px;
+            }
+            #${ROOT_ID} .rg-label {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 8px;
+                letter-spacing: 0.16em;
+                color: #71717a;
+                text-transform: uppercase;
+            }
+            #${ROOT_ID} .rg-tooltip {
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%) translateY(6px);
+                min-width: 200px;
+                padding: 8px 10px;
+                background: rgba(15,15,15,0.92);
+                backdrop-filter: blur(12px) saturate(140%);
+                -webkit-backdrop-filter: blur(12px) saturate(140%);
+                border: 1px solid rgba(220, 38, 38, 0.22);
+                border-radius: 6px;
+                box-shadow: 0 8px 32px -8px rgba(0,0,0,0.6);
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 10px;
+                color: #e4e4e7;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.18s ease;
+                z-index: 80;
+                white-space: nowrap;
+            }
+            #${ROOT_ID}:hover .rg-tooltip { opacity: 1; }
+            #${ROOT_ID} .rg-tooltip .rg-row {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 2px 0;
+            }
+            #${ROOT_ID} .rg-tooltip .rg-row span:first-child {
+                color: #a1a1aa;
+            }
+            #${ROOT_ID} .rg-tooltip .rg-row .rg-pos { color: #22c55e; }
+            #${ROOT_ID} .rg-tooltip .rg-row .rg-neg { color: #ef4444; }
+        `;
+        const el = document.createElement('style');
+        el.id = STYLE_ID;
+        el.textContent = css;
+        document.head.appendChild(el);
+    }
+
+    // ─── Mount ─────────────────────────────────────────────────────────
+    function findMountHost() {
+        return document.getElementById('botStatusRow')
+            || document.querySelector('.bot-status-row')
+            || document.querySelector('.header')
+            || null;
+    }
+
+    function mount() {
+        if (state.mounted) return true;
+        if (document.getElementById(ROOT_ID)) {
+            state.mounted = true;
+            return true;
+        }
+        const host = findMountHost();
+        if (!host) return false;
+
+        const root = document.createElement('div');
+        root.id = ROOT_ID;
+        root.className = 'state-ok';
+        root.innerHTML = `
+            <div class="rg-ring-wrap">
+                <svg viewBox="0 0 ${SVG_SIZE} ${SVG_SIZE}" width="${SVG_SIZE}" height="${SVG_SIZE}" aria-hidden="true">
+                    <circle class="rg-ring-track" cx="${SVG_SIZE / 2}" cy="${SVG_SIZE / 2}" r="${RING_RADIUS}"></circle>
+                    <circle class="rg-ring-fill" cx="${SVG_SIZE / 2}" cy="${SVG_SIZE / 2}" r="${RING_RADIUS}"></circle>
+                </svg>
+                <div class="rg-pct">
+                    <span class="rg-pct-num">0%</span>
+                    <span class="rg-pct-sub">SAFE</span>
+                </div>
+            </div>
+            <span class="rg-label">Risk Budget</span>
+            <div class="rg-tooltip" role="tooltip"></div>
+        `;
+        host.appendChild(root);
+        state.mounted = true;
+        render();
+        return true;
+    }
+
+    // ─── Render ────────────────────────────────────────────────────────
+    function classifyState(usedPct) {
+        if (usedPct >= 80) return 'state-danger';
+        if (usedPct >= 50) return 'state-watch';
+        return 'state-ok';
+    }
+
+    function fmtUsd(v) {
+        const sign = v > 0 ? '+' : (v < 0 ? '−' : '');
+        return `${sign}$${Math.abs(v).toFixed(2)}`;
+    }
+    function fmtPctSigned(v) {
+        const sign = v > 0 ? '+' : (v < 0 ? '−' : '');
+        return `${sign}${Math.abs(v).toFixed(2)}%`;
+    }
+
+    function render() {
+        if (!mount()) return;
+        const root = document.getElementById(ROOT_ID);
+        if (!root) return;
+        const m = compute();
+
+        const pctNum = root.querySelector('.rg-pct-num');
+        const pctSub = root.querySelector('.rg-pct-sub');
+        const ringFill = root.querySelector('.rg-ring-fill');
+        const tooltip = root.querySelector('.rg-tooltip');
+
+        // Ring fill: stroke-dashoffset based on usedPct (0 used → full circle empty;
+        // 100% used → full circle filled).
+        const used = Math.max(0, Math.min(100, m.ready ? m.usedPct : 0));
+        if (ringFill) {
+            const offset = RING_CIRC * (1 - used / 100);
+            ringFill.setAttribute('stroke-dashoffset', offset.toFixed(3));
+        }
+        if (pctNum) pctNum.textContent = `${Math.round(used)}%`;
+        if (pctSub) pctSub.textContent = used >= 80 ? 'DANGER' : used >= 50 ? 'WATCH' : (used > 0 ? 'USED' : 'SAFE');
+
+        // State class swap
+        root.classList.remove('state-ok', 'state-watch', 'state-danger');
+        root.classList.add(classifyState(used));
+
+        // Tooltip
+        if (tooltip) {
+            if (!m.ready) {
+                tooltip.innerHTML = `<div class="rg-row"><span>Status</span><span>awaiting balance…</span></div>`;
+            } else {
+                const pnlClass = m.pnl >= 0 ? 'rg-pos' : 'rg-neg';
+                tooltip.innerHTML = `
+                    <div class="rg-row"><span>P&L</span><span class="${pnlClass}">${fmtUsd(m.pnl)} (${fmtPctSigned(m.pnlPct)})</span></div>
+                    <div class="rg-row"><span>Loss Limit</span><span>$${m.lossLimit.toFixed(2)} (${(state.lossLimitPct * 100).toFixed(1)}%)</span></div>
+                    <div class="rg-row"><span>Budget Used</span><span>${used.toFixed(1)}%</span></div>
+                    <div class="rg-row"><span>Drawdown (peak)</span><span>${m.drawdownFromPeak.toFixed(2)}%</span></div>
+                    <div class="rg-row"><span>Session Start</span><span>$${m.start.toFixed(2)}</span></div>
+                `;
+            }
+        }
+    }
+
+    // ─── Balance update paths ──────────────────────────────────────────
+    function updateBalance(balance) {
+        if (!isFinite(balance) || balance <= 0) return;
+        // Session rollover check on every update
+        if (todayUTC() !== state.sessionDate) loadSession();
+        initSessionStart(balance);
+        state.currentBalance = balance;
+        if (state.sessionPeak == null || balance > state.sessionPeak) {
+            state.sessionPeak = balance;
+            lsSet(LS_KEY_PEAK, balance);
+        }
+        render();
+    }
+
+    function onPriceBalance(balance) {
+        state.balanceFromPriceStream = true;
+        updateBalance(balance);
+    }
+
+    function onTradePnl(pnl) {
+        // Only accumulate on trades if price stream ISN'T authoritative.
+        // When price delivers data.balance every tick, accumulating trade.pnl
+        // on top would double-count.
+        if (state.balanceFromPriceStream) return;
+        if (!isFinite(pnl)) return;
+        const cur = state.currentBalance != null ? state.currentBalance : state.sessionStart;
+        if (!isFinite(cur)) return;
+        updateBalance(cur + pnl);
+    }
+
+    // ─── Public API ────────────────────────────────────────────────────
+    const RiskGauge = {
+        init() {
+            try {
+                injectStyles();
+                loadLimit();
+                loadSession();
+                mount();
+
+                const socket = OGZ.get && OGZ.get('Socket');
+                if (!socket || !socket.registerHandler) return;
+
+                // 1. price — authoritative per-tick balance
+                socket.registerHandler('price', (d) => {
+                    try {
+                        const b = d && d.data && d.data.balance;
+                        if (isFinite(b) && b > 0) onPriceBalance(Number(b));
+                    } catch (_) { /* swallow */ }
+                });
+
+                // 2. balance_update — explicit balance push
+                socket.registerHandler('balance_update', (d) => {
+                    try {
+                        const b = d && (d.balance != null ? d.balance : (d.data && d.data.balance));
+                        if (isFinite(b) && b > 0) {
+                            // Not the price stream path — do not flip the flag.
+                            updateBalance(Number(b));
+                        }
+                    } catch (_) { /* swallow */ }
+                });
+
+                // 3. state_update — fallback
+                socket.registerHandler('state_update', (d) => {
+                    try {
+                        const b = d && d.state && d.state.balance;
+                        if (isFinite(b) && b > 0) updateBalance(Number(b));
+                    } catch (_) { /* swallow */ }
+                });
+
+                // 4. trade — pnl accumulation IFF price stream hasn't claimed authority
+                socket.registerHandler('trade', (d) => {
+                    try {
+                        const pnl = d && (d.pnl != null ? d.pnl : (d.data && d.data.pnl));
+                        if (isFinite(pnl)) onTradePnl(Number(pnl));
+                    } catch (_) { /* swallow */ }
+                });
+            } catch (_) { /* init must never throw */ }
+        },
+
+        setLimit(pct) {
+            if (!isFinite(pct) || pct <= 0 || pct >= 1) return;
+            state.lossLimitPct = pct;
+            lsSet(LS_KEY_LIMIT, pct);
+            render();
+        },
+
+        resetSession() {
+            state.sessionStart = null;
+            state.sessionPeak = null;
+            state.sessionDate = todayUTC();
+            state.balanceFromPriceStream = false;
+            try {
+                localStorage.removeItem(LS_KEY_START);
+                localStorage.removeItem(LS_KEY_PEAK);
+            } catch (_) { /* swallow */ }
+            if (isFinite(state.currentBalance) && state.currentBalance > 0) {
+                initSessionStart(state.currentBalance);
+            }
+            render();
+        },
+
+        // Debug surface
+        _state: state,
+        _compute: compute,
+    };
+
+    if (OGZ && typeof OGZ.register === 'function') {
+        OGZ.register('RiskGauge', RiskGauge);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.OGZ && typeof window.OGZ.register === 'function') {
+                window.OGZ.register('RiskGauge', RiskGauge);
+            }
+        });
+    }
+
+    // Debug console access per spec
+    try { window.OGZRiskGauge = RiskGauge; } catch (_) {}
+})(window.OGZ = window.OGZ || {});
