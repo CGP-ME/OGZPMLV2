@@ -77,6 +77,14 @@
     const VOL_ALPHA_RANGE = 0.55;               // final alpha = FLOOR + RANGE*ratio → caps at 0.80
     const VOL_LIVE_ALPHA_DEFAULT = 0.5;         // fallback alpha before stats sample is ready
     const VOL_LIVE_HEADROOM = 1.15;             // 15% ceiling padding so capped bars don't touch pane top
+    // Candle autoscale percentile cutoffs — discards the extreme 2% of lows
+    // and highs so one flash-crash wick can't squish every normal bar into
+    // a flat band. Module-level so it lives alongside the volume pctile cap.
+    const CANDLE_PCTILE_LOW = 0.02;
+    const CANDLE_PCTILE_HIGH = 0.98;
+    // Padding above/below the clipped percentile range so price action
+    // doesn't clip the frame edges after outlier trim.
+    const CANDLE_PAD_RATIO = 0.05;
 
     // ─── One-time CSS injection for price-flash transition ───
     // The flash effect (green on up-tick, red on down-tick) used to set
@@ -218,20 +226,18 @@
                         const highs = slice.map(c => c.high).sort((a, b) => a - b);
                         // 2nd / 98th percentile clip: discards the extreme 2% of
                         // values on each tail. Flash-crash wicks fall in that tail
-                        // and stop dominating the visible range.
-                        const PCTILE_LOW = 0.02;
-                        const PCTILE_HIGH = 0.98;
-                        const loIdx = Math.max(0, Math.floor(lows.length * PCTILE_LOW));
-                        const hiIdx = Math.min(highs.length - 1, Math.ceil(highs.length * PCTILE_HIGH) - 1);
+                        // and stop dominating the visible range. Cutoffs live
+                        // at module level (CANDLE_PCTILE_LOW/HIGH).
+                        const loIdx = Math.max(0, Math.floor(lows.length * CANDLE_PCTILE_LOW));
+                        const hiIdx = Math.min(highs.length - 1, Math.ceil(highs.length * CANDLE_PCTILE_HIGH) - 1);
                         const pLow = lows[loIdx];
                         const pHigh = highs[hiIdx];
                         // Guard: identical values (flat bar or all-highs-equal)
                         // collapse the range to zero — fall back to library default.
                         if (!(pLow < pHigh)) return base;
-                        // 5% padding on each side so price action isn't clipped at
-                        // the frame edges after the percentile trim.
-                        const PAD_RATIO = 0.05;
-                        const pad = (pHigh - pLow) * PAD_RATIO;
+                        // Padding so price action isn't clipped at the frame
+                        // edges after the percentile trim (CANDLE_PAD_RATIO).
+                        const pad = (pHigh - pLow) * CANDLE_PAD_RATIO;
                         return {
                             priceRange: { minValue: pLow - pad, maxValue: pHigh + pad },
                             margins: base?.margins || { above: 10, below: 20 }
@@ -318,6 +324,14 @@
             // Stored on both `this` AND the module-level _trackedRsiSeries so
             // clearAll() and destroy() can remove them cleanly regardless of
             // which access path wins.
+            //
+            // Idempotent re-init guard: if init() is called again without an
+            // intervening destroy() (hot-reload, test re-mount), old priceLines
+            // would remain attached to the previous RSI series reference and
+            // leak. Defensive removeRsiBands BEFORE assigning the new series
+            // reference — uses the PREVIOUS _trackedRsiSeries if present so we
+            // clean the old series, not the new one.
+            removeRsiBands(this);
             _trackedRsiSeries = rsiOverlaySeries;
             this._rsiOverlaySeries = rsiOverlaySeries;
             this._rsiBand70 = rsiOverlaySeries.createPriceLine({
