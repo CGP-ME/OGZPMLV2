@@ -2214,13 +2214,19 @@
              dashboard.html line 3076) so Phase B NEVER silently clobbers
              Phase A .panel-section/.panel-title rules outside that rail.
 
-           Rollback contract (post-audit):
-             Delete this entire fenced block to revert — with ONE caveat:
-             .indicator-bar is styled ONLY by Phase B (Phase A leaves it
-             unstyled). Deleting Phase B leaves .indicator-bar unstyled
-             and relying on UA defaults. If that's not acceptable,
-             either keep the .indicator-bar rule block when reverting,
-             or backport it into Phase A first.
+           Rollback contract (post-audit, post-pass-2 refactor):
+             Rollback = delete this Phase B fenced block (L2148-end).
+             A minimal .indicator-bar BASE LAYOUT block was added
+             OUTSIDE this fence (see the block directly above the
+             Phase B opening comment) so rollback leaves a plain
+             but visible indicator bar instead of a completely
+             unstyled (invisible on dark bg) element. That base
+             block is INTENTIONAL — it is not part of Phase B and
+             is not deleted on Phase B rollback. It represents a
+             deliberate hardening of Phase A to make Phase B
+             cleanly revertable. If a full revert to pre-Phase-B
+             state is needed, also delete the .indicator-bar
+             base block above this fence.
 
            Accessibility contract (post-audit):
              A @media (prefers-reduced-motion: reduce) guard below
@@ -2241,7 +2247,6 @@
             --brand-red-dim:      #991b1b;
             --brand-red-glow:     rgba(220, 38, 38, 0.55);
             --brand-red-line:     rgba(220, 38, 38, 0.25);
-            /* --brand-red-soft removed (pass-4 audit found zero usages) */
 
             /* Glass surfaces */
             --glass-bg:           rgba(14, 14, 16, 0.72);
@@ -2404,15 +2409,20 @@
             margin-bottom: 10px;
         }
 
-        /* Stats grid — clean 2×2 glass tiles */
-        .stats-grid {
+        /* Stats grid — clean 2×2 glass tiles.
+           Scoped under .trading-panel so Phase B doesn't silently
+           override Phase A's global .stats-grid / .stat-item /
+           .stat-label / .stat-value rules at L688-720. Same
+           specificity-bump pattern used for .panel-section /
+           .panel-title / .indicator-bar / .trade-badge. */
+        .trading-panel .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 14px;
         }
 
-        .stat-item {
+        .trading-panel .stat-item {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 10px;
@@ -2424,14 +2434,14 @@
                         box-shadow 0.22s ease;
         }
 
-        .stat-item:hover {
+        .trading-panel .stat-item:hover {
             border-color: var(--glass-border-hover);
             background: rgba(220, 38, 38, 0.04);
             transform: translateY(-1px);
             box-shadow: 0 0 12px rgba(220, 38, 38, 0.12);
         }
 
-        .stat-label {
+        .trading-panel .stat-label {
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
             font-weight: 600;
@@ -2441,7 +2451,7 @@
             margin-bottom: 6px;
         }
 
-        .stat-value {
+        .trading-panel .stat-value {
             font-family: 'Orbitron', 'JetBrains Mono', monospace;
             font-size: 17px;
             font-weight: 700;
@@ -2571,7 +2581,12 @@
 
         .trading-panel .trade-badge.sell {
             background: rgba(220, 38, 38, 0.14);
-            color: var(--brand-red-bright);
+            /* Text color brightened from --brand-red-bright (#ef4444)
+               to #fecaca. #ef4444 on a dim red tint gave ~3.8:1 —
+               below WCAG AA 4.5:1 for 9.5px non-bold badge text.
+               #fecaca (soft-pink) on the same composite clears 11:1.
+               Border stays brand-red for visual-identity signal. */
+            color: #fecaca;
             border: 1px solid rgba(220, 38, 38, 0.38);
         }
 
