@@ -64,6 +64,16 @@
         previouslyFocused: null,
     };
 
+    // Capture a reference to the ORIGINAL window.confirm at module load
+    // time, BEFORE any page script has a chance to override it. All
+    // palette confirmations use _origConfirm instead of window.confirm
+    // so a later `window.confirm = () => true` from a malicious same-
+    // origin script cannot bypass the user dialog on trading-state
+    // mutations. `.bind(window)` preserves the native `this`.
+    const _origConfirm = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+        ? window.confirm.bind(window)
+        : () => true;  // fallback for non-browser environments (tests, SSR)
+
     // ─── Styles (self-injected once) ─────────────────────────────────────
     function injectStyles() {
         if (document.getElementById(STYLE_ID)) return;
@@ -424,7 +434,7 @@
             category: 'Bot',
             icon: '⏸',
             run: () => {
-                if (!confirm('Pause trading?\n\nThis halts all new entries until resumed.')) {
+                if (!_origConfirm('Pause trading?\n\nThis halts all new entries until resumed.')) {
                     toast('Pause cancelled');
                     return;
                 }
@@ -443,7 +453,7 @@
             category: 'Bot',
             icon: '▶',
             run: () => {
-                if (!confirm('Resume trading?\n\nThis re-enables new entries.')) {
+                if (!_origConfirm('Resume trading?\n\nThis re-enables new entries.')) {
                     toast('Resume cancelled');
                     return;
                 }
