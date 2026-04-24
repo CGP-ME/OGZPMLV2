@@ -216,9 +216,20 @@
                         try {
                             state.lastTickAt = Date.now();
                             const candle = d && d.data && d.data.candle;
-                            if (candle && isFinite(candle.time)) {
-                                // Epoch ms or epoch seconds? Normalise.
-                                const t = Number(candle.time);
+                            // CandleProcessor sends candle.timestamp, not
+                            // candle.time (verified against
+                            // core/CandleProcessor.js:346-368). Read both
+                            // field names so drift correction fires whether
+                            // the broadcast uses the spec name (.time) or
+                            // the implementation name (.timestamp).
+                            // Without this, setInterval-based drift could
+                            // accumulate up to hours over a long session.
+                            const rawTime = candle
+                                ? (isFinite(candle.time) ? candle.time
+                                    : (isFinite(candle.timestamp) ? candle.timestamp : null))
+                                : null;
+                            if (rawTime != null) {
+                                const t = Number(rawTime);
                                 const ms = t > 1e12 ? t : t * 1000;
                                 anchorFromCandleStart(ms);
                             }

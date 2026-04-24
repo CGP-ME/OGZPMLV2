@@ -20,6 +20,13 @@
     const STYLE_ID = 'ogz-strategy-leaderboard-styles';
     const ROOT_ID = 'strategyLeaderboard';
     const MAX_ROWS = 6;
+    // Cap the strategy-name map so a malformed/rotating strategy stream
+    // (e.g., 10k trades across 100s of distinct names due to a backend
+    // bug) can't grow the Map unbounded. 256 is generous for a real
+    // bot which rarely has more than a dozen distinct strategies per
+    // session. LRU eviction drops the least-recently-updated strategy
+    // when the cap is hit.
+    const MAX_STRATEGIES = 256;
 
     const state = {
         mounted: false,
@@ -28,6 +35,20 @@
     };
 
     // ─── Helpers ───────────────────────────────────────────────────────
+    // XSS defense: strategy names come from trade events over WebSocket.
+    // All render paths go through root.innerHTML, so ANY name that reaches
+    // the DOM must be HTML-escaped. escapeHtml maps the five dangerous
+    // characters to their entity equivalents.
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function prettyName(raw) {
         if (!raw || raw === 'unknown') return 'Unattributed';
         // Split on camelCase / snake_case boundaries
@@ -204,10 +225,13 @@
             html += rows.map(r => {
                 const pnlClass = r.pnl >= 0 ? 'pos' : 'neg';
                 const barPct = Math.min(100, (Math.abs(r.pnl) / maxAbs) * 100);
+                // r.pretty is derived from WebSocket trade.strategy — HTML-escape
+                // before interpolating into innerHTML. fmtUsd / r.wr / r.trades
+                // are numeric-formatted so they're structurally safe.
                 return `
                     <div class="sl-row">
                         <div class="sl-row-top">
-                            <span class="sl-name">${r.pretty}</span>
+                            <span class="sl-name">${escapeHtml(r.pretty)}</span>
                             <span class="sl-pnl ${pnlClass}">${fmtUsd(r.pnl)}</span>
                         </div>
                         <div class="sl-bar"><div class="sl-bar-fill ${pnlClass}" style="width:${barPct}%;"></div></div>
@@ -244,10 +268,23 @@
             const pnl = Number(trade.pnl);
             if (!isFinite(pnl) || pnl === 0) return; // Skip opens / zero-pnl broadcasts
             const key = attributionOf(trade);
+            const existing = state.book.has(key);
             const cur = state.book.get(key) || { pnl: 0, trades: 0, wins: 0 };
             cur.pnl += pnl;
             cur.trades += 1;
             if (pnl > 0) cur.wins += 1;
+            // Cap + LRU eviction: if this is a NEW strategy and we're at
+            // the cap, drop the least-recently-updated entry to make room.
+            // state.book is a Map so insertion/update order is preserved;
+            // delete-then-set moves the updated entry to the tail (tail =
+            // most recent = LRU survival).
+            if (!existing && state.book.size >= MAX_STRATEGIES) {
+                const oldestKey = state.book.keys().next().value;
+                if (oldestKey != null) state.book.delete(oldestKey);
+            }
+            // Delete-then-set for existing entries so they move to the
+            // tail (LRU refresh on write).
+            if (existing) state.book.delete(key);
             state.book.set(key, cur);
             render();
         } catch (_) { /* swallow */ }
