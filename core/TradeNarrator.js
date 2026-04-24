@@ -189,14 +189,17 @@ class TradeNarrator {
 
     // Per-session seed for anonymization; keeps USER labels stable within
     // one run but opaque across restarts unless explicitly pinned via env.
-    // Edge case: NARRATOR_LABEL_SEED='' (explicitly empty) is distinct from
-    // 'unset' — `||` falsy-check would silently fall through to random seed
-    // on empty string, producing non-deterministic labels when the user set
-    // the var precisely to get deterministic-but-empty behavior. Use
-    // hasOwnProperty check to distinguish set-but-empty from unset.
-    const seed = Object.prototype.hasOwnProperty.call(process.env, 'NARRATOR_LABEL_SEED')
-      ? process.env.NARRATOR_LABEL_SEED
-      : crypto.randomBytes(8).toString('hex');
+    //
+    // Empty-seed semantics (decided after Mercury pass-1/pass-4 contradiction):
+    //   An empty seed packet holds no seeds — you can't plant nothing and
+    //   expect a plant. NARRATOR_LABEL_SEED='' is treated the same as unset:
+    //   fall through to a random per-process seed. This keeps users safe
+    //   from a common foot-gun: `export NARRATOR_LABEL_SEED=` (empty due to
+    //   typo or env-file bug) still produces opaque, non-reproducible labels
+    //   rather than a deterministic-but-empty-seeded mapping the user never
+    //   asked for. To get deterministic labels, set a non-empty string.
+    const seed = process.env.NARRATOR_LABEL_SEED
+      || crypto.randomBytes(8).toString('hex');
     this._labelFor = makeLabelMap(seed);
 
     // WebSocket client for USER-mode broadcast (set via setWebSocketClient).
