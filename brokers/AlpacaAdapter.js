@@ -362,10 +362,9 @@ class AlpacaAdapter extends IBrokerAdapter {
         this._ensureDataStream(() => {
             const sym = this.toBrokerSymbol(symbol);
             this.subscriptions.set(`bars-${sym}`, callback);
-            this.ws.send(JSON.stringify({
-                action: 'subscribe',
-                bars: [sym]
-            }));
+            const payload = { action: 'subscribe', bars: [sym] };
+            console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
+            this.ws.send(JSON.stringify(payload));
         });
     }
 
@@ -502,10 +501,22 @@ class AlpacaAdapter extends IBrokerAdapter {
             }));
         });
 
+        // Diagnostic: per-symbol first-bar flag so we log the first bar
+        // of each subscribed symbol once (reveals whether bars arrive at
+        // all and at what cadence).
+        this._firstBarLogged = this._firstBarLogged || new Set();
+
         this.ws.on('message', (data) => {
             try {
                 const messages = JSON.parse(data.toString());
                 for (const msg of Array.isArray(messages) ? messages : [messages]) {
+                    // Diagnostic: dump every non-bar/non-trade/non-quote
+                    // message so we see subscribe confirmations and any
+                    // errors verbatim. Bars/trades/quotes would spam the
+                    // log, so only the control-plane messages land here.
+                    if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
+                        console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
+                    }
                     // Auth success
                     if (msg.T === 'success' && msg.msg === 'authenticated') {
                         console.log('[Alpaca] Data stream authenticated');
@@ -514,7 +525,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                     }
                     // Auth failure
                     if (msg.T === 'error') {
-                        console.error('[Alpaca] Stream error:', msg.msg);
+                        console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
                         continue;
                     }
                     // Trade updates
@@ -529,8 +540,25 @@ class AlpacaAdapter extends IBrokerAdapter {
                     }
                     // Bar updates
                     if (msg.T === 'b') {
+                        const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
+                        // Diagnostic: log the first bar per symbol so we
+                        // can confirm bars are flowing. Subsequent bars
+                        // are silent to avoid log spam.
+                        if (!this._firstBarLogged.has(msg.S)) {
+                            this._firstBarLogged.add(msg.S);
+                            console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
+                        }
+                        // Emit on the EventEmitter surface so run-empire-v2's
+                        // `this.kraken.on('ohlc', ...)` listener (registered
+                        // regardless of broker id; var name preserved) actually
+                        // receives Alpaca bars. Without this the bars arrive
+                        // and die in the adapter — no callback was registered,
+                        // no event was emitted. Matches Kraken's payload shape:
+                        // { timeframe, data } so run-empire-v2:1125-1134 handler
+                        // reads eventData.timeframe / eventData.data correctly.
+                        this.emit('ohlc', { timeframe: '1m', data: bar });
                         const cb = this.subscriptions.get(`bars-${msg.S}`);
-                        if (cb) cb({ o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S });
+                        if (cb) cb(bar);
                     }
                 }
             } catch (e) {
