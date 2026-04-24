@@ -35,6 +35,18 @@
     let _trackedVisibleRangeCB = null; // Subscription callback for unsubscribe
     let _trackedRsiSeries = null;      // RSI overlay series reference (for priceLine removal)
 
+    // ─── Named timing / sampling constants ───
+    // Minimum sample size before percentile autoscale kicks in — below this,
+    // the percentile math itself is noisier than the raw range it's trying
+    // to clip.
+    const MIN_AUTOSCALE_SAMPLE = 10;
+    // Visible-range rescale throttle — keeps scroll/zoom smooth while still
+    // nudging both scales to recompute against the new window.
+    const RESCALE_THROTTLE_MS = 80;
+    // Price flash duration for currentPrice + HUD. Short enough to feel live,
+    // long enough to actually register visually.
+    const PRICE_FLASH_MS = 180;
+
     function trackListener(target, type, handler) {
         target.addEventListener(type, handler);
         _trackedListeners.push({ target, type, handler });
@@ -42,6 +54,25 @@
     function trackTimer(id) {
         _trackedTimers.add(id);
         return id;
+    }
+
+    // ─── RSI band removal helper ───
+    // Single source of truth for taking down the 70/30 bands attached to
+    // the RSI overlay series. Used by both clearAll() and destroy() so
+    // the cleanup contract lives in one place.
+    function removeRsiBands(chartInstance) {
+        const rsiSeries = (chartInstance && chartInstance._rsiOverlaySeries) || _trackedRsiSeries;
+        if (!rsiSeries) return;
+        if (chartInstance && chartInstance._rsiBand70) {
+            try { rsiSeries.removePriceLine(chartInstance._rsiBand70); }
+            catch (e) { console.warn('[Chart] removePriceLine RSI70 failed:', e && e.message); }
+            chartInstance._rsiBand70 = null;
+        }
+        if (chartInstance && chartInstance._rsiBand30) {
+            try { rsiSeries.removePriceLine(chartInstance._rsiBand30); }
+            catch (e) { console.warn('[Chart] removePriceLine RSI30 failed:', e && e.message); }
+            chartInstance._rsiBand30 = null;
+        }
     }
 
     // Timeframe string -> seconds per bar. Used to align live ticks to the
@@ -107,8 +138,9 @@
                         const base = baseImpl();
                         const slice = visibleSlice();
                         // Need a statistically meaningful sample before clipping —
-                        // below ~10 candles the percentile math itself becomes noise.
-                        if (slice.length < 10) return base;
+                        // below MIN_AUTOSCALE_SAMPLE candles the percentile math
+                        // itself becomes noise.
+                        if (slice.length < MIN_AUTOSCALE_SAMPLE) return base;
                         const lows  = slice.map(c => c.low).sort((a, b) => a - b);
                         const highs = slice.map(c => c.high).sort((a, b) => a - b);
                         // 2nd / 98th percentile clip: discards the extreme 2% of
@@ -149,9 +181,9 @@
                         const base = baseImpl();
                         const slice = visibleSlice();
                         const vols = slice.map(c => Number(c.volume || 0)).filter(v => v > 0).sort((a, b) => a - b);
-                        // Need a stable sample for percentile cap; below ~10 bars
-                        // the cap itself becomes noisy.
-                        if (vols.length < 10) return base;
+                        // Need a stable sample for percentile cap; below
+                        // MIN_AUTOSCALE_SAMPLE bars the cap itself becomes noisy.
+                        if (vols.length < MIN_AUTOSCALE_SAMPLE) return base;
                         // Cap at 98th percentile: a single mega-volume print doesn't
                         // squish every other bar to invisibility.
                         const VOL_CAP_PCTILE = 0.98;
@@ -266,7 +298,7 @@
                     } catch (e) {
                         console.warn('[Chart] priceScale applyOptions failed:', e && e.message);
                     }
-                }, 80));
+                }, RESCALE_THROTTLE_MS));
             };
             tvChart.timeScale().subscribeVisibleLogicalRangeChange(_trackedVisibleRangeCB);
 
@@ -642,23 +674,8 @@
             wallLines = []; tpoLines = [];
 
             // ─── RSI band cleanup (Phase A audit fix) ───
-            // The 70/30 overbought/oversold priceLines were previously leaked
-            // when the RSI series was destroyed + recreated (indicator toggle
-            // off → on). Now tracked via _trackedRsiSeries and nulled after
-            // removal so the next init attaches fresh bands to the new series.
-            const rsiSeries = this._rsiOverlaySeries || _trackedRsiSeries;
-            if (rsiSeries) {
-                if (this._rsiBand70) {
-                    try { rsiSeries.removePriceLine(this._rsiBand70); }
-                    catch (e) { console.warn('[Chart] removePriceLine RSI70 failed:', e && e.message); }
-                    this._rsiBand70 = null;
-                }
-                if (this._rsiBand30) {
-                    try { rsiSeries.removePriceLine(this._rsiBand30); }
-                    catch (e) { console.warn('[Chart] removePriceLine RSI30 failed:', e && e.message); }
-                    this._rsiBand30 = null;
-                }
-            }
+            // Single source of truth is removeRsiBands() — shared with destroy().
+            removeRsiBands(this);
         },
 
         /**
@@ -689,18 +706,8 @@
                 _trackedVisibleRangeCB = null;
             }
 
-            // 4. Remove RSI band priceLines
-            const rsiSeries = this._rsiOverlaySeries || _trackedRsiSeries;
-            if (rsiSeries) {
-                if (this._rsiBand70) {
-                    try { rsiSeries.removePriceLine(this._rsiBand70); } catch (e) { /* already removed */ }
-                    this._rsiBand70 = null;
-                }
-                if (this._rsiBand30) {
-                    try { rsiSeries.removePriceLine(this._rsiBand30); } catch (e) { /* already removed */ }
-                    this._rsiBand30 = null;
-                }
-            }
+            // 4. Remove RSI band priceLines (shared helper — same contract as clearAll)
+            removeRsiBands(this);
             _trackedRsiSeries = null;
             this._rsiOverlaySeries = null;
 
@@ -800,7 +807,7 @@
                         _trackedTimers.delete(priceEl._flashTimer);
                         priceEl._flashTimer = null;
                         priceEl.style.textShadow = '';
-                    }, 180);
+                    }, PRICE_FLASH_MS);
                     trackTimer(priceEl._flashTimer);
                 }
 
@@ -819,7 +826,7 @@
                         _trackedTimers.delete(hudPrice._flashTimer);
                         hudPrice._flashTimer = null;
                         hudPrice.style.textShadow = `0 0 6px ${flashShadow}`;
-                    }, 180);
+                    }, PRICE_FLASH_MS);
                     trackTimer(hudPrice._flashTimer);
                 }
                 const hudOhlc = document.getElementById('chartHudOhlc');
