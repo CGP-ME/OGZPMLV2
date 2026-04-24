@@ -2145,6 +2145,31 @@
         }
 
         /* ============================================================
+           .indicator-bar BASE LAYOUT (outside Phase B fence)
+           ------------------------------------------------------------
+           Pre-Phase-B base so rollback of the entire Phase B block
+           leaves a functional (plain) indicator bar instead of a
+           completely unstyled element. Phase B below adds the
+           brand-red/glass polish on top of this base.
+           ============================================================ */
+        .indicator-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0;
+            padding: 8px 4px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            margin-bottom: 12px;
+        }
+        .indicator-bar > * {
+            position: relative;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+
+        /* ============================================================
            PHASE B · Glass Right Rail + Brand Frame
            ------------------------------------------------------------
            Re-skins trading panels, selectors, status bar, and
@@ -2230,16 +2255,23 @@
             left: 0;
             width: 2px;
             border-radius: 0 2px 2px 0;
+            /* Bumped mid/edge colors to --brand-red-bright so the
+               accent strip clears WCAG non-text contrast 3:1 against
+               the dark-glass panel background. Previously midpoint
+               was --brand-red (#dc2626) = ~3.9:1; now --brand-red-bright
+               (#ef4444) = ~4.7:1. Decorative element, so AA text
+               threshold doesn't apply, but the brighter variant also
+               reads better at 2px width. */
             background: linear-gradient(
                 180deg,
                 transparent 0%,
-                var(--brand-red) 18%,
+                var(--brand-red-bright) 18%,
                 var(--brand-red-bright) 50%,
-                var(--brand-red) 82%,
+                var(--brand-red-bright) 82%,
                 transparent 100%
             );
             box-shadow: 0 0 10px var(--brand-red-glow);
-            opacity: 0.85;
+            opacity: 1;
             pointer-events: none;
         }
 
@@ -2382,23 +2414,14 @@
             text-shadow: 0 0 6px rgba(220, 38, 38, 0.22);
         }
 
-        /* Indicator bar — JetBrains Mono chips with red hairline separators.
-           Scoped under .trading-panel so specificity beats Phase A
-           WITHOUT !important declarations. Previously relied on
-           12× !important to win the cascade; bumping specificity
-           (0,0,2,0 vs 0,0,1,0) is the structural fix, not a hammer. */
+        /* Indicator bar — PHASE B brand polish (deleted on rollback).
+           Base layout lives OUTSIDE the Phase B fence so rollback
+           truly is a single-block delete without leaving
+           .indicator-bar unstyled. See the base block above
+           "END PHASE A / BEGIN PHASE B" boundary. */
         .trading-panel .indicator-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0;
-            padding: 8px 4px;
             background: rgba(0, 0, 0, 0.45);
             border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            line-height: 1.3;
-            margin-bottom: 12px;
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             /* Paint containment — backdrop-filter re-rasterization on
@@ -2413,6 +2436,16 @@
             scrollbar-color: var(--brand-red-dim) transparent;
         }
 
+        /* WebKit-side scrollbar parts for .indicator-bar parity with
+           Firefox — only renders if overflow ever kicks in. */
+        .trading-panel .indicator-bar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .trading-panel .indicator-bar::-webkit-scrollbar-track { background: transparent; }
+        .trading-panel .indicator-bar::-webkit-scrollbar-thumb {
+            background: var(--brand-red-dim);
+            border-radius: 3px;
+        }
+        .trading-panel .indicator-bar::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
+
         /* Same @supports fallback pattern as .panel-section so Firefox<103
            gets an opaque bar instead of transparent. */
         @supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
@@ -2422,11 +2455,8 @@
         }
 
         .trading-panel .indicator-bar > * {
-            position: relative;
-            padding: 4px 10px;
             color: #d6d6d6;
             letter-spacing: 0.2px;
-            white-space: nowrap;
         }
 
         .trading-panel .indicator-bar > * + *::before {
@@ -2638,6 +2668,17 @@
             color: #ffffff;
         }
 
+        /* Graceful degradation for selects on browsers without
+           backdrop-filter (Firefox<103, older Edge) — opaque background
+           so dropdown trigger remains visible over dark page. */
+        @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+            select#tierSelector,
+            select#assetSelector,
+            select#timeframeSelector {
+                background-color: rgba(14, 14, 16, 0.94);
+            }
+        }
+
         /* Status light triad (BOT · DATA · TRAI) — brand ambient + glass */
         .status-lights-bar {
             background: var(--glass-bg);
@@ -2645,6 +2686,14 @@
             box-shadow: 0 0 14px rgba(220, 38, 38, 0.10);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Same @supports fallback for status-lights-bar so BOT/DATA/TRAI
+           pill row stays legible without backdrop-filter support. */
+        @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+            .status-lights-bar {
+                background: rgba(14, 14, 16, 0.94);
+            }
         }
 
         /* Golden proximity strip rewired to brand-red gradient */
