@@ -333,6 +333,7 @@ const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
 // Infrastructure
 // EMPIRE V2 ARCHITECTURE: Using BrokerFactory for proper abstraction
 const { createBrokerAdapter } = require('./brokers/BrokerFactory');
+const { normalizeOhlc } = require('./foundation/ohlc-normalize');
 const TierFeatureFlags = require('./TierFeatureFlags'); // Keep direct - in root not core
 const OgzTpoIntegration = loader.get('core', 'OgzTpoIntegration');
 
@@ -1123,7 +1124,19 @@ class OGZPrimeV14Bot {
         this.kraken.on('ohlc', (eventData) => {
           // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
           const timeframe = eventData.timeframe || '1m';
-          const ohlcData = eventData.data || eventData;  // Support old format too
+          const raw = eventData.data || eventData;  // Support old format too
+
+          // CHANGE 2026-04-24: Broker-agnostic OHLC normalizer. Every
+          // adapter (Kraken arrays, Alpaca short-object, future adapters
+          // with long-name fields) converges to one canonical shape
+          // before reaching CandleProcessor / indicators. New brokers
+          // stay dumb — they emit their native shape and this one-liner
+          // handles translation. See foundation/ohlc-normalize.js.
+          const ohlcData = normalizeOhlc(raw);
+          if (!ohlcData) {
+            console.warn('[OHLC] dropped unnormalizable payload from', timeframe, 'broker:', raw);
+            return;
+          }
 
           // Store in timeframe-specific history for dashboard
           this.storeTimeframeCandle(timeframe, ohlcData);
