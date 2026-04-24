@@ -229,6 +229,7 @@ class TradeNarrator {
           scope: 'USER',
           event: 'ready',
           timestamp: Date.now(),
+          text: 'Narrator online.',
         });
       } catch (_) { /* noop */ }
     }
@@ -604,7 +605,10 @@ class TradeNarrator {
     if (!this.user) return;
     // eslint-disable-next-line no-console
     console.log(`🎙️  [USER] ${line}`);
-    this._broadcast(payload);
+    // Inject the USER-scope prose into the broadcast payload so dashboard
+    // handlers can render it directly without reconstructing from structured
+    // fields. Stdout still gets the raw `line`; WS consumers read `payload.text`.
+    this._broadcast({ ...payload, text: line });
   }
 
   _broadcast(payload) {
