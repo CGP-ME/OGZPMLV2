@@ -790,9 +790,9 @@
                 state.selected = parseInt(el.dataset.idx, 10);
                 updateActive();
             });
-            el.addEventListener('click', () => {
+            el.addEventListener('click', (ev) => {
                 state.selected = parseInt(el.dataset.idx, 10);
-                runSelected();
+                runSelected(ev);
             });
         });
 
@@ -852,10 +852,22 @@
 
     function toggle() { state.open ? close() : open(); }
 
-    function runSelected() {
+    function runSelected(triggerEvent) {
         const row = state.filtered[state.selected];
         if (!row) return;
         const cmd = row.cmd;
+        // Trusted-event gate: only execute commands when the trigger
+        // event came from a genuine user action (click / keydown the
+        // user actually performed). Synthesized events (dispatched by
+        // an iframe or another same-origin script via dispatchEvent)
+        // have isTrusted === false. This blocks the attack vector
+        // where a malicious page opens the palette and programmatically
+        // fires Enter/click to execute a command without user consent.
+        if (!triggerEvent || triggerEvent.isTrusted !== true) {
+            console.warn('[CommandPalette] run rejected — trigger not isTrusted');
+            toast('Command requires a real user action');
+            return;
+        }
         close();
         // Defer to next tick so the palette DOM is hidden before the
         // command mutates state / navigates away.
@@ -898,7 +910,7 @@
         }
         if (e.key === 'Enter') {
             e.preventDefault();
-            runSelected();
+            runSelected(e);
             return;
         }
         if (e.key === 'Tab') {
