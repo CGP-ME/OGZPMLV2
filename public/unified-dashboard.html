@@ -2355,20 +2355,30 @@
 
         /* Right-rail cards: glass-morphism + brand-red accent strip.
            Scoped under .trading-panel so Phase A's global .panel-section
-           rule (L583) still applies to panels outside the right rail. */
+           rule (L583) still applies to panels outside the right rail.
+           2026-04-25 boost: bumped blur, dropped bg alpha for more
+           translucency, added inner highlight stroke + stronger
+           outer shadow so panels read as "floating glass" even on
+           solid-black backgrounds where backdrop-filter has nothing
+           to actually filter. */
         .trading-panel .panel-section {
             position: relative;
             background: linear-gradient(
                 135deg,
-                var(--glass-bg) 0%,
-                rgba(8, 8, 10, 0.78) 100%
+                rgba(20, 20, 28, 0.55) 0%,
+                rgba(8, 8, 12, 0.65) 100%
             );
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;  /* matches --glass-border radius on trade-log; stays visually coherent with .stat-item 10px */
+            border: 1px solid rgba(220, 38, 38, 0.22);
+            border-radius: 14px;
             padding: 14px 16px 14px 18px;  /* extra left pad leaves room for ::before accent strip */
-            backdrop-filter: blur(14px) saturate(140%);
-            -webkit-backdrop-filter: blur(14px) saturate(140%);
-            box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            /* Multi-layer shadow + inner highlight = floating glass look */
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.62),
+                0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+                0 1px 0 rgba(255, 255, 255, 0.06) inset,
+                0 0 24px rgba(220, 38, 38, 0.05);
             transition: border-color 0.25s ease, box-shadow 0.25s ease,
                         transform 0.25s ease;
             /* Bound repaint to this element's box — backdrop-filter is

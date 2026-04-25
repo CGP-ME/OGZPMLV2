@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Glass-Morphism Boost (2026-04-25)
+
+**`public/unified-dashboard.html` — `.trading-panel .panel-section` rule:**
+- Bumped `backdrop-filter` from `blur(14px) saturate(140%)` → `blur(20px) saturate(160%)`.
+- Dropped panel background gradient alpha from `0.72/0.78` → `0.55/0.65` for more translucency.
+- Replaced single `var(--glass-shadow)` with multi-layer shadow: outer drop (`0 8px 32px rgba(0,0,0,0.62)`), inset 1px white-04 highlight stroke, inset top white-06 edge highlight, soft red ambient glow (`0 0 24px rgba(220,38,38,0.05)`).
+- Bumped accent border alpha `var(--glass-border)` (~0.14) → `rgba(220,38,38,0.22)` and `border-radius` 12px → 14px.
+- **Why:** Right-rail panels per mockup were supposed to read as "floating glass cards." Backdrop-filter alone has nothing to filter on solid-black background, so the multi-layer inset highlights + outer shadow simulate the floating-glass look without needing chart-overlap restructuring.
+
 ### Dashboard Deploy + Exit-Path Unit-Safety + SMS Cleanup (2026-04-23 overnight)
 
 #### Commit range: `95225ba..0e20116` (9 commits on `alpaca/stocks-paper-flip`)
