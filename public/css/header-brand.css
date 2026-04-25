@@ -1,0 +1,83 @@
+/**
+ * header-brand.css - Top-left OGZPRIME wordmark + tagline.
+ *
+ * Restyle from metallic-silver to brand-red gradient with a leading
+ * red diamond accent + soft outer glow. Per mockup spec L6: "stylized
+ * logo per mockup (text-only with red accent, unless asset file exists)."
+ *
+ * Modular from day one (2026-04-25). Overrides the .logo / .tagline
+ * rules still living in unified-dashboard.html inline <style> block by
+ * way of normal cascade order — link tag is loaded AFTER the inline
+ * block so these rules win for matching specificity (1,0,0 each).
+ *
+ * When .logo / .tagline are eventually extracted from the inline block,
+ * delete the inline rules entirely; the rules below become canonical.
+ */
+
+.header .logo {
+    /* Token-driven brand-red gradient — keep metallic feel but recolor
+       so the red plays as primary brand cue. */
+    background: linear-gradient(
+        135deg,
+        var(--brand-red-bright) 0%,
+        var(--brand-red) 45%,
+        #b91c1c 75%,
+        var(--brand-red-bright) 100%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;  /* Firefox fallback parity with -webkit fill */
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    line-height: 1;
+    /* Outer glow on the parent box reads through transparent text fill —
+       gives the wordmark a halo without breaking gradient text. */
+    filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.45))
+            drop-shadow(0 0 4px rgba(0, 0, 0, 0.85));
+    /* Diamond accent before the wordmark */
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header .logo::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    transform: rotate(45deg);
+    background: linear-gradient(
+        135deg,
+        var(--brand-red-bright) 0%,
+        var(--brand-red) 100%
+    );
+    box-shadow:
+        0 0 12px var(--brand-red-glow),
+        0 0 0 1px rgba(255, 255, 255, 0.10) inset;
+    /* Restore the filter so it doesn't get lost when -webkit-text-fill is
+       set to transparent on the parent. */
+    filter: drop-shadow(0 0 6px var(--brand-red-glow));
+}
+
+.header .tagline {
+    color: #888;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2.8px;
+    margin-top: 4px;
+    text-shadow: 0 0 6px rgba(220, 38, 38, 0.18);
+}
+
+/* Accessibility: opted-out users still get the static glow but no
+   pulse-style flickers (none defined here, but reserve the hook). */
+@media (prefers-reduced-motion: reduce) {
+    .header .logo {
+        filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.35));
+    }
+}
