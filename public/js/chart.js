@@ -478,6 +478,25 @@
                 }
             });
 
+            // ResizeObserver on the chart container — fires whenever the
+            // container's dimensions change for ANY reason: CSS padding
+            // shifts, parent layout changes, sibling panels appearing/
+            // disappearing, etc. Window-resize alone misses these. The
+            // chart canvas was rendering at stale init dimensions when
+            // the surrounding rails were toggled on/off.
+            if (typeof ResizeObserver !== 'undefined') {
+                this._chartResizeObserver = new ResizeObserver(() => {
+                    if (tvChart && container) {
+                        tvChart.resize(container.clientWidth, container.clientHeight);
+                    }
+                });
+                try {
+                    this._chartResizeObserver.observe(container);
+                } catch (e) {
+                    console.warn('[Chart] ResizeObserver.observe failed:', e);
+                }
+            }
+
             // Wire beforeunload → destroy() so every listener, timer, and
             // subscription this module created is explicitly torn down
             // before the browser collects the page. Belt-and-suspenders:
