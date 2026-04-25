@@ -1,0 +1,299 @@
+/**
+ * trading-panel.css - Right-rail narrative grid (Pattern Analysis,
+ * Performance Stats, Chain of Thought, Strategy Leaderboard, Trade Log).
+ *
+ * Extracted from unified-dashboard.html inline <style> block on
+ * 2026-04-25 to continue the modular extraction trajectory started
+ * in commit ba7b37a ("feat: Dashboard Integrated Extraction").
+ *
+ * Scope: only rules that match .trading-panel or .trading-panel <descendant>.
+ * Sibling rules inside the right-rail DOM that use unscoped class names
+ * (.pattern-name, .trade-log, .chain-of-thought, .thought-entry, etc.)
+ * remain in unified-dashboard.html until their own extraction pass.
+ *
+ * Tokens: depends on :root CSS variables (--brand-red*, --glass-*) defined
+ * in unified-dashboard.html. Those stay inline because they are shared
+ * across many panels — moving them is a separate cross-cutting refactor.
+ */
+
+/* ============================================================
+   Container — fixed-position vertical stack on right side,
+   mirrors Edge Analytics on the left.
+   ============================================================ */
+.trading-panel {
+    position: fixed;
+    right: 10px;
+    top: 100px;
+    width: 320px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    z-index: 95;
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-red-dim) transparent;
+}
+.trading-panel::-webkit-scrollbar { width: 6px; }
+.trading-panel::-webkit-scrollbar-track { background: transparent; }
+.trading-panel::-webkit-scrollbar-thumb {
+    background: var(--brand-red-dim);
+    border-radius: 3px;
+}
+.trading-panel::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
+
+/* ============================================================
+   Right-rail glass cards — brand-red accent strip + multi-layer
+   shadow giving the "floating glass" look on solid-black bg
+   where backdrop-filter alone would have nothing to filter.
+   2026-04-25 boost: blur 14->20px, saturate 140%->160%, dropped
+   bg alpha for translucency, multi-layer shadow with inner
+   highlights. (commit 07063cb)
+   ============================================================ */
+.trading-panel .panel-section {
+    position: relative;
+    background: linear-gradient(
+        135deg,
+        rgba(20, 20, 28, 0.55) 0%,
+        rgba(8, 8, 12, 0.65) 100%
+    );
+    border: 1px solid rgba(220, 38, 38, 0.22);
+    border-radius: 14px;
+    padding: 14px 16px 14px 18px;  /* extra left pad leaves room for ::before accent strip */
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 0 24px rgba(220, 38, 38, 0.05);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease,
+                transform 0.25s ease;
+    /* Bound repaint to this element's box — backdrop-filter is GPU-expensive;
+       without containment the whole rail re-rasterizes on any sibling hover. */
+    contain: paint;
+    will-change: backdrop-filter;
+}
+
+.trading-panel .panel-section::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 0;
+    width: 2px;
+    border-radius: 0 2px 2px 0;
+    /* Bumped mid/edge to --brand-red-bright (~4.7:1 vs panel) so the accent
+       strip clears WCAG 1.4.11 non-text-contrast 3:1 at 2px width. */
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        var(--brand-red-bright) 18%,
+        var(--brand-red-bright) 50%,
+        var(--brand-red-bright) 82%,
+        transparent 100%
+    );
+    box-shadow: 0 0 10px var(--brand-red-glow);
+    opacity: 1;
+    pointer-events: none;
+}
+
+.trading-panel .panel-section:hover {
+    border-color: var(--glass-border-hover);
+    box-shadow:
+        0 12px 34px rgba(0, 0, 0, 0.62),
+        0 0 18px rgba(220, 38, 38, 0.14),
+        0 0 0 1px rgba(220, 38, 38, 0.08) inset;
+}
+
+/* Graceful degradation for browsers without backdrop-filter
+   (older Firefox, older Edge): opaque fallback so panels stay legible. */
+@supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
+    .trading-panel .panel-section {
+        background: rgba(14, 14, 16, 0.94);
+    }
+}
+
+/* ============================================================
+   Panel titles — red pulse dot + Orbitron caps.
+   ============================================================ */
+.trading-panel .panel-title {
+    color: #ffffff;
+    font-family: 'Orbitron', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(220, 38, 38, 0.35);
+    border-bottom: 1px solid var(--brand-red-line);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.trading-panel .panel-title::before {
+    content: '';
+    /* Explicit display:inline-block keeps box sizing predictable as a flex item;
+       flex:0 0 auto prevents shrink. */
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand-red-bright);
+    box-shadow:
+        0 0 8px var(--brand-red-bright),
+        0 0 14px var(--brand-red-glow);
+    animation: ogzBrandPulse 2.4s ease-in-out infinite;
+    will-change: transform, box-shadow;
+}
+
+@keyframes ogzBrandPulse {
+    0%, 100% {
+        box-shadow:
+            0 0 8px var(--brand-red-bright),
+            0 0 14px var(--brand-red-glow);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow:
+            0 0 12px var(--brand-red-bright),
+            0 0 22px var(--brand-red-glow);
+        transform: scale(1.15);
+    }
+}
+
+/* WCAG 2.4.3: opted-out users get a static dot (steady glow, no pulse). */
+@media (prefers-reduced-motion: reduce) {
+    .trading-panel .panel-title::before {
+        animation: none;
+    }
+}
+
+/* ============================================================
+   Stats grid — clean 2x2 glass tiles inside trading-panel.
+   ============================================================ */
+.trading-panel .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.trading-panel .stat-item {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    transition: border-color 0.22s ease,
+                background 0.22s ease,
+                transform 0.22s ease,
+                box-shadow 0.22s ease;
+}
+
+.trading-panel .stat-item:hover {
+    border-color: var(--glass-border-hover);
+    background: rgba(220, 38, 38, 0.04);
+    transform: translateY(-1px);
+    box-shadow: 0 0 12px rgba(220, 38, 38, 0.12);
+}
+
+.trading-panel .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: #9a9a9a;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    margin-bottom: 6px;
+}
+
+.trading-panel .stat-value {
+    font-family: 'Orbitron', 'JetBrains Mono', monospace;
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.4px;
+    text-shadow: 0 0 6px rgba(220, 38, 38, 0.22);
+}
+
+/* ============================================================
+   Indicator bar — scoped overrides for the right-rail variant.
+   Base layout for .indicator-bar lives outside the trading-panel
+   scope and stays in unified-dashboard.html until its own
+   extraction pass.
+   ============================================================ */
+.trading-panel .indicator-bar {
+    position: relative;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+    will-change: backdrop-filter;
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-red-dim) transparent;
+}
+
+.trading-panel .indicator-bar::-webkit-scrollbar { height: 6px; width: 6px; }
+.trading-panel .indicator-bar::-webkit-scrollbar-track { background: transparent; }
+.trading-panel .indicator-bar::-webkit-scrollbar-thumb {
+    background: var(--brand-red-dim);
+    border-radius: 3px;
+}
+.trading-panel .indicator-bar::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
+
+@supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
+    .trading-panel .indicator-bar {
+        background: rgba(0, 0, 0, 0.82);
+    }
+}
+
+.trading-panel .indicator-bar > * {
+    color: #d6d6d6;
+    letter-spacing: 0.2px;
+}
+
+.trading-panel .indicator-bar > * + *::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 1px;
+    background: var(--brand-red-line);
+}
+
+/* ============================================================
+   Trade badge pills — scoped under .trading-panel so they don't
+   silently clobber the global .trade-badge rule used elsewhere.
+   ============================================================ */
+.trading-panel .trade-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: 1.2px;
+    min-width: 42px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.trading-panel .trade-badge.buy  {
+    background: rgba(34, 197, 94, 0.14);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.trading-panel .trade-badge.sell {
+    /* Near-opaque dark red guarantees ~10:1 text contrast regardless of parent
+       background — earlier 14% alpha collapsed contrast on light parents. */
+    background: rgba(127, 15, 15, 0.95);
+    color: #fecaca;
+    border: 1px solid rgba(220, 38, 38, 0.55);
+}
