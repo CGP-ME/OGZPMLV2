@@ -74,36 +74,95 @@
             z-index: 0;
         }
         
-        /* Header */
+        /* Header — restructured 2026-04-25 to a flex row:
+           [logo+tagline LEFT] [hero-price CENTER] [status cluster RIGHT].
+           Replaces the previous text-align:center layout to match
+           the mockup's three-zone header. */
         .header {
             background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
-            padding: 12px 20px;
-            text-align: center;
+            padding: 12px 24px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
             position: relative;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
         }
-        
+        .header > .logo,
+        .header > .tagline {
+            /* Stack logo + tagline as a single LEFT zone */
+        }
+
         .logo {
             font-family: 'Orbitron', monospace;
-            font-size: 42px;
+            font-size: 32px;
             font-weight: 900;
             background: var(--metallic-gradient);
             background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-transform: uppercase;
-            letter-spacing: 5px;
+            letter-spacing: 4px;
             text-shadow: 0 0 30px rgba(192, 192, 192, 0.5);
+            line-height: 1;
         }
-        
+
         .tagline {
             color: #666666;
-            font-size: 14px;
-            margin-top: 5px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 2.5px;
+            margin-top: 2px;
+        }
+
+        /* Hero price (CENTER zone) — big centered $price + delta + %.
+           Mirrors #currentPrice via JS so chart.js's existing write
+           path keeps working. */
+        .header-hero-price {
+            flex: 1;
+            text-align: center;
+            min-width: 0;
+        }
+        .hero-price-main {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 800;
+            color: #22c55e;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 22px rgba(34, 197, 94, 0.4);
+            line-height: 1;
+        }
+        .hero-price-main.neg {
+            color: #ef4444;
+            text-shadow: 0 0 22px rgba(239, 68, 68, 0.4);
+        }
+        .hero-price-delta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .hero-price-delta.pos { color: #22c55e; }
+        .hero-price-delta.neg { color: #ef4444; }
+
+        /* Status cluster (RIGHT zone) — holds the lights triad,
+           risk gauge mount, and session phase indicator inline. */
+        .header-status-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 0 0 auto;
+        }
+
+        /* Brand zone (LEFT) — logo + tagline stacked vertically. */
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 auto;
+            min-width: 0;
         }
         
         /* Tier Selector - Prominent placement */
@@ -3128,25 +3187,29 @@
     </div>
 
     <div class="header">
-        <div class="logo">OGZPrime</div>
-        <div class="tagline">Neural Ensemble • Real-Time Data</div>
-        <!-- Version selector HIDDEN 2026-04-24: only one active version
-             so the "SELECT VERSION" label + dropdown took up header
-             real-estate for no user value. DOM preserved (display:none
-             on wrapper) so any JS referencing #tierSelector still
-             resolves rather than throwing. -->
-        <div class="tier-selector-container" style="display:none;">
-            <span class="tier-label">SELECT VERSION:</span>
-            <select id="tierSelector" class="tier-selector">
-                <option value="ml">ML VERSION - ALL FEATURES</option>
-                <option value="core">CORE VERSION</option>
-            </select>
-            <div class="connection-status">
-                <span class="status-dot" id="connectionStatus"></span>
-                <span id="statusText">Connecting...</span>
-            </div>
+        <div class="header-brand">
+            <div class="logo">OGZPrime</div>
+            <div class="tagline">Neural Ensemble • Real-Time Data</div>
+        </div>
 
-            <!-- CHANGE 2026-01-22: Multi-status lights for system health -->
+        <!-- Hero price — big centered number per mockup. Mirrors
+             #currentPrice (chart-title-container) via JS for now;
+             chart.js writes to #currentPrice, we mirror via a
+             listener below. Once stable, we'll move chart.js to
+             write directly here. -->
+        <div class="header-hero-price" id="headerHeroPrice">
+            <div class="hero-price-main" id="heroPriceMain">$0.00</div>
+            <div class="hero-price-delta" id="heroPriceDelta"></div>
+        </div>
+
+        <!-- Status indicators (moved out of the hidden tier-selector-
+             container 2026-04-25 so #botStatusRow / #sessionPhase /
+             status-lights-bar actually mount visibly. The hidden
+             SELECT VERSION dropdown was incidentally hiding all of
+             these too — Risk Gauge / Session Phase widgets had
+             nowhere visible to render.) -->
+        <div class="header-status-cluster">
+            <!-- Multi-status lights for system health -->
             <div class="status-lights-bar">
                 <div class="status-light" title="Kraken data feed">
                     <span class="light" id="dataLight"></span>
@@ -3161,10 +3224,26 @@
                     <span class="label">TRAI</span>
                 </div>
             </div>
-            <!-- Phase E: Risk gauge mount point (inline after status triad) -->
-            <div class="bot-status-row" id="botStatusRow" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;"></div>
+            <!-- Phase E: Risk gauge mount point -->
+            <div class="bot-status-row" id="botStatusRow" style="display:inline-flex;align-items:center;gap:8px;"></div>
             <!-- Phase F: Session phase indicator -->
             <span id="sessionPhase"></span>
+        </div>
+
+        <!-- Version selector HIDDEN 2026-04-24: only one active version
+             so the "SELECT VERSION" label + dropdown took up header
+             real-estate for no user value. DOM preserved (display:none)
+             so any JS referencing #tierSelector still resolves. -->
+        <div class="tier-selector-container" style="display:none;">
+            <span class="tier-label">SELECT VERSION:</span>
+            <select id="tierSelector" class="tier-selector">
+                <option value="ml">ML VERSION - ALL FEATURES</option>
+                <option value="core">CORE VERSION</option>
+            </select>
+            <div class="connection-status">
+                <span class="status-dot" id="connectionStatus"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
         </div>
     </div>
     
@@ -3517,6 +3596,58 @@
         };
     </script>
 
+
+    <!-- Hero price mirror — chart.js writes to #currentPrice on every
+         tick. Mirror that into #heroPriceMain (header center zone)
+         and compute delta vs prior price for color-coding. Standalone
+         IIFE, no module boundary needed. -->
+    <script>
+    (function () {
+        'use strict';
+        const src = document.getElementById('currentPrice');
+        const dst = document.getElementById('heroPriceMain');
+        const delta = document.getElementById('heroPriceDelta');
+        if (!src || !dst) return;
+
+        let lastNum = null;
+        function parsePrice(text) {
+            if (!text) return null;
+            const m = String(text).match(/\$?([\d,]+\.?\d*)/);
+            if (!m) return null;
+            const n = parseFloat(m[1].replace(/,/g, ''));
+            return isFinite(n) ? n : null;
+        }
+
+        function tick() {
+            const text = src.textContent || '';
+            const num = parsePrice(text);
+            if (num == null || num <= 0) return;
+
+            // Only show price part — strip OHLC if currentPrice has it
+            // (when crosshair is hovering the chart, #currentPrice may
+            // hold "O:..H:..L:..C:..". Hero stays clean with just $.)
+            dst.textContent = '$' + num.toFixed(2);
+
+            if (lastNum != null) {
+                const d = num - lastNum;
+                const pct = (d / lastNum) * 100;
+                if (Math.abs(d) >= 0.01) {
+                    const sign = d >= 0 ? '+' : '';
+                    delta.textContent = sign + d.toFixed(2) + '  (' + sign + pct.toFixed(2) + '%)';
+                    delta.className = 'hero-price-delta ' + (d >= 0 ? 'pos' : 'neg');
+                    dst.className = 'hero-price-main ' + (d >= 0 ? '' : 'neg');
+                }
+            }
+            lastNum = num;
+        }
+
+        // Observe #currentPrice for textContent changes
+        const observer = new MutationObserver(tick);
+        observer.observe(src, { childList: true, characterData: true, subtree: true });
+        // Initial tick
+        tick();
+    })();
+    </script>
 
     <!-- TRAI Chat Widget -->
     <script src="trai-widget.js"></script>
