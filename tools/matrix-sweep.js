@@ -170,7 +170,10 @@ const GRID = {
   // tier combos = 1,200 configs per strategy. Captures full SL×tier1×tier2×tier3
   // interaction surface that the prior hand-picked-presets approach missed.
   exits: {
-    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75],
+    // Extended to 5.0% 2026-04-25 to match the `full` phase ceiling.
+    // Previous version stopped at 2.75% which left RSI exit-sweeps
+    // potentially clipped against the upper bound. Now mirrors full.
+    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0, 5.0],
     tierPresets: buildMonotonicTierCube([0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275]),
     confidence: [0.60],  // Locked at current validated value
   },
