@@ -251,14 +251,14 @@
         }
         
         /* Main Container
-           2026-04-24: Edge Analytics moved to LEFT (was right). padding-left
-           keeps 340px to make room for it; padding-right tightened from
-           340px → 20px since no right panel exists. Reclaims ~320px of
-           horizontal space for chart + narrative-panel grid. */
+           2026-04-25: Both rails active again. Edge Analytics on the LEFT
+           (340px), trading-panel narrative grid relocated to the RIGHT
+           (340px). Chart + headers fill the center column. Mirrors mockup
+           layout. */
         .main-container {
             padding: 10px;
-            padding-left: 340px;  /* Space for Edge Analytics panel */
-            padding-right: 20px;  /* No right fixed panel */
+            padding-left: 340px;  /* Space for Edge Analytics LEFT rail */
+            padding-right: 340px; /* Space for trading-panel RIGHT rail */
             position: relative;
             z-index: 5;
             transition: padding 0.3s ease;
@@ -597,12 +597,33 @@
         }
         
         /* Trading Panel */
+        /* 2026-04-25: Relocated to RIGHT RAIL per mockup. Was previously
+           a horizontal grid below the chart; now a fixed-position vertical
+           stack on the right side, mirroring Edge Analytics on the left.
+           Holds the narrative panels (Pattern Analysis, Performance Stats,
+           Chain of Thought, Strategy Leaderboard, Trade Log) in mockup
+           positions. */
         .trading-panel {
+            position: fixed;
+            right: 10px;
+            top: 100px;
+            width: 320px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: 1fr;
             gap: 12px;
-            margin-top: 10px;
+            z-index: 95;
+            scrollbar-width: thin;
+            scrollbar-color: var(--brand-red-dim) transparent;
         }
+        .trading-panel::-webkit-scrollbar { width: 6px; }
+        .trading-panel::-webkit-scrollbar-track { background: transparent; }
+        .trading-panel::-webkit-scrollbar-thumb {
+            background: var(--brand-red-dim);
+            border-radius: 3px;
+        }
+        .trading-panel::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
         
         .panel-section {
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(14, 14, 14, 0.95) 100%);
