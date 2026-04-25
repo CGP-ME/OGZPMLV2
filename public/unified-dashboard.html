@@ -2693,7 +2693,8 @@
            red-themed glass dropdowns with custom chevron arrow */
         select#tierSelector,
         select#assetSelector,
-        select#timeframeSelector {
+        select#timeframeSelector,
+        select#chartTypeSelector {
             background-color: var(--glass-bg-strong);
             color: #ffffff;
             border: 1px solid var(--glass-border);
@@ -2721,14 +2722,16 @@
 
         select#tierSelector:hover,
         select#assetSelector:hover,
-        select#timeframeSelector:hover {
+        select#timeframeSelector:hover,
+        select#chartTypeSelector:hover {
             border-color: var(--glass-border-hover);
             box-shadow: 0 0 12px rgba(220, 38, 38, 0.18);
         }
 
         select#tierSelector:focus,
         select#assetSelector:focus,
-        select#timeframeSelector:focus {
+        select#timeframeSelector:focus,
+        select#chartTypeSelector:focus {
             /* outline:none is deliberate — the box-shadow ring below
                IS the focus indicator. Previous 0.22 alpha fell below
                WCAG non-text contrast 3:1 against the dark page
@@ -2746,7 +2749,8 @@
 
         select#tierSelector option,
         select#assetSelector option,
-        select#timeframeSelector option {
+        select#timeframeSelector option,
+        select#chartTypeSelector option {
             background: #0c0c0e;
             color: #ffffff;
         }
@@ -2757,7 +2761,8 @@
         @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
             select#tierSelector,
             select#assetSelector,
-            select#timeframeSelector {
+            select#timeframeSelector,
+            select#chartTypeSelector {
                 background-color: rgba(14, 14, 16, 0.94);
             }
         }
