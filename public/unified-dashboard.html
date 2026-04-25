@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/trading-panel.css">
     <link rel="stylesheet" href="/css/asset-tf-card.css">
+    <link rel="stylesheet" href="/css/header-brand.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
@@ -92,32 +93,8 @@
             justify-content: space-between;
             gap: 16px;
         }
-        .header > .logo,
-        .header > .tagline {
-            /* Stack logo + tagline as a single LEFT zone */
-        }
-
-        .logo {
-            font-family: 'Orbitron', monospace;
-            font-size: 32px;
-            font-weight: 900;
-            background: var(--metallic-gradient);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 0 30px rgba(192, 192, 192, 0.5);
-            line-height: 1;
-        }
-
-        .tagline {
-            color: #666666;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 2.5px;
-            margin-top: 2px;
-        }
+        /* .logo + .tagline rules moved to public/css/header-brand.css
+           (2026-04-25 L6 logo restyle + modular extraction). */
 
         /* Hero price (CENTER zone) — big centered $price + delta + %.
            Mirrors #currentPrice via JS so chart.js's existing write
@@ -925,7 +902,6 @@
             background: linear-gradient(135deg, #ffd700 0%, #cc9900 100%);
             color: #000;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
-        }
         }
 
         .thought-step {
