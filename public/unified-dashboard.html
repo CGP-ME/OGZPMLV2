@@ -7,6 +7,7 @@
     <!-- TradingView Lightweight Charts v4.1 -->
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/trading-panel.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
@@ -662,28 +663,8 @@
            Holds the narrative panels (Pattern Analysis, Performance Stats,
            Chain of Thought, Strategy Leaderboard, Trade Log) in mockup
            positions. */
-        .trading-panel {
-            position: fixed;
-            right: 10px;
-            top: 100px;
-            width: 320px;
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            z-index: 95;
-            scrollbar-width: thin;
-            scrollbar-color: var(--brand-red-dim) transparent;
-        }
-        .trading-panel::-webkit-scrollbar { width: 6px; }
-        .trading-panel::-webkit-scrollbar-track { background: transparent; }
-        .trading-panel::-webkit-scrollbar-thumb {
-            background: var(--brand-red-dim);
-            border-radius: 3px;
-        }
-        .trading-panel::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
-        
+        /* .trading-panel container + scrollbars moved to public/css/trading-panel.css (2026-04-25 modular extraction) */
+
         .panel-section {
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(14, 14, 14, 0.95) 100%);
             border: 1px solid rgba(255, 215, 0, 0.2);
@@ -2353,152 +2334,10 @@
                                   0 0 0 1px rgba(220, 38, 38, 0.06) inset;
         }
 
-        /* Right-rail cards: glass-morphism + brand-red accent strip.
-           Scoped under .trading-panel so Phase A's global .panel-section
-           rule (L583) still applies to panels outside the right rail.
-           2026-04-25 boost: bumped blur, dropped bg alpha for more
-           translucency, added inner highlight stroke + stronger
-           outer shadow so panels read as "floating glass" even on
-           solid-black backgrounds where backdrop-filter has nothing
-           to actually filter. */
-        .trading-panel .panel-section {
-            position: relative;
-            background: linear-gradient(
-                135deg,
-                rgba(20, 20, 28, 0.55) 0%,
-                rgba(8, 8, 12, 0.65) 100%
-            );
-            border: 1px solid rgba(220, 38, 38, 0.22);
-            border-radius: 14px;
-            padding: 14px 16px 14px 18px;  /* extra left pad leaves room for ::before accent strip */
-            backdrop-filter: blur(20px) saturate(160%);
-            -webkit-backdrop-filter: blur(20px) saturate(160%);
-            /* Multi-layer shadow + inner highlight = floating glass look */
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.62),
-                0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-                0 1px 0 rgba(255, 255, 255, 0.06) inset,
-                0 0 24px rgba(220, 38, 38, 0.05);
-            transition: border-color 0.25s ease, box-shadow 0.25s ease,
-                        transform 0.25s ease;
-            /* Bound repaint to this element's box — backdrop-filter is
-               GPU-expensive; without containment the whole rail
-               re-rasterizes on any sibling hover. */
-            contain: paint;
-            will-change: backdrop-filter;
-        }
-
-        .trading-panel .panel-section::before {
-            content: '';
-            position: absolute;
-            top: 10px;
-            bottom: 10px;
-            left: 0;
-            width: 2px;
-            border-radius: 0 2px 2px 0;
-            /* Bumped mid/edge colors to --brand-red-bright so the
-               accent strip clears WCAG non-text contrast 3:1 against
-               the dark-glass panel background. Previously midpoint
-               was --brand-red (#dc2626) = ~3.9:1; now --brand-red-bright
-               (#ef4444) = ~4.7:1. Decorative element, so AA text
-               threshold doesn't apply, but the brighter variant also
-               reads better at 2px width. */
-            background: linear-gradient(
-                180deg,
-                transparent 0%,
-                var(--brand-red-bright) 18%,
-                var(--brand-red-bright) 50%,
-                var(--brand-red-bright) 82%,
-                transparent 100%
-            );
-            box-shadow: 0 0 10px var(--brand-red-glow);
-            opacity: 1;
-            pointer-events: none;
-        }
-
-        .trading-panel .panel-section:hover {
-            border-color: var(--glass-border-hover);
-            box-shadow:
-                0 12px 34px rgba(0, 0, 0, 0.62),
-                0 0 18px rgba(220, 38, 38, 0.14),
-                0 0 0 1px rgba(220, 38, 38, 0.08) inset;
-        }
-
-        /* Graceful degradation: browsers without backdrop-filter
-           (older Firefox, older Edge) get an opaque fallback so
-           panels remain legible instead of becoming transparent. */
-        @supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
-            .trading-panel .panel-section {
-                background: rgba(14, 14, 16, 0.94);
-            }
-        }
-
-        /* Panel titles: red pulse dot + Orbitron caps, no gold.
-           Scoped under .trading-panel so Phase A's global .panel-title
-           rule (L592) still applies outside the right rail. */
-        .trading-panel .panel-title {
-            color: #ffffff;
-            font-family: 'Orbitron', 'JetBrains Mono', monospace;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-            text-shadow: 0 0 6px rgba(220, 38, 38, 0.35);
-            border-bottom: 1px solid var(--brand-red-line);
-            padding-bottom: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 9px;
-        }
-
-        .trading-panel .panel-title::before {
-            content: '';
-            /* As a child of flex parent, the pseudo-element is treated
-               as a flex item. Explicit display:inline-block keeps box
-               sizing predictable regardless of future parent-display
-               changes. flex:0 0 auto prevents shrink. */
-            display: inline-block;
-            flex: 0 0 auto;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--brand-red-bright);
-            box-shadow:
-                0 0 8px var(--brand-red-bright),
-                0 0 14px var(--brand-red-glow);
-            animation: ogzBrandPulse 2.4s ease-in-out infinite;
-            /* Hint GPU to promote this element to its own compositor
-               layer — keeps the pulse animation smooth on weak hardware
-               by avoiding per-frame re-layout of the surrounding
-               flex row. Transform and box-shadow are the two properties
-               the keyframe actually animates. */
-            will-change: transform, box-shadow;
-        }
-
-        @keyframes ogzBrandPulse {
-            0%, 100% {
-                box-shadow:
-                    0 0 8px var(--brand-red-bright),
-                    0 0 14px var(--brand-red-glow);
-                transform: scale(1);
-            }
-            50% {
-                box-shadow:
-                    0 0 12px var(--brand-red-bright),
-                    0 0 22px var(--brand-red-glow);
-                transform: scale(1.15);
-            }
-        }
-
-        /* WCAG 2.4.3: users who opted out of motion get a static dot
-           (no scale pulse, no shadow swell). The dot still renders
-           with a steady glow — it just doesn't animate. */
-        @media (prefers-reduced-motion: reduce) {
-            .trading-panel .panel-title::before {
-                animation: none;
-            }
-        }
+        /* .trading-panel-scoped rules (.panel-section, .panel-title,
+           .stats-grid, .stat-item, .indicator-bar, .trade-badge) +
+           @keyframes ogzBrandPulse moved to public/css/trading-panel.css
+           (2026-04-25 modular extraction). */
 
         /* Pattern headline — modern Orbitron with brand-red cast */
         .pattern-name {
@@ -2513,118 +2352,6 @@
                 0 0 10px rgba(220, 38, 38, 0.55),
                 0 0 20px rgba(220, 38, 38, 0.25);
             margin-bottom: 10px;
-        }
-
-        /* Stats grid — clean 2×2 glass tiles.
-           Scoped under .trading-panel so Phase B doesn't silently
-           override Phase A's global .stats-grid / .stat-item /
-           .stat-label / .stat-value rules at L688-720. Same
-           specificity-bump pattern used for .panel-section /
-           .panel-title / .indicator-bar / .trade-badge. */
-        .trading-panel .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-
-        .trading-panel .stat-item {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 12px 10px;
-            text-align: center;
-            transition: border-color 0.22s ease,
-                        background 0.22s ease,
-                        transform 0.22s ease,
-                        box-shadow 0.22s ease;
-        }
-
-        .trading-panel .stat-item:hover {
-            border-color: var(--glass-border-hover);
-            background: rgba(220, 38, 38, 0.04);
-            transform: translateY(-1px);
-            box-shadow: 0 0 12px rgba(220, 38, 38, 0.12);
-        }
-
-        .trading-panel .stat-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            font-weight: 600;
-            color: #9a9a9a;
-            text-transform: uppercase;
-            letter-spacing: 1.1px;
-            margin-bottom: 6px;
-        }
-
-        .trading-panel .stat-value {
-            font-family: 'Orbitron', 'JetBrains Mono', monospace;
-            font-size: 17px;
-            font-weight: 700;
-            color: #ffffff;
-            letter-spacing: 0.4px;
-            text-shadow: 0 0 6px rgba(220, 38, 38, 0.22);
-        }
-
-        /* Indicator bar — PHASE B brand polish (deleted on rollback).
-           Base layout lives OUTSIDE the Phase B fence so rollback
-           truly is a single-block delete without leaving
-           .indicator-bar unstyled. See the base block above
-           "END PHASE A / BEGIN PHASE B" boundary. */
-        .trading-panel .indicator-bar {
-            /* Explicit position:relative so the scoped rule is
-               self-evidently a positioning ancestor for child
-               pseudo-elements (the base rule above already declares
-               this, but the cascade dependency isn't obvious when
-               reading this block in isolation). Defense-in-depth. */
-            position: relative;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            /* Paint containment — backdrop-filter re-rasterization on
-               hover would otherwise ripple through the whole rail. */
-            contain: paint;
-            will-change: backdrop-filter;
-            /* Firefox-side scrollbar styling in case flex-wrap ever
-               fails (e.g., container width constraint) and the bar
-               overflows horizontally instead of wrapping. Defensive —
-               mirrors .trade-log/.chain-of-thought pattern. */
-            scrollbar-width: thin;
-            scrollbar-color: var(--brand-red-dim) transparent;
-        }
-
-        /* WebKit-side scrollbar parts for .indicator-bar parity with
-           Firefox — only renders if overflow ever kicks in. */
-        .trading-panel .indicator-bar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .trading-panel .indicator-bar::-webkit-scrollbar-track { background: transparent; }
-        .trading-panel .indicator-bar::-webkit-scrollbar-thumb {
-            background: var(--brand-red-dim);
-            border-radius: 3px;
-        }
-        .trading-panel .indicator-bar::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
-
-        /* Same @supports fallback pattern as .panel-section so Firefox<103
-           gets an opaque bar instead of transparent. */
-        @supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
-            .trading-panel .indicator-bar {
-                background: rgba(0, 0, 0, 0.82);
-            }
-        }
-
-        .trading-panel .indicator-bar > * {
-            color: #d6d6d6;
-            letter-spacing: 0.2px;
-        }
-
-        .trading-panel .indicator-bar > * + *::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 20%;
-            bottom: 20%;
-            width: 1px;
-            background: var(--brand-red-line);
         }
 
         /* Trade log — glass rows, pill badges, brand-red scrollbar */
@@ -2667,42 +2394,6 @@
 
         .trade-log-entry.entry-buy  { border-left-color: #22c55e; }
         .trade-log-entry.entry-sell { border-left-color: var(--brand-red-bright); }
-
-        /* Scoped under .trading-panel so Phase B's .trade-badge pill
-           geometry doesn't silently clobber Phase A's global
-           .trade-badge rule at L750. Same specificity-bump pattern
-           used for .panel-section / .panel-title / .indicator-bar. */
-        .trading-panel .trade-badge {
-            display: inline-block;
-            padding: 3px 9px;
-            border-radius: 999px;
-            font-family: 'Orbitron', monospace;
-            font-weight: 700;
-            font-size: 9.5px;
-            letter-spacing: 1.2px;
-            min-width: 42px;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        .trading-panel .trade-badge.buy  {
-            background: rgba(34, 197, 94, 0.14);
-            color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, 0.35);
-        }
-
-        .trading-panel .trade-badge.sell {
-            /* Bumped background from rgba(220,38,38,0.14) @ 14% alpha
-               to a near-opaque dark red. The 14% version composited
-               well against dark page bg (~12:1 with #fecaca text),
-               but if the badge ever renders on a light parent the
-               contrast collapses. Opaque dark red guarantees the
-               composite target regardless of parent background —
-               ~10:1 text contrast in every context. */
-            background: rgba(127, 15, 15, 0.95);
-            color: #fecaca;
-            border: 1px solid rgba(220, 38, 38, 0.55);
-        }
 
         .trade-pnl.profit  { color: #4ade80; }
         .trade-pnl.loss    { color: var(--brand-red-bright); }
