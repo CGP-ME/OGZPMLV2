@@ -1,0 +1,164 @@
+/**
+ * asset-tf-card.css - Left-rail asset card + timeframe pills.
+ *
+ * Sits at the top of the .edge-panel left rail. Shows the active
+ * symbol, its current price, and a row of pills for switching
+ * timeframes. Mirrors the mockup's left-rail header.
+ *
+ * Modular from day one (2026-04-25). No inline <style> growth in
+ * unified-dashboard.html — link tag in <head>, DOM block prepended
+ * inside .edge-content, behavior in public/js/panels/asset-tf-card.js.
+ *
+ * Tokens: depends on :root vars (--brand-red*, --glass-*) defined
+ * in unified-dashboard.html.
+ */
+
+.asset-tf-card {
+    /* Glass surface matching .trading-panel .panel-section family —
+       same multi-layer recipe so the rails read as a coherent set. */
+    position: relative;
+    margin: 0 0 14px 0;
+    padding: 14px 14px 12px 14px;
+    background: linear-gradient(
+        135deg,
+        rgba(20, 20, 28, 0.55) 0%,
+        rgba(8, 8, 12, 0.65) 100%
+    );
+    border: 1px solid rgba(220, 38, 38, 0.22);
+    border-radius: 14px;
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 0 24px rgba(220, 38, 38, 0.05);
+    contain: paint;
+    will-change: backdrop-filter;
+}
+
+.asset-tf-card__symbol-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.asset-tf-card__symbol {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(220, 38, 38, 0.35);
+}
+
+.asset-tf-card__delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #aaaaaa;  /* default neutral; JS swaps to profit/loss colors */
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.asset-tf-card__delta.profit {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.32);
+    color: #4ade80;
+}
+
+.asset-tf-card__delta.loss {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.40);
+    color: var(--brand-red-bright);
+}
+
+.asset-tf-card__price {
+    font-family: 'Orbitron', 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.4px;
+    text-shadow: 0 0 12px rgba(220, 38, 38, 0.30);
+    margin-bottom: 12px;
+    /* Reserve vertical space so the card height doesn't bounce when
+       the value goes from "$0.00" placeholder to "$1234.56". */
+    min-height: 30px;
+    line-height: 30px;
+}
+
+.asset-tf-card__pills {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.asset-tf-card__pill {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    color: #888;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    padding: 6px 0;
+    text-align: center;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.18s ease,
+                border-color 0.18s ease,
+                color 0.18s ease,
+                box-shadow 0.18s ease,
+                transform 0.18s ease;
+}
+
+.asset-tf-card__pill:hover {
+    border-color: rgba(220, 38, 38, 0.30);
+    color: #cccccc;
+    background: rgba(220, 38, 38, 0.05);
+    transform: translateY(-1px);
+}
+
+.asset-tf-card__pill:focus-visible {
+    /* Keyboard nav contrast — 2px brand-red ring against dark bg */
+    outline: 2px solid var(--brand-red-bright);
+    outline-offset: 2px;
+}
+
+.asset-tf-card__pill[aria-pressed="true"] {
+    background: linear-gradient(
+        180deg,
+        rgba(220, 38, 38, 0.22) 0%,
+        rgba(220, 38, 38, 0.10) 100%
+    );
+    border-color: rgba(220, 38, 38, 0.55);
+    color: #ffffff;
+    box-shadow:
+        0 0 14px rgba(220, 38, 38, 0.30),
+        0 0 0 1px rgba(220, 38, 38, 0.15) inset;
+}
+
+/* Older browsers without backdrop-filter support — opaque fallback so
+   the card stays legible instead of going transparent. */
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+    .asset-tf-card {
+        background: rgba(14, 14, 16, 0.94);
+    }
+}
+
+/* Reduce motion: kill hover transform for opted-out users. */
+@media (prefers-reduced-motion: reduce) {
+    .asset-tf-card__pill,
+    .asset-tf-card__pill:hover {
+        transform: none;
+        transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+}

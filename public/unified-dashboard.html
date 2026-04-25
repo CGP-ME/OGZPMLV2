@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/trading-panel.css">
+    <link rel="stylesheet" href="/css/asset-tf-card.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
@@ -2627,6 +2628,29 @@
         <div class="edge-header">🎯 EDGE ANALYTICS <span style="font-size:10px;opacity:0.7">(click to collapse)</span></div>
         <div class="edge-content">
 
+        <!-- Asset + Timeframe card (top-of-rail, mockup parity).
+             Symbol/price mirror #symbolSelector / #currentPrice via JS;
+             pills drive #timeframeSelector via dispatched 'change' event
+             so all 8 timeframe consumers stay wired (chart.js, websocket.js,
+             command-palette.js, candle-countdown.js). See
+             public/js/panels/asset-tf-card.js + public/css/asset-tf-card.css. -->
+        <div class="asset-tf-card" id="assetTfCard">
+            <div class="asset-tf-card__symbol-row">
+                <span class="asset-tf-card__symbol">TSLA</span>
+                <span class="asset-tf-card__delta" aria-label="24h change">--</span>
+            </div>
+            <div class="asset-tf-card__price">$0.00</div>
+            <div class="asset-tf-card__pills" role="group" aria-label="Timeframe">
+                <button type="button" class="asset-tf-card__pill" data-tf="1m"  aria-pressed="false">1M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="5m"  aria-pressed="false">5M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="15m" aria-pressed="false">15M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="30m" aria-pressed="false">30M</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="1h"  aria-pressed="false">1H</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="4h"  aria-pressed="false">4H</button>
+                <button type="button" class="asset-tf-card__pill" data-tf="1d"  aria-pressed="false">1D</button>
+            </div>
+        </div>
+
         <!-- Liquidation Heatmap -->
         <div class="edge-section">
             <h4>💀 Liquidation Levels</h4>
@@ -3269,6 +3293,7 @@
     <script src="/js/panels/system-snapshot.js"></script>
     <script src="/js/panels/trade-log.js"></script>
     <script src="/js/panels/edge-analytics.js"></script>
+    <script src="/js/panels/asset-tf-card.js"></script>
     <script src="/js/panels/bot-intelligence.js"></script>
     <script src="/js/drawing-tools.js"></script>
     <script src="/js/theme-customizer.js"></script>
