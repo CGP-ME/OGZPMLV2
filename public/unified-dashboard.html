@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/css/trading-panel.css">
     <link rel="stylesheet" href="/css/asset-tf-card.css">
     <link rel="stylesheet" href="/css/header-brand.css">
+    <link rel="stylesheet" href="/css/golden-proximity.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&display=swap');
         /* TODO: Self-host fonts via public/css/fonts/*.woff2 + @font-face declarations */
@@ -2542,20 +2543,9 @@
             }
         }
 
-        /* Golden proximity strip rewired to brand-red gradient */
-        #goldenProximityFill {
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                var(--brand-red) 35%,
-                var(--brand-red-bright) 60%,
-                #f87171 100%
-            ) !important;
-            box-shadow:
-                0 0 10px var(--brand-red-glow),
-                0 0 20px rgba(220, 38, 38, 0.22) !important;
-            transition: width 0.35s ease-out !important;
-        }
+        /* .proximity-container + #goldenProximityFill rules moved to
+           public/css/golden-proximity.css (2026-04-25 L7 — relocated
+           from left-rail strip to full-width top-of-document gauge). */
 
         /* Feed-status pill (Phase A inline positioning preserved) —
            just polish the colors into brand tones */
@@ -2598,6 +2588,11 @@
     </style>
 </head>
 <body>
+    <!-- L7 Golden Proximity full-width gauge — fixed at top of document.
+         Wiring lives in js/core.js (golden_setup WS handler writes width).
+         Style: public/css/golden-proximity.css -->
+    <div class="proximity-container"><div id="goldenProximityFill"></div></div>
+
     <!-- Edge Analytics Panel -->
     <div class="edge-panel" id="edgePanel">
         <button class="edge-toggle" title="Toggle Panel">−</button>
@@ -2744,8 +2739,9 @@
                 <div class="divergence-item">Scanning...</div>
             </div>
         </div>
-        <!-- Proximity Gauge: sibling to divergences section, NOT child (Check C) -->
-        <div class="proximity-container"><div id="goldenProximityFill"></div></div>
+        <!-- Proximity Gauge moved to top of document (L7 mockup) — see
+             markup right after <body>. Wiring untouched: js/core.js still
+             writes width on golden_setup WS event, same #goldenProximityFill ID. -->
         </div><!-- end edge-content -->
     </div>
 

@@ -17,23 +17,9 @@ body.golden-alert-pulse {
     animation: golden-setup-glow 2s infinite ease-in-out;
 }
 
-/* Proximity Gauge — fills as golden conditions are met */
-.proximity-container {
-    height: 4px;
-    background: #111;
-    width: 100%;
-    margin: 10px 0;
-    overflow: hidden;
-    border-radius: 2px;
-}
-
-#goldenProximityFill {
-    height: 100%;
-    width: 0%;
-    background: var(--ml-color, #ffd700);
-    box-shadow: 0 0 10px var(--ml-color, #ffd700);
-    transition: width 0.4s ease;
-}
+/* .proximity-container + #goldenProximityFill rules moved to
+   public/css/golden-proximity.css (2026-04-25 L7 — relocated to
+   full-width top-of-document gauge). */
 
 /* Whale Absorption Glow — pulsing text when smart money detected */
 @keyframes absorbed-pulse {

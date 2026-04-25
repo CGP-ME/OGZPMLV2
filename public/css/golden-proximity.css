@@ -1,0 +1,56 @@
+/**
+ * golden-proximity.css - Full-width header proximity gauge.
+ *
+ * Per mockup spec L7: "full-width horizontal gauge across top showing
+ * % proximity to golden setup." Previously a 4px strip inside the
+ * left-rail edge-panel; relocated to the very top of the document so
+ * it reads as a system-wide signal instead of a panel decoration.
+ *
+ * Wiring untouched: js/core.js writes
+ *   document.getElementById('goldenProximityFill').style.width
+ * on every `golden_setup` WS event. Same DOM IDs, same writer.
+ *
+ * Modular from day one (2026-04-25). Replaces:
+ *   - .proximity-container + #goldenProximityFill rules in dashboard.css L21-36
+ *   - #goldenProximityFill brand-red Phase B override in unified-dashboard.html L2545-2558
+ * Both removed in the same commit.
+ */
+
+.proximity-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    /* Track is barely visible — the fill is the signal */
+    background: rgba(20, 20, 28, 0.88);
+    border-bottom: 1px solid rgba(220, 38, 38, 0.10);
+    z-index: 200;  /* above .header (z:10) and .main-container (z:5), below modals */
+    overflow: hidden;
+}
+
+#goldenProximityFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--brand-red) 35%,
+        var(--brand-red-bright) 60%,
+        #f87171 100%
+    );
+    box-shadow:
+        0 0 10px var(--brand-red-glow),
+        0 0 20px rgba(220, 38, 38, 0.30);
+    transition: width 0.35s ease-out;
+    /* Promote to GPU compositor — width transitions on a 100vw element
+       are otherwise repaint-heavy on every animation frame. */
+    will-change: width;
+}
+
+/* Reduced-motion: snap to target width instead of animating across. */
+@media (prefers-reduced-motion: reduce) {
+    #goldenProximityFill {
+        transition: none;
+    }
+}
