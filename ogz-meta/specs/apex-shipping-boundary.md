@@ -10,7 +10,7 @@
 
 The Apex evaluation targets a **15% profit** with **< 5% drawdown** as the first step toward the Houston vision. Passing Apex unlocks the payout → multi-account clone → Houston move sequence per `ogz-meta/GRAND-SCHEME.md`.
 
-Current Apex eval path: Alpaca paper TSLA (stocks-only during RTH) on branch `alpaca/stocks-paper-flip`. No crypto during eval. SessionRouter 24/7 is explicitly post-Apex.
+Current Apex eval path: Alpaca paper TSLA (stocks-only during RTH) on branch `alpaca/stocks-paper-flip`. No crypto during eval. SessionRouter is BUILT and flag-gated (`SESSION_ROUTER_ENABLED` defaults to `false`); enabling 24/7 crypto+stocks auto-switch is post-Apex by deliberate feature-flag, not by missing implementation.
 
 ---
 
@@ -77,15 +77,21 @@ Read-only per-ticker premium banks harvested from backtests. Augments confidence
 
 ## POST-APEX (deferred until eval passes)
 
-### SessionRouter — 24/7 crypto + stocks auto-switch
+### SessionRouter — 24/7 crypto + stocks auto-switch (BUILT, flag-gated OFF)
 
-Full spec at `ogz-meta/ledger/SESSION-ROUTER-SPEC.md` (Wolf). Bot flips Alpaca ↔ Kraken at market open/close, force-liquidates positions on transition (no swing across sessions), swaps active pattern bank. Explicitly post-Apex because Apex eval runs stocks-only during RTH.
+**Status update 2026-04-26:** SessionRouter shipped. Module at `core/SessionRouter.js`. Foundation API added at `foundation/MarketCalendar.js:457-503` ("SessionRouter API added 2026-04-25"). Wiring at `run-empire-v2.js:161, 598-635, 1092-1095`. Full spec at `ogz-meta/ledger/SESSION-ROUTER-SPEC.md`; implementation spec at `ogz-meta/ledger/CC-SPEC-SESSION-ROUTER-IMPL_1.md`.
+
+Behavior when enabled: creates Kraken + Alpaca adapters, owns the active feed, flips at market open/close, force-liquidates on transition (no swing across sessions), mirrors `activeBroker` back to `this.kraken` so legacy callers don't break.
+
+Runtime gate: `process.env.SESSION_ROUTER_ENABLED === 'true'`. **Default OFF.** With the flag off, Apex eval runs Alpaca-only and behavior is unchanged from pre-SessionRouter. Flipping the flag on for 24/7 crypto+stocks auto-switch is post-Apex by deliberate feature-flag, not by missing implementation.
+
+In flight (parallel CC): an agnostic reconnect watcher — a meta-monitor that observes SessionRouter's broker-swap path and validates each transition completes end-to-end. Builds on the broker resilience gauntlet shipped at `d184376` (10/10 scenarios passing).
 
 ### Pattern bank Phase 3 + Phase 4-extended
 
-Phase 3 (SessionRouter integration) — bank-swap at transition. Hooks into the SessionRouter `executeTransition` flow. Post-Apex because SessionRouter itself is post-Apex.
+Phase 3 (SessionRouter integration) — bank-swap at transition. Hooks into the SessionRouter `executeTransition` flow. SessionRouter itself is now built (see status update above); the remaining piece is the pattern-bank-swap hook into its transition path. Post-Apex by feature-flag default, not by missing host module.
 
-Phase 4-extended — retention policy + scheduled backup timer beyond the current `forceBackup()` method (committed today at `24dea89`). The method exists now as prep; retention/timer come with SessionRouter.
+Phase 4-extended — retention policy + scheduled backup timer beyond the current `forceBackup()` method (committed at `24dea89`). The method exists now as prep; retention/timer activate when SessionRouter's flag flips on for live multi-broker.
 
 ### Multi-account clone for payout aggregation
 
