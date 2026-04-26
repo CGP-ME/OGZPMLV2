@@ -755,6 +755,24 @@ class StrategyOrchestrator {
       }
     }
 
+    // Per-strategy minConfidence filter: tightens the global gate for strategies
+    // that have a locked confidence threshold on their exit contract.
+    // null = no per-strategy gate (zero behavior change default).
+    // Architecture parallel to the ATR filter above; contract field added in d50394a.
+    if (results.length > 0) {
+      const contracts = TradingConfig.BASE_CONFIG.exitContracts;
+      for (let i = results.length - 1; i >= 0; i--) {
+        const r = results[i];
+        const contract = contracts[r.strategyName] || contracts.default || {};
+        if (contract.minConfidence != null && r.confidence < contract.minConfidence) {
+          if (this.evalCount % 200 === 0) {
+            console.log(`[FILTER:minConf] Skipped ${r.strategyName} — conf ${(r.confidence * 100).toFixed(1)}% below ${(contract.minConfidence * 100).toFixed(0)}% (per-strategy)`);
+          }
+          results.splice(i, 1);
+        }
+      }
+    }
+
     // ─── Step 2: Sort by confidence (highest first) ───
     results.sort((a, b) => b.confidence - a.confidence);
 
