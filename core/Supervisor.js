@@ -190,6 +190,8 @@ class Supervisor extends EventEmitter {
   async _pollOne(name, entry) {
     let health;
     try {
+      // Call as method (preserves `this` if subsystem uses class methods).
+      // Capturing to a local + invoking would lose `this`.
       health = await entry.def.getHealth();
     } catch (err) {
       // getHealth itself blew up — treat as DEAD signal from the subsystem
@@ -283,8 +285,7 @@ class Supervisor extends EventEmitter {
     if (now - entry.lastHealAt < this.healCooldownMs) return;  // cooldown
     if (entry.healAttempts >= this.unhealthyHealAttempts) return;  // exhausted
 
-    const healer = entry.def.selfHeal;
-    if (typeof healer !== 'function') {
+    if (typeof entry.def.selfHeal !== 'function') {
       // No healer wired — bump attempts so we eventually hit DEAD
       entry.healAttempts++;
       entry.lastHealAt = now;
@@ -295,7 +296,10 @@ class Supervisor extends EventEmitter {
     entry.lastHealAt = now;
     let ok = false;
     try {
-      ok = !!(await healer());
+      // Call as method (entry.def.selfHeal()) NOT as captured local —
+      // the captured-local form loses `this` when the subsystem uses
+      // class methods relying on instance state.
+      ok = !!(await entry.def.selfHeal());
     } catch (err) {
       console.error(`${this.label} ${name}.selfHeal threw:`, err.message);
       ok = false;
@@ -322,8 +326,7 @@ class Supervisor extends EventEmitter {
 
     if (now - entry.lastEscalateAt < this.deadCooldownMs) return;  // cooldown
 
-    const escalator = entry.def.escalate;
-    if (typeof escalator !== 'function') {
+    if (typeof entry.def.escalate !== 'function') {
       // No escalator wired — log only. The DEAD-transition alert already fired.
       return;
     }
@@ -332,7 +335,8 @@ class Supervisor extends EventEmitter {
     entry.restartHistory.push(now);
     let ok = false;
     try {
-      ok = !!(await escalator());
+      // Call as method to preserve `this` for class-method escalate impls.
+      ok = !!(await entry.def.escalate());
     } catch (err) {
       console.error(`${this.label} ${name}.escalate threw:`, err.message);
       ok = false;
