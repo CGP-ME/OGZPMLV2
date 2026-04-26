@@ -183,8 +183,35 @@ Mock subsystems with controllable health states. Verifies:
 | 7 | Supervisor scenarios test | `tests/supervisor-scenarios.js` | test(core): supervisor scenarios |
 | 8 | Health protocol on subsystems | various | feat(health): standardized getHealth() across subsystems |
 | 9 | Adapter migration: Alpaca | `brokers/AlpacaAdapter.js` | refactor(alpaca): migrate to ResilientWebSocket |
-| 10 | Adapter migration: Kraken | `kraken_adapter_simple.js` | refactor(kraken): migrate to ResilientWebSocket |
-| 11 | Decommission per-adapter reconnect | both files | chore: remove duplicated reconnect code post-migration |
+| 10 | Adapter migration: Kraken | `kraken_adapter_simple.js` | **DEFERRED 2026-04-26** — see deferral note below |
+| 11 | Decommission per-adapter reconnect | both files | **PARTIAL** — Alpaca decommissioned in Phase 9 (`a5ee381`); Kraken remains pending Phase 10 |
+
+### Phase 10 deferral note (2026-04-26)
+
+Decision: **DO NOT migrate kraken_adapter_simple.js to ResilientWebSocket pre-Apex.**
+
+Rationale:
+- The existing reconnect logic in `kraken_adapter_simple.js:769-797` has been
+  battle-tested in production live crypto trading since 2026-01-21 (3+ months,
+  no incidents).
+- The broker resilience gauntlet (`tests/broker-resilience-gauntlet.js`)
+  exercises ResilientWebSocket against a generic JSON-WS mock server — it
+  does NOT cover Kraken's specific protocol quirks (auth flow, subscribe
+  payload shape, ping/pong cadence, server-side close codes).
+- Migrating live crypto trading code without Kraken-specific test coverage
+  is "fixing what isn't broken with code that hasn't been Kraken-tested."
+- Apex eval clock is the binding constraint. Regressing live crypto trading
+  for "consistency" is the wrong tradeoff right now.
+
+Conditions under which Phase 10 becomes safe to ship:
+- Kraken-protocol scenarios added to the gauntlet (auth flow, subs format,
+  pong cadence, message-shape parsing), OR
+- A monitored canary deployment with rollback plan, OR
+- Post-Apex-pass when production crypto trading isn't on the critical path.
+
+Net effect: Phase 11 (decommission) is half-complete — Alpaca's per-adapter
+reconnect was already removed in Phase 9. Kraken's stays as-is. Single source
+of truth for resilience exists for new brokers; Kraken keeps its own.
 
 Each phase = one commit = one push (per commit-hygiene rule). Each phase
 verified before proceeding to the next.

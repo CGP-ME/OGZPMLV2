@@ -16,7 +16,14 @@ module.exports = {
       cwd: '/opt/ogzprime/OGZPMLV2',
       watch: false,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        // 2026-04-26: SessionRouter enabled for dual-broker (Kraken crypto
+        // 24/7 + Alpaca stocks RTH). Default=false in code; this env flip
+        // turns it on in production. See core/SessionRouter.js +
+        // ogz-meta/ledger/SESSION-ROUTER-SPEC.md. Phase 0 baseline preserved
+        // byte-exact when this flag flips because backtest path doesn't
+        // touch SessionRouter.
+        SESSION_ROUTER_ENABLED: 'true'
       }
     },
     {
