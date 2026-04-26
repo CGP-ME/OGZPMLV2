@@ -695,6 +695,19 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // SESSION ROUTER (dual-broker crypto/stocks switching)
+  // Defaults match Wolf v2 spec. Gated off by default — single-broker
+  // behavior preserved when SESSION_ROUTER_ENABLED is unset/false.
+  // =========================================================================
+  sessions: {
+    routerEnabled: envBool('SESSION_ROUTER_ENABLED', false),
+    stockSymbols: ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'],
+    cryptoSymbols: ['BTC/USD','ETH/USD','SOL/USD'],
+    checkIntervalMs: 60000,
+    forceCloseOnSessionEnd: true,
+  },
+
+  // =========================================================================
   // TIMEFRAME-SPECIFIC ADJUSTMENTS
   // =========================================================================
   timeframeConfig: {

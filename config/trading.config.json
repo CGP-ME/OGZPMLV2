@@ -710,5 +710,12 @@
     "positionMode": "single"
   },
   "fundTarget": 25000,
-  "startingBalance": 10000
+  "startingBalance": 10000,
+  "sessions": {
+    "routerEnabled": false,
+    "stockSymbols": ["TSLA","SPY","QQQ","NVDA","COIN","MARA","RIOT"],
+    "cryptoSymbols": ["BTC/USD","ETH/USD","SOL/USD"],
+    "checkIntervalMs": 60000,
+    "forceCloseOnSessionEnd": true
+  }
 }

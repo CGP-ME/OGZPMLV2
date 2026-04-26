@@ -453,7 +453,95 @@ function getInstance() {
   return instance;
 }
 
+// =========================================================================
+// SessionRouter API (added 2026-04-25)
+// Module-level helpers that surface market phase + ET time parts in the
+// shape SessionRouter expects. Reuses the singleton MarketCalendar
+// instance for holiday/early-close logic so there is ONE source of
+// truth for NYSE calendar data across the codebase.
+// =========================================================================
+
+const SESSION_BOUNDS = {
+  PRE_OPEN:  4 * 60,        // 04:00 ET
+  RTH_OPEN:  9 * 60 + 30,   // 09:30 ET
+  RTH_CLOSE: 16 * 60,       // 16:00 ET (or 13:00 on half-days, resolved per-call)
+  AH_CLOSE:  20 * 60,       // 20:00 ET
+};
+
+const _NY_DTF = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hour12: false, weekday: 'short',
+});
+
+/**
+ * Decompose a Date into ET parts. Uses Intl directly (not the class's
+ * toLocaleString approach) so the parts come back as a structured set
+ * including weekday — needed by SessionRouter for weekend detection.
+ *
+ * @param {Date} [date=new Date()]
+ * @returns {{date: string, hour: number, minute: number, weekday: string, minuteOfDay: number}}
+ */
+function getNYTimeParts(date) {
+  const d = date || new Date();
+  const parts = _NY_DTF.formatToParts(d);
+  const get = (t) => (parts.find(p => p.type === t) || {}).value;
+  const hour = parseInt(get('hour'), 10) % 24;
+  const minute = parseInt(get('minute'), 10);
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    hour,
+    minute,
+    weekday: get('weekday'),
+    minuteOfDay: hour * 60 + minute,
+  };
+}
+
+/**
+ * Get the current US-equity market phase for a given date.
+ * Returns the shape SessionRouter expects.
+ *
+ * Phases:
+ *   'closed' — outside premarket, weekend, or full holiday
+ *   'pre'    — premarket (04:00 ET → 09:30 ET)
+ *   'rth'    — regular trading hours (09:30 ET → 16:00 or 13:00 on half-days)
+ *   'ah'     — after-hours (RTH close → 20:00 ET)
+ *
+ * @param {Date} [date=new Date()]
+ * @returns {{phase: string, isRTH: boolean, isOpen: boolean, nextTransition: string, rthCloseMinute: number}}
+ */
+function getMarketPhase(date) {
+  const cal = getInstance();
+  const ny = getNYTimeParts(date);
+  const mod = ny.minuteOfDay;
+
+  if (ny.weekday === 'Sat' || ny.weekday === 'Sun') {
+    return { phase: 'closed', isRTH: false, isOpen: false, nextTransition: 'Pre-market Monday 04:00 ET', rthCloseMinute: SESSION_BOUNDS.RTH_CLOSE };
+  }
+
+  // Reuse the class's holiday detection — single source of truth.
+  // checkHoliday returns { isHoliday, name, halfDay }. isHoliday is true
+  // ONLY for full-day closures (the class treats half-days as non-holiday
+  // but flags halfDay=true so we can pull the early close time).
+  const hol = cal.checkHoliday(date || new Date());
+  if (hol.isHoliday) {
+    return { phase: 'closed', isRTH: false, isOpen: false, nextTransition: 'Holiday', rthCloseMinute: SESSION_BOUNDS.RTH_CLOSE };
+  }
+
+  const rthClose = hol.halfDay ? cal.halfDayClose : SESSION_BOUNDS.RTH_CLOSE;
+
+  if (mod < SESSION_BOUNDS.PRE_OPEN)  return { phase: 'closed', isRTH: false, isOpen: false, nextTransition: 'Pre-market 04:00 ET', rthCloseMinute: rthClose };
+  if (mod < SESSION_BOUNDS.RTH_OPEN)  return { phase: 'pre',    isRTH: false, isOpen: true,  nextTransition: 'RTH opens 09:30 ET', rthCloseMinute: rthClose };
+  if (mod < rthClose)                 return { phase: 'rth',    isRTH: true,  isOpen: true,  nextTransition: hol.halfDay ? 'Early close 13:00 ET' : 'RTH closes 16:00 ET', rthCloseMinute: rthClose };
+  if (mod < SESSION_BOUNDS.AH_CLOSE)  return { phase: 'ah',     isRTH: false, isOpen: true,  nextTransition: 'After-hours ends 20:00 ET', rthCloseMinute: rthClose };
+  return { phase: 'closed', isRTH: false, isOpen: false, nextTransition: 'Pre-market 04:00 ET', rthCloseMinute: rthClose };
+}
+
 module.exports = {
   MarketCalendar,
-  getInstance
+  getInstance,
+  getMarketPhase,
+  getNYTimeParts,
+  SESSION_BOUNDS,
 };

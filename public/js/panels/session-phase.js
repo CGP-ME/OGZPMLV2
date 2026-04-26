@@ -19,7 +19,13 @@
     const STYLE_ID = 'ogz-session-phase-styles';
     const ROOT_ID = 'sessionPhase';
 
-    // NYSE full-day closures 2026-2027
+    // NYSE full-day closures 2026-2027.
+    // Source of truth: foundation/MarketCalendar.js (computed dynamically per
+    // year, with observed-day logic + Easter algorithm for Good Friday).
+    // The set below is the FRONTEND mirror — kept hardcoded so the dashboard
+    // panel doesn't need a network call to render. If updating holidays,
+    // also update the calendar logic in foundation/MarketCalendar.js so the
+    // bot-side SessionRouter (which uses the dynamic source) stays in sync.
     const HOLIDAYS = new Set([
         '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
         '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
