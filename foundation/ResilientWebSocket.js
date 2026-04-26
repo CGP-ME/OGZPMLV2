@@ -185,6 +185,59 @@ class ResilientWebSocket extends EventEmitter {
     };
   }
 
+  /**
+   * Phase 8 health protocol — returns the standardized shape Supervisor
+   * consumes:
+   *   { status, timestamp, details, lastSuccessAt, failureReason }
+   *
+   * Status mapping:
+   *   - HEALTHY    : socket OPEN + authenticated + last message recent (< dataWatchdogMs)
+   *   - DEGRADED   : socket OPEN + authenticated but last message stale (≥ dataWatchdogMs)
+   *   - UNHEALTHY  : reconnecting (socket not OPEN) but trying
+   *   - DEAD       : intentional stop (caller asked us to be down)
+   *
+   * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 1.5 — health protocol)
+   */
+  getHealth() {
+    const now = Date.now();
+    const status = this.getStatus();
+    const open = status.readyState === WebSocket.OPEN;
+    const stale = this.dataWatchdogMs > 0
+      && status.lastMessageAt > 0
+      && (now - status.lastMessageAt) >= this.dataWatchdogMs;
+
+    let healthStatus;
+    let failureReason = null;
+    if (this.intentionalStop) {
+      healthStatus = 'DEAD';
+      failureReason = 'intentional stop';
+    } else if (!open || !this.isAuthenticated) {
+      healthStatus = 'UNHEALTHY';
+      failureReason = !open
+        ? `socket readyState=${status.readyState} (not OPEN), reconnect attempts=${status.reconnectAttempts}`
+        : 'authenticated=false';
+    } else if (stale) {
+      healthStatus = 'DEGRADED';
+      failureReason = `no message for ${status.msSinceMessage}ms (watchdog ${this.dataWatchdogMs}ms)`;
+    } else {
+      healthStatus = 'HEALTHY';
+    }
+
+    return {
+      status: healthStatus,
+      timestamp: now,
+      details: {
+        url: status.url,
+        isAuthenticated: status.isAuthenticated,
+        reconnectAttempts: status.reconnectAttempts,
+        msSinceMessage: status.msSinceMessage,
+        msSincePong: status.lastPongAt ? (now - status.lastPongAt) : null,
+      },
+      lastSuccessAt: status.lastMessageAt,
+      failureReason,
+    };
+  }
+
   // =========================================================================
   // Internal — open + lifecycle wiring
   // =========================================================================
