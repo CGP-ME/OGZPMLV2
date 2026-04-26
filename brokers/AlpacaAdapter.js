@@ -42,6 +42,17 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.connected = false;
         this.ws = null;
         this.subscriptions = new Map();
+
+        // Reconnect state — added 2026-04-26 to fix the zombie bug where
+        // a dropped WS would log "Data stream closed" and then sit forever
+        // doing nothing. PM2 saw the process alive (no exit), so no
+        // restart fired. Now: infinite exponential backoff (1s, 2s, 4s,
+        // 8s, 16s, capped at 30s, retries forever) — matches the
+        // resilience pattern already used by kraken_adapter_simple.js.
+        this.reconnectAttempts = 0;
+        this.intentionalDisconnect = false;
+        this.reconnectTimer = null;
+        this._initialSubscribeCallback = null;
     }
 
     // =========================================================================
@@ -78,6 +89,14 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     async disconnect() {
+        // Mark intent BEFORE closing so the on('close') handler doesn't
+        // schedule a reconnect for a graceful disconnect. Also cancel any
+        // pending reconnect timer in case disconnect is called mid-backoff.
+        this.intentionalDisconnect = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
         if (this.ws) {
             this.ws.close();
             this.ws = null;
@@ -489,6 +508,16 @@ class AlpacaAdapter extends IBrokerAdapter {
             callback();
             return;
         }
+        // Stash the FIRST caller's subscribe payload — it fires after auth
+        // success on the initial open. On subsequent reconnects, this is
+        // null and _replaySubscriptions takes over instead (using the
+        // already-populated this.subscriptions Map).
+        this._initialSubscribeCallback = callback;
+        this._openDataStream();
+    }
+
+    _openDataStream() {
+        if (this.intentionalDisconnect) return;
 
         this.ws = new WebSocket(this.wsUrl);
 
@@ -520,7 +549,21 @@ class AlpacaAdapter extends IBrokerAdapter {
                     // Auth success
                     if (msg.T === 'success' && msg.msg === 'authenticated') {
                         console.log('[Alpaca] Data stream authenticated');
-                        callback();
+                        if (this.reconnectAttempts > 0) {
+                            // This is a successful reconnect — reset counter,
+                            // replay every subscription that was active before
+                            // the drop. The initial callback (if any) is stale
+                            // since the original subscribe is already in the
+                            // subscriptions Map.
+                            console.log(`[Alpaca] Reconnect successful after ${this.reconnectAttempts} attempt(s) — replaying ${this.subscriptions.size} subscription(s)`);
+                            this.reconnectAttempts = 0;
+                            this._replaySubscriptions();
+                        } else if (this._initialSubscribeCallback) {
+                            // First open — let the caller's subscribe payload land.
+                            const cb = this._initialSubscribeCallback;
+                            this._initialSubscribeCallback = null;
+                            cb();
+                        }
                         continue;
                     }
                     // Auth failure
@@ -566,13 +609,53 @@ class AlpacaAdapter extends IBrokerAdapter {
             }
         });
 
-        this.ws.on('close', () => {
-            console.log('[Alpaca] Data stream closed');
+        this.ws.on('close', (code, reason) => {
+            const reasonStr = reason ? reason.toString() : '';
+            console.log(`[Alpaca] Data stream closed (code=${code}${reasonStr ? ', reason="' + reasonStr + '"' : ''})`);
+
+            // Graceful disconnect via disconnect() — don't reconnect.
+            if (this.intentionalDisconnect) return;
+
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, then capped at 30s.
+            // Retries forever — never gives up. Mirrors kraken_adapter_simple.js
+            // pattern. PRE-2026-04-26 this handler just logged and died;
+            // bot would zombie until manual PM2 restart.
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+            this.reconnectAttempts++;
+            console.log(`[Alpaca] Reconnecting in ${delay}ms (attempt #${this.reconnectAttempts}, infinite retries, capped 30s)`);
+            this.reconnectTimer = setTimeout(() => this._openDataStream(), delay);
         });
 
         this.ws.on('error', (err) => {
+            // ws library fires 'error' THEN 'close', so the reconnect logic
+            // in the close handler will pick this up. Just log here.
             console.error('[Alpaca] Data stream error:', err.message);
         });
+    }
+
+    /**
+     * Replay every subscription in this.subscriptions to a freshly-
+     * authenticated WS. Used on reconnect — the subscriptions Map is
+     * not cleared on close, so it still holds every symbol the bot was
+     * subscribed to before the drop.
+     */
+    _replaySubscriptions() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        const trades = [], quotes = [], bars = [];
+        for (const [key] of this.subscriptions) {
+            const [type, sym] = key.split('-');
+            if (!sym) continue;
+            if (type === 'trades') trades.push(sym);
+            else if (type === 'quotes') quotes.push(sym);
+            else if (type === 'bars')  bars.push(sym);
+        }
+        if (!trades.length && !quotes.length && !bars.length) {
+            console.log('[Alpaca] _replaySubscriptions: nothing to replay');
+            return;
+        }
+        const payload = { action: 'subscribe', trades, quotes, bars };
+        console.log('[Alpaca] TX replay-subscribe:', JSON.stringify(payload));
+        this.ws.send(JSON.stringify(payload));
     }
 }
 
