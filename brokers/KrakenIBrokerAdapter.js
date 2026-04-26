@@ -58,6 +58,60 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     return this.connected;
   }
 
+  /**
+   * Phase 8 health protocol — supervisor-compatible shape.
+   *   { status, timestamp, details, lastSuccessAt, failureReason }
+   *
+   * Delegates to underlying kraken_adapter_simple state. The simple adapter
+   * already tracks ws.readyState, reconnectAttempts, and the heartbeat /
+   * data watchdog (since 2026-01-21). Health here is a derivation of those
+   * known fields into the standardized supervisor protocol.
+   *
+   * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 1.5)
+   */
+  getHealth() {
+    const now = Date.now();
+    const inner = this.kraken;
+    const wsOpen = inner && inner.ws && inner.ws.readyState === 1; /* WebSocket.OPEN */
+    const reconnectAttempts = (inner && inner.reconnectAttempts) || 0;
+    const lastDataAt = (inner && inner.lastDataAt) || 0;
+    const dataTimeout = (inner && inner.dataTimeout) || 60000;
+
+    let status;
+    let failureReason = null;
+    if (!this.connected) {
+      status = 'UNHEALTHY';
+      failureReason = 'connect() not yet succeeded';
+    } else if (!wsOpen) {
+      status = 'UNHEALTHY';
+      failureReason = `WS not OPEN (reconnectAttempts=${reconnectAttempts})`;
+    } else if (lastDataAt > 0 && (now - lastDataAt) > dataTimeout) {
+      status = 'DEGRADED';
+      failureReason = `no data for ${now - lastDataAt}ms (timeout ${dataTimeout}ms)`;
+    } else if (reconnectAttempts > 0) {
+      status = 'DEGRADED';
+      failureReason = `recent reconnect (attempts=${reconnectAttempts})`;
+    } else {
+      status = 'HEALTHY';
+    }
+
+    return {
+      status,
+      timestamp: now,
+      details: {
+        broker: 'kraken',
+        wsReadyState: (inner && inner.ws) ? inner.ws.readyState : -1,
+        connected: this.connected,
+        reconnectAttempts,
+        lastDataAt,
+        msSinceData: lastDataAt ? (now - lastDataAt) : null,
+        subscriptionCount: this.subscriptions.size,
+      },
+      lastSuccessAt: lastDataAt || (this.connected ? now : 0),
+      failureReason,
+    };
+  }
+
   // =========================================================================
   // BROKER IDENTIFICATION
   // =========================================================================

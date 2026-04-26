@@ -90,6 +90,55 @@ class AlpacaAdapter extends IBrokerAdapter {
         return this.connected;
     }
 
+    /**
+     * Phase 8 health protocol — supervisor-compatible shape.
+     *   { status, timestamp, details, lastSuccessAt, failureReason }
+     *
+     * Status reflects BOTH the REST account-API connection (this.connected,
+     * set by connect()) and the data-stream WS connection (this.ws state +
+     * reconnect counters). DEGRADED if the REST is OK but the WS is mid-
+     * reconnect; UNHEALTHY if neither is up.
+     *
+     * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 1.5)
+     */
+    getHealth() {
+        const now = Date.now();
+        const wsOpen = this.ws && this.ws.readyState === 1; /* WebSocket.OPEN */
+        const wsReconnecting = this.reconnectAttempts > 0;
+
+        let status;
+        let failureReason = null;
+        if (this.intentionalDisconnect) {
+            status = 'DEAD';
+            failureReason = 'intentional disconnect';
+        } else if (!this.connected) {
+            status = 'UNHEALTHY';
+            failureReason = 'REST account-API not verified (connect() not yet succeeded)';
+        } else if (!wsOpen) {
+            status = 'UNHEALTHY';
+            failureReason = `WS not OPEN (readyState=${this.ws ? this.ws.readyState : 'null'}, reconnectAttempts=${this.reconnectAttempts})`;
+        } else if (wsReconnecting) {
+            status = 'DEGRADED';
+            failureReason = `WS recently reconnected (attempts=${this.reconnectAttempts})`;
+        } else {
+            status = 'HEALTHY';
+        }
+
+        return {
+            status,
+            timestamp: now,
+            details: {
+                broker: 'alpaca',
+                wsReadyState: this.ws ? this.ws.readyState : -1,
+                restConnected: this.connected,
+                reconnectAttempts: this.reconnectAttempts,
+                subscriptionCount: this.subscriptions.size,
+            },
+            lastSuccessAt: this.connected ? now : 0,
+            failureReason,
+        };
+    }
+
     // =========================================================================
     // ACCOUNT INFO
     // =========================================================================
