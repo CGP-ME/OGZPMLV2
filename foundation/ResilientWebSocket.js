@@ -114,15 +114,21 @@ class ResilientWebSocket extends EventEmitter {
     this.lastPongAt = 0;
   }
 
-  /** Default frame parser — JSON-decode strings, pass through objects. */
+  /**
+   * Default frame parser — JSON-decode strings + Buffers, pass through
+   * plain objects. Bug-fix 2026-04-26: Buffer is typeof 'object' in
+   * Node, so the Buffer check MUST come before the generic object
+   * passthrough. Original ordering left ws library's Buffer frames
+   * unparsed, causing authSuccessPredicate to silently fail to match.
+   */
   static _defaultParse(raw) {
     if (raw == null) return null;
-    if (typeof raw === 'object') return raw;
     if (Buffer.isBuffer(raw)) raw = raw.toString();
     if (typeof raw === 'string') {
       try { return JSON.parse(raw); }
       catch (e) { return null; }  // discard malformed frames
     }
+    if (typeof raw === 'object') return raw;
     return raw;
   }
 
