@@ -1,0 +1,113 @@
+/**
+ * pattern-sparkline.css - Pattern Analysis card sparkline + confidence chip.
+ *
+ * Per mockup spec L2: "card with pattern name + confidence % + small
+ * sparkline showing pattern-match history."
+ *
+ * Adds two pieces inside the existing Pattern Analysis card:
+ *   1. A confidence pill next to the pattern name (mirrors #confidence)
+ *   2. An inline SVG sparkline showing the last N pattern-match
+ *      confidence values
+ *
+ * Modular from day one (2026-04-25). Behavior in
+ * public/js/panels/pattern-sparkline.js. Existing pattern-name, pattern-
+ * visual, and pattern-description elements are NOT modified — this is a
+ * pure additive overlay.
+ */
+
+.pattern-sparkline-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 6px 0 10px 0;
+}
+
+.pattern-sparkline-conf {
+    /* Confidence chip — Orbitron number on a translucent surface,
+       border tints to brand-red as confidence climbs (JS handles). */
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #aaa;
+    transition: color 0.25s ease,
+                border-color 0.25s ease,
+                background 0.25s ease,
+                box-shadow 0.25s ease;
+}
+
+/* Bucketed conviction tiers — JS toggles classes based on % bucket */
+.pattern-sparkline-conf.tier-low {
+    color: #888;
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+.pattern-sparkline-conf.tier-mid {
+    color: #fcd34d;
+    border-color: rgba(252, 211, 77, 0.28);
+    background: rgba(252, 211, 77, 0.05);
+}
+
+.pattern-sparkline-conf.tier-high {
+    color: var(--brand-red-bright);
+    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.08);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.20);
+}
+
+.pattern-sparkline-svg {
+    flex: 1;
+    height: 28px;
+    /* The SVG itself fills this box and uses preserveAspectRatio="none"
+       so the path stretches/shrinks with whatever width is available. */
+    display: block;
+    /* Subtle inner glow on the chart area so the line reads as living
+       data, not a static decoration. */
+    background: linear-gradient(
+        180deg,
+        rgba(220, 38, 38, 0.04) 0%,
+        rgba(220, 38, 38, 0) 100%
+    );
+    border-radius: 6px;
+}
+
+/* Path stroke — JS sets the d attribute; styling lives here so the
+   visual treatment can change without touching the data layer. */
+.pattern-sparkline-svg .pl-line {
+    fill: none;
+    stroke: var(--brand-red-bright);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    /* drop-shadow gives the line a soft halo against the dark panel */
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.45));
+}
+
+/* Optional fill area beneath the line — fades to transparent so the
+   sparkline reads as a "rising tide" pattern, not a hard bar chart. */
+.pattern-sparkline-svg .pl-fill {
+    fill: url(#patternSparkGradient);
+    stroke: none;
+    opacity: 0.55;
+}
+
+/* Empty-state hint when no data buffered yet */
+.pattern-sparkline-svg .pl-empty {
+    fill: #666;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.6px;
+    text-anchor: middle;
+}
+
+/* Reduced-motion: kill the chip transition animations */
+@media (prefers-reduced-motion: reduce) {
+    .pattern-sparkline-conf {
+        transition: none;
+    }
+}
