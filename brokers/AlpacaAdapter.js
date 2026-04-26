@@ -17,6 +17,7 @@
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');
 const axios = require('axios');
 const WebSocket = require('ws');
+const ResilientWebSocket = require('../foundation/ResilientWebSocket');
 
 class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
@@ -40,19 +41,31 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
 
         this.connected = false;
-        this.ws = null;
         this.subscriptions = new Map();
 
-        // Reconnect state — added 2026-04-26 to fix the zombie bug where
-        // a dropped WS would log "Data stream closed" and then sit forever
-        // doing nothing. PM2 saw the process alive (no exit), so no
-        // restart fired. Now: infinite exponential backoff (1s, 2s, 4s,
-        // 8s, 16s, capped at 30s, retries forever) — matches the
-        // resilience pattern already used by kraken_adapter_simple.js.
-        this.reconnectAttempts = 0;
+        // Phase 9 (resilience-and-supervision spec): the per-adapter
+        // reconnect/backoff/replay code from f042021 has been replaced by
+        // a ResilientWebSocket instance. The library handles every
+        // lifecycle concern (reconnect, backoff, replay, watchdog) — this
+        // adapter only provides protocol concerns (auth message,
+        // subscribe payload shape, message parsing).
+        this.rws = null;
+
+        // intentionalDisconnect retained as a guard for callers that
+        // may inspect it (and for the disconnect() flow), but the actual
+        // reconnect skipping is now handled by the ResilientWebSocket
+        // .stop() method which sets its internal intentionalStop flag.
         this.intentionalDisconnect = false;
-        this.reconnectTimer = null;
-        this._initialSubscribeCallback = null;
+    }
+
+    /**
+     * Compatibility shim — pre-migration code reads this.ws.readyState in
+     * a few places (e.g., unsubscribeAll()). Returning the underlying
+     * raw WebSocket from the ResilientWebSocket lets those reads keep
+     * working. Returns null when no socket exists.
+     */
+    get ws() {
+        return this.rws ? this.rws.ws : null;
     }
 
     // =========================================================================
@@ -89,17 +102,12 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     async disconnect() {
-        // Mark intent BEFORE closing so the on('close') handler doesn't
-        // schedule a reconnect for a graceful disconnect. Also cancel any
-        // pending reconnect timer in case disconnect is called mid-backoff.
+        // Phase 9 — graceful shutdown delegates to ResilientWebSocket.stop()
+        // which sets its internal intentionalStop flag and prevents reconnect.
         this.intentionalDisconnect = true;
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
-        }
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        if (this.rws) {
+            this.rws.stop();
+            this.rws = null;
         }
         this.connected = false;
         console.log('[Alpaca] Disconnected');
@@ -110,37 +118,34 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     /**
-     * Phase 8 health protocol — supervisor-compatible shape.
-     *   { status, timestamp, details, lastSuccessAt, failureReason }
-     *
-     * Status reflects BOTH the REST account-API connection (this.connected,
-     * set by connect()) and the data-stream WS connection (this.ws state +
-     * reconnect counters). DEGRADED if the REST is OK but the WS is mid-
-     * reconnect; UNHEALTHY if neither is up.
-     *
-     * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 1.5)
+     * Phase 9 health protocol — combines REST account state with the
+     * ResilientWebSocket's data-stream health. The library returns the
+     * standardized shape; we overlay REST status (which the library has
+     * no view of).
      */
     getHealth() {
         const now = Date.now();
-        const wsOpen = this.ws && this.ws.readyState === 1; /* WebSocket.OPEN */
-        const wsReconnecting = this.reconnectAttempts > 0;
+        const wsHealth = this.rws ? this.rws.getHealth() : null;
 
         let status;
         let failureReason = null;
+
         if (this.intentionalDisconnect) {
             status = 'DEAD';
             failureReason = 'intentional disconnect';
         } else if (!this.connected) {
             status = 'UNHEALTHY';
             failureReason = 'REST account-API not verified (connect() not yet succeeded)';
-        } else if (!wsOpen) {
-            status = 'UNHEALTHY';
-            failureReason = `WS not OPEN (readyState=${this.ws ? this.ws.readyState : 'null'}, reconnectAttempts=${this.reconnectAttempts})`;
-        } else if (wsReconnecting) {
+        } else if (!wsHealth) {
+            // REST connected but WS layer not constructed yet — still degraded
             status = 'DEGRADED';
-            failureReason = `WS recently reconnected (attempts=${this.reconnectAttempts})`;
-        } else {
+            failureReason = 'WS not yet started (subscribe a symbol to bring it up)';
+        } else if (wsHealth.status === 'HEALTHY') {
             status = 'HEALTHY';
+        } else {
+            // Library says DEGRADED / UNHEALTHY / DEAD — pass it through.
+            status = wsHealth.status;
+            failureReason = wsHealth.failureReason;
         }
 
         return {
@@ -148,12 +153,11 @@ class AlpacaAdapter extends IBrokerAdapter {
             timestamp: now,
             details: {
                 broker: 'alpaca',
-                wsReadyState: this.ws ? this.ws.readyState : -1,
                 restConnected: this.connected,
-                reconnectAttempts: this.reconnectAttempts,
+                ws: wsHealth ? wsHealth.details : null,
                 subscriptionCount: this.subscriptions.size,
             },
-            lastSuccessAt: this.connected ? now : 0,
+            lastSuccessAt: wsHealth ? wsHealth.lastSuccessAt : (this.connected ? now : 0),
             failureReason,
         };
     }
@@ -419,10 +423,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         this._ensureDataStream(() => {
             const sym = this.toBrokerSymbol(symbol);
             this.subscriptions.set(`trades-${sym}`, callback);
-            this.ws.send(JSON.stringify({
-                action: 'subscribe',
-                trades: [sym]
-            }));
+            this.rws.send({ action: 'subscribe', trades: [sym] });
         });
     }
 
@@ -432,7 +433,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             this.subscriptions.set(`bars-${sym}`, callback);
             const payload = { action: 'subscribe', bars: [sym] };
             console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
-            this.ws.send(JSON.stringify(payload));
+            this.rws.send(payload);
         });
     }
 
@@ -440,10 +441,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         this._ensureDataStream(() => {
             const sym = this.toBrokerSymbol(symbol);
             this.subscriptions.set(`quotes-${sym}`, callback);
-            this.ws.send(JSON.stringify({
-                action: 'subscribe',
-                quotes: [sym]
-            }));
+            this.rws.send({ action: 'subscribe', quotes: [sym] });
         });
     }
 
@@ -456,7 +454,7 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     unsubscribeAll() {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.rws && this.rws.isReady()) {
             // Collect all subscribed symbols
             const trades = [], quotes = [], bars = [];
             for (const [key] of this.subscriptions) {
@@ -466,10 +464,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 if (type === 'bars' && sym) bars.push(sym);
             }
             if (trades.length || quotes.length || bars.length) {
-                this.ws.send(JSON.stringify({
-                    action: 'unsubscribe',
-                    trades, quotes, bars
-                }));
+                this.rws.send({ action: 'unsubscribe', trades, quotes, bars });
             }
             this.subscriptions.clear();
         }
@@ -552,134 +547,133 @@ class AlpacaAdapter extends IBrokerAdapter {
         return map[tf] || '1Min';
     }
 
+    /**
+     * Phase 9 (resilience-and-supervision spec): the per-adapter reconnect
+     * dance from f042021 is now delegated to ResilientWebSocket. This adapter
+     * provides ONLY:
+     *   - protocol bits: auth message format, auth-success predicate
+     *   - message parsing (trade/quote/bar handling)
+     *   - subscribe replay logic (rebuilding the subscribe payload from
+     *     this.subscriptions Map after reconnect)
+     *
+     * The library handles backoff, infinite retry, heartbeat ping, pong
+     * timeout, data-silence watchdog, intentional-stop semantics. All
+     * verified by tests/broker-resilience-gauntlet.js (10/10 passing).
+     */
     _ensureDataStream(callback) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.rws && this.rws.isReady()) {
             callback();
             return;
         }
-        // Stash the FIRST caller's subscribe payload — it fires after auth
-        // success on the initial open. On subsequent reconnects, this is
-        // null and _replaySubscriptions takes over instead (using the
-        // already-populated this.subscriptions Map).
+        if (!this.rws) {
+            this._buildResilientWS();
+            this._initialSubscribeCallback = callback;
+            this.rws.start();
+            return;
+        }
+        // Already starting / reconnecting — overwrite the pending callback
+        // so the latest subscribe wins on auth-success.
         this._initialSubscribeCallback = callback;
-        this._openDataStream();
     }
 
-    _openDataStream() {
-        if (this.intentionalDisconnect) return;
-
-        this.ws = new WebSocket(this.wsUrl);
-
-        this.ws.on('open', () => {
-            // Alpaca requires auth message first
-            this.ws.send(JSON.stringify({
-                action: 'auth',
-                key: this.apiKey,
-                secret: this.apiSecret
-            }));
-        });
-
-        // Diagnostic: per-symbol first-bar flag so we log the first bar
-        // of each subscribed symbol once (reveals whether bars arrive at
-        // all and at what cadence).
+    _buildResilientWS() {
+        // Diagnostic: per-symbol first-bar flag (preserved from pre-Phase-9 code)
         this._firstBarLogged = this._firstBarLogged || new Set();
 
-        this.ws.on('message', (data) => {
-            try {
-                const messages = JSON.parse(data.toString());
-                for (const msg of Array.isArray(messages) ? messages : [messages]) {
-                    // Diagnostic: dump every non-bar/non-trade/non-quote
-                    // message so we see subscribe confirmations and any
-                    // errors verbatim. Bars/trades/quotes would spam the
-                    // log, so only the control-plane messages land here.
-                    if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
-                        console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
-                    }
-                    // Auth success
-                    if (msg.T === 'success' && msg.msg === 'authenticated') {
-                        console.log('[Alpaca] Data stream authenticated');
-                        if (this.reconnectAttempts > 0) {
-                            // This is a successful reconnect — reset counter,
-                            // replay every subscription that was active before
-                            // the drop. The initial callback (if any) is stale
-                            // since the original subscribe is already in the
-                            // subscriptions Map.
-                            console.log(`[Alpaca] Reconnect successful after ${this.reconnectAttempts} attempt(s) — replaying ${this.subscriptions.size} subscription(s)`);
-                            this.reconnectAttempts = 0;
-                            this._replaySubscriptions();
-                        } else if (this._initialSubscribeCallback) {
-                            // First open — let the caller's subscribe payload land.
-                            const cb = this._initialSubscribeCallback;
-                            this._initialSubscribeCallback = null;
-                            cb();
-                        }
-                        continue;
-                    }
-                    // Auth failure
-                    if (msg.T === 'error') {
-                        console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
-                        continue;
-                    }
-                    // Trade updates
-                    if (msg.T === 't') {
-                        const cb = this.subscriptions.get(`trades-${msg.S}`);
-                        if (cb) cb({ price: msg.p, size: msg.s, timestamp: msg.t, symbol: msg.S });
-                    }
-                    // Quote updates
-                    if (msg.T === 'q') {
-                        const cb = this.subscriptions.get(`quotes-${msg.S}`);
-                        if (cb) cb({ bid: msg.bp, ask: msg.ap, bidSize: msg.bs, askSize: msg.as, symbol: msg.S });
-                    }
-                    // Bar updates
-                    if (msg.T === 'b') {
-                        const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
-                        // Diagnostic: log the first bar per symbol so we
-                        // can confirm bars are flowing. Subsequent bars
-                        // are silent to avoid log spam.
-                        if (!this._firstBarLogged.has(msg.S)) {
-                            this._firstBarLogged.add(msg.S);
-                            console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
-                        }
-                        // Emit on the EventEmitter surface so run-empire-v2's
-                        // `this.kraken.on('ohlc', ...)` listener (registered
-                        // regardless of broker id; var name preserved) actually
-                        // receives Alpaca bars. Without this the bars arrive
-                        // and die in the adapter — no callback was registered,
-                        // no event was emitted. Matches Kraken's payload shape:
-                        // { timeframe, data } so run-empire-v2:1125-1134 handler
-                        // reads eventData.timeframe / eventData.data correctly.
-                        this.emit('ohlc', { timeframe: '1m', data: bar });
-                        const cb = this.subscriptions.get(`bars-${msg.S}`);
-                        if (cb) cb(bar);
-                    }
+        this.rws = new ResilientWebSocket({
+            url: this.wsUrl,
+            authMessage: {
+                action: 'auth',
+                key: this.apiKey,
+                secret: this.apiSecret,
+            },
+            authSuccessPredicate: (msg) => msg && msg.T === 'success' && msg.msg === 'authenticated',
+            onMessage: (msg) => this._handleStreamMessage(msg),
+            onAuthenticated: ({ isReconnect }) => {
+                console.log(`[Alpaca] Data stream authenticated (isReconnect=${isReconnect})`);
+                if (isReconnect) {
+                    console.log(`[Alpaca] Replaying ${this.subscriptions.size} subscription(s)`);
+                    this._replaySubscriptions();
+                } else if (this._initialSubscribeCallback) {
+                    const cb = this._initialSubscribeCallback;
+                    this._initialSubscribeCallback = null;
+                    try { cb(); }
+                    catch (err) { console.error('[Alpaca] initial subscribe callback threw:', err.message); }
                 }
-            } catch (e) {
-                // Non-JSON messages or parse errors — ignore
+            },
+            options: {
+                maxBackoffMs: 30000,    // 30s cap, matches pre-migration behavior
+                heartbeatPingMs: 0,     // Alpaca doesn't require app-level pings
+                pongTimeoutMs: 0,
+                dataWatchdogMs: 60000,  // no message for 60s -> force reconnect
+            },
+            label: '[Alpaca]',
+        });
+
+        // Surface library events for diagnostics. Don't crash on unhandled.
+        this.rws.on('error', (err) => {
+            console.error('[Alpaca] WS error:', err.message);
+        });
+        this.rws.on('reconnecting', ({ attempt, delayMs }) => {
+            console.log(`[Alpaca] Reconnecting in ${delayMs}ms (attempt #${attempt}, infinite, capped 30s)`);
+        });
+        this.rws.on('data-stale', ({ silentForMs }) => {
+            console.warn(`[Alpaca] Data stream went silent for ${silentForMs}ms — forcing reconnect`);
+        });
+    }
+
+    /**
+     * Stream message handler — Alpaca-specific protocol parsing.
+     * msg comes in already JSON-parsed by ResilientWebSocket.
+     */
+    _handleStreamMessage(msg) {
+        // Alpaca sends arrays of messages; ResilientWebSocket parses the outer
+        // array as a JSON message. If it's an array, iterate; else treat as one.
+        if (Array.isArray(msg)) {
+            for (const m of msg) this._handleOneStreamMessage(m);
+        } else {
+            this._handleOneStreamMessage(msg);
+        }
+    }
+
+    _handleOneStreamMessage(msg) {
+        if (!msg || !msg.T) return;
+        // Diagnostic: log non-data control messages
+        if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
+            console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
+        }
+        // Auth-success is intercepted by ResilientWebSocket via authSuccessPredicate;
+        // we shouldn't see it here. But guard defensively in case predicate misses.
+        if (msg.T === 'success' && msg.msg === 'authenticated') return;
+        // Auth failure — surface but don't reconnect-spin (server will close
+        // shortly and the library handles backoff).
+        if (msg.T === 'error') {
+            console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
+            return;
+        }
+        // Trade updates
+        if (msg.T === 't') {
+            const cb = this.subscriptions.get(`trades-${msg.S}`);
+            if (cb) cb({ price: msg.p, size: msg.s, timestamp: msg.t, symbol: msg.S });
+            return;
+        }
+        // Quote updates
+        if (msg.T === 'q') {
+            const cb = this.subscriptions.get(`quotes-${msg.S}`);
+            if (cb) cb({ bid: msg.bp, ask: msg.ap, bidSize: msg.bs, askSize: msg.as, symbol: msg.S });
+            return;
+        }
+        // Bar updates
+        if (msg.T === 'b') {
+            const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
+            if (!this._firstBarLogged.has(msg.S)) {
+                this._firstBarLogged.add(msg.S);
+                console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
-        });
-
-        this.ws.on('close', (code, reason) => {
-            const reasonStr = reason ? reason.toString() : '';
-            console.log(`[Alpaca] Data stream closed (code=${code}${reasonStr ? ', reason="' + reasonStr + '"' : ''})`);
-
-            // Graceful disconnect via disconnect() — don't reconnect.
-            if (this.intentionalDisconnect) return;
-
-            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, then capped at 30s.
-            // Retries forever — never gives up. Mirrors kraken_adapter_simple.js
-            // pattern. PRE-2026-04-26 this handler just logged and died;
-            // bot would zombie until manual PM2 restart.
-            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-            this.reconnectAttempts++;
-            console.log(`[Alpaca] Reconnecting in ${delay}ms (attempt #${this.reconnectAttempts}, infinite retries, capped 30s)`);
-            this.reconnectTimer = setTimeout(() => this._openDataStream(), delay);
-        });
-
-        this.ws.on('error', (err) => {
-            // ws library fires 'error' THEN 'close', so the reconnect logic
-            // in the close handler will pick this up. Just log here.
-            console.error('[Alpaca] Data stream error:', err.message);
-        });
+            this.emit('ohlc', { timeframe: '1m', data: bar });
+            const cb = this.subscriptions.get(`bars-${msg.S}`);
+            if (cb) cb(bar);
+        }
     }
 
     /**
@@ -689,7 +683,7 @@ class AlpacaAdapter extends IBrokerAdapter {
      * subscribed to before the drop.
      */
     _replaySubscriptions() {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        if (!this.rws || !this.rws.isReady()) return;
         const trades = [], quotes = [], bars = [];
         for (const [key] of this.subscriptions) {
             const [type, sym] = key.split('-');
@@ -704,7 +698,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
         const payload = { action: 'subscribe', trades, quotes, bars };
         console.log('[Alpaca] TX replay-subscribe:', JSON.stringify(payload));
-        this.ws.send(JSON.stringify(payload));
+        this.rws.send(payload);
     }
 }
 
