@@ -304,7 +304,13 @@ async function generateLiveProof() {
     gates: gates
   };
 
-  // Write to both locations
+  // Write to both locations. Self-create both parent dirs first so a
+  // fresh checkout (or first cron tick after the runtime artifact dirs
+  // get gitignored away) can populate without ENOENT.
+  const outputDir = path.dirname(OUTPUT_PATH);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(proof, null, 2));
 
   // Also publish to public
