@@ -1,0 +1,396 @@
+/**
+ * Supervisor.js — system-wide health overseer
+ * ============================================
+ *
+ * The piece that watches everything else. Polls every registered subsystem's
+ * getHealth() endpoint, runs a state machine per subsystem, takes graduated
+ * action at each transition.
+ *
+ * State machine per subsystem:
+ *
+ *   HEALTHY ──[red gauge]──> DEGRADED ──[red >degradeMs]──> UNHEALTHY ──[heal fails N×]──> DEAD
+ *      ▲           │              │                              │                              │
+ *      └──[green]──┴──[green]─────┴──[green]─────────────────────┴──[restart succeeds]──────────┘
+ *
+ * Actions per transition:
+ *
+ *   HEALTHY → DEGRADED        log only
+ *   DEGRADED → UNHEALTHY      log + try self-heal (subsystem-supplied healer)
+ *   UNHEALTHY → DEAD          log + alert (SMS hook) + escalate (PM2 restart)
+ *   any → HEALTHY (recovery)  log + clear alert
+ *
+ * Each transition writes a JSONL entry to data/supervisor-ledger.jsonl
+ * for postmortem reconstruction.
+ *
+ * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 2)
+ *
+ * Subsystems implement a tiny contract:
+ *
+ *   {
+ *     name: 'alpaca-ws',
+ *     getHealth: async () => ({
+ *       status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'DEAD',
+ *       timestamp: 1777182718702,
+ *       details: { ...subsystem-specific... },
+ *       lastSuccessAt: 1777182700000,
+ *       failureReason: null | string,
+ *     }),
+ *     selfHeal: async () => true | false,    // optional
+ *     escalate: async () => true | false,    // optional (e.g., PM2 restart)
+ *   }
+ *
+ * @date 2026-04-26
+ */
+
+'use strict';
+
+const EventEmitter = require('events');
+const fs = require('fs');
+const path = require('path');
+
+const STATES = Object.freeze({
+  HEALTHY:   'HEALTHY',
+  DEGRADED:  'DEGRADED',
+  UNHEALTHY: 'UNHEALTHY',
+  DEAD:      'DEAD',
+});
+
+const DEFAULTS = Object.freeze({
+  pollIntervalMs:        30_000,        // poll every 30s
+  degradeThresholdMs:    120_000,       // red >2min → UNHEALTHY
+  unhealthyHealAttempts: 3,             // heal tries before DEAD
+  healCooldownMs:        30_000,        // min gap between heal attempts
+  deadCooldownMs:        300_000,       // min gap between escalations (no restart loop)
+  maxRestartsIn10min:    5,             // restart loop guard
+  ledgerPath:            'data/supervisor-ledger.jsonl',
+  // Heartbeat to external deadman switch — Layer B of the watching-the-watcher
+  // defense. URL set via env. If unset, deadman heartbeat is a no-op.
+  deadmanHeartbeatUrl:   null,
+  deadmanHeartbeatMs:    60_000,
+});
+
+class Supervisor extends EventEmitter {
+  /**
+   * @param {Object} [config]
+   * @param {string} [config.label] — log prefix
+   * @param {Object} [config.options] — overrides for DEFAULTS
+   * @param {(subsys, transition) => void} [config.onAlert] — SMS/email hook.
+   *   transition is { from, to, subsystem, reason, timestamp }.
+   * @param {() => number} [config.clock] — time injection for tests
+   */
+  constructor(config = {}) {
+    super();
+    const opts = Object.assign({}, DEFAULTS, config.options || {});
+
+    this.label = config.label || '[Supervisor]';
+    this.clock = config.clock || (() => Date.now());
+    this.onAlert = config.onAlert || null;
+
+    this.pollIntervalMs        = opts.pollIntervalMs;
+    this.degradeThresholdMs    = opts.degradeThresholdMs;
+    this.unhealthyHealAttempts = opts.unhealthyHealAttempts;
+    this.healCooldownMs        = opts.healCooldownMs;
+    this.deadCooldownMs        = opts.deadCooldownMs;
+    this.maxRestartsIn10min    = opts.maxRestartsIn10min;
+    this.ledgerPath            = path.resolve(opts.ledgerPath);
+    this.deadmanHeartbeatUrl   = opts.deadmanHeartbeatUrl;
+    this.deadmanHeartbeatMs    = opts.deadmanHeartbeatMs;
+
+    this.subsystems = new Map();   // name -> { def, state, lastRedAt, healAttempts, lastHealAt, lastEscalateAt, restartHistory }
+    this.started = false;
+    this.pollTimer = null;
+    this.deadmanTimer = null;
+
+    this._ensureLedgerDir();
+  }
+
+  /**
+   * Register a subsystem to monitor.
+   * @param {Object} def — subsystem definition (see file header)
+   */
+  register(def) {
+    if (!def || !def.name || typeof def.getHealth !== 'function') {
+      throw new Error('Supervisor.register: def must have {name, getHealth: async () => ...}');
+    }
+    this.subsystems.set(def.name, {
+      def,
+      state: STATES.HEALTHY,
+      lastRedAt: 0,
+      healAttempts: 0,
+      lastHealAt: 0,
+      lastEscalateAt: 0,
+      restartHistory: [],   // array of timestamps; pruned to 10min window
+    });
+    console.log(`${this.label} registered subsystem: ${def.name}`);
+  }
+
+  /** Begin polling. Idempotent. */
+  start() {
+    if (this.started) return;
+    this.started = true;
+    console.log(`${this.label} starting | ${this.subsystems.size} subsystem(s) | poll=${this.pollIntervalMs}ms`);
+
+    // First poll on next tick so caller can finish setup before we hammer
+    setImmediate(() => this._pollAll());
+
+    this.pollTimer = setInterval(() => this._pollAll(), this.pollIntervalMs);
+
+    if (this.deadmanHeartbeatUrl && this.deadmanHeartbeatMs > 0) {
+      this.deadmanTimer = setInterval(() => this._sendDeadmanHeartbeat(), this.deadmanHeartbeatMs);
+    }
+
+    this.emit('started');
+  }
+
+  /** Stop polling. Idempotent. */
+  stop() {
+    if (!this.started) return;
+    this.started = false;
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.deadmanTimer) { clearInterval(this.deadmanTimer); this.deadmanTimer = null; }
+    console.log(`${this.label} stopped`);
+    this.emit('stopped');
+  }
+
+  /** Snapshot of current state — consumed by /api/supervisor/status etc. */
+  getStatus() {
+    const out = {
+      started: this.started,
+      timestamp: this.clock(),
+      subsystems: {},
+    };
+    for (const [name, entry] of this.subsystems) {
+      out.subsystems[name] = {
+        state: entry.state,
+        lastRedAt: entry.lastRedAt,
+        healAttempts: entry.healAttempts,
+        lastHealAt: entry.lastHealAt,
+        lastEscalateAt: entry.lastEscalateAt,
+        recentRestarts: entry.restartHistory.length,
+      };
+    }
+    return out;
+  }
+
+  // =========================================================================
+  // Internal — poll + state machine
+  // =========================================================================
+
+  async _pollAll() {
+    if (!this.started) return;
+    for (const [name, entry] of this.subsystems) {
+      try {
+        await this._pollOne(name, entry);
+      } catch (err) {
+        console.error(`${this.label} poll(${name}) threw:`, err.message);
+      }
+    }
+  }
+
+  async _pollOne(name, entry) {
+    let health;
+    try {
+      health = await entry.def.getHealth();
+    } catch (err) {
+      // getHealth itself blew up — treat as DEAD signal from the subsystem
+      health = {
+        status: STATES.DEAD,
+        timestamp: this.clock(),
+        details: { getHealthThrew: err.message },
+        lastSuccessAt: 0,
+        failureReason: `getHealth threw: ${err.message}`,
+      };
+    }
+
+    if (!health || !health.status) {
+      console.warn(`${this.label} ${name} returned invalid health shape; ignoring tick`);
+      return;
+    }
+
+    await this._reconcileState(name, entry, health);
+  }
+
+  async _reconcileState(name, entry, health) {
+    const now = this.clock();
+    const reportedRed = (health.status !== STATES.HEALTHY);
+    const previousState = entry.state;
+
+    // Track when the subsystem first went red (for degrade-threshold timing)
+    if (reportedRed && entry.lastRedAt === 0) {
+      entry.lastRedAt = now;
+    }
+    if (!reportedRed) {
+      entry.lastRedAt = 0;
+      entry.healAttempts = 0;
+    }
+
+    // Decide target state
+    let nextState;
+    if (!reportedRed) {
+      nextState = STATES.HEALTHY;
+    } else if (health.status === STATES.DEAD) {
+      // Subsystem itself is reporting DEAD — escalate immediately
+      nextState = STATES.DEAD;
+    } else {
+      const redDuration = now - entry.lastRedAt;
+      if (redDuration < this.degradeThresholdMs) {
+        nextState = STATES.DEGRADED;
+      } else {
+        // Red for too long — escalate to UNHEALTHY (or further if heal already failed)
+        nextState = entry.healAttempts >= this.unhealthyHealAttempts
+          ? STATES.DEAD
+          : STATES.UNHEALTHY;
+      }
+    }
+
+    if (nextState !== previousState) {
+      await this._transition(name, entry, previousState, nextState, health);
+    }
+
+    // Run actions APPROPRIATE TO THE CURRENT (post-transition) STATE.
+    // Even if there was no transition this tick, UNHEALTHY tries to heal,
+    // DEAD considers escalation (rate-limited).
+    if (nextState === STATES.UNHEALTHY) {
+      await this._tryHeal(name, entry, health);
+    } else if (nextState === STATES.DEAD) {
+      await this._tryEscalate(name, entry, health);
+    }
+  }
+
+  async _transition(name, entry, from, to, health) {
+    entry.state = to;
+    const event = {
+      timestamp: this.clock(),
+      subsystem: name,
+      from,
+      to,
+      reason: health.failureReason || null,
+      details: health.details || null,
+    };
+    this._writeLedger('transition', event);
+    console.log(`${this.label} ${name}: ${from} -> ${to}${event.reason ? ' | ' + event.reason : ''}`);
+    this.emit('transition', event);
+
+    // Alert hook fires on UNHEALTHY → DEAD only (avoid noise on every tick).
+    if (to === STATES.DEAD && this.onAlert) {
+      try { await this.onAlert(name, event); }
+      catch (err) { console.error(`${this.label} onAlert threw:`, err.message); }
+    }
+  }
+
+  async _tryHeal(name, entry, health) {
+    const now = this.clock();
+    if (now - entry.lastHealAt < this.healCooldownMs) return;  // cooldown
+    if (entry.healAttempts >= this.unhealthyHealAttempts) return;  // exhausted
+
+    const healer = entry.def.selfHeal;
+    if (typeof healer !== 'function') {
+      // No healer wired — bump attempts so we eventually hit DEAD
+      entry.healAttempts++;
+      entry.lastHealAt = now;
+      return;
+    }
+
+    entry.healAttempts++;
+    entry.lastHealAt = now;
+    let ok = false;
+    try {
+      ok = !!(await healer());
+    } catch (err) {
+      console.error(`${this.label} ${name}.selfHeal threw:`, err.message);
+      ok = false;
+    }
+    this._writeLedger('heal_attempt', {
+      timestamp: now,
+      subsystem: name,
+      attempt: entry.healAttempts,
+      success: ok,
+    });
+    console.log(`${this.label} ${name}: heal attempt #${entry.healAttempts} -> ${ok ? 'OK' : 'FAIL'}`);
+  }
+
+  async _tryEscalate(name, entry, health) {
+    const now = this.clock();
+
+    // Restart-loop guard — prune restart history older than 10min
+    const tenMinAgo = now - 600_000;
+    entry.restartHistory = entry.restartHistory.filter(t => t > tenMinAgo);
+    if (entry.restartHistory.length >= this.maxRestartsIn10min) {
+      // Too many restarts in window — back off, don't escalate. Already alerted on DEAD transition.
+      return;
+    }
+
+    if (now - entry.lastEscalateAt < this.deadCooldownMs) return;  // cooldown
+
+    const escalator = entry.def.escalate;
+    if (typeof escalator !== 'function') {
+      // No escalator wired — log only. The DEAD-transition alert already fired.
+      return;
+    }
+
+    entry.lastEscalateAt = now;
+    entry.restartHistory.push(now);
+    let ok = false;
+    try {
+      ok = !!(await escalator());
+    } catch (err) {
+      console.error(`${this.label} ${name}.escalate threw:`, err.message);
+      ok = false;
+    }
+    this._writeLedger('escalate', {
+      timestamp: now,
+      subsystem: name,
+      success: ok,
+      recentRestarts: entry.restartHistory.length,
+    });
+    console.log(`${this.label} ${name}: escalate -> ${ok ? 'OK' : 'FAIL'} (restart #${entry.restartHistory.length} in 10min window)`);
+  }
+
+  // =========================================================================
+  // Watching-the-watcher: external deadman heartbeat (Layer B)
+  // =========================================================================
+
+  _sendDeadmanHeartbeat() {
+    const url = this.deadmanHeartbeatUrl;
+    if (!url) return;
+    // Lazy require to keep https/http out of the hot path when unused
+    const lib = url.startsWith('https') ? require('https') : require('http');
+    const req = lib.get(url, (res) => {
+      // 200 expected; anything else is logged but not actionable here.
+      if (res.statusCode >= 400) {
+        console.warn(`${this.label} deadman heartbeat returned ${res.statusCode}`);
+      }
+      // Drain to free socket
+      res.resume();
+    });
+    req.on('error', (err) => {
+      // Don't crash on deadman failure — Layer B failing is the precise reason
+      // we have Layers A and C as backup.
+      console.warn(`${this.label} deadman heartbeat failed:`, err.message);
+    });
+    req.setTimeout(5000, () => req.destroy(new Error('deadman heartbeat timeout')));
+  }
+
+  // =========================================================================
+  // Ledger
+  // =========================================================================
+
+  _ensureLedgerDir() {
+    const dir = path.dirname(this.ledgerPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  _writeLedger(eventType, payload) {
+    const line = JSON.stringify(Object.assign({ event: eventType }, payload)) + '\n';
+    try {
+      fs.appendFileSync(this.ledgerPath, line);
+    } catch (err) {
+      // Don't let ledger failure crash the supervisor — logging fallback only.
+      console.error(`${this.label} ledger append failed:`, err.message);
+    }
+  }
+}
+
+module.exports = { Supervisor, STATES };
