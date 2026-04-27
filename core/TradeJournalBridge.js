@@ -86,6 +86,7 @@ class TradeJournalBridge {
           const regime = bot.regimeDetector?.detectRegime?.(bot.priceHistory);
           const entryData = {
             orderId: lastTrade.orderId || lastTradeId,
+            symbol: bot.tradingPair || bot.config?.tradingPair || 'unknown',  // FIX 2026-04-27 (Asset Isolation audit): pass active symbol to journal so SessionRouter swaps are traceable
             direction: decision.action,
             entryPrice: lastTrade.entryPrice || price,
             size: lastTrade.size || 0,

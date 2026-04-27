@@ -117,6 +117,7 @@ class TradeJournal {
       event: 'ENTRY',
       timestamp: Date.now(),
       orderId: entry.orderId,
+      symbol: entry.symbol || 'unknown',  // FIX 2026-04-27 (Asset Isolation audit): tag every entry with its asset so cross-broker journal entries are distinguishable
       direction: entry.direction || 'BUY',
       entryPrice: Number(entry.entryPrice),
       size: Number(entry.size || 0),
@@ -184,6 +185,7 @@ class TradeJournal {
       event: 'EXIT',
       timestamp: now,
       orderId: exit.orderId,
+      symbol: entry?.symbol || exit.symbol || 'unknown',  // FIX 2026-04-27 (Asset Isolation audit): propagate symbol from entry record
       direction: entry?.direction || exit.direction || 'BUY',
       entryPrice: entryPrice,
       exitPrice: exitPrice,
