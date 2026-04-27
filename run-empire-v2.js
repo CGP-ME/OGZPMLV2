@@ -1327,19 +1327,28 @@ class OGZPrimeV14Bot {
    * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '4h', '1d'
    * @param {number} limit - Number of candles to fetch
    */
-  async fetchAndSendHistoricalCandles(timeframe, limit = 200) {
+  async fetchAndSendHistoricalCandles(timeframe, limit = 200, symbolOverride = null) {
     try {
       if (!this.kraken || !this.dashboardWs) {
         console.warn('[WARNING] Cannot fetch historical candles - broker or dashboard not connected');
         return;
       }
 
-      console.log(`Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
+      // BUG FIX 2026-04-27: previously read this.assetManager.activeAsset
+      // (env-driven, often 'TSLA'), but this.kraken is the SessionRouter's
+      // active broker (KrakenIBroker on crypto session, AlpacaAdapter on
+      // stocks session). The two desynced after-hours: TSLA dispatched via
+      // KrakenIBroker → "Unknown asset pair." Caller can now pass the
+      // right symbol; otherwise fall back to MultiAssetManager.
+      const symbol = symbolOverride
+        ? symbolOverride
+        : (this.assetManager
+            ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
+            : resolvedConfig.config.broker.tradingPair);
 
-      // CHANGE 2026-02-10: Use active asset from MultiAssetManager if available
-      const symbol = this.assetManager
-        ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
-        : resolvedConfig.config.broker.tradingPair;
+      const brokerName = (this.kraken.getBrokerName && this.kraken.getBrokerName()) || 'broker';
+      console.log(`Fetching ${limit} historical ${timeframe} candles for ${symbol} from ${brokerName} REST API...`);
+
       const candles = await this.kraken.getCandles(symbol, timeframe, limit);
 
       if (candles && candles.length > 0) {

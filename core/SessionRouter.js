@@ -205,6 +205,7 @@ class SessionRouter extends EventEmitter {
 
       this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: stocks session');
+      this._kickHistoricalBackfill('stocks');
 
     } catch (err) {
       console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
@@ -299,6 +300,7 @@ class SessionRouter extends EventEmitter {
 
       this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: crypto session');
+      this._kickHistoricalBackfill('crypto');
 
     } catch (err) {
       console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
@@ -330,6 +332,7 @@ class SessionRouter extends EventEmitter {
     if (this.krakenAdapter.subscribeToCandles) this.krakenAdapter.subscribeToCandles(this.cryptoSymbols[0] || 'BTC/USD', timeframe);
     if (this.onOhlcCallback && this.krakenAdapter.on) this.krakenAdapter.on('ohlc', this.onOhlcCallback);
     console.log('[SessionRouter] Initial activation: crypto');
+    this._kickHistoricalBackfill('crypto');
   }
 
   _activateStocks() {
@@ -360,6 +363,44 @@ class SessionRouter extends EventEmitter {
     }
     if (this.onOhlcCallback && this.alpacaAdapter.on) this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
     console.log('[SessionRouter] Initial activation: stocks');
+    this._kickHistoricalBackfill('stocks');
+  }
+
+  /**
+   * Trigger REST-fetch of historical candles for the active asset.
+   *
+   * Live/paper mode doesn't auto-fetch historical bars on boot — the
+   * existing path only fires on dashboard 'request_historical' messages
+   * (WebSocketManager.js:152). On a cold-boot stocks-active session, the
+   * chart sat empty and the right-rail HUD showed 0.00 forever until the
+   * user happened to switch timeframes.
+   *
+   * Fired after activation with a small delay so:
+   *   1. dashboardWs has time to connect (we ship to all connected tabs)
+   *   2. this.ctx.kraken has been pointed at the active broker by the
+   *      cold-boot pickup at run-empire-v2.js:1112
+   *
+   * Both 1m + 15m so all chart-timeframe selections have data.
+   */
+  _kickHistoricalBackfill(session) {
+    const ctx = this.ctx;
+    if (!ctx || typeof ctx.fetchAndSendHistoricalCandles !== 'function') return;
+    // Pick the symbol that matches the session's broker. fetchAndSend uses
+    // ctx.kraken (= sessionRouter.activeBroker) — passing the wrong symbol
+    // (e.g. TSLA on crypto-active KrakenIBroker) returns "Unknown asset pair."
+    const symbol = session === 'stocks'
+      ? (this.stockSymbols[0] || 'TSLA')
+      : (this.cryptoSymbols[0] || 'BTC/USD');
+    setTimeout(() => {
+      try {
+        ctx.fetchAndSendHistoricalCandles('1m', 500, symbol);
+      } catch (e) { console.warn('[SessionRouter] historical 1m kick failed:', e.message); }
+    }, 4000);
+    setTimeout(() => {
+      try {
+        ctx.fetchAndSendHistoricalCandles('15m', 500, symbol);
+      } catch (e) { console.warn('[SessionRouter] historical 15m kick failed:', e.message); }
+    }, 5000);
   }
 
   stop() {
