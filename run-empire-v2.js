@@ -1100,7 +1100,18 @@ class OGZPrimeV14Bot {
     // Start SessionRouter clock (no-op if disabled).
     // Must come AFTER isRunning=true so the first activation can register
     // its broker with OrderRouter before any tick arrives.
-    if (this.sessionRouter) this.sessionRouter.start();
+    if (this.sessionRouter) {
+      this.sessionRouter.start();
+      // BUG FIX 2026-04-27: pick up the cold-boot active broker for legacy
+      // `this.kraken` consumers (gap-recovery in CandleProcessor:146,
+      // watchdog backfill at L1421, etc). The 'transition' listener at
+      // L643 only fires on broker SWAPS — not on initial activation. Without
+      // this, stocks-active boot leaves this.kraken pointing at KrakenAdapter
+      // and gap-recovery tries to fetch TSLA from Kraken (Unknown asset pair).
+      if (this.sessionRouter.activeBroker) {
+        this.kraken = this.sessionRouter.activeBroker;
+      }
+    }
 
     // Initialize TRAI Decision Module (Change 574)
     if (this.trai) {
