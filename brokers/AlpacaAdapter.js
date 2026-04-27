@@ -618,15 +618,17 @@ class AlpacaAdapter extends IBrokerAdapter {
             callback();
             return;
         }
+        // BUG FIX 2026-04-27: previously stored ONE _initialSubscribeCallback,
+        // overwritten on each call. SessionRouter loops 7 stockSymbols
+        // (TSLA, SPY, QQQ, NVDA, COIN, MARA, RIOT) calling subscribeToCandles
+        // per-symbol — only RIOT (last) ever subscribed. TSLA bars never flowed.
+        // Now accumulates all callbacks and drains them in onAuthenticated.
+        if (!this._pendingSubscribeCallbacks) this._pendingSubscribeCallbacks = [];
+        this._pendingSubscribeCallbacks.push(callback);
         if (!this.rws) {
             this._buildResilientWS();
-            this._initialSubscribeCallback = callback;
             this.rws.start();
-            return;
         }
-        // Already starting / reconnecting — overwrite the pending callback
-        // so the latest subscribe wins on auth-success.
-        this._initialSubscribeCallback = callback;
     }
 
     _buildResilientWS() {
@@ -640,18 +642,30 @@ class AlpacaAdapter extends IBrokerAdapter {
                 key: this.apiKey,
                 secret: this.apiSecret,
             },
-            authSuccessPredicate: (msg) => msg && msg.T === 'success' && msg.msg === 'authenticated',
+            // BUG FIX 2026-04-27: Alpaca sends auth-success wrapped in a
+            // 1-element array: [{T:"success",msg:"authenticated"}]. The
+            // bare-object check failed on arrays, predicate never matched,
+            // _fireAuthenticated() never fired, callbacks never drained.
+            // Now handles both array + bare-object forms.
+            authSuccessPredicate: (msg) => {
+                const isAuth = (m) => m && m.T === 'success' && m.msg === 'authenticated';
+                if (Array.isArray(msg)) return msg.some(isAuth);
+                return isAuth(msg);
+            },
             onMessage: (msg) => this._handleStreamMessage(msg),
             onAuthenticated: ({ isReconnect }) => {
                 console.log(`[Alpaca] Data stream authenticated (isReconnect=${isReconnect})`);
                 if (isReconnect) {
                     console.log(`[Alpaca] Replaying ${this.subscriptions.size} subscription(s)`);
                     this._replaySubscriptions();
-                } else if (this._initialSubscribeCallback) {
-                    const cb = this._initialSubscribeCallback;
-                    this._initialSubscribeCallback = null;
-                    try { cb(); }
-                    catch (err) { console.error('[Alpaca] initial subscribe callback threw:', err.message); }
+                } else if (this._pendingSubscribeCallbacks?.length) {
+                    const callbacks = this._pendingSubscribeCallbacks;
+                    this._pendingSubscribeCallbacks = [];
+                    console.log(`[Alpaca] Draining ${callbacks.length} pending subscribe callback(s)`);
+                    for (const cb of callbacks) {
+                        try { cb(); }
+                        catch (err) { console.error('[Alpaca] initial subscribe callback threw:', err.message); }
+                    }
                 }
             },
             options: {
