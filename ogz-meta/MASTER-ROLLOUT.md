@@ -1,6 +1,8 @@
 # OGZPrime Master Rollout Document
 ## The Single Source of Truth for Project State
 
+> **2026-04-27 NOTICE — read first:** This doc is now starter-kit context, NOT the running state ledger. Per `ogz-meta/sessions/SESSION-DOC-MANIFEST.md` (adopted 2026-04-27), the canonical state-of-the-project lives in dated, append-only session docs at `ogz-meta/sessions/`. Read the most recent 2-3 session docs first; they tell you what's been done since this Master Rollout was last written, what's open, and what the current Phase 0 baseline is. The phase checkboxes / workstream statuses below were accurate as of the "Last updated" date stamped — they may be stale now and should not be treated as authoritative without cross-checking the latest session doc.
+
 **Last updated:** 2026-04-13 by wolf (Claude Desktop session)
 **Branch:** `tradingloop-clean-rewrite` (rebase target: `broker-alpaca-integration`)
 **Current phase:** Apex critical path — operational verification queued
