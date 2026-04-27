@@ -523,18 +523,34 @@ class TradingLoop {
         const reasoning = decision.action === 'HOLD'
           ? `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${(minConfidence * 100).toFixed(0)}% minimum`
           : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
+        // Strategy Winner HUD: full battleground for confidence bar chart.
+        // FIX 2026-04-27: orchResult.allResults only contains strategies that
+        // FIRED this cycle. Enrich with the full configured-strategy list
+        // (zero-confidence placeholders for non-firing) so the dashboard
+        // battleground always shows ALL contenders, not just the winner.
+        // Trey: "I think I've only ever seen it say EMA crossover."
+        const firedById = new Map(
+          (orchResult.allResults || []).map(s => [s.strategyName, s])
+        );
+        const allStrategyNames = (this.ctx.strategyOrchestrator?.strategies || [])
+          .map(s => s.name);
+        const fullStack = allStrategyNames.map(name => {
+          const fired = firedById.get(name);
+          return {
+            id: name,
+            name,
+            confidence: fired ? fired.confidence : 0,
+            direction: fired ? fired.direction : 'hold',
+          };
+        }).sort((a, b) => b.confidence - a.confidence);
+
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'bot_thinking',
           timestamp: Date.now(),
           message: reasoning,
           confidence: decision.confidence,
           data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
-          // Strategy Winner HUD: full battleground for confidence bar chart
-          strategy_stack: orchResult.allResults ? orchResult.allResults.map(s => ({
-            id: s.strategyName,
-            name: s.strategyName,
-            confidence: s.confidence
-          })) : undefined,
+          strategy_stack: fullStack.length ? fullStack : undefined,
           winner_id: orchResult.winnerStrategy || null
         }));
       } catch (e) { /* fail silently */ }
