@@ -1417,22 +1417,34 @@ class OGZPrimeV14Bot {
         console.warn('[WATCHDOG] LIVENESS: No data for', Math.round(silenceDuration / 1000), 'seconds - attempting REST backfill...');
 
         // ATTEMPT BACKFILL FIRST before halting
+        // BUG FIX 2026-04-27: was hardcoded to Kraken-only path
+        // (getHistoricalOHLC + 'XBTUSD'); after SessionRouter swaps
+        // this.kraken to Alpaca, that method doesn't exist and the
+        // backfill threw silently → bot stayed silent on data.
+        // Now uses canonical IBroker.getCandles() with active symbol.
         try {
-          const candles = await this.kraken.getHistoricalOHLC('XBTUSD', 15, 10);
+          const symbol = this.sessionRouter?.activeSession === 'stocks'
+            ? (this.sessionRouter.stockSymbols?.[0] || 'TSLA')
+            : (this.sessionRouter?.cryptoSymbols?.[0] || 'BTC/USD');
+          const candles = await this.kraken.getCandles(symbol, '15m', 10);
           if (candles && candles.length > 0) {
-            console.log(`REST backfill success: ${candles.length} candles recovered`);
+            console.log(`REST backfill success: ${candles.length} candles recovered for ${symbol}`);
             // Feed candles through CandleProcessor one at a time (uses canonical processNewCandle)
             for (const candle of candles) {
+              // Kraken returns ms timestamps + etime; Alpaca returns ms
+              // timestamps without etime — fall back to t for etime.
+              const t = candle.t / 1000;
+              const etime = candle.etime != null ? candle.etime / 1000 : t;
               this.candleProcessor.handleMarketData([
-                candle.t / 1000,  // time (seconds)
-                candle.etime / 1000,  // etime (seconds)
+                t,                    // time (seconds)
+                etime,                // etime (seconds)
                 candle.o,
                 candle.h,
                 candle.l,
                 candle.c,
-                0,  // vwap (not used)
+                0,                    // vwap (not used)
                 candle.v,
-                0   // count (not used)
+                0                     // count (not used)
               ]);
             }
             this.lastDataReceived = Date.now();
