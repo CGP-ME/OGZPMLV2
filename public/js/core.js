@@ -143,9 +143,13 @@ window.OGZ = (function() {
                     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
                     if (totalPnl != null) {
                         const pnl = Number(totalPnl);
-                        set('totalPnl', (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2));
+                        // Use unambiguous symbols + bright color so + isn't misread as -
+                        set('totalPnl', (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2));
                         const el = document.getElementById('totalPnl');
-                        if (el) el.style.color = pnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)';
+                        if (el) {
+                            el.style.color = pnl >= 0 ? '#22c55e' : '#ef4444';
+                            el.style.fontWeight = '900';
+                        }
                     }
                     if (winRate != null) set('winRate', Number(winRate).toFixed(1) + '%');
                     if (tradesCt != null) set('tradesExecuted', String(tradesCt));

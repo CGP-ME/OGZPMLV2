@@ -243,11 +243,7 @@
 
         if (allUnknown) {
             html += `
-                <div class="sl-hint">
-                    Strategy attribution not in <code>trade</code> stream yet —
-                    all closes collapse to <strong>Unattributed</strong>.
-                    Backend fix queued (OrderExecutor <code>strategy</code>/<code>exitStrategy</code> fields).
-                </div>
+                <div class="sl-hint">Awaiting strategy attribution&hellip;</div>
             `;
         }
 

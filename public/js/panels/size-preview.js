@@ -219,9 +219,9 @@
             </div>
             <div class="sp-grid">
                 <div class="sp-cell"><div class="sp-cell-k">Shares</div><div class="sp-cell-v">${shares}</div></div>
-                <div class="sp-cell"><div class="sp-cell-k">Notional</div><div class="sp-cell-v">${notional}</div></div>
-                <div class="sp-cell"><div class="sp-cell-k">1R loss</div><div class="sp-cell-v" style="color:#ef4444">${oneR}</div></div>
-                <div class="sp-cell"><div class="sp-cell-k">SL dist</div><div class="sp-cell-v">${slDistLine}</div></div>
+                <div class="sp-cell"><div class="sp-cell-k">Position $</div><div class="sp-cell-v">${notional}</div></div>
+                <div class="sp-cell"><div class="sp-cell-k">Max Loss</div><div class="sp-cell-v" style="color:#ef4444">${oneR}</div></div>
+                <div class="sp-cell"><div class="sp-cell-k">Stop Distance</div><div class="sp-cell-v">${slDistLine}</div></div>
             </div>
             <div class="sp-stance-row">
                 <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.08em;">Confidence</span>
@@ -229,7 +229,7 @@
                 <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e4e4e7;min-width:32px;text-align:right;">${confPct}%</span>
             </div>
             <div class="sp-foot">
-                Preview only · risk 1.0% · ATR×1.5 · cap 50%. Live bot uses its own DynamicPositionSizer.
+                Preview · 1R risk · ATR-scaled stop · cap 50% equity
             </div>
         `;
     }
