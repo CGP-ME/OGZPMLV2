@@ -161,6 +161,17 @@ class SessionRouter extends EventEmitter {
       if (this.krakenAdapter.unsubscribeAll) this.krakenAdapter.unsubscribeAll();
       if (this.krakenAdapter.removeAllListeners) this.krakenAdapter.removeAllListeners('ohlc');
 
+      // FIX 2026-04-27 (Bot Swap Resilience audit): Reset cross-asset state
+      // BEFORE the new feed is wired so no candles arrive during reset.
+      // Without this, IndicatorEngine carries stale crypto state into the
+      // first stock candles (RSI/EMA/MACD bleeding 14-200 candles deep).
+      if (this.ctx && this.ctx.indicatorEngine && typeof this.ctx.indicatorEngine.reset === 'function') {
+        this.ctx.indicatorEngine.reset();
+      }
+      if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
+        this.ctx.priceHistory.length = 0;
+      }
+
       if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
 
       const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
@@ -218,6 +229,17 @@ class SessionRouter extends EventEmitter {
 
       if (this.alpacaAdapter.unsubscribeAll) this.alpacaAdapter.unsubscribeAll();
       if (this.alpacaAdapter.removeAllListeners) this.alpacaAdapter.removeAllListeners('ohlc');
+
+      // FIX 2026-04-27 (Bot Swap Resilience audit): Reset cross-asset state
+      // BEFORE the new feed is wired so no candles arrive during reset.
+      // Without this, IndicatorEngine carries stale stock state into the
+      // first crypto candles (RSI/EMA/MACD bleeding 14-200 candles deep).
+      if (this.ctx && this.ctx.indicatorEngine && typeof this.ctx.indicatorEngine.reset === 'function') {
+        this.ctx.indicatorEngine.reset();
+      }
+      if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
+        this.ctx.priceHistory.length = 0;
+      }
 
       if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
 

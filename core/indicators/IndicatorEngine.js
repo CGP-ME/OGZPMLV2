@@ -203,6 +203,44 @@ class IndicatorEngine {
     this.series = this._blankSeries();
   }
 
+  /**
+   * Reset all stateful indicator buffers back to initial state.
+   * Called by SessionRouter on broker swap to prevent indicator-state leak
+   * across assets (e.g., TSLA RSI bleeding into first BTC/USD candles).
+   * Does NOT reset config — only the rolling state buffers.
+   *
+   * Added 2026-04-27 per Bot Swap Resilience audit finding:
+   *   IndicatorEngine is a module-level singleton; without reset on asset
+   *   swap, RSI/EMA/MACD/ATR carry stale values for 14-200 candles into
+   *   the new asset's data — strategies receive corrupted indicator output
+   *   during that window.
+   */
+  reset() {
+    this.candles = [];
+    this.state = this._blankState();
+    this.ema = new Map();
+    this.macdState = { emaFast: null, emaSlow: null, signalEma: null, macd: null, signal: null, hist: null };
+    this.rsiState = { avgGain: null, avgLoss: null, rsi: null };
+    this.stochRsiState = { stoch: null, k: null, d: null, history: [] };
+    this.adxState = { prevH: null, prevL: null, prevC: null, smTR: null, smPDM: null, smMDM: null, pdi: null, mdi: null, dx: null, adx: null };
+    this.superTrendState = { upper: null, lower: null, trend: null, value: null };
+    this.keltnerState = { ema: null, upper: null, mid: null, lower: null };
+    this.donchianState = { upper: null, lower: null, mid: null };
+    this.obvState = { obv: 0, prevClose: null };
+    this.mfiState = { posFlow: [], negFlow: [], mfi: null };
+    this.twoPoleState = { filt: null, filt2: null, osc: null };
+    this.ogzTpoState = { last: null, signal: null };
+    this.atrState = { prevClose: null, atr: null };
+    this.vwapState = { sessionKey: null, cumPV: 0, cumV: 0, vwap: null };
+    this.ichimokuState = { tenkan: null, kijun: null, senkouA: null, senkouB: null, chikou: null, senkouAForward: [], senkouBForward: [] };
+    this.pivots = { highs: [], lows: [] };
+    this.sr = { supports: [], resistances: [] };
+    this.fib = { swing: null, levels: {} };
+    this.trends = { up: null, down: null };
+    this.series = this._blankSeries();
+    console.log('[IndicatorEngine] State reset — all rolling buffers cleared');
+  }
+
   _blankState() {
     return {
       symbol: this.config.symbol,
