@@ -188,8 +188,11 @@ class SessionRouter extends EventEmitter {
       if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
 
       const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-      for (const symbol of this.stockSymbols) {
-        if (this.alpacaAdapter.subscribeToCandles) this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+      // BUG FIX 2026-04-27: see _activateStocks — multi-symbol bars contaminate
+      // CandleProcessor's single stream. Subscribe to primary symbol only.
+      const primaryStock = this.stockSymbols[0] || 'TSLA';
+      if (this.alpacaAdapter.subscribeToCandles) {
+        this.alpacaAdapter.subscribeToCandles(primaryStock, timeframe);
       }
 
       if (this.onOhlcCallback && this.alpacaAdapter.on) this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
@@ -344,8 +347,16 @@ class SessionRouter extends EventEmitter {
     this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
     const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-    for (const symbol of this.stockSymbols) {
-      if (this.alpacaAdapter.subscribeToCandles) this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+    // BUG FIX 2026-04-27: previously subscribed to ALL stockSymbols
+    // (TSLA, SPY, QQQ, NVDA, COIN, MARA, RIOT) — but CandleProcessor
+    // processes one stream at a time, so bars from MARA ($11) and QQQ
+    // ($664) contaminated TSLA's history. Bot bought "TSLA" at $664
+    // (QQQ price), notional math went phantom ($987k on $10k account),
+    // dashboard showed +$54K/+$84K/+$226K nonsense.
+    // Mirror the crypto pattern at L313 — subscribe to primary symbol only.
+    const primaryStock = this.stockSymbols[0] || 'TSLA';
+    if (this.alpacaAdapter.subscribeToCandles) {
+      this.alpacaAdapter.subscribeToCandles(primaryStock, timeframe);
     }
     if (this.onOhlcCallback && this.alpacaAdapter.on) this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
     console.log('[SessionRouter] Initial activation: stocks');
