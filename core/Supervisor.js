@@ -399,6 +399,22 @@ class Supervisor extends EventEmitter {
     this.emit('transition', event);
 
     // Alert hook fires on UNHEALTHY → DEAD only (avoid noise on every tick).
+    //
+    // Mercury Audit B3 review (2026-04-27):
+    //
+    // (a) Alert-hook reject does NOT revert state. State transitions are
+    //     authoritative; the alert is best-effort notification. If we
+    //     rolled back state on alert failure, a flaky alert provider
+    //     (Twilio rate limit, Slack 5xx) could trap the supervisor in
+    //     a transition loop, paging operators and never reaching the
+    //     DEAD state where escalate() would actually run. By-design.
+    //
+    // (b) onAlert is a function reference captured at construction.
+    //     Module-level changes (e.g. operator updates the hook code)
+    //     do NOT pick up via require-cache busting — operator restart
+    //     of ogz-supervisor is the only path. By-design — hot-reload
+    //     of alert behavior is a security-surface concern (surprise
+    //     code execution in the supervisor process).
     if (to === STATES.DEAD && this.onAlert) {
       try { await this.onAlert(name, event); }
       catch (err) { console.error(`${this.label} onAlert threw:`, err.message); }
@@ -483,6 +499,21 @@ class Supervisor extends EventEmitter {
   // Watching-the-watcher: external deadman heartbeat (Layer B)
   // =========================================================================
 
+  /**
+   * Mercury Audit B3 review (2026-04-27): no-retry-on-5xx is by-design.
+   *
+   * Healthchecks.io semantics: services interpret missing pings as outages
+   * after a configured grace period (typically 1.5x the expected interval).
+   * Our default heartbeat cadence is 60s. A single 5xx response is recovered
+   * on the next 60s tick automatically — that IS the implicit retry. Adding
+   * code-side retry-with-backoff would risk thundering-herd on a flaky
+   * health endpoint without improving the actual outage-detection signal.
+   *
+   * req.setTimeout(5000) calls req.destroy on timeout, which aborts the
+   * request and frees the underlying socket — NOT just a timeout event.
+   * No socket leak. No keep-alive agent (default global agent suffices for
+   * a once-per-60s outbound ping).
+   */
   _sendDeadmanHeartbeat() {
     const url = this.deadmanHeartbeatUrl;
     if (!url) return;
@@ -490,6 +521,7 @@ class Supervisor extends EventEmitter {
     const lib = url.startsWith('https') ? require('https') : require('http');
     const req = lib.get(url, (res) => {
       // 200 expected; anything else is logged but not actionable here.
+      // Next tick (60s default) is the implicit retry per design above.
       if (res.statusCode >= 400) {
         console.warn(`${this.label} deadman heartbeat returned ${res.statusCode}`);
       }
@@ -501,6 +533,7 @@ class Supervisor extends EventEmitter {
       // we have Layers A and C as backup.
       console.warn(`${this.label} deadman heartbeat failed:`, err.message);
     });
+    // req.destroy aborts the connection AND frees the socket — no leak.
     req.setTimeout(5000, () => req.destroy(new Error('deadman heartbeat timeout')));
   }
 
@@ -515,13 +548,34 @@ class Supervisor extends EventEmitter {
     }
   }
 
+  /**
+   * Mercury Audit B3 review (2026-04-27):
+   *
+   * (1) Partial-write on ENOSPC: fs.appendFileSync is non-atomic at line
+   *     granularity in POSIX — if disk fills mid-write, a malformed JSONL
+   *     line can land in the file. Tolerated by-design: downstream parsers
+   *     (jq with `?`, `JSON.parse` in try/catch, our own _replayRestartHistory)
+   *     all handle malformed lines gracefully. Stronger atomicity (write+rename
+   *     per line) would be too expensive for a high-frequency log. The trade
+   *     is documented; the err.code logging below makes ENOSPC events
+   *     grep-able for operator monitoring.
+   *
+   * (2) Ledger directory removed between _ensureLedgerDir (constructor)
+   *     and first append: append throws ENOENT. Caught here; supervisor
+   *     continues without crash. Failure is logged and operator can act.
+   *     Recreating the directory mid-flight is intentionally NOT done —
+   *     if someone manually deleted the dir, they may have a reason.
+   */
   _writeLedger(eventType, payload) {
     const line = JSON.stringify(Object.assign({ event: eventType }, payload)) + '\n';
     try {
       fs.appendFileSync(this.ledgerPath, line);
     } catch (err) {
-      // Don't let ledger failure crash the supervisor — logging fallback only.
-      console.error(`${this.label} ledger append failed:`, err.message);
+      // Surface err.code (ENOSPC/EACCES/ENOENT) so operator monitors can
+      // route alerts. Don't let ledger failure crash the supervisor —
+      // its core duty (watching subsystems) takes precedence over its
+      // own postmortem trail.
+      console.error(`${this.label} ledger append failed [${err.code || 'unknown'}]:`, err.message, '(path:', this.ledgerPath + ')');
     }
   }
 
