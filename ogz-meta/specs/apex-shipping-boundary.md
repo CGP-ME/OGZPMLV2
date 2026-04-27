@@ -10,7 +10,7 @@
 
 The Apex evaluation targets a **15% profit** with **< 5% drawdown** as the first step toward the Houston vision. Passing Apex unlocks the payout → multi-account clone → Houston move sequence per `ogz-meta/GRAND-SCHEME.md`.
 
-Current Apex eval path: Alpaca paper TSLA (stocks-only during RTH) on branch `alpaca/stocks-paper-flip`. No crypto during eval. SessionRouter is BUILT and flag-gated (`SESSION_ROUTER_ENABLED` defaults to `false`); enabling 24/7 crypto+stocks auto-switch is post-Apex by deliberate feature-flag, not by missing implementation.
+Current Apex eval path: Alpaca paper TSLA (stocks-only during RTH) on branch `alpaca/stocks-paper-flip`. SessionRouter is BUILT AND LIVE — `SESSION_ROUTER_ENABLED=true` flipped on in PM2 env at commit `bec08c3` (2026-04-27). Pairs with the Phase 9 AlpacaAdapter→ResilientWebSocket migration (`a5ee381`). Bot now runs dual-broker session orchestration: Kraken crypto 24/7 + Alpaca stocks RTH (sequential, not concurrent — SessionRouter swaps `activeBroker` at session boundaries). Apex eval still runs against the Alpaca-during-RTH window of that orchestration.
 
 ---
 
@@ -77,15 +77,17 @@ Read-only per-ticker premium banks harvested from backtests. Augments confidence
 
 ## POST-APEX (deferred until eval passes)
 
-### SessionRouter — 24/7 crypto + stocks auto-switch (BUILT, flag-gated OFF)
+### SessionRouter — 24/7 crypto + stocks auto-switch (LIVE)
 
-**Status update 2026-04-26:** SessionRouter shipped. Module at `core/SessionRouter.js`. Foundation API added at `foundation/MarketCalendar.js:457-503` ("SessionRouter API added 2026-04-25"). Wiring at `run-empire-v2.js:161, 598-635, 1092-1095`. Full spec at `ogz-meta/ledger/SESSION-ROUTER-SPEC.md`; implementation spec at `ogz-meta/ledger/CC-SPEC-SESSION-ROUTER-IMPL_1.md`.
+**Status update 2026-04-27:** SessionRouter is LIVE. `SESSION_ROUTER_ENABLED=true` flipped on in PM2 env at `bec08c3`. Module at `core/SessionRouter.js`. Foundation API at `foundation/MarketCalendar.js:457-503` ("SessionRouter API added 2026-04-25"). Wiring at `run-empire-v2.js:161, 598-635, 1092-1095`. Specs: `ogz-meta/ledger/SESSION-ROUTER-SPEC.md`, `ogz-meta/ledger/CC-SPEC-SESSION-ROUTER-IMPL_1.md`, `ogz-meta/specs/resilience-and-supervision.md` (Phase 10 deferral conditions).
 
-Behavior when enabled: creates Kraken + Alpaca adapters, owns the active feed, flips at market open/close, force-liquidates on transition (no swing across sessions), mirrors `activeBroker` back to `this.kraken` so legacy callers don't break.
+Behavior in production: creates Kraken + Alpaca adapters, owns the active feed, flips at market open/close, force-liquidates on transition (no swing across sessions), mirrors `activeBroker` back to `this.kraken` so legacy callers don't break.
 
-Runtime gate: `process.env.SESSION_ROUTER_ENABLED === 'true'`. **Default OFF.** With the flag off, Apex eval runs Alpaca-only and behavior is unchanged from pre-SessionRouter. Flipping the flag on for 24/7 crypto+stocks auto-switch is post-Apex by deliberate feature-flag, not by missing implementation.
+Apex eval path: Alpaca during RTH within the dual-broker orchestration. Crypto 24/7 path (Kraken active outside RTH) is non-Apex behavior but runs alongside.
 
-In flight (parallel CC): an agnostic reconnect watcher — a meta-monitor that observes SessionRouter's broker-swap path and validates each transition completes end-to-end. Builds on the broker resilience gauntlet shipped at `d184376` (10/10 scenarios passing).
+**Phase 10 (Kraken migration to ResilientWebSocket) DEFERRED pre-Apex.** `kraken_adapter_simple.js` (867 lines, battle-tested reconnect logic since 2026-01-21) stays untouched until Kraken-specific resilience gauntlet coverage exists. Phase 11 half-complete: Alpaca decommissioned at `a5ee381`, Kraken pending. Conditions for safe migration documented in `ogz-meta/specs/resilience-and-supervision.md`.
+
+In flight (parallel CC): agnostic reconnect watcher — meta-monitor that observes SessionRouter's broker-swap path and validates each transition completes end-to-end. Builds on the broker resilience gauntlet at `d184376` (10/10 scenarios passing).
 
 ### Pattern bank Phase 3 + Phase 4-extended
 
