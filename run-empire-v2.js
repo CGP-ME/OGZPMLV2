@@ -630,8 +630,16 @@ class OGZPrimeV14Bot {
       );
 
       // Preserve the this.kraken handle expected by the rest of the codebase.
-      // SessionRouter swaps activeBroker on each transition; we mirror it here.
-      this.kraken = this.sessionRouter.activeBroker;
+      // SessionRouter swaps activeBroker on each transition.
+      //
+      // BUG FIX 2026-04-27: previously read sessionRouter.activeBroker here,
+      // but activeBroker is null until sessionRouter.start() runs (which
+      // happens later in the boot sequence at the isRunning=true tick).
+      // Reading null here meant the downstream `this.kraken.connect()` at
+      // L1117 crashed with "Cannot read properties of null". Initialize
+      // with the kraken adapter (matches default crypto session for
+      // weekend boot) — the transition handler updates on RTH flip.
+      this.kraken = krakenAdapter;
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
         console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
