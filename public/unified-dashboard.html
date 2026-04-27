@@ -3203,14 +3203,14 @@
 
                 <!-- Indicators (moved from chart overlay) -->
                 <div class="panel-title">📊 Indicators</div>
-                <div class="indicator-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; padding:8px; background:rgba(0,0,0,0.3); border-radius:4px; font-size:11px;">
-                    <span><b>RSI:</b> <span id="rsiCore">50</span></span>
-                    <span><b>MACD:</b> <span id="macdCore">0.00</span></span>
-                    <span><b>Pattern:</b> <span id="patternCore">None</span></span>
-                    <span><b>Pattern(ML):</b> <span id="patternML">None</span></span>
-                    <span><b>Vol:</b> <span id="volumeCore">0</span></span>
-                    <span><b>ATR:</b> <span id="atrML">0.00</span></span>
-                    <span><b>Conf:</b> <span id="confidenceML">0%</span></span>
+                <div class="indicator-bar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:10px; margin-bottom:12px; padding:10px 12px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:12px;">
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">RSI</b><span id="rsiCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">50</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">MACD</b><span id="macdCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Pattern</b><span id="patternCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">None</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Pattern ML</b><span id="patternML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">None</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Volume</b><span id="volumeCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">ATR</b><span id="atrML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
+                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Live Conf</b><span id="confidenceML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0%</span></span>
                 </div>
 
                 <!-- Phase F: Size Preview -->
