@@ -502,7 +502,12 @@
         resetSession() {
             state.sessionStart = null;
             state.sessionPeak = null;
-            state.sessionDate = todayUTC();
+            // DeepSearch fix 2026-04-27: was `todayUTC()` which doesn't
+            // exist in this module — the helper is `todayET()` (defined
+            // at L77). Calls to resetSession() previously threw
+            // ReferenceError silently inside the OGZ.RiskGauge.resetSession
+            // public method, which broke the daily session-rollover path.
+            state.sessionDate = todayET();
             state.balanceFromPriceStream = false;
             try {
                 localStorage.removeItem(LS_KEY_START);
