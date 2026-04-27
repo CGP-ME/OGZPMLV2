@@ -1,6 +1,27 @@
 
 ---
 
+## 2026-04-25 → 2026-04-27: Asset Isolation + Strategy Parity + Bot Swap Resilience + Session-Doc Manifest (~20 commits)
+
+**Impact:** HIGH — 3 audit gauntlets closed (Strategy Parity, Bot Swap Resilience, Asset Isolation), 9 dangerous half-cooked items burned to zero, $298 dashboard mismatch closed, SessionRouter flipped LIVE, and a new session-doc pattern established to stop the doc-drift problem.
+
+**New Phase 0 baseline:** `$17,551.91169513058 / 1265 trades / 778W/487L / 61.5% WR / 2.66% DD / 2.67 PF` (post `16c1b1c` April 25 sweep-winners apply). Old baseline ($17,950.58…) superseded — Trey accepted "-$400 for better win rate and step-forward validation."
+
+**Highlights:**
+- **Strategy parity wired**: `minConfidence: null` added to all 10 unvalidated contracts (`d50394a`), per-strategy gate wired in StrategyOrchestrator (`fb8985a`)
+- **SessionRouter LIVE**: flag flipped (`bec08c3`), Phase 10 deferred, docs corrected (`5d39230`, `2623d7c`), boot crash fixed (`deb276e`)
+- **Bot swap resilience**: IndicatorEngine.reset() across asset transitions (`45d2b0b`), candle-history.json clear (`4433126`), abort-on-close-failure (`36d2da7`)
+- **Asset isolation**: TradeJournal symbol fields (`b58d729`), PipelineSnapshot symbol (`53513fb`), BacktestRunner asset slug filenames (`35ab407`)
+- **$298 dashboard fix**: CandleProcessor broadcasts `getEquity(price)` instead of free-cash sentinel (`707e370`)
+- **Mercury tool expansion** (parallel CC): web_fetch (`b57493a`), git_show (`76a9a1b`), tavily_search (`d9a6bf2`)
+- **Supervisor B1/B2/B3** (parallel CC): clock-monotonic + parallel polling (`29670af`), restart history persistence (`df344f5`), by-design docs (`91be425`)
+
+**Process change:** Adopted **append-only dated session docs** as canonical record going forward. Old "mutate MASTER-ROLLOUT and rolling TODO docs" pattern was producing 14-day-stale docs and Mercury index pollution. New rule: every session writes one frozen doc under `ogz-meta/sessions/`. See `ogz-meta/sessions/SESSION-DOC-MANIFEST.md` for full standard. Full session record: `ogz-meta/sessions/session-2026-04-25-27-asset-isolation-strategy-parity-bot-swap.md`.
+
+**Branch:** `alpaca/stocks-paper-flip`, commits `d50394a..b57493a`
+
+---
+
 ## 2026-04-23 (overnight): Dashboard deploy + exit-path unit-safety + SMS cleanup (9 commits)
 
 **Impact:** HIGH — 6 new dashboard files from Cursor Claude shipped (chart polish, bot-offline watchdog, pill, matrix CSV leaderboard, TRAI backend tuning). Plus 3 exit-path safety fixes with Mercury audits (tier4 guard, OrderExecutor legacy branch deletion, SMS dead-log cleanup). Strategy roster went from 4 validated to 8 after Audit 3 added CandlePattern + MarketRegime + MultiTimeframe + SmartMoneySweep.
