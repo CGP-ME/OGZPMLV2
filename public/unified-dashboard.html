@@ -130,12 +130,24 @@
         .hero-price-delta.neg { color: #ef4444; }
 
         /* Status cluster (RIGHT zone) — holds the lights triad,
-           risk gauge mount, and session phase indicator inline. */
+           risk gauge mount, and session phase indicator inline.
+           2026-04-27 hardening: margin-left:auto forces this cluster to
+           the right edge of the flex parent regardless of whether
+           justify-content:space-between is being honored (defense against
+           cascade collisions where another rule overrides the parent
+           layout). Trey's screenshot showed the Risk Gauge "0%" overlapping
+           the OGZPRIME logo on the LEFT — this auto-margin pushes the
+           whole cluster (and therefore the gauge inside it) to the right
+           even if the header's flex layout breaks down for any reason.
+           justify-self:end as a CSS-grid backup if the parent ever flips
+           to grid. */
         .header-status-cluster {
             display: flex;
             align-items: center;
             gap: 12px;
             flex: 0 0 auto;
+            margin-left: auto;
+            justify-self: end;
         }
 
         /* Brand zone (LEFT) — logo + tagline stacked vertically. */
