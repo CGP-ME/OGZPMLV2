@@ -47,6 +47,16 @@
 const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+
+// Mercury Audit B1 Finding 3 fix (2026-04-27): bound pid values during replay
+// to reject fabricated high-pid entries (e.g. pid=999999999) that would slip
+// past process.kill(pid, 0) ESRCH check. Read kernel pid_max once at module
+// load; default to 2^22 (the historical Linux ceiling) if /proc unreadable.
+const PID_MAX = (() => {
+  try { return parseInt(fs.readFileSync('/proc/sys/kernel/pid_max', 'utf8').trim(), 10) || (1 << 22); }
+  catch (_) { return 1 << 22; }
+})();
 
 const STATES = Object.freeze({
   HEALTHY:   'HEALTHY',
@@ -111,6 +121,20 @@ class Supervisor extends EventEmitter {
     this.ledgerPath            = path.resolve(opts.ledgerPath);
     this.deadmanHeartbeatUrl   = opts.deadmanHeartbeatUrl;
     this.deadmanHeartbeatMs    = opts.deadmanHeartbeatMs;
+
+    // Mercury Audit B1 Finding 1+2 fix (2026-04-27): capture our own pid +
+    // start_time at boot. start_time is jiffies-since-system-boot and is
+    // unique per process — survives PID rollover (Finding 1) and EPERM
+    // foreign-uid probes (Finding 2). Read once; never changes for our process.
+    this.bootPidStartTime = this._readPidStartTime(process.pid);
+
+    // Mercury Audit B1 Finding 3+5 fix (2026-04-27): HMAC-SHA256 sign every
+    // ledger entry. Closes the fabricated-pid bypass (attacker cannot forge a
+    // valid signature without the key) and torn-write false-acceptance (any
+    // mid-write splice produces a signature mismatch). Key is generated at
+    // first boot, stored 0600 next to the ledger, persists across restarts.
+    this.hmacKey = this._loadOrCreateHmacKey();
+    this._loggedLegacyWarn = false;
 
     this.subsystems = new Map();   // name -> { def, state, lastRedAt, healAttempts, lastHealAt, lastEscalateAt, restartHistory }
     this.started = false;
@@ -566,8 +590,111 @@ class Supervisor extends EventEmitter {
    *     Recreating the directory mid-flight is intentionally NOT done —
    *     if someone manually deleted the dir, they may have a reason.
    */
+  /**
+   * Mercury Audit B1 Finding 1+2 fix (2026-04-27): read PID start_time from
+   * /proc/[pid]/stat field 22 (jiffies-since-boot at process start). This is
+   * unique-per-process even across PID rollover and is world-readable on
+   * standard Linux (no EPERM for foreign-uid probes). Returns null if /proc
+   * is unavailable (non-Linux) or pid does not exist.
+   *
+   * /proc/[pid]/stat format: "pid (comm) state ppid ... start_time ..."
+   * The comm field can contain spaces and parens, so we find the LAST ')'
+   * and split fields after it. After-comm field 19 (0-indexed) corresponds
+   * to start_time (field 22 in the original 1-indexed spec).
+   */
+  _readPidStartTime(pid) {
+    try {
+      if (!fs.existsSync('/proc')) return null;
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const lastParen = stat.lastIndexOf(')');
+      if (lastParen === -1) return null;
+      const fields = stat.slice(lastParen + 2).split(/\s+/);
+      return parseInt(fields[19], 10) || null;
+    } catch (_) { return null; }
+  }
+
+  /**
+   * Mercury Audit B1 Finding 3+5 fix (2026-04-27): load or create the HMAC
+   * key. Lives at <ledger-dir>/supervisor-hmac.key with mode 0600 (owner-only
+   * read/write). 32 random bytes from crypto.randomBytes. Persists across
+   * supervisor restarts so prior-incarnation entries remain verifiable.
+   *
+   * Failure modes:
+   *   - Key file unreadable but exists: regenerate (one-time replay loss).
+   *   - Key file write fails: log error, return null (entries unsigned, replay
+   *     rejects everything — fail-closed restart-history rather than fail-open).
+   */
+  _loadOrCreateHmacKey() {
+    const keyPath = path.resolve(path.dirname(this.ledgerPath), 'supervisor-hmac.key');
+    try {
+      if (fs.existsSync(keyPath)) {
+        const key = fs.readFileSync(keyPath);
+        if (key.length === 32) return key;
+        console.warn(`${this.label} hmac key at ${keyPath} malformed (got ${key.length} bytes, expected 32); regenerating`);
+      }
+    } catch (e) {
+      console.warn(`${this.label} hmac key read failed [${e.code || 'unknown'}]: ${e.message}; regenerating`);
+    }
+    const newKey = crypto.randomBytes(32);
+    try {
+      fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+      fs.writeFileSync(keyPath, newKey, { mode: 0o600 });
+      console.log(`${this.label} hmac key created at ${keyPath}`);
+    } catch (e) {
+      console.error(`${this.label} hmac key write failed [${e.code || 'unknown'}]: ${e.message} — entries will be unsigned and replay will reject all entries`);
+      return null;
+    }
+    return newKey;
+  }
+
+  /** Compute HMAC-SHA256 over canonical JSON of the entry (pre-hmac field). */
+  _signEntry(entryWithoutHmac) {
+    if (!this.hmacKey) return null;
+    return crypto.createHmac('sha256', this.hmacKey)
+      .update(JSON.stringify(entryWithoutHmac))
+      .digest('hex');
+  }
+
+  /**
+   * Verify an entry's HMAC signature. Returns true if signed and valid.
+   * Constant-time comparison via timingSafeEqual (defense vs timing oracles
+   * — though our threat model doesn't really include timing attacks, the
+   * pattern is cheap and standard).
+   */
+  _verifyEntry(entry) {
+    if (!this.hmacKey) return false;
+    if (typeof entry.hmac !== 'string') return false;
+    const { hmac, ...rest } = entry;
+    const expected = this._signEntry(rest);
+    if (!expected) return false;
+    let expectedBuf, actualBuf;
+    try {
+      expectedBuf = Buffer.from(expected, 'hex');
+      actualBuf = Buffer.from(hmac, 'hex');
+    } catch (_) { return false; }
+    if (expectedBuf.length !== actualBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, actualBuf);
+  }
+
   _writeLedger(eventType, payload) {
-    const line = JSON.stringify(Object.assign({ event: eventType }, payload)) + '\n';
+    // Mercury Audit B1 Finding 1-5 fix (2026-04-27): every entry carries
+    //   - pid + pidStartTime: process identity that survives PID rollover
+    //   - hmac: HMAC-SHA256 over the rest of the entry
+    // Replay rejects entries that fail any of these checks.
+    //
+    // Finding 5 (torn writes): mitigated by HMAC verification — even if a
+    // mid-write splice produces JSON-parseable bytes, the resulting entry
+    // will not match its own signature. Linux POSIX guarantees appendFileSync
+    // atomicity for line writes < PIPE_BUF (4096 B); our entries are well
+    // under that, so torn writes should not occur in practice anyway.
+    const entry = Object.assign({
+      event: eventType,
+      pid: process.pid,
+      pidStartTime: this.bootPidStartTime,
+    }, payload);
+    const hmac = this._signEntry(entry);
+    if (hmac) entry.hmac = hmac;
+    const line = JSON.stringify(entry) + '\n';
     try {
       fs.appendFileSync(this.ledgerPath, line);
     } catch (err) {
@@ -624,6 +751,36 @@ class Supervisor extends EventEmitter {
       catch (_) { continue; }
       if (!entry || entry.event !== 'escalate') continue;
       if (typeof entry.timestamp !== 'number' || typeof entry.subsystem !== 'string') continue;
+
+      // Mercury Audit B1 Findings 1-5 fix (2026-04-27): full identity check.
+      //
+      // 1. HMAC signature must verify (closes Finding 3 forgery + Finding 5
+      //    torn-write false-acceptance). Legacy entries without hmac are
+      //    rejected with a one-time warning; the supervisor falls back to
+      //    empty restart-history on first-run after upgrade (acceptable —
+      //    restart-history is a soft cap, not a hard safety boundary).
+      if (!this._verifyEntry(entry)) {
+        if (typeof entry.hmac !== 'string' && !this._loggedLegacyWarn) {
+          console.warn(`${this.label} replay: skipping legacy unsigned entries (one-time warning, normal on first boot after fix)`);
+          this._loggedLegacyWarn = true;
+        }
+        continue;
+      }
+
+      // 2. PID range bounds (closes Finding 3 fabricated high-pid bypass).
+      if (typeof entry.pid !== 'number' || entry.pid <= 0 || entry.pid > PID_MAX) continue;
+
+      // 3. PID + start_time identity check (closes Findings 1+2: PID rollover
+      //    and EPERM foreign-uid probes). If /proc/[pid]/stat exists AND
+      //    start_time matches, the original writer is still alive. Same-pid
+      //    + same-start_time = us, accept. Different pid + still-alive = a
+      //    foreign live writer (multi-instance contamination), skip.
+      //    Mismatched start_time OR /proc missing = original writer is gone
+      //    (recycled or dead), accept.
+      if (typeof entry.pidStartTime !== 'number') continue;
+      const writerStartTime = this._readPidStartTime(entry.pid);
+      const writerStillAlive = (writerStartTime !== null && writerStartTime === entry.pidStartTime);
+      if (writerStillAlive && entry.pid !== process.pid) continue;
 
       const ageMs = wallNow - entry.timestamp;
       if (ageMs < 0 || ageMs > windowMs) continue;  // outside window
