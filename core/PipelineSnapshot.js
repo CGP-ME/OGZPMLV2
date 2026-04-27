@@ -89,6 +89,7 @@ class PipelineSnapshot {
       iso: new Date(now).toISOString(),
       uptimeMinutes: Math.round((now - this.startTime) / 60000),
       snapshotNumber: this.snapshotCount + 1,
+      symbol: bot.tradingPair || bot.config?.tradingPair || 'unknown',  // FIX 2026-04-27 (Asset Isolation audit): tag every snapshot with active asset so SessionRouter swaps are traceable in pipeline-snapshots.jsonl
 
       // Price
       price: this._getPrice(bot),
