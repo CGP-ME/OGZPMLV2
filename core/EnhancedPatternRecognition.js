@@ -364,11 +364,18 @@ class EnhancedPatternChecker {
     // Evaluate the pattern
     const result = this.evaluatePattern(features);
 
-    // CRITICAL FIX: Always create pattern for learning, even with 0 confidence
-    // The bot needs to see patterns to learn from them!
+    // Always create a pattern entry so the learning engine has a record,
+    // even when no real match was found.
+    //
+    // BUG FIX 2026-04-27: was `confidence: result?.confidence || 0.1`
+    // — forced a 10% floor that the dashboard rendered as a real signal.
+    // Operator (Trey) couldn't distinguish "real 10% pattern" from
+    // "placeholder no-pattern stuck at 10%." Now uses nullish coalescing
+    // so a true 0 / no-match shows as 0%, while real low-conf matches
+    // (0.05, 0.08, etc) flow through as their actual values.
     patterns.push({
       name: result?.bestMatch?.pattern || 'Learning Pattern',
-      confidence: result?.confidence || 0.1,  // Force minimum 0.1 for new patterns
+      confidence: result?.confidence ?? 0,
       direction: result?.direction || 'neutral',
       signature: JSON.stringify(features).substring(0, 50),
       features: features,
