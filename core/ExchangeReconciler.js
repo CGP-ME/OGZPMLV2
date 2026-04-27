@@ -172,6 +172,13 @@ class ExchangeReconciler {
     }
 
     try {
+      // TODO 2026-04-27 (post-paper, pre-live): add Alpaca reconciliation parallel
+      // to this Kraken path. AlpacaAdapter.getBalance() exists at
+      // brokers/AlpacaAdapter.js:99-110 returning {cash, equity, ...}, but no
+      // module currently compares it back to StateManager. For paper mode this
+      // is fine (internal accounting self-consistent); for live Apex, drift
+      // between StateManager.balance and Alpaca's reported equity will produce
+      // false drawdown numbers. Build before flipping EXECUTION_MODE=live.
       // Fetch balance
       const balance = await this.krakenAdapter.getBalance();
 

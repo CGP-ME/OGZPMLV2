@@ -286,7 +286,12 @@ class PIDController {
   }
 
   /**
-   * Get position size multiplier (called by OrderExecutor)
+   * Get position size multiplier
+   *
+   * NOT WIRED 2026-04-27: zero downstream callers in repo. PID is fed via
+   * onTradeClose() (OrderExecutor:795, 1096) so it learns from outcomes,
+   * but this output getter is unused — no consumer reads the multiplier.
+   * Pending DPS integration. Module computes correctly; nobody listens yet.
    */
   getPositionMultiplier() {
     if (!this.enabled || this.totalTrades < this.warmupTrades) {
@@ -296,7 +301,12 @@ class PIDController {
   }
 
   /**
-   * Get regime boost adjustment for a strategy (called by StrategyOrchestrator)
+   * Get regime boost adjustment for a strategy
+   *
+   * NOT WIRED 2026-04-27: zero downstream callers in repo. StrategyOrchestrator's
+   * Step 2.5 regime boost path uses TradingConfig.regimeBoosts (env-driven static
+   * values), not this PID-tuned value. Pending integration of PID outputs into
+   * orchestrator's boost lookup.
    */
   getRegimeBoostAdjustment(strategyName) {
     if (!this.enabled || this.totalTrades < this.warmupTrades) {
@@ -306,7 +316,11 @@ class PIDController {
   }
 
   /**
-   * Get trailing stop ATR multiplier (called by DynamicTrailingStop)
+   * Get trailing stop ATR multiplier
+   *
+   * NOT WIRED 2026-04-27: zero downstream callers in repo. DynamicTrailingStop
+   * uses fixed ATR multiplier from config, not this PID-tuned value. Pending
+   * trailing-stop integration with PID outputs.
    */
   getTrailMultiplier() {
     if (!this.enabled || this.totalTrades < this.warmupTrades) {

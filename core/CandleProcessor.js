@@ -395,10 +395,13 @@ class CandleProcessor {
 
         // CHANGE 2026-01-23: Calculate performance stats for dashboard
         // BUGFIX 2026-01-23: Include position value in P&L calculation!
-        const currentBalance = stateManager.get('balance');
+        // FIX 2026-04-27: Broadcast equity (initialBalance + realizedPnL + unrealizedPnL),
+        // not state.balance (free-cash sentinel that doesn't move post FIX 2026-03-28).
+        // Resolves the dashboard $298 vs Alpaca-account-equity display mismatch.
+        const currentEquity = stateManager.getEquity(price);
         const currentPosition = stateManager.get('position') || 0;
         const positionValue = currentPosition * price;  // Current market value of position
-        const totalAccountValue = currentBalance + positionValue;
+        const totalAccountValue = currentEquity;  // FIX 2026-04-27: equity already includes unrealized; was free-cash + position duplicate-count
         // FIX 2026-02-26: Use StateManager instead of hardcoded value
         const initialBalance = stateManager.get('initialBalance') || getConfigValue('backtest.initialBalance') || 10000;
         const totalPnL = totalAccountValue - initialBalance;  // Correct: includes open position
@@ -424,7 +427,7 @@ class CandleProcessor {
             candles: this.ctx.getCandlesForTimeframe(this.ctx.dashboardTimeframe).slice(-50),
             timeframe: this.ctx.dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
-            balance: currentBalance,
+            equity: currentEquity,  // FIX 2026-04-27: renamed from 'balance' — now broadcasts equity (initialBalance + realized + unrealized PnL)
             position: stateManager.get('position'),
             totalTrades: stateManager.get('totalTrades') || closedTrades.length,
             // CHANGE 2026-01-23: Include performance stats
