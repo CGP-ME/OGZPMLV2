@@ -190,6 +190,17 @@ class BacktestRunner {
       // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
       // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
       const reportTag = process.env.BACKTEST_REPORT_TAG || '';
+      // FIX 2026-04-27 (Asset Isolation audit): derive asset slug from
+      // CANDLE_DATA_FILE so simultaneous standalone backtests on different
+      // assets don't collide on timestamp. Mirrors UnifiedPatternMemory's
+      // file-naming pattern. Empty when CANDLE_DATA_FILE unset (e.g. live
+      // backtests). Matrix-sweep workers already disambiguate via reportTag.
+      let assetSlug = '';
+      if (process.env.CANDLE_DATA_FILE) {
+        const base = path.basename(process.env.CANDLE_DATA_FILE, '.json').replace(/^polygon-/, '');
+        const candidate = base.split('-')[0].toUpperCase();
+        if (candidate) assetSlug = `-${candidate}`;
+      }
       let reportPath;
       if (envRoot) {
         reportPath = path.join(runDir, 'report.json');
@@ -199,7 +210,7 @@ class BacktestRunner {
         if (!fs.existsSync(workerDir)) fs.mkdirSync(workerDir, { recursive: true });
         reportPath = path.join(workerDir, `backtest-report-${runTimestamp}-${reportTag}.json`);
       } else {
-        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
+        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}${assetSlug}.json`);
       }
 
       // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)
