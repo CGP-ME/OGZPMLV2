@@ -947,9 +947,16 @@
                     trackTimer(hudPrice._flashTimer);
                 }
                 const hudOhlc = _cachedHudOhlc;
-                if (hudOhlc && storedCandles.length) {
-                    const lc = storedCandles[storedCandles.length - 1];
-                    hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
+                if (hudOhlc) {
+                    if (storedCandles.length) {
+                        const lc = storedCandles[storedCandles.length - 1];
+                        hudOhlc.textContent = `O ${lc.open.toFixed(2)}  H ${lc.high.toFixed(2)}  L ${lc.low.toFixed(2)}  C ${lc.close.toFixed(2)}`;
+                        // Reveal the parent HUD once we have real OHLC values to show
+                        const hud = hudOhlc.parentElement;
+                        if (hud && hud.style.visibility !== 'visible') {
+                            hud.style.visibility = 'visible';
+                        }
+                    }
                 }
             }
         },
