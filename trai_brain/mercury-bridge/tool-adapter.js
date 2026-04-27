@@ -404,6 +404,58 @@ function createToolAdapter(opts = {}) {
   }
 
   // ─────────────────────────────────────────────────────────
+  // tavily_search — public web search via Tavily API.
+  // Same provider TRAI uses for news context (ogzprime-ssl-server.js:104).
+  // Returns title/url/snippet; capped at 10 results regardless of caller ask.
+  // No-key: returns a structured error so Mercury can surface it cleanly.
+  // ─────────────────────────────────────────────────────────
+  async function tavily_search(args) {
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY || '';
+    const query = (args && args.query) || '';
+    const maxResults = Math.min(Math.max(parseInt(args.max_results || 5, 10), 1), 10);
+
+    if (!query || typeof query !== 'string') {
+      return { error: 'tavily_search requires a non-empty query string' };
+    }
+    if (!TAVILY_API_KEY) {
+      return {
+        error: 'tavily_search requires TAVILY_API_KEY in environment (free tier at tavily.com)',
+      };
+    }
+
+    try {
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: TAVILY_API_KEY,
+          query,
+          search_depth: 'basic',
+          max_results: maxResults,
+          include_answer: true,
+          include_raw_content: false,
+        }),
+      });
+
+      if (!response.ok) {
+        return { error: `tavily API returned ${response.status}` };
+      }
+      const data = await response.json();
+      return {
+        query,
+        answer: data.answer || null,
+        results: (data.results || []).slice(0, maxResults).map(r => ({
+          title: r.title,
+          url: r.url,
+          snippet: (r.content || '').substring(0, 400),
+        })),
+      };
+    } catch (err) {
+      return { error: `tavily search failed: ${err.message}` };
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
   // Canonical tool registry
   // ─────────────────────────────────────────────────────────
   const tools = {
@@ -439,6 +491,14 @@ function createToolAdapter(opts = {}) {
         pattern: 'string (optional) — filter to entries containing this substring',
       },
       handler: list_files,
+    },
+    tavily_search: {
+      description: 'Search the public web via Tavily (same provider TRAI uses for news). Returns top-N result snippets with title, URL, and short content. Use for "what does the official ws library docs say about X", "current best practice for Y", news / market context, Stack Overflow / MDN / GitHub-issue searches. Reuses the TAVILY_API_KEY already configured for TRAI.',
+      args_schema: {
+        query: 'string (required) — natural-language search query',
+        max_results: 'integer (optional, default 5) — number of results (max 10)',
+      },
+      handler: tavily_search,
     },
   };
 
@@ -505,7 +565,16 @@ Example call:
 {"tool": "list_files", "args": {"path": "core/exit"}}
 \`\`\`
 
-Use list_files to discover what files exist in a directory.`;
+Use list_files to discover what files exist in a directory.
+
+## tavily_search — public web search
+
+Example call:
+\`\`\`tool_call
+{"tool": "tavily_search", "args": {"query": "ws library exponential backoff best practice", "max_results": 5}}
+\`\`\`
+
+Use tavily_search when you need information from outside the repo: official documentation, Stack Overflow, GitHub issues, current news, or "what does the official library docs say about X". Returns title + URL + short snippet per result. Reuses TRAI's existing TAVILY_API_KEY.`;
   }
 
   function buildToolSchema() {
@@ -568,6 +637,21 @@ Use list_files to discover what files exist in a directory.`;
               pattern: { type: "string", description: "Optional filter — only return entries whose name contains this substring" }
             },
             required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "tavily_search",
+          description: "Search the public web via Tavily (TRAI's news provider). Returns up to 10 results with title, URL, and short snippet. Use for official docs (MDN, ws library, RFC), Stack Overflow / GitHub issues, current news, or 'what does X mean in production'. Falls back with a clear error if TAVILY_API_KEY is unset.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Natural-language search query" },
+              max_results: { type: "integer", description: "Number of results (1-10, default 5)" }
+            },
+            required: ["query"]
           }
         }
       }
