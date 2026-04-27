@@ -36,7 +36,27 @@
         const symbolSel = $(SELECTORS.symbolSelect);
         const symbolEl  = $(SELECTORS.symbol);
         if (!symbolSel || !symbolEl) return;
+        // Initial fallback only — once 'price' WS frames arrive, the
+        // handler in init() takes over with the LIVE active symbol from
+        // the bot (which reflects SessionRouter's actual session, not
+        // the static dropdown).
         symbolEl.textContent = symbolSel.value || 'TSLA';
+    }
+
+    /**
+     * Update the symbol label from a live WS payload. Authoritative source
+     * — reflects whatever the bot is actually trading right now (Kraken
+     * BTC/USD on weekend, Alpaca TSLA during RTH, etc.).
+     *
+     * Bug fix 2026-04-27: pre-fix the card hardcoded "TSLA" via the
+     * dropdown mirror, lying about the active session. Now driven by
+     * the data.symbol field on every price tick.
+     */
+    function syncSymbolFromPriceEvent(data) {
+        const symbolEl = $(SELECTORS.symbol);
+        if (!symbolEl || !data || !data.symbol) return;
+        const sym = String(data.symbol);
+        if (symbolEl.textContent !== sym) symbolEl.textContent = sym;
     }
 
     function syncPrice() {
@@ -99,6 +119,34 @@
         if (priceSrc && typeof MutationObserver === 'function') {
             const mo = new MutationObserver(syncPrice);
             mo.observe(priceSrc, { childList: true, characterData: true, subtree: true });
+        }
+
+        /* LIVE symbol — subscribe to the bot's 'price' WS frames so the
+           card reflects whatever broker/symbol is actually active right
+           now (SessionRouter's true active session, not the static
+           dropdown). Falls back to dropdown via syncSymbol() if no
+           OGZ.Socket is available yet. */
+        function attachPriceHandler() {
+            const ogz = (typeof window !== 'undefined') && window.OGZ;
+            const socket = ogz && (typeof ogz.get === 'function' ? ogz.get('Socket') : ogz.Socket);
+            if (socket && typeof socket.registerHandler === 'function') {
+                socket.registerHandler('price', (d) => {
+                    const data = (d && d.data) || d;
+                    syncSymbolFromPriceEvent(data);
+                });
+                return true;
+            }
+            return false;
+        }
+        if (!attachPriceHandler()) {
+            /* OGZ.Socket may not be ready at first init() tick (script
+               order). Retry briefly until it is. */
+            const start = Date.now();
+            const retry = setInterval(() => {
+                if (attachPriceHandler() || Date.now() - start > 5000) {
+                    clearInterval(retry);
+                }
+            }, 100);
         }
 
         /* Delta % field is left as a placeholder for now — chart.js does
