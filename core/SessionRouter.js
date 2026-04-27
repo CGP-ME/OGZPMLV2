@@ -171,6 +171,19 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
       }
+      // FIX 2026-04-27 (Asset Isolation audit): Also clear the on-disk
+      // candle-history.json. Without this, restart-after-swap replays
+      // mixed-asset candles through indicatorEngine.computeBatch() at
+      // run-empire-v2.js:721-722 — reproducing the indicator-state leak
+      // we just fixed in-memory, just via the restart path.
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const candleFile = path.join(__dirname, '..', 'data', 'candle-history.json');
+        if (fs.existsSync(candleFile)) fs.writeFileSync(candleFile, '[]');
+      } catch (err) {
+        console.warn('[SessionRouter] candle-history clear failed:', err.message);
+      }
 
       if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
 
@@ -239,6 +252,19 @@ class SessionRouter extends EventEmitter {
       }
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
+      }
+      // FIX 2026-04-27 (Asset Isolation audit): Also clear the on-disk
+      // candle-history.json. Without this, restart-after-swap replays
+      // mixed-asset candles through indicatorEngine.computeBatch() at
+      // run-empire-v2.js:721-722 — reproducing the indicator-state leak
+      // we just fixed in-memory, just via the restart path.
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const candleFile = path.join(__dirname, '..', 'data', 'candle-history.json');
+        if (fs.existsSync(candleFile)) fs.writeFileSync(candleFile, '[]');
+      } catch (err) {
+        console.warn('[SessionRouter] candle-history clear failed:', err.message);
       }
 
       if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
