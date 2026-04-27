@@ -53,6 +53,14 @@ const DEFAULTS = Object.freeze({
   // Hard cap on incoming WS frame size. Default 1 MB; broker frames are
   // typically <1 KB. Bounds memory exposure to malformed/hostile servers.
   maxPayload:      1024 * 1024,
+  // Mercury Audit A Task 1A follow-up (2026-04-27): per-second byte-rate cap.
+  // maxPayload only bounds a SINGLE message size. A flood of sub-cap frames
+  // can still grow memory unboundedly inside the ws library's queue if
+  // _onMessage cannot drain fast enough. This is the circuit-breaker — when
+  // exceeded, force-close the socket (reconnect path takes over). Default
+  // 10 MB/s; broker peak rates are well under 1 MB/s, so 10x headroom for
+  // legitimate market-event bursts. Set to 0 to disable.
+  maxBytesPerSecond: 10 * 1024 * 1024,
 });
 
 class ResilientWebSocket extends EventEmitter {
@@ -98,6 +106,18 @@ class ResilientWebSocket extends EventEmitter {
     this.pongTimeoutMs   = opts.pongTimeoutMs;
     this.dataWatchdogMs  = opts.dataWatchdogMs;
     this.maxPayload      = opts.maxPayload;
+    this.maxBytesPerSecond = opts.maxBytesPerSecond;
+    // Token-bucket byte-rate limiter — refills at maxBytesPerSecond bytes/sec,
+    // capped at maxBytesPerSecond. Closes Mercury Audit A 1A (memory exposure
+    // from sub-cap-frame floods) AND closes Mercury Audit A re-attack
+    // Breakage 1 (fixed-window boundary evasion: 2x-rate via two bursts
+    // straddling a window reset). Refills continuously, no boundary cliff.
+    this._byteWindow = { tokens: opts.maxBytesPerSecond, lastRefillMs: 0 };
+    // Mercury Audit A re-attack Breakage 2 fix: when the byte-rate cap trips
+    // and ws.terminate() is called, frames already queued in the OS/ws-library
+    // buffer can still fire _onMessage between trigger and _onClose. This
+    // guard drops stragglers cleanly. Reset on every _open().
+    this._capTripped = false;
 
     /* Lifecycle state */
     this.ws = null;
@@ -251,6 +271,12 @@ class ResilientWebSocket extends EventEmitter {
 
     this._clearAllTimers();
     this.isAuthenticated = false;
+    // Mercury Audit A re-attack Breakage 2 fix: reset cap-tripped flag on
+    // every reconnect so the new socket starts clean. Token bucket also
+    // resets to full so the reconnect doesn't immediately re-trip.
+    this._capTripped = false;
+    this._byteWindow.tokens = this.maxBytesPerSecond;
+    this._byteWindow.lastRefillMs = 0;
 
     let ws;
     try {
@@ -299,7 +325,40 @@ class ResilientWebSocket extends EventEmitter {
   }
 
   _onMessage(raw) {
-    this.lastMessageAt = Date.now();
+    // Mercury Audit A re-attack Breakage 2 fix: drop stragglers after the
+    // cap has tripped and terminate() has been called. The ws library may
+    // still emit frames already in its queue between terminate() and
+    // _onClose. Without this guard, _byteWindow keeps growing and we waste
+    // CPU/memory on a doomed socket. Cleared on next _open().
+    if (this._capTripped) return;
+
+    const nowMs = Date.now();
+    this.lastMessageAt = nowMs;
+
+    // Mercury Audit A Task 1A + re-attack Breakage 1 fix (2026-04-27):
+    // token-bucket byte-rate cap. maxPayload bounds individual frames; this
+    // bounds bursts. Fixed-window counters were vulnerable to 2x-rate evasion
+    // via boundary-straddling bursts; token-bucket refills continuously so
+    // there is no window-reset cliff to exploit.
+    if (this.maxBytesPerSecond > 0) {
+      const elapsed = nowMs - this._byteWindow.lastRefillMs;
+      if (elapsed > 0) {
+        const refill = (elapsed / 1000) * this.maxBytesPerSecond;
+        this._byteWindow.tokens = Math.min(
+          this.maxBytesPerSecond,
+          this._byteWindow.tokens + refill
+        );
+        this._byteWindow.lastRefillMs = nowMs;
+      }
+      const frameSize = Buffer.byteLength(raw);
+      if (frameSize > this._byteWindow.tokens) {
+        console.warn(`${this.label} byte-rate exceeded ${this.maxBytesPerSecond}/s (frame=${frameSize} tokens=${this._byteWindow.tokens.toFixed(0)}) — force-close`);
+        this._capTripped = true;
+        if (this.ws) try { this.ws.terminate(); } catch (_) {}
+        return;
+      }
+      this._byteWindow.tokens -= frameSize;
+    }
 
     let parsed;
     try {
