@@ -225,6 +225,7 @@ class SessionRouter extends EventEmitter {
       if (activeTrades && activeTrades.size > 0) {
         const currentPrice = this._getCurrentPrice();
         console.log(`[SessionRouter] Force-closing ${activeTrades.size} stock position(s) at $${currentPrice}...`);
+        const failedCloses = [];
         for (const [orderId, trade] of activeTrades.entries()) {
           try {
             const exitPrice = currentPrice || trade.price || trade.entryPrice;
@@ -236,7 +237,19 @@ class SessionRouter extends EventEmitter {
             console.log(`[SessionRouter] Closed position ${orderId}`);
           } catch (closeErr) {
             console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
+            failedCloses.push({ orderId, error: closeErr.message });
           }
+        }
+        // FIX 2026-04-27 (Bot Swap Resilience audit Task 7): Abort the
+        // transition if any force-close failed. Without this guard, the
+        // subscription swap below would proceed and the failed positions
+        // would become invisible orphans on the deactivated Alpaca side.
+        // Better to stay in the stocks session, let the next clock tick
+        // retry, or give the operator a chance to intervene.
+        if (failedCloses.length > 0) {
+          const errMsg = `Aborting stocks→crypto transition — ${failedCloses.length} close(s) failed: ${failedCloses.map(f => f.orderId).join(', ')}`;
+          console.error(`[SessionRouter] ${errMsg}`);
+          throw new Error(errMsg);
         }
       }
 
