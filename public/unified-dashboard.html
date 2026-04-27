@@ -496,7 +496,10 @@
         /* Phase A · Floating price HUD inside the chart, top-right corner.
            Updated from chart.js on every tick. Orbitron for the price,
            JetBrains Mono for the OHLC line. Pointer-events off so it
-           doesn't steal hovers from candles underneath. */
+           doesn't steal hovers from candles underneath.
+           Hidden by default — chart.js reveals when storedCandles is
+           non-empty so we don't render "$0.00 / 0.00 0.00 0.00 0.00"
+           on cold-boot when no historical data has loaded yet. */
         #chartHud {
             position: absolute;
             top: 16px;
@@ -511,6 +514,7 @@
             border-radius: 10px;
             box-shadow: 0 8px 30px -14px rgba(0,0,0,0.8);
             user-select: none;
+            visibility: hidden;
         }
         #chartHudPrice {
             font-family: 'Orbitron', 'Inter', sans-serif;
@@ -1485,22 +1489,28 @@
 
         .edge-toggle {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 20px;
-            height: 20px;
-            background: rgba(255, 0, 100, 0.3);
-            border: none;
-            border-radius: 4px;
-            color: #fff;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            color: #a1a1aa;
             cursor: pointer;
-            font-size: 12px;
-            line-height: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 22px;
             text-align: center;
+            padding: 0;
+            transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
         }
 
         .edge-toggle:hover {
-            background: rgba(255, 0, 100, 0.6);
+            background: rgba(220, 38, 38, 0.12);
+            border-color: rgba(220, 38, 38, 0.4);
+            color: #f5f5f5;
         }
 
         .edge-header {
@@ -2931,16 +2941,16 @@
              nowhere visible to render.) -->
         <div class="header-status-cluster">
             <!-- Multi-status lights for system health -->
-            <div class="status-lights-bar">
-                <div class="status-light" title="Kraken data feed">
+            <div class="status-lights-bar" title="System health — green = online, yellow = warning, red = offline">
+                <div class="status-light" title="Live market data feed (Alpaca during RTH, Kraken on weekends)">
                     <span class="light" id="dataLight"></span>
                     <span class="label">DATA</span>
                 </div>
-                <div class="status-light" title="Trading bot process">
+                <div class="status-light" title="Bot process — orchestrator + strategy engine + execution">
                     <span class="light" id="botLight"></span>
                     <span class="label">BOT</span>
                 </div>
-                <div class="status-light" title="TRAI LLM inference">
+                <div class="status-light" title="TRAI inference (Mercury-2 / Inception Labs)">
                     <span class="light" id="traiLight"></span>
                     <span class="label">TRAI</span>
                 </div>
