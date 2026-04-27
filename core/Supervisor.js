@@ -62,12 +62,27 @@ const DEFAULTS = Object.freeze({
   healCooldownMs:        30_000,        // min gap between heal attempts
   deadCooldownMs:        300_000,       // min gap between escalations (no restart loop)
   maxRestartsIn10min:    5,             // restart loop guard
+  // Mercury Audit B1 fix (2026-04-27): per-subsystem getHealth() timeout.
+  // A hung subsystem getHealth() previously could stall the entire polling
+  // loop (audit Task 3, severity HIGH). Promise.race wraps each call.
+  healthTimeoutMs:       5_000,
   ledgerPath:            'data/supervisor-ledger.jsonl',
   // Heartbeat to external deadman switch — Layer B of the watching-the-watcher
   // defense. URL set via env. If unset, deadman heartbeat is a no-op.
   deadmanHeartbeatUrl:   null,
   deadmanHeartbeatMs:    60_000,
 });
+
+/**
+ * Valid status set, used by _pollOne to validate / normalize subsystem
+ * payloads. Mercury Audit B1 (2026-04-27) found that the supervisor
+ * blindly trusted any string returned in health.status — `'INVALID'`
+ * was treated as red, `'healthy'` (lowercase) was treated as red,
+ * and `{status:HEALTHY, failureReason:'broken'}` was trusted as healthy
+ * despite the contradiction. This set + the validation in _pollOne
+ * close all three holes.
+ */
+const VALID_STATES = new Set(['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'DEAD']);
 
 class Supervisor extends EventEmitter {
   /**
@@ -92,6 +107,7 @@ class Supervisor extends EventEmitter {
     this.healCooldownMs        = opts.healCooldownMs;
     this.deadCooldownMs        = opts.deadCooldownMs;
     this.maxRestartsIn10min    = opts.maxRestartsIn10min;
+    this.healthTimeoutMs       = opts.healthTimeoutMs;
     this.ledgerPath            = path.resolve(opts.ledgerPath);
     this.deadmanHeartbeatUrl   = opts.deadmanHeartbeatUrl;
     this.deadmanHeartbeatMs    = opts.deadmanHeartbeatMs;
@@ -100,6 +116,13 @@ class Supervisor extends EventEmitter {
     this.started = false;
     this.pollTimer = null;
     this.deadmanTimer = null;
+    // Mercury Audit B1 fix: prevent overlapping _pollAll runs (severity
+    // MEDIUM). setInterval doesn't await async callbacks, so a slow poll
+    // could overlap with the next tick. Guard flag clears on poll
+    // completion. Combined with parallel-polling fix, the worst case is
+    // "a poll that takes longer than pollIntervalMs", in which case we
+    // skip the overlapping tick rather than running two concurrently.
+    this._pollInFlight = false;
 
     this._ensureLedgerDir();
   }
@@ -176,44 +199,132 @@ class Supervisor extends EventEmitter {
   // Internal — poll + state machine
   // =========================================================================
 
+  /**
+   * Mercury Audit B1 fix (2026-04-27): poll all subsystems in PARALLEL
+   * (not sequential), and skip if a previous poll is still in flight.
+   *
+   * Pre-fix: sequential `for await (...)` meant one slow subsystem blocked
+   *   every later subsystem from being polled until it returned. A 30s
+   *   network hang could starve the whole monitor for 30s.
+   * Post-fix: Promise.allSettled fans out, each subsystem independent.
+   *   _pollInFlight guard prevents the next setInterval tick from starting
+   *   a second concurrent _pollAll while the previous is still resolving.
+   */
   async _pollAll() {
     if (!this.started) return;
-    for (const [name, entry] of this.subsystems) {
-      try {
-        await this._pollOne(name, entry);
-      } catch (err) {
-        console.error(`${this.label} poll(${name}) threw:`, err.message);
+    if (this._pollInFlight) {
+      // The previous _pollAll hasn't finished yet — skip this tick rather
+      // than run two concurrently (which could double-write ledger entries
+      // or fire conflicting heal/escalate calls).
+      return;
+    }
+    this._pollInFlight = true;
+    try {
+      const tasks = [];
+      for (const [name, entry] of this.subsystems) {
+        tasks.push(
+          this._pollOne(name, entry).catch(err => {
+            console.error(`${this.label} poll(${name}) threw:`, err.message);
+          })
+        );
       }
+      await Promise.allSettled(tasks);
+    } finally {
+      this._pollInFlight = false;
     }
   }
 
+  /**
+   * Mercury Audit B1 fix (2026-04-27): wrap getHealth in a timeout.
+   * Pre-fix: a hung getHealth() could hold _pollOne indefinitely.
+   * Post-fix: `Promise.race([getHealth(), timeout])` enforces healthTimeoutMs.
+   * On timeout, the subsystem is treated as if it returned DEAD with a
+   * "getHealth timed out" failureReason — same path as if it threw.
+   */
   async _pollOne(name, entry) {
     let health;
     try {
-      // Call as method (preserves `this` if subsystem uses class methods).
-      // Capturing to a local + invoking would lose `this`.
-      health = await entry.def.getHealth();
+      health = await this._withTimeout(
+        entry.def.getHealth(),  // method call preserves `this` for class subsystems
+        this.healthTimeoutMs,
+        `${name}.getHealth`
+      );
     } catch (err) {
-      // getHealth itself blew up — treat as DEAD signal from the subsystem
+      // getHealth blew up OR timed out — treat as DEAD signal
       health = {
         status: STATES.DEAD,
         timestamp: this.clock(),
-        details: { getHealthThrew: err.message },
+        details: { getHealthError: err.message },
         lastSuccessAt: 0,
-        failureReason: `getHealth threw: ${err.message}`,
+        failureReason: `getHealth: ${err.message}`,
       };
     }
 
-    if (!health || !health.status) {
-      console.warn(`${this.label} ${name} returned invalid health shape; ignoring tick`);
-      return;
+    // Mercury Audit B1 fix: shape validation (audit tasks 1, 5, 6, 7).
+    // Pre-fix: any non-HEALTHY string was trusted as red, including
+    //   typos / unknown enum members / lowercase 'healthy'.
+    // Post-fix: normalize case, validate against VALID_STATES, detect
+    //   contradiction (HEALTHY + failureReason), reject malformed shapes.
+    if (!health) {
+      console.warn(`${this.label} ${name} returned null/undefined health; treating as DEAD`);
+      health = {
+        status: STATES.DEAD,
+        timestamp: this.clock(),
+        details: {},
+        lastSuccessAt: 0,
+        failureReason: 'subsystem returned null/undefined health',
+      };
+    }
+    if (typeof health.status === 'string') {
+      health.status = health.status.toUpperCase();
+    }
+    if (!VALID_STATES.has(health.status)) {
+      console.warn(`${this.label} ${name} returned invalid status='${health.status}'; treating as UNHEALTHY`);
+      health.failureReason = `invalid status: ${JSON.stringify(health.status)}`;
+      health.status = STATES.UNHEALTHY;
+    }
+    if (health.status === STATES.HEALTHY && health.failureReason) {
+      console.warn(`${this.label} ${name} returned HEALTHY but failureReason="${health.failureReason}" — treating as DEGRADED (lying-subsystem detection)`);
+      health.status = STATES.DEGRADED;
     }
 
     await this._reconcileState(name, entry, health);
   }
 
+  /**
+   * Mercury Audit B1 fix (2026-04-27): bounded promise wrapper.
+   * Returns a Promise that resolves with the original promise's value OR
+   * rejects with a TimeoutError after `ms`. Always clears the timer on
+   * settle to avoid leaks.
+   */
+  _withTimeout(promise, ms, label) {
+    if (!ms || ms <= 0) return promise;  // 0 disables timeout
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  /**
+   * Mercury Audit B1 fix (2026-04-27): monotonic clock for redDuration math.
+   * Pre-fix: redDuration = wallClock() - entry.lastRedAt. NTP correction
+   *   forward 1h made every red subsystem appear to have been red for 1h+,
+   *   cascading the whole fleet to UNHEALTHY/DEAD. Backward jumps gave
+   *   negative redDuration that bypassed the threshold check.
+   * Post-fix: lastRedAt and lastHealAt and lastEscalateAt and
+   *   restartHistory all use monotonic ms (ms since process start).
+   *   Wall-clock is preserved separately for ledger timestamps and
+   *   getStatus() display via this.clock().
+   */
+  _monoMs() {
+    return Number(process.hrtime.bigint() / 1_000_000n);
+  }
+
   async _reconcileState(name, entry, health) {
-    const now = this.clock();
+    // Mercury Audit B1 fix: redDuration uses monotonic clock, NOT wall-clock.
+    // NTP corrections / clock skew don't cascade false escalations.
+    const now = this._monoMs();
     const reportedRed = (health.status !== STATES.HEALTHY);
     const previousState = entry.state;
 
@@ -281,7 +392,8 @@ class Supervisor extends EventEmitter {
   }
 
   async _tryHeal(name, entry, health) {
-    const now = this.clock();
+    // Mercury Audit B1: monotonic clock for cooldown math (clock-skew safe).
+    const now = this._monoMs();
     if (now - entry.lastHealAt < this.healCooldownMs) return;  // cooldown
     if (entry.healAttempts >= this.unhealthyHealAttempts) return;  // exhausted
 
@@ -305,7 +417,8 @@ class Supervisor extends EventEmitter {
       ok = false;
     }
     this._writeLedger('heal_attempt', {
-      timestamp: now,
+      // Wall-clock for human-readable ledger; `now` is monotonic-ms for math.
+      timestamp: this.clock(),
       subsystem: name,
       attempt: entry.healAttempts,
       success: ok,
@@ -314,7 +427,8 @@ class Supervisor extends EventEmitter {
   }
 
   async _tryEscalate(name, entry, health) {
-    const now = this.clock();
+    // Mercury Audit B1: monotonic clock for cooldown + restart-history math.
+    const now = this._monoMs();
 
     // Restart-loop guard — prune restart history older than 10min
     const tenMinAgo = now - 600_000;
@@ -342,7 +456,8 @@ class Supervisor extends EventEmitter {
       ok = false;
     }
     this._writeLedger('escalate', {
-      timestamp: now,
+      // Wall-clock for ledger; `now` is monotonic-ms for restart-window math.
+      timestamp: this.clock(),
       subsystem: name,
       success: ok,
       recentRestarts: entry.restartHistory.length,
