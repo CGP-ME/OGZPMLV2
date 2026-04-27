@@ -572,6 +572,30 @@ class StateManager {
 
     console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
 
+    // BUG FIX 2026-04-27: closedTrades was being READ by CandleProcessor:409
+    // for win-rate math but never WRITTEN anywhere — winRate stayed 0% even
+    // after dozens of closes (Trey: "no way the bot has 20 positions open
+    // it doesnt even hold them longer than 3 mins"). Now we record every
+    // close with the data needed to compute win rate + recent-trade stats.
+    // Only record on FULL close (not partial scale-outs) — partials would
+    // double-count the same trade.
+    const closedTradesNow = this.state.closedTrades || [];
+    const updatedClosedTrades = partial
+      ? closedTradesNow
+      : [...closedTradesNow, {
+          tradeId,
+          pnl,
+          pnlPercent,
+          netPnl: netRealizedResult,
+          closedAt: Date.now(),
+          direction: tradeDirection,
+          entryPrice: tradeEntryPrice,
+          exitPrice: price,
+          strategy: trade.entryStrategy || trade.strategy || 'unknown',
+          exitStrategy: trade.exitStrategy || context.exitReason || 'unknown',
+          holdMs: trade.entryTime ? Date.now() - trade.entryTime : null,
+        }];
+
     const updates = {
       position: finalPosition,
       positionCount: partial ? this.state.positionCount : 0,
@@ -581,6 +605,8 @@ class StateManager {
       inPosition: Math.max(0, this.state.inPosition - closeSize),
       realizedPnL: this.state.realizedPnL + netRealizedResult,
       totalPnL: this.state.totalPnL + pnl,
+      closedTrades: updatedClosedTrades,
+      totalTrades: partial ? (this.state.totalTrades || 0) : (this.state.totalTrades || 0) + 1,
       lastTradeTime: Date.now()
     };
 
