@@ -159,16 +159,57 @@ class Supervisor extends EventEmitter {
     if (!def || !def.name || typeof def.getHealth !== 'function') {
       throw new Error('Supervisor.register: def must have {name, getHealth: async () => ...}');
     }
-    this.subsystems.set(def.name, {
+    // Mercury re-attack-4 Breakage 3 fix (2026-04-27): re-register with the
+    // same name preserves state (and the per-entry mutex). Without this,
+    // two register() calls in quick succession produced two different entry
+    // objects (because subsystems.set() overwrites the map but in-flight
+    // _pollOne calls hold the OLD entry via closure), bypassing the mutex.
+    const existing = this.subsystems.get(def.name);
+    if (existing) {
+      existing.def = def;  // pick up new getHealth/selfHeal/escalate refs
+      // Mercury re-attack-5 Breakage 3 fix (2026-04-27): bump def generation
+      // so any currently in-flight _pollOne can detect that its captured
+      // `entry.def` is now stale and discard its result rather than
+      // overwriting the new-def's first-poll outcome.
+      existing._defGeneration = (existing._defGeneration || 0) + 1;
+      console.log(`${this.label} re-registered subsystem: ${def.name} (state preserved)`);
+      return;  // no immediate poll on re-register; existing state continues
+    }
+
+    const entry = {
       def,
       state: STATES.HEALTHY,
       lastRedAt: 0,
+      // Mercury re-attack-4 Breakage 1 fix (2026-04-27): stability tracker.
+      // Records when subsystem first reported HEALTHY after being red. Full
+      // reset (lastRedAt=0, healAttempts=0) only happens after sustained
+      // HEALTHY for degradeThresholdMs. Defeats the oscillation attack
+      // where DEGRADED→HEALTHY→DEGRADED rapidly resets the red-duration timer
+      // and avoids escalation forever.
+      firstHealthyAfterRedAt: 0,
       healAttempts: 0,
       lastHealAt: 0,
       lastEscalateAt: 0,
       restartHistory: [],   // array of timestamps; pruned to 10min window
-    });
+      _pollInFlight: false,  // per-entry mutex, see _pollOne wrapper
+      _mutexSkipCount: 0,
+      _defGeneration: 0,     // bumped on re-register; in-flight polls compare
+    };
+    this.subsystems.set(def.name, entry);
     console.log(`${this.label} registered subsystem: ${def.name}`);
+
+    // Mercury Audit B1 Finding 3 re-attack Finding 4 fix (2026-04-27):
+    // if start() has already been called, register-during-an-in-flight-poll
+    // would cause the new subsystem to miss the current tick (Map iteration
+    // doesn't include entries added mid-iteration). Without this, the
+    // "no-first-poll-lag" guarantee from the Finding 3 fix is broken for
+    // late registrations. Trigger an immediate single-subsystem poll so
+    // late-registered already-broken subsystems still escalate without lag.
+    if (this.started) {
+      this._pollOne(def.name, entry).catch(err => {
+        console.error(`${this.label} register-time poll failed for ${def.name}:`, err.message);
+      });
+    }
   }
 
   /** Begin polling. Idempotent. */
@@ -280,6 +321,45 @@ class Supervisor extends EventEmitter {
    * "getHealth timed out" failureReason — same path as if it threw.
    */
   async _pollOne(name, entry) {
+    // Mercury re-attack-2 Breakage 2 fix (2026-04-27): per-entry mutex.
+    // Without this guard, the register-time immediate-poll (added for
+    // Finding 4) can run concurrently with the periodic _pollAll on the
+    // same entry. Both calls await getHealth() and selfHeal(), so JS event
+    // loop can interleave their writes to entry.lastRedAt / healAttempts /
+    // lastHealAt around the await boundaries, producing inconsistent state.
+    // Skip the new poll if one is already in flight for this entry.
+    //
+    // Mercury re-attack-3 Breakage 3 disposition: when the mutex causes
+    // skips, log it so a permanently-hung subsystem is observable. Without
+    // this log, a subsystem with a stuck-forever getHealth would silently
+    // miss every subsequent poll — masking what should be loud failure.
+    if (entry._pollInFlight) {
+      entry._mutexSkipCount = (entry._mutexSkipCount || 0) + 1;
+      // Mercury re-attack-4 Breakage 2 fix (2026-04-27): exponential throttle.
+      // Log at skip counts 1, 2, 4, 8, 16, ... — bounds log volume to
+      // O(log N) for hangs of N polls. (Linear "every 10th" was 3600 lines
+      // for a 1-hour hang at 100ms intervals; exponential is ~15.)
+      // Bitwise: x & (x-1) === 0 iff x is a power of 2.
+      if ((entry._mutexSkipCount & (entry._mutexSkipCount - 1)) === 0) {
+        console.warn(`${this.label} ${name}: poll skipped (previous poll still in flight, ${entry._mutexSkipCount} consecutive skip${entry._mutexSkipCount === 1 ? '' : 's'} — getHealth may be hung)`);
+      }
+      return;
+    }
+    entry._mutexSkipCount = 0;
+    entry._pollInFlight = true;
+    try {
+      await this._pollOneInner(name, entry);
+    } finally {
+      entry._pollInFlight = false;
+    }
+  }
+
+  async _pollOneInner(name, entry) {
+    // Mercury re-attack-5 Breakage 3 fix (2026-04-27): capture def-generation
+    // BEFORE the await on getHealth(). If a re-register fires during the
+    // await, the captured generation is now stale and we discard the result
+    // — the next poll will use the new def and produce a fresh result.
+    const defGenAtStart = entry._defGeneration || 0;
     let health;
     try {
       health = await this._withTimeout(
@@ -326,6 +406,14 @@ class Supervisor extends EventEmitter {
       health.status = STATES.DEGRADED;
     }
 
+    // Mercury re-attack-5 Breakage 3 fix (2026-04-27): if def changed under
+    // us during the getHealth await, our captured result is stale. Discard
+    // — the next poll will run against the new def and produce fresh state.
+    if ((entry._defGeneration || 0) !== defGenAtStart) {
+      console.log(`${this.label} ${name}: discarding poll result — def was re-registered during getHealth (gen ${defGenAtStart} -> ${entry._defGeneration})`);
+      return;
+    }
+
     await this._reconcileState(name, entry, health);
   }
 
@@ -366,31 +454,88 @@ class Supervisor extends EventEmitter {
     const reportedRed = (health.status !== STATES.HEALTHY);
     const previousState = entry.state;
 
-    // Track when the subsystem first went red (for degrade-threshold timing)
-    if (reportedRed && entry.lastRedAt === 0) {
+    // Track when the subsystem first went red (for degrade-threshold timing).
+    const isFirstRedPoll = (reportedRed && entry.lastRedAt === 0);
+    if (isFirstRedPoll) {
       entry.lastRedAt = now;
     }
+
+    // Mercury re-attack-4 Breakage 1 fix (2026-04-27): stability gate on
+    // HEALTHY recovery. Only fully clear red state (lastRedAt, healAttempts)
+    // after sustained HEALTHY for degradeThresholdMs. Defeats the
+    // oscillation attack where DEGRADED→HEALTHY→DEGRADED at sub-threshold
+    // intervals would otherwise reset the timer every cycle, allowing a
+    // flapping subsystem to evade escalation indefinitely.
     if (!reportedRed) {
-      entry.lastRedAt = 0;
-      entry.healAttempts = 0;
+      if (entry.lastRedAt !== 0) {
+        // Was red, now reporting healthy — start (or continue) stability watch
+        if (entry.firstHealthyAfterRedAt === 0) {
+          entry.firstHealthyAfterRedAt = now;
+        }
+        if (now - entry.firstHealthyAfterRedAt >= this.degradeThresholdMs) {
+          // Sustained HEALTHY long enough — full reset
+          entry.lastRedAt = 0;
+          entry.firstHealthyAfterRedAt = 0;
+          entry.healAttempts = 0;
+        }
+      } else {
+        // Was already cleanly HEALTHY — nothing to track
+        entry.firstHealthyAfterRedAt = 0;
+      }
+    } else if (entry.firstHealthyAfterRedAt > 0) {
+      // Re-degraded during the stability window — clear stability tracker.
+      // lastRedAt continues to point at the cumulative-red origin so
+      // redDuration accumulates across the oscillation.
+      entry.firstHealthyAfterRedAt = 0;
     }
 
-    // Decide target state
+    // Decide target state.
+    //
+    // Mercury Audit B1 Finding 3 fix (2026-04-27, revised after re-attack):
+    // a subsystem registered while ALREADY broken would otherwise spend one
+    // poll cycle in DEGRADED (lastRedAt=0 → set to now → redDuration=0 →
+    // DEGRADED) before escalating. The original fix backdated lastRedAt by
+    // degradeThresholdMs+1, which Mercury found unsafe — it could trigger
+    // immediate DEAD (when unhealthyHealAttempts is 0) or produce negative
+    // timestamps (early process start). Revised fix: explicit fast-path
+    // branch for UNHEALTHY-on-first-red-poll. DEGRADED-with-failureReason
+    // intentionally does NOT fast-path because DEGRADED is a stable end-state
+    // for soft issues, not a transition step toward UNHEALTHY.
     let nextState;
     if (!reportedRed) {
       nextState = STATES.HEALTHY;
     } else if (health.status === STATES.DEAD) {
       // Subsystem itself is reporting DEAD — escalate immediately
       nextState = STATES.DEAD;
+    } else if (isFirstRedPoll && health.status === STATES.UNHEALTHY) {
+      // Already-broken-on-arrival fast-path: skip the DEGRADED grace period.
+      // Go directly to UNHEALTHY (NOT DEAD — we have not yet attempted a
+      // single heal; jumping straight to DEAD would skip the heal contract).
+      nextState = STATES.UNHEALTHY;
     } else {
       const redDuration = now - entry.lastRedAt;
-      if (redDuration < this.degradeThresholdMs) {
+      const alreadyEscalated = (previousState === STATES.UNHEALTHY || previousState === STATES.DEAD);
+
+      // Mercury re-attack-2 Breakages 1+4 + re-attack-3 Breakage 1 fix (2026-04-27):
+      // honor DEGRADED self-report ONLY during the grace period
+      // (redDuration < degradeThresholdMs). After the grace period,
+      // supervisor's escalation logic overrides any self-report — a
+      // subsystem stuck claiming DEGRADED forever still escalates to
+      // UNHEALTHY/DEAD. This preserves both:
+      //   - Partial-recovery transition: UNHEALTHY → DEGRADED is allowed
+      //     when subsystem partially heals during the grace window.
+      //   - Escalation safety: DEGRADED for too long still escalates.
+      if (health.status === STATES.DEGRADED && redDuration < this.degradeThresholdMs) {
         nextState = STATES.DEGRADED;
-      } else {
-        // Red for too long — escalate to UNHEALTHY (or further if heal already failed)
+      }
+      // Subsystem reports UNHEALTHY/DEGRADED past grace, OR previously escalated:
+      // escalate to UNHEALTHY (or DEAD if heal exhausted).
+      else if (redDuration >= this.degradeThresholdMs || alreadyEscalated) {
         nextState = entry.healAttempts >= this.unhealthyHealAttempts
           ? STATES.DEAD
           : STATES.UNHEALTHY;
+      } else {
+        nextState = STATES.DEGRADED;
       }
     }
 
