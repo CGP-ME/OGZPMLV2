@@ -50,6 +50,9 @@ const DEFAULTS = Object.freeze({
   // Catches half-open sockets where TCP is alive but the server stopped
   // sending. Set to 0 to disable.
   dataWatchdogMs:  60000,
+  // Hard cap on incoming WS frame size. Default 1 MB; broker frames are
+  // typically <1 KB. Bounds memory exposure to malformed/hostile servers.
+  maxPayload:      1024 * 1024,
 });
 
 class ResilientWebSocket extends EventEmitter {
@@ -94,6 +97,7 @@ class ResilientWebSocket extends EventEmitter {
     this.heartbeatPingMs = opts.heartbeatPingMs;
     this.pongTimeoutMs   = opts.pongTimeoutMs;
     this.dataWatchdogMs  = opts.dataWatchdogMs;
+    this.maxPayload      = opts.maxPayload;
 
     /* Lifecycle state */
     this.ws = null;
@@ -250,7 +254,7 @@ class ResilientWebSocket extends EventEmitter {
 
     let ws;
     try {
-      ws = new WebSocket(this.url);
+      ws = new WebSocket(this.url, { maxPayload: this.maxPayload });
     } catch (err) {
       // URL invalid or constructor threw — schedule reconnect anyway so
       // transient DNS issues don't kill the loop.
