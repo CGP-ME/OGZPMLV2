@@ -153,6 +153,20 @@ class Supervisor extends EventEmitter {
     this.started = true;
     console.log(`${this.label} starting | ${this.subsystems.size} subsystem(s) | poll=${this.pollIntervalMs}ms`);
 
+    // Mercury Audit B2 fix (2026-04-27): replay restart-history from the
+    // ledger BEFORE polling begins. Without this, a supervisor process
+    // restart (e.g. PM2 auto-restart of ogz-supervisor itself — Layer A
+    // defense firing) would empty restartHistory in memory, defeating the
+    // maxRestartsIn10min guard. A flapping subsystem could trigger
+    // unbounded restarts because each new supervisor sees "first restart,
+    // no history."
+    //
+    // Implementation: scan ledger for event:escalate entries within the
+    // last 10min by WALL-CLOCK age. Convert each entry's age to a
+    // monotonic-equivalent timestamp (monoNow - ageMs) so the in-memory
+    // restartHistory remains in monotonic-ms units (post-B1 fix).
+    this._replayRestartHistory();
+
     // First poll on next tick so caller can finish setup before we hammer
     setImmediate(() => this._pollAll());
 
@@ -508,6 +522,69 @@ class Supervisor extends EventEmitter {
     } catch (err) {
       // Don't let ledger failure crash the supervisor — logging fallback only.
       console.error(`${this.label} ledger append failed:`, err.message);
+    }
+  }
+
+  /**
+   * Mercury Audit B2 fix (2026-04-27): replay restartHistory from ledger
+   * on supervisor startup. Without this, the in-memory restart counter
+   * is wiped every time the supervisor process itself restarts — and a
+   * flapping subsystem can defeat maxRestartsIn10min by triggering enough
+   * supervisor crashes to keep emptying the history.
+   *
+   * Cross-clock conversion: ledger entries store WALL-CLOCK timestamps
+   * (this.clock()). The in-memory restartHistory uses MONOTONIC-MS
+   * (post-B1 fix). For each ledger entry within the 10min window:
+   *   monoEquivalent = currentMonoMs - (currentWallMs - entry.timestamp)
+   * Distance to "now" preserved across the clock boundary; the
+   * existing prune logic in _tryEscalate filters by `monoNow - 600_000`
+   * which now correctly includes the back-shifted entries.
+   *
+   * Defensive: malformed lines / missing fields / parse errors are
+   * silently skipped per line. Whole-file read failures (no ledger
+   * yet, permissions) log a warning and return — supervisor continues
+   * with empty history (worst case = same as today, no regression).
+   */
+  _replayRestartHistory() {
+    if (!fs.existsSync(this.ledgerPath)) {
+      console.log(`${this.label} no ledger yet at ${this.ledgerPath}; restartHistory empty`);
+      return;
+    }
+    let raw;
+    try {
+      raw = fs.readFileSync(this.ledgerPath, 'utf8');
+    } catch (err) {
+      console.warn(`${this.label} could not read ledger for replay:`, err.message);
+      return;
+    }
+
+    const wallNow = this.clock();
+    const monoNow = this._monoMs();
+    const windowMs = 600_000;  // 10min window matches maxRestartsIn10min prune
+    let replayed = 0;
+
+    for (const line of raw.split('\n')) {
+      if (!line) continue;
+      let entry;
+      try { entry = JSON.parse(line); }
+      catch (_) { continue; }
+      if (!entry || entry.event !== 'escalate') continue;
+      if (typeof entry.timestamp !== 'number' || typeof entry.subsystem !== 'string') continue;
+
+      const ageMs = wallNow - entry.timestamp;
+      if (ageMs < 0 || ageMs > windowMs) continue;  // outside window
+
+      const sub = this.subsystems.get(entry.subsystem);
+      if (!sub) continue;  // subsystem not registered in this supervisor instance
+
+      // Back-shift into monotonic time so the existing prune logic
+      // (`now - 600_000`) treats it identically to a freshly-pushed entry.
+      sub.restartHistory.push(monoNow - ageMs);
+      replayed++;
+    }
+
+    if (replayed > 0) {
+      console.log(`${this.label} replayed ${replayed} escalation event(s) from ledger into restartHistory`);
     }
   }
 }
