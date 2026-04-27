@@ -230,6 +230,23 @@ Mercury cannot distinguish "this doc describes the current system" from "this do
 
 This was proven on 2026-04-14 when Mercury's output degraded progressively as more flawed proposals accumulated in the index. The fix was excluding non-canonical artifacts from indexing. The prevention is never letting them accumulate in the first place.
 
+### Session Doc Pattern (CRITICAL — adopted 2026-04-27)
+
+**Every session writes ONE dated, append-only session doc under `ogz-meta/sessions/session-YYYY-MM-DD[-MM-DD]-{slug}.md`. Do NOT mutate rolling docs (MASTER-ROLLOUT.md, RUNNING-TODO.md, TODO-NEXT-SESSION.md, POST-MATRIX-BACKLOG.md) to flip checkboxes or scrub stale references.**
+
+Why: by 2026-04-27 the rolling docs were 14 days stale. Mercury indexed them equally with current docs and built proposals on outdated workstream descriptions. Append-only session docs eliminate this — each doc is true at its date, no merge conflicts between parallel sessions, full audit trail via `ls ogz-meta/sessions/`.
+
+Bootstrap order for new AI sessions (Claude Code, Cursor, Desktop, Mercury, GPT, Codex):
+1. Read this CLAUDE.md
+2. Read most recent 2-3 session docs in `ogz-meta/sessions/` — these are canonical current state
+3. Read `ogz-meta/MASTER-ROLLOUT.md` 30-Second Status section ONLY (skip phase details — may be stale)
+4. Read `ogz-meta/recent-changes.md` top 50 lines for narrative
+5. Specs as needed for the specific task
+
+Required sections in every session doc: header (date / branch / last commit / Phase 0 baseline), What Was Done This Session (numbered, with root cause + fix per item), Smoke Tests, Files Touched table, Git Log, Half-Cooked Items Status table, Open Items for Next Session, Context for Next Session, Recorder Pipeline Disposition.
+
+Full standard: `ogz-meta/sessions/SESSION-DOC-MANIFEST.md`. Format template: `ogz-meta/sessions/session-2026-04-25-27-asset-isolation-strategy-parity-bot-swap.md`.
+
 ### Reindex Rule
 After any significant code changes, reindex Mercury: `node trai_brain/mercury-bridge/indexer.js`
 Mercury clears chunks and rebuilds. Trace memory (learned investigation patterns) is preserved.
