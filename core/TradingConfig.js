@@ -252,11 +252,12 @@ const BASE_CONFIG = {
   exitContracts: {
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  EMASMACrossover - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION   ║
-    // ║  Walk-forward validated 2026-03-20 on TSLA 15m                            ║
-    // ║  Train (Year 1+2): +$738, Test (Year 2): +$275                            ║
+    // ║  April 25 exits cube sweep + walk-forward validated 2026-04-27            ║
+    // ║  Sweep (TSLA 15m 2y): $5,953 / 3,003 trades / 51.7% WR / 2.8% DD / PF 1.64║
+    // ║  WF (Feb 4 → Apr 24, 2026): +$780 / 239 / 52.3% WR / 0.78% DD / PF 2.20  ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     EMASMACrossover: {
-      stopLossPercent: -0.5,          // LOCKED - validated SL
+      stopLossPercent: -2.0,          // LOCKED - April 25 sweep winner (was -0.5)
       takeProfitPercent: 1.0,         // LOCKED - validated TP
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
@@ -264,7 +265,7 @@ const BASE_CONFIG = {
       minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['ema_cross_reversal'],
-      _validated: '2026-03-20',
+      _validated: '2026-04-27',
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  LiquiditySweep - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION    ║
@@ -285,13 +286,13 @@ const BASE_CONFIG = {
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  RSI - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION               ║
-    // ║  Walk-forward validated 2026-03-20 on TSLA 15m                            ║
-    // ║  Train (Year 1): +$334, 223 trades, 56.5% WR                              ║
-    // ║  Test (Year 2):  +$282, 119 trades, 58.8% WR                              ║
+    // ║  April 25 exits cube sweep + walk-forward validated 2026-04-27            ║
+    // ║  Sweep (TSLA 15m 2y): $489 / 291 trades / 59.5% WR / 0.6% DD / PF 1.97    ║
+    // ║  WF (Feb 4 → Apr 24, 2026): +$132 / 82 / 63.4% WR / 0.11% DD / PF 2.88   ║
     // ║  CHANGING THESE VALUES WILL BREAK THE VALIDATED EDGE                      ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     RSI: {
-      stopLossPercent: -0.8,    // LOCKED - validated SL
+      stopLossPercent: -2.25,   // LOCKED - April 25 sweep winner (was -0.8)
       takeProfitPercent: 1.0,   // LOCKED - validated TP (tight mean-reversion)
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
@@ -299,15 +300,16 @@ const BASE_CONFIG = {
       minConfidence: 0.60,      // LOCKED - 60% gate filters garbage signals
       atrMinPercent: null,      // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
-      _validated: '2026-03-20', // Fingerprint - triggers warning if changed
+      _validated: '2026-04-27', // Fingerprint - triggers warning if changed
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  MADynamicSR - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION       ║
-    // ║  Walk-forward validated 2026-03-20 on TSLA 15m                            ║
-    // ║  Train (Year 1+2): +$724, Test (Year 2): +$429                            ║
+    // ║  April 25 exits cube sweep + walk-forward validated 2026-04-27            ║
+    // ║  Sweep (TSLA 15m 2y): $2,199 / 2,223 trades / 41.2% WR / 2.5% DD / PF 1.38║
+    // ║  WF (Feb 4 → Apr 24, 2026): +$402 / 219 / 55.3% WR / 1.35% DD / PF 1.65  ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     MADynamicSR: {
-      stopLossPercent: -0.8,          // LOCKED - validated SL
+      stopLossPercent: -2.25,         // LOCKED - April 25 sweep winner (was -0.8)
       takeProfitPercent: 1.0,         // LOCKED - validated TP
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
@@ -315,7 +317,7 @@ const BASE_CONFIG = {
       minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sr_break'],
-      _validated: '2026-03-20',
+      _validated: '2026-04-27',
     },
     // CandlePattern - uses validated baseline exits
     CandlePattern: {
@@ -369,8 +371,14 @@ const BASE_CONFIG = {
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['fvg_filled', 'or_break_reversal'],
     },
+    // ╔═══════════════════════════════════════════════════════════════════════════╗
+    // ║  SmartMoneySweep - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION   ║
+    // ║  April 25 exits cube sweep + walk-forward validated 2026-04-27            ║
+    // ║  Sweep (TSLA 15m 2y): $1,895 / 891 trades / 45.0% WR / 1.1% DD / PF 1.93  ║
+    // ║  WF (Feb 4 → Apr 24, 2026): +$327 / 120 / 49.2% WR / 0.74% DD / PF 2.44  ║
+    // ╚═══════════════════════════════════════════════════════════════════════════╝
     SmartMoneySweep: {
-      stopLossPercent: -0.3,          // maxLossPct from PineScript (hard cap, lose fast)
+      stopLossPercent: -2.5,          // LOCKED - April 25 sweep winner (was -0.3)
       takeProfitPercent: 1.5,         // High conviction ATR target
       trailingStopPercent: 0.5,       // Trail after 0.5 R:R (Fabio: risk-free in 1 minute)
       trailingActivation: 0.5,
@@ -379,6 +387,7 @@ const BASE_CONFIG = {
       useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
+      _validated: '2026-04-27',
     },
     default: {
       stopLossPercent: -2.0,
@@ -1058,23 +1067,26 @@ class TradingConfig {
     // ═══════════════════════════════════════════════════════════════════════
     const rsi = BASE_CONFIG.exitContracts.RSI;
     if (rsi._validated) {
-      const lockedValues = { sl: -0.8, tp: 1.0, conf: 0.60 };
+      // 2026-04-27: lockedValues updated to April 25 exits cube sweep winners.
+      // SL changed from -0.8 to -2.25 per the sweep result $489/291/59.5%/PF1.97.
+      // TP and conf unchanged from prior validation.
+      const lockedValues = { sl: -2.25, tp: 1.0, conf: 0.60 };
       if (rsi.stopLossPercent !== lockedValues.sl) {
-        console.error('\n🚨🚨🚨 RSI STOP LOSS CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\n[!] RSI STOP LOSS CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.sl}%, Got: ${rsi.stopLossPercent}%`);
-        console.error('   This config was walk-forward validated on 2026-03-20');
+        console.error('   This config was walk-forward validated on 2026-04-27');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
       }
       if (rsi.takeProfitPercent !== lockedValues.tp) {
-        console.error('\n🚨🚨🚨 RSI TAKE PROFIT CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\n[!] RSI TAKE PROFIT CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.tp}%, Got: ${rsi.takeProfitPercent}%`);
-        console.error('   This config was walk-forward validated on 2026-03-20');
+        console.error('   This config was walk-forward validated on 2026-04-27');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
       }
       if (rsi.minConfidence !== lockedValues.conf) {
-        console.error('\n🚨🚨🚨 RSI MIN CONFIDENCE CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\n[!] RSI MIN CONFIDENCE CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.conf}, Got: ${rsi.minConfidence}`);
-        console.error('   This config was walk-forward validated on 2026-03-20');
+        console.error('   This config was walk-forward validated on 2026-04-27');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
       }
     }
