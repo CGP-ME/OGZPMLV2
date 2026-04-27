@@ -458,7 +458,11 @@
                 // 1. price — authoritative per-tick balance
                 socket.registerHandler('price', (d) => {
                     try {
-                        const b = d && d.data && d.data.balance;
+                        // BUG FIX 2026-04-27: backend renamed 'balance' → 'equity'
+                        // (CandleProcessor:430). Read equity first, fall back to
+                        // balance so older bot versions still work.
+                        const data = d && d.data;
+                        const b = data && (data.equity != null ? data.equity : data.balance);
                         if (isFinite(b) && b > 0) onPriceBalance(Number(b));
                     } catch (_) { /* swallow */ }
                 });

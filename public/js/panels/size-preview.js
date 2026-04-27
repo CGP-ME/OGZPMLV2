@@ -239,7 +239,10 @@
         try {
             const data = d && d.data;
             if (!data) return;
-            if (isFinite(data.balance) && data.balance > 0) state.equity = Number(data.balance);
+            // BUG FIX 2026-04-27: backend renamed 'balance' → 'equity' on price
+            // payload (CandleProcessor:430). Prefer equity, fall back to balance.
+            const eq = data.equity != null ? data.equity : data.balance;
+            if (isFinite(eq) && eq > 0) state.equity = Number(eq);
             const p = data.price != null ? data.price
                    : data.close != null ? data.close
                    : (data.candle && data.candle.close);
