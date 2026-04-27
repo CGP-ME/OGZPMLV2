@@ -170,6 +170,16 @@ window.OGZ = (function() {
             socket.registerHandler('bot_thinking', (d) => {
                 state.lastBotMessageAt = Date.now();
                 if (this.get('Intelligence')) this.get('Intelligence').updateWinnerHUD(d);
+                // Populate the indicators-bar "Live Conf" field. bot_thinking
+                // carries decision.confidence which the price event does not —
+                // without this wire, #confidenceML rendered '--' on every tick.
+                const conf = (d && d.confidence != null) ? d.confidence
+                          : (d && d.data && d.data.confidence != null) ? d.data.confidence
+                          : null;
+                if (conf != null) {
+                    const el = document.getElementById('confidenceML');
+                    if (el) el.textContent = Number(conf).toFixed(0) + '%';
+                }
             });
 
             // LIVE: Pattern Analysis — updates pattern panel + ghost projection
