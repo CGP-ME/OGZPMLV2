@@ -404,6 +404,86 @@ function createToolAdapter(opts = {}) {
   }
 
   // ─────────────────────────────────────────────────────────
+  // git_show — read a file at a specific git ref (commit/branch/tag).
+  // Lets Mercury answer "what did this file look like at commit X" or
+  // "compare HEAD to commit Y" without burning iterations on tools that
+  // don't have history access. Local-only — no network. Repo-bounded —
+  // ref + path validated, no shell injection (spawnSync uses arg array,
+  // not shell string).
+  // ─────────────────────────────────────────────────────────
+  async function git_show(args) {
+    const ref = (args && args.ref) || '';
+    const filePath = (args && args.path) || '';
+    const startLine = parseInt(args.start_line || 1, 10);
+    const endLine = parseInt(args.end_line || 0, 10);
+
+    if (!ref || typeof ref !== 'string') {
+      return { error: 'git_show requires a ref string (commit SHA, branch, or tag)' };
+    }
+    // Whitelist ref characters: alphanumeric + . - _ / ~ ^ (full git ref alphabet)
+    if (!/^[A-Za-z0-9._/~^-]+$/.test(ref)) {
+      return { error: `invalid ref format: ${ref}` };
+    }
+    if (!filePath || typeof filePath !== 'string') {
+      return { error: 'git_show requires a path string (repo-relative)' };
+    }
+    // Path must not escape repo (no leading /, no .. segments)
+    if (filePath.startsWith('/') || filePath.split('/').includes('..')) {
+      return { error: 'path must be repo-relative (no leading slash, no ..)' };
+    }
+
+    const result = spawnSync('git', ['show', `${ref}:${filePath}`], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 5 * 1024 * 1024,  // 5MB cap — generous for source files
+      timeout: 5000,
+    });
+
+    if (result.error) {
+      return { error: `git_show failed: ${result.error.message}` };
+    }
+    if (result.status !== 0) {
+      const stderr = (result.stderr || '').trim();
+      return { error: `git show ${ref}:${filePath} returned status ${result.status}: ${stderr || 'unknown'}` };
+    }
+
+    const allLines = result.stdout.split('\n');
+    const totalLines = allLines.length;
+
+    // Optional line-range slicing (otherwise return whole file capped).
+    // Cap whole-file reads at 800 lines so very large historical files
+    // don't blow the response context.
+    let returnedStart = 1;
+    let returnedEnd = totalLines;
+    let body;
+    if (endLine > 0 && endLine >= startLine) {
+      if (endLine - startLine > 500) {
+        return { error: 'range too large (max 500 lines per call)' };
+      }
+      returnedStart = Math.max(1, startLine);
+      returnedEnd = Math.min(endLine, totalLines);
+      body = allLines.slice(returnedStart - 1, returnedEnd);
+    } else {
+      returnedEnd = Math.min(totalLines, 800);
+      body = allLines.slice(0, returnedEnd);
+    }
+
+    const numbered = body
+      .map((line, idx) => `${String(returnedStart + idx).padStart(5, ' ')}\t${line}`)
+      .join('\n');
+
+    return {
+      ref,
+      path: filePath,
+      start_line: returnedStart,
+      end_line: returnedEnd,
+      total_lines: totalLines,
+      truncated: returnedEnd < totalLines,
+      text: numbered,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────
   // tavily_search — public web search via Tavily API.
   // Same provider TRAI uses for news context (ogzprime-ssl-server.js:104).
   // Returns title/url/snippet; capped at 10 results regardless of caller ask.
@@ -500,6 +580,16 @@ function createToolAdapter(opts = {}) {
       },
       handler: tavily_search,
     },
+    git_show: {
+      description: 'Read a file at a specific git ref (commit SHA, branch, or tag). Use for "compare HEAD to commit X" audits, "what did this file look like before the migration", or any cross-commit equivalence check. Local-only — no network. Same line-numbering format as open_file. Optional start_line/end_line range; whole-file reads capped at 800 lines.',
+      args_schema: {
+        ref: 'string (required) — commit SHA, branch name, or tag (e.g. "f042021", "main", "HEAD~1")',
+        path: 'string (required) — file path relative to repo root',
+        start_line: 'integer (optional) — first line (1-indexed)',
+        end_line: 'integer (optional) — last line (max 500 line span)',
+      },
+      handler: git_show,
+    },
   };
 
   /**
@@ -574,7 +664,16 @@ Example call:
 {"tool": "tavily_search", "args": {"query": "ws library exponential backoff best practice", "max_results": 5}}
 \`\`\`
 
-Use tavily_search when you need information from outside the repo: official documentation, Stack Overflow, GitHub issues, current news, or "what does the official library docs say about X". Returns title + URL + short snippet per result. Reuses TRAI's existing TAVILY_API_KEY.`;
+Use tavily_search when you need information from outside the repo: official documentation, Stack Overflow, GitHub issues, current news, or "what does the official library docs say about X". Returns title + URL + short snippet per result. Reuses TRAI's existing TAVILY_API_KEY.
+
+## git_show — read a file at a specific git ref
+
+Example call:
+\`\`\`tool_call
+{"tool": "git_show", "args": {"ref": "f042021", "path": "brokers/AlpacaAdapter.js", "start_line": 480, "end_line": 580}}
+\`\`\`
+
+Use git_show when comparing current code to a historical version (cross-commit migration audits, equivalence checks, "what did this file look like before commit X"). Local-only — no network. Same line-numbering as open_file.`;
   }
 
   function buildToolSchema() {
@@ -652,6 +751,23 @@ Use tavily_search when you need information from outside the repo: official docu
               max_results: { type: "integer", description: "Number of results (1-10, default 5)" }
             },
             required: ["query"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "git_show",
+          description: "Read a file at a specific git ref (commit SHA, branch, or tag). Use for cross-commit equivalence audits, 'what did this file look like before commit X', or migration before/after comparisons. Local-only, no network. Returns numbered lines with same format as open_file. Optional start_line/end_line range (max 500 line span); whole-file reads capped at 800 lines.",
+          parameters: {
+            type: "object",
+            properties: {
+              ref: { type: "string", description: "Commit SHA, branch, or tag (e.g. 'f042021', 'main', 'HEAD~1')" },
+              path: { type: "string", description: "File path relative to repo root" },
+              start_line: { type: "integer", description: "First line, 1-indexed (optional)" },
+              end_line: { type: "integer", description: "Last line, max 500 line span (optional)" }
+            },
+            required: ["ref", "path"]
           }
         }
       }
