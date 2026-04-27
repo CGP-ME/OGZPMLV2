@@ -122,6 +122,31 @@ class AlpacaAdapter extends IBrokerAdapter {
      * ResilientWebSocket's data-stream health. The library returns the
      * standardized shape; we overlay REST status (which the library has
      * no view of).
+     *
+     * Mercury Audit C2 adversarial re-dispatch (2026-04-27) findings + fixes:
+     *
+     * (CRITICAL) Consumer crash via null `details.ws`. Pre-fix: a
+     *   freshly-constructed adapter (no rws built) returned `details.ws: null`.
+     *   Any consumer doing `health.details.ws.reconnectAttempts` crashed
+     *   with TypeError. Post-fix: details.ws is ALWAYS a real object with
+     *   the same key shape as ResilientWebSocket.getHealth().details. When
+     *   no rws exists, the placeholder values reflect "not started" state.
+     *
+     * (HIGH) Disconnect race. Pre-fix: getHealth() called between
+     *   intentionalDisconnect=true (set by line 107) and rws.stop()
+     *   completing returned DEAD even though wsHealth still said HEALTHY.
+     *   Post-fix: the intentionalDisconnect branch checks wsHealth state
+     *   and reports DEGRADED ('disconnect in progress') if the WS hasn't
+     *   actually been torn down yet. Once rws is null OR wsHealth.status
+     *   === DEAD, the branch reports DEAD as before.
+     *
+     * (MEDIUM-advisory) lastSuccessAt is the WS lastMessageAt timestamp,
+     *   which includes auth-success and control frames. Watchdogs that
+     *   read lastSuccessAt as "last data frame at" will be fooled.
+     *   Resolution: ResilientWebSocket already runs its own dataWatchdogMs
+     *   internally — that's the right layer for data-freshness detection.
+     *   Future improvement: add lastDataMessageAt to RWS as a separate
+     *   field. Tracked as follow-up; not blocking C2 SHIP IT.
      */
     getHealth() {
         const now = Date.now();
@@ -131,8 +156,20 @@ class AlpacaAdapter extends IBrokerAdapter {
         let failureReason = null;
 
         if (this.intentionalDisconnect) {
-            status = 'DEAD';
-            failureReason = 'intentional disconnect';
+            // C2 HIGH fix: race-defense. If we set intentionalDisconnect=true
+            // but the WS hasn't been torn down yet (still authenticated and
+            // reporting HEALTHY), don't lie that it's DEAD — report
+            // 'disconnect in progress' until the teardown propagates. The
+            // race window is microseconds in the disconnect() flow but
+            // exists. Once rws is null OR wsHealth.status reflects the
+            // teardown, we report DEAD as before.
+            if (wsHealth && wsHealth.status === 'HEALTHY') {
+                status = 'DEGRADED';
+                failureReason = 'disconnect in progress (WS not yet torn down)';
+            } else {
+                status = 'DEAD';
+                failureReason = 'intentional disconnect';
+            }
         } else if (!this.connected) {
             status = 'UNHEALTHY';
             failureReason = 'REST account-API not verified (connect() not yet succeeded)';
@@ -148,15 +185,31 @@ class AlpacaAdapter extends IBrokerAdapter {
             failureReason = wsHealth.failureReason;
         }
 
+        // C2 CRITICAL fix: details.ws is ALWAYS an object, never null.
+        // Consumers can safely read details.ws.reconnectAttempts etc. without
+        // optional chaining. When no rws exists, the placeholder reflects
+        // "not started" state in the same shape as rws.getHealth().details.
+        const wsDetails = wsHealth ? wsHealth.details : {
+            url: this.wsUrl,
+            readyState: -1,
+            isAuthenticated: false,
+            reconnectAttempts: 0,
+            msSinceMessage: null,
+            msSincePong: null,
+        };
+
         return {
             status,
             timestamp: now,
             details: {
                 broker: 'alpaca',
                 restConnected: this.connected,
-                ws: wsHealth ? wsHealth.details : null,
+                ws: wsDetails,
                 subscriptionCount: this.subscriptions.size,
             },
+            // Note (C2 MEDIUM advisory): this is "WS last message" semantic,
+            // not "data-frame last seen." Real data-staleness handled by
+            // ResilientWebSocket.dataWatchdogMs internally.
             lastSuccessAt: wsHealth ? wsHealth.lastSuccessAt : (this.connected ? now : 0),
             failureReason,
         };
