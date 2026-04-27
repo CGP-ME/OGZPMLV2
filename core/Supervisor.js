@@ -832,10 +832,22 @@ class Supervisor extends EventEmitter {
     // will not match its own signature. Linux POSIX guarantees appendFileSync
     // atomicity for line writes < PIPE_BUF (4096 B); our entries are well
     // under that, so torn writes should not occur in practice anyway.
+    // Mercury Audit B1 Finding 2 fix (2026-04-27): dual-timestamp ledger.
+    // wallMs (existing `timestamp` from caller) for human-readable display,
+    // monoMs for same-process timeline reconstruction. monoMs is meaningful
+    // only when read in the same process lifetime (different processes have
+    // different monotonic origins). Combined with pid + pidStartTime, post-
+    // mortem analysis can correctly interleave events without relying on
+    // wall-clock that may have been NTP-corrected mid-session.
+    //
+    // Disclosure note: monoMs reveals supervisor process uptime to anyone
+    // who can read the ledger. Same information is already visible via
+    // standard OS tools (ps/proc) — bounded leak.
     const entry = Object.assign({
       event: eventType,
       pid: process.pid,
       pidStartTime: this.bootPidStartTime,
+      monoMs: this._monoMs(),
     }, payload);
     const hmac = this._signEntry(entry);
     if (hmac) entry.hmac = hmac;
