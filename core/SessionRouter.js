@@ -306,6 +306,20 @@ class SessionRouter extends EventEmitter {
   }
 
   _activateCrypto() {
+    // FIX 2026-04-27: clear stale on-disk candle-history.json on initial
+    // activation too — not just on transitions. Cold boot when previous
+    // run ended on the OTHER asset replays foreign candles through
+    // indicatorEngine and stalls warmup. Same bug class as 4433126,
+    // different trigger.
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const candleFile = path.join(__dirname, '..', 'data', 'candle-history.json');
+      if (fs.existsSync(candleFile)) fs.writeFileSync(candleFile, '[]');
+    } catch (err) {
+      console.warn('[SessionRouter] candle-history clear failed:', err.message);
+    }
+
     this.activeSession = 'crypto';
     this.activeBroker = this.krakenAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
@@ -316,6 +330,16 @@ class SessionRouter extends EventEmitter {
   }
 
   _activateStocks() {
+    // FIX 2026-04-27: see _activateCrypto — same cold-boot stale-state fix.
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const candleFile = path.join(__dirname, '..', 'data', 'candle-history.json');
+      if (fs.existsSync(candleFile)) fs.writeFileSync(candleFile, '[]');
+    } catch (err) {
+      console.warn('[SessionRouter] candle-history clear failed:', err.message);
+    }
+
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
