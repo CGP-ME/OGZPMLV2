@@ -521,7 +521,7 @@ class TradingLoop {
     if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
       try {
         const reasoning = decision.action === 'HOLD'
-          ? `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${minConfidence}% minimum`
+          ? `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${(minConfidence * 100).toFixed(0)}% minimum`
           : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'bot_thinking',
