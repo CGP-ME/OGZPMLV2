@@ -2589,11 +2589,22 @@
 
         /* ============================================================
            PHASE E · Risk Gauge mount — inline, not absolute-positioned
-           ============================================================ */
+           ============================================================
+           DeepSearch diagnosis 2026-04-27: the global `.bot-status-row`
+           rule at L533 sets `position:absolute; top:20px; left:20px`
+           which yanks the Risk Gauge out of its flex parent and pins it
+           to the top-LEFT of the header (overlapping the OGZPRIME logo).
+           The original Phase E override scoped only to .tier-selector-
+           container; when #botStatusRow was relocated to .header-status-
+           cluster (commit f24b83e), the override no longer matched.
+           Extended below to catch BOTH mount locations. */
+        .header-status-cluster .bot-status-row,
         .tier-selector-container .bot-status-row {
             position: static;
             display: inline-flex;
             align-items: center;
+            gap: 8px;
+            z-index: auto;
         }
         /* ============================================================
            END PHASE E
