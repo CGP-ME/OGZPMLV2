@@ -502,7 +502,10 @@
            on cold-boot when no historical data has loaded yet. */
         #chartHud {
             position: absolute;
-            top: 16px;
+            /* BUG FIX 2026-04-27: top:16 collided with the 30px ensemble
+               heatbar that sits at the top of .chart-container. Pushed
+               below the heatbar (30 + 8px gap = ~48). */
+            top: 48px;
             right: 60px;
             z-index: 20;
             pointer-events: none;

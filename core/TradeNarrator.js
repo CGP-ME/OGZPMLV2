@@ -689,6 +689,15 @@ class TradeNarrator {
   }
 }
 
+// Public label accessor — exposes the deterministic strategy → "Strategy-X"
+// mapping so other broadcasters (heatbar, battleground) can use the same
+// IP-safe labels the narrator uses. Returns the raw name if narrator
+// hasn't been initialized.
+TradeNarrator.prototype.labelFor = function (strategyName) {
+  if (typeof this._labelFor !== 'function') return strategyName || 'Strategy-?';
+  return this._labelFor(strategyName);
+};
+
 // ─── Singleton ────────────────────────────────────────────────────────────
 let _instance = null;
 function getNarrator() {

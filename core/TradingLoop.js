@@ -528,7 +528,13 @@ class TradingLoop {
         // FIRED this cycle. Enrich with the full configured-strategy list
         // (zero-confidence placeholders for non-firing) so the dashboard
         // battleground always shows ALL contenders, not just the winner.
-        // Trey: "I think I've only ever seen it say EMA crossover."
+        //
+        // Also IP-shield: real strategy names go through TradeNarrator's
+        // labelFor() so the dashboard sees "Strategy-A/B/C" instead of
+        // "EMASMACrossover" / "RSI" / etc. Same seed = same labels across
+        // all panels (heatbar, battleground, leaderboard via narrator).
+        const { getNarrator } = require('./TradeNarrator');
+        const narrator = getNarrator();
         const firedById = new Map(
           (orchResult.allResults || []).map(s => [s.strategyName, s])
         );
@@ -536,22 +542,28 @@ class TradingLoop {
           .map(s => s.name);
         const fullStack = allStrategyNames.map(name => {
           const fired = firedById.get(name);
+          const label = narrator.labelFor(name);
           return {
-            id: name,
-            name,
+            id: label,
+            name: label,
+            realName: name,    // kept for any internal tooling that needs it
             confidence: fired ? fired.confidence : 0,
             direction: fired ? fired.direction : 'hold',
           };
         }).sort((a, b) => b.confidence - a.confidence);
+
+        const winnerLabel = orchResult.winnerStrategy
+          ? narrator.labelFor(orchResult.winnerStrategy)
+          : null;
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'bot_thinking',
           timestamp: Date.now(),
           message: reasoning,
           confidence: decision.confidence,
-          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
+          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: winnerLabel || 'orchestrator' },
           strategy_stack: fullStack.length ? fullStack : undefined,
-          winner_id: orchResult.winnerStrategy || null
+          winner_id: winnerLabel
         }));
       } catch (e) { /* fail silently */ }
 
