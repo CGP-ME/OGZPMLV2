@@ -429,12 +429,24 @@ class AlpacaAdapter extends IBrokerAdapter {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
 
+            // BUG FIX 2026-04-28: without an explicit `start` param Alpaca's
+            // IEX endpoint returns whatever's most-recent — at 11 AM EDT
+            // that's only ~13 15m bars from RTH open. Trey asked for 200
+            // prior candles to warm RSI/EMA/ATR from yesterday's close.
+            // Compute `start` going back enough trading-time to cover the
+            // requested limit. We pad ×3 to absorb weekends, holidays, and
+            // overnight gaps where stock data doesn't exist.
+            const tfMinutes = this._timeframeMinutes(timeframe);
+            const lookbackMs = tfMinutes * 60 * 1000 * limit * 3;
+            const start = new Date(Date.now() - lookbackMs).toISOString();
+
             const response = await axios.get(
                 `${this.dataUrl}/v2/stocks/${sym}/bars`,
                 {
                     headers: this._authHeaders(),
                     params: {
                         timeframe: tf,
+                        start,
                         limit: Math.min(limit, 10000),
                         adjustment: 'raw',
                         feed: 'iex'
@@ -453,6 +465,12 @@ class AlpacaAdapter extends IBrokerAdapter {
         } catch (error) {
             throw new Error(`[Alpaca] Failed to get candles for ${symbol}: ${error.message}`);
         }
+    }
+
+    // Helper: timeframe string → minutes for `start` window math above.
+    _timeframeMinutes(timeframe) {
+        const map = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440 };
+        return map[timeframe] || 1;
     }
 
     async getOrderBook(symbol, depth = 20) {
