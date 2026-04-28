@@ -158,6 +158,39 @@ class SessionRouter extends EventEmitter {
     try {
       await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
 
+      // BUG FIX 2026-04-28: capture LAST KNOWN crypto price BEFORE any
+      // unsubscribe / state-reset / new-broker-subscribe runs. This is the
+      // close-out price for any open BTC positions. Once the unsubscribe
+      // fires below, the next price tick is TSLA — using that to close a
+      // BTC position books a million-dollar phantom loss
+      // (entry $76K BTC → exit $377 TSLA → -99% drawdown). Force-close
+      // here, at the deactivating broker's price, before the swap proceeds.
+      const lastCryptoPrice = this._getCurrentPrice();
+      const activeTradesBeforeSwap = this.stateManager.state.activeTrades;
+      if (activeTradesBeforeSwap && activeTradesBeforeSwap.size > 0) {
+        console.log(`[SessionRouter] Force-closing ${activeTradesBeforeSwap.size} crypto position(s) at $${lastCryptoPrice} before stocks activation...`);
+        const failedCloses = [];
+        for (const [orderId, trade] of activeTradesBeforeSwap.entries()) {
+          try {
+            const exitPrice = lastCryptoPrice || trade.entryPrice;
+            await this.stateManager.closePosition(exitPrice, false, null, {
+              orderId,
+              exitReason: 'session_close',
+              tradeId: trade.tradeId || orderId,
+            });
+            console.log(`[SessionRouter] Closed crypto position ${orderId} @ $${exitPrice}`);
+          } catch (closeErr) {
+            console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
+            failedCloses.push({ orderId, error: closeErr.message });
+          }
+        }
+        if (failedCloses.length > 0) {
+          const errMsg = `Aborting crypto→stocks transition — ${failedCloses.length} close(s) failed: ${failedCloses.map(f => f.orderId).join(', ')}`;
+          console.error(`[SessionRouter] ${errMsg}`);
+          throw new Error(errMsg);
+        }
+      }
+
       if (this.krakenAdapter.unsubscribeAll) this.krakenAdapter.unsubscribeAll();
       if (this.krakenAdapter.removeAllListeners) this.krakenAdapter.removeAllListeners('ohlc');
 
