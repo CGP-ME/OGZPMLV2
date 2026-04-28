@@ -108,9 +108,26 @@ class ExitContractManager {
     const pnlPercent = isShort
       ? ((entryPrice - currentPrice) / entryPrice) * 100  // SHORT: profit when price drops
       : ((currentPrice - entryPrice) / entryPrice) * 100; // LONG: profit when price rises
-    const holdTimeMinutes = context.currentTime
-      ? (context.currentTime - trade.entryTime) / 60000
-      : (Date.now() - trade.entryTime) / 60000;
+    // BUG FIX 2026-04-28: trade.entryTime was leaking into here as microseconds
+    // (some upstream path multiplied bar.t × 1000 thinking it was ns precision).
+    // Without normalization, max_hold_universal fired on 30-second-old trades —
+    // bot auto-sold immediately after every BUY. Detect microseconds via
+    // magnitude (>1e14) and divide. Same for currentTime as a defensive
+    // belt: if marketData.timestamp ever carries μs, normalize it too.
+    function _toMs(t) {
+      if (t == null) return null;
+      const n = Number(t);
+      if (!Number.isFinite(n)) return null;
+      return n > 1e14 ? Math.floor(n / 1000) : n;
+    }
+    const entryMs = _toMs(trade.entryTime);
+    const nowMs = _toMs(context.currentTime) || Date.now();
+    const holdTimeMinutes = entryMs ? (nowMs - entryMs) / 60000 : 0;
+    if (holdTimeMinutes < 0 || holdTimeMinutes > 100000) {
+      console.warn(`[ECM] holdTimeMinutes outside sane range: ${holdTimeMinutes.toFixed(1)} (entry=${trade.entryTime}, now=${context.currentTime}). Forcing to 0 — entry timestamp likely corrupt.`);
+    }
+    // Clamp absurd values so the corrupt-entry case doesn't fire instant max-hold.
+    const safeHoldMinutes = (holdTimeMinutes < 0 || holdTimeMinutes > 100000) ? 0 : holdTimeMinutes;
 
     const contract = trade.exitContract || this.getDefaultContract(trade.entryStrategy || 'default');
     // Ensure trade has contract for checkers
@@ -124,8 +141,9 @@ class ExitContractManager {
     const slResult = this.stopLossChecker.check(trade, currentPrice, pnlPercent, context);
     if (slResult.shouldExit) return slResult;
 
-    // 2. Max hold time (safety timeout)
-    const mhResult = this.maxHoldChecker.check(trade, holdTimeMinutes, pnlPercent);
+    // 2. Max hold time (safety timeout) — uses safeHoldMinutes to skip
+    //    instant-fire when entryTime unit is corrupt (clamped above).
+    const mhResult = this.maxHoldChecker.check(trade, safeHoldMinutes, pnlPercent);
     if (mhResult.shouldExit) return mhResult;
 
     // 5. Invalidation conditions (stays in ECM — strategy-specific)
