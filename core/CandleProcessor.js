@@ -37,6 +37,11 @@ class CandleProcessor {
     this.cleanCandlesRequired = 3;
     this.backfillRetryInterval = null;
     this.backfillRetryDelayMs = 60000; // 60 seconds
+    // BUG FIX 2026-04-28: latch gap-detection while retry is in flight.
+    // Without this, every new live candle re-detects the same gap (the
+    // pre-gap lastCandle pointer never advances until backfill succeeds),
+    // re-halts trading, re-fires the safety-stop banner, infinite oscillation.
+    this._gapRecoveryInProgress = false;
 
     console.log('[CandleProcessor] Initialized with gap recovery');
   }
@@ -222,6 +227,10 @@ class CandleProcessor {
         console.log(`[GAP-RECOVERY] Retry succeeded: ${candles.length} candles`);
         this.handleBackfillSuccess(candles);
         this.stopBackfillRetry();
+        // Release the gap-detection latch so future, distinct gaps can be
+        // detected. Same-gap re-detection is already prevented by
+        // handleBackfillSuccess advancing the lastCandle pointer.
+        this._gapRecoveryInProgress = false;
       }
     }, this.backfillRetryDelayMs);
   }
@@ -337,23 +346,33 @@ class CandleProcessor {
     const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
     const isNewCandle = !lastCandle || lastCandle.etime !== candle.etime;
 
-    // GAP DETECTION: Check for gaps only on new candles, not in backtest
-    if (isNewCandle && lastCandle && !isBacktesting) {
+    // GAP DETECTION: Check for gaps only on new candles, not in backtest.
+    // Latched by _gapRecoveryInProgress so the same gap doesn't re-trigger
+    // every new live candle while backfill is still pending.
+    if (isNewCandle && lastCandle && !isBacktesting && !this._gapRecoveryInProgress) {
       const gapMs = candle.etime - lastCandle.etime;
       const gapThreshold = this.candleIntervalMs * this.gapThresholdMultiplier;
 
       if (gapMs > gapThreshold) {
         const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
         console.warn(`⚠️ [GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
+        this._gapRecoveryInProgress = true;
 
         this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
           if (backfilledCandles.length > 0) {
             this.handleBackfillSuccess(backfilledCandles);
             this.cleanCandleCount = 0;
+            this._gapRecoveryInProgress = false;
           } else {
-            console.error('[GAP-RECOVERY] Backfill failed, halting trading');
-            this.ctx.staleFeedPaused = true;
-            stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`);
+            // BUG FIX 2026-04-28: do NOT pauseTrading on first failure. Trey's
+            // directive: "we need to put on an infinite retry or something there."
+            // Previously paused → resumed via cleanCandlesRequired → next live
+            // candle saw same gap (lastCandle pointer hadn't advanced) → re-halt
+            // → infinite oscillation. Now: log warning, start retry loop, keep
+            // trading on existing data. Strategies' own warmup gates self-protect
+            // against insufficient-data trades. Latch stays set until retry
+            // succeeds — prevents same-gap re-detection.
+            console.warn(`[GAP-RECOVERY] Backfill failed; retry loop continues every ${this.backfillRetryDelayMs/1000}s. Trading remains active.`);
             this.startBackfillRetry(lastCandle.etime, candle.etime);
           }
         });
