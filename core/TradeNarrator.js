@@ -551,26 +551,9 @@ class TradeNarrator {
       const ctxRec = this._getCtx(tradeId);
       const strat = strategy || (ctxRec && ctxRec.strategy) || 'unknown';
       const entry = entryPrice != null ? entryPrice : (ctxRec && ctxRec.entryPrice);
-      // BUG FIX 2026-04-28: holdMs / ctxRec.enteredAt can leak in as microseconds
-      // (entryTime upstream stored as μs in some paths). Normalize before subtraction
-      // so the narrator doesn't display "held 583h 37m" for a 30-second trade.
-      const _toMs = (t) => {
-        if (t == null) return null;
-        const n = Number(t);
-        if (!Number.isFinite(n)) return null;
-        return n > 1e14 ? Math.floor(n / 1000) : n;
-      };
-      let held;
-      if (holdMs != null) {
-        held = _toMs(holdMs);
-      } else if (ctxRec && ctxRec.enteredAt) {
-        const enteredMs = _toMs(ctxRec.enteredAt);
-        held = enteredMs != null ? Date.now() - enteredMs : 0;
-      } else {
-        held = 0;
-      }
-      // Sanity clamp: any value over 1 year is nonsense; show 0 rather than absurd.
-      if (!Number.isFinite(held) || held < 0 || held > 31536000000) held = 0;
+      const held = holdMs != null ? holdMs
+                  : ctxRec && ctxRec.enteredAt ? (Date.now() - ctxRec.enteredAt)
+                  : 0;
       const dir = direction || (ctxRec && ctxRec.direction) || 'long';
       const isWin = (pnl || 0) > 0;
 
