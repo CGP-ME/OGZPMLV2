@@ -422,6 +422,22 @@ class SessionRouter extends EventEmitter {
       ? (this.stockSymbols[0] || 'TSLA')
       : (this.cryptoSymbols[0] || 'BTC/USD');
 
+    // Hot-swap the pattern bank to the active session's bucket so BTC
+    // patterns don't land in unified-patterns.*.stocks.json (and vice
+    // versa). The bucket was previously locked at boot via TRADING_PAIR
+    // env — SessionRouter swaps brokers at runtime and the bank's
+    // storagePath never moved. Trey 2026-04-28: "if we contaminated both
+    // sets with the session router im going to be furious."
+    try {
+      const { getInstance } = require('./UnifiedPatternMemory');
+      const memory = getInstance();
+      if (memory && typeof memory.switchBucket === 'function') {
+        memory.switchBucket(session);
+      }
+    } catch (e) {
+      console.warn('[SessionRouter] pattern-bank swap failed:', e.message);
+    }
+
     // STEP 1 — Warm priceHistory + IndicatorEngine from prior 200 candles
     // BEFORE the first live candle arrives. This is the fix for the
     // "9:30 ET swap → 65 candles missing → infinite gap-recovery loop"

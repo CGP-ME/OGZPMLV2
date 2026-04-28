@@ -862,6 +862,44 @@ class UnifiedPatternMemory {
 }
 
 // ═══════════════════════════════════════════════════════════════
+/**
+ * Hot-swap the asset bucket — saves current patterns to current
+ * storagePath, clears in-memory state, repoints storagePath to the
+ * new bucket, and reloads from disk.
+ *
+ * Trey 2026-04-28: "should be aware of where it is and what its
+ * trading actually." SessionRouter calls this on every activation /
+ * transition so BTC patterns land in unified-patterns.paper.crypto.json
+ * and TSLA patterns land in unified-patterns.paper.stocks.json — no
+ * cross-asset contamination from the bucket-locked-at-boot bug.
+ *
+ * @param {string} bucket  'stocks' | 'crypto' | (backtest: ticker)
+ * @returns {{loaded: number, prevPath: string, newPath: string}}
+ */
+UnifiedPatternMemory.prototype.switchBucket = function (bucket) {
+  if (!bucket) return null;
+  const path = require('path');
+  const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+  const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
+               process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
+  const newPath = path.join(dataDir, `unified-patterns.${mode}.${bucket}.json`);
+  const prevPath = this.storagePath;
+
+  if (newPath === prevPath) return { loaded: Object.keys(this.patterns).length, prevPath, newPath, noop: true };
+
+  console.log(`[UnifiedPatternMemory] Bucket swap: ${prevPath} → ${newPath}`);
+  // 1. Flush current bucket's patterns to disk
+  try { this.save(); } catch (e) { console.warn('[UnifiedPatternMemory] save-before-swap failed:', e.message); }
+  // 2. Clear in-memory state
+  this.patterns = {};
+  // 3. Repoint + reload
+  this.storagePath = newPath;
+  this._load();
+  const loaded = Object.keys(this.patterns).length;
+  console.log(`[UnifiedPatternMemory] Loaded ${loaded} patterns from ${newPath}`);
+  return { loaded, prevPath, newPath, noop: false };
+};
+
 // SINGLETON
 // ═══════════════════════════════════════════════════════════════
 
