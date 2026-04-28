@@ -410,9 +410,31 @@ class CandleProcessor {
         const winningTrades = closedTrades.filter(t => t.pnl > 0).length;
         const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
 
+        // FIX 2026-04-27: include `symbol` so the dashboard's live-tick
+        // consumers (asset-tf-card on the left rail) auto-flip on
+        // SessionRouter swaps without waiting for historical_candles.
+        // Resolution priority matches fetchAndSendHistoricalCandles:
+        //   1. SessionRouter active session primary symbol (when enabled)
+        //   2. assetManager activeAsset (legacy single-broker)
+        //   3. config tradingPair (last resort)
+        let activeSymbol;
+        const sr = this.ctx.sessionRouter;
+        if (sr && sr.enabled && sr.activeSession) {
+          activeSymbol = sr.activeSession === 'stocks'
+            ? (sr.stockSymbols?.[0] || 'TSLA')
+            : (sr.cryptoSymbols?.[0] || 'BTC/USD');
+        } else if (this.ctx.assetManager) {
+          activeSymbol = this.ctx.assetManager.toSlashFormat(
+            this.ctx.assetManager.activeAsset
+          );
+        } else {
+          activeSymbol = this.ctx.tradingPair || 'BTC/USD';
+        }
+
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           data: {
+            symbol: activeSymbol,
             price: price,
             candle: {
               open: parseFloat(open),
