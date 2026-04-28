@@ -197,13 +197,23 @@
             if (_cachedPriceEl) _cachedPriceEl.classList.add(PRICE_FLASH_CLASS);
             if (_cachedHudPrice) _cachedHudPrice.classList.add(PRICE_FLASH_CLASS);
 
+            // BUG FIX 2026-04-27: scrolling the page over the chart hijacked the
+            // wheel — chart zoom/pan ate the event, page didn't scroll. Trey:
+            // "whenever you scroll on this page it just shrinks the graph and
+            // there's no way to actually scroll the page."
+            //
+            // Disable mouseWheel on both axes so plain wheel goes to page scroll.
+            // Chart still pans by mouse drag and zooms via trackpad pinch (touch).
+            // Ctrl+wheel still zooms the price scale (kept for power users).
             tvChart = LightweightCharts.createChart(container, {
                 width: container.clientWidth,
                 height: container.clientHeight,
                 layout: { background: { color: '#0a0a0a' }, textColor: '#d1d4dc' },
                 grid: { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
                 crosshair: { mode: 0, vertLine: { color: 'rgba(220, 38, 38, 0.45)' }, horzLine: { color: 'rgba(220, 38, 38, 0.45)' } },
-                timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false }
+                timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false },
+                handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+                handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true }
             });
 
             candleSeries = tvChart.addCandlestickSeries({
