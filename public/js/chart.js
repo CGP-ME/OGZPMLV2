@@ -462,6 +462,52 @@
                 ohlcRow.appendChild(oh);
                 ohlcRow.appendChild(ll);
                 tooltipEl.appendChild(ohlcRow);
+
+                // === Trade-marker enrichment (added 2026-04-28) ===
+                // If the hovered candle's time matches a logged trade marker,
+                // append a row with side, pnl, time, duration. Trey: "we
+                // wanted a mouseover event for that the buy sell total pnl
+                // made or lost and the time or something like that... duration."
+                const markers = (Chart && Chart.getTradeMarkers && Chart.getTradeMarkers()) || [];
+                const hoverTimeSec = typeof param.time === 'number' ? param.time : (param.time && param.time.timestamp ? param.time.timestamp : null);
+                const tradeAtBar = hoverTimeSec ? markers.find(m => Math.abs(m.time - hoverTimeSec) < 60) : null;
+                if (tradeAtBar) {
+                    const tradeRow = document.createElement('div');
+                    tradeRow.style.cssText = 'margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);font-family:monospace;font-size:10px;';
+                    const sideLine = document.createElement('div');
+                    const sideColor = tradeAtBar.isBuy ? '#22c55e' : '#ef4444';
+                    sideLine.style.cssText = `color:${sideColor};font-weight:800;letter-spacing:0.5px;`;
+                    sideLine.textContent = tradeAtBar.side + (tradeAtBar.strategy ? ` · ${tradeAtBar.strategy}` : '');
+                    tradeRow.appendChild(sideLine);
+
+                    if (tradeAtBar.pnl != null) {
+                        const pnlLine = document.createElement('div');
+                        const pnlColor = tradeAtBar.pnl >= 0 ? '#22c55e' : '#ef4444';
+                        pnlLine.style.cssText = `color:${pnlColor};margin-top:2px;`;
+                        pnlLine.textContent = `P&L ${tradeAtBar.pnl >= 0 ? '+$' : '-$'}${Math.abs(tradeAtBar.pnl).toFixed(2)}`;
+                        tradeRow.appendChild(pnlLine);
+                    }
+
+                    if (tradeAtBar.tsMs) {
+                        const timeLine = document.createElement('div');
+                        timeLine.style.cssText = 'color:#a1a1aa;margin-top:2px;';
+                        const t = new Date(tradeAtBar.tsMs);
+                        timeLine.textContent = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        tradeRow.appendChild(timeLine);
+                    }
+
+                    if (tradeAtBar.holdMs && tradeAtBar.holdMs > 0) {
+                        const durLine = document.createElement('div');
+                        durLine.style.cssText = 'color:#a1a1aa;margin-top:2px;';
+                        const mins = tradeAtBar.holdMs / 60000;
+                        durLine.textContent = mins < 60
+                            ? `Held ${mins.toFixed(1)}m`
+                            : `Held ${(mins / 60).toFixed(1)}h`;
+                        tradeRow.appendChild(durLine);
+                    }
+                    tooltipEl.appendChild(tradeRow);
+                }
+
                 // Position: offset so cursor doesn't cover the box, flip left if near right edge
                 const containerRect = container.getBoundingClientRect();
                 const tipW = 150, tipH = 78;
@@ -1014,6 +1060,45 @@
                 });
             }
         },
+
+        // === Trade markers + hover tooltip (added 2026-04-28) ===
+        // Trey: "we wanted a mouseover event for that the buy sell total
+        // pnl made or lost and the time or something like that... duration
+        // of the trade." Markers via candleSeries.setMarkers() + custom
+        // tooltip on crosshair-near-marker.
+        markTrade: function(trade) {
+            if (!candleSeries || !trade) return;
+            const side = String(trade.action || trade.side || trade.direction || '').toUpperCase();
+            const isBuy = side === 'BUY' || side === 'LONG';
+            const ts = trade.timestamp || trade.t || Date.now();
+            const time = Math.floor(ts / (ts > 1e12 ? 1000 : 1));
+            const price = Number(trade.price || trade.entryPrice || trade.exitPrice || 0);
+            const pnl = trade.pnl != null ? Number(trade.pnl) : null;
+
+            // Persist for the hover-tooltip lookup
+            if (!this._tradeMarkers) this._tradeMarkers = [];
+            this._tradeMarkers.push({
+                time, side, isBuy, price, pnl,
+                strategy: trade.strategy || trade.entryStrategy || null,
+                exitStrategy: trade.exitStrategy || null,
+                entryTime: trade.entryTime || null,
+                holdMs: trade.holdMs != null ? Number(trade.holdMs) : null,
+                tsMs: ts > 1e12 ? ts : ts * 1000,
+            });
+
+            // Build the lightweight-charts marker payload
+            const labelPnl = (pnl != null) ? ` ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}` : '';
+            const lwcMarkers = this._tradeMarkers.map(m => ({
+                time: m.time,
+                position: m.isBuy ? 'belowBar' : 'aboveBar',
+                color: m.isBuy ? '#22c55e' : '#ef4444',
+                shape: m.isBuy ? 'arrowUp' : 'arrowDown',
+                text: `${m.side}${m.pnl != null ? ` ${m.pnl >= 0 ? '+' : ''}$${m.pnl.toFixed(2)}` : ''}`,
+            }));
+            try { candleSeries.setMarkers(lwcMarkers); } catch (e) { /* version variance */ }
+        },
+
+        getTradeMarkers: function() { return this._tradeMarkers || []; },
 
         loadHistorical: (candles) => {
             if (!candleSeries || !candles || candles.length === 0) return;

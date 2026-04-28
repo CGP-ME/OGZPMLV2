@@ -237,6 +237,14 @@ window.OGZ = (function() {
             socket.registerHandler('trade', (d) => {
                 state.lastBotMessageAt = Date.now();
                 if (this.get('TradeLog')) this.get('TradeLog').addEntry(d);
+                // Plant arrow marker on the chart at trade time.
+                // Marker text shows side + pnl (when present). Hover the
+                // candle the marker is on to see the marker label rendered
+                // by lightweight-charts.
+                if (this.get('Chart') && this.get('Chart').markTrade) {
+                    try { this.get('Chart').markTrade(d); }
+                    catch (e) { /* never let chart explode the trade pipeline */ }
+                }
 
                 // Update trade count
                 const tcEl = document.getElementById('tradesExecuted');

@@ -593,7 +593,19 @@ class StateManager {
           exitPrice: price,
           strategy: trade.entryStrategy || trade.strategy || 'unknown',
           exitStrategy: trade.exitStrategy || context.exitReason || 'unknown',
-          holdMs: trade.entryTime ? Date.now() - trade.entryTime : null,
+          // BUG FIX 2026-04-28: trade.entryTime can leak in as microseconds
+          // (some upstream path stores `marketData.timestamp` × 1000 as ns).
+          // Prefer trade.timestamp (reliably ms from openPosition) and
+          // detect-and-correct microsecond entryTime via magnitude check
+          // (current epoch in ms is ~1.7e12; in microseconds is ~1.7e15).
+          // Without this fix holdMs went catastrophically negative
+          // (e.g. -29593559814 ms = -56 years) on closed trades.
+          holdMs: (function () {
+            let entryMs = trade.timestamp || trade.entryTime;
+            if (!entryMs) return null;
+            if (entryMs > 1e14) entryMs = Math.floor(entryMs / 1000); // microseconds → ms
+            return Date.now() - entryMs;
+          })(),
         }];
 
     const updates = {
