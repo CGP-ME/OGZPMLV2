@@ -1061,8 +1061,19 @@
                 // Auto-calculate indicators if any are active
                 if (activeOverlays.length > 0) this.calculateIndicators(formatted);
 
-                // Scroll to most recent candles
-                if (tvChart) tvChart.timeScale().scrollToRealTime();
+                // Force price axis to rescale + fit visible content. Without
+                // this, when the symbol swaps (e.g. TSLA $366 → BTC $76K)
+                // the price axis can stay locked to the old range if the
+                // user previously dragged the axis (engages "free scale"
+                // mode). Re-asserting autoScale + fitContent restores the
+                // visible y-axis to the new data's range every load.
+                if (tvChart) {
+                    try {
+                        tvChart.priceScale('right').applyOptions({ autoScale: true });
+                        tvChart.timeScale().fitContent();
+                    } catch (e) { /* lightweight-charts version variance */ }
+                    tvChart.timeScale().scrollToRealTime();
+                }
 
                 console.log(`[Chart] Loaded ${formatted.length} historical candles`);
             } catch (e) {
