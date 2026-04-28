@@ -38,7 +38,35 @@ class TradingLoop {
   constructor(ctx) {
     this.ctx = ctx;
     this.analyzing = false;
+    // BUG FIX 2026-04-28 (Mercury catch): per-trade close-dispatch mutex.
+    // analyzeAndTrade() and checkExitsOnly() can run concurrently if a 15m
+    // candle closes during a 15s timer tick. Without this set, both paths
+    // can call executeTrade for the same tradeId → StateManager.closePosition
+    // double-fires, MaxProfitManager.update double-advances, pnl
+    // double-counts. Set guards EVERY exit-dispatch site in this class.
+    this._exitInFlight = new Set();
     console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
+  }
+
+  /**
+   * Mutex helper — wraps an async exit dispatch with the _exitInFlight
+   * guard. If the tradeId is already being closed by the OTHER path, this
+   * caller skips. Otherwise marks in-flight, runs the dispatch, releases
+   * in a finally so a thrown error doesn't leak the lock.
+   */
+  async _dispatchExit(tradeId, dispatchFn) {
+    if (!tradeId) return false;
+    if (this._exitInFlight.has(tradeId)) {
+      console.log(`[EXIT-MUTEX] skip — ${tradeId} already in flight`);
+      return false;
+    }
+    this._exitInFlight.add(tradeId);
+    try {
+      await dispatchFn();
+      return true;
+    } finally {
+      this._exitInFlight.delete(tradeId);
+    }
   }
 
   /**
@@ -328,7 +356,131 @@ class TradingLoop {
         // L5: risk gates checked before entry
         riskGates,
       };
-      await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
+      // Mutex guard for EXIT dispatches only — entries are new tradeIds.
+      // SELL/COVER share state with checkExitsOnly()'s parallel exit path;
+      // BUY/SELL_SHORT are entries (no concurrency conflict possible since
+      // a new tradeId is created downstream by openPosition).
+      const isExit = decision.action === 'SELL' || decision.action === 'COVER';
+      if (isExit && decision.tradeId) {
+        await this._dispatchExit(decision.tradeId, () =>
+          this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult)
+        );
+      } else {
+        await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
+      }
+    }
+  }
+
+  /**
+   * Exit-only monitoring (added 2026-04-28 per Wolf's spec).
+   *
+   * Called by run-empire-v2.js's tradingInterval timer (default 15s) so
+   * open positions get sub-candle exit protection without re-running
+   * the FULL analyzeAndTrade() pipeline (which would open new positions
+   * on noise).
+   *
+   * Mirrors the exit branch of _analyze() (L143-199) — same checks,
+   * same executeTrade dispatch, but skips strategy evaluation + entry
+   * gates entirely. Entries fire only on candle close (L1215 of
+   * run-empire-v2.js).
+   */
+  async checkExitsOnly() {
+    // BUG FIX 2026-04-28 (Mercury catch round 2): share `this.analyzing` flag
+    // with analyzeAndTrade so the two methods are MUTUALLY EXCLUSIVE.
+    // Per-tradeId mutex below stops dispatch double-fire, but state-mutating
+    // calls earlier in the loop (exitContractManager.updateMaxProfit,
+    // MaxProfitManager.update) fire BEFORE the dispatch — without method-
+    // level exclusion they would still double-advance MPM internal state
+    // when a candle close fires during a 15s timer tick. Skip cost: at most
+    // we miss ONE 15s exit-monitor cycle per candle close. Acceptable.
+    if (this.analyzing) return;
+
+    const stateManager = require('./StateManager').getInstance();
+    const allTrades = stateManager.getAllTrades();
+    const activeTrades = allTrades.filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    if (activeTrades.length === 0) return;
+
+    const price = this.ctx.marketData?.price;
+    if (!price) return;
+
+    this.analyzing = true;
+    try {
+
+    // Use the existing snapshot getter for indicators — same path _analyze uses.
+    const dtoState = this.ctx.indicatorEngine.getSnapshot();
+    const indicators = dtoState.indicators || {};
+
+    const exitContractManager = getExitContractManager();
+
+    for (const activeTrade of activeTrades) {
+      // Update MaxProfit tracking before evaluating exit conditions.
+      exitContractManager.updateMaxProfit(activeTrade, price);
+
+      // 1. ExitContractManager check — SL, max-hold, invalidation
+      const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
+        indicators,
+        currentTime: this.ctx.marketData?.timestamp || Date.now(),
+        accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
+        initialBalance: this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance') ?? 10000,
+        currentPosition: stateManager.get('position'),
+        currentPrice: price
+      });
+
+      if (exitCheck.shouldExit) {
+        console.log(`[EXIT-MONITOR] ${exitCheck.details}`);
+        const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+        const decision = {
+          action: isClosingShort ? 'COVER' : 'SELL',
+          direction: 'close',
+          confidence: exitCheck.confidence || 100,
+          exitReason: exitCheck.exitReason,
+          tradeId: activeTrade.id
+        };
+        await this._dispatchExit(activeTrade.id, () =>
+          this.ctx.executeTrade(decision, { totalConfidence: 100 }, price, indicators, [], null, null)
+        );
+        continue;
+      }
+
+      // 2. MaxProfitManager check — per-trade trailing/profit-lock
+      const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id);
+      if (mpm?.state?.active) {
+        // Mutex BEFORE update so we don't double-advance MPM internal state
+        // when a candle close + 15s tick interleave on the same trade.
+        if (this._exitInFlight.has(activeTrade.id)) continue;
+
+        const recentCandles = this.ctx.priceHistory.slice(-20);
+        const profitResult = mpm.update(price, {
+          volatility: indicators.volatility || 0,
+          trend: indicators.trend || 'sideways',
+          volume: this.ctx.marketData?.volume || 0,
+          atr: indicators.atr,
+          rsi: indicators.rsi,
+          candle: this.ctx.priceHistory[this.ctx.priceHistory.length - 1],
+          recentCandles,
+          nearestStructure: null
+        });
+
+        if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
+          const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+          const decision = {
+            action: isClosingShort ? 'COVER' : 'SELL',
+            direction: 'close',
+            confidence: 100,
+            exitSize: profitResult.exitSize,
+            exitFraction: profitResult.exitFraction,
+            exitReason: profitResult.reason,
+            tradeId: activeTrade.id
+          };
+          await this._dispatchExit(activeTrade.id, () =>
+            this.ctx.executeTrade(decision, { totalConfidence: 100 }, price, indicators, [], null, null)
+          );
+        }
+      }
+    }
+
+    } finally {
+      this.analyzing = false;
     }
   }
 

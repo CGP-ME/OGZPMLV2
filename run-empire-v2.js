@@ -1209,10 +1209,19 @@ class OGZPrimeV14Bot {
       }
 
       // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
+      // BUG FIX 2026-04-28 (Wolf's diagnosis): run15mTradingCycle() is a GHOST
+      // method — never existed in the class. Every candle close threw a silent
+      // TypeError caught by the unhandled-rejection handler. Bot was instead
+      // running analyzeAndTrade() via the 15-second timer below, which fires
+      // on noise-level price movements and entered/exited positions in seconds.
+      // Now calls analyzeAndTrade() directly — this is the validated edge
+      // (15-minute candle close = what the backtests trained on).
       const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
       if (timeframe === activeTf) {
         console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-        this.run15mTradingCycle();
+        this.analyzeAndTrade().catch(e =>
+          console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)
+        );
       }
     };
   }
@@ -1485,8 +1494,17 @@ class OGZPrimeV14Bot {
         return;
       }
 
+      // BUG FIX 2026-04-28 (Wolf's diagnosis): timer used to call full
+      // analyzeAndTrade() -- combined with the L1215 ghost-function bug, that
+      // meant ALL trading happened on 15-second jitter instead of 15-minute
+      // candle closes the backtests validated. Bot bled money on noise.
+      // Entries now fire on candle close (L1215 fix). Timer retained ONLY
+      // for sub-candle EXIT monitoring (trailing stops, max-hold, MPM
+      // profit locking) -- exits should be fast to protect capital.
       try {
-        await this.analyzeAndTrade();
+        if (this.tradingLoop && typeof this.tradingLoop.checkExitsOnly === 'function') {
+          await this.tradingLoop.checkExitsOnly();
+        }
       } catch (error) {
         console.error('âŒ Trading cycle error:', error.message);
         console.error(error.stack);
