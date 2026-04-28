@@ -1322,6 +1322,68 @@ class OGZPrimeV14Bot {
   }
 
   /**
+   * Warm state from broker — load N prior candles into priceHistory +
+   * IndicatorEngine BEFORE the first live candle hits the gap-detector.
+   *
+   * Invoked by SessionRouter on every activation/transition. Without this,
+   * the gap-detector sees the new asset's first live candle paired with a
+   * stale lastCandle reference (or nothing) and trips a false 65-candle
+   * "missing" gap that no backfill can fill (cross-asset timestamp
+   * mismatch). Other-Claude pinpointed the bug 2026-04-28 morning.
+   */
+  async warmStateFromBroker(symbol, timeframe = '15m', limit = 200) {
+    if (!this.kraken || typeof this.kraken.getCandles !== 'function') {
+      console.warn('[WARM] No active broker — skipping warm-load');
+      return 0;
+    }
+    try {
+      const broker = (this.kraken.getBrokerName && this.kraken.getBrokerName()) || 'broker';
+      console.log(`[WARM] Loading ${limit} ${timeframe} ${symbol} candles from ${broker} into priceHistory + IndicatorEngine...`);
+      const rawCandles = await this.kraken.getCandles(symbol, timeframe, limit);
+      if (!rawCandles || rawCandles.length === 0) {
+        console.warn(`[WARM] No candles returned for ${symbol}/${timeframe} — indicators will warm from live feed`);
+        return 0;
+      }
+      // Normalize shape: Kraken returns {t,etime,o,h,l,c,v}; Alpaca returns
+      // {t,o,h,l,c,v} without etime. Fall back to t when etime absent.
+      const normalized = rawCandles
+        .map(c => ({
+          t: c.t,
+          etime: c.etime != null ? c.etime : c.t,
+          o: c.o, h: c.h, l: c.l, c: c.c, v: c.v
+        }))
+        .filter(c => Number.isFinite(c.t) && Number.isFinite(c.o))
+        .sort((a, b) => a.etime - b.etime);
+
+      // Defensive: ensure priceHistory is empty before warm-load. Should
+      // already be empty post-SessionRouter clear, but belt-and-suspenders.
+      if (Array.isArray(this.priceHistory)) this.priceHistory.length = 0;
+      if (this.indicatorEngine && typeof this.indicatorEngine.reset === 'function') {
+        // Re-reset in case a stale candle arrived between SessionRouter's
+        // reset call and this warm-load (race window during boot).
+        this.indicatorEngine.reset();
+      }
+
+      // Push + feed IndicatorEngine for every candle. updateCandle is the
+      // canonical per-tick path so warmed state matches what live bars
+      // would produce.
+      for (const candle of normalized) {
+        this.priceHistory.push(candle);
+        if (this.indicatorEngine) {
+          this.indicatorEngine.updateCandle({
+            t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+          });
+        }
+      }
+      console.log(`[WARM] Loaded ${normalized.length} candles. priceHistory length=${this.priceHistory.length}, indicators warm.`);
+      return normalized.length;
+    } catch (e) {
+      console.error(`[WARM] Failed to warm state for ${symbol}/${timeframe}:`, e.message);
+      return 0;
+    }
+  }
+
+  /**
    * CHANGE 2026-01-30: Fetch historical candles from Kraken REST API and send to dashboard
    * This is the PROPER way to get historical data - REST API, not just WebSocket cache
    * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '4h', '1d'

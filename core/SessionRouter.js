@@ -384,13 +384,29 @@ class SessionRouter extends EventEmitter {
    */
   _kickHistoricalBackfill(session) {
     const ctx = this.ctx;
-    if (!ctx || typeof ctx.fetchAndSendHistoricalCandles !== 'function') return;
-    // Pick the symbol that matches the session's broker. fetchAndSend uses
-    // ctx.kraken (= sessionRouter.activeBroker) — passing the wrong symbol
-    // (e.g. TSLA on crypto-active KrakenIBroker) returns "Unknown asset pair."
+    if (!ctx) return;
     const symbol = session === 'stocks'
       ? (this.stockSymbols[0] || 'TSLA')
       : (this.cryptoSymbols[0] || 'BTC/USD');
+
+    // STEP 1 — Warm priceHistory + IndicatorEngine from prior 200 candles
+    // BEFORE the first live candle arrives. This is the fix for the
+    // "9:30 ET swap → 65 candles missing → infinite gap-recovery loop"
+    // bug other-Claude diagnosed 2026-04-28 morning. Without it, the
+    // first live candle has no warm sequential predecessor and the gap
+    // detector trips on cross-asset timestamps (BTC etime vs TSLA etime).
+    setTimeout(async () => {
+      try {
+        if (typeof ctx.warmStateFromBroker === 'function') {
+          await ctx.warmStateFromBroker(symbol, '15m', 200);
+        }
+      } catch (e) { console.warn('[SessionRouter] warm-load failed:', e.message); }
+    }, 3000);
+
+    // STEP 2 — Fetch + broadcast for the dashboard's chart history. These
+    // populate the visible chart, separate from the bot's internal warm
+    // buffer above.
+    if (typeof ctx.fetchAndSendHistoricalCandles !== 'function') return;
     setTimeout(() => {
       try {
         ctx.fetchAndSendHistoricalCandles('1m', 500, symbol);
