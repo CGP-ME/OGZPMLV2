@@ -23,6 +23,10 @@
 .trading-panel {
     position: fixed;
     right: 10px;
+    /* Driven by --right-rail-width CSS var (rail-resize.js / unified-dashboard.html).
+       Falls back to 320px if var unset. Old hardcoded `width: 320px` rule below
+       is overridden by this declaration. */
+    width: var(--right-rail-width, 320px);
     top: 100px;
     width: 320px;
     max-height: calc(100vh - 120px);
