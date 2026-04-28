@@ -1,6 +1,27 @@
 
 ---
 
+## 2026-04-27: Mercury Audit Cycle + No-Deferred Adoption + First Live Alpaca (~28 commits, mine + parallel CC)
+
+**Impact:** HIGH — 9+ real bugs closed across Mercury audits A/B1/C1/C2, no-deferred rule codified at the project-rule level (CLAUDE.md), and the bot transitioned to first-ever live Alpaca paper trading at ~12:55 PM EDT. Two operational milestones in one day: rule-of-engineering change + production validation of the resilience stack.
+
+**Phase 0 baseline:** unchanged from prior session (`$17,551.91169513058 / 1265 / 61.5% WR / 2.66% DD / 2.67 PF`). No core-trade-logic touched today — audit work was entirely on the resilience-and-supervision layer.
+
+**Highlights:**
+- **Audit A (ResilientWebSocket)**: maxPayload cap (`0f66df5`), then re-attack found boundary-evasion + post-terminate race, fixed via token-bucket + capTripped (`292d2eb`)
+- **Audit B1 (Supervisor)**: 5 findings closed in `a894efc` (HMAC + pidStartTime + bounds + legacy rejection). Then 5-round adversarial refinement on Finding 3 (register-before-start), closing 14 interaction bugs caught BEFORE landing in main (`21efb63`). Dual-timestamp ledger via `803ccde`.
+- **Audit C1 (Alpaca migration)**: Tasks 1+2 verified EQUIVALENT by direct diff. Task 3 + bonus callback-overwrite bug closed by parallel CC's `28c070b` — that commit is what actually unblocked live Alpaca trading.
+- **No-Deferred rule**: saved to memory + indexed in MEMORY.md + codified in CLAUDE.md (`8dffc81`). Sibling rule next to Document Accuracy + Reindex — completes the Mercury-output-quality triad.
+- **Iteration-cap anti-pattern self-owned**: 4 separate Mercury dispatches hit max-iterations cap. Trey called the pattern out mid-session. Corrective: single yes/no questions for Mercury, not 3-task open-ended adversarial sweeps.
+
+**First live Alpaca:** `[Alpaca] First bar RX for TSLA @ 2026-04-27T18:14:00Z OHLCV: 379.39` — and 6 more symbols. Bot transitioned to TRADING RESUMED after warmup hit 3 candles. SessionRouter + ResilientWebSocket + Supervisor + AlpacaAdapter validated end-to-end.
+
+**Branch:** `alpaca/stocks-paper-flip`, full session record at `ogz-meta/sessions/session-2026-04-27-mercury-audit-cycle-no-deferred.md`.
+
+**Open items for next session:** Fix #1 Tasks 1B + 1C re-dispatch (missed during iteration-cap thrashing), Audit D supervisor-daemon initial dispatch, stale-doc triage execution.
+
+---
+
 ## 2026-04-25 → 2026-04-27: Asset Isolation + Strategy Parity + Bot Swap Resilience + Session-Doc Manifest (~20 commits)
 
 **Impact:** HIGH — 3 audit gauntlets closed (Strategy Parity, Bot Swap Resilience, Asset Isolation), 9 dangerous half-cooked items burned to zero, $298 dashboard mismatch closed, SessionRouter flipped LIVE, and a new session-doc pattern established to stop the doc-drift problem.
