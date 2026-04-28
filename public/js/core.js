@@ -252,9 +252,26 @@ window.OGZ = (function() {
                 if (this.get('Edge')) this.get('Edge').updateWallRadar(d);
             });
 
-            // LIVE: Historical candle loading
+            // LIVE: Historical candle loading.
+            // If the bot includes a `symbol` field (added 2026-04-27 to heal
+            // post-swap dashboard state), sync the UI's asset display so the
+            // chart isn't labeled "TSLA" while showing BTC candles.
             socket.registerHandler('historical_candles', (d) => {
                 if (this.get('Chart')) this.get('Chart').loadHistorical(d.candles);
+                if (d && d.symbol) {
+                    // asset-tf-card mirrors #symbolSelector + listens to price events
+                    const symbolEl = document.querySelector('.asset-tf-card__symbol');
+                    if (symbolEl) symbolEl.textContent = String(d.symbol);
+                    const symSel = document.getElementById('symbolSelector');
+                    if (symSel) {
+                        // Try to match dropdown option; tolerate format differences
+                        // (e.g. 'BTC/USD' → 'BTC-USD').
+                        const dash = String(d.symbol).replace('/', '-');
+                        if (Array.from(symSel.options).some(o => o.value === dash)) {
+                            symSel.value = dash;
+                        }
+                    }
+                }
             });
 
             // LIVE: Balance sync

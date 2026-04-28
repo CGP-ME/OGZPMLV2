@@ -1338,13 +1338,28 @@ class OGZPrimeV14Bot {
       // (env-driven, often 'TSLA'), but this.kraken is the SessionRouter's
       // active broker (KrakenIBroker on crypto session, AlpacaAdapter on
       // stocks session). The two desynced after-hours: TSLA dispatched via
-      // KrakenIBroker → "Unknown asset pair." Caller can now pass the
-      // right symbol; otherwise fall back to MultiAssetManager.
-      const symbol = symbolOverride
-        ? symbolOverride
-        : (this.assetManager
-            ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
-            : resolvedConfig.config.broker.tradingPair);
+      // KrakenIBroker → "Unknown asset pair."
+      //
+      // Resolution priority:
+      //   1. Caller-supplied override (SessionRouter._kickHistoricalBackfill)
+      //   2. SessionRouter's active-session primary symbol (when enabled)
+      //   3. MultiAssetManager active asset (legacy single-broker path)
+      //   4. resolvedConfig tradingPair (last resort)
+      // This auto-heals dashboard request_historical messages that arrive
+      // mid-session without an explicit symbol — they now follow the
+      // session, not stale env config.
+      let symbol;
+      if (symbolOverride) {
+        symbol = symbolOverride;
+      } else if (this.sessionRouter && this.sessionRouter.enabled && this.sessionRouter.activeSession) {
+        symbol = this.sessionRouter.activeSession === 'stocks'
+          ? (this.sessionRouter.stockSymbols?.[0] || 'TSLA')
+          : (this.sessionRouter.cryptoSymbols?.[0] || 'BTC/USD');
+      } else if (this.assetManager) {
+        symbol = this.assetManager.toSlashFormat(this.assetManager.activeAsset);
+      } else {
+        symbol = resolvedConfig.config.broker.tradingPair;
+      }
 
       const brokerName = (this.kraken.getBrokerName && this.kraken.getBrokerName()) || 'broker';
       console.log(`Fetching ${limit} historical ${timeframe} candles for ${symbol} from ${brokerName} REST API...`);
@@ -1355,14 +1370,18 @@ class OGZPrimeV14Bot {
         // Update our local cache with the fetched data
         this.timeframeHistories[timeframe] = candles.slice(-200);
 
-        // Send to dashboard
+        // Send to dashboard. Include symbol so the dashboard can update
+        // its asset-context (asset-tf-card label, hero price symbol context)
+        // when SessionRouter swaps brokers without the user changing the
+        // dropdown — fixes "TSLA chart still showing after stocks->crypto."
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
           timeframe: timeframe,
+          symbol: symbol,
           candles: candles
         }));
 
-        console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard`);
+        console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard for ${symbol}`);
       } else {
         console.warn(`[WARNING] No historical candles returned for ${timeframe}`);
         // Fall back to cached WebSocket data if available
@@ -1371,6 +1390,7 @@ class OGZPrimeV14Bot {
           this.dashboardWs.send(JSON.stringify({
             type: 'historical_candles',
             timeframe: timeframe,
+            symbol: symbol,
             candles: cached
           }));
           console.log(`Sent ${cached.length} cached ${timeframe} candles as fallback`);
