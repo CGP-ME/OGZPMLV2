@@ -204,6 +204,11 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
       }
+      // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
+      if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
+        try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
+        catch (e) { console.warn('[SessionRouter] NoWick reset failed:', e.message); }
+      }
       // FIX 2026-04-27 (Asset Isolation audit): Also clear the on-disk
       // candle-history.json. Without this, restart-after-swap replays
       // mixed-asset candles through indicatorEngine.computeBatch() at
@@ -302,6 +307,11 @@ class SessionRouter extends EventEmitter {
       }
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
+      }
+      // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
+      if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
+        try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
+        catch (e) { console.warn('[SessionRouter] NoWick reset failed:', e.message); }
       }
       // FIX 2026-04-27 (Asset Isolation audit): Also clear the on-disk
       // candle-history.json. Without this, restart-after-swap replays

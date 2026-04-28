@@ -389,6 +389,22 @@ const BASE_CONFIG = {
       invalidationConditions: ['sweep_absorbed'],
       _validated: '2026-04-27',
     },
+    // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
+    // module's overrideLevels (1:1 RR computed from swing structure).
+    // Fallbacks below are safety nets only — strategy's overrideLevels win.
+    // Unvalidated — needs sweep + walk-forward before _validated set.
+    NoWickImbalance: {
+      stopLossPercent: -1.5,
+      takeProfitPercent: 1.5,
+      trailingStopPercent: null,      // No trailing — fixed 1:1 RR
+      trailingActivation: null,
+      maxHoldTimeMinutes: 240,        // 4 hours max — if 1:1 hasn't hit, thesis broken
+      minConfidence: null,            // Sweep will find the right gate
+      useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
+      atrMinPercent: null,            // Use global ATR filter
+      invalidationConditions: [],
+      _validated: null,
+    },
     default: {
       stopLossPercent: -2.0,
       takeProfitPercent: 2.5,
@@ -822,6 +838,7 @@ const BASE_CONFIG = {
     enableOGZTPO: envBool('ENABLE_TPO', true),
     enableOpeningRangeBreakout: envBool('ENABLE_ORB', false), // NEW: Disabled by default until tuned
     enableSmartMoneySweep: envBool('ENABLE_SMS', false),     // NEW: Disabled by default until validated
+    enableNoWickImbalance: envBool('ENABLE_NOWICK', false),  // 2026-04-28: Disabled by default until sweep + walk-forward
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),

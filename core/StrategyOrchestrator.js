@@ -87,6 +87,17 @@ class StrategyOrchestrator {
     this.emaCrossoverModule = new EMASMACrossoverSignal();
     this.maDynamicSRModule = new MADynamicSR();
     this.liquiditySweepModule = new LiquiditySweepDetector({ disableSessionCheck: true });
+    // 2026-04-28 — NoWickImbalance (Wolf spec). 100% mechanical wickless-candle
+    // pattern detector with structural exits. Entries on candle close only —
+    // depends on the trading-cycle-fix at 927a91f. Defaults match the spec;
+    // sweep will tune.
+    const NoWickImbalance = require('../modules/NoWickImbalance');
+    this.noWickModule = new NoWickImbalance({
+      maxCandleAge: 9,
+      slBreathingATR: 0.3,
+      swingLookback: 20,
+      minBodyPercent: 0.3
+    });
     this.mtfAdapter = new MultiTimeframeAdapter({
       activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
     });
@@ -624,6 +635,28 @@ class StrategyOrchestrator {
       }
     });
 
+    // ─── 11. NoWick Imbalance Strategy (2026-04-28 — Wolf spec) ───
+    // Wickless candles = institutional imbalance. Strategy fires when price
+    // retraces to tap a NoWick level within 9 candles. 1:1 RR, structural
+    // SL via swing lookback. Self-contained: feeds candles via the
+    // module's own evaluate() — no ctx.extras handoff. _validated: null
+    // until sweep + walk-forward.
+    const noWickModule = this.noWickModule;
+    if (shouldRegister('NoWickImbalance')) this.strategies.push({
+      name: 'NoWickImbalance',
+      evaluate: (ctx) => {
+        try {
+          return noWickModule.evaluate(ctx);
+        } catch (e) {
+          // Never let a strategy throw take down the orchestrator
+          if (process.env.STRATEGY_DIAG === 'true') {
+            console.warn('[NoWickImbalance] evaluate threw:', e.message);
+          }
+          return null;
+        }
+      }
+    });
+
     // Apply pipeline toggles - filter strategies based on env vars
     this._applyPipelineToggles();
   }
@@ -646,6 +679,7 @@ class StrategyOrchestrator {
       'OGZTPO': pipeline.enableOGZTPO,
       'OpeningRangeBreakout': pipeline.enableOpeningRangeBreakout,
       'SmartMoneySweep': pipeline.enableSmartMoneySweep,
+      'NoWickImbalance': pipeline.enableNoWickImbalance,
     };
 
     const before = this.strategies.length;
