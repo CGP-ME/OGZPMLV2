@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Punch List + Asset-Isolation Auto-Flip + First Live Alpaca (2026-04-27 → 2026-04-28)
+
+#### Commit range: `9e6dd77..58f7e3a` (~50 commits across two CC instances on `alpaca/stocks-paper-flip`)
+
+This was the inaugural live RTH cycle for SessionRouter — bot transitioned crypto→stocks at 9:30 ET, traded autonomously on Alpaca through RTH, transitioned back at 16:00 ET, all without human intervention. Same window shipped the entire DeepSearch dashboard punch list + a class of asset-isolation auto-flip fixes the swap revealed.
+
+**Operational milestone:**
+- First-ever live trades on Alpaca via paper account. Companion doc at `ogz-meta/sessions/session-2026-04-27-mercury-audit-cycle-no-deferred.md` covers the resilience-stack audit work that unblocked it (B1 audit cycle, RWS hardening, supervisor identity + HMAC ledger). This entry covers the dashboard + asset-isolation workstream, doc'd at `session-2026-04-27-28-dashboard-punch-list-and-asset-isolation.md`.
+
+**Multi-symbol bleed kill (`a2fc66c`):**
+- `SessionRouter._activateStocks` and `_transitionToStocks` looped ALL 7 stockSymbols (TSLA/SPY/QQQ/NVDA/COIN/MARA/RIOT) calling `subscribeToCandles` per-symbol. CandleProcessor processes ONE candle stream — bars from MARA ($11) and QQQ ($664) contaminated TSLA. Bot bought "TSLA" at $664 (QQQ price), notional math went phantom ($987k on $10k account), dashboard showed +$54K/+$84K/+$226K nonsense PnL.
+- Mirror crypto pattern (already correct) — subscribe to `stockSymbols[0]` only.
+
+**Three auto-flip paths (heal post-swap dashboard):**
+- `historical_candles` carries `symbol` (`e6526c0`) — `fetchAndSendHistoricalCandles` resolves via SessionRouter active session → broadcasts symbol → dashboard updates `.asset-tf-card__symbol` + `#symbolSelector` + `#assetSelector`.
+- `price` event carries `symbol` (`04129a1`) — every tick mirrors active asset to the asset-tf-card live, no historical round-trip needed.
+- `bot_thinking` carries IP-shielded labels (`19f8809`) — `TradeNarrator.labelFor()` exposed publicly; heatbar/battleground show `Strategy-A/B/C` instead of leaking `EMASMACrossover`/`RSI`. Pinned `NARRATOR_LABEL_SEED=ogzprime-prod-2026` in .env so labels stable across restarts.
+
+**closedTrades persistence (`5eceea6`):**
+- `stateManager.get('closedTrades')` was READ in three places (CandleProcessor:409-411, +432) for win-rate math but NEVER written. Win rate stuck at 0% forever. closePosition() now records every full-close with `tradeId / pnl / pnlPercent / direction / entry+exit / strategy / holdMs`.
+
+**Pattern confidence honesty (two floors removed, `797331a` + `970501c`):**
+- `EnhancedPatternRecognition.js:371` had `confidence: result?.confidence || 0.1` — defensive 10% floor leaked through to dashboard (`?? 0` fix).
+- Surfaced 2nd floor at `UnifiedPatternMemory.js:783` returning `confidence: 0.1` for unknown patterns — fixed to 0.
+
+**Watchdog backfill canonical interface (`2c1b694`):**
+- After SessionRouter swaps `this.kraken` to AlpacaAdapter at 9:30 ET, watchdog called Kraken-only `getHistoricalOHLC('XBTUSD',...)`. AlpacaAdapter doesn't have it. Now uses canonical `IBroker.getCandles(symbol, '15m', 10)` with shape-normalization.
+
+**Cold-boot pickup of active broker (`6dea109`):**
+- 'transition' listener at run-empire-v2.js:643 only fired on broker SWAPS. Cold-boot stocks-active path left `this.kraken` pointing at krakenAdapter; gap-recovery + watchdog tried to fetch TSLA from Kraken → "Unknown asset pair" loop → halted trading every gap cycle. Now picks up `sessionRouter.activeBroker` immediately after `start()` returns.
+
+**Cold-boot stale-state clear (`1ff4023`):**
+- Follow-up to `4433126`. Cleared candle-history.json on TRANSITIONS, not cold boots. Same six lines inlined into `_activateStocks` + `_activateCrypto`.
+
+**Alpaca data stream unblock (`28c070b`, parallel-CC):**
+- Two bugs hiding each other: (1) auth-success predicate failed on Alpaca's array-wrapped messages, (2) `_ensureDataStream` overwrote callbacks instead of accumulating. Fixed via `Array.some` predicate + `_pendingSubscribeCallbacks[]` queue. THE blocker on live Alpaca trading.
+
+**Historical backfill auto-kick (`25b4591`):**
+- Live mode never auto-fetched historical bars on boot. SessionRouter now kicks 1m + 15m fetches at +4-5s after activation/transition with session-aware symbol resolution.
+
+**TRAI symbol-extraction gate (`4d393ea`):**
+- "what good my son" → `extractSymbol()` matched "SON" (Sonoco Products Co, real $50 stock) → fetched real Sonoco data → TRAI confidently analyzed it for a casual greeting. Two-part fix: stopword expansion + intent gate (require `$TICKER` pattern, trading keyword, or length ≥ 20).
+
+**Strategy battleground full stack (`53c7a82`):**
+- StrategyOrchestrator only pushes firing strategies to `results[]`. Heatbar/battleground only ever showed the firing winner. Now `bot_thinking.strategy_stack` enriched with FULL configured-strategy list with zero-confidence placeholders for non-firing.
+
+**Dashboard polish (rounds 1-3):**
+- IP cleanup, plain-English labels, Trade Log 4-col grid + P&L, equity field rename, indicators 2-col grid, edge button restyle, status light tooltips, chart wheel-hijack disabled, chart adaptive container collapse, chart price-axis force-rescale on symbol swap, chart HUD positioned below ensemble heatbar, Chain of Thought live via USER_NARRATOR.
+
 ### Dashboard Glass-Morphism Boost (2026-04-25)
 
 **`public/unified-dashboard.html` — `.trading-panel .panel-section` rule:**
