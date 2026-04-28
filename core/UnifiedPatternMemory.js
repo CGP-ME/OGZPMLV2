@@ -779,8 +779,13 @@ class UnifiedPatternMemory {
     const result = this.getConfidence(features);
 
     if (!result) {
+      // BUG FIX 2026-04-27: was confidence: 0.1 — this fake-floor leaked
+      // through EnhancedPatternRecognition.js:378 and pinned the dashboard
+      // pattern panel at 10% forever (Trey: "pattern confidence is still
+      // 10%, never seen it change"). Now honest: unknown pattern = 0
+      // confidence. Caller still gets the entry for learning purposes.
       return {
-        confidence: 0.1,
+        confidence: 0,
         direction: 'hold',
         reason: 'Unknown pattern',
         bestMatch: null,

@@ -121,6 +121,22 @@ window.OGZ = (function() {
                 state.lastPrice = p;
                 if (this.get('Chart')) this.get('Chart').update(data);
 
+                // FIX 2026-04-27: also flip the top-right #assetSelector dropdown
+                // when SessionRouter swaps symbols. Without this, the chart
+                // y-axis stays locked to the dropdown's stale value (e.g. TSLA)
+                // even though the chart data is BTC. Tolerate format differences
+                // (BTC/USD ↔ BTC-USD).
+                if (data.symbol) {
+                    const aSel = document.getElementById('assetSelector');
+                    if (aSel) {
+                        const dash = String(data.symbol).replace('/', '-');
+                        const opts = Array.from(aSel.options || []);
+                        if (opts.some(o => o.value === dash) && aSel.value !== dash) {
+                            aSel.value = dash;
+                        }
+                    }
+                }
+
                 // Update indicator bar from price message
                 if (data.indicators) {
                     const ind = data.indicators;
