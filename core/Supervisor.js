@@ -585,8 +585,20 @@ class Supervisor extends EventEmitter {
     //     of alert behavior is a security-surface concern (surprise
     //     code execution in the supervisor process).
     if (to === STATES.DEAD && this.onAlert) {
-      try { await this.onAlert(name, event); }
-      catch (err) { console.error(`${this.label} onAlert threw:`, err.message); }
+      // Mercury Audit D Finding 1 fix (2026-04-28): fire-and-forget the
+      // alert. The PRIOR `await this.onAlert(...)` blocked _transition →
+      // _reconcileState → _pollOneInner → _pollAll's Promise.allSettled().
+      // If the alert hook hung (Discord 5xx retry without timeout, Twilio
+      // rate-limit backoff, Slack webhook hang), allSettled never resolved,
+      // _pollInFlight stayed true, and the entire supervisor froze — every
+      // subsystem stopped being polled, not just the one that triggered.
+      //
+      // Fire-and-forget aligns implementation with the documented (B3)
+      // intent: "alert is best-effort notification." Rejection / hang
+      // never blocks the state machine.
+      Promise.resolve()
+        .then(() => this.onAlert(name, event))
+        .catch(err => console.error(`${this.label} onAlert threw:`, err.message));
     }
   }
 
