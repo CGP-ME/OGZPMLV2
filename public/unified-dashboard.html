@@ -63,7 +63,40 @@
         html {
             cursor: auto;
         }
-        
+
+        /* === RESIZABLE RAILS — driven by --left-rail-width / --right-rail-width.
+           rail-resize.js mutates these on drag + persists to localStorage.
+           Defaults set here are the historical 320px; clamped 200-600 by JS. */
+        :root {
+            --left-rail-width: 320px;
+            --right-rail-width: 320px;
+            --rail-gap: 20px;
+        }
+
+        /* Drag handles — 6px-wide vertical bars hugging each rail's chart-side edge */
+        .rail-resize-handle {
+            position: fixed;
+            top: 100px;
+            bottom: 20px;
+            width: 6px;
+            cursor: col-resize;
+            z-index: 99;
+            background: transparent;
+            transition: background 120ms ease;
+        }
+        .rail-resize-handle:hover,
+        .rail-resize-handle.dragging {
+            background: rgba(220, 38, 38, 0.45);
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.35);
+        }
+        #leftRailResize  { left: calc(var(--left-rail-width) + 12px); }
+        #rightRailResize { right: calc(var(--right-rail-width) + 12px); }
+        body.rail-dragging,
+        body.rail-dragging * {
+            user-select: none !important;
+            cursor: col-resize !important;
+        }
+
         /* Background effects */
         body::before {
             content: '';
@@ -309,8 +342,9 @@
            layout. */
         .main-container {
             padding: 10px;
-            padding-left: 340px;  /* Space for Edge Analytics LEFT rail */
-            padding-right: 340px; /* Space for trading-panel RIGHT rail */
+            /* Dynamic — tracks the resizable rails. Adds 20px gap on each side. */
+            padding-left: calc(var(--left-rail-width, 320px) + 20px);
+            padding-right: calc(var(--right-rail-width, 320px) + 20px);
             position: relative;
             z-index: 5;
             transition: padding 0.3s ease;
@@ -1454,7 +1488,7 @@
             position: fixed;
             left: 10px;
             top: 100px;
-            width: 320px;
+            width: var(--left-rail-width, 320px);
             max-height: calc(100vh - 120px);
             overflow-y: auto;
             background: rgba(10, 10, 30, 0.95);
@@ -2627,6 +2661,10 @@
          Style: public/css/golden-proximity.css -->
     <div class="proximity-container"><div id="goldenProximityFill"></div></div>
 
+    <!-- Resize handles (rail-resize.js drives these) -->
+    <div class="rail-resize-handle" id="leftRailResize" title="Drag to resize left rail"></div>
+    <div class="rail-resize-handle" id="rightRailResize" title="Drag to resize right rail"></div>
+
     <!-- Edge Analytics Panel -->
     <div class="edge-panel" id="edgePanel">
         <button class="edge-toggle" title="Toggle Panel">−</button>
@@ -3296,6 +3334,7 @@
     <script src="/js/chart.js"></script>
 
     <!-- Panels (self-registering, order-independent) -->
+    <script src="/js/panels/rail-resize.js"></script>
     <script src="/js/panels/system-snapshot.js"></script>
     <script src="/js/panels/trade-log.js"></script>
     <script src="/js/panels/edge-analytics.js"></script>
