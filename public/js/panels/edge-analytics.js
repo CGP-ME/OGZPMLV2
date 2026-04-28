@@ -166,7 +166,25 @@
 
         togglePanel: function() {
             const panel = document.getElementById('edgePanel');
-            if (panel) panel.classList.toggle('collapsed');
+            if (!panel) return;
+            const willCollapse = !panel.classList.contains('collapsed');
+            panel.classList.toggle('collapsed');
+            // BUG FIX 2026-04-27: trigger the .main-container.left-collapsed
+            // adaptive padding (defined at unified-dashboard.html:320) so the
+            // chart fills the freed space when Edge Analytics collapses.
+            // Without this the padding-left:340px stayed put and the chart
+            // visually sat under the collapsed rail.
+            const main = document.querySelector('.main-container');
+            if (main) main.classList.toggle('left-collapsed', willCollapse);
+            // Force chart resize after the 300ms padding transition lands so
+            // lightweight-charts redraws into the new container width.
+            setTimeout(() => {
+                if (window.tvChart && typeof window.tvChart.resize === 'function') {
+                    const c = document.getElementById('tvChartContainer');
+                    if (c) window.tvChart.resize(c.clientWidth, c.clientHeight);
+                }
+                window.dispatchEvent(new Event('resize'));
+            }, 320);
         },
 
         // DORMANT: Confluence Matrix rendering (awaits golden_setup_state emitter)
