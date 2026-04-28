@@ -280,7 +280,19 @@ function extractSymbol(prompt) {
     // 5-letter
     'WOULD', 'THEIR', 'COULD', 'OTHER', 'ABOUT', 'WHICH', 'THESE', 'AFTER', 'THERE', 'FIRST', 'BEING', 'WHERE', 'THOSE', 'STILL', 'EVERY', 'GOING', 'NEVER', 'THINK', 'AGAIN', 'MIGHT', 'UNDER', 'THING', 'SINCE', 'RIGHT', 'POINT', 'WORLD', 'PLACE', 'WHILE', 'GREAT', 'SMALL', 'THREE', 'FOUND', 'BEING', 'NIGHT', 'DOING', 'TODAY', 'PRICE', 'TRADE', 'STOCK', 'SHARE', 'SHORT',
     // Trading terms that aren't tickers
-    'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'STOP', 'LIMIT', 'ALERT'
+    'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'STOP', 'LIMIT', 'ALERT',
+    // BUG FIX 2026-04-27: casual/family/slang words that happen to be real
+    // tickers — caused "what good my son" → SON (Sonoco Products) → bot
+    // fetched real $50 stock data and TRAI confidently analyzed Sonoco
+    // for a casual greeting.
+    'SON', 'BRO', 'DAD', 'MOM', 'KID', 'GUY', 'PAL', 'BUD', 'DUDE', 'BABE',
+    'HEY', 'YEP', 'NAH', 'YEAH', 'NOPE', 'OKAY', 'HUH', 'FAM', 'BAE',
+    'LOL', 'LMAO', 'OMG', 'WTF', 'IDK', 'TBH', 'AFK', 'BRB', 'TTYL',
+    'HEAR', 'SEEN', 'KNEW', 'SAID', 'TOLD', 'SHOW', 'TURN', 'STOP', 'LOST',
+    'GAVE', 'GIVE', 'FAST', 'SLOW', 'COOL', 'WARM', 'NICE', 'KIND', 'MEAN',
+    'SAFE', 'OPEN', 'SHUT', 'CALM', 'WILD', 'TIRED', 'SICK',
+    'DOWN', 'BORN', 'DEAD', 'ALIVE', 'GONE', 'HOME', 'AWAY', 'PLAN',
+    'YEAR', 'WEEK', 'DAYS', 'HOUR', 'MIN', 'SEC', 'YEARS', 'DAYS'
   ]);
 
   // Find the first non-stopword symbol (prefer 3-4 letter words as more likely tickers)
@@ -304,7 +316,19 @@ app.post('/api/trai/analyze', async (req, res) => {
     let marketDataUsed = false;
 
     // CHANGE 2026-03-30: Fetch REAL market data for stock symbols
-    const symbol = extractSymbol(prompt.toUpperCase());
+    // BUG FIX 2026-04-27: gate market-data fetch on TICKER INTENT signals.
+    // Without this, casual greetings like "what good my son" got matched
+    // to SON (Sonoco Products) → bot fetched real $50 stock data → TRAI
+    // confidently analyzed Sonoco for a "hi" message.
+    // Intent signals: $TICKER pattern, "stock" / "ticker" / "price of" /
+    // "$" / "chart" keywords, or a question >= 20 chars (filters most
+    // casual greetings).
+    const lowerPrompt = String(prompt).toLowerCase();
+    const hasTickerIntent =
+      /\$[A-Z]{1,5}\b/.test(prompt) ||
+      /\b(stock|ticker|symbol|chart|price\s+of|trading|market\s+(cap|data)|earnings|dividend|sma|rsi|ema|macd|atr|vwap)\b/.test(lowerPrompt) ||
+      prompt.length >= 20;
+    const symbol = hasTickerIntent ? extractSymbol(prompt.toUpperCase()) : null;
     if (symbol) {
       console.log(`[TRAI Analyze] Fetching real market data for: ${symbol}`);
       const marketData = await fetchMarketData(symbol);
