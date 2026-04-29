@@ -204,6 +204,14 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
       }
+      // Multi-Symbol Phase 2 Q2 fix (2026-04-29): wipe streaming aggregator
+      // state across the swap. Otherwise old-asset's in-progress 5m/15m/30m
+      // buffers persist; if that asset later returns, the aggregator
+      // re-mixes stale candles into the new period. Per-symbol map = full
+      // resetAll() since the active asset just changed.
+      if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
+        this.ctx.candleAggregator.resetAll();
+      }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
         try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
@@ -307,6 +315,14 @@ class SessionRouter extends EventEmitter {
       }
       if (this.ctx && Array.isArray(this.ctx.priceHistory)) {
         this.ctx.priceHistory.length = 0;
+      }
+      // Multi-Symbol Phase 2 Q2 fix (2026-04-29): wipe streaming aggregator
+      // state across the swap. Otherwise old-asset's in-progress 5m/15m/30m
+      // buffers persist; if that asset later returns, the aggregator
+      // re-mixes stale candles into the new period. Per-symbol map = full
+      // resetAll() since the active asset just changed.
+      if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
+        this.ctx.candleAggregator.resetAll();
       }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {

@@ -703,6 +703,10 @@ class OGZPrimeV14Bot {
     this.marketData = null;
     this.priceHistory = [];  // 1m candles for trading logic
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
+    // Multi-Symbol Phase 2 (2026-04-29): streaming aggregator that builds
+    // 5m/15m/30m candles from 1m. Per-symbol per-TF state. Replaces the
+    // old timeframeHistories dual-storage system (killed below).
+    this.candleAggregator = new CandleAggregator();
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
     // FIX 2026-04-06: Skip in backtest mode - backtest provides its own candles
@@ -740,17 +744,15 @@ class OGZPrimeV14Bot {
       console.log(`Signal modules synced (EMA states: ${Object.values(emaSnap.crossoverState).filter(s => s.side !== 'none').length}, SR swings: ${srSnap.swings?.length || 0})`);
     }
 
-    // CHANGE 2026-01-29: Multi-timeframe candle storage for dashboard
-    // Each timeframe has its own history from native Kraken data
-    this.timeframeHistories = {
-      '1m': [],   // same as priceHistory
-      '5m': [],
-      '15m': [],
-      '30m': [],
-      '1h': [],
-      '4h': [],   // CHANGE 2026-01-29: Added missing 4H timeframe
-      '1d': []
-    };
+    // Multi-Symbol Phase 2 (2026-04-29): timeframeHistories KILLED. The old
+    // dual-storage (timeframeHistories + CandleStore) had three collision
+    // bugs: (1) storeTimeframeCandle wrote 1m candles into the '15m' bucket
+    // mislabeled, (2) line 1320 overwrote timeframeHistories['15m'] with
+    // priceHistory (1m data) every 15m candle, and (3) two parallel storage
+    // systems with different symbol-awareness drifted out of sync. CandleStore
+    // is now the single source of truth for all per-(symbol,timeframe) candle
+    // data. CandleAggregator emits HTF candles into it; readers query it via
+    // candleStore.getCandles(symbol, timeframe).
     this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants
 
     // Stale data tracking
@@ -1192,8 +1194,25 @@ class OGZPrimeV14Bot {
         return;
       }
 
-      // Store in timeframe-specific history for dashboard
-      this.storeTimeframeCandle(timeframe, ohlcData);
+      // Multi-Symbol Phase 2 (2026-04-29): storeTimeframeCandle KILLED.
+      // Candle storage now flows through CandleProcessor → _candleStore +
+      // CandleAggregator (1m → 5m/15m/30m streaming). Native non-1m feeds
+      // (e.g., Kraken's native 15m subscription) bypass aggregation by
+      // writing directly to CandleStore under their actual timeframe.
+      if (timeframe !== '1m' && this._candleStore) {
+        // Convert raw [time, etime, o, h, l, c, vwap, vol] → canonical OHLCV
+        if (Array.isArray(ohlcData) && ohlcData.length >= 8) {
+          const [time, etime, open, high, low, close, , volume] = ohlcData;
+          const candle = {
+            t: parseFloat(time) * 1000,
+            etime: parseFloat(etime) * 1000,
+            o: parseFloat(open), h: parseFloat(high), l: parseFloat(low),
+            c: parseFloat(close), v: parseFloat(volume),
+          };
+          const symbol = this.tradingPair || resolvedConfig.config.broker.tradingPair;
+          this._candleStore.addCandle(symbol, timeframe, candle);
+        }
+      }
 
       // CHANGE 2026-02-21: Feed 1m candles to indicators + MTF adapter (granular data)
       if (timeframe === '1m') {
@@ -1278,57 +1297,14 @@ class OGZPrimeV14Bot {
     this.candleProcessor.handleMarketData(ohlcData);
   }
 
-  /**
-   * CHANGE 2026-01-29: Store candle in timeframe-specific history for dashboard
-   * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '1d'
-   * @param {Array} ohlcData - Kraken OHLC array [time, etime, o, h, l, c, vwap, vol, count]
-   */
-  storeTimeframeCandle(timeframe, ohlcData) {
-    if (!this.timeframeHistories[timeframe]) {
-      this.timeframeHistories[timeframe] = [];
-    }
-
-    if (!Array.isArray(ohlcData) || ohlcData.length < 8) return;
-
-    const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
-    const candle = {
-      t: parseFloat(time) * 1000,
-      etime: parseFloat(etime) * 1000,
-      o: parseFloat(open),
-      h: parseFloat(high),
-      l: parseFloat(low),
-      c: parseFloat(close),
-      v: parseFloat(volume)
-    };
-
-    const history = this.timeframeHistories[timeframe];
-    const lastCandle = history[history.length - 1];
-
-    // Update existing candle or add new one based on etime
-    if (lastCandle && lastCandle.etime === candle.etime) {
-      history[history.length - 1] = candle;
-    } else {
-      history.push(candle);
-      // Keep max 200 candles per timeframe
-      if (history.length > 200) {
-        this.timeframeHistories[timeframe] = history.slice(-200);
-      }
-    }
-
-    // CHANGE 2026-02-21: Sync 15m with priceHistory (trading logic uses 15m candles now)
-    if (timeframe === '15m') {
-      this.timeframeHistories['15m'] = this.priceHistory;
-    }
-  }
-
-  /**
-   * CHANGE 2026-01-29: Get candles for a specific timeframe (for dashboard)
-   */
-  getCandlesForTimeframe(timeframe) {
-    // Default to 1m if invalid timeframe
-    const tf = this.timeframeHistories[timeframe] ? timeframe : '1m';
-    return this.timeframeHistories[tf] || this.priceHistory;
-  }
+  // Multi-Symbol Phase 2 (2026-04-29): storeTimeframeCandle + getCandlesForTimeframe
+  // KILLED. CandleStore is now the single source of truth — no wrappers, no
+  // dual storage. Readers call this._candleStore.getCandles(symbol, timeframe)
+  // directly. Writers go through CandleProcessor → _candleStore +
+  // CandleAggregator (for 1m feeds) or directly to _candleStore (for native
+  // non-1m broker feeds, in createOhlcHandler). The line 1320 overwrite
+  // (timeframeHistories['15m'] = priceHistory) that destroyed real 15m data
+  // is gone with the dual-storage architecture.
 
   /**
    * Warm state from broker — load N prior candles into priceHistory +
@@ -1438,8 +1414,10 @@ class OGZPrimeV14Bot {
       const candles = await this.kraken.getCandles(symbol, timeframe, limit);
 
       if (candles && candles.length > 0) {
-        // Update our local cache with the fetched data
-        this.timeframeHistories[timeframe] = candles.slice(-200);
+        // Multi-Symbol Phase 2: cache fetched candles into the canonical
+        // CandleStore (was timeframeHistories[timeframe], killed). Per-symbol
+        // per-TF, no overwrite of other symbols' data.
+        this._candleStore.addCandles(symbol, timeframe, candles.slice(-200));
 
         // Send to dashboard. Include symbol so the dashboard can update
         // its asset-context (asset-tf-card label, hero price symbol context)
@@ -1455,8 +1433,8 @@ class OGZPrimeV14Bot {
         console.log(`Sent ${candles.length} historical ${timeframe} candles to dashboard for ${symbol}`);
       } else {
         console.warn(`[WARNING] No historical candles returned for ${timeframe}`);
-        // Fall back to cached WebSocket data if available
-        const cached = this.getCandlesForTimeframe(timeframe);
+        // Multi-Symbol Phase 2: fallback reads canonical CandleStore directly.
+        const cached = this._candleStore.getCandles(symbol, timeframe);
         if (cached.length > 0) {
           this.dashboardWs.send(JSON.stringify({
             type: 'historical_candles',
@@ -1469,12 +1447,13 @@ class OGZPrimeV14Bot {
       }
     } catch (error) {
       console.error(`âŒ Failed to fetch historical ${timeframe} candles:`, error.message);
-      // Fall back to cached data
-      const cached = this.getCandlesForTimeframe(timeframe);
+      // Multi-Symbol Phase 2: error-path fallback also reads CandleStore.
+      const cached = this._candleStore.getCandles(symbol, timeframe);
       if (cached.length > 0 && this.dashboardWs) {
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
           timeframe: timeframe,
+          symbol: symbol,
           candles: cached
         }));
       }

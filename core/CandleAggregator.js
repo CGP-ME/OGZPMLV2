@@ -23,6 +23,91 @@ class CandleAggregator {
       '4h':  14400000,
       '1d':  86400000
     };
+
+    // Multi-Symbol Phase 2 (2026-04-29): per-symbol per-target-TF stream
+    // state for ingest(). Map<symbol, Map<targetTF, { periodStart, candles[] }>>
+    // Symbol-aware from day 1 so Phase 3 (multi-symbol subscribe) doesn't
+    // require Phase 4 (SymbolContext) to land first; Phase 4 just changes
+    // WHERE the aggregator lives, not its API.
+    this._streamState = new Map();
+  }
+
+  /**
+   * Streaming aggregation. Feed 1m candles one at a time; emit any
+   * higher-timeframe candles whose period just completed (detected when
+   * a new 1m candle's period start differs from the buffered period).
+   *
+   * @param {string} symbol — trading symbol (TSLA, BTC/USD, etc.)
+   * @param {Object} candle1m — single 1m candle in canonical OHLCV form
+   * @param {string[]} targetTimeframes — which higher TFs to build (default ['5m','15m','30m'])
+   * @returns {Array<{timeframe: string, candle: Object}>} emissions this tick
+   */
+  ingest(symbol, candle1m, targetTimeframes = ['5m', '15m', '30m']) {
+    if (!candle1m || typeof symbol !== 'string') return [];
+    const ts = _t(candle1m);
+    if (typeof ts !== 'number' || !isFinite(ts)) return [];
+
+    if (!this._streamState.has(symbol)) {
+      this._streamState.set(symbol, new Map());
+    }
+    const symbolState = this._streamState.get(symbol);
+
+    const emissions = [];
+    for (const tf of targetTimeframes) {
+      const intervalMs = this.TIMEFRAME_MS[tf];
+      if (!intervalMs) continue;
+      const candlePeriodStart = Math.floor(ts / intervalMs) * intervalMs;
+
+      let buf = symbolState.get(tf);
+      if (!buf) {
+        // First candle for this (symbol, tf)
+        symbolState.set(tf, { periodStart: candlePeriodStart, candles: [candle1m] });
+        continue;
+      }
+
+      if (candlePeriodStart === buf.periodStart) {
+        // Same period. Mercury Q3 fix (2026-04-29): dedupe by timestamp.
+        // If the incoming 1m has the same `t` as the last buffered candle,
+        // it's an UPDATE to an in-progress 1m (live broker tick refining
+        // the candle as it forms). Replace last-in-place rather than
+        // append, mirroring CandleStore.addCandle's same-timestamp semantic.
+        const last = buf.candles[buf.candles.length - 1];
+        if (last && _t(last) === ts) {
+          buf.candles[buf.candles.length - 1] = candle1m;
+        } else {
+          buf.candles.push(candle1m);
+        }
+      } else if (candlePeriodStart > buf.periodStart) {
+        // New period started — emit completed candle from prior buffer, start fresh
+        emissions.push({
+          timeframe: tf,
+          candle: this.buildCandle(buf.candles, buf.periodStart),
+        });
+        buf.periodStart = candlePeriodStart;
+        buf.candles = [candle1m];
+      } else {
+        // Out-of-order: candle's period is BEFORE the current buffer's.
+        // Don't corrupt buffer state. Skip with a warning. (Should not
+        // occur with normal broker live feeds; can occur during backfill
+        // replay if 1m candles arrive non-monotonically.)
+        console.warn(`[CandleAggregator] out-of-order 1m candle for ${symbol} ${tf} — buffered period ${buf.periodStart}, candle period ${candlePeriodStart}; skipping`);
+      }
+    }
+    return emissions;
+  }
+
+  /**
+   * Reset stream state for a single symbol. Used by SessionRouter on
+   * crypto/stocks swap so cross-asset 1m candles don't pollute each
+   * other's HTF buffers.
+   */
+  resetSymbol(symbol) {
+    this._streamState.delete(symbol);
+  }
+
+  /** Reset all stream state across all symbols. */
+  resetAll() {
+    this._streamState.clear();
   }
 
   /**

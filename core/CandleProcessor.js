@@ -58,10 +58,17 @@ class CandleProcessor {
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
     const isUpdate = existingIndex !== -1;
 
+    // Multi-Symbol Phase 1+2 (2026-04-29): symbol + timeframe derived from
+    // the candle itself. AlpacaAdapter sets candle.symbol=msg.S on every bar.
+    // Fallback chain handles backfill / synthetic / non-broker paths.
+    const symbol = candle.symbol || this.ctx.activeSymbol || this.ctx.tradingPair || 'UNKNOWN';
+
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
       this.ctx.priceHistory[existingIndex] = candle;
-      this.ctx._candleStore.addCandle('BTC-USD', '15m', candle);
+      // Multi-Symbol Phase 1+2: 1m candles stored under their actual TF '1m'
+      // (was 'BTC-USD'/'15m'). Aggregator emissions populate '5m'/'15m'/'30m'.
+      this.ctx._candleStore.addCandle(symbol, '1m', candle);
 
       // Feed IndicatorEngine for real-time updates
       if (this.ctx.indicatorEngine) {
@@ -88,7 +95,23 @@ class CandleProcessor {
       this.ctx.priceHistory.splice(insertIndex, 0, candle);
     }
 
-    this.ctx._candleStore.addCandle('BTC-USD', '15m', candle);
+    // Multi-Symbol Phase 1+2: 1m candle under '1m' TF (was 'BTC-USD'/'15m').
+    this.ctx._candleStore.addCandle(symbol, '1m', candle);
+
+    // Multi-Symbol Phase 2: streaming aggregation from 1m → 5m/15m/30m.
+    // CandleAggregator buffers per (symbol, TF) and emits when a new period
+    // begins. Each emission is stored under its TRUE timeframe label, so
+    // candleStore.getCandles(symbol, '15m') returns real 15m candles, not
+    // the prior 1m-mislabeled-as-15m garbage.
+    if (this.ctx.candleAggregator) {
+      const completedCandles = this.ctx.candleAggregator.ingest(symbol, candle);
+      for (const { timeframe, candle: aggCandle } of completedCandles) {
+        this.ctx._candleStore.addCandle(symbol, timeframe, aggCandle);
+        if (this.ctx.mtfAdapter) {
+          this.ctx.mtfAdapter.ingestCandle(aggCandle, timeframe);
+        }
+      }
+    }
 
     // Feed IndicatorEngine
     if (this.ctx.indicatorEngine) {
@@ -464,8 +487,10 @@ class CandleProcessor {
               timestamp: Date.now()
             },
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
-            // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
-            candles: this.ctx.getCandlesForTimeframe(this.ctx.dashboardTimeframe).slice(-50),
+            // Multi-Symbol Phase 2 (2026-04-29): repointed from
+            // ctx.getCandlesForTimeframe (killed) → candleStore as single
+            // source of truth. Symbol is the resolved active symbol above.
+            candles: this.ctx._candleStore.getCandles(activeSymbol, this.ctx.dashboardTimeframe).slice(-50),
             timeframe: this.ctx.dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             equity: currentEquity,  // FIX 2026-04-27: renamed from 'balance' — now broadcasts equity (initialBalance + realized + unrealized PnL)
