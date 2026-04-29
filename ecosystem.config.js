@@ -23,7 +23,13 @@ module.exports = {
         // ogz-meta/ledger/SESSION-ROUTER-SPEC.md. Phase 0 baseline preserved
         // byte-exact when this flag flips because backtest path doesn't
         // touch SessionRouter.
-        SESSION_ROUTER_ENABLED: 'true'
+        SESSION_ROUTER_ENABLED: 'true',
+        // 2026-04-29: NoWickImbalance enabled. Trey: "yes just keep moving
+        // and enable the nowick and repush." Wired at a5e5329 with Mercury-
+        // tightened float-equality. Pre-sweep validation — strategy is
+        // disabled in code default; this flip turns it on. Sweep + walk-
+        // forward will follow on the 7800X3D.
+        ENABLE_NOWICK: 'true'
       }
     },
     {
