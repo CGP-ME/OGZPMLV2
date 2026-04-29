@@ -257,15 +257,15 @@ const BASE_CONFIG = {
     // ║  WF (Feb 4 → Apr 24, 2026): +$780 / 239 / 52.3% WR / 0.78% DD / PF 2.20  ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     EMASMACrossover: {
-      stopLossPercent: -2.0,          // LOCKED - April 25 sweep winner (was -0.5)
+      stopLossPercent: -3.5,          // 2026-04-29 phase-full winner (was -2.0) — pending walk-forward
       takeProfitPercent: 1.0,         // LOCKED - validated TP
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
-      minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
+      minConfidence: 0.70,            // 2026-04-29 phase-full winner — 70% gate
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['ema_cross_reversal'],
-      _validated: '2026-04-27',
+      _validated: null,               // PENDING walk-forward on tsla-15m-unseen
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  LiquiditySweep - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION    ║
@@ -273,16 +273,16 @@ const BASE_CONFIG = {
     // ║  Train: +$221, Test: +$72 (uses structural exits, ignores SL/TP)         ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     LiquiditySweep: {
-      stopLossPercent: -2.0,          // Fallback only - sweep uses structural exits
+      stopLossPercent: -2.0,          // 2026-04-29 phase-full winner (held same value)
       takeProfitPercent: 2.5,         // Fallback only - sweep uses structural exits
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
-      minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
+      minConfidence: 0.65,            // 2026-04-29 phase-full winner — 65% gate
       useStructuralExits: true,       // LOCKED - uses sweep-specific exit logic
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['liquidity_absorbed'],
-      _validated: '2026-03-20',
+      _validated: null,               // PENDING walk-forward on tsla-15m-unseen
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  RSI - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION               ║
@@ -292,15 +292,15 @@ const BASE_CONFIG = {
     // ║  CHANGING THESE VALUES WILL BREAK THE VALIDATED EDGE                      ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     RSI: {
-      stopLossPercent: -2.25,   // LOCKED - April 25 sweep winner (was -0.8)
+      stopLossPercent: -1.25,   // 2026-04-29 phase-full winner (was -2.25)
       takeProfitPercent: 1.0,   // LOCKED - validated TP (tight mean-reversion)
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
-      minConfidence: 0.60,      // LOCKED - 60% gate filters garbage signals
+      minConfidence: 0.30,      // 2026-04-29 phase-full winner — 30% gate (was 0.60)
       atrMinPercent: null,      // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
-      _validated: '2026-04-27', // Fingerprint - triggers warning if changed
+      _validated: null,         // PENDING walk-forward on tsla-15m-unseen
     },
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║  MADynamicSR - LOCKED CONFIG - DO NOT CHANGE WITHOUT RE-VALIDATION       ║
@@ -309,15 +309,15 @@ const BASE_CONFIG = {
     // ║  WF (Feb 4 → Apr 24, 2026): +$402 / 219 / 55.3% WR / 1.35% DD / PF 1.65  ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     MADynamicSR: {
-      stopLossPercent: -2.25,         // LOCKED - April 25 sweep winner (was -0.8)
+      stopLossPercent: -3.0,          // 2026-04-29 phase-full winner (was -2.25)
       takeProfitPercent: 1.0,         // LOCKED - validated TP
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
-      minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
+      minConfidence: 0.75,            // 2026-04-29 phase-full winner — 75% gate
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sr_break'],
-      _validated: '2026-04-27',
+      _validated: null,               // PENDING walk-forward on tsla-15m-unseen
     },
     // CandlePattern - uses validated baseline exits
     CandlePattern: {
@@ -378,16 +378,16 @@ const BASE_CONFIG = {
     // ║  WF (Feb 4 → Apr 24, 2026): +$327 / 120 / 49.2% WR / 0.74% DD / PF 2.44  ║
     // ╚═══════════════════════════════════════════════════════════════════════════╝
     SmartMoneySweep: {
-      stopLossPercent: -2.5,          // LOCKED - April 25 sweep winner (was -0.3)
+      stopLossPercent: -2.25,         // 2026-04-29 phase-full winner (was -2.5)
       takeProfitPercent: 1.5,         // High conviction ATR target
       trailingStopPercent: 0.5,       // Trail after 0.5 R:R (Fabio: risk-free in 1 minute)
       trailingActivation: 0.5,
       maxHoldTimeMinutes: 900,        // 60 candles x 15 min
-      minConfidence: null,            // Per-strategy minimum confidence. null = use global default.
+      minConfidence: 0.65,            // 2026-04-29 phase-full winner — 65% gate
       useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
-      _validated: '2026-04-27',
+      _validated: null,               // PENDING walk-forward on tsla-15m-unseen
     },
     // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
     // module's overrideLevels (1:1 RR computed from swing structure).
