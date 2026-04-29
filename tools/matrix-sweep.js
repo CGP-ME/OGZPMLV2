@@ -81,6 +81,9 @@ const DATA_SHORTCUTS = {
   'tsla': 'tuning/tsla-15m-2y.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
+  // 2026-04-29: walk-forward unseen window (Feb 4 → Apr 24 2026, 3584 candles, ~61 trading days)
+  'tsla-15m-unseen': 'tuning/tsla-15m-unseen.json',
+  'tsla-unseen': 'tuning/tsla-15m-unseen.json',
   'spy': 'tuning/spy-15m-2y.json',
   'qqq': 'tuning/qqq-15m-2y.json',
   'nvda': 'tuning/nvda-15m-2y.json',
@@ -90,7 +93,8 @@ const DATA_SHORTCUTS = {
   'btc': 'data/polygon-btc-1y.json',
 };
 const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
-                        'tsla-train', 'tsla-test'];
+                        'tsla-train', 'tsla-test',
+                        'tsla-15m-unseen', 'tsla-unseen'];
 
 // Extract human-readable label from data file path
 // 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
