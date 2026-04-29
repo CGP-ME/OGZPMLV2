@@ -313,7 +313,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     console.log('📡 [KrakenIBroker] V2 SINGLE SOURCE: Subscribing via kraken_adapter_simple');
 
     // Connect to kraken_adapter_simple WebSocket if not connected
-    if (!this.kraken.ws || this.kraken.ws.readyState !== WebSocket.OPEN) {
+    if (!this.kraken.ws || this.kraken.ws.readyState !== 1 /* WebSocket.OPEN */) {
       this.kraken.connectWebSocketStream((data) => {
         // Handle both price and OHLC data from the single source
         if (data.type === 'ohlc') {
