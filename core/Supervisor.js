@@ -76,6 +76,12 @@ const DEFAULTS = Object.freeze({
   // A hung subsystem getHealth() previously could stall the entire polling
   // loop (audit Task 3, severity HIGH). Promise.race wraps each call.
   healthTimeoutMs:       5_000,
+  // Mercury Audit D Finding 1 proper fix (2026-04-29): bound the alert
+  // hook so a hung delivery never blocks the polling loop, AND make
+  // failures loud-and-visible (not silently swallowed). Default 10s
+  // — long enough for normal Discord/Slack/Twilio retries, short enough
+  // that a true hang doesn't strand the supervisor.
+  alertTimeoutMs:        10_000,
   ledgerPath:            'data/supervisor-ledger.jsonl',
   // Heartbeat to external deadman switch — Layer B of the watching-the-watcher
   // defense. URL set via env. If unset, deadman heartbeat is a no-op.
@@ -118,6 +124,7 @@ class Supervisor extends EventEmitter {
     this.deadCooldownMs        = opts.deadCooldownMs;
     this.maxRestartsIn10min    = opts.maxRestartsIn10min;
     this.healthTimeoutMs       = opts.healthTimeoutMs;
+    this.alertTimeoutMs        = opts.alertTimeoutMs;
     this.ledgerPath            = path.resolve(opts.ledgerPath);
     this.deadmanHeartbeatUrl   = opts.deadmanHeartbeatUrl;
     this.deadmanHeartbeatMs    = opts.deadmanHeartbeatMs;
@@ -585,20 +592,77 @@ class Supervisor extends EventEmitter {
     //     of alert behavior is a security-surface concern (surprise
     //     code execution in the supervisor process).
     if (to === STATES.DEAD && this.onAlert) {
-      // Mercury Audit D Finding 1 fix (2026-04-28): fire-and-forget the
-      // alert. The PRIOR `await this.onAlert(...)` blocked _transition →
-      // _reconcileState → _pollOneInner → _pollAll's Promise.allSettled().
-      // If the alert hook hung (Discord 5xx retry without timeout, Twilio
-      // rate-limit backoff, Slack webhook hang), allSettled never resolved,
-      // _pollInFlight stayed true, and the entire supervisor froze — every
-      // subsystem stopped being polled, not just the one that triggered.
+      // Mercury Audit D Finding 1 PROPER fix (2026-04-29, supersedes the
+      // 2026-04-28 fire-and-forget bandaid at b0618b3): _dispatchAlert
+      // bounds the alert with a timeout (so a hang never blocks polling),
+      // writes durable ledger entries for every attempt + outcome (so a
+      // failed alert is NEVER silently lost), tracks consecutive-failure
+      // count per subsystem (so a chronically broken hook is loud), and
+      // emits an 'alert-failed' event the supervisor itself can monitor
+      // (so external observability can catch alert-delivery breakage).
       //
-      // Fire-and-forget aligns implementation with the documented (B3)
-      // intent: "alert is best-effort notification." Rejection / hang
-      // never blocks the state machine.
-      Promise.resolve()
-        .then(() => this.onAlert(name, event))
-        .catch(err => console.error(`${this.label} onAlert threw:`, err.message));
+      // Trey's call: "blind to alerts going off" was the danger of the
+      // bandaid. This fix preserves the polling-loop safety property
+      // while ALSO ensuring alert failures are loudly visible — three
+      // independent observability channels (ledger, counter, event).
+      this._dispatchAlert(name, entry, event).catch(err => {
+        // _dispatchAlert handles its own errors; this is defense-in-depth
+        // for the unlikely case that the dispatcher itself throws.
+        console.error(`${this.label} _dispatchAlert internal error:`, err.message);
+      });
+    }
+  }
+
+  /**
+   * Mercury Audit D Finding 1 PROPER fix (2026-04-29).
+   *
+   * Bounded alert dispatch with full observability:
+   *   1. Write 'alert_attempt' ledger entry BEFORE network call (durable
+   *      record that an alert was supposed to fire).
+   *   2. Call onAlert with timeout via _withTimeout. If it hangs longer
+   *      than alertTimeoutMs, treat as failure.
+   *   3. On success: reset entry._alertFailures=0, write 'alert_delivered'
+   *      ledger entry.
+   *   4. On failure/timeout: increment entry._alertFailures, write
+   *      'alert_failed' ledger entry with error + consecutive-count, log
+   *      to console with count, emit 'alert-failed' event.
+   *
+   * Does NOT block the caller — invoked via .catch from _transition.
+   * Polling loop safety preserved; alert visibility now genuine.
+   */
+  async _dispatchAlert(name, entry, event) {
+    // (1) Durable record that an alert attempt is starting.
+    this._writeLedger('alert_attempt', { ...event, alertFor: name });
+
+    try {
+      // (2) Bounded wait — promise resolves to whatever onAlert returns.
+      // Wrapping with Promise.resolve handles both sync and async hooks.
+      await this._withTimeout(
+        Promise.resolve().then(() => this.onAlert(name, event)),
+        this.alertTimeoutMs,
+        `${name}.onAlert`
+      );
+
+      // (3) Success — reset failure counter, durable success record.
+      entry._alertFailures = 0;
+      this._writeLedger('alert_delivered', { ...event, alertFor: name });
+    } catch (err) {
+      // (4) Failure — increment counter, durable failure record, console
+      // log with count, emit event.
+      entry._alertFailures = (entry._alertFailures || 0) + 1;
+      this._writeLedger('alert_failed', {
+        ...event,
+        alertFor: name,
+        error: err.message,
+        consecutiveFailures: entry._alertFailures,
+      });
+      console.error(`${this.label} ${name}: alert FAILED [${entry._alertFailures} consecutive]: ${err.message}`);
+      this.emit('alert-failed', {
+        name,
+        event,
+        error: err.message,
+        consecutiveFailures: entry._alertFailures,
+      });
     }
   }
 
