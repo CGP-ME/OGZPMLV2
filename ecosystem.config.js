@@ -19,7 +19,11 @@ module.exports = {
         NODE_ENV: 'production',
         // 2026-04-29: NoWickImbalance enabled. Strategy is disabled in code
         // default; this flip turns it on. Sweep + walk-forward to follow.
-        ENABLE_NOWICK: 'true'
+        ENABLE_NOWICK: 'true',
+        // 2026-04-29: OpeningRangeBreakout enabled for production observation
+        // parity with the parallel sweep campaign. Strategy is disabled in code
+        // default; this flip turns it on. Sweep will validate before locking.
+        ENABLE_ORB: 'true'
       }
     },
     {
