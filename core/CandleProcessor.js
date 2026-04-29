@@ -361,7 +361,14 @@ class CandleProcessor {
       c: parseFloat(close),
       v: parseFloat(volume),
       t: parseFloat(time) * 1000,  // Actual timestamp for display
-      etime: parseFloat(etime) * 1000  // End time for deduplication
+      etime: parseFloat(etime) * 1000,  // End time for deduplication
+      // Multi-Symbol Phase 3 prerequisite (2026-04-29): symbol propagates
+      // from normalizeOhlc's preserved-on-array property through to the
+      // candle object. Without this, processNewCandle's per-symbol routing
+      // (Phase 1+2) reads candle.symbol as undefined and falls back to
+      // global tradingPair — every symbol's candles end up bucketed under
+      // the active broker's tradingPair, the silent-contamination bug.
+      symbol: ohlcData.symbol || null,
     };
 
     // Phase 5 REWRITE: ONE CANONICAL PATH - always call processNewCandle

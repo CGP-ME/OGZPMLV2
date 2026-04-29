@@ -95,7 +95,21 @@ function normalizeOhlc(input) {
     const vwap = input.vwap != null ? _num(input.vwap) : null;
     const count = input.count != null ? _num(input.count) : null;
 
-    return [tMs, etime, o, h, l, c, vwap, v, count];
+    const result = [tMs, etime, o, h, l, c, vwap, v, count];
+
+    // Multi-Symbol Phase 3 prerequisite (2026-04-29, Wolf audit Bug 1):
+    // preserve symbol as a named property on the array. Pre-fix, this
+    // function converted symbol-bearing objects to bare 9-element arrays,
+    // dropping the symbol field. Downstream candle.symbol reads were
+    // always undefined for the production data path, falling through to
+    // the global tradingPair fallback for every symbol — silent contamination
+    // surface that became active the moment multi-symbol subscribes landed.
+    // Preserved as a property (not 10th element) so position-indexed
+    // readers continue working unchanged.
+    const sym = input.symbol || input.S || input.pair || null;
+    if (sym) result.symbol = sym;
+
+    return result;
 }
 
 module.exports = { normalizeOhlc };
