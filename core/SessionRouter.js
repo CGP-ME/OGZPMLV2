@@ -212,6 +212,26 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
       }
+      // Multi-Symbol Phase 3 follow-up — Wolf Bug 2 + Mercury attack (5) fix
+      // (2026-04-29): wipe the gap-detector state on session swap. The
+      // CandleProcessor's _lastAggEmission map carries per-(symbol, TF) wall-
+      // clock timestamps from the OLD venue; if not cleared, the gap detector
+      // can fire false positives (reading a stale crypto entry while now in
+      // stocks session) or silently miss real gaps (lookup falls into an
+      // empty bucket for the new symbol). Match the rest of the swap-time
+      // reset contract — when the venue changes, all per-venue caches die.
+      //
+      // Mercury re-attack finding (5) — loud-with-guard: keep the typeof
+      // guard so a missing candleProcessor doesn't crash mid-transition
+      // (a half-completed swap is itself a half-swapped state), but emit
+      // a loud console.error so the skip is observable instead of silent.
+      // Once Commit 5 (FAULTED state machine) ships, the crash becomes
+      // safe to surface and this guard can be removed.
+      if (this.ctx && this.ctx.candleProcessor) {
+        this.ctx.candleProcessor.resetGapState();
+      } else {
+        console.error('[SESSION-ROUTER] FATAL: candleProcessor missing during venue transition — gap detector state NOT reset. Bot may be in half-swapped state. Investigate ctx wiring immediately.');
+      }
       // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
       // Each context owns its own priceHistory + IndicatorEngine + Regime
       // state. Across a venue swap, those buffers are cross-asset stale
@@ -340,6 +360,26 @@ class SessionRouter extends EventEmitter {
       // resetAll() since the active asset just changed.
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
+      }
+      // Multi-Symbol Phase 3 follow-up — Wolf Bug 2 + Mercury attack (5) fix
+      // (2026-04-29): wipe the gap-detector state on session swap. The
+      // CandleProcessor's _lastAggEmission map carries per-(symbol, TF) wall-
+      // clock timestamps from the OLD venue; if not cleared, the gap detector
+      // can fire false positives (reading a stale crypto entry while now in
+      // stocks session) or silently miss real gaps (lookup falls into an
+      // empty bucket for the new symbol). Match the rest of the swap-time
+      // reset contract — when the venue changes, all per-venue caches die.
+      //
+      // Mercury re-attack finding (5) — loud-with-guard: keep the typeof
+      // guard so a missing candleProcessor doesn't crash mid-transition
+      // (a half-completed swap is itself a half-swapped state), but emit
+      // a loud console.error so the skip is observable instead of silent.
+      // Once Commit 5 (FAULTED state machine) ships, the crash becomes
+      // safe to surface and this guard can be removed.
+      if (this.ctx && this.ctx.candleProcessor) {
+        this.ctx.candleProcessor.resetGapState();
+      } else {
+        console.error('[SESSION-ROUTER] FATAL: candleProcessor missing during venue transition — gap detector state NOT reset. Bot may be in half-swapped state. Investigate ctx wiring immediately.');
       }
       // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
       // Each context owns its own priceHistory + IndicatorEngine + Regime

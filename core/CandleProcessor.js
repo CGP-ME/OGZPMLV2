@@ -30,20 +30,77 @@ class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
 
-    // Gap recovery state
-    this.candleIntervalMs = 15 * 60 * 1000; // 15 minutes default
-    this.gapThresholdMultiplier = 1.5; // Gap if > 1.5x interval (22.5 min for 15m candles)
+    // Gap recovery state.
+    //
+    // Multi-Symbol Phase 3 follow-up (Wolf Bug 2 fix, 2026-04-29): under
+    // 1m-only subscriptions (Phase 3), the OLD 15m-interval gap detector
+    // was mathematically dead — gap threshold 22.5 min vs typical 1m
+    // arrival means real 1m gaps (broker pause, network blip) were SILENT.
+    // The detector now fires on AGGREGATED candle emissions, not raw 1m
+    // arrivals. _lastAggEmission Map tracks the last per-timeframe emission
+    // time; if the active TF hasn't emitted within its expected interval *
+    // gapThresholdMultiplier, the detector trips on the AGGREGATED layer
+    // (the layer the strategies actually trade on).
+    //
+    // candleIntervalMs is preserved for attemptBackfill's missing-candle
+    // count math, but gap DETECTION uses _lastAggEmission instead of
+    // raw-1m timestamp deltas.
+    this.candleIntervalMs = 60 * 1000; // 1 minute — matches 1m feed interval
+    this.gapThresholdMultiplier = 1.5; // Gap if > 1.5x active TF interval (no emission)
     this.cleanCandleCount = 0;
     this.cleanCandlesRequired = 3;
     this.backfillRetryInterval = null;
     this.backfillRetryDelayMs = 60000; // 60 seconds
+    // Per-(symbol, TF) last-emission MONOTONIC timestamps (ms since process
+    // start, via process.hrtime.bigint). Mercury attack re-pass finding (1)
+    // fix (2026-04-29): wall-clock Date.now() is vulnerable to OS clock
+    // jumps (NTP corrections, VM suspend/resume) and would trip the gap
+    // detector spuriously after a forward clock jump. Monotonic clock is
+    // immune. Event-loop stalls are correctly-detected gaps (the bot was
+    // unresponsive; data DID stop flowing) — not a false positive class.
+    this._lastAggEmission = {};
+    // Same monotonic basis for the throttle clock.
+    this._lastGapCheckLog = 0;
+    // Mercury attack finding (2) re-fix: gate the no-emission warning on
+    // RAW 1m CANDLE COUNT for the active symbol, not on wall-clock uptime.
+    // Counter-based invariant: "if we've seen N raw 1m candles but no
+    // active-TF emission, the aggregator must be misconfigured." Restart-
+    // independent within a session; crash-loop scenarios surface via PM2
+    // logs, not via this warning.
+    this._rawCandleCount = {};  // symbol → count
+    this._loggedNoEmissionWarning = false;
     // BUG FIX 2026-04-28: latch gap-detection while retry is in flight.
     // Without this, every new live candle re-detects the same gap (the
     // pre-gap lastCandle pointer never advances until backfill succeeds),
     // re-halts trading, re-fires the safety-stop banner, infinite oscillation.
     this._gapRecoveryInProgress = false;
+    // Mercury attack re-pass (B) fix 2026-04-29: permanent give-up latch
+    // for partial-misconfig retry exhaustion. When the partial-misconfig
+    // backfill path retries for 30 min and no aggregator emission lands
+    // for the active TF, the config is genuinely wrong — replaying 1m
+    // candles through a misconfigured aggregator will never produce the
+    // missing TF. Setting this stops the outer infinite loop (handleMarket
+    // Data → partial-misconfig → backfill → retry exhaustion → repeat).
+    // Cleared automatically on any aggregator emission for that (symbol,
+    // tf) — proof config is now correct, hot-reload self-heals — or on
+    // venue swap via resetGapState().
+    this._misconfigDetected = {};  // symbol → { tf → true }
+    this._lastMisconfigErrorLog = 0;  // monotonic-ms throttle for repeat alarms
 
     console.log('[CandleProcessor] Initialized with gap recovery');
+  }
+
+  /**
+   * Monotonic milliseconds since process start. Mercury attack re-pass
+   * finding (1) fix (2026-04-29): all gap-detector timestamps use this
+   * instead of Date.now() so OS clock jumps (NTP forward shifts, VM
+   * suspend/resume) cannot spuriously trip the detector. Comparisons
+   * across processes are not meaningful (different origins) but the
+   * detector only ever compares timestamps recorded in this same
+   * process lifetime, so that constraint is harmless.
+   */
+  _monoMs() {
+    return Number(process.hrtime.bigint() / 1_000_000n);
   }
 
   /**
@@ -77,6 +134,12 @@ class CandleProcessor {
     // ALWAYS write 1m to candleStore + feed aggregator (per-symbol).
     this.ctx._candleStore.addCandle(symbol, '1m', candle);
 
+    // Mercury attack re-pass (2) re-fix: track raw 1m candle count per symbol
+    // for the no-emission-yet config-sanity warning in handleMarketData. Counts
+    // ALL 1m candles (active or not), so even non-active symbols' counts grow
+    // and Phase 6 scanner inherits the same defense without further plumbing.
+    this._rawCandleCount[symbol] = (this._rawCandleCount[symbol] || 0) + 1;
+
     let completedCandles = [];
     if (this.ctx.candleAggregator) {
       completedCandles = this.ctx.candleAggregator.ingest(symbol, candle);
@@ -85,6 +148,20 @@ class CandleProcessor {
         // mtfAdapter is still single-symbol internally; only feed for active.
         if (isActive && this.ctx.mtfAdapter) {
           this.ctx.mtfAdapter.ingestCandle(aggCandle, timeframe);
+        }
+        // Wolf Bug 2 fix (2026-04-29): track last per-(symbol, TF) emission
+        // monotonic-ms (Mercury attack re-pass (1) fix — not wall-clock,
+        // immune to OS clock jumps). Gap detector reads this for the active
+        // symbol's active timeframe. Updated for ALL symbols so Phase 6
+        // scanner can per-symbol gap-check too without further plumbing.
+        if (!this._lastAggEmission[symbol]) this._lastAggEmission[symbol] = {};
+        this._lastAggEmission[symbol][timeframe] = this._monoMs();
+        // Mercury attack re-pass (B) fix 2026-04-29: emission proves the
+        // aggregator IS configured for this (symbol, tf). If a misconfig
+        // latch was set (operator hot-fixed config, restart not required),
+        // clear it silently — recoveries don't deserve the alarm channel.
+        if (this._misconfigDetected[symbol]?.[timeframe]) {
+          this._misconfigDetected[symbol][timeframe] = false;
         }
       }
     }
@@ -252,14 +329,52 @@ class CandleProcessor {
    * Start retry loop for failed backfill
    * @param {number} gapStart - Start timestamp
    * @param {number} gapEnd - End timestamp
+   * @param {{symbol: string, tf: string}} [misconfigKey] - if set, retry was
+   *   triggered from the partial-misconfig branch (aggregator never emitted
+   *   for active TF despite raw 1m candles flowing). On timeout, this writes
+   *   _misconfigDetected[symbol][tf]=true so the outer handleMarketData loop
+   *   stops re-firing the same recovery path forever. Cleared on next
+   *   aggregator emission for that key (self-heal) or venue swap.
    */
-  startBackfillRetry(gapStart, gapEnd) {
+  startBackfillRetry(gapStart, gapEnd, misconfigKey = null) {
     if (this.backfillRetryInterval) return; // Already retrying
 
-    console.log('[GAP-RECOVERY] Starting retry loop (every 60s)');
+    // Mercury attack finding (3) fix: bound retry duration. Without this,
+    // a permanent broker-down condition leaves _gapRecoveryInProgress=true
+    // FOREVER (latch only cleared on success path), blocking ALL future
+    // gap detection until the bot restarts. Cap retries to 30 minutes
+    // — long enough to ride out transient outages, short enough that a
+    // permanent failure doesn't permanently disable gap defense.
+    const RETRY_MAX_DURATION_MS = 30 * 60 * 1000;  // 30 minutes
+    const retryStartedAt = Date.now();
+
+    console.log(`[GAP-RECOVERY] Starting retry loop (every ${this.backfillRetryDelayMs/1000}s, max ${RETRY_MAX_DURATION_MS/60000}min)`);
 
     this.backfillRetryInterval = setInterval(async () => {
-      console.log('[GAP-RECOVERY] Retry attempt...');
+      const elapsedMs = Date.now() - retryStartedAt;
+
+      // Timeout: declare permanent failure, clear latch, halt retries.
+      if (elapsedMs >= RETRY_MAX_DURATION_MS) {
+        console.error(`[GAP-RECOVERY] Retry budget exhausted (${RETRY_MAX_DURATION_MS/60000}min). Halting retries; gap-detection re-enabled. Manual intervention may be required.`);
+        // Mercury attack re-pass (B) fix: if this retry was triggered from
+        // the partial-misconfig branch, the failure proves the aggregator
+        // is wrong for (symbol, tf). Set the permanent latch so the outer
+        // handleMarketData loop stops re-firing the same recovery on every
+        // subsequent 1m candle. Self-heals on next aggregator emission for
+        // this key (e.g., operator hot-fixes config) or on venue swap.
+        if (misconfigKey) {
+          if (!this._misconfigDetected[misconfigKey.symbol]) {
+            this._misconfigDetected[misconfigKey.symbol] = {};
+          }
+          this._misconfigDetected[misconfigKey.symbol][misconfigKey.tf] = true;
+          console.error(`[GAP-RECOVERY] FATAL MISCONFIG: aggregator never emitted ${misconfigKey.tf} for ${misconfigKey.symbol} after 30min of retries. Verify CandleAggregator targetTimeframes in config. Auto-recovery suspended for this (symbol, tf) until next emission lands or venue swap.`);
+        }
+        this.stopBackfillRetry();
+        this._gapRecoveryInProgress = false;  // CRITICAL — re-enable detection
+        return;
+      }
+
+      console.log(`[GAP-RECOVERY] Retry attempt (elapsed ${Math.round(elapsedMs/60000)}m / ${RETRY_MAX_DURATION_MS/60000}m budget)...`);
 
       const candles = await this.attemptBackfill(gapStart, gapEnd);
 
@@ -276,13 +391,49 @@ class CandleProcessor {
   }
 
   /**
-   * Stop the retry loop
+   * Stop the retry loop AND clear the gap-recovery latch.
+   *
+   * Mercury attack re-pass finding (3) fix (2026-04-29): make this method
+   * safe to call from any code path. Previously the latch was only cleared
+   * in startBackfillRetry's success / timeout branches; if any other path
+   * (manual pause, shutdown, future maintenance handler) called
+   * stopBackfillRetry directly, the latch would stick true forever and
+   * block all future gap detection. Coupling the latch reset here makes
+   * the method idempotent and defensive.
    */
   stopBackfillRetry() {
     if (this.backfillRetryInterval) {
       clearInterval(this.backfillRetryInterval);
       this.backfillRetryInterval = null;
     }
+    this._gapRecoveryInProgress = false;
+  }
+
+  /**
+   * Mercury attack finding (5) fix (2026-04-29): clear gap-detector state
+   * on session transitions. Called by SessionRouter on crypto<->stocks swap
+   * (alongside candleAggregator.resetAll and symbolContexts.clear). Without
+   * this, _lastAggEmission carries stale per-symbol entries from the prior
+   * venue — when SessionRouter switches activeSession, the gap detector
+   * may read either the wrong symbol's lastEmitMs (false positive) or
+   * find no entry for the new symbol (silent miss until first new
+   * emission). Wiping state on swap matches the rest of the swap-time
+   * cleanup contract.
+   */
+  resetGapState() {
+    this._lastAggEmission = {};
+    this._lastGapCheckLog = 0;
+    this._gapRecoveryInProgress = false;
+    this._rawCandleCount = {};
+    this._loggedNoEmissionWarning = false;
+    // Mercury attack re-pass (B) fix 2026-04-29: clear misconfig latches
+    // on venue swap. Even if the previous venue had a permanent latch set,
+    // the new venue may have correct config — give it a fresh chance.
+    this._misconfigDetected = {};
+    this._lastMisconfigErrorLog = 0;
+    this.stopBackfillRetry();
+    this.cleanCandleCount = 0;
+    console.log('[CandleProcessor] gap-detector state reset (session swap)');
   }
 
   /**
@@ -392,36 +543,154 @@ class CandleProcessor {
     const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
     const isNewCandle = !lastCandle || lastCandle.etime !== candle.etime;
 
-    // GAP DETECTION: Check for gaps only on new candles, not in backtest.
-    // Latched by _gapRecoveryInProgress so the same gap doesn't re-trigger
-    // every new live candle while backfill is still pending.
-    if (isNewCandle && lastCandle && !isBacktesting && !this._gapRecoveryInProgress) {
-      const gapMs = candle.etime - lastCandle.etime;
-      const gapThreshold = this.candleIntervalMs * this.gapThresholdMultiplier;
+    // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle.
+    // processNewCandle is also where _lastAggEmission gets updated when the
+    // aggregator emits HTF candles — needed by the gap detector below.
+    this.processNewCandle(candle);
 
-      if (gapMs > gapThreshold) {
-        const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
-        console.warn(`⚠️ [GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
-        this._gapRecoveryInProgress = true;
+    // Multi-Symbol Phase 3 follow-up — Wolf Bug 2 fix (2026-04-29):
+    // GAP DETECTION on the AGGREGATED layer, not raw 1m. The OLD block
+    // here compared raw 1m candle.etime deltas against a 15m * 1.5
+    // threshold. With Phase 3's '1m'-only subscriptions, that threshold
+    // (22.5 min) was unreachable for normal 1m gaps — silent failure.
+    //
+    // New layer: track wall-clock time of last aggregator emission per
+    // (symbol, timeframe). If the active symbol's active TF (typically
+    // 15m) hasn't emitted within tfIntervalMs * 1.5, trip the detector.
+    // This catches "1m feed silently slowed" without spurious triggers
+    // on quiet-market 1m delays.
+    if (isNewCandle && !isBacktesting && !this._gapRecoveryInProgress) {
+      // Resolve active symbol + TF (mirrors processNewCandle's logic).
+      let activeSymbol;
+      const sr = this.ctx.sessionRouter;
+      if (sr && sr.enabled) {
+        activeSymbol = sr.activeSession === 'stocks'
+          ? (sr.stockSymbols?.[0] || 'TSLA')
+          : (sr.cryptoSymbols?.[0] || 'BTC/USD');
+      } else {
+        activeSymbol = this.ctx.tradingPair || 'UNKNOWN';
+      }
+      const activeTf = this.ctx.timeframeSelector?.currentTimeframe || '15m';
+      const TF_MS = { '1m':60000, '5m':300000, '15m':900000, '30m':1800000, '1h':3600000, '4h':14400000, '1d':86400000 };
+      const tfIntervalMs = TF_MS[activeTf] || 900000;
 
-        this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
-          if (backfilledCandles.length > 0) {
-            this.handleBackfillSuccess(backfilledCandles);
-            this.cleanCandleCount = 0;
-            this._gapRecoveryInProgress = false;
-          } else {
-            // BUG FIX 2026-04-28: do NOT pauseTrading on first failure. Trey's
-            // directive: "we need to put on an infinite retry or something there."
-            // Previously paused → resumed via cleanCandlesRequired → next live
-            // candle saw same gap (lastCandle pointer hadn't advanced) → re-halt
-            // → infinite oscillation. Now: log warning, start retry loop, keep
-            // trading on existing data. Strategies' own warmup gates self-protect
-            // against insufficient-data trades. Latch stays set until retry
-            // succeeds — prevents same-gap re-detection.
-            console.warn(`[GAP-RECOVERY] Backfill failed; retry loop continues every ${this.backfillRetryDelayMs/1000}s. Trading remains active.`);
-            this.startBackfillRetry(lastCandle.etime, candle.etime);
+      const lastEmitMs = this._lastAggEmission?.[activeSymbol]?.[activeTf] || 0;
+      // Mercury attack re-pass finding (2) re-fix (2026-04-29): gate the
+      // no-emission warning on RAW 1m CANDLE COUNT for the active symbol,
+      // not on wall-clock uptime. Counter-based invariant is restart-
+      // independent within a session — "if we've seen N candles but no
+      // active-TF emission, the aggregator must be misconfigured."
+      // Threshold of 30 candles = 30 minutes of 1m feed at 1-per-minute,
+      // which is 2x a typical 15m emission cycle.
+      //
+      // Mercury attack re-pass finding (1) RE-FIX (Wolf 2026-04-29 deep
+      // read): the original `if (lastEmitMs > 0)` guard left a 30-minute
+      // BLIND WINDOW for partial-misconfig aggregator (emits 5m+30m but
+      // not 15m). During that window, gap detection is silent for the
+      // active TF. Fix: when rawCount >= threshold AND no emission, ALSO
+      // trigger backfill (not just warn). Past 30 candles is conclusive
+      // evidence of misconfig OR multi-symbol-blind state — the bot needs
+      // backfill regardless of which.
+      const NO_EMISSION_RAW_THRESHOLD = 30;
+      if (lastEmitMs === 0) {
+        const rawCount = this._rawCandleCount?.[activeSymbol] || 0;
+        if (rawCount >= NO_EMISSION_RAW_THRESHOLD) {
+          // Mercury attack re-pass (B) fix 2026-04-29: if a prior misconfig
+          // retry exhausted the 30min budget for this (symbol, tf), don't
+          // re-fire backfill on every subsequent 1m candle (infinite outer
+          // loop). Just rate-limit-error-log and skip. Latch clears auto
+          // when an aggregator emission lands for this key (proof config
+          // is fixed) or on venue swap via resetGapState().
+          const MISCONFIG_LOG_THROTTLE_MS = 10 * 60 * 1000;  // 10min
+          if (this._misconfigDetected[activeSymbol]?.[activeTf]) {
+            const nowMono = this._monoMs();
+            if (nowMono - this._lastMisconfigErrorLog > MISCONFIG_LOG_THROTTLE_MS) {
+              console.error(`[GAP-RECOVERY] MISCONFIG LATCHED for ${activeSymbol}/${activeTf} — aggregator still not emitting active TF. Auto-recovery suspended. Fix CandleAggregator targetTimeframes (hot-reload OK) or restart bot. Latch clears on next emission or venue swap.`);
+              this._lastMisconfigErrorLog = nowMono;
+            }
+            return;  // skip both branches; misconfig is operator-fix
           }
-        });
+          if (!this._loggedNoEmissionWarning) {
+            console.warn(`[GAP-RECOVERY] No ${activeTf} emission for ${activeSymbol} after ${rawCount} raw 1m candles — verify CandleAggregator targetTimeframes includes ${activeTf}. Triggering backfill.`);
+            this._loggedNoEmissionWarning = true;
+          }
+          // Fix (1): also trip backfill for partial-misconfig case.
+          // Same path as the gap-detected branch below; we just don't
+          // have a lastEmitMs to derive gapStart from, so window is
+          // estimated from rawCount * 60_000 (1 candle per minute).
+          this._gapRecoveryInProgress = true;
+          const gapEnd = Date.now();
+          const gapStart = gapEnd - (rawCount * 60 * 1000);
+          const misconfigKey = { symbol: activeSymbol, tf: activeTf };
+          this.attemptBackfill(gapStart, gapEnd).then(backfilledCandles => {
+            if (backfilledCandles.length > 0) {
+              this.handleBackfillSuccess(backfilledCandles);
+              // Mercury Round-2 Attack F re-fix 2026-04-29: in the actual
+              // misconfig case (aggregator targetTimeframes excludes
+              // activeTf), backfill always returns 1m candles from broker
+              // — replay through aggregator never emits activeTf, so
+              // _lastAggEmission stays 0. The retry-budget timeout latch
+              // is unreachable here because backfill keeps "succeeding."
+              // Detect misconfig at success time: if replay didn't produce
+              // any aggregator emission for active TF, set the latch now.
+              const stillNoEmission = !(this._lastAggEmission[activeSymbol]?.[activeTf]);
+              if (stillNoEmission) {
+                if (!this._misconfigDetected[activeSymbol]) {
+                  this._misconfigDetected[activeSymbol] = {};
+                }
+                this._misconfigDetected[activeSymbol][activeTf] = true;
+                console.error(`[GAP-RECOVERY] FATAL MISCONFIG: backfill succeeded but aggregator did not emit ${activeTf} for ${activeSymbol}. Verify CandleAggregator targetTimeframes. Auto-recovery suspended for this (symbol, tf) until next emission lands or venue swap.`);
+              }
+              this.cleanCandleCount = 0;
+              this._gapRecoveryInProgress = false;
+            } else {
+              console.warn(`[GAP-RECOVERY] Misconfig backfill failed; retry loop every ${this.backfillRetryDelayMs/1000}s.`);
+              this.startBackfillRetry(gapStart, gapEnd, misconfigKey);
+            }
+          });
+          return;  // skip the normal lastEmitMs > 0 branch
+        }
+      }
+      // Only check after we've HAD at least one emission. Fresh-start
+      // (no emissions yet) is not a gap, just warmup.
+      if (lastEmitMs > 0) {
+        // Mercury attack re-pass finding (1) re-fix: monotonic clock for
+        // staleness math. Date.now() was vulnerable to OS clock jumps.
+        const stalenessMs = this._monoMs() - lastEmitMs;
+        // Mercury attack finding (1) fix: minimum threshold floor of 5 minutes
+        // regardless of TF. With activeTf='1m' the raw threshold is 90s, which
+        // trips on every 2-min normal-market pause. The floor protects short-
+        // TF configs from spurious triggers without weakening long-TF defense.
+        const MIN_GAP_THRESHOLD_MS = 5 * 60 * 1000;  // 5 min
+        const gapThreshold = Math.max(
+          tfIntervalMs * this.gapThresholdMultiplier,
+          MIN_GAP_THRESHOLD_MS
+        );
+        if (stalenessMs > gapThreshold) {
+          // Throttle log: at most one warn per active-TF interval (monotonic).
+          if (this._monoMs() - this._lastGapCheckLog > tfIntervalMs) {
+            console.warn(`[GAP-RECOVERY] No ${activeTf} emission for ${activeSymbol} in ${Math.round(stalenessMs/60000)}m (threshold ${Math.round(gapThreshold/60000)}m) — triggering backfill`);
+            this._lastGapCheckLog = this._monoMs();
+          }
+          this._gapRecoveryInProgress = true;
+
+          // Backfill window endpoints in WALL-CLOCK ms (the broker REST API
+          // expects wall-clock timestamps). Derive gapStart from current
+          // wall-clock minus stalenessMs (monotonic delta is reliable, then
+          // applied as offset against current wall clock for the API call).
+          const gapEnd = Date.now();
+          const gapStart = gapEnd - stalenessMs;
+          this.attemptBackfill(gapStart, gapEnd).then(backfilledCandles => {
+            if (backfilledCandles.length > 0) {
+              this.handleBackfillSuccess(backfilledCandles);
+              this.cleanCandleCount = 0;
+              this._gapRecoveryInProgress = false;
+            } else {
+              console.warn(`[GAP-RECOVERY] Backfill failed; retry loop every ${this.backfillRetryDelayMs/1000}s. Trading remains active.`);
+              this.startBackfillRetry(gapStart, gapEnd);
+            }
+          });
+        }
       }
     }
 
@@ -436,9 +705,6 @@ class CandleProcessor {
         stateManager.resumeTrading();
       }
     }
-
-    // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
-    this.processNewCandle(candle);
 
     // Store latest market data
     this.ctx.marketData = {
