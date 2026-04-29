@@ -212,6 +212,17 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
       }
+      // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
+      // Each context owns its own priceHistory + IndicatorEngine + Regime
+      // state. Across a venue swap, those buffers are cross-asset stale
+      // (TSLA's 200-candle EMA → BTC's first crypto candles). Reset all,
+      // then clear the map so re-activated symbols get fresh contexts.
+      if (this.ctx && this.ctx.symbolContexts && typeof this.ctx.symbolContexts.forEach === 'function') {
+        for (const [, sc] of this.ctx.symbolContexts) {
+          if (typeof sc.reset === 'function') sc.reset();
+        }
+        this.ctx.symbolContexts.clear();
+      }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
         try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
@@ -331,6 +342,17 @@ class SessionRouter extends EventEmitter {
       // resetAll() since the active asset just changed.
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
+      }
+      // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
+      // Each context owns its own priceHistory + IndicatorEngine + Regime
+      // state. Across a venue swap, those buffers are cross-asset stale
+      // (TSLA's 200-candle EMA → BTC's first crypto candles). Reset all,
+      // then clear the map so re-activated symbols get fresh contexts.
+      if (this.ctx && this.ctx.symbolContexts && typeof this.ctx.symbolContexts.forEach === 'function') {
+        for (const [, sc] of this.ctx.symbolContexts) {
+          if (typeof sc.reset === 'function') sc.reset();
+        }
+        this.ctx.symbolContexts.clear();
       }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
