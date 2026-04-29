@@ -16,7 +16,10 @@ module.exports = {
       cwd: '/opt/ogzprime/OGZPMLV2',
       watch: false,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        // 2026-04-29: NoWickImbalance enabled. Strategy is disabled in code
+        // default; this flip turns it on. Sweep + walk-forward to follow.
+        ENABLE_NOWICK: 'true'
       }
     },
     {
