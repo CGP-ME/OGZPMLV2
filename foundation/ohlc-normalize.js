@@ -95,7 +95,19 @@ function normalizeOhlc(input) {
     const vwap = input.vwap != null ? _num(input.vwap) : null;
     const count = input.count != null ? _num(input.count) : null;
 
-    return [tMs, etime, o, h, l, c, vwap, v, count];
+    const result = [tMs, etime, o, h, l, c, vwap, v, count];
+
+    // Multi-Symbol Phase 3 Bug 1 fix (2026-04-29): preserve symbol as a named
+    // property on the array. Wolf's audit caught this — normalizeOhlc was
+    // converting symbol-bearing objects to bare arrays, dropping the symbol
+    // field. Downstream CandleProcessor's per-symbol routing was reading
+    // candle.symbol which was always undefined for normalized payloads.
+    // Preserved as a property (not 10th element) to keep position-indexed
+    // readers working unchanged.
+    const sym = input.symbol || input.S || input.pair || null;
+    if (sym) result.symbol = sym;
+
+    return result;
 }
 
 module.exports = { normalizeOhlc };

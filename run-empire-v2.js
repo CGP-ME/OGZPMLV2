@@ -150,6 +150,8 @@ const patternDescriptions = require('./config/pattern-descriptions.json');
 // RegimeDetector: detects market regime (trending/ranging/volatile)
 // See: ogz-meta/REFACTOR-PLAN-2026-02-27.md
 const { CandleAggregator } = require('./core/CandleAggregator');
+// Multi-Symbol Phase 4: per-symbol SymbolContext containers.
+const SymbolContext = require('./core/SymbolContext');
 const { RegimeDetector } = require('./core/RegimeDetector');
 
 // REFACTOR Phase 4: FeatureExtractor + PatternMemoryStore
@@ -707,6 +709,13 @@ class OGZPrimeV14Bot {
     // 5m/15m/30m candles from 1m. Per-symbol per-TF state. Replaces the
     // old timeframeHistories dual-storage system (killed below).
     this.candleAggregator = new CandleAggregator();
+
+    // Multi-Symbol Phase 4 (2026-04-29): per-symbol context containers.
+    // Each actively-traded symbol gets one SymbolContext owning its own
+    // priceHistory + IndicatorEngine + RegimeDetector. CandleProcessor
+    // routes incoming candles by candle.symbol to the right context;
+    // SessionRouter clears all contexts on venue swap.
+    this.symbolContexts = new Map();
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
     // FIX 2026-04-06: Skip in backtest mode - backtest provides its own candles
@@ -1176,6 +1185,24 @@ class OGZPrimeV14Bot {
    * function on 2026-04-26 so SessionRouter could share it without
    * duplicating logic.
    */
+
+  /**
+   * Multi-Symbol Phase 4 (2026-04-29): get or create the SymbolContext
+   * for a given symbol. Lazy-init — contexts are created when a symbol
+   * first receives data, not eagerly at watchlist registration. Cleared
+   * by SessionRouter on venue swap.
+   *
+   * @param {string} symbol — trading symbol (TSLA, BTC/USD, etc.)
+   * @returns {SymbolContext}
+   */
+  getSymbolContext(symbol) {
+    if (!this.symbolContexts.has(symbol)) {
+      this.symbolContexts.set(symbol, new SymbolContext(symbol));
+      console.log(`[EMPIRE] Created SymbolContext for ${symbol}`);
+    }
+    return this.symbolContexts.get(symbol);
+  }
+
   createOhlcHandler() {
     return (eventData) => {
       // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
@@ -1192,6 +1219,26 @@ class OGZPrimeV14Bot {
       if (!ohlcData) {
         console.warn('[OHLC] dropped unnormalizable payload from', timeframe, 'broker:', raw);
         return;
+      }
+
+      // Multi-Symbol Phase 3 defensive tag (2026-04-29): the active-symbol
+      // guard in CandleProcessor reads candle.symbol to route writes. Most
+      // adapters tag symbol on the raw bar (Alpaca: msg.S, Kraken: pair) and
+      // normalizeOhlc preserves it, but if the upstream payload is missing
+      // .symbol, fall back to the raw object's symbol/pair fields, then to
+      // SessionRouter's active-session primary, then a final UNKNOWN. Without
+      // this, missing-symbol candles fall through to the fallback chain in
+      // CandleProcessor and may bucket under the WRONG symbol on swap windows.
+      if (typeof ohlcData === 'object' && !Array.isArray(ohlcData) && !ohlcData.symbol) {
+        const inferred = raw?.symbol || raw?.pair || raw?.S
+          || (this.sessionRouter?.activeSession === 'stocks' && this.sessionRouter?.stockSymbols?.[0])
+          || (this.sessionRouter?.activeSession === 'crypto' && this.sessionRouter?.cryptoSymbols?.[0])
+          || this.tradingPair
+          || 'UNKNOWN';
+        ohlcData.symbol = inferred;
+        if (inferred === 'UNKNOWN') {
+          console.warn('[OHLC] candle missing symbol field — tagged UNKNOWN; raw:', JSON.stringify(raw).slice(0, 240));
+        }
       }
 
       // Multi-Symbol Phase 2 (2026-04-29): storeTimeframeCandle KILLED.
@@ -1227,21 +1274,12 @@ class OGZPrimeV14Bot {
         }
       }
 
-      // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-      // BUG FIX 2026-04-28 (Wolf's diagnosis): run15mTradingCycle() is a GHOST
-      // method — never existed in the class. Every candle close threw a silent
-      // TypeError caught by the unhandled-rejection handler. Bot was instead
-      // running analyzeAndTrade() via the 15-second timer below, which fires
-      // on noise-level price movements and entered/exited positions in seconds.
-      // Now calls analyzeAndTrade() directly — this is the validated edge
-      // (15-minute candle close = what the backtests trained on).
-      const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
-      if (timeframe === activeTf) {
-        console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-        this.analyzeAndTrade().catch(e =>
-          console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)
-        );
-      }
+      // Multi-Symbol Phase 3 (2026-04-29): trading-analysis trigger RELOCATED.
+      // Previously fired here on broker's native 15m frame. With '1m'-only
+      // subscriptions per Phase 3, the broker never emits 15m — the trigger
+      // is now in CandleProcessor.processNewCandle, fired on the
+      // candleAggregator's HTF emission (active-symbol guarded). Same event,
+      // different source. The block that used to live here became unreachable.
     };
   }
 

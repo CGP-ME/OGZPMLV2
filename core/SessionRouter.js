@@ -212,6 +212,17 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
       }
+      // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
+      // Each context owns its own priceHistory + IndicatorEngine + Regime
+      // state. Across a venue swap, those buffers are cross-asset stale
+      // (TSLA's 200-candle EMA → BTC's first crypto candles). Reset all,
+      // then clear the map so re-activated symbols get fresh contexts.
+      if (this.ctx && this.ctx.symbolContexts && typeof this.ctx.symbolContexts.forEach === 'function') {
+        for (const [, sc] of this.ctx.symbolContexts) {
+          if (typeof sc.reset === 'function') sc.reset();
+        }
+        this.ctx.symbolContexts.clear();
+      }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
         try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
@@ -233,12 +244,18 @@ class SessionRouter extends EventEmitter {
 
       if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
 
-      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-      // BUG FIX 2026-04-27: see _activateStocks — multi-symbol bars contaminate
-      // CandleProcessor's single stream. Subscribe to primary symbol only.
-      const primaryStock = this.stockSymbols[0] || 'TSLA';
+      // Multi-Symbol Phase 3 (2026-04-29): subscribe to ALL stockSymbols on '1m'.
+      // Aggregator builds 5m/15m/30m per-symbol from 1m. CandleProcessor's
+      // active-symbol guard (Phase 3) ensures only the primary symbol's candles
+      // touch global priceHistory/IndicatorEngine — other symbols' data is
+      // collected into _candleStore + candleAggregator awaiting Phase 4's
+      // SymbolContext consumers. Always '1m' regardless of CANDLE_TIMEFRAME
+      // env to avoid the dual-writer collision (native HTF + aggregator HTF).
       if (this.alpacaAdapter.subscribeToCandles) {
-        this.alpacaAdapter.subscribeToCandles(primaryStock, timeframe);
+        for (const symbol of this.stockSymbols) {
+          this.alpacaAdapter.subscribeToCandles(symbol, '1m');
+          console.log(`[SessionRouter] Subscribed to ${symbol} 1m bars`);
+        }
       }
 
       if (this.onOhlcCallback && this.alpacaAdapter.on) this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
@@ -324,6 +341,17 @@ class SessionRouter extends EventEmitter {
       if (this.ctx && this.ctx.candleAggregator && typeof this.ctx.candleAggregator.resetAll === 'function') {
         this.ctx.candleAggregator.resetAll();
       }
+      // Multi-Symbol Phase 4 (2026-04-29): clear all per-symbol contexts.
+      // Each context owns its own priceHistory + IndicatorEngine + Regime
+      // state. Across a venue swap, those buffers are cross-asset stale
+      // (TSLA's 200-candle EMA → BTC's first crypto candles). Reset all,
+      // then clear the map so re-activated symbols get fresh contexts.
+      if (this.ctx && this.ctx.symbolContexts && typeof this.ctx.symbolContexts.forEach === 'function') {
+        for (const [, sc] of this.ctx.symbolContexts) {
+          if (typeof sc.reset === 'function') sc.reset();
+        }
+        this.ctx.symbolContexts.clear();
+      }
       // 2026-04-28: NoWickImbalance pending-levels are per-asset — wipe on swap.
       if (this.ctx?.strategyOrchestrator?.noWickModule?.reset) {
         try { this.ctx.strategyOrchestrator.noWickModule.reset(); }
@@ -345,9 +373,15 @@ class SessionRouter extends EventEmitter {
 
       if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
 
-      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-      const primaryCrypto = this.cryptoSymbols[0] || 'BTC/USD';
-      if (this.krakenAdapter.subscribeToCandles) this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+      // Multi-Symbol Phase 3 (2026-04-29): subscribe to ALL cryptoSymbols on '1m'.
+      // Same pattern as stocks side — aggregator builds HTF, active-symbol guard
+      // in CandleProcessor preserves single-symbol trading correctness.
+      if (this.krakenAdapter.subscribeToCandles) {
+        for (const symbol of this.cryptoSymbols) {
+          this.krakenAdapter.subscribeToCandles(symbol, '1m');
+          console.log(`[SessionRouter] Subscribed to ${symbol} 1m bars`);
+        }
+      }
 
       if (this.onOhlcCallback && this.krakenAdapter.on) this.krakenAdapter.on('ohlc', this.onOhlcCallback);
 
@@ -387,8 +421,13 @@ class SessionRouter extends EventEmitter {
     this.activeSession = 'crypto';
     this.activeBroker = this.krakenAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-    if (this.krakenAdapter.subscribeToCandles) this.krakenAdapter.subscribeToCandles(this.cryptoSymbols[0] || 'BTC/USD', timeframe);
+    // Multi-Symbol Phase 3 (2026-04-29): subscribe to all cryptoSymbols on '1m'.
+    if (this.krakenAdapter.subscribeToCandles) {
+      for (const symbol of this.cryptoSymbols) {
+        this.krakenAdapter.subscribeToCandles(symbol, '1m');
+        console.log(`[SessionRouter] Subscribed to ${symbol} 1m bars`);
+      }
+    }
     if (this.onOhlcCallback && this.krakenAdapter.on) this.krakenAdapter.on('ohlc', this.onOhlcCallback);
     console.log('[SessionRouter] Initial activation: crypto');
     this._kickHistoricalBackfill('crypto');
@@ -408,17 +447,22 @@ class SessionRouter extends EventEmitter {
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-    // BUG FIX 2026-04-27: previously subscribed to ALL stockSymbols
-    // (TSLA, SPY, QQQ, NVDA, COIN, MARA, RIOT) — but CandleProcessor
-    // processes one stream at a time, so bars from MARA ($11) and QQQ
-    // ($664) contaminated TSLA's history. Bot bought "TSLA" at $664
-    // (QQQ price), notional math went phantom ($987k on $10k account),
-    // dashboard showed +$54K/+$84K/+$226K nonsense.
-    // Mirror the crypto pattern at L313 — subscribe to primary symbol only.
-    const primaryStock = this.stockSymbols[0] || 'TSLA';
+    // Multi-Symbol Phase 3 (2026-04-29): subscribe to ALL stockSymbols on '1m'.
+    // Re-introduces multi-symbol subscribe — REVERSED the 2026-04-27 single-symbol
+    // revert. The 4/27 phantom-position incident ($987k phantom on $10k account
+    // from MARA/QQQ contaminating TSLA) was caused by symbol-agnostic
+    // CandleProcessor (BTC-USD hardcode) routing every symbol's candle to one
+    // priceHistory. That root cause is closed by Phase 1+2 (be83caf):
+    //   - candleStore is per-(symbol, TF)
+    //   - CandleAggregator is per-symbol
+    //   - CandleProcessor's active-symbol guard ensures only the primary
+    //     symbol's candles touch global priceHistory/IndicatorEngine until
+    //     Phase 4's SymbolContext lands.
     if (this.alpacaAdapter.subscribeToCandles) {
-      this.alpacaAdapter.subscribeToCandles(primaryStock, timeframe);
+      for (const symbol of this.stockSymbols) {
+        this.alpacaAdapter.subscribeToCandles(symbol, '1m');
+        console.log(`[SessionRouter] Subscribed to ${symbol} 1m bars`);
+      }
     }
     if (this.onOhlcCallback && this.alpacaAdapter.on) this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
     console.log('[SessionRouter] Initial activation: stocks');
