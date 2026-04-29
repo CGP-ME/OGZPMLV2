@@ -29,7 +29,12 @@ module.exports = {
         // tightened float-equality. Pre-sweep validation — strategy is
         // disabled in code default; this flip turns it on. Sweep + walk-
         // forward will follow on the 7800X3D.
-        ENABLE_NOWICK: 'true'
+        ENABLE_NOWICK: 'true',
+        // 2026-04-29: OpeningRangeBreakout enabled for production observation
+        // parity with the parallel sweep campaign (CandlePattern, MTF, TPO,
+        // ORB). Strategy is disabled in code default; this flip turns it on.
+        // Sweep will validate before locking _validated.
+        ENABLE_ORB: 'true'
       }
     },
     {
