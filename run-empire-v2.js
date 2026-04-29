@@ -1227,21 +1227,14 @@ class OGZPrimeV14Bot {
         }
       }
 
-      // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-      // BUG FIX 2026-04-28 (Wolf's diagnosis): run15mTradingCycle() is a GHOST
-      // method — never existed in the class. Every candle close threw a silent
-      // TypeError caught by the unhandled-rejection handler. Bot was instead
-      // running analyzeAndTrade() via the 15-second timer below, which fires
-      // on noise-level price movements and entered/exited positions in seconds.
-      // Now calls analyzeAndTrade() directly — this is the validated edge
-      // (15-minute candle close = what the backtests trained on).
-      const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
-      if (timeframe === activeTf) {
-        console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-        this.analyzeAndTrade().catch(e =>
-          console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)
-        );
-      }
+      // Multi-Symbol Phase 3 (2026-04-29): trading-analysis trigger RELOCATED.
+      // Previously fired here when timeframe === activeTf — but with '1m'-only
+      // subscriptions per Phase 3, the broker never emits 15m, so the
+      // condition was never satisfied → analyzeAndTrade never fired → bot
+      // stops entering new positions. Trigger now lives in
+      // CandleProcessor.processNewCandle, fired on the candleAggregator's
+      // HTF emission for the active symbol only. Same event, different
+      // source, active-symbol-gated.
     };
   }
 

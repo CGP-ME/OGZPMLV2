@@ -54,23 +54,60 @@ class CandleProcessor {
    * @returns {boolean} true if new candle, false if update to existing
    */
   processNewCandle(candle) {
-    // Check if this is an update to existing candle or a new candle
+    // Multi-Symbol Phase 1+2+3 (2026-04-29): symbol-routed candle pipeline.
+    // candle.symbol now reliably set by normalizeOhlc → handleMarketData
+    // (Bug 1 fix in commit cd2bb6e). Fallback chain handles backfill /
+    // synthetic / non-broker paths.
+    const symbol = candle.symbol || this.ctx.activeSymbol || this.ctx.tradingPair || 'UNKNOWN';
+
+    // Phase 3 active-symbol GATE (2026-04-29): with multi-symbol subscribe
+    // (this same commit, in SessionRouter), 7 symbols' candles flow into
+    // this single processor. Only the ACTIVE symbol's candles drive the
+    // global priceHistory + IndicatorEngine + strategy modules + trading
+    // trigger. Other symbols flow into _candleStore + candleAggregator
+    // ONLY (data collection awaiting Phase 4 SymbolContext consumers).
+    // Closes the 4/27 phantom-position incident at the data-flow layer
+    // until Phase 4 lands the architectural per-symbol bucketing.
+    let activeSymbol;
+    const sr = this.ctx.sessionRouter;
+    if (sr && sr.enabled) {
+      activeSymbol = sr.activeSession === 'stocks'
+        ? (sr.stockSymbols?.[0] || 'TSLA')
+        : (sr.cryptoSymbols?.[0] || 'BTC/USD');
+    } else {
+      activeSymbol = this.ctx.tradingPair || 'UNKNOWN';
+    }
+    const isActive = (symbol === activeSymbol);
+
+    // ALWAYS write to candleStore + feed aggregator (per-symbol).
+    this.ctx._candleStore.addCandle(symbol, '1m', candle);
+
+    let completedCandles = [];
+    if (this.ctx.candleAggregator) {
+      completedCandles = this.ctx.candleAggregator.ingest(symbol, candle);
+      for (const { timeframe, candle: aggCandle } of completedCandles) {
+        this.ctx._candleStore.addCandle(symbol, timeframe, aggCandle);
+        // mtfAdapter is single-symbol internally; only feed for active.
+        if (isActive && this.ctx.mtfAdapter) {
+          this.ctx.mtfAdapter.ingestCandle(aggCandle, timeframe);
+        }
+      }
+    }
+
+    // GATE: non-active symbols stop here — data collection only.
+    if (!isActive) return undefined;
+
+    // isUpdate detection scoped to the active symbol's priceHistory only
+    // (because of the gate above, priceHistory only ever contains active-
+    // symbol candles). Pre-gate bug: a non-active candle with same etime
+    // as an active candle would match findIndex, route through isUpdate,
+    // and bypass the aggregator. Now closed.
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
     const isUpdate = existingIndex !== -1;
-
-    // Multi-Symbol Phase 1+2 (2026-04-29): symbol + timeframe derived from
-    // the candle itself. AlpacaAdapter sets candle.symbol=msg.S on every bar.
-    // Fallback chain handles backfill / synthetic / non-broker paths.
-    const symbol = candle.symbol || this.ctx.activeSymbol || this.ctx.tradingPair || 'UNKNOWN';
 
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
       this.ctx.priceHistory[existingIndex] = candle;
-      // Multi-Symbol Phase 1+2: 1m candles stored under their actual TF '1m'
-      // (was 'BTC-USD'/'15m'). Aggregator emissions populate '5m'/'15m'/'30m'.
-      this.ctx._candleStore.addCandle(symbol, '1m', candle);
-
-      // Feed IndicatorEngine for real-time updates
       if (this.ctx.indicatorEngine) {
         this.ctx.indicatorEngine.updateCandle({
           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
@@ -93,24 +130,6 @@ class CandleProcessor {
         }
       }
       this.ctx.priceHistory.splice(insertIndex, 0, candle);
-    }
-
-    // Multi-Symbol Phase 1+2: 1m candle under '1m' TF (was 'BTC-USD'/'15m').
-    this.ctx._candleStore.addCandle(symbol, '1m', candle);
-
-    // Multi-Symbol Phase 2: streaming aggregation from 1m → 5m/15m/30m.
-    // CandleAggregator buffers per (symbol, TF) and emits when a new period
-    // begins. Each emission is stored under its TRUE timeframe label, so
-    // candleStore.getCandles(symbol, '15m') returns real 15m candles, not
-    // the prior 1m-mislabeled-as-15m garbage.
-    if (this.ctx.candleAggregator) {
-      const completedCandles = this.ctx.candleAggregator.ingest(symbol, candle);
-      for (const { timeframe, candle: aggCandle } of completedCandles) {
-        this.ctx._candleStore.addCandle(symbol, timeframe, aggCandle);
-        if (this.ctx.mtfAdapter) {
-          this.ctx.mtfAdapter.ingestCandle(aggCandle, timeframe);
-        }
-      }
     }
 
     // Feed IndicatorEngine
@@ -145,6 +164,20 @@ class CandleProcessor {
     if (this.ctx.candleSaveCounter >= 5) {
       this.ctx.saveCandleHistory();
       this.ctx.candleSaveCounter = 0;
+    }
+
+    // Phase 3 trigger relocation (2026-04-29): previously analyzeAndTrade
+    // fired on broker's native 15m frame in createOhlcHandler. With '1m'-only
+    // subscriptions per Phase 3 (this commit), the broker never emits 15m
+    // — trigger moves here, fired on the candleAggregator's HTF emission
+    // for the active symbol only.
+    const activeTf = this.ctx.timeframeSelector?.currentTimeframe || '15m';
+    const triggerEmission = completedCandles.find(e => e.timeframe === activeTf);
+    if (triggerEmission && typeof this.ctx.analyzeAndTrade === 'function') {
+      console.log(`V2: ${activeTf} candle closed (aggregator-emitted) for ${symbol} — running trading analysis`);
+      this.ctx.analyzeAndTrade().catch(e =>
+        console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)
+      );
     }
 
     return true; // Was new candle
