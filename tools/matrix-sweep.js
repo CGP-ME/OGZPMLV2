@@ -96,6 +96,23 @@ const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
                         'tsla-train', 'tsla-test',
                         'tsla-15m-unseen', 'tsla-unseen'];
 
+// Multi-Symbol Phase 3 backtest fix (2026-04-30): post-9be305b
+// CandleProcessor routes per-symbol via ctx.tradingPair-vs-candle.symbol
+// matching. Live mode sets tradingPair from TRADING_PAIR env / broker layer;
+// backtest worker had no broker, so tradingPair fell to its 'BTC-USD' default
+// (ConfigLoader.js:179) while strategy code expected stock symbols → silent
+// zero-trade runs across the entire sweep grid. Map per --data shortcut key,
+// inject as TRADING_PAIR in the worker env block. Restores live=backtest
+// parity through the same env path the broker layer uses; no patches in
+// BacktestRunner or CandleProcessor.
+const SYMBOL_MAP = {
+  'tsla': 'TSLA', 'tsla-train': 'TSLA', 'tsla-test': 'TSLA',
+  'tsla-15m-unseen': 'TSLA', 'tsla-unseen': 'TSLA',
+  'spy': 'SPY', 'qqq': 'QQQ', 'nvda': 'NVDA',
+  'riot': 'RIOT', 'mara': 'MARA', 'coin': 'COIN',
+  'btc': 'BTC/USD',
+};
+
 // Extract human-readable label from data file path
 // 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
 // 'tuning/tsla-15m-train.json' → 'tsla-train'
@@ -268,7 +285,7 @@ function generateMatrix(strategies, grid, phase) {
 // (Same pattern as parallel-backtest.js)
 // ===================================================================
 
-function runWorker(config, dataFile, stockMode) {
+function runWorker(config, dataFile, stockMode, backtestSymbol) {
   return new Promise(function(resolve) {
     var startTime = Date.now();
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
@@ -311,6 +328,17 @@ function runWorker(config, dataFile, stockMode) {
       NODE_ENV: 'test',
       BACKTEST_REPORT_TAG: uid,
       STRATEGY_DIAG: 'false',
+      // Multi-Symbol Phase 3 backtest fix (2026-04-30): post-9be305b
+      // CandleProcessor routes per-symbol — bars without a matching active
+      // symbol fall to the non-active branch (CandleProcessor.js:185-188) and
+      // the analyzeAndTrade trigger never fires, producing silent zero-trade
+      // runs. Live path sets tradingPair from TRADING_PAIR env (ConfigLoader
+      // line 178) and the broker layer; backtest worker had no broker, so
+      // tradingPair fell to its 'BTC-USD' default while bars carried 'TSLA' →
+      // mismatch. Setting TRADING_PAIR per the --data shortcut restores live/
+      // backtest parity through the same env path. SYMBOL_MAP is the single
+      // source of truth: 'tsla*' → 'TSLA', 'btc' → 'BTC/USD', etc.
+      TRADING_PAIR: backtestSymbol || 'TSLA',
     }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env);
 
     var output = '';
@@ -454,7 +482,7 @@ function tryReadReport(projectRoot, tag) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol) {
   var totalStart = Date.now();
 
   console.log('\n' + '='.repeat(72));
@@ -483,7 +511,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
 
     var batchResults = await Promise.all(
-      batch.map(function(c) { return runWorker(c, dataFile, stockMode); })
+      batch.map(function(c) { return runWorker(c, dataFile, stockMode, backtestSymbol); })
     );
 
     batchResults.forEach(function(r) { results.push(r); });
@@ -632,6 +660,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
 async function main() {
   var args = process.argv.slice(2);
   var dataFile = 'tuning/tsla-15m-2y.json';
+  var dataKey = 'tsla';  // Multi-Symbol Phase 3 fix: track shortcut key for SYMBOL_MAP lookup
   var stockMode = false;
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
@@ -641,10 +670,12 @@ async function main() {
     if (args[i] === '--data' && args[i + 1]) {
       var val = args[++i].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i];
+      dataKey = val;
       if (STOCK_TICKERS.indexOf(val) !== -1) stockMode = true;
     } else if (args[i].indexOf('--data=') === 0) {
       var dval = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[dval] || args[i].split('=')[1];
+      dataKey = dval;
       if (STOCK_TICKERS.indexOf(dval) !== -1) stockMode = true;
     } else if (args[i] === '--phase' && args[i + 1]) {
       phase = args[++i];
@@ -669,6 +700,7 @@ async function main() {
     } else if (DATA_SHORTCUTS[args[i] ? args[i].toLowerCase() : '']) {
       var key = args[i].toLowerCase();
       dataFile = DATA_SHORTCUTS[key];
+      dataKey = key;
       if (STOCK_TICKERS.indexOf(key) !== -1) stockMode = true;
     } else if (args[i] === '--help') {
       console.log('\nOGZPrime Matrix Sweep Backtester');
@@ -738,7 +770,13 @@ async function main() {
   console.log('  Strategies: ' + strategies.join(', '));
   console.log('  Total configs: ' + configs.length);
 
-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase);
+  // Multi-Symbol Phase 3 backtest fix (2026-04-30): resolve ticker from --data
+  // shortcut key. SYMBOL_MAP miss → uppercase the key (e.g. 'aapl' → 'AAPL').
+  // Final fallback to TSLA so legacy default invocations still tag candles.
+  var backtestSymbol = SYMBOL_MAP[dataKey] || dataKey.toUpperCase() || 'TSLA';
+  console.log('  Symbol: ' + backtestSymbol + ' (from --data ' + dataKey + ')');
+
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol);
 }
 
 main().catch(function(err) {
