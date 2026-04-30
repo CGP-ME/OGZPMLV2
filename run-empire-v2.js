@@ -1148,7 +1148,30 @@ class OGZPrimeV14Bot {
         // Subscribe to broker events instead of direct connection
         this.subscribeToMarketData();
 
-        // RECONCILER REMOVED - was blocking trades
+        // Wolf CC-SPEC-POST-PHASE3 Commit 9 (2026-04-30): wire
+        // ExchangeReconciler back in. Prior comment ("RECONCILER REMOVED -
+        // was blocking trades") flagged a real issue with the previous
+        // wire-up; the current ExchangeReconciler honors paperMode (skip
+        // reconciliation entirely; line 88-92 of core/ExchangeReconciler.js)
+        // so paper-trading boots are no-ops. Live mode will actually
+        // reconcile against the broker.
+        //
+        // ARCHITECTURAL GAP (out of scope for this commit, queued
+        // before live): ExchangeReconciler is currently Kraken-specific
+        // (krakenAdapter field, hardcoded BTC drift lookup at line 208,
+        // line 175 TODO comment). Going live with SessionRouter swap-on
+        // requires the adapter-agnostic refactor Wolf's spec flagged.
+        // Tonight's wire-up gives us the gate scaffolding; the multi-
+        // broker reconciliation is a separate commit.
+        // Module exports { ExchangeReconciler, getInstance } — destructure
+        // the class. Whole-object require would give 'not a constructor'.
+        const { ExchangeReconciler } = require('./core/ExchangeReconciler');
+        this.reconciler = new ExchangeReconciler({
+          krakenAdapter: this.kraken,
+          paperMode: this.paperTrading,
+        });
+        await this.reconciler.start(true);  // blockUntilFirst — paper no-ops
+        console.log('[EMPIRE V2] Reconciliation gate PASSED — trading enabled');
 
         // EVENT LOOP MONITORING: DISABLED 2026-02-04
         // if (this.eventLoopMonitor) {

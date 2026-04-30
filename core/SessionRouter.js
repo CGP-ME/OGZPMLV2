@@ -458,6 +458,27 @@ class SessionRouter extends EventEmitter {
       this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: stocks session');
       this._kickHistoricalBackfill('stocks');
+      // Wolf CC-SPEC-POST-PHASE3 Commit 9 (2026-04-30): post-swap
+      // reconciliation. paperMode reconcilers no-op; live reconcilers
+      // verify the new venue's broker state matches StateManager records.
+      // Failure-mode in live: if reconciliation fails, ExchangeReconciler
+      // calls stateManager.pauseTrading internally — operator must review.
+      // Optional-chained because reconciler may not be wired (e.g., during
+      // backtest mode where the wire-up at run-empire-v2.js is skipped).
+      if (this.ctx?.reconciler) {
+        // Mercury Round-1 attack B: post-swap reconciliation failure means
+        // broker state doesn't match StateManager records. Catching+
+        // continuing would let the transition mark ACTIVE despite divergent
+        // state — exactly the half-swapped class of bug FAULTED is meant
+        // to expose. Rethrow so the outer catch routes to FAULTED.
+        try {
+          await this.ctx.reconciler.reconcileNow();
+          console.log('[SessionRouter] Post-swap reconciliation complete');
+        } catch (recErr) {
+          console.error('[SessionRouter] Post-swap reconciliation threw:', recErr.message);
+          throw new Error(`post-swap reconciliation failed: ${recErr.message}`);
+        }
+      }
 
     } catch (err) {
       // Wolf CC-SPEC-POST-PHASE3 Commit 5: enter FAULTED state instead of
@@ -601,6 +622,22 @@ class SessionRouter extends EventEmitter {
       this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: crypto session');
       this._kickHistoricalBackfill('crypto');
+      // Wolf Commit 9 post-swap reconciliation — see matching block in
+      // _transitionToStocks above for full reasoning.
+      if (this.ctx?.reconciler) {
+        // Mercury Round-1 attack B: post-swap reconciliation failure means
+        // broker state doesn't match StateManager records. Catching+
+        // continuing would let the transition mark ACTIVE despite divergent
+        // state — exactly the half-swapped class of bug FAULTED is meant
+        // to expose. Rethrow so the outer catch routes to FAULTED.
+        try {
+          await this.ctx.reconciler.reconcileNow();
+          console.log('[SessionRouter] Post-swap reconciliation complete');
+        } catch (recErr) {
+          console.error('[SessionRouter] Post-swap reconciliation threw:', recErr.message);
+          throw new Error(`post-swap reconciliation failed: ${recErr.message}`);
+        }
+      }
 
     } catch (err) {
       // Wolf CC-SPEC-POST-PHASE3 Commit 5: enter FAULTED state. See
