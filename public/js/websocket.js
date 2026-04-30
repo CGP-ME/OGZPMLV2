@@ -17,7 +17,20 @@
             ws.onopen = () => {
                 reconnectAttempts = 0;
                 console.log('[Socket] Connected.');
-                this.send({ type: 'auth', token: '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62' });
+                // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime
+                // token injection. Token is read from <meta name="ws-token">
+                // (server-side injectable via custom route handler) or from
+                // window.OGZ_DASHBOARD_TOKEN (set by an inline script tag).
+                // Empty string falls back to no-auth — server will reject
+                // and dashboard surfaces a clear auth-failure error rather
+                // than silently using a leaked literal.
+                const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
+                const token = (metaToken && metaToken !== '') ? metaToken
+                    : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
+                if (!token) {
+                    console.warn('[Socket] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+                }
+                this.send({ type: 'auth', token });
             };
 
             ws.onmessage = (e) => {
