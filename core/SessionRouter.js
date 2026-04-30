@@ -58,6 +58,13 @@ class SessionRouter extends EventEmitter {
     this.transitionInProgress = false;
     this.lastTransitionAt = 0;
     this.intervalId = null;
+    // Wolf CC-SPEC-POST-PHASE3 Commit 5 (2026-04-30): FAULTED state.
+    // Set true when a transition catch fires. Once true, _checkTransition
+    // short-circuits — no further auto-resume, no more transition attempts.
+    // Existing-position exits remain allowed (stateManager.resumeTrading is
+    // NOT called from the catch). Manual recovery: clear flag from a debug
+    // RPC or process restart after operator review.
+    this.faulted = false;
 
     this.stockSymbols = config.stockSymbols || ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'];
     this.cryptoSymbols = config.cryptoSymbols || ['BTC/USD','ETH/USD','SOL/USD'];
@@ -305,6 +312,11 @@ class SessionRouter extends EventEmitter {
   }
 
   _checkTransition() {
+    // Wolf CC-SPEC-POST-PHASE3 Commit 5: stop attempting transitions once
+    // faulted. A FAULTED router stays paused until operator review and
+    // process restart. Continuing to fire transition attempts after a
+    // failure would compound state divergence.
+    if (this.faulted) return;
     if (this.transitionInProgress) return;
 
     const now = new Date(this.clock());
@@ -324,6 +336,12 @@ class SessionRouter extends EventEmitter {
   async _transitionToStocks(now) {
     this.transitionInProgress = true;
     const ny = getNYTimeParts(now);
+    // Mercury Commit-5 attack E: capture source session at method entry.
+    // activeSession may be mutated mid-transition (e.g., set to 'stocks'
+    // on the success path before the resumeTrading call); using the live
+    // value in the faulted event reports the wrong direction. Capture
+    // here so diagnostic accurately reflects what we transitioned FROM.
+    const sourceSession = this.activeSession;
     console.log(`[SessionRouter] TRANSITION: crypto -> stocks at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
 
     try {
@@ -442,8 +460,26 @@ class SessionRouter extends EventEmitter {
       this._kickHistoricalBackfill('stocks');
 
     } catch (err) {
-      console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
-      try { await this.stateManager.resumeTrading(); } catch (e) {}
+      // Wolf CC-SPEC-POST-PHASE3 Commit 5: enter FAULTED state instead of
+      // silently auto-resuming. Auto-resume after a failed transition meant
+      // the bot would re-enter the new venue while half-swapped (broker
+      // not flat, stale subscriptions, etc.) — the half-swapped-state
+      // class of bugs Mercury Finding 5 (Commit 1) called out. FAULTED
+      // freezes further transitions; operator must review logs and
+      // restart the process. Existing-position exits remain allowed
+      // (stateManager.resumeTrading is intentionally NOT called).
+      console.error(`[SessionRouter] TRANSITION FAILED (crypto -> stocks): ${err.message}`);
+      console.error('[SessionRouter] Entering FAULTED state — entries disabled, manual review required');
+      this.faulted = true;
+      // Mercury Commit-5 attack D: wrap emit in try/catch. EventEmitter is
+      // synchronous; a listener that throws would propagate out of this
+      // catch block and bypass the FAULTED state we just entered. Wrap so
+      // a buggy listener can't undo the safety entry.
+      try {
+        this.emit('faulted', { error: err.message, from: sourceSession, target: 'stocks' });
+      } catch (emitErr) {
+        console.error('[SessionRouter] faulted event listener threw:', emitErr.message);
+      }
     } finally {
       this.transitionInProgress = false;
     }
@@ -452,6 +488,7 @@ class SessionRouter extends EventEmitter {
   async _transitionToCrypto(now) {
     this.transitionInProgress = true;
     const ny = getNYTimeParts(now);
+    const sourceSession = this.activeSession;  // Mercury Commit-5 attack E: capture before mutation
     console.log(`[SessionRouter] TRANSITION: stocks -> crypto at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
 
     try {
@@ -566,8 +603,16 @@ class SessionRouter extends EventEmitter {
       this._kickHistoricalBackfill('crypto');
 
     } catch (err) {
-      console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
-      try { await this.stateManager.resumeTrading(); } catch (e) {}
+      // Wolf CC-SPEC-POST-PHASE3 Commit 5: enter FAULTED state. See
+      // matching comment in _transitionToStocks above for full reasoning.
+      console.error(`[SessionRouter] TRANSITION FAILED (stocks -> crypto): ${err.message}`);
+      console.error('[SessionRouter] Entering FAULTED state — entries disabled, manual review required');
+      this.faulted = true;
+      try {
+        this.emit('faulted', { error: err.message, from: sourceSession, target: 'crypto' });
+      } catch (emitErr) {
+        console.error('[SessionRouter] faulted event listener threw:', emitErr.message);
+      }
     } finally {
       this.transitionInProgress = false;
     }
