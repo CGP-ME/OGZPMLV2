@@ -288,26 +288,122 @@ class AlpacaAdapter extends IBrokerAdapter {
         return this._placeOrder(symbol, amount, 'sell', price, options);
     }
 
-    async _placeOrder(symbol, qty, side, price = null, options = {}) {
+    async _placeOrder(symbol, amount, side, price = null, options = {}) {
+        // Mercury Round 1 attacks B/F: defensive amount validation. NaN slips
+        // past Math.floor (NaN <= 0 is false), strings/undefined throw on
+        // toFixed mid-call. Validate at function entry so all downstream
+        // arithmetic and formatting see a clean Number.
+        if (!Number.isFinite(amount) || amount <= 0) {
+            throw new Error(`[Alpaca] Invalid amount: ${amount} (must be finite positive number)`);
+        }
+        // Mercury Round 4 attack H: price finiteness validation when present.
+        // `price && price > 0` truthy-check accepts Infinity (Infinity > 0 is
+        // true). Symmetric guard with amount: if price is supplied, it must
+        // be a finite positive Number. null/undefined skip the limit branch
+        // entirely (market order path).
+        if (price != null && (!Number.isFinite(price) || price <= 0)) {
+            throw new Error(`[Alpaca] Invalid price: ${price} (must be null or finite positive number)`);
+        }
+        // Mercury Round 3 attack E + Round 4 attack B: symbol validation.
+        // Empty string passes toBrokerSymbol() and produces a malformed
+        // payload; null/undefined throws a confusing TypeError mid-call.
+        // Internal whitespace (' tsla ', 'TS LA') survives toBrokerSymbol's
+        // simple split('/').toUpperCase() and reaches Alpaca, which rejects.
+        // Clear diagnostic at the adapter boundary.
+        if (!symbol || typeof symbol !== 'string' || symbol !== symbol.trim() || /\s/.test(symbol)) {
+            throw new Error(`[Alpaca] Invalid symbol: '${symbol}' (must be non-empty string without whitespace)`);
+        }
         try {
+            // Wolf CC-SPEC-POST-PHASE3-EXECUTION-QUEUE Commit 2 (2026-04-30):
+            // 3-branch USD/shares dispatch. Prior code did `qty: amount.toString()`
+            // unconditionally, so callers passing USD ($500) sent it as share
+            // count to Alpaca's REST API ($500 → 500 shares = $187.5K). This
+            // method now interprets `amount` according to options.isShareQty:
+            //   - isShareQty=true: amount IS shares (close paths, Commit 4)
+            //   - limit order: convert USD→shares via floor(amount / price)
+            //     (Alpaca limit orders cannot use `notional`)
+            //   - default (market open): use Alpaca's `notional` field (USD)
+            //
+            // Mercury Round 1 attacks C/D: tighten `price ? 'limit' : 'market'`
+            // truthy check to `price > 0`. Negative or zero price was previously
+            // treated as a limit order at the type-selector but excluded from
+            // the limit-conversion branch, producing a malformed payload with
+            // both notional AND limit_price. Both checks now agree on `> 0`.
             const orderData = {
                 symbol: this.toBrokerSymbol(symbol),
-                qty: qty.toString(),
                 side: side,
-                type: price ? 'limit' : 'market',
+                type: (price && price > 0) ? 'limit' : 'market',
                 time_in_force: options.timeInForce || 'day'
             };
 
-            if (price) {
+            if (options.isShareQty) {
+                // Close orders pass actual share count (Commit 4 wires this)
+                orderData.qty = Math.abs(amount).toString();
+                console.log(`[Alpaca] Share-qty order: ${amount} shares ${side} ${symbol}`);
+            } else if (price && price > 0) {
+                // Limit order with USD: Alpaca limit orders require `qty`.
+                // Floor-convert USD to whole shares at the limit price.
+                // Mercury Round 2 attack A: extremely small price (e.g.
+                // Number.EPSILON) makes amount/price overflow to Infinity,
+                // which floor returns unchanged; `Infinity <= 0` is false
+                // so the prior guard didn't catch it, and the adapter sent
+                // qty="Infinity" to Alpaca. Number.isFinite() rejects both
+                // Infinity and NaN.
+                const shares = Math.floor(amount / price);
+                if (!Number.isFinite(shares) || shares <= 0) {
+                    throw new Error(`Invalid share count: ${shares} (amount=$${amount.toFixed(2)}, price=$${price.toFixed(2)})`);
+                }
+                orderData.qty = shares.toString();
+                console.log(`[Alpaca] USD→shares: $${amount.toFixed(2)} / $${price.toFixed(2)} = ${shares} shares ${side} ${symbol}`);
+            } else {
+                // Market order with USD amount: notional is Alpaca's USD field.
+                // Mercury Round 4 attack C: Alpaca's documented minimum notional
+                // is $1. Sub-$1 amounts pass the positive-finite guard but get
+                // rejected by Alpaca with a cryptic error. Fail-fast at the
+                // adapter for a clear diagnostic.
+                if (amount < 1) {
+                    throw new Error(`[Alpaca] Notional below $1 minimum: $${amount.toFixed(2)} (Alpaca rejects sub-$1 notional orders)`);
+                }
+                orderData.notional = amount.toFixed(2);
+                console.log(`[Alpaca] Notional order: $${amount.toFixed(2)} ${side} ${symbol}`);
+            }
+
+            if (price && price > 0) {
                 orderData.limit_price = price.toString();
             }
 
-            // Bracket order support (SL + TP)
+            // Bracket order support (SL + TP).
+            // Mercury Round 1 attack E: bracket and OTO orders REQUIRE `qty` —
+            // Alpaca rejects payloads that combine `notional` with bracket/OTO
+            // class. Fail-fast if a caller passes SL/TP for a market+USD
+            // (notional) order; the caller must supply isShareQty=true with
+            // actual share count. This keeps a malformed REST call from ever
+            // hitting the wire.
+            //
+            // Mercury Round 2 attack D: validate stopLoss/takeProfit are
+            // finite positive numbers before .toString(). Same defense as
+            // amount — NaN/Infinity/string at boundary would produce a
+            // malformed payload Alpaca rejects.
             if (options.stopLoss && options.takeProfit) {
+                if (!Number.isFinite(options.stopLoss) || options.stopLoss <= 0) {
+                    throw new Error(`[Alpaca] Invalid stopLoss: ${options.stopLoss} (must be finite positive number)`);
+                }
+                if (!Number.isFinite(options.takeProfit) || options.takeProfit <= 0) {
+                    throw new Error(`[Alpaca] Invalid takeProfit: ${options.takeProfit} (must be finite positive number)`);
+                }
+                if (orderData.notional) {
+                    throw new Error(`[Alpaca] Bracket orders require qty, not notional. Pass options.isShareQty=true with share count for bracket+market USD orders.`);
+                }
                 orderData.order_class = 'bracket';
                 orderData.stop_loss = { stop_price: options.stopLoss.toString() };
                 orderData.take_profit = { limit_price: options.takeProfit.toString() };
             } else if (options.stopLoss) {
+                if (!Number.isFinite(options.stopLoss) || options.stopLoss <= 0) {
+                    throw new Error(`[Alpaca] Invalid stopLoss: ${options.stopLoss} (must be finite positive number)`);
+                }
+                if (orderData.notional) {
+                    throw new Error(`[Alpaca] OTO orders require qty, not notional. Pass options.isShareQty=true with share count for OTO+market USD orders.`);
+                }
                 orderData.order_class = 'oto';
                 orderData.stop_loss = { stop_price: options.stopLoss.toString() };
             }
@@ -316,13 +412,37 @@ class AlpacaAdapter extends IBrokerAdapter {
                 headers: this._authHeaders()
             });
 
+            // Mercury Round 5 attack G: defensive response parsing.
+            // For notional orders, Alpaca's response populates `notional`
+            // and `qty` may be empty/pending until fill. Prior code did
+            // `parseFloat(response.data.qty)` only — returned NaN for
+            // notional orders, propagating upstream as activeTrade.amount=NaN.
+            // Fallback chain mirrors the price field's existing defensive
+            // pattern: try qty → filled_qty → notional → 0.
+            //
+            // Mercury Round 6 attack E: output finiteness symmetric with
+            // input validation. parseFloat of malformed strings (e.g. "1e309")
+            // returns Infinity. Clamp to 0 with warning so caller always
+            // gets a finite non-negative Number.
+            const rawRespAmount = parseFloat(
+                response.data.qty ||
+                response.data.filled_qty ||
+                response.data.notional ||
+                0
+            );
+            let respAmount = rawRespAmount;
+            if (!Number.isFinite(respAmount) || respAmount < 0) {
+                console.warn(`[Alpaca] Malformed response amount: ${rawRespAmount} (qty=${response.data.qty}, filled_qty=${response.data.filled_qty}, notional=${response.data.notional}); defaulting to 0`);
+                respAmount = 0;
+            }
             return {
                 orderId: response.data.id,
                 status: response.data.status,
                 symbol: response.data.symbol,
                 side: response.data.side,
                 price: parseFloat(response.data.limit_price || response.data.filled_avg_price || 0),
-                amount: parseFloat(response.data.qty)
+                amount: respAmount,
+                notional: parseFloat(response.data.notional || 0)
             };
         } catch (error) {
             throw new Error(`[Alpaca] Failed to place ${side} order: ${error.response?.data?.message || error.message}`);
