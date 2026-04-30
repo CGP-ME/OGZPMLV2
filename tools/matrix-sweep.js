@@ -352,22 +352,16 @@ function runWorker(config, dataFile, stockMode, backtestSymbol, backtestBroker) 
       NODE_ENV: 'test',
       BACKTEST_REPORT_TAG: uid,
       STRATEGY_DIAG: 'false',
-      // Multi-Symbol Phase 3 backtest fix (2026-04-30): post-9be305b
-      // CandleProcessor routes per-symbol — bars without a matching active
-      // symbol fall to the non-active branch (CandleProcessor.js:185-188) and
-      // the analyzeAndTrade trigger never fires, producing silent zero-trade
-      // runs. Live path sets tradingPair from TRADING_PAIR env (ConfigLoader
-      // line 178) and the broker layer; backtest worker had no broker, so
-      // tradingPair fell to its 'BTC-USD' default while bars carried 'TSLA' →
-      // mismatch. Setting TRADING_PAIR per the --data shortcut restores live/
-      // backtest parity through the same env path. SYMBOL_MAP is the single
-      // source of truth: 'tsla*' → 'TSLA', 'btc' → 'BTC/USD', etc.
+    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env, {
+      // Mercury pass 3 fix (2026-04-30): BROKER and TRADING_PAIR are policy
+      // invariants — derived from SYMBOL_MAP, not user-overridable. Placed
+      // LAST in the Object.assign chain so they win against any future
+      // config.env drift that adds these keys. Anything else (SOLO_STRATEGY,
+      // STOP_LOSS_PERCENT, MIN_TRADE_CONFIDENCE, tier targets, etc.) stays
+      // overridable by config.env where the per-config sweep params live.
       TRADING_PAIR: backtestSymbol || 'TSLA',
-    // Mercury re-attack fix (2026-04-30): broker is keyed off SYMBOL_MAP, not
-    // a separate stockMode flag. stockMode still drives the fee zeroing for
-    // stocks, but BROKER comes from the same source as TRADING_PAIR so the
-    // two can never disagree.
-    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, { BROKER: backtestBroker }, config.env);
+      BROKER: backtestBroker,
+    });
 
     var output = '';
     var child = spawn('node', [RUNNER], {
