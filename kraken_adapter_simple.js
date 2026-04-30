@@ -623,27 +623,43 @@ class KrakenAdapterSimple {
         // Kraken intervals: 1=1m, 5=5m, 15=15m, 30=30m, 60=1h, 240=4h, 1440=1d
         const ohlcIntervals = [1, 5, 15, 30, 60, 240, 1440];
 
-        this.ws.send(JSON.stringify(tickerSub));
-
-        for (const interval of ohlcIntervals) {
-          const ohlcSub = {
-            event: 'subscribe',
-            pair: ['XBT/USD'],
-            subscription: {
-              name: 'ohlc',
-              interval: interval
-            }
-          };
-          this.ws.send(JSON.stringify(ohlcSub));
-        }
-        // Subscribe to order book for depth/whale wall detection
         const bookSub = {
           event: 'subscribe',
           pair: [this.tradingPair],
           subscription: { name: 'book', depth: 25 }
         };
-        this.ws.send(JSON.stringify(bookSub));
-        console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
+
+        // FIX 2026-04-30: defer subscription sends to next-tick. The 'open'
+        // event handler can fire BEFORE ws.readyState transitions to OPEN(1)
+        // in environments with async-hooks instrumentation (Sentry +
+        // OpenTelemetry, both present in this process's hot path). Sync
+        // ws.send() inside this handler would then throw 'WebSocket is not
+        // open: readyState 0 (CONNECTING)' as an uncaught exception, killing
+        // the process. setImmediate runs after current-tick I/O callbacks
+        // finish (when the ws library finalizes its state). The defensive
+        // readyState check is belt-and-suspenders — if for any reason we're
+        // still CONNECTING, log and bail; the 'close' handler's reconnect
+        // logic will retry the whole subscription flow on the next attempt.
+        setImmediate(() => {
+          if (!this.ws || this.ws.readyState !== 1) {
+            console.error(`[Kraken] WS 'open' fired but readyState=${this.ws?.readyState}; subscriptions deferred to reconnect`);
+            return;
+          }
+          try {
+            this.ws.send(JSON.stringify(tickerSub));
+            for (const interval of ohlcIntervals) {
+              this.ws.send(JSON.stringify({
+                event: 'subscribe',
+                pair: ['XBT/USD'],
+                subscription: { name: 'ohlc', interval }
+              }));
+            }
+            this.ws.send(JSON.stringify(bookSub));
+            console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
+          } catch (sendErr) {
+            console.error('[Kraken] Subscription send failed:', sendErr.message);
+          }
+        });
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that
