@@ -3776,10 +3776,20 @@
                 document.getElementById('statusText').textContent = 'Connected';
                 backoffMs = 250;
 
-                // Auth
+                // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime
+                // token injection — see public/js/websocket.js for full
+                // explanation. Token from <meta name="ws-token"> or
+                // window.OGZ_DASHBOARD_TOKEN; empty falls through to
+                // server-side auth rejection rather than leaking a literal.
+                const __metaToken = document.querySelector('meta[name="ws-token"]')?.content;
+                const __authToken = (__metaToken && __metaToken !== '') ? __metaToken
+                    : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
+                if (!__authToken) {
+                    console.warn('[WS] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+                }
                 ws.send(JSON.stringify({
                     type: 'auth',
-                    token: '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'
+                    token: __authToken
                 }));
 
                 // Start heartbeat to keep connection alive

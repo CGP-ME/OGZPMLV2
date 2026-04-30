@@ -382,8 +382,16 @@
       ws.onopen = () => {
         console.log('[TRAI Widget] Connected to WebSocket');
 
-        // Authenticate with the WebSocket server (same token as dashboard)
-        const authToken = '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62';
+        // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime token
+        // injection. See public/js/websocket.js for the matching pattern.
+        // Token comes from <meta name="ws-token"> (server-injectable) or
+        // window.OGZ_DASHBOARD_TOKEN (manual). Empty → server-side reject.
+        const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
+        const authToken = (metaToken && metaToken !== '') ? metaToken
+            : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
+        if (!authToken) {
+          console.warn('[TRAI Widget] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+        }
         ws.send(JSON.stringify({
           type: 'auth',
           token: authToken
