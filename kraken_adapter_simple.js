@@ -147,15 +147,25 @@ class KrakenAdapterSimple {
   }
 
   // CHANGE 2025-12-13: Step 4 - Queue-based request handling (no recursion)
-  async makePrivateRequest(endpoint, data = {}) {
+  async makePrivateRequest(endpoint, data = {}, options = {}) {
     return new Promise((resolve, reject) => {
-      // Add request to queue
+      // Add request to queue. Optional `options.timeout` (ms) is threaded
+      // through to axios.post in processQueue — Mercury Commit-3 Round-4
+      // fix for the dangling-axios-on-Promise.race leak. Default behavior
+      // (no timeout) preserved for all existing callers since options is
+      // an additive third parameter.
+      // Mercury Round-5 attacks B + C: validate timeout is a strictly
+      // positive number. Negative/zero/non-number values fall through to
+      // null (no timeout). Without this, `timeout: 0` was falsy in the
+      // downstream guard and silently behaved as no-timeout, while
+      // `timeout: -100` would be passed to axios with undefined behavior.
       this.requestQueue.push({
         endpoint,
         data,
         resolve,
         reject,
-        retries: 0
+        retries: 0,
+        timeout: (typeof options.timeout === 'number' && options.timeout > 0) ? options.timeout : null
       });
 
       // Start queue processor if not running
@@ -207,13 +217,18 @@ class KrakenAdapterSimple {
       hmac.update(hash);
       const signature = hmac.digest('base64');
 
-      const response = await axios.post(`${this.baseUrl}${request.endpoint}`, postData, {
+      const axiosConfig = {
         headers: {
           'API-Key': this.apiKey,
           'API-Sign': signature,
           'Content-Type': 'application/x-www-form-urlencoded'
         }
-      });
+      };
+      // Thread per-request timeout (Mercury Commit-3 Round-4 fix). Native
+      // axios timeout aborts the underlying request on timeout, unlike
+      // Promise.race wrappers which leave the request dangling.
+      if (request.timeout) axiosConfig.timeout = request.timeout;
+      const response = await axios.post(`${this.baseUrl}${request.endpoint}`, postData, axiosConfig);
 
       // Success - reset backoff
       this.rateLimitBackoff = 1000;

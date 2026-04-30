@@ -242,6 +242,61 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     throw new Error('[KrakenIBroker] cancelOrder not implemented in kraken_adapter_simple');
   }
 
+  /**
+   * Cancel ALL open orders on Kraken. Used by SessionRouter force-close
+   * path (Wolf CC-SPEC-POST-PHASE3 Commit 3 / GPT finding #6) to clear
+   * the book before submitting close orders on a venue swap. Without
+   * this, stale open orders survive the swap and could fill on the
+   * wrong side after the position is closed.
+   *
+   * Kraken REST: /0/private/CancelAll cancels all open orders. Returns
+   * { count: N } indicating how many were canceled. Errors here are
+   * non-fatal — caller (SessionRouter) should proceed with close orders
+   * even on partial failure since reconciliation will catch any survivors.
+   */
+  async cancelAllOrders() {
+    try {
+      // Mercury Round-3 attack F + Round-4 attack A: native 30s timeout
+      // via the makePrivateRequest options third param (kraken_adapter_simple
+      // threads timeout to axios.post). Native axios timeout aborts the
+      // underlying request — earlier Promise.race wrapper would have left
+      // the axios call dangling after the timer fired (resource leak per
+      // hung swap).
+      const response = await this.kraken.makePrivateRequest(
+        '/0/private/CancelAll',
+        {},
+        { timeout: 30000 }
+      );
+      // Mercury Round-2 attacks F + H + Round-3 attack C: structural shape
+      // validation. If makePrivateRequest somehow resolves with null/
+      // undefined, a primitive, or an array (Kraken occasionally returns
+      // an error-string array on auth/validation failure), optional
+      // chaining would bypass the error check below and falsely return
+      // true. Validate the response is a non-null, non-array object.
+      if (!response || typeof response !== 'object' || Array.isArray(response)) {
+        console.error('[KrakenIBroker] Cancel all returned malformed response:', response);
+        return false;
+      }
+      // Mercury Commit-3 attack B: Kraken returns { error: [...], result: {...} }
+      // even on HTTP 200 for some error classes (auth, rate-limit, validation).
+      // makePrivateRequest at kraken_adapter_simple.js:220 does
+      // `request.resolve(response.data)` without checking the error array,
+      // so errors silently pass through. We must inspect response.error
+      // ourselves; non-empty error array means the cancel did NOT succeed
+      // (or only partially succeeded) and we cannot honestly return true.
+      if (Array.isArray(response.error) && response.error.length > 0) {
+        console.error(`[KrakenIBroker] Cancel all orders returned errors: ${response.error.join(', ')}`);
+        return false;
+      }
+      const count = response?.count ?? response?.result?.count ?? 0;
+      console.log(`[KrakenIBroker] All open orders canceled (count=${count})`);
+      return true;
+    } catch (error) {
+      console.error('[KrakenIBroker] Cancel all orders failed:', error.message);
+      return false;
+    }
+  }
+
   async modifyOrder(orderId, modifications) {
     // kraken_adapter_simple doesn't have modifyOrder, would need to add
     throw new Error('[KrakenIBroker] modifyOrder not implemented in kraken_adapter_simple');

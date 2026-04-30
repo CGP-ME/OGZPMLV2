@@ -461,6 +461,69 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
     }
 
+    /**
+     * Cancel ALL open orders. Used by SessionRouter force-close path
+     * (Wolf CC-SPEC-POST-PHASE3 Commit 3 / GPT finding #6) to clear the
+     * book before submitting close orders on a venue swap. Without this,
+     * stale open orders survive the swap and could fill on the wrong side
+     * after the position is closed.
+     *
+     * Alpaca REST: DELETE /v2/orders cancels all open orders for the
+     * account. Returns 207 multi-status with per-order results. Errors
+     * here are non-fatal — caller (SessionRouter) should proceed with
+     * close orders even if cancel-all returned partial-failures, since
+     * any uncanceled order will surface in subsequent reconciliation.
+     */
+    async cancelAllOrders() {
+        try {
+            // Mercury Round-3 attack F: explicit 30s timeout. axios has no
+            // default timeout; without this, a hung Alpaca endpoint would
+            // block the SessionRouter transition forever. 30s is generous
+            // for a cancel-all and short enough that a hung swap surfaces
+            // promptly.
+            const response = await axios.delete(`${this.baseUrl}/v2/orders`, {
+                headers: this._authHeaders(),
+                timeout: 30000
+            });
+            // Mercury Commit-3 attack A: Alpaca's DELETE /v2/orders returns
+            // a multi-status array of per-order results. axios treats 207 as
+            // success (2xx); we must inspect each entry to detect partial
+            // failures. Without this check, the adapter could falsely report
+            // `true` while orders remain open, leaving SessionRouter to
+            // submit closes on top of a non-empty book.
+            //
+            // Mercury Round-3 attack A: null/non-array body is a contract
+            // violation, not an "empty book." Distinguish empty-array
+            // (legitimate "nothing to cancel") from null body (malformed
+            // response). Empty array → success(0). Null/non-array → failure.
+            if (!Array.isArray(response.data)) {
+                console.error(`[Alpaca] Cancel all returned non-array body:`, response.data);
+                return false;
+            }
+            const results = response.data;
+            // Mercury Round-2 attack C: explicit success recognition.
+            // Per Alpaca docs each entry is { id, status, body } where status
+            // is the per-order HTTP status from Alpaca's bulk cancel attempt
+            // (200=success, 4xx/5xx=failure). Default-to-fail on missing or
+            // non-numeric status — a malformed entry should never be silently
+            // counted as succeeded.
+            const failed = results.filter(r => {
+                if (typeof r.status !== 'number') return true;  // unknown shape: conservative fail
+                return r.status < 200 || r.status >= 300;  // non-2xx is failure
+            });
+            const succeeded = results.length - failed.length;
+            if (failed.length > 0) {
+                console.warn(`[Alpaca] Cancel-all partial: ${succeeded} canceled, ${failed.length} failed`);
+                return false;
+            }
+            console.log(`[Alpaca] All open orders canceled (${succeeded})`);
+            return true;
+        } catch (error) {
+            console.error('[Alpaca] Cancel all orders failed:', error.message);
+            return false;
+        }
+    }
+
     async modifyOrder(orderId, modifications) {
         try {
             const patchData = {};
