@@ -108,6 +108,177 @@ class SessionRouter extends EventEmitter {
     return null;
   }
 
+  /**
+   * Broker-first liquidation on session transition. Wolf CC-SPEC-POST-PHASE3
+   * Commit 4: prior code only called stateManager.closePosition() at swap
+   * time, leaving real broker positions open. On live, bot thought it was
+   * flat while Alpaca still held the stocks, then re-entered into a
+   * doubled position on next session.
+   *
+   * Order of operations:
+   *   1. Cancel open orders on outgoing broker (clears the book before close)
+   *   2. Fetch broker positions; for each, place a close order using the
+   *      exact share count from the broker (isShareQty=true). For spot
+   *      crypto (Kraken), getPositions returns [] and steps 2-3 are no-ops.
+   *   3. Poll up to 10s for broker to confirm flat. Throw on timeout.
+   *   4. Close StateManager records using current price.
+   *
+   * Throws on:
+   *   - Broker not flat after 10s (positions stuck)
+   *   - StateManager.closePosition failure (record corruption)
+   * Caller (transition method) catches and routes to FAULTED state (Commit 5).
+   */
+  async _brokerFirstLiquidation(outgoingBroker, brokerLabel) {
+    // Mercury Round-3 attack D: defensive method-existence checks.
+    // Inconsistent to typeof-guard cancelAllOrders but not the methods we
+    // actually require for the liquidation contract. A missing required
+    // method is an adapter contract violation, not a recoverable state —
+    // throw with a clear diagnostic instead of letting JS produce a
+    // confusing TypeError mid-flow.
+    if (typeof outgoingBroker.getPositions !== 'function') {
+      throw new Error(`${brokerLabel} adapter does not implement getPositions`);
+    }
+    if (typeof outgoingBroker.placeBuyOrder !== 'function' || typeof outgoingBroker.placeSellOrder !== 'function') {
+      throw new Error(`${brokerLabel} adapter missing placeBuyOrder/placeSellOrder`);
+    }
+
+    // Step 1: Cancel open orders on outgoing broker.
+    // Mercury Round-1 attack B: log a warning if cancelAllOrders returns
+    // false (partial cancel). Per Wolf's spec the failure is non-fatal at
+    // this layer (any uncanceled order will surface via reconciliation),
+    // but we surface the signal so operators see partial cancels in logs.
+    if (typeof outgoingBroker.cancelAllOrders === 'function') {
+      const ok = await outgoingBroker.cancelAllOrders();
+      if (ok) {
+        console.log(`[SessionRouter] ${brokerLabel} open orders canceled`);
+      } else {
+        console.warn(`[SessionRouter] ${brokerLabel} cancelAllOrders returned partial/failure — proceeding; uncanceled orders may fill before close`);
+      }
+    }
+
+    // Step 2: Get broker positions and close each one.
+    // Mercury Round-1 attacks C/D/E: best-effort closes with strict
+    // side/size validation. Old pattern's per-trade try/catch preserved
+    // (collect failures, throw with full list at end) so operators see
+    // every position that needs attention, not just the first failure.
+    const brokerPositions = await outgoingBroker.getPositions();
+    if (brokerPositions && brokerPositions.length > 0) {
+      const failedCloses = [];
+      for (const pos of brokerPositions) {
+        // Mercury Round-5 attack F: null/non-object position entry. If
+        // getPositions returns [null, ...], pos.side access throws
+        // outside the per-position try/catch. Skip with warning.
+        if (!pos || typeof pos !== 'object') {
+          console.warn(`[SessionRouter] ${brokerLabel}: skipping null/non-object position entry`);
+          continue;
+        }
+        // Attack D + Round-2 attack E: strict side validation with
+        // case-normalization. Adapter contract specifies lowercase, but
+        // a future broker adapter could emit 'LONG'/'SHORT'. Normalize
+        // then strict-check; defaulting to 'buy' on null/undefined would
+        // close a long by buying = doubling exposure.
+        const normalizedSide = typeof pos.side === 'string' ? pos.side.toLowerCase() : null;
+        if (normalizedSide !== 'long' && normalizedSide !== 'short') {
+          console.error(`[SessionRouter] ${brokerLabel}: invalid pos.side='${pos.side}' for ${pos.symbol} — skipping`);
+          failedCloses.push({ symbol: pos.symbol, error: `invalid side: ${pos.side}` });
+          continue;
+        }
+        // Attack E: skip zero/non-finite-size positions defensively.
+        // The adapter's amount guard would throw and abort the loop;
+        // skipping here gives operators a clearer warning.
+        const size = Math.abs(pos.size);
+        if (!Number.isFinite(size) || size === 0) {
+          console.warn(`[SessionRouter] ${brokerLabel}: skipping invalid-size position ${pos.symbol} (size=${pos.size})`);
+          continue;
+        }
+        const closeSide = normalizedSide === 'long' ? 'sell' : 'buy';
+        const placeFn = closeSide === 'sell' ? 'placeSellOrder' : 'placeBuyOrder';
+        try {
+          // Mercury Round-2 attack G + Round-3 attack B + Round-4 attack B
+          // + Round-5 attacks A/B/C: inspect order-placement response with
+          // robust status normalization. Alpaca can return 200-OK with
+          // status='rejected'/'expired'/'canceled'/'suspended' (client-side
+          // rejection passes through REST cleanly). Defenses:
+          //   - malformed result (null/non-object) → fail
+          //   - missing status field → fail (broker contract violation)
+          //   - non-string status (e.g. numeric 400) → fail
+          //   - case-insensitive blacklist match → fail
+          // Keeps permissive about novel valid statuses while catching the
+          // documented failure modes regardless of casing.
+          const result = await outgoingBroker[placeFn](pos.symbol, size, null, { isShareQty: true });
+          if (!result || typeof result !== 'object') {
+            throw new Error(`broker returned malformed result (got ${result})`);
+          }
+          const status = typeof result.status === 'string' ? result.status.toLowerCase() : null;
+          if (!status) {
+            throw new Error(`broker returned no status field (orderId=${result.orderId})`);
+          }
+          const FAILURE_STATUSES = new Set(['rejected', 'expired', 'canceled', 'suspended']);
+          if (FAILURE_STATUSES.has(status)) {
+            throw new Error(`order ${status} by broker (orderId=${result.orderId})`);
+          }
+          console.log(`[SessionRouter] ${brokerLabel} close: ${closeSide} ${size} ${pos.symbol}`);
+        } catch (closeErr) {
+          console.error(`[SessionRouter] ${brokerLabel} close failed for ${pos.symbol}:`, closeErr.message);
+          failedCloses.push({ symbol: pos.symbol, error: closeErr.message });
+        }
+      }
+      if (failedCloses.length > 0) {
+        const errMsg = `${brokerLabel} close attempts failed for ${failedCloses.length} position(s): ${failedCloses.map(f => `${f.symbol}(${f.error})`).join(', ')}`;
+        throw new Error(errMsg);
+      }
+
+      // Step 3: Wait for broker to confirm flat (up to 10s).
+      // Mercury Round-3 attack C: track flat-state in the loop instead
+      // of doing a redundant final getPositions(). Prior shape did
+      // poll-while-not-flat, break, then RE-CHECK with a fresh fetch.
+      // That created a race window where a position could open between
+      // the break and the re-check, producing a spurious 'NOT flat'
+      // failure even though the loop confirmed flatness moments ago.
+      let isFlat = false;
+      let retries = 10;
+      while (retries-- > 0) {
+        const remaining = await outgoingBroker.getPositions();
+        if (!remaining || remaining.length === 0) {
+          isFlat = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      if (!isFlat) {
+        throw new Error(`${brokerLabel} NOT flat after close (10s timeout)`);
+      }
+      console.log(`[SessionRouter] ${brokerLabel} confirmed flat`);
+    }
+
+    // Step 4: Close StateManager records (broker is now flat).
+    // Mercury Round-1 attack F: per-record try/catch + collect failures,
+    // mirroring step 2's best-effort pattern. A single bad record
+    // shouldn't leave the rest stale.
+    const activeTrades = this.stateManager.state.activeTrades;
+    if (activeTrades && activeTrades.size > 0) {
+      const currentPrice = this._getCurrentPrice();
+      const failedRecordCloses = [];
+      for (const [orderId, trade] of [...activeTrades.entries()]) {
+        const exitPrice = currentPrice || trade.entryPrice;
+        try {
+          await this.stateManager.closePosition(exitPrice, false, null, {
+            orderId,
+            exitReason: 'session_transition',
+            tradeId: trade.tradeId || orderId,
+          });
+        } catch (recErr) {
+          console.error(`[SessionRouter] StateManager close failed for ${orderId}:`, recErr.message);
+          failedRecordCloses.push({ orderId, error: recErr.message });
+        }
+      }
+      if (failedRecordCloses.length > 0) {
+        const errMsg = `StateManager close failed for ${failedRecordCloses.length} record(s): ${failedRecordCloses.map(f => `${f.orderId}(${f.error})`).join(', ')}`;
+        throw new Error(errMsg);
+      }
+    }
+  }
+
   start() {
     if (!this.enabled) {
       console.log('[SessionRouter] Disabled (SESSION_ROUTER_ENABLED=false)');
@@ -158,38 +329,18 @@ class SessionRouter extends EventEmitter {
     try {
       await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
 
-      // BUG FIX 2026-04-28: capture LAST KNOWN crypto price BEFORE any
-      // unsubscribe / state-reset / new-broker-subscribe runs. This is the
-      // close-out price for any open BTC positions. Once the unsubscribe
-      // fires below, the next price tick is TSLA — using that to close a
-      // BTC position books a million-dollar phantom loss
-      // (entry $76K BTC → exit $377 TSLA → -99% drawdown). Force-close
-      // here, at the deactivating broker's price, before the swap proceeds.
-      const lastCryptoPrice = this._getCurrentPrice();
-      const activeTradesBeforeSwap = this.stateManager.state.activeTrades;
-      if (activeTradesBeforeSwap && activeTradesBeforeSwap.size > 0) {
-        console.log(`[SessionRouter] Force-closing ${activeTradesBeforeSwap.size} crypto position(s) at $${lastCryptoPrice} before stocks activation...`);
-        const failedCloses = [];
-        for (const [orderId, trade] of activeTradesBeforeSwap.entries()) {
-          try {
-            const exitPrice = lastCryptoPrice || trade.entryPrice;
-            await this.stateManager.closePosition(exitPrice, false, null, {
-              orderId,
-              exitReason: 'session_close',
-              tradeId: trade.tradeId || orderId,
-            });
-            console.log(`[SessionRouter] Closed crypto position ${orderId} @ $${exitPrice}`);
-          } catch (closeErr) {
-            console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
-            failedCloses.push({ orderId, error: closeErr.message });
-          }
-        }
-        if (failedCloses.length > 0) {
-          const errMsg = `Aborting crypto→stocks transition — ${failedCloses.length} close(s) failed: ${failedCloses.map(f => f.orderId).join(', ')}`;
-          console.error(`[SessionRouter] ${errMsg}`);
-          throw new Error(errMsg);
-        }
-      }
+      // Wolf CC-SPEC-POST-PHASE3 Commit 4 (2026-04-30): broker-first
+      // liquidation. The prior code only ran stateManager.closePosition()
+      // without submitting actual broker close orders, so on live the bot
+      // would record itself flat while Kraken still held the BTC position.
+      // _brokerFirstLiquidation now: cancels open Kraken orders, gets
+      // broker positions (Kraken spot returns [] — step 2-3 no-op for
+      // spot crypto), then closes StateManager records at current price
+      // (still the crypto price here — runs BEFORE the unsubscribe below).
+      // The price-capture concern from the BUG FIX 2026-04-28 comment is
+      // preserved: _getCurrentPrice() inside _brokerFirstLiquidation reads
+      // ctx.marketData.price BEFORE the krakenAdapter.unsubscribeAll line.
+      await this._brokerFirstLiquidation(this.krakenAdapter, 'Kraken');
 
       if (this.krakenAdapter.unsubscribeAll) this.krakenAdapter.unsubscribeAll();
       if (this.krakenAdapter.removeAllListeners) this.krakenAdapter.removeAllListeners('ohlc');
@@ -306,39 +457,18 @@ class SessionRouter extends EventEmitter {
     try {
       await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
 
-      // Force-close open stock positions using LIVE market price.
-      // See _getCurrentPrice doc: passing entryPrice as exitPrice books P&L=$0.
-      const activeTrades = this.stateManager.state.activeTrades;
-      if (activeTrades && activeTrades.size > 0) {
-        const currentPrice = this._getCurrentPrice();
-        console.log(`[SessionRouter] Force-closing ${activeTrades.size} stock position(s) at $${currentPrice}...`);
-        const failedCloses = [];
-        for (const [orderId, trade] of activeTrades.entries()) {
-          try {
-            const exitPrice = currentPrice || trade.price || trade.entryPrice;
-            await this.stateManager.closePosition(exitPrice, false, null, {
-              orderId,
-              exitReason: 'session_close',
-              tradeId: trade.tradeId || orderId,
-            });
-            console.log(`[SessionRouter] Closed position ${orderId}`);
-          } catch (closeErr) {
-            console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
-            failedCloses.push({ orderId, error: closeErr.message });
-          }
-        }
-        // FIX 2026-04-27 (Bot Swap Resilience audit Task 7): Abort the
-        // transition if any force-close failed. Without this guard, the
-        // subscription swap below would proceed and the failed positions
-        // would become invisible orphans on the deactivated Alpaca side.
-        // Better to stay in the stocks session, let the next clock tick
-        // retry, or give the operator a chance to intervene.
-        if (failedCloses.length > 0) {
-          const errMsg = `Aborting stocks→crypto transition — ${failedCloses.length} close(s) failed: ${failedCloses.map(f => f.orderId).join(', ')}`;
-          console.error(`[SessionRouter] ${errMsg}`);
-          throw new Error(errMsg);
-        }
-      }
+      // Wolf CC-SPEC-POST-PHASE3 Commit 4 (2026-04-30): broker-first
+      // liquidation. Critical for the stocks→crypto direction: prior code
+      // only called stateManager.closePosition() without submitting Alpaca
+      // close orders, so on live the bot would mark itself flat while
+      // Alpaca still held the stock positions — leading to doubled exposure
+      // when crypto session re-entered. _brokerFirstLiquidation now: cancels
+      // open Alpaca orders, queries Alpaca for live positions, places
+      // close orders for each (using the broker's exact share count via
+      // isShareQty=true), polls for flat (10s timeout), then closes
+      // StateManager records. Throws on broker-not-flat — caller (catch
+      // block below) will route to FAULTED state once Commit 5 ships.
+      await this._brokerFirstLiquidation(this.alpacaAdapter, 'Alpaca');
 
       if (this.alpacaAdapter.unsubscribeAll) this.alpacaAdapter.unsubscribeAll();
       if (this.alpacaAdapter.removeAllListeners) this.alpacaAdapter.removeAllListeners('ohlc');
