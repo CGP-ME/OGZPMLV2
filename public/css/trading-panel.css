@@ -24,13 +24,14 @@
     position: fixed;
     right: 10px;
     /* Driven by --right-rail-width CSS var (rail-resize.js / unified-dashboard.html).
-       Falls back to 320px if var unset. Old hardcoded `width: 320px` rule below
-       is overridden by this declaration. */
+       Falls back to 320px if var unset. */
     width: var(--right-rail-width, 320px);
     top: 100px;
-    width: 320px;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+    /* Bottom breathing room so the last panel's border-radius/box-shadow
+       doesn't get clipped by the overflow boundary when scrolled to end. */
+    padding-bottom: 16px;
     display: grid;
     grid-template-columns: 1fr;
     gap: 12px;

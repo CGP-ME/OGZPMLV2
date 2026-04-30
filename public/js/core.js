@@ -149,27 +149,11 @@ window.OGZ = (function() {
                     set('confidenceML', data.confidence != null ? data.confidence.toFixed(0) + '%' : '--');
                 }
 
-                // Update performance stats — supports both `data.stats.*` and flat
-                // CandleProcessor shape (`totalPnL`, `winRate`, `totalTrades` on `data`).
-                const st = data.stats || {};
-                const totalPnl = st.totalPnl != null ? st.totalPnl : (data.totalPnL != null ? data.totalPnL : data.totalPnl);
-                const winRate = st.winRate != null ? st.winRate : data.winRate;
-                const tradesCt = st.tradesExecuted != null ? st.tradesExecuted : data.totalTrades;
-                if (totalPnl != null || winRate != null || tradesCt != null) {
-                    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-                    if (totalPnl != null) {
-                        const pnl = Number(totalPnl);
-                        // Use unambiguous symbols + bright color so + isn't misread as -
-                        set('totalPnl', (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2));
-                        const el = document.getElementById('totalPnl');
-                        if (el) {
-                            el.style.color = pnl >= 0 ? '#22c55e' : '#ef4444';
-                            el.style.fontWeight = '900';
-                        }
-                    }
-                    if (winRate != null) set('winRate', Number(winRate).toFixed(1) + '%');
-                    if (tradesCt != null) set('tradesExecuted', String(tradesCt));
-                }
+                // Session Performance is owned by TradeLog (panels/trade-log.js) —
+                // updated on every closed trade via TradeLog.addEntry, ticked by the
+                // session timer. The previous per-tick `data.stats.*` writer was
+                // clobbering session counters with state.json cumulative numbers,
+                // breaking the "session-scope everywhere" guarantee. Removed.
 
                 // Update status lights — all three
                 ['dataLight', 'botLight'].forEach(id => {
@@ -246,23 +230,10 @@ window.OGZ = (function() {
                     catch (e) { /* never let chart explode the trade pipeline */ }
                 }
 
-                // Update trade count
-                const tcEl = document.getElementById('tradesExecuted');
-                if (tcEl) {
-                    const current = parseInt(tcEl.textContent) || 0;
-                    tcEl.textContent = current + 1;
-                }
-
-                // Update PnL if trade has it
-                if (d.pnl != null) {
-                    const pnlEl = document.getElementById('totalPnl');
-                    if (pnlEl) {
-                        const currentPnl = parseFloat(pnlEl.textContent.replace(/[^-\d.]/g, '')) || 0;
-                        const newPnl = currentPnl + d.pnl;
-                        pnlEl.textContent = (newPnl >= 0 ? '+' : '') + '$' + newPnl.toFixed(2);
-                        pnlEl.style.color = newPnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)';
-                    }
-                }
+                // tradesExecuted / totalPnl updates removed — TradeLog.addEntry
+                // already updates these via renderSessionPerformance(). Doubling
+                // up here was double-counting the trade and reading the prior
+                // value back from textContent (broken if first event).
             });
 
             // LIVE: Market Internals (Whale Absorption)
