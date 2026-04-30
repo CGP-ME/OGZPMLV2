@@ -440,17 +440,22 @@
         .chart-controls {
             display: flex;
             gap: 10px;
+            /* Allow children to wrap onto a second line so the indicator strip
+               can claim its own full-width row below the selectors instead of
+               being squeezed by them. */
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         .indicator-checkboxes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            /* Layout (display, flex-wrap, gap, max-width) lives in the more-specific
+               #indicatorCheckboxes rule below. This class rule only carries the
+               visual chrome (background, border, padding) so both selectors don't
+               fight over flex behavior. */
             background: rgba(26, 0, 0, 0.8);
             border: 1px solid #ff0040;
             border-radius: 5px;
             padding: 8px;
-            max-width: 600px;
         }
 
         .indicator-check {
@@ -1353,8 +1358,27 @@
             }
 
             #indicatorCheckboxes {
-                flex-wrap: wrap;
-                gap: 2px;
+                /* Forced onto its own full-width row below the selectors via
+                   flex-basis:100% inside the wrapping .chart-controls parent.
+                   Single horizontal line; scrolls horizontally if cramped. */
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 6px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                flex: 0 0 100%;
+                min-width: 0;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,255,255,0.18) transparent;
+            }
+            #indicatorCheckboxes::-webkit-scrollbar { height: 4px; }
+            #indicatorCheckboxes::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.18);
+                border-radius: 2px;
+            }
+            #indicatorCheckboxes .indicator-check {
+                flex: 0 0 auto;
+                white-space: nowrap;
             }
 
             .indicator-check {
@@ -3078,12 +3102,7 @@
                     </select>
                     <!-- Phase F: Candle countdown ring -->
                     <span id="candleCountdown"></span>
-                    <!-- Indicator checkbox strip HIDDEN 2026-04-24: cluttered top
-                         header, not in mockup design. Indicators will live in a
-                         right-rail collapsed section in the rebuild. Keeping the
-                         DOM + handlers intact (display:none) so indicator toggle
-                         state still persists if we restore them later. -->
-                    <div class="indicator-checkboxes" id="indicatorCheckboxes" style="display:none;">
+                    <div class="indicator-checkboxes" id="indicatorCheckboxes">
                         <label class="indicator-check">
                             <input type="checkbox" id="chk-ema" value="ema">
                             <span class="color-dot" style="background: #ffcc00;"></span>
@@ -3209,62 +3228,67 @@
             </div>
             END TRADING CONTROLS -->
 
-            <!-- Pattern Recognition Section -->
+            <!-- Session Performance: consolidates the old Performance Stats + Trade Log session header.
+                 All fields are session-scoped (since this dashboard tab opened) and read from
+                 a single source — TradeLog.getSessionStats() in trade-log.js. -->
             <div class="panel-section">
-                <!-- Pattern Recognition Panel -->
-                <div class="pattern-panel">
-                    <div class="panel-title">Pattern Analysis</div>
-                    <div class="pattern-display" id="patternDisplay">
-                        <div class="pattern-name" id="currentPatternName">Analyzing...</div>
-                        <!-- CHANGE 2026-01-30: SVG replaces canvas for pattern visualization -->
-                        <div class="pattern-visual" id="patternVisual">
-                            <svg viewBox="0 0 200 80" style="width:100%;height:80px"><circle cx="80" cy="35" r="20" stroke="#888" fill="none" stroke-width="2"/><line x1="95" y1="50" x2="120" y2="70" stroke="#888" stroke-width="4" stroke-linecap="round"/><text x="100" y="78" fill="#888" font-size="10" text-anchor="middle">Scanning...</text></svg>
-                        </div>
-                        <div class="pattern-description" id="patternDescription">
-                            <p class="pattern-info">Pattern detection active. When a pattern is identified, its visual representation and explanation will appear here.</p>
-                        </div>
-                    </div>
+                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+                    <span>Session Performance</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a1a1aa; font-weight:400; letter-spacing:0.04em;">
+                        Session <span id="sessionTimer" style="color:#e4e4e7;">00:00:00</span>
+                    </span>
                 </div>
-            </div>
-            
-            <!-- Stats Section -->
-            <div class="panel-section">
-                <div class="panel-title">Performance Stats</div>
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-label">Total P&L</div>
+                        <div class="stat-label">Session P&amp;L</div>
                         <div class="stat-value" id="totalPnl">$0.00</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-label">Session Win Rate</div>
                         <div class="stat-value" id="winRate">0%</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-label">Trades Executed</div>
+                        <div class="stat-label">Session Trades</div>
                         <div class="stat-value" id="tradesExecuted">0</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-label">Confidence</div>
-                        <div class="stat-value" id="confidence">0%</div>
+                        <div class="stat-label">Session W&middot;L</div>
+                        <div class="stat-value" id="sessionWL">0W &middot; 0L</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Indicators (moved from chart overlay) -->
-                <div class="panel-title">📊 Indicators</div>
-                <div class="indicator-bar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:10px; margin-bottom:12px; padding:10px 12px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:12px;">
+            <!-- Live Readouts: consolidates the old Pattern Analysis card + Indicators block.
+                 All fields are live single-tick (current candle / latest signal), not session-scoped. -->
+            <div class="panel-section">
+                <div class="panel-title">Live Readouts</div>
+                <div class="indicator-bar" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px 12px; padding:10px 12px; background:rgba(0,0,0,0.3); border-radius:6px; font-size:12px;">
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">RSI</b><span id="rsiCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">50</span></span>
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">MACD</b><span id="macdCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Pattern</b><span id="patternCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">None</span></span>
-                    <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Pattern ML</b><span id="patternML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">None</span></span>
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Volume</b><span id="volumeCore" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0</span></span>
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">ATR</b><span id="atrML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0.00</span></span>
                     <span style="display:flex; flex-direction:column; gap:2px;"><b style="color:#a1a1aa; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Live Conf</b><span id="confidenceML" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#e4e4e7;">0%</span></span>
                 </div>
+                <!-- Pattern detail (folded in from old Pattern Analysis card). #confidence kept inline
+                     with the pattern name so pattern_analysis WS handler in core.js still finds it. -->
+                <div class="pattern-display" id="patternDisplay" style="margin-top:12px;">
+                    <div class="pattern-name" id="currentPatternName">Analyzing... <span id="confidence" style="color:#a1a1aa; font-size:0.85em; margin-left:6px;">0%</span></div>
+                    <!-- CHANGE 2026-01-30: SVG replaces canvas for pattern visualization -->
+                    <div class="pattern-visual" id="patternVisual">
+                        <svg viewBox="0 0 200 80" style="width:100%;height:80px"><circle cx="80" cy="35" r="20" stroke="#888" fill="none" stroke-width="2"/><line x1="95" y1="50" x2="120" y2="70" stroke="#888" stroke-width="4" stroke-linecap="round"/><text x="100" y="78" fill="#888" font-size="10" text-anchor="middle">Scanning...</text></svg>
+                    </div>
+                    <div class="pattern-description" id="patternDescription">
+                        <p class="pattern-info">Pattern detection active. When a pattern is identified, its visual representation and explanation will appear here.</p>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Phase F: Size Preview -->
-                <div class="panel-section" id="sizePreview"></div>
+            <!-- Phase F: Size Preview -->
+            <div class="panel-section" id="sizePreview"></div>
 
-                <!-- Trade Log -->
+            <!-- Trade Log (live tape — session counts now live in Session Performance above) -->
+            <div class="panel-section">
                 <div class="panel-title">Trade Log</div>
                 <div class="trade-log" id="tradeLog">
                 </div>

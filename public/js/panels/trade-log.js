@@ -1,19 +1,18 @@
 /**
- * trade-log.js - Real-time Execution Ticker
+ * trade-log.js - Real-time Execution Ticker + Session Counters
  *
- * Renders a session summary header (cumulative P&L, count, W/L) above
- * the live trade rows. Header updates on every addEntry. Trey: "very
- * unclear as to what is going on can we get a session pnl or something
- * an overall that its counting from."
+ * Owns the session counters (P&L / count / wins / losses / startedAt) that
+ * back the Session Performance panel above the trade log, and ticks the
+ * session timer. Single source of truth — addEntry updates session, then
+ * re-renders the Session Performance DOM. core.js consumers can read via
+ * TradeLog.getSessionStats() if needed.
  *
- * Header values are local-running totals (independent of state.json) so
- * the operator sees what THIS dashboard session has logged. State.json's
- * persistent counters are surfaced separately in Performance Stats.
+ * Trey: "make all of the data... be the same about what it is session
+ * or overall — if it's session add a session timer and session labels."
+ * This module owns "session" everywhere on the right rail.
  */
 (function(OGZ) {
     'use strict';
-
-    const SESSION_STATS_ID = 'tradeLogSessionStats';
 
     const session = {
         startedAt: Date.now(),
@@ -23,63 +22,52 @@
         cumulativePnl: 0,
     };
 
-    function ensureHeader(container) {
-        let header = document.getElementById(SESSION_STATS_ID);
-        if (header) return header;
-        header = document.createElement('div');
-        header.id = SESSION_STATS_ID;
-        header.style.cssText = `
-            display:grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap:6px;
-            padding:8px 10px 10px;
-            border-bottom:1px solid rgba(255,255,255,0.08);
-            background:rgba(0,0,0,0.25);
-            font-family:'JetBrains Mono',monospace;
-            font-size:10px;
-            color:#a1a1aa;
-            letter-spacing:0.04em;
-            text-transform:uppercase;
-        `;
-        // Insert as the FIRST child so it stays at top while rows are prepended below
-        container.insertBefore(header, container.firstChild);
-        return header;
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function fmtTimer(ms) {
+        const totalSec = Math.max(0, Math.floor(ms / 1000));
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
     }
 
-    function renderHeader(container) {
-        const header = ensureHeader(container);
+    function tickTimer() {
+        const el = document.getElementById('sessionTimer');
+        if (el) el.textContent = fmtTimer(Date.now() - session.startedAt);
+    }
+
+    function renderSessionPerformance() {
         const pnl = session.cumulativePnl;
         const pnlSign = pnl >= 0 ? '+$' : '-$';
-        const pnlColor = pnl > 0 ? '#22c55e' : pnl < 0 ? '#ef4444' : '#a1a1aa';
+        const pnlColor = pnl > 0 ? '#22c55e' : pnl < 0 ? '#ef4444' : '#e4e4e7';
         const wr = session.count > 0 ? (session.wins / session.count) * 100 : 0;
-        const wrColor = wr >= 50 ? '#22c55e' : wr > 0 ? '#fbbf24' : '#a1a1aa';
+        const wrColor = wr >= 50 ? '#22c55e' : wr > 0 ? '#fbbf24' : '#e4e4e7';
 
-        header.innerHTML = `
-            <div>
-                <div style="font-size:9px; color:#71717a;">Session P&L</div>
-                <div style="font-family:'Orbitron',monospace; font-size:14px; font-weight:800; color:${pnlColor}; margin-top:2px;">
-                    ${pnlSign}${Math.abs(pnl).toFixed(2)}
-                </div>
-            </div>
-            <div>
-                <div style="font-size:9px; color:#71717a;">Trades</div>
-                <div style="font-family:'Orbitron',monospace; font-size:14px; font-weight:800; color:#e4e4e7; margin-top:2px;">
-                    ${session.count}
-                </div>
-                <div style="font-size:9px; color:#71717a; margin-top:2px;">
-                    ${session.wins}W · ${session.losses}L
-                </div>
-            </div>
-            <div style="text-align:right;">
-                <div style="font-size:9px; color:#71717a;">Win Rate</div>
-                <div style="font-family:'Orbitron',monospace; font-size:14px; font-weight:800; color:${wrColor}; margin-top:2px;">
-                    ${wr.toFixed(0)}%
-                </div>
-            </div>
-        `;
+        const setText = (id, txt, color) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = txt;
+            if (color) el.style.color = color;
+        };
+        setText('totalPnl', pnlSign + Math.abs(pnl).toFixed(2), pnlColor);
+        setText('winRate', wr.toFixed(0) + '%', wrColor);
+        setText('tradesExecuted', String(session.count));
+        setText('sessionWL', `${session.wins}W · ${session.losses}L`);
     }
 
     const TradeLog = {
+        getSessionStats: function() {
+            return {
+                startedAt: session.startedAt,
+                count: session.count,
+                wins: session.wins,
+                losses: session.losses,
+                cumulativePnl: session.cumulativePnl,
+                winRate: session.count > 0 ? (session.wins / session.count) * 100 : 0
+            };
+        },
+
         addEntry: function(trade) {
             const container = document.getElementById('tradeLog');
             if (!container) return;
@@ -101,8 +89,7 @@
             if (hasPnl) {
                 row.style.background = pnl >= 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
                 // Only count CLOSED trades (those that have a P&L) toward W/L stats.
-                // Open BUY entries arrive without pnl — they count toward `count`
-                // when they later close. Treat any pnl-bearing event as a close.
+                // Open BUY entries arrive without pnl and don't increment counters.
                 session.count++;
                 session.cumulativePnl += pnl;
                 if (pnl > 0) session.wins++;
@@ -116,18 +103,13 @@
                 <div style="text-align:right; color:#71717a; font-size:10px; font-family:'JetBrains Mono',monospace;">${timestamp}</div>
             `;
 
-            // Insert row AFTER the sticky session header (which lives at firstChild).
-            const header = document.getElementById(SESSION_STATS_ID);
-            if (header && header.nextSibling) {
-                container.insertBefore(row, header.nextSibling);
-            } else {
-                container.prepend(row);
+            container.prepend(row);
+            // Cap row count at 100
+            while (container.children.length > 100) {
+                container.removeChild(container.lastChild);
             }
-            // Cap row count at 100 (session header doesn't count toward DOM bloat).
-            const dataRows = Array.from(container.children).filter(c => c.id !== SESSION_STATS_ID);
-            if (dataRows.length > 100) dataRows[dataRows.length - 1].remove();
 
-            renderHeader(container);
+            renderSessionPerformance();
         },
 
         resetSession: function() {
@@ -136,15 +118,16 @@
             session.wins = 0;
             session.losses = 0;
             session.cumulativePnl = 0;
-            const container = document.getElementById('tradeLog');
-            if (container) renderHeader(container);
+            renderSessionPerformance();
+            tickTimer();
         }
     };
 
-    // Initial header on first DOM-ready
+    // Initial render + start session timer ticking
     document.addEventListener('DOMContentLoaded', () => {
-        const c = document.getElementById('tradeLog');
-        if (c) renderHeader(c);
+        renderSessionPerformance();
+        tickTimer();
+        setInterval(tickTimer, 1000);
     });
 
     OGZ.register('TradeLog', TradeLog);
