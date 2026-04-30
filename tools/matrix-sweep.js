@@ -105,12 +105,29 @@ const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
 // inject as TRADING_PAIR in the worker env block. Restores live=backtest
 // parity through the same env path the broker layer uses; no patches in
 // BacktestRunner or CandleProcessor.
+//
+// SYMBOL_MAP is the single source of truth tying each --data shortcut to BOTH
+// its trading-pair string AND the broker that knows how to validate it. Mercury
+// re-attack pass (2026-04-30) caught two failure modes the prior shape allowed:
+// (1) stockMode=false while injecting a stock TRADING_PAIR → kraken validation
+//     throws on AAPL/etc. Now solved because broker is keyed to the shortcut,
+//     not inferred from a separate STOCK_TICKERS list.
+// (2) regex fallback on raw filepaths producing tickers like 'BTCUSD' that no
+//     broker recognises. Removed: unregistered shortcuts hard-error so a sweep
+//     can't silently corrupt with a misrouted symbol.
 const SYMBOL_MAP = {
-  'tsla': 'TSLA', 'tsla-train': 'TSLA', 'tsla-test': 'TSLA',
-  'tsla-15m-unseen': 'TSLA', 'tsla-unseen': 'TSLA',
-  'spy': 'SPY', 'qqq': 'QQQ', 'nvda': 'NVDA',
-  'riot': 'RIOT', 'mara': 'MARA', 'coin': 'COIN',
-  'btc': 'BTC/USD',
+  'tsla':            { symbol: 'TSLA',     broker: 'alpaca' },
+  'tsla-train':      { symbol: 'TSLA',     broker: 'alpaca' },
+  'tsla-test':       { symbol: 'TSLA',     broker: 'alpaca' },
+  'tsla-15m-unseen': { symbol: 'TSLA',     broker: 'alpaca' },
+  'tsla-unseen':     { symbol: 'TSLA',     broker: 'alpaca' },
+  'spy':             { symbol: 'SPY',      broker: 'alpaca' },
+  'qqq':             { symbol: 'QQQ',      broker: 'alpaca' },
+  'nvda':            { symbol: 'NVDA',     broker: 'alpaca' },
+  'riot':            { symbol: 'RIOT',     broker: 'alpaca' },
+  'mara':            { symbol: 'MARA',     broker: 'alpaca' },
+  'coin':            { symbol: 'COIN',     broker: 'alpaca' },
+  'btc':             { symbol: 'BTC/USD',  broker: 'kraken' },
 };
 
 // Extract human-readable label from data file path
@@ -155,10 +172,17 @@ function buildMonotonicTierCube(grid) {
 // Strategies that have validated walk-forward results
 const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'SmartMoneySweep'];
 
-// All registered strategies (for exploratory sweeps)
+// All registered strategies (for exploratory sweeps).
+// NoWickImbalance added 2026-04-30 (Wolf CC-SPEC-POST-PHASE3 Commit 6):
+// strategy is wired in core/StrategyOrchestrator.js:94 + 645 and respects
+// SOLO_STRATEGY env (line 112-113), but matrix-sweep's --solo handler
+// rejected unknown names. Adding here makes `node tools/matrix-sweep.js
+// --solo=NoWickImbalance` work end-to-end. Lives in ALL_STRATEGIES rather
+// than VALIDATED_STRATEGIES since walk-forward results are still pending.
 const ALL_STRATEGIES = [
   ...VALIDATED_STRATEGIES,
   'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
+  'NoWickImbalance',
 ];
 
 const GRID = {
@@ -285,7 +309,7 @@ function generateMatrix(strategies, grid, phase) {
 // (Same pattern as parallel-backtest.js)
 // ===================================================================
 
-function runWorker(config, dataFile, stockMode, backtestSymbol) {
+function runWorker(config, dataFile, stockMode, backtestSymbol, backtestBroker) {
   return new Promise(function(resolve) {
     var startTime = Date.now();
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
@@ -339,7 +363,11 @@ function runWorker(config, dataFile, stockMode, backtestSymbol) {
       // backtest parity through the same env path. SYMBOL_MAP is the single
       // source of truth: 'tsla*' → 'TSLA', 'btc' → 'BTC/USD', etc.
       TRADING_PAIR: backtestSymbol || 'TSLA',
-    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env);
+    // Mercury re-attack fix (2026-04-30): broker is keyed off SYMBOL_MAP, not
+    // a separate stockMode flag. stockMode still drives the fee zeroing for
+    // stocks, but BROKER comes from the same source as TRADING_PAIR so the
+    // two can never disagree.
+    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, { BROKER: backtestBroker }, config.env);
 
     var output = '';
     var child = spawn('node', [RUNNER], {
@@ -482,7 +510,7 @@ function tryReadReport(projectRoot, tag) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol, backtestBroker) {
   var totalStart = Date.now();
 
   console.log('\n' + '='.repeat(72));
@@ -511,7 +539,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, back
     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
 
     var batchResults = await Promise.all(
-      batch.map(function(c) { return runWorker(c, dataFile, stockMode, backtestSymbol); })
+      batch.map(function(c) { return runWorker(c, dataFile, stockMode, backtestSymbol, backtestBroker); })
     );
 
     batchResults.forEach(function(r) { results.push(r); });
@@ -770,13 +798,29 @@ async function main() {
   console.log('  Strategies: ' + strategies.join(', '));
   console.log('  Total configs: ' + configs.length);
 
-  // Multi-Symbol Phase 3 backtest fix (2026-04-30): resolve ticker from --data
-  // shortcut key. SYMBOL_MAP miss → uppercase the key (e.g. 'aapl' → 'AAPL').
-  // Final fallback to TSLA so legacy default invocations still tag candles.
-  var backtestSymbol = SYMBOL_MAP[dataKey] || dataKey.toUpperCase() || 'TSLA';
-  console.log('  Symbol: ' + backtestSymbol + ' (from --data ' + dataKey + ')');
+  // Mercury re-attack fix (2026-04-30): hard-error on unregistered shortcuts
+  // instead of accepting regex-shaped garbage. SYMBOL_MAP is the explicit
+  // contract — adding a new --data must include both symbol and broker. If
+  // user passes a raw filepath, retry through the basename's first segment
+  // (e.g. 'tuning/tsla-15m-2y.json' → 'tsla') so legacy raw-path invocations
+  // still resolve. Anything that misses both lookups exits non-zero with a
+  // helpful message rather than spawning workers that silently corrupt.
+  var entry = SYMBOL_MAP[dataKey];
+  if (!entry) {
+    var baseSeg = path.basename(dataFile, '.json').replace(/^polygon-/, '').split('-')[0].toLowerCase();
+    entry = SYMBOL_MAP[baseSeg];
+  }
+  if (!entry) {
+    console.error('\n[matrix-sweep] ERROR: Cannot resolve broker+symbol for --data "' + dataKey + '" (file: ' + dataFile + ')');
+    console.error('  Add the shortcut to SYMBOL_MAP at tools/matrix-sweep.js with both .symbol and .broker.');
+    console.error('  Registered shortcuts: ' + Object.keys(SYMBOL_MAP).join(', '));
+    process.exit(1);
+  }
+  var backtestSymbol = entry.symbol;
+  var backtestBroker = entry.broker;
+  console.log('  Symbol: ' + backtestSymbol + ' | Broker: ' + backtestBroker + ' (from --data ' + dataKey + ')');
 
-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol);
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, backtestSymbol, backtestBroker);
 }
 
 main().catch(function(err) {
