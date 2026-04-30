@@ -80,8 +80,18 @@ class BacktestRunner {
             t: polygonCandle.timestamp ?? polygonCandle.t
           };
 
-          // Feed through handleMarketData (same as live mode)
-          this.ctx.handleMarketData([
+          // Wolf CC-SPEC-BACKTEST-PIPELINE-RESURRECTION Fix 2 (2026-04-30):
+          // stamp `.symbol` as a named property on the candle array so
+          // CandleProcessor.processNewCandle's per-symbol routing can
+          // resolve activeSymbol correctly. Without this, the array has
+          // no symbol, candle.symbol falls back to ctx.tradingPair, and
+          // if ctx.tradingPair !== activeSymbol the active-symbol gate
+          // closes and analyzeAndTrade never fires. Pairs with the
+          // run-empire-v2.js:713 instance-property assignment.
+          const backtestSymbol = this.ctx.tradingPair
+            || this.ctx.resolvedConfig?.config?.broker?.tradingPair
+            || 'TSLA';
+          const ohlcArray = [
             ohlcvCandle.t / 1000,  // time (in seconds for Kraken compatibility)
             (ohlcvCandle.t / 1000) + 60,  // etime (end time)
             ohlcvCandle.o,
@@ -91,7 +101,10 @@ class BacktestRunner {
             0,  // vwap (not used)
             ohlcvCandle.v,
             1   // count
-          ]);
+          ];
+          ohlcArray.symbol = backtestSymbol;
+          // Feed through handleMarketData (same as live mode)
+          this.ctx.handleMarketData(ohlcArray);
 
           // Run trading analysis after warmup (WITH TRAI!)
           if (this.ctx.priceHistory.length >= 15) {  // RSI backtest: was 200

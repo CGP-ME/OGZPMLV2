@@ -115,6 +115,12 @@ class CandleProcessor {
     // candle.symbol now reliably set by normalizeOhlc → handleMarketData.
     // Fallback chain handles backfill / synthetic / non-broker paths.
     const symbol = candle.symbol || this.ctx.activeSymbol || this.ctx.tradingPair || 'UNKNOWN';
+    // DEBUG CHECKPOINT (Wolf spec investigation 2026-04-30): dump first 3 candles
+    if (!this._dbgCount) this._dbgCount = 0;
+    if (this._dbgCount < 3) {
+      this._dbgCount++;
+      process.stderr.write(`[CP-DBG ${this._dbgCount}] candle.symbol=${candle.symbol} ctx.tradingPair=${this.ctx.tradingPair} ctx.activeSymbol=${this.ctx.activeSymbol} → resolved symbol=${symbol}\n`);
+    }
 
     // Resolve the ACTIVE trading symbol — Phase 6 will replace this with a
     // multi-symbol scanner; until then, only the active symbol drives
@@ -215,7 +221,16 @@ class CandleProcessor {
       // symbol's aggregator HTF emission (was broker's native 15m frame).
       const activeTf = this.ctx.timeframeSelector?.currentTimeframe || '15m';
       const triggerEmission = completedCandles.find(e => e.timeframe === activeTf);
-      if (triggerEmission && typeof this.ctx.analyzeAndTrade === 'function') {
+      // Wolf CC-SPEC-BACKTEST-PIPELINE-RESURRECTION Fix 4 (2026-04-30):
+      // backtest-mode guard. In backtest, BacktestRunner.js:97-99 calls
+      // analyzeAndTrade directly (awaited, synchronous control). If we
+      // ALSO fire the aggregator trigger here (fire-and-forget), the
+      // TradingLoop mutex (`if (this.analyzing) return;`) blocks the
+      // BacktestRunner's awaited call — every candle's analysis gets
+      // skipped and trades never fire. Live mode keeps the aggregator
+      // trigger because there's no synchronous outer caller.
+      if (triggerEmission && typeof this.ctx.analyzeAndTrade === 'function'
+          && !this.ctx.backtestMode) {
         console.log(`V2: ${activeTf} candle closed (aggregator-emitted) for ${symbol} — running trading analysis`);
         this.ctx.analyzeAndTrade().catch(e =>
           console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)

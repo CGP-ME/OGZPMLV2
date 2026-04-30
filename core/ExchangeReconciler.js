@@ -182,8 +182,9 @@ class ExchangeReconciler {
       // Fetch balance
       const balance = await this.krakenAdapter.getBalance();
 
-      // Fetch open positions
-      const positions = await this.krakenAdapter.getOpenPositions();
+      // Fetch open positions (KrakenAdapterV2.getPositions, not getOpenPositions —
+      // mismatch was crashing PM2 in a tight restart loop on Alpaca paper).
+      const positions = await this.krakenAdapter.getPositions();
 
       // Fetch open orders
       const openOrders = await this.krakenAdapter.getOpenOrders();

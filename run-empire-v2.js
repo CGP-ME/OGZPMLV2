@@ -705,6 +705,18 @@ class OGZPrimeV14Bot {
     this.marketData = null;
     this.priceHistory = [];  // 1m candles for trading logic
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
+    // Multi-Symbol Phase 2 fix (Mercury 3-pass + 2026-04-30 re-audit): CandleProcessor
+    // reads this.ctx.tradingPair (lines 117, 130) to resolve activeSymbol. BacktestRunner
+    // feeds plain arrays without .symbol; SessionRouter is disabled in backtest. Without
+    // this setter, fallback chain → 'UNKNOWN' → gate at L127 closes → deterministic
+    // zero-trade backtest grids. Pairs with matrix-sweep.js:362 TRADING_PAIR injection.
+    this.tradingPair = resolvedConfig.config.broker.tradingPair;
+    // SessionRouter reads this.paperTrading to drive ExchangeReconciler's
+    // paperMode-aware skip. Without this setter SessionRouter saw `undefined`,
+    // ExchangeReconciler took the live path on Alpaca paper, called
+    // krakenAdapter.getOpenPositions (which doesn't exist on KrakenAdapterV2)
+    // and crashed PM2 in a tight restart loop.
+    this.paperTrading = resolvedConfig.config.mode.paperTrading;
     // Multi-Symbol Phase 2 (2026-04-29): streaming aggregator that builds
     // 5m/15m/30m candles from 1m. Per-symbol per-TF state. Replaces the
     // old timeframeHistories dual-storage system (killed below).
@@ -1436,6 +1448,10 @@ class OGZPrimeV14Bot {
    * @param {number} limit - Number of candles to fetch
    */
   async fetchAndSendHistoricalCandles(timeframe, limit = 200, symbolOverride = null) {
+    // Hoisted out of try{} so catch{} fallback can reference it without
+    // ReferenceError. `let` is block-scoped — when getCandles() rejects,
+    // catch needs `symbol` for the CandleStore fallback at the bottom.
+    let symbol;
     try {
       if (!this.kraken || !this.dashboardWs) {
         console.warn('[WARNING] Cannot fetch historical candles - broker or dashboard not connected');
@@ -1456,7 +1472,6 @@ class OGZPrimeV14Bot {
       // This auto-heals dashboard request_historical messages that arrive
       // mid-session without an explicit symbol — they now follow the
       // session, not stale env config.
-      let symbol;
       if (symbolOverride) {
         symbol = symbolOverride;
       } else if (this.sessionRouter && this.sessionRouter.enabled && this.sessionRouter.activeSession) {
