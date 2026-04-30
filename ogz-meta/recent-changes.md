@@ -1,6 +1,69 @@
 
 ---
 
+## 2026-04-29 → 2026-04-30: Wolf's Post-Phase-3 Execution Queue Shipped + 2 Production Hotfixes (11 commits)
+
+**Impact:** HIGH — entire 9-item queue from `CC-SPEC-POST-PHASE3-EXECUTION-QUEUE.md` shipped end-to-end + 2 production hotfixes. ~24 Mercury attack-framed adversarial rounds, ~55 real defensive bugs caught and fixed across the queue (beyond Wolf's documented spec items). Bot stable end-of-session; restart counter froze after the Kraken hotfix.
+
+**Phase 0 baseline:** Bot was crash-looping every ~23min at session start (`WebSocket is not defined` errors during venue transitions; Alpaca offline all day; no trades since morning). End-of-session: stable, error log clean, reconciler gate firing on boot.
+
+**Headline production fix (`ab0c860`):** `KrakenIBrokerAdapter.js:316` referenced `WebSocket.OPEN` (browser global) without `require('ws')`. Every venue transition to crypto threw `ReferenceError`, draining Alpaca subscriptions in the half-completed swap. One-character fix matching existing pattern at line 75 of the same file. Restart counter froze at 42 (was incrementing every 23min).
+
+**Wolf's queue (9 commits):**
+- `ba7ca59` Gap detector layered on aggregator emissions (monotonic clock, 5-min floor, partial-misconfig branch with two-path latch reach)
+- `7a34a4b` Alpaca `_placeOrder` USD/shares dispatch + 13-bug hardening pass (CRITICAL pre-live; pre-fix $500 USD became 500 shares = $187,500)
+- `dc9970a` `cancelAllOrders` on both adapters with native timeouts + response-shape validation (11 bugs)
+- `a07516a` Broker-first liquidation in SessionRouter (15 bugs; pre-fix bot would record itself flat while broker still held the position)
+- `7007edd` (production hotfix) Kraken WS `readyState=0` race — `setImmediate` defer dodges Sentry/OpenTelemetry async-hooks instrumentation timing. Error log went 132+ → 0 per boot.
+- `ef43815` FAULTED state on transition failure (replaces silent auto-resume that let bot re-enter half-swapped venue)
+- `f97434d` `NoWickImbalance` added to matrix-sweep ALL_STRATEGIES (also bundled an unrelated SYMBOL_MAP refactor — hygiene note)
+- `712d772` Hardcoded dashboard token removed from 3 active source files (3-priority runtime injection chain; **token IS in git history regardless** — operator must rotate)
+- `93f7f79` `package.json` `private: true` (one line, prevents npm publish leak)
+- `175e59a` ExchangeReconciler wired with paperMode-aware gate + post-swap reconciliation in SessionRouter; rethrow on failure routes to FAULTED. Caught a destructure-require regression via 30 PM2 crash-restarts in smoke (recovered in 60s).
+
+**Methodology that paid off:** Mercury attack-framed dispatch with `--max-tokens=7750`, `--agentic`, exact line ranges, hunt-freely framing. Average per-commit: 2-3 Mercury rounds → "defended" verdict. Most real bugs surfaced were defensive-validation gaps (NaN/Infinity handling, structural shape validation, status enumeration, race-window elimination) — small individually, collectively the difference between "passes happy path" and "defensible as a contract."
+
+**Three things that bit me tonight (lessons logged):**
+1. **Bundled commits**: Commit 6 picked up uncommitted SYMBOL_MAP refactor. `git diff --staged` before commit catches this.
+2. **Module-export shape**: Wolf's spec assumed positional args; actual export is `{class, getInstance}`. Smoke test caught the regression in 30 crash-restarts via PM2 respawn.
+3. **`timeout` on backtest**: hookify rule blocked me when I tried to wrap matrix-sweep in `timeout`. Hooks codifying feedback memory rules ARE the structural enforcement Trey put in place.
+
+**Open items for next session (queued before live):**
+- Adapter-agnostic ExchangeReconciler refactor (Kraken-specific today; required before live flip)
+- Stale broker pointer in reconciler after SessionRouter swap (same root cause as above)
+- Dashboard token rotation + BFG history scrub (operator action)
+- 3× `.bak` file deletion (`git rm` + `.gitignore` rule, awaiting approval)
+- `ExchangeReconciler.start()` double-start guard (one-line follow-up)
+
+**Branch:** `alpaca/stocks-paper-flip`. Full session record at `ogz-meta/sessions/session-2026-04-29-30-post-phase3-execution-queue-shipped.md`.
+
+---
+
+## 2026-04-30: Matrix-Sweep TRADING_PAIR Fix — Live=Backtest Parity Restored (2 commits)
+
+**Impact:** HIGH — Multi-Symbol Phase 3+4 backtest grid had been silently dead since `9be305b` shipped (2026-04-29). Every matrix-sweep config across the 416-grid produced `trades=null / netPnl=0 / exitCode=0` because workers had no `TRADING_PAIR` env, ConfigLoader defaulted `tradingPair='BTC-USD'`, and the new per-symbol routing in CandleProcessor.js:188 early-returned on every bar. Walk-forward sweeps blocked across 5 validated + 5 unvalidated strategies until this fix.
+
+**Phase 0 baseline:** unchanged. Production code (BacktestRunner.js, CandleProcessor.js) byte-identical to HEAD pre-session. Fix is pure tooling — `tools/matrix-sweep.js` only.
+
+**Highlights:**
+- **Trey's principle:** *"these two systems are supposed to be the exact same code save env vars or feature flags."* Initial path patched BacktestRunner+CandleProcessor with backtest-only escape hatches; each "fix" exposed a deeper gate. Reverted via Edit (no `git reset --hard`) and pivoted to the single env-var injection.
+- **One-shot diag:** `console.log` on first candle showed `ctx.tradingPair=undefined` definitively — ended speculation in 30 seconds and confirmed the deviation was env-config not pipeline-logic.
+- **Fix:** `36e57aa` SYMBOL_MAP per --data shortcut + thread dataKey + inject TRADING_PAIR. Pipeline went `0 warmups / 0 emissions / 2.3s silent` → `20 warmups / 3,583 emissions / 6.2s real`.
+- **Mercury 3-pass adversarial audit:** pass 1 caught 2 real bugs (`BROKER=kraken` + `TRADING_PAIR=TSLA` crash, regex fallback corrupting raw filepaths). Pass 2 (after refactor to `{symbol, broker}` + hard-error on unknown shortcuts) caught 1 latent precedence bug (`config.env` could override BROKER injection). Pass 3 returned all-defended on 3 new attack vectors. Findings shape converged.
+- **Architectural refactor in `c653800`:** SYMBOL_MAP→`{symbol, broker}` is now single source of truth tying each shortcut to its validating broker. Hard-error on unregistered shortcuts replaces regex fallback. TRADING_PAIR + BROKER moved LAST in `Object.assign` chain as policy invariants — future `config.env` drift cannot regress.
+
+**Operational milestone:** the entire Multi-Symbol Phase 3+4 backtest grid is unblocked. Walk-forward on all 5 validated strategies + 5 unvalidated strategies can now run.
+
+**Lessons:**
+- When backtest diverges from live, FIRST hypothesis: "what env var or config does live set that backtest didn't?" — not "what code path differs?"
+- Mercury attack-framed prompts (CONSTRUCT/TRACE/COMPUTE) found bugs verify-framed prompts would have missed.
+- Mercury pass-2 architectural framing ("is this the right shape?") catches precedence/coupling bugs invisible at the bug-class level.
+- SYMBOL_MAP-as-single-source-of-truth pattern: when two coupled values can drift, key them to the same registry rather than separate lists.
+
+**Branch:** `alpaca/stocks-paper-flip`, full session record at `ogz-meta/sessions/session-2026-04-30-matrix-sweep-trading-pair.md`.
+
+---
+
 ## 2026-04-27: Mercury Audit Cycle + No-Deferred Adoption + First Live Alpaca (~28 commits, mine + parallel CC)
 
 **Impact:** HIGH — 9+ real bugs closed across Mercury audits A/B1/C1/C2, no-deferred rule codified at the project-rule level (CLAUDE.md), and the bot transitioned to first-ever live Alpaca paper trading at ~12:55 PM EDT. Two operational milestones in one day: rule-of-engineering change + production validation of the resilience stack.
