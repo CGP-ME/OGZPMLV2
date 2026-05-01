@@ -1243,6 +1243,11 @@ class OGZPrimeV14Bot {
       // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
       const timeframe = eventData.timeframe || '1m';
       const raw = eventData.data || eventData;  // Support old format too
+      // CHANGE 2026-04-30: envelope-level symbol. Multi-broker contract:
+      // every adapter emits { data, timeframe, symbol }. Stamped uniformly
+      // below so adapters stay dumb about downstream routing — they only
+      // need to know their own symbol.
+      const envelopeSymbol = eventData.symbol || null;
 
       // CHANGE 2026-04-24: Broker-agnostic OHLC normalizer. Every
       // adapter (Kraken arrays, Alpaca short-object, future adapters
@@ -1264,7 +1269,22 @@ class OGZPrimeV14Bot {
       // SessionRouter's active-session primary, then a final UNKNOWN. Without
       // this, missing-symbol candles fall through to the fallback chain in
       // CandleProcessor and may bucket under the WRONG symbol on swap windows.
-      if (typeof ohlcData === 'object' && !Array.isArray(ohlcData) && !ohlcData.symbol) {
+      // CHANGE 2026-04-30: stamp envelope symbol onto the normalized output
+      // regardless of array-vs-object shape. normalizeOhlc passthroughs
+      // canonical arrays at L69 of ohlc-normalize.js with no symbol attached,
+      // so Kraken arrays needed this stamp to ever carry a symbol downstream.
+      // The previous guard at this site (`!Array.isArray(ohlcData)`) silently
+      // skipped Kraken candles, leaving every one of them symbol=null and
+      // making them drop at CandleProcessor's activeSymbol gate.
+      if (envelopeSymbol && !ohlcData.symbol) {
+        ohlcData.symbol = envelopeSymbol;
+      }
+
+      // Defense-in-depth: if the envelope is missing symbol AND the raw
+      // payload didn't carry one either, fall back to raw fields then
+      // SessionRouter's active session. Logs UNKNOWN so misbehaving
+      // adapters surface in audits instead of routing to the wrong bucket.
+      if (!ohlcData.symbol) {
         const inferred = raw?.symbol || raw?.pair || raw?.S
           || (this.sessionRouter?.activeSession === 'stocks' && this.sessionRouter?.stockSymbols?.[0])
           || (this.sessionRouter?.activeSession === 'crypto' && this.sessionRouter?.cryptoSymbols?.[0])
@@ -1367,6 +1387,11 @@ class OGZPrimeV14Bot {
    * REFACTOR Phase 19: Thin dispatcher to CandleProcessor
    */
   handleMarketData(ohlcData) {
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[1] = (global._tlc[1] || 0) + 1) <= 30) {
+      const shape = Array.isArray(ohlcData) ? `array len=${ohlcData.length} symbol=${ohlcData.symbol || 'unset'}` : `not-array typeof=${typeof ohlcData}`;
+      process.stderr.write(`[TLC-1] bot.handleMarketData fired #${global._tlc[1]}: ${shape}\n`);
+    }
     this.candleProcessor.handleMarketData(ohlcData);
   }
 

@@ -380,7 +380,14 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
 
           // V2 ARCHITECTURE: Emit raw event for subscribers (like run-empire-v2)
           // CHANGE 2026-01-29: Include timeframe in emitted event
-          this.emit('ohlc', { data: ohlcData, timeframe: timeframe });
+          // CHANGE 2026-04-30: Include symbol in envelope so the multi-broker
+          // OHLC choke point in createOhlcHandler can stamp candle.symbol
+          // regardless of payload shape. Without this every Kraken candle
+          // arrived at CandleProcessor with symbol=null, the activeSymbol
+          // gate fell through to the boot-pinned tradingPair, and every
+          // candle dropped silently as non-active. Symmetric with Alpaca's
+          // bar.symbol baked into the data object.
+          this.emit('ohlc', { data: ohlcData, timeframe, symbol: this.fromBrokerSymbol(pair) });
 
           // Also process for callback if provided
           if (callback && ohlcData) {
@@ -475,6 +482,12 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   fromBrokerSymbol(brokerSymbol) {
     // Convert Kraken format to universal format
     // XBT/USD -> BTC/USD
+    // Defensive null-check: emit-site at L390 calls this on every WS OHLC
+    // message outside the legacy callback guard. A malformed Kraken payload
+    // (data.pair undefined) would crash the WS handler without this guard.
+    // null falls through to createOhlcHandler's fallback chain in run-empire-v2
+    // (raw.pair → SessionRouter active-session symbol → UNKNOWN).
+    if (typeof brokerSymbol !== 'string') return null;
     return brokerSymbol.replace('XBT/', 'BTC/');
   }
 }
