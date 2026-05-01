@@ -48,6 +48,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const PineTALib = require('./pine-transpiler/core/PineTALib');
 
 const apiPort = process.env.API_PORT || 3010;
@@ -56,6 +57,45 @@ const httpServer = http.createServer(app);
 
 // Middleware
 app.use(express.json());
+
+// CHANGE 2026-04-30: Wire server-side WS-token injection per Wolf
+// CC-SPEC-POST-PHASE3 Commit 7's "OPERATOR ACTIONS REQUIRED" step 3.
+// The dashboard frontend (public/js/websocket.js, public/trai-widget.js)
+// reads its WS auth token from <meta name="ws-token" content="...">.
+// We inject the token from WEBSOCKET_AUTH_TOKEN env at request time so
+// the static HTML on disk never carries the secret. Cache the file
+// contents once at boot — the placeholder is the only thing that
+// changes per request.
+const dashboardHtmlPath = path.join(__dirname, 'public', 'unified-dashboard.html');
+let dashboardHtmlCache = null;
+function loadDashboardHtml() {
+  try {
+    dashboardHtmlCache = fs.readFileSync(dashboardHtmlPath, 'utf8');
+  } catch (e) {
+    console.error('[ssl-server] Failed to load unified-dashboard.html for token injection:', e.message);
+    dashboardHtmlCache = null;
+  }
+}
+loadDashboardHtml();
+function serveDashboardWithToken(req, res) {
+  if (!dashboardHtmlCache) {
+    return res.status(500).send('Dashboard HTML unavailable — server boot loaded no template.');
+  }
+  const token = process.env.WEBSOCKET_AUTH_TOKEN || '';
+  if (!token) {
+    console.warn('[ssl-server] WEBSOCKET_AUTH_TOKEN not set — dashboard will fail WS auth.');
+  }
+  // Use a function replacer so the token (which is plain hex) can't be
+  // mistaken for a regex backreference in the replacement string.
+  const html = dashboardHtmlCache.replace(
+    /<meta name="ws-token" content="[^"]*">/,
+    () => `<meta name="ws-token" content="${token}">`
+  );
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(html);
+}
+app.get('/unified-dashboard.html', serveDashboardWithToken);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CHANGE 2026-02-10: Trade Journal and Replay page routes

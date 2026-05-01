@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- WS auth token. Server-injected at request time by ogzprime-ssl-server.js's
+         GET /unified-dashboard.html handler from the WEBSOCKET_AUTH_TOKEN env var.
+         Empty placeholder here is intentional — the static file MUST NOT carry
+         the token. See public/js/websocket.js for the read site. -->
+    <meta name="ws-token" content="">
     <title>OGZPrime Unified Trading System - Live Dashboard</title>
     <!-- TradingView Lightweight Charts v4.1 -->
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
