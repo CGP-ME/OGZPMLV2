@@ -43,6 +43,10 @@ class OrderExecutor {
   // Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
   // Phase 4 REWRITE: Removed duplicate BUY/SELL gates - TradingLoop + ExitContractManager handle all gating
   async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null) {
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[10] = (global._tlc[10] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-10] OrderExecutor.executeTrade ENTRY: action=${decision.action} price=${price} conf=${confidenceData?.totalConfidence}\n`);
+    }
     // Log trade execution
     console.log("*** EXECUTE_TRADE_REACHED ***");
     console.log(`\n🎯 ${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);

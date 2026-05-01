@@ -136,6 +136,10 @@ class CandleProcessor {
       activeSymbol = this.ctx.tradingPair || 'UNKNOWN';
     }
     const isActive = (symbol === activeSymbol);
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[3] = (global._tlc[3] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-3] gate: candle.symbol=${candle.symbol} resolvedSymbol=${symbol} activeSymbol=${activeSymbol} isActive=${isActive} sr.enabled=${sr?.enabled} sr.activeSession=${sr?.activeSession}\n`);
+    }
 
     // ALWAYS write 1m to candleStore + feed aggregator (per-symbol).
     this.ctx._candleStore.addCandle(symbol, '1m', candle);
@@ -189,6 +193,10 @@ class CandleProcessor {
     // runner, warmStateFromBroker). All WRITES go through SymbolContext;
     // these aliases just expose the active symbol's data to legacy readers.
     if (!isActive) {
+      if (!global._tlc) global._tlc = {};
+      if ((global._tlc[4] = (global._tlc[4] || 0) + 1) <= 30) {
+        process.stderr.write(`[TLC-4] DROP non-active candle: symbol=${symbol} activeSymbol=${activeSymbol} (no analyzeAndTrade trigger)\n`);
+      }
       // Non-active symbols: data collected into candleStore + symbolCtx,
       // ready for Phase 6 scanner. No legacy-global updates, no trigger.
       return isNew;
@@ -229,9 +237,14 @@ class CandleProcessor {
       // BacktestRunner's awaited call — every candle's analysis gets
       // skipped and trades never fire. Live mode keeps the aggregator
       // trigger because there's no synchronous outer caller.
+      if (!global._tlc) global._tlc = {};
+      if ((global._tlc[5] = (global._tlc[5] || 0) + 1) <= 30) {
+        process.stderr.write(`[TLC-5] HTF emission probe: activeTf=${activeTf} triggerEmission=${triggerEmission ? 'yes' : 'no'} hasFn=${typeof this.ctx.analyzeAndTrade === 'function'} backtestMode=${this.ctx.backtestMode} completedTFs=${completedCandles.map(c => c.timeframe).join(',')}\n`);
+      }
       if (triggerEmission && typeof this.ctx.analyzeAndTrade === 'function'
           && !this.ctx.backtestMode) {
         console.log(`V2: ${activeTf} candle closed (aggregator-emitted) for ${symbol} — running trading analysis`);
+        process.stderr.write(`[TLC-6] analyzeAndTrade DISPATCHED for ${symbol}/${activeTf}\n`);
         this.ctx.analyzeAndTrade().catch(e =>
           console.error('[CANDLE-CLOSE] Trading cycle error:', e.message)
         );
@@ -491,6 +504,10 @@ class CandleProcessor {
    * Kraken OHLC format: [channelID, [time, etime, open, high, low, close, vwap, volume, count], channelName, pair]
    */
   handleMarketData(ohlcData) {
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[2] = (global._tlc[2] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-2] CP.handleMarketData fired #${global._tlc[2]}: symbol=${ohlcData?.symbol || 'unset'} len=${Array.isArray(ohlcData) ? ohlcData.length : 'n/a'}\n`);
+    }
 
     // OHLC data is array: [time, etime, open, high, low, close, vwap, volume, count]
     if (!Array.isArray(ohlcData) || ohlcData.length < 8) {

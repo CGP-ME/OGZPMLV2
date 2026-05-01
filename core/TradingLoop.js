@@ -73,6 +73,10 @@ class TradingLoop {
    * Main analysis loop. Called on every candle.
    */
   async analyzeAndTrade() {
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[7] = (global._tlc[7] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-7] TradingLoop.analyzeAndTrade ENTRY (mutex.analyzing=${this.analyzing})\n`);
+    }
     // Concurrency guard — one analysis at a time
     if (this.analyzing) return;
     this.analyzing = true;
@@ -87,8 +91,18 @@ class TradingLoop {
   async _analyze() {
     const { price } = this.ctx.marketData;
 
+    if (!global._tlc) global._tlc = {};
+    if ((global._tlc[8] = (global._tlc[8] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-8] _analyze ENTRY: price=${price} priceHistory.length=${this.ctx.priceHistory?.length} warmup_threshold=15\n`);
+    }
+
     // ─── WARMUP CHECK ───
-    if (this.ctx.priceHistory.length < 15) return;
+    if (this.ctx.priceHistory.length < 15) {
+      if ((global._tlc[8.1] = (global._tlc[8.1] || 0) + 1) <= 10) {
+        process.stderr.write(`[TLC-8.1] WARMUP gate blocking: priceHistory.length=${this.ctx.priceHistory.length}/15\n`);
+      }
+      return;
+    }
 
     // ─── GATHER DATA ───
     const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel } = this._gatherData(price);
@@ -296,6 +310,9 @@ class TradingLoop {
     this._broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence);
 
     // ─── EXECUTE ───
+    if ((global._tlc[9] = (global._tlc[9] || 0) + 1) <= 30) {
+      process.stderr.write(`[TLC-9] decision built: action=${decision.action} conf=${(decision.confidence || 0).toFixed(1)} dir=${finalDirection} minConf=${(minConfidence * 100).toFixed(0)}% activeTrades=${activeTrades.length}/${maxPositions}\n`);
+    }
     if (decision.action !== 'HOLD') {
       // L5: Capture risk gates that were checked during entry evaluation.
       // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
