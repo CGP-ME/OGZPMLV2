@@ -95,6 +95,26 @@ class SessionRouter extends EventEmitter {
   }
 
   /**
+   * Propagate the active session's primary symbol to bot.tradingPair so
+   * all downstream consumers (PipelineSnapshot, OrderExecutor broadcasts,
+   * TradeJournalBridge, dashboard payloads) read the live session-active
+   * symbol instead of the boot-pinned config value. Convention matches
+   * CandleProcessor.js:744 — session primary is index [0] of the symbol
+   * array. Multi-symbol-aware: stockSymbols/cryptoSymbols can grow without
+   * changing this contract.
+   *
+   * Called after every `this.activeSession = 'X'` assignment so the field
+   * is always in sync with active session state. Safe pre-wire(): no-op
+   * if this.ctx is null.
+   */
+  _applyTradingPairForSession(session) {
+    if (!this.ctx) return;
+    this.ctx.tradingPair = session === 'stocks'
+      ? (this.stockSymbols[0] || 'TSLA')
+      : (this.cryptoSymbols[0] || 'BTC/USD');
+  }
+
+  /**
    * Pull current market price from CandleProcessor's ctx.marketData.
    * Used for force-close P&L computation at session boundary. Returns null
    * if no price data available (pre-first-tick).
@@ -451,6 +471,7 @@ class SessionRouter extends EventEmitter {
 
       this.activeSession = 'stocks';
       this.activeBroker = this.alpacaAdapter;
+      this._applyTradingPairForSession('stocks');
       this.lastTransitionAt = Date.now();
 
       await this.stateManager.resumeTrading();
@@ -615,6 +636,7 @@ class SessionRouter extends EventEmitter {
 
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
+      this._applyTradingPairForSession('crypto');
       this.lastTransitionAt = Date.now();
 
       await this.stateManager.resumeTrading();
@@ -672,6 +694,7 @@ class SessionRouter extends EventEmitter {
 
     this.activeSession = 'crypto';
     this.activeBroker = this.krakenAdapter;
+    this._applyTradingPairForSession('crypto');
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
     // Multi-Symbol Phase 3 (2026-04-29): subscribe to all cryptoSymbols on '1m'.
     if (this.krakenAdapter.subscribeToCandles) {
@@ -698,6 +721,7 @@ class SessionRouter extends EventEmitter {
 
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
+    this._applyTradingPairForSession('stocks');
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
     // Multi-Symbol Phase 3 (2026-04-29): subscribe to ALL stockSymbols on '1m'.
     // Re-introduces multi-symbol subscribe — REVERSED the 2026-04-27 single-symbol
