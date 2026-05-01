@@ -1450,6 +1450,15 @@ class OGZPrimeV14Bot {
       // Push + feed IndicatorEngine for every candle. updateCandle is the
       // canonical per-tick path so warmed state matches what live bars
       // would produce.
+      //
+      // Multi-Symbol Phase 4 fix (2026-04-30): also seed SymbolContext.
+      // CandleProcessor pointer-swaps ctx.priceHistory → symbolCtx.priceHistory
+      // on the first live candle, which throws away the legacy warm-load.
+      // Without seeding the per-symbol context here, strategies see length=1
+      // post-restart and return null until ~3hrs of natural accumulation.
+      const symbolCtx = (typeof this.getSymbolContext === 'function' && typeof symbol === 'string' && symbol)
+        ? this.getSymbolContext(symbol)
+        : null;
       for (const candle of normalized) {
         this.priceHistory.push(candle);
         if (this.indicatorEngine) {
@@ -1457,8 +1466,14 @@ class OGZPrimeV14Bot {
             t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
           });
         }
+        if (symbolCtx) {
+          symbolCtx.ingestCandle({
+            t: candle.t, etime: candle.etime, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+          });
+        }
       }
-      console.log(`[WARM] Loaded ${normalized.length} candles. priceHistory length=${this.priceHistory.length}, indicators warm.`);
+      const ctxLen = symbolCtx ? symbolCtx.priceHistory.length : 0;
+      console.log(`[WARM] Loaded ${normalized.length} candles. legacy priceHistory=${this.priceHistory.length}, SymbolContext(${symbol})=${ctxLen}, indicators warm.`);
       return normalized.length;
     } catch (e) {
       console.error(`[WARM] Failed to warm state for ${symbol}/${timeframe}:`, e.message);
