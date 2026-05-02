@@ -653,6 +653,7 @@ class OGZPrimeV14Bot {
     this.isRunning = false;
     this.marketData = null;
     this.priceHistory = [];  // 1m candles for trading logic
+    this.tradingPair = resolvedConfig.config.broker.tradingPair;
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
