@@ -56,7 +56,7 @@ class CandleProcessor {
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
       this.ctx.priceHistory[existingIndex] = candle;
-      this.ctx._candleStore.addCandle('BTC-USD', '15m', candle);
+      this.ctx._candleStore.addCandle(candle.symbol || this.ctx.tradingPair || 'BTC-USD', '15m', candle);
 
       // Feed IndicatorEngine for real-time updates
       if (this.ctx.indicatorEngine) {
@@ -83,7 +83,7 @@ class CandleProcessor {
       this.ctx.priceHistory.splice(insertIndex, 0, candle);
     }
 
-    this.ctx._candleStore.addCandle('BTC-USD', '15m', candle);
+    this.ctx._candleStore.addCandle(candle.symbol || this.ctx.tradingPair || 'BTC-USD', '15m', candle);
 
     // Feed IndicatorEngine
     if (this.ctx.indicatorEngine) {
