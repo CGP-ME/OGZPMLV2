@@ -321,7 +321,7 @@ class PatternMemoryBank {
                 type: 'trade_outcome',
                 tradeId: trade.tradeId || trade.id || `trade_${now}`,
                 decisionId: trade.decisionId || null,  // Join key to trai-decisions.log
-                symbol: trade.symbol || 'BTC-USD',
+                symbol: trade.symbol ? String(trade.symbol).toUpperCase().replace('XBT', 'BTC').replace('/', '-') : 'BTC-USD',
                 side: trade.entry?.side || trade.side || (pnlPercent > 0 ? 'long' : 'short'),
                 entry: {
                     price: trade.entry?.price || trade.entryPrice || 0,
