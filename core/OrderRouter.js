@@ -85,7 +85,7 @@ class OrderRouter extends EventEmitter {
 
   /**
    * Normalize symbol format for consistent lookup
-   * Handles: BTC/USD, BTC-USD, BTCUSD, XBT/USD -> BTC/USD
+   * Handles: BTC/USD, BTC-USD, BTCUSD, XBT/USD -> BTC-USD
    * @param {string} symbol
    * @returns {string}
    */
@@ -93,17 +93,17 @@ class OrderRouter extends EventEmitter {
     // Convert XBT to BTC (Kraken legacy)
     let normalized = symbol.toUpperCase().replace('XBT', 'BTC');
 
-    // Handle common formats
-    if (normalized.includes('/')) {
-      return normalized; // Already standard format
-    }
+    // Canonical is dash form (BTC-USD)
     if (normalized.includes('-')) {
-      return normalized.replace('-', '/');
+      return normalized; // Already canonical
+    }
+    if (normalized.includes('/')) {
+      return normalized.replace('/', '-');
     }
 
-    // Try to split 6-char symbols (BTCUSD -> BTC/USD)
+    // Try to split 6-char symbols (BTCUSD -> BTC-USD)
     if (normalized.length === 6) {
-      return normalized.slice(0, 3) + '/' + normalized.slice(3);
+      return normalized.slice(0, 3) + '-' + normalized.slice(3);
     }
 
     return normalized;
