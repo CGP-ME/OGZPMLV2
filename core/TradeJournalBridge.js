@@ -320,7 +320,8 @@ class TradeJournalBridge {
       const filepath = path.join(process.cwd(), 'data', 'journal', 'exports',
         `ogzprime-report-${new Date().toISOString().split('T')[0]}.json`);
       fs.mkdirSync(path.dirname(filepath), { recursive: true });
-      fs.writeFileSync(filepath, JSON.stringify(report, null, 2), 'utf8');
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(filepath, report);
       this._send({ type: 'journal_export_complete', format: 'json', path: filepath });
     } catch (err) { console.error(`📒 Report export failed: ${err.message}`); }
   }
