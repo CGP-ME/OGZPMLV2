@@ -239,7 +239,7 @@ class IBrokerAdapter extends EventEmitter {
 
     /**
      * Get supported symbols/pairs
-     * @returns {Promise<Array>} ['BTC/USD', 'ETH/USD', ...] or ['AAPL', 'GOOGL', ...]
+     * @returns {Promise<Array>} ['BTC-USD', 'ETH-USD', ...] or ['AAPL', 'GOOGL', ...]
      */
     async getSupportedSymbols() {
         throw new Error('getSupportedSymbols() must be implemented');
@@ -277,7 +277,7 @@ class IBrokerAdapter extends EventEmitter {
 
     /**
      * Convert universal symbol to broker-specific format
-     * @param {string} symbol - Universal format (e.g., 'BTC/USD')
+     * @param {string} symbol - Universal canonical (e.g., 'BTC-USD')
      * @returns {string} Broker format (e.g., 'XBTUSD' for Kraken)
      */
     toBrokerSymbol(symbol) {
