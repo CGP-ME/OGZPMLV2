@@ -86,11 +86,13 @@ class KillSwitch {
      * @param {string} reason - Why the kill switch was activated
      */
     enableKillSwitch(reason = 'Manual activation') {
-        fs.writeFileSync(FLAG_PATH, JSON.stringify({
+        // Atomic write — emergency halt flag must never be half-written (Mercury Vector 6)
+        const { writeJsonCompactAtomic } = require('./AtomicWrite');
+        writeJsonCompactAtomic(FLAG_PATH, {
             activated: new Date().toISOString(),
             reason: reason,
             pid: process.pid
-        }), 'utf8');
+        });
 
         // Log the activation
         const logEntry = `[${new Date().toISOString()}] KILL SWITCH ACTIVATED: ${reason}\n`;
