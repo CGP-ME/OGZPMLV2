@@ -726,8 +726,9 @@ class PatternMemoryBank {
                 fs.copyFileSync(this.dbPath, this.backupPath);
             }
 
-            // Write new memory
-            fs.writeFileSync(this.dbPath, JSON.stringify(this.memory, null, 2));
+            // Write new memory atomically (Mercury Vector 6 — crash-safe brain persistence)
+            const { writeJsonAtomic } = require('./AtomicWrite');
+            writeJsonAtomic(this.dbPath, this.memory);
 
             const total = Object.keys(this.memory.patterns).length;
             console.log(`💾 [TRAI Memory] Saved ${total} patterns`);
