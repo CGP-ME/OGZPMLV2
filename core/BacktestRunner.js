@@ -239,7 +239,7 @@ class BacktestRunner {
       // Write report FIRST (sync to prevent 0-byte files on timeout/exit)
       // FIX 2026-02-19: Try/catch with console fallback to prevent losing results on EMFILE
       try {
-        require('fs').writeFileSync(reportPath, JSON.stringify(report, null, 2));
+        require('./AtomicWrite').writeJsonAtomic(reportPath, report);
       } catch (err) {
         console.error('⚠️ Could not write report file: ' + err.message);
         console.log('📊 === BACKTEST RESULTS (CONSOLE DUMP) ===');
@@ -267,7 +267,7 @@ class BacktestRunner {
           report.traiAnalysis = traiAnalysis;
           console.log('✅ TRAI Analysis Complete:', traiAnalysis.summary);
           // Re-save with TRAI analysis appended
-          require('fs').writeFileSync(reportPath, JSON.stringify(report, null, 2));
+          require('./AtomicWrite').writeJsonAtomic(reportPath, report);
         } catch (error) {
           console.error('⚠️ TRAI analysis failed:', error.message);
         }
