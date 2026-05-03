@@ -289,10 +289,11 @@ class CandleStore {
    * Saves the most recent N candles (default 200)
    */
   saveToDisk(filePath, symbol, timeframe, maxCandles = 200) {
-    const fs = require('fs');
     try {
       const candles = this.getCandles(symbol, timeframe, maxCandles);
-      fs.writeFileSync(filePath, JSON.stringify(candles));
+      // Atomic write — partial candle files corrupt the historical record (Mercury Vector 6)
+      const { writeJsonCompactAtomic } = require('./AtomicWrite');
+      writeJsonCompactAtomic(filePath, candles);
     } catch (error) {
       console.error('[CandleStore] Failed to save:', error.message);
     }
