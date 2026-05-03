@@ -103,7 +103,9 @@ Houston Mission Status: PROTECTED ✅
     };
     
     try {
-      fs.writeFileSync(this.lockFile, JSON.stringify(lockData, null, 2));
+      // Atomic write — partial lock files are worse than no lock (Mercury Vector 6)
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(this.lockFile, lockData);
       console.log(`🔒 [${this.botName}] Singleton lock acquired successfully`);
       console.log(`   PID: ${this.pid}`);
       console.log(`   Token: ${this.lockToken}`);
