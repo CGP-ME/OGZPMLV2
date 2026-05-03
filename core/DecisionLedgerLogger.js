@@ -22,6 +22,13 @@ function getFilePath(prefix) {
   return path.join(DECISIONS_DIR, `${prefix}_${date}.jsonl`);
 }
 
+// Defense-in-depth: collapse any input form to dash canonical (Option A')
+// before persisting. Idempotent on canonical input.
+function _toCanonicalSymbol(raw) {
+  if (!raw || raw === 'unknown') return raw;
+  return String(raw).toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+}
+
 /**
  * Write a completed trade's decision ledger to JSONL.
  * Called from StateManager.closePosition on full close.
@@ -53,6 +60,7 @@ function writeOnClose(ledger) {
 
   const line = JSON.stringify({
     ...ledger,
+    symbol: _toCanonicalSymbol(ledger.symbol),
     _persistedAt: new Date().toISOString(),
   });
 
@@ -76,6 +84,7 @@ function writeRejection(ledger) {
 
   const line = JSON.stringify({
     ...ledger,
+    symbol: _toCanonicalSymbol(ledger.symbol),
     _rejectedAt: new Date().toISOString(),
     _type: 'rejection',
   });
