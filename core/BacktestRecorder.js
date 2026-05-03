@@ -166,7 +166,7 @@ class BacktestRecorder {
 
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 
-        fs.writeFileSync(filepath, csv);
+        require('./AtomicWrite').writeStringAtomic(filepath, csv);
         console.log(`\n📊 Exported ${this.trades.length} trades to ${filepath}`);
 
         return filepath;
