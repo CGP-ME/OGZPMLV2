@@ -570,7 +570,9 @@ class TradeJournal {
     // Write to exports directory
     const filename = options.filename || `ogzprime-trades-${new Date().toISOString().split('T')[0]}.csv`;
     const filepath = path.join(this.paths.exports, filename);
-    fs.writeFileSync(filepath, csv, 'utf8');
+    // Atomic write — partial CSV exports corrupt downstream tools (Mercury Vector 6)
+    const { writeStringAtomic } = require('./AtomicWrite');
+    writeStringAtomic(filepath, csv, 'utf8');
 
     console.log(`📒 Exported ${filtered.length} trades to ${filepath}`);
     return filepath;
@@ -860,7 +862,8 @@ class TradeJournal {
         stats: { ...this.stats, _pnlArray: undefined },  // Don't save huge array
         tradeCount: this.trades.length
       };
-      fs.writeFileSync(this.paths.statsCache, JSON.stringify(cacheData, null, 2), 'utf8');
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(this.paths.statsCache, cacheData);
     } catch (err) {
       console.error(`📒 TradeJournal: Failed to save stats cache: ${err.message}`);
     }
