@@ -1069,11 +1069,8 @@ class PerformanceAnalyzer {
         patternStats: Object.keys(this.state.patternPerformance).length
       };
       
-      fs.writeFileSync(
-        this.config.performanceDbPath,
-        JSON.stringify(performanceData, null, 2),
-        'utf8'
-      );
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(this.config.performanceDbPath, performanceData);
       
       return true;
     } catch (err) {
