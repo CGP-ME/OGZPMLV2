@@ -1025,8 +1025,9 @@ class StateManager {
         stateToSave.activeTrades = Array.from(this.state.activeTrades.entries());
       }
 
-      // Save to disk
-      fs.writeFileSync(stateFile, JSON.stringify(stateToSave, null, 2));
+      // Save to disk atomically (Mercury Vector 6 — crash-safe state persistence)
+      const { writeJsonAtomic } = require('./AtomicWrite');
+      writeJsonAtomic(stateFile, stateToSave);
       console.log('[StateManager] State saved to disk');
     } catch (error) {
       console.error('[StateManager] Failed to save state:', error);
