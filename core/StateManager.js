@@ -369,10 +369,13 @@ class StateManager {
     // L1: Attach decision ledger skeleton at trade birth
     if (context.ledgerData) {
       const { createLedgerSkeleton } = require('./dto/DecisionLedgerSchema');
+      // Normalize symbol to dash canonical before writing to ledger (Option A')
+      const rawSymbol = context.ledgerData.symbol || context.symbol || 'unknown';
+      const ledgerSymbol = rawSymbol === 'unknown' ? rawSymbol : String(rawSymbol).toUpperCase().replace('XBT', 'BTC').replace('/', '-');
       trade.decisionLedger = createLedgerSkeleton({
         tradeId,
         candleTimestamp: context.ledgerData.candleTimestamp || Date.now(),
-        symbol: context.ledgerData.symbol || context.symbol || 'unknown',
+        symbol: ledgerSymbol,
         timeframe: context.ledgerData.timeframe || '15m',
         executionMode: context.ledgerData.executionMode || 'backtest',
         entryPrice: price,
