@@ -146,7 +146,8 @@ class TradeReplayCapture {
     // Save to disk
     const filepath = path.join(this.replayDir, `${orderId}.json`);
     try {
-      fs.writeFileSync(filepath, JSON.stringify(replay), 'utf8');
+      const { writeJsonCompactAtomic } = require('./AtomicWrite');
+      writeJsonCompactAtomic(filepath, replay);
       console.log(`🎬 Replay saved: ${orderId} (${mergedCandles.length} candles)`);
     } catch (err) {
       console.warn(`🎬 Replay save failed: ${err.message}`);
