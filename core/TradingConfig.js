@@ -790,6 +790,7 @@ const BASE_CONFIG = {
     enableOGZTPO: envBool('ENABLE_TPO', true),
     enableOpeningRangeBreakout: envBool('ENABLE_ORB', false), // NEW: Disabled by default until tuned
     enableSmartMoneySweep: envBool('ENABLE_SMS', false),     // NEW: Disabled by default until validated
+    enableNoWickImbalance: envBool('ENABLE_NOWICK', false),  // 2026-04-28: Disabled by default until sweep + walk-forward
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),
