@@ -87,6 +87,13 @@ class StrategyOrchestrator {
     this.emaCrossoverModule = new EMASMACrossoverSignal();
     this.maDynamicSRModule = new MADynamicSR();
     this.liquiditySweepModule = new LiquiditySweepDetector({ disableSessionCheck: true });
+    const NoWickImbalance = require('../modules/NoWickImbalance');
+    this.noWickModule = new NoWickImbalance({
+      maxCandleAge: 9,
+      slBreathingATR: 0.3,
+      swingLookback: 20,
+      minBodyPercent: 0.3
+    });
     this.mtfAdapter = new MultiTimeframeAdapter({
       activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
     });
@@ -624,6 +631,21 @@ class StrategyOrchestrator {
       }
     });
 
+    const noWickModule = this.noWickModule;
+    if (shouldRegister('NoWickImbalance')) this.strategies.push({
+      name: 'NoWickImbalance',
+      evaluate: (ctx) => {
+        try {
+          return noWickModule.evaluate(ctx);
+        } catch (e) {
+          if (process.env.STRATEGY_DIAG === 'true') {
+            console.warn('[NoWickImbalance] evaluate threw:', e.message);
+          }
+          return null;
+        }
+      }
+    });
+
     // Apply pipeline toggles - filter strategies based on env vars
     this._applyPipelineToggles();
   }
@@ -646,6 +668,7 @@ class StrategyOrchestrator {
       'OGZTPO': pipeline.enableOGZTPO,
       'OpeningRangeBreakout': pipeline.enableOpeningRangeBreakout,
       'SmartMoneySweep': pipeline.enableSmartMoneySweep,
+      'NoWickImbalance': pipeline.enableNoWickImbalance,
     };
 
     const before = this.strategies.length;
