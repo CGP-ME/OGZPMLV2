@@ -412,15 +412,13 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // =========================================================================
 
   toBrokerSymbol(symbol) {
-    // Convert universal format to Kraken format
-    // BTC/USD -> XBT/USD
-    return symbol.replace('BTC/', 'XBT/');
+    // Convert universal canonical (BTC-USD) to Kraken format (XBT/USD)
+    return symbol.replace('BTC', 'XBT').replace('-', '/');
   }
 
   fromBrokerSymbol(brokerSymbol) {
-    // Convert Kraken format to universal format
-    // XBT/USD -> BTC/USD
-    return brokerSymbol.replace('XBT/', 'BTC/');
+    // Convert Kraken format (XBT/USD) to universal canonical (BTC-USD)
+    return brokerSymbol.replace('XBT', 'BTC').replace('/', '-');
   }
 }
 
