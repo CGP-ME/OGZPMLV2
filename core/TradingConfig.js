@@ -371,6 +371,22 @@ const BASE_CONFIG = {
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
     },
+    // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
+    // module's overrideLevels (1:1 RR computed from swing structure).
+    // Fallbacks below are safety nets only — strategy's overrideLevels win.
+    // Unvalidated — needs sweep + walk-forward before _validated set.
+    NoWickImbalance: {
+      stopLossPercent: -1.5,
+      takeProfitPercent: 1.5,
+      trailingStopPercent: null,      // No trailing — fixed 1:1 RR
+      trailingActivation: null,
+      maxHoldTimeMinutes: 240,        // 4 hours max — if 1:1 hasn't hit, thesis broken
+      minConfidence: null,            // Sweep will find the right gate
+      useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
+      atrMinPercent: null,            // Use global ATR filter
+      invalidationConditions: [],
+      _validated: null,
+    },
     default: {
       stopLossPercent: -2.0,
       takeProfitPercent: 2.5,
