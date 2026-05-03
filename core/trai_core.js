@@ -735,7 +735,7 @@ BOT STATUS:
     for (const [category, data] of Object.entries(this.staticBrain)) {
       if (category === 'index') continue;
       const categoryFile = path.join(brainPath, `${category}.json`);
-      fs.writeFileSync(categoryFile, JSON.stringify(data, null, 2));
+      require('./AtomicWrite').writeJsonAtomic(categoryFile, data);
     }
     console.log('💾 Static brain updated and saved');
   }
