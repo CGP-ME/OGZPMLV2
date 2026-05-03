@@ -612,7 +612,7 @@ class OGZPrimeV14Bot {
     // hardcoded crypto list for Kraken. Override stocks with e.g. ALPACA_SYMBOLS='TSLA,NVDA,SPY'.
     const routedSymbols = brokerId === 'alpaca'
       ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
-      : ['BTC/USD', 'XBT/USD', 'ETH/USD', 'SOL/USD'];
+      : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
     this.orderRouter.registerBroker(this.kraken, routedSymbols);
     console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
 
