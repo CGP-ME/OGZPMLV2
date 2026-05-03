@@ -486,25 +486,24 @@ class PerformanceVisualizer {
   saveChartData() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
+    const { writeJsonCompactAtomic } = require('./AtomicWrite');
+
     // Save equity curve data
-    fs.writeFileSync(
+    writeJsonCompactAtomic(
       path.join(this.options.outputDir, `equity_${timestamp}.json`),
-      JSON.stringify(this.data.equity),
-      'utf8'
+      this.data.equity
     );
-    
+
     // Save performance metrics
-    fs.writeFileSync(
+    writeJsonCompactAtomic(
       path.join(this.options.outputDir, `metrics_${timestamp}.json`),
-      JSON.stringify(this.metrics),
-      'utf8'
+      this.metrics
     );
-    
+
     // Save recent trades sample (for privacy, limit to last 100)
-    fs.writeFileSync(
+    writeJsonCompactAtomic(
       path.join(this.options.outputDir, `trades_${timestamp}.json`),
-      JSON.stringify(this.data.trades.slice(-100)),
-      'utf8'
+      this.data.trades.slice(-100)
     );
     
     console.log(`💾 Chart data saved to ${this.options.outputDir}`);
@@ -750,7 +749,7 @@ class PerformanceVisualizer {
 </html>
     `;
     
-    fs.writeFileSync(reportPath, html, 'utf8');
+    require('./AtomicWrite').writeStringAtomic(reportPath, html, 'utf8');
     console.log(`📋 HTML report saved to ${reportPath}`);
   }
   
@@ -844,7 +843,7 @@ class PerformanceVisualizer {
     // Save final report
     if (this.options.saveCharts) {
       const reportPath = path.join(this.options.outputDir, 'final_report.json');
-      fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
+      require('./AtomicWrite').writeJsonAtomic(reportPath, report);
       console.log(`📋 Final report saved to ${reportPath}`);
       
       // Generate final HTML report
