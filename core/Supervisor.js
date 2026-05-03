@@ -859,7 +859,8 @@ class Supervisor extends EventEmitter {
     const newKey = crypto.randomBytes(32);
     try {
       fs.mkdirSync(path.dirname(keyPath), { recursive: true });
-      fs.writeFileSync(keyPath, newKey, { mode: 0o600 });
+      // Atomic write — partial HMAC key file would silently invalidate replay protection
+      require('./AtomicWrite').writeStringAtomic(keyPath, newKey, { mode: 0o600 });
       console.log(`${this.label} hmac key created at ${keyPath}`);
     } catch (e) {
       console.error(`${this.label} hmac key write failed [${e.code || 'unknown'}]: ${e.message} — entries will be unsigned and replay will reject all entries`);
