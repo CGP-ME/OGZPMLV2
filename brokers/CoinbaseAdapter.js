@@ -445,12 +445,13 @@ class CoinbaseAdapter extends IBrokerAdapter {
     // =========================================================================
 
     _toBrokerSymbol(symbol) {
-        // Convert "BTC/USD" to "BTC-USD"
+        // Coinbase native uses dash (BTC-USD), matching universal canonical
         return symbol.replace('/', '-').toUpperCase();
     }
 
     fromBrokerSymbol(brokerSymbol) {
-        return brokerSymbol.replace('-', '/');
+        // Coinbase native is already canonical (dash form); identity
+        return brokerSymbol;
     }
 
     _timeframeToGranularity(timeframe) {
