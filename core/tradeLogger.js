@@ -113,8 +113,7 @@ class TradeLogger {
         const filePath = this.getTodayLogFile();
         
         try {
-            const jsonData = JSON.stringify(trades, null, 2);
-            fs.writeFileSync(filePath, jsonData, 'utf8');
+            require('./AtomicWrite').writeJsonAtomic(filePath, trades);
             return true;
         } catch (error) {
             console.error(`❌ Failed to save trades: ${error.message}`);
