@@ -195,7 +195,8 @@ class NoWickImbalance {
    * @returns {Object|null} - { direction, confidence, reason, overrideLevels } or null
    */
   evaluate(ctx) {
-    const { candles, indicators } = ctx;
+    const candles = ctx.priceHistory;
+    const indicators = ctx.indicators;
     if (!candles || candles.length < this.swingLookback) return null;
 
     const currentCandle = candles[candles.length - 1];

@@ -138,6 +138,7 @@ const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'Liquidit
 const ALL_STRATEGIES = [
   ...VALIDATED_STRATEGIES,
   'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
+  'NoWickImbalance',
 ];
 
 const GRID = {
@@ -243,6 +244,11 @@ function generateMatrix(strategies, grid, phase) {
           if (strat === 'SmartMoneySweep') {
             env.ENABLE_SMS = 'true';
             env.SMS_VP_RTH_ONLY = 'true';
+          }
+
+          // NoWick needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'NoWickImbalance') {
+            env.ENABLE_NOWICK = 'true';
           }
 
           configs.push({
