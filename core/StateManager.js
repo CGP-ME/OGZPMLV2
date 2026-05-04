@@ -119,6 +119,7 @@ class StateManager {
       realizedPnL: 0,           // Cumulative closed trade P&L
       unrealizedPnL: 0,         // Current open position P&L (updated externally)
       totalPnL: 0,              // realizedPnL + unrealizedPnL
+      closedTrades: [],         // Append-only log of full-close records (for win-rate math)
 
       // ─────────────────────────────────────────────────────────────────────
       // SYSTEM STATE
@@ -575,6 +576,21 @@ class StateManager {
 
     console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
 
+    // 2026-05-04: closedTrades append for win-rate math (CandleProcessor:406-408 reads this).
+    // Pure additive — fields mirror the session-doc record shape so downstream consumers
+    // beyond the win-rate path can read direction/strategy/holdMs without further changes.
+    const closedTradeRecord = {
+      tradeId,
+      pnl,
+      pnlPercent,
+      direction: tradeDirection,
+      entryPrice: tradeEntryPrice,
+      exitPrice: price,
+      strategy: trade.entryStrategy || trade.strategy || 'unknown',
+      holdMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
+      closedAt: Date.now()
+    };
+
     const updates = {
       position: finalPosition,
       positionCount: partial ? this.state.positionCount : 0,
@@ -584,6 +600,7 @@ class StateManager {
       inPosition: Math.max(0, this.state.inPosition - closeSize),
       realizedPnL: this.state.realizedPnL + netRealizedResult,
       totalPnL: this.state.totalPnL + pnl,
+      closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
       lastTradeTime: Date.now()
     };
 
