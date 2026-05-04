@@ -368,7 +368,7 @@ class EnhancedPatternChecker {
     // The bot needs to see patterns to learn from them!
     patterns.push({
       name: result?.bestMatch?.pattern || 'Learning Pattern',
-      confidence: result?.confidence || 0.1,  // Force minimum 0.1 for new patterns
+      confidence: result?.confidence ?? 0,
       direction: result?.direction || 'neutral',
       signature: EnhancedPatternChecker._signatureFromFeatures(features),
       features: features,
