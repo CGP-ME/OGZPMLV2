@@ -308,6 +308,12 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       // FIX 2026-04-09: Enable SMS in sweeps (was silent-killed by _applyPipelineToggles)
       ENABLE_SMS: 'true',
       SMS_VP_RTH_ONLY: 'true',
+      // FIX 2026-05-04: SOLO-targeted strategies whose pipeline toggle defaults false.
+      // Mirrors tools/matrix-sweep.js. Only enables when SOLO_STRATEGY targets that strategy,
+      // so baseline multi-strategy runs are unchanged.
+      ENABLE_NOWICK: process.env.SOLO_STRATEGY === 'NoWickImbalance' ? 'true' : 'false',
+      ENABLE_ORB: process.env.SOLO_STRATEGY === 'OpeningRangeBreakout' ? 'true' : 'false',
+      ENABLE_BREAKRETEST: process.env.SOLO_STRATEGY === 'BreakRetest' ? 'true' : 'false',
       // Disable Sentry (hooks every async op = massive overhead on 45K candles)
       SENTRY_DSN: '',
       NODE_ENV: 'test',
