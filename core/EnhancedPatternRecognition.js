@@ -370,7 +370,7 @@ class EnhancedPatternChecker {
       name: result?.bestMatch?.pattern || 'Learning Pattern',
       confidence: result?.confidence || 0.1,  // Force minimum 0.1 for new patterns
       direction: result?.direction || 'neutral',
-      signature: JSON.stringify(features).substring(0, 50),
+      signature: EnhancedPatternChecker._signatureFromFeatures(features),
       features: features,
       quality: result?.quality || 0.3,
       isNew: true,  // Always flag as new for learning
@@ -378,6 +378,24 @@ class EnhancedPatternChecker {
     });
 
     return patterns;
+  }
+
+  /**
+   * Build a bounded signature from features. Quantizes continuous values
+   * (RSI/MACD/trend deltas) to 0.05 buckets so the same broad market state
+   * collapses to the same key — preserves DTW-style matching while bounding
+   * pattern_performance map size to a few hundred unique keys regardless of
+   * candle count. Original implementation (JSON.stringify(features).substring(0,50))
+   * produced unique-per-candle keys → memory flood (2026-03-20 ceb0ffb incident).
+   */
+  static _signatureFromFeatures(features) {
+    const arr = Array.isArray(features)
+      ? features
+      : (features && Array.isArray(features.features) ? features.features : []);
+    const quantized = arr.map(v =>
+      typeof v === 'number' && !Number.isNaN(v) ? Math.round(v * 20) / 20 : 0
+    );
+    return JSON.stringify(quantized);
   }
 
   /**

@@ -415,7 +415,17 @@ class TradingLoop {
       rsi: indicators.rsi,
       volume: this.ctx.marketData.volume || 0
     });
-    const rawCandlePatterns = []; // Disabled — memoryPatterns only
+    // 2026-05-04: Re-enabled per Wolf strategy-resurrection spec.
+    // Original disable (2026-03-20 ceb0ffb) cited 2000+ garbage entries in
+    // pattern_performance — root cause was unbounded JSON-of-features signature
+    // keying, fixed in EnhancedPatternRecognition._signatureFromFeatures().
+    // Re-enable safe with quantized signatures + 70% conf filter below.
+    const rawCandlePatterns = candlePatternDetector.detect(this.ctx.priceHistory, {
+      rsi: indicators.rsi,
+      trend: indicators.trend,
+      macd: indicators.macd?.macd || 0,
+      volume: this.ctx.marketData?.volume || 0
+    });
     const minPatternConf = TradingConfig.get('confidence.candlePatternMinConfidence') || 0.70;
     const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
     const patterns = [...candlePatterns, ...memoryPatterns];
