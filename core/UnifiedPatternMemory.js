@@ -780,7 +780,7 @@ class UnifiedPatternMemory {
 
     if (!result) {
       return {
-        confidence: 0.1,
+        confidence: 0,
         direction: 'hold',
         reason: 'Unknown pattern',
         bestMatch: null,
