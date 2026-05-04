@@ -36,7 +36,23 @@ class OpeningRangeBreakout {
     // Read from TradingConfig with fallbacks
     const orbConfig = TradingConfig.get('strategies.OpeningRangeBreakout') || {};
 
-    this.sessionOpenHourUTC = config.sessionOpenHourUTC ?? orbConfig.sessionOpenHourUTC ?? 14; // 9am EST = 14:00 UTC
+    this.sessionOpenHourUTC = config.sessionOpenHourUTC ?? orbConfig.sessionOpenHourUTC ?? 14; // legacy: 9am EST = 14:00 UTC
+    // 2026-05-04: NYSE 9:30 ET session detection. Handles DST automatically via Intl
+    // (Intl.DateTimeFormat returns 13:30 UTC during EDT, 14:30 UTC during EST).
+    // When sessionOpenET is set (e.g. '09:30'), it takes precedence over sessionOpenHourUTC.
+    this.sessionOpenET = config.sessionOpenET ?? orbConfig.sessionOpenET ?? null;
+    this.sessionTimeZone = config.sessionTimeZone ?? orbConfig.sessionTimeZone ?? 'America/New_York';
+    if (this.sessionOpenET) {
+      const [h, m] = this.sessionOpenET.split(':').map(s => parseInt(s, 10));
+      this.sessionOpenHourET = h;
+      this.sessionOpenMinuteET = m;
+      this._etTimeFmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: this.sessionTimeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    }
     this.orDurationMinutes = config.orDurationMinutes ?? orbConfig.orDurationMinutes ?? 15;
     this.fvgScanBars = config.fvgScanBars ?? orbConfig.fvgScanBars ?? 10;
     this.minFVGPercent = config.minFVGPercent ?? orbConfig.minFVGPercent ?? 0.05;
@@ -59,7 +75,10 @@ class OpeningRangeBreakout {
       maxFVGPercent: this.maxFVGPercent,
     });
 
-    console.log(`[ORB] Initialized: session=${this.sessionOpenHourUTC}:00 UTC, OR=${this.orDurationMinutes}min, entry=${this.entryLevel}`);
+    const sessionStr = this.sessionOpenET
+      ? `${this.sessionOpenET} ${this.sessionTimeZone}`
+      : `${this.sessionOpenHourUTC}:00 UTC`;
+    console.log(`[ORB] Initialized: session=${sessionStr}, OR=${this.orDurationMinutes}min, entry=${this.entryLevel}`);
   }
 
   /**
@@ -127,11 +146,22 @@ class OpeningRangeBreakout {
    * @private
    */
   _handleWaitingForOpen(candle, candleDate) {
-    const hour = candleDate.getUTCHours();
-    const minute = candleDate.getUTCMinutes();
+    let hour, minute;
+    if (this.sessionOpenET) {
+      // ET-based session detection — DST-aware via Intl
+      const parts = this._etTimeFmt.formatToParts(candleDate);
+      hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+      minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
+    } else {
+      // Legacy UTC-hour path (crypto sessions)
+      hour = candleDate.getUTCHours();
+      minute = candleDate.getUTCMinutes();
+    }
 
     // Is this the first candle of the OR period?
-    if (hour === this.sessionOpenHourUTC && minute < this.orDurationMinutes) {
+    const targetHour = this.sessionOpenET ? this.sessionOpenHourET : this.sessionOpenHourUTC;
+    const targetMinute = this.sessionOpenET ? this.sessionOpenMinuteET : 0;
+    if (hour === targetHour && minute >= targetMinute && minute < (targetMinute + this.orDurationMinutes)) {
       // First 15-min candle defines the Opening Range
       this.openingRange = {
         high: _h(candle),
@@ -290,7 +320,19 @@ class OpeningRangeBreakout {
    * @private
    */
   _getSessionDate(date) {
-    // Session resets at sessionOpenHourUTC
+    if (this.sessionOpenET) {
+      // ET-based session boundary — DST-aware via Intl. en-CA formats as YYYY-MM-DD.
+      if (!this._etDateFmt) {
+        this._etDateFmt = new Intl.DateTimeFormat('en-CA', {
+          timeZone: this.sessionTimeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+      }
+      return this._etDateFmt.format(date);
+    }
+    // Legacy UTC-based session boundary (crypto)
     const adjusted = new Date(date);
     if (adjusted.getUTCHours() < this.sessionOpenHourUTC) {
       adjusted.setUTCDate(adjusted.getUTCDate() - 1);

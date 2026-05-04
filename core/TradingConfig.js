@@ -612,7 +612,12 @@ const BASE_CONFIG = {
     },
     OpeningRangeBreakout: {
       // ICT-style Opening Range + FVG entry (Trey's approach)
-      sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // 9am EST = 14:00 UTC
+      sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // legacy crypto path: 9am EST = 14:00 UTC
+      // 2026-05-04: NYSE-aware session detection. When sessionOpenET is set, ORB uses
+      // Intl.DateTimeFormat('America/New_York') for DST-aware open detection. Takes
+      // precedence over sessionOpenHourUTC. Default 09:30 ET = NYSE regular open.
+      sessionOpenET: env('ORB_SESSION_OPEN_ET', '09:30'),
+      sessionTimeZone: env('ORB_SESSION_TIMEZONE', 'America/New_York'),
       orDurationMinutes: env('ORB_DURATION_MIN', 15),        // First 15 min defines OR
       fvgScanBars: env('ORB_FVG_SCAN_BARS', 10),             // Bars to scan for FVG after breakout
       minFVGPercent: env('ORB_MIN_FVG_PCT', 0.05),           // Minimum FVG size %

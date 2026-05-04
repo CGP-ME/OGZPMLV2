@@ -256,6 +256,11 @@ function generateMatrix(strategies, grid, phase) {
             env.ENABLE_BREAKRETEST = 'true';
           }
 
+          // ORB needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'OpeningRangeBreakout') {
+            env.ENABLE_ORB = 'true';
+          }
+
           configs.push({
             name,
             strategy: strat,
