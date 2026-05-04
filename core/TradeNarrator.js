@@ -200,7 +200,7 @@ class TradeNarrator {
     //   asked for. To get deterministic labels, set a non-empty string.
     const seed = process.env.NARRATOR_LABEL_SEED
       || crypto.randomBytes(8).toString('hex');
-    this._labelFor = makeLabelMap(seed);
+    this.labelFor = makeLabelMap(seed);
 
     // WebSocket client for USER-mode broadcast (set via setWebSocketClient).
     this._ws = null;
@@ -319,12 +319,12 @@ class TradeNarrator {
 
       if (this.user) {
         const visible = sorted.slice(0, 5).map(r => ({
-          label: this._labelFor(r.strategyName),
+          label: this.labelFor(r.strategyName),
           direction: (r.direction || 'hold').toLowerCase(),
           conviction: confidenceBucket(r.confidence || 0),
         }));
         const winnerLabel = winner
-          ? this._labelFor(winner.strategyName)
+          ? this.labelFor(winner.strategyName)
           : (visible[0] && visible[0].label);
         const winnerDir = winner
           ? String(winner.direction || '').toLowerCase()
@@ -457,7 +457,7 @@ class TradeNarrator {
       }
 
       if (this.user) {
-        const label = this._labelFor(strategy || 'unknown');
+        const label = this.labelFor(strategy || 'unknown');
         const slBucket = exitContract && exitContract.stopLossPercent != null
           ? slTpBucket(exitContract.stopLossPercent)
           : '—';
@@ -512,7 +512,7 @@ class TradeNarrator {
       if (this.user) {
         const ctxRec = this._getCtx(tradeId);
         const label = ctxRec && ctxRec.strategy
-          ? this._labelFor(ctxRec.strategy)
+          ? this.labelFor(ctxRec.strategy)
           : 'Strategy-?';
         const payload = {
           type: 'narrator_event',
@@ -571,7 +571,7 @@ class TradeNarrator {
       }
 
       if (this.user) {
-        const label = this._labelFor(strat);
+        const label = this.labelFor(strat);
         const payload = {
           type: 'narrator_event',
           scope: 'USER',
