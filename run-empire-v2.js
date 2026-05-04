@@ -511,7 +511,8 @@ class OGZPrimeV14Bot {
       patternPersistBars: masrConfig.patternPersistBars || 15,
     });
 
-    this.breakAndRetest = new BreakAndRetest();
+    // 2026-05-04: BreakAndRetest now owned by StrategyOrchestrator (self-contained pattern).
+    // Runner-side instance removed to prevent two-instance state divergence.
 
     // CHANGE 2026-02-23: BacktestRecorder for proper trade tracking
     // FIX 2026-02-26: Use same INITIAL_BALANCE as StateManager (was hardcoded 25000 vs 10000 mismatch)
@@ -861,7 +862,7 @@ class OGZPrimeV14Bot {
       strategyOrchestrator: this.strategyOrchestrator,
       emaCrossoverSignal: this.emaCrossoverSignal,
       maDynamicSRSignal: this.maDynamicSRSignal,
-      breakRetestSignal: this.breakRetestSignal,
+      // 2026-05-04: breakRetestSignal removed — orchestrator owns the instance directly.
       liquiditySweepSignal: this.liquiditySweepSignal,
       mtfAdapter: this.mtfAdapter,
       volumeProfile: this.volumeProfile,

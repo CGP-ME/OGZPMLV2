@@ -138,7 +138,7 @@ const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'Liquidit
 const ALL_STRATEGIES = [
   ...VALIDATED_STRATEGIES,
   'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
-  'NoWickImbalance',
+  'NoWickImbalance', 'BreakRetest',
 ];
 
 const GRID = {
@@ -249,6 +249,11 @@ function generateMatrix(strategies, grid, phase) {
           // NoWick needs explicit enable (off by default; sweep uses opt-in env)
           if (strat === 'NoWickImbalance') {
             env.ENABLE_NOWICK = 'true';
+          }
+
+          // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
+          if (strat === 'BreakRetest') {
+            env.ENABLE_BREAKRETEST = 'true';
           }
 
           configs.push({

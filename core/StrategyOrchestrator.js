@@ -87,6 +87,8 @@ class StrategyOrchestrator {
     this.emaCrossoverModule = new EMASMACrossoverSignal();
     this.maDynamicSRModule = new MADynamicSR();
     this.liquiditySweepModule = new LiquiditySweepDetector({ disableSessionCheck: true });
+    const BreakAndRetest = require('../modules/BreakAndRetest');
+    this.breakAndRetestModule = new BreakAndRetest();
     const NoWickImbalance = require('../modules/NoWickImbalance');
     this.noWickModule = new NoWickImbalance({
       maxCandleAge: 9,
@@ -330,13 +332,37 @@ class StrategyOrchestrator {
     });
 
     // ─── 4. Break & Retest Strategy (Desi Trades) ───
-    // DISABLED 2026-02-23: 0 for 9 in backtest, dragging down P&L. Isolating MADynamicSR.
-    if (shouldRegister('BreakRetest')) this.strategies.push({
-      name: 'BreakRetest',
-      evaluate: (ctx) => {
-        return null; // DISABLED - re-enable after tuning
-      }
-    });
+    // 2026-05-04: Migrated to self-contained pattern (was return-null disabled
+    // since 2026-02-23). Calls BreakAndRetest.update() inline like LiquiditySweep.
+    if (shouldRegister('BreakRetest')) {
+      const breakAndRetestModule = this.breakAndRetestModule;
+      this.strategies.push({
+        name: 'BreakRetest',
+        evaluate: (ctx) => {
+          const candles = ctx.priceHistory;
+          if (!candles || candles.length === 0) return null;
+          const latestCandle = candles[candles.length - 1];
+          const sig = breakAndRetestModule.update(latestCandle, candles);
+          if (!sig || !sig.direction || sig.direction === 'neutral') return null;
+          let conf = sig.confidence || 0;
+          if (conf < this.minStrategyConfidence) return null;
+          const fib = ctx.extras?.nearestFibLevel;
+          let fibBoost = '';
+          if (fib && fib.distance < 0.5) {
+            const boost = fib.isGoldenZone ? 0.12 : 0.08;
+            conf = Math.min(1.0, conf + boost);
+            fibBoost = ` @ Fib ${(fib.level * 100).toFixed(1)}%${fib.isGoldenZone ? ' GOLDEN' : ''}`;
+          }
+          return {
+            direction: sig.direction,
+            confidence: conf,
+            reason: sig.reason || `Break & Retest ${sig.direction}${fibBoost}`,
+            signalData: sig,
+            exitContract: { stopLoss: sig.stopLoss, takeProfit: sig.takeProfit, pt2: sig.pt2 }
+          };
+        }
+      });
+    }
 
     // ─── 5. RSI Extreme Strategy ───
     // FIX 2026-03-06: Read thresholds from TradingConfig per STRATEGY-REWRITE-SPEC

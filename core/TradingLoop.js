@@ -71,7 +71,7 @@ class TradingLoop {
       {
         emaCrossoverSignal: this.ctx.runner?.emaCrossoverSignal || this.ctx.emaCrossoverSignal,
         maDynamicSRSignal: this.ctx.runner?.maDynamicSRSignal || this.ctx.maDynamicSRSignal,
-        breakRetestSignal: this.ctx.runner?.breakRetestSignal || this.ctx.breakRetestSignal,
+        // 2026-05-04: breakRetestSignal removed — orchestrator now owns BreakAndRetest instance directly.
         liquiditySweepSignal: this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal,
         mtfAdapter: this.ctx.runner?.mtfAdapter || this.ctx.mtfAdapter,
         tpoResult,
