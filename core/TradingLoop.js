@@ -28,6 +28,7 @@ const FeatureFlagManager = require('./FeatureFlagManager');
 const TradingConfig = require('./TradingConfig');
 const { getInstance: getExitContractManager } = require('./ExitContractManager');
 const CandlePatternDetector = require('./CandlePatternDetector');
+const { getNarrator } = require('./TradeNarrator');
 const flagManager = FeatureFlagManager.getInstance();
 
 const candlePatternDetector = new CandlePatternDetector();
@@ -539,12 +540,33 @@ class TradingLoop {
           message: reasoning,
           confidence: decision.confidence,
           data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
-          // Strategy Winner HUD: full battleground for confidence bar chart
-          strategy_stack: orchResult.allResults ? orchResult.allResults.map(s => ({
-            id: s.strategyName,
-            name: s.strategyName,
-            confidence: s.confidence
-          })) : undefined,
+          // Strategy Winner HUD: full battleground for confidence bar chart.
+          // Show ALL configured strategies (zero-confidence placeholders for
+          // non-firing) so the heatbar reflects the complete roster, not
+          // only what produced a signal this cycle. Public `name` is
+          // anonymized via TradeNarrator.labelFor() (Strategy-A/B/C);
+          // `realName` is kept on the wire for internal tooling.
+          strategy_stack: (() => {
+            const orch = this.ctx.strategyOrchestrator;
+            if (!orch || !Array.isArray(orch.strategies)) return undefined;
+            const narrator = getNarrator();
+            const labelOf = narrator && typeof narrator.labelFor === 'function'
+              ? n => narrator.labelFor(n)
+              : n => n;
+            const firing = new Map((orchResult.allResults || []).map(r => [r.strategyName, r]));
+            return orch.strategies
+              .map(s => {
+                const fired = firing.get(s.name);
+                return {
+                  id: s.name,
+                  realName: s.name,
+                  name: labelOf(s.name),
+                  confidence: fired ? fired.confidence : 0,
+                  direction: fired ? (fired.direction || 'hold') : 'hold'
+                };
+              })
+              .sort((a, b) => b.confidence - a.confidence);
+          })(),
           winner_id: orchResult.winnerStrategy || null
         }));
       } catch (e) { /* fail silently */ }
