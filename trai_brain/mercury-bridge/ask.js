@@ -230,6 +230,7 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
+      blastRadius: opts.blastRadius || null,
       maxIterations,
       maxTokens,
       verbose,

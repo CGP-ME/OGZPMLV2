@@ -113,6 +113,7 @@ async function runReactLoop(params) {
     userQuery,
     starterContext = [],
     traceHint = null,
+    blastRadius = null,
     maxIterations = parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10),
     maxTokens = 7750,
     verbose = false,
@@ -149,6 +150,17 @@ async function runReactLoop(params) {
     messages.push({
       role: 'system',
       content: traceHint,
+    });
+  }
+
+  // Blast radius: who imports the file under attack. Caller list comes from
+  // tools/serena-bridge.js (dep-scanner inverse map). Mercury sees this as a
+  // separate system message so it can reason about which callers a proposed
+  // change affects without re-discovering the call graph.
+  if (blastRadius) {
+    messages.push({
+      role: 'system',
+      content: blastRadius,
     });
   }
 

@@ -388,4 +388,42 @@ function main() {
   }
 }
 
-main();
+// ═══════════════════════════════════════════════════════════════
+// Programmatic API — used by tools/serena-bridge.js
+// ═══════════════════════════════════════════════════════════════
+
+function normalizeTarget(target) {
+  let t = String(target).replace(/^\.\//, '').replace(/\\/g, '/');
+  if (t.endsWith('.js')) t = t.slice(0, -3);
+  return t;
+}
+
+function getCallers(target) {
+  const wanted = normalizeTarget(target);
+  const jsFiles = findJSFiles(PROJECT_ROOT);
+  const callers = [];
+  for (const file of jsFiles) {
+    const deps = extractDeps(file);
+    for (const dep of deps) {
+      if (normalizeTarget(dep.resolved) === wanted) {
+        callers.push({
+          source: dep.source,
+          line: dep.line,
+          type: dep.type,
+          target: dep.target,
+        });
+      }
+    }
+  }
+  return callers;
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  findJSFiles,
+  extractDeps,
+  getCallers,
+};
