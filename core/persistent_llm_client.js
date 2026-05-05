@@ -58,6 +58,14 @@ const PROVIDERS = {
     authPrefix: '',
     requestFormat: 'ollama',
   },
+  ollamacloud: {
+    name: 'Ollama Cloud',
+    baseUrl: 'https://ollama.com/v1',
+    defaultModel: 'qwen3-coder:480b-cloud',
+    authHeader: 'Authorization',
+    authPrefix: 'Bearer ',
+    requestFormat: 'openai',
+  },
 };
 
 class PersistentLLMClient {

@@ -213,9 +213,25 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Tool adapter ready. Tools: ${Object.keys(toolAdapter.tools).join(', ')}`);
     }
 
-    // 4. Initialize Mercury client for native tool calling
+    // 4. Initialize Mercury client for native tool calling.
+    // Provider override lets callers swap Mercury for an OpenAI-compat
+    // alternative (e.g. Ollama Cloud) when Inception is down or for
+    // independent verification. apiKey resolution: caller-supplied first,
+    // then provider-specific env var, then PersistentLLMClient's own
+    // LLM_API_KEY fallback chain.
+    const provider = opts.provider || 'mercury';
+    const providerKeyEnv = {
+      mercury: process.env.INCEPTION_API_KEY || process.env.MERCURY_API_KEY,
+      ollamacloud: process.env.OLLAMA_API_KEY,
+      openai: process.env.OPENAI_API_KEY,
+      claude: process.env.ANTHROPIC_API_KEY,
+    }[provider];
     const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
-    const client = new PersistentLLMClient({ provider: 'mercury' });
+    const client = new PersistentLLMClient({
+      provider,
+      model: opts.model || undefined,
+      apiKey: opts.apiKey || providerKeyEnv,
+    });
     await client.initialize();
 
     if (verbose) {
