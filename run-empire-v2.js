@@ -173,6 +173,9 @@ const MaxProfitManager = require('./core/MaxProfitManager');
 // REFACTOR Phase 15: TradingLoop - exact copy of analyzeAndTrade() extracted
 const TradingLoop = require('./core/TradingLoop');
 
+// SessionRouter — sequential dual-broker switching (gated SESSION_ROUTER_ENABLED)
+const SessionRouter = require('./core/SessionRouter');
+
 // REFACTOR Phase 17: DashboardBroadcaster - edge analytics broadcasting
 const DashboardBroadcaster = require('./core/DashboardBroadcaster');
 
@@ -591,31 +594,113 @@ class OGZPrimeV14Bot {
     console.log('[DEBUG] About to create ' + (process.env.BROKER || 'alpaca') + ' adapter...');
     console.log('[DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
-    // EMPIRE V2: Create broker adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
-    // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
-    // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default -> stocks paper).
-    // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
-    // adapter BrokerFactory returns. SessionRouter (pre-Apex) will replace with dual-broker.
-    const brokerId = process.env.BROKER || 'alpaca';
-    const adapterOptions = brokerId === 'kraken'
-      ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
-      : {};
-    this.kraken = createBrokerAdapter(brokerId, adapterOptions);
-    console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
-    console.log('[DEBUG] Broker adapter type:', this.kraken.constructor.name);
+    // BROKER SETUP — dual path gated on SESSION_ROUTER_ENABLED.
+    // Default OFF: existing single-broker path runs unchanged (Phase 0 dormant).
+    // ON: dual-broker SessionRouter swaps Kraken (crypto) <-> Alpaca (stocks RTH).
+    const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
 
-    // Phase 2 REWRITE: executionLayer deleted - OrderRouter handles routing directly
+    if (sessionRouterEnabled) {
+      console.log('[EMPIRE V2] SessionRouter ENABLED — creating Kraken + Alpaca adapters');
+      const krakenAdapter = createBrokerAdapter('kraken', {
+        apiKey: resolvedConfig.config.broker.apiKey,
+        apiSecret: resolvedConfig.config.broker.apiSecret,
+      });
+      const alpacaAdapter = createBrokerAdapter('alpaca', {});
 
-    // REFACTOR Phase 5: OrderRouter for multi-broker routing
-    // Future: Add more brokers with orderRouter.registerBroker(adapter, symbols)
-    this.orderRouter = new OrderRouter();
-    // FIX 2026-04-22: symbols match broker — ALPACA_SYMBOLS env for stocks (default 'TSLA'),
-    // hardcoded crypto list for Kraken. Override stocks with e.g. ALPACA_SYMBOLS='TSLA,NVDA,SPY'.
-    const routedSymbols = brokerId === 'alpaca'
-      ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
-      : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
-    this.orderRouter.registerBroker(this.kraken, routedSymbols);
-    console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
+      this.orderRouter = new OrderRouter();
+
+      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      this.sessionRouter = new SessionRouter({
+        enabled: true,
+        fast: process.env.SESSION_ROUTER_FAST === 'true',
+        checkIntervalMs: sessionsCfg.checkIntervalMs,
+        forceCloseOnSessionEnd: sessionsCfg.forceCloseOnSessionEnd,
+        stockSymbols: (process.env.ALPACA_SYMBOLS
+          ? process.env.ALPACA_SYMBOLS.split(',').map(s => s.trim())
+          : sessionsCfg.stockSymbols),
+        cryptoSymbols: sessionsCfg.cryptoSymbols,
+      });
+
+      // OHLC handler closure — mirrors single-broker handler in subscribeToMarketData.
+      // SessionRouter attaches this to whichever adapter is currently active.
+      const ohlcHandler = (eventData) => {
+        const tf = eventData.timeframe || '1m';
+        const raw = eventData.data || eventData;
+        const ohlcData = normalizeOhlc(raw);
+        if (!ohlcData) {
+          console.warn('[OHLC] dropped unnormalizable payload from', tf);
+          return;
+        }
+        // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
+        // Dual-broker emits may carry .symbol on the wrapper; if absent,
+        // infer from the active session's primary symbol. Either source
+        // gets normalized to dash-form before storing.
+        const rawSym = (eventData && eventData.symbol)
+          || (raw && typeof raw === 'object' && raw.S)        // Alpaca raw bar
+          || (this.sessionRouter && this.sessionRouter.activeSession === 'crypto'
+              ? (this.sessionRouter.cryptoSymbols && this.sessionRouter.cryptoSymbols[0])
+              : null);
+        if (rawSym) {
+          const sym = String(rawSym).toUpperCase().replace('XBT','BTC').replace('/','-');
+          if (stateManager && stateManager.updateLastPrice) {
+            stateManager.updateLastPrice(sym, ohlcData[5]);
+          }
+        }
+        this.storeTimeframeCandle(tf, ohlcData);
+        if (tf === '1m') this.handleMarketData(ohlcData);
+        if (tf === '5m' && this.timeframeSelector) {
+          const tfResult = this.timeframeSelector.evaluate();
+          if (tfResult.switched) {
+            console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
+          }
+        }
+        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || '15m';
+        if (tf === activeTf) {
+          console.log(`V2: ${activeTf} candle closed - running trading analysis`);
+          this.run15mTradingCycle();
+        }
+      };
+
+      this.sessionRouter.wire(krakenAdapter, alpacaAdapter, this.orderRouter, ohlcHandler, this);
+
+      // Default this.kraken to alpaca; SessionRouter.start() corrects via initial
+      // activation, and the transition listener keeps this.kraken in sync after.
+      this.kraken = alpacaAdapter;
+      this.sessionRouter.on('transition', (ev) => {
+        this.kraken = this.sessionRouter.activeBroker;
+        console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
+      });
+
+      console.log('[EMPIRE V2] OrderRouter initialized — SessionRouter governs subscriptions');
+
+    } else {
+      // SINGLE-BROKER PATH (Phase 0 dormant default).
+      // EMPIRE V2: Create broker adapter through BrokerFactory (SINGLE SOURCE OF TRUTH)
+      // NO FALLBACK - if BrokerFactory fails, bot fails. No bypasses.
+      // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default -> stocks paper).
+      // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
+      // adapter BrokerFactory returns.
+      const brokerId = process.env.BROKER || 'alpaca';
+      const adapterOptions = brokerId === 'kraken'
+        ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
+        : {};
+      this.kraken = createBrokerAdapter(brokerId, adapterOptions);
+      console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
+      console.log('[DEBUG] Broker adapter type:', this.kraken.constructor.name);
+
+      // Phase 2 REWRITE: executionLayer deleted - OrderRouter handles routing directly
+
+      // REFACTOR Phase 5: OrderRouter for multi-broker routing
+      // Future: Add more brokers with orderRouter.registerBroker(adapter, symbols)
+      this.orderRouter = new OrderRouter();
+      // FIX 2026-04-22: symbols match broker — ALPACA_SYMBOLS env for stocks (default 'TSLA'),
+      // hardcoded crypto list for Kraken. Override stocks with e.g. ALPACA_SYMBOLS='TSLA,NVDA,SPY'.
+      const routedSymbols = brokerId === 'alpaca'
+        ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
+        : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
+      this.orderRouter.registerBroker(this.kraken, routedSymbols);
+      console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
+    }
 
     // Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
     this.maxProfitManagers = new Map();
@@ -1050,6 +1135,17 @@ class OGZPrimeV14Bot {
 
     this.isRunning = true;
 
+    // Start SessionRouter after isRunning so transitions can pause/resume cleanly.
+    // start() is sync — _activate{Crypto,Stocks} runs inside it and populates
+    // sessionRouter.activeBroker. We re-sync this.kraken to that broker here
+    // because _activate methods do NOT emit 'transition' (only the swap methods do),
+    // so without this assignment this.kraken would stay pinned to the construction-
+    // time default (alpacaAdapter) until the first real RTH boundary fires.
+    if (this.sessionRouter) {
+      this.sessionRouter.start();
+      if (this.sessionRouter.activeBroker) this.kraken = this.sessionRouter.activeBroker;
+    }
+
     // Initialize TRAI Decision Module (Change 574)
     if (this.trai) {
       try {
@@ -1108,6 +1204,13 @@ class OGZPrimeV14Bot {
    * Single source of truth - no direct connections
    */
   subscribeToMarketData() {
+    // SessionRouter governs subscriptions when enabled — skip the single-broker
+    // path so we don't double-attach OHLC listeners or subscribe to stale symbols.
+    if (this.sessionRouter && this.sessionRouter.enabled) {
+      console.log('V2 ARCHITECTURE: SessionRouter active — skipping manual subscription');
+      return;
+    }
+
     console.log('V2 ARCHITECTURE: Subscribing to market data from BrokerFactory...');
 
     if (this.kraken) {
@@ -1123,6 +1226,7 @@ class OGZPrimeV14Bot {
 
       // Subscribe to OHLC events from the broker
       if (this.kraken.on) {
+        const trackedSymbol = symbol;  // closure capture for updateLastPrice
         this.kraken.on('ohlc', (eventData) => {
           // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
           const timeframe = eventData.timeframe || '1m';
@@ -1138,6 +1242,16 @@ class OGZPrimeV14Bot {
           if (!ohlcData) {
             console.warn('[OHLC] dropped unnormalizable payload from', timeframe, 'broker:', raw);
             return;
+          }
+
+          // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
+          // Single-broker mode subscribes to one symbol — pass it through.
+          const ohlcSymbol = (eventData && eventData.symbol)
+            ? String(eventData.symbol).toUpperCase().replace('XBT','BTC').replace('/','-')
+            : trackedSymbol;
+          const ohlcClose = ohlcData[5];
+          if (stateManager && stateManager.updateLastPrice) {
+            stateManager.updateLastPrice(ohlcSymbol, ohlcClose);
           }
 
           // Store in timeframe-specific history for dashboard
@@ -1661,6 +1775,9 @@ class OGZPrimeV14Bot {
   async shutdown() {
     console.log('\nShutting down OGZ Prime V14 MERGED...');
     this.isRunning = false;
+
+    // Stop SessionRouter interval before clearing other timers (memory leak fix)
+    if (this.sessionRouter) this.sessionRouter.stop();
 
     if (this.tradingInterval) {
       clearInterval(this.tradingInterval);

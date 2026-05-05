@@ -706,6 +706,19 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // SESSIONS (SessionRouter — dual-broker crypto/stocks switching)
+  // =========================================================================
+  // Gated by SESSION_ROUTER_ENABLED env (default false). Dash-form symbols
+  // only — slash form is a path-traversal hazard at filename interpolation.
+  sessions: {
+    routerEnabled: envBool('SESSION_ROUTER_ENABLED', false),
+    stockSymbols: ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'],
+    cryptoSymbols: ['BTC-USD','ETH-USD','SOL-USD'],
+    checkIntervalMs: 60000,
+    forceCloseOnSessionEnd: true,
+  },
+
+  // =========================================================================
   // TIMEFRAME-SPECIFIC ADJUSTMENTS
   // =========================================================================
   timeframeConfig: {

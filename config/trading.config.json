@@ -560,6 +560,13 @@
     "atrEnabled": true,
     "atrMinPercent": 0.15
   },
+  "sessions": {
+    "routerEnabled": false,
+    "stockSymbols": ["TSLA","SPY","QQQ","NVDA","COIN","MARA","RIOT"],
+    "cryptoSymbols": ["BTC-USD","ETH-USD","SOL-USD"],
+    "checkIntervalMs": 60000,
+    "forceCloseOnSessionEnd": true
+  },
   "timeframeConfig": {
     "1m": {
       "trailPct": 0.003,

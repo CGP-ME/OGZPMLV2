@@ -1,0 +1,290 @@
+'use strict';
+
+/**
+ * SessionRouter
+ *
+ * Sequential dual-broker switch. Bot trades crypto 24/7 via Kraken and
+ * automatically swaps to stocks via Alpaca during NYSE Regular Trading
+ * Hours (09:30-16:00 ET, with half-day awareness). Only ONE feed is
+ * active at a time. On RTH open: pause Kraken, start Alpaca. On RTH
+ * close: force-close stock positions at the current market price, pause
+ * Alpaca, resume Kraken.
+ *
+ * Gated by SESSION_ROUTER_ENABLED (default false). When disabled, the
+ * router is constructed but start() is a no-op and the bot's existing
+ * single-broker path is undisturbed.
+ *
+ * NYSE phase detection delegates to foundation/MarketCalendar — the
+ * project's single source of truth for sessions, holidays, half-days,
+ * and DST. There is no parallel calendar in this file.
+ */
+
+const EventEmitter = require('events');
+const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar');
+const { getInstance: getStateManager } = require('./StateManager');
+
+class SessionRouter extends EventEmitter {
+  constructor(config = {}) {
+    super();
+    this.enabled = config.enabled !== false;
+    this.clock = config.clock || (() => Date.now());
+    this.checkIntervalMs = config.fast ? 1000 : (config.checkIntervalMs || 60000);
+    this.forceCloseOnSessionEnd = config.forceCloseOnSessionEnd !== false;
+
+    this.krakenAdapter = null;
+    this.alpacaAdapter = null;
+    this.orderRouter = null;
+    this.stateManager = getStateManager();
+
+    this.activeSession = null;     // 'crypto' | 'stocks' | null
+    this.activeBroker = null;
+    this.transitionInProgress = false;
+    this.lastTransitionAt = 0;
+    this.intervalId = null;
+
+    // Dash-form symbols only — slash form is a path-traversal hazard
+    // (path.join('data', 'BTC/USD.json') creates BTC/ subdir). Kraken's
+    // native slash form is translated at the adapter boundary.
+    this.stockSymbols = config.stockSymbols || ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'];
+    this.cryptoSymbols = config.cryptoSymbols || ['BTC-USD','ETH-USD','SOL-USD'];
+
+    this.onOhlcCallback = null;
+    this.ctx = null;
+
+    console.log(`[SessionRouter] Initialized | enabled=${this.enabled} | interval=${this.checkIntervalMs}ms`);
+  }
+
+  /**
+   * Inject broker adapters, OrderRouter, OHLC callback, and bot context.
+   * Must be called before start(). The bot context (`ctx`) gives the
+   * router access to `ctx.marketData.price` for force-close P&L.
+   */
+  wire(krakenAdapter, alpacaAdapter, orderRouter, onOhlcCallback, ctx) {
+    this.krakenAdapter = krakenAdapter;
+    this.alpacaAdapter = alpacaAdapter;
+    this.orderRouter = orderRouter;
+    this.onOhlcCallback = onOhlcCallback;
+    this.ctx = ctx || null;
+    console.log('[SessionRouter] Wired — Kraken + Alpaca + OrderRouter');
+  }
+
+  /**
+   * Read the current market price from the bot context. Falls back to
+   * the last candle in priceHistory if marketData is empty (pre-first-tick).
+   * Used for force-close P&L — closePosition computes (exit - entry), so
+   * passing entryPrice as exit produces $0 P&L (silent loss of records).
+   */
+  _getCurrentPrice() {
+    if (this.ctx && this.ctx.marketData && this.ctx.marketData.price > 0) {
+      return this.ctx.marketData.price;
+    }
+    if (this.ctx && Array.isArray(this.ctx.priceHistory) && this.ctx.priceHistory.length > 0) {
+      const last = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+      if (Array.isArray(last)) return last[5] || null;             // [t,o,h,l,c,...]
+      if (last && typeof last === 'object') return last.close || null;
+    }
+    return null;
+  }
+
+  start() {
+    if (!this.enabled) {
+      console.log('[SessionRouter] Disabled (SESSION_ROUTER_ENABLED=false) — single-broker path active');
+      return;
+    }
+    if (!this.krakenAdapter || !this.alpacaAdapter) {
+      console.error('[SessionRouter] Cannot start — missing broker adapters. Call wire() first.');
+      return;
+    }
+
+    const phase = getMarketPhase(new Date(this.clock()));
+    if (phase.isRTH) {
+      this._activateStocks();
+    } else {
+      this._activateCrypto();
+    }
+
+    this.intervalId = setInterval(() => {
+      try { this._checkTransition(); }
+      catch (err) { console.error('[SessionRouter] Check failed:', err.message); }
+    }, this.checkIntervalMs);
+
+    console.log(`[SessionRouter] Started | initial session: ${this.activeSession}`);
+  }
+
+  _checkTransition() {
+    if (this.transitionInProgress) return;
+    const now = new Date(this.clock());
+    const phase = getMarketPhase(now);
+
+    if (this.activeSession === 'crypto' && phase.isRTH) {
+      this._transitionToStocks(now);
+      return;
+    }
+    if (this.activeSession === 'stocks' && !phase.isRTH) {
+      this._transitionToCrypto(now);
+      return;
+    }
+  }
+
+  async _transitionToStocks(now) {
+    this.transitionInProgress = true;
+    const ny = getNYTimeParts(now);
+    console.log(`[SessionRouter] TRANSITION: crypto -> stocks at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
+
+    try {
+      await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
+
+      if (typeof this.krakenAdapter.unsubscribeAll === 'function') this.krakenAdapter.unsubscribeAll();
+      if (typeof this.krakenAdapter.removeAllListeners === 'function') this.krakenAdapter.removeAllListeners('ohlc');
+
+      if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+
+      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+      for (const symbol of this.stockSymbols) {
+        if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
+          this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+        }
+      }
+
+      if (this.onOhlcCallback && typeof this.alpacaAdapter.on === 'function') {
+        this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
+      }
+
+      this.activeSession = 'stocks';
+      this.activeBroker = this.alpacaAdapter;
+      this.lastTransitionAt = Date.now();
+
+      await this.stateManager.resumeTrading();
+      this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
+      console.log('[SessionRouter] ACTIVE: stocks session');
+
+    } catch (err) {
+      console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
+      try { await this.stateManager.resumeTrading(); } catch (e) { /* swallow */ }
+    } finally {
+      this.transitionInProgress = false;
+    }
+  }
+
+  async _transitionToCrypto(now) {
+    this.transitionInProgress = true;
+    const ny = getNYTimeParts(now);
+    console.log(`[SessionRouter] TRANSITION: stocks -> crypto at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
+
+    try {
+      await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
+
+      // Force-close stock positions. Each trade is closed at the SYMBOL'S
+      // last-known price (StateManager tracks per-symbol prices), not a
+      // single global price. This eliminates the cross-asset equity
+      // corruption Mercury identified — TSLA closes at TSLA price, never
+      // at BTC price. closePosition with a real recent price produces
+      // accurate P&L; the original silent-$0 path (entryPrice fallback)
+      // is closed at the StateManager.closePosition signature level.
+      if (this.forceCloseOnSessionEnd) {
+        const activeTrades = this.stateManager.state && this.stateManager.state.activeTrades;
+        if (activeTrades && activeTrades.size > 0) {
+          console.log(`[SessionRouter] Force-closing ${activeTrades.size} stock position(s)...`);
+          for (const [orderId, trade] of activeTrades.entries()) {
+            try {
+              const symbol = trade.symbol;
+              const exitPrice = symbol && this.stateManager.getLastPrice
+                ? this.stateManager.getLastPrice(symbol)
+                : null;
+              if (!exitPrice || exitPrice <= 0) {
+                console.error(`[SessionRouter] CANNOT force-close ${orderId} (symbol=${symbol}): no last-known price; trade left open`);
+                continue;
+              }
+              await this.stateManager.closePosition(exitPrice, false, null, {
+                orderId,
+                exitReason: 'session_close',
+                tradeId: trade.tradeId || orderId,
+              });
+              console.log(`[SessionRouter] Closed ${orderId} (${symbol}) at $${exitPrice}`);
+            } catch (closeErr) {
+              console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
+            }
+          }
+        }
+      }
+
+      if (typeof this.alpacaAdapter.unsubscribeAll === 'function') this.alpacaAdapter.unsubscribeAll();
+      if (typeof this.alpacaAdapter.removeAllListeners === 'function') this.alpacaAdapter.removeAllListeners('ohlc');
+
+      if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+
+      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+      const primaryCrypto = this.cryptoSymbols[0] || 'BTC-USD';
+      if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
+        this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+      }
+
+      if (this.onOhlcCallback && typeof this.krakenAdapter.on === 'function') {
+        this.krakenAdapter.on('ohlc', this.onOhlcCallback);
+      }
+
+      this.activeSession = 'crypto';
+      this.activeBroker = this.krakenAdapter;
+      this.lastTransitionAt = Date.now();
+
+      await this.stateManager.resumeTrading();
+      this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
+      console.log('[SessionRouter] ACTIVE: crypto session');
+
+    } catch (err) {
+      console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
+      try { await this.stateManager.resumeTrading(); } catch (e) { /* swallow */ }
+    } finally {
+      this.transitionInProgress = false;
+    }
+  }
+
+  _activateCrypto() {
+    this.activeSession = 'crypto';
+    this.activeBroker = this.krakenAdapter;
+    if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+    const primaryCrypto = this.cryptoSymbols[0] || 'BTC-USD';
+    if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
+      this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+    }
+    if (this.onOhlcCallback && typeof this.krakenAdapter.on === 'function') {
+      this.krakenAdapter.on('ohlc', this.onOhlcCallback);
+    }
+    console.log('[SessionRouter] Initial activation: crypto');
+  }
+
+  _activateStocks() {
+    this.activeSession = 'stocks';
+    this.activeBroker = this.alpacaAdapter;
+    if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+    for (const symbol of this.stockSymbols) {
+      if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
+        this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+      }
+    }
+    if (this.onOhlcCallback && typeof this.alpacaAdapter.on === 'function') {
+      this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
+    }
+    console.log('[SessionRouter] Initial activation: stocks');
+  }
+
+  stop() {
+    if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+    console.log('[SessionRouter] Stopped');
+  }
+
+  getStatus() {
+    return {
+      enabled: this.enabled,
+      activeSession: this.activeSession,
+      activeBroker: this.activeBroker && this.activeBroker.constructor && this.activeBroker.constructor.name || null,
+      transitionInProgress: this.transitionInProgress,
+      lastTransitionAt: this.lastTransitionAt ? new Date(this.lastTransitionAt).toISOString() : null,
+      marketPhase: getMarketPhase(new Date(this.clock())),
+    };
+  }
+}
+
+module.exports = SessionRouter;

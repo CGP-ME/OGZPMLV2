@@ -370,6 +370,75 @@ class MarketCalendar {
     };
   }
 
+  /**
+   * Get NY time parts in a structured shape for SessionRouter logging and
+   * minute-of-day comparisons. DST-aware via Intl.DateTimeFormat.
+   * Public surface — distinct from private _getETTime which round-trips
+   * through Date parsing.
+   * @param {Date} date
+   * @returns {{date: string, hour: number, minute: number, weekday: string, minuteOfDay: number}}
+   */
+  getNYTimeParts(date = new Date()) {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: this.timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false, weekday: 'short',
+    });
+    const parts = dtf.formatToParts(date);
+    const get = (t) => (parts.find(p => p.type === t) || {}).value;
+    const hour = parseInt(get('hour'), 10) % 24;
+    const minute = parseInt(get('minute'), 10);
+    return {
+      date: `${get('year')}-${get('month')}-${get('day')}`,
+      hour, minute,
+      weekday: get('weekday'),
+      minuteOfDay: hour * 60 + minute,
+    };
+  }
+
+  /**
+   * Get market phase information shaped for SessionRouter consumers.
+   * Maps internal session names (premarket/regular/afterhours/closed)
+   * to spec-shape phase codes (pre/rth/ah/closed) plus the boundary
+   * timestamps SessionRouter needs to schedule transitions.
+   * @param {Date} date
+   * @returns {{phase: 'pre'|'rth'|'ah'|'closed', isRTH: boolean, isOpen: boolean,
+   *            nextTransition: string, rthCloseMinute: number}}
+   */
+  getMarketPhase(date = new Date()) {
+    const session = this.getSession(date);
+    const holiday = this.checkHoliday(date);
+    const minutes = this._getMinutesFromMidnight(date);
+
+    const phaseMap = { premarket: 'pre', regular: 'rth', afterhours: 'ah', closed: 'closed' };
+    const phase = phaseMap[session] || 'closed';
+    const isRTH = session === 'regular';
+    const isOpen = session !== 'closed';
+    const rthCloseMinute = holiday.halfDay ? this.halfDayClose : this.sessions.regular.end;
+
+    let nextTransition;
+    if (this.isWeekend(date)) {
+      nextTransition = 'Pre-market Monday 04:00 ET';
+    } else if (holiday.isHoliday) {
+      nextTransition = `Holiday: ${holiday.name || 'closed'}`;
+    } else if (session === 'closed') {
+      nextTransition = minutes < this.sessions.premarket.start
+        ? 'Pre-market 04:00 ET'
+        : 'Pre-market 04:00 ET (next session)';
+    } else if (session === 'premarket') {
+      nextTransition = 'RTH opens 09:30 ET';
+    } else if (session === 'regular') {
+      nextTransition = holiday.halfDay ? 'Early close 13:00 ET' : 'RTH closes 16:00 ET';
+    } else if (session === 'afterhours') {
+      nextTransition = 'After-hours ends 20:00 ET';
+    } else {
+      nextTransition = 'Unknown';
+    }
+
+    return { phase, isRTH, isOpen, nextTransition, rthCloseMinute };
+  }
+
   // =========================================================================
   // HELPER METHODS
   // =========================================================================
@@ -453,7 +522,12 @@ function getInstance() {
   return instance;
 }
 
+function getMarketPhase(date) { return getInstance().getMarketPhase(date); }
+function getNYTimeParts(date) { return getInstance().getNYTimeParts(date); }
+
 module.exports = {
   MarketCalendar,
-  getInstance
+  getInstance,
+  getMarketPhase,
+  getNYTimeParts
 };

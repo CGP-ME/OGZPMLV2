@@ -108,7 +108,14 @@ class StateManager {
       // TRADE TRACKING
       // activeTrades Map persists across restarts via save()/load()
       // ─────────────────────────────────────────────────────────────────────
-      activeTrades: new Map(),  // orderId → { size, price, entryTime, ... }
+      activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
+      // Per-symbol last-known prices for cross-asset equity math.
+      // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
+      // supplied currentPrice across all activeTrades, which corrupts equity
+      // when the trade map mixes asset classes (e.g. SessionRouter dual-broker).
+      // Populated from OHLC handlers; used by getEquity/getAvailableCapital
+      // and by SessionRouter for symbol-correct force-close prices.
+      lastPrices: new Map(),    // symbol → most recent close price
       lastTradeTime: null,      // Timestamp of last trade execution
       tradeCount: 0,            // Total trades (lifetime)
       dailyTradeCount: 0,       // Trades today (resets via resetDaily())
@@ -187,18 +194,27 @@ class StateManager {
     const initialBalance = this.state.initialBalance || 10000;
     const realizedPnL = this.state.realizedPnL || 0;
 
-    // Compute unrealizedPnL live from activeTrades
+    // Compute unrealizedPnL live from activeTrades.
+    // FIX 2026-05-05 (Mercury cross-asset attack): each trade priced at its
+    // OWN symbol's last-known price (lastPrices map), with the caller's
+    // currentPrice as a fallback. Single-asset modes (Apex stocks-only,
+    // crypto-only) are byte-identical because the trade's symbol price
+    // equals the global price. Cross-asset (SessionRouter) modes no
+    // longer apply BTC price to TSLA trades.
     let unrealizedPnL = 0;
     if (this.state.activeTrades && this.state.activeTrades.size > 0) {
       for (const trade of this.state.activeTrades.values()) {
         const entry = trade.entryPrice;
         const size = trade.sizeUsd || trade.size;
         const direction = trade.direction;
+        const tradePrice = (trade.symbol && this.state.lastPrices && this.state.lastPrices.get(trade.symbol))
+          || currentPrice
+          || entry;
 
         if (direction === 'long') {
-          unrealizedPnL += size * ((currentPrice - entry) / entry);
+          unrealizedPnL += size * ((tradePrice - entry) / entry);
         } else {
-          unrealizedPnL += size * ((entry - currentPrice) / entry);
+          unrealizedPnL += size * ((entry - tradePrice) / entry);
         }
       }
     }
@@ -223,6 +239,29 @@ class StateManager {
     }
 
     return Math.max(0, equity - reservedCapital);
+  }
+
+  /**
+   * Record the most recent close price for a symbol.
+   * Called from OHLC handlers on each candle close. Powers cross-asset
+   * equity math in getEquity and the symbol-correct force-close exit
+   * price lookup in SessionRouter._transitionToCrypto.
+   */
+  updateLastPrice(symbol, price) {
+    if (!symbol || typeof price !== 'number' || !(price > 0)) return;
+    if (!this.state.lastPrices) this.state.lastPrices = new Map();
+    this.state.lastPrices.set(symbol, price);
+  }
+
+  /**
+   * Look up the last-known close price for a symbol.
+   * Returns null if the symbol has never been seen (caller must decide
+   * whether that is a critical state — SessionRouter treats it as
+   * "leave the trade open").
+   */
+  getLastPrice(symbol) {
+    if (!symbol || !this.state.lastPrices) return null;
+    return this.state.lastPrices.get(symbol) || null;
   }
 
   /**
@@ -348,9 +387,18 @@ class StateManager {
     // Entry fee calculated upfront
     const entryFee = usdCost * TradingConfig.get('fees.makerFee');
 
-    // Store trade in activeTrades with all required fields
+    // Store trade in activeTrades with all required fields.
+    // FIX 2026-05-05: promote `symbol` to a top-level trade field (was only
+    // present inside decisionLedger sub-object). getEquity/getAvailableCapital
+    // and SessionRouter need symbol-aware pricing.
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
     const tradeAction = context.action || 'BUY';
+    const tradeSymbolRaw = (context.ledgerData && context.ledgerData.symbol)
+      || context.symbol
+      || null;
+    const tradeSymbol = tradeSymbolRaw
+      ? String(tradeSymbolRaw).toUpperCase().replace('XBT', 'BTC').replace('/', '-')
+      : null;
     const trade = {
       id: tradeId,
       action: tradeAction,  // BUY or SELL_SHORT
@@ -360,6 +408,7 @@ class StateManager {
       size: size,           // Keep for compatibility
       price: price,
       entryPrice: price,
+      symbol: tradeSymbol,  // Dash-form normalized (TSLA, BTC-USD, ETH-USD, ...)
       entryFee: entryFee,   // Store fee for accounting
       entryTime: Date.now(),
       timestamp: Date.now(),

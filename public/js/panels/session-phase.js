@@ -19,6 +19,9 @@
     const STYLE_ID = 'ogz-session-phase-styles';
     const ROOT_ID = 'sessionPhase';
 
+    // Source of truth: foundation/MarketCalendar.js (server-side, dynamic).
+    // This frontend copy is hardcoded for offline rendering; if updating
+    // holidays, update BOTH files (or wire to /api/trai/session-context).
     // NYSE full-day closures 2026-2027
     const HOLIDAYS = new Set([
         '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
