@@ -18,6 +18,7 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { normalizeOhlc } = require('../foundation/ohlc-normalize');
+const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
 const stateManager = getStateManager();
 
 // Candle accessors (V2 format)
@@ -37,6 +38,12 @@ class CandleProcessor {
     this.cleanCandlesRequired = 3;
     this.backfillRetryInterval = null;
     this.backfillRetryDelayMs = 60000; // 60 seconds
+
+    // RTH-aware gap detection (CC-SPEC-RTH-GAP-DETECTION.md, 2026-05-05).
+    // MarketCalendar is the single source of truth for NYSE sessions, holidays,
+    // half-days, and DST. The gap detector uses it via _isExpectedMarketClose
+    // to skip legitimate overnight/weekend closes that aren't real data gaps.
+    this.marketCalendar = getMarketCalendar();
 
     console.log('[CandleProcessor] Initialized with gap recovery');
   }
@@ -120,6 +127,41 @@ class CandleProcessor {
     }
 
     return true; // Was new candle
+  }
+
+  /**
+   * Returns true iff the gap from lastEtime → nextEtime is wholly explained
+   * by a US equity market closure (overnight 16:00→09:30 ET, weekend Fri→Mon,
+   * holiday). Uses MarketCalendar.getNYTimeParts for DST-safe NYSE conversion.
+   *
+   * Spec semantics (CC-SPEC-RTH-GAP-DETECTION.md):
+   *   - Weekend gap: last weekday is Fri, next weekday is Mon
+   *   - Overnight gap: last bar at-or-after 15:30 ET, next bar at-or-before
+   *     10:00 ET, on different calendar days
+   * @private
+   */
+  _isExpectedMarketClose(lastEtime, nextEtime) {
+    // Defensive guard (Mercury attack finding d): fail closed on non-finite inputs.
+    // If we can't reason about the timestamps, don't skip the gap — backfill
+    // attempt + halt path is the correct fail-safe behavior.
+    if (!Number.isFinite(lastEtime) || !Number.isFinite(nextEtime)) return false;
+
+    const last = this.marketCalendar.getNYTimeParts(new Date(lastEtime));
+    const next = this.marketCalendar.getNYTimeParts(new Date(nextEtime));
+
+    // Weekend: Fri close → Mon open
+    if (last.weekday === 'Fri' && next.weekday === 'Mon') return true;
+
+    // Overnight: last at-or-after the day's actual RTH close (handles half-days
+    // like day-after-Thanksgiving 13:00 ET via MarketCalendar.getMarketPhase),
+    // next at-or-before 10:00 ET morning open, on different calendar dates.
+    // Mercury attack finding b: hardcoded 15:30 missed half-day early closes.
+    const lastDayPhase = this.marketCalendar.getMarketPhase(new Date(lastEtime));
+    const closeBoundary = lastDayPhase.rthCloseMinute - 30;  // 30-min slop for last bar pre-close
+    const isAfterClose = last.minuteOfDay >= closeBoundary;
+    const isBeforeOpen = next.minuteOfDay <= 10 * 60;  // 10:00 ET morning slop
+    const differentDays = last.date !== next.date;
+    return isAfterClose && isBeforeOpen && differentDays;
   }
 
   /**
@@ -343,20 +385,30 @@ class CandleProcessor {
       const gapThreshold = this.candleIntervalMs * this.gapThresholdMultiplier;
 
       if (gapMs > gapThreshold) {
-        const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
-        console.warn(`⚠️ [GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
+        // RTH-aware: skip gap halt for legitimate stocks overnight/weekend closes.
+        // CC-SPEC-RTH-GAP-DETECTION.md. Mercury attack finding c: negative-match
+        // classifier accepted separator-less crypto pairs (BTCUSDC). Tightened
+        // to positive US-equity-ticker shape: 1-5 uppercase letters, no digits.
+        const tradingPair = this.ctx.tradingPair || '';
+        const isStocksMode = /^[A-Z]{1,5}$/.test(tradingPair);
+        if (isStocksMode && this._isExpectedMarketClose(lastCandle.etime, candle.etime)) {
+          console.log(`[GAP-RECOVERY] Overnight/weekend gap ${Math.round(gapMs/60000)} min — expected for stocks, skipping`);
+        } else {
+          const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
+          console.warn(`⚠️ [GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
 
-        this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
-          if (backfilledCandles.length > 0) {
-            this.handleBackfillSuccess(backfilledCandles);
-            this.cleanCandleCount = 0;
-          } else {
-            console.error('[GAP-RECOVERY] Backfill failed, halting trading');
-            this.ctx.staleFeedPaused = true;
-            stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`);
-            this.startBackfillRetry(lastCandle.etime, candle.etime);
-          }
-        });
+          this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
+            if (backfilledCandles.length > 0) {
+              this.handleBackfillSuccess(backfilledCandles);
+              this.cleanCandleCount = 0;
+            } else {
+              console.error('[GAP-RECOVERY] Backfill failed, halting trading');
+              this.ctx.staleFeedPaused = true;
+              stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`);
+              this.startBackfillRetry(lastCandle.etime, candle.etime);
+            }
+          });
+        }
       }
     }
 
