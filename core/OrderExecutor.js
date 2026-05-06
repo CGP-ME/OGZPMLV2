@@ -904,7 +904,7 @@ class OrderExecutor {
               this.ctx.trai.recordTradeOutcome({
                 tradeId: buyTrade.orderId,
                 decisionId: traiDecisionData.decisionId,
-                symbol: this.ctx.tradingPair || 'BTC-USD',
+                symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-05: tradingPair not set — refusing to record TRAI outcome under wrong symbol'); })(),
                 profitLoss: profitLoss,
                 profitLossPercent: pnl,
                 holdDuration: holdDuration,
@@ -1137,7 +1137,7 @@ class OrderExecutor {
             this.ctx.trai.recordTradeOutcome({
               tradeId: shortTrade.orderId,
               decisionId: traiDecisionData.decisionId,
-              symbol: this.ctx.tradingPair || 'BTC-USD',
+              symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-05: tradingPair not set — refusing to record TRAI outcome under wrong symbol'); })(),
               profitLoss: profitLoss,
               profitLossPercent: pnl,
               holdDuration: holdDuration,

@@ -311,3 +311,30 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 
 - Commit CRIT-04 as-is.
 - **Immediate next:** redo CRIT-05 at `:907, :1140` with two individual Edit calls (no replace_all per Trey's rule).
+
+---
+
+## Dispatch 10 — post-CRIT-05 attack on `core/OrderExecutor.js`
+
+**Commit context:** CRIT-05 fix at 2 TRAI recordTradeOutcome sites (`:907 BUY`, `:1140 SHORT`) — same IIFE-throw pattern as CRIT-04, applied site-by-site (no replace_all).
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 25 iters / 35.9s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** No legitimate empty-tradingPair path. Only 2 callers, both fixed. ✅ Safe.
+2. **Regress:** Mercury claimed IIFE throw escapes executeTrade because TRAI calls are "outside any try...catch." **FALSE POSITIVE — verified directly.**
+3. **Hunt:** `core/CandleProcessor.js:399` — `candle.symbol || this.ctx.tradingPair || 'BTC-USD'`. Real adjacent site (different file, queued for follow-up).
+
+### My triage
+
+**Mercury's regress claim contradicted Dispatch 9 finding.** Verified directly via grep: `executeTrade` has ONE outer `try` at line 115 and matching `catch` at line 1210. Both CRIT-05 sites (`:907`, `:1140`) are inside that range. Mercury looked at NESTED inner try blocks (PID at `:819-833`, TradeLogger at `:835-848`) and concluded TRAI wasn't wrapped. But those are nested inside the outer try — Mercury misread the nesting.
+
+**Verdict on #2: FALSE POSITIVE.** Same outer catch handles CRIT-05's IIFE as CRIT-04's.
+
+### Action taken because of Mercury
+
+- Commit CRIT-05 as-is.
+- **Pending follow-up:** `core/CandleProcessor.js:399` `candle.symbol || this.ctx.tradingPair || 'BTC-USD'` — adjacent site, separate file.
