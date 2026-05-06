@@ -784,6 +784,22 @@ class OrderExecutor {
               } else {
                 // FIX 2026-03-14: Always reconstruct features from entryIndicators if pattern.features missing
                 // This was the root cause of 90% zero-PNL patterns - we skipped recording entirely
+                // HIGH-09/10/11/12: synthetic feature reconstruction. Each missing
+                // entryIndicator field falls back to a hardcoded "neutral" value
+                // (rsi=0.5, macd=0, trend=0, bbWidth=0.02, volatility=0.01).
+                // Two patterns with different REAL features but same missing-fields
+                // get the SAME fabricated vector → pattern hash collision in
+                // PatternMemoryBank. Surface this as a warn so synthetic-feature
+                // pattern entries can be quarantined post-hoc.
+                const _missingFields = [];
+                if (buyTrade.entryIndicators?.rsi == null) _missingFields.push('rsi');
+                if (buyTrade.entryIndicators?.macd == null) _missingFields.push('macd');
+                if (buyTrade.entryIndicators?.trend == null) _missingFields.push('trend');
+                if (buyTrade.entryIndicators?.bbWidth == null) _missingFields.push('bbWidth');
+                if (buyTrade.entryIndicators?.volatility == null) _missingFields.push('volatility');
+                if (_missingFields.length > 0) {
+                  console.warn(`[HIGH-09/10/11/12] BUY exit: pattern.features missing AND entryIndicators incomplete (synthetic defaults applied to: ${_missingFields.join(', ')}) — pattern hash may collide with other synthetic-feature entries`);
+                }
                 const entryTrend = buyTrade.entryIndicators?.trend;
                 const trendNumeric = typeof entryTrend === 'string'
                   ? (entryTrend === 'bullish' || entryTrend === 'uptrend' ? 1 :
