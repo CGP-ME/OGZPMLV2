@@ -243,6 +243,17 @@ class OrderExecutor {
         }
         // Update position tracking
         if (decision.action === 'BUY') {
+          // CRIT-06: Phantom confidence:0 exit contract. Previously when
+          // orchResult was absent, the exit contract was built with
+          // `confidence: 0` -> worst-fit SL/TP for a trade that was already
+          // questionable. Pre-money fail-loud: if the orchestrator did not
+          // produce a result (no winner strategy, no exit contract,
+          // no sizing/confidence), refuse the trade entirely.
+          if (!orchResult) {
+            console.error('[HALT] orchResult absent on BUY — refusing entry (no winner strategy, no exit contract)');
+            return null;
+          }
+
           // ═══ PHASE 9: Gates moved to EntryDecider (BEFORE execution) ═══
           // Previously gates ran HERE (after order filled) - BUG!
           // Now handled by this.ctx.entryDecider.decide() before executionLayer.executeTrade()
@@ -400,6 +411,15 @@ class OrderExecutor {
           });
 
         } else if (decision.action === 'SELL_SHORT') {
+          // CRIT-06: same fail-loud as BUY entry — refuse the short if the
+          // orchestrator didn't produce a result. Phantom confidence:0
+          // exit contracts produce worst-fit SL/TP on already-questionable
+          // trades.
+          if (!orchResult) {
+            console.error('[HALT] orchResult absent on SELL_SHORT — refusing entry (no winner strategy, no exit contract)');
+            return null;
+          }
+
           // ═══ SELL_SHORT: Open a short position ═══
           const stateBefore = stateManager.getState();
           console.log(`📍 CP5-SHORT: BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);

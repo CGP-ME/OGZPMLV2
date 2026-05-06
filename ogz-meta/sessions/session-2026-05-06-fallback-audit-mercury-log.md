@@ -338,3 +338,43 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 
 - Commit CRIT-05 as-is.
 - **Pending follow-up:** `core/CandleProcessor.js:399` `candle.symbol || this.ctx.tradingPair || 'BTC-USD'` — adjacent site, separate file.
+
+---
+
+## Dispatch 11 — post-CRIT-06 attack on `core/OrderExecutor.js`
+
+**Commit context (uncommitted, working tree):** CRIT-06 fix added `if (!orchResult) { return null; }` early-return guards at TOP of BUY entry branch (`:252-255`) and SELL_SHORT entry branch (`:418-421`). Replaces the prior phantom `confidence: 0` exit-contract path that previously emitted worst-fit SL/TP for trades that should have been refused.
+
+**Mercury prompt framing:** Adversarial — "weaponize the early-return null", "construct a state where this regresses TradeJournal/downstream consumers", "hunt for sibling phantom-orchResult sites".
+
+**Provider:** Mercury-2 (Inception)
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (orchResult always present in EMASMACrossover SOLO; guard never fires).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** No legitimate `null-orchResult` path in production. `TradingLoop.js:332` always forwards an orchestrator result that has fields (winnerStrategy, confidence, exitContract); the guard only catches a buggy/upstream-broken state. ✅ Safe.
+
+2. **Regress:** Returning `null` early skips `TradeJournal.recordEntry()` because that function discards entries missing `orderId` or `entryPrice` (`core/TradeJournal.js:111-113`). Aborted trades therefore never appear in the journal.
+
+3. **Hunt:** Sibling `orchResult?.x || default` sites at lines 273-280, 316-319, 427-433 produce phantom values when `orchResult` is null — `entryStrategy='default'`, `sizingMultiplier=1.0`, `signalBreakdown=null`, `bullishScore=0`, `reasoning=''`.
+
+### My triage
+
+1. **Verdict #1: SAFE.** Mercury concurs the guard is defense-in-depth.
+
+2. **Verdict #2: REAL-BUT-CORRECT (no fix).** Verified directly at `core/TradeJournal.js:110-114`:
+   ```js
+   recordEntry(entry) {
+     if (!entry || !entry.orderId || !entry.entryPrice) {
+       console.warn('📒 TradeJournal: Invalid entry data, skipping');
+       return;
+     }
+   ```
+   The guard exists precisely so aborted/invalid entries don't pollute the journal. Logging a phantom entry with null `orderId` corrupts the journal worse than skipping. Mercury is right that the divergence exists; the divergence is the intended behavior. **No code change required.**
+
+3. **Verdict #3: OBVIATED BY THIS FIX.** All sibling `orchResult?.x` sites are downstream of the new early-return at `:252-255` (BUY) and `:418-421` (SHORT). When `orchResult` is null, control returns BEFORE those lines execute. The optional chaining (`?.`) becomes defensively redundant but harmless — no phantom values can reach `stateManager.openPosition()`.
+
+### Action taken because of Mercury
+
+- Commit CRIT-06 as-is. Mercury's findings either confirm safety (#1), confirm intended behavior (#2), or confirm the fix obviates the concern (#3).
+- **No follow-up sites added to queue** — Mercury's HUNT was made unreachable by the fix itself, which is the desired outcome.
