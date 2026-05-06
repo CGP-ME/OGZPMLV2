@@ -574,12 +574,21 @@ class PerformanceAnalyzer {
     // ====================================================================
     
     const { exactMatch, confidence, direction } = trade.pattern;
-    
+
     // ====================================================================
     // PATTERN CONFIDENCE SCORING
     // ====================================================================
-    
-    patternAccuracy = confidence || 0.5;
+
+    // CRIT-02-followup-E: refuse phantom 50% confidence in pattern accuracy
+    // scoring. The function gate at :568 already short-circuits when
+    // trade.pattern is missing entirely. If trade.pattern IS present but
+    // lacks a confidence field, that's a data-integrity bug — phantom 50%
+    // would silently bias all subsequent patternAccuracy adjustments
+    // (exactMatch +0.1, direction +0.1, history bonuses).
+    if (!Number.isFinite(confidence)) {
+      throw new Error(`PerformanceAnalyzer.scorePatternAccuracy: trade.pattern.confidence missing/non-finite (got ${confidence}) — refusing to default to phantom 50% pattern accuracy`);
+    }
+    patternAccuracy = confidence;
     
     // ====================================================================
     // EXACT MATCH BONUS

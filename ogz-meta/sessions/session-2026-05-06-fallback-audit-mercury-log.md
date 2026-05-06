@@ -871,3 +871,60 @@ Both upstream emitters provide confidence. Throw is dormant in current path; def
 - Commit CRIT-02-followup-D as-is. Direct verification confirms detector contract.
 - **Closes CRIT-02 sibling family at A (MaxProfitManager confidence), B (MaxProfitManager volatility), C (PatternBasedExitModel entry-confidence), D (PatternBasedExitModel per-pattern confidence).**
 - **Remaining CRIT-02 sibling:** `core/PerformanceAnalyzer.js:582 patternAccuracy = confidence || 0.5` — same class, different file. Will be CRIT-02-followup-E.
+
+---
+
+## Dispatch 26 — post-CRIT-02-followup-E attack on `core/PerformanceAnalyzer.js`
+
+**Commit context (uncommitted, working tree):** `core/PerformanceAnalyzer.js:582-595` — replaced `patternAccuracy = confidence || 0.5` with explicit guard. Function gate at :568 already short-circuits when trade.pattern is missing entirely; my throw fires only on missing-confidence-but-pattern-present (data integrity).
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.6s / `term=answer_given`
+**Top retrieval sim:** 0.738 — best of any dispatch in this session (specific function-name in prompt converged retrieval).
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+
+### Mercury's Answer
+
+1. **Weaponize:** SAFE — verified pattern-memory sources (PatternMemoryBank.getPatternConfidence, UnifiedPatternMemory.getConfidence) always emit confidence field on promoted/quarantined records. No serialization drops the field.
+2. **Hunt:** Listed function-level defaults: `:563-564 patternAccuracy = 0.5` (initial), `:413-414 entry-quality = 0.5` (initial in scoreEntryQuality). No `|| 0.6` or `|| 1.0` literals.
+
+### My triage
+
+**Verdict #1: SAFE.** Mercury verified the contract chain.
+
+**Verdict #2: HIGH-class concerns.** Function-level "return 0.5 when no data" defaults at :565 and :413-414 are a different bug class — they're "neutral default for absent input" which biases analytics scoring. Per FALLBACK-AUDIT philosophy these are real phantoms, but they're analytics-layer concerns, not money-blocking. Cataloged for HIGH batch. Out of CRIT-02-followup-E scope.
+
+### Action taken because of Mercury
+
+- Commit CRIT-02-followup-E as-is. Verified safe.
+- **CLOSES CRIT-02 sibling family** at A-E (5 fixes total).
+
+---
+
+## Session Status Snapshot
+
+**SHIPPED in this continuation (15+ commits):**
+- CRIT-06, CRIT-09, CRIT-10 (closes original 12 CRIT IDs)
+- CRIT-05-followup-A, B, C, D (closes BTC-USD asset-routing phantom-default surface)
+- CRIT-08-followup-A, B, C, D (closes initialBalance phantom-default at all consumers)
+- CRIT-02-followup-A, B, C, D, E (closes confidence/volatility phantom-default at all consumers)
+
+**Phase 0 anchor `$18,497.278595001146 / 1384 / 60.0%` holds bit-for-bit across all 15+ fixes.**
+
+**Surfaced but DEFERRED (require explicit Trey approval or are HIGH-class):**
+- CRIT-08-followup-E: `core/StateManager.js:104` hardcoded `initialBalance: 10000` in default state — root cause for entire CRIT-08 family. Now safe to remove since all consumers are guarded.
+- TradingLoop.js:337,339 ledger-honesty for sizingMultiplier (CRIT-07 ledger-side sibling).
+- BacktestRunner.js tier `|| 'ML'` (subscription gate).
+- MaxProfitManager.js marketCondition `|| 'normal'` default.
+- PatternBasedExitModel.js pattern-stats fallbacks at :275, :305, :306 (HIGH-08 through HIGH-12).
+- PatternBasedExitModel.js patternType silent-drop at :477 (data integrity).
+- PerformanceAnalyzer.js function-level 0.5 defaults at :565, :413-414 (analytics neutral-bias).
+- Mercury indexer SKIP_DIRS for `ogz-meta/ledger/**` (hygiene — affects HUNT precision).
+- NaN propagation through positionValue in CandleProcessor dashboard broadcast (architectural).
+
+**Still in original session-summary backlog:**
+- 7 sibling positionSize sites in OrderExecutor (`:165, :321, :326, :334, :458, :462, :470`) — CRIT-07 ledger consistency family.
+- TradingLoop:152 already shipped as CRIT-08-followup-C; CandleProcessor:462 not in original list (turned out to be unrelated).
+- Pre-existing dimensional bug in proof-logger `value_usd = USD × price`.
+
+**Mercury hygiene observation (recurring):** stale ledger paths contaminate retrieval. Ledger SHOULD NOT be indexed per CLAUDE.md but IS being indexed. Affects HUNT precision and produces site-claim hallucinations (Dispatch 18 :534 example).
