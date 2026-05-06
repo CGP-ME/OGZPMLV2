@@ -334,7 +334,12 @@ class TradingLoop {
         confluence: orchResult.confluence ? {
           count: orchResult.confluence.count || 1,
           agreeingStrategies: orchResult.confluence.strategies || [],
-          sizingMultiplier: orchResult.sizingMultiplier || 1.0,
+          // CRIT-07-followup: mirror OrderExecutor's `??` semantics on the
+          // ledger side. With `||` an actual sizingMultiplier of 0 would
+          // be silently logged as 1.0 — diverging from the (correctly
+          // CRIT-07-preserved) zero used by the actual sizing math at
+          // OrderExecutor.js:274 (BUY) and :428 (SHORT).
+          sizingMultiplier: orchResult.sizingMultiplier ?? 1.0,
           reason: `${orchResult.confluence.count || 1} strategies agree on ${orchResult.direction}`,
         } : { count: 1, sizingMultiplier: 1.0 },
         exitContract: orchResult.exitContract || null,

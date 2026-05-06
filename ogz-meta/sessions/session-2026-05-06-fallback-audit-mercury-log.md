@@ -928,3 +928,27 @@ Both upstream emitters provide confidence. Throw is dormant in current path; def
 - Pre-existing dimensional bug in proof-logger `value_usd = USD × price`.
 
 **Mercury hygiene observation (recurring):** stale ledger paths contaminate retrieval. Ledger SHOULD NOT be indexed per CLAUDE.md but IS being indexed. Affects HUNT precision and produces site-claim hallucinations (Dispatch 18 :534 example).
+
+---
+
+## Dispatch 27 — post-CRIT-07-followup attack on `core/TradingLoop.js`
+
+**Commit context (uncommitted, working tree):** `core/TradingLoop.js:337` — replaced `sizingMultiplier: orchResult.sizingMultiplier || 1.0` with `?? 1.0` in the ledger-data block. 1-char fix mirroring OrderExecutor's CRIT-07 fix on the ledger side. Only different at exact zero.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 4.9s / `term=answer_given` (RETURNED "not in retrieved context")
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+
+### Mercury's Answer
+
+"not in retrieved context" — couldn't access TradingLoop.js or DecisionLedgerLogger.
+
+### My triage (direct verification)
+
+**Verdict #1: SAFE.** sizingMultiplier=0 is the legitimate output when StrategyOrchestrator decides to halt sizing (rare but valid). DecisionLedgerLogger is a record-and-forget JSONL consumer — doesn't compute math from this field. The change is a strict honesty improvement (preserves zero-truth in ledger, was logging phantom 1.0).
+
+**Verdict #2: known.** Other `||` patterns in this file's ledger block (`:335 count || 1`, `:339 hardcoded {count:1, sizingMultiplier:1.0}`, `:338 reason string with || 1`) are HIGH-class ledger-cosmetic concerns. The :339 fallback branch is unreachable given orchestrator always emits confluence (verified at StrategyOrchestrator.js:952, :977, :1057). Cataloged for HIGH batch.
+
+### Action taken because of Mercury
+
+- Commit CRIT-07-followup as-is. 1-char ledger-side fix. Closes CRIT-07 sizing consistency between execution math (CRIT-07 in OrderExecutor) and ledger logging (this fix).
