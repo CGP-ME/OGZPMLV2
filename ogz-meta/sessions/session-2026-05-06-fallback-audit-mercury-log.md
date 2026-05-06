@@ -781,3 +781,33 @@ But Mercury's hunt indirectly surfaced the deeper root cause: **StateManager its
 - Commit CRIT-02-followup-A as-is. All three Mercury findings either verified safe (#1, #2) or surfaced an adjacent CRIT-class bug (#3 → CRIT-02-followup-B).
 - **CRIT-02-followup-B queued:** `core/MaxProfitManager.js:318 volatility || 0.02` — same class as -A.
 - `marketCondition || 'normal'`: classification debatable; defer to HIGH/MEDIUM batch (broader concern, more values to consider).
+
+---
+
+## Dispatch 23 — post-CRIT-02-followup-B attack on `core/MaxProfitManager.js`
+
+**Commit context (uncommitted, working tree):** `core/MaxProfitManager.js:318` — replaced `options.volatility || 0.02` with explicit guard. Symmetric to -A but for volatility.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 7.2s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit. Empirical: indicators.volatility IS finite-positive at every trade entry in Phase 0.
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** "not in retrieved context" — couldn't access IndicatorEngine.
+2. **Regress:** "not in retrieved context" — couldn't access calculateVolatilityAdjustment.
+3. **Hunt:** Listed state-initialization values (highestPrice, lowestPrice, etc.) and the marketCondition/confidence/volatility defaults already addressed.
+
+### My triage
+
+**Verdict #1: SAFE — Phase 0 empirical proof.** 1384 trades reproduce bit-for-bit with the throw in place. indicators.volatility IS finite-positive at every trade entry in current path. Mercury's hypothetical "warmup-null trade entry" doesn't happen because the indicator chain produces volatility before TradingLoop reaches MaxProfitManager.start.
+
+**Verdict #2: SAFE.** Verified directly (read MaxProfitManager.js:923-952): calculateVolatilityAdjustment compares `volatility <= threshold` / `volatility >= threshold`. With null, both comparisons are false → fallthrough to default factors. With 0.02, same fallthrough range. So the phantom-0.02 vs null produced IDENTICAL behavior in calc — meaning the only loss from removing the phantom is silent acceptance vs loud halt. No behavior regression in the dormant path.
+
+**Verdict #3: state-init values are CORRECT, not phantoms.** `highestPrice: 0` for shorts and `lowestPrice: Infinity` for longs are the correct sentinel values for max/min tracking algorithms. Mercury misclassified these as phantoms.
+
+### Action taken because of Mercury
+
+- Commit CRIT-02-followup-B as-is. All three Mercury concerns either verified safe (#1 empirically, #2 by direct read) or invalid classification (#3).
+- **Closes the MaxProfitManager.start() phantom-default surface for confidence + volatility.**
+- `marketCondition || 'normal'`: still DEFERRED — multiple values, classification needs design decision.

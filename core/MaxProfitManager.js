@@ -315,7 +315,16 @@ class MaxProfitManager {
     // MARKET CONDITION ANALYSIS
     // ====================================================================
     const marketCondition = options.marketCondition || 'normal';
-    const volatility = options.volatility || 0.02; // Default 2% volatility
+    // CRIT-02-followup-B: refuse phantom 2% volatility default. OrderExecutor
+    // at :343, :490 passes `volatility: indicators.volatility ?? null` —
+    // intentionally preserving null during indicator warmup. The previous
+    // `|| 0.02` masked null as 2%, mis-calibrating stopFactor/trailFactor in
+    // calculateVolatilityAdjustment (compares against config thresholds).
+    // Pre-money fail-loud: throw if caller didn't actually have volatility yet.
+    const volatility = options.volatility;
+    if (!Number.isFinite(volatility) || volatility <= 0) {
+      throw new Error(`MaxProfitManager.start: options.volatility missing/invalid (got ${volatility}) — refusing to default to phantom 2% (would mis-calibrate stop/target adjustment factors)`);
+    }
     // CRIT-02-followup-A: refuse phantom 50% confidence default. Previously
     // `options.confidence || 0.5` silently masked missing/zero confidence as
     // neutral 50%, mis-calibrating profit tiers via setupProfitTiers below.
