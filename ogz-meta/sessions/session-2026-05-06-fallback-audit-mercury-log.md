@@ -840,3 +840,34 @@ But Mercury's hunt indirectly surfaced the deeper root cause: **StateManager its
 - Commit CRIT-02-followup-C as-is. Direct verification confirms callers all pass confidence.
 - **CRIT-02-followup-D queued:** `core/PatternBasedExitModel.js:469 pattern.confidence || 0.5` — same class.
 - HIGH-batch concerns (pattern-stats fallbacks) remain in spec backlog.
+
+---
+
+## Dispatch 25 — post-CRIT-02-followup-D attack on `core/PatternBasedExitModel.js`
+
+**Commit context (uncommitted, working tree):** `core/PatternBasedExitModel.js:476-490` — replaced per-pattern `pattern.confidence || 0.5` in assessContinuationStrength with `if (!Number.isFinite(pattern.confidence)) throw`. Critically, allowed zero through (verified BreakAndRetest.js:608 emits legitimate `confidence: 0`).
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.2s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (Phase 0's EMASMACrossover SOLO doesn't exercise patterns through this path).
+
+### Mercury's Answer (2 findings — focused prompt)
+
+1. **Weaponize:** "not in retrieved context" — couldn't access pattern detectors.
+2. **Hunt:** Confirmed `patternType = (pattern.type || pattern.name || '').toLowerCase()...` silent-drop pattern at :477 — if both type and name missing, patternType becomes empty string, `.includes(r)` matches nothing, pattern silently dropped from scoring.
+
+### My triage
+
+**Verdict #1: SAFE — verified detectors emit confidence directly.**
+- `core/CandlePatternDetector.js:190` → emits `confidence: 0.4`
+- `modules/BreakAndRetest.js:608` → emits `confidence: 0` (legitimate zero — confirms my "allow zero through" decision was right)
+
+Both upstream emitters provide confidence. Throw is dormant in current path; defensive against future detector-contract regression.
+
+**Verdict #2: REAL silent-drop bug, but HIGH/MEDIUM-class.** Pattern silently filtered out when type+name both missing — a data-integrity concern, not a phantom-value concern. Different bug class from CRIT-02 phantom-default. Cataloged for HIGH-batch follow-up.
+
+### Action taken because of Mercury
+
+- Commit CRIT-02-followup-D as-is. Direct verification confirms detector contract.
+- **Closes CRIT-02 sibling family at A (MaxProfitManager confidence), B (MaxProfitManager volatility), C (PatternBasedExitModel entry-confidence), D (PatternBasedExitModel per-pattern confidence).**
+- **Remaining CRIT-02 sibling:** `core/PerformanceAnalyzer.js:582 patternAccuracy = confidence || 0.5` — same class, different file. Will be CRIT-02-followup-E.

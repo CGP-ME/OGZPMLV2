@@ -475,7 +475,15 @@ class PatternBasedExitModel {
 
     patterns.forEach(pattern => {
       const patternType = (pattern.type || pattern.name || '').toLowerCase().replace(/\s+/g, '_');
-      const confidence = pattern.confidence || 0.5;
+      // CRIT-02-followup-D: refuse phantom 50% per-pattern confidence in
+      // continuation scoring. Pattern detectors are required to emit
+      // `confidence` on every pattern; missing means a detector-contract bug.
+      // Allow zero through (legitimate zero-confidence detection); reject
+      // only undefined/null/non-finite.
+      if (!Number.isFinite(pattern.confidence)) {
+        throw new Error(`PatternBasedExitModel.assessContinuationStrength: pattern.confidence missing/non-finite (got ${pattern.confidence}, type=${patternType}) — refusing to default to phantom 50%`);
+      }
+      const confidence = pattern.confidence;
 
       if (relevantPatterns.some(r => patternType.includes(r))) {
         continuationScore += confidence;
