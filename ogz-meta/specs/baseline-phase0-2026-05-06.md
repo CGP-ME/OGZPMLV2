@@ -1,9 +1,8 @@
-# Phase 0 Baseline — Config Consolidation Migration
+# Phase 0 Baseline
 
-**Date:** 2026-04-20
-**Branch:** `config/consolidation` (off `broker/alpaca-integration`)
-**Git SHA at baseline:** `c49c9ab667c774b51a6f171366f8f67d7ca7f956`
-**Spec:** `ogz-meta/ledger/CONFIG-CONSOLIDATION-SPEC.md` §4.2
+**Date:** 2026-05-06
+**Branch:** `rebuild/clean-from-baseline`
+**Git SHA at baseline:** `4a6f14a`
 **Purpose:** Reference backtest numbers. Every migration phase must match these to the cent before advancing.
 
 ---
@@ -48,19 +47,20 @@ Additional env inherited from `.env` at time of run (relevant trading keys, reda
 | Metric | Value | Notes |
 |---|---|---|
 | Initial Balance | $10,000.00 | |
-| **Final Balance** | **$17,950.589592711076** | exact float from report |
-| Total P&L | +$7,950.589592711076 | |
-| Total Return | +79.50589592711077% | |
-| Total Trades | 1,430 | |
-| Wins | 823 | |
-| Losses | 607 | |
-| **Win Rate** | **57.55%** | 823 / 1430 |
-| **Max Drawdown** | **2.63%** | computed from running balance |
-| Avg Win | $15.37 | |
-| Avg Loss | -$7.75 | 2:1 asymmetric payoff |
+| **Final Balance** | **$18,497.278595001146** | exact float from report |
+| Total P&L | +$8,497.278595001146 | |
+| Total Return | +84.97% | |
+| Total Trades | 1,384 | |
+| Wins | 830 | |
+| Losses | 554 | |
+| **Win Rate** | **60.0%** | 830 / 1384 |
+| **Max Drawdown** | **2.63%** | $389.26 |
+| Avg Win | $15.76 | |
+| Avg Loss | -$8.27 | |
+| Profit Factor | 2.85 | |
+| Expectancy | $6.14 | |
 | Total Fees | $0.00 | stock mode FEE=0 |
 | Candles Processed | 15,889 | full 2y TSLA 15m dataset |
-| Wall-clock Duration | 44.4s | |
 | Errors | 0 | |
 
 ---
@@ -73,19 +73,12 @@ Additional env inherited from `.env` at time of run (relevant trading keys, reda
 
 ---
 
-## Report artifact
-
-- Source: `backtest-report-v14MERGED-1776675001768.json` (regenerated per run)
-- Log: `/tmp/baseline-phase0.log` (ephemeral, full trade-receipts + completion line)
-
----
-
 ## Acceptance criteria for subsequent phases
 
-Phase 12 baseline re-verify **must reproduce**:
-- `Final Balance = $17950.589592711076` to the cent
-- `Total Trades = 1430` exactly
-- `Win Rate = 57.55%` exactly (823 wins)
+Phase reproduction **must match**:
+- `Final Balance = $18,497.278595001146` to the cent
+- `Total Trades = 1,384` exactly
+- `Win Rate = 60.0%` exactly (830 wins)
 - `Max Drawdown ≤ 2.64%` (within measurement tolerance)
 
 Any drift in these numbers between phases signals that the migration introduced behavior change. Phase is reverted, investigated, re-proposed.
@@ -94,8 +87,4 @@ Any drift in these numbers between phases signals that the migration introduced 
 
 ## Reproducer
 
-Run the exact baseline command above on `config/consolidation` branch. Expected output matches this table to the float-level precision.
-
----
-
-**Phase 0 complete. Ready for Phase 1 approval gate.**
+Run the exact baseline command above. Expected output matches this table to the float-level precision.
