@@ -147,7 +147,15 @@ class OrderExecutor {
         price = fillPrice;
       } else {
         // Live: Route through OrderRouter to exchange
-        const symbol = this.ctx.tradingPair || 'BTC-USD';
+        // CRIT-03: Wrong-market routing. Previously `|| 'BTC-USD'` defaulted
+        // missing tradingPair to BTC-USD, so a stocks bot with a misconfigured
+        // ctx would have routed live orders to the crypto market. Pre-money
+        // halt: refuse to send the order.
+        const symbol = this.ctx.tradingPair;
+        if (!symbol) {
+          console.error('[HALT] No tradingPair configured — refusing live order');
+          return null;
+        }
         const side = decision.action.toLowerCase(); // 'buy' or 'sell'
         try {
           const orderResult = await this.ctx.orderRouter.sendOrder({

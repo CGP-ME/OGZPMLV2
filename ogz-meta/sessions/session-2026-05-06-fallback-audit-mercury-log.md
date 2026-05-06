@@ -264,3 +264,29 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 
 - Commit CRIT-02 as-is. **No reverse-action needed.**
 - **Pending follow-up:** 4 sibling `|| 0.5` sites in MaxProfitManager, PerformanceAnalyzer, PatternBasedExitModel — same class as CRIT-02. Surface for Trey's scope direction.
+
+---
+
+## Dispatch 8 — post-CRIT-03 attack on `core/OrderExecutor.js`
+
+**Commit context:** CRIT-03 fix at `core/OrderExecutor.js:150-159` — replaced `tradingPair || 'BTC-USD'` in live order routing with explicit halt-on-missing.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 24 iters / 24.0s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (live branch unreachable in backtest/paper mode).
+
+### Mercury's Answer (3 findings — all clean except hunt)
+
+1. **Weaponize:** no legitimate empty-tradingPair scenario for live orders. ✅ Safe.
+2. **Regress:** halt branch gated by `!backtestMode && !paperTrading`, unreachable in Phase 0. ✅ Safe.
+3. **Hunt: 6 sibling `tradingPair || 'BTC-USD'` sites** — these are the EXACT CRIT-04 (4 sites) + CRIT-05 (2 sites) findings from the spec. Lines drifted from spec (`366, 500, 680, 1066`) to current (`391, 525, 705, 1091`) for CRIT-04 and (`882, 1115` → `907, 1140`) for CRIT-05 due to CRIT-01/02/03 line additions:
+   - `:391` BUY proof logger (CRIT-04)
+   - `:525` SHORT proof logger (CRIT-04)
+   - `:705` SELL proof logger (CRIT-04)
+   - `:907` TRAI recordTradeOutcome BUY (CRIT-05)
+   - `:1091` COVER proof logger (CRIT-04)
+   - `:1140` TRAI recordTradeOutcome SHORT (CRIT-05)
+
+### Action taken because of Mercury
+
+- Commit CRIT-03 as-is. **Mercury's 6-site hunt aligns 1:1 with spec's CRIT-04 + CRIT-05.** Next 2 commits will close them.
