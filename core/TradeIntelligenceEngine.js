@@ -627,8 +627,15 @@ class TradeIntelligenceEngine extends EventEmitter {
                 result.score -= 10;
             }
 
+            // HIGH-19/20/21: same-function risk-context fallbacks. `|| 0`
+            // masked missing fields, suppressing risk signals silently.
+            // Surface each missing field as warn, preserve explicit zero.
+
             // Consecutive losses
-            const consecutiveLosses = context.consecutiveLosses || 0;
+            if (!Number.isFinite(context.consecutiveLosses)) {
+                console.warn('[HIGH-19] context.consecutiveLosses missing — losing-streak signal will not fire');
+            }
+            const consecutiveLosses = context.consecutiveLosses ?? 0;
             if (consecutiveLosses >= 3) {
                 result.signals.push({ type: 'LOSING_STREAK', count: consecutiveLosses });
                 result.score -= 15;
@@ -636,7 +643,10 @@ class TradeIntelligenceEngine extends EventEmitter {
             }
 
             // Daily P&L
-            const dailyPnL = context.dailyPnL || 0;
+            if (!Number.isFinite(context.dailyPnL)) {
+                console.warn('[HIGH-20] context.dailyPnL missing — bad-day/good-day signals will not fire');
+            }
+            const dailyPnL = context.dailyPnL ?? 0;
             if (dailyPnL < -2) {
                 result.signals.push({ type: 'BAD_DAY', pnl: dailyPnL });
                 result.score -= 10;
@@ -646,7 +656,10 @@ class TradeIntelligenceEngine extends EventEmitter {
             }
 
             // Portfolio heat
-            const portfolioHeat = context.portfolioHeat || 0;
+            if (!Number.isFinite(context.portfolioHeat)) {
+                console.warn('[HIGH-21] context.portfolioHeat missing — high-exposure signal will not fire');
+            }
+            const portfolioHeat = context.portfolioHeat ?? 0;
             if (portfolioHeat > 10) {
                 result.signals.push({ type: 'HIGH_EXPOSURE', value: portfolioHeat });
                 result.score -= 10;
