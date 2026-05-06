@@ -279,6 +279,13 @@ class OrderExecutor {
           // CHANGE 2026-02-21: Use orchestrator's winning strategy and exit contract
           // The StrategyOrchestrator already determined the winner and created the exit contract
           // Phase 3 REWRITE: orchResult is now passed directly from TradingLoop
+          // HIGH-08: warn when winnerStrategy missing — phantom 'default' looks
+          // up the wrong exit contract. Post-CRIT-06 orchResult is guaranteed
+          // present, so a missing winnerStrategy would indicate orchestrator
+          // regression worth surfacing.
+          if (orchResult && !orchResult.winnerStrategy) {
+            console.warn(`[HIGH-08] BUY: orchResult.winnerStrategy missing — falling back to 'default' exit contract; orchestrator output may be malformed`);
+          }
           const entryStrategy = orchResult?.winnerStrategy || 'default';
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
@@ -433,6 +440,10 @@ class OrderExecutor {
           const stateBefore = stateManager.getState();
           console.log(`📍 CP5-SHORT: BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
+          // HIGH-08: same warn pattern as BUY entry above.
+          if (orchResult && !orchResult.winnerStrategy) {
+            console.warn(`[HIGH-08] SHORT: orchResult.winnerStrategy missing — falling back to 'default' exit contract; orchestrator output may be malformed`);
+          }
           const entryStrategy = orchResult?.winnerStrategy || 'default';
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
