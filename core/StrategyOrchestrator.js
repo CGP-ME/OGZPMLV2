@@ -781,7 +781,17 @@ class StrategyOrchestrator {
     // FIX 2026-03-13: 0.40% killed 74% of 15m BTC candles. Lowered to 0.15%
     // Original: Winners at 0.58%, losers at 0.34%, midpoint 0.40%
     // ═══════════════════════════════════════════════════════════════════════
-    const filterPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
+    // CRIT-09: Pre-money fail-loud on missing price. Previously
+    // `extras.price || (priceHistory[last]?.c ?? 0)` silently degraded
+    // to filterPrice=0, which short-circuited the ATR filter (gate
+    // `filterATRpct > 0`) and let strategies fire into dead-market
+    // state. Now: switch to `??` to distinguish "missing" from
+    // "explicit zero", then halt all candidates if price is unusable.
+    const filterPrice = extras.price ?? (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : null);
+    if (!Number.isFinite(filterPrice) || filterPrice <= 0) {
+      console.warn('[FILTER:atr] HALT — no valid price (extras.price + priceHistory both unusable). Clearing all candidates.');
+      results.length = 0;
+    }
     const filterATR = indicators?.atr || 0;
     const filterATRpct = (filterATR && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
 

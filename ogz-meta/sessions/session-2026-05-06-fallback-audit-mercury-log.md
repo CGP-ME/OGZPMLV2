@@ -378,3 +378,42 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 
 - Commit CRIT-06 as-is. Mercury's findings either confirm safety (#1), confirm intended behavior (#2), or confirm the fix obviates the concern (#3).
 - **No follow-up sites added to queue** — Mercury's HUNT was made unreachable by the fix itself, which is the desired outcome.
+
+---
+
+## Dispatch 12 — post-CRIT-09 attack on `core/StrategyOrchestrator.js`
+
+**Commit context (uncommitted, working tree):** CRIT-09 fix at `core/StrategyOrchestrator.js:784-797`. Switched `extras.price || (priceHistory[last]?.c : 0)` to `extras.price ?? (... : null)` (preserve explicit-zero distinction), then added a guard: `if (!Number.isFinite(filterPrice) || filterPrice <= 0) { console.warn(...); results.length = 0; }`. Pre-money fail-loud — previously filterPrice=0 silently bypassed the ATR filter (gate `filterATRpct > 0`) and let strategies fire into dead-market state.
+
+**Mercury prompt framing:** Adversarial — weaponize/regress/hunt.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.6s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (Phase 0 has valid TSLA prices on every candle; guard never fires).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** Cited `extras.price || (priceHistory[last]?.c : 0)` — claimed legitimate gap candle with `c=0` plus undefined `extras.price` would trigger spurious halt.
+2. **Regress:** "not in retrieved context" — Mercury could not access TradingLoop/OrderExecutor downstream consumers.
+3. **Hunt:** Flagged `filterATR = indicators?.atr || 0` (CRIT-10, queued), the derived `filterATRpct` ternary (also CRIT-10-adjacent), and `globalAtrMin = TradingConfig.get('filters.atrMinPercent')` for potential undefined.
+
+### My triage
+
+**Verdict #1: FALSE POSITIVE — STALE INDEX READ.** Mercury retrieved chunks from `ogz-meta/ledger/NARRATOR_SYSTEM/StrategyOrchestrator.js` (sim=0.641) and `ogz-meta/ledger/pc/phase-C/02-StrategyOrchestrator.js` (sim=0.631) — both **stale archive copies** that quoted the OLD `||` code. Verified live source via `grep`: line 790 has `??`, not `||`. With `??`, `extras.price === 0` (explicit) → filterPrice=0 → halt CORRECTLY (zero price is not a valid ATR denominator). Mercury's hypothetical "gap candle with c=0" is not a real condition (broker never emits zero close on a valid asset); even if it did, halting until next valid candle is the safe behavior, not a regression. Phase 0 confirms with 1384 trades bit-for-bit (no spurious halts on TSLA 2y).
+
+**Hygiene finding (separate):** `ogz-meta/ledger/NARRATOR_SYSTEM/` and `ogz-meta/ledger/pc/` should be in Mercury indexer SKIP_DIRS per CLAUDE.md ("ogz-meta/ledger/" is excluded; subdirs leaking through suggests the SKIP_DIRS pattern needs a recursive prefix match audit).
+
+**Verdict #2: SAFE — verified directly per Mercury Dispatch Playbook ("CANNOT VERIFY" → direct bash):**
+- `core/TradingLoop.js:287` — `const allResults = orchResult.allResults || [];` — defensive default already.
+- `core/TradingLoop.js:556` — `(orchResult.allResults || []).map(...)` — defensive default already.
+Both downstream sites tolerate empty `allResults`. No crash, no regression.
+
+**Verdict #3 sub-findings:**
+- `filterATR = indicators?.atr || 0` — REAL, already queued as CRIT-10.
+- `filterATRpct` ternary — derived from filterATR; will be cleaned up by CRIT-10's same-line edits.
+- `globalAtrMin` — NOT a bug. Verified `core/TradingConfig.js:705`: `atrMinPercent: env('ATR_MIN_PERCENT', 0.15)`. Defaults to 0.15, never undefined.
+
+### Action taken because of Mercury
+
+- Commit CRIT-09 as-is. All three findings either reflect a stale-index read (#1), a downstream concern that's already defensively handled (#2), or a real bug already in the queue (#3 → CRIT-10).
+- **Hygiene follow-up surfaced:** Mercury indexer SKIP_DIRS should recursively exclude `ogz-meta/ledger/**` (currently leaking `NARRATOR_SYSTEM/` and `pc/phase-C/` snapshots that contaminate retrieval). NOT in scope for CRIT-09 — separate spec.
