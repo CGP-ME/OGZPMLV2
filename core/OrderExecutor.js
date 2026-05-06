@@ -52,7 +52,15 @@ class OrderExecutor {
 
     // FIX 2026-03-28: Use available capital (equity minus reserved in open trades)
     // This prevents sizing off full equity while positions are open
-    const currentBalance = stateManager.getAvailableCapital(price) || 10000;
+    // CRIT-01: Phantom $10K capital. getAvailableCapital() returns 0 when all
+    // equity is reserved in open trades. The old `|| 10000` upgraded that to
+    // phantom $10K and the bot sized as if the account were fully flush.
+    // Pre-money: halt the entry instead. No fabricated capital.
+    const currentBalance = stateManager.getAvailableCapital(price);
+    if (currentBalance <= 0) {
+      console.error('[HALT] No available capital — refusing entry');
+      return null;
+    }
     // CHANGE 2026-02-28: Use TradingConfig for position sizing
     // NOTE: DynamicPositionSizer.js exists in core/ but is NOT WIRED - needs tuning first
     let basePositionPercent = TradingConfig.get('positionSizing.maxPositionSize');

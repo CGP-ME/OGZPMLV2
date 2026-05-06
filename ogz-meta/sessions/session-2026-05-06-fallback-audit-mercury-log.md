@@ -213,3 +213,23 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 ### Action taken because of Mercury
 
 - Commit CRIT-12 as-is. **Clean attack — no follow-ups.**
+
+---
+
+## Dispatch 6 — post-CRIT-01 attack on `core/OrderExecutor.js`
+
+**Commit context:** CRIT-01 fix at `core/OrderExecutor.js:53-63` — replaced `getAvailableCapital(price) || 10000` with halt-on-zero (`<= 0` → `console.error('[HALT]') + return null`).
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 20 iters / 23.5s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (capital never reaches 0 in backtest, halt path inactive).
+
+### Mercury's Answer (3 findings, all safe)
+
+1. **Weaponize null return:** `TradingLoop.js:332` does `await this.ctx.executeTrade(...)` and discards return value. Null is safe.
+2. **Regress on `<= 0`:** `StateManager.getAvailableCapital()` at line 247 returns `Math.max(0, equity - reservedCapital)` — always non-negative. Guard catches the zero case correctly without false-positive on small-positive balances.
+3. **Sibling sites:** Only legacy copy at `ogz-meta/ledger/NARRATOR_SYSTEM/OrderExecutor.js:56` still has `|| 10000`. Per CLAUDE.md, `ogz-meta/ledger/` is not indexed and not production. Other occurrences are docs/spec.
+
+### Action taken because of Mercury
+
+- Commit CRIT-01 as-is. **Clean attack — no follow-ups.**
