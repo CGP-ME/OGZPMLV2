@@ -792,7 +792,17 @@ class StrategyOrchestrator {
       console.warn('[FILTER:atr] HALT — no valid price (extras.price + priceHistory both unusable). Clearing all candidates.');
       results.length = 0;
     }
-    const filterATR = indicators?.atr || 0;
+    // CRIT-10: Distinguish missing ATR from genuine zero. Previously
+    // `indicators?.atr || 0` silently turned a missing/undefined ATR
+    // into 0, then the gate at `filterATRpct > 0` skipped the filter
+    // — invisible bypass. Now: `??` preserves the "missing" semantic,
+    // and we emit a warning so the bypass is observable. (Asymmetric
+    // with CRIT-09: missing price = catastrophic halt; missing ATR =
+    // benign warmup edge, log + skip.)
+    const filterATR = indicators?.atr ?? null;
+    if (filterATR === null) {
+      console.warn('[FILTER:atr] ATR unavailable — filter cannot evaluate (likely warmup or upstream gap). Skipping ATR gate.');
+    }
     const filterATRpct = (filterATR && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
 
     // ATR filter: Per-strategy threshold via exitContracts.{strategy}.atrMinPercent

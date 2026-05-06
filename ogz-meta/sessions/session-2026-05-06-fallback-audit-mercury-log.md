@@ -417,3 +417,47 @@ Both downstream sites tolerate empty `allResults`. No crash, no regression.
 
 - Commit CRIT-09 as-is. All three findings either reflect a stale-index read (#1), a downstream concern that's already defensively handled (#2), or a real bug already in the queue (#3 → CRIT-10).
 - **Hygiene follow-up surfaced:** Mercury indexer SKIP_DIRS should recursively exclude `ogz-meta/ledger/**` (currently leaking `NARRATOR_SYSTEM/` and `pc/phase-C/` snapshots that contaminate retrieval). NOT in scope for CRIT-09 — separate spec.
+
+---
+
+## Dispatch 13 — post-CRIT-10 attack on `core/StrategyOrchestrator.js`
+
+**Commit context (uncommitted, working tree):** CRIT-10 fix at `core/StrategyOrchestrator.js:795-805`. Switched `const filterATR = indicators?.atr || 0` to `const filterATR = indicators?.atr ?? null` and added `if (filterATR === null) console.warn(...)`. Asymmetric to CRIT-09 by design — missing ATR is a benign warmup edge (skip filter, log), not catastrophic.
+
+**Mercury prompt framing:** Adversarial — weaponize/regress/hunt. Explicitly told Mercury to verify against LIVE source not stale ledger snapshots.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.9s / `term=answer_given`
+**Provider artifact noted:** Mercury warm-up call hit `content_filter_error` (HTTP 400) but the actual ReAct call succeeded. Worth tracking — adversarial framing may occasionally get filtered at warm-up time. Not a fix-now item.
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (TSLA 2y has computed ATR after warmup; warning never fires post-15-candle gate).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** SAFE — `filterATR` is only used at :796's `filterATRpct` calculation, never re-referenced. Null doesn't propagate to downstream numeric ops. Mercury verified by reading chunk #4 (live core/StrategyOrchestrator.js).
+2. **Regress:** SAFE — `?? null` doesn't replace genuine zero (zero isn't nullish), so old/new behavior identical for legitimate flat-market ATR=0. Warning only fires on true null. Not misleading.
+3. **Hunt:** "No other `|| 0/{}/[]/'default'` patterns in retrieved excerpt of core/StrategyOrchestrator.js."
+
+### My triage
+
+**Verdict #1: SAFE.** Verified directly. filterATR not re-referenced past line 796.
+
+**Verdict #2: SAFE.** Confirmed by independent reasoning: `null ?? null === null`, `0 ?? null === 0`. Old vs new behavior identical for legitimate zero ATR. The warning IS the only behavioral change, gated on null only.
+
+**Verdict #3: PARTIAL — Mercury false-negative due to partial retrieval.** Mercury only retrieved chunks at lines 728-1068 (chunks #4 in retrieval table). Direct grep across the full file found additional fallback patterns:
+
+- `:857` `boosts._positionSizeMultiplier || 1.0` — silently treats missing as no-boost.
+- `:861` `boosts[result.strategyName] || 1.0` — per-strategy boost fallback.
+- `:910` `vpBoosts._allStrategies || vpBoosts[result.strategyName] || 1.0` — VP boost chained fallback.
+- `:837` `regime?.confidence || 0` — regime boost gate.
+- `:444` `regime.confidence || 0` — duplicate inside regime evaluator.
+- `:1020` `indicators?.volatility || 0` — exit contract volatility.
+
+**These are NOT lost.** Verified against the FALLBACK-AUDIT spec: pre-cataloged as HIGH-04, HIGH-15, HIGH-16, HIGH-23, HIGH-24. They belong to the HIGH severity batch which runs after CRIT phase per spec ordering ("Phase 1: Critical fixes — before any live capital. Phase 2: HIGH fixes — before funded account").
+
+**Mercury hygiene observation:** Even with explicit instruction to "verify against LIVE source," Mercury still had retrieval-gap false-negatives. The retrieval system pulled 4-of-N chunks of the file. When grepping is cheap (it is), it dominates Mercury for exhaustive HUNT — but Mercury catches semantic bugs grep can't. Mixed pass: Mercury for class-hunting (signature patterns), grep for site-enumeration.
+
+### Action taken because of Mercury
+
+- Commit CRIT-10 as-is. All three findings either confirm safety (#1, #2) or were correctly limited to in-scope (#3 — boosts/regime fallbacks belong to HIGH batch).
+- **HIGH batch confirmation:** orchestrator HIGH findings (HIGH-04, -15, -16, -23, -24) verified present in live source. Queue is accurate.
+- **Mercury hygiene note (separate):** retrieval gaps reduce HUNT exhaustiveness; pair Mercury with file-wide grep for HUNT phase.
