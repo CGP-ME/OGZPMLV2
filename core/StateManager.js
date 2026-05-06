@@ -1090,6 +1090,9 @@ class StateManager {
       if (this.state.activeTrades instanceof Map) {
         stateToSave.activeTrades = Array.from(this.state.activeTrades.entries());
       }
+      if (this.state.lastPrices instanceof Map) {
+        stateToSave.lastPrices = Object.fromEntries(this.state.lastPrices);
+      }
 
       // Save to disk atomically (Mercury Vector 6 — crash-safe state persistence)
       const { writeJsonAtomic } = require('./AtomicWrite');
@@ -1145,6 +1148,12 @@ class StateManager {
           savedState.activeTrades = new Map(savedState.activeTrades);
         } else if (!savedState.activeTrades) {
           savedState.activeTrades = new Map();
+        }
+        // Rehydrate lastPrices Map (same pattern as activeTrades)
+        if (savedState.lastPrices && !(savedState.lastPrices instanceof Map)) {
+          savedState.lastPrices = new Map(Object.entries(savedState.lastPrices));
+        } else if (!savedState.lastPrices) {
+          savedState.lastPrices = new Map();
         }
 
         // Restore state
