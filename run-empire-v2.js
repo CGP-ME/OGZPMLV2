@@ -1569,7 +1569,8 @@ class OGZPrimeV14Bot {
         // Generate ghost path projection when a pattern is detected with confidence > 50%
         // Refuses to project during warmup — atr null means we don't know the noise scale
         let projectionPath = undefined;
-        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5 && indicators.atr != null) {
+        const price = indicators.price;
+        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5 && indicators.atr != null && price != null) {
           const direction = primaryPattern.direction === 'bullish' ? 1 : -1;
           const currentTime = Math.floor(Date.now() / 1000);
           const atr = indicators.atr;
