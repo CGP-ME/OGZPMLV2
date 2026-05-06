@@ -68,8 +68,17 @@ class OrderExecutor {
     // TUNE 2026-02-27: Confidence-scaled position sizing
     // 50% confidence = 0.5x, 75% = 1.5x, 90%+ = 2.5x (cap)
     const rawConfidence = decision.confidence;
+    // CRIT-02: Phantom 50% confidence. Previously trailing `|| 0.5` upgraded
+    // 0/null/undefined/NaN to 50% conviction, so zero-conviction signals
+    // fired with 50% confidence and got phantom multipliers. Spec asks for
+    // `=== 0 || == null` reject; extended to `!isFinite || <= 0` to also
+    // catch NaN, undefined, and negative values (root-cause coverage).
+    if (!Number.isFinite(rawConfidence) || rawConfidence <= 0) {
+      console.error(`[HALT] Invalid confidence: ${rawConfidence} — skipping trade`);
+      return null;
+    }
     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
-    const tradeConfidence = (rawConfidence > 1 ? rawConfidence / 100 : rawConfidence) || 0.5;
+    const tradeConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
     // Linear scale: confidence 0.5 → multiplier 0.5, confidence 1.0 → multiplier 2.5
     const confidenceMultiplier = Math.max(0.5, Math.min(2.5,
       0.5 + (tradeConfidence - 0.5) * 4.0

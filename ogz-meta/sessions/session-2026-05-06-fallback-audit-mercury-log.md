@@ -233,3 +233,34 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 ### Action taken because of Mercury
 
 - Commit CRIT-01 as-is. **Clean attack — no follow-ups.**
+
+---
+
+## Dispatch 7 — post-CRIT-02 attack on `core/OrderExecutor.js`
+
+**Commit context:** CRIT-02 fix at `core/OrderExecutor.js:60-72` — replaced trailing `|| 0.5` confidence upgrade with explicit `!Number.isFinite || <= 0` halt. Extended beyond spec literal (`=== 0 || == null`) to also catch NaN and negatives.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 15 iters / 22.4s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (backtest signals always have positive finite confidence).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize: TRAIDecisionModule:411 returns 0.0 for learned-failure patterns** — Mercury claimed this is "legitimate" zero confidence the new guard would now reject.
+2. **Regress on percentage-based confidence:** confirmed safe (75 → 0.75 via ternary).
+3. **Hunt: 4 sibling `|| 0.5` sites:**
+   - `core/MaxProfitManager.js:319`
+   - `core/PerformanceAnalyzer.js:582`
+   - `core/PatternBasedExitModel.js:100`
+   - `core/PatternBasedExitModel.js:469`
+
+### My triage
+
+1. **#1 Weaponize: FALSE POSITIVE on semantic intent.** Verified `TRAIDecisionModule:411` directly: returns 0.0 explicitly as an **"Avoiding failed pattern"** signal (line 411 console.log says "LEARNED FAILURE - returning 0"). The 0.0 means "skip this — pattern memory marked it as a known failure." Old `|| 0.5` was UPGRADING that avoid-signal to 50% and trading on learned-failure patterns. **CRIT-02 fixing this is the entire spec intent.** Mercury misread the comment context. **No action — fix is correct.**
+2. **#2 Regress: confirmed safe.** No action.
+3. **#3 Hunt: 4 sibling sites — REAL same-class bugs.** These perpetuate the phantom-50% pattern in 3 other files. **Listing for follow-up commits.**
+
+### Action taken because of Mercury
+
+- Commit CRIT-02 as-is. **No reverse-action needed.**
+- **Pending follow-up:** 4 sibling `|| 0.5` sites in MaxProfitManager, PerformanceAnalyzer, PatternBasedExitModel — same class as CRIT-02. Surface for Trey's scope direction.
