@@ -290,3 +290,24 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 ### Action taken because of Mercury
 
 - Commit CRIT-03 as-is. **Mercury's 6-site hunt aligns 1:1 with spec's CRIT-04 + CRIT-05.** Next 2 commits will close them.
+
+---
+
+## Dispatch 9 — post-CRIT-04 attack on `core/OrderExecutor.js`
+
+**Commit context:** CRIT-04 fix at 4 proof-logger sites (`:391, :525, :705, :1091`) — replaced `tradingPair || 'BTC-USD'` with IIFE throw. CRIT-05 sites at `:907, :1140` reverted to original after `replace_all` over-matched (per Trey's no-replace-all rule). Will redo CRIT-05 as separate commit.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 32 iters / 34.1s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (TradingProofLogger early-returns in backtest, IIFE never evaluates).
+
+### Mercury's Answer (3 findings, all safe)
+
+1. **Weaponize:** IIFE throw caught by outer `try...catch` at `executeTrade:1210-1215`. Bot logs error and returns gracefully — no process crash. Working as intended.
+2. **Regress:** outer catch swallows exception → async chains not broken.
+3. **Hunt:** exactly 2 remaining sites — `:907` and `:1140` — these are CRIT-05 (just reverted, queued).
+
+### Action taken because of Mercury
+
+- Commit CRIT-04 as-is.
+- **Immediate next:** redo CRIT-05 at `:907, :1140` with two individual Edit calls (no replace_all per Trey's rule).

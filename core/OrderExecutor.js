@@ -388,7 +388,7 @@ class OrderExecutor {
           // CHANGE 2026-01-25: Log trade for website proof
           TradingProofLogger.trade({
             action: 'BUY',
-            symbol: this.ctx.tradingPair || 'BTC-USD',
+            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
             price: price,
             size: adjustedPositionSize,
             value_usd: adjustedPositionSize * price,
@@ -522,7 +522,7 @@ class OrderExecutor {
           // Proof logger for SHORT
           TradingProofLogger.trade({
             action: 'SELL_SHORT',
-            symbol: this.ctx.tradingPair || 'BTC-USD',
+            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
             price: price,
             size: adjustedPositionSize,
             value_usd: adjustedPositionSize * price,
@@ -702,7 +702,7 @@ class OrderExecutor {
             // CHANGE 2026-01-25: Log trade for website proof
             TradingProofLogger.trade({
               action: 'SELL',
-              symbol: this.ctx.tradingPair || 'BTC-USD',
+              symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
               price: price,
               size: usdAmount,
               value_usd: sellValue,
@@ -1088,7 +1088,7 @@ class OrderExecutor {
           // Proof logger for COVER
           TradingProofLogger.trade({
             action: 'COVER',
-            symbol: this.ctx.tradingPair || 'BTC-USD',
+            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
             price: price,
             size: shortSize,
             value_usd: shortSize * price,
