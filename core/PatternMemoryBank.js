@@ -530,6 +530,11 @@ class PatternMemoryBank {
                 pattern: indicators.primaryPattern || 'none',
 
                 // Volatility bucketed
+                // MED-11: warn when both volatility sources missing.
+                // Phantom 0 silently buckets as 'low' — collides every
+                // missing-volatility trade into one pattern hash slot,
+                // poisoning bucket statistics.
+                ...(((trade.entry?.volatility != null) || (trade.volatility != null)) ? {} : (() => { console.warn(`[MED-11] PatternMemoryBank.extractPattern: trade missing both .entry.volatility AND .volatility — bucketing as 'low' by default; pattern hash will collide with other missing-volatility trades`); return {}; })()),
                 volatility: (trade.entry?.volatility || trade.volatility || 0) > 0.03 ? 'high' : 'low',
 
                 // Time of day (could be relevant for crypto)
