@@ -638,7 +638,19 @@ class OrderExecutor {
               exitTime: exitTimestamp,
               pnl: pnl,
               // FIX 2026-03-28: USD position × percentage change = USD profit
-              pnlDollars: buyTrade.entryPrice > 0 ? buyTrade.size * ((price - buyTrade.entryPrice) / buyTrade.entryPrice) : 0,
+              // MED-02: source-side warn for pnlDollars=0 case. CRIT-class
+              // upstream guards prevent zero entryPrice at trade-open (CRIT-01
+              // halts on zero capital, CRIT-09 halts on missing price), so the
+              // `: 0` branch is dormant defense. 10+ downstream sites have
+              // `|| 0` fallbacks that mask missing pnlDollars and corrupt
+              // win-rate stats. One source-side warn covers all of them.
+              pnlDollars: (() => {
+                if (!(buyTrade.entryPrice > 0)) {
+                  console.warn(`[MED-02] BUY exit: buyTrade.entryPrice non-positive (got ${buyTrade.entryPrice}) — pnlDollars defaulted to 0; downstream win-rate stats will count this as non-winning/non-losing`);
+                  return 0;
+                }
+                return buyTrade.size * ((price - buyTrade.entryPrice) / buyTrade.entryPrice);
+              })(),
               holdDuration: holdDuration,
               exitReason: decision.exitReason || 'signal'
             };
@@ -1067,7 +1079,14 @@ class OrderExecutor {
             exitTime: exitTimestamp,
             pnl: pnl,
             // FIX 2026-03-28: USD position × percentage change = USD profit
-            pnlDollars: shortTrade.entryPrice > 0 ? shortTrade.size * ((shortTrade.entryPrice - price) / shortTrade.entryPrice) : 0,
+            // MED-02: SHORT exit — symmetric to BUY exit warn at :641-650.
+            pnlDollars: (() => {
+              if (!(shortTrade.entryPrice > 0)) {
+                console.warn(`[MED-02] SHORT exit: shortTrade.entryPrice non-positive (got ${shortTrade.entryPrice}) — pnlDollars defaulted to 0; downstream win-rate stats corrupted`);
+                return 0;
+              }
+              return shortTrade.size * ((shortTrade.entryPrice - price) / shortTrade.entryPrice);
+            })(),
             holdDuration: holdDuration,
             exitReason: decision.exitReason || 'signal'
           };
