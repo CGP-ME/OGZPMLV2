@@ -115,3 +115,49 @@ Cite file:line. Find concrete failure modes OR explicitly state none found. Stop
 - **Did NOT expand to the 7 other sites** in this commit — flagging for Trey's scope direction.
 - **Did NOT touch the dimensional bug** (`USD × price = nonsense`) — separate finding, separate scope.
 - All 7 additional sites + dimensional bug listed in commit body as follow-up.
+
+---
+
+## Dispatch 3 — post-CRIT-08 attack on `core/StateManager.js`
+
+**Commit context:** CRIT-08 fix at `core/StateManager.js:193-200` — replaced `initialBalance || 10000` with `if (!this.state.initialBalance) throw`.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 12 iters / 17.9s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit reproduction of post-CRIT-07 baseline (throw never fires in backtest because state initialized properly).
+
+### Prompt (key bits)
+
+```
+HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
+
+- WEAPONIZE the throw against ALL callers of getEquity() — does any caller catch it?
+- REGRESS: when can this.state.initialBalance be falsy? After atomic state restore? On first boot? Construct a state-corruption scenario where this triggers in production.
+- HUNT for OTHER places where initialBalance has the same || 10000 fallback (split-brain risk).
+- REGRESS: does the throw fire during backtest replay or only live?
+```
+
+### Mercury's Answer (3 findings + 2 sibling sites)
+
+1. **Live-tick crash** — `TradingLoop:151` calls `stateManager.getEquity(price)` without try/catch. Throw propagates out, process terminates.
+2. **Backtest replay breakage** — same `TradingLoop:151` ternary used in both modes. If `backtestRecorder.balance` is undefined, falls through to `getEquity` → throw → backtest aborts.
+3. **State-corruption / hot-reload crash** — atomic state restore that omits initialBalance triggers throw on next equity call. Persistence schema dependency.
+
+**Sibling sites with same `|| 10000` fallback (split-brain risk):**
+- `core/CandleProcessor.js:462` — `stateManager.get('initialBalance') || getConfigValue('backtest.initialBalance') || 10000`
+- `core/BacktestRunner.js:149` — `this.ctx.backtestRecorder?.startingBalance || 10000`
+- (My addition after re-verification): `core/TradingLoop.js:152` — `... ?? stateManager.get('initialBalance') ?? 10000`
+
+### My triage
+
+1. **#1 Live-tick crash:** REAL but **WORKING AS INTENDED.** Spec is explicit: "BLOCKING — must complete before any real money. Fail loud." A crash on missing capital is the desired pre-money behavior. **No action — fix is operating per spec.**
+2. **#2 Backtest replay breakage:** Theoretical concern; empirical Phase 0 evidence shows `backtestRecorder.balance` IS set in current path (1384 trades, no throw). **Defense-in-depth concern, not blocker.**
+3. **#3 State-corruption crash:** Same fail-loud principle. Spec wants this. **No action.**
+
+**Sibling sites (CandleProcessor:462, BacktestRunner:149, TradingLoop:152): SAME CRIT-08-class bug.** These will create a split-brain — getEquity throws while CandleProcessor/BacktestRunner silently inject phantom $10K. **Need to be fixed for consistency.** Listing as follow-up after this CRIT-08 commit.
+
+### Action taken because of Mercury
+
+- **Commit CRIT-08 fix as-is at StateManager.js** — Mercury's #1/#2/#3 are all "fail loud working correctly" or theoretical paths; spec explicitly wants this behavior.
+- **Surface 3 sibling sites for follow-up commits** in the CRIT-08 commit body.
+- **Confirm Phase 0 reproduces** before commit (verified bit-for-bit).

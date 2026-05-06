@@ -191,7 +191,13 @@ class StateManager {
    * Does NOT change get('balance') behavior
    */
   getEquity(currentPrice) {
-    const initialBalance = this.state.initialBalance || 10000;
+    // CRIT-08: Phantom $10K capital. Corrupt or missing state previously
+    // upgraded undefined initialBalance to $10K, so the bot believed the
+    // account was funded regardless of reality. Pre-money: fail loud.
+    if (!this.state.initialBalance) {
+      throw new Error('initialBalance not set in state');
+    }
+    const initialBalance = this.state.initialBalance;
     const realizedPnL = this.state.realizedPnL || 0;
 
     // Compute unrealizedPnL live from activeTrades.
