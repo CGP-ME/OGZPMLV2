@@ -970,3 +970,30 @@ Both upstream emitters provide confidence. Throw is dormant in current path; def
 - HUNT: Mercury claimed `* 100` NaN-propagation sites at lines 386, 461, 480, 495. Direct grep verifies these lines don't exist — Mercury hallucinated. Only `* 100` sites are :404 and :420, both inside `console.log` strings (non-load-bearing). False alarm.
 
 **Phase 0:** `$18,497.278595001146 / 1384 / 60.0%` bit-for-bit on both HIGH-02 and HIGH-25 (warn never fires in current code).
+
+---
+
+## Dispatch 28 cont'd — HIGH batch sustained progress (HIGH-04, 13, 15, 16, 17, 05, 06)
+
+After HIGH-25 (committed `9f957ea`), continued HIGH batch with consistent pattern: switch `||` to `??` for explicit-zero preservation, log warning when truly missing, no behavioral change for current code paths. All Phase 0 bit-for-bit reproducible at $18,497.278595001146 / 1384 / 60.0%.
+
+**Shipped:**
+- **HIGH-04** (`67e5ead`): `core/StrategyOrchestrator.js:837` regime confidence `?? 0` + warn. Regime boost silently disables when missing.
+- **HIGH-13** (`d5461c7`): `core/TradingLoop.js:91` directionFilter `?? 'both'` + warn. Phantom 'both' masked unset config state.
+- **HIGH-15** (`cf0ec8f`): `core/StrategyOrchestrator.js:1027` volPct restructure with explicit warn when ATR/volatility both unusable. Was `volatility || 0` masking phantom for createExitContract.
+- **HIGH-16** (`aae4038`): `core/StrategyOrchestrator.js:1045` timeframe explicit warn before defaulting to '15m'.
+- **HIGH-17** (`5b4f677`): `core/TradingLoop.js:360,368` confluence count `?? 1` ledger honesty. Mirrors CRIT-07-followup semantics.
+- **HIGH-05** (`05f07ac`): `core/TradingLoop.js:348-351` orchResult.confidence `?? 0` ledger attribution honesty.
+- **HIGH-06** (`65425c1`): `core/OrderExecutor.js:133` slippage `?? 0.0005` + warn. TradingConfig already provides default at :690.
+
+**Mercury attack pattern observations:**
+- Stale ledger chunks (ogz-meta/ledger/pc/phase-C/, NARRATOR_SYSTEM/) repeatedly contaminate retrieval — Mercury quotes OLD code as if current. Pre-CLAUDE.md hygiene rule, those paths should be excluded from indexer SKIP_DIRS but aren't.
+- Mercury FALSE-NEGATIVE on HUNT when retrieval pulls 4 chunks of a multi-chunk file (HIGH-25 missed 4 sibling sites that direct grep found and verified false alarms).
+- Empirical Phase 0 reproduction is the most reliable check — every HIGH fix passes bit-for-bit, confirming the warns/`??` switches don't perturb happy path.
+
+**Skipped:**
+- **HIGH-03**: spec rationale ("missing trend → undersized stops") doesn't match current code — MaxProfitManager doesn't consume `options.trend`, only `options.marketCondition`. The trend pass at OrderExecutor.js:345/:492 is silent dead-code. Logged as architectural concern; not a CRIT fix worth shipping in current shape.
+
+**HIGH batch progress:** 7 of ~25 findings shipped + HIGH-25. ~17 remaining (HIGH-01, HIGH-07-12, HIGH-18-24).
+
+**Total session continuation count:** 26 commits, all Phase 0 bit-for-bit reproducible at `$18,497.278595001146`.
