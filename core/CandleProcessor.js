@@ -157,6 +157,13 @@ class CandleProcessor {
     // next at-or-before 10:00 ET morning open, on different calendar dates.
     // Mercury attack finding b: hardcoded 15:30 missed half-day early closes.
     const lastDayPhase = this.marketCalendar.getMarketPhase(new Date(lastEtime));
+    // Mercury attack finding e: if rthCloseMinute is undefined/NaN (calendar
+    // missing the day's phase data), `undefined - 30 = NaN`, isAfterClose
+    // becomes false, function returns false, caller triggers backfill on a
+    // legit overnight pause — resurrects the bug 349172a was meant to fix.
+    // Fail-safe direction: if we can't determine the close, return false
+    // and let gap-recovery + halt handle it. Same logic as line 147.
+    if (!Number.isFinite(lastDayPhase.rthCloseMinute)) return false;
     const closeBoundary = lastDayPhase.rthCloseMinute - 30;  // 30-min slop for last bar pre-close
     const isAfterClose = last.minuteOfDay >= closeBoundary;
     const isBeforeOpen = next.minuteOfDay <= 10 * 60;  // 10:00 ET morning slop
