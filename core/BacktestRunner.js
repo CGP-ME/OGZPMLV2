@@ -242,7 +242,11 @@ class BacktestRunner {
         },
         trades: trades,
         config: {
-          initialBalance: 10000,
+          // CRIT-08-followup-B: was hardcoded 10000 — a lie when the run's
+          // actual initialBalance differs (e.g., INITIAL_BALANCE=50000).
+          // The report's summary correctly carries the real value at :228;
+          // config.initialBalance must mirror it, not invent a phantom.
+          initialBalance: initialBalance,
           tier: (getConfigValue('misc.subscriptionTier') || 'ML').toUpperCase()
         },
         timestamp: new Date().toISOString()

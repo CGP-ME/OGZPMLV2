@@ -643,3 +643,45 @@ This means my :915 throw is purely DEFENSIVE: it guards against a future regress
 - **CRIT-08-followup-C queued (pending verification):** hardcoded `initialBalance: 10000` in BacktestRunner config object.
 
 This dispatch is the textbook example of why Mercury attack framing matters — verification framing ("is the fix correct?") would have rubber-stamped the `??` switch. Adversarial framing ("hunt the fix as a weapon") found the divide-by-zero regression in one pass.
+
+---
+
+## Dispatch 18.5 — investigation of CRIT-08-followup-B (cancelled-and-relocated)
+
+**Mercury's WEAPONIZE in Dispatch 18 cited `run-empire-v2.js:534-540` with code `parseFloat(process.env.INITIAL_BALANCE) || 10000`.** Verified directly via Read: live source at :531-535 actually reads `startingBalance: resolvedConfig.config.backtest.initialBalance` (no `|| 10000`). Mercury's site claim was a stale-ledger hallucination (chunk #1 was `ogz-meta/ledger/FULL-SYSTEM-AUDIT-AND-FIXES.md` sim=0.675).
+
+**Investigated the upstream chain:** `foundation/ConfigLoader.js:89` has `envFloat('INITIAL_BALANCE', 10000)` which IS a real default. But `foundation/ConfigLoader.js:266-267` has explicit validation `if (config.backtest.initialBalance <= 0) errors.push('initialBalance must be positive')`. With validation in place + backtest-only consumer + reasonable convention, this classifies as DOCUMENTED INTENTIONAL DEFAULT (like ConfigLoader's broker-conditional pattern), NOT a phantom.
+
+**Direct grep relocated the real bug** at `core/BacktestRunner.js:245`: `initialBalance: 10000` hardcoded inside the report's `config` block. `summary.initialBalance` at :228 correctly carries the actual value; `config.initialBalance: 10000` is a flat lie when actual ≠ 10000 (e.g., INITIAL_BALANCE=50000 backtest reports config.initialBalance=10000 alongside summary.initialBalance=50000).
+
+This becomes the actual CRIT-08-followup-B (renumbered from "BacktestRunner config hardcode" originally listed as -C).
+
+---
+
+## Dispatch 19 — post-CRIT-08-followup-B attack on `core/BacktestRunner.js`
+
+**Commit context (uncommitted, working tree):** `core/BacktestRunner.js:245` replaced hardcoded `initialBalance: 10000` with the local variable `initialBalance` so the report's config.initialBalance mirrors summary.initialBalance.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.2s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit. Both `summary.initialBalance` and `config.initialBalance` now report 10000 from the same source (was lucky coincidence pre-fix).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** "not in retrieved context" — Mercury couldn't access tools/scripts/dashboards.
+2. **Regress:** "not in retrieved context" — couldn't assess redundancy.
+3. **Hunt:** Found sibling phantom — `tier: (getConfigValue('misc.subscriptionTier') || 'ML').toUpperCase()` defaults tier to 'ML' when subscriptionTier config is missing.
+
+### My triage
+
+**Verdict #1: SAFE — verified directly.** Direct grep of tools/ and ogz-meta/*.js: no consumer parses report's `config.initialBalance` (only `tools/config-audit.js:119` exists and it reads env-var resolution, not the report). No downstream breakage.
+
+**Verdict #2: KEEP MIRRORED.** Removing config.initialBalance would be a JSON schema change with potential consumer impact. Mirroring summary.initialBalance is honest and self-consistent. Not removing.
+
+**Verdict #3: REAL but DEFERRED to HIGH/MEDIUM phase.** Tier fallback to 'ML' is a feature-gating concern, not money-blocking. Subscription tier affects which features are enabled but doesn't directly affect trade execution or P&L reporting. Cataloged for later batch.
+
+### Action taken because of Mercury
+
+- Commit CRIT-08-followup-B as-is. Verification confirms no downstream consumer assumes 10000.
+- **Tier fallback to 'ML':** logged for HIGH/MEDIUM phase audit, not in CRIT scope.
+- **Mercury hygiene observation reinforced:** Mercury's :534 hallucination in Dispatch 18 redirected my hunt away from the real bug at :245. This is the second hallucination from indexed `ogz-meta/ledger/` paths in this session. Per CLAUDE.md hygiene rule, ledger paths should be excluded from indexing — the index quality directly affects HUNT precision.
