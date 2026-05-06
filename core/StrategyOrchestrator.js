@@ -830,7 +830,13 @@ class StrategyOrchestrator {
     // ─── Step 2.5: Regime-based strategy boosting ───
     // FIX 2026-04-05: Read from TradingConfig for matrix sweep optimization
     // Multipliers, not gates. Losers still fire, just sized smaller.
-    const regimeBoosts = TradingConfig.get('regimeBoosts') || {};
+    // HIGH-23: warn when regimeBoosts config missing — phantom `{}` silently
+    // disables ALL regime-based strategy boosts. Visible signal beats invisible bypass.
+    const _regimeBoostsCfg = TradingConfig.get('regimeBoosts');
+    if (_regimeBoostsCfg == null) {
+      console.warn('[HIGH-23] TradingConfig.regimeBoosts missing — regime-based strategy boosting fully disabled this candle');
+    }
+    const regimeBoosts = _regimeBoostsCfg ?? {};
 
     // Classify regime name to category (trending_up/trending_down → trending, etc.)
     const rawRegime = regime?.currentRegime?.toLowerCase() || 'unknown';
@@ -877,7 +883,12 @@ class StrategyOrchestrator {
 
     // ─── Step 2.6: Volume Profile-based strategy boosting ───
     // FIX 2026-04-05: Auction Market Theory - boost based on price position
-    const volumeProfileBoosts = TradingConfig.get('volumeProfileBoosts') || {};
+    // HIGH-24: same pattern as HIGH-23 for VP boosts.
+    const _vpBoostsCfg = TradingConfig.get('volumeProfileBoosts');
+    if (_vpBoostsCfg == null) {
+      console.warn('[HIGH-24] TradingConfig.volumeProfileBoosts missing — VP-based strategy boosting fully disabled this candle');
+    }
+    const volumeProfileBoosts = _vpBoostsCfg ?? {};
     const volumeProfile = extras.volumeProfile;
     const currentPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
 
