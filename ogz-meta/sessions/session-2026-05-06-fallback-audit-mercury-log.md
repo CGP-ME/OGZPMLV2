@@ -952,3 +952,21 @@ Both upstream emitters provide confidence. Throw is dormant in current path; def
 ### Action taken because of Mercury
 
 - Commit CRIT-07-followup as-is. 1-char ledger-side fix. Closes CRIT-07 sizing consistency between execution math (CRIT-07 in OrderExecutor) and ledger logging (this fix).
+
+---
+
+## Dispatch 28 — HIGH-02 + HIGH-25 (HIGH batch begins)
+
+**Phase pivot:** CRIT batch closed. Beginning HIGH batch (Log Warning severity per spec, not Halt).
+
+**HIGH-02 commit (`09da3e1`):** `core/TradingLoop.js:187` — `volatility: indicators.volatility ?? null` + console.warn when missing. (Mercury attack DEFERRED — Trey came back during work; committed clean.)
+
+**HIGH-03 SKIPPED — spec rationale doesn't match current code:** Spec says "missing trend → undersized stops" at OrderExecutor.js:309. Direct grep finds 4 trend-fallback sites (:345, :492, :951, :1184); MaxProfitManager doesn't actually consume `options.trend` (only `options.marketCondition`). The `trend` field is silent dead-code at the start() call. Spec line numbers drifted post-CRIT batch. Logged for HIGH-batch re-spec.
+
+**HIGH-25 commit (uncommitted, working tree):** `core/TradingLoop.js:87` — added `if (!Number.isFinite(orchResult.confidence)) console.warn(...)` before normalization. Spec rationale: undefined confidence → NaN → silent entry block.
+
+**Mercury attack on HIGH-25 (Dispatch 28):**
+- WEAPONIZE: Mercury verified orchestrator HOLD path emits numeric 0 (not undefined), so warn fires only on truly missing/non-numeric confidence. Post-CRIT-09/CRIT-10 fixes ensure orchestrator always emits confidence; warn is defensive.
+- HUNT: Mercury claimed `* 100` NaN-propagation sites at lines 386, 461, 480, 495. Direct grep verifies these lines don't exist — Mercury hallucinated. Only `* 100` sites are :404 and :420, both inside `console.log` strings (non-load-bearing). False alarm.
+
+**Phase 0:** `$18,497.278595001146 / 1384 / 60.0%` bit-for-bit on both HIGH-02 and HIGH-25 (warn never fires in current code).

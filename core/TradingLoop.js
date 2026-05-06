@@ -84,6 +84,14 @@ class TradingLoop {
     );
 
     const tradingDirection = orchResult.direction; // 'buy', 'sell', or 'hold'
+    // HIGH-25: warn if orchResult.confidence is non-finite. `undefined / 100`
+    // and `NaN / 100` both produce NaN, and `NaN < minConfidence` is `false`
+    // — so a missing confidence silently blocks ALL entries with no alert.
+    // Post-CRIT-09/CRIT-10 the orchestrator always emits confidence, so this
+    // warn is defensive against future regressions.
+    if (!Number.isFinite(orchResult.confidence)) {
+      console.warn(`[HIGH-25] orchResult.confidence non-finite (got ${orchResult.confidence}) — all entries this candle will silently fail confidence gate. Investigate StrategyOrchestrator output.`);
+    }
     const confidence = orchResult.confidence / 100; // normalize to 0-1
     const confidenceData = { totalConfidence: orchResult.confidence };
 
