@@ -474,8 +474,16 @@ class CandleProcessor {
         const currentPosition = stateManager.get('position') || 0;
         const positionValue = currentPosition * price;  // Current market value of position
         const totalAccountValue = currentBalance + positionValue;
-        // FIX 2026-02-26: Use StateManager instead of hardcoded value
-        const initialBalance = stateManager.get('initialBalance') || getConfigValue('backtest.initialBalance') || 10000;
+        // CRIT-08-followup-D: refuse $10K phantom default in dashboard
+        // P&L broadcast. Original `|| 10000` would silently broadcast a lie
+        // about totalPnL (totalAccountValue - phantomInitialBalance) to the
+        // user's dashboard if both stateManager and config sources were
+        // missing. Better to crash the broadcast than show fake P&L.
+        const _initialBalance = stateManager.get('initialBalance') ?? getConfigValue('backtest.initialBalance');
+        if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
+          throw new Error(`CandleProcessor dashboard broadcast: initialBalance unavailable from stateManager + config (got ${_initialBalance}) — refusing to broadcast phantom P&L`);
+        }
+        const initialBalance = _initialBalance;
         const totalPnL = totalAccountValue - initialBalance;  // Correct: includes open position
         // Phase 4 REWRITE: executionLayer deleted - use stateManager for trade stats
         const closedTrades = stateManager.get('closedTrades') || [];

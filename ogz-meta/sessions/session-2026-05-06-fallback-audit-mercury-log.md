@@ -715,3 +715,39 @@ This becomes the actual CRIT-08-followup-B (renumbered from "BacktestRunner conf
 - Commit CRIT-08-followup-C as-is. Both Mercury concerns refuted by current invariants + verified consumer defense.
 - **Ledger-honesty followup queued:** `core/TradingLoop.js:337 sizingMultiplier || 1.0`, `:339 hardcoded {count: 1, sizingMultiplier: 1.0}` — separate spec.
 - **CRIT-08 followup family NEARLY closed:** A (BacktestRunner consumer), B (BacktestRunner config-block honesty), C (TradingLoop exit-check). Remaining: `core/CandleProcessor.js:478` `stateManager.get('initialBalance') || getConfigValue('backtest.initialBalance') || 10000` — final sibling.
+
+---
+
+## Dispatch 21 — post-CRIT-08-followup-D attack on `core/CandleProcessor.js`
+
+**Commit context (uncommitted, working tree):** `core/CandleProcessor.js:478` — replaced `|| 10000` with hoisted `??` guard for the dashboard P&L broadcast. Lying-on-dashboard would show fake totalPnL to the user. Fix throws on missing/non-positive.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 11.9s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (broadcast block gated off in BACKTEST_FAST=true).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** Claimed in live mode, the guard throws right after bot start-up before any trade because stateManager.initialBalance is undefined and backtest.initialBalance config is unset.
+2. **Regress:** Verified the call chain — processNewCandle → handleMarketData → no surrounding try/catch around the balance guard. Throw propagates and would terminate the bot process or the market-data handling loop.
+3. **Hunt:** Listed multiple defensive defaults (maxPoints: 200, currentPosition || 0, NaN propagation through positionValue/totalAccountValue, getConfigValue undefined coercion).
+
+### My triage
+
+**Verdict #1: TECHNICALLY WRONG, BUT POINTS AT REAL ROOT.** Verified `core/StateManager.js:104` directly: default state hardcodes `initialBalance: 10000`. So `stateManager.get('initialBalance')` returns 10000 from candle 0, and my guard's "throws if undefined" path is never reached. **Mercury was wrong about the warmup race.**
+
+But Mercury's hunt indirectly surfaced the deeper root cause: **StateManager itself has a phantom $10K default in its initial state.** This is the source of all CRIT-08 family concerns. Removing it would expose all consumers — but ALL of them are now defensively guarded by the CRIT-08 family throws (StateManager.getEquity, BacktestRunner consumer, TradingLoop exit-check, CandleProcessor dashboard). The defensive layer is in place; the silent default can now be safely removed. **Cataloged as CRIT-08-followup-E candidate (StateManager initial state).**
+
+**Verdict #2: SAFE per design.** Throw propagates loudly which is the intended fail-loud behavior. Better to crash than to broadcast lying P&L to the user's dashboard.
+
+**Verdict #3 sub-findings:**
+- `maxPoints: 200`: visualization config, not phantom-default. SAFE.
+- `currentPosition || 0`: defensive (position legitimately can be 0). SAFE.
+- NaN propagation through positionValue/totalAccountValue: real risk but wider architectural concern. Cataloged as separate follow-up.
+- `!getConfigValue('backtest.fast')` undefined-coerced-to-true: intentional design (default to non-fast in live). SAFE.
+
+### Action taken because of Mercury
+
+- Commit CRIT-08-followup-D as-is. Mercury's WEAPONIZE refuted by direct verification of StateManager initial state.
+- **CRIT-08 followup family CLOSED at D for consumer-side fixes.**
+- **CRIT-08-followup-E SURFACED but DEFERRED for explicit approval:** `core/StateManager.js:104 initialBalance: 10000` in default state. This is THE root cause Mercury indirectly found. Removing it would now be safe because all CRIT-08 family consumers are guarded, but it's a state-shape change deserving Trey's explicit OK. Documenting here for follow-up consideration.
