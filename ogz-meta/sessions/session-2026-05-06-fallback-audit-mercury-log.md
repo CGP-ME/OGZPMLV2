@@ -1000,6 +1000,20 @@ After HIGH-25 (committed `9f957ea`), continued HIGH batch with consistent patter
 
 ---
 
+## MED batch progress entries
+
+**MED-01** (`7031f27`): TradingLoop.js:193 source-side warn. Verified upstream contract (every exit checker emits specific reason); 12 downstream `|| 'signal'` fallbacks are dormant dead-defense. Single source warn covers all.
+
+**MED-02** (`599e13e`): OrderExecutor.js:641 BUY + :1082 SHORT — pnlDollars=0 source path. CRIT-class upstream guards prevent zero entryPrice; `: 0` branches dormant. Source-side warns at both BUY+SHORT exit; 10+ downstream `|| 0` fallbacks become honestly dead-defense.
+
+**MED-03** (`5afe5e8`): OrderExecutor.js:669 BUY + :1110 SHORT — `entryStrategy || 'unknown'` at exit. HIGH-08 covers missing-at-open; MED-03 covers state-corruption between open and close. Spread-syntax-IIFE warn fires only when trade record lost the field mid-flight.
+
+**MED-04 SKIPPED with rationale:** 3 sites (`PatternBasedExitModel.js:106`, `PositionTracker.js:144`, `StateManager.js:471`) use `entryTime || Date.now()` at trade-OPEN where Date.now() ≈ marketData.timestamp anyway. Spec rationale "hold duration wrong" only manifests from state-corruption between open/close — already covered by MED-03's source-side warns. Adding warns at trade-open would spam every BUY/SHORT entry.
+
+**MED-05 SKIPPED — architectural not fallback:** `bullishScore`/`bearishScore` `|| 0` fallbacks at OrderExecutor.js:333/334 (BUY) and :490/491 (SHORT) fire on EVERY trade because `StrategyOrchestrator.evaluate()` structurally doesn't emit those fields. Direct grep of orchestrator confirms zero matches for either field. Fix is architectural (either compute in orchestrator or remove from trade record), not a FALLBACK-AUDIT scope item.
+
+---
+
 ## Dispatch 28 final — HIGH batch closure (HIGH-08, HIGH-09/10/11/12, HIGH-18-22, HIGH-23/24)
 
 Continued through end of HIGH batch:
