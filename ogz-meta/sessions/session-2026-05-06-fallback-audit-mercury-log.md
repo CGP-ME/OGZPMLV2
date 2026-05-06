@@ -751,3 +751,33 @@ But Mercury's hunt indirectly surfaced the deeper root cause: **StateManager its
 - Commit CRIT-08-followup-D as-is. Mercury's WEAPONIZE refuted by direct verification of StateManager initial state.
 - **CRIT-08 followup family CLOSED at D for consumer-side fixes.**
 - **CRIT-08-followup-E SURFACED but DEFERRED for explicit approval:** `core/StateManager.js:104 initialBalance: 10000` in default state. This is THE root cause Mercury indirectly found. Removing it would now be safe because all CRIT-08 family consumers are guarded, but it's a state-shape change deserving Trey's explicit OK. Documenting here for follow-up consideration.
+
+---
+
+## Dispatch 22 — post-CRIT-02-followup-A attack on `core/MaxProfitManager.js`
+
+**Commit context (uncommitted, working tree):** `core/MaxProfitManager.js:319` — replaced `options.confidence || 0.5` with explicit guard. Same fail-loud pattern as CRIT-02 in OrderExecutor (entry-confidence guard).
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 7.2s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit. OrderExecutor.js:342 (BUY) and :489 (SHORT) always pass confidence.
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** "not in retrieved context" — could not access other potential callers.
+2. **Regress:** "not in retrieved context" — could not verify setupProfitTiers' confidence=0 behavior.
+3. **Hunt:** Identified `marketCondition || 'normal'`, `volatility || 0.02`, and the confidence default itself. Classified all three as "intentional defaults."
+
+### My triage
+
+**Verdict #1: SAFE — verified directly.** `grep -nE "maxProfitManager.*\.start\(|mpm.*\.start\(|MaxProfitManager.*\.start\("` finds only OrderExecutor.js:342 (BUY) and :489 (SHORT). Both pass `confidence: decision.confidence / 100`. No other callers exist. Phase 0 confirms — 1384 trades, throw never fires.
+
+**Verdict #2: SAFE per CRIT-02 invariant.** OrderExecutor's CRIT-02 entry guard already throws on invalid confidence at the entry point, so options.confidence reaching MaxProfitManager has been validated upstream. setupProfitTiers' behavior at confidence=0 is defensive concern but not reachable in current invariants.
+
+**Verdict #3: PARTIAL — Mercury misclassified `volatility || 0.02` as intentional.** OrderExecutor:343 passes `volatility: indicators.volatility ?? null` — explicitly using `?? null` to allow null during indicator warmup. Then `MaxProfitManager.js:318 const volatility = options.volatility || 0.02` masks the null as 2% — phantom-default of the same class as confidence. **Mis-calibrates stop distances based on phantom 2% volatility when actual is unknown.** Same fix pattern: throw on missing.
+
+### Action taken because of Mercury
+
+- Commit CRIT-02-followup-A as-is. All three Mercury findings either verified safe (#1, #2) or surfaced an adjacent CRIT-class bug (#3 → CRIT-02-followup-B).
+- **CRIT-02-followup-B queued:** `core/MaxProfitManager.js:318 volatility || 0.02` — same class as -A.
+- `marketCondition || 'normal'`: classification debatable; defer to HIGH/MEDIUM batch (broader concern, more values to consider).

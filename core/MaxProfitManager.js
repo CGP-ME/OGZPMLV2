@@ -316,7 +316,16 @@ class MaxProfitManager {
     // ====================================================================
     const marketCondition = options.marketCondition || 'normal';
     const volatility = options.volatility || 0.02; // Default 2% volatility
-    const confidence = options.confidence || 0.5;  // Default neutral confidence
+    // CRIT-02-followup-A: refuse phantom 50% confidence default. Previously
+    // `options.confidence || 0.5` silently masked missing/zero confidence as
+    // neutral 50%, mis-calibrating profit tiers via setupProfitTiers below.
+    // Caller (OrderExecutor at :342, :489) ALWAYS passes
+    // `decision.confidence / 100` after CRIT-02's entry-confidence guard
+    // upstream, so a missing value here signals a caller-contract bug.
+    const confidence = options.confidence;
+    if (!Number.isFinite(confidence) || confidence <= 0) {
+      throw new Error(`MaxProfitManager.start: options.confidence missing/invalid (got ${confidence}) — refusing to default to phantom 50% (would silently mis-calibrate profit tiers)`);
+    }
     
     // Calculate volatility adjustment factors
     const volatilityAdjustment = this.calculateVolatilityAdjustment(volatility);
