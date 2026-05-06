@@ -538,3 +538,38 @@ This means my :915 throw is purely DEFENSIVE: it guards against a future regress
 
 - Commit CRIT-05-followup-B as-is. Mercury verified my fix is correct defensive guard.
 - **CRIT-05-followup-C queued:** `run-empire-v2.js:1104` loadCandleHistory BTC-USD default.
+
+---
+
+## Dispatch 16 — post-CRIT-05-followup-C attack on `run-empire-v2.js`
+
+**Commit context (uncommitted, working tree):** Replaced `const symbol = resolvedConfig.config.broker.tradingPair || 'BTC-USD'` at `run-empire-v2.js:1104` (`loadCandleHistory()`) with IIFE throw. Same defensive pattern as B.
+
+**Mercury prompt framing:** Adversarial — when can throw fire on legit live/paper? Does cached candle-asset mismatch survive? Hunt for sibling literals.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.6s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (loadCandleHistory is gated off in backtest+file mode at :757-761).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** Throw fires when user explicitly sets `TRADING_PAIR=""` (empty string in env). `envStr` returns the empty string (env var IS set, just empty), broker-conditional default doesn't kick in, `|| (() => throw)` triggers.
+2. **Regress:** Pre-existing architectural concern surfaced — comment at :756 notes "Bug: Was loading cached BTC live data into TSLA backtests, corrupting VP calculations." If cached candle-history.json on disk was written under BTC-USD and the bot starts paper/live with BTC-USD-by-default (kraken broker, no TRADING_PAIR), wrong-asset candles load into priceHistory.
+3. **Hunt:** "No other literals in shown portion" — partial retrieval AGAIN.
+
+### My triage
+
+**Verdict #1: REAL — fix is correct fail-loud.** Empty TRADING_PAIR was previously silently routed to BTC-USD. Throw makes the misconfiguration loud. Same fail-loud philosophy as the rest of the CRIT batch — empty string is "missing from asset-routing perspective."
+
+**Verdict #2: REAL pre-existing architectural concern, OUT OF CRIT-05-followup-C SCOPE.** Mercury surfaces a wider bug: CandleStore on-disk persistence is keyed by symbol, but the persistence file (`data/candle-history.json`) is single-asset-flat. If a user runs BTC-USD live, then switches to TSLA without clearing the cache, loadCandleHistory pulls under the new symbol but the file's contents are from the old run. Backtest+file mode skips this entirely (gate at :757-761), explicitly because of this bug. The architectural fix would be: (a) symbol-aware filename `candle-history-{symbol}.json`, or (b) symbol-validate-on-load. Spec'd separately, NOT in CRIT-05-followup-C scope. **Surfacing for follow-up audit.**
+
+**Verdict #3: PARTIAL — Mercury false-negative AGAIN.** Direct grep found:
+- `:603, :692` — `process.env.BROKER || 'alpaca'` — broker-id default, intentional design (matches ConfigLoader broker-conditional pattern). Documented as not a phantom.
+- `:708` — `process.env.ALPACA_SYMBOLS || 'TSLA'` — symbol list default, similar intent. Note: empty `ALPACA_SYMBOLS` would silently default to TSLA. Probably HIGH-class concern; out of CRIT scope.
+- **`:1125` — `resolvedConfig.config.broker.tradingPair || 'BTC-USD'` in `saveCandleHistory()`** — direct CRIT-05 sibling, will be CRIT-05-followup-D, next commit.
+
+### Action taken because of Mercury
+
+- Commit CRIT-05-followup-C as-is. Mercury verified throw is real defensive guard, not spurious.
+- **CRIT-05-followup-D queued:** `run-empire-v2.js:1125` saveCandleHistory.
+- **Architectural follow-up surfaced:** symbol-aware candle file persistence (out of FALLBACK-AUDIT scope).

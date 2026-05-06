@@ -1101,7 +1101,14 @@ class OGZPrimeV14Bot {
   loadCandleHistory() {
     const path = require('path');
     const candleFile = path.join(__dirname, 'data', 'candle-history.json');
-    const symbol = resolvedConfig.config.broker.tradingPair || 'BTC-USD';
+    // CRIT-05-followup-C: refuse BTC-USD phantom default when loading
+    // saved candles. Original `|| 'BTC-USD'` would silently load the
+    // wrong asset's candle history into priceHistory if resolvedConfig
+    // resolution broke. ConfigLoader.js currently guarantees a value
+    // (broker-conditional default), so the throw is defensive.
+    const symbol = resolvedConfig.config.broker.tradingPair || (() => {
+      throw new Error('loadCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to load candles under BTC-USD default');
+    })();
     const count = this._candleStore.loadFromDisk(candleFile, symbol, '1m');
     this.priceHistory = this._candleStore.getCandles(symbol, '1m');
     if (count === 0) this.priceHistory = [];
