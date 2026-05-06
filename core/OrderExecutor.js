@@ -175,10 +175,10 @@ class OrderExecutor {
           })) || [],
           indicators: {
             rsi: indicators.rsi,
-            macd: indicators.macd?.macd || 0,  // CHANGE 646: Fix property access - was ?.value
-            macdSignal: indicators.macd?.signal || 0,
+            macd: indicators.macd?.macd ?? null,  // CHANGE 646: Fix property access - was ?.value
+            macdSignal: indicators.macd?.signal ?? null,
             trend: indicators.trend,
-            volatility: indicators.volatility || 0
+            volatility: indicators.volatility ?? null
           }
         };
 
@@ -242,7 +242,7 @@ class OrderExecutor {
             || exitContractManager.createExitContract(
                 entryStrategy,
                 { confidence: orchResult?.confidence || 0 },
-                { volatility: indicators.volatility || 0 }
+                { volatility: indicators.volatility ?? null }
               );
 
           // Apply confluence-based position sizing
@@ -304,7 +304,7 @@ class OrderExecutor {
           // Phase 4 REWRITE: Access maxProfitManager directly (was inside deleted tradingBrain)
           const mpmInstance = new MaxProfitManager();
           mpmInstance.start(price, 'buy', adjustedPositionSize, {
-            volatility: indicators.volatility || 0,
+            volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways'
           });
@@ -386,7 +386,7 @@ class OrderExecutor {
             || exitContractManager.createExitContract(
                 entryStrategy,
                 { confidence: orchResult?.confidence || 0 },
-                { volatility: indicators.volatility || 0 }
+                { volatility: indicators.volatility ?? null }
               );
 
           const adjustedPositionSize = positionSize * sizingMultiplier;
@@ -442,7 +442,7 @@ class OrderExecutor {
           // MaxProfitManager for short direction
           const mpmShortInstance = new MaxProfitManager();
           mpmShortInstance.start(price, 'sell', adjustedPositionSize, {
-            volatility: indicators.volatility || 0,
+            volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways'
           });
@@ -684,7 +684,7 @@ class OrderExecutor {
               fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),  // From TradingConfig (taker on exit)
               reason: completeTradeResult.exitReason || 'Signal exit',
               confidence: decision.confidence,
-              indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd || 0 },
+              indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd ?? null },
               pattern: buyTrade.patterns?.[0]?.name || null
             });
 
@@ -849,10 +849,10 @@ class OrderExecutor {
                 exitReason: completeTradeResult.exitReason || 'signal',
                 exitIndicators: {
                   rsi: indicators.rsi,
-                  macd: indicators.macd?.macd || 0,
-                  macdSignal: indicators.macd?.signal || 0,
+                  macd: indicators.macd?.macd ?? null,
+                  macdSignal: indicators.macd?.signal ?? null,
                   trend: indicators.trend,
-                  volatility: indicators.volatility || 0
+                  volatility: indicators.volatility ?? null
                 },
 
                 // Pattern data
@@ -900,8 +900,8 @@ class OrderExecutor {
                   timestamp: Date.now(),
                   indicators: {
                     rsi: indicators.rsi,
-                    macd: indicators.macd?.macd || 0,
-                    macdHistogram: indicators.macd?.histogram || 0
+                    macd: indicators.macd?.macd ?? null,
+                    macdHistogram: indicators.macd?.histogram ?? null
                   },
                   trend: indicators.trend || 'neutral'
                 },
@@ -1070,7 +1070,7 @@ class OrderExecutor {
             fees: (shortSize * price) * TradingConfig.get('fees.takerFee', 0.004),
             reason: completeTradeResult.exitReason || 'Short cover',
             confidence: decision.confidence,
-            indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd || 0 },
+            indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd ?? null },
             pattern: shortTrade.patterns?.[0]?.name || null
           });
 
@@ -1133,8 +1133,8 @@ class OrderExecutor {
                 timestamp: Date.now(),
                 indicators: {
                   rsi: indicators.rsi,
-                  macd: indicators.macd?.macd || 0,
-                  macdHistogram: indicators.macd?.histogram || 0
+                  macd: indicators.macd?.macd ?? null,
+                  macdHistogram: indicators.macd?.histogram ?? null
                 },
                 trend: indicators.trend || 'neutral'
               },
