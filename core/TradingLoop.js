@@ -343,12 +343,15 @@ class TradingLoop {
           },
         })),
         // L2: orchestrator decision with competing strategies
+        // HIGH-05: ledger honesty — `|| 0` masked legitimate zero-confidence
+        // signals (HOLD path emits 0). Use `??` to preserve zero in ledger
+        // attribution. HIGH-25's warn at :92 already surfaces non-finite.
         orchestratorDecision: {
           winnerStrategy: winnerName,
-          finalConfidence: (orchResult.confidence || 0) / 100,
+          finalConfidence: (orchResult.confidence ?? 0) / 100,
           reason: allResults.length > 1
-            ? `${winnerName} (${(orchResult.confidence || 0).toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
-            : `${winnerName} selected at ${(orchResult.confidence || 0).toFixed(1)}%`,
+            ? `${winnerName} (${(orchResult.confidence ?? 0).toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
+            : `${winnerName} selected at ${(orchResult.confidence ?? 0).toFixed(1)}%`,
           competingStrategies: allResults.map(r => ({
             name: r.strategyName || r.name || 'unknown',
             adjustedConfidence: (r.confidence || 0),
