@@ -400,21 +400,21 @@ class TradingLoop {
     // Indicators
     const dtoState = this.ctx.indicatorEngine.getSnapshot();
     const indicators = dtoState.indicators;
-    indicators.ema12 = indicators.ema9 || price;
-    indicators.ema26 = indicators.ema21 || price;
-    indicators.volatility = indicators.atr || 0;
-    indicators.bbWidth = indicators.bb?.bandwidth || 0;
+    indicators.ema12 = indicators.ema9 ?? null;
+    indicators.ema26 = indicators.ema21 ?? null;
+    indicators.volatility = indicators.atr ?? null;
+    indicators.bbWidth = indicators.bb?.bandwidth ?? null;
     indicators.bollingerBands = indicators.bb;
-    indicators.trend = indicators.superTrendDirection || 'sideways';
+    indicators.trend = indicators.superTrendDirection ?? null;
 
     // Patterns
     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
       candles: this.ctx.priceHistory,
       trend: indicators.trend,
-      macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
-      macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
+      macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
+      macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
       rsi: indicators.rsi,
-      volume: this.ctx.marketData.volume || 0
+      volume: this.ctx.marketData.volume ?? null
     });
     // 2026-05-04: Re-enabled per Wolf strategy-resurrection spec.
     // Original disable (2026-03-20 ceb0ffb) cited 2000+ garbage entries in
@@ -424,8 +424,8 @@ class TradingLoop {
     const rawCandlePatterns = candlePatternDetector.detect(this.ctx.priceHistory, {
       rsi: indicators.rsi,
       trend: indicators.trend,
-      macd: indicators.macd?.macd || 0,
-      volume: this.ctx.marketData?.volume || 0
+      macd: indicators.macd?.macd ?? null,
+      volume: this.ctx.marketData?.volume ?? null
     });
     const minPatternConf = TradingConfig.get('confidence.candlePatternMinConfidence') || 0.70;
     const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);

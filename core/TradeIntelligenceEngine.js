@@ -216,17 +216,18 @@ class TradeIntelligenceEngine extends EventEmitter {
                 result.regime = 'ranging';
             }
 
-            // Volatility assessment
-            const atr = indicators.atr || 0;
-            const avgAtr = indicators.avgAtr || atr;
-            if (atr > avgAtr * this.config.volatilityExpansionMultiple) {
+            // Volatility assessment — null during warmup; signal cannot fire without both values
+            const atr = indicators.atr ?? null;
+            const avgAtr = indicators.avgAtr ?? atr;
+            if (atr !== null && avgAtr !== null && avgAtr > 0 &&
+                atr > avgAtr * this.config.volatilityExpansionMultiple) {
                 result.signals.push({ type: 'VOLATILITY_EXPANSION', value: atr / avgAtr });
                 result.score += 10;
             }
 
-            // EMA alignment
-            const ema9 = indicators.ema9 || indicators.ema12;
-            const ema20 = indicators.ema20 || indicators.ema26;
+            // EMA alignment — alias prefer 9/20, fall through to 12/26 only if those exist
+            const ema9 = indicators.ema9 ?? indicators.ema12;
+            const ema20 = indicators.ema20 ?? indicators.ema26;
             const ema50 = indicators.ema50;
 
             if (ema9 && ema20 && ema50) {
@@ -241,9 +242,9 @@ class TradeIntelligenceEngine extends EventEmitter {
                 }
             }
 
-            // Volume confirmation
-            const volume = marketData.volume || indicators.volume;
-            const avgVolume = indicators.avgVolume || volume;
+            // Volume confirmation — prefer marketData feed; gated by null/zero check before ratio
+            const volume = marketData.volume ?? indicators.volume;
+            const avgVolume = indicators.avgVolume ?? volume;
             if (volume && avgVolume && volume > avgVolume * this.config.volumeConfirmationMultiple) {
                 result.signals.push({ type: 'HIGH_VOLUME', ratio: volume / avgVolume });
                 result.score += 10;
@@ -663,11 +664,12 @@ class TradeIntelligenceEngine extends EventEmitter {
         const isLong = trade.direction === 'buy' || trade.action === 'BUY';
 
         try {
-            const volume = marketData.volume || indicators.volume;
-            const avgVolume = indicators.avgVolume || marketData.avgVolume;
-            const priceChange = marketData.priceChange || 0;
+            const volume = marketData.volume ?? indicators.volume;
+            const avgVolume = indicators.avgVolume ?? marketData.avgVolume;
+            const priceChange = marketData.priceChange ?? null;
 
             if (!volume || !avgVolume) return result;
+            if (priceChange === null) return result;
 
             const volumeRatio = volume / avgVolume;
 
@@ -988,8 +990,8 @@ class TradeIntelligenceEngine extends EventEmitter {
         const price = marketData.price;
 
         try {
-            const ema9 = indicators.ema9 || indicators.ema12;
-            const ema20 = indicators.ema20 || indicators.ema26;
+            const ema9 = indicators.ema9 ?? indicators.ema12;
+            const ema20 = indicators.ema20 ?? indicators.ema26;
             const ema50 = indicators.ema50;
             const sma200 = indicators.sma200;
 

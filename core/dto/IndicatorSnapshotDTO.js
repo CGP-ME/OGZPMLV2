@@ -11,27 +11,27 @@ const IndicatorSnapshotSchema = z.object({
   indicators: z.object({
     // RSI - zod 4 syntax: use union for nullable with constraints
     rsi: z.union([z.number().min(0).max(100), z.null()]),  // Null during warmup
-    // Moving averages
-    ema9: z.number(),
-    ema20: z.number(),
-    ema50: z.number(),
-    ema200: z.number(),
+    // Moving averages — nullable during warmup
+    ema9: z.union([z.number(), z.null()]),
+    ema20: z.union([z.number(), z.null()]),
+    ema50: z.union([z.number(), z.null()]),
+    ema200: z.union([z.number(), z.null()]),
     sma20: z.number().nullable().optional(),
     sma50: z.number().nullable().optional(),
     sma200: z.number().nullable().optional(),
-    // Volatility
-    atr: z.number().min(0),
-    atrPercent: z.number().min(0),
-    // Bollinger Bands
-    bbUpper: z.number(),
-    bbMiddle: z.number(),
-    bbLower: z.number(),
-    bbWidth: z.number(),
-    bbPercentB: z.number(),
-    // MACD
-    macd: z.number(),
-    macdSignal: z.number(),
-    macdHistogram: z.number(),
+    // Volatility — nullable during warmup
+    atr: z.union([z.number().min(0), z.null()]),
+    atrPercent: z.union([z.number().min(0), z.null()]),
+    // Bollinger Bands — nullable during warmup
+    bbUpper: z.union([z.number(), z.null()]),
+    bbMiddle: z.union([z.number(), z.null()]),
+    bbLower: z.union([z.number(), z.null()]),
+    bbWidth: z.union([z.number(), z.null()]),
+    bbPercentB: z.union([z.number(), z.null()]),
+    // MACD — nullable during warmup
+    macd: z.union([z.number(), z.null()]),
+    macdSignal: z.union([z.number(), z.null()]),
+    macdHistogram: z.union([z.number(), z.null()]),
     // Stochastic RSI
     stochRsiK: z.number().nullable().optional(),
     stochRsiD: z.number().nullable().optional(),
@@ -39,16 +39,16 @@ const IndicatorSnapshotSchema = z.object({
     adx: z.number().nullable().optional(),
     plusDI: z.number().nullable().optional(),
     minusDI: z.number().nullable().optional(),
-    // Volume
-    volume: z.number().min(0),
+    // Volume — nullable during warmup
+    volume: z.union([z.number().min(0), z.null()]),
     vwap: z.number().nullable().optional(),
     obv: z.number().nullable().optional(),
     mfi: z.number().nullable().optional(),
     // Trend
     superTrend: z.number().nullable().optional(),
     superTrendDirection: z.string().nullable().optional(),
-    // Price
-    price: z.number().positive(),
+    // Price — nullable until first candle arrives
+    price: z.union([z.number().positive(), z.null()]),
   }),
   // Optional metadata
   candle: z.object({

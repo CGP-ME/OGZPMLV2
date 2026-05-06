@@ -18,7 +18,7 @@
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../CandleHelper');
 
 // DTO validation for indicator snapshots
-const { validateSnapshotSafe } = require('../dto/IndicatorSnapshotDTO');
+const { validateSnapshot } = require('../dto/IndicatorSnapshotDTO');
 
 // Import OGZ Two-Pole Oscillator (pure-function implementation)
 let computeOgzTpo, detectTpoCrossover;
@@ -318,35 +318,36 @@ class IndicatorEngine {
     // Build flat DTO structure per OGZPrime Master Engineering Spec
     const s = this.state;
     const lastCandle = s.lastCandle;
-    const price = lastCandle ? _c(lastCandle) : 0;
+    // Null during warmup — schema admits null and consumers must gate on it
+    const price = lastCandle ? _c(lastCandle) : null;
 
     const dto = {
       timestamp: Date.now(),
       indicators: {
         rsi: s.rsi,
-        ema9: s.ema?.[9] ?? price,
-        ema20: s.ema?.[20] ?? price,
-        ema50: s.ema?.[50] ?? price,
-        ema200: s.ema?.[200] ?? price,
+        ema9: s.ema?.[9] ?? null,
+        ema20: s.ema?.[20] ?? null,
+        ema50: s.ema?.[50] ?? null,
+        ema200: s.ema?.[200] ?? null,
         sma20: s.sma?.[20],
         sma50: s.sma?.[50],
         sma200: s.sma?.[200],
-        atr: s.atr ?? 0,
-        atrPercent: price > 0 ? ((s.atr ?? 0) / price) * 100 : 0,
-        bbUpper: s.bb?.upper ?? price,
-        bbMiddle: s.bb?.mid ?? price,
-        bbLower: s.bb?.lower ?? price,
-        bbWidth: s.bbExtras?.bandwidth ?? 0,
-        bbPercentB: s.bbExtras?.percentB ?? 0.5,
-        macd: s.macd?.macd ?? 0,
-        macdSignal: s.macd?.signal ?? 0,
-        macdHistogram: s.macd?.hist ?? 0,
+        atr: s.atr ?? null,
+        atrPercent: (price != null && price > 0 && s.atr != null) ? (s.atr / price) * 100 : null,
+        bbUpper: s.bb?.upper ?? null,
+        bbMiddle: s.bb?.mid ?? null,
+        bbLower: s.bb?.lower ?? null,
+        bbWidth: s.bbExtras?.bandwidth ?? null,
+        bbPercentB: s.bbExtras?.percentB ?? null,
+        macd: s.macd?.macd ?? null,
+        macdSignal: s.macd?.signal ?? null,
+        macdHistogram: s.macd?.hist ?? null,
         stochRsiK: s.stochRsi?.k,
         stochRsiD: s.stochRsi?.d,
         adx: s.adx?.adx,
         plusDI: s.adx?.pdi,
         minusDI: s.adx?.mdi,
-        volume: lastCandle ? (_v(lastCandle) ?? 0) : 0,
+        volume: lastCandle ? (_v(lastCandle) ?? null) : null,
         vwap: s.vwap,
         obv: s.obv,
         mfi: s.mfi,
@@ -365,9 +366,10 @@ class IndicatorEngine {
       overlays: {},
     };
 
-    // Validate but don't fail - return raw if validation fails
-    const validated = validateSnapshotSafe(dto);
-    return validated || dto;
+    // Validate as contract — throws on failure, no silent fallback. Warmup
+    // state must be honestly represented via nullable fields in the DTO.
+    const validated = validateSnapshot(dto);
+    return validated;
   }
 
   // Legacy method for backward compatibility - returns raw state
