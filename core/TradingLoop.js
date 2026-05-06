@@ -130,7 +130,7 @@ class TradingLoop {
 
     const allTrades = stateManager.getAllTrades();
     const activeTrades = allTrades.filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
-    const maxPositions = TradingConfig.get('positionSizing.maxPositions') || 3;
+    const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
     const minConfidence = this.ctx.config.minTradeConfidence;
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };

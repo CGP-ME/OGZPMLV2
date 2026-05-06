@@ -161,3 +161,35 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 - **Commit CRIT-08 fix as-is at StateManager.js** — Mercury's #1/#2/#3 are all "fail loud working correctly" or theoretical paths; spec explicitly wants this behavior.
 - **Surface 3 sibling sites for follow-up commits** in the CRIT-08 commit body.
 - **Confirm Phase 0 reproduces** before commit (verified bit-for-bit).
+
+---
+
+## Dispatch 4 — post-CRIT-11 attack on `core/TradingLoop.js`
+
+**Commit context:** CRIT-11 fix at `core/TradingLoop.js:133` — `maxPositions ... || 3` -> `?? 3`.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 10 iters / 15.0s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (config sets maxPositions, fix invisible to backtest).
+
+### Prompt (key bits)
+
+```
+- WEAPONIZE maxPositions === 0: does the gate (activeTrades.length < maxPositions) correctly block all entries?
+- REGRESS: does any caller in blast radius assume maxPositions > 0?
+- HUNT for OTHER places with same || 3 fallback.
+```
+
+### Mercury's Answer (clean — no actionable findings)
+
+1. **Weaponize:** confirmed correct. `maxPositions === 0` makes the gate `activeTrades.length < 0` evaluate false for all non-negative active counts → all entries blocked. Intended behavior.
+2. **Regress:** no callers assume maxPositions > 0. Repo-wide search returned only the definition + a few historical/archived copies.
+3. **Other fallback sites:** 4 hits, all non-actionable:
+   - `ogz-meta/ledger/resolving.md` — doc
+   - `ogz-meta/ledger/spec fixes/_queued/01-CC-SPEC-FALLBACK-AUDIT.md` — the spec itself quoting old code
+   - `ogz-meta/ledger/TradingLoop-clean.js` — archived
+   - `tools/config-audit.js:69` — different pattern (`getSource(env, key, default)` is intentional, not a `||` fallback bug)
+
+### Action taken because of Mercury
+
+- Commit CRIT-11 fix as-is. **No follow-ups required** (first clean attack this session — others fired follow-up signals).
