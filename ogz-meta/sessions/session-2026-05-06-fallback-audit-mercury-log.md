@@ -461,3 +461,45 @@ Both downstream sites tolerate empty `allResults`. No crash, no regression.
 - Commit CRIT-10 as-is. All three findings either confirm safety (#1, #2) or were correctly limited to in-scope (#3 — boosts/regime fallbacks belong to HIGH batch).
 - **HIGH batch confirmation:** orchestrator HIGH findings (HIGH-04, -15, -16, -23, -24) verified present in live source. Queue is accurate.
 - **Mercury hygiene note (separate):** retrieval gaps reduce HUNT exhaustiveness; pair Mercury with file-wide grep for HUNT phase.
+
+---
+
+## Dispatch 14 — post-CRIT-05-followup-A attack on `core/CandleProcessor.js`
+
+**Commit context (uncommitted, working tree):** Replaced the BTC-USD phantom default at `core/CandleProcessor.js:66` (UPDATE path) and `:93` (NEW candle path) — `candle.symbol || this.ctx.tradingPair || 'BTC-USD'` — with an IIFE throw, mirroring CRIT-04/CRIT-05 in OrderExecutor. Two sites edited individually (no replace_all per no-sed rule). Edited at `:63-77` and `:89-108` after the IIFE block.
+
+**Mercury prompt framing:** Adversarial. Asked specifically: can the throw fire in legit production? Are downstream callers crash-tolerant? Hunt for sibling fallbacks in same file.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 5.9s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (TSLA backtest sets `ctx.tradingPair = 'TSLA'` via `run-empire-v2.js:751`, candle.symbol falls through, ctx.tradingPair catches it, throw never fires).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** Mercury claimed the throw "DOES OCCUR in production back-test runs" — citing BacktestRunner feeding 9-element arrays without `.symbol` and `ctx.tradingPair=undefined` per a diagnostic log.
+2. **Regress:** "not in retrieved context" — Mercury could not access WebSocketManager/BacktestRunner/run-empire-v2.js call-stacks.
+3. **Hunt:** "no other `||` fallbacks observable in retrieved excerpts" — partial retrieval again.
+
+### My triage
+
+**Verdict #1: PARTIAL — REVERIFIED EMPIRICALLY.** Mercury cited stale ledger snapshots: `CC-SPEC-BACKTEST-PIPELINE-RESURRECTION.md` and `MULTI-SYMBOL-ARCHITECTURE.md` (chunks #6, #5, #7) — both describe a PRIOR architecture state where ctx.tradingPair was undefined. The current code path sets it via `run-empire-v2.js:751` (`this.tradingPair = resolvedConfig.config.broker.tradingPair`) → `:915` (passed into OrderExecutor ctx). Empirical proof: Phase 0 ran 1384 trades bit-for-bit with my throw in place — if Mercury's claim were live, every candle would crash. Verified directly:
+- `tuning/tsla-15m-2y.json` candles: `{t,o,h,l,c,v}` only (no `.symbol`) — Mercury right about candle shape.
+- `run-empire-v2.js:751` sets `this.tradingPair` from resolved config — Mercury missed this.
+- TSLA backtest config resolves `broker.tradingPair = 'TSLA'`, propagates to ctx.
+
+The throw is correct defense-in-depth: if a future regression breaks the resolution chain, throws halt loudly instead of silent BTC-USD pollution. **Phase 0 is the live proof of correctness.**
+
+**Verdict #2: SAFE — verified directly.** processNewCandle is called from `core/CandleProcessor.handleMarketData`. Throws propagate through synchronous call stack. WebSocketManager and BacktestRunner pump candles via handleMarketData; an upstream resolution failure is exactly the loud-fail trigger we want — better than silent wrong-asset learning.
+
+**Verdict #3: PARTIAL — Mercury false-negative.** Per Dispatch 13 lesson: Mercury retrieves 4-of-N chunks. Direct grep is dominant for HUNT.
+
+### Side-finding (Mercury INDIRECTLY led to it — verified by my grep)
+
+`run-empire-v2.js:915`: `tradingPair: this.tradingPair || resolvedConfig.config.broker.tradingPair || 'BTC-USD'` — same phantom-BTC-USD default constructing OrderExecutor's ctx.tradingPair. This is a **CRIT-05 sibling**: if both `this.tradingPair` and `resolvedConfig.config.broker.tradingPair` are missing, OrderExecutor receives `ctx.tradingPair = 'BTC-USD'` (correct shape, wrong value) → CRIT-04/05 throw guards never trigger because tradingPair IS set, just to the wrong asset.
+
+**Will be fixed as CRIT-05-followup-B in next commit.**
+
+### Action taken because of Mercury
+
+- Commit CRIT-05-followup-A (CandleProcessor) as-is. Mercury's WEAPONIZE claim refuted by Phase 0 empirical proof + direct verification of the resolution chain.
+- **CRIT-05-followup-B queued:** `run-empire-v2.js:915` BTC-USD default — separate finding, separate commit per per-finding rule.

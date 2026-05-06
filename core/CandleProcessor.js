@@ -63,7 +63,16 @@ class CandleProcessor {
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
       this.ctx.priceHistory[existingIndex] = candle;
-      this.ctx._candleStore.addCandle(candle.symbol || this.ctx.tradingPair || 'BTC-USD', '15m', candle);
+      // CRIT-05-followup: same fail-loud as TRAI sites — refuse to silently
+      // poison candleStore under wrong asset symbol when both candle.symbol
+      // and ctx.tradingPair are missing.
+      this.ctx._candleStore.addCandle(
+        candle.symbol || this.ctx.tradingPair || (() => {
+          throw new Error('CandleProcessor.processNewCandle (UPDATE): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
+        })(),
+        '15m',
+        candle
+      );
 
       // Feed IndicatorEngine for real-time updates
       if (this.ctx.indicatorEngine) {
@@ -90,7 +99,14 @@ class CandleProcessor {
       this.ctx.priceHistory.splice(insertIndex, 0, candle);
     }
 
-    this.ctx._candleStore.addCandle(candle.symbol || this.ctx.tradingPair || 'BTC-USD', '15m', candle);
+    // CRIT-05-followup: NEW candle path — same fail-loud guard.
+    this.ctx._candleStore.addCandle(
+      candle.symbol || this.ctx.tradingPair || (() => {
+        throw new Error('CandleProcessor.processNewCandle (NEW): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
+      })(),
+      '15m',
+      candle
+    );
 
     // Feed IndicatorEngine
     if (this.ctx.indicatorEngine) {
