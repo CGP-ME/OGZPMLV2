@@ -912,7 +912,15 @@ class OGZPrimeV14Bot {
       trai: this.trai,
       config: this.config,
       pendingTraiDecisions: this.pendingTraiDecisions,
-      tradingPair: this.tradingPair || resolvedConfig.config.broker.tradingPair || 'BTC-USD',
+      // CRIT-05-followup-B: refuse BTC-USD phantom default in OrderExecutor ctx.
+       // Both `this.tradingPair` and `resolvedConfig.config.broker.tradingPair`
+       // resolve from the same source (this.tradingPair is set at :751 from
+       // resolvedConfig); the original chain `|| 'BTC-USD'` was a silent fallback
+       // that would poison live order routing + TRAI learning + proof-logger
+       // ledger entries with the wrong asset. Pre-money fail-loud: throw.
+       tradingPair: this.tradingPair || resolvedConfig.config.broker.tradingPair || (() => {
+         throw new Error('OrderExecutor ctx construction: tradingPair missing from both runner and resolvedConfig — refusing to default to BTC-USD');
+       })(),
       // CHANGE 2026-03-17: ConfigLoader injection (no more module-level process.env)
       backtestFast: resolvedConfig.config.backtest.fast,
       backtestMode: resolvedConfig.config.mode.backtest,

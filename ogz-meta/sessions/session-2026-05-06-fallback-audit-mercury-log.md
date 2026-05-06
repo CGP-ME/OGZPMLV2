@@ -503,3 +503,38 @@ The throw is correct defense-in-depth: if a future regression breaks the resolut
 
 - Commit CRIT-05-followup-A (CandleProcessor) as-is. Mercury's WEAPONIZE claim refuted by Phase 0 empirical proof + direct verification of the resolution chain.
 - **CRIT-05-followup-B queued:** `run-empire-v2.js:915` BTC-USD default — separate finding, separate commit per per-finding rule.
+
+---
+
+## Dispatch 15 — post-CRIT-05-followup-B attack on `run-empire-v2.js`
+
+**Commit context (uncommitted, working tree):** Replaced `tradingPair: this.tradingPair || resolvedConfig.config.broker.tradingPair || 'BTC-USD'` at `run-empire-v2.js:915` (OrderExecutor ctx construction) with IIFE throw fallback.
+
+**Mercury prompt framing:** Adversarial — can resolvedConfig lack broker.tradingPair? Is :751→:915 redundancy masking a bug? Hunt for sibling 'BTC-USD' literals in same file.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.6s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (ConfigLoader resolves broker.tradingPair from TRADING_PAIR=TSLA env, throw is dormant).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** ConfigLoader.js:179 always supplies a fallback ('BTC-USD' for kraken broker, 'TSLA' for others) — so `resolvedConfig` always has a non-null `broker.tradingPair`. Therefore my :915 throw is dormant by construction.
+2. **Regress:** SAFE — no reassignment of `this.tradingPair` between :751 and :915, redundancy harmless.
+3. **Hunt:** Real sibling at `run-empire-v2.js:1104`: `const symbol = resolvedConfig.config.broker.tradingPair || 'BTC-USD'` in `loadCandleHistory()` (Mercury labeled it `saveCandleHistory` — misread function name; line is real).
+
+### My triage
+
+**Verdict #1: TRUE — but reframes the fix as defensive.** Verified ConfigLoader.js:178-179: `tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR', (process.env.BROKER || 'kraken').toLowerCase() === 'kraken' ? 'BTC-USD' : 'TSLA'))`. This is documented INTENTIONAL behavior ("Default asset derived from BROKER: kraken -> BTC-USD, else -> TSLA") — broker-aware default, not a phantom-fallback bug.
+
+This means my :915 throw is purely DEFENSIVE: it guards against a future regression where ConfigLoader's chain breaks. Same purpose as CRIT-01 (zero-capital halt) — dormant in current happy path, loud-fail if invariant breaks. **Fix is correct as defense-in-depth.**
+
+**ConfigLoader broker-conditional default NOT in CRIT scope** — it's documented design. Could revisit later, but the spec FALLBACK-AUDIT classifies it as design-not-bug.
+
+**Verdict #2: SAFE.** Mercury verified, no reassignment between :751 and :915.
+
+**Verdict #3: REAL.** Verified run-empire-v2.js:1104 directly — `loadCandleHistory()` has the same `|| 'BTC-USD'` phantom. Will fix as CRIT-05-followup-C in next commit.
+
+### Action taken because of Mercury
+
+- Commit CRIT-05-followup-B as-is. Mercury verified my fix is correct defensive guard.
+- **CRIT-05-followup-C queued:** `run-empire-v2.js:1104` loadCandleHistory BTC-USD default.
