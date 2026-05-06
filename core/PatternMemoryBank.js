@@ -522,6 +522,14 @@ class PatternMemoryBank {
                 // RSI in buckets of 10 (30-40, 40-50, etc) - null if missing
                 rsi: indicators.rsi != null ? Math.round(indicators.rsi / 10) * 10 : null,
 
+                // MED-13: MACD 'unknown' records accumulate in pattern store
+                // during warmup (indicators.macd is null until enough candles).
+                // Current code honestly bucketes as 'unknown' (not silently
+                // 'negative'), but the warmup entries still pollute pattern
+                // analytics. Warn so quarantine downstream can filter
+                // 'unknown'-MACD records, OR skip extractPattern at the
+                // caller during warmup (architectural decision out of scope).
+                ...((indicators.macd == null || indicators.macdHistogram == null) ? (() => { console.warn(`[MED-13] PatternMemoryBank.extractPattern: MACD/histogram null at extraction (warmup) — pattern bucketed as 'unknown'; analytics should filter or skip warmup-period records`); return {}; })() : {}),
                 // MACD direction — 'unknown' when null (warmup), not silently 'negative'
                 macd: indicators.macd == null ? 'unknown' : (indicators.macd > 0 ? 'positive' : 'negative'),
 
