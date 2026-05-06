@@ -235,7 +235,7 @@ class OrderExecutor {
           // The StrategyOrchestrator already determined the winner and created the exit contract
           // Phase 3 REWRITE: orchResult is now passed directly from TradingLoop
           const entryStrategy = orchResult?.winnerStrategy || 'default';
-          const sizingMultiplier = orchResult?.sizingMultiplier || 1.0;
+          const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
           // Use orchestrator's exit contract if provided, otherwise create fallback
           const exitContract = orchResult?.exitContract
@@ -380,7 +380,7 @@ class OrderExecutor {
           console.log(`📍 CP5-SHORT: BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
           const entryStrategy = orchResult?.winnerStrategy || 'default';
-          const sizingMultiplier = orchResult?.sizingMultiplier || 1.0;
+          const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
           const exitContract = orchResult?.exitContract
             || exitContractManager.createExitContract(
