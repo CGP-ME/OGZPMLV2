@@ -91,13 +91,22 @@ class PatternBasedExitModel {
    * Start tracking a position for pattern-based exits
    */
   startTracking(position) {
+    // CRIT-02-followup-C: refuse phantom 50% entryConfidence default.
+    // Caller (OrderExecutor.js:367 BUY, :512 SHORT) ALWAYS passes
+    // `confidence: decision.confidence / 100` after CRIT-02's entry-confidence
+    // guard upstream — missing here signals a caller-contract bug. Phantom
+    // 0.5 would silently mis-anchor entry-confidence used for pattern
+    // continuation/reversal scoring.
+    if (!Number.isFinite(position.confidence) || position.confidence <= 0) {
+      throw new Error(`PatternBasedExitModel.startTracking: position.confidence missing/invalid (got ${position.confidence}) — refusing to default to phantom 50% entry confidence`);
+    }
     this.activePosition = {
       entryPrice: position.entryPrice,
       direction: position.direction?.toLowerCase() || 'buy',
       entryTime: position.entryTime || Date.now(),
       size: position.size || 1,
       entryPatterns: position.patterns || [],
-      entryConfidence: position.confidence || 0.5,
+      entryConfidence: position.confidence,
       highestProfit: 0,
       lowestProfit: 0,
       patternTargetHit: false,

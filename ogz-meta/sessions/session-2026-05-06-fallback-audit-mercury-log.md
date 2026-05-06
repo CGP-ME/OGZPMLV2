@@ -811,3 +811,32 @@ But Mercury's hunt indirectly surfaced the deeper root cause: **StateManager its
 - Commit CRIT-02-followup-B as-is. All three Mercury concerns either verified safe (#1 empirically, #2 by direct read) or invalid classification (#3).
 - **Closes the MaxProfitManager.start() phantom-default surface for confidence + volatility.**
 - `marketCondition || 'normal'`: still DEFERRED — multiple values, classification needs design decision.
+
+---
+
+## Dispatch 24 — post-CRIT-02-followup-C attack on `core/PatternBasedExitModel.js`
+
+**Commit context (uncommitted, working tree):** `core/PatternBasedExitModel.js:93-115` — added explicit guard at top of startTracking; `position.confidence || 0.5` no longer silently masks missing as 50%.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 4.3s / `term=answer_given` (RETURNED "not in retrieved context")
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+
+### Mercury's Answer
+
+"not in retrieved context" — Mercury could not access PatternBasedExitModel.js chunks, retrieval pulled unrelated docs.
+
+### My triage (verified directly per Mercury Dispatch Playbook)
+
+**Verdict #1 (callers):** Verified `grep -rnE "startTracking\(|patternExitModel\.startTracking"` finds only OrderExecutor.js:367 (BUY), :512 (SHORT), both pass `confidence: decision.confidence / 100` after CRIT-02's entry guard. No test/restore/alternate paths exist. **SAFE.**
+
+**Verdict #2 (HUNT — direct grep):** PatternBasedExitModel has 18+ `||` fallback patterns. Triage:
+- **Constructor option-defaults at :19-49** (e.g., `minPatternExitConfidence || 0.60`): INTENTIONAL DESIGN — class config values fall back to documented defaults. Not phantoms.
+- **Pattern-stats consumers at :275, :305, :306**: `stats.winRate || 0.5` etc. — pattern-learning-poisoning class. Cataloged in spec as HIGH-08 through HIGH-12 (pattern learning poisoning batch). Out of CRIT scope, in HIGH batch.
+- **`:469 pattern.confidence || 0.5`**: CRIT-02-class. Will be CRIT-02-followup-D, next commit.
+
+### Action taken because of Mercury
+
+- Commit CRIT-02-followup-C as-is. Direct verification confirms callers all pass confidence.
+- **CRIT-02-followup-D queued:** `core/PatternBasedExitModel.js:469 pattern.confidence || 0.5` — same class.
+- HIGH-batch concerns (pattern-stats fallbacks) remain in spec backlog.
