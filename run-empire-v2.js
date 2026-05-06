@@ -1122,7 +1122,13 @@ class OGZPrimeV14Bot {
     if (resolvedConfig.config.backtest.fast || resolvedConfig.config.mode.backtest) return;
     const path = require('path');
     const candleFile = path.join(__dirname, 'data', 'candle-history.json');
-    const symbol = resolvedConfig.config.broker.tradingPair || 'BTC-USD';
+    // CRIT-05-followup-D: refuse BTC-USD phantom default in saveCandleHistory.
+    // Same fail-loud pattern as the load companion. Saving under wrong asset
+    // would persist mismatched candles to disk and propagate the error to
+    // the next session's loadCandleHistory.
+    const symbol = resolvedConfig.config.broker.tradingPair || (() => {
+      throw new Error('saveCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to persist candles under BTC-USD default');
+    })();
     // Sync priceHistory to CandleStore before saving
     this._candleStore.addCandles(symbol, '1m', this.priceHistory);
     this._candleStore.saveToDisk(candleFile, symbol, '1m', 200);

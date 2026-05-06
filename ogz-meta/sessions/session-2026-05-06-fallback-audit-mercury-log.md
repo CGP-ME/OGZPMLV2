@@ -573,3 +573,32 @@ This means my :915 throw is purely DEFENSIVE: it guards against a future regress
 - Commit CRIT-05-followup-C as-is. Mercury verified throw is real defensive guard, not spurious.
 - **CRIT-05-followup-D queued:** `run-empire-v2.js:1125` saveCandleHistory.
 - **Architectural follow-up surfaced:** symbol-aware candle file persistence (out of FALLBACK-AUDIT scope).
+
+---
+
+## Dispatch 17 — post-CRIT-05-followup-D attack on `run-empire-v2.js`
+
+**Commit context (uncommitted, working tree):** Replaced `const symbol = resolvedConfig.config.broker.tradingPair || 'BTC-USD'` at `run-empire-v2.js:1125` (`saveCandleHistory()`) with IIFE throw. Symmetric to followup-C.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.8s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (saveCandleHistory has early-return gate at :1122 in backtest mode; throw never reached).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** SAFE — no code path re-assigns or reloads resolvedConfig after startup. saveCandleHistory always operates on the startup snapshot. No stale-config attack surface.
+2. **Regress:** "cannot verify call-sites in retrieval" — Mercury could not access caller chain from indexed chunks.
+3. **Hunt:** "only the :1101 fallback" — partial retrieval AGAIN; also surfaced reference spec doc `ogz-meta/ledger/spec fixes/a/01-HIGH-CC-SPEC-CANDLE-HISTORY-SYMBOL-AWARE.md` for the architectural symbol-aware persistence concern.
+
+### My triage
+
+**Verdict #1: SAFE.** Verified no resolvedConfig reassignment.
+
+**Verdict #2: SAFE — verified directly.** `saveCandleHistory` is called from `core/CandleProcessor.js:141` every 5 candles inside processNewCandle (synchronous). Throw propagates synchronously — fail-loud-correct. In Phase 0 the early-return at `:1122` (backtest gate) exits BEFORE the throw line; in live/paper mode, throw fires only if resolvedConfig.config.broker.tradingPair is missing/empty (ConfigLoader guarantees a value via broker-conditional default unless TRADING_PAIR="" set explicitly). Same fail-loud philosophy as C.
+
+**Verdict #3: ARCHITECTURAL spec already cataloged.** `01-HIGH-CC-SPEC-CANDLE-HISTORY-SYMBOL-AWARE.md` exists in `ogz-meta/ledger/spec fixes/a/` — the symbol-aware persistence work is already in the spec backlog. Not a new finding.
+
+### Action taken because of Mercury
+
+- Commit CRIT-05-followup-D as-is. Mercury verified throw is correct fail-loud guard.
+- **Closes the run-empire-v2.js BTC-USD phantom-default sibling family** (B, C, D). The remaining `'BTC-USD'` literals in run-empire-v2.js (:603, :692, :708) are documented broker-conditional defaults, NOT phantom fallbacks.
