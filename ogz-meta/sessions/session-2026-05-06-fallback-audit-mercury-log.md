@@ -602,3 +602,44 @@ This means my :915 throw is purely DEFENSIVE: it guards against a future regress
 
 - Commit CRIT-05-followup-D as-is. Mercury verified throw is correct fail-loud guard.
 - **Closes the run-empire-v2.js BTC-USD phantom-default sibling family** (B, C, D). The remaining `'BTC-USD'` literals in run-empire-v2.js (:603, :692, :708) are documented broker-conditional defaults, NOT phantom fallbacks.
+
+---
+
+## Dispatch 18 — post-CRIT-08-followup-A attack on `core/BacktestRunner.js`
+
+**Commit context (uncommitted, working tree):** Initial edit at `core/BacktestRunner.js:149` replaced `|| 10000` with `??` IIFE throw on missing. Mercury caught a real regression and a real upstream sibling.
+
+**Mercury prompt framing:** Adversarial — when does throw fire? Does `??` introduce NaN/Infinity divisions? Hunt sibling phantoms.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 6.9s / `term=answer_given`
+**Phase 0 result (initial fix):** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+**Phase 0 result (post-Mercury hardening):** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit.
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize / source provenance:** `backtestRecorder.startingBalance` is set in `run-empire-v2.js:534-540`: `const btStartBalance = parseFloat(process.env.INITIAL_BALANCE) || 10000`. **Phantom $10K LIVES at the construction site.** My BacktestRunner consumer-side throw wouldn't fire because startingBalance IS set, just to phantom 10000.
+
+2. **Regress (CAUGHT REAL):** With `??` instead of `||`, an explicit `startingBalance === 0` passes through and produces `totalReturn = (finalBalance / 0 - 1) * 100` = `Infinity` (if pnl > 0) or `NaN` (if pnl === 0). The old `||` masked this by defaulting zero to 10000.
+
+3. **Hunt:**
+   - `t.netPnlDollars || 0` in trades.reduce (same file, same function).
+   - `config: { initialBalance: 10000, ... }` later in the file — hardcoded in a config object.
+
+### My triage and action
+
+**Verdict #1: REAL — separate followup.** Verified `run-empire-v2.js:534-540` directly. The phantom-$10K originates upstream of my consumer-side fix. Will be CRIT-08-followup-B (next commit) — the throw-on-missing belongs at construction, not just at the report site. Both layers harden defense.
+
+**Verdict #2: REAL REGRESSION I INTRODUCED.** This is exactly the value of Mercury attack-mode framing per `feedback-mercury-attack-not-verify.md` — Mercury hunted my fix as a weapon and found it. **Hardened the fix:** explicit guard `if (!Number.isFinite(_startingBalance) || _startingBalance <= 0) throw ...` rejects missing AND zero AND negative AND non-finite. Matches CRIT-01's zero-capital-halt philosophy. Re-ran Phase 0 — bit-for-bit preserved (Phase 0's startingBalance is positive 10000-ish).
+
+**Verdict #3 sub-findings:**
+- `t.netPnlDollars || 0` in reduce: DEFENSIVE-CORRECT-IGNORE — if a trade somehow lacks netPnlDollars, treating as 0 contribution is correct (don't crash the report on one bad row). Not a phantom that masks a config error.
+- `config: { initialBalance: 10000, ... }`: REAL phantom hardcoded inside the runner. Need to check site to confirm scope.
+
+### Action taken because of Mercury
+
+- Hardened CRIT-08-followup-A (real regression caught + fixed in same working-tree edit before commit).
+- **CRIT-08-followup-B queued:** `run-empire-v2.js:534` btStartBalance phantom $10K at upstream construction site.
+- **CRIT-08-followup-C queued (pending verification):** hardcoded `initialBalance: 10000` in BacktestRunner config object.
+
+This dispatch is the textbook example of why Mercury attack framing matters — verification framing ("is the fix correct?") would have rubber-stamped the `??` switch. Adversarial framing ("hunt the fix as a weapon") found the divide-by-zero regression in one pass.

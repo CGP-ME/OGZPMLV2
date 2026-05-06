@@ -146,7 +146,19 @@ class BacktestRunner {
       const winners = trades.filter(t => t.netPnlDollars > 0);
       const losers = trades.filter(t => t.netPnlDollars < 0);
       const totalPnL = trades.reduce((sum, t) => sum + (t.netPnlDollars || 0), 0);
-      const initialBalance = this.ctx.backtestRecorder?.startingBalance || 10000;
+      // CRIT-08-followup-A: refuse $10K phantom default in backtest report.
+      // If backtestRecorder.startingBalance is missing, the final balance and
+      // totalReturn would silently report against a phantom $10K start —
+      // a lie about performance. Pre-money fail-loud: throw on missing.
+      // Mercury Dispatch 18 caught: with `??`, an explicit 0 would pass
+      // through and make `totalReturn = (finalBalance / 0 - 1) * 100` = NaN
+      // /Infinity. Guard explicitly on `<= 0` and non-finite (matches
+      // CRIT-01's zero-capital-halt philosophy).
+      const _startingBalance = this.ctx.backtestRecorder?.startingBalance;
+      if (!Number.isFinite(_startingBalance) || _startingBalance <= 0) {
+        throw new Error(`BacktestRunner: backtestRecorder.startingBalance is missing/invalid (got ${_startingBalance}) — refusing to compute totalReturn against phantom default`);
+      }
+      const initialBalance = _startingBalance;
       const finalBalance = initialBalance + totalPnL;
       const totalReturn = ((finalBalance / initialBalance - 1) * 100);
 
