@@ -162,10 +162,19 @@ const OrderRouter = require('./core/OrderRouter');
 // REFACTOR Phase 14: OrderExecutor - exact copy of executeTrade() extracted
 const OrderExecutor = require('./core/OrderExecutor');
 
-// DynamicPositionSizer exists in core/ but NOT WIRED - curves need tuning first
-// Validated results: TSLA $970, QQQ $374. DPS dropped these to $101/$50.
-// Re-enable after tuning curves to match or beat validated baseline.
-// const DynamicPositionSizer = require('./core/DynamicPositionSizer');
+// CRIT-12: DynamicPositionSizer machine-toggleable env gate.
+// Validated baseline WITHOUT DPS: TSLA $970, QQQ $374.
+// DPS curves dropped those to $101/$50 — DPS needs curve re-tuning before
+// flipping the gate. Until then OrderExecutor uses the inline confidence
+// multiplier path (core/OrderExecutor.js:71-77).
+//
+// To unlock DPS (after curve re-tune):
+//   1. ENABLE_DPS=true in env (loads the module), AND
+//   2. Wire DynamicPositionSizer into OrderExecutor's sizing path
+//      (replace inline confidence multiplier with DPS.size()).
+// Step 1 alone loads the module but does NOT change sizing behavior.
+const ENABLE_DPS = process.env.ENABLE_DPS === 'true';
+const DynamicPositionSizer = ENABLE_DPS ? require('./core/DynamicPositionSizer') : null;
 
 // Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
 const MaxProfitManager = require('./core/MaxProfitManager');

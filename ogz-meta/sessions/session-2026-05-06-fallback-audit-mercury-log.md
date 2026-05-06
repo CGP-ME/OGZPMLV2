@@ -193,3 +193,23 @@ HUNT failure modes the throw introduces. Stop searching at 6 tool calls.
 ### Action taken because of Mercury
 
 - Commit CRIT-11 fix as-is. **No follow-ups required** (first clean attack this session — others fired follow-up signals).
+
+---
+
+## Dispatch 5 — post-CRIT-12 attack on `run-empire-v2.js`
+
+**Commit context:** CRIT-12 fix at `run-empire-v2.js:165-178` — replaced commented-out DPS require with `ENABLE_DPS` env-gated optional require. Default OFF.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 11 iters / 12.9s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (default ENABLE_DPS=false, DPS=null, no consumer reads the var).
+
+### Mercury's Answer (3 findings, all triaged as expected/safe)
+
+1. **Boot crash if `ENABLE_DPS=true` but DPS broken/missing** — REAL but **WORKING AS INTENDED.** Pre-money fail-loud: better to refuse boot than run with silently-broken DPS. Catching the error would re-introduce the silent-default class.
+2. **No regression when DPS=null** — confirmed; file never reads the identifier after declaration.
+3. **No downstream runtime reliance** — Mercury grepped repo-wide; only comment occurrences elsewhere.
+
+### Action taken because of Mercury
+
+- Commit CRIT-12 as-is. **Clean attack — no follow-ups.**
