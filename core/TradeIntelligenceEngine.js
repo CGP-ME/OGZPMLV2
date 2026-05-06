@@ -610,7 +610,14 @@ class TradeIntelligenceEngine extends EventEmitter {
 
         try {
             // Current drawdown
-            const drawdown = context.currentDrawdown || 0;
+            // HIGH-18: `|| 0` masked missing drawdown; the gate `drawdown > 5`
+            // never fires when missing → high-drawdown risk signal silently
+            // suppressed. Surface missing as warn so the silent-bypass is
+            // observable.
+            if (!Number.isFinite(context.currentDrawdown)) {
+                console.warn('[HIGH-18] context.currentDrawdown missing — drawdown risk signal will not fire this evaluation');
+            }
+            const drawdown = context.currentDrawdown ?? 0;
             if (drawdown > 5) {
                 result.signals.push({ type: 'HIGH_DRAWDOWN', value: drawdown });
                 result.score -= 20;
