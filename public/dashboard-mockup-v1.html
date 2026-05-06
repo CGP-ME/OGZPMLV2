@@ -1,0 +1,2068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OGZPrime Dashboard — Design Mockup v1</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ========== THEME & ROOT VARIABLES ========== */
+    :root {
+      --bg-primary: #000000;
+      --bg-secondary: #0a0a0a;
+      --bg-panel: rgba(20, 20, 20, 0.9);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --core-color: #00ccff;
+      --ml-color: #ffd700;
+      --profit-color: #00ff88;
+      --loss-color: #ff3366;
+      --neutral-color: #8b8b8b;
+      --metallic-gradient: linear-gradient(135deg, #c0c0c0 0%, #808080 50%, #c0c0c0 100%);
+      --core-gradient: linear-gradient(135deg, #00ccff 0%, #4dddff 50%, #00ccff 100%);
+      --ml-gradient: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 400;
+      font-size: 13px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(800px 800px at 20% 0%, rgba(255, 215, 0, 0.05) 0%, transparent 100%),
+        radial-gradient(800px 800px at 100% 0%, rgba(0, 204, 255, 0.05) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ========== LAYOUT STRUCTURE ========== */
+    #root {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      height: 60px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .design-notice {
+      font-size: 9px;
+      color: var(--ml-color);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff3366 0%, #ff6699 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .status-lights {
+      display: flex;
+      gap: 12px;
+      margin-left: auto;
+      align-items: center;
+      margin-right: 16px;
+    }
+
+    .status-light {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--profit-color);
+    }
+
+    .budget-meter {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(255, 215, 0, 0.05);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 2px;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .meter-bar {
+      width: 60px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      background: var(--loss-color);
+      width: 15%;
+    }
+
+    .equity-display {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .equity-change {
+      color: var(--profit-color);
+      font-size: 9px;
+    }
+
+    .account-dropdown {
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      border-radius: 2px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+
+    /* ========== WATCHLIST STRIP ========== */
+    .watchlist-strip {
+      height: 90px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(10, 10, 10, 0.6);
+      padding: 8px 12px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-shrink: 0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .watchlist-card {
+      flex-shrink: 0;
+      width: 160px;
+      padding: 10px;
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .watchlist-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(20, 20, 20, 0.95);
+    }
+
+    .watchlist-card.selected {
+      border-color: var(--core-color);
+      background: rgba(0, 204, 255, 0.08);
+      box-shadow: 0 0 10px rgba(0, 204, 255, 0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ticker-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .broker-badge {
+      font-size: 8px;
+      padding: 2px 4px;
+      border-radius: 1px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+
+    .broker-alpaca {
+      background: rgba(59, 130, 246, 0.3);
+      color: #3b82f6;
+    }
+
+    .broker-kraken {
+      background: rgba(147, 51, 234, 0.3);
+      color: #9333ea;
+    }
+
+    .price-change {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .price {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .percent {
+      font-size: 9px;
+    }
+
+    .percent.up {
+      color: var(--profit-color);
+    }
+
+    .percent.down {
+      color: var(--loss-color);
+    }
+
+    .state-pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      width: fit-content;
+    }
+
+    .state-scan { background: rgba(139, 139, 139, 0.3); color: var(--neutral-color); }
+    .state-long { background: rgba(0, 255, 136, 0.2); color: var(--profit-color); }
+    .state-short { background: rgba(255, 51, 102, 0.2); color: var(--loss-color); }
+    .state-cool { background: rgba(255, 165, 0, 0.2); color: #ffa500; }
+
+    .card-sparkline {
+      height: 20px;
+      width: 100%;
+    }
+
+    .position-indicator {
+      font-size: 8px;
+      color: var(--core-color);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    /* ========== MAIN GRID ========== */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      grid-template-rows: 1fr;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* LEFT RAIL - Edge Analytics */
+    .left-rail {
+      border-right: 1px solid var(--border-color);
+      background: rgba(5, 5, 5, 0.5);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .edge-section {
+      padding: 10px;
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      backdrop-filter: blur(4px);
+    }
+
+    .edge-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .edge-content {
+      font-size: 11px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .liq-zone {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .liq-label {
+      color: var(--text-secondary);
+      font-size: 10px;
+    }
+
+    .liq-value {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+    }
+
+    .sentiment-pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(0, 255, 136, 0.2);
+      color: var(--profit-color);
+    }
+
+    .sentiment-bearish {
+      background: rgba(255, 51, 102, 0.2);
+      color: var(--loss-color);
+    }
+
+    .sentiment-neutral {
+      background: rgba(255, 215, 0, 0.2);
+      color: var(--ml-color);
+    }
+
+    /* CENTER - Chart & Strategy Battleground */
+    .center-main {
+      border-right: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chart-panel {
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      padding: 12px;
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 240px;
+    }
+
+    .panel-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+    }
+
+    .chart-container {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 1px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+    }
+
+    #chartPlaceholder {
+      width: 100%;
+      height: 100%;
+    }
+
+    .crosshair-readout {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      border-top: 1px solid rgba(255, 255, 255, 0.02);
+      padding-top: 8px;
+    }
+
+    .readout-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .readout-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+
+    .readout-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Strategy Battleground */
+    .strategy-battleground {
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      padding: 12px;
+      backdrop-filter: blur(4px);
+    }
+
+    .battleground-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+      margin-bottom: 10px;
+    }
+
+    .strategies-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .strategy-cell {
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 1px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 10px;
+      position: relative;
+    }
+
+    .strategy-cell:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .strategy-cell.winner {
+      border-color: var(--ml-color);
+      background: rgba(255, 215, 0, 0.08);
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.15);
+    }
+
+    .strategy-cell.confluence-linked::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 12px;
+      background: var(--ml-color);
+      opacity: 0.5;
+    }
+
+    .strat-label {
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-primary);
+    }
+
+    .strat-confidence {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 9px;
+    }
+
+    .strat-conf-label {
+      color: var(--text-secondary);
+    }
+
+    .strat-conf-value {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .conf-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .conf-fill {
+      height: 100%;
+      background: var(--ml-color);
+      border-radius: 1px;
+    }
+
+    .strat-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .strat-direction {
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .dir-up { color: var(--profit-color); }
+    .dir-flat { color: var(--neutral-color); }
+    .dir-down { color: var(--loss-color); }
+
+    .strat-pnl {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 900;
+      margin-bottom: 2px;
+    }
+
+    .pnl-profit { color: var(--profit-color); }
+    .pnl-loss { color: var(--loss-color); }
+    .pnl-neutral { color: var(--text-secondary); }
+
+    .strat-wr {
+      font-size: 9px;
+      color: var(--text-secondary);
+    }
+
+    /* Live Readouts & Pattern Card */
+    .readouts-pattern-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .live-readouts {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 1px;
+      padding: 10px;
+      font-size: 9px;
+    }
+
+    .readouts-title {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+      margin-bottom: 6px;
+    }
+
+    .readout-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .readout-row:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .readout-name {
+      color: var(--text-secondary);
+    }
+
+    .readout-val {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .live-conf-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .live-conf-fill {
+      height: 100%;
+      background: var(--core-color);
+    }
+
+    .pattern-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 1px;
+      padding: 10px;
+      font-size: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pattern-header {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+    }
+
+    .pattern-shape {
+      width: 100%;
+      height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(0, 204, 255, 0.1);
+      border-radius: 1px;
+    }
+
+    .pattern-desc {
+      font-size: 8px;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+
+    .pattern-confidence {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      margin-top: 4px;
+    }
+
+    .pattern-conf-val {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .pattern-conf-bar {
+      flex: 1;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+      overflow: hidden;
+      margin: 0 6px;
+    }
+
+    .pattern-conf-fill {
+      height: 100%;
+      background: var(--ml-color);
+    }
+
+    .pattern-history {
+      font-size: 8px;
+      color: var(--text-secondary);
+      border-top: 1px solid rgba(255, 255, 255, 0.02);
+      padding-top: 4px;
+    }
+
+    .hist-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    /* RIGHT RAIL - Open Positions & TRAI Brain */
+    .right-rail {
+      background: rgba(5, 5, 5, 0.5);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .positions-panel {
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      padding: 10px;
+      backdrop-filter: blur(4px);
+    }
+
+    .positions-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+      margin-bottom: 8px;
+    }
+
+    .positions-summary {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      padding: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 1px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .summary-label {
+      color: var(--text-secondary);
+    }
+
+    .summary-value {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      color: var(--profit-color);
+    }
+
+    .positions-table {
+      width: 100%;
+      font-size: 9px;
+      border-collapse: collapse;
+    }
+
+    .positions-table th {
+      font-size: 8px;
+      text-align: left;
+      padding: 4px 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+    }
+
+    .positions-table td {
+      padding: 6px 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      color: var(--text-primary);
+    }
+
+    .positions-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .pos-pnl {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      color: var(--profit-color);
+    }
+
+    .pos-pnl.loss {
+      color: var(--loss-color);
+    }
+
+    .trai-panel {
+      background: var(--bg-panel);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 2px;
+      padding: 10px;
+      backdrop-filter: blur(4px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .trai-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+    }
+
+    .trai-pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ml-color);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    .trai-section {
+      font-size: 9px;
+      padding: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 1px;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .trai-section-title {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+      margin-bottom: 4px;
+    }
+
+    .trai-item {
+      margin-bottom: 3px;
+      line-height: 1.3;
+      color: var(--text-secondary);
+    }
+
+    .trai-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .trai-input-wrapper {
+      margin-top: 4px;
+    }
+
+    .trai-input {
+      width: 100%;
+      padding: 4px 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+    }
+
+    .trai-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    /* ========== CHAIN OF THOUGHT RIBBON ========== */
+    .cot-ribbon {
+      height: 80px;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .cot-content {
+      height: 100%;
+      overflow-y: auto;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cot-line {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.4;
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
+    }
+
+    .cot-line.fresh {
+      opacity: 1;
+      color: var(--core-color);
+    }
+
+    /* ========== FOOTER ========== */
+    .footer-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      height: 220px;
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.4);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .equity-curve-section {
+      padding: 12px;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .trade-log-section {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ml-color);
+    }
+
+    .equity-chart {
+      flex: 1;
+      position: relative;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 1px;
+    }
+
+    .equity-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      font-size: 9px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .trade-log {
+      flex: 1;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 1px;
+      font-size: 9px;
+    }
+
+    .trade-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+
+    .trade-table th {
+      position: sticky;
+      top: 0;
+      font-size: 8px;
+      padding: 6px 4px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(0, 0, 0, 0.5);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .trade-table th:hover {
+      background: rgba(255, 215, 0, 0.05);
+    }
+
+    .trade-table td {
+      padding: 5px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      color: var(--text-primary);
+    }
+
+    .trade-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .trade-pnl {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      color: var(--profit-color);
+    }
+
+    .trade-pnl.loss {
+      color: var(--loss-color);
+    }
+
+    /* ========== SYSTEM HEALTH STRIP ========== */
+    .health-strip {
+      height: 40px;
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-right: 16px;
+    }
+
+    .health-item.critical {
+      color: var(--ml-color);
+      font-weight: 700;
+    }
+
+    .health-check {
+      color: var(--profit-color);
+      font-weight: 700;
+    }
+
+    /* ========== SCROLLBAR STYLING ========== */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* ========== HIDDEN DETAILS ========== */
+    .strategy-details {
+      display: none;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-top: 1px solid rgba(255, 255, 255, 0.02);
+      margin-top: 8px;
+      font-size: 9px;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+
+    .strategy-details.open {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- DESIGN NOTICE -->
+    <div class="design-notice" style="text-align: center; padding: 4px 0; background: rgba(255, 215, 0, 0.03); border-bottom: 1px solid rgba(255, 215, 0, 0.1);">
+      DESIGN MOCKUP — STATIC PLACEHOLDER DATA — NOT LIVE — V1 2026-05-06
+    </div>
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo">OGZPrime</div>
+      <div class="status-lights">
+        <div class="status-light">
+          <span class="status-dot"></span>
+          <span>Data</span>
+        </div>
+        <div class="status-light">
+          <span class="status-dot"></span>
+          <span>Bot</span>
+        </div>
+        <div class="status-light">
+          <span class="status-dot"></span>
+          <span>Trai</span>
+        </div>
+      </div>
+      <div class="budget-meter">
+        <span>Risk:</span>
+        <div class="meter-bar">
+          <div class="meter-fill"></div>
+        </div>
+        <span>0% Safe</span>
+      </div>
+      <div class="equity-display">
+        <span>$52,740</span>
+        <span class="equity-change">+$2,740 (+5.48%)</span>
+      </div>
+      <button class="account-dropdown">Account ▼</button>
+    </header>
+
+    <!-- WATCHLIST STRIP -->
+    <div class="watchlist-strip">
+      <div class="watchlist-card selected" data-ticker="TSLA">
+        <div class="card-header">
+          <span class="ticker-label">TSLA</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$393.42</span>
+          <span class="percent up">+1.24%</span>
+        </div>
+        <span class="state-pill state-long">LONG</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,15 10,12 20,10 30,9 40,8 50,9 60,7 70,6 80,5 90,4 100,3 110,2 120,1 130,0 140,2 150,0" stroke="#00ff88" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">50sh ↑</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="NVDA">
+        <div class="card-header">
+          <span class="ticker-label">NVDA</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$891.20</span>
+          <span class="percent down">-0.34%</span>
+        </div>
+        <span class="state-pill state-scan">SCAN</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,5 10,6 20,7 30,8 40,9 50,8 60,9 70,10 80,9 90,8 100,9 110,10 120,11 130,10 140,11 150,12" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="SPY">
+        <div class="card-header">
+          <span class="ticker-label">SPY</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$568.90</span>
+          <span class="percent up">+0.18%</span>
+        </div>
+        <span class="state-pill state-scan">SCAN</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,10 10,10 20,10 30,9 40,10 50,10 60,11 70,10 80,10 90,9 100,10 110,10 120,11 130,10 140,10 150,10" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="QQQ">
+        <div class="card-header">
+          <span class="ticker-label">QQQ</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$487.55</span>
+          <span class="percent up">+0.42%</span>
+        </div>
+        <span class="state-pill state-scan">SCAN</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,12 10,11 20,10 30,9 40,8 50,7 60,6 70,5 80,6 90,7 100,6 110,5 120,4 130,3 140,2 150,1" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="COIN">
+        <div class="card-header">
+          <span class="ticker-label">COIN</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$241.18</span>
+          <span class="percent up">+2.10%</span>
+        </div>
+        <span class="state-pill state-long">LONG</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,14 10,12 20,11 30,10 40,8 50,6 60,5 70,4 80,3 90,2 100,1 110,0 120,1 130,2 140,1 150,0" stroke="#00ff88" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">22sh ↑</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="MARA">
+        <div class="card-header">
+          <span class="ticker-label">MARA</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$14.82</span>
+          <span class="percent down">-1.20%</span>
+        </div>
+        <span class="state-pill state-cool">COOL</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,5 10,6 20,7 30,8 40,9 50,10 60,11 70,12 80,11 90,10 100,11 110,12 120,13 130,12 140,13 150,14" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="RIOT">
+        <div class="card-header">
+          <span class="ticker-label">RIOT</span>
+          <span class="broker-badge broker-alpaca">ALP</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$9.45</span>
+          <span class="percent down">-0.85%</span>
+        </div>
+        <span class="state-pill state-scan">SCAN</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,10 10,11 20,12 30,11 40,10 50,11 60,12 70,11 80,10 90,11 100,10 110,9 120,10 130,11 140,10 150,11" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="BTC">
+        <div class="card-header">
+          <span class="ticker-label">BTC</span>
+          <span class="broker-badge broker-kraken">KRA</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$81,663</span>
+          <span class="percent up">+0.04%</span>
+        </div>
+        <span class="state-pill state-long">LONG</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,11 10,10 20,9 30,8 40,7 50,6 60,5 70,6 80,7 90,6 100,5 110,4 120,5 130,6 140,5 150,4" stroke="#00ff88" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">0.06 ↑</div>
+      </div>
+
+      <div class="watchlist-card" data-ticker="ETH">
+        <div class="card-header">
+          <span class="ticker-label">ETH</span>
+          <span class="broker-badge broker-kraken">KRA</span>
+        </div>
+        <div class="price-change">
+          <span class="price">$3,124</span>
+          <span class="percent up">+0.12%</span>
+        </div>
+        <span class="state-pill state-scan">SCAN</span>
+        <svg class="card-sparkline" viewBox="0 0 150 20" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,9 10,8 20,8 30,7 40,7 50,6 60,6 70,7 80,7 90,8 100,8 110,9 120,9 130,8 140,8 150,7" stroke="#a0a0a0" stroke-width="1" fill="none"/>
+        </svg>
+        <div class="position-indicator">—</div>
+      </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="main-grid">
+      <!-- LEFT RAIL - EDGE ANALYTICS -->
+      <div class="left-rail">
+        <div class="edge-section">
+          <span class="edge-title">LIQUIDATION LEVELS</span>
+          <div class="liq-zone">
+            <span class="liq-label">Long Liq</span>
+            <span class="liq-value">$389.20</span>
+          </div>
+          <div class="liq-zone">
+            <span class="liq-label">Zone Size</span>
+            <span class="liq-value">$1.4M</span>
+          </div>
+          <div class="liq-zone">
+            <span class="liq-label">Short Liq</span>
+            <span class="liq-value">$397.80</span>
+          </div>
+          <div class="liq-zone">
+            <span class="liq-label">Zone Size</span>
+            <span class="liq-value">$890K</span>
+          </div>
+        </div>
+
+        <div class="edge-section">
+          <span class="edge-title">CVD (ORDER FLOW)</span>
+          <div class="edge-content">
+            <div style="margin-bottom: 4px;">Value: <strong>47</strong></div>
+            <span class="sentiment-pill">BULLISH</span>
+          </div>
+        </div>
+
+        <div class="edge-section">
+          <span class="edge-title">FUNDING RATES</span>
+          <div class="edge-content">
+            <div style="margin-bottom: 4px;">Current: <strong>0.012%</strong></div>
+            <div style="margin-bottom: 4px;">Pred: <strong>0.014%</strong></div>
+            <span class="sentiment-pill sentiment-neutral">NEUTRAL</span>
+          </div>
+        </div>
+
+        <div class="edge-section">
+          <span class="edge-title">WHALE ACTIVITY</span>
+          <div class="edge-content">
+            Large block 50K sh<br/>@ $393.10 (3m ago)
+          </div>
+        </div>
+
+        <div class="edge-section">
+          <span class="edge-title">MARKET INTERNALS</span>
+          <div class="liq-zone">
+            <span class="liq-label">VIX</span>
+            <span class="liq-value">14.8</span>
+          </div>
+          <div class="liq-zone">
+            <span class="liq-label">NYSE TICK</span>
+            <span class="liq-value">+480</span>
+          </div>
+          <div class="liq-zone">
+            <span class="liq-label">Adv/Dec</span>
+            <span class="liq-value">1842/1247</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER - CHART & STRATEGIES -->
+      <div class="center-main">
+        <!-- CHART -->
+        <div class="chart-panel">
+          <div class="panel-title">TSLA — CANDLE CHART</div>
+          <div class="chart-container">
+            <svg id="chartPlaceholder" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+              <!-- Background grid -->
+              <defs>
+                <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="800" height="200" fill="url(#grid)"/>
+
+              <!-- Candle chart placeholder - 6 candles -->
+              <g class="candles">
+                <!-- Candle 1 -->
+                <line x1="80" y1="80" x2="80" y2="130" stroke="#00ff88" stroke-width="0.5"/>
+                <rect x="70" y="90" width="20" height="30" fill="none" stroke="#00ff88" stroke-width="1"/>
+
+                <!-- Candle 2 -->
+                <line x1="150" y1="75" x2="150" y2="135" stroke="#00ff88" stroke-width="0.5"/>
+                <rect x="140" y="85" width="20" height="40" fill="#00ff88" fill-opacity="0.3" stroke="#00ff88" stroke-width="1"/>
+
+                <!-- Candle 3 -->
+                <line x1="220" y1="70" x2="220" y2="140" stroke="#ff3366" stroke-width="0.5"/>
+                <rect x="210" y="80" width="20" height="50" fill="#ff3366" fill-opacity="0.3" stroke="#ff3366" stroke-width="1"/>
+
+                <!-- Candle 4 -->
+                <line x1="290" y1="78" x2="290" y2="128" stroke="#00ff88" stroke-width="0.5"/>
+                <rect x="280" y="88" width="20" height="35" fill="#00ff88" fill-opacity="0.3" stroke="#00ff88" stroke-width="1"/>
+
+                <!-- Candle 5 -->
+                <line x1="360" y1="72" x2="360" y2="132" stroke="#00ff88" stroke-width="0.5"/>
+                <rect x="350" y="82" width="20" height="45" fill="#00ff88" fill-opacity="0.3" stroke="#00ff88" stroke-width="1"/>
+
+                <!-- Candle 6 (current) -->
+                <line x1="430" y1="68" x2="430" y2="135" stroke="#00ccff" stroke-width="1"/>
+                <rect x="420" y="75" width="20" height="50" fill="none" stroke="#00ccff" stroke-width="1.5"/>
+              </g>
+
+              <!-- Crosshair -->
+              <line x1="430" y1="0" x2="430" y2="200" stroke="rgba(0,204,255,0.2)" stroke-width="0.5" stroke-dasharray="2,2"/>
+              <line x1="0" y1="95" x2="800" y2="95" stroke="rgba(0,204,255,0.2)" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </svg>
+          </div>
+          <div class="crosshair-readout">
+            <div class="readout-item">
+              <span class="readout-label">Open</span>
+              <span class="readout-value">$391.20</span>
+            </div>
+            <div class="readout-item">
+              <span class="readout-label">High</span>
+              <span class="readout-value">$394.80</span>
+            </div>
+            <div class="readout-item">
+              <span class="readout-label">Low</span>
+              <span class="readout-value">$390.10</span>
+            </div>
+            <div class="readout-item">
+              <span class="readout-label">Close</span>
+              <span class="readout-value">$393.42</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRATEGY BATTLEGROUND -->
+        <div class="strategy-battleground">
+          <div class="battleground-title">STRATEGY BATTLEGROUND</div>
+          <div class="strategies-grid">
+            <!-- Strategy-A -->
+            <div class="strategy-cell winner confluence-linked" data-strat="A">
+              <div class="strat-label">Strategy-A</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">73%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 73%;"></div>
+              </div>
+              <div class="strat-direction dir-up">↑ LONG</div>
+              <div class="strat-meta">
+                <span>4T</span>
+                <span>75% WR</span>
+              </div>
+              <div class="strat-pnl pnl-profit">+$245.20</div>
+              <div class="strategy-details">
+                Session: 4 trades, 3 wins (75% WR). Current position: TSLA long @ $391.20, +$111 unrealized. Next trigger: RSI >70 or break $394.00.
+              </div>
+            </div>
+
+            <!-- Strategy-B -->
+            <div class="strategy-cell confluence-linked" data-strat="B">
+              <div class="strat-label">Strategy-B</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">68%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 68%;"></div>
+              </div>
+              <div class="strat-direction dir-up">↑ LONG</div>
+              <div class="strat-meta">
+                <span>3T</span>
+                <span>67% WR</span>
+              </div>
+              <div class="strat-pnl pnl-profit">+$180.50</div>
+              <div class="strategy-details">
+                Session: 3 trades, 2 wins (67% WR). Current position: NVDA long @ $889.50, +$130 unrealized. Pattern match: Double Bottom on 1H.
+              </div>
+            </div>
+
+            <!-- Strategy-C -->
+            <div class="strategy-cell" data-strat="C">
+              <div class="strat-label">Strategy-C</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">61%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 61%;"></div>
+              </div>
+              <div class="strat-direction dir-up">↑ LONG</div>
+              <div class="strat-meta">
+                <span>2T</span>
+                <span>100% WR</span>
+              </div>
+              <div class="strat-pnl pnl-profit">+$95.00</div>
+              <div class="strategy-details">
+                Session: 2 trades, 2 wins (100% WR). Avg hold: 6m. Last exit: COIN +$92, high conviction breakout.
+              </div>
+            </div>
+
+            <!-- Strategy-D -->
+            <div class="strategy-cell" data-strat="D">
+              <div class="strat-label">Strategy-D</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">54%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 54%;"></div>
+              </div>
+              <div class="strat-direction dir-flat">→ FLAT</div>
+              <div class="strat-meta">
+                <span>1T</span>
+                <span>100% WR</span>
+              </div>
+              <div class="strat-pnl pnl-profit">+$22.10</div>
+              <div class="strategy-details">
+                Session: 1 trade, 1 win (100% WR). Awaiting next signal. Risk per trade: 0.25%.
+              </div>
+            </div>
+
+            <!-- Strategy-E -->
+            <div class="strategy-cell" data-strat="E">
+              <div class="strat-label">Strategy-E</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">47%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 47%;"></div>
+              </div>
+              <div class="strat-direction dir-flat">→ FLAT</div>
+              <div class="strat-meta">
+                <span>0T</span>
+                <span>—</span>
+              </div>
+              <div class="strat-pnl pnl-neutral">$0.00</div>
+              <div class="strategy-details">
+                Session: Awaiting entry signal. Confidence < 50% threshold, monitoring setup.
+              </div>
+            </div>
+
+            <!-- Strategy-F -->
+            <div class="strategy-cell" data-strat="F">
+              <div class="strat-label">Strategy-F</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">41%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 41%;"></div>
+              </div>
+              <div class="strat-direction dir-down">↓ SHORT</div>
+              <div class="strat-meta">
+                <span>2T</span>
+                <span>0% WR</span>
+              </div>
+              <div class="strat-pnl pnl-loss">-$48.30</div>
+              <div class="strategy-details">
+                Session: 2 trades, 0 wins (0% WR). Recent losses. Confidence declining. Pause at next signal.
+              </div>
+            </div>
+
+            <!-- Strategy-G -->
+            <div class="strategy-cell" data-strat="G">
+              <div class="strat-label">Strategy-G</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">38%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 38%;"></div>
+              </div>
+              <div class="strat-direction dir-flat">→ FLAT</div>
+              <div class="strat-meta">
+                <span>0T</span>
+                <span>—</span>
+              </div>
+              <div class="strat-pnl pnl-neutral">$0.00</div>
+              <div class="strategy-details">
+                Session: Awaiting entry. Low confidence regime. Halt new setups until > 50%.
+              </div>
+            </div>
+
+            <!-- Strategy-H -->
+            <div class="strategy-cell" data-strat="H">
+              <div class="strat-label">Strategy-H</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">22%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 22%;"></div>
+              </div>
+              <div class="strat-direction dir-flat">→ FLAT</div>
+              <div class="strat-meta">
+                <span>0T</span>
+                <span>—</span>
+              </div>
+              <div class="strat-pnl pnl-neutral">$0.00</div>
+              <div class="strategy-details">
+                Session: Very low confidence. No entry signals. Disabled until confidence recovery.
+              </div>
+            </div>
+
+            <!-- Strategy-I -->
+            <div class="strategy-cell" data-strat="I">
+              <div class="strat-label">Strategy-I</div>
+              <div class="strat-confidence">
+                <span class="strat-conf-label">Conf</span>
+                <span class="strat-conf-value">18%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" style="width: 18%;"></div>
+              </div>
+              <div class="strat-direction dir-flat">→ FLAT</div>
+              <div class="strat-meta">
+                <span>0T</span>
+                <span>—</span>
+              </div>
+              <div class="strat-pnl pnl-neutral">$0.00</div>
+              <div class="strategy-details">
+                Session: Critical low confidence. Awaiting regime reset. No action until market conditions shift.
+              </div>
+            </div>
+          </div>
+
+          <!-- LIVE READOUTS & PATTERN CARD -->
+          <div class="readouts-pattern-container">
+            <!-- Live Readouts -->
+            <div class="live-readouts">
+              <div class="readouts-title">LIVE READOUTS — TSLA</div>
+              <div class="readout-row">
+                <span class="readout-name">RSI</span>
+                <span class="readout-val">41.6</span>
+              </div>
+              <div class="readout-row">
+                <span class="readout-name">MACD</span>
+                <span class="readout-val">+1.18</span>
+              </div>
+              <div class="readout-row">
+                <span class="readout-name">ATR</span>
+                <span class="readout-val">13.65</span>
+              </div>
+              <div class="readout-row">
+                <span class="readout-name">VOL</span>
+                <span class="readout-val">2.4M</span>
+              </div>
+              <div class="readout-row">
+                <span class="readout-name">LIVE CONF</span>
+                <span class="readout-val">73%</span>
+              </div>
+              <div class="live-conf-bar">
+                <div class="live-conf-fill" style="width: 73%;"></div>
+              </div>
+            </div>
+
+            <!-- Pattern Card -->
+            <div class="pattern-card">
+              <div class="pattern-header">PATTERN: DOUBLE BOTTOM</div>
+              <div class="pattern-shape">
+                <svg viewBox="0 0 140 80" xmlns="http://www.w3.org/2000/svg" style="width: 120px; height: 70px;">
+                  <!-- Pattern visualization -->
+                  <polyline points="10,50 30,20 50,50 70,20 90,50 120,30" stroke="#00ccff" stroke-width="2" fill="none"/>
+                  <!-- Lows markers -->
+                  <circle cx="50" cy="50" r="3" fill="#00ccff"/>
+                  <circle cx="70" cy="50" r="3" fill="#00ccff"/>
+                  <!-- Neckline label -->
+                  <line x1="30" y1="20" x2="90" y2="20" stroke="#00ccff" stroke-width="1" stroke-dasharray="2,2" opacity="0.5"/>
+                  <text x="95" y="24" font-size="8" fill="#00ccff">neckline</text>
+                </svg>
+              </div>
+              <div class="pattern-desc">Two roughly-equal lows separated by a peak. Signals exhaustion of selling pressure and potential reversal — confirm on breakout above neckline.</div>
+              <div class="pattern-confidence">
+                <span>Detected:</span>
+                <span class="pattern-conf-val">73%</span>
+                <div class="pattern-conf-bar">
+                  <div class="pattern-conf-fill" style="width: 73%;"></div>
+                </div>
+              </div>
+              <div class="pattern-history">
+                <div class="hist-row">
+                  <span>2026-04-29</span>
+                  <span>W +$87</span>
+                </div>
+                <div class="hist-row">
+                  <span>2026-04-22</span>
+                  <span>W +$42</span>
+                </div>
+                <div class="hist-row">
+                  <span>2026-04-15</span>
+                  <span>L -$23</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT RAIL - OPEN POSITIONS & TRAI BRAIN -->
+      <div class="right-rail">
+        <!-- OPEN POSITIONS -->
+        <div class="positions-panel">
+          <div class="positions-title">OPEN POSITIONS</div>
+          <div class="positions-summary">
+            <span class="summary-label">3 OPEN</span>
+            <span class="summary-value">TOTAL UNREALIZED +$207</span>
+          </div>
+          <table class="positions-table">
+            <thead>
+              <tr>
+                <th>Tkr</th>
+                <th>Brk</th>
+                <th>Side</th>
+                <th>Entry</th>
+                <th>Now</th>
+                <th>SL</th>
+                <th>TP</th>
+                <th>P&L</th>
+                <th>Hold</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>TSLA</td>
+                <td>ALP</td>
+                <td>LONG</td>
+                <td>$391.20</td>
+                <td>$393.42</td>
+                <td>$389.50</td>
+                <td>$396.18</td>
+                <td class="pos-pnl">+$111</td>
+                <td>14m</td>
+              </tr>
+              <tr>
+                <td>COIN</td>
+                <td>ALP</td>
+                <td>LONG</td>
+                <td>$237.50</td>
+                <td>$241.18</td>
+                <td>$235.00</td>
+                <td>$244.00</td>
+                <td class="pos-pnl">+$81</td>
+                <td>8m</td>
+              </tr>
+              <tr>
+                <td>BTC</td>
+                <td>KRA</td>
+                <td>LONG</td>
+                <td>$81,420</td>
+                <td>$81,663</td>
+                <td>$81,150</td>
+                <td>$82,100</td>
+                <td class="pos-pnl">+$15</td>
+                <td>22m</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- TRAI BRAIN -->
+        <div class="trai-panel">
+          <div class="trai-header">
+            <span class="trai-pulse"></span>
+            TRAI BRAIN
+          </div>
+
+          <div class="trai-section">
+            <div class="trai-section-title">Latest News</div>
+            <div class="trai-item">FOMC minutes release 2:00pm ET — conf mod: -0.15 (defensive)</div>
+            <div class="trai-item">TSLA EV delivery beat +4% (Reuters, 23m ago)</div>
+          </div>
+
+          <div class="trai-section">
+            <div class="trai-section-title">Whale Alert</div>
+            <div class="trai-item">Unusual call vol +312% COIN. Strikes $250c exp 5/17.</div>
+          </div>
+
+          <div class="trai-section">
+            <div class="trai-section-title">Narrator Output</div>
+            <div class="trai-item">Strategy-A & B align LONG TSLA confluence detect. News clean. Whale bullish. Pos size stance: Aggressive (×1.4).</div>
+          </div>
+
+          <div class="trai-section">
+            <div class="trai-section-title">Escalation Queue</div>
+            <div class="trai-item">0 items requiring attention</div>
+          </div>
+
+          <div class="trai-input-wrapper">
+            <input type="text" class="trai-input" placeholder="Ask TRAI about a ticker, news, or trade...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAIN OF THOUGHT RIBBON -->
+    <div class="cot-ribbon">
+      <div class="cot-content" id="cotContent">
+        <div class="cot-line">09:42:18 ET — Strategy-C firing TSLA @ 73% conf. Confluence with Strategy-A @ 68%.</div>
+        <div class="cot-line">09:42:19 ET — News check: clean. Whale check: clean. Position stance: Aggressive (×1.4).</div>
+        <div class="cot-line">09:42:20 ET — Risk gate: ARMED. Daily DD remaining: $1,847 / $2,000 floor.</div>
+        <div class="cot-line fresh">09:42:21 ET — Entering LONG TSLA @ $391.20, SL $389.50 (0.43%), TP $396.18 (1.27%, 1R).</div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer-container">
+      <!-- EQUITY CURVE -->
+      <div class="equity-curve-section">
+        <div class="section-title">EQUITY CURVE — 30-DAY</div>
+        <div class="equity-chart">
+          <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%; padding: 8px;">
+            <!-- Grid -->
+            <defs>
+              <pattern id="equity-grid" width="10" height="12" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 12" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100" height="120" fill="url(#equity-grid)"/>
+
+            <!-- Profit target line (gold dashed) -->
+            <line x1="5" y1="15" x2="95" y2="15" stroke="#ffd700" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.6"/>
+            <text x="97" y="18" font-size="6" fill="#ffd700" opacity="0.6">Target</text>
+
+            <!-- Max DD floor line (red dashed) -->
+            <line x1="5" y1="105" x2="95" y2="105" stroke="#ff3366" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.6"/>
+            <text x="97" y="108" font-size="6" fill="#ff3366" opacity="0.6">Floor</text>
+
+            <!-- Equity curve -->
+            <polyline points="5,95 10,92 15,90 20,88 25,85 30,80 35,75 40,70 45,68 50,65 55,60 60,55 65,50 70,48 75,45 80,42 85,40 90,38 95,35"
+              stroke="#ffd700" stroke-width="1.5" fill="none"/>
+
+            <!-- Trade markers (wins in green, losses in red) -->
+            <circle cx="20" cy="88" r="1.5" fill="#00ff88" opacity="0.8"/>
+            <circle cx="35" cy="75" r="1.5" fill="#00ff88" opacity="0.8"/>
+            <circle cx="50" cy="65" r="1.5" fill="#00ff88" opacity="0.8"/>
+            <circle cx="65" cy="50" r="1.5" fill="#00ff88" opacity="0.8"/>
+            <circle cx="80" cy="42" r="1.5" fill="#ff3366" opacity="0.8"/>
+            <circle cx="45" cy="68" r="1.5" fill="#ff3366" opacity="0.8"/>
+          </svg>
+        </div>
+        <div class="equity-stats">
+          <div class="stat-item">
+            <span class="stat-label">Balance</span>
+            <span class="stat-value">$52,740</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total P&L</span>
+            <span class="stat-value">+$2,740</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Return</span>
+            <span class="stat-value">+5.48%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Target Prog</span>
+            <span class="stat-value">91%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRADE LOG -->
+      <div class="trade-log-section">
+        <div class="section-title">TRADE LOG — CLOSED (8)</div>
+        <div class="trade-log">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Tkr</th>
+                <th>Side</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>P&L</th>
+                <th>Strat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="trade-row">
+                <td>09:38</td>
+                <td>TSLA</td>
+                <td>LONG</td>
+                <td>391.20</td>
+                <td>393.40</td>
+                <td class="trade-pnl">+$110.00</td>
+                <td>A</td>
+              </tr>
+              <tr class="trade-row">
+                <td>09:31</td>
+                <td>NVDA</td>
+                <td>LONG</td>
+                <td>889.50</td>
+                <td>892.10</td>
+                <td class="trade-pnl">+$130.00</td>
+                <td>B</td>
+              </tr>
+              <tr class="trade-row">
+                <td>09:22</td>
+                <td>COIN</td>
+                <td>LONG</td>
+                <td>238.20</td>
+                <td>240.50</td>
+                <td class="trade-pnl">+$92.00</td>
+                <td>A</td>
+              </tr>
+              <tr class="trade-row">
+                <td>09:15</td>
+                <td>SPY</td>
+                <td>SHORT</td>
+                <td>568.50</td>
+                <td>568.20</td>
+                <td class="trade-pnl">+$30.00</td>
+                <td>F</td>
+              </tr>
+              <tr class="trade-row">
+                <td>09:08</td>
+                <td>TSLA</td>
+                <td>LONG</td>
+                <td>390.10</td>
+                <td>389.45</td>
+                <td class="trade-pnl loss">-$32.50</td>
+                <td>C</td>
+              </tr>
+              <tr class="trade-row">
+                <td>09:00</td>
+                <td>MARA</td>
+                <td>LONG</td>
+                <td>14.95</td>
+                <td>14.78</td>
+                <td class="trade-pnl loss">-$8.50</td>
+                <td>A</td>
+              </tr>
+              <tr class="trade-row">
+                <td>08:54</td>
+                <td>NVDA</td>
+                <td>LONG</td>
+                <td>887.30</td>
+                <td>890.20</td>
+                <td class="trade-pnl">+$145.00</td>
+                <td>B</td>
+              </tr>
+              <tr class="trade-row">
+                <td>08:42</td>
+                <td>BTC</td>
+                <td>LONG</td>
+                <td>81,420</td>
+                <td>81,200</td>
+                <td class="trade-pnl loss">-$13.20</td>
+                <td>C</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYSTEM HEALTH STRIP -->
+    <div class="health-strip">
+      <div class="health-item">SESSIONROUTER: CRYPTO</div>
+      <div class="health-item">
+        KRAKEN
+        <span class="health-check">✓</span>
+      </div>
+      <div class="health-item">
+        ALPACA
+        <span class="health-check">✓</span>
+      </div>
+      <div class="health-item">LAST ERR: 0</div>
+      <div class="health-item">UPTIME: 22h 54m</div>
+      <div class="health-item">LAST CRASH: NEVER</div>
+      <div class="health-item critical">RISK POSTURE: ALL GUARDRAILS ARMED ✓</div>
+      <div class="health-item">COMMIT: a07516a</div>
+    </div>
+  </div>
+
+  <script>
+    // ========== WATCHLIST CARD SELECTION ==========
+    document.querySelectorAll('.watchlist-card').forEach(card => {
+      card.addEventListener('click', () => {
+        // Remove selected from all
+        document.querySelectorAll('.watchlist-card').forEach(c => c.classList.remove('selected'));
+        // Add selected to clicked
+        card.classList.add('selected');
+
+        // Update chart title with selected ticker
+        const ticker = card.getAttribute('data-ticker');
+        document.querySelector('.chart-panel .panel-title').textContent = ticker + ' — CANDLE CHART';
+        document.querySelector('.live-readouts .readouts-title').textContent = 'LIVE READOUTS — ' + ticker;
+      });
+    });
+
+    // ========== STRATEGY CELL EXPANSION ==========
+    document.querySelectorAll('.strategy-cell').forEach(cell => {
+      cell.addEventListener('click', (e) => {
+        const details = cell.querySelector('.strategy-details');
+        if (details) {
+          details.classList.toggle('open');
+        }
+      });
+    });
+
+    // ========== CHAIN OF THOUGHT STREAMING ==========
+    const cotLines = [
+      "09:42:22 ET — Position monitoring active. Current spread: TSLA bid-ask 0.02. Slippage risk: minimal.",
+      "09:42:23 ET — Whale follow: 22K shares accumulated @ $393.00 (last 2min). Bullish accumulation signal.",
+      "09:42:24 ET — Strategy-D triggered on MACD cross. Confidence climb: 54% → 58%. Holding entry signal.",
+      "09:42:25 ET — Daily equity draw-down: 3.2%. Remaining buffer to floor: $1,847 / $2,000 (92.3%).",
+      "09:42:26 ET — Funding rate spike detected: ETH +0.018%. Kraken leverage traders hedging longs.",
+      "09:42:27 ET — Next data release: CPI (10:30am ET, 1h 48m away). News impact score: MEDIUM."
+    ];
+
+    let cotIndex = 0;
+    function addCotLine() {
+      const cotContent = document.getElementById('cotContent');
+      const newLine = document.createElement('div');
+      newLine.className = 'cot-line fresh';
+      newLine.textContent = cotLines[cotIndex % cotLines.length];
+      cotContent.appendChild(newLine);
+
+      // Remove oldest line if too many
+      const allLines = cotContent.querySelectorAll('.cot-line');
+      if (allLines.length > 6) {
+        allLines[0].remove();
+      }
+
+      // Clear 'fresh' class after animation
+      setTimeout(() => newLine.classList.remove('fresh'), 500);
+
+      cotIndex++;
+      setTimeout(addCotLine, 4000 + Math.random() * 2000);
+    }
+
+    // Start streaming after 3 seconds
+    setTimeout(addCotLine, 3000);
+
+    // ========== TRADE LOG SORTING (visual only) ==========
+    document.querySelectorAll('.trade-table th').forEach((th, idx) => {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', () => {
+        // Visual feedback only — no actual sorting needed for mockup
+        th.style.opacity = '0.6';
+        setTimeout(() => th.style.opacity = '1', 200);
+      });
+    });
+  </script>
+</body>
+</html>
