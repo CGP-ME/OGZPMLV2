@@ -1539,6 +1539,16 @@ class OGZPrimeV14Bot {
    * Core trading pipeline orchestration
    * REFACTOR Phase 15: Thin dispatcher - delegates to TradingLoop
    */
+  /**
+   * RUN-LOW-01: 15-minute candle close handler. Previously called at :669
+   * and :1307 but never defined — TypeError on first 15m candle close in
+   * live/paper mode. Defined as alias to analyzeAndTrade since the trading
+   * loop doesn't differentiate timeframes.
+   */
+  async run15mTradingCycle() {
+    return this.analyzeAndTrade();
+  }
+
   async analyzeAndTrade() {
     // Update context with current instance state before delegating
     this.tradingLoop.ctx.marketData = this.marketData;
