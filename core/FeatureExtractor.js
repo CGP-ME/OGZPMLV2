@@ -88,8 +88,13 @@ class FeatureExtractor {
       directionBias
     ];
 
-    // CONTRACT: Validate all features are 0-1
+    // CONTRACT: Validate all features are 0-1. Null is expected during warmup
+    // (per the nullable indicator surface) — silently clamp to 0.5 without log
+    // spam. NaN/non-number is a real bug — keep the warn.
     const clampedFeatures = features.map((f, i) => {
+      if (f === null || f === undefined) {
+        return 0.5;
+      }
       if (typeof f !== 'number' || isNaN(f)) {
         console.warn(`[FeatureExtractor] Feature ${i} is invalid: ${f}, using 0.5`);
         return 0.5;
