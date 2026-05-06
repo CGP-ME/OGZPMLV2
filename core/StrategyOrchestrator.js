@@ -1042,7 +1042,15 @@ class StrategyOrchestrator {
         }
       }
       // FIX 2026-03-19: Pass timeframe for per-timeframe exit parameters
-      const timeframe = extras.timeframe || TradingConfig.get('candle.interval') || '15m';
+      // HIGH-16: triple-fallback chain `extras.timeframe || candle.interval
+      // || '15m'`. If both first sources are missing, defaults to '15m' silently
+      // — wrong SL/TP scaling for any other timeframe. Surface the silent-default
+      // as warn.
+      let timeframe = extras.timeframe || TradingConfig.get('candle.interval');
+      if (!timeframe) {
+        console.warn(`[HIGH-16] timeframe missing from extras AND TradingConfig.candle.interval — falling back to '15m'. Verify CANDLE_INTERVAL env if other timeframe intended.`);
+        timeframe = '15m';
+      }
       exitContract = ecm.createExitContract(
         winner.strategyName,
         { ...signalOverrides, confidence: winner.confidence },
