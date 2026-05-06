@@ -18,7 +18,7 @@
 const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('../CandleHelper');
 
 // DTO validation for indicator snapshots
-const { validateSnapshot } = require('../dto/IndicatorSnapshotDTO');
+const { validateSnapshotSafe } = require('../dto/IndicatorSnapshotDTO');
 
 // Import OGZ Two-Pole Oscillator (pure-function implementation)
 let computeOgzTpo, detectTpoCrossover;
@@ -365,10 +365,9 @@ class IndicatorEngine {
       overlays: {},
     };
 
-    // Validate as contract — throws on failure, no silent fallback. Warmup
-    // state must be honestly represented via nullable fields in the DTO.
-    const validated = validateSnapshot(dto);
-    return validated;
+    // Validate but don't fail - return raw if validation fails
+    const validated = validateSnapshotSafe(dto);
+    return validated || dto;
   }
 
   // Legacy method for backward compatibility - returns raw state

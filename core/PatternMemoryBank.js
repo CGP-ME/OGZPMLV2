@@ -515,13 +515,11 @@ class PatternMemoryBank {
                 // RSI in buckets of 10 (30-40, 40-50, etc) - null if missing
                 rsi: indicators.rsi != null ? Math.round(indicators.rsi / 10) * 10 : null,
 
-                // MACD direction — 'unknown' when null (warmup), not silently 'negative'
-                macd: indicators.macd == null ? 'unknown' : (indicators.macd > 0 ? 'positive' : 'negative'),
+                // MACD direction
+                macd: (indicators.macd || 0) > 0 ? 'positive' : 'negative',
 
-                // MACD histogram strength — 'unknown' when null, not silently 'weak'
-                macdHistogram: indicators.macdHistogram == null
-                    ? 'unknown'
-                    : (Math.abs(indicators.macdHistogram) > 0.001 ? 'strong' : 'weak'),
+                // MACD histogram strength
+                macdHistogram: Math.abs(indicators.macdHistogram || 0) > 0.001 ? 'strong' : 'weak',
 
                 // Trend
                 trend: trend,

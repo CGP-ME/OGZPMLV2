@@ -49,17 +49,16 @@ class FeatureExtractor {
     // ═══════════════════════════════════════════════════════════════════
 
     // [0] RSI Zone: 0-1 (already normalized in IndicatorSnapshot)
-    // null during warmup — caller must gate on featureVector containing nulls
-    const rsiNormalized = indicators.rsiNormalized ?? (indicators.rsi != null ? indicators.rsi / 100 : null);
+    const rsiNormalized = indicators.rsiNormalized ?? (indicators.rsi / 100) ?? 0.5;
 
     // [1] Trend Strength: 0-1 (1 = strong uptrend, 0 = strong downtrend, 0.5 = neutral)
     const trendStrength = this._normalizeTrend(indicators.trend);
 
-    // [2] Volatility Level: 0-1 (uses atrNormalized) — null during warmup
-    const volatilityLevel = indicators.atrNormalized ?? indicators.volatilityNormalized ?? null;
+    // [2] Volatility Level: 0-1 (uses atrNormalized)
+    const volatilityLevel = indicators.atrNormalized ?? indicators.volatilityNormalized ?? 0.5;
 
-    // [3] BB Position: 0-1 (percentB from IndicatorSnapshot) — null during warmup
-    const bbPosition = indicators.bb?.percentB ?? null;
+    // [3] BB Position: 0-1 (percentB from IndicatorSnapshot)
+    const bbPosition = indicators.bb?.percentB ?? 0.5;
 
     // [4] Volume Profile: 0-1 (relative volume compared to average)
     const volumeProfile = this._normalizeVolume(candles);

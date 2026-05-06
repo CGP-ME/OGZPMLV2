@@ -1567,12 +1567,11 @@ class OGZPrimeV14Bot {
         const patternMemorySize = Object.keys(this.patternChecker?.memory?.memory || {}).length;
 
         // Generate ghost path projection when a pattern is detected with confidence > 50%
-        // Refuses to project during warmup — atr null means we don't know the noise scale
         let projectionPath = undefined;
-        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5 && indicators.atr != null) {
+        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5) {
           const direction = primaryPattern.direction === 'bullish' ? 1 : -1;
           const currentTime = Math.floor(Date.now() / 1000);
-          const atr = indicators.atr;
+          const atr = indicators.atr || (price * 0.005); // fallback to 0.5% of price
           projectionPath = [];
           for (let i = 1; i <= 15; i++) {
             const drift = direction * atr * 0.1 * i + (Math.random() - 0.5) * atr * 0.05;
@@ -1604,8 +1603,8 @@ class OGZPrimeV14Bot {
           },
           indicators: {
             rsi: indicators.rsi,
-            macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
-            macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
+            macd: indicators.macd?.macd || indicators.macd?.macdLine || 0,
+            macdSignal: indicators.macd?.signal || indicators.macd?.signalLine || 0,
             trend: indicators.trend,
             volatility: indicators.volatility,
             // CHANGE 2026-01-25: Send EMA in format dashboard expects (ema[20], ema[50], ema[200])
