@@ -685,3 +685,33 @@ This becomes the actual CRIT-08-followup-B (renumbered from "BacktestRunner conf
 - Commit CRIT-08-followup-B as-is. Verification confirms no downstream consumer assumes 10000.
 - **Tier fallback to 'ML':** logged for HIGH/MEDIUM phase audit, not in CRIT scope.
 - **Mercury hygiene observation reinforced:** Mercury's :534 hallucination in Dispatch 18 redirected my hunt away from the real bug at :245. This is the second hallucination from indexed `ogz-meta/ledger/` paths in this session. Per CLAUDE.md hygiene rule, ledger paths should be excluded from indexing — the index quality directly affects HUNT precision.
+
+---
+
+## Dispatch 20 — post-CRIT-08-followup-C attack on `core/TradingLoop.js`
+
+**Commit context (uncommitted, working tree):** `core/TradingLoop.js:144-211` — replaced `initialBalance: ... ?? 10000` (passed into exitContractManager.checkExitConditions) with hoisted explicit guard. Also restructured `if (hasOpenPosition) for(...)` to `if (hasOpenPosition) { const _ib...; for(...) }` with matching close brace. Caught syntax error pre-Phase-0 via `node --check`, fixed before backtest.
+
+**Provider:** Mercury-2 (Inception)
+**Iterations / wall:** 1 retrieval pass / 7.5s / `term=answer_given`
+**Phase 0 result:** `$18,497.278595001146 / 1384 / 60.0%` — bit-for-bit (the guard only fires inside `hasOpenPosition` block; by that point upstream invariants guarantee initialBalance is set).
+
+### Mercury's Answer (3 findings)
+
+1. **Weaponize:** Theoretical warmup race — backtestRecorder may not be attached during early _analyze() calls, stateManager.initialBalance only set after first trade.
+2. **Regress:** "not in retrieved context" — couldn't see exitContractManager.checkExitConditions internals.
+3. **Hunt:** Claims no `||` fallbacks in TradingLoop.js (FALSE — partial retrieval again).
+
+### My triage
+
+**Verdict #1: SAFE per invariants.** The throw is INSIDE `if (hasOpenPosition)`, which only fires after at least one active trade exists. An active trade requires `stateManager.openPosition()` to have succeeded, which requires initialBalance to have been set (CRIT-08 enforces this in StateManager). So by the time the guard executes, initialBalance MUST be set or there's a state-corruption bug — exactly the invariant violation worth catching. Phase 0 empirically confirms (1384 trades, no throw fires).
+
+**Verdict #2: SAFE — verified directly.** `core/exit/StopLossChecker.js:49`: `if (drawdownEnabled && context.accountBalance && context.initialBalance)` — defensively requires initialBalance truthy before division. Even if my upstream throw passed zero, this consumer would short-circuit. Two-layer defense.
+
+**Verdict #3: PARTIAL — Mercury false-negative AGAIN.** Direct grep found 18 `|| <literal>` patterns in TradingLoop.js. Most are defensive ledger-field defaults (`r.confidence || 0`), but `:337 orchResult.sizingMultiplier || 1.0` is a CRIT-07 sibling at the LEDGER side (CRIT-07 fixed sizing-math in OrderExecutor; this site logs to the audit ledger). Lying-in-ledger same class as CRIT-08-followup-B. Cataloged for separate ledger-honesty followup, NOT in CRIT-08-followup-C scope.
+
+### Action taken because of Mercury
+
+- Commit CRIT-08-followup-C as-is. Both Mercury concerns refuted by current invariants + verified consumer defense.
+- **Ledger-honesty followup queued:** `core/TradingLoop.js:337 sizingMultiplier || 1.0`, `:339 hardcoded {count: 1, sizingMultiplier: 1.0}` — separate spec.
+- **CRIT-08 followup family NEARLY closed:** A (BacktestRunner consumer), B (BacktestRunner config-block honesty), C (TradingLoop exit-check). Remaining: `core/CandleProcessor.js:478` `stateManager.get('initialBalance') || getConfigValue('backtest.initialBalance') || 10000` — final sibling.

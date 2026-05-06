@@ -141,7 +141,18 @@ class TradingLoop {
     const currentPosition = stateManager.get('position');
     // FIX 2026-03-29: Use activeTrades.length only - net position=0 when long+short cancel out
     const hasOpenPosition = activeTrades.length > 0;
-    if (hasOpenPosition) for (const activeTrade of activeTrades) {
+    if (hasOpenPosition) {
+      // CRIT-08-followup-C: refuse $10K phantom default in exit-check context.
+      // The prior chain `?? 10000` would silently pass $10K to
+      // exitContractManager.checkExitConditions if both backtestRecorder
+      // and stateManager initialBalance were missing — masking a setup
+      // bug while exit calculations ran against phantom capital. Pre-money
+      // fail-loud, hoisted out of the for-loop (same value per iteration).
+      const _initialBalance = this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance');
+      if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
+        throw new Error(`TradingLoop exit-check: initialBalance unavailable from backtestRecorder.startingBalance and stateManager.get('initialBalance') (got ${_initialBalance}) — refusing $10K phantom default`);
+      }
+      for (const activeTrade of activeTrades) {
       exitContractManager.updateMaxProfit(activeTrade, price);
 
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
@@ -149,7 +160,7 @@ class TradingLoop {
         currentTime: this.ctx.marketData?.timestamp || Date.now(),
         // FIX 2026-04-09: Use getEquity() for live mode to get true account value
         accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
-        initialBalance: this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance') ?? 10000,
+        initialBalance: _initialBalance,
         currentPosition: stateManager.get('position'),
         currentPrice: price
       });
@@ -197,7 +208,8 @@ class TradingLoop {
           break;
         }
       }
-    }
+      } // end for (const activeTrade of activeTrades)
+    } // end if (hasOpenPosition)
 
     // ─── STEP 2: ENTRY CHECK ───
     // Only if no exit was triggered AND we have a directional signal
