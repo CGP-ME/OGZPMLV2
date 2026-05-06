@@ -183,8 +183,16 @@ class TradingLoop {
       const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id);
       if (mpm?.state?.active) {
         const recentCandles = this.ctx.priceHistory.slice(-20);
+        // HIGH-02: was `volatility: indicators.volatility || 0` — masked
+        // missing volatility as 0, causing MaxProfitManager.updateTrailingStop
+        // to compute zero-volatility ATR adjustments (tight trailing fires
+        // immediately on minor noise). Now: preserve explicit zero with `??`,
+        // log when truly missing so the silent-bypass is observable.
+        if (!Number.isFinite(indicators.volatility)) {
+          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; trailing stop will use null-fallback path');
+        }
         const profitResult = mpm.update(price, {
-          volatility: indicators.volatility || 0,
+          volatility: indicators.volatility ?? null,
           trend: indicators.trend || 'sideways',
           volume: this.ctx.marketData?.volume || 0,
           atr: indicators.atr,
