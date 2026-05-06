@@ -834,7 +834,15 @@ class StrategyOrchestrator {
 
     // Classify regime name to category (trending_up/trending_down → trending, etc.)
     const rawRegime = regime?.currentRegime?.toLowerCase() || 'unknown';
-    const regimeConfidence = regime?.confidence || 0;
+    // HIGH-04: warn when regime is present but lacks confidence — regime
+    // boosts silently disable when regimeConfidence falls below 0.25 gate
+    // (line 839). With `|| 0` a missing/non-finite confidence is
+    // indistinguishable from low-confidence regime; surface the missing case
+    // as a visible warning so the silent-disable is observable.
+    if (regime != null && !Number.isFinite(regime.confidence)) {
+      console.warn(`[HIGH-04] regime.confidence non-finite (currentRegime=${regime.currentRegime}, got ${regime.confidence}) — regime boosts will silently disable for this candle`);
+    }
+    const regimeConfidence = regime?.confidence ?? 0;
     let regimeType = 'unknown';
     if (regimeConfidence >= 0.25) {
       if (rawRegime.includes('bull') || rawRegime.includes('uptrend') ||
