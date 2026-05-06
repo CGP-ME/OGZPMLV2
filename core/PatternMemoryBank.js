@@ -503,6 +503,13 @@ class PatternMemoryBank {
             // Handle both closed trades and current market data
             const indicators = trade.entry?.indicators || trade.indicators;
             const trend = trade.entry?.trend || trade.trend;
+            // MED-12: warn when both trade timestamps missing — pattern hash
+            // uses wall-clock now() instead of historical candle time. In
+            // backtest replay this corrupts the pattern hash with non-deterministic
+            // timestamps, breaking pattern reproducibility across runs.
+            if (!trade.entry?.timestamp && !trade.timestamp) {
+                console.warn(`[MED-12] PatternMemoryBank.extractPattern: trade missing both .entry.timestamp AND .timestamp — pattern hash will use wall-clock now() instead of historical candle time, breaking backtest reproducibility`);
+            }
             const timestamp = trade.entry?.timestamp || trade.timestamp || new Date().toISOString();
 
             if (!indicators || !trend) {
