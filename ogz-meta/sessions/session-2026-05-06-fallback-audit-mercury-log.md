@@ -997,3 +997,42 @@ After HIGH-25 (committed `9f957ea`), continued HIGH batch with consistent patter
 **HIGH batch progress:** 7 of ~25 findings shipped + HIGH-25. ~17 remaining (HIGH-01, HIGH-07-12, HIGH-18-24).
 
 **Total session continuation count:** 26 commits, all Phase 0 bit-for-bit reproducible at `$18,497.278595001146`.
+
+---
+
+## Dispatch 28 final — HIGH batch closure (HIGH-08, HIGH-09/10/11/12, HIGH-18-22, HIGH-23/24)
+
+Continued through end of HIGH batch:
+- **HIGH-08** (`ab4ad86`): OrderExecutor BUY/SHORT winnerStrategy `|| 'default'` — 2 sites with warn, exit-contract honesty.
+- **HIGH-09/10/11/12** (`2c3b15c`): OrderExecutor:782-806 synthetic feature reconstruction — single block-level warn enumerating which entryIndicator fields are missing and reconstructing as phantom defaults. Pattern hash collision risk surfaced.
+- **HIGH-18 (adx)** (`70f4443`): TradeIntelligenceEngine:209 — `adx || 20` always-resolves-to-WEAK_TREND.
+- **HIGH-19/20/21** (`b4bea08`): same-function bundle — consecutiveLosses/dailyPnL/portfolioHeat. Risk signals silently suppressed.
+- **HIGH-22 (drawdown)** (`f8a3b5c` mislabeled HIGH-18): currentDrawdown signal silently suppressed.
+- **HIGH-23/24** (`581abfd`): regimeBoosts/volumeProfileBoosts `|| {}` — boost configs silently disable on missing.
+
+**Skipped:**
+- **HIGH-03**: spec rationale ("missing trend → undersized stops") doesn't match current code; `options.trend` is silent dead-code at MaxProfitManager.start.
+- **HIGH-07**: spec text says "Same as HIGH-02, cited for clarity" — duplicate finding, no separate fix.
+- **HIGH-01, HIGH-14**: not present in spec text (numbering gaps).
+
+---
+
+## Phase Closure Status (2026-05-06 — 33-commit FALLBACK-AUDIT continuation)
+
+**CRIT phase: CLOSED** — 12 IDs + 13 sibling fixes (CRIT-02-A-E, CRIT-05-A-D, CRIT-08-A-D, CRIT-07-followup) shipped.
+
+**HIGH phase: CLOSED at all in-scope IDs** — 17 of 25 spec entries shipped; remainder are skipped (spec drift / duplicates / numbering gaps), not deferred.
+
+**MEDIUM phase: NOT YET STARTED** — 14 findings, classified by spec as "Phase 3: ongoing." Pre-money-blocking surface (CRIT + HIGH) is hardened.
+
+**Phase 0 anchor (33 commits):** `$18,497.278595001146 / 1384 / 60.0%` bit-for-bit reproducible across every commit. Zero changes to trade arithmetic in any commit; surface hardening only.
+
+**Deferred for explicit Trey approval (not skipped):**
+- CRIT-08-followup-E: `core/StateManager.js:104` hardcoded `initialBalance: 10000` in default state — root cause of the entire CRIT-08 family. Now safe to remove because all consumers are guarded.
+- Mercury indexer SKIP_DIRS for `ogz-meta/ledger/**` — recurring stale-chunk hallucinations confirmed across multiple dispatches in this session (Dispatch 18 :534 hallucination is the canonical example).
+- TradingLoop architectural concerns surfaced by Mercury: NaN propagation through positionValue in CandleProcessor dashboard broadcast, symbol-aware candle file persistence (HIGH spec exists at `ogz-meta/ledger/spec fixes/a/01-HIGH-CC-SPEC-CANDLE-HISTORY-SYMBOL-AWARE.md`).
+
+**Awaiting direction:**
+- Dash spec drop (Trey indicated coming).
+- Approval to proceed with CRIT-08-followup-E or MEDIUM batch.
+- Mercury indexer hygiene cleanup (would significantly improve future HUNT precision).
