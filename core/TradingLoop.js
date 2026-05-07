@@ -290,6 +290,15 @@ class TradingLoop {
       } else {
         // ─── RISK CHECK ───
         decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence);
+        // CC-A Change 2: stamp indicator state at entry on the decision so
+        // BacktestRecorder Change 1 (record.atrAtEntry / regimeAtEntry /
+        // rsiAtEntry) gets real values instead of null. Read-only — no new
+        // computation; just copying already-computed indicator readings.
+        if (decision && decision.action !== 'HOLD') {
+          decision.atrAtEntry = indicators?.atr ?? null;
+          decision.regimeAtEntry = regime?.currentRegime ?? null;
+          decision.rsiAtEntry = indicators?.rsi ?? null;
+        }
       }
     }
 

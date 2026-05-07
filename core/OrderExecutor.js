@@ -335,6 +335,11 @@ class OrderExecutor {
             entryStrategy: entryStrategy,
             exitContract: exitContract,
             ledgerData: decision.ledgerData || null,
+            // CC-A Change 2: stamp indicator state at entry on trade record
+            atrAtEntry: decision.atrAtEntry ?? null,
+            regimeAtEntry: decision.regimeAtEntry ?? null,
+            rsiAtEntry: decision.rsiAtEntry ?? null,
+            symbol: this.ctx.tradingPair ?? null,
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -491,7 +496,12 @@ class OrderExecutor {
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
             exitContract: exitContract,
-            ledgerData: decision.ledgerData || null
+            ledgerData: decision.ledgerData || null,
+            // CC-A Change 2: stamp indicator state at entry on trade record
+            atrAtEntry: decision.atrAtEntry ?? null,
+            regimeAtEntry: decision.regimeAtEntry ?? null,
+            rsiAtEntry: decision.rsiAtEntry ?? null,
+            symbol: this.ctx.tradingPair ?? null
           });
 
           if (!positionResult.success) {
@@ -673,7 +683,12 @@ class OrderExecutor {
                 exitReason: completeTradeResult.exitReason || 'signal',
                 reason: buyTrade.reason || '',
                 holdTimeMinutes: holdDuration / 60000,
-                exitContract: buyTrade.exitContract
+                exitContract: buyTrade.exitContract,
+                // CC-A Change 2: passthrough indicator state stamped on trade at entry
+                atrAtEntry: buyTrade.atrAtEntry ?? null,
+                regimeAtEntry: buyTrade.regimeAtEntry ?? null,
+                rsiAtEntry: buyTrade.rsiAtEntry ?? null,
+                symbol: buyTrade.symbol ?? buyTrade.tradingPair ?? this.ctx.tradingPair ?? null
               });
               console.log(`📋 [TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${buyTrade.size || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
             }
@@ -1078,7 +1093,12 @@ class OrderExecutor {
               exitReason: completeTradeResult.exitReason || 'signal',
               reason: shortTrade.reason || '',
               holdTimeMinutes: holdDuration / 60000,
-              exitContract: shortTrade.exitContract
+              exitContract: shortTrade.exitContract,
+              // CC-A Change 2: passthrough indicator state stamped on trade at entry
+              atrAtEntry: shortTrade.atrAtEntry ?? null,
+              regimeAtEntry: shortTrade.regimeAtEntry ?? null,
+              rsiAtEntry: shortTrade.rsiAtEntry ?? null,
+              symbol: shortTrade.symbol ?? shortTrade.tradingPair ?? this.ctx.tradingPair ?? null
             });
             console.log(`📋 [TRADE-LOG] SHORT Strategy: ${shortTrade.entryStrategy || 'unknown'} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
           }
