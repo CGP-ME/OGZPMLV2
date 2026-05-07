@@ -25,7 +25,6 @@ if (resolvedConfig.config.backtest.silent ||
       originalLog(...args);
     }
   };
-  console.warn = () => {};
 }
 
 // SENTRY: Error monitoring (DSN configurable via SENTRY_DSN, disable via SENTRY_ENABLED=false)
