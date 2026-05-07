@@ -214,7 +214,13 @@ class SessionRouter extends EventEmitter {
       if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
 
       const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-      const primaryCrypto = this.cryptoSymbols[0] || 'BTC-USD';
+      // SESSION-HIGH-01: throw on empty cryptoSymbols. Same class as CRIT-03 —
+      // refusing to default to BTC-USD which would route a stocks bot's crypto
+      // session to the wrong instrument.
+      if (!Array.isArray(this.cryptoSymbols) || this.cryptoSymbols.length === 0) {
+        throw new Error('[SESSION-HIGH-01] SessionRouter.cryptoSymbols is empty/non-array — refusing to default to BTC-USD');
+      }
+      const primaryCrypto = this.cryptoSymbols[0];
       if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
         this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
       }
