@@ -145,14 +145,32 @@ class DynamicPositionSizer {
   calculate(params) {
     this.calculations++;
 
+    // DPS-ARCH-01: balance/confidence/atrPercent destructure defaults
+    // ($10K, 0.5, 0.30%) replicated CRIT-01 and CRIT-02 phantoms inside DPS.
+    // Replaced with null + early-return blocked result when missing. This
+    // lands in dead code today (DPS gated behind ENABLE_DPS env) and blocks
+    // the upcoming CRIT-12 wiring from inheriting the same bug class.
     const {
-      balance = 10000,
-      confidence = 0.5,
+      balance = null,
+      confidence = null,
       features = null,
-      atrPercent = 0.30,
+      atrPercent = null,
       confluenceMultiplier = 1.0,
       price = 0,
     } = params;
+
+    if (balance == null || confidence == null || atrPercent == null) {
+      return {
+        sizeUSD: 0,
+        sizePercent: 0,
+        multipliers: {},
+        patternStatus: 'unknown',
+        patternWinRate: null,
+        capped: false,
+        blocked: true,
+        reason: `[DPS-ARCH-01] required input missing (balance=${balance}, confidence=${confidence}, atrPercent=${atrPercent})`,
+      };
+    }
 
     // ── 1. Confidence multiplier ──
     const confMultiplier = this._interpolateCurve(
