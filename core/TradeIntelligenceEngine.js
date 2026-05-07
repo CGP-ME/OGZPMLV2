@@ -205,22 +205,20 @@ class TradeIntelligenceEngine extends EventEmitter {
         const result = { score: 0, signals: [], regime: 'unknown' };
 
         try {
-            // ADX for trend strength (if available)
-            // HIGH-18: `indicators.adx || 20` always-resolves-to-weak-trend.
-            // ADX>20 is the typical "trending" threshold; phantom 20 default
-            // makes weak trend the only signal until ADX > strongTrendADX
-            // config. Surface missing as warn for visibility.
-            if (!Number.isFinite(indicators.adx)) {
-                console.warn('[HIGH-18] indicators.adx missing — defaulting to 20 (always resolves to WEAK_TREND); regime classification depends on indicator availability');
-            }
-            const adx = indicators.adx ?? 20;
-            if (adx > this.config.strongTrendADX) {
-                result.signals.push({ type: 'STRONG_TREND', value: adx });
-                result.regime = 'trending';
-                result.score += 20;
-            } else {
-                result.signals.push({ type: 'WEAK_TREND', value: adx });
-                result.regime = 'ranging';
+            // ADX for trend strength — only classify if available.
+            // HIGH-18: was `indicators.adx || 20` which silently produced WEAK_TREND
+            // for missing ADX. Now: skip the TREND signal entirely if ADX missing
+            // (regime stays 'unknown' from result init at :205 — honest signal).
+            if (Number.isFinite(indicators.adx)) {
+                const adx = indicators.adx;
+                if (adx > this.config.strongTrendADX) {
+                    result.signals.push({ type: 'STRONG_TREND', value: adx });
+                    result.regime = 'trending';
+                    result.score += 20;
+                } else {
+                    result.signals.push({ type: 'WEAK_TREND', value: adx });
+                    result.regime = 'ranging';
+                }
             }
 
             // Volatility assessment — null during warmup; signal cannot fire without both values
