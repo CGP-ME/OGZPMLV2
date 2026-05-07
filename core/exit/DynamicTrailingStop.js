@@ -56,8 +56,12 @@ class DynamicTrailingStop {
       // Round number proximity threshold (% of price)
       roundNumberProximity: config.roundNumberProximity || 0.5,
 
-      // Fee buffer — trail stop price must be at least this above entry after fees
-      feeBuffer: parseFloat(process.env.FEE_TOTAL_ROUNDTRIP) || config.feeBuffer || 0.0065,
+      // Fee buffer — trail stop price must be at least this above entry after fees.
+      // EXIT-HIGH-02: was reading process.env.FEE_TOTAL_ROUNDTRIP directly,
+      // splitting fee source-of-truth from TradingConfig. Now pull from
+      // TradingConfig.get('fees.totalRoundTrip') (TradingConfig.js:691) which
+      // already mirrors the env var. Single source of truth.
+      feeBuffer: config.feeBuffer ?? require('../TradingConfig').get('fees.totalRoundTrip'),
     };
 
     // State tracking per trade (keyed by trade ID)
