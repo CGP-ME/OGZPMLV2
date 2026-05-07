@@ -171,6 +171,11 @@ function buildConfig() {
 
     // ─── BROKER ───
     broker: {
+      // RUN-INFO-01: BROKER routed through ConfigLoader instead of raw process.env reads.
+      id: (() => {
+        const r = envStr('BROKER', 'alpaca');
+        return track('broker.id', { value: String(r.value).toLowerCase(), source: r.source });
+      })(),
       apiKey: track('broker.apiKey', envStr('KRAKEN_API_KEY', '')),
       apiSecret: track('broker.apiSecret', envStr('KRAKEN_API_SECRET', '')),
       // Default asset derived from BROKER: kraken -> BTC-USD, else -> TSLA.

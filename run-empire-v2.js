@@ -612,7 +612,7 @@ class OGZPrimeV14Bot {
     // this.safetyNet = new TradingSafetyNet(); // DISABLED - blocking everything
     // this.tradeLogger = new TradeLogger(); // Module doesn't exist
 
-    console.log('[DEBUG] About to create ' + (process.env.BROKER || 'alpaca') + ' adapter...');
+    console.log('[DEBUG] About to create ' + resolvedConfig.config.broker.id + ' adapter...');
     console.log('[DEBUG] BrokerFactory available:', typeof createBrokerAdapter);
 
     // BROKER SETUP — dual path gated on SESSION_ROUTER_ENABLED.
@@ -701,7 +701,7 @@ class OGZPrimeV14Bot {
       // FIX 2026-04-22: broker is env-driven (BROKER=alpaca default -> stocks paper).
       // Variable name this.kraken preserved to avoid repo-wide rename; now holds whichever
       // adapter BrokerFactory returns.
-      const brokerId = process.env.BROKER || 'alpaca';
+      const brokerId = resolvedConfig.config.broker.id;
       const adapterOptions = brokerId === 'kraken'
         ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
         : {};
