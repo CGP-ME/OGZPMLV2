@@ -884,12 +884,12 @@ class StrategyOrchestrator {
 
     // ─── Step 2.6: Volume Profile-based strategy boosting ───
     // FIX 2026-04-05: Auction Market Theory - boost based on price position
-    // HIGH-24: same pattern as HIGH-23 for VP boosts.
-    const _vpBoostsCfg = TradingConfig.get('volumeProfileBoosts');
-    if (_vpBoostsCfg == null) {
-      console.warn('[HIGH-24] TradingConfig.volumeProfileBoosts missing — VP-based strategy boosting fully disabled this candle');
+    // HIGH-24: same halt-class throw as HIGH-23. TradingConfig.js:146 always
+    // provides volumeProfileBoosts as an object.
+    const volumeProfileBoosts = TradingConfig.get('volumeProfileBoosts');
+    if (volumeProfileBoosts == null || typeof volumeProfileBoosts !== 'object') {
+      throw new Error(`[HIGH-24] TradingConfig.volumeProfileBoosts must be an object (got ${typeof volumeProfileBoosts})`);
     }
-    const volumeProfileBoosts = _vpBoostsCfg ?? {};
     const volumeProfile = extras.volumeProfile;
     const currentPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
 
