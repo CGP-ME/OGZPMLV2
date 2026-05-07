@@ -637,16 +637,14 @@ class OrderExecutor {
               exitTime: exitTimestamp,
               pnl: pnl,
               // FIX 2026-03-28: USD position × percentage change = USD profit
-              // MED-02: source-side warn for pnlDollars=0 case. CRIT-class
-              // upstream guards prevent zero entryPrice at trade-open (CRIT-01
-              // halts on zero capital, CRIT-09 halts on missing price), so the
-              // `: 0` branch is dormant defense. 10+ downstream sites have
-              // `|| 0` fallbacks that mask missing pnlDollars and corrupt
-              // win-rate stats. One source-side warn covers all of them.
+              // MED-02: throw on non-positive entryPrice. CRIT-01 halts on
+              // zero capital and CRIT-09 halts on missing price, so this throw
+              // catches genuine state corruption (BUY trade record with bad
+              // entryPrice). Halt-class — refuses to silently log $0 P&L
+              // which corrupts win-rate stats downstream.
               pnlDollars: (() => {
                 if (!(buyTrade.entryPrice > 0)) {
-                  console.warn(`[MED-02] BUY exit: buyTrade.entryPrice non-positive (got ${buyTrade.entryPrice}) — pnlDollars defaulted to 0; downstream win-rate stats will count this as non-winning/non-losing`);
-                  return 0;
+                  throw new Error(`[MED-02] BUY exit: buyTrade.entryPrice non-positive (got ${buyTrade.entryPrice}) — refusing to log phantom \$0 P&L`);
                 }
                 return buyTrade.size * ((price - buyTrade.entryPrice) / buyTrade.entryPrice);
               })(),
@@ -1050,11 +1048,10 @@ class OrderExecutor {
             exitTime: exitTimestamp,
             pnl: pnl,
             // FIX 2026-03-28: USD position × percentage change = USD profit
-            // MED-02: SHORT exit — symmetric to BUY exit warn at :641-650.
+            // MED-02: SHORT exit — symmetric halt to BUY exit at :641-651.
             pnlDollars: (() => {
               if (!(shortTrade.entryPrice > 0)) {
-                console.warn(`[MED-02] SHORT exit: shortTrade.entryPrice non-positive (got ${shortTrade.entryPrice}) — pnlDollars defaulted to 0; downstream win-rate stats corrupted`);
-                return 0;
+                throw new Error(`[MED-02] SHORT exit: shortTrade.entryPrice non-positive (got ${shortTrade.entryPrice}) — refusing to log phantom \$0 P&L`);
               }
               return shortTrade.size * ((shortTrade.entryPrice - price) / shortTrade.entryPrice);
             })(),
