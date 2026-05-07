@@ -96,16 +96,14 @@ class TradingLoop {
     const confidenceData = { totalConfidence: orchResult.confidence };
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
-    // HIGH-13: warn when directionFilter is missing from TradingConfig.
-    // The phantom default 'both' silently allows bidirectional trading
-    // when a user might have intended long_only/short_only but
-    // misconfigured the env. TradingConfig.js:844 already provides 'both'
-    // as the documented default; this check surfaces unexpected unset states.
-    const _directionFilter = TradingConfig.get('pipeline.directionFilter');
-    if (_directionFilter == null) {
-      console.warn('[HIGH-13] pipeline.directionFilter missing from TradingConfig — falling back to "both" (bidirectional). Verify DIRECTION_FILTER env if long_only/short_only intended.');
+    // HIGH-13: throw if directionFilter is non-string. TradingConfig.js:844
+    // supplies 'both' as the env-default for DIRECTION_FILTER so this throw
+    // catches genuine config breakage, not unset env. Refuses to default to
+    // 'both' at the consumer per Rule #1.
+    const directionFilter = TradingConfig.get('pipeline.directionFilter');
+    if (typeof directionFilter !== 'string') {
+      throw new Error(`[HIGH-13] pipeline.directionFilter expected string, got ${typeof directionFilter} (${directionFilter})`);
     }
-    const directionFilter = _directionFilter ?? 'both';
     if (directionFilter === 'long_only' && tradingDirection === 'sell') {
       console.log(`🚫 Direction filter: long_only — sell blocked`);
       this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
