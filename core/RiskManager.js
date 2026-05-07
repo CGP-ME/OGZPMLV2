@@ -94,7 +94,20 @@ class RiskManager {
 
     // Bypass for backtest (controlled by config injection)
     if (this.config.riskManagerBypass) return { approved: true, riskLevel: 'LOW', riskGates };
-    const { confidence = 0 } = tradeParams;
+    // RISK-HIGH-01: refuse risk scoring on non-finite confidence. Old destructure
+    // default = 0 silently approved phantom-zero trades at REDUCE_SIZE instead of
+    // blocking them. Halt-class reject per spec Rule #1.
+    const { confidence } = tradeParams;
+    if (!Number.isFinite(confidence)) {
+      _gate('confidence_validity', 'finite', confidence, false, `Invalid confidence: ${confidence}`);
+      return {
+        approved: false,
+        reason: `[RISK-HIGH-01] Invalid confidence (${confidence}) — refusing risk assessment`,
+        riskLevel: 'CRITICAL',
+        blockType: 'INVALID_INPUT',
+        riskGates,
+      };
+    }
     const ddState = this.drawdownTracker.getState();
     const breaches = this.pnlTracker.getLimitBreaches();
     const pnlState = this.pnlTracker.getState();
