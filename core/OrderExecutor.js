@@ -663,12 +663,12 @@ class OrderExecutor {
                 stopLoss: buyTrade.exitContract?.stopLossPercent || 0,
                 takeProfit: buyTrade.exitContract?.takeProfitPercent || 0,
                 size: buyTrade.size || 1,
-                // MED-03: warn when buyTrade.entryStrategy missing at exit time.
+                // MED-03: throw when buyTrade.entryStrategy missing at exit time.
                 // Set at trade open from orchResult.winnerStrategy (HIGH-08 covers
                 // missing-at-open). Missing AT EXIT means the trade record lost
                 // entryStrategy between open and close — state-corruption signal.
-                ...(buyTrade.entryStrategy ? {} : (() => { console.warn(`[MED-03] BUY exit: trade record missing entryStrategy (orderId=${buyTrade.orderId}) — strategy attribution defaulting to 'unknown'; investigate state-persistence path between open and close`); return {}; })()),
-                strategyName: buyTrade.entryStrategy || 'unknown',
+                ...(buyTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] BUY exit: trade record missing entryStrategy (orderId=${buyTrade.orderId}) — state corruption between open and close`); })()),
+                strategyName: buyTrade.entryStrategy,
                 confidence: buyTrade.confidence || 0,
                 exitReason: completeTradeResult.exitReason || 'signal',
                 reason: buyTrade.reason || '',
@@ -1072,8 +1072,8 @@ class OrderExecutor {
               size: shortTrade.size || 1,
               // MED-03: SHORT exit symmetric warn — same state-persistence
               // concern as BUY exit at :669-675.
-              ...(shortTrade.entryStrategy ? {} : (() => { console.warn(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — strategy attribution defaulting to 'unknown'`); return {}; })()),
-              strategyName: shortTrade.entryStrategy || 'unknown',
+              ...(shortTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — state corruption between open and close`); })()),
+              strategyName: shortTrade.entryStrategy,
               confidence: shortTrade.confidence || 0,
               exitReason: completeTradeResult.exitReason || 'signal',
               reason: shortTrade.reason || '',
