@@ -1036,21 +1036,19 @@ class StrategyOrchestrator {
       }
 
       // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
-      // HIGH-15: ELSE branch falls back to `indicators?.volatility || 0` —
-      // phantom 0 volatility passed to createExitContract produces wrong-fit
-      // SL/TP. Preserve explicit zero with `??`, warn when both ATR/price
-      // path AND volatility-fallback path are unusable.
+      // HIGH-15: throw if neither ATR/price nor a finite volatility is available.
+      // Old code substituted volPct=0 silently, producing wrong-fit SL/TP that
+      // either fired immediately or never. Throw is caught by the try at :1009
+      // → exitContract stays null → OrderExecutor falls through to its own
+      // ExitContractManager.createExitContract path (the architectural fallback
+      // there is a separate spec finding).
       let volPct;
       if (indicators?.atr && price) {
         volPct = (indicators.atr / price * 100);
+      } else if (Number.isFinite(indicators?.volatility)) {
+        volPct = indicators.volatility;
       } else {
-        const vol = indicators?.volatility ?? null;
-        if (!Number.isFinite(vol)) {
-          console.warn(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${vol} — exit contract will be built with volPct=0 (wrong SL/TP scaling)`);
-          volPct = 0;
-        } else {
-          volPct = vol;
-        }
+        throw new Error(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${indicators?.volatility}`);
       }
       // FIX 2026-03-19: Pass timeframe for per-timeframe exit parameters
       // HIGH-16: triple-fallback chain `extras.timeframe || candle.interval
