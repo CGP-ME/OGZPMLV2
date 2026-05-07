@@ -277,14 +277,15 @@ class OrderExecutor {
           // CHANGE 2026-02-21: Use orchestrator's winning strategy and exit contract
           // The StrategyOrchestrator already determined the winner and created the exit contract
           // Phase 3 REWRITE: orchResult is now passed directly from TradingLoop
-          // HIGH-08: warn when winnerStrategy missing — phantom 'default' looks
-          // up the wrong exit contract. Post-CRIT-06 orchResult is guaranteed
-          // present, so a missing winnerStrategy would indicate orchestrator
-          // regression worth surfacing.
-          if (orchResult && !orchResult.winnerStrategy) {
-            console.warn(`[HIGH-08] BUY: orchResult.winnerStrategy missing — falling back to 'default' exit contract; orchestrator output may be malformed`);
+          // HIGH-08: refuse to default to 'default' exit contract on missing
+          // winnerStrategy. Post-CRIT-06 orchResult is guaranteed present, so a
+          // missing winnerStrategy is an orchestrator regression. Throw fires
+          // BEFORE any state mutation (above this line is read-only) and is
+          // contained by the executor's try block at :115.
+          if (!orchResult.winnerStrategy) {
+            throw new Error('[HIGH-08] BUY entry: orchResult.winnerStrategy missing — orchestrator regression');
           }
-          const entryStrategy = orchResult?.winnerStrategy || 'default';
+          const entryStrategy = orchResult.winnerStrategy;
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
           // Use orchestrator's exit contract if provided, otherwise create fallback
@@ -438,11 +439,11 @@ class OrderExecutor {
           const stateBefore = stateManager.getState();
           console.log(`📍 CP5-SHORT: BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
-          // HIGH-08: same warn pattern as BUY entry above.
-          if (orchResult && !orchResult.winnerStrategy) {
-            console.warn(`[HIGH-08] SHORT: orchResult.winnerStrategy missing — falling back to 'default' exit contract; orchestrator output may be malformed`);
+          // HIGH-08: same halt-class throw as BUY entry above.
+          if (!orchResult.winnerStrategy) {
+            throw new Error('[HIGH-08] SHORT entry: orchResult.winnerStrategy missing — orchestrator regression');
           }
-          const entryStrategy = orchResult?.winnerStrategy || 'default';
+          const entryStrategy = orchResult.winnerStrategy;
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
           const exitContract = orchResult?.exitContract
