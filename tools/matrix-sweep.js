@@ -442,6 +442,39 @@ function tryReadReport(projectRoot, tag) {
     var netPnl = summary.finalBalance ? summary.finalBalance - 10000 :
                  tradeList.reduce(function(s, t) { return s + (t.netPnlDollars || 0); }, 0);
 
+    // CC-A Change 3 (Option B): aggregate pattern dimensions per (strategy,
+    // dayOfWeek, session, holdBucket, confidenceTier, exitType) instead of
+    // carrying raw trades through (Option A bloats sweep JSON to GBs).
+    // Pattern-pack harvester (tools/harvest-pattern-pack.js, Change 4) reads
+    // these aggregates from per-worker reports — matrix sweep results stay slim.
+    var dimensionAgg = {};
+    tradeList.forEach(function(t) {
+      var key = [
+        t.strategyName || 'unknown',
+        t.dayOfWeek || 'unknown',
+        t.session || 'unknown',
+        t.holdBucket || 'unknown',
+        t.confidenceTier || 'unknown',
+        t.exitType || 'unknown'
+      ].join('|');
+      if (!dimensionAgg[key]) {
+        dimensionAgg[key] = {
+          strategy: t.strategyName || 'unknown',
+          dayOfWeek: t.dayOfWeek || 'unknown',
+          session: t.session || 'unknown',
+          holdBucket: t.holdBucket || 'unknown',
+          confidenceTier: t.confidenceTier || 'unknown',
+          exitType: t.exitType || 'unknown',
+          count: 0, wins: 0, losses: 0, totalPnl: 0
+        };
+      }
+      var pnl = t.netPnlDollars || 0;
+      dimensionAgg[key].count++;
+      if (pnl > 0) dimensionAgg[key].wins++;
+      else if (pnl < 0) dimensionAgg[key].losses++;
+      dimensionAgg[key].totalPnl += pnl;
+    });
+
     // FIX 2026-04-21: expanded return shape — BacktestRunner.js now merges BacktestRecorder.getSummary()
     // into report.summary, so these fields are available on JSON read (fallback path still returns null
     // for absent values). Matches parseOutput() return shape for downstream consumers.
@@ -458,6 +491,8 @@ function tryReadReport(projectRoot, tag) {
       expectancy: summary.expectancy != null ? parseFloat(summary.expectancy) : null,
       avgWin: summary.avgWinnerDollars != null ? summary.avgWinnerDollars : null,
       avgLoss: summary.avgLoserDollars != null ? summary.avgLoserDollars : null,
+      // CC-A Change 3: aggregated pattern dimensions for harvester
+      dimensionAgg: Object.values(dimensionAgg),
     };
   } catch (e) { return null; }
 }
