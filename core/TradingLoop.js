@@ -84,13 +84,13 @@ class TradingLoop {
     );
 
     const tradingDirection = orchResult.direction; // 'buy', 'sell', or 'hold'
-    // HIGH-25: warn if orchResult.confidence is non-finite. `undefined / 100`
-    // and `NaN / 100` both produce NaN, and `NaN < minConfidence` is `false`
-    // — so a missing confidence silently blocks ALL entries with no alert.
-    // Post-CRIT-09/CRIT-10 the orchestrator always emits confidence, so this
-    // warn is defensive against future regressions.
+    // HIGH-25: throw on non-finite orchestrator confidence. `undefined/100` and
+    // `NaN/100` both produce NaN; `NaN < minConfidence` is false, so all entries
+    // would silently block with no alert. Post-CRIT-09/CRIT-10 the orchestrator
+    // always emits confidence — this throw catches future regressions visibly.
+    // Caught by runner at run-empire-v2.js:1466-1471 (logs and skips tick).
     if (!Number.isFinite(orchResult.confidence)) {
-      console.warn(`[HIGH-25] orchResult.confidence non-finite (got ${orchResult.confidence}) — all entries this candle will silently fail confidence gate. Investigate StrategyOrchestrator output.`);
+      throw new Error(`[HIGH-25] orchResult.confidence non-finite (got ${orchResult.confidence}) — investigate StrategyOrchestrator output`);
     }
     const confidence = orchResult.confidence / 100; // normalize to 0-1
     const confidenceData = { totalConfidence: orchResult.confidence };
