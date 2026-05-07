@@ -1051,15 +1051,12 @@ class StrategyOrchestrator {
       } else {
         throw new Error(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${indicators?.volatility}`);
       }
-      // FIX 2026-03-19: Pass timeframe for per-timeframe exit parameters
-      // HIGH-16: triple-fallback chain `extras.timeframe || candle.interval
-      // || '15m'`. If both first sources are missing, defaults to '15m' silently
-      // — wrong SL/TP scaling for any other timeframe. Surface the silent-default
-      // as warn.
-      let timeframe = extras.timeframe || TradingConfig.get('candle.interval');
-      if (!timeframe) {
-        console.warn(`[HIGH-16] timeframe missing from extras AND TradingConfig.candle.interval — falling back to '15m'. Verify CANDLE_INTERVAL env if other timeframe intended.`);
-        timeframe = '15m';
+      // HIGH-16: extras.timeframe now wired from TradingLoop (which pulls
+      // ctx.candleTimeframe from resolvedConfig.config.broker.candleTimeframe).
+      // Throw on missing/non-string instead of silent '15m' default.
+      const timeframe = extras.timeframe;
+      if (typeof timeframe !== 'string' || !timeframe) {
+        throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
       }
       exitContract = ecm.createExitContract(
         winner.strategyName,

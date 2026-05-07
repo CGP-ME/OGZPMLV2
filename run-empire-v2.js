@@ -975,6 +975,8 @@ class OGZPrimeV14Bot {
       backtestFast: resolvedConfig.config.backtest.fast,
       testMode: resolvedConfig.config.mode.testMode,
       traiEnableBacktest: TradingConfig.get('features.traiEnableBacktest'),
+      // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
+      candleTimeframe: resolvedConfig.config.broker.candleTimeframe,
       // Phase 4 REWRITE: MaxProfitManager standalone
       maxProfitManagers: this.maxProfitManagers,
       // Additional context for strategy orchestration
