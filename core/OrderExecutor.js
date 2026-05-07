@@ -130,16 +130,14 @@ class OrderExecutor {
 
         // FIX 2026-03-26 Bug 7: Apply slippage to simulated fills
         // BUY/COVER pay more, SELL/SELL_SHORT receive less
-        // HIGH-06: TradingConfig.js:690 already provides 0.0005 default at
-        // config layer. The consumer-side `|| 0.0005` is dead-defense.
-        // Bigger concern: 0.05% slippage default is crypto-tuned; stocks
-        // typically have different slippage profiles. Surface missing as warn
-        // so a future asset-aware slippage spec has visibility.
-        const _slippage = TradingConfig.get('fees.slippage');
-        if (_slippage == null) {
-          console.warn('[HIGH-06] TradingConfig.fees.slippage missing — falling back to 0.0005 (0.05%). Verify FEE_SLIPPAGE env per asset class (crypto vs stocks).');
+        // HIGH-06: throw on missing/non-finite slippage rather than fall back
+        // to a hardcoded 0.05% (crypto-tuned, wrong for stocks). TradingConfig
+        // already supplies 0.0005 as the env-default for FEE_SLIPPAGE so this
+        // throw catches genuinely malformed config, not unset env.
+        const slippagePercent = TradingConfig.get('fees.slippage');
+        if (!Number.isFinite(slippagePercent) || slippagePercent < 0) {
+          throw new Error(`[HIGH-06] TradingConfig.fees.slippage non-finite or negative (got ${slippagePercent})`);
         }
-        const slippagePercent = _slippage ?? 0.0005;
         const isBuyAction = decision.action === 'BUY' || decision.action === 'COVER';
         const fillPrice = isBuyAction
           ? price * (1 + slippagePercent)   // BUY/COVER: pay more
