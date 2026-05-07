@@ -635,15 +635,16 @@ class TradeIntelligenceEngine extends EventEmitter {
             // masked missing fields, suppressing risk signals silently.
             // Surface each missing field as warn, preserve explicit zero.
 
-            // Consecutive losses
-            if (!Number.isFinite(context.consecutiveLosses)) {
-                console.warn('[HIGH-19] context.consecutiveLosses missing — losing-streak signal will not fire');
-            }
-            const consecutiveLosses = context.consecutiveLosses ?? 0;
-            if (consecutiveLosses >= 3) {
-                result.signals.push({ type: 'LOSING_STREAK', count: consecutiveLosses });
-                result.score -= 15;
-                result.highRisk = true;
+            // Consecutive losses — only evaluate if available.
+            // HIGH-19: was `?? 0` which silently suppressed LOSING_STREAK
+            // signal (gate >= 3 never fires for phantom 0).
+            if (Number.isFinite(context.consecutiveLosses)) {
+                const consecutiveLosses = context.consecutiveLosses;
+                if (consecutiveLosses >= 3) {
+                    result.signals.push({ type: 'LOSING_STREAK', count: consecutiveLosses });
+                    result.score -= 15;
+                    result.highRisk = true;
+                }
             }
 
             // Daily P&L
