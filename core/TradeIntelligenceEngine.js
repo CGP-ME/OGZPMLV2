@@ -661,14 +661,15 @@ class TradeIntelligenceEngine extends EventEmitter {
                 }
             }
 
-            // Portfolio heat
-            if (!Number.isFinite(context.portfolioHeat)) {
-                console.warn('[HIGH-21] context.portfolioHeat missing — high-exposure signal will not fire');
-            }
-            const portfolioHeat = context.portfolioHeat ?? 0;
-            if (portfolioHeat > 10) {
-                result.signals.push({ type: 'HIGH_EXPOSURE', value: portfolioHeat });
-                result.score -= 10;
+            // Portfolio heat — only evaluate if available.
+            // HIGH-21: was `?? 0` which silently suppressed HIGH_EXPOSURE
+            // signal (gate > 10 never fires for phantom 0).
+            if (Number.isFinite(context.portfolioHeat)) {
+                const portfolioHeat = context.portfolioHeat;
+                if (portfolioHeat > 10) {
+                    result.signals.push({ type: 'HIGH_EXPOSURE', value: portfolioHeat });
+                    result.score -= 10;
+                }
             }
 
         } catch (error) {
