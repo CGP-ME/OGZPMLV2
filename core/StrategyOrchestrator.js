@@ -841,13 +841,13 @@ class StrategyOrchestrator {
 
     // Classify regime name to category (trending_up/trending_down → trending, etc.)
     const rawRegime = regime?.currentRegime?.toLowerCase() || 'unknown';
-    // HIGH-04: warn when regime is present but lacks confidence — regime
-    // boosts silently disable when regimeConfidence falls below 0.25 gate
-    // (line 839). With `|| 0` a missing/non-finite confidence is
-    // indistinguishable from low-confidence regime; surface the missing case
-    // as a visible warning so the silent-disable is observable.
+    // HIGH-04: throw when regime object is present but confidence is non-finite
+    // (RegimeDetector regression). The ?? 0 below remains for the case where
+    // regime itself is null/undefined (legitimate 'no regime detected' signal,
+    // common during warmup) — that semantically means "no regime boosting" and
+    // is distinct from "regime detector returned a broken object."
     if (regime != null && !Number.isFinite(regime.confidence)) {
-      console.warn(`[HIGH-04] regime.confidence non-finite (currentRegime=${regime.currentRegime}, got ${regime.confidence}) — regime boosts will silently disable for this candle`);
+      throw new Error(`[HIGH-04] regime.confidence non-finite (currentRegime=${regime.currentRegime}, got ${regime.confidence}) — RegimeDetector regression`);
     }
     const regimeConfidence = regime?.confidence ?? 0;
     let regimeType = 'unknown';
