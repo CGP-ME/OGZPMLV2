@@ -841,7 +841,12 @@ class OGZPrimeV14Bot {
 
     // FIX 2026-02-26: Initialize RiskManager with balance (was never called, caused Infinity drawdown)
     // Without this, peakBalance=0, drawdown=Infinity, checkRiskLimits() blocks ALL trades
-    const balanceForRisk = currentState.balance || initialBalance;
+    // RUN-HIGH-02: re-read state after init/restore — DO NOT fall back to initialBalance
+    // when balance is 0 (all-capital-reserved is a legitimate state distinct from missing).
+    const balanceForRisk = stateManager.getState().balance;
+    if (balanceForRisk == null) {
+      throw new Error('[RUN-HIGH-02] RiskManager init: stateManager.balance is null/undefined after init/restore — refusing to anchor high-water mark to a guessed value');
+    }
     this.riskManager.initializeBalance(balanceForRisk);
 
     // CHANGE 644: Initialize trade tracking Maps in constructor to prevent crashes
