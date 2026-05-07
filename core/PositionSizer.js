@@ -21,7 +21,16 @@ const flagManager = FeatureFlagManager.getInstance();
 
 class PositionSizer {
   constructor(options = {}) {
-    this.maxPositionPercent = options.maxPositionPercent || TradingConfig.get('positionSizing.maxPositionSize');
+    // PS-CRIT-01: refuse to construct with undefined/NaN/string maxPositionPercent.
+    // Old `||` upgraded an explicit 0 (intentional "no position" override) to the
+    // TradingConfig default and silently propagated NaN through to sizeUSD downstream.
+    const fromOptions = options.maxPositionPercent;
+    const fromConfig = TradingConfig.get('positionSizing.maxPositionSize');
+    const resolved = fromOptions != null ? fromOptions : fromConfig;
+    if (!Number.isFinite(resolved) || resolved <= 0) {
+      throw new Error(`[PS-CRIT-01] PositionSizer requires positive finite maxPositionPercent via options or TradingConfig (got: options=${fromOptions}, config=${fromConfig})`);
+    }
+    this.maxPositionPercent = resolved;
     this.minPositionPercent = options.minPositionPercent || 0.01; // 1% minimum
     this.useKelly = options.useKelly || false;
 
