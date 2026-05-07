@@ -18,9 +18,18 @@ const TradingConfig = require('./TradingConfig');
 
 class PnLCalculator {
   constructor(options = {}) {
-    // Round-trip fee from TradingConfig (maker + taker)
-    this.feePercent = options.feePercent || TradingConfig.get('fees.totalRoundTrip');
-    this.feeBuffer = options.feeBuffer || 0.35; // % profit needed to cover fees
+    // Round-trip fee from TradingConfig (maker + taker).
+    // PNLC-HIGH-01: ?? preserves intentional 0 (paper mode with FEE_MAKER=0
+    // FEE_TAKER=0). || coerced 0 to TradingConfig default, hiding paper-mode
+    // misconfiguration. Warn when zero so paper-mode is operator-visible.
+    this.feePercent = options.feePercent ?? TradingConfig.get('fees.totalRoundTrip');
+    if (!Number.isFinite(this.feePercent)) {
+      throw new Error(`[PNLC-HIGH-01] PnLCalculator.feePercent non-finite (got ${this.feePercent}) — refusing to compute P&L with phantom fees`);
+    }
+    if (this.feePercent === 0) {
+      console.warn('[PNLC-HIGH-01] PnLCalculator.feePercent is zero — paper-mode/zero-fee active; backtest P&L will not reflect production trading costs');
+    }
+    this.feeBuffer = options.feeBuffer ?? 0.35; // % profit needed to cover fees
 
     console.log('[PnLCalculator] Initialized (Phase 13)');
   }
