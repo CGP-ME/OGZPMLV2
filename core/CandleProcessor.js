@@ -451,19 +451,15 @@ class CandleProcessor {
     this.processNewCandle(candle);
 
     // Store latest market data
-    // MED-07: warn when volume parsing fails. `parseFloat(volume) || 0` masks
-    // a legit zero-volume candle as identical to a parse-error case. Dashboard
-    // shows 0 either way; analytics can't distinguish "no trades" from
-    // "broker fed garbage". Single source warn before storing.
+    // MED-07: propagate null for unparseable volume instead of phantom 0.
+    // Distinguishes "no trades" (legitimate zero) from "broker fed garbage"
+    // (null). Downstream consumers must check finiteness before using.
     const _parsedVolume = parseFloat(volume);
-    if (Number.isNaN(_parsedVolume)) {
-      console.warn(`[MED-07] CandleProcessor: volume parse failed (raw=${JSON.stringify(volume)}) — dashboard will show 0; cannot distinguish from legitimate zero-volume candle`);
-    }
     this.ctx.marketData = {
       price,
       timestamp: parseFloat(time) * 1000,  // Use candle's actual timestamp
       systemTime: Date.now(),  // Keep system time separately if needed
-      volume: Number.isFinite(_parsedVolume) ? _parsedVolume : 0,
+      volume: Number.isFinite(_parsedVolume) ? _parsedVolume : null,
       open: parseFloat(open),
       high: parseFloat(high),
       low: parseFloat(low)
