@@ -128,8 +128,11 @@ class DrawdownTracker {
   calculateProtectionMultiplier() {
     const { accountBalance, initialBalance } = this.state;
 
+    // RISK-MED-01: warn + return null when uninitialized instead of silent 1.0x.
+    // Caller must handle null (treat as "no protection adjustment available").
     if (!initialBalance || initialBalance <= 0) {
-      return 1.0;
+      console.warn(`[RISK-MED-01] DrawdownTracker.calculateProtectionMultiplier: initialBalance non-positive (${initialBalance}) — returning null; tracker may be uninitialized`);
+      return null;
     }
 
     const drawdownPercent = ((accountBalance - initialBalance) / initialBalance) * 100;
