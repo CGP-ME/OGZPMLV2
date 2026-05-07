@@ -108,9 +108,14 @@ class ExitContractManager {
     const pnlPercent = isShort
       ? ((entryPrice - currentPrice) / entryPrice) * 100  // SHORT: profit when price drops
       : ((currentPrice - entryPrice) / entryPrice) * 100; // LONG: profit when price rises
-    const holdTimeMinutes = context.currentTime
-      ? (context.currentTime - trade.entryTime) / 60000
-      : (Date.now() - trade.entryTime) / 60000;
+    // EXIT-MED-01: throw on missing context.currentTime instead of falling back
+    // to Date.now(). TradingLoop:175 always passes marketData.timestamp ?? Date.now()
+    // so this throw catches genuine caller-contract violations only (backtests
+    // that bypass TradingLoop).
+    if (!Number.isFinite(context.currentTime)) {
+      throw new Error(`[EXIT-MED-01] checkExitConditions: context.currentTime non-finite (got ${context.currentTime}) — caller must supply marketData.timestamp`);
+    }
+    const holdTimeMinutes = (context.currentTime - trade.entryTime) / 60000;
 
     const contract = trade.exitContract || this.getDefaultContract(trade.entryStrategy || 'default');
     // Ensure trade has contract for checkers
