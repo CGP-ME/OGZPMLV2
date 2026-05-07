@@ -173,7 +173,7 @@ class PositionTracker {
       confidence: metadata.confidence || 0,
       patterns: metadata.patterns || [],
       entryIndicators: metadata.entryIndicators || {},
-      signalBreakdown: metadata.signalBreakdown || null
+      signalBreakdown: metadata.signalBreakdown ?? null
     };
 
     // Delegate to StateManager - ONLY place identity fields get set

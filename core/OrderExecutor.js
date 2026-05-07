@@ -328,8 +328,8 @@ class OrderExecutor {
             patterns: patterns || [],
             entryIndicators: indicators,
             entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
-            signalBreakdown: orchResult?.signalBreakdown || null,
-            bullishScore: orchResult?.bullishScore || 0,
+            signalBreakdown: orchResult?.signalBreakdown ?? null,
+            bullishScore: orchResult?.bullishScore ?? 0,
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
@@ -485,8 +485,8 @@ class OrderExecutor {
             patterns: patterns || [],
             entryIndicators: indicators,
             entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
-            signalBreakdown: orchResult?.signalBreakdown || null,
-            bullishScore: orchResult?.bullishScore || 0,
+            signalBreakdown: orchResult?.signalBreakdown ?? null,
+            bullishScore: orchResult?.bullishScore ?? 0,
             bearishScore: orchResult?.bearishScore || 0,
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
@@ -902,8 +902,8 @@ class OrderExecutor {
 
                 // CHANGE 2026-02-13: Decision reasoning breakdown
                 confidence: buyTrade.confidence || 0,
-                signalBreakdown: buyTrade.signalBreakdown || null,
-                bullishScore: buyTrade.bullishScore || 0,
+                signalBreakdown: buyTrade.signalBreakdown ?? null,
+                bullishScore: buyTrade.bullishScore ?? 0,
                 bearishScore: buyTrade.bearishScore || 0,
                 entryReason: buyTrade.reasoning || 'no reason stored',
 
