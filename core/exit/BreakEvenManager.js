@@ -71,7 +71,7 @@ class BreakEvenManager {
    */
   isTriggered(trade) {
     const contract = trade.exitContract || {};
-    const riskAmount = Math.abs(contract.stopLossPercent || 1.0);
+    const riskAmount = Math.abs(contract.stopLossPercent ?? 1.0);
     return (trade.maxProfitPercent || 0) >= riskAmount;
   }
 
