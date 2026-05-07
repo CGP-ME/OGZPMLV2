@@ -221,13 +221,18 @@ class SmartMoneySweep {
     const result = winner === 'long' ? longResult : shortResult;
     const direction = winner === 'long' ? 'buy' : 'sell';
 
-    // Mark sweep as consumed
+    // ─── Step 7: Compute SL/TP BEFORE consuming sweep ───
+    // _computeExitLevels returns null when ATR is unusable (warmup or bad data).
+    // Order matters: must validate levels BEFORE marking sweep consumed, otherwise
+    // we burn the sweep without emitting a signal and lose it on the next candle.
+    const price = c(candle);
+    const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
+    if (!levels) return null;
+
+    // Mark sweep as consumed (only after exit levels validated)
     if (winner === 'long') this.lastLongSweepBar = currentLongSweepBar;
     if (winner === 'short') this.lastShortSweepBar = currentShortSweepBar;
 
-    // ─── Step 7: Compute SL/TP ───
-    const price = c(candle);
-    const levels = this._computeExitLevels(direction, price, priceHistory, atrVal, vp, result.conditionsMet);
     // DEBUG: Log computed exit levels
     console.log(`[SMS-LEVELS] price=$${price?.toFixed(2)} SL=$${levels?.stopLoss?.toFixed(2)} TP=$${levels?.takeProfit?.toFixed(2)}`);
 
@@ -838,6 +843,9 @@ class SmartMoneySweep {
   // ═══════════════════════════════════════════════════════════════════
 
   _computeExitLevels(direction, price, priceHistory, atrVal, vp, conditionsMet) {
+    // ATR is required for TP calculation. Warmup (priceHistory < period+1) returns 0,
+    // which would make TP = entry price and exit on first profit tick. Skip the signal entirely.
+    if (!Number.isFinite(atrVal) || atrVal <= 0) return null;
     if (direction === 'buy') {
       // SL = lowest low of sweep bars minus buffer, capped by maxLossPct
       const candle2 = priceHistory[priceHistory.length - 2];
