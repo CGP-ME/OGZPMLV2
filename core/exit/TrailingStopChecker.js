@@ -26,7 +26,13 @@ class TrailingStopChecker {
    * @returns {number} Updated maxProfitPercent
    */
   updateMaxProfit(trade, currentPrice) {
-    if (!trade || !trade.entryPrice) return 0;
+    // EXIT-HIGH-01: explicit skip-result on missing trade/entryPrice instead of
+    // silent 0 return that callers can't distinguish from a legit zero-profit
+    // update. TradingLoop.js:171 ignores the return today, but the shape
+    // change tells future consumers the path was unreachable.
+    if (!trade || !trade.entryPrice) {
+      return { skipped: true, reason: 'missing entryPrice' };
+    }
     // PnL depends on direction: LONG = (exit-entry), SHORT = (entry-exit)
     const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
     const pnlPercent = isShort
