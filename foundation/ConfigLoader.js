@@ -179,6 +179,12 @@ function buildConfig() {
         (process.env.BROKER || 'kraken').toLowerCase() === 'kraken' ? 'BTC-USD' : 'TSLA')),
       candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
       tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
+      // SESSION-HIGH-02: explicit asset-class field — derived from BROKER if
+      // ASSET_CLASS env unset. Replaces the slash-based detection heuristic
+      // in UnifiedPatternMemory which mis-classified BTC-USD (with dash) as
+      // 'stocks'. Slash characters are not a reliable discriminator.
+      assetClass: track('broker.assetClass', envStr('ASSET_CLASS',
+        (process.env.BROKER || 'kraken').toLowerCase() === 'kraken' ? 'crypto' : 'stocks')),
     },
 
     // ─── TRAI (AI) ───

@@ -174,14 +174,16 @@ class UnifiedPatternMemory {
       }
       assetBucket = ticker || 'default';
     } else {
-      // Asset class. Priority: explicit ASSET_CLASS env, then infer from TRADING_PAIR.
-      // Slash in pair (e.g. BTC/USD) => crypto. Plain ticker (e.g. TSLA) => stocks.
-      let cls = process.env.ASSET_CLASS;
+      // SESSION-HIGH-02: explicit asset class only. Slash-based detection
+      // mis-classified BTC-USD (with dash, the Alpaca format) as 'stocks'.
+      // ConfigLoader now derives broker.assetClass from BROKER env, so the
+      // process.env.ASSET_CLASS read here gets the same value via foundation.
+      // Throws if neither ASSET_CLASS env nor a recognizable BROKER is set.
+      const cls = process.env.ASSET_CLASS
+        || ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :
+            (process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);
       if (!cls) {
-        const tp = process.env.TRADING_PAIR || '';
-        if (tp.includes('/')) cls = 'crypto';
-        else if (tp) cls = 'stocks';
-        else cls = 'default';
+        throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: cannot determine asset class — set ASSET_CLASS or BROKER (kraken|alpaca) env');
       }
       assetBucket = cls;
     }
