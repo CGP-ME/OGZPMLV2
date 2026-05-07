@@ -647,17 +647,18 @@ class TradeIntelligenceEngine extends EventEmitter {
                 }
             }
 
-            // Daily P&L
-            if (!Number.isFinite(context.dailyPnL)) {
-                console.warn('[HIGH-20] context.dailyPnL missing — bad-day/good-day signals will not fire');
-            }
-            const dailyPnL = context.dailyPnL ?? 0;
-            if (dailyPnL < -2) {
-                result.signals.push({ type: 'BAD_DAY', pnl: dailyPnL });
-                result.score -= 10;
-            } else if (dailyPnL > 3) {
-                result.signals.push({ type: 'GOOD_DAY', pnl: dailyPnL });
-                result.score += 5;
+            // Daily P&L — only evaluate if available.
+            // HIGH-20: was `?? 0` which silently suppressed BAD_DAY/GOOD_DAY
+            // signals (gates < -2 and > 3 never fire for phantom 0).
+            if (Number.isFinite(context.dailyPnL)) {
+                const dailyPnL = context.dailyPnL;
+                if (dailyPnL < -2) {
+                    result.signals.push({ type: 'BAD_DAY', pnl: dailyPnL });
+                    result.score -= 10;
+                } else if (dailyPnL > 3) {
+                    result.signals.push({ type: 'GOOD_DAY', pnl: dailyPnL });
+                    result.score += 5;
+                }
             }
 
             // Portfolio heat
