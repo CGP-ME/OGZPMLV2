@@ -111,7 +111,7 @@ class SmartMoneySweep {
     this.barIndex = priceHistory.length - 1;
 
     const tfMinutes = this._detectTimeframe(priceHistory);
-    if (tfMinutes <= 0) return null;
+    if (tfMinutes == null || tfMinutes <= 0) return null;
 
     const barsPerDay = Math.round(390 / tfMinutes);
     const vpLookback = this.vpLookbackBars > 0 ? this.vpLookbackBars : this.vpDays * barsPerDay;
@@ -924,10 +924,13 @@ class SmartMoneySweep {
   // ═══════════════════════════════════════════════════════════════════
 
   _detectTimeframe(priceHistory) {
-    if (priceHistory.length < 2) return 15; // Default to 15m
+    // MOD-MED-02: return null when detection fails (warmup or missing
+    // timestamps) instead of phantom 15. Caller must handle null and skip
+    // signal evaluation if timeframe-dependent logic depends on it.
+    if (priceHistory.length < 2) return null;
     const t1 = t(priceHistory[priceHistory.length - 1]);
     const t2 = t(priceHistory[priceHistory.length - 2]);
-    if (!t1 || !t2) return 15;
+    if (!t1 || !t2) return null;
     const diffMs = Math.abs(t1 - t2);
     const diffMin = diffMs / 60000;
     // Snap to common timeframes
