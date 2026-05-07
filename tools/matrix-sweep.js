@@ -669,6 +669,30 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
     console.log('   P&L: $' + overallBest.netPnl.toFixed(2) + ' | Trades: ' + overallBest.trades + ' | WR: ' + (overallBest.winRate != null ? overallBest.winRate.toFixed(1) : '?') + '%');
   }
 
+  // -- CC-A Change 5: TRAI auto-harvest (gated by TRAI_AUTO_HARVEST=true) --
+  if (process.env.TRAI_AUTO_HARVEST === 'true') {
+    console.log('\n[TRAI] Auto-harvesting pattern pack from sweep results...');
+    try {
+      var harvestModule = require('./harvest-pattern-pack');
+      var workerDir = path.join(PROJECT_ROOT, 'backtest-results', 'worker-reports');
+      var packOutputPath = path.join(PROJECT_ROOT, 'data', 'pattern-pack.json');
+      var harvestResult = harvestModule.harvest(workerDir, packOutputPath, {
+        minTrades: parseInt(process.env.TRAI_HARVEST_MIN_TRADES || '20', 10),
+        boostThreshold: parseFloat(process.env.TRAI_HARVEST_BOOST_WR || '0.55'),
+        penaltyThreshold: parseFloat(process.env.TRAI_HARVEST_PENALTY_WR || '0.40'),
+        afterTimestamp: totalStart,
+        source: 'matrix-sweep:' + (soloStrategy || 'all') + ':' + phase,
+      });
+      console.log('[TRAI] Pattern pack: ' + harvestResult.patterns + ' patterns, ' +
+        harvestResult.antiPatterns + ' anti-patterns from ' +
+        harvestResult.totalTrades.toLocaleString() + ' trades (' +
+        harvestResult.dimensionCount + ' dimensions)');
+      console.log('[TRAI] Output: ' + harvestResult.outputPath);
+    } catch (e) {
+      console.error('[TRAI] Auto-harvest failed (non-fatal): ' + e.message);
+    }
+  }
+
   return report;
 }
 
