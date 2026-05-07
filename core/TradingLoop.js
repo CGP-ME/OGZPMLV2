@@ -184,15 +184,12 @@ class TradingLoop {
         console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
         // Determine correct exit action based on what we're closing
         const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
-        // MED-01: exitReason source-side honesty. All exit checkers
-        // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) emit a
-        // specific reason ('take_profit', 'hard_stop', 'max_hold_universal',
-        // 'break_even', 'account_drawdown', 'trailing_stop'). 12 downstream
-        // sites in OrderExecutor + PositionTracker have `|| 'signal'` fallback
-        // which is dormant dead-defense — fires only if the source contract
-        // breaks. Warn here once instead of at all 12 downstream sites.
+        // MED-01: throw on missing exitReason. All exit checkers
+        // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
+        // a specific reason. Halt-class — refuses to silently attribute the
+        // exit as 'signal' when the source contract is broken.
         if (exitCheck.shouldExit && !exitCheck.exitReason) {
-          console.warn('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — 12 downstream sites will default to "signal", losing exit-reason attribution. Investigate exit-checker contract.');
+          throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
         }
         decision = {
           action: isClosingShort ? 'COVER' : 'SELL',
