@@ -400,7 +400,13 @@ class OGZPrimeV14Bot {
     console.log(`Tier: ${this.tier.toUpperCase()}`);
 
     // PIPELINE: Read toggles early for component initialization
-    this.pipeline = TradingConfig.get('pipeline') || {};
+    // RUN-MED-03: ?? + warn when pipeline config missing. || coerced an
+    // explicit empty object (intentional "all gates off") to {} silently.
+    const _pipelineCfg = TradingConfig.get('pipeline');
+    if (_pipelineCfg == null) {
+      console.warn('[RUN-MED-03] TradingConfig.pipeline missing — defaulting to {} (all pipeline gates off). Verify pipeline config block.');
+    }
+    this.pipeline = _pipelineCfg ?? {};
 
     // Initialize core modules
     console.log('[CHECKPOINT-008] Creating pattern checker...');
