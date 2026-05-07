@@ -29,7 +29,12 @@ class PnLCalculator {
     if (this.feePercent === 0) {
       console.warn('[PNLC-HIGH-01] PnLCalculator.feePercent is zero — paper-mode/zero-fee active; backtest P&L will not reflect production trading costs');
     }
-    this.feeBuffer = options.feeBuffer ?? 0.35; // % profit needed to cover fees
+    // PNLC-MED-01: pull feeBuffer from TradingConfig (single fee source-of-truth)
+    // instead of hardcoding 0.35. exits.trailing.feeBufferPercent maps to
+    // TRAIL_FEE_BUFFER env (TradingConfig.js:449, default 0.65).
+    this.feeBuffer = options.feeBuffer
+      ?? TradingConfig.get('exits.trailing.feeBufferPercent')
+      ?? TradingConfig.get('fees.totalRoundTrip');
 
     console.log('[PnLCalculator] Initialized (Phase 13)');
   }
