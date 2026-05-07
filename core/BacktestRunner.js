@@ -247,7 +247,16 @@ class BacktestRunner {
           // The report's summary correctly carries the real value at :228;
           // config.initialBalance must mirror it, not invent a phantom.
           initialBalance: initialBalance,
-          tier: (getConfigValue('misc.subscriptionTier') || 'ML').toUpperCase()
+          // BTR-LOW-01: ?? + warn when tier missing. ?? preserves an explicit
+          // empty-string config (rare but possible); warn surfaces missing
+          // subscriptionTier to operator instead of silently defaulting.
+          tier: (() => {
+            const _tier = getConfigValue('misc.subscriptionTier');
+            if (_tier == null) {
+              console.warn('[BTR-LOW-01] BacktestRunner: misc.subscriptionTier missing — defaulting to ML');
+            }
+            return (_tier ?? 'ML').toUpperCase();
+          })()
         },
         timestamp: new Date().toISOString()
       };
