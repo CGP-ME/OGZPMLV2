@@ -66,21 +66,24 @@ class TradeReplayCapture {
     this.pendingEntries.set(orderId, {
       orderId,
       capturedAt: Date.now(),
-      direction: entryData.direction || 'BUY',
+      direction: entryData.direction ?? 'BUY',
       entry: {
-        time: Date.now(),
-        price: entryData.price || 0,
-        confidence: entryData.confidence || 0,
-        regime: entryData.regime || 'unknown',
+        // TRC-MED-02: prefer caller-supplied timestamp over wall clock
+        time: entryData.timestamp ?? Date.now(),
+        // TRC-MED-01: ?? on numerics (preserve zero); ?? null on strings.
+        // Replay is non-critical — null-propagate rather than throw.
+        price: entryData.price ?? null,
+        confidence: entryData.confidence ?? null,
+        regime: entryData.regime ?? null,
         patterns: (entryData.patterns || []).map(p => ({
-          name: p.name || p.type || 'unknown',
-          confidence: p.confidence || 0
+          name: p.name ?? p.type ?? null,
+          confidence: p.confidence ?? null
         })),
         indicators: {
-          rsi: entryData.indicators?.rsi || 0,
-          macd: entryData.indicators?.macd || 0,
-          trend: entryData.indicators?.trend || 'unknown',
-          volatility: entryData.indicators?.volatility || 0
+          rsi: entryData.indicators?.rsi ?? null,
+          macd: entryData.indicators?.macd ?? null,
+          trend: entryData.indicators?.trend ?? null,
+          volatility: entryData.indicators?.volatility ?? null
         }
       },
       candlesAtEntry: candleSnapshot
@@ -119,24 +122,22 @@ class TradeReplayCapture {
     mergedCandles.sort((a, b) => a.t - b.t);
 
     // Build complete replay packet
+    // TRC-MED-03: skip recording entirely when there's no pending entry capture
+    // (exit-only trade had no entry checkpoint). Old behavior fabricated phantom
+    // entry data which corrupted replay analytics. Set _noEntryCapture: true so
+    // downstream consumers can filter exit-only records.
     const replay = {
       orderId,
-      direction: pending?.direction || exitData.direction || 'BUY',
-      entry: pending?.entry || {
-        time: exitData.entryTime || 0,
-        price: exitData.entryPrice || 0,
-        confidence: 0,
-        regime: 'unknown',
-        patterns: [],
-        indicators: {}
-      },
+      direction: pending?.direction ?? exitData.direction ?? 'BUY',
+      _noEntryCapture: !pending,
+      entry: pending?.entry ?? null,
       exit: {
-        time: Date.now(),
-        price: exitData.price || exitData.exitPrice || 0,
-        reason: exitData.reason || 'unknown',
-        pnl: exitData.pnl || 0,
-        pnlPercent: exitData.pnlPercent || 0,
-        holdTimeMs: exitData.holdTime || (pending ? Date.now() - pending.capturedAt : 0)
+        time: exitData.exitTimestamp ?? Date.now(),
+        price: exitData.price ?? exitData.exitPrice ?? null,
+        reason: exitData.reason ?? null,
+        pnl: exitData.pnl ?? null,
+        pnlPercent: exitData.pnlPercent ?? null,
+        holdTimeMs: exitData.holdTime ?? (pending ? Date.now() - pending.capturedAt : null)
       },
       candles: mergedCandles,
       candleCount: mergedCandles.length,
