@@ -116,6 +116,87 @@ class BacktestRecorder {
             signalDetails: trade.signalDetails || null
         };
 
+        // === PATTERN-PACK DIMENSIONS (harvestable by matrix-sweep) ===
+        // CC-A Change 1: enrich trade record with dimensions used by
+        // TRAIPatternIntegration.js for confidence boost/penalty matching.
+        // DST-aware ET conversion via Intl.DateTimeFormat.
+        const _etFmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+            weekday: 'short'
+        });
+
+        let entryTimestamp = null;
+        if (record.entryTime) {
+            entryTimestamp = typeof record.entryTime === 'number'
+                ? record.entryTime
+                : new Date(record.entryTime).getTime();
+        }
+
+        if (entryTimestamp && !isNaN(entryTimestamp)) {
+            const parts = _etFmt.formatToParts(new Date(entryTimestamp));
+            const weekday = parts.find(p => p.type === 'weekday')?.value || 'unknown';
+            const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+            const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+            const hourMinute = hour * 60 + minute;
+
+            record.dayOfWeek = weekday;
+            record.hourET = hour;
+            record.minuteET = minute;
+
+            // Session classification (NYSE RTH: 9:30-16:00 ET)
+            if (hourMinute < 9 * 60 + 30) record.session = 'pre_market';
+            else if (hourMinute < 10 * 60 + 30) record.session = 'morning_open';
+            else if (hourMinute < 12 * 60) record.session = 'morning';
+            else if (hourMinute < 14 * 60) record.session = 'midday';
+            else if (hourMinute < 15 * 60 + 30) record.session = 'afternoon';
+            else if (hourMinute < 16 * 60) record.session = 'close';
+            else record.session = 'after_hours';
+        } else {
+            record.dayOfWeek = 'unknown';
+            record.hourET = null;
+            record.minuteET = null;
+            record.session = 'unknown';
+        }
+
+        // Hold bucket
+        const holdMin = record.holdTimeMinutes || 0;
+        if (holdMin < 15) record.holdBucket = 'scalp';
+        else if (holdMin < 60) record.holdBucket = 'short_swing';
+        else if (holdMin < 240) record.holdBucket = 'swing';
+        else record.holdBucket = 'position';
+
+        // Confidence tier
+        const conf = record.confidence || 0;
+        if (conf < 0.30) record.confidenceTier = 'low';
+        else if (conf < 0.55) record.confidenceTier = 'medium';
+        else if (conf < 0.75) record.confidenceTier = 'high';
+        else record.confidenceTier = 'very_high';
+
+        // Symbol (stamped explicitly so harvester doesn't need env-context)
+        record.symbol = trade.symbol || process.env.TRADING_PAIR || 'unknown';
+
+        // P&L per share (for TTP 10-cent rule checking)
+        record.pnlPerShare = record.size > 0
+            ? record.netPnlDollars / record.size
+            : 0;
+
+        // Exit type normalization
+        const er = (record.exitReason || '').toLowerCase();
+        if (er.includes('stop_loss') || er.includes('stoploss')) record.exitType = 'stop_loss';
+        else if (er.includes('take_profit') || er.includes('tier')) record.exitType = 'take_profit';
+        else if (er.includes('trailing')) record.exitType = 'trailing_stop';
+        else if (er.includes('max_hold')) record.exitType = 'max_hold';
+        else if (er.includes('break_even')) record.exitType = 'break_even';
+        else record.exitType = er || 'unknown';
+
+        // Indicator state at entry (passed from TradingLoop in CC-A Change 2;
+        // null-propagate when not yet wired so the field is present for the
+        // pattern-pack harvester even on legacy records).
+        record.atrAtEntry = trade.atrAtEntry ?? trade.signalDetails?.atr ?? null;
+        record.regimeAtEntry = trade.regimeAtEntry ?? trade.signalDetails?.regime ?? null;
+        record.rsiAtEntry = trade.rsiAtEntry ?? trade.signalDetails?.rsi ?? null;
+
         this.trades.push(record);
 
         // Log running balance
@@ -147,7 +228,19 @@ class BacktestRecorder {
             'confidence',
             'exit_reason',
             'balance_after',
-            'hold_time_minutes'
+            'hold_time_minutes',
+            // CC-A: pattern-pack dimensions
+            'day_of_week',
+            'hour_et',
+            'session',
+            'hold_bucket',
+            'confidence_tier',
+            'symbol',
+            'pnl_per_share',
+            'exit_type',
+            'atr_at_entry',
+            'regime_at_entry',
+            'rsi_at_entry'
         ];
 
         const rows = this.trades.map(t => [
@@ -167,7 +260,19 @@ class BacktestRecorder {
             t.confidence.toFixed(1),
             t.exitReason,
             t.balanceAfter.toFixed(2),
-            t.holdTimeMinutes.toFixed(1)
+            t.holdTimeMinutes.toFixed(1),
+            // CC-A: pattern-pack dimensions
+            t.dayOfWeek ?? '',
+            t.hourET ?? '',
+            t.session ?? '',
+            t.holdBucket ?? '',
+            t.confidenceTier ?? '',
+            t.symbol ?? '',
+            t.pnlPerShare != null ? t.pnlPerShare.toFixed(4) : '',
+            t.exitType ?? '',
+            t.atrAtEntry != null ? t.atrAtEntry : '',
+            t.regimeAtEntry ?? '',
+            t.rsiAtEntry != null ? t.rsiAtEntry : ''
         ]);
 
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
