@@ -506,16 +506,16 @@ class TradingLoop {
     // Regime
     const _regimeDetector = new RegimeDetector();
     const regimeResult = _regimeDetector.detect(indicators, this.ctx.priceHistory);
-    // MED-09: warn when RegimeDetector returns no .regime field. Downstream
-    // 9+ sites silently default to 'unknown' (dashboard, boosting, ledger,
-    // trade journal). Single source warn covers them all. Detector contract
-    // violation worth surfacing.
+    // MED-09: trust RegimeDetector's contract — every return path
+    // (RegimeDetector.js:65, 91, 231, 239, 247, 254) supplies a .regime field.
+    // Soft-warn + || 'unknown' fallback was dead defense. Throw if the
+    // contract is genuinely broken instead of silently masking.
     if (!regimeResult.regime) {
-      console.warn(`[MED-09] RegimeDetector.detect returned no .regime field — 9+ downstream consumers will default to 'unknown' (dashboard regime panel, regime-based boost lookups, trade journal regime tag, ledger regime attribution)`);
+      throw new Error(`[MED-09] RegimeDetector.detect returned no .regime field — detector contract violation`);
     }
     const regime = {
-      currentRegime: regimeResult.regime || 'unknown',
-      confidence: regimeResult.confidence || 0,
+      currentRegime: regimeResult.regime,
+      confidence: regimeResult.confidence,
       parameters: regimeResult.details || {}
     };
     this.ctx.marketRegime = regime;
