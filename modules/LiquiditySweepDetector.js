@@ -219,10 +219,17 @@ class LiquiditySweepDetector {
     const candleOpen = o(openingCandle);
     const candleClose = c(openingCandle);
     const range = candleHigh - candleLow;
-    const threshold = this.state.dailyATR ? this.config.atrMultiplier * this.state.dailyATR : null;
-    // STRIPPED: ATR check removed - platform handles filtering
-    // const isManipCandle = threshold === null ? true : range >= threshold;
-    const isManipCandle = true;  // Always proceed - let platform filter
+    // MOD-HIGH-02: gate isManipCandle on finite ATR. Old `isManipCandle = true`
+    // (always) bypassed the ATR-based manipulation filter entirely, letting
+    // CRIT-09/CRIT-10 carry the only volatility gate. Now: when dailyATR is
+    // missing (warmup), skip detection by ending the phase. When present,
+    // require range >= atrMultiplier * dailyATR to qualify as a manip candle.
+    if (!Number.isFinite(this.state.dailyATR) || this.state.dailyATR <= 0) {
+      this.state.phase = 'done';
+      return;
+    }
+    const threshold = this.config.atrMultiplier * this.state.dailyATR;
+    const isManipCandle = range >= threshold;
     this.stats.totalSessionsAnalyzed++;
     this.state.box = {
       high: candleHigh, low: candleLow, range, open: candleOpen, close: candleClose,
