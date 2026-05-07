@@ -31,16 +31,19 @@ class AlpacaAdapter extends IBrokerAdapter {
             this.baseUrl = 'https://api.alpaca.markets';
             this.dataUrl = 'https://data.alpaca.markets';
             this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
+            this.accountStreamUrl = 'wss://api.alpaca.markets/stream';
             console.log('[Alpaca] LIVE MODE - real money at risk');
         } else {
             this.baseUrl = 'https://paper-api.alpaca.markets';
             this.dataUrl = 'https://data.alpaca.markets'; // Data API is same for paper
             this.wsUrl = 'wss://stream.data.alpaca.markets/v2/iex';
+            this.accountStreamUrl = 'wss://paper-api.alpaca.markets/stream';
             console.log('[Alpaca] Paper trading mode');
         }
 
         this.connected = false;
         this.ws = null;
+        this.accountWs = null;
         this.subscriptions = new Map();
     }
 
@@ -429,11 +432,69 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     subscribeToAccount(callback) {
-        // Alpaca account updates come via a separate trading stream
-        // wss://paper-api.alpaca.markets/stream or wss://api.alpaca.markets/stream
-        // For now, store the callback — full implementation in next commit
+        // ALPACA-HIGH-01: wire account-stream WebSocket. Alpaca trading-stream
+        // connection is separate from the data-stream (data WS is at line 542).
+        // Authenticates with same key/secret, then `listen` for trade_updates +
+        // account_updates. Callback fires on every account-update message with
+        // the new equity/buying-power/cash so StateManager.balance reconciles
+        // from broker truth instead of staying at the locally-cached value.
         this.subscriptions.set('account', callback);
-        console.log('[Alpaca] Account stream subscription stored - wire in next commit');
+
+        if (this.accountWs && this.accountWs.readyState === WebSocket.OPEN) {
+            return;
+        }
+
+        this.accountWs = new WebSocket(this.accountStreamUrl);
+
+        this.accountWs.on('open', () => {
+            console.log('[Alpaca] Account stream connected:', this.accountStreamUrl);
+            this.accountWs.send(JSON.stringify({
+                action: 'authenticate',
+                data: { key_id: this.apiKey, secret_key: this.apiSecret }
+            }));
+        });
+
+        this.accountWs.on('message', (data) => {
+            try {
+                const msg = JSON.parse(data.toString());
+                if (msg.stream === 'authorization' && msg.data?.status === 'authorized') {
+                    console.log('[Alpaca] Account stream authenticated — subscribing to account_updates + trade_updates');
+                    this.accountWs.send(JSON.stringify({
+                        action: 'listen',
+                        data: { streams: ['account_updates', 'trade_updates'] }
+                    }));
+                    return;
+                }
+                if (msg.stream === 'authorization' && msg.data?.status !== 'authorized') {
+                    console.error('[Alpaca] Account stream auth failed:', msg.data);
+                    return;
+                }
+                if (msg.stream === 'account_updates' && msg.data) {
+                    const cb = this.subscriptions.get('account');
+                    if (cb) cb({
+                        equity: parseFloat(msg.data.equity),
+                        buyingPower: parseFloat(msg.data.buying_power),
+                        cash: parseFloat(msg.data.cash),
+                        rawEvent: msg.data
+                    });
+                }
+                if (msg.stream === 'trade_updates' && msg.data) {
+                    const cb = this.subscriptions.get('account');
+                    if (cb) cb({ tradeUpdate: msg.data, event: msg.data.event });
+                }
+            } catch (err) {
+                console.error('[Alpaca] Account stream parse error:', err.message);
+            }
+        });
+
+        this.accountWs.on('error', (err) => {
+            console.error('[Alpaca] Account stream error:', err.message);
+        });
+
+        this.accountWs.on('close', () => {
+            console.log('[Alpaca] Account stream disconnected');
+            this.accountWs = null;
+        });
     }
 
     unsubscribeAll() {
