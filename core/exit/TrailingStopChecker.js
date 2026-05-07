@@ -64,7 +64,9 @@ class TrailingStopChecker {
     const trailTrigger = breakEvenTriggered ? 0 : contract.trailingStopPercent;
     if (trade.maxProfitPercent >= trailTrigger) {
       const trailStop = trade.maxProfitPercent - contract.trailingStopPercent;
-      if (pnlPercent <= trailStop && trailStop > effectiveStop) {
+      // effectiveStop may be null when contract has no stop (stopLossPercent=0/null);
+      // in that case the trailing stop is the only floor and should bind without a SL guard.
+      if (pnlPercent <= trailStop && (effectiveStop == null || trailStop > effectiveStop)) {
         return {
           shouldExit: true,
           exitReason: 'trailing_stop',

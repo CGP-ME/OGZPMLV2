@@ -45,6 +45,17 @@ class BreakEvenManager {
       };
     }
 
+    // Explicit zero means "no stop" — same semantics as null/undefined.
+    // Without this, riskAmount=0 makes (maxProfit >= 0) true on the first tick,
+    // dragging every "no-stop" trade into break-even-stop instantly.
+    if (stopLossPercent === 0) {
+      return {
+        isBreakEven: false,
+        effectiveStopPercent: null,
+        reason: 'no_stop_contract'
+      };
+    }
+
     const riskAmount = Math.abs(stopLossPercent);
     const maxProfit = trade.maxProfitPercent || 0;
 

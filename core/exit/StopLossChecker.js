@@ -63,7 +63,9 @@ class StopLossChecker {
     }
 
     // === STRATEGY STOP LOSS (with break-even via BreakEvenManager) ===
-    if (contract.stopLossPercent !== undefined) {
+    // Skip entire block for "no stop" contracts (null/undefined/0) — BreakEvenManager
+    // returns effectiveStopPercent: null in those cases and downstream .toFixed crashes.
+    if (contract.stopLossPercent != null && contract.stopLossPercent !== 0) {
       // Phase 11: Query BreakEvenManager instead of inline computation
       const beState = this.breakEvenManager.evaluate(trade);
       const effectiveStop = beState.effectiveStopPercent;
