@@ -614,22 +614,21 @@ class TradeIntelligenceEngine extends EventEmitter {
         const result = { score: 0, signals: [], highRisk: false };
 
         try {
-            // Current drawdown
-            // HIGH-18: `|| 0` masked missing drawdown; the gate `drawdown > 5`
-            // never fires when missing → high-drawdown risk signal silently
-            // suppressed. Surface missing as warn so the silent-bypass is
-            // observable.
-            if (!Number.isFinite(context.currentDrawdown)) {
-                console.warn('[HIGH-18] context.currentDrawdown missing — drawdown risk signal will not fire this evaluation');
-            }
-            const drawdown = context.currentDrawdown ?? 0;
-            if (drawdown > 5) {
-                result.signals.push({ type: 'HIGH_DRAWDOWN', value: drawdown });
-                result.score -= 20;
-                result.highRisk = true;
-            } else if (drawdown > 2) {
-                result.signals.push({ type: 'MODERATE_DRAWDOWN', value: drawdown });
-                result.score -= 10;
+            // Current drawdown — only evaluate if available.
+            // HIGH-22 (was mislabeled HIGH-18 in soft-warn batch):
+            // `currentDrawdown ?? 0` substituted phantom 0 for missing data,
+            // suppressing the high-drawdown signal silently (gate is > 5).
+            // Now: skip the drawdown signal entirely if missing.
+            if (Number.isFinite(context.currentDrawdown)) {
+                const drawdown = context.currentDrawdown;
+                if (drawdown > 5) {
+                    result.signals.push({ type: 'HIGH_DRAWDOWN', value: drawdown });
+                    result.score -= 20;
+                    result.highRisk = true;
+                } else if (drawdown > 2) {
+                    result.signals.push({ type: 'MODERATE_DRAWDOWN', value: drawdown });
+                    result.score -= 10;
+                }
             }
 
             // HIGH-19/20/21: same-function risk-context fallbacks. `|| 0`
