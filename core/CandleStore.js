@@ -260,8 +260,16 @@ class CandleStore {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Load candle history from disk
-   * Filters out candles older than maxAge (default 4 hours)
+   * Load candle history from disk (symbol-keyed v2 schema).
+   *
+   * File shape:
+   *   { schemaVersion: 2, savedAt, unit: "ms",
+   *     candles: { "TSLA__1m": [...], "BTC-USD__1m": [...] } }
+   *
+   * Only hydrates candles for the requested symbol+timeframe slot.
+   * Rejects v1 (flat array) and any other unrecognised shape with a warning;
+   * data is not migrated — the bot starts fresh and the file gets rewritten
+   * as v2 on the next save. Filters stale candles older than maxAge (default 4h).
    */
   loadFromDisk(filePath, symbol, timeframe, maxAgeMs = 4 * 60 * 60 * 1000) {
     const fs = require('fs');
@@ -271,12 +279,32 @@ class CandleStore {
         return 0;
       }
       const saved = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      if (!Array.isArray(saved) || saved.length === 0) return 0;
+
+      // Reject v1 (flat array) — data is suspect by definition (mixed-symbol
+      // contamination is the failure mode this v2 rewrite addresses).
+      if (Array.isArray(saved)) {
+        console.warn('[CandleStore] Rejecting v1 (flat array) candle file — starting fresh, will rewrite as v2 on next save');
+        return 0;
+      }
+
+      // Reject any non-v2 object shape.
+      if (!saved || typeof saved !== 'object' || saved.schemaVersion !== 2 || !saved.candles || typeof saved.candles !== 'object') {
+        console.warn(`[CandleStore] Rejecting candle file — unrecognised shape (schemaVersion=${saved?.schemaVersion}); starting fresh`);
+        return 0;
+      }
+
+      const slotKey = `${symbol}__${timeframe}`;
+      const slotCandles = saved.candles[slotKey];
+      if (!Array.isArray(slotCandles) || slotCandles.length === 0) {
+        // File is valid v2 but has no data for THIS slot. Other slots remain
+        // intact on disk and untouched by this load.
+        return 0;
+      }
 
       const cutoff = Date.now() - maxAgeMs;
-      const fresh = saved.filter(c => _t(c) > cutoff);
+      const fresh = slotCandles.filter(c => _t(c) > cutoff);
       this.addCandles(symbol, timeframe, fresh);
-      console.log(`[CandleStore] Loaded ${fresh.length} candles (filtered from ${saved.length})`);
+      console.log(`[CandleStore] Loaded ${fresh.length} candles for ${slotKey} (filtered from ${slotCandles.length})`);
       return fresh.length;
     } catch (error) {
       console.error('[CandleStore] Failed to load:', error.message);
@@ -285,15 +313,52 @@ class CandleStore {
   }
 
   /**
-   * Save candle history to disk
-   * Saves the most recent N candles (default 200)
+   * Save candle history to disk (symbol-keyed v2 schema).
+   *
+   * Read-modify-write: read existing file, replace ONLY the active
+   * symbol+timeframe slot, write back atomically. Other symbols' slots are
+   * preserved verbatim — supports SessionRouter / multi-asset hand-offs
+   * without clobbering off-venue caches.
+   *
+   * Saves the most recent N candles (default 200) for the active slot.
+   * Sync I/O + writeJsonCompactAtomic = the entire read-modify-write
+   * sequence is serialised by Node's single-threaded execution and
+   * survives crashes via tmp+rename atomicity.
    */
   saveToDisk(filePath, symbol, timeframe, maxCandles = 200) {
     try {
+      const fs = require('fs');
       const candles = this.getCandles(symbol, timeframe, maxCandles);
-      // Atomic write — partial candle files corrupt the historical record (Mercury Vector 6)
+      const slotKey = `${symbol}__${timeframe}`;
+
+      // Read existing v2 container if present; otherwise start a fresh one.
+      // Anything that's not a valid v2 object (missing, corrupt, v1 array)
+      // gets replaced — the v2 rewrite is allowed to clobber suspect files.
+      let container = null;
+      if (fs.existsSync(filePath)) {
+        try {
+          const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.schemaVersion === 2 && parsed.candles && typeof parsed.candles === 'object') {
+            container = parsed;
+          }
+        } catch (_e) { /* fall through to fresh container */ }
+      }
+      if (!container) {
+        container = { schemaVersion: 2, savedAt: 0, unit: 'ms', candles: {} };
+      }
+
+      // Replace the active slot ONLY when we have candles to write. If the
+      // in-memory store is empty (cold start before any candle arrives, or
+      // post-clear) we'd otherwise erase prior persisted data for this slot.
+      // Mercury attack 2026-05-07 Finding 3.
+      if (candles.length > 0) {
+        container.candles[slotKey] = candles;
+      }
+      container.savedAt = Date.now();
+      container.unit = 'ms';
+
       const { writeJsonCompactAtomic } = require('./AtomicWrite');
-      writeJsonCompactAtomic(filePath, candles);
+      writeJsonCompactAtomic(filePath, container);
     } catch (error) {
       console.error('[CandleStore] Failed to save:', error.message);
     }

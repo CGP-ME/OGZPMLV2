@@ -1,0 +1,436 @@
+/**
+ * chain-of-thought.css — ChainOfThought Panel Styling
+ *
+ * Styles for the streaming reasoning ribbon that displays real-time bot
+ * decision narration. Complementary to TRAIBrain (current thinking) —
+ * ChainOfThought is the historical decision stream.
+ *
+ * All classes prefixed `cot-` for namespace isolation.
+ * Uses theme variables only (no magic colors).
+ * Glass-box treatment matching PatternCard, TRAIBrain, OpenPositions.
+ *
+ * Layout: vertical scroll with mask-gradient fading older lines at top.
+ * Lines stream in with subtle typewriter animation.
+ * Hover to pause auto-scroll.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────
+   CONTAINER & LAYOUT
+   ───────────────────────────────────────────────────────────────────── */
+
+#chainOfThought {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 140px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    backdrop-filter: blur(12px) saturate(140%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 0 1px var(--glass-border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   HEADER
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--glass-border);
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.cot-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+.cot-status {
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.2s ease;
+}
+
+.cot-status.paused {
+    color: var(--loss-color);
+    font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   CONTENT AREA (SCROLLABLE)
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 10px;
+    min-height: 0;
+    position: relative;
+
+    /* Gradient mask: fade older lines at top */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 12%,
+        black 20%,
+        black 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 12%,
+        black 20%,
+        black 100%
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   INDIVIDUAL REASONING LINES
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    background: transparent;
+    border-left: 2px solid transparent;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    animation: cot-line-enter 0.3s ease-out;
+    min-height: 18px;
+    word-break: break-word;
+}
+
+/* Enter animation for new lines */
+@keyframes cot-line-enter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.cot-line:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-left-color: var(--ml-color);
+}
+
+/* Timestamp column */
+.cot-time {
+    font-size: 9px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    flex-shrink: 0;
+    min-width: 75px;
+    font-feature-settings: 'tnum';
+}
+
+/* Text content */
+.cot-text {
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 10px;
+    line-height: 1.4;
+    min-width: 0;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* Typewriter animation: character reveal */
+.cot-text.typewriter {
+    animation: cot-typewriter 0.4s steps(60, end) 1;
+    overflow: hidden;
+    white-space: pre-wrap;
+    text-overflow: clip;
+}
+
+@keyframes cot-typewriter {
+    from {
+        max-width: 0;
+        opacity: 0.3;
+    }
+    to {
+        max-width: 100%;
+        opacity: 1;
+    }
+}
+
+/* After typewriter animation completes, show full width */
+.cot-text.typewriter:not(:only-child) {
+    animation-delay: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   PILLS (SYMBOL & CONFIDENCE)
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--ml-color);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.cot-pill:hover {
+    background: rgba(255, 215, 0, 0.18);
+    border-color: rgba(255, 215, 0, 0.5);
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.15);
+}
+
+/* Confidence pill */
+.cot-confidence {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 10px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--profit-color);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.cot-confidence:hover {
+    background: rgba(0, 255, 136, 0.18);
+    border-color: rgba(0, 255, 136, 0.5);
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   LINE TYPES (INFO, DECISION, WARNING, EXECUTION)
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Info lines (default) */
+.cot-line.info {
+    border-left-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.cot-line.info .cot-text {
+    color: var(--text-secondary);
+}
+
+/* Decision lines (strategy, logic, analysis) */
+.cot-line.decision {
+    border-left-color: var(--ml-color);
+    color: var(--text-primary);
+    background: rgba(255, 215, 0, 0.05);
+}
+
+.cot-line.decision .cot-text {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.cot-line.decision .cot-time {
+    color: var(--ml-color);
+    opacity: 0.9;
+}
+
+/* Warning lines (risk, threshold, alert) */
+.cot-line.warning {
+    border-left-color: var(--loss-color);
+    background: rgba(255, 51, 102, 0.05);
+}
+
+.cot-line.warning .cot-text {
+    color: var(--loss-color);
+    font-weight: 500;
+}
+
+.cot-line.warning .cot-time {
+    color: var(--loss-color);
+    opacity: 0.9;
+}
+
+/* Execution lines (trade entry, order placement) */
+.cot-line.execution {
+    border-left-color: var(--profit-color);
+    background: rgba(0, 255, 136, 0.05);
+}
+
+.cot-line.execution .cot-text {
+    color: var(--profit-color);
+    font-weight: 500;
+}
+
+.cot-line.execution .cot-time {
+    color: var(--profit-color);
+    opacity: 0.9;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   EMPTY STATE / PLACEHOLDER
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 300;
+    text-align: center;
+    padding: 8px;
+    animation: cot-pulse 2s ease-in-out infinite;
+    opacity: 0.5;
+}
+
+@keyframes cot-pulse {
+    0%, 100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   SCOPE DIVIDER (TICKER CHANGE)
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin: 4px 0;
+    border: none;
+    border-top: 1px dashed rgba(255, 215, 0, 0.3);
+    border-bottom: 1px dashed rgba(255, 215, 0, 0.15);
+    font-size: 8px;
+    color: var(--ml-color);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   SCROLLBAR STYLING
+   ───────────────────────────────────────────────────────────────────── */
+
+.cot-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.cot-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.cot-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.2);
+    border-radius: 2px;
+}
+
+.cot-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.4);
+}
+
+/* Firefox scrollbar */
+.cot-content {
+    scrollbar-color: rgba(255, 215, 0, 0.2) transparent;
+    scrollbar-width: thin;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   ACCESSIBILITY & MOTION
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .cot-line,
+    .cot-text.typewriter,
+    .cot-placeholder,
+    .cot-status,
+    .cot-line:hover,
+    .cot-pill:hover,
+    .cot-confidence:hover {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   RESPONSIVE & DARK MODE
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+    #chainOfThought {
+        color-scheme: dark;
+    }
+}
+
+/* Mobile-friendly stacking (if needed) */
+@media (max-width: 768px) {
+    #chainOfThought {
+        height: 120px;
+        font-size: 10px;
+    }
+
+    .cot-line {
+        gap: 4px;
+        padding: 3px 4px;
+        min-height: 16px;
+    }
+
+    .cot-time {
+        font-size: 8px;
+        min-width: 65px;
+    }
+
+    .cot-text {
+        font-size: 9px;
+    }
+
+    .cot-pill,
+    .cot-confidence {
+        font-size: 7px;
+        padding: 1px 4px;
+    }
+}

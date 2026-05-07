@@ -1,0 +1,413 @@
+/**
+ * system-health.css — SystemHealth Footer-Right Operator Health Strip
+ *
+ * Compact monospace horizontal strip displaying system health metrics:
+ * SessionRouter state, broker WS status, error count, uptime, last crash,
+ * risk posture, and commit hash.
+ *
+ * All classes prefixed sh- for scoping.
+ * Uses CSS theme variables exclusively (--text-primary, --profit-color, etc).
+ * Single-row layout with pill-style segments and separator dividers.
+ * Responsive: graceful degradation on narrow screens (wrap to 2 rows).
+ *
+ * @module public/css/panels/system-health
+ */
+
+/* ────────────────────────────────────────────────────────────────────────
+   ROOT CONTAINER
+   ──────────────────────────────────────────────────────────────────────── */
+
+#systemHealth {
+    background: var(--glass-bg, rgba(15, 15, 18, 0.55));
+    border: 1px solid var(--glass-border, rgba(255, 215, 0, 0.18));
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-primary, #ffffff);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 32px;
+    min-height: 32px;
+    flex-shrink: 0;
+    box-shadow: var(--glass-underglow, 0 6px 24px -8px rgba(255, 215, 0, 0.25), 0 1px 0 0 rgba(255, 215, 0, 0.08) inset);
+    backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SEGMENT PILLS
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-segment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+    transition: all 120ms ease;
+}
+
+.sh-segment:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    cursor: help;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SEPARATORS
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-separator {
+    color: rgba(255, 255, 255, 0.2);
+    margin: 0 2px;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TEXT STYLES
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-label {
+    color: var(--text-secondary, #a0a0a0);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 8px;
+    margin-right: 2px;
+}
+
+.sh-value {
+    color: var(--text-primary, #ffffff);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   STATUS INDICATORS
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-indicator {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 1px;
+    user-select: none;
+}
+
+.sh-indicator.ok {
+    color: var(--profit-color, #00ff88);
+    text-shadow: 0 0 4px rgba(0, 255, 136, 0.3);
+}
+
+.sh-indicator.fail {
+    color: var(--loss-color, #ff3366);
+    text-shadow: 0 0 4px rgba(255, 51, 102, 0.3);
+}
+
+.sh-indicator.warn {
+    color: var(--ml-color, #ffd700);
+    text-shadow: 0 0 4px rgba(255, 215, 0, 0.2);
+}
+
+.sh-indicator.muted {
+    color: var(--neutral-color, #8b8b8b);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   ERROR COUNT
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-error-count {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.sh-error-count.ok {
+    color: var(--profit-color, #00ff88);
+}
+
+.sh-error-count.alert {
+    color: var(--loss-color, #ff3366);
+    animation: sh-error-pulse 1s ease-in-out infinite;
+}
+
+@keyframes sh-error-pulse {
+    0%, 100% {
+        opacity: 1;
+        text-shadow: none;
+    }
+    50% {
+        opacity: 0.7;
+        text-shadow: 0 0 6px rgba(255, 51, 102, 0.5);
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   UPTIME
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-uptime {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary, #ffffff);
+    letter-spacing: 0.2px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   LAST CRASH TIME
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-crash-time {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.sh-crash-time.never {
+    color: var(--ml-color, #ffd700);
+    text-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+}
+
+.sh-crash-time.ago {
+    color: var(--text-primary, #ffffff);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   RISK POSTURE
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-posture {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.sh-posture.armed {
+    color: var(--ml-color, #ffd700);
+    animation: sh-armed-pulse 1.5s ease-in-out infinite;
+}
+
+.sh-posture.degraded {
+    color: var(--loss-color, #ff3366);
+    animation: sh-degrade-pulse 0.8s ease-in-out infinite;
+}
+
+.sh-posture.unknown {
+    color: var(--neutral-color, #8b8b8b);
+}
+
+@keyframes sh-armed-pulse {
+    0%, 100% {
+        opacity: 0.8;
+        text-shadow: none;
+    }
+    50% {
+        opacity: 1;
+        text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    }
+}
+
+@keyframes sh-degrade-pulse {
+    0%, 100% {
+        opacity: 1;
+        text-shadow: none;
+    }
+    50% {
+        opacity: 0.6;
+        text-shadow: 0 0 6px rgba(255, 51, 102, 0.5);
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   COMMIT HASH
+   ──────────────────────────────────────────────────────────────────────── */
+
+.sh-commit {
+    font-family: 'Courier New', monospace;
+    color: var(--text-secondary, #a0a0a0);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    font-size: 9px;
+}
+
+.sh-commit.unknown {
+    color: var(--neutral-color, #8b8b8b);
+    font-style: italic;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SCROLLBAR (auto-overflow on narrow)
+   ──────────────────────────────────────────────────────────────────────── */
+
+#systemHealth::-webkit-scrollbar {
+    height: 4px;
+}
+
+#systemHealth::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#systemHealth::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.2);
+    border-radius: 2px;
+}
+
+#systemHealth::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.4);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   RESPONSIVE: TABLET & MOBILE
+   ──────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1400px) {
+    #systemHealth {
+        font-size: 9px;
+        padding: 7px 10px;
+        height: 30px;
+        min-height: 30px;
+    }
+
+    .sh-segment {
+        padding: 3px 6px;
+        gap: 5px;
+    }
+
+    .sh-label {
+        font-size: 7px;
+        letter-spacing: 0.4px;
+    }
+
+    .sh-separator {
+        margin: 0 1px;
+    }
+}
+
+@media (max-width: 1000px) {
+    #systemHealth {
+        font-size: 8px;
+        padding: 6px 8px;
+        height: 28px;
+        min-height: 28px;
+    }
+
+    .sh-segment {
+        padding: 2px 5px;
+        gap: 4px;
+    }
+
+    .sh-label {
+        font-size: 7px;
+    }
+
+    .sh-indicator {
+        font-size: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    #systemHealth {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: auto;
+        padding: 4px 6px;
+        gap: 2px;
+    }
+
+    .sh-segment {
+        padding: 2px 4px;
+        font-size: 7px;
+    }
+
+    .sh-label {
+        font-size: 6px;
+    }
+
+    .sh-separator {
+        margin: 0;
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   DARK MODE & CONTRAST (future theme support)
+   ──────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+    #systemHealth {
+        border-color: var(--glass-border, rgba(255, 215, 0, 0.12));
+    }
+
+    .sh-segment {
+        background: rgba(255, 255, 255, 0.01);
+        border-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .sh-segment:hover {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.06);
+    }
+}
+
+@media (prefers-contrast: more) {
+    .sh-indicator.ok {
+        text-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
+    }
+
+    .sh-indicator.fail {
+        text-shadow: 0 0 6px rgba(255, 51, 102, 0.6);
+    }
+
+    .sh-posture.armed {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   ACCESSIBILITY: FOCUS STATES
+   ──────────────────────────────────────────────────────────────────────── */
+
+#systemHealth {
+    outline: none;
+}
+
+.sh-segment:focus-visible {
+    outline: 1px solid rgba(255, 215, 0, 0.5);
+    outline-offset: 2px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   ANIMATION: GLITCH (optional theme override)
+   ──────────────────────────────────────────────────────────────────────── */
+
+body.visual-mode #systemHealth {
+    animation: sh-glitch-scan 4s linear infinite;
+}
+
+@keyframes sh-glitch-scan {
+    0% {
+        text-shadow: none;
+    }
+    25% {
+        text-shadow: 1px 0 0 rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        text-shadow: none;
+    }
+    75% {
+        text-shadow: -1px 0 0 rgba(255, 215, 0, 0.3);
+    }
+    100% {
+        text-shadow: none;
+    }
+}
