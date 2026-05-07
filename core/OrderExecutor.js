@@ -193,7 +193,7 @@ class OrderExecutor {
           orderId: tradeResult.orderId || `SIM_${Date.now()}`,
           action: decision.action,
           entryPrice: price,
-          entryTime: this.ctx.marketData?.timestamp || Date.now(),
+          entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
           size: positionSize,
           confidence: decision.confidence,
           // CHANGE 648: Store full pattern objects with signatures for learning
@@ -327,7 +327,7 @@ class OrderExecutor {
             confidence: decision.confidence,
             patterns: patterns || [],
             entryIndicators: indicators,
-            entryTime: this.ctx.marketData?.timestamp || Date.now(),
+            entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
             signalBreakdown: orchResult?.signalBreakdown || null,
             bullishScore: orchResult?.bullishScore || 0,
             bearishScore: orchResult?.bearishScore || 0,
@@ -385,7 +385,7 @@ class OrderExecutor {
               size: positionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
-              entryTime: this.ctx.marketData?.timestamp || Date.now()
+              entryTime: this.ctx.marketData?.timestamp ?? Date.now()
             });
 
             if (this.ctx.patternExitShadowMode) {
@@ -484,7 +484,7 @@ class OrderExecutor {
             action: 'SELL_SHORT',
             patterns: patterns || [],
             entryIndicators: indicators,
-            entryTime: this.ctx.marketData?.timestamp || Date.now(),
+            entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
             signalBreakdown: orchResult?.signalBreakdown || null,
             bullishScore: orchResult?.bullishScore || 0,
             bearishScore: orchResult?.bearishScore || 0,
@@ -534,7 +534,7 @@ class OrderExecutor {
               size: positionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
-              entryTime: this.ctx.marketData?.timestamp || Date.now()
+              entryTime: this.ctx.marketData?.timestamp ?? Date.now()
             });
 
             if (this.ctx.patternExitShadowMode) {
