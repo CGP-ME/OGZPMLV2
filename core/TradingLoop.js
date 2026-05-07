@@ -488,14 +488,13 @@ class TradingLoop {
     if (patterns.length > 0 && !this.ctx.backtestFast) {
       const telemetry = require('./Telemetry').getTelemetry();
       patterns.forEach(pattern => {
-        // MED-08: warn when pattern has neither .signature nor .name. Generic
-        // 'unknown_pattern' fallback collides every nameless pattern into one
-        // bucket — analytics meaningless. Detector contract violation worth
-        // surfacing.
-        if (!pattern.signature && !pattern.name) {
-          console.warn(`[MED-08] pattern_detected emitted with no .signature AND no .name (type=${pattern.type}) — telemetry will record as 'unknown_pattern', collapsing all nameless patterns into one analytics bucket`);
+        // MED-08: skip telemetry record for nameless patterns instead of
+        // collapsing them all into 'unknown_pattern' bucket. Detector contract
+        // requires .signature OR .name; refuse to bucket-hash without either.
+        const signature = pattern.signature || pattern.name;
+        if (!signature) {
+          return;
         }
-        const signature = pattern.signature || pattern.name || 'unknown_pattern';
         if (!Array.isArray(pattern.features)) {
           pattern.features = FeatureExtractor.extractArray({ indicators, candles: this.ctx.priceHistory });
         }
