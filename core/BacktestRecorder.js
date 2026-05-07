@@ -45,19 +45,19 @@ class BacktestRecorder {
         const totalFees = entryFee + exitFee;
 
         // Calculate raw P&L using percentage-based math
-        // MED-14: warn when entryPrice non-positive — backtest recorder
-        // logs $0 P&L for the trade silently. Same bug class as MED-02
-        // at OrderExecutor; this is the BacktestRecorder symmetric site.
+        // MED-14: throw on non-positive entryPrice instead of logging \$0 P&L.
+        // Same halt-class as MED-02 in OrderExecutor. Refuses to record a
+        // phantom flat trade that would corrupt win-rate stats downstream.
         if (!(entryPrice > 0)) {
-            console.warn(`[MED-14] BacktestRecorder.recordTrade: entryPrice non-positive (got ${entryPrice}, direction=${trade.direction}) — pnlDollars defaults to 0; trade silently logged as flat`);
+            throw new Error(`[MED-14] BacktestRecorder.recordTrade: entryPrice non-positive (got ${entryPrice}, direction=${trade.direction}) — refusing to log phantom \$0 P&L`);
         }
         let rawPnlDollars;
         if (trade.direction === 'long' || trade.direction === 'buy') {
             // Long: profit when price goes UP
-            rawPnlDollars = entryPrice > 0 ? positionSizeUsd * ((exitPrice - entryPrice) / entryPrice) : 0;
+            rawPnlDollars = positionSizeUsd * ((exitPrice - entryPrice) / entryPrice);
         } else {
             // Short: profit when price goes DOWN
-            rawPnlDollars = entryPrice > 0 ? positionSizeUsd * ((entryPrice - exitPrice) / entryPrice) : 0;
+            rawPnlDollars = positionSizeUsd * ((entryPrice - exitPrice) / entryPrice);
         }
 
         // Net P&L after fees
