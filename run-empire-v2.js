@@ -250,8 +250,12 @@ const MessageQueue = require('./core/MessageQueue');
 
 // CHANGE 2025-12-23: Empire V2 IndicatorEngine - Single source of truth for indicators
 const IndicatorEngine = require('./core/indicators/IndicatorEngine');
+const _indicatorEngineSymbol = resolvedConfig.config.broker.tradingPair;
+if (!_indicatorEngineSymbol) {
+  throw new Error('[RUN-HIGH-01] IndicatorEngine init requires resolvedConfig.config.broker.tradingPair — refusing to default to BTC-USD');
+}
 const indicatorEngine = new IndicatorEngine({
-  symbol: 'BTC-USD',
+  symbol: _indicatorEngineSymbol,
   tf: '1m',
   ogzTpoEnabled: true
 });
