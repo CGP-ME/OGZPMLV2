@@ -289,9 +289,11 @@ class ExitContractManager {
     // FIX 2026-02-21: Raised threshold from 2.0 to 5.0 for 1-minute data
     // On 1m candles, volatility 2.0 is normal - only widen on extreme vol
     // FIX 2026-03-19: Extracted hardcoded values to TradingConfig
-    const volThreshold = TradingConfig.get('exits.volatilityThreshold') || 5.0;
-    const volSlMult = TradingConfig.get('exits.volatilitySlMultiplier') || 1.15;
-    const volTpMult = TradingConfig.get('exits.volatilityTpMultiplier') || 1.20;
+    // EXIT-MED-02: ?? preserves intentional zero on these thresholds (e.g.,
+    // a 0 volSlMult means "no vol-based SL widening"). || coerced 0 to default.
+    const volThreshold = TradingConfig.get('exits.volatilityThreshold') ?? 5.0;
+    const volSlMult = TradingConfig.get('exits.volatilitySlMultiplier') ?? 1.15;
+    const volTpMult = TradingConfig.get('exits.volatilityTpMultiplier') ?? 1.20;
     if (context.volatility && context.volatility > volThreshold) {
       // High volatility - widen stops
       contract.stopLossPercent *= volSlMult;
