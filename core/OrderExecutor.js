@@ -794,53 +794,20 @@ class OrderExecutor {
               const pattern = buyTrade.patterns?.[0]; // Primary pattern object (may be undefined)
               const patternName = pattern?.name || buyTrade.entryStrategy || 'unknown';
 
-              // CRITICAL: Ensure features is an array - try pattern.features first, fallback to reconstruction
-              let featuresForRecording;
+              // HIGH-09/10/11/12: pattern feature recording — only on clean features.
+              // Old code fabricated a 9-element vector from synthetic neutrals
+              // (rsi=0.5, macd=0, trend=0, bbWidth=0.02, vol=0.01) when pattern.features
+              // was missing. Two patterns with different REAL features but the same
+              // missing-fields collapsed into the same pattern hash, poisoning
+              // PatternMemoryBank statistics. Per spec Rule #1: skip the record entirely
+              // rather than substitute fabricated values.
+              let featuresForRecording = null;
               if (pattern && Array.isArray(pattern.features) && pattern.features.length > 0) {
                 featuresForRecording = pattern.features;
-              } else {
-                // FIX 2026-03-14: Always reconstruct features from entryIndicators if pattern.features missing
-                // This was the root cause of 90% zero-PNL patterns - we skipped recording entirely
-                // HIGH-09/10/11/12: synthetic feature reconstruction. Each missing
-                // entryIndicator field falls back to a hardcoded "neutral" value
-                // (rsi=0.5, macd=0, trend=0, bbWidth=0.02, volatility=0.01).
-                // Two patterns with different REAL features but same missing-fields
-                // get the SAME fabricated vector → pattern hash collision in
-                // PatternMemoryBank. Surface this as a warn so synthetic-feature
-                // pattern entries can be quarantined post-hoc.
-                const _missingFields = [];
-                if (buyTrade.entryIndicators?.rsi == null) _missingFields.push('rsi');
-                if (buyTrade.entryIndicators?.macd == null) _missingFields.push('macd');
-                if (buyTrade.entryIndicators?.trend == null) _missingFields.push('trend');
-                if (buyTrade.entryIndicators?.bbWidth == null) _missingFields.push('bbWidth');
-                if (buyTrade.entryIndicators?.volatility == null) _missingFields.push('volatility');
-                if (_missingFields.length > 0) {
-                  console.warn(`[HIGH-09/10/11/12] BUY exit: pattern.features missing AND entryIndicators incomplete (synthetic defaults applied to: ${_missingFields.join(', ')}) — pattern hash may collide with other synthetic-feature entries`);
-                }
-                const entryTrend = buyTrade.entryIndicators?.trend;
-                const trendNumeric = typeof entryTrend === 'string'
-                  ? (entryTrend === 'bullish' || entryTrend === 'uptrend' ? 1 :
-                     entryTrend === 'bearish' || entryTrend === 'downtrend' ? -1 : 0)
-                  : (entryTrend || 0);
-                // FIX 2026-02-25: 9-element vector matching EnhancedPatternRecognition
-                // FIX 2026-02-26 P3: Match entry/EPR convention (rsi/100 = 0-1 range, was -1 to 1)
-                const rsiNormalized = buyTrade.entryIndicators?.rsi != null ? buyTrade.entryIndicators.rsi / 100 : 0.5;
-                const macdDelta = (buyTrade.entryIndicators?.macd || 0) - (buyTrade.entryIndicators?.macdSignal || 0);
-                featuresForRecording = [
-                  rsiNormalized,                                    // [0] RSI normalized
-                  macdDelta,                                        // [1] MACD delta
-                  trendNumeric,                                     // [2] Trend -1/0/1
-                  buyTrade.entryIndicators?.bbWidth || 0.02,        // [3] Bollinger width
-                  buyTrade.entryIndicators?.volatility || 0.01,     // [4] Volatility
-                  0.5,                                              // [5] Wick ratio default
-                  0,                                                // [6] Price change default
-                  0,                                                // [7] Volume change default
-                  0                                                 // [8] Last direction default
-                ];
               }
 
               // SAFE TEST MODE CHECK - Never corrupt patterns in test
-              if (this.ctx.config.tradingMode !== 'TEST' && !this.ctx.testMode) {
+              if (featuresForRecording && this.ctx.config.tradingMode !== 'TEST' && !this.ctx.testMode) {
                 this.ctx.patternChecker.recordPatternResult(featuresForRecording, {
                   pnl: pnl,
                   holdDurationMs: holdDuration,  // Add temporal data

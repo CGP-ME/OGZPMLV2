@@ -744,49 +744,62 @@ BOT STATUS:
   // PATTERN MEMORY (UnifiedPatternMemory)
   // ═══════════════════════════════════════════════════════════════
 
+  // TRAI-HIGH-01: build a 9-element feature vector ONLY from clean inputs.
+  // Returns null if any required indicator is missing/non-finite or trend is unset.
+  // Both checkPatternMemory and recordTradeResult share this — they write to the
+  // same PatternMemoryBank store, so partial fabrication on either side poisons
+  // the same hash. Per spec Rule #5 these paths must be cleaned together.
+  _extractFeatures(rawIndicators, trend, volatility) {
+    const ind = rawIndicators || {};
+    const rsi = ind.rsi;
+    const macd = ind.macd;
+    const macdSig = ind.macdSignal != null ? ind.macdSignal : ind.signal;
+    const bbWidth = ind.bbWidth;
+    if (!Number.isFinite(rsi) || !Number.isFinite(macd) || !Number.isFinite(macdSig) ||
+        !Number.isFinite(bbWidth) || !Number.isFinite(volatility) || trend == null) {
+      return null;
+    }
+    const trendNum = trend === 'uptrend' ? 1 : trend === 'downtrend' ? -1 : 0;
+    return [rsi / 100, macd - macdSig, trendNum, bbWidth, volatility, 0.5, 0, 0, 0];
+  }
+
   checkPatternMemory(marketData) {
     if (!this.patternMemory) return null;
-
     try {
-      const ind = marketData.indicators || {};
-      const features = [
-        (ind.rsi || 50) / 100,
-        (ind.macd || 0) - (ind.macdSignal || ind.signal || 0),
-        marketData.trend === 'uptrend' ? 1 : marketData.trend === 'downtrend' ? -1 : 0,
-        ind.bbWidth || 0.02,
-        marketData.volatility || 0.01,
-        0.5, 0, 0, 0,
-      ];
+      const features = this._extractFeatures(
+        marketData.indicators,
+        marketData.trend,
+        marketData.volatility
+      );
+      if (!features) return null;
       return this.patternMemory.getConfidence(features);
     } catch (error) {
-      console.error('❌ [TRAI] Pattern memory check failed:', error.message);
+      console.error('[TRAI-HIGH-01] checkPatternMemory failed:', error.message);
       return null;
     }
   }
 
   recordTradeResult(trade) {
     if (!this.patternMemory) return;
-
     try {
-      const ind = trade.entry?.indicators || trade.indicators || {};
-      const features = [
-        (ind.rsi || 50) / 100,
-        (ind.macd || 0) - (ind.macdSignal || ind.signal || 0),
-        (trade.entry?.trend || trade.trend) === 'uptrend' ? 1 :
-        (trade.entry?.trend || trade.trend) === 'downtrend' ? -1 : 0,
-        ind.bbWidth || 0.02,
-        trade.entry?.volatility || trade.volatility || 0.01,
-        0.5, 0, 0, 0,
-      ];
+      const features = this._extractFeatures(
+        trade.entry?.indicators || trade.indicators,
+        trade.entry?.trend || trade.trend,
+        trade.entry?.volatility != null ? trade.entry.volatility : trade.volatility
+      );
+      if (!features) return;
+      // pnl/pnlPercent/holdTimeMs/exitReason/strategy are kept as the reporter
+      // of trade outcome, not as feature inputs. The features array is what gets
+      // hashed into PatternMemoryBank — those upstream fields don't pollute it.
       this.patternMemory.recordOutcome(features, {
-        pnl: trade.pnl || trade.pnlDollars || 0,
-        pnlPercent: trade.pnlPercent || 0,
-        holdTimeMs: trade.holdTimeMs || trade.holdTime || 0,
-        exitReason: trade.exitReason || trade.reason || 'unknown',
-        strategy: trade.strategy || 'unknown',
+        pnl: trade.pnl != null ? trade.pnl : trade.pnlDollars,
+        pnlPercent: trade.pnlPercent,
+        holdTimeMs: trade.holdTimeMs != null ? trade.holdTimeMs : trade.holdTime,
+        exitReason: trade.exitReason || trade.reason,
+        strategy: trade.strategy,
       });
     } catch (error) {
-      console.error('❌ [TRAI] Failed to record trade result:', error.message);
+      console.error('[TRAI-HIGH-01] recordTradeResult failed:', error.message);
     }
   }
 
