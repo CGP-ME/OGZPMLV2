@@ -31,7 +31,10 @@ class PositionSizer {
       throw new Error(`[PS-CRIT-01] PositionSizer requires positive finite maxPositionPercent via options or TradingConfig (got: options=${fromOptions}, config=${fromConfig})`);
     }
     this.maxPositionPercent = resolved;
-    this.minPositionPercent = options.minPositionPercent || 0.01; // 1% minimum
+    // PS-MED-01: ?? preserves intentional 0 minimum (allows full per-trade
+    // sizing curve down to dust). || coerced 0 to 1% minimum, blocking the
+    // intentional override.
+    this.minPositionPercent = options.minPositionPercent ?? 0.01;
     this.useKelly = options.useKelly || false;
 
     console.log('[PositionSizer] Initialized (Phase 13)');
