@@ -502,28 +502,31 @@ class OGZPrimeV14Bot {
       minSwitchIntervalMs: 5 * 60 * 1000,          // 5 min minimum between switches
     });
 
-    // Wire strategies to TradingConfig (per STRATEGY-REWRITE-SPEC.md)
-    const emaConfig = TradingConfig.get('strategies.EMACrossover') || {};
+    // RUN-MED-01: ?? on all strategy constructor params to preserve intentional
+    // zeros (e.g., 0 decayBars = "no decay", 0 snapbackThreshold = "always
+    // snap"). || coerced any 0 config value to the hardcoded default, blocking
+    // intentional overrides. Same architectural class across all 6 constructors.
+    const emaConfig = TradingConfig.get('strategies.EMACrossover') ?? {};
     this.emaCrossover = new EMASMACrossoverSignal({
-      decayBars: emaConfig.decayBars || 10,
-      snapbackThresholdPct: emaConfig.snapbackThreshold || 2.5,
-      blowoffAccelThreshold: emaConfig.blowoffThreshold || 0.15,
+      decayBars: emaConfig.decayBars ?? 10,
+      snapbackThresholdPct: emaConfig.snapbackThreshold ?? 2.5,
+      blowoffAccelThreshold: emaConfig.blowoffThreshold ?? 0.15,
     });
 
-    const masrConfig = TradingConfig.get('strategies.MADynamicSR') || {};
+    const masrConfig = TradingConfig.get('strategies.MADynamicSR') ?? {};
     this.maDynamicSR = new MADynamicSR({
-      entryMaPeriod: masrConfig.entryMaPeriod || 20,
-      srMaPeriod: masrConfig.srMaPeriod || 200,
-      touchZonePct: masrConfig.touchZonePct || 0.6,
-      srTestCount: masrConfig.srTestCount || 2,
-      swingLookback: masrConfig.swingLookback || 3,
-      srZonePct: masrConfig.srZonePct || 1.0,
-      slopeLookback: masrConfig.slopeLookback || 5,
-      minSlopePct: masrConfig.minSlopePct || 0.03,
-      extensionPct: masrConfig.extensionPct || 2.0,
+      entryMaPeriod: masrConfig.entryMaPeriod ?? 20,
+      srMaPeriod: masrConfig.srMaPeriod ?? 200,
+      touchZonePct: masrConfig.touchZonePct ?? 0.6,
+      srTestCount: masrConfig.srTestCount ?? 2,
+      swingLookback: masrConfig.swingLookback ?? 3,
+      srZonePct: masrConfig.srZonePct ?? 1.0,
+      slopeLookback: masrConfig.slopeLookback ?? 5,
+      minSlopePct: masrConfig.minSlopePct ?? 0.03,
+      extensionPct: masrConfig.extensionPct ?? 2.0,
       skipFirstTouch: masrConfig.skipFirstTouch ?? true,
-      atrPeriod: masrConfig.atrPeriod || 14,
-      patternPersistBars: masrConfig.patternPersistBars || 15,
+      atrPeriod: masrConfig.atrPeriod ?? 14,
+      patternPersistBars: masrConfig.patternPersistBars ?? 15,
     });
 
     // 2026-05-04: BreakAndRetest now owned by StrategyOrchestrator (self-contained pattern).
@@ -537,29 +540,29 @@ class OGZPrimeV14Bot {
       });
     }
 
-    const liqConfig = TradingConfig.get('strategies.LiquiditySweep') || {};
+    const liqConfig = TradingConfig.get('strategies.LiquiditySweep') ?? {};
     this.liquiditySweep = new LiquiditySweepDetector({
-      sweepLookbackBars: liqConfig.sweepLookbackBars || 50,
-      sweepMinExtensionPct: liqConfig.sweepMinExtensionPct || 0.1,
-      atrMultiplier: liqConfig.atrMultiplier || 0.25,
-      atrPeriod: liqConfig.atrPeriod || 14,
-      entryWindowMinutes: liqConfig.entryWindowMinutes || 90,
-      hammerBodyMaxPct: liqConfig.hammerBodyMaxPct || 0.35,
-      hammerWickMinRatio: liqConfig.hammerWickMinRatio || 2.0,
-      engulfMinRatio: liqConfig.engulfMinRatio || 1.0,
-      stopBufferPct: liqConfig.stopBufferPct || 0.05,
+      sweepLookbackBars: liqConfig.sweepLookbackBars ?? 50,
+      sweepMinExtensionPct: liqConfig.sweepMinExtensionPct ?? 0.1,
+      atrMultiplier: liqConfig.atrMultiplier ?? 0.25,
+      atrPeriod: liqConfig.atrPeriod ?? 14,
+      entryWindowMinutes: liqConfig.entryWindowMinutes ?? 90,
+      hammerBodyMaxPct: liqConfig.hammerBodyMaxPct ?? 0.35,
+      hammerWickMinRatio: liqConfig.hammerWickMinRatio ?? 2.0,
+      engulfMinRatio: liqConfig.engulfMinRatio ?? 1.0,
+      stopBufferPct: liqConfig.stopBufferPct ?? 0.05,
       disableSessionCheck: liqConfig.disableSessionCheck ?? true,
     });
 
     // CHANGE 2026-02-23: Volume Profile (Fabio Valentino / Auction Market Theory)
     // Filters out trend strategies when market is BALANCED (inside value area = chop)
-    const vpConfig = TradingConfig.get('strategies.VolumeProfile') || {};
+    const vpConfig = TradingConfig.get('strategies.VolumeProfile') ?? {};
     this.volumeProfile = new VolumeProfile({
-      sessionLookback: vpConfig.sessionLookback || 96,    // 96 x 15min = 24 hours
-      numBins: vpConfig.numBins || 50,
-      valueAreaPct: vpConfig.valueAreaPct || 0.70,
-      outOfBalancePct: vpConfig.outOfBalancePct || 0.5,   // FIX: Was 0.1%, needs 0.5%
-      recalcInterval: vpConfig.recalcInterval || 5,
+      sessionLookback: vpConfig.sessionLookback ?? 96,    // 96 x 15min = 24 hours
+      numBins: vpConfig.numBins ?? 50,
+      valueAreaPct: vpConfig.valueAreaPct ?? 0.70,
+      outOfBalancePct: vpConfig.outOfBalancePct ?? 0.5,   // FIX: Was 0.1%, needs 0.5%
+      recalcInterval: vpConfig.recalcInterval ?? 5,
     });
 
     console.log('"Š Modular Entry System: MTF + Crossovers + S/R + Liquidity initialized');
