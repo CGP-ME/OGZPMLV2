@@ -503,16 +503,23 @@ class PatternMemoryBank {
             // Handle both closed trades and current market data
             const indicators = trade.entry?.indicators || trade.indicators;
             const trend = trade.entry?.trend || trade.trend;
-            // MED-12: warn when both trade timestamps missing — pattern hash
-            // uses wall-clock now() instead of historical candle time. In
-            // backtest replay this corrupts the pattern hash with non-deterministic
-            // timestamps, breaking pattern reproducibility across runs.
-            if (!trade.entry?.timestamp && !trade.timestamp) {
-                console.warn(`[MED-12] PatternMemoryBank.extractPattern: trade missing both .entry.timestamp AND .timestamp — pattern hash will use wall-clock now() instead of historical candle time, breaking backtest reproducibility`);
-            }
-            const timestamp = trade.entry?.timestamp || trade.timestamp || new Date().toISOString();
+            const timestamp = trade.entry?.timestamp || trade.timestamp;
+            const volatilitySource = trade.entry?.volatility != null
+                ? trade.entry.volatility
+                : trade.volatility;
 
-            if (!indicators || !trend) {
+            // MED-11/12/13: skip pattern extraction during warmup or any other
+            // period where required inputs are missing. Old soft-warn IIFEs
+            // wrote 'unknown' / phantom buckets that poisoned PatternMemoryBank
+            // statistics. Per spec Rule #1: skip the record entirely instead
+            // of substituting fabricated values.
+            if (!indicators || !trend || !timestamp) {
+                return null;
+            }
+            if (indicators.macd == null || indicators.macdHistogram == null) {
+                return null;
+            }
+            if (!Number.isFinite(volatilitySource)) {
                 return null;
             }
 
@@ -522,21 +529,11 @@ class PatternMemoryBank {
                 // RSI in buckets of 10 (30-40, 40-50, etc) - null if missing
                 rsi: indicators.rsi != null ? Math.round(indicators.rsi / 10) * 10 : null,
 
-                // MED-13: MACD 'unknown' records accumulate in pattern store
-                // during warmup (indicators.macd is null until enough candles).
-                // Current code honestly bucketes as 'unknown' (not silently
-                // 'negative'), but the warmup entries still pollute pattern
-                // analytics. Warn so quarantine downstream can filter
-                // 'unknown'-MACD records, OR skip extractPattern at the
-                // caller during warmup (architectural decision out of scope).
-                ...((indicators.macd == null || indicators.macdHistogram == null) ? (() => { console.warn(`[MED-13] PatternMemoryBank.extractPattern: MACD/histogram null at extraction (warmup) — pattern bucketed as 'unknown'; analytics should filter or skip warmup-period records`); return {}; })() : {}),
-                // MACD direction — 'unknown' when null (warmup), not silently 'negative'
-                macd: indicators.macd == null ? 'unknown' : (indicators.macd > 0 ? 'positive' : 'negative'),
+                // MACD direction
+                macd: indicators.macd > 0 ? 'positive' : 'negative',
 
-                // MACD histogram strength — 'unknown' when null, not silently 'weak'
-                macdHistogram: indicators.macdHistogram == null
-                    ? 'unknown'
-                    : (Math.abs(indicators.macdHistogram) > 0.001 ? 'strong' : 'weak'),
+                // MACD histogram strength
+                macdHistogram: Math.abs(indicators.macdHistogram) > 0.001 ? 'strong' : 'weak',
 
                 // Trend
                 trend: trend,
@@ -545,12 +542,7 @@ class PatternMemoryBank {
                 pattern: indicators.primaryPattern || 'none',
 
                 // Volatility bucketed
-                // MED-11: warn when both volatility sources missing.
-                // Phantom 0 silently buckets as 'low' — collides every
-                // missing-volatility trade into one pattern hash slot,
-                // poisoning bucket statistics.
-                ...(((trade.entry?.volatility != null) || (trade.volatility != null)) ? {} : (() => { console.warn(`[MED-11] PatternMemoryBank.extractPattern: trade missing both .entry.volatility AND .volatility — bucketing as 'low' by default; pattern hash will collide with other missing-volatility trades`); return {}; })()),
-                volatility: (trade.entry?.volatility || trade.volatility || 0) > 0.03 ? 'high' : 'low',
+                volatility: volatilitySource > 0.03 ? 'high' : 'low',
 
                 // Time of day (could be relevant for crypto)
                 hour: new Date(timestamp).getUTCHours()
