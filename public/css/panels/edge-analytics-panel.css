@@ -1,0 +1,409 @@
+/**
+ * edge-analytics-panel.css — Edge Analytics Panel Styling (Phase 5 Refactor)
+ *
+ * Extracted from unified-dashboard.html inline <style> block (lines 1595-1763).
+ * Provides complete styling for the self-rendering EdgeAnalyticsPanel module.
+ *
+ * Class Naming:
+ *   - `.eap-*` — new Edge Analytics Panel classes (glass-box design)
+ *   - `.edge-section`, `.cvd-display`, `.fg-gauge`, etc. — legacy classes (for compat)
+ *
+ * Both class hierarchies are styled identically so that:
+ *   1. The new EdgeAnalyticsPanel module (using .eap-section) looks identical to legacy
+ *   2. The legacy edge-analytics.js module (using .edge-section) still works during transition
+ *   3. Operator can swap modules without visual discontinuity
+ *
+ * Design: Dark glass-morphism with neon borders, trading-focused color palette
+ */
+
+/* ─── Root Container ──────────────────────────────────────────────────────── */
+.eap-root {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+/* ─── Section Container (shared compat + new class) ──────────────────────── */
+.eap-section,
+.edge-section {
+    background: rgba(20, 20, 40, 0.6);
+    border: 1px solid rgba(255, 0, 100, 0.2);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+}
+
+.eap-section h4,
+.edge-section h4 {
+    color: #fff;
+    font-size: 13px;
+    margin: 0 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 0, 100, 0.3);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* ─── Liquidation Levels Section ──────────────────────────────────────────── */
+.liq-levels {
+    margin-bottom: 10px;
+}
+
+.liq-level {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    font-size: 13px;
+}
+
+.long-liq {
+    background: rgba(255, 0, 0, 0.1);
+    border-left: 3px solid #ff0000;
+}
+
+.short-liq {
+    background: rgba(0, 255, 0, 0.1);
+    border-left: 3px solid #00ff00;
+}
+
+.liq-price {
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.liq-volume {
+    color: #00d4ff;
+}
+
+/* Canvas styling */
+#liqHeatmap {
+    width: 100%;
+    height: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+/* ─── CVD (Cumulative Volume Delta) Section ────────────────────────────── */
+.cvd-display {
+    text-align: center;
+}
+
+.cvd-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00d4ff;
+}
+
+.cvd-trend {
+    padding: 4px 8px;
+    background: rgba(0, 212, 255, 0.2);
+    border-radius: 5px;
+    margin-top: 5px;
+    display: inline-block;
+    font-size: 11px;
+}
+
+#cvdChart {
+    width: 100%;
+    height: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+/* ─── Funding Rates Section ────────────────────────────────────────────── */
+.funding-display {
+    font-size: 12px;
+}
+
+.funding-current,
+.funding-predicted {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+}
+
+.funding-rate {
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.funding-signal {
+    text-align: center;
+    padding: 5px;
+    margin-top: 10px;
+    background: rgba(100, 100, 200, 0.2);
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+/* ─── Whale Activity Section ───────────────────────────────────────────── */
+.whale-alerts {
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.whale-alerts::-webkit-scrollbar {
+    width: 6px;
+}
+
+.whale-alerts::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.whale-alerts::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.whale-item {
+    padding: 8px;
+    margin: 4px 0;
+    background: rgba(0, 100, 255, 0.1);
+    border-left: 3px solid #0064ff;
+    border-radius: 3px;
+    font-size: 12px;
+    animation: slideInLeft 0.5s;
+    font-family: monospace;
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ─── Market Internals Section ─────────────────────────────────────────── */
+.internals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.internal-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 6px 0;
+    font-size: 13px;
+}
+
+.internal-item span:last-child {
+    font-weight: bold;
+    color: #00d4ff;
+}
+
+/* ─── Smart Money Tracking Section ────────────────────────────────────── */
+.smart-money {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.smart-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 6px 0;
+    font-size: 13px;
+}
+
+.smart-item span:last-child {
+    font-weight: bold;
+    color: #00d4ff;
+}
+
+.flow-value {
+    color: #ffd700 !important;
+    text-transform: uppercase;
+}
+
+/* ─── Fear & Greed Index Section ──────────────────────────────────────── */
+.fear-greed {
+    text-align: center;
+}
+
+.fg-gauge {
+    padding: 8px;
+}
+
+.fg-value {
+    font-size: 36px;
+    font-weight: bold;
+    color: #00ffff;
+    text-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+}
+
+.fg-label {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.fg-bar {
+    height: 20px;
+    background: rgba(50, 50, 50, 0.5);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fg-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+    transition: width 1s ease;
+}
+
+/* ─── Hidden Divergences Section ──────────────────────────────────────── */
+.divergences {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.divergences::-webkit-scrollbar {
+    width: 6px;
+}
+
+.divergences::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.divergences::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.divergence-item {
+    padding: 8px;
+    margin: 4px 0;
+    background: rgba(147, 51, 234, 0.1);
+    border-left: 3px solid #9333ea;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+/* ─── Canvas Elements (Shared) ────────────────────────────────────────── */
+canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* ─── Scrollbar Styling (Unified) ────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* ─── Special Effects ────────────────────────────────────────────────── */
+.absorbed-glow {
+    animation: absorbed-pulse 1s infinite;
+    font-weight: 900;
+}
+
+@keyframes absorbed-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+/* ─── Theme Support (from dashboard.css) ──────────────────────────────── */
+body.theme-cyberpunk .eap-section,
+body.theme-cyberpunk .edge-section {
+    border-color: rgba(255, 0, 255, 0.4);
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.15);
+}
+
+body.theme-cyberpunk .eap-section h4,
+body.theme-cyberpunk .edge-section h4 {
+    color: #ff00ff;
+}
+
+body.theme-matrix .eap-section,
+body.theme-matrix .edge-section {
+    border-color: rgba(0, 255, 0, 0.4);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.15);
+}
+
+body.theme-matrix .eap-section h4,
+body.theme-matrix .edge-section h4 {
+    color: #00ff00;
+}
+
+body.theme-neon .eap-section,
+body.theme-neon .edge-section {
+    border-color: rgba(255, 102, 0, 0.4);
+    box-shadow: 0 0 15px rgba(255, 102, 0, 0.15);
+}
+
+body.theme-neon .eap-section h4,
+body.theme-neon .edge-section h4 {
+    color: #ff6600;
+}
+
+body.theme-ocean .eap-section,
+body.theme-ocean .edge-section {
+    border-color: rgba(0, 153, 255, 0.4);
+    box-shadow: 0 0 15px rgba(0, 153, 255, 0.15);
+}
+
+body.theme-ocean .eap-section h4,
+body.theme-ocean .edge-section h4 {
+    color: #0099ff;
+}
+
+/* ─── Responsive (Tablet & Mobile) ────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .eap-section,
+    .edge-section {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+
+    .eap-section h4,
+    .edge-section h4 {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .eap-section,
+    .edge-section {
+        padding: 6px;
+        margin-bottom: 6px;
+    }
+
+    .eap-section h4,
+    .edge-section h4 {
+        font-size: 11px;
+    }
+
+    .cvd-value {
+        font-size: 20px;
+    }
+
+    .fg-value {
+        font-size: 28px;
+    }
+}
