@@ -18,13 +18,26 @@
  *
  * Self-registers as OGZ.TRAIBrain via OGZ.register().
  * Mounts into <div id="traiBrain"></div>.
- * Subscribes to WS events:
- *   - news_event (TODO-flag: unverified if backend emits)
- *   - whale_trade (per CURRENT-ARCHITECTURE.md: CandleProcessor)
- *   - narrator_event (verified)
- *   - escalation (TODO-flag: unverified event name/structure)
+ *
+ * Verified WS subscriptions (real bot emitter shapes):
+ *   - 'whale_trade'    → DashboardBroadcaster.broadcastEdgeAnalytics line 133.
+ *                        Real shape: { type:'whale_trade', size, price, side, timestamp }
+ *                        (size = USD notional). No `ticker` carried; bot is single-pair.
+ *                        We resolve symbol from chart selector for display.
+ *   - 'narrator_event' → TradeNarrator.broadcast. Real shape:
+ *                        { type:'narrator_event', scope, event, timestamp, text, ... }
+ *                        Filter to scope='USER' (customer-facing). text is the
+ *                        verbalized line.
+ *   - 'bot_thinking'   → TradingLoop / TRAIDecisionModule. Used as a low-key
+ *                        "still thinking" pulse on the header dot when no
+ *                        narrator events fire for a while.
+ *
+ * AWAITING BACKEND EMITTERS (rendered as muted "awaiting…" placeholders, no fakes):
+ *   - 'news_event'     → planned: route through TRAI NLP + websearch crawler
+ *   - 'escalation'     → planned: TRAI flags ops attention items
+ *
  * Listens to OGZ.bus:
- *   - watchlist:select (re-scope news/whale to selected ticker)
+ *   - watchlist:select (re-scope news/whale to selected ticker once those exist)
  *
  * HTTP API calls:
  *   POST /api/trai/analyze { prompt, maxTokens } → { response, provider, latency }
@@ -713,47 +726,101 @@
     }
 
     // ─── WS Event Handlers ──────────────────────────────────────────
-    function onNewsEvent(data) {
+    // 'news_event' — DORMANT. Backend doesn't emit this yet (planned: TRAI
+    // NLP+websearch crawler will broadcast). Handler is wired so the panel
+    // lights up automatically once the emitter ships. Strict gating: drop any
+    // malformed event rather than synthesizing placeholder text.
+    function onNewsEvent(d) {
         try {
-            if (!data) return;
+            const data = (d && d.data) ? d.data : d;
+            if (!data || !data.headline) return;  // STRICT — no placeholder text
             const event = {
-                ts: data.ts != null ? Number(data.ts) : Date.now(),
+                ts: data.ts != null ? Number(data.ts)
+                    : (data.timestamp != null ? Number(data.timestamp) : Date.now()),
                 sentiment: ['bullish', 'neutral', 'defensive'].includes(data.sentiment)
                     ? data.sentiment
                     : 'neutral',
-                headline: String(data.headline || 'Market event'),
-                source: String(data.source || 'Unknown'),
+                headline: String(data.headline),
+                source: String(data.source || 'TRAI'),
                 ticker: data.ticker ? String(data.ticker) : undefined,
                 confidence_modifier: data.confidence_modifier ? String(data.confidence_modifier) : undefined,
             };
-            if (!event.ts || !event.headline) return;
+            if (!event.ts) return;
             state.news.unshift(event);
             if (state.news.length > 30) state.news.pop();
             renderNews();
         } catch (_) { /* swallow */ }
     }
 
-    function onWhaleEvent(data) {
+    // Resolve current trading symbol (single-pair bot, no ticker on event).
+    function resolveCurrentSymbol() {
         try {
+            const sel = document.getElementById('cp-assetSelector');
+            if (sel && sel.value) return String(sel.value).toUpperCase();
+        } catch (_) { /* swallow */ }
+        return 'ASSET';
+    }
+
+    // Bot's whale_trade event shape:
+    //   { type:'whale_trade', size, price, side:'BUY'|'SELL', timestamp }
+    // size = USD notional (volume * price). side derived from candle close vs open.
+    function onWhaleEvent(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
             if (!data) return;
+            const sizeUsd = Number(data.size);
+            const price   = Number(data.price);
+            if (!isFinite(sizeUsd) || !isFinite(price)) return;
+            const side    = String(data.side || '').toUpperCase();
+            const ticker  = data.ticker ? String(data.ticker) : resolveCurrentSymbol();
+
+            // Format $1.2M / $850K / $42 readout
+            const sizeStr = sizeUsd >= 1e6
+                ? `$${(sizeUsd / 1e6).toFixed(1)}M`
+                : sizeUsd >= 1e3
+                    ? `$${(sizeUsd / 1e3).toFixed(0)}K`
+                    : `$${sizeUsd.toFixed(0)}`;
+
+            const arrow = side === 'BUY' ? '▲' : side === 'SELL' ? '▼' : '◆';
+            const desc  = `${arrow} ${side || '—'} ${sizeStr} @ $${price.toFixed(2)}`;
+
             const event = {
-                ts: data.ts != null ? Number(data.ts) : Date.now(),
-                description: String(data.description || 'Whale activity detected'),
-                ticker: String(data.ticker || '?'),
-                source: data.source ? String(data.source) : undefined,
+                ts: data.timestamp != null ? Number(data.timestamp) : Date.now(),
+                description: desc,
+                ticker: ticker,
+                source: 'aggregated tape',
+                side: side,
+                sizeUsd: sizeUsd,
+                price: price,
             };
-            if (!event.ts) return;
             state.whales.unshift(event);
             if (state.whales.length > 20) state.whales.pop();
             renderWhale();
         } catch (_) { /* swallow */ }
     }
 
-    function onNarratorEvent(data) {
+    // Bot's narrator_event shape:
+    //   { type:'narrator_event', scope:'USER'|'ARCHITECT', event, timestamp, text, ... }
+    // We only render USER-scope content (sanitized customer story). Architect
+    // notes are operator-internal and stay off the customer-facing brain.
+    function onNarratorEvent(d) {
         try {
-            if (!data || !data.text) return;
-            addNarratorLine(data.text);
+            const data = (d && d.data) ? d.data : d;
+            if (!data) return;
+            // Filter to USER scope when present; if scope is missing assume USER
+            const scope = data.scope ? String(data.scope).toUpperCase() : 'USER';
+            if (scope !== 'USER') return;
+            if (!data.text) return;
+            addNarratorLine(String(data.text));
         } catch (_) { /* swallow */ }
+    }
+
+    // Bot 'bot_thinking' — heartbeat only; we don't push to narrator list (that
+    // would clutter the customer-facing story). Used to keep the header dot
+    // alive even during quiet stretches between USER-scope narrator events.
+    let _lastBotThinkingAt = 0;
+    function onBotThinking(_d) {
+        _lastBotThinkingAt = Date.now();
     }
 
     function onEscalationEvent(data) {
@@ -907,13 +974,22 @@
                 renderNarrator();
                 renderEscalation();
 
-                // Subscribe to WS events
-                if (window.ws && typeof window.ws.on === 'function') {
-                    window.ws.on('news_event', onNewsEvent);
-                    window.ws.on('whale_trade', onWhaleEvent);
-                    window.ws.on('narrator_event', onNarratorEvent);
-                    window.ws.on('escalation', onEscalationEvent);
-                }
+                // Subscribe to WS events via real socket (poll until ready)
+                (function bindSocket() {
+                    const socket = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('Socket') : null;
+                    if (!socket || typeof socket.registerHandler !== 'function') {
+                        setTimeout(bindSocket, 250);
+                        return;
+                    }
+                    // Verified-emitter subs
+                    socket.registerHandler('whale_trade',    (e) => { try { onWhaleEvent(e); } catch (_) {} });
+                    socket.registerHandler('narrator_event', (e) => { try { onNarratorEvent(e); } catch (_) {} });
+                    socket.registerHandler('bot_thinking',   (e) => { try { onBotThinking(e); } catch (_) {} });
+                    // Future emitters — sub'd defensively so when backend ships
+                    // them they light up automatically. Until then they no-op.
+                    socket.registerHandler('news_event',  (e) => { try { onNewsEvent(e); } catch (_) {} });
+                    socket.registerHandler('escalation',  (e) => { try { onEscalationEvent(e); } catch (_) {} });
+                })();
 
                 // Subscribe to bus events
                 if (OGZ && OGZ.bus) {
