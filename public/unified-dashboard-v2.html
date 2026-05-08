@@ -62,6 +62,7 @@
          Replace legacy chart.js + edge-analytics.js DOM-binders. -->
     <link rel="stylesheet" href="/css/panels/chart-panel.css">
     <link rel="stylesheet" href="/css/panels/edge-analytics-panel.css">
+    <link rel="stylesheet" href="/css/panels/mode-toggle.css">
 
     <style>
         /* ========================================================================
@@ -689,6 +690,9 @@
     <script src="/js/panels/chart-panel.js"></script>
     <script src="/js/panels/edge-analytics-panel.js"></script>
 
+    <!-- Mode toggle: PRO ↔ VISUAL switch (operator + customer-facing) -->
+    <script src="/js/panels/mode-toggle.js"></script>
+
     <!-- Root-level widget (loads last, after all panels registered).
          NOTE: trai-widget.js lives at the public/ root, not in public/js/.
          Path is /trai-widget.js (no /js/ prefix). -->
@@ -726,6 +730,10 @@
                 if (window.OGZ.get && window.OGZ.get('Theme')) {
                     try { window.OGZ.get('Theme').init(); }
                     catch (e) { console.warn('[Dashboard v2] Theme.init() failed:', e); }
+                }
+                if (window.OGZ.get && window.OGZ.get('ModeToggle')) {
+                    try { window.OGZ.get('ModeToggle').init(); }
+                    catch (e) { console.warn('[Dashboard v2] ModeToggle.init() failed:', e); }
                 }
             } else {
                 console.error('[Dashboard v2] OGZ namespace failed to load. Check core.js.');
