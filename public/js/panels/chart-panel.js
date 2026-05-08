@@ -623,16 +623,168 @@
         return true;
     }
 
+    // ─── WS Wiring State ──────────────────────────────────────────────────
+    let _wsBootstrapped = false;
+    let _wsBootstrapTimer = null;
+    let _entryPriceLine = null;
+    let _stopPriceLine = null;
+    let _targetPriceLine = null;
+    let _lastPositionState = null;
+
+    // Auto-bootstrap historical candles + supplemental WS subscriptions.
+    // Core.js routes price/historical_candles/pattern_analysis/depth_update to
+    // ChartPanel.update/loadHistorical/plotGhost/renderLiquidity already, but it
+    // does NOT route: (a) the initial request_historical handshake, (b) `delta`
+    // sub-tick flashes, (c) `trade` markers, (d) `state_update` position lines.
+    // Those four are wired here directly against the real socket.registerHandler.
+    function bootstrapWS(rootEl) {
+        if (_wsBootstrapped) return;
+        const socket = OGZ.get('Socket');
+        if (!socket || typeof socket.registerHandler !== 'function') {
+            // Socket not registered yet — poll once a frame for up to 10s
+            _wsBootstrapTimer = trackTimer(setTimeout(() => bootstrapWS(rootEl), 250));
+            return;
+        }
+        _wsBootstrapped = true;
+
+        // (a) Send initial request_historical for the default symbol/timeframe.
+        // This is the same call BindControls makes on asset/timeframe change,
+        // but we need it once at mount otherwise the chart is empty until the
+        // user manually swaps assets. Only fire if socket is OPEN; otherwise
+        // websocket.js's auto-historical-on-connect will handle it.
+        try {
+            const sym = rootEl?.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL;
+            const tf  = rootEl?.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
+            if (typeof socket.send === 'function') {
+                socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
+            }
+        } catch (e) { /* swallow */ }
+
+        // (b) `delta` — sub-tick {price, volume, timestamp} from
+        // DashboardBroadcaster.broadcastEdgeAnalytics(). Used to keep the HUD
+        // price color/flash alive between full `price` ticks. Bot shape:
+        //   { type:'delta', tick:{ price, volume, timestamp } }
+        socket.registerHandler('delta', (d) => {
+            try {
+                const tick = (d && d.tick) ? d.tick : (d || {});
+                const p = Number(tick.price);
+                if (!isFinite(p) || p <= 0) return;
+                // Update only the HUD readout (chart series stays on real candle ticks)
+                const priceEl = _cachedPriceEl;
+                if (priceEl) {
+                    const prev = OGZ.state.lastPrice || p;
+                    OGZ.state.lastPriceDelta = p - prev;
+                    OGZ.state.lastPrice = p;
+                    const up = OGZ.state.lastPriceDelta >= 0;
+                    priceEl.textContent = `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    priceEl.style.color = up ? '#22c55e' : '#ef4444';
+                    priceEl.style.textShadow = up
+                        ? '0 0 12px rgba(34,197,94,0.75)'
+                        : '0 0 12px rgba(239,68,68,0.75)';
+                }
+            } catch (e) { /* swallow */ }
+        });
+
+        // (c) `trade` — bot OrderExecutor broadcast. Real shape:
+        //   { type:'trade', action:'BUY'|'SELL', direction:'long'|'short',
+        //     price, pnl, timestamp, confidence }
+        // Drop a marker line at the executed price.
+        socket.registerHandler('trade', (d) => {
+            try {
+                const data = (d && d.data) ? d.data : d;
+                const price = Number(data.price);
+                if (!isFinite(price) || price <= 0) return;
+                const ts = Math.floor((Number(data.timestamp) || Date.now()) / 1000);
+                const sideLabel = data.action === 'SELL'
+                    ? (data.direction === 'short' ? 'SHORT' : 'EXIT')
+                    : (data.direction === 'short' ? 'SHORT' : 'BUY');
+                ChartPanel.addTradeMarker(price, ts, sideLabel);
+            } catch (e) { /* swallow */ }
+        });
+
+        // (d) `state_update` — StateManager.broadcastToDashboard. Real shape:
+        //   { type:'state_update', source, updates, context,
+        //     state:{ position, balance, totalBalance, realizedPnL,
+        //             unrealizedPnL, totalPnL, tradeCount, dailyTradeCount,
+        //             recoveryMode }, timestamp }
+        // Maintain entry/stop/target price lines while a position is open.
+        socket.registerHandler('state_update', (d) => {
+            try {
+                const s = d && d.state ? d.state : {};
+                const pos = s.position;
+                _lastPositionState = pos || null;
+
+                // Strip stale lines whenever position absent or flat
+                const stripLine = (line) => {
+                    if (!line || !candleSeries) return null;
+                    try { candleSeries.removePriceLine(line); } catch (e) { /* swallow */ }
+                    return null;
+                };
+
+                if (!pos || pos === 'flat' || pos === 'FLAT' || (typeof pos === 'object' && (pos.size === 0 || !pos.entryPrice))) {
+                    _entryPriceLine = stripLine(_entryPriceLine);
+                    _stopPriceLine  = stripLine(_stopPriceLine);
+                    _targetPriceLine = stripLine(_targetPriceLine);
+                    return;
+                }
+
+                if (typeof pos !== 'object' || !candleSeries) return;
+
+                const entry = Number(pos.entryPrice || pos.entry || pos.avgPrice);
+                const stop  = Number(pos.stopLoss   || pos.stop  || 0);
+                const targ  = Number(pos.takeProfit || pos.target|| 0);
+                const isLong = String(pos.direction || pos.side || '').toLowerCase() === 'long'
+                            || pos === 'long' || pos === 'LONG';
+
+                if (isFinite(entry) && entry > 0) {
+                    _entryPriceLine = stripLine(_entryPriceLine);
+                    _entryPriceLine = candleSeries.createPriceLine({
+                        price: entry,
+                        color: isLong ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)',
+                        lineWidth: 2,
+                        lineStyle: 0,
+                        axisLabelVisible: true,
+                        title: 'ENTRY ' + (isLong ? 'L' : 'S')
+                    });
+                }
+                if (isFinite(stop) && stop > 0) {
+                    _stopPriceLine = stripLine(_stopPriceLine);
+                    _stopPriceLine = candleSeries.createPriceLine({
+                        price: stop,
+                        color: 'rgba(239,68,68,0.55)',
+                        lineWidth: 1,
+                        lineStyle: 2,
+                        axisLabelVisible: true,
+                        title: 'STOP'
+                    });
+                }
+                if (isFinite(targ) && targ > 0) {
+                    _targetPriceLine = stripLine(_targetPriceLine);
+                    _targetPriceLine = candleSeries.createPriceLine({
+                        price: targ,
+                        color: 'rgba(34,197,94,0.55)',
+                        lineWidth: 1,
+                        lineStyle: 2,
+                        axisLabelVisible: true,
+                        title: 'TGT'
+                    });
+                }
+            } catch (e) { /* swallow */ }
+        });
+    }
+
     // ─── Public API ───────────────────────────────────────────────────────
     const ChartPanel = {
         /**
-         * Initialize: render scaffold, create chart, wire controls.
+         * Initialize: render scaffold, create chart, wire controls,
+         * bootstrap WS subscriptions (historical, delta, trade, state_update).
          * Safe to call multiple times (idempotent).
          */
         init: function () {
             try {
                 if (!renderScaffold()) return;
                 if (!initChart()) return;
+                bootstrapWS(document.getElementById(ROOT_ID));
             } catch (e) {
                 /* swallow */
             }
@@ -927,6 +1079,22 @@
                 try { this._chartResizeObserver.disconnect(); }
                 catch (e) { /* swallow */ }
             }
+
+            // Strip position lines (they live on candleSeries which is about to be nulled)
+            const _strip = (line) => {
+                if (!line || !candleSeries) return null;
+                try { candleSeries.removePriceLine(line); } catch (e) { /* swallow */ }
+                return null;
+            };
+            _entryPriceLine = _strip(_entryPriceLine);
+            _stopPriceLine  = _strip(_stopPriceLine);
+            _targetPriceLine = _strip(_targetPriceLine);
+            _lastPositionState = null;
+
+            // Note: websocket.js does not currently expose unregisterHandler,
+            // so the delta/trade/state_update subs we registered survive teardown.
+            // They will no-op safely because candleSeries is null below.
+            _wsBootstrapped = false;
 
             tvChart = null;
             candleSeries = null;
