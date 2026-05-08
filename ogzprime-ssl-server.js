@@ -96,6 +96,33 @@ function serveDashboardWithToken(req, res) {
 }
 app.get('/unified-dashboard.html', serveDashboardWithToken);
 
+// CHANGE 2026-05-07: v2 token-injection mirrors v1 above. Same env var,
+// same regex, separate cache for the v2 template. Ship cutover from v1 to
+// v2 routes whenever v2 is validated end-to-end.
+const dashboardV2HtmlPath = path.join(__dirname, 'public', 'unified-dashboard-v2.html');
+let dashboardV2HtmlCache = null;
+try {
+  dashboardV2HtmlCache = fs.readFileSync(dashboardV2HtmlPath, 'utf8');
+} catch (e) {
+  console.error('[ssl-server] Failed to load unified-dashboard-v2.html for token injection:', e.message);
+}
+function serveDashboardV2WithToken(req, res) {
+  if (!dashboardV2HtmlCache) {
+    return res.status(500).send('Dashboard v2 HTML unavailable — server boot loaded no template.');
+  }
+  const token = process.env.WEBSOCKET_AUTH_TOKEN || '';
+  if (!token) {
+    console.warn('[ssl-server] WEBSOCKET_AUTH_TOKEN not set — dashboard v2 will fail WS auth.');
+  }
+  const html = dashboardV2HtmlCache.replace(
+    /<meta name="ws-token" content="[^"]*">/,
+    () => `<meta name="ws-token" content="${token}">`
+  );
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(html);
+}
+app.get('/unified-dashboard-v2.html', serveDashboardV2WithToken);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CHANGE 2026-02-10: Trade Journal and Replay page routes

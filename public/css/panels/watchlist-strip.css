@@ -1,0 +1,361 @@
+/**
+ * watchlist-strip.css — Multi-Ticker Watchlist Selection Panel Styling
+ *
+ * Styles the WatchlistStrip panel's horizontal card layout, broker badges,
+ * position state pills, sparklines, animations, and interactive states.
+ * Loaded as external <link> from unified-dashboard.html for design ownership
+ * and reusability. Fallback minimal CSS injected by JS as safety net.
+ *
+ * All class names prefixed `ws-` (WatchlistStrip namespace) to prevent
+ * collisions with other modules. Theme variables (--bg-panel, --text-primary,
+ * etc.) pulled from root :root in unified-dashboard.html.
+ */
+
+/* ─── Container & Layout ──────────────────────────────────────────────────── */
+
+#watchlistStrip {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 12px;
+    height: 90px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: rgba(10, 10, 10, 0.6);
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    align-items: center;
+    user-select: none;
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling */
+#watchlistStrip::-webkit-scrollbar {
+    height: 6px;
+}
+
+#watchlistStrip::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#watchlistStrip::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+#watchlistStrip::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+    background-clip: content-box;
+}
+
+/* ─── Ticker Card Base ────────────────────────────────────────────────────── */
+
+.ws-card {
+    flex-shrink: 0;
+    width: 120px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary, #ffffff);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ws-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+/* ─── Selected State ──────────────────────────────────────────────────────── */
+
+.ws-card.selected {
+    border-color: var(--core-color, rgba(0, 204, 255, 1));
+    background: rgba(0, 204, 255, 0.12);
+    box-shadow: 0 0 12px rgba(0, 204, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1.02);
+}
+
+.ws-card.selected:hover {
+    box-shadow: 0 0 16px rgba(0, 204, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Header (Symbol + Broker Badge) ──────────────────────────────────────── */
+
+.ws-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.ws-symbol {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-primary, #ffffff);
+    flex-grow: 1;
+}
+
+.ws-broker {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+    letter-spacing: 0.05em;
+}
+
+.ws-broker-ALP {
+    background: rgba(66, 135, 245, 0.25);
+    border-color: rgba(66, 135, 245, 0.4);
+    color: #4287f5;
+}
+
+.ws-broker-KRA {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #8b5cf6;
+}
+
+.ws-broker-CB {
+    background: rgba(6, 182, 212, 0.25);
+    border-color: rgba(6, 182, 212, 0.4);
+    color: #06b6d4;
+}
+
+/* ─── Price & Percentage Change Row ───────────────────────────────────────── */
+
+.ws-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    gap: 4px;
+}
+
+.ws-price {
+    color: var(--text-primary, #ffffff);
+    font-weight: 600;
+    flex-grow: 1;
+    font-size: 11px;
+}
+
+.ws-pct {
+    font-size: 9px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.ws-pct.up {
+    color: var(--profit-color, #00ff88);
+}
+
+.ws-pct.down {
+    color: var(--loss-color, #ff3366);
+}
+
+.ws-pct.neutral {
+    color: var(--text-secondary, #a0a0a0);
+}
+
+/* ─── Sparkline ───────────────────────────────────────────────────────────── */
+
+.ws-sparkline-wrap {
+    width: 100%;
+    height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.ws-sparkline {
+    width: 100%;
+    height: 100%;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.1));
+}
+
+/* ─── Position State Pill ─────────────────────────────────────────────────── */
+
+.ws-state {
+    font-size: 9px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.ws-state-SCAN {
+    background: rgba(100, 100, 100, 0.25);
+    border-color: rgba(100, 100, 100, 0.4);
+    color: #a0a0a0;
+}
+
+.ws-state-LONG {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: rgba(0, 255, 136, 0.35);
+    color: var(--profit-color, #00ff88);
+    font-weight: 700;
+}
+
+.ws-state-SHORT {
+    background: rgba(255, 51, 102, 0.2);
+    border-color: rgba(255, 51, 102, 0.35);
+    color: var(--loss-color, #ff3366);
+    font-weight: 700;
+}
+
+.ws-state-COOL {
+    background: rgba(255, 215, 0, 0.2);
+    border-color: rgba(255, 215, 0, 0.35);
+    color: var(--ml-color, #ffd700);
+    font-weight: 700;
+}
+
+.ws-state-FAULT {
+    background: rgba(255, 51, 102, 0.25);
+    border-color: rgba(255, 51, 102, 0.4);
+    color: var(--loss-color, #ff3366);
+    font-weight: 700;
+    animation: ws-fault-pulse 1s ease-in-out infinite;
+}
+
+/* ─── Animations ──────────────────────────────────────────────────────────── */
+
+/**
+ * Fault state pulse — RED alert indicator for position faults or errors.
+ */
+@keyframes ws-fault-pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.4);
+    }
+    50% {
+        opacity: 0.6;
+        box-shadow: 0 0 6px 2px rgba(255, 51, 102, 0.25);
+    }
+}
+
+/**
+ * Price flash up — brief GREEN highlight when price ticks up.
+ */
+@keyframes ws-price-flash-up {
+    0% {
+        background-color: rgba(0, 255, 136, 0.25);
+    }
+    100% {
+        background-color: rgba(255, 255, 255, 0.04);
+    }
+}
+
+/**
+ * Price flash down — brief RED highlight when price ticks down.
+ */
+@keyframes ws-price-flash-down {
+    0% {
+        background-color: rgba(255, 51, 102, 0.25);
+    }
+    100% {
+        background-color: rgba(255, 255, 255, 0.04);
+    }
+}
+
+.ws-card.flash-up {
+    animation: ws-price-flash-up 0.4s ease-out;
+}
+
+.ws-card.flash-down {
+    animation: ws-price-flash-down 0.4s ease-out;
+}
+
+/* ─── Responsive & Reduced Motion ─────────────────────────────────────────── */
+
+/**
+ * Respect user's prefers-reduced-motion preference.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .ws-card {
+        transition: none;
+    }
+
+    .ws-state-FAULT {
+        animation: none;
+    }
+
+    .ws-card.flash-up,
+    .ws-card.flash-down {
+        animation: none;
+    }
+
+    #watchlistStrip {
+        scroll-behavior: auto;
+    }
+}
+
+/* ─── Small Screen Fallback ───────────────────────────────────────────────── */
+
+/**
+ * Mobile/compact viewport adjustments. WatchlistStrip is typically
+ * desktop-only per platform, but provide minimal fallback.
+ */
+@media (max-width: 768px) {
+    #watchlistStrip {
+        height: 80px;
+        padding: 6px 8px;
+        gap: 6px;
+    }
+
+    .ws-card {
+        width: 100px;
+        padding: 8px;
+        gap: 4px;
+    }
+
+    .ws-symbol {
+        font-size: 12px;
+    }
+
+    .ws-broker {
+        font-size: 8px;
+        padding: 1px 4px;
+    }
+
+    .ws-price-row {
+        font-size: 10px;
+    }
+
+    .ws-price {
+        font-size: 10px;
+    }
+
+    .ws-pct {
+        font-size: 8px;
+    }
+
+    .ws-sparkline-wrap {
+        height: 16px;
+    }
+
+    .ws-state {
+        font-size: 8px;
+        padding: 2px 4px;
+    }
+}

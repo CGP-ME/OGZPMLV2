@@ -1,0 +1,326 @@
+/**
+ * open-positions.css — OpenPositions Panel Stylesheet
+ *
+ * Styling for the multi-ticker positions table in the right rail.
+ * Glass-box treatment matching PatternCard/TRAIBrain. All classes prefixed `op-`.
+ * Theme variables only. Compact tabular layout with monospace numbers.
+ *
+ * @file public/css/panels/open-positions.css
+ */
+
+/* Root container */
+#openPositions {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 100%;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: var(--glass-underglow);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-primary);
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Header row: title + count + aggregate P&L */
+.op-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.op-header-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+
+.op-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 2px 8px;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ml-color);
+    flex-shrink: 0;
+}
+
+.op-aggregate-pnl {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: var(--profit-color);
+    transition: color 120ms ease, text-shadow 120ms ease;
+}
+
+.op-aggregate-pnl.negative {
+    color: var(--loss-color);
+}
+
+/* Positions table container */
+.op-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0;
+}
+
+/* Per-position row */
+.op-row {
+    display: grid;
+    grid-template-columns: 60px 50px 45px 50px 50px 50px 50px 60px 50px 50px;
+    gap: 4px;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-feature-settings: "tnum";
+    transition: all 0.2s ease;
+}
+
+.op-row:last-child {
+    border-bottom: none;
+}
+
+.op-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Highlighted row when selected ticker has open position */
+.op-row.highlighted {
+    background: rgba(255, 215, 0, 0.08);
+    border-left: 2px solid var(--ml-color);
+    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.1);
+}
+
+/* Cell base styles */
+.op-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ticker symbol */
+.op-symbol {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Broker badge */
+.op-broker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background: rgba(100, 150, 200, 0.2);
+    border: 1px solid rgba(100, 150, 200, 0.4);
+    color: rgba(100, 150, 200, 0.9);
+}
+
+/* ALP: Blue tint (default) */
+.op-broker.alp {
+    background: rgba(100, 150, 200, 0.2);
+    border-color: rgba(100, 150, 200, 0.4);
+    color: rgba(100, 150, 200, 0.9);
+}
+
+/* KRA: Purple tint */
+.op-broker.kra {
+    background: rgba(150, 100, 200, 0.2);
+    border-color: rgba(150, 100, 200, 0.4);
+    color: rgba(150, 100, 200, 0.9);
+}
+
+/* CB: Teal tint (reserved) */
+.op-broker.cb {
+    background: rgba(100, 200, 200, 0.2);
+    border-color: rgba(100, 200, 200, 0.4);
+    color: rgba(100, 200, 200, 0.9);
+}
+
+/* Side pill: green for LONG, red for SHORT */
+.op-side {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--profit-color);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.op-side.short {
+    background: rgba(255, 51, 102, 0.2);
+    color: var(--loss-color);
+    border-color: rgba(255, 51, 102, 0.4);
+}
+
+/* Price cells: right-aligned, muted color */
+.op-price {
+    text-align: right;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* P&L cells: bold, color-coded */
+.op-pnl {
+    text-align: right;
+    font-weight: 600;
+    color: var(--profit-color);
+    transition: color 120ms ease, text-shadow 120ms ease;
+}
+
+.op-pnl.negative {
+    color: var(--loss-color);
+}
+
+/* P&L flash animations */
+.op-pnl.flash-up {
+    animation: op-pnl-flash-up 300ms ease-out forwards;
+}
+
+.op-pnl.flash-down {
+    animation: op-pnl-flash-down 300ms ease-out forwards;
+}
+
+@keyframes op-pnl-flash-up {
+    0% {
+        color: #ffd700;
+        text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    }
+    100% {
+        color: var(--profit-color);
+        text-shadow: none;
+    }
+}
+
+@keyframes op-pnl-flash-down {
+    0% {
+        color: #ffd700;
+        text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    }
+    100% {
+        color: var(--loss-color);
+        text-shadow: none;
+    }
+}
+
+/* Time held cell */
+.op-time {
+    text-align: right;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Row entry/exit animations */
+.op-row.entering {
+    animation: op-row-enter 0.3s ease-out forwards;
+}
+
+.op-row.exiting {
+    animation: op-row-exit 0.2s ease-out forwards;
+}
+
+@keyframes op-row-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes op-row-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+/* Empty state: muted text, dashed border, low opacity */
+.op-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 32px 12px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 300;
+    border: 1px dashed var(--border-color);
+    margin: 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* Scrollbar styling */
+.op-table::-webkit-scrollbar {
+    width: 4px;
+}
+
+.op-table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.op-table::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.2);
+    border-radius: 2px;
+}
+
+.op-table::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.4);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    .op-row,
+    .op-pnl.flash-up,
+    .op-pnl.flash-down,
+    .op-row.entering,
+    .op-row.exiting,
+    .op-aggregate-pnl {
+        animation: none !important;
+        transition: none !important;
+    }
+}

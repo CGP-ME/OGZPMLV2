@@ -28,22 +28,30 @@ window.OGZ = (function() {
         init: async function() {
             console.log('[Core] Booting Modular System...');
 
-            // Initialization sequence: Chart BEFORE Socket
+            // Chart MUST init before Socket binds handlers (price/pattern_analysis/trade
+            // handlers reference Chart). Socket has special boot (bindGlobalHandlers + connect),
+            // not init(). Theme is init'd separately by unified-dashboard.html's window.onload.
+            // Every other registered module gets init() called automatically — new modules
+            // added via OGZ.register() require no further wiring here.
+            const SPECIAL = new Set(['Chart', 'Socket', 'Theme']);
+
             if (this.get('Chart')) this.get('Chart').init();
+
             if (this.get('Socket')) {
                 this.bindGlobalHandlers();
                 this.get('Socket').connect();
             }
-            if (this.get('Operator')) this.get('Operator').init();
-            if (this.get('Edge')) this.get('Edge').init();
-            if (this.get('DrawingTools')) this.get('DrawingTools').init();
-            if (this.get('CommandPalette')) this.get('CommandPalette').init();
-            if (this.get('Heatbar')) this.get('Heatbar').init();
-            if (this.get('RiskGauge')) this.get('RiskGauge').init();
-            if (this.get('CandleCountdown')) this.get('CandleCountdown').init();
-            if (this.get('SessionPhase')) this.get('SessionPhase').init();
-            if (this.get('SizePreview')) this.get('SizePreview').init();
-            if (this.get('StrategyLeaderboard')) this.get('StrategyLeaderboard').init();
+
+            Object.keys(state.activeModules).forEach(name => {
+                if (SPECIAL.has(name)) return;
+                const mod = this.get(name);
+                if (!mod || typeof mod.init !== 'function') return;
+                try {
+                    mod.init();
+                } catch (e) {
+                    console.error(`[OGZ] Module init failed: ${name}`, e);
+                }
+            });
 
             // Check TRAI status light
             fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
