@@ -1275,6 +1275,7 @@ class StateManager {
   setDashboardWs(ws) {
     this.dashboardWs = ws;
     console.log('[StateManager] Dashboard WebSocket connected');
+    try { this.broadcastToDashboard({}, { reason: 'dashboard_connect' }); } catch (_) {}
   }
 
   broadcastToDashboard(updates, context) {
