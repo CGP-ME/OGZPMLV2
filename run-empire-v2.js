@@ -160,6 +160,8 @@ const OrderRouter = require('./core/OrderRouter');
 
 // REFACTOR Phase 14: OrderExecutor - exact copy of executeTrade() extracted
 const OrderExecutor = require('./core/OrderExecutor');
+// CC-C: Webhook order adapter (TTP via SignalStack) — side-channel emitter
+const WebhookOrderAdapter = require('./core/WebhookOrderAdapter');
 
 // CRIT-12: DynamicPositionSizer machine-toggleable env gate.
 // Validated baseline WITHOUT DPS: TSLA $970, QQQ $374.
@@ -915,6 +917,11 @@ class OGZPrimeV14Bot {
 
     console.log(`Trading Mode: ${tradingMode}`);
 
+    // CC-C: Webhook order adapter (TTP via SignalStack). Default OFF + dry-run
+    // gated; reads WEBHOOK_ORDERS_ENABLED / WEBHOOK_DRY_RUN / SIGNALSTACK_WEBHOOK_URL
+    // from .env. Threaded into OrderExecutor ctx for the 4 entry/exit emit sites.
+    this.webhookAdapter = new WebhookOrderAdapter();
+
     // REFACTOR Phase 14: OrderExecutor - context with all dependencies
     // Phase 2 REWRITE: executionLayer, tradingBrain, tradingOptimizations deleted
     // Phase 3 REWRITE: entryDecider deleted - gate checks in TradingLoop
@@ -946,6 +953,8 @@ class OGZPrimeV14Bot {
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
       orderRouter: this.orderRouter,
       maxProfitManagers: this.maxProfitManagers,
+      // CC-C: side-channel webhook emitter — read at OrderExecutor entry/exit blocks
+      webhookAdapter: this.webhookAdapter,
       // DynamicPositionSizer NOT WIRED - using inline confidence multiplier
       // Module-level functions
       notifyTrade: notifyTrade,

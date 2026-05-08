@@ -387,6 +387,9 @@ class OrderExecutor {
             // (post-confluence) divided by fill price, floored to integer shares.
             if (this.ctx.webhookAdapter) {
               const shares = Math.floor(adjustedPositionSize / price);
+              if (shares < 1) {
+                console.warn(`[WebhookOrder] DRIFT: BUY entry qty=${shares} (positionSize=${adjustedPositionSize.toFixed(2)} price=${price.toFixed(2)}) — bot opened long internally but no webhook sent. TTP will not see this entry; subsequent SELL will reference a position TTP doesn't hold.`);
+              }
               this.ctx.webhookAdapter.emit({
                 action: 'buy',
                 symbol: this.ctx.tradingPair,
@@ -553,6 +556,9 @@ class OrderExecutor {
             // SELL_SHORT opens a short; broker-side action is 'sell'.
             if (this.ctx.webhookAdapter) {
               const shares = Math.floor(adjustedPositionSize / price);
+              if (shares < 1) {
+                console.warn(`[WebhookOrder] DRIFT: SELL_SHORT entry qty=${shares} (positionSize=${adjustedPositionSize.toFixed(2)} price=${price.toFixed(2)}) — bot opened short internally but no webhook sent. TTP will not see this entry; subsequent COVER will reference a position TTP doesn't hold.`);
+              }
               this.ctx.webhookAdapter.emit({
                 action: 'sell',
                 symbol: this.ctx.tradingPair,
@@ -782,11 +788,15 @@ class OrderExecutor {
               if (this.ctx.webhookAdapter) {
                 const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
                 const shares = Math.floor(exitUsd / price);
+                if (shares < 1) {
+                  console.warn(`[WebhookOrder] DRIFT: SELL ${isPartialClose ? 'partial' : 'full'} exit qty=${shares} (exitUsd=${exitUsd.toFixed(2)} price=${price.toFixed(2)}) — bot reduced position but no webhook sent. TTP long position will diverge until next full-close emit.`);
+                }
                 this.ctx.webhookAdapter.emit({
                   action: 'sell',
                   symbol: this.ctx.tradingPair,
                   quantity: shares,
                   orderType: 'market',
+                  bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
                 }).catch(err => console.warn(`[WebhookOrder] SELL emit failed: ${err.message}`));
               }
             }
@@ -1180,11 +1190,15 @@ class OrderExecutor {
             // a short, so the broker-side action is 'buy'.
             if (this.ctx.webhookAdapter) {
               const shares = Math.floor(shortSize / price);
+              if (shares < 1) {
+                console.warn(`[WebhookOrder] DRIFT: COVER qty=${shares} (shortSize=${shortSize.toFixed(2)} price=${price.toFixed(2)}) — bot covered internally but no webhook sent. TTP short position will diverge until next full-close emit.`);
+              }
               this.ctx.webhookAdapter.emit({
                 action: 'buy',
                 symbol: this.ctx.tradingPair,
                 quantity: shares,
                 orderType: 'market',
+                bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
               }).catch(err => console.warn(`[WebhookOrder] COVER emit failed: ${err.message}`));
             }
           }
