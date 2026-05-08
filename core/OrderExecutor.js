@@ -380,6 +380,20 @@ class OrderExecutor {
 
             // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
             this.ctx.discordNotifier.notifyTrade('buy', price, positionSize);
+
+            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
+            // a slow/failed webhook must never stall the trading loop. BUY opens
+            // a long; broker-side action is 'buy'. Quantity uses adjustedPositionSize
+            // (post-confluence) divided by fill price, floored to integer shares.
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(adjustedPositionSize / price);
+              this.ctx.webhookAdapter.emit({
+                action: 'buy',
+                symbol: this.ctx.tradingPair,
+                quantity: shares,
+                orderType: 'market',
+              }).catch(err => console.warn(`[WebhookOrder] BUY emit failed: ${err.message}`));
+            }
           }
 
           // Start pattern exit tracking (shadow mode or active)
@@ -534,6 +548,18 @@ class OrderExecutor {
             }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
 
             this.ctx.discordNotifier.notifyTrade('sell_short', price, positionSize);
+
+            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
+            // SELL_SHORT opens a short; broker-side action is 'sell'.
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(adjustedPositionSize / price);
+              this.ctx.webhookAdapter.emit({
+                action: 'sell',
+                symbol: this.ctx.tradingPair,
+                quantity: shares,
+                orderType: 'market',
+              }).catch(err => console.warn(`[WebhookOrder] SELL_SHORT emit failed: ${err.message}`));
+            }
           }
 
           // Pattern exit tracking for shorts
@@ -749,6 +775,20 @@ class OrderExecutor {
 
               // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
               this.ctx.discordNotifier.notifyTrade('sell', price, usdAmount, profitLoss);
+
+              // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
+              // SELL closes a long; broker-side action is 'sell'. Partial-aware:
+              // emit the REDUCED USD when reducePosition handled a partial close.
+              if (this.ctx.webhookAdapter) {
+                const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
+                const shares = Math.floor(exitUsd / price);
+                this.ctx.webhookAdapter.emit({
+                  action: 'sell',
+                  symbol: this.ctx.tradingPair,
+                  quantity: shares,
+                  orderType: 'market',
+                }).catch(err => console.warn(`[WebhookOrder] SELL emit failed: ${err.message}`));
+              }
             }
 
             // Phase 4 REWRITE: executionLayer.trades deleted - backtestRecorder handles trade recording
@@ -1134,6 +1174,19 @@ class OrderExecutor {
             }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
 
             this.ctx.discordNotifier.notifyTrade('cover', price, shortSize, profitLoss);
+
+            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
+            // a slow/failed webhook must never stall the trading loop. COVER closes
+            // a short, so the broker-side action is 'buy'.
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(shortSize / price);
+              this.ctx.webhookAdapter.emit({
+                action: 'buy',
+                symbol: this.ctx.tradingPair,
+                quantity: shares,
+                orderType: 'market',
+              }).catch(err => console.warn(`[WebhookOrder] COVER emit failed: ${err.message}`));
+            }
           }
 
           // Dashboard broadcast for COVER
