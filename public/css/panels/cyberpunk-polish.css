@@ -1,0 +1,333 @@
+/**
+ * cyberpunk-polish.css — OGZPrime Dashboard Visual Enhancement Layer
+ *
+ * This file applies ADDITIVE visual polish to the OGZPrime v2 dashboard:
+ * Gold underglow on all panel containers, ambient scan-line effects, confidence
+ * pulse animations, heat-meter gradients, status-light glow upgrades, and more.
+ *
+ * IMPORTANT: This file is purely stylistic and can be deleted entirely to fall
+ * back to the unstyled-but-functional baseline. All existing modules and layouts
+ * remain intact. No HTML changes required.
+ *
+ * Uses only existing theme CSS variables (--glass-*, --neon-*, --ml-color, etc).
+ * No new colors, no new fonts, no layout modifications.
+ *
+ * Enhancements applied via:
+ * - Element ID selectors for panels (#newsTicker, #watchlistStrip, etc.)
+ * - Class selectors for dynamic effects (.is-high-confidence, .is-trading-entry, etc.)
+ * - Attribute selectors for data-driven styling
+ *
+ * @category CSS Enhancement Layer
+ * @version 1.0
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ROOT / AMBIENT EFFECTS
+   ───────────────────────────────────────────────────────────────────────── */
+
+body {
+    position: relative;
+}
+
+/* Ambient scan-line sweep: very subtle vertical sweep across entire viewport */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 215, 0, 0.02) 50%,
+        transparent 100%
+    );
+    pointer-events: none;
+    animation: ambient-scan 8s linear infinite;
+    z-index: 9998;
+}
+
+@keyframes ambient-scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+/* Optional: subtle corner-to-corner radial gradient for added depth */
+/* (Can be refined if existing theme doesn't already have this) */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PANEL GLASS-BOX UNDERGLOW ENHANCEMENT
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Apply to all major panel containers. Enhances existing glass styling. */
+#newsTicker,
+#watchlistStrip,
+#patternCard,
+#openPositions,
+#traiBrain,
+#chainOfThought,
+#equityCurve,
+#systemHealth,
+#liveReadouts,
+#edgeAnalytics,
+#confidenceHeatbar,
+#sizePreview,
+#riskGauge,
+#tradeLog,
+#strategyLeaderboard,
+#unifiedChart {
+    box-shadow: var(--glass-underglow);
+    transition: all 0.3s ease;
+}
+
+/* Hover state: amplify underglow and lift slightly */
+#newsTicker:hover,
+#watchlistStrip:hover,
+#patternCard:hover,
+#openPositions:hover,
+#traiBrain:hover,
+#chainOfThought:hover,
+#equityCurve:hover,
+#systemHealth:hover,
+#liveReadouts:hover,
+#edgeAnalytics:hover,
+#confidenceHeatbar:hover,
+#sizePreview:hover,
+#riskGauge:hover,
+#tradeLog:hover,
+#strategyLeaderboard:hover,
+#unifiedChart:hover {
+    box-shadow: var(--glass-underglow-strong);
+    transform: translateY(-1px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HIGH-CONFIDENCE PULSE
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Apply .is-high-confidence class to cells/elements on confidence > 0.85 */
+.is-high-confidence {
+    animation: cp-confidence-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cp-confidence-pulse {
+    0% {
+        box-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.7),
+                    0 0 8px rgba(0, 255, 136, 0.5);
+    }
+    100% {
+        box-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TRADE-ENTRY FLASH
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Apply .is-trading-entry class on trade signal execution */
+.is-trading-entry {
+    animation: trade-entry-flash 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes trade-entry-flash {
+    0% {
+        box-shadow: 0 0 0 rgba(255, 215, 0, 0.8),
+                    var(--glass-underglow);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.9),
+                    0 0 12px rgba(0, 255, 136, 0.6);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: var(--glass-underglow);
+        transform: scale(1);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HEAT-METER GRADIENT
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Apply to any progress bar with .heat-meter class */
+.heat-meter {
+    background: var(--heat-gradient);
+}
+
+/* Optional: add subtle glow to heat-meter containers */
+.heat-meter-container {
+    box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   STATUS LIGHT GLOW UPGRADE
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Status lights: BOT, DATA, TRAI, SystemHealth indicators */
+.status-light,
+.indicator-light {
+    transition: all 0.3s ease;
+}
+
+.status-light.is-active,
+.indicator-light.is-active {
+    box-shadow: var(--neon-gold-glow);
+    animation: status-pulse-active 2s ease-in-out infinite;
+}
+
+.status-light.is-idle,
+.indicator-light.is-idle {
+    opacity: 0.5;
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.2);
+}
+
+.status-light.is-error,
+.indicator-light.is-error {
+    box-shadow: var(--neon-red-glow);
+    animation: status-pulse-error 1s ease-in-out infinite;
+}
+
+@keyframes status-pulse-active {
+    0%, 100% {
+        box-shadow: var(--neon-gold-glow);
+    }
+    50% {
+        box-shadow: var(--neon-gold-glow), 0 0 8px rgba(0, 255, 136, 0.4);
+    }
+}
+
+@keyframes status-pulse-error {
+    0%, 100% {
+        box-shadow: var(--neon-red-glow);
+    }
+    50% {
+        box-shadow: var(--neon-red-glow), 0 0 8px rgba(255, 51, 102, 0.6);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NEWSTICKER SENTIMENT GLOW UPGRADE
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Bullish sentiment: green underglow */
+.nt-sent-bullish {
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.4) inset,
+                0 2px 8px rgba(0, 255, 136, 0.2);
+}
+
+.nt-sent-bullish:hover {
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.6) inset,
+                0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+/* Defensive sentiment: red underglow */
+.nt-sent-defensive {
+    box-shadow: 0 0 8px rgba(255, 51, 102, 0.4) inset,
+                0 2px 8px rgba(255, 51, 102, 0.2);
+}
+
+.nt-sent-defensive:hover {
+    box-shadow: 0 0 12px rgba(255, 51, 102, 0.6) inset,
+                0 4px 12px rgba(255, 51, 102, 0.3);
+}
+
+/* Neutral sentiment: gold underglow */
+.nt-sent-neutral {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.35) inset,
+                0 2px 8px rgba(255, 215, 0, 0.15);
+}
+
+.nt-sent-neutral:hover {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.5) inset,
+                0 4px 12px rgba(255, 215, 0, 0.25);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   WATCHLIST SELECTED CARD ENHANCEMENT
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Selected/highlighted card in WatchlistStrip */
+.ws-card.selected,
+.watchlist-item.selected {
+    box-shadow: var(--glass-underglow-strong), 0 0 16px rgba(255, 215, 0, 0.5);
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   STRATEGY CONFLUENCE LINK
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* When two strategies in StrategyLeaderboard agree (both high conf) */
+.is-confluence {
+    box-shadow: var(--glass-underglow), 0 0 12px rgba(255, 215, 0, 0.5);
+    position: relative;
+}
+
+.is-confluence::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -8px;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 215, 0, 0.6) 50%,
+        transparent 100%
+    );
+    border-radius: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   EDGE-CASE RESPONSIVE ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Smooth transitions for dynamic class changes */
+.is-high-confidence,
+.is-trading-entry,
+.is-confluence,
+.ws-card.selected,
+.status-light,
+.indicator-light {
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ACCESSIBILITY: REDUCED MOTION
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    body::after,
+    .is-high-confidence,
+    .is-trading-entry,
+    .status-light.is-active,
+    .status-light.is-error {
+        animation: none !important;
+    }
+
+    #newsTicker,
+    #watchlistStrip,
+    #patternCard,
+    #openPositions,
+    #traiBrain,
+    #chainOfThought,
+    #equityCurve,
+    #systemHealth,
+    #liveReadouts,
+    #edgeAnalytics,
+    #confidenceHeatbar,
+    #sizePreview,
+    #riskGauge,
+    #tradeLog,
+    #strategyLeaderboard,
+    #unifiedChart {
+        transition: none !important;
+    }
+}
