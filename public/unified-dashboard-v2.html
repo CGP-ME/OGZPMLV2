@@ -58,6 +58,11 @@
     <link rel="stylesheet" href="/css/panels/live-readouts.css">
     <link rel="stylesheet" href="/css/panels/cyberpunk-polish.css">
 
+    <!-- Phase 5 refactor — self-rendering chart + edge-analytics modules.
+         Replace legacy chart.js + edge-analytics.js DOM-binders. -->
+    <link rel="stylesheet" href="/css/panels/chart-panel.css">
+    <link rel="stylesheet" href="/css/panels/edge-analytics-panel.css">
+
     <style>
         /* ========================================================================
            THEME VARIABLES & FOUNDATIONAL STYLES
@@ -465,132 +470,12 @@
              ==================================================================== -->
         <aside class="dash-left-rail">
 
-            <!-- Edge Analytics Panel -->
-            <!-- Status: Module exists as public/js/panels/edge-analytics.js
-                 IMPORTANT: edge-analytics.js is a DOM-binder, NOT a self-renderer.
-                 It expects this exact scaffold (specific child IDs) to already be present.
-                 Scaffold lifted from public/unified-dashboard.html monolith lines 2726-2842.
-                 TODO: Refactor edge-analytics.js into a proper self-rendering module so
-                 this scaffold can move out of the shell into a per-panel template. -->
-            <div id="edgeAnalytics">
-
-                <!-- Liquidation Heatmap -->
-                <div class="edge-section">
-                    <h4>💀 Liquidation Levels</h4>
-                    <div class="liq-levels">
-                        <div class="liq-level long-liq">
-                            <span>Long Liq Zone:</span>
-                            <span class="liq-price" id="longLiqPrice">--</span>
-                            <span class="liq-volume" id="longLiqVol">$0</span>
-                        </div>
-                        <div class="liq-level short-liq">
-                            <span>Short Liq Zone:</span>
-                            <span class="liq-price" id="shortLiqPrice">--</span>
-                            <span class="liq-volume" id="shortLiqVol">$0</span>
-                        </div>
-                    </div>
-                    <canvas id="liqHeatmap" width="300" height="150"></canvas>
-                </div>
-
-                <!-- CVD - Cumulative Volume Delta -->
-                <div class="edge-section">
-                    <h4>📊 CVD (Order Flow)</h4>
-                    <div class="cvd-display">
-                        <div class="cvd-value" id="cvdValue">0</div>
-                        <div class="cvd-trend" id="cvdTrend">NEUTRAL</div>
-                        <canvas id="cvdChart" width="300" height="100"></canvas>
-                    </div>
-                </div>
-
-                <!-- Funding Rates -->
-                <div class="edge-section">
-                    <h4>💰 Funding Rates</h4>
-                    <div class="funding-display">
-                        <div class="funding-current">
-                            <span>Current:</span>
-                            <span class="funding-rate" id="currentFunding">0.01%</span>
-                        </div>
-                        <div class="funding-predicted">
-                            <span>Predicted:</span>
-                            <span class="funding-rate" id="predictedFunding">0.01%</span>
-                        </div>
-                        <div class="funding-signal" id="fundingSignal">NEUTRAL</div>
-                    </div>
-                </div>
-
-                <!-- Whale Alerts -->
-                <div class="edge-section">
-                    <h4>🐋 Whale Activity</h4>
-                    <div class="whale-alerts" id="whaleAlerts">
-                        <div class="whale-item">Waiting for whales...</div>
-                    </div>
-                </div>
-
-                <!-- Market Internals -->
-                <div class="edge-section">
-                    <h4>🔍 Market Internals</h4>
-                    <div class="internals">
-                        <div class="internal-item">
-                            <span>Buy/Sell Ratio:</span>
-                            <span id="buySellRatio">1.0</span>
-                        </div>
-                        <div class="internal-item">
-                            <span>Aggressor Side:</span>
-                            <span id="aggressorSide">NEUTRAL</span>
-                        </div>
-                        <div class="internal-item">
-                            <span>Order Book Imbalance:</span>
-                            <span id="bookImbalance">0%</span>
-                        </div>
-                        <div class="internal-item">
-                            <span>Spread:</span>
-                            <span id="spreadValue">0.01%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Smart Money Tracking -->
-                <div class="edge-section">
-                    <h4>🧠 Smart Money</h4>
-                    <div class="smart-money">
-                        <div class="smart-item">
-                            <span>Smart Money Flow:</span>
-                            <span id="smartFlow" class="flow-value">ACCUMULATING</span>
-                        </div>
-                        <div class="smart-item">
-                            <span>Institutional Activity:</span>
-                            <span id="instActivity">HIGH</span>
-                        </div>
-                        <div class="smart-item">
-                            <span>Old Coins Moving:</span>
-                            <span id="dormancy">LOW</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Fear & Greed Index -->
-                <div class="edge-section">
-                    <h4>😱 Fear & Greed</h4>
-                    <div class="fear-greed">
-                        <div class="fg-gauge">
-                            <div class="fg-value" id="fgValue">50</div>
-                            <div class="fg-label" id="fgLabel">NEUTRAL</div>
-                            <div class="fg-bar">
-                                <div class="fg-fill" id="fgFill" style="width: 50%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hidden Divergences -->
-                <div class="edge-section">
-                    <h4>🔮 Hidden Divergences</h4>
-                    <div class="divergences" id="divergences">
-                        <div class="divergence-item">Scanning...</div>
-                    </div>
-                </div>
-
-            </div>
+            <!-- Edge Analytics Panel — Phase 5 refactor.
+                 Self-rendering module: public/js/panels/edge-analytics-panel.js
+                 Builds the 8-section scaffold (Liquidation, CVD, Funding, Whales,
+                 Internals, Smart Money, Fear & Greed, Divergences) at mount time.
+                 All legacy child IDs (cvdValue, fgFill, etc.) preserved inside. -->
+            <div id="edgeAnalyticsPanel"></div>
 
             <!-- Confidence Heatbar (Phase E) -->
             <!-- Status: Module exists as public/js/panels/confidence-heatbar.js
@@ -603,93 +488,13 @@
              ==================================================================== -->
         <section class="dash-center">
 
-            <!-- Chart Container -->
-            <!-- Status: Module exists as public/js/chart.js
-                 IMPORTANT: chart.js is a DOM-binder, expects specific child IDs.
-                 Scaffold lifted from public/unified-dashboard.html monolith lines 3050-3210.
-                 TODO: Refactor chart.js into a proper self-rendering module. -->
-            <div class="unified-chart-section tier-ml" id="unifiedChart">
-                <div class="chart-header">
-                    <div class="chart-title-container">
-                        <h2 class="chart-title" id="chartTitle" style="display:none;">ML VERSION</h2>
-                        <span class="price-display" id="currentPrice">$0.00</span>
-                    </div>
-                    <div class="chart-controls">
-                        <select id="chartTypeSelector">
-                            <option value="candlestick" selected>Candlestick</option>
-                            <option value="line">Line</option>
-                            <option value="area">Area</option>
-                            <option value="bar">Bar</option>
-                        </select>
-                        <select id="assetSelector">
-                            <optgroup label="Crypto (Kraken)">
-                                <option value="BTC-USD">Bitcoin (BTC)</option>
-                                <option value="ETH-USD">Ethereum (ETH)</option>
-                                <option value="SOL-USD">Solana (SOL)</option>
-                                <option value="XRP-USD">Ripple (XRP)</option>
-                                <option value="DOGE-USD">Dogecoin (DOGE)</option>
-                                <option value="ADA-USD">Cardano (ADA)</option>
-                                <option value="AVAX-USD">Avalanche (AVAX)</option>
-                                <option value="LINK-USD">Chainlink (LINK)</option>
-                                <option value="LTC-USD">Litecoin (LTC)</option>
-                                <option value="DOT-USD">Polkadot (DOT)</option>
-                            </optgroup>
-                            <optgroup label="Stocks (Alpaca)">
-                                <option value="TSLA" selected>Tesla (TSLA)</option>
-                                <option value="AAPL">Apple (AAPL)</option>
-                                <option value="NVDA">NVIDIA (NVDA)</option>
-                                <option value="SPY">S&P 500 (SPY)</option>
-                                <option value="QQQ">Nasdaq 100 (QQQ)</option>
-                                <option value="AMD">AMD (AMD)</option>
-                                <option value="AMZN">Amazon (AMZN)</option>
-                                <option value="MSFT">Microsoft (MSFT)</option>
-                                <option value="GOOG">Google (GOOG)</option>
-                                <option value="META">Meta (META)</option>
-                                <option value="NFLX">Netflix (NFLX)</option>
-                                <option value="COIN">Coinbase (COIN)</option>
-                                <option value="RIOT">Riot (RIOT)</option>
-                                <option value="MARA">Marathon (MARA)</option>
-                                <option value="PLTR">Palantir (PLTR)</option>
-                            </optgroup>
-                        </select>
-                        <select id="timeframeSelector">
-                            <option value="1m" selected>1M</option>
-                            <option value="5m">5M</option>
-                            <option value="15m">15M</option>
-                            <option value="30m">30M</option>
-                            <option value="1h">1H</option>
-                            <option value="4h">4H</option>
-                            <option value="1d">1D</option>
-                        </select>
-                        <span id="candleCountdown"></span>
-                        <div class="indicator-checkboxes" id="indicatorCheckboxes">
-                            <label class="indicator-check"><input type="checkbox" id="chk-ema" value="ema"><span class="color-dot" style="background: #ffcc00;"></span><span>EMA</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-sma" value="sma"><span class="color-dot" style="background: #00ccff;"></span><span>SMA</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-bollinger" value="bollinger"><span class="color-dot" style="background: #ff00cc;"></span><span>Bollinger Bands</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-atr" value="atr"><span class="color-dot" style="background: #ff6600;"></span><span>ATR</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-fibonacci" value="fibonacci"><span class="color-dot" style="background: #9900ff;"></span><span>Fibonacci</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-trendlines" value="trendlines"><span class="color-dot" style="background: #00ff00;"></span><span>Trend Lines</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-rsi" value="rsi"><span class="color-dot" style="background: #ff0066;"></span><span>RSI Overlay</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-macd" value="macd"><span class="color-dot" style="background: #6600ff;"></span><span>MACD Overlay</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-vwap" value="vwap"><span class="color-dot" style="background: #00ffcc;"></span><span>VWAP</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-ichimoku" value="ichimoku"><span class="color-dot" style="background: #ccff00;"></span><span>Ichimoku Cloud</span></label>
-                            <label class="indicator-check"><input type="checkbox" id="chk-sr" value="sr"><span class="color-dot" style="background: #ff9900;"></span><span>Support/Resistance</span></label>
-                        </div>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div id="tvChartContainer"></div>
-                    <div id="tradeTooltip" style="display:none; position:absolute; background:rgba(0,0,0,0.95); border:1px solid #444; border-radius:6px; padding:10px 12px; font-size:11px; font-family:monospace; z-index:1000; pointer-events:none; min-width:180px;">
-                        <div id="tooltipContent"></div>
-                    </div>
-                    <div id="crosshairTooltip" style="display:none; position:absolute; background:rgba(10,10,10,0.96); border:1px solid rgba(255,215,0,0.35); border-radius:6px; padding:6px 10px; z-index:999; pointer-events:none; min-width:150px; box-shadow:0 4px 20px rgba(0,0,0,0.6);"></div>
-                    <div id="feedStatusPill" style="display:none; position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(255,51,102,0.15); border:1px solid rgba(255,51,102,0.5); color:#ff6b8a; padding:6px 14px; border-radius:20px; font-size:11px; font-family:monospace; z-index:998; letter-spacing:0.5px;">⚠ Bot offline — waiting for feed</div>
-                    <div id="chartHud" aria-hidden="true">
-                        <div id="chartHudPrice" style="display:none;">$0.00</div>
-                        <div id="chartHudOhlc">O 0.00  H 0.00  L 0.00  C 0.00</div>
-                    </div>
-                </div>
-            </div>
+            <!-- Chart Panel — Phase 5 refactor.
+                 Self-rendering module: public/js/panels/chart-panel.js
+                 Builds full chart scaffold (header + controls + tvChartContainer +
+                 HUD + crosshair tooltip + 11 indicator checkboxes) at mount time.
+                 All legacy IDs preserved inside (tvChartContainer, currentPrice,
+                 chartHudOhlc, etc.) so drawing-tools.js + other consumers still work. -->
+            <div id="chartPanel"></div>
 
             <!-- Strategy Leaderboard -->
             <!-- Status: Module exists as public/js/panels/strategy-leaderboard.js -->
@@ -823,8 +628,8 @@
     <script src="/js/indicators.js"></script>
     <script src="/js/websocket.js"></script>
 
-    <!-- Chart System -->
-    <script src="/js/chart.js"></script>
+    <!-- Chart System — Phase 5: legacy chart.js DELETED from import list.
+         Replaced by ChartPanel module loaded below. -->
 
     <!-- Utilities & Utilities -->
     <script src="/js/drawing-tools.js"></script>
@@ -843,8 +648,8 @@
     <!-- System monitoring panels -->
     <script src="/js/panels/system-snapshot.js"></script>
 
-    <!-- Edge Analytics subsystem -->
-    <script src="/js/panels/edge-analytics.js"></script>
+    <!-- Edge Analytics subsystem — Phase 5: legacy edge-analytics.js DELETED
+         from import list. Replaced by EdgeAnalyticsPanel module loaded below. -->
 
     <!-- Asset/Timeframe cards -->
     <script src="/js/panels/asset-tf-card.js"></script>
@@ -880,6 +685,10 @@
     <script src="/js/panels/live-readouts.js"></script>
     <script src="/js/panels/celebration.js"></script>
 
+    <!-- Phase 5 self-rendering modules (replace legacy chart.js + edge-analytics.js) -->
+    <script src="/js/panels/chart-panel.js"></script>
+    <script src="/js/panels/edge-analytics-panel.js"></script>
+
     <!-- Root-level widget (loads last, after all panels registered).
          NOTE: trai-widget.js lives at the public/ root, not in public/js/.
          Path is /trai-widget.js (no /js/ prefix). -->
@@ -901,6 +710,19 @@
 
             if (window.OGZ && typeof window.OGZ.init === 'function') {
                 window.OGZ.init();
+
+                // Phase 5: ChartPanel + EdgeAnalyticsPanel are NOT in OGZ.init()'s
+                // hardcoded sequence (core.js still references the legacy 'Chart'
+                // and 'Edge' module names). Explicit init required for both.
+                if (window.OGZ.get && window.OGZ.get('ChartPanel')) {
+                    try { window.OGZ.get('ChartPanel').init(); }
+                    catch (e) { console.warn('[Dashboard v2] ChartPanel.init() failed:', e); }
+                }
+                if (window.OGZ.get && window.OGZ.get('EdgeAnalyticsPanel')) {
+                    try { window.OGZ.get('EdgeAnalyticsPanel').init(); }
+                    catch (e) { console.warn('[Dashboard v2] EdgeAnalyticsPanel.init() failed:', e); }
+                }
+
                 if (window.OGZ.get && window.OGZ.get('Theme')) {
                     try { window.OGZ.get('Theme').init(); }
                     catch (e) { console.warn('[Dashboard v2] Theme.init() failed:', e); }
