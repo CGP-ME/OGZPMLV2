@@ -45,33 +45,53 @@ class TradingLoop {
   /**
    * Main analysis loop. Called on every candle.
    */
-  async analyzeAndTrade() {
+  async analyzeAndTrade(symbol = null) {
     // Concurrency guard — one analysis at a time
     if (this.analyzing) return;
     this.analyzing = true;
 
     try {
-      await this._analyze();
+      await this._analyze(symbol);
     } finally {
       this.analyzing = false;
     }
   }
 
-  async _analyze() {
+  async _analyze(symbol = null) {
+    // CC-C Multi-Symbol Commit 4/6: resolve per-symbol context.
+    // When symbol is passed, route reads through that SymbolTradingContext.
+    // When omitted (single-symbol legacy callers), symCtx === null and the
+    // local-var fallbacks below resolve to this.ctx.* — backward compat.
+    // Commit 6 (OHLC handler) is the caller change that actually passes
+    // symbol on every candle dispatch; until then this path is dormant
+    // (Phase 0 single-symbol behavior unchanged).
+    const symCtx = symbol ? this.ctx.symbolContexts?.get(symbol) : null;
+    // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
+    // symCtx pass — declaring them here too was dead code (Mercury attack #4).
+    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+    if (symCtx && !this._firstAnalyzedSymbols) this._firstAnalyzedSymbols = new Set();
+    if (symCtx && !this._firstAnalyzedSymbols.has(symbol)) {
+      console.log(`[BOOT][TradingLoop] first analysis cycle for ${symbol} via symCtx path`);
+      this._firstAnalyzedSymbols.add(symbol);
+    }
+
     const { price } = this.ctx.marketData;
 
     // ─── WARMUP CHECK ───
-    if (this.ctx.priceHistory.length < 15) return;
+    if (priceHistory.length < 15) return;
 
     // ─── GATHER DATA ───
-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel } = this._gatherData(price);
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel } = this._gatherData(price, symCtx);
 
     // ─── RUN ORCHESTRATOR ───
     const orchResult = this.ctx.strategyOrchestrator.evaluate(
-      indicators, patterns, regime, this.ctx.priceHistory,
+      indicators, patterns, regime, priceHistory,
       {
-        emaCrossoverSignal: this.ctx.runner?.emaCrossoverSignal || this.ctx.emaCrossoverSignal,
-        maDynamicSRSignal: this.ctx.runner?.maDynamicSRSignal || this.ctx.maDynamicSRSignal,
+        // CC-C Multi-Symbol Commit 4/6: prefer per-symbol signal outputs when
+        // available (populated by CandleProcessor commit 3 onto symCtx). Fall
+        // back to the legacy global runner / ctx refs for single-symbol mode.
+        emaCrossoverSignal: symCtx?.emaCrossoverSignal ?? this.ctx.runner?.emaCrossoverSignal ?? this.ctx.emaCrossoverSignal,
+        maDynamicSRSignal: symCtx?.maDynamicSRSignal ?? this.ctx.runner?.maDynamicSRSignal ?? this.ctx.maDynamicSRSignal,
         // 2026-05-04: breakRetestSignal removed — orchestrator now owns BreakAndRetest instance directly.
         liquiditySweepSignal: this.ctx.runner?.liquiditySweepSignal || this.ctx.liquiditySweepSignal,
         mtfAdapter: this.ctx.runner?.mtfAdapter || this.ctx.mtfAdapter,
@@ -79,7 +99,7 @@ class TradingLoop {
         price,
         fibLevels,
         nearestFibLevel,
-        volumeProfile: this.ctx.runner?.volumeProfile || this.ctx.volumeProfile,
+        volumeProfile: symCtx?.volumeProfile ?? this.ctx.runner?.volumeProfile ?? this.ctx.volumeProfile,
         // HIGH-16: pass timeframe so orchestrator can validate + scale SL/TP
         // per timeframe instead of falling back to '15m' silently.
         timeframe: this.ctx.candleTimeframe,
@@ -207,7 +227,7 @@ class TradingLoop {
       // MaxProfitManager check — per-trade instance from Map
       const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id);
       if (mpm?.state?.active) {
-        const recentCandles = this.ctx.priceHistory.slice(-20);
+        const recentCandles = priceHistory.slice(-20);
         // HIGH-02: was `volatility: indicators.volatility || 0` — masked
         // missing volatility as 0, causing MaxProfitManager.updateTrailingStop
         // to compute zero-volatility ATR adjustments (tight trailing fires
@@ -222,7 +242,7 @@ class TradingLoop {
           volume: this.ctx.marketData?.volume || 0,
           atr: indicators.atr,
           rsi: indicators.rsi,
-          candle: this.ctx.priceHistory[this.ctx.priceHistory.length - 1],
+          candle: priceHistory[priceHistory.length - 1],
           recentCandles,
           nearestStructure: null  // TODO: wire in structure levels later
         });
@@ -329,7 +349,7 @@ class TradingLoop {
       // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
       // loss limits, recovery min_confidence) via decision.riskGates — appended below.
       const riskGates = [
-        { gate: 'warmup', threshold: 15, value: this.ctx.priceHistory.length, passed: this.ctx.priceHistory.length >= 15 },
+        { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
         { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
         { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
         { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
@@ -461,9 +481,16 @@ class TradingLoop {
   // DATA GATHERING — unchanged from original, just extracted
   // ═══════════════════════════════════════════════════════════════
 
-  _gatherData(price) {
+  _gatherData(price, symCtx = null) {
+    // CC-C Multi-Symbol Commit 4/6: same per-symbol shadowing pattern as
+    // _analyze. When symCtx is passed, route data-gathering reads through it;
+    // otherwise fall back to this.ctx.* for single-symbol legacy callers.
+    const priceHistory       = symCtx?.priceHistory       ?? this.ctx.priceHistory;
+    const indicatorEngine    = symCtx?.indicatorEngine    ?? this.ctx.indicatorEngine;
+    const fibonacciDetector  = symCtx?.fibonacciDetector  ?? this.ctx.fibonacciDetector;
+
     // Indicators
-    const dtoState = this.ctx.indicatorEngine.getSnapshot();
+    const dtoState = indicatorEngine.getSnapshot();
     const indicators = dtoState.indicators;
     indicators.ema12 = indicators.ema9 ?? null;
     indicators.ema26 = indicators.ema21 ?? null;
@@ -474,7 +501,7 @@ class TradingLoop {
 
     // Patterns
     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
-      candles: this.ctx.priceHistory,
+      candles: priceHistory,
       trend: indicators.trend,
       macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
       macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
@@ -486,7 +513,7 @@ class TradingLoop {
     // pattern_performance — root cause was unbounded JSON-of-features signature
     // keying, fixed in EnhancedPatternRecognition._signatureFromFeatures().
     // Re-enable safe with quantized signatures + 70% conf filter below.
-    const rawCandlePatterns = candlePatternDetector.detect(this.ctx.priceHistory, {
+    const rawCandlePatterns = candlePatternDetector.detect(priceHistory, {
       rsi: indicators.rsi,
       trend: indicators.trend,
       macd: indicators.macd?.macd ?? null,
@@ -508,7 +535,7 @@ class TradingLoop {
           return;
         }
         if (!Array.isArray(pattern.features)) {
-          pattern.features = FeatureExtractor.extractArray({ indicators, candles: this.ctx.priceHistory });
+          pattern.features = FeatureExtractor.extractArray({ indicators, candles: priceHistory });
         }
         telemetry.event('pattern_detected', { signature, confidence: pattern.confidence, price });
       });
@@ -517,7 +544,7 @@ class TradingLoop {
 
     // Regime
     const _regimeDetector = new RegimeDetector();
-    const regimeResult = _regimeDetector.detect(indicators, this.ctx.priceHistory);
+    const regimeResult = _regimeDetector.detect(indicators, priceHistory);
     // MED-09: trust RegimeDetector's contract — every return path
     // (RegimeDetector.js:65, 91, 231, 239, 247, 254) supplies a .regime field.
     // Soft-warn + || 'unknown' fallback was dead defense. Throw if the
@@ -535,15 +562,15 @@ class TradingLoop {
     // Fibonacci
     let fibLevels = null;
     let nearestFibLevel = null;
-    if (this.ctx.fibonacciDetector && this.ctx.priceHistory.length >= 30) {
-      fibLevels = this.ctx.fibonacciDetector.update(this.ctx.priceHistory);
-      if (fibLevels) nearestFibLevel = this.ctx.fibonacciDetector.getNearestLevel(price);
+    if (fibonacciDetector && priceHistory.length >= 30) {
+      fibLevels = fibonacciDetector.update(priceHistory);
+      if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
     }
 
     // TPO
     let tpoResult = null;
-    if (this.ctx.ogzTpo && this.ctx.priceHistory.length > 0) {
-      const latestCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+    if (this.ctx.ogzTpo && priceHistory.length > 0) {
+      const latestCandle = priceHistory[priceHistory.length - 1];
       tpoResult = this.ctx.ogzTpo.update({
         o: _o(latestCandle), h: _h(latestCandle), l: _l(latestCandle), c: _c(latestCandle),
         t: latestCandle.time || Date.now()
