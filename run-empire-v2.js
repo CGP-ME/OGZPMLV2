@@ -1128,9 +1128,13 @@ class OGZPrimeV14Bot {
     const symbol = resolvedConfig.config.broker.tradingPair || (() => {
       throw new Error('loadCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to load candles under BTC-USD default');
     })();
-    const count = this._candleStore.loadFromDisk(candleFile, symbol, '1m');
+    // Clear in-memory priceHistory before hydrating. Defends against
+    // cross-symbol contamination if loadCandleHistory is invoked more than
+    // once in a process lifetime (e.g. venue swap reload). Belt-and-suspenders
+    // alongside the v2 symbol-keyed file format.
+    this.priceHistory = [];
+    this._candleStore.loadFromDisk(candleFile, symbol, '1m');
     this.priceHistory = this._candleStore.getCandles(symbol, '1m');
-    if (count === 0) this.priceHistory = [];
   }
 
   /**
