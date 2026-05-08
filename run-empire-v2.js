@@ -16,6 +16,7 @@ if (resolvedConfig.config.backtest.silent ||
     const msg = args[0]?.toString() || '';
     if (msg.includes('TRADE-RECEIPT') ||
         msg.includes('[SMS-') ||
+        msg.includes('[BOOT]') ||
         msg.includes('BACKTEST COMPLETE') ||
         msg.includes('PATTERN LEARNING') ||
         msg.includes('Final Balance') ||
@@ -793,9 +794,9 @@ class OGZPrimeV14Bot {
         try {
           const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe });
           this.symbolContexts.set(sym, ctx);
-          console.log(`[SymbolContexts] registered ${sym} @ ${timeframe}`);
+          console.log(`[BOOT][SymbolContexts] registered ${sym} @ ${timeframe}`);
         } catch (err) {
-          console.error(`[SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
+          console.error(`[BOOT][SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
         }
       }
     }
