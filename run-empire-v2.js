@@ -782,14 +782,18 @@ class OGZPrimeV14Bot {
     // so a partial-build (e.g., signal-module ctor throws) is logged + skipped
     // instead of polluting the Map with a half-initialized context.
     //
-    // Timeframe '1m' matches the existing storage-key contract at line ~1146
-    // where loadCandleHistory hydrates this._candleStore.getCandles(symbol, '1m').
-    // If that contract changes (e.g., to broker.candleTimeframe), both sites
-    // must update together.
+    // Timeframe '15m' matches the runtime addCandle contract at
+    // CandleProcessor.js:107 where every new candle is keyed under '15m'
+    // in this._candleStore. (loadCandleHistory at line ~1146 uses '1m' but
+    // is GATED OFF in backtest mode by the guard at line 771; the runtime
+    // bucket is '15m'.) If the addCandle key changes (e.g., to
+    // broker.candleTimeframe), this and CandleProcessor must update together.
+    // The '1m'/'15m' mismatch in load-vs-runtime paths is a separate CC-A
+    // concern; CC-C uses '15m' to align with the live runtime path.
     this.symbolContexts = new Map();
     {
       const symbols = (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim()).filter(Boolean);
-      const timeframe = '1m';
+      const timeframe = '15m';
       for (const sym of symbols) {
         try {
           const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe });

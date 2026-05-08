@@ -49,6 +49,29 @@ class CandleProcessor {
   }
 
   /**
+   * CC-C Multi-Symbol Commit 3/6: resolve which SymbolTradingContext a candle
+   * belongs to. Returns the matching context or null. Multi-step resolution
+   * handles three real-world cases:
+   *   1. Multi-symbol production: candles arrive with `candle.symbol` stamped
+   *      (live broker WS or BacktestRunner with SYMBOL_MAP) → direct lookup.
+   *   2. Single-symbol with aligned tradingPair: ctx.tradingPair matches a
+   *      Map key → direct lookup. Common for live single-symbol mode.
+   *   3. Single-symbol with phantom tradingPair: e.g., Phase 0 baseline where
+   *      broker.tradingPair defaults to 'BTC/USD' but the data file is TSLA
+   *      and only TSLA is registered — fall back to the sole Map entry.
+   * Returns null in pathological cases (multi-symbol Map with neither
+   * candle.symbol nor a matching tradingPair); caller skips routing safely.
+   */
+  _resolveSymCtx(candle) {
+    const map = this.ctx.symbolContexts;
+    if (!map || map.size === 0) return null;
+    if (candle.symbol && map.has(candle.symbol)) return map.get(candle.symbol);
+    if (this.ctx.tradingPair && map.has(this.ctx.tradingPair)) return map.get(this.ctx.tradingPair);
+    if (map.size === 1) return map.values().next().value;
+    return null;
+  }
+
+  /**
    * Process a candle - ONE CANONICAL PATH
    * Phase 5 REWRITE: Handles both new candles AND updates to existing candles
    * Used by live feed, backfill replay, and intra-candle updates
@@ -79,6 +102,19 @@ class CandleProcessor {
         this.ctx.indicatorEngine.updateCandle({
           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
         });
+      }
+
+      // CC-C Multi-Symbol Commit 3/6: per-symbol indicator update on UPDATE path.
+      // Mirrors the global indicatorEngine.updateCandle above against the symbol's
+      // own context. Global path stays alive as fallback for not-yet-migrated
+      // consumers (commits 4-6 phase it out).
+      {
+        const symCtx = this._resolveSymCtx(candle);
+        if (symCtx) {
+          symCtx.indicatorEngine.updateCandle({
+            t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+          });
+        }
       }
       return false; // Was update, not new
     }
@@ -123,6 +159,32 @@ class CandleProcessor {
     if (this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
 
     if (this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
+
+    // CC-C Multi-Symbol Commit 3/6: per-symbol routing for NEW-candle path.
+    // Routes the new candle to its SymbolTradingContext's signal modules and
+    // indicatorEngine. symCtx.priceHistory is a getter onto candleStore (Trey
+    // directive #1) so it already reflects the addCandle write at line ~107.
+    // Existing global signal updates above (lines ~120-125) stay alive as
+    // fallback for not-yet-migrated consumers; commits 4-6 phase them out.
+    // First-time-seen-per-symbol log uses [BOOT] tag so silent backtest shows
+    // the routing actually fired without spamming every candle.
+    {
+      const symCtx = this._resolveSymCtx(candle);
+      if (symCtx) {
+        this._firstCandleSeenSymbols ??= new Set();
+        const sym = symCtx.symbol;
+        if (!this._firstCandleSeenSymbols.has(sym)) {
+          console.log(`[BOOT][CandleProcessor] first candle routed to ${sym} context`);
+          this._firstCandleSeenSymbols.add(sym);
+        }
+        symCtx.indicatorEngine.updateCandle({
+          t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+        });
+        if (symCtx.emaCrossover)   symCtx.emaCrossoverSignal = symCtx.emaCrossover.update(candle, symCtx.priceHistory);
+        if (symCtx.maDynamicSR)    symCtx.maDynamicSRSignal  = symCtx.maDynamicSR.update(candle, symCtx.priceHistory);
+        if (symCtx.volumeProfile)  symCtx.volumeProfile.update(candle, symCtx.priceHistory);
+      }
+    }
 
     // Warmup log (only first 20 candles)
     if (this.ctx.priceHistory.length <= 20) {
