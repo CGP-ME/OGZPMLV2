@@ -162,6 +162,8 @@ const OrderRouter = require('./core/OrderRouter');
 const OrderExecutor = require('./core/OrderExecutor');
 // CC-C: Webhook order adapter (TTP via SignalStack) — side-channel emitter
 const WebhookOrderAdapter = require('./core/WebhookOrderAdapter');
+// CC-C Multi-Symbol Commit 2/6: per-symbol trading context container
+const { SymbolTradingContext } = require('./core/SymbolTradingContext');
 
 // CRIT-12: DynamicPositionSizer machine-toggleable env gate.
 // Validated baseline WITHOUT DPS: TSLA $970, QQQ $374.
@@ -764,6 +766,40 @@ class OGZPrimeV14Bot {
     this.priceHistory = [];  // 1m candles for trading logic
     this.tradingPair = resolvedConfig.config.broker.tradingPair;
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
+
+    // CC-C Multi-Symbol Commit 2/6: per-symbol contexts
+    // Each subscribed symbol gets its own SymbolTradingContext holding an
+    // IndicatorEngine, signal modules, and asset metadata. priceHistory on
+    // each context is a getter onto this._candleStore (single source of truth
+    // per Trey directive 2026-05-08). Inert until commits 3-6 migrate
+    // consumers (CandleProcessor, TradingLoop, OrderExecutor) to read from
+    // these contexts. Backward compat: legacy this.priceHistory pathway
+    // (initialized empty above, hydrated from CandleStore in loadCandleHistory
+    // at lines ~1146) is unchanged.
+    //
+    // Mercury #6 fix (deferred from commit 1): try/catch wraps construction
+    // so a partial-build (e.g., signal-module ctor throws) is logged + skipped
+    // instead of polluting the Map with a half-initialized context.
+    //
+    // Timeframe '1m' matches the existing storage-key contract at line ~1146
+    // where loadCandleHistory hydrates this._candleStore.getCandles(symbol, '1m').
+    // If that contract changes (e.g., to broker.candleTimeframe), both sites
+    // must update together.
+    this.symbolContexts = new Map();
+    {
+      const symbols = (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim()).filter(Boolean);
+      const timeframe = '1m';
+      for (const sym of symbols) {
+        try {
+          const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe });
+          this.symbolContexts.set(sym, ctx);
+          console.log(`[SymbolContexts] registered ${sym} @ ${timeframe}`);
+        } catch (err) {
+          console.error(`[SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
+        }
+      }
+    }
+
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
     // CHANGE 2026-01-28: Load saved candles on startup
     // FIX 2026-04-06: Skip in backtest mode - backtest provides its own candles
