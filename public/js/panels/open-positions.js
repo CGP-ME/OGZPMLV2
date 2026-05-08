@@ -16,11 +16,26 @@
  *
  * Self-registers as OGZ.OpenPositions via OGZ.register().
  * Mounts into <div id="openPositions"></div>.
- * Subscribes to WS events:
- *   - trade (✓ verified per CURRENT-ARCHITECTURE.md) — listens for 'open' and 'close' types
- *   - price (✓ verified) — for live current-price + unrealized P&L recalculation
- *   - position_update (TODO-flag UNVERIFIED) — alternative position sync if backend emits
- *   - state_update (TODO-flag UNVERIFIED) — alternate fallback for position data
+ *
+ * Verified WS subscriptions (real bot emitter shapes):
+ *   - 'trade'        → OrderExecutor.js. Real shape:
+ *                      { type:'trade', action:'BUY'|'SELL'|'SELL_SHORT'|'COVER',
+ *                        direction:'long'|'short', price, pnl, timestamp,
+ *                        [duration], confidence }
+ *                      NOTE: bot is currently single-pair; no `symbol` on event.
+ *                      We resolve symbol from the chart panel selector.
+ *                      action=BUY|SELL_SHORT → open. action=SELL|COVER → close.
+ *   - 'price'        → CandleProcessor. Read data.price for current-mark + P&L.
+ *   - 'state_update' → StateManager.broadcastToDashboard. AUTHORITATIVE for whether
+ *                      a position is open (state.position != 0) and unrealized P&L.
+ *                      Shape: { state:{ position, balance, totalBalance,
+ *                      realizedPnL, unrealizedPnL, totalPnL, ... } }
+ *                      `position` is a SIGNED USD number (>0 long, <0 short, 0 flat).
+ *
+ * The bot's broadcast doesn't include entryPrice/SL/TP. Entry price is captured
+ * locally from the BUY/SELL_SHORT 'trade' event. SL/TP render '--' until backend
+ * exposes them. NO synthetic data anywhere.
+ *
  * Listens to OGZ.bus:
  *   - watchlist:select — to scope highlight to selected ticker
  *
@@ -32,14 +47,12 @@
  * position. Updates row in-place via textContent/class swap — never re-renders whole table.
  *
  * Falls back gracefully: if position_update events never arrive (backend doesn't emit yet),
- * still functional from trade events alone (verified). Shows "Position data unavailable"
- * in muted text if no events flow. Demo mode (off by default): if turned on via
- * OGZ.OpenPositions.setDemoMode(true), injects 3 fake positions matching mockup.
+ * still functional from trade events alone (verified). Shows "No positions open — bot
+ * scanning" until real position data flows. NO demo mode. NO synthetic positions.
  *
  * Public API:
  *   init() — Mount to DOM, inject styles, subscribe to WS + bus events
- *   setDemoMode(bool) — Toggle demo positions (TSLA, COIN, BTC)
- *   addPosition(p) — Manual injection for testing
+ *   addPosition(p) — Manual injection (for real-event handlers, not demo)
  *   closePosition(symbol, broker) — Manual close
  *   getPositions() — Return current Position[]
  *   clearAll() — Empty state
@@ -73,11 +86,14 @@
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
         mounted: false,
-        demoMode: false,
         selectedTicker: null,
 
         // Position storage: Map<"TSLA|ALP|1234567890" => Position>
         positions: new Map(),
+
+        // Pending entry-price cache from 'trade' events that arrive ahead of
+        // the matching 'state_update'. Keyed by `${symbol}|${broker}`.
+        pendingEntries: new Map(),
 
         // DOM caches
         domRefs: {
@@ -91,6 +107,7 @@
 
         // Event listeners (for cleanup)
         listeners: [],
+        _timeTicker: null,
     };
 
     // ─── CSS Injection ────────────────────────────────────────────────
@@ -423,31 +440,52 @@
     }
 
     // ─── Helper: Format P&L ──────────────────────────────────────────
+    // Prefer bot-authoritative unrealizedPnL when state_update has populated
+    // it. Fall back to derived (current-entry)*notional only if we have both.
     function formatPnl(position) {
-        if (!position || !position.current) return { dollar: '--', percent: '--' };
+        if (!position) return { dollar: '--', percent: '--', value: 0 };
 
-        const dollarPnl = (position.current - position.entry) * position.size;
-        const percentPnl = ((position.current - position.entry) / position.entry) * 100;
+        // Authoritative path (set by handleStateUpdate from StateManager)
+        if (position.unrealizedPnL != null && isFinite(position.unrealizedPnL)) {
+            const v = Number(position.unrealizedPnL);
+            const sign = v >= 0 ? '+' : '';
+            // % is unr / position notional (size in USD)
+            const denom = Math.abs(position.size) || 0;
+            const pct = denom > 0 ? (v / denom) * 100 : 0;
+            return {
+                dollar: `${sign}$${Math.abs(v).toFixed(2)}`,
+                percent: `${sign}${pct.toFixed(2)}%`,
+                value: v,
+            };
+        }
 
-        let sign = '';
+        // Derived path (only if we have both entry and current)
+        if (!position.current || !position.entry) {
+            return { dollar: '--', percent: '--', value: 0 };
+        }
         if (position.side === 'short') {
-            // For shorts, P&L calculation is inverted
             const shortDollarPnl = (position.entry - position.current) * position.size;
             const shortPercentPnl = ((position.entry - position.current) / position.entry) * 100;
-            sign = shortDollarPnl >= 0 ? '+' : '';
+            const sign = shortDollarPnl >= 0 ? '+' : '';
             return {
-                dollar: `${sign}$${Math.abs(shortDollarPnl).toFixed(0)}`,
+                dollar: `${sign}$${Math.abs(shortDollarPnl).toFixed(2)}`,
                 percent: `${sign}${shortPercentPnl.toFixed(2)}%`,
                 value: shortDollarPnl,
             };
         }
-
-        sign = dollarPnl >= 0 ? '+' : '';
+        const dollarPnl = (position.current - position.entry) * position.size;
+        const percentPnl = ((position.current - position.entry) / position.entry) * 100;
+        const sign = dollarPnl >= 0 ? '+' : '';
         return {
-            dollar: `${sign}$${Math.abs(dollarPnl).toFixed(0)}`,
+            dollar: `${sign}$${Math.abs(dollarPnl).toFixed(2)}`,
             percent: `${sign}${percentPnl.toFixed(2)}%`,
             value: dollarPnl,
         };
+    }
+
+    // Format a numeric price; '--' when the bot hasn't surfaced it yet.
+    function fmtPrice(v) {
+        return (v != null && isFinite(v) && v > 0) ? `$${Number(v).toFixed(2)}` : '--';
     }
 
     // ─── Render Functions ────────────────────────────────────────────
@@ -528,10 +566,10 @@
             <div class="op-cell op-symbol">${position.symbol}</div>
             <div class="op-cell"><span class="op-broker ${brokerClass}">${position.broker}</span></div>
             <div class="op-cell"><span class="op-side ${position.side === 'short' ? 'short' : ''}">${position.side.toUpperCase()}</span></div>
-            <div class="op-cell op-price" id="opEntry-${position.symbol}-${position.broker}-${position.openedAt}">$${position.entry.toFixed(2)}</div>
-            <div class="op-cell op-price" id="opCurrent-${position.symbol}-${position.broker}-${position.openedAt}">$${(position.current || position.entry).toFixed(2)}</div>
-            <div class="op-cell op-price" id="opSL-${position.symbol}-${position.broker}-${position.openedAt}">$${position.stopLoss.toFixed(2)}</div>
-            <div class="op-cell op-price" id="opTP-${position.symbol}-${position.broker}-${position.openedAt}">$${position.takeProfit.toFixed(2)}</div>
+            <div class="op-cell op-price" id="opEntry-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.entry)}</div>
+            <div class="op-cell op-price" id="opCurrent-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.current || position.entry)}</div>
+            <div class="op-cell op-price" id="opSL-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.stopLoss)}</div>
+            <div class="op-cell op-price" id="opTP-${position.symbol}-${position.broker}-${position.openedAt}">${fmtPrice(position.takeProfit)}</div>
             <div class="op-cell op-pnl ${pnl.value < 0 ? 'negative' : ''}" id="opPnlDol-${position.symbol}-${position.broker}-${position.openedAt}">${pnl.dollar}</div>
             <div class="op-cell op-pnl ${pnl.value < 0 ? 'negative' : ''}" id="opPnlPct-${position.symbol}-${position.broker}-${position.openedAt}">${pnl.percent}</div>
             <div class="op-cell op-time" id="opTime-${position.symbol}-${position.broker}-${position.openedAt}">${timeHeld}</div>
@@ -614,166 +652,174 @@
         updateHeader();
     }
 
-    // ─── WS Event Handlers ──────────────────────────────────────────
-    function handleTradeEvent(data) {
+    // ─── Helpers: resolve current asset from the chart selector ────────
+    function resolveCurrentSymbol() {
         try {
-            if (!data) return;
-
-            const type = data.type || data.status || '';
-            const symbol = String(data.symbol || data.ticker || '').toUpperCase();
-            const broker = String(data.broker || 'ALP');
-            const side = String(data.side || 'long').toLowerCase();
-            const size = parseFloat(data.size || data.quantity || 0);
-            const entryPrice = parseFloat(data.price || data.entry || 0);
-            const sl = parseFloat(data.stopLoss || data.sl || 0);
-            const tp = parseFloat(data.takeProfit || data.tp || 0);
-            const timestamp = data.timestamp || data.ts || Date.now();
-
-            if (!symbol || entryPrice <= 0) return;
-
-            if (type === 'open' || type === 'opened') {
-                // Add new position
-                const position = {
-                    symbol,
-                    broker,
-                    side,
-                    entry: entryPrice,
-                    current: entryPrice,
-                    stopLoss: sl,
-                    takeProfit: tp,
-                    size,
-                    openedAt: Number(timestamp),
-                    strategy: data.strategy,
-                    tradeId: data.tradeId || data.id,
-                };
-
-                const key = makeKey(symbol, broker, timestamp);
-                state.positions.set(key, position);
-                renderRows();
-            } else if (type === 'close' || type === 'closed') {
-                // Remove closed position
-                const key = makeKey(symbol, broker, Number(timestamp));
-                if (state.positions.has(key)) {
-                    state.positions.delete(key);
-                    renderRows();
-                }
+            const sel = document.getElementById('cp-assetSelector');
+            if (sel && sel.value) return String(sel.value).toUpperCase();
+            const wl = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('WatchlistStrip') : null;
+            if (wl && typeof wl.getSelected === 'function') {
+                const t = wl.getSelected();
+                if (t) return String(t).toUpperCase();
             }
-        } catch (_) {
-            // Swallow
-        }
+        } catch (_) { /* swallow */ }
+        return 'ASSET';
     }
 
-    function handlePriceEvent(data) {
+    function resolveBroker(symbol) {
+        // Crypto pairs route through Kraken; everything else through Alpaca.
+        // Coinbase is reserved for hot wallet use; bot doesn't currently emit a
+        // broker tag on trade events.
+        if (!symbol) return 'ALP';
+        if (/-USD$|^BTC|^ETH|^SOL/.test(symbol.toUpperCase())) return 'KRA';
+        return 'ALP';
+    }
+
+    // Capture entry price keyed by (symbol|broker) so reopens replace entry
+    // cleanly when state_update reports a new position.
+    function entryKey(symbol, broker) {
+        return symbol + POSITION_KEY_SEP + broker;
+    }
+
+    // ─── WS Event Handlers (real bot emitter shapes) ───────────────────
+
+    // 'trade' — capture entry price + side on open; clear on close.
+    // Real bot shape: { type:'trade', action, direction, price, pnl, timestamp,
+    // duration?, confidence }. Single-pair: symbol resolved from chart selector.
+    function handleTradeEvent(d) {
         try {
-            if (!data) return;
+            const data = (d && d.data) ? d.data : d;
+            if (!data || !data.action) return;
 
-            const symbol = String(data.symbol || data.s || '').toUpperCase();
-            const price = parseFloat(data.price || data.c || data.close || 0);
+            const symbol = resolveCurrentSymbol();
+            const broker = resolveBroker(symbol);
+            const price  = parseFloat(data.price);
+            const ts     = Number(data.timestamp) || Date.now();
+            const action = String(data.action).toUpperCase();
+            const dir    = String(data.direction || (action === 'BUY' ? 'long' : 'short')).toLowerCase();
+            const isOpen  = action === 'BUY' || action === 'SELL_SHORT';
+            const isClose = action === 'SELL' || action === 'COVER';
 
-            if (!symbol || !isFinite(price) || price <= 0) return;
+            if (!isFinite(price) || price <= 0) return;
 
-            // Update all positions for this symbol
+            if (isOpen) {
+                // Cache the entry; the position row itself is created/synced by
+                // the next state_update tick which carries authoritative size.
+                state.pendingEntries = state.pendingEntries || new Map();
+                state.pendingEntries.set(entryKey(symbol, broker), {
+                    entry: price,
+                    side: dir === 'short' ? 'short' : 'long',
+                    openedAt: ts,
+                    confidence: data.confidence,
+                });
+                // If we already have a row from state_update, fill in entry now
+                state.positions.forEach((pos, key) => {
+                    if (pos.symbol === symbol && pos.broker === broker && (!pos.entry || pos.entry === 0)) {
+                        pos.entry = price;
+                        pos.openedAt = ts;
+                        pos.side = dir === 'short' ? 'short' : 'long';
+                    }
+                });
+                renderRows();
+            } else if (isClose) {
+                // Drop any rows for this (symbol|broker); state_update will
+                // confirm with position=0 right after.
+                let removed = false;
+                state.positions.forEach((pos, key) => {
+                    if (pos.symbol === symbol && pos.broker === broker) {
+                        // stamp realized pnl on the row briefly via flash class
+                        state.positions.delete(key);
+                        removed = true;
+                    }
+                });
+                if (state.pendingEntries) state.pendingEntries.delete(entryKey(symbol, broker));
+                if (removed) renderRows();
+            }
+        } catch (_) { /* swallow */ }
+    }
+
+    // 'price' — bot sends data.price for current asset. Single-pair: every
+    // price tick is for the symbol the bot is trading right now. Update all
+    // open rows whose symbol matches.
+    function handlePriceEvent(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
+            const price = parseFloat(data && (data.price != null ? data.price : data.close));
+            if (!isFinite(price) || price <= 0) return;
+
+            // Single-pair bot: figure out current symbol from chart selector.
+            const symbol = resolveCurrentSymbol();
             let updated = false;
-            state.positions.forEach((position, key) => {
+            state.positions.forEach((position) => {
                 if (position.symbol === symbol) {
-                    const oldPrice = position.current;
                     position.current = price;
                     updateRow(position.symbol, position.broker, position.openedAt);
                     updated = true;
                 }
             });
+            if (updated) updateHeader();
+        } catch (_) { /* swallow */ }
+    }
 
-            if (updated) {
+    // 'state_update' — authoritative position presence & unrealized P&L.
+    // state.position is a SIGNED USD size: >0 long, <0 short, 0 flat.
+    function handleStateUpdate(d) {
+        try {
+            const s = d && d.state ? d.state : null;
+            if (!s) return;
+
+            const sizeUsd = Number(s.position) || 0;
+            const unrPnL  = Number(s.unrealizedPnL) || 0;
+            const symbol  = resolveCurrentSymbol();
+            const broker  = resolveBroker(symbol);
+
+            if (sizeUsd === 0) {
+                // Bot says flat — purge any rows for this symbol/broker.
+                let removed = false;
+                state.positions.forEach((pos, key) => {
+                    if (pos.symbol === symbol && pos.broker === broker) {
+                        state.positions.delete(key);
+                        removed = true;
+                    }
+                });
+                if (removed) renderRows();
+                return;
+            }
+
+            // Non-zero position: ensure a row exists and sync the live values.
+            const side = sizeUsd >= 0 ? 'long' : 'short';
+            const pending = (state.pendingEntries && state.pendingEntries.get(entryKey(symbol, broker))) || null;
+            const entryAt = pending ? pending.openedAt : (d.timestamp || Date.now());
+            const key = makeKey(symbol, broker, entryAt);
+
+            let pos = state.positions.get(key);
+            if (!pos) {
+                // No prior row — first time we see this open position.
+                pos = {
+                    symbol,
+                    broker,
+                    side,
+                    entry: pending ? pending.entry : 0,
+                    current: 0,                 // updated by next price tick
+                    stopLoss: 0,                // backend doesn't broadcast yet
+                    takeProfit: 0,              // backend doesn't broadcast yet
+                    size: Math.abs(sizeUsd),    // store USD notional
+                    openedAt: entryAt,
+                    unrealizedPnL: unrPnL,
+                    strategy: pending ? pending.strategy : null,
+                };
+                state.positions.set(key, pos);
+                renderRows();
+            } else {
+                pos.size = Math.abs(sizeUsd);
+                pos.unrealizedPnL = unrPnL;
+                pos.side = side;
+                updateRow(pos.symbol, pos.broker, pos.openedAt);
                 updateHeader();
             }
-        } catch (_) {
-            // Swallow
-        }
+        } catch (_) { /* swallow */ }
     }
 
-    function handlePositionUpdate(data) {
-        try {
-            if (!data) return;
-
-            // Alternative position sync from backend
-            // Expected shape: { positions: [{ symbol, broker, side, entry, current, sl, tp, size, openedAt }] }
-            const positions = data.positions || data.pos || [];
-            if (!Array.isArray(positions)) return;
-
-            state.positions.clear();
-            positions.forEach((p) => {
-                if (p.symbol && p.entry > 0) {
-                    const key = makeKey(p.symbol, p.broker || 'ALP', p.openedAt || Date.now());
-                    state.positions.set(key, {
-                        symbol: String(p.symbol).toUpperCase(),
-                        broker: String(p.broker || 'ALP'),
-                        side: (p.side || 'long').toLowerCase(),
-                        entry: p.entry,
-                        current: p.current || p.entry,
-                        stopLoss: p.stopLoss || p.sl || 0,
-                        takeProfit: p.takeProfit || p.tp || 0,
-                        size: p.size || 0,
-                        openedAt: p.openedAt || Date.now(),
-                        strategy: p.strategy,
-                        tradeId: p.tradeId || p.id,
-                    });
-                }
-            });
-
-            renderRows();
-        } catch (_) {
-            // Swallow
-        }
-    }
-
-    // ─── Demo Mode ───────────────────────────────────────────────────
-    function loadDemoData() {
-        state.positions.clear();
-
-        const now = Date.now();
-        const demo = [
-            {
-                symbol: 'TSLA',
-                broker: 'ALP',
-                side: 'long',
-                entry: 391.20,
-                current: 393.42,
-                stopLoss: 389.50,
-                takeProfit: 396.18,
-                size: 10,
-                openedAt: now - 14 * 60 * 1000, // 14m ago
-            },
-            {
-                symbol: 'COIN',
-                broker: 'ALP',
-                side: 'long',
-                entry: 237.50,
-                current: 241.18,
-                stopLoss: 235.00,
-                takeProfit: 244.00,
-                size: 5,
-                openedAt: now - 8 * 60 * 1000, // 8m ago
-            },
-            {
-                symbol: 'BTC',
-                broker: 'KRA',
-                side: 'long',
-                entry: 81420,
-                current: 81663,
-                stopLoss: 81150,
-                takeProfit: 82100,
-                size: 0.01,
-                openedAt: now - 22 * 60 * 1000, // 22m ago
-            },
-        ];
-
-        demo.forEach((d) => {
-            const key = makeKey(d.symbol, d.broker, d.openedAt);
-            state.positions.set(key, d);
-        });
-
-        renderRows();
-    }
 
     // ─── Event Bus Helper ────────────────────────────────────────────
     function ensureEventBus() {
@@ -808,21 +854,29 @@
 
             ensureEventBus();
 
-            // Subscribe to WS events
-            if (window.ws && typeof window.ws.on === 'function') {
-                window.ws.on('trade', (event) => {
-                    try { handleTradeEvent(event); } catch (_) { /* swallow */ }
-                });
-                window.ws.on('price', (event) => {
-                    try { handlePriceEvent(event); } catch (_) { /* swallow */ }
-                });
-                window.ws.on('position_update', (event) => {
-                    try { handlePositionUpdate(event); } catch (_) { /* swallow */ }
-                });
-                window.ws.on('state_update', (event) => {
-                    try { handlePositionUpdate(event); } catch (_) { /* swallow */ }
-                });
-            }
+            // Subscribe to WS events via the real socket. May not be ready
+            // at panel-init time; poll briefly until OGZ.get('Socket') resolves.
+            (function bindSocket() {
+                const socket = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('Socket') : null;
+                if (!socket || typeof socket.registerHandler !== 'function') {
+                    setTimeout(bindSocket, 250);
+                    return;
+                }
+                socket.registerHandler('trade', (e) => { try { handleTradeEvent(e); } catch (_) {} });
+                socket.registerHandler('price', (e) => { try { handlePriceEvent(e); } catch (_) {} });
+                socket.registerHandler('state_update', (e) => { try { handleStateUpdate(e); } catch (_) {} });
+            })();
+
+            // Re-render every 10s so the "time held" column ticks up live
+            // even when no other event fires. Cheap enough — we only re-render
+            // when there's at least one open position.
+            state._timeTicker = setInterval(() => {
+                if (state.positions.size > 0) {
+                    state.positions.forEach((pos) => {
+                        updateRow(pos.symbol, pos.broker, pos.openedAt);
+                    });
+                }
+            }, 10000);
 
             // Subscribe to bus events
             if (OGZ && OGZ.bus) {
@@ -837,15 +891,6 @@
             renderRows();
         },
 
-        setDemoMode(enabled) {
-            state.demoMode = !!enabled;
-            if (enabled) {
-                loadDemoData();
-            } else {
-                state.positions.clear();
-                renderRows();
-            }
-        },
 
         addPosition(position) {
             if (!position || !position.symbol) return;
@@ -904,6 +949,12 @@
         teardown() {
             if (!state.mounted) return;
 
+            // Stop time-held ticker
+            if (state._timeTicker) {
+                clearInterval(state._timeTicker);
+                state._timeTicker = null;
+            }
+
             // Remove DOM
             if (state.domRefs.root) {
                 state.domRefs.root.innerHTML = '';
@@ -915,6 +966,7 @@
 
             state.mounted = false;
             state.positions.clear();
+            state.pendingEntries.clear();
             Object.keys(state.domRefs).forEach((key) => {
                 state.domRefs[key] = null;
             });
@@ -923,7 +975,6 @@
         _compute() {
             return {
                 mounted: state.mounted,
-                demoMode: state.demoMode,
                 positionCount: state.positions.size,
                 positions: Array.from(state.positions.values()),
                 selectedTicker: state.selectedTicker,
