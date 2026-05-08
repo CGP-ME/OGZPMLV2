@@ -14,12 +14,23 @@
  * Mounts into <div id="systemHealth"></div>.
  *
  * Data sources:
- *   - HTTP fetch /api/health (every 30s) — uptime, status, timestamp, broker WS counts,
- *     memory. Backend MAY return optional: commit, lastCrash, errorCount fields.
- *   - WS events:
- *     * state_update — for SessionRouter active session (CRYPTO / STOCKS / FAULTED)
- *     * error_event — increments error counter
- *     * broker_status — Kraken/Alpaca individual WS status (name, ok)
+ *   - HTTP fetch /api/health (every 30s) — uptime, status, timestamp, broker
+ *     WS counts, memory. Backend MAY return optional: commit, lastCrash,
+ *     errorCount fields.
+ *   - WS events (real bot shapes verified against StateManager / TradingLoop /
+ *     CandleProcessor):
+ *     * state_update — { state:{ recoveryMode, position, balance, ... } }.
+ *       Used as the heartbeat for "router is alive" + risk posture (recoveryMode
+ *       flips RISK POSTURE to DEGRADED).
+ *     * price        — heartbeat for the broker feed of the active symbol.
+ *       Bot is single-pair → broker derived from symbol prefix.
+ *     * bot_thinking — heartbeat for the trading loop being alive.
+ *
+ * AWAITING BACKEND EMITTERS (rendered as muted '?' with explicit 'AWAITING'
+ * tooltip rather than silent fail or fake green):
+ *     * error_event   — currently no top-level emitter; bot logs to console only
+ *     * broker_status — currently no per-broker WS status broadcast
+ *
  *   - OGZ.bus event risk:update — for risk posture state (armed / degraded)
  *
  * Public API:
@@ -34,9 +45,9 @@
  *   teardown() — Remove DOM, listeners, timers, injected styles
  *   _compute() — Debug helper: return current state snapshot
  *
- * Demo mode (on by default):
- *   If no real fetch/WS events arrive within DEMO_FALLBACK_MS (5s), shows
- *   realistic sample health data. Disabled automatically when real data arrives.
+ * NO synthetic data. NO demo fallback. If /api/health does not respond,
+ * the panel renders honest placeholders ('--' / '?' / 'OFFLINE'). We
+ * never fabricate green-state values.
  *
  * @typedef {Object} HealthSnapshot
  * @property {number} timestamp - Unix epoch milliseconds
@@ -59,19 +70,6 @@
     const HEALTH_FETCH_INTERVAL_MS = 30000;  // 30 seconds
     const UPTIME_TICK_MS = 1000;             // 1 second
     const DEFAULT_HEALTH_URL = '/api/health';
-    const DEMO_FALLBACK_MS = 5000;           // 5 seconds until demo mode
-
-    // Demo data — realistic values when real API unavailable
-    const DEMO_HEALTH = {
-        timestamp: Date.now(),
-        state: 'CRYPTO',
-        uptime: 82440,  // 22h 54m
-        websockets: 2,
-        memory: { heapUsed: 128, heapTotal: 256 },
-        commit: 'a07516a',
-        lastCrash: 0,  // NEVER
-        errorCount: 0,
-    };
 
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
@@ -83,11 +81,26 @@
         riskPosture: 'UNKNOWN',
         errors: [],
         uptimeStart: Date.now(),
-        demoFallbackTimer: null,
         healthFetchTimer: null,
         uptimeTickTimer: null,
-        usingDemo: false,
+
+        // Heartbeat tracking (derived broker/router status from real events)
+        lastStateUpdateAt: 0,
+        lastPriceAt: 0,
+        lastBotThinkingAt: 0,
+        currentSymbol: null,        // resolved from chart selector
+        recoveryMode: false,        // mirrored from state_update.state.recoveryMode
+
+        // Backend-emitter availability flags. Flip true once first such event
+        // is seen — until then we render '?' with AWAITING tooltip rather
+        // than synthesizing a green ✓.
+        haveErrorEmitter: false,
+        haveBrokerEmitter: false,
     };
+
+    // Heartbeat freshness window: an event is "fresh" if it fired in the
+    // last 30 seconds. Used to decide ✓/✗/? state for derived indicators.
+    const HEARTBEAT_FRESH_MS = 30000;
 
     // ─── CSS Injection ───────────────────────────────────────────────────
     function injectStyles() {
@@ -320,20 +333,30 @@
         sep1.textContent = '|';
         root.appendChild(sep1);
 
-        // Segment 2: Kraken broker WS status
-        const krakenOk = state.brokers.get('kraken') === true;
-        const krakenSegment = document.createElement('div');
-        krakenSegment.className = 'sh-segment';
-        krakenSegment.title = krakenOk ? 'Kraken WebSocket connected' : 'Kraken WebSocket disconnected';
-        const krakenLabel = document.createElement('span');
-        krakenLabel.className = 'sh-label';
-        krakenLabel.textContent = 'KRAKEN:';
-        const krakenInd = document.createElement('span');
-        krakenInd.className = `sh-indicator ${state.brokers.has('kraken') ? (krakenOk ? 'ok' : 'fail') : 'muted'}`;
-        krakenInd.textContent = state.brokers.has('kraken') ? (krakenOk ? '✓' : '✗') : '?';
-        krakenSegment.appendChild(krakenLabel);
-        krakenSegment.appendChild(krakenInd);
-        root.appendChild(krakenSegment);
+        // Segment 2 & 3: Kraken / Alpaca broker WS status. Render '?' for
+        // unknown, '✓' for true, '✗' for explicit false. Heartbeat-derived
+        // status only updates the active broker; the inactive one stays
+        // unknown until the dedicated broker_status emitter ships.
+        const renderBroker = (key, label) => {
+            const v = state.brokers.get(key);
+            const known = v === true || v === false;
+            const seg = document.createElement('div');
+            seg.className = 'sh-segment';
+            const tipBase = key.charAt(0).toUpperCase() + key.slice(1);
+            seg.title = !known
+                ? `${tipBase}: AWAITING broker_status emitter (price-feed heartbeat used as proxy when symbol matches)`
+                : v ? `${tipBase} feed fresh in last 30s` : `${tipBase} feed stale (>30s since price tick)`;
+            const lab = document.createElement('span');
+            lab.className = 'sh-label';
+            lab.textContent = label;
+            const ind = document.createElement('span');
+            ind.className = `sh-indicator ${!known ? 'muted' : (v ? 'ok' : 'fail')}`;
+            ind.textContent = !known ? '?' : (v ? '✓' : '✗');
+            seg.appendChild(lab);
+            seg.appendChild(ind);
+            root.appendChild(seg);
+        };
+        renderBroker('kraken', 'KRAKEN:');
 
         // Separator
         const sep2 = document.createElement('span');
@@ -341,20 +364,7 @@
         sep2.textContent = '|';
         root.appendChild(sep2);
 
-        // Segment 3: Alpaca broker WS status
-        const alpacaOk = state.brokers.get('alpaca') === true;
-        const alpacaSegment = document.createElement('div');
-        alpacaSegment.className = 'sh-segment';
-        alpacaSegment.title = alpacaOk ? 'Alpaca WebSocket connected' : 'Alpaca WebSocket disconnected';
-        const alpacaLabel = document.createElement('span');
-        alpacaLabel.className = 'sh-label';
-        alpacaLabel.textContent = 'ALPACA:';
-        const alpacaInd = document.createElement('span');
-        alpacaInd.className = `sh-indicator ${state.brokers.has('alpaca') ? (alpacaOk ? 'ok' : 'fail') : 'muted'}`;
-        alpacaInd.textContent = state.brokers.has('alpaca') ? (alpacaOk ? '✓' : '✗') : '?';
-        alpacaSegment.appendChild(alpacaLabel);
-        alpacaSegment.appendChild(alpacaInd);
-        root.appendChild(alpacaSegment);
+        renderBroker('alpaca', 'ALPACA:');
 
         // Separator
         const sep3 = document.createElement('span');
@@ -362,19 +372,28 @@
         sep3.textContent = '|';
         root.appendChild(sep3);
 
-        // Segment 4: Error count
+        // Segment 4: Error count. When the backend error_event emitter hasn't
+        // shipped, the count is honestly '?' with an AWAITING tooltip — never
+        // a fake green 0. Once we observe the first error_event, we count for real.
         const errCount = state.errors.length;
         const errSegment = document.createElement('div');
         errSegment.className = 'sh-segment';
-        if (errCount > 0 && state.errors.length > 0) {
-            errSegment.title = `Last error: ${state.errors[state.errors.length - 1]}`;
-        }
         const errLabel = document.createElement('span');
         errLabel.className = 'sh-label';
         errLabel.textContent = 'LAST ERR:';
         const errValue = document.createElement('span');
-        errValue.className = `sh-error-count ${errCount > 0 ? 'alert' : 'ok'}`;
-        errValue.textContent = String(errCount);
+        if (!state.haveErrorEmitter && errCount === 0) {
+            errSegment.title = 'AWAITING error_event emitter (no top-level error broadcast yet)';
+            errValue.className = 'sh-error-count';
+            errValue.style.color = 'var(--neutral-color, #8b8b8b)';
+            errValue.textContent = '?';
+        } else {
+            if (errCount > 0) {
+                errSegment.title = `Last error: ${state.errors[state.errors.length - 1]}`;
+            }
+            errValue.className = `sh-error-count ${errCount > 0 ? 'alert' : 'ok'}`;
+            errValue.textContent = String(errCount);
+        }
         errSegment.appendChild(errLabel);
         errSegment.appendChild(errValue);
         root.appendChild(errSegment);
@@ -475,11 +494,6 @@
                 })
                 .then(data => {
                     state.lastHealth = data;
-                    if (state.demoFallbackTimer) {
-                        clearTimeout(state.demoFallbackTimer);
-                        state.demoFallbackTimer = null;
-                    }
-                    state.usingDemo = false;
                     render();
                 })
                 .catch(_e => {
@@ -489,27 +503,13 @@
     }
 
     // ─── Uptime Ticker ──────────────────────────────────────────────────
+    // Re-render every second so the uptime + heartbeat-derived states
+    // (router, broker) decay to STALE / fail gracefully when events stop.
     function tickUptime() {
         if (state.mounted) {
+            recomputeDerivedHealth();
             render();
         }
-    }
-
-    // ─── Demo Mode Fallback ─────────────────────────────────────────────
-    function startDemoFallback() {
-        if (state.demoFallbackTimer) clearTimeout(state.demoFallbackTimer);
-        state.demoFallbackTimer = setTimeout(() => {
-            if (!state.lastHealth && !state.usingDemo) {
-                state.lastHealth = JSON.parse(JSON.stringify(DEMO_HEALTH));
-                state.usingDemo = true;
-                state.routerState = DEMO_HEALTH.state;
-                state.brokers.set('kraken', true);
-                state.brokers.set('alpaca', true);
-                state.errors = [];
-                state.riskPosture = 'armed';
-                render();
-            }
-        }, DEMO_FALLBACK_MS);
     }
 
     // ─── Mount to DOM ────────────────────────────────────────────────────
@@ -540,23 +540,31 @@
             try {
                 if (!mount()) return; // Mount point missing
 
-                // Subscribe to WS events
-                const Socket = OGZ.get && OGZ.get('Socket');
-                if (Socket && Socket.registerHandler) {
+                // Subscribe to WS events. Socket may not be ready yet; poll
+                // briefly until it shows up so the heartbeat-derived broker
+                // and router indicators light up the moment data flows.
+                (function bindSocket() {
+                    const Socket = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('Socket') : null;
+                    if (!Socket || typeof Socket.registerHandler !== 'function') {
+                        setTimeout(bindSocket, 250);
+                        return;
+                    }
                     Socket.registerHandler('state_update', onStateUpdate);
-                    Socket.registerHandler('error_event', onErrorEvent);
+                    Socket.registerHandler('price',        onPriceEvent);
+                    Socket.registerHandler('bot_thinking', onBotThinking);
+                    // Dormant — fire when backend ships them
+                    Socket.registerHandler('error_event',  onErrorEvent);
                     Socket.registerHandler('broker_status', onBrokerStatus);
-                }
+                })();
 
                 // Subscribe to OGZ.bus risk:update
                 if (OGZ.bus) {
                     OGZ.bus.on('risk:update', onRiskUpdate);
                 }
 
-                // Start demo fallback (5s until real data expected)
-                startDemoFallback();
-
-                // Start health fetch loop (every 30s)
+                // Start health fetch loop (every 30s). If endpoint returns no
+                // response or 404, render() displays honest placeholder values
+                // — we never substitute synthetic data.
                 fetchHealth(); // Immediate first fetch
                 state.healthFetchTimer = setInterval(fetchHealth, HEALTH_FETCH_INTERVAL_MS);
 
@@ -650,10 +658,6 @@
                     clearInterval(state.uptimeTickTimer);
                     state.uptimeTickTimer = null;
                 }
-                if (state.demoFallbackTimer) {
-                    clearTimeout(state.demoFallbackTimer);
-                    state.demoFallbackTimer = null;
-                }
 
                 const root = document.getElementById(ROOT_ID);
                 if (root) {
@@ -683,40 +687,135 @@
                 riskPosture: state.riskPosture,
                 errorCount: state.errors.length,
                 uptime: Math.floor((Date.now() - state.uptimeStart) / 1000),
-                usingDemo: state.usingDemo,
             };
         },
     };
 
-    // ─── WS Event Handlers ──────────────────────────────────────────────
-    function onStateUpdate(data) {
+    // ─── Helpers: symbol → broker, derived router state ─────────────────
+    function symbolToBroker(symbol) {
+        if (!symbol) return null;
+        const s = String(symbol).toUpperCase();
+        if (/-USD$/.test(s) || /^BTC|^ETH|^SOL|^XBT|^DOGE|^XRP/.test(s)) return 'kraken';
+        return 'alpaca';
+    }
+
+    function resolveCurrentSymbol() {
         try {
-            if (data && data.state) {
-                SystemHealth.setRouterState(data.state);
+            const sel = document.getElementById('cp-assetSelector');
+            if (sel && sel.value) return String(sel.value).toUpperCase();
+        } catch (_) { /* swallow */ }
+        return null;
+    }
+
+    // Derive router state from heartbeats. Public method updates state &
+    // re-renders. Called periodically by the uptime ticker so stale
+    // heartbeats degrade gracefully.
+    function recomputeDerivedHealth() {
+        const now = Date.now();
+        const sym = state.currentSymbol || resolveCurrentSymbol();
+        const broker = symbolToBroker(sym);
+
+        // Router state: alive only while state_update OR bot_thinking is fresh
+        const routerAlive =
+            (state.lastStateUpdateAt > 0 && (now - state.lastStateUpdateAt) < HEARTBEAT_FRESH_MS) ||
+            (state.lastBotThinkingAt > 0 && (now - state.lastBotThinkingAt) < HEARTBEAT_FRESH_MS);
+
+        if (routerAlive) {
+            state.routerState = (broker === 'kraken') ? 'CRYPTO'
+                              : (broker === 'alpaca') ? 'STOCKS'
+                              : 'LIVE';
+        } else if (state.lastStateUpdateAt === 0 && state.lastBotThinkingAt === 0) {
+            state.routerState = 'OFFLINE';
+        } else {
+            state.routerState = 'STALE';
+        }
+
+        // Broker heartbeats from price feed. We only know the active broker;
+        // the inactive one stays '?' (not '✗') until broker_status emitter ships.
+        if (broker && state.lastPriceAt > 0) {
+            const priceFresh = (now - state.lastPriceAt) < HEARTBEAT_FRESH_MS;
+            // Only flip the active broker; leave the other one alone unless we
+            // already have explicit broker_status from backend.
+            if (!state.haveBrokerEmitter) {
+                state.brokers.set(broker, priceFresh);
             }
+        }
+
+        // Risk posture from recoveryMode flag
+        if (state.recoveryMode) {
+            state.riskPosture = 'degraded';
+        } else if (state.lastStateUpdateAt > 0) {
+            state.riskPosture = 'armed';
+        }
+    }
+
+    // ─── WS Event Handlers (real bot emitter shapes) ────────────────────
+
+    // 'state_update' — StateManager's authoritative snapshot. Drives router
+    // heartbeat + risk posture (recoveryMode flag).
+    function onStateUpdate(d) {
+        try {
+            const now = Date.now();
+            state.lastStateUpdateAt = now;
+            const s = d && d.state ? d.state : null;
+            if (s && typeof s === 'object') {
+                state.recoveryMode = !!s.recoveryMode;
+            }
+            recomputeDerivedHealth();
+            render();
         } catch (_) { /* swallow */ }
     }
 
-    function onErrorEvent(data) {
+    // 'price' — broker feed heartbeat. Single-pair bot, so the active broker
+    // is derived from the current asset selector / data.symbol when present.
+    function onPriceEvent(d) {
         try {
-            if (data && data.message) {
-                SystemHealth.addError(data.message);
-            }
+            const data = (d && d.data) ? d.data : d;
+            if (!data) return;
+            if (data.symbol) state.currentSymbol = String(data.symbol).toUpperCase();
+            state.lastPriceAt = Date.now();
+            recomputeDerivedHealth();
+            // Don't render here — uptime ticker re-renders every second
         } catch (_) { /* swallow */ }
     }
 
-    function onBrokerStatus(data) {
+    // 'bot_thinking' — trading loop heartbeat
+    function onBotThinking(_d) {
+        state.lastBotThinkingAt = Date.now();
+        recomputeDerivedHealth();
+    }
+
+    // DORMANT 'error_event' — wired defensively. When backend ships it
+    // (planned), we flip haveErrorEmitter=true and start counting.
+    function onErrorEvent(d) {
         try {
-            if (data && data.name && typeof data.ok === 'boolean') {
-                SystemHealth.setBroker(data.name, data.ok);
-            }
+            const data = (d && d.data) ? d.data : d;
+            if (!data) return;
+            state.haveErrorEmitter = true;
+            const msg = String(data.message || data.error || '');
+            if (msg) SystemHealth.addError(msg);
         } catch (_) { /* swallow */ }
     }
 
+    // DORMANT 'broker_status' — wired defensively. When backend ships it,
+    // it overrides the price-derived broker indicators.
+    function onBrokerStatus(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
+            if (!data || !data.name || typeof data.ok !== 'boolean') return;
+            state.haveBrokerEmitter = true;
+            SystemHealth.setBroker(data.name, data.ok);
+        } catch (_) { /* swallow */ }
+    }
+
+    // External RiskGauge override — keep shape backward compatible
     function onRiskUpdate(data) {
         try {
+            if (typeof data === 'string') data = JSON.parse(data);
             if (data && data.state) {
                 SystemHealth.setRiskPosture(data.state);
+            } else if (data && data.level) {
+                SystemHealth.setRiskPosture(String(data.level).toLowerCase());
             }
         } catch (_) { /* swallow */ }
     }
