@@ -2,33 +2,45 @@
  * header-strip.js — HeaderStrip: Dashboard Header Panel
  *
  * The topmost persistent UI element containing brand identity, live system state,
- * and account/session context. Extracted from unified-dashboard.html's inline
- * header structure to become the fourth shipped modular panel after NewsTicker,
- * WatchlistStrip, and PatternCard.
+ * and account/session context.
  *
  * What it renders:
  *   [LEFT]   OGZPrime logo + tagline ("Neural Ensemble — Real-Time Data")
- *   [CENTER] Hero price display: $X.XX ± Y.YY (±Z.Z%)
- *   [RIGHT]  Status cluster: DATA/BOT/TRAI lights, Risk Budget meter, Session Phase
+ *   [CENTER] Hero: total account equity, session P&L, session trade count + win rate
+ *   [RIGHT]  Status cluster: DATA/BOT/TRAI lights, Risk Budget meter, Account selector
  *
  * State tracking:
- *   - Current equity price + open-session delta
- *   - Risk budget: percentage + threat level (SAFE/WARN/DANGER)
- *   - Three status lights: DATA (live prices), BOT (strategy engine), TRAI (inference)
- *     Each light: gray (idle) → green (active, pulse) → red (error)
- *   - Account selector: dropdown for multi-account deployments (stub for v1)
+ *   - Account equity: balance + unrealizedPnL (live, derived from state_update)
+ *   - Session P&L: totalPnL since session open
+ *   - Session trade count + win rate (from state_update.tradeCount + tradePNL ledger)
+ *   - Risk budget: drawdown from session-open as percentage of session-open balance
+ *   - Three status lights: DATA (price ticks), BOT (bot_thinking), TRAI (narrator_event)
  *
  * Self-registers as OGZ.HeaderStrip via OGZ.register().
  * Mounts into <header id="dashHeader">.
- * Subscribes to WS events:
- *   - price: triggers DATA light pulse, updates hero-price display
- *   - bot_state: (TODO-flag UNVERIFIED) controls BOT light state
- *   - trai_status: (TODO-flag UNVERIFIED) controls TRAI light state
- *   - state_update: (TODO-flag UNVERIFIED) alternative balance event
- *   - balance_update: (TODO-flag UNVERIFIED) alternative balance event
+ *
+ * Verified WS subscriptions (real bot emitter shapes):
+ *   - 'price'          → CandleProcessor.broadcastPrice; DATA-light heartbeat only.
+ *                        Shape: { type:'price', data:{ price, candle, indicators,
+ *                        overlays, balance, position, ... } }
+ *   - 'state_update'   → StateManager.broadcastToDashboard; equity hero + risk meter.
+ *                        Shape: { type:'state_update', state:{ position, balance,
+ *                        totalBalance, realizedPnL, unrealizedPnL, totalPnL,
+ *                        tradeCount, dailyTradeCount, recoveryMode }, timestamp }
+ *   - 'balance_update' → fallback: { type:'balance_update', balance } (read defensively)
+ *   - 'bot_thinking'   → TradingLoop.processCycle / TRAIDecisionModule. BOT-light heartbeat.
+ *                        Shape: { type:'bot_thinking', timestamp, message, confidence,
+ *                        data:{ reasoning, price, regime, module }, strategy_stack }
+ *   - 'narrator_event' → TradeNarrator.broadcast. TRAI-light heartbeat.
+ *                        Shape: { type:'narrator_event', subtype, text, timestamp }
+ *   - 'trade'          → OrderExecutor; session win/loss tally.
+ *                        Shape: { type:'trade', action, direction, price, pnl,
+ *                        timestamp, confidence }
+ *
  * Listens to OGZ.bus events:
  *   - account:change — when dropdown selects a new account
- *   - risk:update — when RiskGauge (future module) reports new budget
+ *   - risk:update    — when an external RiskGauge module reports new budget
+ *                      (overrides the auto-derived value)
  *
  * Graceful fallback: displays "--" placeholders if no events arrive.
  * No console.log in production code.
@@ -79,21 +91,29 @@
     const state = {
         mounted: false,
 
-        // Equity display
-        equity: 0,
-        equityPriceOpen: 0,  // Session open price (for delta calculation)
-        priceHistory: [],    // Rolling buffer of recent prices for averaging
+        // Account equity hero (real account dollars, NOT asset price)
+        equity: 0,                 // balance + unrealizedPnL (live)
+        balance: 0,                // bot's "balance" field
+        unrealizedPnL: 0,
+        sessionTotalPnL: 0,        // totalPnL since session open
+        sessionOpenBalance: 0,     // captured on first state_update — for risk %
+        sessionTradeCount: 0,
+        sessionWins: 0,
+        sessionLosses: 0,
+        priceHistory: [],          // for DATA-light idle detection
+        externalRiskOverride: null,// non-null = use external RiskGauge value
 
-        // Risk budget
-        riskBudget: 0,       // 0..100 percentage
-        riskLevel: 'SAFE',   // 'SAFE' | 'WARN' | 'DANGER'
+        // Risk budget — auto-derived unless external override fires
+        riskBudget: 0,             // 0..100 (% of session-open balance burned)
+        riskLevel: 'SAFE',         // 'SAFE' | 'WARN' | 'DANGER'
 
         // Status lights
         statusLights: {
-            data: { active: false, error: false },
-            bot: { active: false, error: false },
-            trai: { active: false, error: false },
+            data: { active: false, error: false, lastPulse: 0 },
+            bot:  { active: false, error: false, lastPulse: 0 },
+            trai: { active: false, error: false, lastPulse: 0 },
         },
+        idleTimers: { data: null, bot: null, trai: null },
 
         // Account selector
         currentAccount: DEFAULT_ACCOUNT,
@@ -103,6 +123,7 @@
             root: null,
             heroPriceMain: null,
             heroPriceDelta: null,
+            heroSessionMeta: null,
             dataLight: null,
             botLight: null,
             traiLight: null,
@@ -115,6 +136,9 @@
         listeners: [],
         wsHandlers: [],
     };
+
+    // Light idle threshold: if no event for N ms, dim the light.
+    const LIGHT_IDLE_MS = 5000;
 
     // ─── Event Bus Helper ──────────────────────────────────────────────
     function ensureEventBus() {
@@ -256,6 +280,20 @@
             .hs-hero-price-delta.neg {
                 color: #ef4444;
             }
+
+            .hs-hero-session-meta {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 10px;
+                color: #6b7280;
+                margin-top: 2px;
+                letter-spacing: 1.2px;
+                text-transform: uppercase;
+            }
+            .hs-hero-session-meta .hs-meta-key { color: #6b7280; }
+            .hs-hero-session-meta .hs-meta-val { color: #d1d5db; margin-left: 4px; margin-right: 12px; }
+            .hs-hero-session-meta .hs-meta-val.pos { color: #22c55e; }
+            .hs-hero-session-meta .hs-meta-val.neg { color: #ef4444; }
+            .hs-hero-session-meta .hs-meta-val.warn { color: #fbbf24; }
 
             @keyframes hs-equity-flash-up {
                 0% { color: #ffd700; text-shadow: 0 0 22px rgba(255, 215, 0, 0.6); }
@@ -433,8 +471,13 @@
             </div>
 
             <div class="hs-hero-price">
-                <div class="hs-hero-price-main" id="hsHeroPriceMain">$0.00</div>
-                <div class="hs-hero-price-delta" id="hsHeroPriceDelta"></div>
+                <div class="hs-hero-price-main" id="hsHeroPriceMain">$--.--</div>
+                <div class="hs-hero-price-delta" id="hsHeroPriceDelta">awaiting state_update</div>
+                <div class="hs-hero-session-meta" id="hsHeroSessionMeta">
+                    <span class="hs-meta-key">trades</span><span class="hs-meta-val" data-k="trades">0</span>
+                    <span class="hs-meta-key">win</span><span class="hs-meta-val" data-k="win">--</span>
+                    <span class="hs-meta-key">unr</span><span class="hs-meta-val" data-k="unr">$0.00</span>
+                </div>
             </div>
 
             <div class="hs-status-cluster">
@@ -467,6 +510,7 @@
         // Cache DOM refs
         state.domRefs.heroPriceMain = root.querySelector('#hsHeroPriceMain');
         state.domRefs.heroPriceDelta = root.querySelector('#hsHeroPriceDelta');
+        state.domRefs.heroSessionMeta = root.querySelector('#hsHeroSessionMeta');
         state.domRefs.dataLight = root.querySelector('#hsDataLight');
         state.domRefs.botLight = root.querySelector('#hsBotLight');
         state.domRefs.traiLight = root.querySelector('#hsTraiLight');
@@ -489,30 +533,62 @@
     }
 
     function updateDisplay() {
-        // Update hero price
+        // Hero: account equity (NOT asset price — that's on the chart panel).
+        // Show '$--.--' until first state_update arrives so we never lie about
+        // a zero balance from cold-boot.
         if (state.domRefs.heroPriceMain) {
-            const priceStr = `$${state.equity.toFixed(2)}`;
-            state.domRefs.heroPriceMain.textContent = priceStr;
-
-            const isNeg = state.equity < 0;
-            state.domRefs.heroPriceMain.classList.toggle('neg', isNeg);
+            if (state.sessionOpenBalance > 0 || state.equity > 0) {
+                state.domRefs.heroPriceMain.textContent = `$${Number(state.equity).toLocaleString(undefined, {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                })}`;
+            } else {
+                state.domRefs.heroPriceMain.textContent = '$--.--';
+            }
+            state.domRefs.heroPriceMain.classList.toggle('neg', state.equity < state.sessionOpenBalance);
         }
 
-        // Update delta
+        // Delta: session P&L vs session-open balance
         if (state.domRefs.heroPriceDelta) {
-            const delta = state.equity - state.equityPriceOpen;
-            const deltaPercent = state.equityPriceOpen > 0
-                ? ((delta / state.equityPriceOpen) * 100)
-                : 0;
+            if (state.sessionOpenBalance > 0) {
+                const delta = state.equity - state.sessionOpenBalance;
+                const deltaPct = (delta / state.sessionOpenBalance) * 100;
+                const sign = delta >= 0 ? '+' : '';
+                state.domRefs.heroPriceDelta.textContent =
+                    `${sign}$${delta.toFixed(2)} (${sign}${deltaPct.toFixed(2)}%) session`;
+                const isNeg = delta < 0;
+                state.domRefs.heroPriceDelta.classList.toggle('pos', !isNeg);
+                state.domRefs.heroPriceDelta.classList.toggle('neg', isNeg);
+            } else {
+                state.domRefs.heroPriceDelta.textContent = 'awaiting state_update';
+                state.domRefs.heroPriceDelta.classList.remove('pos', 'neg');
+            }
+        }
 
-            const sign = delta >= 0 ? '+' : '';
-            const deltaStr = `${sign}${delta.toFixed(2)} (${sign}${deltaPercent.toFixed(2)}%)`;
-
-            state.domRefs.heroPriceDelta.textContent = deltaStr;
-
-            const isNeg = delta < 0;
-            state.domRefs.heroPriceDelta.classList.toggle('pos', !isNeg);
-            state.domRefs.heroPriceDelta.classList.toggle('neg', isNeg);
+        // Session meta line: trades, win%, unrealized P&L
+        if (state.domRefs.heroSessionMeta) {
+            const tradesEl = state.domRefs.heroSessionMeta.querySelector('[data-k="trades"]');
+            const winEl    = state.domRefs.heroSessionMeta.querySelector('[data-k="win"]');
+            const unrEl    = state.domRefs.heroSessionMeta.querySelector('[data-k="unr"]');
+            if (tradesEl) tradesEl.textContent = String(state.sessionTradeCount);
+            if (winEl) {
+                if (state.sessionTradeCount > 0) {
+                    const wp = (state.sessionWins / state.sessionTradeCount) * 100;
+                    winEl.textContent = `${wp.toFixed(0)}%`;
+                    winEl.classList.toggle('pos', wp >= 60);
+                    winEl.classList.toggle('warn', wp >= 40 && wp < 60);
+                    winEl.classList.toggle('neg', wp < 40);
+                } else {
+                    winEl.textContent = '--';
+                    winEl.classList.remove('pos', 'warn', 'neg');
+                }
+            }
+            if (unrEl) {
+                const u = Number(state.unrealizedPnL || 0);
+                const sign = u >= 0 ? '+' : '';
+                unrEl.textContent = `${sign}$${u.toFixed(2)}`;
+                unrEl.classList.toggle('pos', u > 0);
+                unrEl.classList.toggle('neg', u < 0);
+            }
         }
 
         // Update status lights
@@ -522,13 +598,45 @@
 
         // Update risk budget
         if (state.domRefs.riskBudgetPercent) {
-            state.domRefs.riskBudgetPercent.textContent = `${state.riskBudget}%`;
+            state.domRefs.riskBudgetPercent.textContent = `${Math.round(state.riskBudget)}%`;
             state.domRefs.riskBudgetPercent.className = `hs-risk-budget-percent ${state.riskLevel.toLowerCase()}`;
         }
         if (state.domRefs.riskBudgetLevel) {
             state.domRefs.riskBudgetLevel.textContent = state.riskLevel;
             state.domRefs.riskBudgetLevel.className = `hs-risk-budget-level ${state.riskLevel.toLowerCase()}`;
         }
+    }
+
+    // Auto-derive risk meter from session drawdown (if no external override).
+    // Risk = % of session-open balance currently burned (cap at 100).
+    function recomputeRiskBudget() {
+        if (state.externalRiskOverride != null) return; // external module wins
+        if (state.sessionOpenBalance <= 0) {
+            state.riskBudget = 0;
+            state.riskLevel = 'SAFE';
+            return;
+        }
+        const drawdown = Math.max(0, state.sessionOpenBalance - state.equity);
+        const pct = Math.min(100, (drawdown / state.sessionOpenBalance) * 100);
+        state.riskBudget = pct;
+        if (pct >= 50) state.riskLevel = 'DANGER';
+        else if (pct >= 20) state.riskLevel = 'WARN';
+        else state.riskLevel = 'SAFE';
+    }
+
+    // Pulse a status light + arm idle timer to dim it after silence.
+    function pulseLight(name) {
+        const lt = state.statusLights[name];
+        if (!lt) return;
+        lt.active = true;
+        lt.error = false;
+        lt.lastPulse = Date.now();
+        const old = state.idleTimers[name];
+        if (old) clearTimeout(old);
+        state.idleTimers[name] = setTimeout(() => {
+            lt.active = false;
+            updateDisplay();
+        }, LIGHT_IDLE_MS);
     }
 
     function updateStatusLightDOM(name) {
@@ -545,99 +653,132 @@
         }
     }
 
-    // ─── WS Event Handlers ──────────────────────────────────────────────
-    function handlePrice(event) {
+    // ─── WS Event Handlers (real bot emitter shapes) ────────────────────
+
+    // 'price' tick — DATA light heartbeat only. The asset price itself lives
+    // on the chart panel; we don't want to misuse the equity hero for it.
+    function handlePrice(d) {
         try {
-            if (typeof event === 'string') {
-                event = JSON.parse(event);
-            }
-
-            const price = parseFloat(event.price || event.c || 0);
-            if (!isNaN(price) && price > 0) {
-                const prevPrice = state.equity;
-                state.equity = price;
-
-                // Track for delta calculation
-                state.priceHistory.push(price);
-                if (state.priceHistory.length > PRICE_HISTORY_SIZE) {
-                    state.priceHistory.shift();
-                }
-
-                // Initialize open price on first price
-                if (state.equityPriceOpen === 0) {
-                    state.equityPriceOpen = price;
-                }
-
-                // Pulse DATA light
-                state.statusLights.data.active = true;
-
-                // Flash hero price
-                if (state.domRefs.heroPriceMain) {
-                    state.domRefs.heroPriceMain.classList.remove('flash-up', 'flash-down');
-                    const direction = price > prevPrice ? 'flash-up' : 'flash-down';
-                    state.domRefs.heroPriceMain.classList.add(direction);
-
-                    setTimeout(() => {
-                        state.domRefs.heroPriceMain.classList.remove(direction);
-                    }, PRICE_FLASH_MS);
-                }
-
-                updateDisplay();
-            }
-        } catch (err) {
-            // Swallow parse errors
-        }
+            const data = (d && d.data) ? d.data : d;
+            const p = parseFloat(data && (data.price != null ? data.price : data.c));
+            if (isNaN(p) || p <= 0) return;
+            state.priceHistory.push(p);
+            if (state.priceHistory.length > PRICE_HISTORY_SIZE) state.priceHistory.shift();
+            pulseLight('data');
+            updateDisplay();
+        } catch (_) { /* swallow */ }
     }
 
-    function handleBotState(event) {
+    // 'state_update' — StateManager's authoritative account snapshot.
+    // Drives equity hero, session P&L delta, win-rate, risk meter.
+    function handleStateUpdate(d) {
         try {
-            if (typeof event === 'string') {
-                event = JSON.parse(event);
+            const s = d && d.state ? d.state : (d && d.data && d.data.state) ? d.data.state : null;
+            if (!s) return;
+
+            const balance = Number(s.balance != null ? s.balance : s.totalBalance) || 0;
+            const unr     = Number(s.unrealizedPnL || 0);
+            const totPnL  = Number(s.totalPnL || 0);
+            const trades  = Number(s.tradeCount || 0);
+
+            const prevEquity = state.equity;
+            state.balance = balance;
+            state.unrealizedPnL = unr;
+            state.equity = balance + unr;
+            state.sessionTotalPnL = totPnL;
+            state.sessionTradeCount = trades;
+
+            // Capture session-open balance on first real state_update.
+            // Walk back to the pre-PnL principal so the % delta is correct
+            // regardless of when the dashboard joined the session.
+            if (state.sessionOpenBalance === 0 && balance > 0) {
+                state.sessionOpenBalance = balance - totPnL;
+                if (state.sessionOpenBalance <= 0) state.sessionOpenBalance = balance;
             }
 
-            const isRunning = event.running || event.active || false;
-            const isError = event.error || event.state === 'error' || false;
+            // Recovery mode = bot self-flagged drawdown trigger → DANGER lock
+            if (s.recoveryMode && state.externalRiskOverride == null) {
+                state.riskLevel = 'DANGER';
+                state.riskBudget = Math.max(state.riskBudget, 50);
+            } else {
+                recomputeRiskBudget();
+            }
 
-            state.statusLights.bot.active = isRunning;
-            state.statusLights.bot.error = isError;
+            // Flash hero on equity change
+            if (state.domRefs.heroPriceMain && Math.abs(state.equity - prevEquity) > 0.005) {
+                const dir = state.equity >= prevEquity ? 'flash-up' : 'flash-down';
+                state.domRefs.heroPriceMain.classList.remove('flash-up', 'flash-down');
+                state.domRefs.heroPriceMain.classList.add(dir);
+                setTimeout(() => {
+                    state.domRefs.heroPriceMain &&
+                        state.domRefs.heroPriceMain.classList.remove(dir);
+                }, PRICE_FLASH_MS);
+            }
 
             updateDisplay();
-        } catch (err) {
-            // Swallow
-        }
+        } catch (_) { /* swallow */ }
     }
 
-    function handleTraiStatus(event) {
+    // 'balance_update' — fallback for dashboards that arrive after StateManager.
+    // Shape: { type:'balance_update', balance } (verified in core.js routing)
+    function handleBalanceUpdate(d) {
         try {
-            if (typeof event === 'string') {
-                event = JSON.parse(event);
-            }
-
-            const isRunning = event.running || event.active || false;
-            const isError = event.error || event.state === 'error' || false;
-
-            state.statusLights.trai.active = isRunning;
-            state.statusLights.trai.error = isError;
-
+            const data = (d && d.data) ? d.data : d;
+            const balance = Number(data && data.balance);
+            if (!isFinite(balance) || balance <= 0) return;
+            state.balance = balance;
+            state.equity = balance + (state.unrealizedPnL || 0);
+            if (state.sessionOpenBalance === 0) state.sessionOpenBalance = balance;
+            recomputeRiskBudget();
             updateDisplay();
-        } catch (err) {
-            // Swallow
-        }
+        } catch (_) { /* swallow */ }
     }
 
+    // 'bot_thinking' — BOT light heartbeat. We don't render the reasoning
+    // here (Intelligence/HUD modules own that); we only use this as proof
+    // of life for the BOT pill.
+    function handleBotThinking(_d) {
+        pulseLight('bot');
+        updateDisplay();
+    }
+
+    // 'narrator_event' — TRAI heartbeat. Also drives a light pulse only.
+    function handleNarratorEvent(_d) {
+        pulseLight('trai');
+        updateDisplay();
+    }
+
+    // 'trade' — session win/loss tally. Bot shape:
+    //   { type:'trade', action:'BUY'|'SELL', direction, price, pnl, timestamp, confidence }
+    // Only SELL events carry final pnl (BUY pnl is 0). Count both as a trade
+    // increment; classify win/loss strictly by SELL.pnl sign.
+    function handleTrade(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
+            if (data.action === 'SELL') {
+                const pnl = Number(data.pnl || 0);
+                if (pnl > 0) state.sessionWins++;
+                else if (pnl < 0) state.sessionLosses++;
+            }
+            // Don't increment sessionTradeCount here — state_update.tradeCount
+            // is authoritative and arrives right after each trade. Avoids
+            // double-counting if both fire.
+            updateDisplay();
+        } catch (_) { /* swallow */ }
+    }
+
+    // External RiskGauge override (bus event)
     function handleRiskUpdate(data) {
         try {
-            if (typeof data === 'string') {
-                data = JSON.parse(data);
-            }
-
-            state.riskBudget = Math.max(0, Math.min(100, data.percent || 0));
-            state.riskLevel = data.level || 'SAFE';
-
+            if (typeof data === 'string') data = JSON.parse(data);
+            const pct = Number(data && data.percent);
+            const lvl = data && data.level;
+            if (!isFinite(pct)) return;
+            state.externalRiskOverride = pct;
+            state.riskBudget = Math.max(0, Math.min(100, pct));
+            state.riskLevel = lvl || (pct >= 50 ? 'DANGER' : pct >= 20 ? 'WARN' : 'SAFE');
             updateDisplay();
-        } catch (err) {
-            // Swallow
-        }
+        } catch (_) { /* swallow */ }
     }
 
     // ─── Bus Event Listeners ────────────────────────────────────────────
@@ -667,20 +808,25 @@
             state.domRefs.root = root;
             render();
 
-            // Subscribe to WS events (with defensive try/catch)
-            if (window.ws && typeof window.ws.on === 'function') {
-                window.ws.on('price', (event) => {
-                    try { handlePrice(event); } catch (_) { /* swallow */ }
-                });
-                window.ws.on('bot_state', (event) => {
-                    try { handleBotState(event); } catch (_) { /* swallow */ }
-                });
-                window.ws.on('trai_status', (event) => {
-                    try { handleTraiStatus(event); } catch (_) { /* swallow */ }
-                });
-            }
+            // Subscribe to WS events via the real socket (OGZ.get('Socket')).
+            // Socket may not be registered yet at panel-init time, so poll briefly
+            // and bind once it shows up. Bound subs survive for the page lifetime
+            // (websocket.js doesn't currently expose unregisterHandler).
+            (function bindSocket() {
+                const socket = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('Socket') : null;
+                if (!socket || typeof socket.registerHandler !== 'function') {
+                    setTimeout(bindSocket, 250);
+                    return;
+                }
+                socket.registerHandler('price', (e) => { try { handlePrice(e); } catch (_) {} });
+                socket.registerHandler('state_update', (e) => { try { handleStateUpdate(e); } catch (_) {} });
+                socket.registerHandler('balance_update', (e) => { try { handleBalanceUpdate(e); } catch (_) {} });
+                socket.registerHandler('bot_thinking', (e) => { try { handleBotThinking(e); } catch (_) {} });
+                socket.registerHandler('narrator_event', (e) => { try { handleNarratorEvent(e); } catch (_) {} });
+                socket.registerHandler('trade', (e) => { try { handleTrade(e); } catch (_) {} });
+            })();
 
-            // Subscribe to bus events
+            // Subscribe to bus events (account:change, risk:update)
             subscribeToEvents();
 
             state.mounted = true;
@@ -700,12 +846,17 @@
 
         getEquity() {
             return {
-                price: state.equity,
-                delta: state.equity - state.equityPriceOpen,
-                deltaPercent: state.equityPriceOpen > 0
-                    ? ((state.equity - state.equityPriceOpen) / state.equityPriceOpen) * 100
+                equity: state.equity,
+                balance: state.balance,
+                unrealizedPnL: state.unrealizedPnL,
+                sessionPnL: state.equity - state.sessionOpenBalance,
+                sessionPnLPercent: state.sessionOpenBalance > 0
+                    ? ((state.equity - state.sessionOpenBalance) / state.sessionOpenBalance) * 100
                     : 0,
-                priceOpen: state.equityPriceOpen,
+                sessionOpenBalance: state.sessionOpenBalance,
+                trades: state.sessionTradeCount,
+                wins: state.sessionWins,
+                losses: state.sessionLosses,
             };
         },
 
@@ -750,9 +901,16 @@
             return {
                 mounted: state.mounted,
                 equity: state.equity,
-                equityPriceOpen: state.equityPriceOpen,
+                balance: state.balance,
+                unrealizedPnL: state.unrealizedPnL,
+                sessionTotalPnL: state.sessionTotalPnL,
+                sessionOpenBalance: state.sessionOpenBalance,
+                sessionTradeCount: state.sessionTradeCount,
+                sessionWins: state.sessionWins,
+                sessionLosses: state.sessionLosses,
                 riskBudget: state.riskBudget,
                 riskLevel: state.riskLevel,
+                externalRiskOverride: state.externalRiskOverride,
                 statusLights: JSON.parse(JSON.stringify(state.statusLights)),
                 currentAccount: state.currentAccount,
             };
