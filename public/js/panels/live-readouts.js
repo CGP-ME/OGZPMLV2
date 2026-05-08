@@ -568,6 +568,12 @@
         if (!root) return;
 
         injectStyles();
+
+        // Mark mounted BEFORE render() — render's defensive
+        // `if (!state.mounted) return` would otherwise bail and produce
+        // an empty panel. Setting mounted first preserves render's guard
+        // for future callers (e.g. WS handlers that fire before init completes).
+        state.mounted = true;
         render();
 
         // Subscribe to WS events
@@ -580,8 +586,6 @@
 
         // Subscribe to OGZ.bus events
         OGZ.bus.on('watchlist:select', onWatchlistSelect);
-
-        state.mounted = true;
     }
 
     function setSymbol(symbol) {
