@@ -23,14 +23,13 @@
  * Listens for `OGZ.bus.on('watchlist:select', ...)` to re-render for new ticker.
  * Gracefully handles "no events ever arrive" — stays in scanning state indefinitely.
  *
- * Demo mode optional (off by default). Enable via OGZ.PatternCard.setDemoMode(true)
- * for testing/screenshots.
+ * NO demo mode. NO Math.random. Patterns render only when real `pattern_analysis`
+ * WS events arrive. Stays in scanning state indefinitely otherwise.
  *
  * Public API:
  *   init() - Mount to DOM, inject styles, subscribe to WS events
  *   setSymbol(symbol) - Manually set the displayed ticker (used by watchlist listener)
- *   setDemoMode(enabled) - Toggle demo pattern generation on/off
- *   recordPattern(event) - Inject a fake pattern event (for testing)
+ *   recordPattern(event) - Inject a real PatternEvent (called by WS handler)
  *   getHistory(symbol) - Get recent detection history for a symbol
  *   clearHistory(symbol) - Clear cached history for a symbol
  *   teardown() - Remove DOM, listeners, styles
@@ -55,7 +54,6 @@
     const ROOT_ID = 'patternCard';
     const MAX_HISTORY_PER_TICKER = 5;     // Show up to 5 recent detections
     const MAX_HISTORY_TOTAL = 30;          // Cap total in-memory history at 30
-    const DEMO_INTERVAL_MS = 8000;         // Demo mode: emit a fake pattern every 8s
     const CARD_FLIP_MS = 600;              // Animation duration for state transition
 
     // ─── SVG Pattern Art Library ────────────────────────────────────────
@@ -513,12 +511,10 @@
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
         mounted: false,
-        demoMode: false,
         currentSymbol: 'TSLA',
         currentPattern: null,              // PatternEvent or null
         historyByTicker: new Map(),        // symbol → PatternEvent[]
         totalHistory: [],                  // All events (capped at MAX_HISTORY_TOTAL)
-        demoIntervalId: null,              // Timer for demo mode
     };
 
     // ─── Utilities ──────────────────────────────────────────────────────
@@ -580,44 +576,6 @@
         render();
     }
 
-    // ─── Demo Mode ──────────────────────────────────────────────────────
-    const DEMO_PATTERNS = [
-        'double_bottom',
-        'head_shoulders',
-        'ascending_triangle',
-        'bull_flag',
-        'cup_handle',
-        'breakout_retest',
-        'liquidity_sweep',
-    ];
-
-    function generateDemoPattern() {
-        const patternKey = DEMO_PATTERNS[Math.floor(Math.random() * DEMO_PATTERNS.length)];
-        const symbols = ['TSLA', 'NVDA', 'SPY', 'COIN', 'BTC'];
-        const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-        const confidence = 0.55 + Math.random() * 0.35;
-
-        recordDetection({
-            ts: Date.now(),
-            symbol: symbol,
-            pattern: patternKey,
-            confidence: confidence,
-            bias: PATTERN_DESCRIPTIONS[patternKey].bias,
-        });
-    }
-
-    function startDemoMode() {
-        if (state.demoIntervalId) return;
-        state.demoIntervalId = setInterval(generateDemoPattern, DEMO_INTERVAL_MS);
-        generateDemoPattern(); // Immediate first pattern
-    }
-
-    function stopDemoMode() {
-        if (state.demoIntervalId) {
-            clearInterval(state.demoIntervalId);
-            state.demoIntervalId = null;
-        }
-    }
 
     // ─── Style Injection ────────────────────────────────────────────────
     function injectStyles() {
@@ -983,11 +941,6 @@
                 if (OGZ && OGZ.bus) {
                     OGZ.bus.on('watchlist:select', onWatchlistSelect);
                 }
-
-                // Start demo mode if enabled
-                if (state.demoMode) {
-                    startDemoMode();
-                }
             } catch (_) { /* swallow */ }
         },
 
@@ -1004,20 +957,6 @@
             } catch (_) { /* swallow */ }
         },
 
-        /**
-         * Toggle demo mode on/off.
-         * @param {boolean} enabled
-         */
-        setDemoMode(enabled) {
-            try {
-                state.demoMode = Boolean(enabled);
-                if (enabled) {
-                    startDemoMode();
-                } else {
-                    stopDemoMode();
-                }
-            } catch (_) { /* swallow */ }
-        },
 
         /**
          * Manually record a pattern detection (for testing).
@@ -1064,7 +1003,6 @@
          */
         teardown() {
             try {
-                stopDemoMode();
 
                 const root = document.getElementById(ROOT_ID);
                 if (root) {
@@ -1093,7 +1031,6 @@
         _compute() {
             return {
                 mounted: state.mounted,
-                demoMode: state.demoMode,
                 currentSymbol: state.currentSymbol,
                 currentPattern: state.currentPattern,
                 totalHistoryCount: state.totalHistory.length,
