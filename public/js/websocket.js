@@ -46,8 +46,14 @@
                     // Auth success → identify + request historical candles for selected asset
                     if (data.type === 'auth_success') {
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
-                        const asset = document.getElementById('assetSelector')?.value || 'TSLA';
-                        const tf = document.getElementById('timeframeSelector')?.value || '15m';
+                        // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
+                        // then default. Same fallback chain CC-D bakes into asset consumers.
+                        const asset = document.getElementById('cp-assetSelector')?.value
+                                   || document.getElementById('assetSelector')?.value
+                                   || 'TSLA';
+                        const tf = document.getElementById('cp-timeframeSelector')?.value
+                                || document.getElementById('timeframeSelector')?.value
+                                || '15m';
                         this.send({ type: 'request_historical', timeframe: tf, asset: asset, limit: 500 });
                     }
 
