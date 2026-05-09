@@ -51,6 +51,12 @@
     const ANIMATION_FRAME_MS = 1000 / 60;  // 60 FPS update target
     const POPUP_AUTO_DISMISS_MS = 6000;    // Popup closes after 6s if user doesn't interact
 
+    // TRAI events REST poll — /api/trai/events?symbol=X returns Tavily-searched +
+    // LLM-extracted upcoming earnings/FOMC/FDA/macro/catalysts (per symbol, 30min cache).
+    // See ogzprime-ssl-server.js:674 for endpoint, prompt-injection guards, schema.
+    const TRAI_POLL_INTERVAL_MS = 60000;   // Poll every 60s; endpoint cache is 30min so this is gentle
+    const TRAI_EVENTS_ENDPOINT = '/api/trai/events';
+    const DEFAULT_SYMBOL = 'TSLA';
 
     // Private state — only accessible within this IIFE.
     const state = {
@@ -61,6 +67,9 @@
         paused: false,                     // Is marquee paused (hover)?
         popupDismissTimer: null,           // setTimeout handle for auto-close popup
         containerWidth: 0,                 // Width of scrollable content
+        pollTimer: null,                   // setInterval handle for TRAI events poll
+        lastPolledSymbol: null,            // Last symbol we polled for (re-poll on change)
+        lastPollTs: 0,                     // Last successful poll timestamp (throttle)
     };
 
     // ─── Fallback CSS injection ─────────────────────────────────────────
@@ -427,6 +436,99 @@
         }
     }
 
+    // ─── TRAI events REST poll ──────────────────────────────────────────
+    function detectActiveAsset() {
+        // Prefer v2 chart-panel selector, fall back to legacy, then default.
+        // Same fallback chain CC-D bakes into every price/asset consumer.
+        const cpSel = document.getElementById('cp-assetSelector');
+        if (cpSel && cpSel.value) return cpSel.value;
+        const legacySel = document.getElementById('assetSelector');
+        if (legacySel && legacySel.value) return legacySel.value;
+        return DEFAULT_SYMBOL;
+    }
+
+    function mapTraiEventToNewsItem(traiEvent, symbol) {
+        // TRAI payload: {type, date (YYYY-MM-DD or 'TBD'), title, summary, source}
+        // News-ticker shape: {ts, sentiment, headline, source, ticker, trai_commentary}
+        let ts;
+        if (traiEvent && traiEvent.date && traiEvent.date !== 'TBD') {
+            const parsed = Date.parse(traiEvent.date);
+            ts = Number.isFinite(parsed) ? parsed : Date.now();
+        } else {
+            ts = Date.now();
+        }
+
+        // Sentiment heuristic from TRAI event type. earnings/fda/macro/other
+        // default to neutral; fomc/macro lean defensive (rate-policy uncertainty);
+        // catalyst leans bullish (positive trigger). Operator can refine later.
+        const sentimentMap = {
+            earnings: 'neutral',
+            fomc: 'defensive',
+            fda: 'neutral',
+            macro: 'defensive',
+            catalyst: 'bullish',
+            other: 'neutral',
+        };
+        const sentiment = sentimentMap[traiEvent && traiEvent.type] || 'neutral';
+
+        return {
+            ts,
+            sentiment,
+            headline: String((traiEvent && traiEvent.title) || 'Market event'),
+            source: String((traiEvent && traiEvent.source) || 'TRAI'),
+            ticker: symbol,
+            trai_commentary: traiEvent && traiEvent.summary ? String(traiEvent.summary) : undefined,
+        };
+    }
+
+    async function pollTraiEvents() {
+        const symbol = detectActiveAsset();
+        // Skip if same symbol polled within throttle window — defends against
+        // burst calls when asset-change fires near a scheduled poll tick.
+        if (symbol === state.lastPolledSymbol && (Date.now() - state.lastPollTs) < TRAI_POLL_INTERVAL_MS / 2) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`${TRAI_EVENTS_ENDPOINT}?symbol=${encodeURIComponent(symbol)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || !Array.isArray(data.events)) return;
+
+            // TRAI returns full set per poll — replace events array (don't append)
+            state.events = data.events
+                .filter(e => e && (e.title || e.summary))
+                .map(e => mapTraiEventToNewsItem(e, symbol));
+            // Cap at 50 (defensive — endpoint typically returns ≤5)
+            if (state.events.length > 50) state.events = state.events.slice(0, 50);
+
+            state.lastPolledSymbol = symbol;
+            state.lastPollTs = Date.now();
+            render();
+        } catch (_) { /* swallow — dashboard non-critical, fail silently */ }
+    }
+
+    function startTraiPollLoop() {
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        pollTraiEvents(); // immediate first poll
+        state.pollTimer = setInterval(pollTraiEvents, TRAI_POLL_INTERVAL_MS);
+    }
+
+    function stopTraiPollLoop() {
+        if (state.pollTimer) {
+            clearInterval(state.pollTimer);
+            state.pollTimer = null;
+        }
+    }
+
+    function onWatchlistSelectAsset(data) {
+        // Re-poll TRAI immediately when active asset changes
+        if (data && data.ticker) {
+            state.lastPolledSymbol = null; // bypass throttle
+            pollTraiEvents();
+        }
+    }
+
     // ─── WS Handler ─────────────────────────────────────────────────────
     function onNewsEvent(data) {
         try {
@@ -462,11 +564,22 @@
                 if (!mount()) return; // Mount point missing
                 render();
 
-                // Subscribe to news_event via Socket
+                // Subscribe to news_event WS frame as defensive backup if backend ever emits it.
+                // Currently no bot-side emit site exists for news_event; TRAI REST poll below
+                // is the active data source. Subscription is harmless either way.
                 const socket = OGZ.get && OGZ.get('Socket');
                 if (socket && socket.registerHandler) {
                     socket.registerHandler('news_event', onNewsEvent);
                 }
+
+                // Subscribe to watchlist:select bus event — re-poll TRAI on asset change
+                if (OGZ && OGZ.bus && OGZ.bus.on) {
+                    OGZ.bus.on('watchlist:select', onWatchlistSelectAsset);
+                }
+
+                // Start REST poll loop against /api/trai/events
+                // (Tavily search + TRAI LLM extraction with prompt-injection guards)
+                startTraiPollLoop();
             } catch (_) { /* swallow */ }
         },
 
@@ -512,6 +625,7 @@
             try {
                 dismissPopup();
                 stopAnimation();
+                stopTraiPollLoop();
 
                 const root = document.getElementById(ROOT_ID);
                 if (root) {
