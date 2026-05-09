@@ -1393,13 +1393,19 @@
     };
 
     // ─── Registration ──────────────────────────────────────────────────────
+    // Dual-register: 'ChartPanel' is the canonical v2 name; 'Chart' is the
+    // legacy alias core.js + websocket.js consumers do OGZ.get('Chart') against.
+    // Without the alias, every price/historical_candles event short-circuits
+    // silently (Wolf cotwerk diagnosis 2026-05-08).
     if (OGZ && typeof OGZ.register === 'function') {
         OGZ.register('ChartPanel', ChartPanel);
+        OGZ.register('Chart', ChartPanel);
     } else {
         if (typeof document !== 'undefined') {
             document.addEventListener('DOMContentLoaded', () => {
                 if (window.OGZ && typeof window.OGZ.register === 'function') {
                     window.OGZ.register('ChartPanel', ChartPanel);
+                    window.OGZ.register('Chart', ChartPanel);
                 }
             });
         }
