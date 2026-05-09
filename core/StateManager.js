@@ -414,12 +414,20 @@ class StateManager {
       size: size,           // Keep for compatibility
       price: price,
       entryPrice: price,
-      symbol: tradeSymbol,  // Dash-form normalized (TSLA, BTC-USD, ETH-USD, ...)
       entryFee: entryFee,   // Store fee for accounting
       entryTime: Date.now(),
       timestamp: Date.now(),
       status: 'open',
-      ...context
+      ...context,
+      // CC-C Commit 5: symbol assignment AFTER `...context` so the dash-
+      // normalized value (line 405-407) wins over context.symbol (slash form
+      // from the caller). The prior order had `symbol: tradeSymbol` BEFORE
+      // the spread, which silently overwrote the normalization with the raw
+      // slash form, making the :417 "Dash-form normalized" comment a lie.
+      // This was the load-bearing reason getTradesBySymbol filter ran on a
+      // dash-normalized input but matched against slash-stored trade.symbol
+      // (returning [] for crypto pairs and silently breaking exit-checks).
+      symbol: tradeSymbol,
     };
 
     // L1: Attach decision ledger skeleton at trade birth
@@ -999,11 +1007,41 @@ class StateManager {
   }
 
   /**
-   * Get all active trades as array
+   * Get all active trades as array — account-wide query across every symbol.
+   * Use for equity/P&L reconciliation, snapshots, position-tracker rebuilds.
+   * For symbol-specific decisions (exit-check on a symbol's candle, BUY-match
+   * for a symbol's SELL) use getTradesBySymbol(symbol) instead — that filter
+   * is what prevents cross-symbol contamination in multi-broker arbitrage.
    */
   getAllTrades() {
     const trades = this.get('activeTrades');
     return trades ? Array.from(trades.values()) : [];
+  }
+
+  /**
+   * Get active trades for ONE symbol. Required argument; throws on missing.
+   * No null-fallback to "all trades" — that silent semantic is the footgun
+   * that lets a caller forget the symbol and accidentally cross-contaminate
+   * BUY-matching across TSLA/BTC/etc. Strict by design.
+   */
+  getTradesBySymbol(symbol) {
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `StateManager.getTradesBySymbol(symbol) requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
+    // CC-C Commit 5: apply the SAME normalization openPosition uses at :406
+    // (uppercase + XBT→BTC + slash→dash). External callers pass the broker/env
+    // form ('BTC/USD', 'XBT/USD'); internal storage is dash-canonical
+    // ('BTC-USD'). Without this, Phase 0 reproduces bit-identical for TSLA
+    // (form-invariant) but Kraken/BTC mode silently fails: filter strict-eq
+    // returns [] → exit-check skips → positions never close. Single source of
+    // truth for the transform: when openPosition's canonical form changes,
+    // change it here too.
+    const normalized = symbol.toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+    const trades = this.get('activeTrades');
+    if (!trades) return [];
+    return Array.from(trades.values()).filter(t => t.symbol === normalized);
   }
 
   /**
@@ -1165,6 +1203,43 @@ class StateManager {
         // Restore state
         this.state = { ...this.state, ...savedState };
         console.log('[StateManager] State loaded from disk');
+
+        // CC-C Commit 5: backfill `t.symbol` for trades persisted before the
+        // 2026-05-05 fix at :397-417 promoted symbol to a top-level trade
+        // field. Pre-fix trades have no .symbol; getTradesBySymbol(symbol)
+        // would filter them out → silent state corruption (orphaned positions,
+        // exit-checks skipped, MPM tracking nothing). Single-symbol invariant
+        // pre-2026-05-05 (one bot, one symbol per process) means the
+        // configured tradingPair is the correct backfill value. Multi-broker
+        // upgrades that switched symbol without wiping state are config-level
+        // mistakes; the warning log surfaces the issue so the operator can
+        // wipe state and resume fresh.
+        const legacyPair = getConfigValue('broker.tradingPair');
+        const normalizedLegacy = legacyPair
+          ? String(legacyPair).toUpperCase().replace('XBT', 'BTC').replace('/', '-')
+          : null;
+        let migrated = 0;
+        for (const trade of this.state.activeTrades.values()) {
+          if (!trade.symbol && normalizedLegacy) {
+            trade.symbol = normalizedLegacy;
+            migrated++;
+          }
+        }
+        if (migrated > 0) {
+          console.warn(`[StateManager] Migrated ${migrated} legacy trade(s) to symbol=${normalizedLegacy}. If these trades originated under a different asset, wipe state.json and restart.`);
+        }
+        // CC-C Commit 5 — fail-loud post-condition (Mercury re-attack edge case E):
+        // If backfill couldn't supply a symbol (broker.tradingPair missing
+        // from config), trades stay symbol-less and getTradesBySymbol would
+        // silently return []. Refuse to load corrupted state — operator
+        // must wipe state.json or fix the broker config before resuming.
+        for (const trade of this.state.activeTrades.values()) {
+          if (!trade.symbol) {
+            throw new Error(
+              `[StateManager.load] Trade ${trade.id || '<unknown>'} has no .symbol after backfill (broker.tradingPair=${JSON.stringify(legacyPair)}). Refusing to load state with symbol-less trades — wipe state.json or fix broker config.`
+            );
+          }
+        }
 
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);

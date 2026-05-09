@@ -44,8 +44,19 @@ class TradingLoop {
 
   /**
    * Main analysis loop. Called on every candle.
+   * CC-C Commit 5/6: `symbol` is REQUIRED. No null-default fallback to
+   * ctx.tradingPair — that path was the multi-broker-arbitrage single-leg-
+   * liquidation footgun (Mercury Pass 3 finding G). Callers must pass the
+   * symbol explicitly: single-symbol mode passes `this.tradingPair` from the
+   * runner; multi-symbol mode (commit 6+) passes per-dispatch symbol from
+   * the OHLC handler. Throws on missing/invalid so callers fail loud.
    */
-  async analyzeAndTrade(symbol = null) {
+  async analyzeAndTrade(symbol) {
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
     // Concurrency guard — one analysis at a time
     if (this.analyzing) return;
     this.analyzing = true;
@@ -57,15 +68,21 @@ class TradingLoop {
     }
   }
 
-  async _analyze(symbol = null) {
-    // CC-C Multi-Symbol Commit 4/6: resolve per-symbol context.
-    // When symbol is passed, route reads through that SymbolTradingContext.
-    // When omitted (single-symbol legacy callers), symCtx === null and the
-    // local-var fallbacks below resolve to this.ctx.* — backward compat.
-    // Commit 6 (OHLC handler) is the caller change that actually passes
-    // symbol on every candle dispatch; until then this path is dormant
-    // (Phase 0 single-symbol behavior unchanged).
-    const symCtx = symbol ? this.ctx.symbolContexts?.get(symbol) : null;
+  async _analyze(symbol) {
+    // CC-C Commit 5/6: `symbol` is REQUIRED. analyzeAndTrade enforces this
+    // upstream; the redundant check here is defense-in-depth in case _analyze
+    // is ever called from a sibling path that bypasses analyzeAndTrade.
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `TradingLoop._analyze requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
+    // CC-C Multi-Symbol Commit 4: resolve per-symbol context if wired.
+    // symCtx may be null when commit 6's per-symbol context wiring hasn't
+    // been activated yet for this symbol; the per-data-type `symCtx?.X ??
+    // this.ctx.X` resolvers below handle that gracefully (commit 4's surface,
+    // not commit 5's — kept as-is, separate concern).
+    const symCtx = this.ctx.symbolContexts?.get(symbol);
     // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
     // symCtx pass — declaring them here too was dead code (Mercury attack #4).
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
@@ -166,8 +183,16 @@ class TradingLoop {
     // Step 3: Execute whatever decision was made
     // ═══════════════════════════════════════════════════════════════
 
-    const allTrades = stateManager.getAllTrades();
-    const activeTrades = allTrades.filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    // CC-C Commit 5/6: symbol is REQUIRED at this layer (entry-checked
+    // above). The prior `?? this.ctx.tradingPair` dispatch resolver was
+    // ripped per Mercury Pass 3 finding G — under multi-broker arbitrage
+    // a missing-symbol fallback to ctx.tradingPair could exit-check the
+    // wrong leg, leaving the other broker's positions unchecked (single-
+    // leg liquidation, real-money risk). All callers (runner.analyzeAndTrade,
+    // run15mTradingCycle, the interval cycle, BacktestRunner) now pass
+    // symbol explicitly.
+    const activeTrades = stateManager.getTradesBySymbol(symbol)
+      .filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
     const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
     const minConfidence = this.ctx.config.minTradeConfidence;
 
@@ -414,7 +439,7 @@ class TradingLoop {
         // L5: risk gates checked before entry
         riskGates,
       };
-      await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult);
+      await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
     }
   }
 

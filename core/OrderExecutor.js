@@ -38,11 +38,20 @@ class OrderExecutor {
   }
 
   /**
-   * Execute a trade - EXACT COPY from run-empire-v2.js executeTrade()
+   * Execute a trade. CC-C Multi-Symbol Commit 5/6: `symbol` is now a REQUIRED
+   * trailing argument. Caller passes the symbol whose candle/decision is being
+   * acted on; OrderExecutor uses that symbol exclusively for live-routing,
+   * trade-record construction, ledger writes, and BUY/SHORT match queries via
+   * stateManager.getTradesBySymbol(symbol). No implicit ctx.tradingPair
+   * fallback — that path was the cross-contamination footgun for multi-broker
+   * arbitrage. Throws on missing/invalid symbol so weak callers fail loud.
    */
-  // Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
-  // Phase 4 REWRITE: Removed duplicate BUY/SELL gates - TradingLoop + ExitContractManager handle all gating
-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null) {
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
     // Log trade execution
     console.log("*** EXECUTE_TRADE_REACHED ***");
     console.log(`\n🎯 ${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
@@ -153,16 +162,12 @@ class OrderExecutor {
         // Use slippage-adjusted price for position tracking
         price = fillPrice;
       } else {
-        // Live: Route through OrderRouter to exchange
-        // CRIT-03: Wrong-market routing. Previously `|| 'BTC-USD'` defaulted
-        // missing tradingPair to BTC-USD, so a stocks bot with a misconfigured
-        // ctx would have routed live orders to the crypto market. Pre-money
-        // halt: refuse to send the order.
-        const symbol = this.ctx.tradingPair;
-        if (!symbol) {
-          console.error('[HALT] No tradingPair configured — refusing live order');
-          return null;
-        }
+        // Live: Route through OrderRouter to exchange.
+        // `symbol` is the required executeTrade param — entry-check at the top
+        // of this method already guarantees it's a non-empty string, so the
+        // historical `if (!symbol)` HALT is unreachable and removed here. The
+        // CRIT-03 wrong-market hazard (defaulting missing tradingPair to
+        // BTC-USD) is structurally prevented by the param requirement.
         const side = decision.action.toLowerCase(); // 'buy' or 'sell'
         try {
           const orderResult = await this.ctx.orderRouter.sendOrder({
@@ -339,7 +344,7 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
-            symbol: this.ctx.tradingPair ?? null,
+            symbol,
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -392,7 +397,7 @@ class OrderExecutor {
               }
               this.ctx.webhookAdapter.emit({
                 action: 'buy',
-                symbol: this.ctx.tradingPair,
+                symbol,
                 quantity: shares,
                 orderType: 'market',
               }).catch(err => console.warn(`[WebhookOrder] BUY emit failed: ${err.message}`));
@@ -436,7 +441,7 @@ class OrderExecutor {
           // CHANGE 2026-01-25: Log trade for website proof
           TradingProofLogger.trade({
             action: 'BUY',
-            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
+            symbol,
             price: price,
             size: adjustedPositionSize,
             value_usd: adjustedPositionSize * price,
@@ -518,7 +523,7 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
-            symbol: this.ctx.tradingPair ?? null
+            symbol
           });
 
           if (!positionResult.success) {
@@ -561,7 +566,7 @@ class OrderExecutor {
               }
               this.ctx.webhookAdapter.emit({
                 action: 'sell',
-                symbol: this.ctx.tradingPair,
+                symbol,
                 quantity: shares,
                 orderType: 'market',
               }).catch(err => console.warn(`[WebhookOrder] SELL_SHORT emit failed: ${err.message}`));
@@ -603,7 +608,7 @@ class OrderExecutor {
           // Proof logger for SHORT
           TradingProofLogger.trade({
             action: 'SELL_SHORT',
-            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
+            symbol,
             price: price,
             size: adjustedPositionSize,
             value_usd: adjustedPositionSize * price,
@@ -625,20 +630,24 @@ class OrderExecutor {
           console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
           // Change 589: Complete post-trade integrations
-          // Find the matching BUY trade
-          // CHANGE 2025-12-13: Read from StateManager (single source of truth)
-          const buyTrades = stateManager.getAllTrades()
+          // Find the matching BUY trade FOR THIS SYMBOL ONLY.
+          // CC-C Commit 5: getTradesBySymbol filters strict — no more
+          // cross-symbol contamination where a SELL of TSLA could match
+          // a BUY of BTC because both lived in the same activeTrades map.
+          const buyTrades = stateManager.getTradesBySymbol(symbol)
             .filter(t => t.action === 'BUY')
             .sort((a, b) => a.entryTime - b.entryTime);
 
           // CHANGE 644: Add error handling for SELL with no matching BUY
           if (buyTrades.length === 0) {
-            console.error('❌ CRITICAL: SELL signal but no matching BUY trade found!');
+            console.error(`❌ CRITICAL: SELL signal for ${symbol} but no matching BUY trade found for this symbol!`);
             console.log('   Current position:', currentState.position);
-            // CHANGE 2025-12-13: Read from StateManager (single source of truth)
-            const allTrades = stateManager.getAllTrades();
-            console.log('   Active trades count:', allTrades.length);
-            console.log('   Active trades:', allTrades.map(t => ({
+            // Diagnostic: dump trades for THIS symbol so the operator can
+            // see what's actually open under this symbol's bucket. Account-
+            // wide dump would mask a true cross-symbol mismatch as noise.
+            const symbolTrades = stateManager.getTradesBySymbol(symbol);
+            console.log(`   Active trades count for ${symbol}:`, symbolTrades.length);
+            console.log(`   Active trades for ${symbol}:`, symbolTrades.map(t => ({
               id: t.orderId,
               action: t.action,
               price: t.entryPrice
@@ -720,7 +729,14 @@ class OrderExecutor {
                 atrAtEntry: buyTrade.atrAtEntry ?? null,
                 regimeAtEntry: buyTrade.regimeAtEntry ?? null,
                 rsiAtEntry: buyTrade.rsiAtEntry ?? null,
-                symbol: buyTrade.symbol ?? buyTrade.tradingPair ?? this.ctx.tradingPair ?? null
+                // CC-C Commit 5: drop the historical `?? buyTrade.tradingPair ??
+                // this.ctx.tradingPair ?? null` chain. Trade objects carry
+                // top-level `symbol` since StateManager:417 (2026-05-05); the
+                // chain was rotted scaffolding that masked weak openPosition
+                // calls. With executeTrade's `symbol` param required and
+                // openPosition stamping it on the trade record, buyTrade.symbol
+                // is the single source of truth here.
+                symbol: buyTrade.symbol
               });
               console.log(`📋 [TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${buyTrade.size || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
             }
@@ -793,7 +809,7 @@ class OrderExecutor {
                 }
                 this.ctx.webhookAdapter.emit({
                   action: 'sell',
-                  symbol: this.ctx.tradingPair,
+                  symbol,
                   quantity: shares,
                   orderType: 'market',
                   bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
@@ -821,7 +837,7 @@ class OrderExecutor {
             // CHANGE 2026-01-25: Log trade for website proof
             TradingProofLogger.trade({
               action: 'SELL',
-              symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
+              symbol,
               price: price,
               size: usdAmount,
               value_usd: sellValue,
@@ -1006,7 +1022,7 @@ class OrderExecutor {
               this.ctx.trai.recordTradeOutcome({
                 tradeId: buyTrade.orderId,
                 decisionId: traiDecisionData.decisionId,
-                symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-05: tradingPair not set — refusing to record TRAI outcome under wrong symbol'); })(),
+                symbol,
                 profitLoss: profitLoss,
                 profitLossPercent: pnl,
                 holdDuration: holdDuration,
@@ -1081,16 +1097,19 @@ class OrderExecutor {
           const currentState = stateManager.getState();
           console.log(`📍 CP7-COVER: COVER PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
-          // Find matching SELL_SHORT trade
-          const shortTrades = stateManager.getAllTrades()
+          // Find matching SELL_SHORT trade FOR THIS SYMBOL ONLY.
+          // CC-C Commit 5: same strict filter rationale as the SELL path —
+          // no cross-symbol BUY/SHORT contamination when activeTrades holds
+          // positions across multiple symbols/brokers simultaneously.
+          const shortTrades = stateManager.getTradesBySymbol(symbol)
             .filter(t => t.action === 'SELL_SHORT')
             .sort((a, b) => a.entryTime - b.entryTime);
 
           if (shortTrades.length === 0) {
-            console.error('❌ CRITICAL: COVER signal but no matching SELL_SHORT trade found!');
+            console.error(`❌ CRITICAL: COVER signal for ${symbol} but no matching SELL_SHORT trade found for this symbol!`);
             console.log('   Current position:', currentState.position);
-            const allTrades = stateManager.getAllTrades();
-            console.log('   Active trades:', allTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
+            const symbolTrades = stateManager.getTradesBySymbol(symbol);
+            console.log(`   Active trades for ${symbol}:`, symbolTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
             await stateManager.emergencyReset();
             if (this.ctx.maxProfitManagers) {
               for (const [id, mpm] of this.ctx.maxProfitManagers) {
@@ -1148,7 +1167,10 @@ class OrderExecutor {
               atrAtEntry: shortTrade.atrAtEntry ?? null,
               regimeAtEntry: shortTrade.regimeAtEntry ?? null,
               rsiAtEntry: shortTrade.rsiAtEntry ?? null,
-              symbol: shortTrade.symbol ?? shortTrade.tradingPair ?? this.ctx.tradingPair ?? null
+              // CC-C Commit 5: drop the historical bandaid chain — see the
+              // matching note on the SELL path. shortTrade.symbol is the
+              // single source of truth (stamped at openPosition time).
+              symbol: shortTrade.symbol
             });
             console.log(`📋 [TRADE-LOG] SHORT Strategy: ${shortTrade.entryStrategy || 'unknown'} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
           }
@@ -1195,7 +1217,7 @@ class OrderExecutor {
               }
               this.ctx.webhookAdapter.emit({
                 action: 'buy',
-                symbol: this.ctx.tradingPair,
+                symbol,
                 quantity: shares,
                 orderType: 'market',
                 bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
@@ -1221,7 +1243,7 @@ class OrderExecutor {
           // Proof logger for COVER
           TradingProofLogger.trade({
             action: 'COVER',
-            symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-04: tradingPair not set — refusing to log trade under wrong symbol'); })(),
+            symbol,
             price: price,
             size: shortSize,
             value_usd: shortSize * price,
@@ -1270,7 +1292,7 @@ class OrderExecutor {
             this.ctx.trai.recordTradeOutcome({
               tradeId: shortTrade.orderId,
               decisionId: traiDecisionData.decisionId,
-              symbol: this.ctx.tradingPair || (() => { throw new Error('CRIT-05: tradingPair not set — refusing to record TRAI outcome under wrong symbol'); })(),
+              symbol,
               profitLoss: profitLoss,
               profitLossPercent: pnl,
               holdDuration: holdDuration,

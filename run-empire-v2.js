@@ -1529,7 +1529,10 @@ class OGZPrimeV14Bot {
       }
 
       try {
-        await this.analyzeAndTrade();
+        // CC-C Commit 5/6: pass single-symbol canonical from env-resolved
+        // this.tradingPair. Multi-symbol mode (commit 6+) replaces this with
+        // per-symbol OHLC dispatch.
+        await this.analyzeAndTrade(this.tradingPair);
       } catch (error) {
         console.error('âŒ Trading cycle error:', error.message);
         console.error(error.stack);
@@ -1619,10 +1622,22 @@ class OGZPrimeV14Bot {
    * loop doesn't differentiate timeframes.
    */
   async run15mTradingCycle() {
-    return this.analyzeAndTrade();
+    // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
+    // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
+    return this.analyzeAndTrade(this.tradingPair);
   }
 
-  async analyzeAndTrade() {
+  async analyzeAndTrade(symbol) {
+    // CC-C Commit 5/6: `symbol` is REQUIRED. Caller passes the symbol whose
+    // candle is being acted on. TradingLoop.analyzeAndTrade enforces this
+    // upstream; the redundant entry-check here keeps the runner-side contract
+    // explicit too. No fallback to this.tradingPair here — the caller is
+    // expected to pass the canonical value (see :1538, :1628 sites).
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `OGZPrimeV14Bot.analyzeAndTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
     // Update context with current instance state before delegating
     this.tradingLoop.ctx.marketData = this.marketData;
     this.tradingLoop.ctx.priceHistory = this.priceHistory;
@@ -1631,7 +1646,7 @@ class OGZPrimeV14Bot {
     this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
     this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
     this.tradingLoop.ctx.broadcastPatternAnalysis = this.broadcastPatternAnalysis.bind(this);
-    return this.tradingLoop.analyzeAndTrade();
+    return this.tradingLoop.analyzeAndTrade(symbol);
   }
 
 
@@ -1647,15 +1662,18 @@ class OGZPrimeV14Bot {
    * Original logic moved to core/OrderExecutor.js
    * Phase 3 REWRITE: Renamed brainDecision → orchResult (orchestrator result)
    */
-  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null) {
+  async executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision = null, orchResult = null, symbol) {
     // Update context with current runtime values
     this.orderExecutor.ctx.marketData = this.marketData;
     this.orderExecutor.ctx.dashboardWs = this.dashboardWs;
     this.orderExecutor.ctx.dashboardWsConnected = this.dashboardWsConnected;
     this.orderExecutor.ctx._lastTraiDecision = this._lastTraiDecision;
 
-    // Delegate to OrderExecutor (exact copy of original logic)
-    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult);
+    // CC-C Commit 5/6: forward `symbol` through to OrderExecutor. Required
+    // param — TradingLoop resolves it before calling, this wrapper just
+    // threads it. No fallback to ctx.tradingPair here; if symbol is
+    // missing OrderExecutor's entry-check throws (caller has the bug).
+    return this.orderExecutor.executeTrade(decision, confidenceData, price, indicators, patterns, traiDecision, orchResult, symbol);
   }
 
   // REMOVED 2026-03-03: Original executeTrade() body (~810 lines) moved to core/OrderExecutor.js
@@ -1753,7 +1771,13 @@ class OGZPrimeV14Bot {
     // Update context with current instance state before delegating
     this.backtestRunner.ctx.priceHistory = this.priceHistory;
     this.backtestRunner.ctx.handleMarketData = this.handleMarketData.bind(this);
-    this.backtestRunner.ctx.analyzeAndTrade = this.analyzeAndTrade.bind(this);
+    // CC-C Commit 5/6: bind the single-symbol tradingPair into the closure
+    // so BacktestRunner stays symbol-agnostic (it's a candle-pump loop, owns
+    // no symbol state). this.tradingPair is the env-resolved single-symbol
+    // canonical. Multi-symbol BacktestRunner (commit 6+) replaces this with
+    // per-candle dispatch.
+    const tradingPair = this.tradingPair;
+    this.backtestRunner.ctx.analyzeAndTrade = () => this.analyzeAndTrade(tradingPair);
     return this.backtestRunner.loadHistoricalDataAndBacktest();
   }
 
