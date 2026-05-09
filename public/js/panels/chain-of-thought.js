@@ -35,7 +35,6 @@
  *   clear() — Clear all lines (respects maxLines cap)
  *   setMaxLines(n) — Change buffer size
  *   getLines() — Return current lines array
- *   setDemoMode(bool) — Toggle demo reasoning stream (cycles through realistic lines)
  *   teardown() — Remove DOM, listeners, styles
  *   _compute() — Debug helper: return internal state snapshot
  *
@@ -68,22 +67,10 @@
     const AUTO_SCROLL_DELAY_MS = 100;
     const PLACEHOLDER_TEXT = 'Bot reasoning will stream here...';
 
-    // Demo reasoning lines — realistic decision narration
-    const DEMO_LINES = [
-        { text: 'Strategy-A scoring TSLA at 73% conf', level: 'decision', confidence: 0.73, symbol: 'TSLA' },
-        { text: 'Pattern engine suggests Double Bottom — confluence with Strategy-B at 68%', level: 'info', confidence: 0.68, symbol: 'TSLA' },
-        { text: 'News check: clean. Whale check: bullish (block trade 50K @ $393.10)', level: 'info', symbol: 'TSLA' },
-        { text: 'Risk gate: ARMED. Daily DD remaining: $1,847 / $2,000 floor', level: 'decision', symbol: 'TSLA' },
-        { text: 'Position stance: Aggressive (×1.4) based on composite confidence', level: 'decision', confidence: 0.73, symbol: 'TSLA' },
-        { text: 'Entering LONG TSLA @ $391.20, SL $389.50 (0.43%), TP $396.18 (1.27%, 1R)', level: 'execution', symbol: 'TSLA' },
-        { text: 'COIN: no entry, conf below threshold (61% / 70 needed)', level: 'warning', confidence: 0.61, symbol: 'COIN' },
-        { text: 'BTC breakout confirmed above $81K resistance. Monitoring for scalp entry', level: 'info', confidence: 0.72, symbol: 'BTC' },
-    ];
 
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
         mounted: false,
-        demoMode: false,
         paused: false,
         currentSymbol: null,
 
@@ -98,8 +85,6 @@
 
         // Timers
         autoScrollTimer: null,
-        demoLoopTimer: null,
-        demoIndex: 0,
 
         // Event listeners
         listeners: [],
@@ -583,25 +568,12 @@
             return state.lines.slice();
         },
 
-        /**
-         * Toggle demo mode (cycles through realistic reasoning lines).
-         * @param {boolean} enabled
-         */
-        setDemoMode(enabled) {
-            state.demoMode = !!enabled;
-            if (enabled) {
-                startDemoLoop();
-            } else {
-                stopDemoLoop();
-            }
-        },
 
         /**
          * Teardown: remove DOM, listeners, styles.
          */
         teardown() {
             try {
-                stopDemoLoop();
 
                 if (state.root) {
                     state.root.innerHTML = '';
@@ -626,7 +598,6 @@
                 lineCount: state.lines.length,
                 maxLines: state.maxLines,
                 paused: state.paused,
-                demoMode: state.demoMode,
                 currentSymbol: state.currentSymbol,
             };
         },
@@ -711,35 +682,6 @@
                     state.contentArea.scrollTop = state.contentArea.scrollHeight;
                 }
             }, AUTO_SCROLL_DELAY_MS);
-        }
-    }
-
-    // ─── Demo Mode ──────────────────────────────────────────────────
-    function startDemoLoop() {
-        stopDemoLoop();
-        state.demoIndex = 0;
-
-        const loop = () => {
-            if (!state.demoMode) return;
-
-            const line = DEMO_LINES[state.demoIndex % DEMO_LINES.length];
-            ChainOfThought.addLine(line.text, {
-                symbol: line.symbol,
-                confidence: line.confidence,
-                level: line.level,
-            });
-
-            state.demoIndex++;
-            state.demoLoopTimer = setTimeout(loop, 400 + Math.random() * 800);
-        };
-
-        loop();
-    }
-
-    function stopDemoLoop() {
-        if (state.demoLoopTimer) {
-            clearTimeout(state.demoLoopTimer);
-            state.demoLoopTimer = null;
         }
     }
 
