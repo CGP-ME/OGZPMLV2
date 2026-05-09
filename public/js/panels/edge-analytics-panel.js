@@ -1,176 +1,55 @@
 /**
- * edge-analytics-panel.js — Self-Rendering Edge Analytics Module (Phase 5 Refactor)
+ * edge-analytics-panel.js — Self-Rendering Edge Analytics Panel
  *
- * Refactored from public/js/panels/edge-analytics.js. Converts the legacy DOM-binder
- * into a fully self-contained, modular panel that creates its own HTML scaffold at mount
- * time. The v2 shell no longer needs ~115 lines of inline edge-analytics HTML.
+ * Self-creates the 8-section edge analytics scaffold at mount time.
+ * NO synthetic data. NO Math.random. NO simulated feeds. NO setDemoMode.
+ * Every value rendered originates from a real WS event from the bot.
  *
- * EXTRACTION SOURCE:
- *   Refactored from public/js/panels/edge-analytics.js lines 1-290. All functionality
- *   preserved: 8 sections (Liquidation Levels, CVD, Funding Rates, Whale Activity,
- *   Market Internals, Smart Money, Fear & Greed, Hidden Divergences).
- *   - All child element IDs preserved (longLiqPrice, cvdValue, fgFill, etc.)
- *   - All simulated data generators preserved
- *   - WS subscription bindings preserved (liquidation_data, cvd_update, whale_trade, etc.)
- *   - Absorption detection (updateMarketInternals) preserved
+ * Sections (each is empty/placeholder until a real event populates it):
+ *   1. Liquidation Levels   — fed by WS 'liquidation_data'
+ *   2. CVD (Order Flow)     — fed by WS 'cvd_update' (history accumulated locally from real events)
+ *   3. Funding Rates        — fed by WS 'funding_rate'
+ *   4. Whale Activity       — fed by WS 'whale_trade'
+ *   5. Market Internals     — fed by WS 'market_internals' (includes absorption detection)
+ *   6. Smart Money          — fed by WS 'smart_money'
+ *   7. Fear & Greed         — fed by WS 'fear_greed'
+ *   8. Hidden Divergences   — fed by WS 'divergence'
  *
- * Core Responsibility:
- *   - Self-injects the entire 8-section scaffold (headers + content containers + canvas elements)
- *   - Binds all simulated data generators and WS event handlers to the self-created child IDs
- *   - Manages state of all 8 sections: values, trends, canvas renders
- *   - Handles dormant/parked features: Wall Radar (awaits depth_update), Spoof Detection
- *   - Preserves canvas elements (liqHeatmap, cvdChart) for library rendering
+ * If a backend emitter is not yet wired for a given event type, that section
+ * stays in its empty/honest placeholder state forever. We never fabricate.
  *
  * Public API:
- *   - init() — render scaffold, start simulated feeds, wire WS handlers
- *   - setSymbol(symbol) — prepare for symbol-scoped events (currently fires symbol changes)
- *   - clearAll() — reset all section values to defaults
- *   - teardown() — stop timers, remove listeners
- *   - _compute() — debug helper returning internal state
+ *   init()       — render scaffold, subscribe to real WS events
+ *   setSymbol()  — record current symbol context (for future symbol-scoped events)
+ *   clearAll()   — reset all sections to empty/placeholder state
+ *   teardown()   — disconnect WS handlers, clear DOM
+ *   _compute()   — debug helper
  *
- * Mount Contract:
- *   Expects <div id="edgeAnalyticsPanel"></div> to exist in the page DOM.
- *   At init(), the module creates all child elements inside edgeAnalyticsPanel:
- *     - 8 section divs (class="eap-section edge-section")
- *     - All legacy child IDs (longLiqPrice, cvdValue, whaleAlerts, etc.)
- *     - Canvas elements (liqHeatmap, cvdChart)
- *
- * WS Subscriptions (all optional; graceful degrade if backend absent):
- *   - 'liquidation_data' — overrides simulated long/short liq levels
- *   - 'cvd_update' — overrides simulated CVD value/trend
- *   - 'whale_trade' — live whale alerts (appended to whaleAlerts)
- *   - 'funding_rate' — overrides simulated funding rates
- *   - 'market_internals' — overrides simulated buySellRatio, bookImbalance, aggressor (includes absorption detection)
- *   - 'smart_money' — overrides simulated smart flow, inst activity, dormancy
- *   - 'fear_greed' — overrides simulated fear & greed value/label
- *   - 'divergence' — overrides simulated divergence items
- *
- * Self-registers as OGZ.EdgeAnalyticsPanel via OGZ.register('EdgeAnalyticsPanel', ...).
- * LEGACY COMPAT: Coexists with public/js/panels/edge-analytics.js (registered as 'Edge').
- *   New module mounts to <div id="edgeAnalyticsPanel"></div>.
- *   Legacy module (if present) mounts to <div id="edgePanel"></div>.
- *   During transition, either can be active. Final state: only EdgeAnalyticsPanel.
+ * Mount: <div id="edgeAnalyticsPanel"></div> in the dashboard shell.
  *
  * @module public/js/panels/edge-analytics-panel
  */
 (function (OGZ) {
     'use strict';
 
-    // ─── JSDoc Typedefs ───────────────────────────────────────────────────
-    /**
-     * @typedef {Object} LiquidationData
-     * @property {number} longLiqPrice
-     * @property {number} longLiqVol
-     * @property {number} shortLiqPrice
-     * @property {number} shortLiqVol
-     */
-
-    /**
-     * @typedef {Object} CVDData
-     * @property {number} cvdValue
-     * @property {string} cvdTrend
-     */
-
-    /**
-     * @typedef {Object} WhaleAlert
-     * @property {number} amount
-     * @property {string} side
-     * @property {number} price
-     * @property {number} timestamp
-     */
-
-    /**
-     * @typedef {Object} FundingRate
-     * @property {number} currentFunding
-     * @property {number} predictedFunding
-     * @property {string} fundingSignal
-     */
-
-    /**
-     * @typedef {Object} MarketInternalsData
-     * @property {string} aggressor
-     * @property {number} buySellRatio
-     * @property {number} bookImbalance
-     */
-
-    /**
-     * @typedef {Object} SmartMoneyData
-     * @property {string} smartFlow
-     * @property {string} instActivity
-     * @property {string} dormancy
-     */
-
-    /**
-     * @typedef {Object} FearGreedData
-     * @property {number} fgValue
-     * @property {string} fgLabel
-     */
-
-    /**
-     * @typedef {Object} DivergenceData
-     * @property {string[]} divergences
-     */
-
-    // ─── Constants ─────────────────────────────────────────────────────────
     const STYLE_ID = 'ogz-edge-analytics-panel-styles';
-    const ROOT_ID = 'edgeAnalyticsPanel';
+    const ROOT_ID  = 'edgeAnalyticsPanel';
 
-    // Simulated feed timers (in ms)
-    const WHALE_ALERT_INTERVAL = 8000;
-    const CVD_UPDATE_INTERVAL = 5000;
-    const FEAR_GREED_INTERVAL = 30000;
-    const MARKET_INTERNALS_INTERVAL = 5000;
-    const SMART_MONEY_INTERVAL = 30000;
-    const DIVERGENCE_INTERVAL = 15000;
-    const LIQUIDATION_INTERVAL = 60000;
+    const CVD_HISTORY_MAX = 60;        // accumulated from real cvd_update events only
+    const WHALE_ALERTS_MAX = 5;        // most-recent N real whale_trade events kept on screen
+    const ABSORPTION_DELTA_MIN = 0;    // lastPriceDelta > 0 + sellers aggressing = absorbed
 
-    // CVD simulation state
-    let cvdState = {
-        value: 0,
-        history: []
-    };
-
-    // Tracked timers for cleanup
-    const _trackedTimers = new Set();
-    const _trackedListeners = [];
-
-    // ─── Module State ─────────────────────────────────────────────────────
+    // Module state — accumulated only from real events
     const state = {
         mounted: false,
-        currentSymbol: 'TSLA',
-        sectionState: {
-            liquidation: { longLiqPrice: null, longLiqVol: '$0', shortLiqPrice: null, shortLiqVol: '$0' },
-            cvd: { cvdValue: 0, cvdTrend: 'NEUTRAL', history: [] },
-            funding: { currentFunding: '0.01%', predictedFunding: '0.01%', fundingSignal: 'NEUTRAL' },
-            whale: { alerts: [] },
-            internals: { buySellRatio: '1.0', aggressorSide: 'NEUTRAL', bookImbalance: '0%', spreadValue: '0.01%' },
-            smartMoney: { smartFlow: 'ACCUMULATING', instActivity: 'HIGH', dormancy: 'LOW' },
-            fearGreed: { fgValue: 50, fgLabel: 'NEUTRAL' },
-            divergences: []
-        }
+        currentSymbol: null,
+        cvdHistory: []   // populated only by real cvd_update payloads
     };
 
-    // ─── Helpers ───────────────────────────────────────────────────────────
-    function trackTimer(id) {
-        _trackedTimers.add(id);
-        return id;
-    }
+    // Tracked socket handlers for clean teardown
+    const _registeredHandlers = []; // [{type, fn}]
 
-    function trackListener(target, type, handler) {
-        for (let i = 0; i < _trackedListeners.length; i++) {
-            const e = _trackedListeners[i];
-            if (e.target === target && e.type === type && e.handler === handler) return;
-        }
-        target.addEventListener(type, handler);
-        _trackedListeners.push({ target, type, handler });
-    }
-
-    // ─── Scaffold Renderer ─────────────────────────────────────────────────
-    /**
-     * Create and inject the 8-section HTML scaffold into the root element.
-     * Each section includes headers and content containers; all legacy child IDs
-     * are created inside so legacy code paths (and new listeners) find them.
-     */
+    // ─── Scaffold ─────────────────────────────────────────────────────────
     function renderScaffold() {
         const root = document.getElementById(ROOT_ID);
         if (!root) return false;
@@ -187,26 +66,26 @@
                 <div class="liq-level long-liq">
                     <span>Long Liq Zone:</span>
                     <span class="liq-price" id="longLiqPrice">--</span>
-                    <span class="liq-volume" id="longLiqVol">$0</span>
+                    <span class="liq-volume" id="longLiqVol">--</span>
                 </div>
                 <div class="liq-level short-liq">
                     <span>Short Liq Zone:</span>
                     <span class="liq-price" id="shortLiqPrice">--</span>
-                    <span class="liq-volume" id="shortLiqVol">$0</span>
+                    <span class="liq-volume" id="shortLiqVol">--</span>
                 </div>
             </div>
             <canvas id="liqHeatmap" width="300" height="150"></canvas>
         `;
         root.appendChild(liqSection);
 
-        // Section 2: CVD (Order Flow)
+        // Section 2: CVD
         const cvdSection = document.createElement('div');
         cvdSection.className = 'eap-section edge-section';
         cvdSection.innerHTML = `
             <h4>📊 CVD (Order Flow)</h4>
             <div class="cvd-display">
-                <div class="cvd-value" id="cvdValue">0</div>
-                <div class="cvd-trend" id="cvdTrend">NEUTRAL</div>
+                <div class="cvd-value" id="cvdValue">--</div>
+                <div class="cvd-trend" id="cvdTrend">--</div>
                 <canvas id="cvdChart" width="300" height="100"></canvas>
             </div>
         `;
@@ -220,13 +99,13 @@
             <div class="funding-display">
                 <div class="funding-current">
                     <span>Current:</span>
-                    <span class="funding-rate" id="currentFunding">0.01%</span>
+                    <span class="funding-rate" id="currentFunding">--</span>
                 </div>
                 <div class="funding-predicted">
                     <span>Predicted:</span>
-                    <span class="funding-rate" id="predictedFunding">0.01%</span>
+                    <span class="funding-rate" id="predictedFunding">--</span>
                 </div>
-                <div class="funding-signal" id="fundingSignal">NEUTRAL</div>
+                <div class="funding-signal" id="fundingSignal">--</div>
             </div>
         `;
         root.appendChild(fundingSection);
@@ -237,7 +116,7 @@
         whaleSection.innerHTML = `
             <h4>🐋 Whale Activity</h4>
             <div class="whale-alerts" id="whaleAlerts">
-                <div class="whale-item">Waiting for whales...</div>
+                <div class="whale-item eap-empty">Awaiting whale events...</div>
             </div>
         `;
         root.appendChild(whaleSection);
@@ -250,25 +129,25 @@
             <div class="internals">
                 <div class="internal-item">
                     <span>Buy/Sell Ratio:</span>
-                    <span id="buySellRatio">1.0</span>
+                    <span id="buySellRatio">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Aggressor Side:</span>
-                    <span id="aggressorSide">NEUTRAL</span>
+                    <span id="aggressorSide">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Order Book Imbalance:</span>
-                    <span id="bookImbalance">0%</span>
+                    <span id="bookImbalance">--</span>
                 </div>
                 <div class="internal-item">
                     <span>Spread:</span>
-                    <span id="spreadValue">0.01%</span>
+                    <span id="spreadValue">--</span>
                 </div>
             </div>
         `;
         root.appendChild(internalsSection);
 
-        // Section 6: Smart Money Tracking
+        // Section 6: Smart Money
         const smartMoneySection = document.createElement('div');
         smartMoneySection.className = 'eap-section edge-section';
         smartMoneySection.innerHTML = `
@@ -276,31 +155,31 @@
             <div class="smart-money">
                 <div class="smart-item">
                     <span>Smart Money Flow:</span>
-                    <span id="smartFlow" class="flow-value">ACCUMULATING</span>
+                    <span id="smartFlow" class="flow-value">--</span>
                 </div>
                 <div class="smart-item">
                     <span>Institutional Activity:</span>
-                    <span id="instActivity">HIGH</span>
+                    <span id="instActivity">--</span>
                 </div>
                 <div class="smart-item">
                     <span>Old Coins Moving:</span>
-                    <span id="dormancy">LOW</span>
+                    <span id="dormancy">--</span>
                 </div>
             </div>
         `;
         root.appendChild(smartMoneySection);
 
-        // Section 7: Fear & Greed Index
+        // Section 7: Fear & Greed
         const fearGreedSection = document.createElement('div');
         fearGreedSection.className = 'eap-section edge-section';
         fearGreedSection.innerHTML = `
             <h4>😱 Fear & Greed</h4>
             <div class="fear-greed">
                 <div class="fg-gauge">
-                    <div class="fg-value" id="fgValue">50</div>
-                    <div class="fg-label" id="fgLabel">NEUTRAL</div>
+                    <div class="fg-value" id="fgValue">--</div>
+                    <div class="fg-label" id="fgLabel">--</div>
                     <div class="fg-bar">
-                        <div class="fg-fill" id="fgFill" style="width: 50%"></div>
+                        <div class="fg-fill" id="fgFill" style="width:0%"></div>
                     </div>
                 </div>
             </div>
@@ -313,7 +192,7 @@
         divergencesSection.innerHTML = `
             <h4>🔮 Hidden Divergences</h4>
             <div class="divergences" id="divergences">
-                <div class="divergence-item">Scanning...</div>
+                <div class="divergence-item eap-empty">Awaiting divergence scanner...</div>
             </div>
         `;
         root.appendChild(divergencesSection);
@@ -321,285 +200,170 @@
         return true;
     }
 
-    // ─── Simulated Feed Generators ─────────────────────────────────────────
-    /**
-     * Start all simulated data feeds (whale alerts, CVD, fear/greed, etc.)
-     * These populate the panel until real backend data arrives.
-     */
-    function startSimulatedFeeds() {
-        const lastPrice = () => OGZ.state?.lastPrice || 73000;
+    // ─── Real-event handlers ──────────────────────────────────────────────
+    // Each handler renders ONLY when a real WS event arrives. No fallback.
 
-        // Whale alert monitor
-        const whaleTimer = setInterval(() => {
-            if (Math.random() > 0.8) {
-                const container = document.getElementById('whaleAlerts');
-                if (!container) return;
-                const amount = (Math.random() * 10 + 1).toFixed(2);
-                const side = Math.random() > 0.5 ? 'BUY' : 'SELL';
-                const price = (lastPrice() * (1 + (Math.random() - 0.5) * 0.002)).toFixed(2);
-                const item = document.createElement('div');
-                item.className = 'whale-item';
-                item.style.cssText = `padding:8px; margin:4px 0; background:rgba(0,100,255,0.1); border-radius:4px; font-size:11px; border-left:3px solid ${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}`;
-                item.innerHTML = `<span style="color:${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}; font-weight:800;">${side}</span> ${amount} BTC @ $${parseFloat(price).toLocaleString()}`;
-                container.prepend(item);
-                if (container.children.length > 5) container.lastChild.remove();
+    function onLiquidationData(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
+            const longP = document.getElementById('longLiqPrice');
+            const longV = document.getElementById('longLiqVol');
+            const shortP = document.getElementById('shortLiqPrice');
+            const shortV = document.getElementById('shortLiqVol');
+            if (longP && data.longLiqPrice != null)  longP.textContent = '$' + Number(data.longLiqPrice).toFixed(0);
+            if (longV && data.longLiqVol != null)    longV.textContent = '$' + (Number(data.longLiqVol) / 1e6).toFixed(1) + 'M';
+            if (shortP && data.shortLiqPrice != null) shortP.textContent = '$' + Number(data.shortLiqPrice).toFixed(0);
+            if (shortV && data.shortLiqVol != null)   shortV.textContent = '$' + (Number(data.shortLiqVol) / 1e6).toFixed(1) + 'M';
+        } catch (_) { /* swallow */ }
+    }
+
+    function onCVDUpdate(d) {
+        try {
+            const data = (d && d.data) ? d.data : d;
+            const valEl = document.getElementById('cvdValue');
+            const trEl = document.getElementById('cvdTrend');
+
+            if (data.cvdValue != null) {
+                state.cvdHistory.push(Number(data.cvdValue));
+                if (state.cvdHistory.length > CVD_HISTORY_MAX) state.cvdHistory.shift();
+
+                if (valEl) {
+                    valEl.textContent = Number(data.cvdValue).toFixed(0);
+                    valEl.style.color = data.cvdValue > 0 ? 'var(--profit-color)' : 'var(--loss-color)';
+                }
             }
-        }, WHALE_ALERT_INTERVAL);
-        trackTimer(whaleTimer);
+            if (trEl && data.cvdTrend) trEl.textContent = data.cvdTrend;
 
-        // CVD simulation with chart
-        const cvdTimer = setInterval(() => {
-            cvdState.value += (Math.random() - 0.48) * 50;
-            cvdState.history.push(cvdState.value);
-            if (cvdState.history.length > 60) cvdState.history.shift();
-
-            const el = document.getElementById('cvdValue');
-            const trend = document.getElementById('cvdTrend');
-            if (el) {
-                el.textContent = cvdState.value.toFixed(0);
-                el.style.color = cvdState.value > 0 ? 'var(--profit-color)' : 'var(--loss-color)';
-            }
-            if (trend) trend.textContent = cvdState.value > 50 ? 'BULLISH' : cvdState.value < -50 ? 'BEARISH' : 'NEUTRAL';
-
-            // Draw CVD chart on canvas
+            // Render CVD canvas chart from REAL accumulated history only
             const canvas = document.getElementById('cvdChart');
-            if (canvas && cvdState.history.length > 2) {
+            if (canvas && state.cvdHistory.length > 1) {
                 const ctx = canvas.getContext('2d');
                 const w = canvas.width, h = canvas.height;
                 ctx.clearRect(0, 0, w, h);
-
-                const min = Math.min(...cvdState.history);
-                const max = Math.max(...cvdState.history);
+                const min = Math.min(...state.cvdHistory);
+                const max = Math.max(...state.cvdHistory);
                 const range = max - min || 1;
-
-                // Zero line
                 const zeroY = h - ((0 - min) / range) * h;
                 ctx.strokeStyle = 'rgba(255,255,255,0.1)';
                 ctx.beginPath();
                 ctx.moveTo(0, zeroY);
                 ctx.lineTo(w, zeroY);
                 ctx.stroke();
-
-                // CVD line
-                ctx.strokeStyle = cvdState.value > 0 ? '#00ff88' : '#ff3366';
+                const last = state.cvdHistory[state.cvdHistory.length - 1];
+                ctx.strokeStyle = last > 0 ? '#00ff88' : '#ff3366';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                cvdState.history.forEach((v, i) => {
-                    const x = (i / (cvdState.history.length - 1)) * w;
+                state.cvdHistory.forEach((v, i) => {
+                    const x = (i / (state.cvdHistory.length - 1)) * w;
                     const y = h - ((v - min) / range) * h;
                     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-
-                // Fill under the line
                 ctx.lineTo(w, h);
                 ctx.lineTo(0, h);
                 ctx.closePath();
-                ctx.fillStyle = cvdState.value > 0 ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,102,0.1)';
+                ctx.fillStyle = last > 0 ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,102,0.1)';
                 ctx.fill();
             }
-        }, CVD_UPDATE_INTERVAL);
-        trackTimer(cvdTimer);
-
-        // Fear & Greed simulation
-        const fgTimer = setInterval(() => {
-            const value = Math.round(30 + Math.random() * 40);
-            const el = document.getElementById('fgValue');
-            const fill = document.getElementById('fgFill');
-            const label = document.getElementById('fgLabel');
-            if (el) el.textContent = value;
-            if (fill) fill.style.width = value + '%';
-            if (label) {
-                label.textContent = value < 25 ? 'EXTREME FEAR' : value < 40 ? 'FEAR' : value < 60 ? 'NEUTRAL' : value < 75 ? 'GREED' : 'EXTREME GREED';
-            }
-        }, FEAR_GREED_INTERVAL);
-        trackTimer(fgTimer);
-
-        // Market internals simulation
-        const miTimer = setInterval(() => {
-            const bsr = document.getElementById('buySellRatio');
-            const bi = document.getElementById('bookImbalance');
-            const spread = document.getElementById('spreadValue');
-            const agg = document.getElementById('aggressorSide');
-            if (bsr) bsr.textContent = (0.8 + Math.random() * 0.4).toFixed(2);
-            if (bi) bi.textContent = (Math.random() * 20 - 10).toFixed(1) + '%';
-            if (spread) spread.textContent = (Math.random() * 0.1).toFixed(3) + '%';
-            if (agg) {
-                const side = Math.random() > 0.5 ? 'BUYERS' : 'SELLERS';
-                agg.textContent = side;
-                agg.style.color = side === 'BUYERS' ? 'var(--profit-color)' : 'var(--loss-color)';
-            }
-        }, MARKET_INTERNALS_INTERVAL);
-        trackTimer(miTimer);
-
-        // Smart money flow simulation
-        const smTimer = setInterval(() => {
-            const flows = ['ACCUMULATING', 'DISTRIBUTING', 'NEUTRAL', 'STRONG INFLOW'];
-            const activity = ['HIGH', 'MEDIUM', 'LOW'];
-            const dormancy = ['LOW', 'MEDIUM', 'HIGH'];
-            const sf = document.getElementById('smartFlow');
-            const ia = document.getElementById('instActivity');
-            const dm = document.getElementById('dormancy');
-            if (sf) sf.textContent = flows[Math.floor(Math.random() * flows.length)];
-            if (ia) ia.textContent = activity[Math.floor(Math.random() * activity.length)];
-            if (dm) dm.textContent = dormancy[Math.floor(Math.random() * dormancy.length)];
-        }, SMART_MONEY_INTERVAL);
-        trackTimer(smTimer);
-
-        // Divergence scanner simulation
-        const divTimer = setInterval(() => {
-            const container = document.getElementById('divergences');
-            if (!container) return;
-            const divs = ['RSI Bullish Divergence on 4H', 'MACD Hidden Bearish on 1H', 'Volume Divergence on Daily', 'OBV Divergence Forming'];
-            const selected = divs[Math.floor(Math.random() * divs.length)];
-            container.innerHTML = '';
-            const div = document.createElement('div');
-            div.className = 'divergence-item';
-            div.textContent = selected;
-            container.appendChild(div);
-        }, DIVERGENCE_INTERVAL);
-        trackTimer(divTimer);
-
-        // Liquidation level calculation
-        const liqTimer = setInterval(() => {
-            const p = lastPrice();
-            if (!p) return;
-            const longLiq = document.getElementById('longLiqPrice');
-            const shortLiq = document.getElementById('shortLiqPrice');
-            if (longLiq) longLiq.textContent = '$' + (p * 0.95).toFixed(0);
-            if (shortLiq) shortLiq.textContent = '$' + (p * 1.05).toFixed(0);
-        }, LIQUIDATION_INTERVAL);
-        trackTimer(liqTimer);
+        } catch (_) { /* swallow */ }
     }
 
-    // ─── WS Event Handlers ─────────────────────────────────────────────────
-    function handleLiquidationData(data) {
+    function onWhaleTrade(d) {
         try {
-            const longLiqPrice = document.getElementById('longLiqPrice');
-            const longLiqVol = document.getElementById('longLiqVol');
-            const shortLiqPrice = document.getElementById('shortLiqPrice');
-            const shortLiqVol = document.getElementById('shortLiqVol');
-
-            if (longLiqPrice && data.longLiqPrice) longLiqPrice.textContent = '$' + Number(data.longLiqPrice).toFixed(0);
-            if (longLiqVol && data.longLiqVol) longLiqVol.textContent = '$' + (data.longLiqVol / 1e6).toFixed(1) + 'M';
-            if (shortLiqPrice && data.shortLiqPrice) shortLiqPrice.textContent = '$' + Number(data.shortLiqPrice).toFixed(0);
-            if (shortLiqVol && data.shortLiqVol) shortLiqVol.textContent = '$' + (data.shortLiqVol / 1e6).toFixed(1) + 'M';
-        } catch (e) {
-            /* swallow */
-        }
-    }
-
-    function handleCVDUpdate(data) {
-        try {
-            const el = document.getElementById('cvdValue');
-            const trend = document.getElementById('cvdTrend');
-
-            if (data.cvdValue != null) {
-                cvdState.value = data.cvdValue;
-                if (el) {
-                    el.textContent = cvdState.value.toFixed(0);
-                    el.style.color = cvdState.value > 0 ? 'var(--profit-color)' : 'var(--loss-color)';
-                }
-            }
-
-            if (trend && data.cvdTrend) trend.textContent = data.cvdTrend;
-        } catch (e) {
-            /* swallow */
-        }
-    }
-
-    function handleWhaleAlert(data) {
-        try {
+            const data = (d && d.data) ? d.data : d;
             const container = document.getElementById('whaleAlerts');
-            if (!container || !data) return;
+            if (!container) return;
+
+            // Drop the empty placeholder on first real event
+            const empty = container.querySelector('.eap-empty');
+            if (empty) empty.remove();
+
+            const side = (data.side || '').toString().toUpperCase();
+            const amount = Number(data.amount || 0);
+            const price = Number(data.price || 0);
+            const sym = data.symbol || data.ticker || '';
 
             const item = document.createElement('div');
             item.className = 'whale-item';
-            const side = data.side || 'UNKNOWN';
             item.style.cssText = `padding:8px; margin:4px 0; background:rgba(0,100,255,0.1); border-radius:4px; font-size:11px; border-left:3px solid ${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}`;
-            item.innerHTML = `<span style="color:${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}; font-weight:800;">${side}</span> ${(data.amount || 0).toFixed(2)} BTC @ $${(data.price || 0).toLocaleString()}`;
+            item.innerHTML = `<span style="color:${side === 'BUY' ? 'var(--profit-color)' : 'var(--loss-color)'}; font-weight:800;">${side || '—'}</span> ${amount.toFixed(2)}${sym ? ' ' + sym : ''} @ $${price.toLocaleString()}`;
             container.prepend(item);
-            if (container.children.length > 5) container.lastChild.remove();
-        } catch (e) {
-            /* swallow */
-        }
+            while (container.children.length > WHALE_ALERTS_MAX) container.lastChild.remove();
+        } catch (_) { /* swallow */ }
     }
 
-    function handleFundingRate(data) {
+    function onFundingRate(d) {
         try {
-            const current = document.getElementById('currentFunding');
-            const predicted = document.getElementById('predictedFunding');
-            const signal = document.getElementById('fundingSignal');
-
-            if (current && data.currentFunding != null) current.textContent = (data.currentFunding * 100).toFixed(2) + '%';
-            if (predicted && data.predictedFunding != null) predicted.textContent = (data.predictedFunding * 100).toFixed(2) + '%';
-            if (signal && data.fundingSignal) signal.textContent = data.fundingSignal;
-        } catch (e) {
-            /* swallow */
-        }
+            const data = (d && d.data) ? d.data : d;
+            const cur = document.getElementById('currentFunding');
+            const pred = document.getElementById('predictedFunding');
+            const sig = document.getElementById('fundingSignal');
+            if (cur && data.currentFunding != null)   cur.textContent = (Number(data.currentFunding) * 100).toFixed(2) + '%';
+            if (pred && data.predictedFunding != null) pred.textContent = (Number(data.predictedFunding) * 100).toFixed(2) + '%';
+            if (sig && data.fundingSignal)             sig.textContent = data.fundingSignal;
+        } catch (_) { /* swallow */ }
     }
 
-    function handleMarketInternals(data) {
+    function onMarketInternals(d) {
         try {
+            const data = (d && d.data) ? d.data : d;
             const aggEl = document.getElementById('aggressorSide');
-            if (!aggEl) return;
 
-            // THE ALPHA: If SELLERS are slamming the bid, but price delta is POSITIVE = Absorption
-            const isAbsorption = (data.aggressor === 'SELLERS' && OGZ.state?.lastPriceDelta > 0);
+            // Absorption detection: SELLERS aggressing BUT price moves up = absorbed
+            const lastDelta = (OGZ.state && typeof OGZ.state.lastPriceDelta === 'number') ? OGZ.state.lastPriceDelta : 0;
+            const isAbsorption = (data.aggressor === 'SELLERS' && lastDelta > ABSORPTION_DELTA_MIN);
 
-            if (isAbsorption) {
-                aggEl.innerHTML = 'SELLERS <span class="absorbed-glow" style="color:var(--profit-color); text-shadow: 0 0 10px var(--profit-color);">[ABSORBED]</span>';
-            } else {
-                aggEl.textContent = data.aggressor;
-                aggEl.style.color = data.aggressor === 'BUYERS' ? 'var(--profit-color)' : 'var(--loss-color)';
+            if (aggEl) {
+                if (isAbsorption) {
+                    aggEl.innerHTML = 'SELLERS <span class="absorbed-glow" style="color:var(--profit-color); text-shadow:0 0 10px var(--profit-color);">[ABSORBED]</span>';
+                } else if (data.aggressor) {
+                    aggEl.textContent = data.aggressor;
+                    aggEl.style.color = data.aggressor === 'BUYERS' ? 'var(--profit-color)' : 'var(--loss-color)';
+                }
             }
 
-            const bsrEl = document.getElementById('buySellRatio');
-            if (bsrEl && data.buySellRatio != null) bsrEl.textContent = data.buySellRatio.toFixed(2);
+            const bsr = document.getElementById('buySellRatio');
+            if (bsr && data.buySellRatio != null) bsr.textContent = Number(data.buySellRatio).toFixed(2);
 
-            const biEl = document.getElementById('bookImbalance');
-            if (biEl && data.bookImbalance != null) biEl.textContent = (data.bookImbalance * 100).toFixed(1) + '%';
-        } catch (e) {
-            /* swallow */
-        }
+            const bi = document.getElementById('bookImbalance');
+            if (bi && data.bookImbalance != null) bi.textContent = (Number(data.bookImbalance) * 100).toFixed(1) + '%';
+
+            const sp = document.getElementById('spreadValue');
+            if (sp && data.spread != null) sp.textContent = Number(data.spread).toFixed(3) + '%';
+        } catch (_) { /* swallow */ }
     }
 
-    function handleSmartMoney(data) {
+    function onSmartMoney(d) {
         try {
+            const data = (d && d.data) ? d.data : d;
             const sf = document.getElementById('smartFlow');
             const ia = document.getElementById('instActivity');
             const dm = document.getElementById('dormancy');
-
-            if (sf && data.smartFlow) sf.textContent = data.smartFlow;
-            if (ia && data.instActivity) ia.textContent = data.instActivity;
-            if (dm && data.dormancy) dm.textContent = data.dormancy;
-        } catch (e) {
-            /* swallow */
-        }
+            if (sf && data.smartFlow)     sf.textContent = data.smartFlow;
+            if (ia && data.instActivity)  ia.textContent = data.instActivity;
+            if (dm && data.dormancy)      dm.textContent = data.dormancy;
+        } catch (_) { /* swallow */ }
     }
 
-    function handleFearGreed(data) {
+    function onFearGreed(d) {
         try {
+            const data = (d && d.data) ? d.data : d;
             const el = document.getElementById('fgValue');
             const fill = document.getElementById('fgFill');
             const label = document.getElementById('fgLabel');
-
             if (data.fgValue != null) {
                 if (el) el.textContent = data.fgValue;
                 if (fill) fill.style.width = data.fgValue + '%';
             }
-
             if (label && data.fgLabel) label.textContent = data.fgLabel;
-        } catch (e) {
-            /* swallow */
-        }
+        } catch (_) { /* swallow */ }
     }
 
-    function handleDivergence(data) {
+    function onDivergence(d) {
         try {
+            const data = (d && d.data) ? d.data : d;
             const container = document.getElementById('divergences');
-            if (!container || !data.divergences) return;
-
+            if (!container || !Array.isArray(data.divergences)) return;
             container.innerHTML = '';
             data.divergences.forEach(div => {
                 const item = document.createElement('div');
@@ -607,139 +371,93 @@
                 item.textContent = div;
                 container.appendChild(item);
             });
-        } catch (e) {
-            /* swallow */
-        }
+        } catch (_) { /* swallow */ }
     }
 
-    // ─── Public API ────────────────────────────────────────────────────────
+    // ─── Subscription helper — uses the REAL OGZ.Socket pattern ─────────────
+    function subscribe(socket, type, fn) {
+        if (!socket || typeof socket.registerHandler !== 'function') return;
+        socket.registerHandler(type, fn);
+        _registeredHandlers.push({ type, fn });
+    }
+
+    // ─── Public API ──────────────────────────────────────────────────────
     const EdgeAnalyticsPanel = {
-        /**
-         * Initialize: render scaffold, start feeds, wire event handlers.
-         * Safe to call multiple times (idempotent).
-         */
         init: function () {
             try {
                 if (state.mounted) return;
                 if (!renderScaffold()) return;
-
                 state.mounted = true;
-                startSimulatedFeeds();
 
-                // Wire WS handlers if socket available
                 const socket = OGZ.get && OGZ.get('Socket');
                 if (socket) {
-                    trackListener(socket, 'liquidation_data', handleLiquidationData);
-                    trackListener(socket, 'cvd_update', handleCVDUpdate);
-                    trackListener(socket, 'whale_trade', handleWhaleAlert);
-                    trackListener(socket, 'funding_rate', handleFundingRate);
-                    trackListener(socket, 'market_internals', handleMarketInternals);
-                    trackListener(socket, 'smart_money', handleSmartMoney);
-                    trackListener(socket, 'fear_greed', handleFearGreed);
-                    trackListener(socket, 'divergence', handleDivergence);
+                    subscribe(socket, 'liquidation_data', onLiquidationData);
+                    subscribe(socket, 'cvd_update',       onCVDUpdate);
+                    subscribe(socket, 'whale_trade',      onWhaleTrade);
+                    subscribe(socket, 'funding_rate',     onFundingRate);
+                    subscribe(socket, 'market_internals', onMarketInternals);
+                    subscribe(socket, 'smart_money',      onSmartMoney);
+                    subscribe(socket, 'fear_greed',       onFearGreed);
+                    subscribe(socket, 'divergence',       onDivergence);
                 }
-            } catch (e) {
-                /* swallow */
-            }
+            } catch (_) { /* swallow */ }
         },
 
-        /**
-         * Set current symbol (for symbol-scoped event subscriptions).
-         */
         setSymbol: function (symbol) {
-            try {
-                state.currentSymbol = symbol || 'TSLA';
-                const socket = OGZ.get && OGZ.get('Socket');
-                if (socket && typeof socket.send === 'function') {
-                    socket.send({ type: 'asset_change', asset: state.currentSymbol });
-                }
-            } catch (e) {
-                /* swallow */
-            }
+            try { state.currentSymbol = symbol || null; } catch (_) { /* swallow */ }
         },
 
-        /**
-         * Clear all section values to defaults.
-         */
         clearAll: function () {
             try {
-                state.sectionState = {
-                    liquidation: { longLiqPrice: null, longLiqVol: '$0', shortLiqPrice: null, shortLiqVol: '$0' },
-                    cvd: { cvdValue: 0, cvdTrend: 'NEUTRAL', history: [] },
-                    funding: { currentFunding: '0.01%', predictedFunding: '0.01%', fundingSignal: 'NEUTRAL' },
-                    whale: { alerts: [] },
-                    internals: { buySellRatio: '1.0', aggressorSide: 'NEUTRAL', bookImbalance: '0%', spreadValue: '0.01%' },
-                    smartMoney: { smartFlow: 'ACCUMULATING', instActivity: 'HIGH', dormancy: 'LOW' },
-                    fearGreed: { fgValue: 50, fgLabel: 'NEUTRAL' },
-                    divergences: []
-                };
-
-                // Reset DOM
-                ['longLiqPrice', 'longLiqVol', 'shortLiqPrice', 'shortLiqVol'].forEach(id => {
+                state.cvdHistory.length = 0;
+                ['longLiqPrice','longLiqVol','shortLiqPrice','shortLiqVol',
+                 'cvdValue','cvdTrend','currentFunding','predictedFunding','fundingSignal',
+                 'buySellRatio','aggressorSide','bookImbalance','spreadValue',
+                 'smartFlow','instActivity','dormancy','fgValue','fgLabel'
+                ].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = '--';
                 });
-
-                const whaleAlerts = document.getElementById('whaleAlerts');
-                if (whaleAlerts) whaleAlerts.innerHTML = '<div class="whale-item">Waiting for whales...</div>';
-
-                const divergences = document.getElementById('divergences');
-                if (divergences) divergences.innerHTML = '<div class="divergence-item">Scanning...</div>';
-
-                cvdState = { value: 0, history: [] };
-            } catch (e) {
-                /* swallow */
-            }
+                const fgFill = document.getElementById('fgFill');
+                if (fgFill) fgFill.style.width = '0%';
+                const wa = document.getElementById('whaleAlerts');
+                if (wa) wa.innerHTML = '<div class="whale-item eap-empty">Awaiting whale events...</div>';
+                const dv = document.getElementById('divergences');
+                if (dv) dv.innerHTML = '<div class="divergence-item eap-empty">Awaiting divergence scanner...</div>';
+                const cvdCanvas = document.getElementById('cvdChart');
+                if (cvdCanvas) {
+                    const ctx = cvdCanvas.getContext('2d');
+                    if (ctx) ctx.clearRect(0, 0, cvdCanvas.width, cvdCanvas.height);
+                }
+            } catch (_) { /* swallow */ }
         },
 
-        /**
-         * Explicit teardown: stop timers, remove listeners.
-         */
         teardown: function () {
             try {
-                for (const tid of _trackedTimers) {
-                    try { clearInterval(tid); clearTimeout(tid); } catch (e) { /* swallow */ }
-                }
-                _trackedTimers.clear();
-
-                for (const { target, type, handler } of _trackedListeners) {
-                    try { target.removeEventListener(type, handler); }
-                    catch (e) { /* swallow */ }
-                }
-                _trackedListeners.length = 0;
-
+                _registeredHandlers.length = 0; // OGZ.Socket has no unregister; we drop refs
                 state.mounted = false;
-            } catch (e) {
-                /* swallow */
-            }
+                state.cvdHistory.length = 0;
+            } catch (_) { /* swallow */ }
         },
 
-        /**
-         * Debug helper: return internal state.
-         */
         _compute: function () {
             return {
                 mounted: state.mounted,
                 currentSymbol: state.currentSymbol,
-                cvdHistoryLength: cvdState.history.length,
-                timerCount: _trackedTimers.size,
-                listenerCount: _trackedListeners.length,
-                sectionState: JSON.parse(JSON.stringify(state.sectionState))
+                cvdHistoryLength: state.cvdHistory.length,
+                registeredHandlers: _registeredHandlers.map(h => h.type)
             };
         }
     };
 
-    // ─── Registration ──────────────────────────────────────────────────────
     if (OGZ && typeof OGZ.register === 'function') {
         OGZ.register('EdgeAnalyticsPanel', EdgeAnalyticsPanel);
-    } else {
-        if (typeof document !== 'undefined') {
-            document.addEventListener('DOMContentLoaded', () => {
-                if (window.OGZ && typeof window.OGZ.register === 'function') {
-                    window.OGZ.register('EdgeAnalyticsPanel', EdgeAnalyticsPanel);
-                }
-            });
-        }
+    } else if (typeof document !== 'undefined') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.OGZ && typeof window.OGZ.register === 'function') {
+                window.OGZ.register('EdgeAnalyticsPanel', EdgeAnalyticsPanel);
+            }
+        });
     }
 
     try { window.OGZEdgeAnalyticsPanel = EdgeAnalyticsPanel; } catch (_) { }
