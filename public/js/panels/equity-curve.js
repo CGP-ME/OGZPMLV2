@@ -55,10 +55,10 @@
  *   teardown() — Remove DOM, listeners, styles
  *   _compute() — Debug helper: return {samples, trades, profitTarget, maxDDFloor, range, mounted}
  *
- * Demo mode (off by default):
- *   When enabled via setDemoMode(true), generates realistic-looking equity curve
- *   starting at $50,000 → $52,740 over 30 days with scattered trade markers.
- *   Matches v2 mockup data and /proof/track-record/ page preview styling.
+ * NO synthetic data. NO demo mode. NO Math.random. The curve only renders
+ * samples that arrive from real WS events (price w/ data.equity, balance_update,
+ * state_update with state.balance) and real closed trades. Empty state until
+ * the first sample arrives.
  *
  * @typedef {Object} EquitySample
  * @property {number} ts - Unix epoch milliseconds
@@ -83,7 +83,11 @@
     const DEFAULT_RANGE = 'all';
     const SAMPLE_INTERVAL_MS = 10000; // Sample every ~10s if price ticks don't provide equity
     const DECIMATION_FACTOR = 0.7;    // Keep 70% of old samples when decimating
-    const DEMO_DURATION_MS = 30 * 86400000; // 30 days for demo data
+
+    // Monotonic counter used to disambiguate trade IDs when two real closed
+    // trades land at the exact same epoch ms on the same ticker. NOT a source
+    // of fake data — only a uniqueness suffix.
+    let _tradeIdCounter = 0;
 
     const RANGES = {
         '1d': 1 * 86400000,
@@ -95,7 +99,6 @@
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
         mounted: false,
-        demoMode: false,
 
         // Data buffers
         samples: [],              // Array<EquitySample>
@@ -707,7 +710,7 @@
             return;
         }
 
-        const tradeId = `${ticker}-${ts}-${Math.random().toString(36).substring(7)}`;
+        const tradeId = `${ticker}-${ts}-${++_tradeIdCounter}`;
         const equityAtVal = equityAt || (state.samples.length > 0 ? state.samples[state.samples.length - 1].equity : 50000);
 
         state.trades.set(tradeId, {
@@ -776,42 +779,6 @@
         }
     }
 
-    // ─── Demo Mode ───────────────────────────────────────────────────────
-
-    function generateDemoData() {
-        state.samples = [];
-        state.trades.clear();
-
-        const baseTime = Date.now() - DEMO_DURATION_MS;
-        const startBalance = 50000;
-        const endBalance = 52740;
-        const points = 100;
-        const tickers = ['TSLA', 'COIN', 'BTC', 'SPY', 'AAPL'];
-
-        for (let i = 0; i < points; i++) {
-            const t = baseTime + (DEMO_DURATION_MS * (i / points));
-            // Smooth curve from start to end with some noise
-            const progress = i / points;
-            const trend = startBalance + (endBalance - startBalance) * progress;
-            const noise = (Math.random() - 0.5) * 500 * (1 - progress);
-            const equity = Math.max(49000, trend + noise);
-            state.samples.push({ ts: Math.floor(t), equity });
-        }
-
-        // Scatter trade markers
-        for (let i = 0; i < 15; i++) {
-            const idx = Math.floor(Math.random() * (points - 1));
-            const ts = Math.floor(state.samples[idx].ts);
-            const ticker = tickers[Math.floor(Math.random() * tickers.length)];
-            const side = Math.random() > 0.5 ? 'long' : 'short';
-            const pnl = (Math.random() - 0.3) * 500; // Bias toward profit
-            const equityAt = state.samples[idx].equity;
-            addTradeMarker(ts, ticker, side, pnl, equityAt);
-        }
-
-        render();
-    }
-
     // ─── Public API ──────────────────────────────────────────────────────
 
     const EquityCurve = {
@@ -830,11 +797,6 @@
             // Subscribe to OGZ.bus
             if (OGZ.bus) {
                 OGZ.bus.on('account:change', handleAccountChange);
-            }
-
-            // Demo mode
-            if (state.demoMode) {
-                generateDemoData();
             }
         },
 
@@ -868,13 +830,6 @@
 
         addTradeMarker(ts, ticker, side, pnl, equityAt) {
             addTradeMarker(ts, ticker, side, pnl, equityAt);
-        },
-
-        setDemoMode(enabled) {
-            state.demoMode = enabled;
-            if (enabled && state.mounted) {
-                generateDemoData();
-            }
         },
 
         clear() {
