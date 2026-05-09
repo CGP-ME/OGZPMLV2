@@ -27,9 +27,12 @@
  *   triggerMoneyRain(opts) — manual trigger. opts: { count, duration, char }
  *   triggerCellFlash(elementOrId, color) — flash element (gold/green/red)
  *   triggerStrategyAlignment(strategies) — N strategies aligned → edge pulse
- *   setDemoMode(bool) — auto-fire money rain every 8s for testing
  *   setEnabled(bool) — operator toggle for effect disable
  *   teardown() — clean up all DOM, timers, listeners
+ *
+ * NO Math.random anywhere. Particle layout uses deterministic index-based
+ * spread. NO demo mode. Effects fire only on real WS events (real 10%+ wins,
+ * real high-confidence narrator events).
  *
  * Self-registers as OGZ.Celebration via OGZ.register().
  * Creates overlay elements on demand, appends to document.body.
@@ -55,7 +58,7 @@
     const DEFAULT_RAIN_COUNT = 80;
     const DEFAULT_RAIN_DURATION_MS = 4000;
     const DEFAULT_RAIN_CHARS = ['💰', '💵', '💸', '$'];
-    const DEMO_MODE_INTERVAL_MS = 8000;
+    // (DEMO_MODE_INTERVAL_MS removed — no demo mode, effects fire on real events only)
 
     // Color palette
     const COLORS = {
@@ -67,7 +70,7 @@
     // ─── Private State ──────────────────────────────────────────────────
     const state = {
         enabled: true,
-        demoMode: false,
+        // (demoMode field removed — no demo path)
         mounted: false,
 
         // Cooldown tracking
@@ -225,33 +228,40 @@
 
         const overlay = ensureOverlay();
 
+        // Deterministic spread — NO Math.random. Particle visuals are derived
+        // from the loop index so layout is reproducible and contains zero
+        // synthetic randomness. (Cosmetic spread only; no data implications.)
+        const vw = window.innerWidth;
+        const charCount = chars.length || 1;
         for (let i = 0; i < count; i++) {
             const particle = document.createElement('div');
             particle.className = 'cb-money-particle';
 
-            // Random character
-            const char = chars[Math.floor(Math.random() * chars.length)];
-            particle.textContent = char;
+            // Character — cycle through provided chars by index
+            particle.textContent = chars[i % charCount];
 
-            // Random horizontal position
-            const xStart = Math.random() * window.innerWidth;
+            // Horizontal position — evenly spread across viewport with a
+            // half-step offset so adjacent rains don't visually pattern-match
+            const xStart = ((i + 0.5) / count) * vw;
 
-            // Random horizontal drift (can go left or right)
-            const driftAmount = (Math.random() - 0.5) * 200;
+            // Horizontal drift — alternate left/right by index parity, scaled
+            // by golden-ratio fraction for variety without random
+            const driftStep = ((i % 7) - 3) * 28; // -84..84 px range, deterministic
+            const driftAmount = driftStep;
 
-            // Random fall duration (2-5s)
-            const fallDuration = 2000 + Math.random() * 3000;
+            // Fall duration — graduated from 2000ms..5000ms based on index
+            const fallDuration = 2000 + Math.floor((i / Math.max(count, 1)) * 3000);
 
-            // Random rotation
-            const rotation = Math.random() * 360;
+            // Color alternation — even index gold, odd index green
+            const color = (i % 2 === 0) ? COLORS.gold : COLORS.green;
 
-            // Random color (gold or green mix)
-            const color = Math.random() > 0.5 ? COLORS.gold : COLORS.green;
+            // Twinkle duration — graduated 800..1200 by index modulo
+            const twinkleDur = 800 + ((i * 41) % 401); // 41 is coprime with most counts → spread
 
             // Set CSS variables and position
             particle.style.setProperty('--duration', fallDuration + 'ms');
             particle.style.setProperty('--drift', driftAmount + 'px');
-            particle.style.setProperty('--twinkle-duration', (800 + Math.random() * 400) + 'ms');
+            particle.style.setProperty('--twinkle-duration', twinkleDur + 'ms');
             particle.style.left = xStart + 'px';
             particle.style.top = '-40px';
             particle.style.color = color;
@@ -438,14 +448,6 @@
                 state.listeners.push({ type: 'narrator_event', fn: onNarratorEvent });
             }
 
-            // Demo mode interval
-            if (state.demoMode) {
-                const interval = setInterval(() => {
-                    Public.triggerMoneyRain({ count: 40, duration: 3000 });
-                }, DEMO_MODE_INTERVAL_MS);
-                state.intervals.push(interval);
-            }
-
             state.mounted = true;
         },
 
@@ -500,25 +502,6 @@
         },
 
         /**
-         * Set demo mode: auto-fire money rain every 8s.
-         * @param {boolean} demoMode
-         */
-        setDemoMode(demoMode) {
-            state.demoMode = !!demoMode;
-
-            if (state.demoMode && state.mounted) {
-                const interval = setInterval(() => {
-                    Public.triggerMoneyRain({ count: 40, duration: 3000 });
-                }, DEMO_MODE_INTERVAL_MS);
-                state.intervals.push(interval);
-            } else if (!state.demoMode) {
-                // Clear demo intervals
-                state.intervals.forEach(clearInterval);
-                state.intervals = [];
-            }
-        },
-
-        /**
          * Clean up all DOM, timers, listeners.
          */
         teardown() {
@@ -552,7 +535,6 @@
         _debug() {
             return {
                 enabled: state.enabled,
-                demoMode: state.demoMode,
                 mounted: state.mounted,
                 lastMoneyRainAt: state.lastMoneyRainAt,
                 lastCellFlashAt: state.lastCellFlashAt,
