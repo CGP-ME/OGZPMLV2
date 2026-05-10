@@ -12,7 +12,7 @@
  * Spec: ogz-meta/ledger/spec fixes/CC-SPEC-SERENA-MERCURY-INTEGRATION_1.md
  */
 
-const { getCallers } = require('./dep-scanner');
+const { getCallers, getEventEmitters, getEventSubscribers } = require('./dep-scanner');
 
 const MAX_CALLERS_IN_PROMPT = 30;
 const SERENA_TIMEOUT_MS = 5000;
@@ -89,9 +89,87 @@ function formatForMercury(blastRadius) {
   return lines.join('\n');
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// WebSocket Event Blast Radius — for frontend/backend contract audits.
+// Browser panels load via <script> tags + OGZ.register/.get, not require(),
+// so getCallers() returns 0 for them. Event blast-radius answers the
+// useful question for WS contract changes: who emits this event type, and
+// who subscribes to it? Used by Mercury to reason about shape mismatches
+// between backend payloads and frontend handlers.
+// ─────────────────────────────────────────────────────────────────────
+
+function classifyEventRisk(emitterCount, subscriberCount) {
+  if (emitterCount === 0 && subscriberCount === 0) return 'orphan';
+  if (emitterCount === 0) return 'dead-subscribers';
+  if (subscriberCount === 0) return 'dead-emitters';
+  if (subscriberCount <= 2) return 'low';
+  if (subscriberCount <= 6) return 'medium';
+  return 'high';
+}
+
+async function getEventBlastRadius(eventType, options = {}) {
+  const timeoutMs = options.timeoutMs || SERENA_TIMEOUT_MS;
+  const start = Date.now();
+
+  const work = new Promise((resolve, reject) => {
+    try {
+      const emitters = getEventEmitters(eventType);
+      const subscribers = getEventSubscribers(eventType);
+      resolve({
+        eventType,
+        emitters,
+        subscribers,
+        emitterCount: emitters.length,
+        subscriberCount: subscribers.length,
+        riskLevel: classifyEventRisk(emitters.length, subscribers.length),
+        summary: `Event '${eventType}': ${emitters.length} emitter(s), ${subscribers.length} subscriber(s)`,
+        latencyMs: Date.now() - start,
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs)
+  );
+
+  return Promise.race([work, timeout]);
+}
+
+function formatEventBlastForMercury(blastRadius) {
+  const { eventType, emitters, subscribers, riskLevel, summary } = blastRadius;
+  const lines = [
+    `## Event Blast Radius — '${eventType}'`,
+    ``,
+    `**Risk level:** ${riskLevel}`,
+    `**Summary:** ${summary}`,
+    ``,
+    `**Emitters (file:line) — backend write sites:**`,
+  ];
+
+  if (emitters.length === 0) {
+    lines.push(`- (none — event never emitted; subscribers wait forever)`);
+  } else {
+    for (const e of emitters) lines.push(`- ${e.source}:${e.line}`);
+  }
+
+  lines.push(``, `**Subscribers (file:line) — frontend read sites:**`);
+
+  if (subscribers.length === 0) {
+    lines.push(`- (none — event has no consumers; emission is wasted)`);
+  } else {
+    for (const s of subscribers) lines.push(`- ${s.source}:${s.line}`);
+  }
+
+  return lines.join('\n');
+}
+
 module.exports = {
   getBlastRadius,
   formatForMercury,
+  getEventBlastRadius,
+  formatEventBlastForMercury,
   MAX_CALLERS_IN_PROMPT,
   SERENA_TIMEOUT_MS,
 };
