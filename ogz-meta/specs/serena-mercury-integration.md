@@ -66,53 +66,13 @@ const markdown = formatForMercury(br);
 ### `tools/dep-scanner.js`
 
 ```js
-const { getCallers, findJSFiles, extractDeps, getEventEmitters, getEventSubscribers } = require('./tools/dep-scanner');
+const { getCallers, findJSFiles, extractDeps } = require('./tools/dep-scanner');
 
 const callers = getCallers('core/StateManager.js');
 // [{ source: 'core/BacktestRunner.js', line: 14, type: 'require', target: '../core/StateManager' }, ...]
-
-const emitters = getEventEmitters('price');
-// [{ source: 'core/CandleProcessor.js', line: 569, type: 'ws_emit', target: 'price' }]
-
-const subscribers = getEventSubscribers('price');
-// [ { source: 'public/js/panels/live-readouts.js', line: 582, type: 'ws_subscribe', target: 'price' }, ... ]
 ```
 
 `getCallers` walks all JS files (excluding `node_modules`, `.git`, `archive`, `.claude`, `ogz-meta/ledger`), extracts deps from each, and returns the inverse map for the target. Path normalization handles `.js` suffix variance and `./` prefix variance.
-
-`getEventEmitters(eventType)` and `getEventSubscribers(eventType)` resolve the WebSocket contract graph — added 2026-05-10 to give Serena coverage of frontend panels (which load via `<script>` tags + `OGZ.register/.get`, never `require()`, so `getCallers` returns 0 for them). Patterns extracted by `extractDeps`:
-
-- `ws_emit` — `JSON.stringify({ type: 'X', ... })` (matches every typed envelope construction site, primarily `dashboardWs.send(JSON.stringify(...))` in CandleProcessor / DashboardBroadcaster / WebSocketManager)
-- `ws_subscribe` — `[Ss]ocket.registerHandler('X', ...)` (panels and `public/js/core.js`)
-
-This makes Serena answer the right question for WS contract changes: *who emits this event, who consumes it, do the shapes line up?* Latency: ~150-200ms scanning the full tree.
-
-### `tools/serena-bridge.js` — event blast-radius
-
-```js
-const { getEventBlastRadius, formatEventBlastForMercury } = require('./tools/serena-bridge');
-
-const br = await getEventBlastRadius('price', { timeoutMs: 5000 });
-// {
-//   eventType: 'price',
-//   emitters: [{ source: 'core/CandleProcessor.js', line: 569, ... }],
-//   subscribers: [{ source: 'public/js/panels/live-readouts.js', line: 582, ... }, ...],
-//   emitterCount: 1,
-//   subscriberCount: 11,
-//   riskLevel: 'high',  // orphan | dead-emitters | dead-subscribers | low | medium | high
-//   summary: "Event 'price': 1 emitter(s), 11 subscriber(s)",
-//   latencyMs: 159,
-// }
-
-const markdown = formatEventBlastForMercury(br);
-// Markdown for Mercury system-message injection — emitters and subscribers grouped.
-```
-
-Risk classification for events differs from file callers — captures pathological states regex can't otherwise surface:
-- `orphan` — neither emitted nor consumed (dead event name, often typo)
-- `dead-emitters` — subscribed but never emitted (subscribers wait forever)
-- `dead-subscribers` — emitted but no consumers (wasted bandwidth)
-- `low` / `medium` / `high` — by subscriber count (1-2 / 3-6 / 7+)
 
 ### `trai_brain/mercury-bridge/ask.js` — programmatic entry
 
@@ -120,7 +80,7 @@ Risk classification for events differs from file callers — captures pathologic
 const { runAgentic } = require('./trai_brain/mercury-bridge/ask');
 
 const result = await runAgentic(attackPrompt, {
-  blastRadius: formattedMarkdown,    // file blast OR event blast — same param, same injection slot
+  blastRadius: formattedMarkdown,    // ← new param, threads through to react-loop
   maxTokens: 7750,
   maxIterations: 30,
 });
@@ -208,28 +168,6 @@ Full spec: `.claude/commands/critic-attack.md`.
 - **Config files / docs / non-executable surfaces** — per `feedback-mercury-scope-hot-path.md`, Mercury attack passes are for hot-path/bot code only (`core/`, `brokers/`, `modules/`, `run-empire-v2.js`).
 - **Single-file scripts with no callers** — Serena returns 0 callers, Mercury attack still runs but blast radius adds no signal.
 - **Routine refactors with no behavioral change** — waste of Mercury's token budget.
-
-**Frontend panels are now in scope** for WS-contract audits via `getEventBlastRadius`. The hot-path-only rule still applies for *file* blast-radius (`getCallers` returns 0 for browser code), but the event blast-radius gives Mercury enough context to attack shape mismatches, NaN exposure, missing-field handling, and dead emitters/subscribers across the dashboard.
-
----
-
-## Strategic Next Steps — Serena's Growth Path
-
-Serena currently parses 6 dep types via regex (require, loader.get×2, broker_factory, ws_emit, ws_subscribe). Each new dependency mechanism is another regex. This is the path of least resistance, but it has a ceiling.
-
-### Tree-sitter migration (next spec)
-
-Replace the regex extractors with a tree-sitter-based AST scanner. Unlocks:
-- **Field-level shape verification** — "which panels destructure `data.indicators.rsi` off the `price` event" becomes mechanically detectable. The class of bugs at `live-readouts.js:486` (handler reads `data.indicators` but backend wraps as `data.data.indicators`) goes from "Mercury hunts" to "Serena reports."
-- **Control-flow-aware NaN exposure** — find `.toFixed()` calls where the receiver can be `NaN` along any reachable path.
-- **OGZ.register/.get module graph** — frontend panel dependency graph that regex can't track because the dependency is *named* via string argument rather than imported. Same shape solves loader.get + broker_factory + future plugin registries.
-- **Robustness** — no false positives from string literals containing `require(...)` or commented-out code.
-
-Cost: `tree-sitter` + `tree-sitter-javascript` deps (~5MB native binding), ~200-400 LOC AST traversal, 1-2 session investment.
-
-Payoff: Serena pushes from a require-graph tracer into a real semantic analyzer. Mercury runs change from "find the bugs" to "verify the patches" for any class Serena can mechanically detect. That's a force multiplier across every future audit.
-
-Follow-through: spec at `ogz-meta/specs/serena-tree-sitter-migration.md` (TBD), staged on the cleanup pass after current Multi-Symbol architecture work lands.
 
 ---
 

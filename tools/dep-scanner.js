@@ -112,33 +112,6 @@ function extractDeps(filePath) {
     });
   }
 
-  // Pattern 5: ws_emit — JSON.stringify({ type: 'X', ... }) WebSocket payloads.
-  // Backend emits typed envelopes via dashboardWs.send(JSON.stringify({type, data}));
-  // this catches every site where a typed envelope is constructed for the wire.
-  const wsEmitRegex = /JSON\.stringify\s*\(\s*\{\s*type\s*:\s*['"]([^'"]+)['"]/g;
-  while ((match = wsEmitRegex.exec(content)) !== null) {
-    deps.push({
-      type: 'ws_emit',
-      source: relative,
-      target: match[1],
-      resolved: `<event:${match[1]}>`,
-      line: content.substring(0, match.index).split('\n').length
-    });
-  }
-
-  // Pattern 6: ws_subscribe — socket.registerHandler('X', ...) frontend handlers.
-  // Both lowercase `socket` (panels) and capital `Socket` (equity-curve, system-health).
-  const wsSubRegex = /[Ss]ocket\.registerHandler\s*\(\s*['"]([^'"]+)['"]/g;
-  while ((match = wsSubRegex.exec(content)) !== null) {
-    deps.push({
-      type: 'ws_subscribe',
-      source: relative,
-      target: match[1],
-      resolved: `<event:${match[1]}>`,
-      line: content.substring(0, match.index).split('\n').length
-    });
-  }
-
   return deps;
 }
 
@@ -445,44 +418,6 @@ function getCallers(target) {
   return callers;
 }
 
-function getEventEmitters(eventType) {
-  const jsFiles = findJSFiles(PROJECT_ROOT);
-  const emitters = [];
-  for (const file of jsFiles) {
-    const deps = extractDeps(file);
-    for (const dep of deps) {
-      if (dep.type === 'ws_emit' && dep.target === eventType) {
-        emitters.push({
-          source: dep.source,
-          line: dep.line,
-          type: dep.type,
-          target: dep.target,
-        });
-      }
-    }
-  }
-  return emitters;
-}
-
-function getEventSubscribers(eventType) {
-  const jsFiles = findJSFiles(PROJECT_ROOT);
-  const subscribers = [];
-  for (const file of jsFiles) {
-    const deps = extractDeps(file);
-    for (const dep of deps) {
-      if (dep.type === 'ws_subscribe' && dep.target === eventType) {
-        subscribers.push({
-          source: dep.source,
-          line: dep.line,
-          type: dep.type,
-          target: dep.target,
-        });
-      }
-    }
-  }
-  return subscribers;
-}
-
 if (require.main === module) {
   main();
 }
@@ -491,6 +426,4 @@ module.exports = {
   findJSFiles,
   extractDeps,
   getCallers,
-  getEventEmitters,
-  getEventSubscribers,
 };
