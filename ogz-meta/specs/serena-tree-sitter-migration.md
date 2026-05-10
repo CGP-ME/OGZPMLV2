@@ -56,12 +56,16 @@ getPropertyReferences('priceHistory', {
   file:        'core/CandleProcessor.js',
   line:        88,
   column:      9,
-  receiver:    'this.ctx',          // classifier output, see below
-  op:          'mutate:push',       // classifier output, see below
+  receiver:    'this.ctx',                            // direct-receiver classifier (Depth 1)
+  receiverPath:'this.ctx',                            // full member-chain (Depth 2) — equals receiver when shallow
+  resolvedFrom:null,                                  // alias source if Depth 3 resolved (e.g. 'this._candleStore')
+  op:          'mutate:push',                         // op classifier including call+*-return variants
   context:     'this.ctx.priceHistory.push(candle)',  // source slice
   enclosing:   'CandleProcessor.processNewCandle',    // function/method
 }
 ```
+
+When alias resolution kicks in (Depth 3), the `receiver` field shows the surface identifier (`store`) and `resolvedFrom` shows what it was bound to at the function's binding site (`this._candleStore`). Queries can filter on either: `--receiver this._candleStore` returns alias-resolved hits; `--receiver-surface store` returns only the literal-name hits.
 
 ### `getMethodCallers(methodName, opts) → Reference[]`
 
@@ -95,35 +99,72 @@ getClassFields('SymbolTradingContext');
 
 ## Receiver classifier (rules)
 
-Walks the parent chain of each member-access node.
+Walks the parent chain of each member-access node and emits the FULL receiver path. Per spec amendment 2026-05-10 (this commit), the classifier is no longer artificially capped — going deeper is the whole point.
+
+### Depth 1 — Direct receiver
 
 | AST shape                        | Classified receiver |
 |----------------------------------|---------------------|
 | `this.X`                         | `this`              |
-| `this.ctx.X` / `this.ctx.foo.X`  | `this.ctx`          |
 | `ctx.X` (param named ctx)        | `ctx`               |
-| `bot.X` / `bot.ctx.X`            | `bot` / `bot.ctx`   |
+| `bot.X`                          | `bot`               |
 | `symCtx.X`                       | `symCtx`            |
 | Identifier-only (`foo.X`)        | `<identifier>`      |
 | Computed access (`obj[name].X`)  | `*dynamic*`         |
 
-The classifier is intentionally shallow (one level of parent chain). Anything more sophisticated lands in a future "control-flow" phase.
+### Depth 2 — Multi-level receiver paths
+
+The classifier emits the full member-expression chain leading to the property of interest. This means `this.ctx.symbolContexts.get('TSLA').priceHistory` is reported with receiver=`this.ctx.symbolContexts.get(...).` — preserving the distinction between root-snapshot access and per-symCtx access.
+
+| AST shape                                                       | Classified receiver                          |
+|-----------------------------------------------------------------|----------------------------------------------|
+| `this.ctx.X`                                                    | `this.ctx`                                   |
+| `this.ctx.foo.X`                                                | `this.ctx.foo`                               |
+| `this.ctx.foo.bar.X`                                            | `this.ctx.foo.bar`                           |
+| `this.ctx.symbolContexts.get('TSLA').X`                         | `this.ctx.symbolContexts.get(<arg>).`        |
+| `bot.ctx.X`                                                     | `bot.ctx`                                    |
+| `bot.candleStore.X`                                             | `bot.candleStore`                            |
+
+Implementation: walk the parent chain until you hit either (a) a non-`member_expression` ancestor, (b) an identifier root, or (c) `this`. Concatenate properties separated by `.`. Method calls in the chain become `<methodName>(<arg>)` where `<arg>` is the source slice of the first argument (this preserves the per-symbol distinction without growing receiver strings unboundedly).
+
+### Depth 3 — Intra-procedural alias chains
+
+Within a single function body, track local-variable rebindings of member-access expressions and resolve them at use sites. A single pass per function: collect `const X = expr` and `let X = expr` assignments where `expr` is a member-expression chain, build a within-function alias map, then resolve.
+
+| Setup in function body                       | Receiver at use site             | Effective receiver |
+|----------------------------------------------|----------------------------------|--------------------|
+| `const store = this._candleStore`            | `store.getCandles(s, t)`         | `this._candleStore` |
+| `const symCtx = bot.symbolContexts.get(s)`   | `symCtx.priceHistory`            | `bot.symbolContexts.get(<arg>).` |
+| `let history = symCtx.priceHistory`          | `history.push(c)`                | `symCtx.priceHistory` (op: `mutate:push`) |
+
+Reassignment invalidates the alias entry. If `store` is reassigned later in the function, only references between the two assignments resolve to the first binding — references after the reassignment resolve to the new binding (or `<identifier>` if the new binding is non-trivial). No flow-sensitive analysis beyond top-to-bottom scan.
+
+**Out of scope:** alias tracking across function boundaries. If a function takes `store` as a parameter, references inside resolve to `<store>` only. Determining the type of `<store>` at every call site is the inter-procedural points-to analysis we are deliberately not building (10× scope, unbounded test surface).
+
+### Depth 4 (deferred) — Inter-procedural points-to
+
+Tracks what a function parameter resolves to by examining every caller. Documented here as the explicit next-spec line — when a real audit blocks on cross-function aliasing, that's the trigger to scope this. NOT implemented in Phase A/B/C; written into the spec so the boundary is clear, not so it ships.
 
 ## Op classifier (rules)
 
 For each property reference, classify the operation by inspecting the *parent* AST node:
 
-| Parent context                                              | Op                  |
-|-------------------------------------------------------------|---------------------|
-| RHS of `=`, function arg, return value, `if (x.foo)` test   | `read`              |
-| LHS of `=` (direct assignment)                              | `write`             |
-| LHS of `+= -= *= /= ??= ||= &&=`                            | `write:compound`    |
-| `delete x.foo`                                              | `delete`            |
-| `x.foo.push/pop/shift/unshift/splice`                       | `mutate:<method>`   |
-| `x.foo[i] = ...`                                            | `write:index`       |
-| `x.foo.length = ...`                                        | `write:length`      |
-| `const { foo } = x` / `({ foo } = x)`                       | `destructure`       |
-| `x.foo()`                                                   | `call`              |
+| Parent context                                              | Op                          |
+|-------------------------------------------------------------|-----------------------------|
+| RHS of `=`, function arg, return value, `if (x.foo)` test   | `read`                      |
+| LHS of `=` (direct assignment)                              | `write`                     |
+| LHS of `+= -= *= /= ??= ||= &&=`                            | `write:compound`            |
+| `delete x.foo`                                              | `delete`                    |
+| `x.foo.push/pop/shift/unshift/splice`                       | `mutate:<method>`           |
+| `x.foo[i] = ...`                                            | `write:index`               |
+| `x.foo.length = ...`                                        | `write:length`              |
+| `const { foo } = x` / `({ foo } = x)`                       | `destructure`               |
+| `x.foo()`                                                   | `call`                      |
+| `x.foo(...).push(...)` / `.splice(...)` / etc.              | `call+mutate-return:<method>` |
+| `x.foo(...)[0]` (index access on return)                    | `call+read-return`          |
+| `x.foo(...).bar = y` (assign through return)                | `call+write-return:bar`     |
+
+The `call+*-return` ops are the method-chain awareness layer (Depth 3 of the design intent). They surface the shallow-copy bug class: a consumer doing `getCandles(s, t).push(c)` is mutating the return value, not the store. Today an `op === call+mutate-return:push` query returns every site where this pattern appears across the repo — mechanically.
 
 Anything unclassified becomes `read` (conservative default — surfaces it in output but doesn't lie about op).
 
@@ -134,18 +175,27 @@ Anything unclassified becomes `read` (conservative default — surfaces it in ou
 Extends the existing dep-scanner CLI:
 
 ```bash
-# Property blast radius
+# Property blast radius — Depth 1 / 2 / 3 controlled via flags
 node tools/dep-scanner.js --refs priceHistory
 node tools/dep-scanner.js --refs priceHistory --receiver this.ctx --op write,mutate
+node tools/dep-scanner.js --refs priceHistory --receiver-path 'this.ctx.symbolContexts.get(*)'
+node tools/dep-scanner.js --refs priceHistory --resolved-from this._candleStore
 node tools/dep-scanner.js --refs priceHistory --json   # machine-readable
 
-# Method blast radius
+# Method blast radius — alias-aware
 node tools/dep-scanner.js --calls candleStore.getCandles
 node tools/dep-scanner.js --calls getCandles --receiver bot.candleStore
+node tools/dep-scanner.js --calls getCandles --op 'call+mutate-return:*'   # shallow-copy bug class
 
 # Class surface
 node tools/dep-scanner.js --class-fields SymbolTradingContext
 ```
+
+Flag semantics:
+- `--receiver` filters by direct-receiver classifier (Depth 1) OR alias-resolved receiver (Depth 3) — whichever the caller wants. Default: prefers resolved.
+- `--receiver-path` filters by full member-chain (Depth 2). Supports `*` wildcard for argument slots in method links.
+- `--resolved-from` filters by the alias source (Depth 3 only). Returns sites where the use-site identifier was bound to the named expression.
+- `--op` accepts comma-separated ops or wildcards (`mutate:*`, `call+*-return:*`, `write*`).
 
 Output format mirrors the existing `getCallers` CLI — table by default, `--json` for tooling.
 
@@ -202,13 +252,15 @@ Enclosing-function lookup: walk parents until hitting `function_declaration`, `m
 
 ## Performance budget
 
-- Cold whole-repo scan: **<500ms** (current grep-based scanner finishes in ~80ms; tree-sitter adds parsing cost).
-- Cached repeat: **<50ms** (parse cache invalidated by mtime).
-- Per-file parse: **<5ms p50, <50ms p99** for any file in the repo.
+Per spec amendment 2026-05-10, depth additions raise the cold-scan ceiling:
 
-If the cold scan exceeds 500ms, profile the parser cache load path before adding optimizations. We are NOT pre-emptively building incremental compilation.
+- Cold whole-repo scan: **<800ms** (was <500ms before depth additions; Depth 3 alias pass adds ~150-300ms on a 100kLOC repo).
+- Cached repeat: **<80ms** (was <50ms; alias maps cached per-function alongside parse trees, invalidated by mtime).
+- Per-file parse + alias-pass: **<8ms p50, <80ms p99** for any file in the repo.
 
-Memory ceiling: keep parse trees live only during the scan. Discard after results are returned. (Holding all trees would balloon memory on large repos.)
+If the cold scan exceeds 800ms, profile in this order: (1) parse-cache hit rate, (2) alias-pass cost on the largest files (likely `run-empire-v2.js`), (3) member-chain walk depth on `core/`. We are NOT pre-emptively building incremental compilation.
+
+Memory ceiling: keep parse trees live only during the scan. Discard after results are returned. Alias maps are ~10-50 entries per function; per-file aggregate stays in single-digit MB.
 
 ---
 
@@ -220,12 +272,18 @@ Memory ceiling: keep parse trees live only during the scan. Discard after result
 2. **Property read vs write classifier.** Synthetic file with both `x.foo` (read) and `x.foo = 1` (write). Both surface, ops correctly classified.
 3. **Mutate detection.** Synthetic file with `arr.foo.push(...)` → op === `mutate:push`.
 4. **Destructure detection.** `const { foo } = x` → op === `destructure`.
-5. **Receiver classifier — this.ctx.** Synthetic file with `this.ctx.X` and `this.X` and `ctx.X` — three distinct receivers in output.
-6. **String literal exclusion.** File contains `"x.priceHistory"` as a string — must NOT appear in results.
-7. **Comment exclusion.** File contains `// x.priceHistory = 1` — must NOT appear in results.
-8. **Real-repo: priceHistory blast radius.** Run against current repo, assert >= 30 references found across `core/`, `brokers/`, `modules/`, `run-empire-v2.js`. (Number is a floor, not exact — repo evolves.)
-9. **Real-repo: parity with grep floor.** Tree-sitter must find at least every reference grep finds in *uncommented, non-string* code. (Run grep first, filter out string/comment lines, assert AST is a superset.)
-10. **Performance: <500ms cold full repo.**
+5. **Receiver classifier — Depth 1.** Synthetic file with `this.ctx.X` and `this.X` and `ctx.X` — three distinct receivers in output (`this.ctx`, `this`, `ctx`).
+6. **Receiver classifier — Depth 2 (multi-level paths).** Synthetic file with `this.ctx.X` and `this.ctx.foo.X` — two distinct receivers in output (`this.ctx` vs `this.ctx.foo`). Verifies the chain is preserved, not collapsed.
+7. **Receiver classifier — Depth 2 (method-call links).** Synthetic file with `this.ctx.symbolContexts.get('TSLA').X` — receiver path includes `symbolContexts.get(<arg>)`. Verifies the per-symCtx distinction is preserved.
+8. **Receiver classifier — Depth 3 (alias resolution).** Synthetic file with `const store = this._candleStore; store.getCandles(s, t)` — call site reports `receiver === 'store'`, `resolvedFrom === 'this._candleStore'`.
+9. **Receiver classifier — Depth 3 (alias invalidation).** Reassignment within function invalidates the prior alias; references after the reassignment do NOT carry the original `resolvedFrom`.
+10. **Method-chain op classifier.** Synthetic file with `getCandles(s, t).push(c)` — op === `call+mutate-return:push`. This is the shallow-copy bug class detector.
+11. **String literal exclusion.** File contains `"x.priceHistory"` as a string — must NOT appear in results.
+12. **Comment exclusion.** File contains `// x.priceHistory = 1` — must NOT appear in results.
+13. **Real-repo: priceHistory blast radius.** Run against current repo, assert >= 30 references found across `core/`, `brokers/`, `modules/`, `run-empire-v2.js`. (Floor, not exact — repo evolves.)
+14. **Real-repo: parity with grep floor.** Tree-sitter must find at least every reference grep finds in *uncommented, non-string* code.
+15. **Real-repo: shallow-copy detector.** Query `getCandles` with op filter `call+mutate-return:*` against the current repo. Documents how many shallow-copy mutation sites exist today (zero, one, or N) — establishes the baseline before the architecture refactor.
+16. **Performance: <500ms cold full repo.**
 
 Tests run via existing jest config. No new test runner.
 
@@ -263,26 +321,35 @@ Run AFTER implementation (not part of this spec). If results drift, the implemen
 
 ## Implementation phases
 
-**Phase A — Property blast radius (1 session).**
+Per spec amendment 2026-05-10 the depth additions raise the LOC + session budget. Updated estimate: ~400-600 LOC, 2-3 sessions. The original 200-400 / 1-2 estimate stays valid for Depth 1 only, which is no longer the target.
+
+**Phase A — Property blast radius, Depth 1 + 2 (1 session).**
 - Add tree-sitter dependency wiring.
-- Implement `getPropertyReferences` with receiver + op classifier.
-- CLI flag `--refs <propName>`.
-- Tests 1-7.
+- Implement `getPropertyReferences` with Depth 1 + Depth 2 receiver classifier (full member-chain paths) + op classifier (without `call+*-return` variants).
+- CLI flag `--refs <propName>` with `--receiver-path` filter.
+- Tests 1-7, 11-13.
 - Bridge wrapper `getSymbolBlastRadius` in serena-bridge.js.
 
-**Phase B — Method blast radius + class fields (0.5 session).**
-- Implement `getMethodCallers` (mostly reuses Phase A's traversal).
+**Phase B — Depth 3 alias resolution + method-chain op classifier (1 session).**
+- Implement intra-procedural alias chain pass (per-function scan, top-to-bottom, reassignment-aware).
+- Add `resolvedFrom` field to Reference shape; CLI flag `--receiver` resolves through aliases.
+- Add `call+mutate-return:*`, `call+read-return`, `call+write-return:*` ops to op classifier.
+- Tests 8-10, 15.
+- Bridge wrapper update for alias-resolved queries.
+
+**Phase C — Method blast radius + class fields (0.5 session).**
+- Implement `getMethodCallers` (reuses Phase A's traversal + Phase B's alias resolution).
 - Implement `getClassFields`.
 - CLI flags `--calls`, `--class-fields`.
-- Tests 8-10.
+- Test 14.
 - Bridge wrappers for both.
 
-**Phase C — Mercury tool registration (0.5 session).**
+**Phase D — Mercury tool registration (0.5 session).**
 - Register `find_property_refs`, `find_method_calls`, `class_fields` in tool-adapter.js.
-- Smoke test: dispatch a Mercury attack with `priceHistory` blast radius pre-populated.
-- Compare against grep-based blast radius from 2026-05-10 architecture finding.
+- Smoke test: dispatch a Mercury attack with `priceHistory` blast radius pre-populated using Depth 2 paths + Depth 3 alias resolution.
+- Compare against grep-based blast radius from 2026-05-10 architecture finding. Document the delta (count, classification breakdown) in the architecture finding doc.
 
-Total: 2 sessions. Stays inside the 200-400 LOC + 1-2 session estimate from the predecessor spec.
+Total: 3 sessions. The depth additions cost +1 session vs the original estimate; the payoff is that Mercury queries can mechanically distinguish root-snapshot writes from per-symCtx writes, and shallow-copy mutation sites surface without manual hunting. Without the depth, Mercury would still need grep fallbacks for those classes.
 
 ---
 
@@ -300,5 +367,5 @@ Total: 2 sessions. Stays inside the 200-400 LOC + 1-2 session estimate from the 
 
 1. **Primary parser choice.** Spec commits to `tree-sitter` as primary, `@babel/parser` as fallback. Alternative: skip native binding entirely, use `@babel/parser` only (slower, no incremental but pure JS). **Default: keep tree-sitter primary.**
 2. **CLI naming.** `--refs` vs `--property` — committed to `--refs` for parity with grep's mental model. Open to override.
-3. **Receiver classifier depth.** Spec is intentionally shallow (one parent level). Going deeper turns this into a points-to analyzer (10× the scope). **Default: stay shallow; add depth only when a real audit blocks on it.**
+3. **Receiver classifier depth.** ~~Spec is intentionally shallow.~~ **Resolved 2026-05-10 via spec amendment (this commit):** classifier ships with Depth 1 (direct receiver) + Depth 2 (full member-chain path) + Depth 3 (intra-procedural alias resolution). Depth 4 (inter-procedural points-to) remains explicitly deferred — that's the genuine 10× cliff. Trigger to scope Depth 4: a real audit that blocks on cross-function aliasing.
 4. **Should this land before or after the 6a architecture refactor decision?** Recommendation: this lands FIRST so the architecture finding doc can be re-scored with authoritative blast radius data before any refactor decision is made.
