@@ -1,0 +1,102 @@
+{
+  "_schema": "tree-sitter-foundation-set/v1",
+  "_purpose": "Tree-sitter queryable foundation set for OGZPrime hot-path functions. Serena uses these AST queries to answer 'what calls X / what calls into X / where is X declared' without an LLM round-trip.",
+  "_generated_at": "2026-05-11",
+  "_source": "ogz-meta/ledger/weresofucked.md Deliverable 9.2",
+  "_branch": "rebuild/clean-from-baseline",
+  "_commit": "004af8c",
+
+  "core/CandleStore.js::addCandle": {
+    "declared_at": "core/CandleStore.js:41",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"addCandle\"))",
+    "ast_node_path": "Program > ExpressionStatement > class CandleStore > method addCandle",
+    "serena_verification": "getCallees('CandleStore', 'addCandle') should return ['ContractValidator.validateCandle']",
+    "callees": ["ContractValidator.validateCandle @ CandleStore.js:43"],
+    "callers": [
+      "CandleStore.addCandles @ CandleStore.js:87",
+      "CandleProcessor UPDATE path @ CandleProcessor.js:104",
+      "CandleProcessor NEW path @ CandleProcessor.js:155"
+    ]
+  },
+
+  "core/CandleStore.js::getCandles": {
+    "declared_at": "core/CandleStore.js:~100",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"getCandles\"))",
+    "ast_node_path": "Program > class CandleStore > method getCandles",
+    "serena_verification": "getCallers('CandleStore', 'getCandles') should return ['SymbolTradingContext.priceHistory getter']",
+    "return_pattern": "(return_statement (spread_element)) — [...candles] shallow copy",
+    "callees": [],
+    "callers": ["SymbolTradingContext.priceHistory @ SymbolTradingContext.js:129"]
+  },
+
+  "core/CandleProcessor.js::_resolveSymCtx": {
+    "declared_at": "core/CandleProcessor.js:65",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"_resolveSymCtx\"))",
+    "ast_node_path": "Program > class CandleProcessor > method _resolveSymCtx",
+    "serena_verification": "getPropertyAccessors('CandleProcessor', 'contexts') — should find size===1 branch",
+    "blind_spot": "Dynamic dispatch via Map.size === 1 conditional — tree-sitter can find the literal but not the runtime fallback semantics",
+    "callees": ["Map.size access @ CandleProcessor.js:70"],
+    "callers": [
+      "CandleProcessor._updatePath @ CandleProcessor.js:81",
+      "CandleProcessor._newPath @ CandleProcessor.js:128"
+    ]
+  },
+
+  "core/SymbolTradingContext.js::priceHistory (getter)": {
+    "declared_at": "core/SymbolTradingContext.js:129",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"priceHistory\") (accessibility_modifier) @mod (#eq? @mod \"get\"))",
+    "ast_node_path": "Program > class SymbolTradingContext > getter priceHistory",
+    "serena_verification": "getPropertyAccessors('SymbolTradingContext', 'priceHistory') — confirms getter exists; getCallees on getter returns 'CandleStore.getCandles'",
+    "callees": ["CandleStore.getCandles @ SymbolTradingContext.js:129"],
+    "callers": ["StrategyOrchestrator evaluate lambda @ StrategyOrchestrator.js:196"]
+  },
+
+  "core/StrategyOrchestrator.js::evaluate (EMASMACrossover lambda)": {
+    "declared_at": "core/StrategyOrchestrator.js:193",
+    "tree_sitter_query": "(arrow_function) inside (call_expression function: (member_expression property: (property_identifier) @name (#eq? @name \"push\")))",
+    "ast_node_path": "Program > class StrategyOrchestrator > method _initStrategies > call strategies.push > arrow_function",
+    "serena_blind_spot": "Inline lambda not a named function declaration — tree-sitter getCallers/getCallees cannot resolve arrow functions by name. Must use parent context (strategies.push call at line 191)",
+    "callees": [
+      "EMASMACrossoverSignal.update @ StrategyOrchestrator.js:200",
+      "ctx.priceHistory @ StrategyOrchestrator.js:196"
+    ],
+    "callers": ["StrategyOrchestrator.evaluate loop (iterator over this.strategies)"]
+  },
+
+  "modules/EMASMACrossoverSignal.js::_ema": {
+    "declared_at": "modules/EMASMACrossoverSignal.js:268",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"_ema\"))",
+    "ast_node_path": "Program > class EMASMACrossoverSignal > method _ema",
+    "serena_verification": "getCallers('EMASMACrossoverSignal', '_ema') should return ['_calculateAllMAs']",
+    "callees": [],
+    "callers": ["EMASMACrossoverSignal._calculateAllMAs @ EMASMACrossoverSignal.js:260"]
+  },
+
+  "modules/EMASMACrossoverSignal.js::_sma": {
+    "declared_at": "modules/EMASMACrossoverSignal.js:282",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"_sma\"))",
+    "ast_node_path": "Program > class EMASMACrossoverSignal > method _sma",
+    "serena_verification": "getCallers('EMASMACrossoverSignal', '_sma') should return ['_calculateAllMAs']",
+    "callees": [],
+    "callers": ["EMASMACrossoverSignal._calculateAllMAs @ EMASMACrossoverSignal.js:262"]
+  },
+
+  "core/StateManager.js::reducePosition": {
+    "declared_at": "core/StateManager.js:714",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"reducePosition\"))",
+    "ast_node_path": "Program > class StateManager > method reducePosition",
+    "serena_verification": "getPropertyMutators('StateManager', 'sizeUsd') — should find line 742 trade.sizeUsd assignment",
+    "callees": ["trade.sizeUsd mutation @ StateManager.js:742"],
+    "callers": ["OrderExecutor.executeTrade @ OrderExecutor.js:755"]
+  },
+
+  "core/OrderRouter.js::getAllPositions": {
+    "declared_at": "core/OrderRouter.js:148",
+    "tree_sitter_query": "(method_definition name: (property_identifier) @name (#eq? @name \"getAllPositions\"))",
+    "ast_node_path": "Program > class OrderRouter > method getAllPositions",
+    "serena_verification": "getCallers('OrderRouter', 'getAllPositions') — confirms callers; getCallees — confirms adapter.getPositions spread pattern",
+    "serena_blind_spot": "Dynamic dispatch: `this.adapters.forEach(adapter => adapter.getPositions())` — tree-sitter sees the forEach but cannot statically resolve which adapter's getPositions fires at runtime",
+    "callees": ["adapter.getPositions() for each of 14 adapters (dynamic dispatch — Serena blind spot)"],
+    "callers": ["UNVERIFIED"]
+  }
+}
