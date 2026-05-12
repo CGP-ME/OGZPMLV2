@@ -171,16 +171,25 @@ const TradingProofLogger = {
     const entry = {
       type: 'TRADE',
       timestamp: new Date().toISOString(),
-      action: data.action,           // BUY or SELL
-      symbol: data.symbol,           // e.g., BTC/USD
-      price: data.price,             // Execution price
-      size: data.size,               // Position size
-      value_usd: data.value_usd,     // Trade value in USD
-      fees: data.fees,               // Trading fees
-      reason: data.reason,           // Why this trade (plain English)
-      confidence: data.confidence,   // AI confidence %
-      indicators: data.indicators,   // Key indicators at time of trade
-      pattern: data.pattern          // Pattern detected (if any)
+      action: data.action,           // BUY | SELL | SELL_SHORT | COVER
+      symbol: data.symbol,
+      price: data.price,             // Execution price (entry price on entry; exit price on exit)
+      size: data.size,
+      value_usd: data.value_usd,
+      fees: data.fees,
+      reason: data.reason,
+      confidence: data.confidence,
+      indicators: data.indicators,
+      pattern: data.pattern,
+      // CC-SPEC-EVAL-CAPTURE (1/3): pairing + forensic fields
+      tradeId: data.tradeId || null,             // pairs entries to exits
+      orderId: data.orderId || null,             // broker-side identifier
+      entryPrice: data.entryPrice ?? null,       // explicit entry price on exit records (so website can render the pair)
+      pnl: data.pnl ?? null,                     // realized P&L in USD on exit records
+      pnlPercent: data.pnlPercent ?? null,       // realized P&L percent on exit records
+      isPartialClose: data.isPartialClose === true,
+      partialFraction: data.partialFraction ?? null,
+      exitReason: data.exitReason ?? null
     };
 
     // Console output
