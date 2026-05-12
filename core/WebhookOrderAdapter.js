@@ -76,11 +76,14 @@ class WebhookOrderAdapter {
             }
         }
 
+        // SIGNALSTACK-PAYLOAD-FIX 2026-05-12: verified against live SignalStack webhook
+        // with TESTsukye9Qav5YQ26GmwFeBbn — confirmed format is {symbol, quantity, action}.
+        // Old field names {ticker, qty, order_type} were rejected with ValidationError
+        // "must have required property 'symbol'". Field-name-only fix; no logic change.
         const payload = {
+            symbol: signal.symbol,
+            quantity: signal.quantity,
             action: signal.action,
-            ticker: signal.symbol,
-            qty: signal.quantity,
-            order_type: signal.orderType || 'market',
         };
         if (signal.limitPrice) payload.limit_price = signal.limitPrice;
 
