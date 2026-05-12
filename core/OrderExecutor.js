@@ -439,17 +439,21 @@ class OrderExecutor {
           }
 
           // CHANGE 2026-01-25: Log trade for website proof
+          // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
           TradingProofLogger.trade({
             action: 'BUY',
             symbol,
             price: price,
             size: adjustedPositionSize,
             value_usd: adjustedPositionSize * price,
-            fees: (adjustedPositionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),  // From TradingConfig
+            fees: (adjustedPositionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
-            pattern: unifiedResult.patterns?.[0]?.name || null
+            pattern: unifiedResult.patterns?.[0]?.name || null,
+            tradeId: unifiedResult.orderId,
+            orderId: unifiedResult.orderId,
+            entryPrice: price
           });
 
         } else if (decision.action === 'SELL_SHORT') {
@@ -606,6 +610,7 @@ class OrderExecutor {
           }
 
           // Proof logger for SHORT
+          // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
           TradingProofLogger.trade({
             action: 'SELL_SHORT',
             symbol,
@@ -616,7 +621,10 @@ class OrderExecutor {
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based short entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
-            pattern: unifiedResult.patterns?.[0]?.name || null
+            pattern: unifiedResult.patterns?.[0]?.name || null,
+            tradeId: unifiedResult.orderId,
+            orderId: unifiedResult.orderId,
+            entryPrice: price
           });
 
         } else if (decision.action === 'SELL') {
@@ -835,17 +843,26 @@ class OrderExecutor {
             }
 
             // CHANGE 2026-01-25: Log trade for website proof
+            // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing
             TradingProofLogger.trade({
               action: 'SELL',
               symbol,
               price: price,
               size: usdAmount,
               value_usd: sellValue,
-              fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),  // From TradingConfig (taker on exit)
+              fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),
               reason: completeTradeResult.exitReason || 'Signal exit',
               confidence: decision.confidence,
               indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd ?? null },
-              pattern: buyTrade.patterns?.[0]?.name || null
+              pattern: buyTrade.patterns?.[0]?.name || null,
+              tradeId: buyTrade.orderId,
+              orderId: buyTrade.orderId,
+              entryPrice: buyTrade.entryPrice,
+              pnl: completeTradeResult.pnlDollars,
+              pnlPercent: pnl,
+              isPartialClose: isPartialClose,
+              partialFraction: isPartialClose ? fraction : null,
+              exitReason: completeTradeResult.exitReason || 'signal'
             });
 
             // Log P&L explanation for transparency
@@ -1241,6 +1258,10 @@ class OrderExecutor {
           }
 
           // Proof logger for COVER
+          // CC-SPEC-EVAL-CAPTURE (2/3): forensic identity for entry/exit pairing.
+          // NOTE: COVER always full-closes in current code (TradingLoop emits exitFraction
+          // for COVER but OrderExecutor's COVER branch ignores it — separate trading-pipeline
+          // bug). isPartialClose:false reflects actual behavior; revisit when that bug is fixed.
           TradingProofLogger.trade({
             action: 'COVER',
             symbol,
@@ -1251,7 +1272,15 @@ class OrderExecutor {
             reason: completeTradeResult.exitReason || 'Short cover',
             confidence: decision.confidence,
             indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd ?? null },
-            pattern: shortTrade.patterns?.[0]?.name || null
+            pattern: shortTrade.patterns?.[0]?.name || null,
+            tradeId: shortTrade.orderId,
+            orderId: shortTrade.orderId,
+            entryPrice: shortTrade.entryPrice,
+            pnl: completeTradeResult.pnlDollars,
+            pnlPercent: pnl,
+            isPartialClose: false,
+            partialFraction: null,
+            exitReason: completeTradeResult.exitReason || 'signal'
           });
 
           // Risk manager update
