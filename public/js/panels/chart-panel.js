@@ -1374,6 +1374,55 @@
         getSeries: () => ({ candle: candleSeries, volume: volumeSeries, ghost: ghostSeries }),
 
         /**
+         * Return up to `count` real candles centered around a given timestamp.
+         * Used by TradeReplay to render the mini-chart for a closed trade.
+         * NO synthetic candle generation — only returns what's in storedCandles.
+         * If the trade timestamp falls outside the loaded window, returns the
+         * closest contiguous slice we have. If storedCandles is empty, returns [].
+         *
+         * @param {number} ts - Epoch milliseconds OR seconds (auto-detected)
+         * @param {number} count - Total candles to return (default 30)
+         * @returns {Array<{time, open, high, low, close, volume}>}
+         */
+        getCandlesAroundTime: function (ts, count) {
+            try {
+                if (!storedCandles || storedCandles.length === 0) return [];
+                const n = Math.max(1, Number(count) || 30);
+                // Normalize ts to seconds (storedCandles uses second-aligned bucket times)
+                const tsSec = (ts > 1e12) ? Math.floor(Number(ts) / 1000) : Math.floor(Number(ts));
+                if (!isFinite(tsSec)) return [];
+
+                // Binary search the nearest candle by time
+                let lo = 0, hi = storedCandles.length - 1, nearest = 0;
+                while (lo <= hi) {
+                    const mid = (lo + hi) >> 1;
+                    const t = storedCandles[mid].time;
+                    if (t === tsSec) { nearest = mid; break; }
+                    if (t < tsSec) { nearest = mid; lo = mid + 1; }
+                    else { hi = mid - 1; }
+                }
+
+                // Center the slice on the nearest candle, clamp to array bounds
+                const half = Math.floor(n / 2);
+                let start = Math.max(0, nearest - half);
+                let end   = Math.min(storedCandles.length, start + n);
+                start = Math.max(0, end - n);  // re-align if we hit the right wall
+
+                // Return a shallow copy so the caller can't mutate live state
+                return storedCandles.slice(start, end).map(c => ({
+                    time: c.time,
+                    open: c.open,
+                    high: c.high,
+                    low:  c.low,
+                    close: c.close,
+                    volume: c.volume
+                }));
+            } catch (e) {
+                return [];
+            }
+        },
+
+        /**
          * Debug helper: return internal state.
          */
         _compute: function () {

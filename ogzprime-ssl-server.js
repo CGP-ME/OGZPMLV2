@@ -982,10 +982,30 @@ app.get('/api/health', (req, res) => {
 // All connections come through nginx proxy on port 3010
 
 // Single WebSocket server on unified port
-const wss = new WebSocket.Server({ 
+const wss = new WebSocket.Server({
   server: httpServer,
   path: '/ws'  // Optional: use path-based routing
 });
+
+// ─── Latest-state cache for dashboard hydration on reconnect ──────────
+// StateManager + DashboardBroadcaster only broadcast on state changes. When
+// a browser reloads mid-session it would otherwise wait for the next live
+// event before the equity hero, position, risk meter, edge analytics, etc.
+// populate. We cache the most recent instance of each snapshot-style event
+// type and replay them to a newly identified dashboard so it hydrates
+// immediately. NO synthetic data — only real bot broadcasts get cached.
+// If the bot hasn't sent a given event yet, nothing is replayed and the
+// panel keeps its honest "awaiting" placeholder until real data arrives.
+const dashboardSnapshotCache = {
+  state_update: null,         // StateManager: balance, position, P&L, recoveryMode
+  funding_rate: null,         // DashboardBroadcaster: current/predicted
+  fear_greed: null,           // DashboardBroadcaster: value 0-100
+  liquidation_data: null,     // DashboardBroadcaster: long/short levels
+  market_internals: null,     // DashboardBroadcaster: buySellRatio, aggressor
+  smart_money: null,          // DashboardBroadcaster: flow, activity, dormancy
+  cvd_update: null,           // DashboardBroadcaster: cvd, buyVolume, sellVolume
+  bot_thinking: null          // TradingLoop: latest reasoning + strategy stack
+};
 
 wss.on('connection', (ws, req) => {
   // Simple connection tracking - NO OVERCOMPLICATED BROADCASTER
@@ -1078,6 +1098,26 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'identify' && data.source === 'dashboard') {
         console.log('📊 DASHBOARD IDENTIFIED!');
         ws.clientType = 'dashboard';
+
+        // Replay cached snapshot events so a freshly-loaded browser hydrates
+        // immediately instead of waiting for the next state change. Real bot
+        // data only — if a key has never been populated, we send nothing for
+        // that key and the panel keeps its honest placeholder.
+        try {
+          let replayed = 0;
+          for (const key of Object.keys(dashboardSnapshotCache)) {
+            const cached = dashboardSnapshotCache[key];
+            if (cached) {
+              ws.send(JSON.stringify(cached));
+              replayed++;
+            }
+          }
+          if (replayed > 0) {
+            console.log(`🔁 Replayed ${replayed} cached snapshot events to ${connectionId}`);
+          }
+        } catch (err) {
+          console.error('Snapshot replay failed:', err.message);
+        }
       }
 
       // 🚀 RELAY: Dashboard → Bot (for TRAI queries)
@@ -1174,6 +1214,13 @@ wss.on('connection', (ws, req) => {
 
       // 🚀 RELAY: Bot messages → Dashboard clients
       if (ws.clientType === 'bot' && data.type !== 'identify') {
+        // Cache snapshot-style events so newly-connecting dashboards can hydrate.
+        // Streaming-style events (price, delta, trade) are NOT cached because
+        // their value is in live arrival order, not in their last snapshot.
+        if (Object.prototype.hasOwnProperty.call(dashboardSnapshotCache, data.type)) {
+          dashboardSnapshotCache[data.type] = data;
+        }
+
         const messageStr = JSON.stringify(data);
 
         wss.clients.forEach((client) => {
@@ -1202,6 +1249,15 @@ wss.on('connection', (ws, req) => {
   // Handle disconnection
   ws.on('close', () => {
     console.log(`❌ Client disconnected: ${connectionId}`);
+    // If the bot disconnects, invalidate the snapshot cache. Without this,
+    // a dashboard reload after a bot crash would replay stale state and lie
+    // to the user about what's currently happening on the bot side.
+    if (ws.clientType === 'bot') {
+      console.log('⚠️  Bot disconnected — clearing dashboard snapshot cache');
+      for (const key of Object.keys(dashboardSnapshotCache)) {
+        dashboardSnapshotCache[key] = null;
+      }
+    }
   });
   
   ws.on('error', (err) => {
