@@ -894,7 +894,16 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
 
       // Sanitized input - NO secrets, NO full env dumps
       input: {
-        symbol: signal?.symbol || 'BTC-USD',
+        // FIX MIRROR-TRAI-SYMBOL: refuse phantom BTC-USD when signal.symbol missing.
+        // Same poisoning class as CRIT-04/05; original spec audited OrderExecutor's
+        // TradingProofLogger calls but missed this site.
+        symbol: (() => {
+          if (!signal?.symbol) {
+            console.warn('[TRAI] signal.symbol missing — record will be skipped');
+            return null;
+          }
+          return signal.symbol;
+        })(),
         timeframe: signal?.timeframe || '1m',
         action: signal?.action,
         originalConfidence: decision.originalConfidence,
