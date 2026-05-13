@@ -1,8 +1,8 @@
 # Phase 0 Baseline
 
-**Date:** 2026-05-06
+**Original capture date:** 2026-05-06 (git SHA `4a6f14a`)
+**Anchor revised:** 2026-05-13 after Fix 2 (P1-A `trade.size` stale after partial close)
 **Branch:** `rebuild/clean-from-baseline`
-**Git SHA at baseline:** `4a6f14a`
 **Purpose:** Reference backtest numbers. Every migration phase must match these to the cent before advancing.
 
 ---
@@ -42,23 +42,23 @@ Additional env inherited from `.env` at time of run (relevant trading keys, reda
 
 ---
 
-## Baseline numbers — reference state
+## Baseline numbers — reference state (post-Fix-2, current truth)
 
 | Metric | Value | Notes |
 |---|---|---|
 | Initial Balance | $10,000.00 | |
-| **Final Balance** | **$18,497.278595001146** | exact float from report |
-| Total P&L | +$8,497.278595001146 | |
-| Total Return | +84.97% | |
+| **Final Balance** | **$13,213.042341608163** | exact float from report |
+| Total P&L | +$3,213.042341608163 | |
+| Total Return | +32.13% | |
 | Total Trades | 1,384 | |
 | Wins | 830 | |
 | Losses | 554 | |
 | **Win Rate** | **60.0%** | 830 / 1384 |
-| **Max Drawdown** | **2.63%** | $389.26 |
-| Avg Win | $15.76 | |
-| Avg Loss | -$8.27 | |
-| Profit Factor | 2.85 | |
-| Expectancy | $6.14 | |
+| **Max Drawdown** | **3.19%** | $387.67 |
+| Avg Win | $9.23 | |
+| Avg Loss | -$8.02 | |
+| Profit Factor | 1.72 | |
+| Expectancy | $2.32 | |
 | Total Fees | $0.00 | stock mode FEE=0 |
 | Candles Processed | 15,889 | full 2y TSLA 15m dataset |
 | Errors | 0 | |
@@ -76,15 +76,30 @@ Additional env inherited from `.env` at time of run (relevant trading keys, reda
 ## Acceptance criteria for subsequent phases
 
 Phase reproduction **must match**:
-- `Final Balance = $18,497.278595001146` to the cent
+- `Final Balance = $13,213.042341608163` to the cent
 - `Total Trades = 1,384` exactly
 - `Win Rate = 60.0%` exactly (830 wins)
-- `Max Drawdown ≤ 2.64%` (within measurement tolerance)
+- `Max Drawdown ≤ 3.20%` (within measurement tolerance)
 
 Any drift in these numbers between phases signals that the migration introduced behavior change. Phase is reverted, investigated, re-proposed.
 
 ---
 
+## Anchor history
+
+The 2026-05-06 baseline reported $18,497.278595001146 / +84.97% / PF 2.85 / avgWin $15.76. Those numbers were a credible-looking lie produced by the P1-A bug: `StateManager.reducePosition` updated `trade.sizeUsd` but left `trade.size` at the original full amount. Every consumer reading `trade.size` after a partial close — OrderExecutor's P&L computation, fees, console logs — got a stale, inflated value. When the residual portion of a winning trade closed at a higher tier target, P&L was computed against the original full size, double-counting the already-captured profit. Losers don't hit tier targets the same way (stops trigger full closes), so loser math was correct; only winners were inflated.
+
+Trade count and direction were never affected (same 1,384 trades on same candles). Fix 2 (commit landed 2026-05-13) added `trade.size = remainingSize` next to the existing `trade.sizeUsd = remainingSize` assignment, restoring sync. The post-fix numbers above are the actual bot performance on this data; the pre-fix numbers were instrumentation noise that masqueraded as alpha.
+
+**Pre-Fix-2 anchor (for archival reference only — do NOT use as regression gate):**
+- Final Balance: $18,497.278595001146
+- Total Return: +84.97%
+- Avg Winner: $15.76
+- Profit Factor: 2.85
+- Max Drawdown: 2.63%
+
+---
+
 ## Reproducer
 
-Run the exact baseline command above. Expected output matches this table to the float-level precision.
+Run the exact baseline command above. Expected output matches the "post-Fix-2" table to the float-level precision.

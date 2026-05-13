@@ -749,6 +749,7 @@ class StateManager {
       this.state.activeTrades.delete(tradeId);
     } else {
       trade.sizeUsd = remainingSize;
+      trade.size = remainingSize;  // FIX P1-A: keep both fields in sync — OrderExecutor reads trade.size for P&L computation, fees, console logs
     }
 
     // Append exit info to decision ledger
