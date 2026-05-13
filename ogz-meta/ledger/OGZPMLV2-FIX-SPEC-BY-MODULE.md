@@ -43,7 +43,7 @@ Each module has a section header. All fixes that touch that file are pasted unde
 
 **File:** `core/OrderExecutor.js`
 **Lines:** 447 (BUY), 448 (BUY fees), 614 (SHORT), 615 (SHORT fees), 783 (SELL sellValue), 843 (SELL value_usd), 844 (SELL fees), 1249 (COVER value_usd), 1250 (COVER fees)
-**Status:** UNFIXED. Display math corrupts dashboard, ledger, proof page, and any analytics that read TradingProofLogger output.
+**Status:** FIXED in 0e4dde9 — 2026-05-13
 
 **Bug:** `adjustedPositionSize` (and `usdAmount`, `shortSize`) are already USD per line 109 comment "Position size stays in USD." But every TradingProofLogger call multiplies by price again: `value_usd: adjustedPositionSize * price`. Result:
 - TSLA at $425, $250 position → recorded as `value_usd = $106,250`
@@ -116,7 +116,7 @@ Then update line 786's console.log to use the new variable names, and line 843's
 
 **File:** `core/OrderExecutor.js`
 **Lines:** 673-678
-**Status:** NOT FIXED
+**Status:** FIXED in d54e48d — 2026-05-13
 
 **Bug:** If `decision.tradeId` doesn't match any active trade, silently falls back to `buyTrades[0]` (oldest). Multi-position mode mis-attributes exits.
 
@@ -155,7 +155,7 @@ Then update line 786's console.log to use the new variable names, and line 843's
 
 **File:** `core/OrderExecutor.js`
 **Lines:** 124 (try opens), 1365 (catch closes)
-**Status:** BROKEN — 7 audit throws inside `executeTrade` land here as silent console.error
+**Status:** FIXED in 4d56a02 — 2026-05-13
 
 **Bug:** Outer try-catch eats every throw inside `executeTrade`:
 - HIGH-06 (slippage at 148)
@@ -360,7 +360,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StateManager.js`
 **Line:** 742
-**Status:** NOT FIXED
+**Status:** FIXED in 498a16e — 2026-05-13
 
 **Bug:** `reducePosition()` updates `trade.sizeUsd = remainingSize` but leaves `trade.size` at the original full amount. Every consumer reading `trade.size` after a partial close gets pre-reduction value:
 - `OrderExecutor.js:700` — P&L against full original size
@@ -386,7 +386,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StateManager.js`
 **Lines:** 645-655
-**Status:** NOT FIXED
+**Status:** FIXED in 8b379ae — 2026-05-13
 
 **Bug:** Closed-trade records have no `symbol` field. Per-ticker analytics impossible.
 
@@ -429,7 +429,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StateManager.js`
 **Line:** ~408
-**Status:** NOT FIXED
+**Status:** FIXED in e29d2d5 — 2026-05-13
 
 **Bug:** If both `context.symbol` and `context.ledgerData.symbol` are missing, trade opens with `symbol: null`. `getTradesBySymbol(symbol)` filters on symbol value, so null-symbol trade never matches any query. Exit path can't find it. Permanent zombie position.
 
@@ -595,7 +595,7 @@ Then update the consumer at line 896:
 
 **File:** `core/TRAIDecisionModule.js`
 **Line:** 897
-**Status:** HALF-FIXED MIRROR of CRIT-05
+**Status:** FIXED in f450d30 — 2026-05-13
 
 **str_replace target:**
 ```
@@ -719,7 +719,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/trai_core.js`
 **Line:** 509
-**Status:** HALF-FIXED MIRROR
+**Status:** FIXED in eeee2e7 — 2026-05-13
 
 **str_replace target:**
 ```
@@ -754,7 +754,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/indicators/IndicatorEngine.js`
 **Line:** 38
-**Status:** HALF-FIXED MIRROR — RUN-HIGH-01 hardened the caller; constructor still has `|| 'BTC-USD'`
+**Status:** FIXED in 3442d24 — 2026-05-13
 
 **str_replace target:**
 ```
@@ -865,7 +865,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/SessionRouter.js`
 **Line:** 253
-**Status:** HALF-FIXED MIRROR — line 221 throws, line 253 in `_activateCrypto` still has `|| 'BTC-USD'`. Currently unreachable (SessionRouter disabled) but waits for the moment it gets re-enabled.
+**Status:** FIXED in 9935663 — 2026-05-13
 
 **str_replace target:**
 ```
@@ -1196,7 +1196,7 @@ const LEDGER_BUFFER_SIZE = require('./TradingConfig').get('ledger.bufferSize');
 
 **File:** `core/SymbolTradingContext.js`
 **Line:** 107
-**Status:** EXPOSED BY FIX 10 — caller passes `config.indicatorConfig` (undefined from `run-empire-v2.js:799`) directly to `new IndicatorEngine()`, so `config.symbol` is undefined inside the constructor. Pre-Fix-10 silently defaulted to BTC-USD inside what's supposed to be a per-symbol context. Post-Fix-10, IndicatorEngine throws on the undefined symbol and BOOT prints `[BOOT][SymbolContexts] FAILED to register TSLA: [MIRROR-INDICATOR-SYMBOL] IndicatorEngine constructor requires explicit symbol (got undefined) — refusing BTC-USD default — skipping`. Per-symbol context for TSLA never registers; consumers fall back to global ctx.indicatorEngine. Fast P0 drifted $142 ($10,202.95 → $10,060.32) because indicator init order differs; Full P0 unaffected (anchor held EXACTLY).
+**Status:** FIXED in 0d6538a — 2026-05-13
 
 **Bug:** SymbolTradingContext constructor does `this.indicatorEngine = new IndicatorEngine(config.indicatorConfig)`. The `symbol` variable is already in scope as the first constructor arg, but it never gets threaded into the IndicatorEngine config. Result: per-symbol context registration fails for every symbol once Fix 10's throw is in place.
 
