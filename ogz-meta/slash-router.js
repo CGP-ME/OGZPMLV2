@@ -2426,10 +2426,21 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`;
     execSync(`git commit -F "${msgFile}"`, { encoding: 'utf8' });
     fs.unlinkSync(msgFile);
     const sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+    const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+
+    // Push so the spec doc update is visible on remote immediately — no
+    // "I committed but forgot to push" gap. If push fails (e.g., network),
+    // commit is still local and operator can push manually.
+    try {
+      execSync(`git push origin ${branch}`, { encoding: 'utf8' });
+      console.log(`✅ Spec-Update-Status: pushed to origin/${branch}`);
+    } catch (pushErr) {
+      console.warn(`⚠️ Spec-Update-Status: commit succeeded but push failed — ${pushErr.message}. Run \`git push origin ${branch}\` manually.`);
+    }
 
     updateSection(manifest, 'committer', {
       commit_hash: sha,
-      branch: execSync('git branch --show-current', { encoding: 'utf8' }).trim()
+      branch
     });
 
     console.log(`✅ Spec-Update-Status: marked ${updates.length} fix(es) as FIXED — commit ${sha.slice(0, 7)}`);
