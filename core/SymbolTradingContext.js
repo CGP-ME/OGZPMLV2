@@ -104,7 +104,14 @@ class SymbolTradingContext {
         // commit 4 (TradingLoop per-symbol) audits whether other modules
         // (NoWick, BreakRetest, ORB, CandlePattern, OGZTPO) need per-symbol
         // homes too based on their internal state coupling.
-        this.indicatorEngine = new IndicatorEngine(config.indicatorConfig);
+        // FIX 26 (companion to MIRROR-INDICATOR-SYMBOL): thread the per-symbol
+        // `symbol` (already in scope as constructor arg) into IndicatorEngine
+        // config. Prior code passed config.indicatorConfig verbatim, which is
+        // undefined for callers that supply only { timeframe } (e.g.
+        // run-empire-v2.js:799). Fix 10's constructor throw exposed this —
+        // before Fix 10 the missing symbol silently defaulted to BTC-USD
+        // inside what was supposed to be a per-symbol context for TSLA.
+        this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol });
         this.emaCrossover = new EMASMACrossoverSignal();
         this.maDynamicSR = new MADynamicSR();
         this.volumeProfile = new VolumeProfile();
