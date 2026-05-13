@@ -35,7 +35,16 @@ try {
 class IndicatorEngine {
   constructor(config = {}) {
     this.config = {
-      symbol: config.symbol || 'BTC-USD',
+      // FIX MIRROR-INDICATOR-SYMBOL: constructor must throw on missing symbol.
+      // RUN-HIGH-01 hardened run-empire-v2.js caller; future callers that instantiate
+      // IndicatorEngine without threading symbol need to fail loud, not silently
+      // default to BTC-USD.
+      symbol: (() => {
+        if (typeof config.symbol !== 'string' || !config.symbol) {
+          throw new Error(`[MIRROR-INDICATOR-SYMBOL] IndicatorEngine constructor requires explicit symbol (got ${JSON.stringify(config.symbol)}) — refusing BTC-USD default`);
+        }
+        return config.symbol;
+      })(),
       tf: config.tf || '1m',
 
       // core lengths
