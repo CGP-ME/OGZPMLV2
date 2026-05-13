@@ -692,6 +692,9 @@ class OrderExecutor {
               buyTrade = buyTrades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
             }
             if (!buyTrade) {
+              // FIX P2-B: surface the fallback. Single-position mode: buyTrades[0] is the only trade, fallback benign.
+              // Multi-position mode: silently mis-attributes exit to oldest trade instead of orchestrator-targeted one.
+              console.warn(`[OrderExecutor] WARN P2-B: tradeId '${decision.tradeId}' not found in ${buyTrades.length} active trades for ${symbol}. Falling back to oldest (${buyTrades[0]?.orderId || buyTrades[0]?.id}). Exit may attribute to wrong position.`);
               buyTrade = buyTrades[0];
             }
             pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
