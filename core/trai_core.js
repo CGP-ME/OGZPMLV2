@@ -506,7 +506,13 @@ class TRAICore extends EventEmitter {
     const hasWebContext = context.change7d && context.ath;
 
     if (hasWebContext) {
-      const assetLabel = context.assetName || context.asset || 'BTC';
+      // FIX MIRROR-TRAI-ASSET-LABEL: refuse phantom 'BTC' label when both
+      // assetName and asset missing. Mirror of CRIT-05.
+      const assetLabel = context.assetName || context.asset;
+      if (!assetLabel) {
+        console.warn('[TRAI] no asset label in context — skipping pattern operation');
+        return;
+      }
       const sourceLabel = context.assetType === 'stock' ? 'Yahoo Finance' : 'CoinGecko';
 
       const fearGreedLine =
