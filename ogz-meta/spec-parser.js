@@ -84,9 +84,13 @@ function parseFix(specPath, fixId) {
   const title = startMatch[1].trim();
   const startIdx = startMatch.index;
 
-  // Section ends at the next `### Fix <num>:` heading OR `# ` top-level heading.
+  // Section ends at the next `### Fix N:` heading OR any `## ` H2 heading OR
+  // any `# ` H1 heading. Earlier version only matched `### Fix N:` and a
+  // setext-style `# H\n=` which silently let Fix sections bleed into later
+  // TIER / Phase 1.5 sections that use `## ` headings, causing parseFix to
+  // slurp unrelated str_replace blocks from downstream sections.
   const remainder = raw.slice(startIdx + startMatch[0].length);
-  const endMatch = remainder.match(/\n(### Fix \d+:|# [^\n]+\n=)/);
+  const endMatch = remainder.match(/\n(### Fix \d+:|## [^\n]+|# [^\n]+)/);
   const sectionEnd = endMatch ? startIdx + startMatch[0].length + endMatch.index : raw.length;
   const section = raw.slice(startIdx, sectionEnd);
 
