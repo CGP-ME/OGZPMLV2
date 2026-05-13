@@ -652,6 +652,7 @@ class StateManager {
     // beyond the win-rate path can read direction/strategy/holdMs without further changes.
     const closedTradeRecord = {
       tradeId,
+      symbol: trade.symbol || null,  // FIX S10-BUG-1: carry symbol for per-ticker analytics
       pnl,
       pnlPercent,
       direction: tradeDirection,
