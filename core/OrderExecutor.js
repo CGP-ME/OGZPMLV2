@@ -445,8 +445,13 @@ class OrderExecutor {
             symbol,
             price: price,
             size: adjustedPositionSize,
-            value_usd: adjustedPositionSize * price,
-            fees: (adjustedPositionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),
+            // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: adjustedPositionSize is already USD
+            // (see line 109). Prior code multiplied USD × price, producing nonsense values
+            // (e.g. $250 TSLA position recorded as $106,250; $1452 BTC position recorded
+            // as $117M). Internal P&L was correct because StateManager uses the proper
+            // formula independently; this was a display-layer bug.
+            value_usd: adjustedPositionSize,
+            fees: adjustedPositionSize * TradingConfig.get('fees.makerFee', 0.0025),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
@@ -616,8 +621,13 @@ class OrderExecutor {
             symbol,
             price: price,
             size: adjustedPositionSize,
-            value_usd: adjustedPositionSize * price,
-            fees: (adjustedPositionSize * price) * TradingConfig.get('fees.makerFee', 0.0025),
+            // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: adjustedPositionSize is already USD
+            // (see line 109). Prior code multiplied USD × price, producing nonsense values
+            // (e.g. $250 TSLA position recorded as $106,250; $1452 BTC position recorded
+            // as $117M). Internal P&L was correct because StateManager uses the proper
+            // formula independently; this was a display-layer bug.
+            value_usd: adjustedPositionSize,
+            fees: adjustedPositionSize * TradingConfig.get('fees.makerFee', 0.0025),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based short entry',
             confidence: decision.confidence,
             indicators: unifiedResult.indicators,
@@ -786,11 +796,19 @@ class OrderExecutor {
             const afterSellState = stateManager.getState();
 
             // Calculate display values
-            // Position is already in USD
+            // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: usdAmount IS USD per L756 comment.
+            // Prior code computed sellValue = usdAmount × price and entryValue = usdAmount
+            // × entryPrice, then profitLoss = sellValue - entryValue = usdAmount × (price -
+            // entryPrice). Units: USD × $. The bot balance was correct because StateManager
+            // computes P&L independently; this profitLoss was display-only and read by
+            // notifyTradeClose/Discord/explanation strings (all paths skipped under
+            // BACKTEST_FAST or with TRAI disabled, which is why anchor was unaffected).
+            // Correct formula for USD-denominated position: pnl = usd × (priceDelta / entry).
             const usdAmount = positionAmount;
-            const sellValue = usdAmount * price;  // USD position × price (for display)
-            const entryValue = usdAmount * buyTrade.entryPrice;  // USD position × entry price
-            const profitLoss = sellValue - entryValue;
+            const sellValue = usdAmount;  // already USD — for display
+            const profitLoss = buyTrade.entryPrice > 0
+              ? usdAmount * ((price - buyTrade.entryPrice) / buyTrade.entryPrice)
+              : 0;
             console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 2026-02-01: Send notifications for trade close with P&L
@@ -1267,8 +1285,9 @@ class OrderExecutor {
             symbol,
             price: price,
             size: shortSize,
-            value_usd: shortSize * price,
-            fees: (shortSize * price) * TradingConfig.get('fees.takerFee', 0.004),
+            // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: shortSize is already USD.
+            value_usd: shortSize,
+            fees: shortSize * TradingConfig.get('fees.takerFee', 0.004),
             reason: completeTradeResult.exitReason || 'Short cover',
             confidence: decision.confidence,
             indicators: { rsi: indicators.rsi, macd: indicators.macd?.macd ?? null },
