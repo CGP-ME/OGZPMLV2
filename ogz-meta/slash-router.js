@@ -2126,12 +2126,22 @@ async function architectVerify(manifest, params) {
   }
 
   const fileContents = fs.readFileSync(filePath, 'utf8');
-  const occurrences = _countOccurrences(fileContents, parsed.target);
 
-  if (occurrences === 0) {
-    console.error(`❌ architect-verify: target text NOT FOUND in ${parsed.file}`);
-    console.error(`   Spec target was authored against an earlier code state; current code has drifted.`);
-    console.error(`   First 80 chars of target: ${parsed.target.slice(0, 80).replace(/\n/g, ' ')}`);
+  // Multi-block: verify every edit's target exists. Fail loud if any single
+  // block has drifted from the spec's authored state.
+  const editVerifications = parsed.edits.map((edit, i) => ({
+    index: i,
+    occurrences: _countOccurrences(fileContents, edit.target),
+    firstLineOfTarget: edit.target.split('\n')[0].slice(0, 100)
+  }));
+
+  const missing = editVerifications.filter(v => v.occurrences === 0);
+  if (missing.length > 0) {
+    console.error(`❌ architect-verify: ${missing.length}/${parsed.edits.length} target block(s) NOT FOUND in ${parsed.file}`);
+    missing.forEach(m => {
+      console.error(`   edit[${m.index}] missing — first line: ${m.firstLineOfTarget}`);
+    });
+    console.error(`   Spec authored against an earlier code state; current code has drifted.`);
     manifest.stop_conditions.manifest_mismatch = true;
     return manifest;
   }
@@ -2139,13 +2149,18 @@ async function architectVerify(manifest, params) {
   updateSection(manifest, 'architect', {
     plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, file: parsed.file },
     system_map: [parsed.file],
-    spec_target_occurrences: occurrences,
+    spec_target_occurrences: editVerifications.reduce((sum, v) => sum + v.occurrences, 0),
     spec_target_verified: true,
-    line_hint: parsed.lineHint
+    line_hint: parsed.lineHint,
+    edit_count: parsed.edits.length,
+    edit_verifications: editVerifications
   });
 
   console.log(`✅ Architect-Verify: Fix ${parsed.fixId} "${parsed.title}"`);
-  console.log(`   File: ${parsed.file}  Occurrences: ${occurrences}  Line hint: ${parsed.lineHint || 'n/a'}`);
+  console.log(`   File: ${parsed.file}  Edits: ${parsed.edits.length}  Line hint: ${parsed.lineHint || 'n/a'}`);
+  editVerifications.forEach((v, i) => {
+    console.log(`   edit[${i}] occurrences: ${v.occurrences}`);
+  });
   return manifest;
 }
 
@@ -2187,29 +2202,45 @@ async function fixerWrite(manifest, params) {
     : path.join(process.cwd(), parsed.file);
 
   if (manifest.mode === 'EXECUTE') {
-    const before = fs.readFileSync(filePath, 'utf8');
-    if (!before.includes(parsed.target)) {
-      console.error(`❌ fixer-write: target text disappeared between architect-verify and fixer-write (concurrent edit?)`);
-      manifest.stop_conditions.verification_failed = true;
-      return manifest;
-    }
-    const after = before.split(parsed.target).join(parsed.replacement);
-    fs.writeFileSync(filePath, after, 'utf8');
+    let fileContents = fs.readFileSync(filePath, 'utf8');
+    const perEditResults = [];
 
-    const occurrencesReplaced = (before.match(new RegExp(_escapeRegex(parsed.target), 'g')) || []).length;
+    // Apply each edit in order. Fail loud + abort if any target missing
+    // (architect-verify already checked, but re-check to catch concurrent edits
+    // and to detect cases where an earlier edit's replacement inadvertently
+    // removed a later edit's target).
+    for (let i = 0; i < parsed.edits.length; i++) {
+      const edit = parsed.edits[i];
+      if (!fileContents.includes(edit.target)) {
+        console.error(`❌ fixer-write: edit[${i}] target disappeared mid-apply (concurrent edit or earlier replacement clobbered it)`);
+        manifest.stop_conditions.verification_failed = true;
+        return manifest;
+      }
+      const occurrencesReplaced = (fileContents.match(new RegExp(_escapeRegex(edit.target), 'g')) || []).length;
+      fileContents = fileContents.split(edit.target).join(edit.replacement);
+      perEditResults.push({ index: i, occurrencesReplaced });
+    }
+
+    fs.writeFileSync(filePath, fileContents, 'utf8');
+    const totalReplaced = perEditResults.reduce((sum, r) => sum + r.occurrencesReplaced, 0);
 
     updateSection(manifest, 'fixer', {
       changes_applied: [{
         file: parsed.file,
         fixId: parsed.fixId,
         title: parsed.title,
-        occurrencesReplaced,
+        editCount: parsed.edits.length,
+        totalSitesReplaced: totalReplaced,
+        perEditResults,
         spec_driven: true
       }],
       plan: { spec_driven: true, fixId: parsed.fixId }
     });
 
-    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${parsed.file} — ${occurrencesReplaced} site(s) replaced`);
+    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${parsed.file} — ${parsed.edits.length} edit(s), ${totalReplaced} site(s) replaced`);
+    perEditResults.forEach(r => {
+      console.log(`   edit[${r.index}] → ${r.occurrencesReplaced} site(s)`);
+    });
     return manifest;
   }
 
@@ -2217,32 +2248,40 @@ async function fixerWrite(manifest, params) {
   const proposalDir = path.join(__dirname, 'proposals');
   if (!fs.existsSync(proposalDir)) fs.mkdirSync(proposalDir, { recursive: true });
   const proposalPath = path.join(proposalDir, `${manifest.mission_id}-WRITE-PROPOSAL.md`);
+
+  const editBlocks = parsed.edits.map((edit, i) => `
+## Edit ${i + 1} of ${parsed.edits.length}
+
+### str_replace target (verbatim from spec)
+\`\`\`
+${edit.target}
+\`\`\`
+
+### str_replace replacement (verbatim from spec)
+\`\`\`
+${edit.replacement}
+\`\`\`
+`).join('\n');
+
   const proposalBody = `# WRITE PROPOSAL: ${manifest.mission_id}
 Generated: ${new Date().toISOString()}
 
 ## ⚠️ ADVISORY MODE — NO CHANGES MADE
-This proposal is a deterministic application of a spec block. Nothing has been
-modified. Re-run with --execute to apply.
+This proposal is a deterministic application of spec block(s). Nothing has
+been modified. Re-run with --execute to apply.
 
 ## Source
 - Spec: \`${spec.path}\`
 - Fix: ${parsed.fixId} — ${parsed.title}
 - File: \`${parsed.file}\`
 - Line hint: ${parsed.lineHint || 'n/a'}
-
-## str_replace target (verbatim from spec)
-\`\`\`
-${parsed.target}
-\`\`\`
-
-## str_replace replacement (verbatim from spec)
-\`\`\`
-${parsed.replacement}
-\`\`\`
+- Edit count: ${parsed.edits.length}
+${editBlocks}
 
 ## Pre-flight verification (from architect-verify)
-- Target occurrences in current file: ${manifest.architect?.spec_target_occurrences ?? 'n/a'}
-- Target verified: ${manifest.architect?.spec_target_verified ?? 'n/a'}
+- Total target occurrences across all edits: ${manifest.architect?.spec_target_occurrences ?? 'n/a'}
+- All edits verified: ${manifest.architect?.spec_target_verified ?? 'n/a'}
+- Per-edit verifications: ${JSON.stringify(manifest.architect?.edit_verifications?.map(v => ({i: v.index, occ: v.occurrences})) ?? 'n/a')}
 
 ## Approve
 \`\`\`
