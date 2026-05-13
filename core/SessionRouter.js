@@ -250,7 +250,12 @@ class SessionRouter extends EventEmitter {
     this.activeBroker = this.krakenAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
     const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
-    const primaryCrypto = this.cryptoSymbols[0] || 'BTC-USD';
+    // FIX MIRROR-SESSION-CRYPTO: refuse silent BTC-USD default. Same class as
+    // SESSION-HIGH-01 which hardened _setActiveSession but left this mirror.
+    if (!Array.isArray(this.cryptoSymbols) || this.cryptoSymbols.length === 0) {
+      throw new Error('[MIRROR-SESSION-CRYPTO] SessionRouter._activateCrypto: cryptoSymbols empty/non-array — refusing BTC-USD default');
+    }
+    const primaryCrypto = this.cryptoSymbols[0];
     if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
       this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
     }
