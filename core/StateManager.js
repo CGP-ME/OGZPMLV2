@@ -405,6 +405,14 @@ class StateManager {
     const tradeSymbol = tradeSymbolRaw
       ? String(tradeSymbolRaw).toUpperCase().replace('XBT', 'BTC').replace('/', '-')
       : null;
+
+    // FIX P2-E: refuse to open trades with null symbol — they become invisible
+    // to getTradesBySymbol() and the exit path can never find them.
+    if (!tradeSymbol) {
+      console.error(`[StateManager] openPosition BLOCKED — no symbol resolved from context. context.symbol=${context.symbol}, ledgerData.symbol=${context.ledgerData?.symbol}`);
+      return { success: false, error: 'No symbol resolved — refusing to open invisible trade' };
+    }
+
     const trade = {
       id: tradeId,
       action: tradeAction,  // BUY or SELL_SHORT
