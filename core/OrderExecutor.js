@@ -1414,6 +1414,18 @@ class OrderExecutor {
       }
 
     } catch (error) {
+      // FIX TIER-2-EXECUTE-CATCH: audit-prefixed throws (CRIT/HIGH/MED/RUN/EXIT/MOD/TRAI/PNLC/RISK/BTR/SESSION/DPS/PS)
+      // are intentional halts on bad state. Without this differentiation, the wrapper
+      // turns every "fail-loud" spec into fail-silent behavior. Re-throw audit prefixes
+      // so they reach run-empire-v2's promise-rejection handler (operator-visible).
+      // Also re-throw MaxProfitManager.start errors (no audit prefix but explicit halt).
+      const isAuditThrow = error.message && /^\[(?:CRIT|HIGH|MED|RUN|EXIT|MOD|TRAI|PNLC|RISK|BTR|SESSION|DPS|PS)-/.test(error.message);
+      const isMpmHalt = error.message && error.message.startsWith('MaxProfitManager.start:');
+      if (isAuditThrow || isMpmHalt) {
+        console.error(`[FAIL-LOUD] ${error.message}`);
+        throw error;
+      }
+
       console.error(`❌ Trade execution failed at checkpoint between CP3 and CP4`);
       console.error(`   Error message: ${error.message}`);
       console.error(`   Stack trace:`, error.stack);
