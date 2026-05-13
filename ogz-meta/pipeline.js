@@ -42,6 +42,26 @@ const BUGFIX_PIPELINE = [
   '/warden'
 ];
 
+// Write pipeline — spec-driven verbatim application. Architect-verify confirms
+// the spec's str_replace target exists in current code; fixer-write applies the
+// spec's replacement verbatim. No Mercury re-derivation, no prompt to bias.
+// Critic/Validator/Forensics still run for audit value.
+const WRITE_PIPELINE = [
+  '/commander',
+  '/branch',
+  '/architect-verify',     // Deterministic: target exists in current code?
+  '/fixer-write',          // Deterministic: ADVISORY writes proposal; EXECUTE applies str_replace
+  '/debugger',
+  '/critic',
+  '/validator',
+  '/forensics',
+  '/debugger',
+  '/committer',
+  '/scribe',
+  '/janitor',
+  '/warden'
+];
+
 // Refactor pipeline - extraction/refactoring tasks, no bug hunting
 const REFACTOR_PIPELINE = [
   '/commander',
@@ -81,6 +101,7 @@ const EXECUTE_PIPELINE = [
 
 // Detect mode from issue prefix or CLI flags
 function detectMode(issue) {
+  if (issue.includes('--write')) return 'write';
   if (issue.includes('--execute')) return 'execute';
   if (issue.startsWith('refactor:') || issue.startsWith('extract:') || issue.includes('--refactor')) return 'refactor';
   if (issue.includes('--debug') || issue.startsWith('fix:') || issue.startsWith('bug:')) return 'bugfix';
@@ -93,26 +114,53 @@ function hasExecuteFlag(issue) {
   return issue.includes('--execute');
 }
 
+// Parse --spec <path> and --fix-id <id> from raw argv (called from CLI entry)
+// Returns { specPath, fixId, cleanIssue } where cleanIssue has those flags removed.
+function parseWriteFlags(rawArgs) {
+  let specPath = null;
+  let fixId = null;
+  const remaining = [];
+  for (let i = 0; i < rawArgs.length; i++) {
+    if (rawArgs[i] === '--spec' && rawArgs[i + 1]) {
+      specPath = rawArgs[i + 1];
+      i++;
+    } else if (rawArgs[i] === '--fix-id' && rawArgs[i + 1]) {
+      fixId = rawArgs[i + 1];
+      i++;
+    } else {
+      remaining.push(rawArgs[i]);
+    }
+  }
+  return { specPath, fixId, cleanIssue: remaining.join(' ') };
+}
+
 // Legacy export for backwards compatibility
 const PIPELINE = BUGFIX_PIPELINE;
 
 /**
  * Execute full pipeline
  */
-async function execute(issue) {
+async function execute(issue, specSource) {
   const pipelineType = detectMode(issue);
   const executeMode = hasExecuteFlag(issue);
 
   // Clean issue text (remove all flags)
-  const cleanIssue = issue.replace(/--refactor|--execute|--debug/g, '').trim();
+  const cleanIssue = issue.replace(/--refactor|--execute|--debug|--write/g, '').trim();
 
   // Build pipeline based on detected mode
-  let pipeline = pipelineType === 'execute' ? [...EXECUTE_PIPELINE] : pipelineType === 'refactor' ? [...REFACTOR_PIPELINE] : [...BUGFIX_PIPELINE];
+  let pipeline;
+  if (pipelineType === 'write') pipeline = [...WRITE_PIPELINE];
+  else if (pipelineType === 'execute') pipeline = [...EXECUTE_PIPELINE];
+  else if (pipelineType === 'refactor') pipeline = [...REFACTOR_PIPELINE];
+  else pipeline = [...BUGFIX_PIPELINE];
 
   console.log('🚀 CLAUDITO PIPELINE INITIATED');
   console.log('=' .repeat(50));
   console.log(`🔧 Pipeline: ${pipelineType.toUpperCase()}`);
   console.log(`📋 Mode: ${executeMode ? 'EXECUTE (will apply changes)' : 'ADVISORY (proposals only)'}`);
+  if (specSource) {
+    console.log(`📄 Spec: ${specSource.path} (Fix ${specSource.fixId})`);
+  }
 
   let manifest;
 
@@ -128,6 +176,7 @@ async function execute(issue) {
         console.log(`\n✅ Loaded approved mission: ${manifest.mission_id}`);
         manifest.mode = 'EXECUTE';  // Ensure execute mode
         manifest.pipeline_type = pipelineType;  // Ensure correct pipeline type
+        // Spec_source persists from the advisory run; --write --execute reuses it.
         // Reset stop conditions for fresh execute run
         manifest.stop_conditions = {
           critic_failures: 0,
@@ -151,6 +200,13 @@ async function execute(issue) {
     manifest = await route(`/start ${cleanIssue}`, {});
     manifest.pipeline_type = pipelineType;
     manifest.mode = 'ADVISORY';
+    // Attach spec_source for --write mode so architect-verify and fixer-write
+    // can find the verbatim target/replacement blocks deterministically.
+    if (specSource) {
+      manifest.spec_source = specSource;
+      const { saveManifest } = require('./manifest-schema');
+      saveManifest(manifest, require('path').join(__dirname, 'manifests', 'current.json'));
+    }
   }
 
   console.log(`\n📋 Mission: ${manifest.mission_id}`);
@@ -231,41 +287,56 @@ async function execute(issue) {
 
 // CLI interface
 if (require.main === module) {
-  const issue = process.argv.slice(2).join(' ');
+  const rawArgs = process.argv.slice(2);
+  // Pull --spec and --fix-id out before joining the issue string so they
+  // don't become part of the human-readable issue text.
+  const writeFlags = parseWriteFlags(rawArgs);
+  const issue = writeFlags.cleanIssue;
 
   if (!issue) {
     console.log('🚀 Claudito Pipeline');
     console.log('\nUsage: node ogz-meta/pipeline.js "<issue description>" [flags]');
     console.log('\nFLAGS:');
-    console.log('  --execute  Apply fixes instead of just proposing (requires prior approval)');
+    console.log('  --execute  Apply fixes (requires prior approval)');
+    console.log('  --write    Spec-driven verbatim application (no Mercury re-derivation)');
+    console.log('  --spec <path>   Path to the spec doc (required with --write)');
+    console.log('  --fix-id <id>   Which Fix N in the spec (required with --write)');
     console.log('\nPIPELINE TYPES:');
     console.log('  BUG FIX (default): Any issue without prefix');
-    console.log('  REFACTOR: Start with "refactor:" or "extract:"');
-    console.log('\nEXECUTION MODES:');
-    console.log('  ADVISORY (default): Generates proposals, does not modify code');
-    console.log('  EXECUTE (--execute): Applies fixes after human approval');
+    console.log('  REFACTOR: Start with "refactor:" or "extract:" — Mercury re-derives plan');
+    console.log('  WRITE: --write — deterministic, reads str_replace block from spec verbatim');
     console.log('\nWORKFLOW:');
-    console.log('  1. Run pipeline (advisory):  node ogz-meta/pipeline.js "fix issue"');
-    console.log('  2. Review proposal in ogz-meta/proposals/');
-    console.log('  3. Approve: node ogz-meta/approve.js <mission_id>');
-    console.log('  4. Execute: node ogz-meta/pipeline.js --execute "fix issue"');
-    console.log('\nBUG FIX PIPELINE:');
-    BUGFIX_PIPELINE.forEach((cmd, i) => {
-      console.log(`  ${i + 1}. ${cmd}`);
-    });
-    console.log('\nREFACTOR PIPELINE (skips bug hunting, stays on current branch):');
-    REFACTOR_PIPELINE.forEach((cmd, i) => {
-      console.log(`  ${i + 1}. ${cmd}`);
-    });
+    console.log('  Refactor/Bugfix (Mercury-driven):');
+    console.log('    1. node ogz-meta/pipeline.js "<issue>"');
+    console.log('    2. Review proposal in ogz-meta/proposals/');
+    console.log('    3. node ogz-meta/approve.js <mission_id>');
+    console.log('    4. node ogz-meta/pipeline.js --execute "<issue>"');
+    console.log('  Write (spec-driven):');
+    console.log('    1. node ogz-meta/pipeline.js --write --spec <path> --fix-id <N> "<title>"');
+    console.log('    2. Review proposal in ogz-meta/proposals/<id>-WRITE-PROPOSAL.md');
+    console.log('    3. node ogz-meta/approve.js <mission_id>');
+    console.log('    4. node ogz-meta/pipeline.js --write --spec <path> --fix-id <N> --execute "<title>"');
     console.log('\nStop conditions:');
     console.log('  - Critic fails twice');
     console.log('  - Forensics finds critical issue');
     console.log('  - CI/CD fails');
     console.log('  - Warden blocks');
+    console.log('  - architect-verify: spec target not found in current code (--write only)');
     process.exit(0);
   }
 
-  execute(issue).catch(console.error);
+  // For --write, build spec_source from CLI flags. For other modes, pass null.
+  const isWriteMode = issue.includes('--write');
+  let specSource = null;
+  if (isWriteMode) {
+    if (!writeFlags.specPath || !writeFlags.fixId) {
+      console.error('❌ --write requires both --spec <path> and --fix-id <id>');
+      process.exit(1);
+    }
+    specSource = { path: writeFlags.specPath, fixId: writeFlags.fixId };
+  }
+
+  execute(issue, specSource).catch(console.error);
 }
 
-module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, EXECUTE_PIPELINE, detectMode };
+module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, EXECUTE_PIPELINE, WRITE_PIPELINE, detectMode, parseWriteFlags };

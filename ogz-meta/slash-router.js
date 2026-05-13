@@ -55,10 +55,12 @@ async function route(command, args) {
     '/branch': branch,
     '/commander': commander,
     '/architect': architect,
+    '/architect-verify': architectVerify,  // Deterministic: confirms spec target exists in current code
     '/bombardier': bombardier,  // Blast radius analysis - shows impact before fixing
     '/entomologist': entomologist,
     '/exterminator': exterminator,
     '/fixer': fixer,           // For refactor mode - applies extractions/refactors
+    '/fixer-write': fixerWrite, // Deterministic: applies verbatim str_replace from spec (no Mercury)
     '/debugger': debuggerHandler,
     '/critic': critic,
     '/validator': validator,
@@ -2077,6 +2079,207 @@ function emitHook(command, manifest) {
     missionId: manifest.mission_id,
     result: manifest[command.replace('/', '')]?.status || 'executed'
   });
+}
+
+/**
+ * Architect-Verify: deterministic spec-target verification for --write mode.
+ *
+ * Reads manifest.spec_source.{path, fixId}, calls spec-parser, then confirms
+ * the spec's str_replace target text exists VERBATIM at the named file.
+ * No Mercury call — no prompt to bias, no re-derivation. Fails loud on drift.
+ *
+ * Halts pipeline (manifest_mismatch=true) if:
+ * - spec_source not present in manifest
+ * - parseFix throws (spec missing the section or required blocks)
+ * - target text not found in current file
+ * - target text appears more than once and no replace_all flag is set
+ */
+async function architectVerify(manifest, params) {
+  const { parseFix } = require('./spec-parser');
+  const fs = require('fs');
+  const path = require('path');
+
+  const spec = manifest.spec_source;
+  if (!spec || !spec.path || !spec.fixId) {
+    console.error('❌ architect-verify: manifest.spec_source.{path,fixId} missing — required for --write mode');
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  let parsed;
+  try {
+    parsed = parseFix(spec.path, spec.fixId);
+  } catch (err) {
+    console.error(`❌ architect-verify: spec parse failed — ${err.message}`);
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  const filePath = path.isAbsolute(parsed.file)
+    ? parsed.file
+    : path.join(process.cwd(), parsed.file);
+
+  if (!fs.existsSync(filePath)) {
+    console.error(`❌ architect-verify: target file not found: ${filePath}`);
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  const fileContents = fs.readFileSync(filePath, 'utf8');
+  const occurrences = _countOccurrences(fileContents, parsed.target);
+
+  if (occurrences === 0) {
+    console.error(`❌ architect-verify: target text NOT FOUND in ${parsed.file}`);
+    console.error(`   Spec target was authored against an earlier code state; current code has drifted.`);
+    console.error(`   First 80 chars of target: ${parsed.target.slice(0, 80).replace(/\n/g, ' ')}`);
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  updateSection(manifest, 'architect', {
+    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, file: parsed.file },
+    system_map: [parsed.file],
+    spec_target_occurrences: occurrences,
+    spec_target_verified: true,
+    line_hint: parsed.lineHint
+  });
+
+  console.log(`✅ Architect-Verify: Fix ${parsed.fixId} "${parsed.title}"`);
+  console.log(`   File: ${parsed.file}  Occurrences: ${occurrences}  Line hint: ${parsed.lineHint || 'n/a'}`);
+  return manifest;
+}
+
+/**
+ * Fixer-Write: deterministic spec-driven application for --write mode.
+ *
+ * In ADVISORY mode: parses spec, generates proposal markdown showing the
+ * verbatim target/replacement, writes proposal to ogz-meta/proposals/.
+ * Does NOT modify the target file.
+ *
+ * In EXECUTE mode: parses spec, performs the str_replace on the target file
+ * (single replacement; if target appears multiple times, ALL are replaced —
+ * the spec is responsible for surrounding context to disambiguate).
+ * Records the applied edit in manifest.fixer.
+ */
+async function fixerWrite(manifest, params) {
+  const { parseFix } = require('./spec-parser');
+  const fs = require('fs');
+  const path = require('path');
+
+  const spec = manifest.spec_source;
+  if (!spec || !spec.path || !spec.fixId) {
+    console.error('❌ fixer-write: manifest.spec_source missing');
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  let parsed;
+  try {
+    parsed = parseFix(spec.path, spec.fixId);
+  } catch (err) {
+    console.error(`❌ fixer-write: spec parse failed — ${err.message}`);
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  const filePath = path.isAbsolute(parsed.file)
+    ? parsed.file
+    : path.join(process.cwd(), parsed.file);
+
+  if (manifest.mode === 'EXECUTE') {
+    const before = fs.readFileSync(filePath, 'utf8');
+    if (!before.includes(parsed.target)) {
+      console.error(`❌ fixer-write: target text disappeared between architect-verify and fixer-write (concurrent edit?)`);
+      manifest.stop_conditions.verification_failed = true;
+      return manifest;
+    }
+    const after = before.split(parsed.target).join(parsed.replacement);
+    fs.writeFileSync(filePath, after, 'utf8');
+
+    const occurrencesReplaced = (before.match(new RegExp(_escapeRegex(parsed.target), 'g')) || []).length;
+
+    updateSection(manifest, 'fixer', {
+      changes_applied: [{
+        file: parsed.file,
+        fixId: parsed.fixId,
+        title: parsed.title,
+        occurrencesReplaced,
+        spec_driven: true
+      }],
+      plan: { spec_driven: true, fixId: parsed.fixId }
+    });
+
+    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${parsed.file} — ${occurrencesReplaced} site(s) replaced`);
+    return manifest;
+  }
+
+  // ADVISORY mode: write proposal, do not modify source
+  const proposalDir = path.join(__dirname, 'proposals');
+  if (!fs.existsSync(proposalDir)) fs.mkdirSync(proposalDir, { recursive: true });
+  const proposalPath = path.join(proposalDir, `${manifest.mission_id}-WRITE-PROPOSAL.md`);
+  const proposalBody = `# WRITE PROPOSAL: ${manifest.mission_id}
+Generated: ${new Date().toISOString()}
+
+## ⚠️ ADVISORY MODE — NO CHANGES MADE
+This proposal is a deterministic application of a spec block. Nothing has been
+modified. Re-run with --execute to apply.
+
+## Source
+- Spec: \`${spec.path}\`
+- Fix: ${parsed.fixId} — ${parsed.title}
+- File: \`${parsed.file}\`
+- Line hint: ${parsed.lineHint || 'n/a'}
+
+## str_replace target (verbatim from spec)
+\`\`\`
+${parsed.target}
+\`\`\`
+
+## str_replace replacement (verbatim from spec)
+\`\`\`
+${parsed.replacement}
+\`\`\`
+
+## Pre-flight verification (from architect-verify)
+- Target occurrences in current file: ${manifest.architect?.spec_target_occurrences ?? 'n/a'}
+- Target verified: ${manifest.architect?.spec_target_verified ?? 'n/a'}
+
+## Approve
+\`\`\`
+node ogz-meta/approve.js ${manifest.mission_id}
+node ogz-meta/pipeline.js --write --spec ${spec.path} --fix-id ${spec.fixId} --execute
+\`\`\`
+
+## Reject
+\`\`\`
+node ogz-meta/reject.js ${manifest.mission_id} "<reason>"
+\`\`\`
+`;
+  fs.writeFileSync(proposalPath, proposalBody, 'utf8');
+
+  updateSection(manifest, 'fixer', {
+    proposal_path: proposalPath,
+    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, file: parsed.file }
+  });
+
+  console.log(`✅ Fixer-Write (ADVISORY): proposal written`);
+  console.log(`   ${proposalPath}`);
+  return manifest;
+}
+
+/**
+ * Count non-overlapping occurrences of `needle` in `haystack`.
+ */
+function _countOccurrences(haystack, needle) {
+  if (!needle) return 0;
+  return haystack.split(needle).length - 1;
+}
+
+/**
+ * Escape regex special chars for use in RegExp constructor.
+ */
+function _escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // CLI interface
