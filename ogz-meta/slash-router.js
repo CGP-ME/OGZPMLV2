@@ -56,6 +56,7 @@ async function route(command, args) {
     '/commander': commander,
     '/architect': architect,
     '/architect-verify': architectVerify,  // Deterministic: confirms spec target exists in current code
+    '/spec-update-status': specUpdateStatus,  // Deterministic: marks Fix N status as FIXED with commit SHA
     '/bombardier': bombardier,  // Blast radius analysis - shows impact before fixing
     '/entomologist': entomologist,
     '/exterminator': exterminator,
@@ -2303,6 +2304,142 @@ node ogz-meta/reject.js ${manifest.mission_id} "<reason>"
 
   console.log(`✅ Fixer-Write (ADVISORY): proposal written`);
   console.log(`   ${proposalPath}`);
+  return manifest;
+}
+
+/**
+ * Spec-Update-Status: deterministic spec-doc status-line updater for --mark-fixed.
+ *
+ * Reads manifest.spec_source.{path, fixMap} where fixMap is { "<fixId>": "<sha>" }.
+ * For each entry, locates the Fix N section in the spec doc, finds its
+ * **Status:** line, and rewrites it to:
+ *   **Status:** FIXED in <sha> — <ISO-date>
+ *
+ * Stages the spec doc, runs git commit + push with a summary message listing
+ * every fixId updated. One pipeline run = one consolidated commit, no matter
+ * how many fixes are in the batch.
+ *
+ * Halts pipeline (manifest_mismatch=true) if:
+ * - spec_source.fixMap missing or empty
+ * - any fixId's section can't be located in the spec doc
+ * - any fixId's section has no Status line to rewrite
+ */
+async function specUpdateStatus(manifest, params) {
+  const { parseFix } = require('./spec-parser');
+  const fs = require('fs');
+  const path = require('path');
+
+  const spec = manifest.spec_source;
+  if (!spec || !spec.path || !spec.fixMap || Object.keys(spec.fixMap).length === 0) {
+    console.error('❌ spec-update-status: manifest.spec_source.{path,fixMap} missing or empty');
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  const specAbs = path.isAbsolute(spec.path)
+    ? spec.path
+    : path.join(process.cwd(), spec.path);
+  if (!fs.existsSync(specAbs)) {
+    console.error(`❌ spec-update-status: spec file not found: ${specAbs}`);
+    manifest.stop_conditions.manifest_mismatch = true;
+    return manifest;
+  }
+
+  let raw = fs.readFileSync(specAbs, 'utf8');
+  const updates = [];
+  const isoDate = new Date().toISOString().slice(0, 10);
+
+  for (const [fixId, sha] of Object.entries(spec.fixMap)) {
+    // Verify section exists via parseFix (also confirms the **Status:** line is locatable
+    // because parseFix walks the full Fix N section).
+    let parsed;
+    try {
+      parsed = parseFix(specAbs, fixId);
+    } catch (err) {
+      console.error(`❌ spec-update-status: Fix ${fixId} parse failed — ${err.message}`);
+      manifest.stop_conditions.manifest_mismatch = true;
+      return manifest;
+    }
+
+    // Locate the section boundary on `raw` so we know the byte range to operate on.
+    // Re-using the same regex shape as the parser (section ends at next ### Fix / ## / # heading).
+    const sectionStart = new RegExp(`^### Fix ${fixId}:\\s*.+$`, 'm');
+    const startMatch = raw.match(sectionStart);
+    if (!startMatch) {
+      console.error(`❌ spec-update-status: Fix ${fixId} section anchor not found on second pass`);
+      manifest.stop_conditions.manifest_mismatch = true;
+      return manifest;
+    }
+    const startIdx = startMatch.index;
+    const remainder = raw.slice(startIdx + startMatch[0].length);
+    const endMatch = remainder.match(/\n(### Fix \d+:|## [^\n]+|# [^\n]+)/);
+    const sectionEnd = endMatch ? startIdx + startMatch[0].length + endMatch.index : raw.length;
+
+    // Within the section, find the FIRST line matching `**Status:** ...` (anchored at line start).
+    // Preserve the trailing newline and any content after; rewrite only that one line.
+    const sectionBefore = raw.slice(0, startIdx);
+    const sectionBody = raw.slice(startIdx, sectionEnd);
+    const sectionAfter = raw.slice(sectionEnd);
+    const statusMatch = sectionBody.match(/^\*\*Status:\*\*[^\n]*$/m);
+    if (!statusMatch) {
+      console.error(`❌ spec-update-status: Fix ${fixId} has no **Status:** line in section`);
+      manifest.stop_conditions.manifest_mismatch = true;
+      return manifest;
+    }
+
+    const newStatusLine = `**Status:** FIXED in ${sha} — ${isoDate}`;
+    const rewrittenBody = sectionBody.replace(statusMatch[0], newStatusLine);
+    raw = sectionBefore + rewrittenBody + sectionAfter;
+
+    updates.push({
+      fixId,
+      title: parsed.title,
+      sha,
+      oldStatus: statusMatch[0].slice(0, 100),
+      newStatus: newStatusLine
+    });
+  }
+
+  // Write the updated spec doc and stage it.
+  fs.writeFileSync(specAbs, raw, 'utf8');
+
+  const fixIdList = updates.map(u => u.fixId).join(', ');
+  try {
+    execSync(`git add "${spec.path}"`, { encoding: 'utf8' });
+    const commitMsg = `chore(spec): mark Fixes ${fixIdList} as FIXED with commit SHAs
+
+Spec doc status update via --mark-fixed pipeline. No code change.
+
+Updates:
+${updates.map(u => `- Fix ${u.fixId}: ${u.sha} — ${u.title}`).join('\n')}
+
+Pipeline trail:
+- Spec source:  ${spec.path}
+- Mission:      ${manifest.mission_id}
+- Operator:     spec-update-status (deterministic, no Mercury)
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`;
+
+    // Write the commit message to a temp file and use -F to avoid shell escaping issues.
+    const msgFile = path.join('/tmp', `mark-fixed-msg-${Date.now()}.txt`);
+    fs.writeFileSync(msgFile, commitMsg, 'utf8');
+    execSync(`git commit -F "${msgFile}"`, { encoding: 'utf8' });
+    fs.unlinkSync(msgFile);
+    const sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+
+    updateSection(manifest, 'committer', {
+      commit_hash: sha,
+      branch: execSync('git branch --show-current', { encoding: 'utf8' }).trim()
+    });
+
+    console.log(`✅ Spec-Update-Status: marked ${updates.length} fix(es) as FIXED — commit ${sha.slice(0, 7)}`);
+    updates.forEach(u => console.log(`   Fix ${u.fixId} (${u.sha}): ${u.title}`));
+  } catch (err) {
+    console.error(`❌ spec-update-status: git operation failed — ${err.message}`);
+    manifest.stop_conditions.verification_failed = true;
+    return manifest;
+  }
+
   return manifest;
 }
 

@@ -42,6 +42,21 @@ const BUGFIX_PIPELINE = [
   '/warden'
 ];
 
+// Mark-fixed pipeline — deterministic spec-doc status updater. Reads
+// manifest.spec_source.fixMap = { "<fixId>": "<sha>" } and rewrites each
+// matching `**Status:**` line in the spec doc to `**Status:** FIXED in <sha> — <date>`.
+// One pipeline run = one consolidated commit + push, no matter how many fixes
+// are in the batch. No Mercury, no anchor verify (spec doc lives in
+// ogz-meta/ledger/ which isn't trade-path or RAG-indexed).
+const MARK_FIXED_PIPELINE = [
+  '/commander',
+  '/branch',
+  '/spec-update-status',  // Deterministic: edit Status lines + git commit + push
+  '/scribe',
+  '/janitor',
+  '/warden'
+];
+
 // Write pipeline — spec-driven verbatim application. Architect-verify confirms
 // the spec's str_replace target exists in current code; fixer-write applies the
 // spec's replacement verbatim. No Mercury re-derivation, no prompt to bias.
@@ -101,6 +116,7 @@ const EXECUTE_PIPELINE = [
 
 // Detect mode from issue prefix or CLI flags
 function detectMode(issue) {
+  if (issue.includes('--mark-fixed')) return 'mark-fixed';
   if (issue.includes('--write')) return 'write';
   if (issue.includes('--execute')) return 'execute';
   if (issue.startsWith('refactor:') || issue.startsWith('extract:') || issue.includes('--refactor')) return 'refactor';
@@ -114,11 +130,13 @@ function hasExecuteFlag(issue) {
   return issue.includes('--execute');
 }
 
-// Parse --spec <path> and --fix-id <id> from raw argv (called from CLI entry)
-// Returns { specPath, fixId, cleanIssue } where cleanIssue has those flags removed.
+// Parse --spec <path> + --fix-id <id> + --fix-map <id=sha,...> from raw argv.
+// Returns { specPath, fixId, fixMap, cleanIssue } where cleanIssue has those
+// flags removed. fixMap is for --mark-fixed batch operations.
 function parseWriteFlags(rawArgs) {
   let specPath = null;
   let fixId = null;
+  let fixMap = null;  // populated when --fix-map is present
   const remaining = [];
   for (let i = 0; i < rawArgs.length; i++) {
     if (rawArgs[i] === '--spec' && rawArgs[i + 1]) {
@@ -127,11 +145,24 @@ function parseWriteFlags(rawArgs) {
     } else if (rawArgs[i] === '--fix-id' && rawArgs[i + 1]) {
       fixId = rawArgs[i + 1];
       i++;
+    } else if (rawArgs[i] === '--fix-map' && rawArgs[i + 1]) {
+      // Format: "1=0e4dde9,2=498a16e,3=8b379ae,..."
+      fixMap = {};
+      const pairs = rawArgs[i + 1].split(',');
+      for (const p of pairs) {
+        const eq = p.indexOf('=');
+        if (eq > 0) {
+          const id = p.slice(0, eq).trim();
+          const sha = p.slice(eq + 1).trim();
+          if (id && sha) fixMap[id] = sha;
+        }
+      }
+      i++;
     } else {
       remaining.push(rawArgs[i]);
     }
   }
-  return { specPath, fixId, cleanIssue: remaining.join(' ') };
+  return { specPath, fixId, fixMap, cleanIssue: remaining.join(' ') };
 }
 
 // Legacy export for backwards compatibility
@@ -145,11 +176,12 @@ async function execute(issue, specSource) {
   const executeMode = hasExecuteFlag(issue);
 
   // Clean issue text (remove all flags)
-  const cleanIssue = issue.replace(/--refactor|--execute|--debug|--write/g, '').trim();
+  const cleanIssue = issue.replace(/--refactor|--execute|--debug|--write|--mark-fixed/g, '').trim();
 
   // Build pipeline based on detected mode
   let pipeline;
-  if (pipelineType === 'write') pipeline = [...WRITE_PIPELINE];
+  if (pipelineType === 'mark-fixed') pipeline = [...MARK_FIXED_PIPELINE];
+  else if (pipelineType === 'write') pipeline = [...WRITE_PIPELINE];
   else if (pipelineType === 'execute') pipeline = [...EXECUTE_PIPELINE];
   else if (pipelineType === 'refactor') pipeline = [...REFACTOR_PIPELINE];
   else pipeline = [...BUGFIX_PIPELINE];
@@ -325,8 +357,10 @@ if (require.main === module) {
     process.exit(0);
   }
 
-  // For --write, build spec_source from CLI flags. For other modes, pass null.
+  // For --write, build spec_source from CLI flags. For --mark-fixed, build it
+  // with a fixMap instead. For other modes, pass null.
   const isWriteMode = issue.includes('--write');
+  const isMarkFixedMode = issue.includes('--mark-fixed');
   let specSource = null;
   if (isWriteMode) {
     if (!writeFlags.specPath || !writeFlags.fixId) {
@@ -334,6 +368,12 @@ if (require.main === module) {
       process.exit(1);
     }
     specSource = { path: writeFlags.specPath, fixId: writeFlags.fixId };
+  } else if (isMarkFixedMode) {
+    if (!writeFlags.specPath || !writeFlags.fixMap || Object.keys(writeFlags.fixMap).length === 0) {
+      console.error('❌ --mark-fixed requires both --spec <path> and --fix-map <id=sha,id=sha,...>');
+      process.exit(1);
+    }
+    specSource = { path: writeFlags.specPath, fixMap: writeFlags.fixMap };
   }
 
   execute(issue, specSource).catch(console.error);
