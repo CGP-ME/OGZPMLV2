@@ -263,7 +263,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/OrderExecutor.js`
 **Lines:** 394-403 (BUY), 563-573 (SHORT), 806-815 (SELL), 1214-1223 (COVER)
-**Status:** HALF-FIXED — warning fires when shares < 1; webhook gets sent anyway with quantity=0
+**Status:** FIXED in 0a9ce7f — 2026-05-14
 
 **Bug:** For fractional assets (BTC $80k on $1648 position → 0 shares after Math.floor), the webhook adapter sends `quantity: 0` which SignalStack rejects. Detection-only; emit fires unconditionally.
 
@@ -303,7 +303,119 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
             }
 ```
 
-**Apply same pattern to SHORT (563-573), SELL (806-815), COVER (1214-1223).**
+**str_replace target (SHORT, lines 571-582):**
+```
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(adjustedPositionSize / price);
+              if (shares < 1) {
+                console.warn(`[WebhookOrder] DRIFT: SELL_SHORT entry qty=${shares} (positionSize=${adjustedPositionSize.toFixed(2)} price=${price.toFixed(2)}) — bot opened short internally but no webhook sent. TTP will not see this entry; subsequent COVER will reference a position TTP doesn't hold.`);
+              }
+              this.ctx.webhookAdapter.emit({
+                action: 'sell',
+                symbol,
+                quantity: shares,
+                orderType: 'market',
+              }).catch(err => console.warn(`[WebhookOrder] SELL_SHORT emit failed: ${err.message}`));
+            }
+```
+
+**str_replace replacement (SHORT):**
+```
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(adjustedPositionSize / price);
+              if (shares < 1) {
+                // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
+                // internal position and broker is real (operator must know) but emitting
+                // quantity=0 just generates ValidationError without changing the outcome.
+                console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL_SHORT entry qty=${shares} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot opened internally; TTP won't see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
+              } else {
+                this.ctx.webhookAdapter.emit({
+                  action: 'sell',
+                  symbol,
+                  quantity: shares,
+                  orderType: 'market',
+                }).catch(err => console.warn(`[WebhookOrder] SELL_SHORT emit failed: ${err.message}`));
+              }
+            }
+```
+
+**str_replace target (SELL exit, lines 833-846):**
+```
+              if (this.ctx.webhookAdapter) {
+                const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
+                const shares = Math.floor(exitUsd / price);
+                if (shares < 1) {
+                  console.warn(`[WebhookOrder] DRIFT: SELL ${isPartialClose ? 'partial' : 'full'} exit qty=${shares} (exitUsd=${exitUsd.toFixed(2)} price=${price.toFixed(2)}) — bot reduced position but no webhook sent. TTP long position will diverge until next full-close emit.`);
+                }
+                this.ctx.webhookAdapter.emit({
+                  action: 'sell',
+                  symbol,
+                  quantity: shares,
+                  orderType: 'market',
+                  bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
+                }).catch(err => console.warn(`[WebhookOrder] SELL emit failed: ${err.message}`));
+              }
+```
+
+**str_replace replacement (SELL exit):**
+```
+              if (this.ctx.webhookAdapter) {
+                const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
+                const shares = Math.floor(exitUsd / price);
+                if (shares < 1) {
+                  // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
+                  // internal position and broker is real (operator must know) but emitting
+                  // quantity=0 just generates ValidationError without changing the outcome.
+                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${isPartialClose ? 'partial' : 'full'} exit qty=${shares} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
+                } else {
+                  this.ctx.webhookAdapter.emit({
+                    action: 'sell',
+                    symbol,
+                    quantity: shares,
+                    orderType: 'market',
+                    bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
+                  }).catch(err => console.warn(`[WebhookOrder] SELL emit failed: ${err.message}`));
+                }
+              }
+```
+
+**str_replace target (COVER, lines 1251-1263):**
+```
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(shortSize / price);
+              if (shares < 1) {
+                console.warn(`[WebhookOrder] DRIFT: COVER qty=${shares} (shortSize=${shortSize.toFixed(2)} price=${price.toFixed(2)}) — bot covered internally but no webhook sent. TTP short position will diverge until next full-close emit.`);
+              }
+              this.ctx.webhookAdapter.emit({
+                action: 'buy',
+                symbol,
+                quantity: shares,
+                orderType: 'market',
+                bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
+              }).catch(err => console.warn(`[WebhookOrder] COVER emit failed: ${err.message}`));
+            }
+```
+
+**str_replace replacement (COVER):**
+```
+            if (this.ctx.webhookAdapter) {
+              const shares = Math.floor(shortSize / price);
+              if (shares < 1) {
+                // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
+                // internal position and broker is real (operator must know) but emitting
+                // quantity=0 just generates ValidationError without changing the outcome.
+                console.warn(`[WebhookOrder] DRIFT BLOCKED: COVER qty=${shares} (shortSize=$${shortSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot covered internally; TTP short position will diverge until next viable emit. INVESTIGATE: short USD too small for asset price.`);
+              } else {
+                this.ctx.webhookAdapter.emit({
+                  action: 'buy',
+                  symbol,
+                  quantity: shares,
+                  orderType: 'market',
+                  bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
+                }).catch(err => console.warn(`[WebhookOrder] COVER emit failed: ${err.message}`));
+              }
+            }
+```
 
 **Verification:** `grep -c "FIX WEBHOOK-FRACTIONAL\|DRIFT BLOCKED" core/OrderExecutor.js` → 4+ hits. P0 unchanged (backtest skips webhook).
 
