@@ -2383,14 +2383,29 @@ async function specUpdateStatus(manifest, params) {
     const sectionBody = raw.slice(startIdx, sectionEnd);
     const sectionAfter = raw.slice(sectionEnd);
     const statusMatch = sectionBody.match(/^\*\*Status:\*\*[^\n]*$/m);
-    if (!statusMatch) {
-      console.error(`❌ spec-update-status: Fix ${fixId} has no **Status:** line in section`);
-      manifest.stop_conditions.manifest_mismatch = true;
-      return manifest;
-    }
-
     const newStatusLine = `**Status:** FIXED in ${sha} — ${isoDate}`;
-    const rewrittenBody = sectionBody.replace(statusMatch[0], newStatusLine);
+
+    let rewrittenBody;
+    if (statusMatch) {
+      // Existing Status line — rewrite in place.
+      rewrittenBody = sectionBody.replace(statusMatch[0], newStatusLine);
+    } else {
+      // No Status line authored by Wolf (some fixes omit it). Insert one
+      // right after the **Lines:** (or **Line:**) marker so the section
+      // gets a Status without requiring a doc edit. Anchored insertion
+      // keeps surrounding spec text untouched.
+      const lineMarkerMatch = sectionBody.match(/^\*\*Lines?:\*\*[^\n]*$/m);
+      if (!lineMarkerMatch) {
+        console.error(`❌ spec-update-status: Fix ${fixId} has neither **Status:** nor **Line:**/**Lines:** anchor — cannot determine insertion point`);
+        manifest.stop_conditions.manifest_mismatch = true;
+        return manifest;
+      }
+      const insertAfter = lineMarkerMatch.index + lineMarkerMatch[0].length;
+      rewrittenBody = sectionBody.slice(0, insertAfter)
+        + `\n${newStatusLine}`
+        + sectionBody.slice(insertAfter);
+      console.log(`   Fix ${fixId}: no Status line found — inserted after **Line:**/**Lines:** anchor`);
+    }
     raw = sectionBefore + rewrittenBody + sectionAfter;
 
     updates.push({
