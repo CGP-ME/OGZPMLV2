@@ -1334,6 +1334,161 @@ const LEDGER_BUFFER_SIZE = require('./TradingConfig').get('ledger.bufferSize');
 
 ---
 
+### Fix 27: TradeJournalBridge balance coercion + nullish coalescing
+
+**File:** `core/TradeJournalBridge.js`
+**Line:** 39
+**Status:** FIXED in 43d0f4c — 2026-05-14
+
+**Bug:** Bridge forwards `config.startingBalance` raw to TradeJournal. Two failure paths: (1) env arrives as string `"10000"` → truthy `||` passes through → TradeJournal's `Number.isFinite("10000")` returns false → constructor throws with confusing error. (2) `config.startingBalance === 0` → `||` falls through to fallback → silent override of explicit zero.
+
+**str_replace target:**
+```
+    this.journal = new TradeJournal({
+      dataDir: config.dataDir || path.join(process.cwd(), 'data', 'journal'),
+      startingBalance: config.startingBalance || TradingConfig.get('startingBalance', 10000),
+      ...config
+    });
+```
+
+**str_replace replacement:**
+```
+    // FIX MIRROR-JOURNAL-BALANCE companion: coerce raw env-string values to Number,
+    // use ?? not || to preserve explicit 0 (constructor will reject 0 as invalid balance,
+    // surfacing real upstream bug rather than hiding under $10K phantom).
+    // SPREAD ORDER CRITICAL: ...config must come FIRST, then startingBalance override LAST.
+    // Mercury caught Wolf's initial spec putting startingBalance before ...config which
+    // caused the spread to silently overwrite the coerced value with raw config input —
+    // re-introducing the exact bug Fix 27 was meant to fix.
+    const _rawStartingBalance = config.startingBalance ?? TradingConfig.get('startingBalance');
+    this.journal = new TradeJournal({
+      dataDir: config.dataDir || path.join(process.cwd(), 'data', 'journal'),
+      ...config,
+      startingBalance: Number(_rawStartingBalance),
+    });
+```
+
+**Verification:** `grep -n "MIRROR-JOURNAL-BALANCE companion" core/TradeJournalBridge.js` → 1 hit. P0 anchor unchanged (backtest path doesn't construct TradeJournal in EXECUTION_MODE=backtest). Spec history: initial replacement had spread order bug (Mercury caught it on first --execute run, transcript fix27-TradeJournalBridge-attack-2026-05-14T15-29-20-402Z.md); Wolf patched the order.
+
+---
+
+### Fix 28: TradingConfig add envNumber() strict helper
+
+**File:** `core/TradingConfig.js`
+**Line:** 18-24 (env helper region)
+**Status:** UNTOUCHED — Mercury-found companion to Fix 13 per CC-SPEC-FIX-13-COMPANION-BUNDLE.md
+
+**Bug:** Current `env()` helper has polymorphic return — returns Number when parseFloat succeeds, returns raw string when it fails (`isNaN(num) ? val : num`). Footgun for any caller expecting numeric type — silent type drift propagates. Solution: additive `envNumber()` helper that strictly returns Number or throws. Leave `env()` unchanged for legacy callers.
+
+**str_replace target:**
+```
+// Helper to parse env vars with fallback
+const env = (key, fallback) => {
+  const val = process.env[key];
+  if (val === undefined || val === '') return fallback;
+  const num = parseFloat(val);
+  return isNaN(num) ? val : num;
+};
+```
+
+**str_replace replacement:**
+```
+// Helper to parse env vars with fallback
+const env = (key, fallback) => {
+  const val = process.env[key];
+  if (val === undefined || val === '') return fallback;
+  const num = parseFloat(val);
+  return isNaN(num) ? val : num;
+};
+
+// FIX ENV-NUMBER: strict numeric env reader. Returns Number or throws.
+// Use for any config that MUST be numeric (balances, percentages, counts).
+// Leaves env() unchanged for legacy callers; this is additive.
+const envNumber = (key, fallback) => {
+  const val = process.env[key];
+  if (val === undefined || val === '') {
+    if (fallback === undefined) {
+      throw new Error(`[ENV-NUMBER] ${key} is unset and no fallback provided`);
+    }
+    if (!Number.isFinite(fallback)) {
+      throw new Error(`[ENV-NUMBER] ${key} fallback is not finite: ${fallback}`);
+    }
+    return fallback;
+  }
+  const num = parseFloat(val);
+  if (!Number.isFinite(num)) {
+    throw new Error(`[ENV-NUMBER] ${key}="${val}" cannot be parsed as a finite number`);
+  }
+  return num;
+};
+module.exports.envNumber = envNumber;
+```
+
+**Verification:** `grep -n "FIX ENV-NUMBER" core/TradingConfig.js` → 1 hit. P0 anchor unchanged (additive helper, no caller updates in this fix).
+
+---
+
+### Fix 29: BacktestRecorder remove $10K phantom (Fix 13 sibling site)
+
+**File:** `core/BacktestRecorder.js`
+**Line:** 21
+**Status:** UNTOUCHED — Mercury-found sibling-site of Fix 13's $10K phantom bug
+
+**Bug:** Same `config.startingBalance || 10000` silent phantom that Fix 13 eliminated in TradeJournal. Mercury caught the sibling site — backtest path can silently default to $10K while live path throws (post-Fix-13), creating divergent behavior across the same config object.
+
+**str_replace target:**
+```
+class BacktestRecorder {
+    constructor(config = {}) {
+        this.startingBalance = config.startingBalance || 10000;
+```
+
+**str_replace replacement:**
+```
+class BacktestRecorder {
+    constructor(config = {}) {
+        // FIX MIRROR-RECORDER-BALANCE: phantom $10K fallback removed. Mirror
+        // of Fix 13 (TradeJournal). Same coerce/finite/positive check pattern.
+        const rawBalance = config.startingBalance;
+        const numericBalance = Number(rawBalance);
+        if (!Number.isFinite(numericBalance) || numericBalance <= 0) {
+          throw new Error(`[MIRROR-RECORDER-BALANCE] BacktestRecorder requires positive finite startingBalance (got ${rawBalance}) — refusing $10K phantom`);
+        }
+        this.startingBalance = numericBalance;
+```
+
+**Verification:** `grep -n "FIX MIRROR-RECORDER-BALANCE" core/BacktestRecorder.js` → 1 hit. **P0 anchor may change behavior:** if any backtest path was hitting the silent $10K fallback, this commit will throw and break backtest. Two outcomes: (a) anchor holds → no path was hitting the phantom → clean commit; (b) throw → caller needs explicit balance → surface for operator, do NOT add fallback back, caller fix is separate spec.
+
+---
+
+### Fix 30: TradeJournal stats invariant guard (Mercury #4)
+
+**File:** `core/TradeJournal.js`
+**Line:** 710
+**Status:** UNTOUCHED — Mercury theoretical-invariant catch per CC-SPEC-FIX-13-COMPANION-BUNDLE.md
+
+**Bug:** If any caller wraps the new Fix 13 constructor throw in try/catch and proceeds anyway, `this.stats.startingBalance` ends up undefined. Then `_updateStats` computes `netPnlPercent = s.netPnl / s.startingBalance * 100` → division by undefined → `NaN` → corrupts every downstream analytic (drawdown, win-rate, etc.) silently. Belt-and-suspenders guard against the case where the constructor throw is bypassed.
+
+**str_replace target:**
+```
+    s.netPnlPercent = s.startingBalance > 0 ? (s.netPnl / s.startingBalance * 100) : 0;
+```
+
+**str_replace replacement:**
+```
+    // FIX MIRROR-JOURNAL-INVARIANT: refuse silent NaN propagation through analytics.
+    // Belt-and-suspenders — constructor throw should prevent the state, but if
+    // upstream catch+ignores, this fires loudly rather than silently zeroing.
+    if (!Number.isFinite(s.startingBalance) || s.startingBalance <= 0) {
+      throw new Error(`[MIRROR-JOURNAL-INVARIANT] stats.startingBalance must be positive finite (got ${s.startingBalance}) — refusing NaN-corrupt analytics`);
+    }
+    s.netPnlPercent = (s.netPnl / s.startingBalance) * 100;
+```
+
+**Verification:** `grep -n "FIX MIRROR-JOURNAL-INVARIANT" core/TradeJournal.js` → 1 hit. P0 anchor unchanged in clean code (guard doesn't fire when balance is valid).
+
+---
+
 ## TIER 6 — Lower priority half-fixes (deferred but documented)
 
 **This section was dropped in v2 rewrite by accident. Restored in v3. These are real findings; each one's blast radius is small or hot-path-irrelevant. Documented here so they don't get lost.**
