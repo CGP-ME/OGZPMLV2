@@ -427,7 +427,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/OrderExecutor.js`
 **Line:** ~102 (after MAX_POSITION_SIZE cap)
-**Status:** DEAD CONFIG — `core/TradingConfig.js:497` defines `absoluteCapPercent: 0.15` but nothing reads it. Peak single-trade theoretically 31.25% with no ceiling.
+**Status:** FIXED in e23ebe7 — 2026-05-14
 
 **str_replace target:**
 ```
