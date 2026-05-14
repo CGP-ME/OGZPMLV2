@@ -209,6 +209,13 @@ async function execute(issue, specSource) {
         manifest.mode = 'EXECUTE';  // Ensure execute mode
         manifest.pipeline_type = pipelineType;  // Ensure correct pipeline type
         // Spec_source persists from the advisory run; --write --execute reuses it.
+        // BUT --mark-fixed --execute (run AFTER a --write --execute) brings a
+        // different spec_source shape (fixMap instead of fixId). If a fresh
+        // specSource is passed on this invocation, overwrite the loaded one
+        // so the new operation sees its own shape, not the prior mission's.
+        if (specSource) {
+          manifest.spec_source = specSource;
+        }
         // Reset stop conditions for fresh execute run
         manifest.stop_conditions = {
           critic_failures: 0,
