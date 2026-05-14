@@ -902,7 +902,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/TradeJournal.js`
 **Line:** 62
-**Status:** HALF-FIXED MIRROR of CRIT-08
+**Status:** FIXED in 6aa2d64 — 2026-05-14
 
 **str_replace target:**
 ```
