@@ -2412,7 +2412,7 @@ async function specUpdateStatus(manifest, params) {
       fixId,
       title: parsed.title,
       sha,
-      oldStatus: statusMatch[0].slice(0, 100),
+      oldStatus: statusMatch ? statusMatch[0].slice(0, 100) : '(none — inserted)',
       newStatus: newStatusLine
     });
   }
