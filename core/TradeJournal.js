@@ -59,7 +59,14 @@ class TradeJournal {
 
     // ── Config ─────────────────────────────────────────────────────────
     this.config = {
-      startingBalance: config.startingBalance || 10000,
+      // FIX MIRROR-JOURNAL-BALANCE: refuse phantom $10K default. CRIT-08 hardened
+      // StateManager.getEquity; TradeJournal mirror was not audited.
+      startingBalance: (() => {
+        if (!Number.isFinite(config.startingBalance) || config.startingBalance <= 0) {
+          throw new Error(`[MIRROR-JOURNAL-BALANCE] TradeJournal requires positive finite startingBalance (got ${config.startingBalance}) — refusing $10K phantom`);
+        }
+        return config.startingBalance;
+      })(),
       maxInMemoryTrades: config.maxInMemoryTrades || 5000,
       maxEquityPoints: config.maxEquityPoints || 10000,
       autoSaveInterval: config.autoSaveInterval || 60000,  // 1 min
