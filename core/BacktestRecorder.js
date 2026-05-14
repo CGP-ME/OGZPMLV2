@@ -173,8 +173,13 @@ class BacktestRecorder {
         else if (conf < 0.75) record.confidenceTier = 'high';
         else record.confidenceTier = 'very_high';
 
-        // Symbol (stamped explicitly so harvester doesn't need env-context)
-        record.symbol = trade.symbol || process.env.TRADING_PAIR || 'unknown';
+        // FIX TIER-5-BTR-SYMBOL: refuse silent env fallback and 'unknown' sentinel.
+        // Post-Fix 4 (P2-E), trade.symbol is guaranteed non-null at openPosition.
+        // Missing here is an upstream regression — halt instead of hiding.
+        if (typeof trade.symbol !== 'string' || !trade.symbol) {
+          throw new Error(`[TIER-5-BTR-SYMBOL] BacktestRecorder.recordTrade: trade.symbol missing (got ${JSON.stringify(trade.symbol)}) — upstream P2-E violation`);
+        }
+        record.symbol = trade.symbol;
 
         // P&L per share (for TTP 10-cent rule checking)
         record.pnlPerShare = record.size > 0
