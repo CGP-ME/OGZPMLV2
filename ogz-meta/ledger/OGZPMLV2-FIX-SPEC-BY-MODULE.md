@@ -1013,7 +1013,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/BacktestRecorder.js`
 **Line:** 177
-**Status:** RULE VIOLATION + missing-data masking. **Was V1 Fix 25; dropped in v2 rewrite by accident. Restored.**
+**Status:** FIXED in 203f087 — 2026-05-14
 
 **Bug:** `record.symbol = trade.symbol || process.env.TRADING_PAIR || 'unknown';` — three problems in one line:
 1. Direct env read in core (violates TradingConfig.js:9 rule)
