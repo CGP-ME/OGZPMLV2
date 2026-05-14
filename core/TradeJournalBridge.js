@@ -34,10 +34,18 @@ class TradeJournalBridge {
     this.bot = bot;
 
     // ── Initialize journal ──────────────────────────────────────────
+    // FIX MIRROR-JOURNAL-BALANCE companion: coerce raw env-string values to Number,
+    // use ?? not || to preserve explicit 0 (constructor will reject 0 as invalid balance,
+    // surfacing real upstream bug rather than hiding under $10K phantom).
+    // SPREAD ORDER CRITICAL: ...config must come FIRST, then startingBalance override LAST.
+    // Mercury caught Wolf's initial spec putting startingBalance before ...config which
+    // caused the spread to silently overwrite the coerced value with raw config input —
+    // re-introducing the exact bug Fix 27 was meant to fix.
+    const _rawStartingBalance = config.startingBalance ?? TradingConfig.get('startingBalance');
     this.journal = new TradeJournal({
       dataDir: config.dataDir || path.join(process.cwd(), 'data', 'journal'),
-      startingBalance: config.startingBalance || TradingConfig.get('startingBalance', 10000),
-      ...config
+      ...config,
+      startingBalance: Number(_rawStartingBalance),
     });
 
     // ── Initialize replay capture ───────────────────────────────────
