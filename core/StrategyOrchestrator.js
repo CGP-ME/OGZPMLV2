@@ -891,9 +891,15 @@ class StrategyOrchestrator {
       throw new Error(`[HIGH-24] TradingConfig.volumeProfileBoosts must be an object (got ${typeof volumeProfileBoosts})`);
     }
     const volumeProfile = extras.volumeProfile;
-    const currentPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
+    // FIX MIRROR-CRIT-09-VP: mirror of CRIT-09 hardening at line 790. Prior code used
+    // `||` which collapsed genuine zero price; VP zone math downstream produced
+    // nonsense distance and zone classification when price was 0.
+    const currentPrice = extras.price ?? (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : null);
+    if (currentPrice != null && (!Number.isFinite(currentPrice) || currentPrice <= 0)) {
+      console.warn('[FILTER:vp] currentPrice non-positive — VP zone boosting will be skipped');
+    }
 
-    if (volumeProfile && currentPrice && Object.keys(volumeProfileBoosts).length > 0 && results.length > 0) {
+    if (volumeProfile && Number.isFinite(currentPrice) && currentPrice > 0 && Object.keys(volumeProfileBoosts).length > 0 && results.length > 0) {
       const vpProfile = typeof volumeProfile.getProfile === 'function' ? volumeProfile.getProfile() : volumeProfile;
 
       if (vpProfile && vpProfile.poc && vpProfile.vah && vpProfile.val) {
