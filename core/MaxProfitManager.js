@@ -108,13 +108,16 @@ class MaxProfitManager {
       enableTieredExit: true,         // Enable multi-tier profit taking
       // FIX 2026-03-17: Read from TradingConfig for backtester env var support
       // FIX 2026-04-16: Tier exit fractions extracted to exitLogic.tieredExit
-      firstTierTarget: TradingConfig.get('exits.profitTiers.tier1') || 0.007,
+      // FIX TIER-5-MPM-TIER-COLLAPSE: prior code mixed two patterns in same block.
+      // Target fields used `|| 0.007` (silent zero collapse). Exit fraction fields
+      // used `.get(key, default)` (correct). Unified.
+      firstTierTarget: TradingConfig.get('exits.profitTiers.tier1', 0.007),
       firstTierExit: TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction', 0.30),
-      secondTierTarget: TradingConfig.get('exits.profitTiers.tier2') || 0.010,
+      secondTierTarget: TradingConfig.get('exits.profitTiers.tier2', 0.010),
       secondTierExit: TradingConfig.get('exitLogic.tieredExit.tier2ExitFraction', 0.30),
-      thirdTierTarget: TradingConfig.get('exits.profitTiers.tier3') || 0.015,
+      thirdTierTarget: TradingConfig.get('exits.profitTiers.tier3', 0.015),
       thirdTierExit: TradingConfig.get('exitLogic.tieredExit.tier3ExitFraction', 0.20),
-      finalTarget: TradingConfig.get('exits.profitTiers.final') || 0.025,
+      finalTarget: TradingConfig.get('exits.profitTiers.final', 0.025),
       
       // --------------------------------------------------------------------
       // TRAILING STOP MANAGEMENT
