@@ -100,6 +100,14 @@ class OrderExecutor {
       console.log(`⚠️ Position capped: ${(basePositionPercent * 100).toFixed(2)}% → ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
     }
+    // FIX TIER-4-ABSOLUTE-CAP: enforce absoluteCapPercent. Cap existed in
+    // TradingConfig.js:497 but had no consumer — peak single-trade was
+    // theoretically 31.25% (5% × 2.5 conf × 2.5 confluence) with no actual ceiling.
+    const absoluteCap = TradingConfig.get('positionSizing.absoluteCapPercent');
+    if (Number.isFinite(absoluteCap) && absoluteCap > 0 && basePositionPercent > absoluteCap) {
+      console.log(`⚠️ Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% → ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
+      basePositionPercent = absoluteCap;
+    }
     console.log(`📏 Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% → ${confidenceMultiplier.toFixed(1)}x → ${(basePositionPercent * 100).toFixed(2)}% of balance`);
 
     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
