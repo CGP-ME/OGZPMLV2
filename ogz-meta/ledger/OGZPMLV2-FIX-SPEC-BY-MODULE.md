@@ -656,7 +656,7 @@ Plus the MaxProfitManager CRIT-02-followup throws called from line 367 (BUY) and
 
 **File:** `core/StrategyOrchestrator.js`
 **Line:** 894
-**Status:** HALF-FIXED MIRROR — CRIT-09 hardened line 790 (filterPrice with `??` and halt), line 894 (currentPrice for VP zoning) still uses `||`. **Was V1 Fix 24; dropped in v2 rewrite by accident. Restored.**
+**Status:** FIXED in c64daa1 — 2026-05-14
 
 **Bug:** `const currentPrice = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);`
 
