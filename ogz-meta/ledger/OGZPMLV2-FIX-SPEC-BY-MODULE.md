@@ -936,6 +936,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `core/MaxProfitManager.js`
 **Lines:** 111, 113, 115, 117
+**Status:** FIXED in 94db97f — 2026-05-14
 
 **str_replace target:**
 ```
