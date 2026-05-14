@@ -170,27 +170,25 @@ function buildConfig() {
     },
 
     // ─── BROKER ───
-    broker: {
-      // RUN-INFO-01: BROKER routed through ConfigLoader instead of raw process.env reads.
-      id: (() => {
-        const r = envStr('BROKER', 'alpaca');
-        return track('broker.id', { value: String(r.value).toLowerCase(), source: r.source });
-      })(),
-      apiKey: track('broker.apiKey', envStr('KRAKEN_API_KEY', '')),
-      apiSecret: track('broker.apiSecret', envStr('KRAKEN_API_SECRET', '')),
-      // Default asset derived from BROKER: kraken -> BTC-USD, else -> TSLA.
-      // Prevents crypto default on stock brokers. Explicit TRADING_PAIR wins.
-      tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR',
-        (process.env.BROKER || 'kraken').toLowerCase() === 'kraken' ? 'BTC-USD' : 'TSLA')),
-      candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
-      tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
-      // SESSION-HIGH-02: explicit asset-class field — derived from BROKER if
-      // ASSET_CLASS env unset. Replaces the slash-based detection heuristic
-      // in UnifiedPatternMemory which mis-classified BTC-USD (with dash) as
-      // 'stocks'. Slash characters are not a reliable discriminator.
-      assetClass: track('broker.assetClass', envStr('ASSET_CLASS',
-        (process.env.BROKER || 'kraken').toLowerCase() === 'kraken' ? 'crypto' : 'stocks')),
-    },
+    broker: (() => {
+      // FIX TIER-4-BROKER-COHERENCE: single resolved brokerId for all defaults.
+      // Prior code: id defaulted to 'alpaca'; tradingPair/assetClass branches
+      // independently defaulted their logic key to 'kraken'. When BROKER env
+      // was unset, you got id=alpaca + tradingPair=BTC-USD + assetClass=crypto.
+      // Alpaca routing pointed at crypto it can't trade.
+      const _brokerIdResult = envStr('BROKER', 'alpaca');
+      const _brokerId = String(_brokerIdResult.value).toLowerCase();
+      const _isKraken = _brokerId === 'kraken';
+      return {
+        id: track('broker.id', { value: _brokerId, source: _brokerIdResult.source }),
+        apiKey: track('broker.apiKey', envStr('KRAKEN_API_KEY', '')),
+        apiSecret: track('broker.apiSecret', envStr('KRAKEN_API_SECRET', '')),
+        tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR', _isKraken ? 'BTC-USD' : 'TSLA')),
+        candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
+        tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
+        assetClass: track('broker.assetClass', envStr('ASSET_CLASS', _isKraken ? 'crypto' : 'stocks')),
+      };
+    })(),
 
     // ─── TRAI (AI) ───
     trai: {
