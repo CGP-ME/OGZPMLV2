@@ -942,7 +942,7 @@ After this change, downstream code that consumes `record.symbol` will see `null`
 
 **File:** `foundation/ConfigLoader.js`
 **Lines:** 176, 184, 192
-**Status:** ARCHITECTURAL — `broker.id` defaults to 'alpaca'; tradingPair and assetClass branches default their logic-key to 'kraken'. Three different defaults for one concept.
+**Status:** FIXED in ae5cb67 — 2026-05-14
 
 **str_replace target:**
 ```
