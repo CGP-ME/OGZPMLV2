@@ -1453,7 +1453,7 @@ module.exports.MIN_CONFIDENCE = () => TradingConfig.get('confidence.minTradeConf
 
 **File:** `core/BacktestRecorder.js`
 **Line:** 21
-**Status:** UNTOUCHED — Mercury-found sibling-site of Fix 13's $10K phantom bug
+**Status:** FIXED in ac7cf18 — 2026-05-15
 
 **Bug:** Same `config.startingBalance || 10000` silent phantom that Fix 13 eliminated in TradeJournal. Mercury caught the sibling site — backtest path can silently default to $10K while live path throws (post-Fix-13), creating divergent behavior across the same config object.
 
