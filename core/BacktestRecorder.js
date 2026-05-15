@@ -18,7 +18,14 @@ const TradingConfig = require('./TradingConfig');
 
 class BacktestRecorder {
     constructor(config = {}) {
-        this.startingBalance = config.startingBalance || 10000;
+        // FIX MIRROR-RECORDER-BALANCE: phantom $10K fallback removed. Mirror
+        // of Fix 13 (TradeJournal). Same coerce/finite/positive check pattern.
+        const rawBalance = config.startingBalance;
+        const numericBalance = Number(rawBalance);
+        if (!Number.isFinite(numericBalance) || numericBalance <= 0) {
+          throw new Error(`[MIRROR-RECORDER-BALANCE] BacktestRecorder requires positive finite startingBalance (got ${rawBalance}) — refusing $10K phantom`);
+        }
+        this.startingBalance = numericBalance;
         this.feePerSide = config.feePerSide || TradingConfig.get('fees.makerFee');  // From TradingConfig
         this.roundTripFee = this.feePerSide * 2;        // 0.52%
 
