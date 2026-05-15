@@ -707,7 +707,13 @@ class TradeJournal {
     s.grossPnl += trade.grossPnl || 0;
     s.totalFees += trade.fees || 0;
     s.netPnl += pnl;
-    s.netPnlPercent = s.startingBalance > 0 ? (s.netPnl / s.startingBalance * 100) : 0;
+    // FIX MIRROR-JOURNAL-INVARIANT: refuse silent NaN propagation through analytics.
+    // Belt-and-suspenders — constructor throw should prevent the state, but if
+    // upstream catch+ignores, this fires loudly rather than silently zeroing.
+    if (!Number.isFinite(s.startingBalance) || s.startingBalance <= 0) {
+      throw new Error(`[MIRROR-JOURNAL-INVARIANT] stats.startingBalance must be positive finite (got ${s.startingBalance}) — refusing NaN-corrupt analytics`);
+    }
+    s.netPnlPercent = (s.netPnl / s.startingBalance) * 100;
 
     // ── Balance ─────────────────────────────────────────────────────
     s.currentBalance = trade.balanceAfter || (s.currentBalance + pnl);
