@@ -23,6 +23,22 @@ const env = (key, fallback) => {
   return isNaN(num) ? val : num;
 };
 
+// FIX 28: Strict numeric env reader — returns Number, throws on non-numeric.
+// Used by Fix 20 (DTS/UPM/DLL env-read centralization) to surface bad config
+// loudly rather than silently coerce strings/NaN through to risk math.
+// NOTE: module.exports attachment for this function is in a separate str_replace
+// pair below — must be attached AFTER the module.exports = TradingConfig line
+// at ~1130, otherwise the late reassignment wipes the attachment.
+const envNumber = (key, fallback) => {
+  const val = process.env[key];
+  if (val === undefined || val === '') return fallback;
+  const num = Number(val);
+  if (!Number.isFinite(num)) {
+    throw new Error(`[FIX-28] envNumber: ${key}="${val}" is not a finite number`);
+  }
+  return num;
+};
+
 const envBool = (key, fallback) => {
   const val = process.env[key];
   if (val === undefined || val === '') return fallback;
@@ -1107,6 +1123,7 @@ class TradingConfig {
 
 module.exports = TradingConfig;
 module.exports.BASE_CONFIG = BASE_CONFIG;
+module.exports.envNumber = envNumber;  // FIX 28: attached AFTER late reassignment
 
 // Quick accessors for the most commonly used values
 module.exports.MIN_CONFIDENCE = () => TradingConfig.get('confidence.minTradeConfidence');
