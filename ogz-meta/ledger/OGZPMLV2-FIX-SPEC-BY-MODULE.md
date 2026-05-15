@@ -1375,12 +1375,14 @@ const LEDGER_BUFFER_SIZE = require('./TradingConfig').get('ledger.bufferSize');
 ### Fix 28: TradingConfig add envNumber() strict helper
 
 **File:** `core/TradingConfig.js`
-**Line:** 18-24 (env helper region)
-**Status:** UNTOUCHED — Mercury-found companion to Fix 13 per CC-SPEC-FIX-13-COMPANION-BUNDLE.md
+**Lines:** 18-24 (env helper region) + 1105-1112 (CONVENIENCE EXPORTS region)
+**Status:** FIXED in 0cc6163 — 2026-05-15
 
 **Bug:** Current `env()` helper has polymorphic return — returns Number when parseFloat succeeds, returns raw string when it fails (`isNaN(num) ? val : num`). Footgun for any caller expecting numeric type — silent type drift propagates. Solution: additive `envNumber()` helper that strictly returns Number or throws. Leave `env()` unchanged for legacy callers.
 
-**str_replace target:**
+**Multi-block rationale:** Original single-block spec attached `module.exports.envNumber = envNumber` at the helper's definition site (~line 46). CC + Mercury empirically verified the attachment was wiped by the late `module.exports = TradingConfig;` reassignment at line 1130 — `require('./core/TradingConfig').envNumber === undefined` after the original fix landed. Patched spec uses two str_replace pairs: pair 1 inserts the function definition only; pair 2 attaches the export AFTER the late reassignment in the CONVENIENCE EXPORTS section.
+
+**str_replace target (Pair 1, helper definition):**
 ```
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
@@ -1391,7 +1393,7 @@ const env = (key, fallback) => {
 };
 ```
 
-**str_replace replacement:**
+**str_replace replacement (Pair 1, helper definition):**
 ```
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
@@ -1401,30 +1403,49 @@ const env = (key, fallback) => {
   return isNaN(num) ? val : num;
 };
 
-// FIX ENV-NUMBER: strict numeric env reader. Returns Number or throws.
-// Use for any config that MUST be numeric (balances, percentages, counts).
-// Leaves env() unchanged for legacy callers; this is additive.
+// FIX 28: Strict numeric env reader — returns Number, throws on non-numeric.
+// Used by Fix 20 (DTS/UPM/DLL env-read centralization) to surface bad config
+// loudly rather than silently coerce strings/NaN through to risk math.
+// NOTE: module.exports attachment for this function is in a separate str_replace
+// pair below — must be attached AFTER the module.exports = TradingConfig line
+// at ~1130, otherwise the late reassignment wipes the attachment.
 const envNumber = (key, fallback) => {
   const val = process.env[key];
-  if (val === undefined || val === '') {
-    if (fallback === undefined) {
-      throw new Error(`[ENV-NUMBER] ${key} is unset and no fallback provided`);
-    }
-    if (!Number.isFinite(fallback)) {
-      throw new Error(`[ENV-NUMBER] ${key} fallback is not finite: ${fallback}`);
-    }
-    return fallback;
-  }
-  const num = parseFloat(val);
+  if (val === undefined || val === '') return fallback;
+  const num = Number(val);
   if (!Number.isFinite(num)) {
-    throw new Error(`[ENV-NUMBER] ${key}="${val}" cannot be parsed as a finite number`);
+    throw new Error(`[FIX-28] envNumber: ${key}="${val}" is not a finite number`);
   }
   return num;
 };
-module.exports.envNumber = envNumber;
 ```
 
-**Verification:** `grep -n "FIX ENV-NUMBER" core/TradingConfig.js` → 1 hit. P0 anchor unchanged (additive helper, no caller updates in this fix).
+**str_replace target (Pair 2, export attach AFTER late reassignment):**
+```
+// CONVENIENCE EXPORTS (for quick access to common values)
+// =============================================================================
+
+module.exports = TradingConfig;
+module.exports.BASE_CONFIG = BASE_CONFIG;
+
+// Quick accessors for the most commonly used values
+module.exports.MIN_CONFIDENCE = () => TradingConfig.get('confidence.minTradeConfidence');
+```
+
+**str_replace replacement (Pair 2, export attach AFTER late reassignment):**
+```
+// CONVENIENCE EXPORTS (for quick access to common values)
+// =============================================================================
+
+module.exports = TradingConfig;
+module.exports.BASE_CONFIG = BASE_CONFIG;
+module.exports.envNumber = envNumber;  // FIX 28: attached AFTER late reassignment
+
+// Quick accessors for the most commonly used values
+module.exports.MIN_CONFIDENCE = () => TradingConfig.get('confidence.minTradeConfidence');
+```
+
+**Verification:** `grep -n "FIX 28" core/TradingConfig.js` → 2 hits (function comment + export-line comment). Empirical smoke test after both pairs apply: `node -e "const TC = require('./core/TradingConfig'); console.log(typeof TC.envNumber);"` must print `function`. If it prints `undefined`, halt before commit. P0 anchor unchanged (additive helper, no caller updates in this fix).
 
 ---
 
