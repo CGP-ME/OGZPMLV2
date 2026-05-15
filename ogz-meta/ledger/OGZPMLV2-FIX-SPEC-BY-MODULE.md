@@ -1486,7 +1486,7 @@ class BacktestRecorder {
 
 **File:** `core/TradeJournal.js`
 **Line:** 710
-**Status:** UNTOUCHED — Mercury theoretical-invariant catch per CC-SPEC-FIX-13-COMPANION-BUNDLE.md
+**Status:** FIXED in decab0c — 2026-05-15
 
 **Bug:** If any caller wraps the new Fix 13 constructor throw in try/catch and proceeds anyway, `this.stats.startingBalance` ends up undefined. Then `_updateStats` computes `netPnlPercent = s.netPnl / s.startingBalance * 100` → division by undefined → `NaN` → corrupts every downstream analytic (drawdown, win-rate, etc.) silently. Belt-and-suspenders guard against the case where the constructor throw is bypassed.
 
