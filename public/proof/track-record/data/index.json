@@ -1,12 +1,18 @@
 {
-  "updated": "2026-04-29T23:30:00Z",
-  "mode": "preview",
+  "updated": "2026-05-19T14:19:29.368Z",
+  "mode": "live",
   "accounts": [
     {
       "id": "preview-001",
       "label": "Apex Eval (Preview)",
       "stage": "EVAL",
       "status": "preview"
+    },
+    {
+      "id": "default",
+      "label": "Default Account",
+      "stage": "EVAL",
+      "status": "active"
     }
   ]
 }
