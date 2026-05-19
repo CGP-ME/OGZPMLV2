@@ -58,6 +58,7 @@ async function route(command, args) {
     '/architect-verify': architectVerify,  // Deterministic: confirms spec target exists in current code
     '/spec-update-status': specUpdateStatus,  // Deterministic: marks Fix N status as FIXED with commit SHA
     '/mercury-attack': mercuryAttack,      // Adversarial Mercury attack on the just-applied change (EXECUTE only)
+    '/mercury-critic': mercuryCritic,      // Gates pipeline on Mercury findings; requires operator ack on fail-findings
     '/anchor-verify-post': anchorVerifyPost,  // Fast P0 + Full P0 drift check after code change (EXECUTE only)
     '/bombardier': bombardier,  // Blast radius analysis - shows impact before fixing
     '/entomologist': entomologist,
@@ -1914,12 +1915,26 @@ async function cicd(manifest, params) {
 }
 
 /**
- * Committer: Commits changes
+ * Committer: Commits changes (Fix 37a: shell-safe via execFileSync)
  */
 async function committer(manifest, params) {
-  const branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+  const { execFileSync } = require('child_process');
 
-  // CRITICAL: Clauditos cannot write to main
+  // FIX 37A-BRANCH-READ: argv-style invocation, no shell, no expansion.
+  let branch;
+  try {
+    branch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim();
+  } catch (err) {
+    updateSection(manifest, 'committer', {
+      branch: null,
+      blocked: true,
+      reason: `git branch read failed: ${err.message}`
+    });
+    console.log('COMMITTER: BLOCKED (git unavailable)');
+    return manifest;
+  }
+
+  // CRITICAL: Clauditos cannot write to main (safety floor, preserved unchanged)
   if (branch === 'main') {
     manifest.stop_conditions.warden_blocked = true;
     updateSection(manifest, 'committer', {
@@ -1927,21 +1942,87 @@ async function committer(manifest, params) {
       blocked: true,
       reason: 'Clauditos cannot commit to production branch main'
     });
-    console.log('🛑 Committer: BLOCKED (on main)');
+    console.log('COMMITTER: BLOCKED (on main)');
     return manifest;
   }
 
-  if (!branch.startsWith('mission/')) {
-    console.log('⚠️  Not on mission branch, skipping commit');
+  // FIX 37/37A-ENV-NORM: env-var-gated branch policy. Codex F3: normalize so
+  // 'true'/'TRUE'/'1'/'yes' all gate correctly (case-insensitive). Strict
+  // === 'true' silently bypassed gate when operator set =1 or =yes.
+  const requireMissionBranch = ['true', '1', 'yes'].includes(
+    String(process.env.PIPELINE_REQUIRE_MISSION_BRANCH || '').toLowerCase()
+  );
+  if (requireMissionBranch && !branch.startsWith('mission/')) {
+    console.log(`COMMITTER: PIPELINE_REQUIRE_MISSION_BRANCH set and branch '${branch}' is not mission/* — skipping commit`);
+    updateSection(manifest, 'committer', {
+      branch,
+      commit_hash: null,
+      reason: 'PIPELINE_REQUIRE_MISSION_BRANCH set and not on mission/*'
+    });
     return manifest;
   }
 
-  updateSection(manifest, 'committer', {
-    commit_hash: 'pending',
-    branch
-  });
+  // Stage manifest-tracked files only. Per CLAUDE.md: never `git add -A` — the
+  // committer must only stage files the pipeline itself recorded as modified
+  // or created, otherwise unrelated working-tree changes get pulled into the
+  // commit unintentionally.
+  const filesModified = (manifest.artifacts && manifest.artifacts.files_modified) || [];
+  const filesCreated = (manifest.artifacts && manifest.artifacts.files_created) || [];
+  const filesToStage = [...filesModified, ...filesCreated].filter(Boolean);
 
-  console.log(`✅ Committer: Ready to commit on ${branch}`);
+  if (filesToStage.length === 0) {
+    console.log(`COMMITTER: no files in manifest.artifacts.files_modified/created — nothing to commit on ${branch}`);
+    updateSection(manifest, 'committer', {
+      branch,
+      commit_hash: null,
+      reason: 'no files to commit (manifest.artifacts empty)'
+    });
+    return manifest;
+  }
+
+  // Build commit message: pipeline(fix-N): <issue>  OR  pipeline(mission): <issue>
+  const fixId = manifest.spec_source && manifest.spec_source.fixId;
+  const subject = fixId
+    ? `pipeline(fix-${fixId}): ${manifest.issue || manifest.mission_id}`
+    : `pipeline(mission): ${manifest.issue || manifest.mission_id}`;
+  const bodyLine1 = `Mission: ${manifest.mission_id}`;
+  const bodyLine2 = `Files: ${filesToStage.join(', ')}`;
+
+  try {
+    // FIX 37A-STAGE / 37B-MAXBUFFER: argv-style, no shell. Each filename is a
+    // separate argv element; metacharacters cannot expand. '--' separator prevents
+    // future filenames starting with '-' from being interpreted as git flags.
+    // maxBuffer 10MB guards against pipe deadlock if git emits verbose output
+    // (large file lists, warning floods). Default Node maxBuffer is 1MB.
+    execFileSync('git', ['add', '--', ...filesToStage], { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
+
+    // FIX 37A-COMMIT / 37B-MAXBUFFER: argv-style with repeated -m. git
+    // concatenates -m bodies with blank lines between, producing the same
+    // subject/body separation as before, without shell quoting.
+    execFileSync(
+      'git',
+      ['commit', '-m', subject, '-m', bodyLine1, '-m', bodyLine2],
+      { stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
+    updateSection(manifest, 'committer', {
+      branch,
+      commit_hash: sha,
+      files: filesToStage,
+      message: subject
+    });
+    console.log(`COMMITTER: committed ${sha.slice(0, 7)} on ${branch} (${filesToStage.length} file(s))`);
+  } catch (err) {
+    console.error(`COMMITTER: git commit failed — ${err.message}`);
+    updateSection(manifest, 'committer', {
+      branch,
+      commit_hash: null,
+      error: err.message
+    });
+    manifest.stop_conditions.cicd_failed = true;
+  }
+
   return manifest;
 }
 
@@ -2225,6 +2306,34 @@ async function fixerWrite(manifest, params) {
     }
 
     fs.writeFileSync(filePath, fileContents, 'utf8');
+
+    // FIX 40/40A: /fixer-write must feed the manifest-scoped committer with a
+    // canonical repo-relative path. The committer stages manifest.artifacts
+    // entries directly through git add, so reject empty/outside-repo paths and
+    // normalize separators before deduping.
+    const repoRoot = process.cwd();
+    const artifactPath = path.relative(repoRoot, path.resolve(parsed.file)).replace(/\\/g, '/');
+    if (!artifactPath) {
+      throw new Error('fixer-write: parsed file resolved to empty artifact path');
+    }
+    if (artifactPath === '..' || artifactPath.startsWith('../') || path.isAbsolute(artifactPath)) {
+      throw new Error(`fixer-write: refusing outside-repo artifact path: ${parsed.file}`);
+    }
+
+    if (!manifest.artifacts) manifest.artifacts = {};
+    if (!Array.isArray(manifest.artifacts.files_modified)) {
+      manifest.artifacts.files_modified = [];
+    }
+    if (!Array.isArray(manifest.artifacts.files_created)) {
+      manifest.artifacts.files_created = [];
+    }
+    if (
+      !manifest.artifacts.files_modified.includes(artifactPath) &&
+      !manifest.artifacts.files_created.includes(artifactPath)
+    ) {
+      manifest.artifacts.files_modified.push(artifactPath);
+    }
+
     const totalReplaced = perEditResults.reduce((sum, r) => sum + r.occurrencesReplaced, 0);
 
     updateSection(manifest, 'fixer', {
@@ -2642,6 +2751,219 @@ async function mercuryAttack(manifest, params) {
   });
 
   console.log(`✅ Mercury-Attack: ${iterations || '?'} iterations, ~${findingsHeuristic} finding(s), transcript ${path.relative(process.cwd(), transcriptPath)}`);
+  return manifest;
+}
+
+/**
+ * Mercury-Critic: Structural gate on Mercury's adversarial findings.
+ *
+ * Runs immediately after /mercury-attack. Reads ONLY the `## Mercury Verdict`
+ * section of the transcript (never the prompt-scaffold above it), classifies
+ * the verdict into one of five states, and halts the pipeline on anything
+ * other than `pass` or `ack`.
+ *
+ * Gate states:
+ *   pass             — no findings, no infra error, no truncation suspicion
+ *   ack              — operator wrote an ack file ratifying findings as reviewed
+ *   fail-infra       — Mercury dispatch failed or returned an error stub
+ *   fail-truncation  — Mercury answered too quickly with too little content
+ *   fail-findings    — Mercury surfaced findings; operator ack required
+ *
+ * On fail-* the stage sets stop_conditions.forensics_critical so the pipeline
+ * halts before /anchor-verify-post. Operator must either revise the fix and
+ * re-run, or write a mercury-ack file ratifying the findings as accepted.
+ *
+ * Skipped automatically in ADVISORY mode (no code applied → nothing to gate).
+ */
+async function mercuryCritic(manifest, params) {
+  if (manifest.mode !== 'EXECUTE') {
+    console.log('⏭️  Mercury-Critic: ADVISORY mode, no Mercury attack to gate — skipping');
+    return manifest;
+  }
+
+  const fs = require('fs');
+  const path = require('path');
+
+  const ma = manifest.critic && manifest.critic.mercury_attack ? manifest.critic.mercury_attack : null;
+
+  // Case 1: Mercury was never dispatched (no spec_source, or dispatch threw).
+  if (!ma || ma.dispatched === false) {
+    const reason = ma && ma.error
+      ? `Mercury dispatch failed: ${ma.error}`
+      : 'Mercury attack stage did not run (no spec_source or unknown failure)';
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-infra',
+        reason: reason,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    return manifest;
+  }
+
+  // Case 2: Transcript path missing or unreadable.
+  if (!ma.transcript || !fs.existsSync(path.resolve(process.cwd(), ma.transcript))) {
+    const reason = `Mercury transcript missing at ${ma.transcript || '(none)'}`;
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-infra',
+        reason: reason,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    return manifest;
+  }
+
+  const transcriptAbs = path.resolve(process.cwd(), ma.transcript);
+  const fullTranscript = fs.readFileSync(transcriptAbs, 'utf8');
+
+  // Extract ONLY the `## Mercury Verdict` section. Anything before that header
+  // is metadata + Claude's attack-prompt scaffolding. Counting bullets or
+  // citations in the prompt section is a critical bug — that text is by-design
+  // attack-shaped and would always look like findings.
+  const verdictHeaderRe = /^## Mercury Verdict\s*$/m;
+  const verdictMatch = fullTranscript.match(verdictHeaderRe);
+  let verdict;
+  if (verdictMatch) {
+    verdict = fullTranscript.slice(verdictMatch.index + verdictMatch[0].length).trim();
+  } else {
+    const reason = 'Transcript has no `## Mercury Verdict` section';
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-infra',
+        reason: reason,
+        transcript: ma.transcript,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    return manifest;
+  }
+
+  // Case 3: Mercury infrastructure failure detected in the verdict body.
+  // The mercury-bridge returns stub answers like "(Mercury call failed: Request
+  // timeout)" when the Inception Labs API errors or hangs. These are NOT
+  // "Mercury found nothing."
+  const infraFailurePatterns = [
+    /Mercury call failed/i,
+    /Request timeout/i,
+    /\(Mercury .* failed:/i,
+    /termination:\s*error/i,
+  ];
+  const mercuryInfraError = infraFailurePatterns.some(function (re) { return re.test(verdict); });
+  if (mercuryInfraError) {
+    const reason = `Mercury infrastructure failure — no real verdict produced. Verdict head: "${verdict.slice(0, 160).replace(/\s+/g, ' ')}…". Retry dispatch.`;
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-infra',
+        reason: reason,
+        transcript: ma.transcript,
+        verdictBodyLength: verdict.length,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-infra — ${reason}`);
+    return manifest;
+  }
+
+  // Case 4: Operator ack file.
+  const ackPath = path.join(__dirname, 'manifests', `${manifest.mission_id}-mercury-ack.txt`);
+  let operatorAck = null;
+  if (fs.existsSync(ackPath)) {
+    operatorAck = fs.readFileSync(ackPath, 'utf8').trim();
+  }
+
+  // Heuristic finding detection on the VERDICT BODY ONLY.
+  const numberedBullets = (verdict.match(/^\s*\d+[.)]\s+\S/gm) || []).length;
+  // Markdown content rows: pipe-delimited lines that aren't separator (---|---).
+  // Mercury structures findings in tables with location-named rows, not
+  // numbered rows, so we count all non-separator content rows.
+  const tableRows = (verdict.match(/^\|(?!\s*[-:]+\s*\|)[^\n]*\|[^\n]*$/gm) || []).length;
+  // File:line citations: allow optional whitespace around the colon — Mercury
+  // sometimes writes `core/X.js : 123` with spaces.
+  const fileLineCitations = (verdict.match(/\b[a-zA-Z][\w./-]+\.js\s*:\s*\d+(?:[-\u2011]\d+)?/g) || []).length;
+  // Adversarial / exploit-confirmation keywords — broad vocabulary list to
+  // catch Mercury's varied phrasing ("diverge", "violating", "bypass", etc.).
+  const adversarialHits = (verdict.match(/\b(ATTACK SUCCEEDED|CRASH|BREAKS|LIES|corrupted|race condition|silent.*corruption|halt-not-hide|diverge|divergen|bypass|violat|out[- ]of[- ]sync|stale|inconsistent|incorrect|wrong)\b/gi) || []).length;
+  const findingsScore = numberedBullets + tableRows + adversarialHits;
+
+  // Case 5: Truncation suspect. Mercury self-terminated very early AND verdict
+  // body is short. Catches the Fix 30 V2 pattern.
+  const iters = ma.iterations || 0;
+  const truncationSuspect = iters > 0 && iters < 15 && verdict.length < 3000;
+  if (truncationSuspect && findingsScore === 0) {
+    const reason = `Suspected response truncation — iters=${iters}/60, body=${verdict.length} chars, findings=0. Re-dispatch with narrower scope.`;
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-truncation',
+        reason: reason,
+        transcript: ma.transcript,
+        verdictBodyLength: verdict.length,
+        iterations: iters,
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-truncation — ${reason}`);
+    return manifest;
+  }
+
+  // Case 6: Findings present.
+  if (findingsScore > 0) {
+    if (operatorAck) {
+      updateSection(manifest, 'critic', {
+        mercury_critic: {
+          gate: 'ack',
+          reason: `Operator ack: ${operatorAck.slice(0, 200)}`,
+          transcript: ma.transcript,
+          findingsScore: findingsScore,
+          breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
+          verdictBodyLength: verdict.length,
+          human_ack: operatorAck,
+          timestamp: new Date().toISOString(),
+        }
+      });
+      console.log(`✅ Mercury-Critic: gate=ack — operator ratified ${findingsScore} finding(s) score`);
+      return manifest;
+    }
+    const reason = `Mercury surfaced findings — score=${findingsScore} (bullets=${numberedBullets}, rows=${tableRows}, adversarial=${adversarialHits}, citations=${fileLineCitations}). Operator review required. Write ack to ${path.relative(process.cwd(), ackPath)} to proceed.`;
+    manifest.stop_conditions.forensics_critical = true;
+    updateSection(manifest, 'critic', {
+      mercury_critic: {
+        gate: 'fail-findings',
+        reason: reason,
+        transcript: ma.transcript,
+        findingsScore: findingsScore,
+        breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
+        verdictBodyLength: verdict.length,
+        ackPath: path.relative(process.cwd(), ackPath),
+        timestamp: new Date().toISOString(),
+      }
+    });
+    console.log(`🛑 Mercury-Critic: gate=fail-findings — ${reason}`);
+    return manifest;
+  }
+
+  // Case 7: Pass.
+  updateSection(manifest, 'critic', {
+    mercury_critic: {
+      gate: 'pass',
+      reason: 'No findings, no infra error, no truncation suspicion',
+      transcript: ma.transcript,
+      findingsScore: 0,
+      breakdown: { numberedBullets: numberedBullets, tableRows: tableRows, adversarialHits: adversarialHits, fileLineCitations: fileLineCitations },
+      verdictBodyLength: verdict.length,
+      iterations: iters,
+      timestamp: new Date().toISOString(),
+    }
+  });
+  console.log(`✅ Mercury-Critic: gate=pass — Mercury found nothing actionable (verdict body ${verdict.length} chars, ${iters}/60 iters)`);
   return manifest;
 }
 
