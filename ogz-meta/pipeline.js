@@ -67,6 +67,7 @@ const WRITE_PIPELINE = [
   '/architect-verify',     // Deterministic: target exists in current code?
   '/fixer-write',          // Deterministic: ADVISORY writes proposal; EXECUTE applies str_replace
   '/mercury-attack',       // EXECUTE only: adversarial Mercury attack on the just-applied change
+  '/mercury-critic',       // EXECUTE only: gates pipeline on Mercury findings (requires operator ack on fail-findings)
   '/anchor-verify-post',   // EXECUTE only: Fast P0 + Full P0 drift gate (trade-path only)
   '/debugger',
   '/critic',
