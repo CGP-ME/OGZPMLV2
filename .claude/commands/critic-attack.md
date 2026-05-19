@@ -76,7 +76,7 @@ const attackPrompt = [
 const result = await runAgentic(attackPrompt, {
   blastRadius,
   maxTokens: 7750,
-  maxIterations: 30,
+  maxIterations: 60,
 });
 ```
 

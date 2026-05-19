@@ -18,7 +18,8 @@ OGZPrime is not a trading bot. It is a fully autonomous fintech product with thr
 
 The goal is not to be another retail algo bot. The goal is to be a self-running fintech company that generates trading P&L and content revenue simultaneously, with the operator (Trey) free to live his life instead of babysitting screens.
 
----
+4. The bot should be Multi broker multi directional multi position multi time frame scanner that watches eight to ten specified tickers on every time frame checking it against known patterns and setups trying to find the best one or a good enough 1 to take the trade  All of the strategies fire independently they have their independent pipeline's in their own exit independent As the as the architecture develops the strategies can become more robust adding liquidity manipulation checks and fake out reversal checks and whatever else that you use multi time frame validation for Checking for liquidity checking for manipulation candles all of the above More robust strategies better signals more profit less trade    Oh I think it's said before down here on the bottom   
+and it can swap between crpto and stocksn automatically autonomously and know whats ---
 
 ## The trading engine
 
