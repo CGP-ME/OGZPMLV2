@@ -20,6 +20,9 @@ logs/
 # Data files (keep example only)
 data/*.json
 !data/example.json
+!data/btc-15m-2025.json
+!data/kraken-btc-15m-recent.json
+!data/pattern-pack.json
 
 # OS files
 .DS_Store
@@ -65,7 +68,7 @@ trai_brain/**/*.pkl
 trai_brain/**/*.h5
 trai_brain/**/*.model
 *brain*.py
-inference_server*.py
+core/inference_server*.py
 
 # Secrets and credentials
 *.pem
@@ -77,6 +80,7 @@ secrets.json
 *.secret
 config/secrets/
 .env.*
+!config/.env.example
 
 # Large data files
 *.csv
@@ -120,9 +124,11 @@ trai_brain/experimental/*.json
 
 # Backup files
 *.backup*.js
+data/*.backup-*
 
 # RAG/LLM index files
 ogz-meta/*.json
+ogz-meta/mermaid-diagram-*.png
 
 # Backtest data
 backtest/data/*.json
@@ -138,7 +144,6 @@ public/assets/video/
 trai_brain/trai_journal.jsonl
 pr5-broker-refactor.txt
 test/btc-10k.json
-ogz-meta/prodlock-portable
 # SonarQube - uncomment if you put token in properties file\n# sonar-project.properties
 .scannerwork/
 
@@ -160,6 +165,7 @@ data/backtest/
 # Local AI scratch
 .ai-specs/
 trees/
+.playwright-mcp/
 
 # Pattern memory backups (point-in-time recoveries, not source)
 data/pattern-memory.paper.json.bak-*
