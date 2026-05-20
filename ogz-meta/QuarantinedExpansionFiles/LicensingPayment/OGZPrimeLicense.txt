@@ -1,0 +1,16 @@
+OGZ Prime Valhalla - Proprietary Software License
+(C) 2024 TB&E Systems - All Rights Reserved
+
+This software and all associated modules, structures, interfaces, memory systems, trading logic, and design elements are proprietary to the creator, Trey (TB&E).
+
+You MAY NOT:
+- Copy, modify, fork, or distribute any portion of this software
+- Use this software in commercial products or services
+- Train models or agents on this codebase or its behavior
+- Grant access to any third party without explicit permission from the owner
+
+This software is provided “as is,” with no warranties, express or implied. By accessing this repository, you agree to these terms.
+
+Violators will be pursued under all applicable civil and criminal jurisdictions.
+
+TB&E 4LYF3.

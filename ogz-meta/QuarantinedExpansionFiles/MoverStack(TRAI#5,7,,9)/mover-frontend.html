@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Mover - Whale Hunter Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="mover-container"></div>
+
+<script>
+// ==========================================
+// MOVER-FRONTEND.JS - THE MOVER UI
+// Complete frontend for The Mover narration system with whale tracking
+// ==========================================
+
+class MoverFrontend {
+  constructor(containerId = 'mover-container') {
+    this.container = document.getElementById(containerId);
+    this.config = {
+      wsUrl: 'ws://localhost:4001',
+      apiUrl: 'http://localhost:4000',
+      updateInterval: 1000,
+      maxMessages: 100,
+      theme: 'mover-dark'
+    };
+    
+    this.state = {
+      connected: false,
+      moverActive: true,
+      voiceEnabled: false,
+      currentNarration: '',
+      messageHistory: [],
+      whaleActivity: [],
+      poolStatus: {},
+      stats: {
+        tradesNarrated: 0,
+        profitLoss: 0,
+        whalesTracked: 0,
+        poolsActive: 0
+      }
+    };
+    
+    this.ws = null;
+    this.speechSynth = window.speechSynthesis;
+    this.selectedVoice = null;
+    
+    this.initialize();
+  }
+  
+  async initialize() {
+    console.log('[MoverUI] Initializing The Mover frontend...');
+    
+    // Create UI structure
+    this.createUI();
+    
+    // Setup WebSocket connection
+    await this.connectWebSocket();
+    
+    // Load initial data
+    await this.loadInitialData();
+    
+    // Setup voice if available
+    this.setupVoice();
+    
+    // Start update loops
+    this.startUpdateLoops();
+    
+    // Setup event listeners
+    this.setupEventListeners();
+    
+    console.log('[MoverUI] Initialization complete');
+  }
+  
+  createUI() {
+    this.container.innerHTML = `
+      <div class="mover-dashboard">
+        <!-- Header -->
+        <div class="mover-header">
+          <div class="mover-title">
+            <h1>THE MOVER</h1>
+            <span class="version">v2.0 - Whale Hunter Edition</span>
+          </div>
+          <div class="mover-controls">
+            <button id="mover-toggle" class="control-btn active">
+              <i class="fas fa-power-off"></i>
+            </button>
+            <button id="voice-toggle" class="control-btn">
+              <i class="fas fa-microphone"></i>
+            </button>
+            <button id="whale-toggle" class="control-btn active">
+              <i class="fas fa-fish"></i>
+            </button>
+            <div class="connection-status" id="connection-status">
+              <i class="fas fa-circle"></i> Disconnected
+            </div>
+          </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="mover-content">
+          <!-- Left Panel - Narration Feed -->
+          <div class="narration-panel">
+            <div class="panel-header">
+              <h2>Live Narration</h2>
+              <button id="clear-feed" class="mini-btn">Clear</button>
+            </div>
+            <div id="narration-feed" class="narration-feed">
+              <div class="welcome-message">
+                <p>Welcome to The Mover - Your AI Trading Narrator</p>
+                <p>Waiting for market activity...</p>
+              </div>
+            </div>
+            <div class="current-narration" id="current-narration">
+              <i class="fas fa-comment-dots"></i>
+              <span id="narration-text">System initializing...</span>
+            </div>
+          </div>
+          
+          <!-- Center Panel - Whale Tracking -->
+          <div class="whale-panel">
+            <div class="panel-header">
+              <h2>🐋 Whale Activity</h2>
+              <button id="whale-scan" class="mini-btn">Force Scan</button>
+            </div>
+            
+            <!-- Whale Alerts -->
+            <div class="whale-alerts" id="whale-alerts">
+              <div class="alert-placeholder">
+                <i class="fas fa-water"></i>
+                <p>Scanning for whale movements...</p>
+              </div>
+            </div>
+            
+            <!-- Active Whales List -->
+            <div class="active-whales">
+              <h3>Tracked Whales</h3>
+              <div id="whale-list" class="whale-list">
+                <div class="whale-item">
+                  <span class="whale-name">Nancy Pelosi</span>
+                  <span class="whale-return">+119.57%</span>
+                </div>
+                <div class="whale-item">
+                  <span class="whale-name">Cathie Wood (ARK)</span>
+                  <span class="whale-return">Daily Updates</span>
+                </div>
+                <div class="whale-item">
+                  <span class="whale-name">Michael Burry</span>
+                  <span class="whale-return">Contrarian</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Convergence Indicator -->
+            <div class="convergence-indicator">
+              <h3>Multi-Whale Convergence</h3>
+              <div id="convergence-display" class="convergence-display">
+                <div class="convergence-meter">
+                  <div class="meter-fill" style="width: 0%"></div>
+                </div>
+                <span class="convergence-text">No convergence detected</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Panel - Auto-Investment Pools -->
+          <div class="pools-panel">
+            <div class="panel-header">
+              <h2>💰 Auto-Investment Pools</h2>
+              <button id="pools-config" class="mini-btn">Configure</button>
+            </div>
+            
+            <!-- Pool Cards -->
+            <div id="pool-cards" class="pool-cards">
+              <div class="pool-card" data-pool="congress_pool">
+                <h4>Congressional Trades</h4>
+                <div class="pool-stats">
+                  <div class="pool-balance">$10,000</div>
+                  <div class="pool-performance positive">+0.00%</div>
+                </div>
+                <div class="pool-positions">0 positions</div>
+                <button class="pool-toggle active" data-pool="congress_pool">Active</button>
+              </div>
+              
+              <div class="pool-card" data-pool="legends_pool">
+                <h4>Wall Street Legends</h4>
+                <div class="pool-stats">
+                  <div class="pool-balance">$20,000</div>
+                  <div class="pool-performance">+0.00%</div>
+                </div>
+                <div class="pool-positions">0 positions</div>
+                <button class="pool-toggle active" data-pool="legends_pool">Active</button>
+              </div>
+              
+              <div class="pool-card" data-pool="innovation_pool">
+                <h4>Innovation (ARK)</h4>
+                <div class="pool-stats">
+                  <div class="pool-balance">$15,000</div>
+                  <div class="pool-performance">+0.00%</div>
+                </div>
+                <div class="pool-positions">0 positions</div>
+                <button class="pool-toggle active" data-pool="innovation_pool">Active</button>
+              </div>
+              
+              <div class="pool-card" data-pool="convergence_pool">
+                <h4>Convergence Plays</h4>
+                <div class="pool-stats">
+                  <div class="pool-balance">$25,000</div>
+                  <div class="pool-performance">+0.00%</div>
+                </div>
+                <div class="pool-positions">0 positions</div>
+                <button class="pool-toggle active" data-pool="convergence_pool">Active</button>
+              </div>
+            </div>
+            
+            <!-- Pool Summary -->
+            <div class="pool-summary">
+              <h3>Total Pool Value</h3>
+              <div class="total-value" id="total-pool-value">$70,000</div>
+              <div class="total-performance" id="total-performance">+0.00%</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bottom Stats Bar -->
+        <div class="mover-stats">
+          <div class="stat-item">
+            <span class="stat-label">Trades Narrated</span>
+            <span class="stat-value" id="trades-narrated">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Session P&L</span>
+            <span class="stat-value" id="session-pnl">$0.00</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Whales Tracked</span>
+            <span class="stat-value" id="whales-tracked">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Active Pools</span>
+            <span class="stat-value" id="active-pools">4</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Memory Items</span>
+            <span class="stat-value" id="memory-items">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Houston Fund</span>
+            <span class="stat-value" id="houston-fund">$0/$50K</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    this.injectStyles();
+  }
+  
+  injectStyles() {
+    if (document.getElementById('mover-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'mover-styles';
+    style.textContent = `
+      /* Mover Dashboard Styles */
+      .mover-dashboard {
+        background: #0a0a0a;
+        color: #e0e0e0;
+        font-family: 'Inter', -apple-system, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      
+      /* Header */
+      .mover-header {
+        background: #141414;
+        border-bottom: 2px solid #2a2a2a;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .mover-title h1 {
+        margin: 0;
+        font-size: 2rem;
+        background: linear-gradient(45deg, #00ff88, #00ffff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      .version {
+        font-size: 0.8rem;
+        color: #666;
+        margin-left: 1rem;
+      }
+      
+      .mover-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+      
+      .control-btn {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #666;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      
+      .control-btn.active {
+        background: #00ff88;
+        color: #000;
+        border-color: #00ff88;
+      }
+      
+      .control-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+      }
+      
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #1a1a1a;
+        border-radius: 0.5rem;
+      }
+      
+      .connection-status.connected {
+        color: #00ff88;
+      }
+      
+      .connection-status.error {
+        color: #ff4444;
+      }
+      
+      /* Main Content */
+      .mover-content {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1.2fr 1fr;
+        gap: 1rem;
+        padding: 1rem;
+        overflow: hidden;
+      }
+      
+      /* Panels */
+      .narration-panel,
+      .whale-panel,
+      .pools-panel {
+        background: #141414;
+        border: 1px solid #2a2a2a;
+        border-radius: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      
+      .panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid #2a2a2a;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .panel-header h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+      
+      .mini-btn {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #999;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      
+      .mini-btn:hover {
+        background: #2a2a2a;
+        color: #fff;
+      }
+      
+      /* Narration Feed */
+      .narration-feed {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        font-family: 'Roboto Mono', monospace;
+      }
+      
+      .narration-item {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #1a1a1a;
+        border-left: 3px solid #00ff88;
+        border-radius: 0.25rem;
+        animation: slideIn 0.3s ease-out;
+      }
+      
+      @keyframes slideIn {
+        from {
+          transform: translateX(-20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      .narration-timestamp {
+        font-size: 0.7rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+      }
+      
+      .narration-text {
+        color: #e0e0e0;
+        line-height: 1.5;
+      }
+      
+      .narration-text.profit {
+        color: #00ff88;
+      }
+      
+      .narration-text.loss {
+        color: #ff4444;
+      }
+      
+      .current-narration {
+        padding: 1rem;
+        background: #1a1a1a;
+        border-top: 1px solid #2a2a2a;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      
+      .current-narration i {
+        color: #00ff88;
+        animation: pulse 2s infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+      
+      /* Whale Panel */
+      .whale-alerts {
+        padding: 1rem;
+        border-bottom: 1px solid #2a2a2a;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      
+      .whale-alert {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-left: 3px solid #00ffff;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0.25rem;
+        animation: whaleIn 0.5s ease-out;
+      }
+      
+      @keyframes whaleIn {
+        from {
+          transform: scale(0.9);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      
+      .whale-alert.urgent {
+        border-left-color: #ff4444;
+        background: rgba(255, 68, 68, 0.1);
+      }
+      
+      .active-whales {
+        padding: 1rem;
+        flex: 1;
+      }
+      
+      .whale-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .whale-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem;
+        background: #1a1a1a;
+        border-radius: 0.25rem;
+      }
+      
+      .whale-name {
+        color: #00ffff;
+      }
+      
+      .whale-return {
+        color: #00ff88;
+        font-weight: bold;
+      }
+      
+      /* Convergence Indicator */
+      .convergence-indicator {
+        padding: 1rem;
+        border-top: 1px solid #2a2a2a;
+      }
+      
+      .convergence-meter {
+        background: #1a1a1a;
+        height: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+      }
+      
+      .meter-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00ff88, #00ffff);
+        transition: width 0.5s ease-out;
+      }
+      
+      /* Pool Cards */
+      .pool-cards {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+        overflow-y: auto;
+      }
+      
+      .pool-card {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 0.5rem;
+        padding: 1rem;
+      }
+      
+      .pool-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: #00ffff;
+      }
+      
+      .pool-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+      
+      .pool-balance {
+        font-size: 1.2rem;
+        font-weight: bold;
+      }
+      
+      .pool-performance {
+        font-size: 1.2rem;
+        font-weight: bold;
+      }
+      
+      .pool-performance.positive {
+        color: #00ff88;
+      }
+      
+      .pool-performance.negative {
+        color: #ff4444;
+      }
+      
+      .pool-positions {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .pool-toggle {
+        width: 100%;
+        padding: 0.5rem;
+        background: #2a2a2a;
+        border: 1px solid #333;
+        color: #666;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      
+      .pool-toggle.active {
+        background: #00ff88;
+        color: #000;
+        border-color: #00ff88;
+      }
+      
+      /* Pool Summary */
+      .pool-summary {
+        padding: 1rem;
+        background: #1a1a1a;
+        border-top: 1px solid #2a2a2a;
+        text-align: center;
+      }
+      
+      .total-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #00ff88;
+        margin: 0.5rem 0;
+      }
+      
+      .total-performance {
+        font-size: 1.2rem;
+        color: #00ffff;
+      }
+      
+      /* Stats Bar */
+      .mover-stats {
+        background: #141414;
+        border-top: 2px solid #2a2a2a;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-around;
+      }
+      
+      .stat-item {
+        text-align: center;
+      }
+      
+      .stat-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+      }
+      
+      .stat-value {
+        display: block;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #00ff88;
+      }
+      
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #1a1a1a;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 4px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #444;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+  
+  async connectWebSocket() {
+    return new Promise((resolve, reject) => {
+      this.ws = new WebSocket(this.config.wsUrl);
+      
+      this.ws.onopen = () => {
+        console.log('[MoverUI] WebSocket connected');
+        this.updateConnectionStatus(true);
+        this.state.connected = true;
+        resolve();
+      };
+      
+      this.ws.onmessage = (event) => {
+        this.handleWebSocketMessage(event);
+      };
+      
+      this.ws.onerror = (error) => {
+        console.error('[MoverUI] WebSocket error:', error);
+        this.updateConnectionStatus(false, 'error');
+        reject(error);
+      };
+      
+      this.ws.onclose = () => {
+        console.log('[MoverUI] WebSocket disconnected');
+        this.updateConnectionStatus(false);
+        this.state.connected = false;
+        
+        // Reconnect after 3 seconds
+        setTimeout(() => this.connectWebSocket(), 3000);
+      };
+    });
+  }
+  
+  handleWebSocketMessage(event) {
+    try {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'narration':
+          this.addNarration(message.data);
+          break;
+          
+        case 'whale-trade':
+          this.handleWhaleTrade(message.data);
+          break;
+          
+        case 'pool-update':
+          this.updatePoolStatus(message.data);
+          break;
+          
+        case 'whale-alert':
+          this.showWhaleAlert(message.data);
+          break;
+          
+        case 'memory-update':
+          this.updateMemoryStats(message.data);
+          break;
+          
+        case 'bot-event':
+          this.handleBotEvent(message.data);
+          break;
+          
+        default:
+          console.log('[MoverUI] Unknown message type:', message.type);
+      }
+    } catch (error) {
+      console.error('[MoverUI] Message handling error:', error);
+    }
+  }
+  
+  addNarration(narration) {
+    const feed = document.getElementById('narration-feed');
+    
+    // Remove welcome message if present
+    const welcome = feed.querySelector('.welcome-message');
+    if (welcome) welcome.remove();
+    
+    // Create narration item
+    const item = document.createElement('div');
+    item.className = 'narration-item';
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const profitClass = narration.includes('+$') ? 'profit' : 
+                       narration.includes('-$') ? 'loss' : '';
+    
+    item.innerHTML = `
+      <div class="narration-timestamp">${timestamp}</div>
+      <div class="narration-text ${profitClass}">${narration}</div>
+    `;
+    
+    feed.appendChild(item);
+    
+    // Update current narration
+    document.getElementById('narration-text').textContent = narration;
+    
+    // Speak if voice enabled
+    if (this.state.voiceEnabled) {
+      this.speak(narration);
+    }
+    
+    // Limit history
+    while (feed.children.length > this.config.maxMessages) {
+      feed.removeChild(feed.firstChild);
+    }
+    
+    // Auto-scroll
+    feed.scrollTop = feed.scrollHeight;
+    
+    // Update stats
+    this.state.stats.tradesNarrated++;
+    this.updateStats();
+  }
+  
+  handleWhaleTrade(trade) {
+    // Add to whale activity
+    this.state.whaleActivity.unshift(trade);
+    if (this.state.whaleActivity.length > 20) {
+      this.state.whaleActivity.pop();
+    }
+    
+    // Show alert
+    this.showWhaleAlert({
+      type: 'trade',
+      whale: trade.whale,
+      action: trade.action,
+      symbol: trade.symbol,
+      confidence: trade.confidence,
+      urgency: trade.urgency
+    });
+    
+    // Update convergence if present
+    if (trade.convergenceScore) {
+      this.updateConvergence(trade.convergenceScore, trade.convergenceWhales);
+    }
+  }
+  
+  showWhaleAlert(alert) {
+    const alertsContainer = document.getElementById('whale-alerts');
+    
+    // Remove placeholder if present
+    const placeholder = alertsContainer.querySelector('.alert-placeholder');
+    if (placeholder) placeholder.remove();
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `whale-alert ${alert.urgency === 'high' ? 'urgent' : ''}`;
+    
+    alertDiv.innerHTML = `
+      <div class="whale-alert-header">
+        <span class="whale-icon">🐋</span>
+        <span class="whale-name">${alert.whale}</span>
+        <span class="alert-time">${new Date().toLocaleTimeString()}</span>
+      </div>
+      <div class="whale-alert-body">
+        <strong>${alert.action}</strong> ${alert.symbol || ''}
+        ${alert.confidence ? `<span class="confidence">(${alert.confidence}% confidence)</span>` : ''}
+      </div>
+    `;
+    
+    alertsContainer.insertBefore(alertDiv, alertsContainer.firstChild);
+    
+    // Limit alerts
+    while (alertsContainer.children.length > 10) {
+      alertsContainer.removeChild(alertsContainer.lastChild);
+    }
+  }
+  
+  updatePoolStatus(data) {
+    // Update pool card
+    const poolCard = document.querySelector(`[data-pool="${data.pool}"]`);
+    if (poolCard) {
+      const stats = data.stats || {};
+      poolCard.querySelector('.pool-balance').textContent = `$${stats.balance?.toFixed(2) || '0.00'}`;
+      poolCard.querySelector('.pool-performance').textContent = 
+        `${stats.performance >= 0 ? '+' : ''}${stats.performance?.toFixed(2) || '0.00'}%`;
+      poolCard.querySelector('.pool-performance').className = 
+        `pool-performance ${stats.performance >= 0 ? 'positive' : 'negative'}`;
+      poolCard.querySelector('.pool-positions').textContent = 
+        `${stats.activePositions || 0} positions`;
+    }
+    
+    // Update total
+    this.updatePoolTotals();
+  }
+  
+  updateConvergence(score, whales) {
+    const meterFill = document.querySelector('.meter-fill');
+    const convergenceText = document.querySelector('.convergence-text');
+    
+    meterFill.style.width = `${score}%`;
+    convergenceText.textContent = whales.length > 1 ? 
+      `${whales.length} whales converging!` : 'No convergence detected';
+  }
+  
+  setupVoice() {
+    if (!this.speechSynth) return;
+    
+    // Get available voices
+    const voices = this.speechSynth.getVoices();
+    this.selectedVoice = voices.find(v => v.name.includes('Daniel')) || voices[0];
+  }
+  
+  speak(text) {
+    if (!this.speechSynth || !this.state.voiceEnabled) return;
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.voice = this.selectedVoice;
+    utterance.rate = 1.1;
+    utterance.pitch = 0.9;
+    utterance.volume = 0.8;
+    
+    this.speechSynth.speak(utterance);
+  }
+  
+  async loadInitialData() {
+    try {
+      // Load mover status
+      const statusResponse = await fetch(`${this.config.apiUrl}/status`);
+      const status = await statusResponse.json();
+      
+      // Load whale status
+      const whaleResponse = await fetch(`${this.config.apiUrl}/whales/status`);
+      const whaleData = await whaleResponse.json();
+      
+      // Load pool status
+      const poolResponse = await fetch(`${this.config.apiUrl}/pools/status`);
+      const poolData = await poolResponse.json();
+      
+      // Update UI with initial data
+      this.state.stats = status.stats || this.state.stats;
+      this.state.whaleActivity = whaleData.recentTrades || [];
+      this.state.poolStatus = poolData || {};
+      
+      this.updateStats();
+      this.updatePoolTotals();
+      
+    } catch (error) {
+      console.error('[MoverUI] Failed to load initial data:', error);
+    }
+  }
+  
+  startUpdateLoops() {
+    // Update stats every second
+    setInterval(() => {
+      if (this.state.connected) {
+        this.updateRealTimeStats();
+      }
+    }, this.config.updateInterval);
+    
+    // Update whale data every 5 seconds
+    setInterval(() => {
+      if (this.state.connected) {
+        this.fetchWhaleUpdates();
+      }
+    }, this.config.whaleUpdateInterval);
+  }
+  
+  setupEventListeners() {
+    // Mover toggle
+    document.getElementById('mover-toggle').addEventListener('click', async () => {
+      this.state.moverActive = !this.state.moverActive;
+      document.getElementById('mover-toggle').classList.toggle('active');
+      
+      // TODO: Send toggle command to backend
+    });
+    
+    // Voice toggle
+    document.getElementById('voice-toggle').addEventListener('click', async () => {
+      this.state.voiceEnabled = !this.state.voiceEnabled;
+      document.getElementById('voice-toggle').classList.toggle('active');
+      
+      const response = await fetch(`${this.config.apiUrl}/voice/toggle`, {
+        method: 'POST'
+      });
+    });
+    
+    // Whale toggle
+    document.getElementById('whale-toggle').addEventListener('click', () => {
+      this.state.whaleTracking.enabled = !this.state.whaleTracking.enabled;
+      document.getElementById('whale-toggle').classList.toggle('active');
+    });
+    
+    // Clear feed
+    document.getElementById('clear-feed').addEventListener('click', () => {
+      const feed = document.getElementById('narration-feed');
+      feed.innerHTML = '<div class="welcome-message"><p>Feed cleared</p></div>';
+    });
+    
+    // Force whale scan
+    document.getElementById('whale-scan').addEventListener('click', async () => {
+      const btn = document.getElementById('whale-scan');
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+      
+      try {
+        await fetch(`${this.config.apiUrl}/whales/scan`, { method: 'POST' });
+      } catch (error) {
+        console.error('Scan failed:', error);
+      }
+      
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Force Scan';
+      }, 5000);
+    });
+    
+    // Pool toggles
+    document.querySelectorAll('.pool-toggle').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const poolId = e.target.dataset.pool;
+        const isActive = e.target.classList.contains('active');
+        
+        await fetch(`${this.config.apiUrl}/pools/toggle/${poolId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: !isActive })
+        });
+        
+        e.target.classList.toggle('active');
+      });
+    });
+  }
+  
+  updateConnectionStatus(connected, status = '') {
+    const statusEl = document.getElementById('connection-status');
+    statusEl.className = `connection-status ${connected ? 'connected' : status}`;
+    statusEl.innerHTML = `
+      <i class="fas fa-circle"></i> ${connected ? 'Connected' : 'Disconnected'}
+    `;
+  }
+  
+  updateStats() {
+    document.getElementById('trades-narrated').textContent = this.state.stats.tradesNarrated;
+    document.getElementById('session-pnl').textContent = 
+      `$${this.state.stats.profitLoss >= 0 ? '+' : ''}${this.state.stats.profitLoss.toFixed(2)}`;
+    document.getElementById('whales-tracked').textContent = 
+      Object.keys(this.state.whaleActivity).length;
+  }
+  
+  updatePoolTotals() {
+    let totalValue = 0;
+    let totalPerformance = 0;
+    let activePools = 0;
+    
+    document.querySelectorAll('.pool-card').forEach(card => {
+      const balance = parseFloat(card.querySelector('.pool-balance').textContent.replace('$', ''));
+      const performance = parseFloat(card.querySelector('.pool-performance').textContent.replace('%', ''));
+      
+      totalValue += balance;
+      totalPerformance += performance;
+      
+      if (card.querySelector('.pool-toggle').classList.contains('active')) {
+        activePools++;
+      }
+    });
+    
+    document.getElementById('total-pool-value').textContent = `$${totalValue.toFixed(2)}`;
+    document.getElementById('total-performance').textContent = 
+      `${totalPerformance >= 0 ? '+' : ''}${(totalPerformance / 4).toFixed(2)}%`;
+    document.getElementById('active-pools').textContent = activePools;
+  }
+  
+  async updateRealTimeStats() {
+    // Update session time
+    const sessionTime = Date.now() - this.state.stats.startTime;
+    // Update other real-time metrics
+  }
+  
+  async fetchWhaleUpdates() {
+    try {
+      const response = await fetch(`${this.config.apiUrl}/whales/status`);
+      const data = await response.json();
+      
+      if (data.recentTrades) {
+        // Process new whale trades
+        data.recentTrades.forEach(trade => {
+          if (!this.state.whaleActivity.find(t => t.id === trade.id)) {
+            this.handleWhaleTrade(trade);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[MoverUI] Failed to fetch whale updates:', error);
+    }
+  }
+  
+  handleBotEvent(event) {
+    // Handle events from the main trading bot
+    if (event.type === 'trade') {
+      // Extract P&L if present
+      const match = event.data.result?.match(/([+-]\$[\d,]+\.?\d*)/);
+      if (match) {
+        const pnl = parseFloat(match[1].replace(/[$,]/g, ''));
+        this.state.stats.profitLoss += pnl;
+        this.updateStats();
+      }
+    }
+  }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.moverUI = new MoverFrontend('mover-container');
+  });
+} else {
+  window.moverUI = new MoverFrontend('mover-container');
+}
+
+</script>
+</body>
+</html>

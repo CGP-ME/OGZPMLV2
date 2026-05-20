@@ -1,0 +1,104 @@
+{
+  "buttons": {
+    "0": {
+      "action": "buy",
+      "title": "BUY",
+      "icon": "icons/buy.png",
+      "backgroundColor": "#00ff00"
+    },
+    "1": {
+      "action": "sell",
+      "title": "SELL",
+      "icon": "icons/sell.png",
+      "backgroundColor": "#ff0000"
+    },
+    "2": {
+      "action": "emergencyClose",
+      "title": "CLOSE",
+      "icon": "icons/close.png",
+      "backgroundColor": "#ff6600"
+    },
+    "3": {
+      "action": "pause",
+      "title": "PAUSE",
+      "icon": "icons/pause.png",
+      "backgroundColor": "#ffff00"
+    },
+    "4": {
+      "action": "resume",
+      "title": "RESUME",
+      "icon": "icons/play.png",
+      "backgroundColor": "#00ff00"
+    },
+    "5": {
+      "action": "showStats",
+      "title": "STATS",
+      "icon": "icons/stats.png",
+      "backgroundColor": "#00bfff"
+    },
+    "6": {
+      "action": "riskUp",
+      "title": "RISK+",
+      "icon": "icons/risk-up.png",
+      "backgroundColor": "#ff9900"
+    },
+    "7": {
+      "action": "riskDown",
+      "title": "RISK-",
+      "icon": "icons/risk-down.png",
+      "backgroundColor": "#00cc00"
+    },
+    "8": {
+      "action": "screenshot",
+      "title": "SHOT",
+      "icon": "icons/camera.png",
+      "backgroundColor": "#9d71c7"
+    },
+    "9": {
+      "action": "toggleSound",
+      "title": "SOUND",
+      "icon": "icons/sound.png",
+      "backgroundColor": "#666666"
+    },
+    "10": {
+      "action": "quickSave",
+      "title": "SAVE",
+      "icon": "icons/save.png",
+      "backgroundColor": "#0099ff"
+    },
+    "11": {
+      "action": "showPnL",
+      "title": "P&L",
+      "icon": "icons/money.png",
+      "backgroundColor": "#00ff99"
+    },
+    "12": {
+      "action": "switchProfile",
+      "title": "PROFILE",
+      "icon": "icons/profile.png",
+      "backgroundColor": "#ff00ff"
+    },
+    "13": {
+      "action": "toggleAI",
+      "title": "AI",
+      "icon": "icons/brain.png",
+      "backgroundColor": "#ff69b4"
+    },
+    "14": {
+      "action": "shutdown",
+      "title": "KILL",
+      "icon": "icons/power.png",
+      "backgroundColor": "#ff0000"
+    }
+  },
+  "profiles": {
+    "default": {
+      "name": "Trading",
+      "buttons": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    },
+    "risk": {
+      "name": "Risk Management",
+      "buttons": [2, 3, 4, 6, 7, 11, 14]
+    }
+  }
+}

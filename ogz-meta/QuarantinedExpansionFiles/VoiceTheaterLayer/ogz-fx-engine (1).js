@@ -1,0 +1,1 @@
+console.log('[SparkleStack FX] Visual FX initialized.'); document.body.style.boxShadow = 'inset 0 0 60px #9d71c744';

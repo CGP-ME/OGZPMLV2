@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OGZ Trading Bot - Simple Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            background: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .balance {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .profit {
+            font-size: 28px;
+            color: #4ade80;
+        }
+
+        .big-button {
+            width: 100%;
+            padding: 30px;
+            font-size: 32px;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s;
+        }
+
+        .start-button {
+            background: #4ade80;
+            color: white;
+        }
+
+        .stop-button {
+            background: #ef4444;
+            color: white;
+        }
+
+        .panic-button {
+            background: #dc2626;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .risk-selector {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+        }
+
+        .risk-option {
+            padding: 20px;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            flex: 1;
+            margin: 0 10px;
+            font-size: 18px;
+        }
+
+        .risk-option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .risk-option .emoji {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .info-card {
+            background: #f8f8f8;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .info-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .help-section {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .help-button {
+            background: #3b82f6;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 20px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .safety-limits {
+            background: #fee2e2;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .limit-input {
+            font-size: 24px;
+            padding: 10px;
+            width: 150px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: blink 2s infinite;
+        }
+
+        .status-indicator.running {
+            background: #4ade80;
+        }
+
+        .status-indicator.stopped {
+            background: #ef4444;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Status Card -->
+        <div class="status-card">
+            <h1>🤖 Your Trading Bot</h1>
+            <div class="balance">$10,234.56</div>
+            <div class="profit">↑ $234.56 Today (2.3%)</div>
+            <div style="margin-top: 20px; font-size: 24px;">
+                <span class="status-indicator running"></span>
+                Bot is RUNNING
+            </div>
+        </div>
+
+        <!-- Big Control Buttons -->
+        <button class="big-button start-button" onclick="alert('Bot Started!')">
+            ▶️ START TRADING
+        </button>
+
+        <button class="big-button stop-button" onclick="alert('Bot Stopped!')">
+            ⏸️ STOP TRADING
+        </button>
+
+        <!-- Risk Level Selection -->
+        <h2 style="text-align: center; margin-top: 40px;">Choose Your Risk Level:</h2>
+        <div class="risk-selector">
+            <div class="risk-option selected" onclick="selectRisk(this, 'safe')">
+                <span class="emoji">🛡️</span>
+                <strong>SAFE</strong><br>
+                <small>Slow & Steady</small>
+            </div>
+            <div class="risk-option" onclick="selectRisk(this, 'balanced')">
+                <span class="emoji">⚖️</span>
+                <strong>BALANCED</strong><br>
+                <small>Recommended</small>
+            </div>
+            <div class="risk-option" onclick="selectRisk(this, 'aggressive')">
+                <span class="emoji">🚀</span>
+                <strong>AGGRESSIVE</strong><br>
+                <small>Higher Risk</small>
+            </div>
+        </div>
+
+        <!-- Performance Info -->
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-label">Today's Trades</div>
+                <div class="info-value">12</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Win Rate</div>
+                <div class="info-value" style="color: #4ade80;">75%</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Running Time</div>
+                <div class="info-value">2h 34m</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">Bot Health</div>
+                <div class="info-value" style="color: #4ade80;">Good ✓</div>
+            </div>
+        </div>
+
+        <!-- Safety Limits -->
+        <div class="safety-limits">
+            <h3>🛡️ Safety Settings (Recommended)</h3>
+            <div style="margin: 20px 0;">
+                <label style="font-size: 18px;">Stop if I lose more than: $</label>
+                <input type="number" class="limit-input" value="500" />
+                <span style="color: #666; font-size: 16px;">per day</span>
+            </div>
+            <div style="margin: 20px 0;">
+                <label style="font-size: 18px;">Stop if I win more than: $</label>
+                <input type="number" class="limit-input" value="1000" />
+                <span style="color: #666; font-size: 16px;">per day</span>
+            </div>
+        </div>
+
+        <!-- PANIC BUTTON -->
+        <button class="big-button panic-button" onclick="emergencyStop()">
+            🚨 EMERGENCY STOP - CLICK IF WORRIED
+        </button>
+
+        <!-- Help Section -->
+        <div class="help-section">
+            <h3>Need Help?</h3>
+            <button class="help-button" onclick="alert('Calling support...')">
+                📞 Call Support
+            </button>
+            <button class="help-button" onclick="alert('Opening help guide...')">
+                📖 Help Guide
+            </button>
+            <button class="help-button" onclick="alert('Opening chat...')">
+                💬 Live Chat
+            </button>
+        </div>
+
+        <!-- Simple Footer -->
+        <div style="text-align: center; margin-top: 40px; color: #666;">
+            <p>Your bot is working 24/7 to grow your money safely.</p>
+            <p style="font-size: 16px;">Last updated: <span id="update-time">Just now</span></p>
+        </div>
+    </div>
+
+    <script>
+        function selectRisk(element, level) {
+            document.querySelectorAll('.risk-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            alert(`Risk level changed to: ${level.toUpperCase()}`);
+        }
+
+        function emergencyStop() {
+            if (confirm('This will immediately stop all trading. Are you sure?')) {
+                alert('Bot STOPPED! All positions closed. Your money is safe.');
+                document.querySelector('.status-indicator').classList.remove('running');
+                document.querySelector('.status-indicator').classList.add('stopped');
+            }
+        }
+
+        // Update time every minute
+        setInterval(() => {
+            document.getElementById('update-time').textContent = new Date().toLocaleTimeString();
+        }, 60000);
+    </script>
+</body>
+</html>
