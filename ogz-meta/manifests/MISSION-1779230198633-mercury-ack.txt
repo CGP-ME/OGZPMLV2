@@ -1,0 +1,21 @@
+Fix 40a Mercury review acknowledged.
+
+Finding 1 (empty artifact path throws) is intentional per approved scope. Fix 40a explicitly requires an empty canonical artifact path to throw rather than silently skip or record an invalid git-add path. A repo-root directory is not a valid /fixer-write file target.
+
+Finding 2 (Windows-style absolute path on a POSIX host) is bounded. Live execution is on the VPS and Fix specs are authored as repo-relative file paths. The same guard shape correctly rejects outside-repo paths on the host platform; a Windows drive-string pasted into a Linux spec is a spec-authoring bug, and architect-verify/fixer-write target existence checks bound it before a normal mission can commit an unintended outside-repo path.
+
+Finding 3 (parsed.file undefined) is parser-guaranteed absent: spec-parser already throws when **File:** is missing, before fixer-write reaches artifact recording.
+
+Finding 4 (files_created classification) is out of scope for this codepath. Current /fixer-write performs str_replace edits against an existing target verified by architect-verify; it does not create new files.
+
+Finding 5 (case-sensitive dedupe on case-insensitive filesystems) is out of scope for this VPS pipeline and not introduced as a material live failure mode. Duplicate git-add path arguments are also not destructive.
+
+Finding 6 (concurrent fixer-write race) is broader architectural hardening and was explicitly out of scope for Fix 40a.
+
+Finding 7 (downstream raw-path assumptions) is not a valid compatibility blocker. Fix 40a intentionally establishes canonical repo-relative artifact paths as the manifest contract for the committer.
+
+Finding 8 (process.cwd timing) is bounded by current pipeline execution: the router/pipeline do not chdir during a mission. A future chdir-capable pipeline would need a repoRoot invariant, but this fix does not introduce such a caller.
+
+Finding 9 (uncaught validation throw) is intentional fail-loud behavior for spec-authoring bugs. The approved scope required explicit throws for empty and outside-repo artifact paths.
+
+No material Fix 40a blocker remains. Proceed with the pipeline gate in ack mode.

@@ -1,0 +1,20 @@
+F1 — partial-index-state recovery after failed commit.
+
+Bounded: `git commit` only throws after successful `git add` if a commit hook
+rejects (pre-commit, commit-msg) or signing fails. Neither is normal pipeline
+operation on this repo. The cicd_failed flag halts the pipeline loudly, which
+is the safety-relevant behavior. Operator manually cleans index via
+`git restore --staged` if it ever triggers.
+
+F4 — false. JS execution jumps to catch on commit throw; rev-parse is in
+the same try block AFTER commit and never executes.
+
+F2/F3 — pre-existing manifest schema concerns inherited from Fix 37/37a.
+Not a 37b regression. Manifest contract refinement is its own work item
+post-eval.
+
+F5 — out of scope. Other execSync sites routed to Fix 38.
+
+F6 — out of scope. Branch/concurrency invariant routed to Fix 39.
+
+Ack and proceed with omnibus commit. Resume Phase A.
