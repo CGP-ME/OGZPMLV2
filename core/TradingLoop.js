@@ -132,7 +132,8 @@ class TradingLoop {
     if (!Number.isFinite(orchResult.confidence)) {
       throw new Error(`[HIGH-25] orchResult.confidence non-finite (got ${orchResult.confidence}) — investigate StrategyOrchestrator output`);
     }
-    const confidence = orchResult.confidence / 100; // normalize to 0-1
+    // Clamp boosted orchestrator confidence into the decimal range expected downstream.
+    const confidence = Math.min(1.0, Math.max(0.0, orchResult.confidence / 100));
     const confidenceData = { totalConfidence: orchResult.confidence };
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
