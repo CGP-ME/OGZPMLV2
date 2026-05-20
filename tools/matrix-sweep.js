@@ -72,6 +72,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 // FIX 2026-04-16: Route matrix output to unified output directory
 const { getMatrixDir } = require('../core/OutputPaths');
+const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const RESULTS_DIR = getMatrixDir();
 
 // ===================================================================
@@ -81,6 +82,7 @@ const DATA_SHORTCUTS = {
   'tsla': 'tuning/tsla-15m-2y.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
+  'tsla-unseen': 'tuning/tsla-15m-unseen.json',
   'spy': 'tuning/spy-15m-2y.json',
   'qqq': 'tuning/qqq-15m-2y.json',
   'nvda': 'tuning/nvda-15m-2y.json',
@@ -90,7 +92,7 @@ const DATA_SHORTCUTS = {
   'btc': 'data/polygon-btc-1y.json',
 };
 const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
-                        'tsla-train', 'tsla-test'];
+                        'tsla-train', 'tsla-test', 'tsla-unseen'];
 
 // Extract human-readable label from data file path
 // 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
@@ -303,6 +305,8 @@ function runWorker(config, dataFile, stockMode) {
       }
     }
 
+    var instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+
     var env = Object.assign({}, workerBaseEnv, {
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
@@ -323,7 +327,7 @@ function runWorker(config, dataFile, stockMode) {
       NODE_ENV: 'test',
       BACKTEST_REPORT_TAG: uid,
       STRATEGY_DIAG: 'false',
-    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env);
+    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env, instrumentEnv);
 
     var output = '';
     var child = spawn('node', [RUNNER], {

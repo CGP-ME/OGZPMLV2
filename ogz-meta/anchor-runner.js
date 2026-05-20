@@ -20,6 +20,7 @@
  *   BACKTEST_SILENT=true
  *   FEE_MAKER=0
  *   FEE_TAKER=0
+ *   BROKER/TRADING_PAIR/ASSET_CLASS=<derived from CANDLE_DATA_FILE>
  *   MIN_TRADE_CONFIDENCE=0.60
  *   STOP_LOSS_PERCENT=2.5
  *   ACCOUNT_DRAWDOWN_BYPASS=true
@@ -40,6 +41,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { resolveInstrumentFromDataFile } = require('../tools/instrument-env');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
@@ -96,9 +98,11 @@ function runP0(profile, logTag) {
   const logName = `phase0-${cfg.logSuffix}-${logTag}-${today}.log`;
   const logPath = path.join(REPO_ROOT, 'ogz-meta', 'ledger', logName);
 
+  const instrumentEnv = resolveInstrumentFromDataFile(cfg.candleFile);
   const env = {
     ...process.env,
     ...CANONICAL_ENV,
+    ...instrumentEnv,
     CANDLE_DATA_FILE: cfg.candleFile,
     STATE_FILE: cfg.stateFile
   };

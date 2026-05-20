@@ -27,6 +27,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { resolveInstrumentFromDataFile } = require('./instrument-env');
 
 // ═══════════════════════════════════════════════════════════════
 // HARDWARE DETECTION
@@ -285,6 +286,8 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
     delete cleanEnv.TRAILING_STOP_PERCENT;
     delete cleanEnv.ATR_MIN_PERCENT;
 
+    const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+
     const env = {
       ...cleanEnv,
       EXECUTION_MODE: 'backtest',
@@ -324,6 +327,7 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       // Stock mode: zero commission
       ...(stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}),
       ...config.env,
+      ...instrumentEnv,
     };
 
     let output = '';
@@ -598,6 +602,9 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
 // Data file shortcuts
 const DATA_SHORTCUTS = {
   'tsla': 'tuning/tsla-15m-2y.json',
+  'tsla-train': 'tuning/tsla-15m-train.json',
+  'tsla-test': 'tuning/tsla-15m-test.json',
+  'tsla-unseen': 'tuning/tsla-15m-unseen.json',
   'spy': 'tuning/spy-15m-2y.json',
   'qqq': 'tuning/qqq-15m-2y.json',
   'btc': 'data/polygon-btc-1y.json',
@@ -615,12 +622,12 @@ async function main() {
     else if (args[i] === '--data' && args[i+1]) {
       const val = args[++i].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i];
-      if (['tsla', 'spy', 'qqq'].includes(val)) stockMode = true;
+      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
     }
     else if (args[i].startsWith('--data=')) {
       const val = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
-      if (['tsla', 'spy', 'qqq'].includes(val)) stockMode = true;
+      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
     }
     else if (args[i] === '--real') sweepName = 'real';
     else if (args[i] === '--quick') sweepName = 'quick';  // alias to real
@@ -650,7 +657,7 @@ async function main() {
       const key = args[i].toLowerCase();
       dataFile = DATA_SHORTCUTS[key];
       // Auto-enable stock mode for stock tickers
-      if (['tsla', 'spy', 'qqq'].includes(key)) stockMode = true;
+      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(key)) stockMode = true;
     }
     else if (args[i] === '--help') {
       console.log(`
