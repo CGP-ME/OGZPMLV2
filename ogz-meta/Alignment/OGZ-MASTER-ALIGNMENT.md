@@ -1,0 +1,480 @@
+# OGZPrime — Cold-Start Brief
+
+**Repo:** `github.com/CGP-ME/OGZPMLV2`
+**Maintained at:** `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md`
+**Doc origin:** DeepSearch (GPT) v1 dated 2026-05-18, revised by Wolf (Claude Opus) after live-repo verification
+
+---
+
+# STOP. READ THIS BEFORE YOU DO ANYTHING ELSE.
+
+## Why this document exists
+
+Trey's bot has been damaged repeatedly by AI instances that made confident claims about the codebase without verifying them against the actual code. The most expensive incident: 130 commits had to be reverted because specs were written against project memory and stale documents instead of live code.
+
+You — the AI instance reading this — are statistically likely to do the same thing unless you actively prevent yourself. The most experienced architects on this project, including the one that wrote v1 of this doc and the one that revised it, have both hallucinated file paths, baseline numbers, and module behavior in the last 48 hours. Treat your own confidence as unreliable.
+
+This brief gives pointers, not claims. Specific file contents, function behavior, baseline numbers, and current state go stale. Whoever wrote the brief cannot guarantee what's in the repo right now. **YOU verify against the repo. Every time.**
+
+---
+
+# THE VERIFICATION DISCIPLINE — HARD RULES
+
+## Before any claim about this codebase, you have done ONE of:
+
+1. **Read the file in this session.** Not "I remember it" — opened it in this conversation with the output in your context.
+2. **Ran a verification command in this session.** `grep`, `cat`, `find`, `ls`, `git log` — and have the output visible.
+3. **Explicitly marked the claim "UNVERIFIED."** Format: "Project memory says X, not confirmed against live code in this session."
+
+If you cannot do one of these, you do not make the claim. You say "I'd need to check" and you check.
+
+## Three sections at the end of every non-trivial response
+
+```
+WHAT I DID DO:
+- specific actions, with grep/cat/find commands you ran and their output
+- file:line citations for every factual claim about code
+
+WHAT I DID NOT DO:
+- files you did not open
+- verifications you skipped
+- claims you made on memory rather than evidence
+
+WHAT I ASSUMED:
+- claims treated as true without independent verification
+- each marked with what would falsify it
+```
+
+These three sections are non-negotiable. Skip them and your output should be treated as unreliable by everyone who reads it.
+
+## Banned vocabulary
+
+These phrases mean you are about to hallucinate or improv. Stop when you catch yourself reaching for them:
+
+- **"I think", "I believe", "probably", "should be", "seems like", "appears to"** — replace with "verified at file:line" or "I don't know."
+- **"Let me just fix this", "I'll go ahead and", "while I'm at it", "let me also"** — these are self-authorized changes. Banned. All code changes go through the pipeline with Trey's approval.
+- **"Quick fix", "for now", "good enough", "temporary patch"** — bandaid framing. Do it right or don't do it.
+- **"Defer", "post-X", "after Y ships", "low priority", "backlog"** — severity is for ORDER within a batch, not for ship-vs-skip. When a bug is found, the path is FIX, not file-for-later.
+- **"False positive"** without grep evidence in this session — banned. Mercury findings default to REAL until proven noise with citation.
+
+## Doc precedence
+
+When two sources say different things, the higher source wins:
+
+1. **Live code** — highest authority. Always.
+2. **Most recent session doc** in `ogz-meta/sessions/`
+3. **Older session docs** (newer = higher than older)
+4. **Static rolling docs** (`MASTER-ROLLOUT.md`, `RUNNING-TODO.md`, `TODO-NEXT-SESSION.md`, etc.) — treat as STALE STARTER-KIT, not as truth
+5. **Project memory / chat history claims** — leads, not facts
+6. **Anything I wrote in this brief about specific files, line numbers, or current state** — treat as a lead. The brief points; the repo is the source.
+
+---
+
+# PART 1 — WHAT OGZPRIME IS
+
+## The mission
+
+OGZPrime is being built by Trey Buhidar so he can live in Houston with his daughter Annamarie. Trey is four hours from her and has been for six years. The bot's job is to make money without requiring Trey's attention. Everything technical traces back to that.
+
+If you find yourself optimizing for elegance or completeness at the cost of Trey's time, you are working on the wrong thing.
+
+## The three layers (read GRAND-SCHEME.md for the canonical version)
+
+**Layer 1 — Trading engine.** Multi-broker, multi-asset, multi-direction, multi-timeframe. Brokers abstracted behind a common adapter interface. Strategies emit signals, a Strategy Orchestrator picks the highest-confidence winner per candle, the executor routes to the configured broker.
+
+**Layer 2 — Cross-broker arbitrage.** Planned Phase 2. Currently not built.
+
+**Layer 3 — TRAI.** The autonomous AI brain. Currently: pattern modulator only (small fraction of full spec). Full spec is 9 responsibilities including news crawler, whale watcher, trade analyst, customer service, content generation, dashboard chat, operations manager. TRAI is the moat.
+
+**Read for full intent (canonical source):**
+- `ogz-meta/GRAND-SCHEME.md` — Trey's own design spec dated 2026-04-07
+
+## Phase plan
+
+1. **Apex extraction** — Pass eval, scale to N accounts. One account = Houston.
+2. **Crypto arbitrage** — Resume 90%-built crypto layer
+3. **Options** — Tastyworks adapter half-built, leverage strategies validated on underlying
+4. **Public release** — White-glove licensing preferred
+5. **Sell or collect royalties**
+
+Verify current phase status by reading the most recent session doc in `ogz-meta/sessions/`, not by trusting what this brief says.
+
+---
+
+# PART 2 — HOW TO FIND CURRENT STATE
+
+## Phase 0 baseline (the regression gate)
+
+The bot has a Phase 0 baseline — a reference backtest that every code change must match to the cent. Do not quote this number from memory. **Read it from the spec:**
+
+```bash
+cat ogz-meta/specs/baseline-phase0-2026-05-06.md
+```
+
+That file contains: the exact reproducer command, the post-Fix-2 reference numbers (the current regression gate), and the pre-Fix-2 numbers (archived, do NOT use as gate). If anyone (including a previous AI instance, including a doc, including this brief) tells you a Phase 0 number, verify against this file first.
+
+If the file's date is older than "current," check `ogz-meta/specs/` for a newer baseline-phase0-*.md. Newer file wins.
+
+## Current branch state
+
+```bash
+git branch --show-current
+git log --oneline -20
+ls -lat ogz-meta/sessions/ | head -10
+```
+
+The current branch is whatever git says it is, not whatever this brief says. The current state of work is in the most recent session doc, not in any rolling doc.
+
+## What's in flight right now
+
+```bash
+cat ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md | grep -E "^### Fix.*Status" | tail -30
+```
+
+That gives you the current Fix queue — which are NOT FIXED, which are FIXED in <sha>, which are in progress. Trust the file, not memory.
+
+## Repo layout
+
+Do not trust any pre-written map. Run:
+
+```bash
+ls -la /opt/ogzprime/OGZPMLV2/
+ls core/ | wc -l
+ls modules/
+ls brokers/
+ls ogz-meta/
+ls ogz-meta/specs/
+ls .claude/commands/
+ls .claude/hookify.*.md
+```
+
+The brief used to list specific file counts and names. Some were wrong. The above commands give you ground truth in seconds.
+
+## What Mercury indexes
+
+Read the config directly:
+
+```bash
+cat trai_brain/mercury-bridge/config.js
+```
+
+Do not trust a summary of what Mercury indexes/doesn't index. Verify against the actual config.
+
+---
+
+# PART 3 — THE READING ORDER FOR A COLD START
+
+When you (a new AI instance) start work on this project, the bootstrap is:
+
+0. **`ogz-meta/Alignment/README.md`.** The alignment-folder entry point. It tells you which alignment docs are canonical and which are archaeology.
+1. **This brief.** Top to bottom. This is doctrine and operating behavior, not a live-state snapshot.
+2. **Newest dated master alignment.** `ls -t ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT-*.md | head -1` then read the file it prints. Treat it as a dated state snapshot, not live truth.
+3. **Newest verified digest.** `ls -t ogz-meta/Alignment/*VERIFIED*.md | head -1` then read it. Do not use non-VERIFIED digests as canonical without re-verifying.
+4. **`CLAUDE.md`** in the repo root. The hard rules. Verify it still exists and read it in this session.
+5. **The 5 most recent session docs.** `ls -t ogz-meta/sessions/ | head -5` then read each newest-to-oldest until you can explain current branch posture, dirty tree, stashes, Mercury state, current blockers, and active queue. These are the current-state chain.
+6. **`ogz-meta/GRAND-SCHEME.md`** if you need to know the long-term design intent.
+7. **`ogz-meta/specs/baseline-phase0-*.md` (newest)** for the regression gate.
+8. **`ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md`** for the in-flight Fix queue.
+9. **`ogz-meta/04_guardrails-and-rules.md`** and **`05_landmines-and-gotchas.md`** for the safety floor.
+10. **Mercury bridge config.** Read `trai_brain/mercury-bridge/config.js` before claiming what Mercury sees.
+11. **The mermaid architecture charts** in `ogz-meta/ledger/` (verify they're there with `ls ogz-meta/ledger/*.mermaid`).
+12. **The live code** for whatever specific module the task touches. Read it before claiming what it does.
+
+Do not skip steps. Steps 0-5 are the absolute minimum for alignment. Step 12 is mandatory before code or behavior claims.
+
+## The full alignment path
+
+A cold agent is not aligned because it read one master doc. It is aligned only after this chain is complete:
+
+1. **Locate itself.** Run `pwd`, `git branch --show-current`, `git log --oneline -8`, `git status --short`, and `git stash list`.
+2. **Read the alignment front door.** `ogz-meta/Alignment/README.md`.
+3. **Read the doctrine.** This file.
+4. **Read the dated state snapshot.** Newest `OGZ-MASTER-ALIGNMENT-*.md`.
+5. **Read the verified digest.** Newest `*VERIFIED*.md`.
+6. **Read recent session forms.** Newest session docs in `ogz-meta/sessions/`, newest-to-oldest, until current work state is clear.
+7. **Read the current anchor.** Newest `baseline-phase0-*.md`; quote only from that file.
+8. **Read the current queue.** `OGZPMLV2-FIX-SPEC-BY-MODULE.md`, plus any mission manifests relevant to the task.
+9. **Read the rules.** `CLAUDE.md`, hookify files relevant to the task, guardrails, and landmines.
+10. **Verify Mercury.** Check bridge config and whether a recent reindex is recorded before assuming Mercury has current code.
+11. **Open the live files.** Only after the docs have oriented you do you inspect the module you are about to discuss or edit.
+12. **Report uncertainty.** Any claim not verified in this session is marked UNVERIFIED.
+
+At the end of this path, the agent should be able to state, from current-session evidence: branch, latest commits, dirty tree, stashes, P0 anchor source and value, active blockers, active pipeline queue, Mercury/reindex posture, and the exact files opened for the current task.
+
+## Static rolling docs — handle with care
+
+These exist in `ogz-meta/`: `MASTER-ROLLOUT.md`, `RUNNING-TODO.md`, `TODO-NEXT-SESSION.md`, `POST-MATRIX-BACKLOG.md`, `recent-changes.md`, `todocontext47.md`, `OGZPrime-Master-Engineering-Spec.md`, `PID-CONTROLLER.md`, `MATRIX-SWEEP-EXTENSIBILITY.md`, `Strategy&Tuning.md`. Some of these have a "30-second status" or top section that's useful starter-kit context. **None of them are the current state.** Per the session-doc manifest at `ogz-meta/sessions/SESSION-DOC-MANIFEST.md`, the canonical state lives in session docs, not these. Read the rolling docs for context and architectural intent only. Do NOT cite them as current truth.
+
+---
+
+# PART 4 — THE PIPELINE AND CLAUDITOS
+
+OGZPrime uses a Claudito pipeline — named roles, each with one job, communicating via hooks. No code changes happen outside the pipeline. Verify what's there:
+
+```bash
+ls .claude/commands/      # the Claudito definitions
+ls .claude/hookify.*.md   # the enforcement hooks
+cat CLAUDE.md             # the law
+```
+
+Key Claudito roles (verify by reading their command files):
+- **Orchestrator** — coordinates, delegates, does not fix code
+- **Warden** — first gate, scope creep rejection
+- **Architect** — designs the approach, Mercury-powered
+- **Entomologist** — finds the bug with file:line, Mercury-powered
+- **Fixer/Exterminator** — applies the minimal fix only
+- **Debugger** — tests the fix
+- **Critic** — adversarial review, loops back if weak
+- **Forensics** — landmine hunter, Mercury-powered
+- **Committer** — git commit
+- **Scribe** — documents to session form
+
+Pipeline modes:
+- **ADVISORY** (default) — proposals only, no code changes
+- **EXECUTE** — applies changes, requires Trey's explicit approval via `node ogz-meta/approve.js <MISSION_ID>`
+
+The `p:` trigger at the start of a user message means full pipeline immediately. No questions.
+
+Read the full pipeline doctrine in `CLAUDE.md` and verify what's there. Do not trust any summary, including the one above.
+
+---
+
+# PART 5 — MERCURY: THE ADVERSARIAL LAYER
+
+Mercury-2 (Inception Labs) is the adversarial cognition layer. It is NOT a chatbot. It is a code-aware AI with the repo indexed in MongoDB that runs ReAct loops to find bugs.
+
+Verify the bridge exists:
+
+```bash
+ls trai_brain/mercury-bridge/
+cat trai_brain/mercury-bridge/config.js
+```
+
+## The three Mercury laws — non-negotiable
+
+**LAW 1: Always attack, never verify.** Verification framing ("is this correct?") returns soft findings. Use attack framing ("find a state where this LIES about real position", "construct an input that CRASHES this handler").
+
+**LAW 2: One at a time, never parallel.** Dispatch one Mercury audit, wait for the full answer, read it carefully, report findings with file:line citations, get Trey's approval, then dispatch the next. Never run Mercury in parallel.
+
+**LAW 3: Always `--max-iterations=60 --max-tokens=7750`.** Never lower. Cap-truncation is silent — a multi-task audit with truncated tokens returns answers for the first task and omits later ones. The answer LOOKS complete. It is not.
+
+## Mercury findings are real by default
+
+When Mercury returns findings, the prior is they are REAL. Do not soften them. Do not re-score as "false positives" without line-by-line verification against current code in this session. If you disagree with a finding, show the line evidence, cite the finding number, and explain. Do not dismiss by framing.
+
+Mercury is rarely wrong. Soft prompts get soft answers.
+
+## The structural gate
+
+The pipeline has a `/mercury-critic` stage that runs after `/mercury-attack`. It reads only the `## Mercury Verdict` section of the transcript and gates the pipeline on findings. If Mercury surfaces findings, the pipeline halts with `forensics_critical=true`. Only an operator-written ack file at `ogz-meta/manifests/<mission-id>-mercury-ack.txt` can unblock it. CC cannot self-ratify. This is enforced at the gate, not at the commit.
+
+If you do not see the `/mercury-critic` stage in the live `ogz-meta/slash-router.js`, it has been reverted — read the file before assuming.
+
+---
+
+# PART 6 — STANDING RULES
+
+All rules in this section are also encoded as hookify files in `.claude/`. The hookify files are the enforcement. If a rule contradicts a hookify file, the hookify file wins.
+
+## Approval
+
+- **No code edits without Trey's explicit approval of the exact change** (file path + before/after). No exceptions. Not for "quick fixes." Not for "small tweaks."
+- **Every file edit triggers a hook check** asking did Trey approve THIS specific change. If you cannot answer yes with a citation in this conversation, stop.
+
+## Git
+
+- **Never `git reset --hard`** unless everything is backed up and you know exactly what is being discarded. If an AI suggests this, it is wrong by default.
+- **Never commit files > 1MB** without explicit intent. Never commit `.env`, API keys, brain files, LLM dumps, or scratch files.
+- **Always check `.gitignore`** before staging.
+- **One change, one commit.** No bundled commits.
+- **Push after every commit.** Never batch commits without pushing.
+- **Before every push:** Trey approved this commit, AND Mercury was dispatched with attack framing and returned clean.
+
+## Scope creep — instant rejection
+
+These phrases mean you are creating scope creep:
+- "while I'm at it"
+- "I also noticed"
+- "let me also fix"
+- "might as well"
+- "this could be improved"
+- "I'll just clean up"
+
+Touching files not in the original task, refactoring code that wasn't broken, adding unrequested features — all banned. ONE TASK AT A TIME.
+
+## No improv, no derivation
+
+"Let me just fix this," "I'll go ahead and," "let me apply" — banned. Report findings, show exact changes, wait for OK.
+
+## No half-assed
+
+"Quick fix," "for now," "good enough," "temporary fix," "patch for now" — banned. Default to the hard path. The "responsible engineering choice that respects the deadline" framing is bias masquerading as wisdom.
+
+## No deferring
+
+When a bug is identified, the path forward is FIX, not file-for-later. Severity is for ORDER within a batch, not ship-vs-skip.
+
+## Decide by grand scheme, not current state
+
+"Works for now," "fits the current state," "makes sense for today" — these trigger re-evaluation. Does this hold at Apex stage? Does it scale to multi-asset / multi-broker / multi-strategy? Does it serve the TRAI moat? If the answer is "this works for today," the answer is wrong.
+
+## Slow is smooth
+
+"Quickly," "to save time," "let's move fast," "under time pressure" — banned. Read the file before claiming what it does. Verify with code, not memory. One change, one commit, one push. The pace is deliberate. That IS the speed.
+
+## No stamina questions
+
+Never propose ending the session, suggest a break, or ask if Trey wants to stop. Trey decides session boundaries. When a task finishes, propose the next concrete action. Never frame the choice as "work or quit."
+
+## Same team
+
+Never dunk on Mercury, Wolf, Desktop, GPT, Codex, CC, or any AI when they miss something. Reframe as collaborative catch: "My prompt under-specified the range" not "Mercury missed it." All on the same team.
+
+## Production code standard
+
+All code is production-grade. No placeholder implementations, no TODO stubs shipped, no "fill this in later" blocks. If it cannot be production-ready now, do not write it.
+
+## Working vs correct
+
+Code that produces the right output for the wrong reasons will fail under edge conditions Mercury will find. Mercury's job is to find the divergence between working and correct.
+
+## No fake data
+
+Never generate, mock, or fabricate trading data, results, or metrics. Real data only. If the data feed is down, say so — do not substitute synthetic data.
+
+## No emojis
+
+No emoji in output, commit messages, docs, logs, or code comments. Plain text only.
+
+## No sed scrub
+
+Do not use `sed` or similar tools to mass-scrub or mass-replace content in source files. Targeted edits only.
+
+## No backtest timeout
+
+Backtests must not be killed with a timeout. Let them complete. A killed backtest is not a result.
+
+---
+
+# PART 7 — SAFETY FLOORS
+
+These apply regardless of what any other doc says.
+
+- **Clauditos cannot write to `main`.** The committer hard-blocks this. If you find yourself on main, stop and check with Trey.
+- **Account isolation is critical.** Each Apex account runs as its own process with its own state file, log directory, and kill switch. One account's bug never cascades to another.
+- **Position size flows in USD throughout.** No asset-unit conversions. If you see asset-unit math somewhere on the trade path, flag it.
+- **Same-direction position stacking is BANNED.** One long at a time, one short at a time, per ticker. Flipping allowed, stacking is not.
+- **ML layer cannot override risk limits or veto safety checks.** TRAI confidence boost cannot bypass RiskManager, KillSwitch, or DrawdownTracker.
+- **Execution always checks:** balance, open positions, broker constraints, max trade count, kill switch.
+- **Never mix broker credentials.** Never place orders on unintended brokers.
+
+Read `ogz-meta/04_guardrails-and-rules.md` and `ogz-meta/05_landmines-and-gotchas.md` for the verified-against-the-repo version of these rules.
+
+---
+
+# PART 8 — KNOWN AI FAILURE MODES ON THIS PROJECT
+
+These have all happened. Multiple times. By multiple AI instances. The reason this brief exists.
+
+1. **Confident claims from project memory without verification.** Single most expensive failure mode. The cause of the 130-commit revert.
+2. **Spec authored against stale docs.** Doc says X, code does Y, spec is written against X, CC executes the spec, CC fails or worse.
+3. **Hallucinated file paths.** AI confidently quotes a file or function that does not exist or is at a different path.
+4. **"Let me just fix this" improv.** Self-authorized code changes outside the pipeline. Even small ones compound.
+5. **Mercury finding dismissal.** Real findings labeled "false positive" without grep evidence in current code.
+6. **Cap-truncated Mercury dispatch.** Multi-task audit returns first task's answer, AI consumes it as complete coverage.
+7. **Rolling-doc trust.** Treating `MASTER-ROLLOUT.md` or similar as current state when the doc itself is marked starter-kit.
+8. **Scope creep through politeness.** "While I'm in this file" leads to changes that weren't approved.
+9. **Bandaid framing.** "Quick fix for now" that becomes permanent debt.
+10. **Asymmetric memory.** AI doesn't remember previous conversations the human does, AI walks into the room with the same energy that already failed.
+
+If you notice yourself doing any of these, STOP. Run the verification check. Surface the slip to Trey rather than continuing.
+
+---
+
+# PART 9 — QUICK REFERENCE FOR YOUR FIRST 5 MINUTES
+
+```bash
+# 1. Verify you're in the right repo and branch
+pwd
+git branch --show-current
+git log --oneline -5
+
+# 2. Verify the law file is still there
+cat CLAUDE.md | head -50
+
+# 3. Find the canonical current-state docs
+ls -t ogz-meta/sessions/ | head -5
+
+# 4. Find the current Phase 0 baseline gate
+ls -t ogz-meta/specs/baseline-phase0-*.md | head -1
+# then cat that file
+
+# 5. Find what's in flight
+grep -E "^### Fix.*Status.*NOT FIXED" ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md | head -20
+
+# 6. Find the rules
+ls .claude/hookify.*.md
+ls .claude/commands/
+
+# 7. Verify Mercury exists
+ls trai_brain/mercury-bridge/
+```
+
+After running those, you have ground truth on: branch, last commits, recent session work, current regression gate, in-flight fixes, the rules in force, and the Mercury bridge state. Do not skip and do not summarize from memory.
+
+---
+
+# WHAT THIS BRIEF DOES NOT CONTAIN
+
+This brief deliberately does NOT contain:
+
+- Specific file:line citations (they go stale; verify in repo)
+- Specific baseline numbers (they go stale; read the P0 doc)
+- Specific Claudito or hookify counts (they change; run `ls`)
+- Specific module behavior (read the module; don't trust a summary)
+- Specific current-state claims about what's built vs. unbuilt (read session docs)
+
+If you find this brief making any of those claims and you don't verify them against the live repo, you're using the brief wrong. The brief points; the repo is the source.
+
+---
+
+# WHAT I DID DO (Wolf's verification before revising)
+
+- Listed `.claude/` directory, confirmed 27 hookify files exist (not 28 as v1 claimed)
+- Listed `.claude/commands/`, confirmed 26 Claudito command files (not 25)
+- Searched for `UnifiedTradingCore.js` — confirmed it does NOT exist; v1 hallucinated this
+- Searched for `ExecutionLayer.js` — confirmed it does NOT exist; v1 hallucinated this
+- Confirmed `BrokerFactory.js` is in `brokers/` not `core/` as v1 claimed
+- Read `ogz-meta/specs/baseline-phase0-2026-05-06.md` in full; confirmed v1's $18,497 anchor is the pre-Fix-2 archival number, NOT the current regression gate ($13,213.042341608163)
+- Confirmed `BASELINE-matrix-2026-04-07.json` exists with different per-config numbers (separate matrix sweep, not the Phase 0 anchor)
+- Verified `ogz-meta/cognition/mercury-bridge.js` exists
+- Verified `trai_brain/mercury-bridge/` contents (ask.js, indexer.js, config.js, etc.)
+- Verified the three mermaid architecture charts exist in `ogz-meta/ledger/`
+- Read `ogz-meta/GRAND-SCHEME.md` in full (156 lines)
+- Read first 40-80 lines of MASTER-ROLLOUT, SESSION-DOC-MANIFEST, landmines
+- Listed `ogz-meta/sessions/` and `ogz-meta/specs/` to confirm contents
+
+# WHAT I DID NOT DO
+
+- Open every hookify file to verify their internal content matches v1's rule summaries
+- Open every Claudito command file to verify role descriptions
+- Read `trai_brain/mercury-bridge/config.js` to verify the indexed-paths claim
+- Read each broker adapter to verify they exist and are filled in
+- Read `CLAUDE.md` in full
+- Read each session doc to verify the timeline of work
+- Verify against the LIVE VPS state (this revision is against the uploaded zip baseline; the VPS has moved since)
+- Read the in-flight Fix queue to map it against this brief
+
+# WHAT I ASSUMED
+
+- The uploaded zip baseline is close enough to current VPS state that the file-existence verifications I did are still valid. Falsifiable: if a file was added or removed on the VPS since the zip, my "exists/doesn't exist" claims could flip.
+- The Phase 0 baseline doc at `ogz-meta/specs/baseline-phase0-2026-05-06.md` is still the current anchor. Falsifiable: a newer baseline-phase0-*.md may exist.
+- The `.claude/hookify.*.md` count (27) and `.claude/commands/` count (26) on the zip match the VPS. Falsifiable: counts may have changed.
+- DeepSearch's v1 doc was generated against a state similar to the zip — meaning v1's hallucinations are claims the AI made up, not claims that match a different version of the repo. Falsifiable: maybe v1 was looking at a different branch or older snapshot where those files DID exist.
+
+# OPEN QUESTIONS FOR TREY
+
+1. **Where should this file live?** v1 proposed `ogz-meta/OGZ-MASTER-ALIGNMENT.md`. Confirm or specify.
+2. **Update cadence.** This brief should be updated by whoever discovers the next AI failure mode that isn't already documented. Should that be a session-doc step, or a separate "this brief was updated" entry?
+3. **Pre-eval Fix queue and architecture tracks.** This brief doesn't mention the current two-track work (Wolf+CC+Mercury on Fix queue, Codex on architecture design). Should it? Pro: new instances know what's in flight. Con: that's session-doc territory and goes stale.
+4. **The verification commands in Part 9.** Should those be a script (`scripts/cold-start-verify.sh`) the new instance can just run, rather than copy-paste? Lower friction, harder to skip.
