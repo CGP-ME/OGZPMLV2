@@ -119,7 +119,20 @@ class OrderExecutor {
     console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
 
     // CHECKPOINT 2: Position sizing
-    console.log(`📍 CP2: Position size calculated: $${positionSize.toFixed(2)} USD`);
+    console.log(`[CP2] Position size calculated: $${positionSize.toFixed(2)} USD`);
+
+    if (decision.action === 'BUY') {
+      if (!orchResult) {
+        console.error('[HALT] orchResult absent on BUY — refusing entry (no winner strategy, no exit contract)');
+        return null;
+      }
+      if (!orchResult.winnerStrategy) {
+        throw new Error('[HIGH-08] BUY entry: orchResult.winnerStrategy missing — orchestrator regression');
+      }
+      if (!orchResult.exitContract) {
+        throw new Error('[HIGH-08] BUY entry: orchResult.exitContract missing — Fix 7 regression or orchestrator upstream bug');
+      }
+    }
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
@@ -263,17 +276,6 @@ class OrderExecutor {
         }
         // Update position tracking
         if (decision.action === 'BUY') {
-          // CRIT-06: Phantom confidence:0 exit contract. Previously when
-          // orchResult was absent, the exit contract was built with
-          // `confidence: 0` -> worst-fit SL/TP for a trade that was already
-          // questionable. Pre-money fail-loud: if the orchestrator did not
-          // produce a result (no winner strategy, no exit contract,
-          // no sizing/confidence), refuse the trade entirely.
-          if (!orchResult) {
-            console.error('[HALT] orchResult absent on BUY — refusing entry (no winner strategy, no exit contract)');
-            return null;
-          }
-
           // ═══ PHASE 9: Gates moved to EntryDecider (BEFORE execution) ═══
           // Previously gates ran HERE (after order filled) - BUG!
           // Now handled by this.ctx.entryDecider.decide() before executionLayer.executeTrade()
@@ -290,24 +292,10 @@ class OrderExecutor {
           // CHANGE 2026-02-21: Use orchestrator's winning strategy and exit contract
           // The StrategyOrchestrator already determined the winner and created the exit contract
           // Phase 3 REWRITE: orchResult is now passed directly from TradingLoop
-          // HIGH-08: refuse to default to 'default' exit contract on missing
-          // winnerStrategy. Post-CRIT-06 orchResult is guaranteed present, so a
-          // missing winnerStrategy is an orchestrator regression. Throw fires
-          // BEFORE any state mutation (above this line is read-only) and is
-          // contained by the executor's try block at :115.
-          if (!orchResult.winnerStrategy) {
-            throw new Error('[HIGH-08] BUY entry: orchResult.winnerStrategy missing — orchestrator regression');
-          }
           const entryStrategy = orchResult.winnerStrategy;
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
-          // Use orchestrator's exit contract if provided, otherwise create fallback
-          const exitContract = orchResult?.exitContract
-            || exitContractManager.createExitContract(
-                entryStrategy,
-                { confidence: orchResult?.confidence || 0 },
-                { volatility: indicators.volatility ?? null }
-              );
+          const exitContract = orchResult.exitContract;
 
           // Apply confluence-based position sizing
           const adjustedPositionSize = positionSize * sizingMultiplier;
