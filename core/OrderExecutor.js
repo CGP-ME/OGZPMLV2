@@ -133,6 +133,18 @@ class OrderExecutor {
         throw new Error('[HIGH-08] BUY entry: orchResult.exitContract missing — Fix 7 regression or orchestrator upstream bug');
       }
     }
+    if (decision.action === 'SELL_SHORT') {
+      if (!orchResult) {
+        console.error('[HALT] orchResult absent on SELL_SHORT — refusing entry (no winner strategy, no exit contract)');
+        return null;
+      }
+      if (!orchResult.winnerStrategy) {
+        throw new Error('[HIGH-08] SHORT entry: orchResult.winnerStrategy missing — orchestrator regression');
+      }
+      if (!orchResult.exitContract) {
+        throw new Error('[HIGH-08] SHORT entry: orchResult.exitContract missing — Fix 7 regression or orchestrator upstream bug');
+      }
+    }
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
@@ -462,32 +474,14 @@ class OrderExecutor {
           });
 
         } else if (decision.action === 'SELL_SHORT') {
-          // CRIT-06: same fail-loud as BUY entry — refuse the short if the
-          // orchestrator didn't produce a result. Phantom confidence:0
-          // exit contracts produce worst-fit SL/TP on already-questionable
-          // trades.
-          if (!orchResult) {
-            console.error('[HALT] orchResult absent on SELL_SHORT — refusing entry (no winner strategy, no exit contract)');
-            return null;
-          }
-
           // ═══ SELL_SHORT: Open a short position ═══
           const stateBefore = stateManager.getState();
-          console.log(`📍 CP5-SHORT: BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
+          console.log(`[CP5-SHORT] BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
-          // HIGH-08: same halt-class throw as BUY entry above.
-          if (!orchResult.winnerStrategy) {
-            throw new Error('[HIGH-08] SHORT entry: orchResult.winnerStrategy missing — orchestrator regression');
-          }
           const entryStrategy = orchResult.winnerStrategy;
           const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
 
-          const exitContract = orchResult?.exitContract
-            || exitContractManager.createExitContract(
-                entryStrategy,
-                { confidence: orchResult?.confidence || 0 },
-                { volatility: indicators.volatility ?? null }
-              );
+          const exitContract = orchResult.exitContract;
 
           const adjustedPositionSize = positionSize * sizingMultiplier;
 
