@@ -1068,65 +1068,59 @@ class StrategyOrchestrator {
 
     // ─── Step 7: Create exit contract from winning strategy ───
     let exitContract = null;
-    try {
-      const ecm = getExitContractManager();
-      const price = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
+    const ecm = getExitContractManager();
+    const price = extras.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : 0);
 
-      // If the winning strategy provided its own levels (e.g. TPO), use them
-      const signalOverrides = {};
-      // DEBUG: Log winner object keys to trace overrideLevels flow
-      console.log(`[EXIT-DEBUG] Winner "${winner.strategyName}" keys: ${Object.keys(winner).join(', ')}`);
-      console.log(`[EXIT-DEBUG] Winner overrideLevels type: ${typeof winner.overrideLevels}, value: ${JSON.stringify(winner.overrideLevels)}`);
-      if (winner.overrideLevels) {
-        const isShort = winner.direction === 'sell';
-        if (winner.overrideLevels.stopLoss && price) {
-          // FIX 2026-03-27: SL% must always be negative (how far price can move against you)
-          // For shorts, stopLoss is ABOVE entry → raw calc is positive → negate it
-          const rawSL = ((winner.overrideLevels.stopLoss - price) / price) * 100;
-          signalOverrides.stopLossPercent = isShort ? -Math.abs(rawSL) : rawSL;
-        }
-        if (winner.overrideLevels.takeProfit && price) {
-          // FIX 2026-03-27: TP% must always be positive (how far price needs to move in your favor)
-          // For shorts, takeProfit is BELOW entry → raw calc is negative → make positive
-          const rawTP = ((winner.overrideLevels.takeProfit - price) / price) * 100;
-          signalOverrides.takeProfitPercent = isShort ? Math.abs(rawTP) : rawTP;
-        }
-        // DEBUG: Log override level conversion
-        console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${price?.toFixed(2)} SL=$${winner.overrideLevels.stopLoss?.toFixed(2)} TP=$${winner.overrideLevels.takeProfit?.toFixed(2)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
-      } else {
-        console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use TradingConfig defaults`);
+    // If the winning strategy provided its own levels (e.g. TPO), use them
+    const signalOverrides = {};
+    // DEBUG: Log winner object keys to trace overrideLevels flow
+    console.log(`[EXIT-DEBUG] Winner "${winner.strategyName}" keys: ${Object.keys(winner).join(', ')}`);
+    console.log(`[EXIT-DEBUG] Winner overrideLevels type: ${typeof winner.overrideLevels}, value: ${JSON.stringify(winner.overrideLevels)}`);
+    if (winner.overrideLevels) {
+      const isShort = winner.direction === 'sell';
+      if (winner.overrideLevels.stopLoss && price) {
+        // FIX 2026-03-27: SL% must always be negative (how far price can move against you)
+        // For shorts, stopLoss is ABOVE entry → raw calc is positive → negate it
+        const rawSL = ((winner.overrideLevels.stopLoss - price) / price) * 100;
+        signalOverrides.stopLossPercent = isShort ? -Math.abs(rawSL) : rawSL;
       }
-
-      // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
-      // HIGH-15: throw if neither ATR/price nor a finite volatility is available.
-      // Old code substituted volPct=0 silently, producing wrong-fit SL/TP that
-      // either fired immediately or never. Throw is caught by the try at :1009
-      // → exitContract stays null → OrderExecutor falls through to its own
-      // ExitContractManager.createExitContract path (the architectural fallback
-      // there is a separate spec finding).
-      let volPct;
-      if (indicators?.atr && price) {
-        volPct = (indicators.atr / price * 100);
-      } else if (Number.isFinite(indicators?.volatility)) {
-        volPct = indicators.volatility;
-      } else {
-        throw new Error(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${indicators?.volatility}`);
+      if (winner.overrideLevels.takeProfit && price) {
+        // FIX 2026-03-27: TP% must always be positive (how far price needs to move in your favor)
+        // For shorts, takeProfit is BELOW entry → raw calc is negative → make positive
+        const rawTP = ((winner.overrideLevels.takeProfit - price) / price) * 100;
+        signalOverrides.takeProfitPercent = isShort ? Math.abs(rawTP) : rawTP;
       }
-      // HIGH-16: extras.timeframe now wired from TradingLoop (which pulls
-      // ctx.candleTimeframe from resolvedConfig.config.broker.candleTimeframe).
-      // Throw on missing/non-string instead of silent '15m' default.
-      const timeframe = extras.timeframe;
-      if (typeof timeframe !== 'string' || !timeframe) {
-        throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
-      }
-      exitContract = ecm.createExitContract(
-        winner.strategyName,
-        { ...signalOverrides, confidence: publicWinnerConfidence },
-        { volatility: volPct, timeframe }
-      );
-    } catch (err) {
-      console.warn(`⚠️ [StrategyOrchestrator] Failed to create exit contract: ${err.message}`);
+      // DEBUG: Log override level conversion
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} overrideLevels → Price=$${price?.toFixed(2)} SL=$${winner.overrideLevels.stopLoss?.toFixed(2)} TP=$${winner.overrideLevels.takeProfit?.toFixed(2)} → SL%=${signalOverrides.stopLossPercent?.toFixed(2)}% TP%=${signalOverrides.takeProfitPercent?.toFixed(2)}%`);
+    } else {
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} NO overrideLevels — will use TradingConfig defaults`);
     }
+
+    // FIX 2026-02-23: Convert ATR to percentage (was passing raw $ causing inflation)
+    // HIGH-15: throw if neither ATR/price nor a finite volatility is available.
+    // Old code substituted volPct=0 silently, producing wrong-fit SL/TP that
+    // either fired immediately or never. These throw conditions are intentional:
+    // let them propagate so OrderExecutor never receives a null exit contract.
+    let volPct;
+    if (indicators?.atr && price) {
+      volPct = (indicators.atr / price * 100);
+    } else if (Number.isFinite(indicators?.volatility)) {
+      volPct = indicators.volatility;
+    } else {
+      throw new Error(`[HIGH-15] volPct unresolvable: ATR=${indicators?.atr} price=${price} volatility=${indicators?.volatility}`);
+    }
+    // HIGH-16: extras.timeframe now wired from TradingLoop (which pulls
+    // ctx.candleTimeframe from resolvedConfig.config.broker.candleTimeframe).
+    // Throw on missing/non-string instead of silent '15m' default.
+    const timeframe = extras.timeframe;
+    if (typeof timeframe !== 'string' || !timeframe) {
+      throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
+    }
+    exitContract = ecm.createExitContract(
+      winner.strategyName,
+      { ...signalOverrides, confidence: publicWinnerConfidence },
+      { volatility: volPct, timeframe }
+    );
 
     // ─── Step 8: Build reasons list ───
     const reasons = [
