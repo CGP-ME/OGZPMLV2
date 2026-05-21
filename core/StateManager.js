@@ -33,8 +33,15 @@
  * const { getInstance } = require('./core/StateManager');
  * const stateManager = getInstance();
  *
- * // Open a position (size in USD)
- * await stateManager.openPosition(500, 100, { source: 'TradingBrain' });
+ * // Open a position (size in USD) with immutable trade scope
+ * await stateManager.openPosition(500, 100, {
+ *   source: 'TradingBrain',
+ *   symbol: 'BTC-USD',
+ *   brokerId: 'kraken',
+ *   assetClass: 'crypto',
+ *   executionMode: 'paper',
+ *   timeframe: '15m'
+ * });
  *
  * // Close position
  * await stateManager.closePosition(101);
@@ -109,6 +116,7 @@ class StateManager {
       // activeTrades Map persists across restarts via save()/load()
       // ─────────────────────────────────────────────────────────────────────
       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
+      symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
       // Per-symbol last-known prices for cross-asset equity math.
       // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
       // supplied currentPrice across all activeTrades, which corrupts equity
@@ -354,6 +362,11 @@ class StateManager {
    * @param {string} [context.source] - Calling component (e.g., 'TradingBrain')
    * @param {string} [context.reason] - Trade reason (e.g., 'RSI oversold')
    * @param {number} [context.confidence] - Signal confidence (0-100)
+   * @param {string} context.symbol - Canonical trade symbol
+   * @param {string} context.brokerId - Broker identity that owns this trade
+   * @param {string} context.assetClass - Asset class for this trade
+   * @param {string} context.executionMode - paper/live/backtest
+   * @param {string} context.timeframe - Candle timeframe that produced the entry
    * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
    *
    * @example
@@ -361,7 +374,12 @@ class StateManager {
    * await stateManager.openPosition(500, 100, {
    *   source: 'TradingBrain',
    *   reason: 'RSI oversold bounce',
-   *   confidence: 75
+   *   confidence: 75,
+   *   symbol: 'BTC-USD',
+   *   brokerId: 'kraken',
+   *   assetClass: 'crypto',
+   *   executionMode: 'paper',
+   *   timeframe: '15m'
    * });
    * // Result: position = 500 USD, inPosition = $500
    *
@@ -382,7 +400,7 @@ class StateManager {
     // FIX 2026-03-28: size is already USD, no multiplication needed
     const usdCost = size;
     const tradeDirection = context.direction || 'long';
-    console.log(`📊 [StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
+    console.log(`[StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
     console.log(`   Size: $${size.toFixed(2)} USD`);
     console.log(`   Price: $${price}`);
     console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
@@ -399,18 +417,26 @@ class StateManager {
     // and SessionRouter need symbol-aware pricing.
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
     const tradeAction = context.action || 'BUY';
-    const tradeSymbolRaw = (context.ledgerData && context.ledgerData.symbol)
-      || context.symbol
+    const tradeSymbolRaw = context.symbol
+      || (context.ledgerData && context.ledgerData.symbol)
       || null;
     const tradeSymbol = tradeSymbolRaw
-      ? String(tradeSymbolRaw).toUpperCase().replace('XBT', 'BTC').replace('/', '-')
+      ? this.normalizeSymbol(String(tradeSymbolRaw), 'StateManager.openPosition symbol')
       : null;
 
     // FIX P2-E: refuse to open trades with null symbol — they become invisible
     // to getTradesBySymbol() and the exit path can never find them.
     if (!tradeSymbol) {
-      console.error(`[StateManager] openPosition BLOCKED — no symbol resolved from context. context.symbol=${context.symbol}, ledgerData.symbol=${context.ledgerData?.symbol}`);
-      return { success: false, error: 'No symbol resolved — refusing to open invisible trade' };
+      console.error(`[StateManager] openPosition BLOCKED - no symbol resolved from context. context.symbol=${context.symbol}, ledgerData.symbol=${context.ledgerData?.symbol}`);
+      return { success: false, error: 'No symbol resolved - refusing to open invisible trade' };
+    }
+
+    let tradeScope;
+    try {
+      tradeScope = this.buildTradeScope(context, tradeSymbol, 'StateManager.openPosition scope');
+    } catch (err) {
+      console.error(`[StateManager] openPosition BLOCKED - ${err.message}`);
+      return { success: false, error: err.message };
     }
 
     const trade = {
@@ -436,6 +462,11 @@ class StateManager {
       // dash-normalized input but matched against slash-stored trade.symbol
       // (returning [] for crypto pairs and silently breaking exit-checks).
       symbol: tradeSymbol,
+      brokerId: tradeScope.brokerId,
+      assetClass: tradeScope.assetClass,
+      executionMode: tradeScope.executionMode,
+      timeframe: tradeScope.timeframe,
+      scopeKey: tradeScope.key,
     };
 
     // L1: Attach decision ledger skeleton at trade birth
@@ -468,7 +499,7 @@ class StateManager {
       this.state.activeTrades = new Map();
     }
     this.state.activeTrades.set(tradeId, trade);
-    console.log(`✅ [StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
+    console.log(`[StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
 
     // For position scalar (kept for compatibility)
     const positionDelta = tradeDirection === 'short' ? -size : size;
@@ -1028,6 +1059,53 @@ class StateManager {
     return trades ? Array.from(trades.values()) : [];
   }
 
+  normalizeSymbol(symbol, caller = 'StateManager.normalizeSymbol') {
+    if (typeof symbol !== 'string' || !symbol.trim()) {
+      throw new Error(
+        `${caller} requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
+    return symbol.trim().toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+  }
+
+  buildTradeScope(context, symbol, caller = 'StateManager.buildTradeScope') {
+    const brokerId = context.brokerId || context.ledgerData?.brokerId || null;
+    const assetClass = context.assetClass || context.ledgerData?.assetClass || null;
+    const executionMode = context.executionMode || context.ledgerData?.executionMode || null;
+    const timeframe = context.timeframe || context.ledgerData?.timeframe || null;
+    const missing = [];
+    const cleanText = (value, name) => {
+      if (value === null || value === undefined) {
+        missing.push(name);
+        return null;
+      }
+      const cleaned = String(value).trim();
+      if (!cleaned) {
+        missing.push(name);
+        return null;
+      }
+      return cleaned;
+    };
+    const rawSymbol = cleanText(symbol, 'symbol');
+    const rawBrokerId = cleanText(brokerId, 'brokerId');
+    const rawAssetClass = cleanText(assetClass, 'assetClass');
+    const rawExecutionMode = cleanText(executionMode, 'executionMode');
+    const rawTimeframe = cleanText(timeframe, 'timeframe');
+    if (missing.length > 0) {
+      throw new Error(`${caller} missing immutable trade scope field(s): ${missing.join(', ')}`);
+    }
+
+    const scope = {
+      symbol: this.normalizeSymbol(rawSymbol, caller),
+      brokerId: rawBrokerId.toLowerCase(),
+      assetClass: rawAssetClass.toLowerCase(),
+      executionMode: rawExecutionMode.toLowerCase(),
+      timeframe: rawTimeframe
+    };
+    scope.key = `${scope.executionMode}:${scope.brokerId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`;
+    return scope;
+  }
+
   /**
    * Get active trades for ONE symbol. Required argument; throws on missing.
    * No null-fallback to "all trades" — that silent semantic is the footgun
@@ -1035,11 +1113,6 @@ class StateManager {
    * BUY-matching across TSLA/BTC/etc. Strict by design.
    */
   getTradesBySymbol(symbol) {
-    if (typeof symbol !== 'string' || !symbol) {
-      throw new Error(
-        `StateManager.getTradesBySymbol(symbol) requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
-      );
-    }
     // CC-C Commit 5: apply the SAME normalization openPosition uses at :406
     // (uppercase + XBT→BTC + slash→dash). External callers pass the broker/env
     // form ('BTC/USD', 'XBT/USD'); internal storage is dash-canonical
@@ -1048,7 +1121,7 @@ class StateManager {
     // returns [] → exit-check skips → positions never close. Single source of
     // truth for the transform: when openPosition's canonical form changes,
     // change it here too.
-    const normalized = symbol.toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.getTradesBySymbol');
     const trades = this.get('activeTrades');
     if (!trades) return [];
     return Array.from(trades.values()).filter(t => t.symbol === normalized);
@@ -1095,6 +1168,42 @@ class StateManager {
    */
   getHaltReason() {
     return this._haltReason || null;
+  }
+
+  async haltSymbol(symbol, reason) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.haltSymbol');
+    const halts = { ...(this.state.symbolEntryHalts || {}) };
+    halts[normalized] = {
+      reason: reason || 'unspecified',
+      haltedAt: Date.now()
+    };
+
+    console.error(`[StateManager] SYMBOL ENTRY HALT: ${normalized} - ${halts[normalized].reason}`);
+    return this.updateState(
+      { symbolEntryHalts: halts },
+      { action: 'SYMBOL_ENTRY_HALT', symbol: normalized, reason: halts[normalized].reason }
+    );
+  }
+
+  isSymbolHalted(symbol) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.isSymbolHalted');
+    return Boolean(this.state.symbolEntryHalts && this.state.symbolEntryHalts[normalized]);
+  }
+
+  getSymbolHaltReason(symbol) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.getSymbolHaltReason');
+    return this.state.symbolEntryHalts?.[normalized]?.reason || null;
+  }
+
+  async resetSymbolHalt(symbol) {
+    const normalized = this.normalizeSymbol(symbol, 'StateManager.resetSymbolHalt');
+    const halts = { ...(this.state.symbolEntryHalts || {}) };
+    delete halts[normalized];
+    console.warn(`[StateManager] SYMBOL ENTRY HALT RESET: ${normalized}`);
+    return this.updateState(
+      { symbolEntryHalts: halts },
+      { action: 'SYMBOL_ENTRY_HALT_RESET', symbol: normalized }
+    );
   }
 
   /**
@@ -1212,43 +1321,60 @@ class StateManager {
 
         // Restore state
         this.state = { ...this.state, ...savedState };
+        if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
+          this.state.symbolEntryHalts = {};
+        } else {
+          const normalizedHalts = {};
+          for (const [haltSymbol, halt] of Object.entries(this.state.symbolEntryHalts)) {
+            const normalized = this.normalizeSymbol(haltSymbol, 'StateManager.load symbolEntryHalts');
+            normalizedHalts[normalized] = halt;
+          }
+          this.state.symbolEntryHalts = normalizedHalts;
+        }
         console.log('[StateManager] State loaded from disk');
 
-        // CC-C Commit 5: backfill `t.symbol` for trades persisted before the
-        // 2026-05-05 fix at :397-417 promoted symbol to a top-level trade
-        // field. Pre-fix trades have no .symbol; getTradesBySymbol(symbol)
-        // would filter them out → silent state corruption (orphaned positions,
-        // exit-checks skipped, MPM tracking nothing). Single-symbol invariant
-        // pre-2026-05-05 (one bot, one symbol per process) means the
-        // configured tradingPair is the correct backfill value. Multi-broker
-        // upgrades that switched symbol without wiping state are config-level
-        // mistakes; the warning log surfaces the issue so the operator can
-        // wipe state and resume fresh.
-        const legacyPair = getConfigValue('broker.tradingPair');
-        const normalizedLegacy = legacyPair
-          ? String(legacyPair).toUpperCase().replace('XBT', 'BTC').replace('/', '-')
-          : null;
-        let migrated = 0;
+        // Active trades without immutable scope are ambiguous. Do not infer
+        // from current boot config: after symbol/broker switching, brokerId,
+        // assetClass, executionMode, and timeframe may no longer match the
+        // trade's true origin.
+        const invalidScopeTrades = [];
+        let normalizedExisting = 0;
         for (const trade of this.state.activeTrades.values()) {
-          if (!trade.symbol && normalizedLegacy) {
-            trade.symbol = normalizedLegacy;
-            migrated++;
-          }
-        }
-        if (migrated > 0) {
-          console.warn(`[StateManager] Migrated ${migrated} legacy trade(s) to symbol=${normalizedLegacy}. If these trades originated under a different asset, wipe state.json and restart.`);
-        }
-        // CC-C Commit 5 — fail-loud post-condition (Mercury re-attack edge case E):
-        // If backfill couldn't supply a symbol (broker.tradingPair missing
-        // from config), trades stay symbol-less and getTradesBySymbol would
-        // silently return []. Refuse to load corrupted state — operator
-        // must wipe state.json or fix the broker config before resuming.
-        for (const trade of this.state.activeTrades.values()) {
+          const tradeId = trade.id || trade.orderId || '<unknown>';
           if (!trade.symbol) {
-            throw new Error(
-              `[StateManager.load] Trade ${trade.id || '<unknown>'} has no .symbol after backfill (broker.tradingPair=${JSON.stringify(legacyPair)}). Refusing to load state with symbol-less trades — wipe state.json or fix broker config.`
-            );
+            invalidScopeTrades.push(`${tradeId}:symbol`);
+          } else {
+            const normalizedTradeSymbol = this.normalizeSymbol(String(trade.symbol), 'StateManager.load trade.symbol');
+            if (trade.symbol !== normalizedTradeSymbol) {
+              trade.symbol = normalizedTradeSymbol;
+              normalizedExisting++;
+            }
           }
+          const scopeInput = {
+            symbol: trade.symbol,
+            brokerId: trade.brokerId || trade.brokerName || trade.broker || null,
+            assetClass: trade.assetClass || trade.assetType || null,
+            executionMode: trade.executionMode || trade.decisionLedger?.executionMode || null,
+            timeframe: trade.timeframe || trade.decisionLedger?.timeframe || null
+          };
+          try {
+            const scope = this.buildTradeScope(scopeInput, trade.symbol, 'StateManager.load trade scope');
+            trade.brokerId = scope.brokerId;
+            trade.assetClass = scope.assetClass;
+            trade.executionMode = scope.executionMode;
+            trade.timeframe = scope.timeframe;
+            trade.scopeKey = scope.key;
+          } catch (err) {
+            invalidScopeTrades.push(`${tradeId}:${err.message}`);
+          }
+        }
+        if (invalidScopeTrades.length > 0) {
+          throw new Error(
+            `[StateManager.load] Active trade(s) missing immutable scope: ${invalidScopeTrades.join('; ')}. Refusing to infer from current boot config because symbol/broker switching can corrupt positions. Reconcile or quarantine state.json manually.`
+          );
+        }
+        if (normalizedExisting > 0) {
+          console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
         }
 
         // Verify Map restoration
@@ -1256,8 +1382,9 @@ class StateManager {
       }
     } catch (error) {
       console.error('[StateManager] Failed to load state:', error);
-      // Initialize empty Map if load fails
-      this.state.activeTrades = new Map();
+      this.state.recoveryMode = true;
+      this.state.lastError = error.message;
+      throw error;
     }
   }
 

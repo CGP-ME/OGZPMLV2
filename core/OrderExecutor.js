@@ -52,12 +52,30 @@ class OrderExecutor {
         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
       );
     }
+    if (decision.action === 'BUY' || decision.action === 'SELL_SHORT') {
+      const missingScope = [];
+      const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+      if (!hasText(this.ctx.config?.brokerId)) missingScope.push('brokerId');
+      if (!hasText(this.ctx.config?.assetClass)) missingScope.push('assetClass');
+      if (!hasText(this.ctx.config?.timeframe)) missingScope.push('timeframe');
+      const executionMode = this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode;
+      if (!hasText(executionMode)) missingScope.push('executionMode');
+      if (missingScope.length > 0) {
+        throw new Error(`[ENTRY-SCOPE] ${decision.action} for ${symbol} missing immutable trade scope field(s): ${missingScope.join(', ')} - refusing to route order before state identity is complete`);
+      }
+      const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
+      const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
+      if (globalHaltReason || symbolHaltReason) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
+        return null;
+      }
+    }
     // Log trade execution
     console.log("*** EXECUTE_TRADE_REACHED ***");
-    console.log(`\n🎯 ${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
+    console.log(`\n${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
 
     // CHECKPOINT 1: Entry
-    console.log(`📍 CP1: executeTrade ENTRY - Balance: $${stateManager.get('balance')}, Position: ${stateManager.get('position')}`);
+    console.log(`CP1: executeTrade ENTRY - Balance: $${stateManager.get('balance')}, Position: ${stateManager.get('position')}`);
 
     // FIX 2026-03-28: Use available capital (equity minus reserved in open trades)
     // This prevents sizing off full equity while positions are open
@@ -252,7 +270,7 @@ class OrderExecutor {
           }
         };
 
-        console.log(`📍 CP4.6: Unified result created with orderId: ${unifiedResult.orderId}`);
+        console.log(`CP4.6: Unified result created with orderId: ${unifiedResult.orderId}`);
 
         // FIX 2026-02-16: REMOVED redundant updateActiveTrade() call
         // openPosition() already adds trade to activeTrades atomically via updateState()
@@ -260,16 +278,16 @@ class OrderExecutor {
         // before openPosition could update position, creating zombie trades
         // See: ZOMBIE-RACE-CONDITION-FIX.md in ledger
         if (false && decision.action === 'BUY') { // DISABLED - openPosition handles this
-          console.log(`📍 CP4.7: About to call stateManager.updateActiveTrade (BUY only)`);
+          console.log(`CP4.7: About to call stateManager.updateActiveTrade (BUY only)`);
           try {
             stateManager.updateActiveTrade(unifiedResult.orderId, unifiedResult);
-            console.log(`📍 CP4.8: updateActiveTrade completed successfully`);
+            console.log(`CP4.8: updateActiveTrade completed successfully`);
           } catch (error) {
-            console.error(`❌ CP4.8 ERROR: updateActiveTrade failed:`, error.message);
+            console.error(`CP4.8 ERROR: updateActiveTrade failed:`, error.message);
             console.error(`   Full error:`, error);
           }
         } else {
-          console.log(`📍 CP4.7: updateActiveTrade disabled - openPosition() handles activeTrades storage for ${decision.action}`);
+          console.log(`CP4.7: updateActiveTrade disabled - openPosition() handles activeTrades storage for ${decision.action}`);
         }
 
         // FIX 2026-02-14: Store TRAI decision for learning feedback loop
@@ -284,7 +302,7 @@ class OrderExecutor {
             timestamp: Date.now()
           });
           this.ctx._lastTraiDecision = null;  // Clear after storing
-          console.log(`📚 [TRAI] Decision stored for learning (orderId: ${unifiedResult.orderId})`);
+          console.log(`[TRAI] Decision stored for learning (orderId: ${unifiedResult.orderId})`);
         }
         // Update position tracking
         if (decision.action === 'BUY') {
@@ -294,7 +312,7 @@ class OrderExecutor {
 
           // CHECKPOINT 5: Before position update
           const stateBefore = stateManager.getState();
-          console.log(`📍 CP5: BEFORE BUY - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
+          console.log(`CP5: BEFORE BUY - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
           // CHANGE 2025-12-11: Use StateManager for atomic position updates
           // CHANGE 2025-12-11 FIX: orderId was undefined - use unifiedResult.orderId
@@ -352,12 +370,16 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
+            brokerId: this.ctx.config.brokerId,
+            assetClass: this.ctx.config.assetClass,
+            executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
+            timeframe: this.ctx.config.timeframe,
             symbol,
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
           if (!positionResult.success) {
-            console.error('❌ StateManager.openPosition failed:', positionResult.error);
+            console.error('StateManager.openPosition failed:', positionResult.error);
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
             stateManager.removeActiveTrade(unifiedResult.orderId);
             return; // Abort trade
@@ -367,7 +389,7 @@ class OrderExecutor {
           const stateAfter = stateManager.getState();
 
           // CHECKPOINT 6: After position update
-          console.log(`📍 CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${positionSize})`);
+          console.log(`CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${positionSize})`);
 
           // Change 605: Start MaxProfitManager on BUY to track profit targets
           // Phase 4 REWRITE: Access maxProfitManager directly (was inside deleted tradingBrain)
@@ -526,17 +548,21 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
+            brokerId: this.ctx.config.brokerId,
+            assetClass: this.ctx.config.assetClass,
+            executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
+            timeframe: this.ctx.config.timeframe,
             symbol
           });
 
           if (!positionResult.success) {
-            console.error('❌ StateManager.openPosition (SHORT) failed:', positionResult.error);
+            console.error('StateManager.openPosition (SHORT) failed:', positionResult.error);
             stateManager.removeActiveTrade(unifiedResult.orderId);
             return;
           }
 
           const stateAfter = stateManager.getState();
-          console.log(`📍 CP6-SHORT: AFTER SHORT - Position: ${stateAfter.position}, Balance: $${stateAfter.balance}`);
+          console.log(`CP6-SHORT: AFTER SHORT - Position: ${stateAfter.position}, Balance: $${stateAfter.balance}`);
 
           // MaxProfitManager for short direction
           const mpmShortInstance = new MaxProfitManager();
@@ -643,7 +669,7 @@ class OrderExecutor {
           let buyTrade = null;
           let pnl = 0;
           const currentState = stateManager.getState();
-          console.log(`📍 CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
+          console.log(`CP7: SELL PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
           // Change 589: Complete post-trade integrations
           // Find the matching BUY trade FOR THIS SYMBOL ONLY.
@@ -656,7 +682,7 @@ class OrderExecutor {
 
           // CHANGE 644: Add error handling for SELL with no matching BUY
           if (buyTrades.length === 0) {
-            console.error(`❌ CRITICAL: SELL signal for ${symbol} but no matching BUY trade found for this symbol!`);
+            console.error(`CRITICAL: SELL signal for ${symbol} but no matching BUY trade found for this symbol!`);
             console.log('   Current position:', currentState.position);
             // Diagnostic: dump trades for THIS symbol so the operator can
             // see what's actually open under this symbol's bucket. Account-
@@ -669,18 +695,9 @@ class OrderExecutor {
               price: t.entryPrice
             })));
 
-            // Force reset to prevent permanent lockup via StateManager
-            console.log('   ⚠️ Force resetting position to 0 to prevent lockup');
-            await stateManager.emergencyReset();
-            // CHANGE 2025-12-13: No local balance sync needed
-
-            // Stop all MaxProfitManager instances on emergency reset
-            if (this.ctx.maxProfitManagers) {
-              for (const [id, mpm] of this.ctx.maxProfitManagers) {
-                mpm.reset();
-              }
-              this.ctx.maxProfitManagers.clear();
-            }
+            const haltReason = 'KILL-5: SELL with no matching BUY';
+            console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
+            await stateManager.haltSymbol(symbol, haltReason);
             return; // Exit early, don't process invalid SELL
           }
 
@@ -1135,7 +1152,7 @@ class OrderExecutor {
         } else if (decision.action === 'COVER') {
           // ═══ COVER: Close a short position ═══
           const currentState = stateManager.getState();
-          console.log(`📍 CP7-COVER: COVER PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
+          console.log(`CP7-COVER: COVER PATH - Position: ${currentState.position}, Balance: $${currentState.balance}`);
 
           // Find matching SELL_SHORT trade FOR THIS SYMBOL ONLY.
           // CC-C Commit 5: same strict filter rationale as the SELL path —
@@ -1146,17 +1163,13 @@ class OrderExecutor {
             .sort((a, b) => a.entryTime - b.entryTime);
 
           if (shortTrades.length === 0) {
-            console.error(`❌ CRITICAL: COVER signal for ${symbol} but no matching SELL_SHORT trade found for this symbol!`);
+            console.error(`CRITICAL: COVER signal for ${symbol} but no matching SELL_SHORT trade found for this symbol!`);
             console.log('   Current position:', currentState.position);
             const symbolTrades = stateManager.getTradesBySymbol(symbol);
             console.log(`   Active trades for ${symbol}:`, symbolTrades.map(t => ({ id: t.orderId, action: t.action, price: t.entryPrice })));
-            await stateManager.emergencyReset();
-            if (this.ctx.maxProfitManagers) {
-              for (const [id, mpm] of this.ctx.maxProfitManagers) {
-                mpm.reset();
-              }
-              this.ctx.maxProfitManagers.clear();
-            }
+            const haltReason = 'KILL-5: COVER with no matching SELL_SHORT';
+            console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
+            await stateManager.haltSymbol(symbol, haltReason);
             return;
           }
 

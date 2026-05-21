@@ -295,6 +295,8 @@ class TradingLoop {
     // ─── STEP 2: ENTRY CHECK ───
     // Only if no exit was triggered AND we have a directional signal
     if (decision.action === 'HOLD' && finalDirection !== 'hold' && confidence >= minConfidence) {
+      const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
+      const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
 
       // Same-direction stacking check
       const hasPositionInDirection = activeTrades.some(t => {
@@ -311,7 +313,13 @@ class TradingLoop {
         return false;
       });
 
-      if (hasPositionInDirection) {
+      if (globalHaltReason) {
+        console.error(`[ENTRY] Blocked: new entries halted globally - ${globalHaltReason}`);
+        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: globalHaltReason };
+      } else if (symbolHaltReason) {
+        console.error(`[ENTRY] Blocked: ${symbol} entries halted - ${symbolHaltReason}`);
+        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: symbolHaltReason };
+      } else if (hasPositionInDirection) {
         console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
       } else if (hasOppositePosition) {
         // Close opposite position first, then open new in next candle
@@ -390,7 +398,9 @@ class TradingLoop {
       const winnerName = orchResult.winnerStrategy || null;
       decision.ledgerData = {
         candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
-        symbol: this.ctx.config?.tradingPair || this.ctx.config?.symbol || 'unknown',
+        symbol,
+        brokerId: this.ctx.config?.brokerId || null,
+        assetClass: this.ctx.config?.assetClass || null,
         timeframe: this.ctx.config?.timeframe || '15m',
         executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || 'paper'),
         // L2: every strategy that fired — winner AND losers with indicator values

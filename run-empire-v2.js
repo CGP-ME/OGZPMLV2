@@ -950,6 +950,10 @@ class OGZPrimeV14Bot {
       // CHANGE 2026-02-28: Use TradingConfig for minTradeConfidence
       minTradeConfidence: TradingConfig.get('confidence.minTradeConfidence'),
       tradingPair: resolvedConfig.config.broker.tradingPair,
+      brokerId: resolvedConfig.config.broker.id,
+      assetClass: resolvedConfig.config.broker.assetClass,
+      executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
+      timeframe: resolvedConfig.config.broker.candleTimeframe,
       enableShorts: TradingConfig.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,

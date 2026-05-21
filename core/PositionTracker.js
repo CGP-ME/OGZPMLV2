@@ -103,6 +103,11 @@ class PositionTracker {
    * @param {string} params.side - 'long' or 'short' (required!)
    * @param {string} params.entryStrategy - Strategy that triggered entry (WRITE-ONCE)
    * @param {Object} params.exitContract - Exit conditions (WRITE-ONCE)
+   * @param {string} params.symbol - Canonical trade symbol
+   * @param {string} params.brokerId - Broker identity that owns this trade
+   * @param {string} params.assetClass - Asset class for this trade
+   * @param {string} params.executionMode - paper/live/backtest
+   * @param {string} params.timeframe - Candle timeframe that produced the entry
    * @param {Object} [params.metadata] - Additional trade metadata
    * @returns {Promise<Object>} { success, trade, error }
    */
@@ -122,6 +127,11 @@ class PositionTracker {
       side = 'long',
       entryStrategy,
       exitContract,
+      symbol,
+      brokerId,
+      assetClass,
+      executionMode,
+      timeframe,
       metadata = {}
     } = params;
 
@@ -138,16 +148,36 @@ class PositionTracker {
       console.warn('[PositionTracker] No exitContract provided - trade will lack exit conditions');
     }
 
+    let scope;
+    try {
+      scope = this.stateManager.buildTradeScope({
+        symbol: symbol ?? metadata.symbol,
+        brokerId: brokerId ?? metadata.brokerId,
+        assetClass: assetClass ?? metadata.assetClass,
+        executionMode: executionMode ?? metadata.executionMode,
+        timeframe: timeframe ?? metadata.timeframe
+      }, symbol ?? metadata.symbol, 'PositionTracker.openPosition scope');
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+
     // Generate unique identifiers
     const orderId = metadata.orderId || `pos_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const signalId = metadata.signalId || `sig_${Date.now()}`;
     const entryTime = metadata.entryTime || Date.now();
+    const tradeAction = side === 'short' ? 'SELL_SHORT' : 'BUY';
 
     // Create trade object with immutable identity
     const trade = {
       // IMMUTABLE IDENTITY (Phase 13 invariant) - SET ONCE HERE ONLY
       orderId,
       signalId,
+      symbol: scope.symbol,
+      brokerId: scope.brokerId,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      scopeKey: scope.key,
       entryStrategy,
       entryTime,
       entryPrice: price,
@@ -169,7 +199,7 @@ class PositionTracker {
       exitTime: null,
 
       // Metadata (for reference, not enforced immutable)
-      action: 'BUY',
+      action: tradeAction,
       confidence: metadata.confidence || 0,
       patterns: metadata.patterns || [],
       entryIndicators: metadata.entryIndicators || {},
@@ -178,8 +208,8 @@ class PositionTracker {
 
     // Delegate to StateManager - ONLY place identity fields get set
     const result = await this.stateManager.openPosition(size, price, {
-      ...trade,
-      ...metadata
+      ...metadata,
+      ...trade
     });
 
     if (!result.success) {
