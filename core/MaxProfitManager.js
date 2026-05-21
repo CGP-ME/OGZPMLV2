@@ -271,7 +271,9 @@ class MaxProfitManager {
     // ====================================================================
     // CHANGE 614: Fix case-sensitivity bug - normalize direction
     // ====================================================================
-    direction = direction.toLowerCase();
+    direction = direction.trim().toLowerCase();
+    if (direction === 'long') direction = 'buy';
+    if (direction === 'short' || direction === 'sell_short') direction = 'sell';
 
     // ====================================================================
     // INPUT VALIDATION
@@ -572,9 +574,14 @@ class MaxProfitManager {
     // ====================================================================
     // TRAILING STOP MANAGEMENT
     // ====================================================================
-    const trailingUpdate = this.updateTrailingStop(currentPrice, profitPercent, options.volatility);
+    const trailingUpdate = this.updateTrailingStop(currentPrice, profitPercent, options.volatility, {
+      ...options,
+      price: currentPrice
+    });
     if (trailingUpdate.updated) {
       this.log(`Trailing stop updated to ${this.state.currentStop.toFixed(2)}`, 'debug');
+    } else if (trailingUpdate.reason === 'missing_atr') {
+      console.warn('[MaxProfitManager] Trailing stop skipped: ATR missing/non-positive; preserving existing stop');
     }
     
     // ====================================================================
@@ -781,42 +788,95 @@ class MaxProfitManager {
    * @returns {Object} - Update result
    */
   updateTrailingStop(currentPrice, profitPercent, volatility = null, context = {}) {
-    if (!this.trailConfig.enabled && !this.config.enableTrailingStop) {
+    const trailEnabled = this.trailConfig.enabled ?? this.config.enableTrailingStop;
+    if (!trailEnabled) {
       return { updated: false, reason: 'trailing_disabled' };
     }
 
-    const minActivation = this.trailConfig.minActivationPercent || this.config.minProfit || 0.3;
-    if (profitPercent * 100 < minActivation) {
+    const currentPriceValue = this._positiveFiniteNumber(currentPrice);
+    if (currentPriceValue === null) {
+      return { updated: false, reason: 'invalid_price' };
+    }
+
+    const profitPercentFraction = this._finiteNumber(profitPercent);
+    if (profitPercentFraction === null) {
+      return { updated: false, reason: 'invalid_profit' };
+    }
+
+    if (this.state.direction !== 'buy' && this.state.direction !== 'sell') {
+      return { updated: false, reason: 'invalid_direction' };
+    }
+
+    const profitPercentValue = profitPercentFraction * 100;
+    const minActivation = this._finiteConfigNumber(
+      this.trailConfig.minActivationPercent,
+      (this.config.minProfit || 0.003) * 100
+    );
+    if (profitPercentValue < minActivation) {
       return { updated: false, reason: 'insufficient_profit' };
     }
 
-    if (!this.state.trailingActive) {
-      this.state.trailingActive = true;
-      this.log('Trailing stop activated', 'info');
-    }
-
-    // Dynamic trail distance based on ATR if available
+    // Dynamic trail distance based on ATR if available.
     let trailDistance;
-    const atr = context.atr || volatility;
-    if (atr && this.trailConfig.atrMultiplier) {
-      trailDistance = (atr / currentPrice) * this.trailConfig.atrMultiplier;
-    } else {
-      trailDistance = (this.trailConfig.minTrailPercent || 0.3) / 100;
+    const atr = this._positiveFiniteNumber(context.atr) || this._positiveFiniteNumber(volatility);
+    const atrMultiplier = this._finiteConfigNumber(this.trailConfig.atrMultiplier, 1);
+    const minTrailPercent = this._finiteConfigNumber(this.trailConfig.minTrailPercent, 0.3);
+    const maxTrailPercent = this._finiteConfigNumber(this.trailConfig.maxTrailPercent, 3.0);
+    if (atr === null || atrMultiplier <= 0) {
+      return { updated: false, reason: 'missing_atr' };
+    }
+    trailDistance = (atr / currentPriceValue) * atrMultiplier;
+
+    // Trend widening: use the config field TradingConfig exposes, not the
+    // stale trendWidening name.
+    const trendWidenMultiplier = this._finiteConfigNumber(this.trailConfig.trendWidenMultiplier, 1);
+    const rsi = this._finiteNumber(context.rsi);
+    const trend = String(context.trend || '').toLowerCase();
+    const isBullTrend = trend === 'bullish' || trend === 'uptrend' || trend === 'trending_up' || trend === 'up';
+    const isBearTrend = trend === 'bearish' || trend === 'downtrend' || trend === 'trending_down' || trend === 'down';
+    const trendSupportsTrade = (this.state.direction === 'buy' && isBullTrend) ||
+      (this.state.direction === 'sell' && isBearTrend);
+    if (trendSupportsTrade && rsi !== null && trendWidenMultiplier > 1) {
+      const trendStrength = this.state.direction === 'buy'
+        ? Math.max(0, (rsi - 50) / 50)
+        : Math.max(0, (50 - rsi) / 50);
+      trailDistance *= 1 + ((trendWidenMultiplier - 1) * trendStrength);
     }
 
-    // Trend widening
-    if (context.rsi && this.trailConfig.trendWidening) {
-      if (this.state.direction === 'buy' && context.rsi > 70) {
-        trailDistance *= 1.2; // Wider in overbought
-      } else if (this.state.direction === 'sell' && context.rsi < 30) {
-        trailDistance *= 1.2; // Wider in oversold
-      }
+    // Profit ratchet.
+    const ratchetThreshold = this._finiteConfigNumber(this.trailConfig.profitRatchetThreshold, 3.0);
+    const ratchetRate = this._finiteConfigNumber(this.trailConfig.profitRatchetRate, 0.1);
+    const ratchetFloor = this._finiteConfigNumber(this.trailConfig.profitRatchetFloor, 0.6);
+    if (profitPercentValue > ratchetThreshold && ratchetRate > 0) {
+      const ratchetFactor = Math.max(ratchetFloor, 1 - ((profitPercentValue - ratchetThreshold) * ratchetRate));
+      trailDistance *= ratchetFactor;
     }
 
-    // Profit ratchet
-    if (this.trailConfig.profitRatchet && profitPercent > 0.02) {
-      trailDistance *= 0.8; // Tighten as profits grow
+    // Structure proximity: nearestStructure is source-agnostic. Fibonacci,
+    // support/resistance, or another detector can provide the same contract:
+    // { type, price, distance } where distance is percent from current price.
+    const nearestStructure = context.nearestStructure;
+    const structurePrice = this._positiveFiniteNumber(nearestStructure?.price);
+    const suppliedStructureDistance = this._finiteNumber(nearestStructure?.distance);
+    const structureDistance = structurePrice !== null
+      ? Math.abs(currentPriceValue - structurePrice) / currentPriceValue * 100
+      : suppliedStructureDistance;
+    const structureThreshold = this._finiteConfigNumber(this.trailConfig.structureDistanceThreshold, 1.0);
+    const structureTightenMultiplier = this._finiteConfigNumber(this.trailConfig.structureTightenMultiplier, 0.5);
+    if (structureDistance !== null && structureDistance >= 0 && structureThreshold > 0 && structureDistance < structureThreshold) {
+      const distanceRatio = Math.max(0, Math.min(structureDistance / structureThreshold, 1));
+      const tightenFactor = structureTightenMultiplier +
+        ((1 - structureTightenMultiplier) * distanceRatio);
+      trailDistance *= Math.max(0, tightenFactor);
     }
+
+    if (!Number.isFinite(trailDistance) || trailDistance <= 0) {
+      return { updated: false, reason: 'invalid_trail_distance' };
+    }
+
+    const minTrail = Math.max(0, minTrailPercent) / 100;
+    const maxTrail = Math.max(minTrail, maxTrailPercent / 100);
+    trailDistance = Math.max(minTrail, Math.min(maxTrail, trailDistance));
 
     // Calculate new stop
     let newStop;
@@ -825,23 +885,51 @@ class MaxProfitManager {
     } else {
       newStop = this.state.lowestPrice * (1 + trailDistance);
     }
+    if (!Number.isFinite(newStop) || newStop <= 0) {
+      return { updated: false, reason: 'invalid_trailing_stop' };
+    }
 
     // Only update if better
     let shouldUpdate = false;
-    if (this.state.direction === 'buy') {
-      shouldUpdate = newStop > this.state.currentStop;
+    const currentStop = this._finiteNumber(this.state.currentStop);
+    if (currentStop === null) {
+      shouldUpdate = true;
+    } else if (this.state.direction === 'buy') {
+      shouldUpdate = newStop > currentStop;
     } else {
-      shouldUpdate = newStop < this.state.currentStop;
+      shouldUpdate = newStop < currentStop;
     }
 
     if (shouldUpdate) {
       const oldStop = this.state.currentStop;
       this.state.currentStop = newStop;
-      this.log(`Trail: ${oldStop?.toFixed(2)} → ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}%)`, 'debug');
+      if (!this.state.trailingActive) {
+        this.state.trailingActive = true;
+        this.log('Trailing stop activated', 'info');
+      }
+      const oldStopLabel = currentStop === null ? 'none' : currentStop.toFixed(2);
+      this.log(`Trail: ${oldStopLabel} → ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}%)`, 'debug');
       return { updated: true, oldStop, newStop, trailDistance };
     }
 
     return { updated: false, reason: 'no_improvement' };
+  }
+
+  _finiteConfigNumber(value, fallback) {
+    if (value === null || value === undefined || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  _finiteNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  _positiveFiniteNumber(value) {
+    const parsed = this._finiteNumber(value);
+    return parsed !== null && parsed > 0 ? parsed : null;
   }
   
   /**

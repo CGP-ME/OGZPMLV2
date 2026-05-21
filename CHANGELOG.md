@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### KILL 7 Structure-Aware Trailing Stop Wiring (2026-05-21)
+
+- Wired `TradingLoop` nearest Fibonacci/support/resistance structure into `MaxProfitManager` instead of passing `nearestStructure: null`.
+- Updated trailing-stop logic to use the active `TradingConfig.exitLogic.trail` field names, reject invalid stop writes, and only mark `trailingActive` after a valid stop improvement.
+- Mercury adversarial attack returned clean on invalid-stop, false-active, structure-distance, ATR fallback, and direction-normalization vectors.
+- Full P0 root-cause result: old anchor holds when adaptive trail modifiers are disabled; default adaptive trailing now moves full P0 to `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Matrix-Sweep TRADING_PAIR Fix — Live=Backtest Parity Restored (2026-04-30)
 
 #### Commit range: `36e57aa..c653800` (2 commits on `alpaca/stocks-paper-flip`)

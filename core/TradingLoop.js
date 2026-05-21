@@ -98,7 +98,7 @@ class TradingLoop {
     if (priceHistory.length < 15) return;
 
     // ─── GATHER DATA ───
-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel } = this._gatherData(price, symCtx);
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx);
 
     // ─── RUN ORCHESTRATOR ───
     const orchResult = this.ctx.strategyOrchestrator.evaluate(
@@ -262,7 +262,7 @@ class TradingLoop {
         // immediately on minor noise). Now: preserve explicit zero with `??`,
         // log when truly missing so the silent-bypass is observable.
         if (!Number.isFinite(indicators.volatility)) {
-          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; trailing stop will use null-fallback path');
+          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; dynamic trailing update will be skipped unless ATR is present');
         }
         const profitResult = mpm.update(price, {
           volatility: indicators.volatility ?? null,
@@ -272,7 +272,7 @@ class TradingLoop {
           rsi: indicators.rsi,
           candle: priceHistory[priceHistory.length - 1],
           recentCandles,
-          nearestStructure: null  // TODO: wire in structure levels later
+          nearestStructure
         });
 
         if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
@@ -605,6 +605,11 @@ class TradingLoop {
       if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
     }
 
+    const rawIndicatorState = typeof indicatorEngine.getRawState === 'function'
+      ? indicatorEngine.getRawState()
+      : null;
+    const nearestStructure = this._nearestStructure(price, nearestFibLevel, rawIndicatorState?.sr);
+
     // TPO
     let tpoResult = null;
     if (this.ctx.ogzTpo && priceHistory.length > 0) {
@@ -618,7 +623,41 @@ class TradingLoop {
       }
     }
 
-    return { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel };
+    return { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure };
+  }
+
+  _nearestStructure(price, nearestFibLevel = null, sr = null) {
+    if (!Number.isFinite(price) || price <= 0) return null;
+
+    const candidates = [];
+    if (nearestFibLevel && Number.isFinite(nearestFibLevel.price) && Number.isFinite(nearestFibLevel.distance)) {
+      candidates.push({
+        type: 'fibonacci',
+        level: nearestFibLevel.level,
+        price: nearestFibLevel.price,
+        distance: nearestFibLevel.distance,
+        isGoldenZone: nearestFibLevel.isGoldenZone
+      });
+    }
+
+    const addLevels = (levels, type) => {
+      if (!Array.isArray(levels)) return;
+      for (const levelPrice of levels) {
+        if (!Number.isFinite(levelPrice) || levelPrice <= 0) continue;
+        candidates.push({
+          type,
+          price: levelPrice,
+          distance: Math.abs(price - levelPrice) / price * 100
+        });
+      }
+    };
+
+    addLevels(sr?.supports, 'support');
+    addLevels(sr?.resistances, 'resistance');
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.distance - b.distance);
+    return candidates[0];
   }
 
   // ═══════════════════════════════════════════════════════════════
