@@ -80,6 +80,12 @@ No doc, digest, session form, or chat transcript outranks the live file.
 - `ogz-meta/specs/baseline-phase0-*.md` = P0 anchor source.
 - `ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md` = fix queue source.
 
+## Maintenance Automation
+
+A VPS cron job runs `ogz-meta/automation/daily-alignment-maintenance.sh` daily at 09:17 UTC. It launches Codex non-interactively with `ogz-meta/automation/daily-alignment-maintenance-prompt.md` to scan new session reports/forms, durable Claude memory/rule sources, and this Alignment folder for cold-start drift.
+
+Outputs live under `ogz-meta/cognition-history/alignment-maintenance/`. The job is doc-only: it uses append-only session reports/forms as evidence to keep pivotal mutable prompt/alignment docs relevant when evidence is current and target files are clean. It does not commit, push, touch production paths, restart services, run backtests, or force conflicted rule changes into canonical docs.
+
 ## Required Exit Check
 
 Before reporting that you are "caught up," you must be able to state:
