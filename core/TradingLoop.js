@@ -132,8 +132,10 @@ class TradingLoop {
     if (!Number.isFinite(orchResult.confidence)) {
       throw new Error(`[HIGH-25] orchResult.confidence non-finite (got ${orchResult.confidence}) — investigate StrategyOrchestrator output`);
     }
-    // Clamp boosted orchestrator confidence into the decimal range expected downstream.
-    const confidence = Math.min(1.0, Math.max(0.0, orchResult.confidence / 100));
+    if (orchResult.confidence < 0 || orchResult.confidence > 100) {
+      throw new Error(`[HIGH-25] orchResult.confidence out of range 0..100 (got ${orchResult.confidence}) — investigate StrategyOrchestrator output`);
+    }
+    const confidence = orchResult.confidence / 100;
     const confidenceData = { totalConfidence: orchResult.confidence };
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
@@ -335,7 +337,7 @@ class TradingLoop {
         console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
       } else {
         // ─── RISK CHECK ───
-        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence);
+        decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence);
         // CC-A Change 2: stamp indicator state at entry on the decision so
         // BacktestRecorder Change 1 (record.atrAtEntry / regimeAtEntry /
         // rsiAtEntry) gets real values instead of null. Read-only — no new
@@ -448,7 +450,7 @@ class TradingLoop {
    * Risk check + build decision — SAME LOGIC for buy and sell.
    * The ONLY difference is the action string and direction label.
    */
-  _checkRiskAndBuildDecision(direction, orchResult, minConfidence) {
+  _checkRiskAndBuildDecision(direction, orchResult, minConfidence, confidence) {
     // Map direction to action/label
     const actionMap = {
       buy:  { action: 'BUY',        direction: 'long'  },
@@ -469,7 +471,7 @@ class TradingLoop {
       }
 
       const riskAssessment = this.ctx.riskManager.assessTradeRisk({
-        confidence: orchResult.confidence / 100,
+        confidence,
         direction
       });
       riskGates.push(...(riskAssessment.riskGates || []));

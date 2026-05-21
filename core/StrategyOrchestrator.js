@@ -48,6 +48,38 @@ const MultiTimeframeAdapter = require('../modules/MultiTimeframeAdapter');
 const OgzTpoIntegration = require('./OgzTpoIntegration');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
 
+function assertBaseConfidence01(confidence, label) {
+  if (!Number.isFinite(confidence)) {
+    throw new Error(`[HIGH-25] ${label} non-finite (got ${confidence})`);
+  }
+  if (confidence < 0 || confidence > 1) {
+    throw new Error(`[HIGH-25] ${label} outside 0..1 (got ${confidence})`);
+  }
+  return confidence;
+}
+
+function assertBoostedConfidenceScore(confidence, label) {
+  if (!Number.isFinite(confidence)) {
+    throw new Error(`[HIGH-25] ${label} non-finite (got ${confidence})`);
+  }
+  if (confidence < 0) {
+    throw new Error(`[HIGH-25] ${label} negative (got ${confidence})`);
+  }
+  return confidence;
+}
+
+function publicConfidence01(confidence, label = 'publicConfidence') {
+  return Math.min(1.0, assertBoostedConfidenceScore(confidence, label));
+}
+
+function publicResult(result) {
+  const { confidenceScore, ...publicFields } = result;
+  return {
+    ...publicFields,
+    confidence: publicConfidence01(result.confidenceScore, `${result.strategyName}.publicConfidenceScore`),
+  };
+}
+
 class StrategyOrchestrator {
   constructor(config = {}) {
     // Minimum confidence a single strategy needs to fire a trade
@@ -765,9 +797,13 @@ class StrategyOrchestrator {
 
       try {
         const result = strategy.evaluate(ctx);
-        if (result && result.direction && result.confidence > 0) {
+        if (result && result.direction) {
+          const confidence = assertBaseConfidence01(result.confidence, `${strategy.name}.confidence`);
+          if (confidence <= 0) continue;
           results.push({
             ...result,
+            confidence,
+            confidenceScore: confidence,
             strategyName: strategy.name,
           });
         }
@@ -824,8 +860,8 @@ class StrategyOrchestrator {
       }
     }
 
-    // ─── Step 2: Sort by confidence (highest first) ───
-    results.sort((a, b) => b.confidence - a.confidence);
+    // ─── Step 2: Sort by ranking score (highest first) ───
+    results.sort((a, b) => b.confidenceScore - a.confidenceScore);
 
     // ─── Step 2.5: Regime-based strategy boosting ───
     // FIX 2026-04-05: Read from TradingConfig for matrix sweep optimization
@@ -875,11 +911,14 @@ class StrategyOrchestrator {
       for (const result of results) {
         const boost = boosts[result.strategyName] || 1.0;
         if (boost !== 1.0) {
-          result.confidence *= boost;
+          result.confidenceScore = assertBoostedConfidenceScore(
+            result.confidenceScore * boost,
+            `${result.strategyName}.regimeBoostedConfidenceScore`
+          );
         }
       }
       // Re-sort after boosting
-      results.sort((a, b) => b.confidence - a.confidence);
+      results.sort((a, b) => b.confidenceScore - a.confidenceScore);
     }
 
     // ─── Step 2.6: Volume Profile-based strategy boosting ───
@@ -935,11 +974,14 @@ class StrategyOrchestrator {
             // Check for _allStrategies (used in inLVN)
             const boost = vpBoosts._allStrategies || vpBoosts[result.strategyName] || 1.0;
             if (boost !== 1.0) {
-              result.confidence *= boost;
+              result.confidenceScore = assertBoostedConfidenceScore(
+                result.confidenceScore * boost,
+                `${result.strategyName}.volumeProfileBoostedConfidenceScore`
+              );
             }
           }
           // Re-sort after VP boosting
-          results.sort((a, b) => b.confidence - a.confidence);
+          results.sort((a, b) => b.confidenceScore - a.confidenceScore);
           console.log(`📊 [VP] Zone: ${vpZone} | POC: ${vpProfile.poc?.toFixed(0)} | VAH: ${vpProfile.vah?.toFixed(0)} | VAL: ${vpProfile.val?.toFixed(0)}`);
         }
       }
@@ -963,11 +1005,16 @@ class StrategyOrchestrator {
       }
     }
 
-    // ─── Step 3: Filter by minimum confidence threshold ───
-    const qualified = results.filter(r => r.confidence >= this.minStrategyConfidence);
+    const publicResults = results.map(publicResult);
+
+    // ─── Step 3: Filter by boosted internal score threshold ───
+    // Regime/VP multipliers historically affected eligibility before winner
+    // selection. Public/risk/exit confidence remains bounded by capping that
+    // boosted score to 1.0 at the orchestrator boundary.
+    const qualified = results.filter(r => r.confidenceScore >= this.minStrategyConfidence);
 
     if (qualified.length === 0) {
-      this.lastEvaluation = { action: 'HOLD', results, qualified: [] };
+      this.lastEvaluation = { action: 'HOLD', results: publicResults, qualified: [] };
       return {
         action: 'HOLD',
         direction: 'hold',
@@ -976,15 +1023,17 @@ class StrategyOrchestrator {
         exitContract: null,
         sizingMultiplier: 1.0,
         confluence: { count: 0, strategies: [] },
-        allResults: results,
+        allResults: publicResults,
         reasons: results.length > 0
-          ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% threshold (best: ${results[0]?.strategyName} at ${(results[0]?.confidence * 100).toFixed(0)}%)`]
+          ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% internal threshold (best: ${results[0]?.strategyName} confidence ${(publicConfidence01(results[0]?.confidenceScore, `${results[0]?.strategyName}.bestPublicConfidenceScore`) * 100).toFixed(0)}%)`]
           : ['No signals detected']
       };
     }
 
-    // ─── Step 4: Winner = highest confidence ───
+    // ─── Step 4: Winner = highest ranking score among bounded candidates ───
     const winner = qualified[0];
+    const publicWinnerConfidence = publicConfidence01(winner.confidenceScore, `${winner.strategyName}.winnerPublicConfidenceScore`);
+    assertBoostedConfidenceScore(winner.confidenceScore, `${winner.strategyName}.winnerConfidenceScore`);
 
     // ─── Step 5: Count confluence (how many strategies agree on direction) ───
     const agreeing = qualified.filter(r => r.direction === winner.direction);
@@ -992,16 +1041,22 @@ class StrategyOrchestrator {
 
     // Check minimum confluence requirement
     if (confluenceCount < this.minConfluenceCount) {
-      this.lastEvaluation = { action: 'HOLD', results, qualified, winner, confluenceCount };
+      this.lastEvaluation = {
+        action: 'HOLD',
+        results: publicResults,
+        qualified: qualified.map(publicResult),
+        winner: publicResult(winner),
+        confluenceCount,
+      };
       return {
         action: 'HOLD',
         direction: 'hold',
-        confidence: winner.confidence * 100,  // FIX 2026-02-26: Match BUY/SELL format (0-100)
+        confidence: publicWinnerConfidence * 100,
         winnerStrategy: winner.strategyName,
         exitContract: null,
         sizingMultiplier: 1.0,
         confluence: { count: confluenceCount, strategies: agreeing.map(r => r.strategyName) },
-        allResults: results,
+        allResults: publicResults,
         reasons: [`Need ${this.minConfluenceCount} confluent signals, got ${confluenceCount}`]
       };
     }
@@ -1066,7 +1121,7 @@ class StrategyOrchestrator {
       }
       exitContract = ecm.createExitContract(
         winner.strategyName,
-        { ...signalOverrides, confidence: winner.confidence },
+        { ...signalOverrides, confidence: publicWinnerConfidence },
         { volatility: volPct, timeframe }
       );
     } catch (err) {
@@ -1075,43 +1130,47 @@ class StrategyOrchestrator {
 
     // ─── Step 8: Build reasons list ───
     const reasons = [
-      `🏆 Winner: ${winner.strategyName} (${(winner.confidence * 100).toFixed(0)}%) — ${winner.reason}`,
-      `🤝 Confluence: ${confluenceCount} strategies agree on ${winner.direction.toUpperCase()}`,
-      `📏 Sizing: ${sizingMultiplier}x base position`,
+      `Winner: ${winner.strategyName} (${(publicWinnerConfidence * 100).toFixed(0)}%) — ${winner.reason}`,
+      `Confluence: ${confluenceCount} strategies agree on ${winner.direction.toUpperCase()}`,
+      `Sizing: ${sizingMultiplier}x base position`,
     ];
 
     // Add supporting strategies
     agreeing.slice(1).forEach(r => {
-      reasons.push(`  ✅ ${r.strategyName}: ${r.reason}`);
+      reasons.push(`  Supporting: ${r.strategyName}: ${r.reason}`);
     });
 
     // Log opposing strategies (info only)
     const opposing = qualified.filter(r => r.direction !== winner.direction);
     opposing.forEach(r => {
-      reasons.push(`  ⚠️ Opposing: ${r.strategyName} says ${r.direction} (${(r.confidence * 100).toFixed(0)}%)`);
+      reasons.push(`  Opposing: ${r.strategyName} says ${r.direction} (${(publicConfidence01(r.confidenceScore) * 100).toFixed(0)}%)`);
     });
 
     const output = {
       action: winner.direction === 'buy' ? 'BUY' : winner.direction === 'sell' ? 'SELL' : 'HOLD',
       direction: winner.direction,
-      confidence: winner.confidence * 100, // Convert to percentage for compatibility with existing code
+      confidence: publicWinnerConfidence * 100,
       winnerStrategy: winner.strategyName,
       exitContract,
       sizingMultiplier,
       confluence: {
         count: confluenceCount,
         strategies: agreeing.map(r => r.strategyName),
-        opposing: opposing.map(r => ({ name: r.strategyName, direction: r.direction, confidence: r.confidence })),
+        opposing: opposing.map(r => ({
+          name: r.strategyName,
+          direction: r.direction,
+          confidence: publicConfidence01(r.confidenceScore, `${r.strategyName}.opposingPublicConfidenceScore`),
+        })),
       },
-      allResults: results,
+      allResults: publicResults,
       reasons,
       // Signal breakdown for trade logging (compatible with existing signalBreakdown format)
       signalBreakdown: {
         winnerStrategy: winner.strategyName,
-        winnerConfidence: winner.confidence,
+        winnerConfidence: publicWinnerConfidence,
         confluenceCount,
         sizingMultiplier,
-        signals: results.map(r => ({
+        signals: publicResults.map(r => ({
           name: r.strategyName,
           direction: r.direction,
           confidence: r.confidence,
@@ -1123,7 +1182,7 @@ class StrategyOrchestrator {
     this.lastEvaluation = output;
 
     // Log decision
-    console.log(`\n🎯 [ORCHESTRATOR] ${output.action} | ${winner.strategyName} @ ${(winner.confidence * 100).toFixed(0)}% | Confluence: ${confluenceCount}x (sizing: ${sizingMultiplier}x)`);
+    console.log(`\n[ORCHESTRATOR] ${output.action} | ${winner.strategyName} @ ${(publicWinnerConfidence * 100).toFixed(0)}% | Confluence: ${confluenceCount}x (sizing: ${sizingMultiplier}x)`);
     if (agreeing.length > 1) {
       console.log(`   Supporting: ${agreeing.slice(1).map(r => r.strategyName).join(', ')}`);
     }
