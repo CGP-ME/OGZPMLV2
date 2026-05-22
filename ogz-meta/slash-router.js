@@ -71,6 +71,7 @@ async function route(command, args) {
     '/forensics': forensics,
     '/cicd': cicd,
     '/committer': committer,
+    '/repo-history-snapshot': repoHistorySnapshot,
     '/scribe': scribe,
     '/janitor': janitor,
     '/warden': warden,
@@ -2018,6 +2019,103 @@ async function committer(manifest, params) {
     updateSection(manifest, 'committer', {
       branch,
       commit_hash: null,
+      error: err.message
+    });
+    manifest.stop_conditions.cicd_failed = true;
+  }
+
+  return manifest;
+}
+
+/**
+ * Repo-History-Snapshot: creates a tracked git-history artifact for GitHub zip downloads.
+ *
+ * This runs after a pipeline committer stage succeeds. It creates a separate
+ * metadata commit containing only ogz-meta/REPO-HISTORY.md so the runtime/code
+ * commit remains a clean rollback point.
+ */
+async function repoHistorySnapshot(manifest, params) {
+  const { execFileSync } = require('child_process');
+  const scriptPath = path.join(process.cwd(), 'scripts', 'update-repo-history.js');
+  const historyPath = path.join('ogz-meta', 'REPO-HISTORY.md');
+  const sourceCommit = manifest.committer && manifest.committer.commit_hash;
+
+  if (!sourceCommit) {
+    console.log('Repo-History-Snapshot: skipped - no committer.commit_hash on manifest');
+    updateSection(manifest, 'repo_history', {
+      skipped: true,
+      reason: 'no committer.commit_hash'
+    });
+    return manifest;
+  }
+
+  if (!fs.existsSync(scriptPath)) {
+    console.log(`Repo-History-Snapshot: skipped - missing ${path.relative(process.cwd(), scriptPath)}`);
+    updateSection(manifest, 'repo_history', {
+      skipped: true,
+      reason: 'missing update script'
+    });
+    return manifest;
+  }
+
+  try {
+    execFileSync('node', [scriptPath], {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      maxBuffer: 20 * 1024 * 1024
+    });
+
+    const status = execFileSync('git', ['status', '--short', '--', historyPath], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024
+    }).trim();
+
+    if (!status) {
+      console.log('Repo-History-Snapshot: no history snapshot changes to commit');
+      updateSection(manifest, 'repo_history', {
+        skipped: true,
+        reason: 'snapshot unchanged',
+        source_commit: sourceCommit
+      });
+      return manifest;
+    }
+
+    execFileSync('git', ['add', '--', historyPath], {
+      cwd: process.cwd(),
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024
+    });
+    execFileSync('git', [
+      'commit',
+      '-m',
+      'Updated repo history snapshot',
+      '-m',
+      `Source commit: ${sourceCommit}`,
+      '--',
+      historyPath
+    ], {
+      cwd: process.cwd(),
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    const snapshotCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024
+    }).trim();
+
+    console.log(`Repo-History-Snapshot: committed ${snapshotCommit.slice(0, 7)} for ${sourceCommit.slice(0, 7)}`);
+    updateSection(manifest, 'repo_history', {
+      source_commit: sourceCommit,
+      snapshot_commit: snapshotCommit,
+      file: historyPath
+    });
+  } catch (err) {
+    console.error(`Repo-History-Snapshot: failed - ${err.message}`);
+    updateSection(manifest, 'repo_history', {
+      source_commit: sourceCommit,
       error: err.message
     });
     manifest.stop_conditions.cicd_failed = true;

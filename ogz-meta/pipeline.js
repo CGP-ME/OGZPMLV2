@@ -37,6 +37,7 @@ const BUGFIX_PIPELINE = [
   '/debugger',            // Verification pass 2 (conditional)
   '/cicd',
   '/committer',
+  '/repo-history-snapshot',
   '/scribe',
   '/janitor',
   '/warden'
@@ -75,6 +76,7 @@ const WRITE_PIPELINE = [
   '/forensics',
   '/debugger',
   '/committer',
+  '/repo-history-snapshot',
   '/scribe',
   '/janitor',
   '/warden'
@@ -94,6 +96,7 @@ const REFACTOR_PIPELINE = [
   '/forensics',
   '/debugger',            // Verification pass 2 (conditional)
   '/committer',
+  '/repo-history-snapshot',
   '/scribe',
   '/janitor',
   '/warden'
@@ -114,6 +117,7 @@ const EXECUTE_PIPELINE = [
   '/locator',
   '/fixer --execute',
   '/committer',
+  '/repo-history-snapshot',
   '/janitor'
 ];
 
