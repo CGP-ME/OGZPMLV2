@@ -1,13 +1,13 @@
 # Repo History Snapshot
 
-Generated: 2026-05-22T18:31:03.990Z
+Generated: 2026-05-22T18:37:22.104Z
 Repo root: /opt/ogzprime/OGZPMLV2
 Branch: rebuild/clean-from-baseline
-HEAD: c5923ca03255cb70df25bcc6178fcdbb1c168a52
-HEAD short: c5923ca03255
+HEAD: fa168818f34547eb204a0143a3e42658bb047464
+HEAD short: fa168818f345
 Upstream: origin/rebuild/clean-from-baseline
 Origin: https://github.com/CGP-ME/OGZPMLV2.git
-Commit count: 1228
+Commit count: 1230
 Root commit: c3e94a5844547f0e00e85787018516529f5a6508
 Recent commit limit: 80
 
@@ -27,6 +27,8 @@ SHA without changing that SHA.
 ## Recent Commits
 
 ```
+fa16881 2026-05-22T18:37:22Z Fixed timeframe selector boot order
+eeaea36 2026-05-22T18:31:04Z Updated repo history snapshot
 c5923ca 2026-05-22T18:30:57Z Fixed gap recovery symbol timeframe routing
 6ceeac1 2026-05-22T18:22:47Z Updated repo history snapshot
 0cc5e9a 2026-05-22T18:22:36Z Fixed live candle timeframe provenance
@@ -105,13 +107,29 @@ f450d30 2026-05-13T23:05:54Z fix(trai-decision): Fix 11 BTC-USD fallback in sign
 782a981 2026-05-13T22:58:27Z fix(spec-parser): boundary regex matches H1/H2 headings
 ee9edad 2026-05-13T20:58:08Z chore(frontend): refresh ssl-server + chart-panel + tombstone system-snapshot
 498a16e 2026-05-13T14:29:36Z fix(state-manager): P1-A trade.size stale after partial close — ANCHOR SHIFT
-4d56a02 2026-05-13T13:34:34Z fix(order-executor): TIER-2-EXECUTE-CATCH differentiate audit throws
-d54e48d 2026-05-13T13:13:20Z fix(order-executor): P2-B warn when tradeId not found, fallback to oldest
 ```
 
 ## Recent Commits With Stats
 
 ```
+commit fa168818f34547eb204a0143a3e42658bb047464
+short fa16881
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:37:22Z
+subject Fixed timeframe selector boot order
+
+ run-empire-v2.js | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+commit eeaea364b2e4413e40e1f321e7df880465f8eef3
+short eeaea36
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:31:04Z
+subject Updated repo history snapshot
+
+ ogz-meta/REPO-HISTORY.md | 50 ++++++++++++++++++++++++------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)
+
 commit c5923ca03255cb70df25bcc6178fcdbb1c168a52
 short c5923ca
 author CGP-ME <cgp@ogzprime.com>
@@ -1423,22 +1441,4 @@ subject fix(state-manager): P1-A trade.size stale after partial close — ANCHOR
  core/StateManager.js                         |  1 +
  ogz-meta/specs/baseline-phase0-2026-05-06.md | 43 +++++++++++++++++++---------
  2 files changed, 30 insertions(+), 14 deletions(-)
-
-commit 4d56a02b09be31c6df68933fab2da3ca15ae427b
-short 4d56a02
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T13:34:34Z
-subject fix(order-executor): TIER-2-EXECUTE-CATCH differentiate audit throws
-
- core/OrderExecutor.js | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
-
-commit d54e48deedba1d7e8b0c3fe7a6d43af1065788a9
-short d54e48d
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T13:13:20Z
-subject fix(order-executor): P2-B warn when tradeId not found, fallback to oldest
-
- core/OrderExecutor.js | 3 +++
- 1 file changed, 3 insertions(+)
 ```
