@@ -1,0 +1,12 @@
+Mission: MISSION-1779477396490
+Reviewed: 2026-05-22
+Reviewer: Codex
+
+Disposition:
+- Mercury finding 1 / 5 is a real dashboard visibility risk for multi-symbol mode: global timeframeHistories remains unscoped and CandleProcessor dashboard broadcasts still read from that global store. The current TSLA single-symbol Alpaca eval path is not blocked because only one runtime symbol is configured, and the active trading aggregation path now reads symbol-scoped sourceHistory via getSymbolTimeframeCandles().
+- Mercury finding 2 / 4 is a pre-existing dashboard historical-fetch cache risk: fetchAndSendHistoricalCandles overwrites global timeframeHistories with broker-returned candles and does not merge with live cache. That function is dashboard historical visibility, not the active trading aggregation path fixed by this mission. Track as follow-up, not this commit.
+- Mercury finding 3 is not a current initialized-bucket failure for supported buckets: 4h is initialized, so getCandlesForTimeframe('4h') returns the empty 4h bucket instead of falling back to 1m. Invalid dashboard timeframe validation is still a follow-up.
+- Mercury finding 6 is speculative for this patch: both global and symbol-scoped stores are updated synchronously in the OHLC handler before aggregation. Active aggregation reads only symbol-scoped history after this mission.
+
+Proceeding scope:
+This mission may proceed to syntax/P0 validation for the single-symbol Alpaca/TSLA active-timeframe ingestion fix. Dashboard symbol-scoped broadcast and historical-cache normalization remain documented follow-up work.

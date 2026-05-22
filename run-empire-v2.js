@@ -398,6 +398,49 @@ function describeSymbolContexts(map) {
   return Array.from(map.keys()).join(',');
 }
 
+function ohlcTimestampMs(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw) || raw <= 0) return null;
+    return raw < 1e12 ? raw * 1000 : raw;
+  }
+  if (typeof raw === 'string') {
+    const parsed = Date.parse(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeOhlcForProcessor(ohlcData) {
+  if (!Array.isArray(ohlcData) || ohlcData.length < 8) return null;
+  const timeMs = ohlcTimestampMs(ohlcData[0]);
+  const etimeMs = ohlcTimestampMs(ohlcData[1] ?? ohlcData[0]);
+  if (!Number.isFinite(timeMs) || !Number.isFinite(etimeMs)) return null;
+
+  const normalized = ohlcData.slice();
+  normalized[0] = timeMs / 1000;
+  normalized[1] = etimeMs / 1000;
+  return normalized;
+}
+
+function candleToProcessorOhlc(candle, timeframeMs) {
+  const timeMs = ohlcTimestampMs(candle?.t);
+  if (!Number.isFinite(timeMs) || !Number.isFinite(timeframeMs) || timeframeMs <= 0) {
+    return null;
+  }
+  return [
+    timeMs / 1000,
+    (timeMs + timeframeMs) / 1000,
+    candle.o,
+    candle.h,
+    candle.l,
+    candle.c,
+    null,
+    candle.v ?? 0,
+    null
+  ];
+}
+
 /**
  * Main Trading Bot Orchestrator
  * Coordinates all modules for production trading
@@ -522,6 +565,8 @@ class OGZPrimeV14Bot {
     this.mtfAdapter = new MultiTimeframeAdapter({
       activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
     });
+    this.candleAggregator = new CandleAggregator();
+    this._emittedAggregatedActiveCandles = new Set();
 
     const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
     if (typeof runtimeCandleTimeframe !== 'string' || !runtimeCandleTimeframe.trim()) {
@@ -682,9 +727,14 @@ class OGZPrimeV14Bot {
       const ohlcHandler = (eventData) => {
         const tf = eventData.timeframe || '1m';
         const raw = eventData.data || eventData;
-        const ohlcData = normalizeOhlc(raw);
-        if (!ohlcData) {
+        const normalizedOhlcData = normalizeOhlc(raw);
+        if (!normalizedOhlcData) {
           console.warn('[OHLC] dropped unnormalizable payload from', tf);
+          return;
+        }
+        const ohlcData = normalizeOhlcForProcessor(normalizedOhlcData);
+        if (!ohlcData) {
+          console.warn('[OHLC] dropped payload with invalid timestamp from', tf);
           return;
         }
         // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
@@ -714,7 +764,17 @@ class OGZPrimeV14Bot {
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
         const storedCandle = this.storeTimeframeCandle(tf, ohlcData);
-        if (tf === activeTf) this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
+        this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
+        if (tf === activeTf) {
+          this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
+        } else {
+          this._feedAggregatedActiveCandle({
+            symbol: sym,
+            sourceTimeframe: tf,
+            activeTimeframe: activeTf,
+            sourceLabel: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`
+          });
+        }
         if (tf === '5m' && this.timeframeSelector) {
           const tfResult = this.timeframeSelector.evaluate();
           if (tfResult.switched) {
@@ -912,6 +972,7 @@ class OGZPrimeV14Bot {
       '4h': [],   // CHANGE 2026-01-29: Added missing 4H timeframe
       '1d': []
     };
+    this.symbolTimeframeHistories = new Map();
     this.dashboardTimeframe = '1m';  // Track what timeframe dashboard wants
 
     // Stale data tracking
@@ -1405,9 +1466,14 @@ class OGZPrimeV14Bot {
           // before reaching CandleProcessor / indicators. New brokers
           // stay dumb — they emit their native shape and this one-liner
           // handles translation. See foundation/ohlc-normalize.js.
-          const ohlcData = normalizeOhlc(raw);
-          if (!ohlcData) {
+          const normalizedOhlcData = normalizeOhlc(raw);
+          if (!normalizedOhlcData) {
             console.warn('[OHLC] dropped unnormalizable payload from', timeframe, 'broker:', raw);
+            return;
+          }
+          const ohlcData = normalizeOhlcForProcessor(normalizedOhlcData);
+          if (!ohlcData) {
+            console.warn('[OHLC] dropped payload with invalid timestamp from', timeframe, 'broker:', raw);
             return;
           }
 
@@ -1434,10 +1500,18 @@ class OGZPrimeV14Bot {
 
           // Store in timeframe-specific history for dashboard
           const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData);
+          this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
 
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
             this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe });
+          } else {
+            this._feedAggregatedActiveCandle({
+              symbol: ohlcSymbol,
+              sourceTimeframe: timeframe,
+              activeTimeframe: activeTf,
+              sourceLabel: `single:${resolvedConfig.config.broker.id}`
+            });
           }
 
           // CHANGE 2026-02-21: Re-evaluate best timeframe on 5m candle close
@@ -1475,6 +1549,113 @@ class OGZPrimeV14Bot {
     }
   }
 
+
+  storeSymbolTimeframeCandle(symbol, timeframe, ohlcData) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    if (!canonicalSymbol) return { isNewCandle: false, candle: null };
+
+    if (!this.symbolTimeframeHistories) {
+      this.symbolTimeframeHistories = new Map();
+    }
+    if (!this.symbolTimeframeHistories.has(canonicalSymbol)) {
+      this.symbolTimeframeHistories.set(canonicalSymbol, new Map());
+    }
+
+    const byTimeframe = this.symbolTimeframeHistories.get(canonicalSymbol);
+    if (!byTimeframe.has(timeframe)) {
+      byTimeframe.set(timeframe, []);
+    }
+
+    if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
+      return { isNewCandle: false, candle: null };
+    }
+
+    const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
+    const candle = {
+      t: parseFloat(time) * 1000,
+      etime: parseFloat(etime) * 1000,
+      o: parseFloat(open),
+      h: parseFloat(high),
+      l: parseFloat(low),
+      c: parseFloat(close),
+      v: parseFloat(volume)
+    };
+
+    const history = byTimeframe.get(timeframe);
+    const lastCandle = history[history.length - 1];
+    let isNewCandle = false;
+
+    if (lastCandle && lastCandle.etime === candle.etime) {
+      history[history.length - 1] = candle;
+    } else {
+      isNewCandle = true;
+      history.push(candle);
+      if (history.length > 200) {
+        byTimeframe.set(timeframe, history.slice(-200));
+      }
+    }
+
+    return { isNewCandle, candle };
+  }
+
+  getSymbolTimeframeCandles(symbol, timeframe) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    if (!canonicalSymbol || !this.symbolTimeframeHistories) return [];
+    return this.symbolTimeframeHistories.get(canonicalSymbol)?.get(timeframe) || [];
+  }
+
+  _feedAggregatedActiveCandle({ symbol, sourceTimeframe, activeTimeframe, sourceLabel }) {
+    if (!this.candleAggregator || sourceTimeframe === activeTimeframe) {
+      return null;
+    }
+
+    const sourceMs = this.candleAggregator.getIntervalMs(sourceTimeframe);
+    const activeMs = this.candleAggregator.getIntervalMs(activeTimeframe);
+    if (!sourceMs || !activeMs || sourceMs >= activeMs) {
+      return null;
+    }
+
+    const sourceHistory = this.getSymbolTimeframeCandles(symbol, sourceTimeframe);
+    if (sourceHistory.length === 0) {
+      return null;
+    }
+
+    const completed = this.candleAggregator
+      .aggregate(sourceHistory, activeTimeframe)
+      .filter(candle => candle && this.candleAggregator.isPeriodComplete(candle.t, activeTimeframe));
+    if (completed.length === 0) {
+      return null;
+    }
+
+    const activeCandle = completed[completed.length - 1];
+    const dedupeKey = `${symbol}:${activeTimeframe}:${activeCandle.t}`;
+    if (this._emittedAggregatedActiveCandles.has(dedupeKey)) {
+      return null;
+    }
+
+    const activeOhlc = candleToProcessorOhlc(activeCandle, activeMs);
+    if (!activeOhlc) {
+      console.error(`[VIS][OHLC][Aggregate] failed to convert aggregate ${sourceTimeframe}->${activeTimeframe} for ${symbol}`);
+      return null;
+    }
+
+    const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc);
+    this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
+    this.handleMarketData({ data: activeOhlc, symbol, timeframe: activeTimeframe });
+    this._emittedAggregatedActiveCandles.add(dedupeKey);
+    if (this._emittedAggregatedActiveCandles.size > 1000) {
+      this._emittedAggregatedActiveCandles = new Set(Array.from(this._emittedAggregatedActiveCandles).slice(-500));
+    }
+
+    console.log(`[VIS][OHLC][Aggregate] source=${sourceLabel} from=${sourceTimeframe} to=${activeTimeframe} symbol=${symbol} periodStart=${new Date(activeCandle.t).toISOString()} periodEnd=${new Date(activeCandle.t + activeMs).toISOString()} close=${activeCandle.c} sourceCandles=${sourceHistory.length} activeCandles=${this.priceHistory.length}`);
+
+    if (storedCandle?.isNewCandle) {
+      console.log(`V2: ${activeTimeframe} aggregate closed - running trading analysis`);
+      this.run15mTradingCycle(symbol);
+    }
+
+    return { storedCandle, activeCandle };
+  }
 
   /**
    * Handle incoming market data from WebSocket

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Active-Timeframe Ingestion (2026-05-22)
+
+- Fixed live Alpaca 1m OHLC events starving 15m trading analysis by aggregating lower-timeframe broker bars into the active runtime timeframe before they reach `CandleProcessor`.
+- Kept broker adapters truthful: Alpaca still emits native 1m bars; `run-empire-v2.js` owns the active-timeframe aggregation and logs the source timeframe, active timeframe, symbol, period start/end, close, and source candle count.
+- Added symbol-scoped timeframe histories for aggregation so active candles are built from the correct symbol source history instead of the dashboard's global timeframe cache.
+- Verification: `node --check run-empire-v2.js`, `git diff --check -- run-empire-v2.js`, `npm run test:smoke`, Mercury attack reviewed via `MISSION-1779477396490-mercury-ack.txt`, and pipeline P0 reproduced the documented default KILL 7 anchor `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+- Follow-up: dashboard/global historical candle cache still needs a separate symbol-scoped visibility fix before multi-symbol dashboard use.
+
 ### KILL 7 Structure-Aware Trailing Stop Wiring (2026-05-21)
 
 - Wired `TradingLoop` nearest Fibonacci/support/resistance structure into `MaxProfitManager` instead of passing `nearestStructure: null`.
