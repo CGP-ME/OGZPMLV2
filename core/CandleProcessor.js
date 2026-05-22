@@ -90,6 +90,14 @@ class CandleProcessor {
     return null;
   }
 
+  _resolveCandleTimeframe(candle) {
+    const timeframe = candle?.timeframe || this.ctx.candleTimeframe || this.ctx.config?.timeframe;
+    if (typeof timeframe !== 'string' || !timeframe.trim()) {
+      throw new Error(`CandleProcessor.processNewCandle: missing candle timeframe for symbol=${candle?.symbol || this.ctx.tradingPair || '(missing)'}`);
+    }
+    return timeframe.trim();
+  }
+
   /**
    * Process a candle - ONE CANONICAL PATH
    * Phase 5 REWRITE: Handles both new candles AND updates to existing candles
@@ -98,6 +106,7 @@ class CandleProcessor {
    * @returns {boolean} true if new candle, false if update to existing
    */
   processNewCandle(candle) {
+    const candleTimeframe = this._resolveCandleTimeframe(candle);
     // Check if this is an update to existing candle or a new candle
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
     const isUpdate = existingIndex !== -1;
@@ -113,7 +122,7 @@ class CandleProcessor {
         })());
       this.ctx._candleStore.addCandle(
         candleStoreSymbol,
-        '15m',
+        candleTimeframe,
         candle
       );
 
@@ -161,7 +170,7 @@ class CandleProcessor {
       })());
     this.ctx._candleStore.addCandle(
       candleStoreSymbol,
-      '15m',
+      candleTimeframe,
       candle
     );
 
@@ -429,6 +438,12 @@ class CandleProcessor {
       ? ohlcInput
       : null;
     const stampedSymbol = normalizeCandleSymbol(wrappedInput?.symbol || wrappedInput?.data?.symbol || wrappedInput?.data?.S);
+    const sourceTimeframe = typeof wrappedInput?.timeframe === 'string' && wrappedInput.timeframe.trim()
+      ? wrappedInput.timeframe.trim()
+      : this.ctx.candleTimeframe;
+    if (typeof sourceTimeframe !== 'string' || !sourceTimeframe.trim()) {
+      throw new Error(`CandleProcessor.handleMarketData: missing candle timeframe for symbol=${stampedSymbol || this.ctx.tradingPair || '(missing)'}`);
+    }
     const ohlcData = Array.isArray(ohlcInput)
       ? ohlcInput
       : normalizeOhlc(wrappedInput?.data ?? ohlcInput);
@@ -485,7 +500,8 @@ class CandleProcessor {
       c: parseFloat(close),
       v: parseFloat(volume),
       t: parseFloat(time) * 1000,  // Actual timestamp for display
-      etime: parseFloat(etime) * 1000  // End time for deduplication
+      etime: parseFloat(etime) * 1000,  // End time for deduplication
+      timeframe: sourceTimeframe
     };
     if (stampedSymbol) candle.symbol = stampedSymbol;
 
@@ -551,6 +567,7 @@ class CandleProcessor {
       symbol: candle.symbol || null,
       price,
       timestamp: parseFloat(time) * 1000,  // Use candle's actual timestamp
+      timeframe: candle.timeframe,
       systemTime: Date.now(),  // Keep system time separately if needed
       volume: Number.isFinite(_parsedVolume) ? _parsedVolume : null,
       open: parseFloat(open),

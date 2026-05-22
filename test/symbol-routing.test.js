@@ -14,10 +14,11 @@ function makeSymCtx(symbol) {
   };
 }
 
-function makeCtx(symbolContexts, tradingPair = 'BTC-USD') {
+function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m') {
   return {
     symbolContexts,
     tradingPair,
+    candleTimeframe,
     _candleStore: {
       addCandle: jest.fn(),
     },
@@ -70,7 +71,7 @@ describe('symbol-aware candle routing', () => {
 
     expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
       'BTC-USD',
-      '15m',
+      '1m',
       expect.objectContaining({ symbol: 'BTC-USD', c: 77724 })
     );
     expect(btc.indicatorEngine.updateCandle).toHaveBeenCalledTimes(1);
@@ -88,10 +89,25 @@ describe('symbol-aware candle routing', () => {
 
     expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
       'BTC-USD',
-      '15m',
+      '1m',
       expect.objectContaining({ symbol: 'BTC-USD', c: 77725 })
     );
     expect(tsla.indicatorEngine.updateCandle).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('symbol=BTC-USD has no SymbolTradingContext'));
+  });
+
+  test('stores candles under the incoming timeframe key', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '15m');
+    const processor = new CandleProcessor(ctx);
+
+    processor.handleMarketData({ data: ohlc(77726), symbol: 'BTC-USD', timeframe: '15m' });
+
+    expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
+      'BTC-USD',
+      '15m',
+      expect.objectContaining({ symbol: 'BTC-USD', c: 77726, timeframe: '15m' })
+    );
+    expect(ctx.marketData.timeframe).toBe('15m');
   });
 });

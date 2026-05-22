@@ -51,8 +51,15 @@ function extractSymbolTokens(dataFile) {
   return symbolTokens;
 }
 
+function extractTimeframeToken(dataFile) {
+  const base = path.basename(dataFile, '.json').toLowerCase();
+  const tokens = base.split(/[-_]/).filter(Boolean);
+  return tokens.find(token => TIMEFRAME_TOKENS.has(token)) || null;
+}
+
 function resolveInstrumentFromDataFile(dataFile) {
   const symbolTokens = extractSymbolTokens(dataFile);
+  const timeframe = extractTimeframeToken(dataFile);
   const baseTicker = symbolTokens[0];
   const lastToken = symbolTokens[symbolTokens.length - 1];
   const hasQuoteToken = symbolTokens.length > 1 && QUOTE_TOKENS.has(lastToken);
@@ -62,22 +69,25 @@ function resolveInstrumentFromDataFile(dataFile) {
   const cryptoByBase = configuredCryptoBases().has(baseTicker);
   const isCrypto = hasQuoteToken || cryptoBySource || cryptoByBase;
 
-  if (isCrypto) {
-    return {
-      TRADING_PAIR: hasQuoteToken ? normalizedPair : `${baseTicker.toUpperCase()}-USD`,
-      BROKER: 'kraken',
-      ASSET_CLASS: 'crypto',
-    };
-  }
-
-  return {
+  const env = isCrypto ? {
+    TRADING_PAIR: hasQuoteToken ? normalizedPair : `${baseTicker.toUpperCase()}-USD`,
+    BROKER: 'kraken',
+    ASSET_CLASS: 'crypto',
+  } : {
     TRADING_PAIR: baseTicker.toUpperCase(),
     BROKER: 'alpaca',
     ASSET_CLASS: 'stocks',
   };
+
+  if (timeframe) {
+    env.CANDLE_TIMEFRAME = timeframe;
+  }
+
+  return env;
 }
 
 module.exports = {
   extractSymbolTokens,
+  extractTimeframeToken,
   resolveInstrumentFromDataFile,
 };

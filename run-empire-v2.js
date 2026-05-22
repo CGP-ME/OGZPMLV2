@@ -524,11 +524,13 @@ class OGZPrimeV14Bot {
     });
 
     // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
+    // Runtime analysis is pinned to broker.candleTimeframe until SymbolTradingContext
+    // and CandleStore support active multi-timeframe context swaps.
     this.timeframeSelector = new AdaptiveTimeframeSelector({
       mtfAdapter: this.mtfAdapter,
       feePercent: 0.26,                            // Kraken maker/taker fee per side
-      allowedTimeframes: ['5m', '15m', '30m', '1h'], // Don't scalp 1m, don't swing 4h+
-      defaultTimeframe: '15m',
+      allowedTimeframes: [this.candleTimeframe],
+      defaultTimeframe: this.candleTimeframe,
       minSwitchIntervalMs: 5 * 60 * 1000,          // 5 min minimum between switches
     });
 
@@ -698,7 +700,7 @@ class OGZPrimeV14Bot {
         if (stateManager && stateManager.updateLastPrice) {
           stateManager.updateLastPrice(sym, ohlcData[5]);
         }
-        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || '15m';
+        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || this.candleTimeframe;
         this._visOhlcSeen ??= new Set();
         const visKey = `session:${this.sessionRouter?.activeSession || 'unknown'}:${sym}:${tf}`;
         if (!this._visOhlcSeen.has(visKey) || tf === activeTf) {
@@ -706,7 +708,7 @@ class OGZPrimeV14Bot {
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
         const storedCandle = this.storeTimeframeCandle(tf, ohlcData);
-        if (tf === '1m') this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
+        if (tf === activeTf) this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
         if (tf === '5m' && this.timeframeSelector) {
           const tfResult = this.timeframeSelector.evaluate();
           if (tfResult.switched) {
@@ -803,11 +805,16 @@ class OGZPrimeV14Bot {
     // Trading state
     this.isRunning = false;
     this.marketData = null;
-    this.priceHistory = [];  // 1m candles for trading logic
+    this.priceHistory = [];
     this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.broker.tradingPair);
     if (!this.tradingPair) {
       throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
     }
+    const configuredCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
+    if (typeof configuredCandleTimeframe !== 'string' || !configuredCandleTimeframe.trim()) {
+      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${configuredCandleTimeframe}) - refusing to start without a real candle timeframe`);
+    }
+    this.candleTimeframe = configuredCandleTimeframe.trim();
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
 
     // CC-C Multi-Symbol Commit 2/6: per-symbol contexts
@@ -824,14 +831,9 @@ class OGZPrimeV14Bot {
     // so a partial-build (e.g., signal-module ctor throws) is logged + skipped
     // instead of polluting the Map with a half-initialized context.
     //
-    // Timeframe '15m' matches the runtime addCandle contract at
-    // CandleProcessor.js:107 where every new candle is keyed under '15m'
-    // in this._candleStore. (loadCandleHistory at line ~1146 uses '1m' but
-    // is GATED OFF in backtest mode by the guard at line 771; the runtime
-    // bucket is '15m'.) If the addCandle key changes (e.g., to
-    // broker.candleTimeframe), this and CandleProcessor must update together.
-    // The '1m'/'15m' mismatch in load-vs-runtime paths is a separate CC-A
-    // concern; CC-C uses '15m' to align with the live runtime path.
+    // SymbolTradingContext must read the same timeframe CandleProcessor writes.
+    // broker.candleTimeframe is the single active timeframe until active
+    // multi-timeframe context swaps are implemented.
     this.symbolContexts = new Map();
     {
       const brokerId = resolvedConfig.config.broker.id;
@@ -848,7 +850,7 @@ class OGZPrimeV14Bot {
                 : [resolvedConfig.config.broker.tradingPair])
             : [resolvedConfig.config.broker.tradingPair]);
       const symbols = [...new Set(rawSymbols.map(normalizeRuntimeSymbol).filter(Boolean))];
-      const timeframe = '15m';
+      const timeframe = this.candleTimeframe;
       for (const sym of symbols) {
         try {
           const ctx = new SymbolTradingContext(sym, this._candleStore, { timeframe });
@@ -1009,7 +1011,7 @@ class OGZPrimeV14Bot {
       brokerId: resolvedConfig.config.broker.id,
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
-      timeframe: resolvedConfig.config.broker.candleTimeframe,
+      timeframe: this.candleTimeframe,
       enableShorts: TradingConfig.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,
@@ -1087,7 +1089,7 @@ class OGZPrimeV14Bot {
       testMode: resolvedConfig.config.mode.testMode,
       traiEnableBacktest: TradingConfig.get('features.traiEnableBacktest'),
       // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
-      candleTimeframe: resolvedConfig.config.broker.candleTimeframe,
+      candleTimeframe: this.candleTimeframe,
       // Phase 4 REWRITE: MaxProfitManager standalone
       maxProfitManagers: this.maxProfitManagers,
       // Additional context for strategy orchestration
@@ -1422,7 +1424,7 @@ class OGZPrimeV14Bot {
             stateManager.updateLastPrice(ohlcSymbol, ohlcClose);
           }
           this._visOhlcSeen ??= new Set();
-          const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
+          const activeTf = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
           const visKey = `single:${resolvedConfig.config.broker.id}:${ohlcSymbol}:${timeframe}`;
           if (!this._visOhlcSeen.has(visKey) || timeframe === activeTf) {
             this._visOhlcSeen.add(visKey);
@@ -1432,8 +1434,8 @@ class OGZPrimeV14Bot {
           // Store in timeframe-specific history for dashboard
           const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData);
 
-          // CHANGE 2026-02-21: Feed 1m candles to indicators + MTF adapter (granular data)
-          if (timeframe === '1m') {
+          // Feed only the active trading timeframe to indicators + strategy context.
+          if (timeframe === activeTf) {
             this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe });
           }
 
