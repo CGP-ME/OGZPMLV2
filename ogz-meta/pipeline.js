@@ -134,12 +134,13 @@ function hasExecuteFlag(issue) {
 }
 
 // Parse --spec <path> + --fix-id <id> + --fix-map <id=sha,...> from raw argv.
-// Returns { specPath, fixId, fixMap, cleanIssue } where cleanIssue has those
-// flags removed. fixMap is for --mark-fixed batch operations.
+// Returns { specPath, fixId, fixMap, resumeAfterMercuryAck, cleanIssue } where
+// cleanIssue has those flags removed. fixMap is for --mark-fixed batch operations.
 function parseWriteFlags(rawArgs) {
   let specPath = null;
   let fixId = null;
   let fixMap = null;  // populated when --fix-map is present
+  let resumeAfterMercuryAck = false;
   const remaining = [];
   for (let i = 0; i < rawArgs.length; i++) {
     if (rawArgs[i] === '--spec' && rawArgs[i + 1]) {
@@ -161,11 +162,13 @@ function parseWriteFlags(rawArgs) {
         }
       }
       i++;
+    } else if (rawArgs[i] === '--resume-after-mercury-ack') {
+      resumeAfterMercuryAck = true;
     } else {
       remaining.push(rawArgs[i]);
     }
   }
-  return { specPath, fixId, fixMap, cleanIssue: remaining.join(' ') };
+  return { specPath, fixId, fixMap, resumeAfterMercuryAck, cleanIssue: remaining.join(' ') };
 }
 
 // Legacy export for backwards compatibility
@@ -174,9 +177,10 @@ const PIPELINE = BUGFIX_PIPELINE;
 /**
  * Execute full pipeline
  */
-async function execute(issue, specSource) {
+async function execute(issue, specSource, options = {}) {
   const pipelineType = detectMode(issue);
   const executeMode = hasExecuteFlag(issue);
+  const resumeAfterMercuryAck = options.resumeAfterMercuryAck === true;
 
   // Clean issue text (remove all flags)
   const cleanIssue = issue.replace(/--refactor|--execute|--debug|--write|--mark-fixed/g, '').trim();
@@ -188,6 +192,19 @@ async function execute(issue, specSource) {
   else if (pipelineType === 'execute') pipeline = [...EXECUTE_PIPELINE];
   else if (pipelineType === 'refactor') pipeline = [...REFACTOR_PIPELINE];
   else pipeline = [...BUGFIX_PIPELINE];
+
+  if (resumeAfterMercuryAck) {
+    if (!executeMode) {
+      console.log('\n❌ --resume-after-mercury-ack requires --execute');
+      return;
+    }
+    const resumeStart = pipeline.indexOf('/mercury-critic');
+    if (resumeStart === -1) {
+      console.log('\n❌ --resume-after-mercury-ack is only supported for pipelines with /mercury-critic');
+      return;
+    }
+    pipeline = pipeline.slice(resumeStart);
+  }
 
   console.log('🚀 CLAUDITO PIPELINE INITIATED');
   console.log('=' .repeat(50));
@@ -218,6 +235,21 @@ async function execute(issue, specSource) {
         // so the new operation sees its own shape, not the prior mission's.
         if (specSource) {
           manifest.spec_source = specSource;
+        }
+        if (resumeAfterMercuryAck) {
+          const fs = require('fs');
+          const path = require('path');
+          const ackPath = path.join(__dirname, 'manifests', `${manifest.mission_id}-mercury-ack.txt`);
+          const gate = manifest.critic?.mercury_critic?.gate;
+          if (gate !== 'fail-findings') {
+            console.log(`\n❌ --resume-after-mercury-ack expected current Mercury gate fail-findings, got ${gate || '(missing)'}`);
+            return;
+          }
+          if (!fs.existsSync(ackPath)) {
+            console.log(`\n❌ --resume-after-mercury-ack missing ack file: ${path.relative(process.cwd(), ackPath)}`);
+            return;
+          }
+          console.log(`\n✅ Resuming after Mercury ack: ${path.relative(process.cwd(), ackPath)}`);
         }
         // Reset stop conditions for fresh execute run
         manifest.stop_conditions = {
@@ -343,6 +375,7 @@ if (require.main === module) {
     console.log('  --write    Spec-driven verbatim application (no Mercury re-derivation)');
     console.log('  --spec <path>   Path to the spec doc (required with --write)');
     console.log('  --fix-id <id>   Which Fix N in the spec (required with --write)');
+    console.log('  --resume-after-mercury-ack  Continue an applied write mission after reviewing Mercury findings');
     console.log('\nPIPELINE TYPES:');
     console.log('  BUG FIX (default): Any issue without prefix');
     console.log('  REFACTOR: Start with "refactor:" or "extract:" — Mercury re-derives plan');
@@ -358,6 +391,8 @@ if (require.main === module) {
     console.log('    2. Review proposal in ogz-meta/proposals/<id>-WRITE-PROPOSAL.md');
     console.log('    3. node ogz-meta/approve.js <mission_id>');
     console.log('    4. node ogz-meta/pipeline.js --write --spec <path> --fix-id <N> --execute "<title>"');
+    console.log('    5. If Mercury blocks after applied code and you accept the reviewed findings:');
+    console.log('       node ogz-meta/pipeline.js --write --spec <path> --fix-id <N> --execute --resume-after-mercury-ack "<title>"');
     console.log('\nStop conditions:');
     console.log('  - Critic fails twice');
     console.log('  - Forensics finds critical issue');
@@ -386,7 +421,7 @@ if (require.main === module) {
     specSource = { path: writeFlags.specPath, fixMap: writeFlags.fixMap };
   }
 
-  execute(issue, specSource).catch(console.error);
+  execute(issue, specSource, { resumeAfterMercuryAck: writeFlags.resumeAfterMercuryAck }).catch(console.error);
 }
 
 module.exports = { execute, PIPELINE, BUGFIX_PIPELINE, REFACTOR_PIPELINE, EXECUTE_PIPELINE, WRITE_PIPELINE, detectMode, parseWriteFlags };
