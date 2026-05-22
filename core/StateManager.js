@@ -1376,6 +1376,22 @@ class StateManager {
         if (normalizedExisting > 0) {
           console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
         }
+        const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
+        const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
+        const validation = this.validateState();
+        if (
+          this.state.recoveryMode === true &&
+          activeTradeCount === 0 &&
+          symbolHaltCount === 0 &&
+          !this.state.lastError &&
+          !this.state.pauseReason &&
+          this.state.isTrading !== false &&
+          validation.valid
+        ) {
+          this.state.recoveryMode = false;
+          console.warn('[StateManager] Cleared stale recoveryMode on flat, valid state with no active halts.');
+          this.save();
+        }
 
         // Verify Map restoration
         console.log(`[StateManager] Active trades restored: ${this.state.activeTrades.size} trades`);
