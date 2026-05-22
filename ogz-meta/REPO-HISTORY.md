@@ -1,13 +1,13 @@
 # Repo History Snapshot
 
-Generated: 2026-05-22T18:06:18.936Z
+Generated: 2026-05-22T18:22:43.606Z
 Repo root: /opt/ogzprime/OGZPMLV2
 Branch: rebuild/clean-from-baseline
-HEAD: 0a6f159af99b7b5c7ac77dc4a53de992b8b3dbaf
-HEAD short: 0a6f159af99b
+HEAD: 0cc5e9ad4e81945dd1cbf460283642cf2cbde8c1
+HEAD short: 0cc5e9ad4e81
 Upstream: origin/rebuild/clean-from-baseline
 Origin: https://github.com/CGP-ME/OGZPMLV2.git
-Commit count: 1224
+Commit count: 1226
 Root commit: c3e94a5844547f0e00e85787018516529f5a6508
 Recent commit limit: 80
 
@@ -27,6 +27,8 @@ SHA without changing that SHA.
 ## Recent Commits
 
 ```
+0cc5e9a 2026-05-22T18:22:36Z Fixed live candle timeframe provenance
+a8b6714 2026-05-22T18:06:31Z Updated repo history snapshot
 0a6f159 2026-05-22T18:06:13Z Added repo history snapshot automation
 df1273a 2026-05-22T17:59:18Z Added Mercury ack resume pipeline support
 9f36d3d 2026-05-22T17:31:37Z Added signal-lineage diagnostics
@@ -105,13 +107,35 @@ ee9edad 2026-05-13T20:58:08Z chore(frontend): refresh ssl-server + chart-panel +
 d54e48d 2026-05-13T13:13:20Z fix(order-executor): P2-B warn when tradeId not found, fallback to oldest
 3e1ba24 2026-05-13T12:39:18Z feat(pipeline): --write multi-block specs — N edits per Fix N
 8b379ae 2026-05-13T12:25:25Z fix(state-manager): S10-BUG-1 closedTradeRecord missing symbol
-e29d2d5 2026-05-13T12:12:33Z fix(state-manager): P2-E null-symbol zombie-trade guard
-fc5bd2c 2026-05-13T11:34:39Z feat(pipeline): --write flag — spec-driven verbatim application
 ```
 
 ## Recent Commits With Stats
 
 ```
+commit 0cc5e9ad4e81945dd1cbf460283642cf2cbde8c1
+short 0cc5e9a
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:22:36Z
+subject Fixed live candle timeframe provenance
+
+ core/CandleProcessor.js                            |  23 +-
+ ...DLEPROCESSOR-NEW-CANDLE-TIMEFRAME-2026-05-22.md |  43 ++
+ ...EX-SPEC-LIVE-TIMEFRAME-PROVENANCE-2026-05-22.md | 481 +++++++++++++++++++++
+ .../MISSION-1779472454536-mercury-ack.txt          |   2 +
+ run-empire-v2.js                                   |  40 +-
+ test/symbol-routing.test.js                        |  22 +-
+ tools/instrument-env.js                            |  28 +-
+ 7 files changed, 605 insertions(+), 34 deletions(-)
+
+commit a8b6714b6fc40f4d8e7bad6576504f332957f13a
+short a8b6714
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:06:31Z
+subject Updated repo history snapshot
+
+ ogz-meta/REPO-HISTORY.md | 1440 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1440 insertions(+)
+
 commit 0a6f159af99b7b5c7ac77dc4a53de992b8b3dbaf
 short 0a6f159
 author CGP-ME <cgp@ogzprime.com>
@@ -1417,24 +1441,4 @@ subject fix(state-manager): S10-BUG-1 closedTradeRecord missing symbol
 
  core/StateManager.js | 1 +
  1 file changed, 1 insertion(+)
-
-commit e29d2d5ff2dd2c3f436877779300a2c591c8cee5
-short e29d2d5
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T12:12:33Z
-subject fix(state-manager): P2-E null-symbol zombie-trade guard
-
- core/StateManager.js | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-commit fc5bd2c5fdebe94a9af77208112fe6fcbadb75d3
-short fc5bd2c
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T11:34:39Z
-subject feat(pipeline): --write flag — spec-driven verbatim application
-
- ogz-meta/pipeline.js     | 117 +++++++++++++++++++++------
- ogz-meta/slash-router.js | 203 +++++++++++++++++++++++++++++++++++++++++++++++
- ogz-meta/spec-parser.js  | 118 +++++++++++++++++++++++++++
- 3 files changed, 415 insertions(+), 23 deletions(-)
 ```
