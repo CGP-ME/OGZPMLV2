@@ -189,22 +189,23 @@ console.log('\n--- INDICATOR ENGINE ---\n');
 
 test('IndicatorEngine computes RSI, EMA, ATR correctly', () => {
   const IndicatorEngine = require(path.join(projectRoot, 'core/indicators/IndicatorEngine'));
-  const engine = new IndicatorEngine({ warmupCandles: 20 });
+  const engine = new IndicatorEngine({ symbol: 'BTC-USD', warmupCandles: 20 });
 
   for (const candle of testCandles) {
     engine.updateCandle(candle);
   }
 
   const snap = engine.getSnapshot();
+  const indicators = snap.indicators || {};
 
   if (!snap) throw new Error('getSnapshot() returned nothing');
   // RSI is a direct number
-  if (snap.rsi === null || snap.rsi === undefined) throw new Error('RSI not calculated');
-  if (snap.rsi < 0 || snap.rsi > 100) throw new Error(`RSI out of range: ${snap.rsi}`);
+  if (indicators.rsi === null || indicators.rsi === undefined) throw new Error('RSI not calculated');
+  if (indicators.rsi < 0 || indicators.rsi > 100) throw new Error(`RSI out of range: ${indicators.rsi}`);
   // EMA exists
-  if (!snap.ema) throw new Error('EMA not calculated');
+  if (!Number.isFinite(indicators.ema20)) throw new Error('EMA not calculated');
   // ATR is a direct number
-  if (!snap.atr || snap.atr <= 0) throw new Error(`ATR invalid: ${snap.atr}`);
+  if (!indicators.atr || indicators.atr <= 0) throw new Error(`ATR invalid: ${indicators.atr}`);
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -294,15 +295,19 @@ test('StrategyOrchestrator loads strategies and evaluates', () => {
     throw new Error('No strategies loaded');
   }
 
-  const engine = new IndicatorEngine({ warmupCandles: 20 });
+  const engine = new IndicatorEngine({ symbol: 'BTC-USD', warmupCandles: 20 });
   for (const candle of testCandles) {
     engine.updateCandle(candle);
   }
 
-  const indicators = engine.getSnapshot();
+  const indicators = engine.getSnapshot().indicators;
 
   // orchestrator.evaluate(indicators, patterns, regime, priceHistory, extras)
-  const result = orchestrator.evaluate(indicators, [], null, testCandles, {});
+  const result = orchestrator.evaluate(indicators, [], null, testCandles, {
+    price: testCandles[testCandles.length - 1].c,
+    volatility: 1,
+    timeframe: '15m',
+  });
 
   if (!result) throw new Error('evaluate() returned nothing');
   if (typeof result.confidence !== 'number') throw new Error('No confidence in result');
@@ -339,6 +344,7 @@ test('ExitContractManager evaluates positions correctly', () => {
   const lastCandle = testCandles[testCandles.length - 1];
   const result = manager.checkExitConditions(mockTrade, lastCandle.c, {
     candle: lastCandle,
+    currentTime: Date.now(),
     indicators: { rsi: 55, atr: 500 }
   });
 
@@ -408,17 +414,21 @@ test('Full signal→orchestrator→exit flow works', () => {
   });
 
   const exitManager = getInstance();
-  const engine = new IndicatorEngine({ warmupCandles: 20 });
+  const engine = new IndicatorEngine({ symbol: 'BTC-USD', warmupCandles: 20 });
 
   for (const candle of testCandles) {
     engine.updateCandle(candle);
   }
 
-  const indicators = engine.getSnapshot();
+  const indicators = engine.getSnapshot().indicators;
   const lastCandle = testCandles[testCandles.length - 1];
 
   // Step 1: Get signal using orchestrator.evaluate()
-  const signalResult = orchestrator.evaluate(indicators, [], null, testCandles, {});
+  const signalResult = orchestrator.evaluate(indicators, [], null, testCandles, {
+    price: lastCandle.c,
+    volatility: 1,
+    timeframe: '15m',
+  });
 
   // Step 2: If we had a position, evaluate exit
   const mockTrade = {
@@ -437,6 +447,7 @@ test('Full signal→orchestrator→exit flow works', () => {
 
   const exitResult = exitManager.checkExitConditions(mockTrade, lastCandle.c, {
     candle: lastCandle,
+    currentTime: Date.now(),
     indicators
   });
 
