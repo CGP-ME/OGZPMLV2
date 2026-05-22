@@ -65,6 +65,10 @@
     <link rel="stylesheet" href="/css/panels/mode-toggle.css">
     <link rel="stylesheet" href="/css/panels/trade-replay.css">
 
+    <!-- Phase 2 — 4-mode layout system (Operator / Trader / Showcase / Streamer).
+         Driven by public/js/panels/layout-switcher.js via body.layout-<mode>. -->
+    <link rel="stylesheet" href="/css/layouts.css">
+
     <style>
         /* ========================================================================
            THEME VARIABLES & FOUNDATIONAL STYLES
@@ -687,6 +691,21 @@
     <script src="/js/panels/live-readouts.js"></script>
     <script src="/js/panels/celebration.js"></script>
 
+    <!-- Phase 1 celebration / emotional layer (load order matters: CustomAlerts
+         creates the OGZ.bus, the others subscribe to it).
+         CustomAlerts must come first; the rest can come in any order. -->
+    <script src="/js/panels/custom-alerts.js"></script>
+    <script src="/js/panels/victory-animations.js"></script>
+    <script src="/js/panels/loss-recovery.js"></script>
+    <script src="/js/panels/milestone-effects.js"></script>
+    <script src="/js/panels/goal-tracker.js"></script>
+    <script src="/js/panels/voice-manager.js"></script>
+    <script src="/js/panels/voice-fx.js"></script>
+
+    <!-- Phase 2 — 4-mode layout switcher (Operator / Trader / Showcase / Streamer).
+         Self-registers as OGZ.LayoutSwitcher. Pairs with /css/layouts.css. -->
+    <script src="/js/panels/layout-switcher.js"></script>
+
     <!-- Phase 5 self-rendering modules (replace legacy chart.js + edge-analytics.js) -->
     <script src="/js/panels/chart-panel.js"></script>
     <script src="/js/panels/edge-analytics-panel.js"></script>
@@ -743,6 +762,17 @@
                     try { window.OGZ.get('TradeReplay').init(); }
                     catch (e) { console.warn('[Dashboard v2] TradeReplay.init() failed:', e); }
                 }
+
+                // NOTE: The Phase 1 celebration chain (CustomAlerts, Victory-
+                // Animations, LossRecovery, MilestoneEffects, GoalTracker,
+                // VoiceManager, VoiceFX) and the Phase 2 LayoutSwitcher are
+                // NOT init'd here. core.js OGZ.init() already auto-inits every
+                // registered module (everything except the SPECIAL set
+                // Chart/Socket/Theme — see core.js:34-54). Calling init() again
+                // here double-initialized them: LayoutSwitcher built a second
+                // header button, and each celebration module double-subscribed
+                // to socket/bus events (double toasts/sounds on every trade).
+                // Registration via OGZ.register() is all the wiring they need.
             } else {
                 console.error('[Dashboard v2] OGZ namespace failed to load. Check core.js.');
             }

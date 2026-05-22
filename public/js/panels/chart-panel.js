@@ -89,8 +89,30 @@
     let _trackedVisibleRangeCB = null;
     let _trackedRsiSeries = null;
 
-    // Trade markers (by time+price key)
+    // Trade markers (by time+action+price key)
     let tradeMarkers = new Map();
+    // Per-time-second context map for hover tooltips
+    // Key: candle-time seconds (integer). Value: Array of trade contexts at that time.
+    const tradeMarkerData = new Map();
+    // Floating marker tooltip element (created lazily)
+    let _markerTooltipEl = null;
+    let _hoveredMarkerTime = null;
+
+    // ─── Oscillator Pane (opt-in pane split) ────────────────────────────
+    // Hosts volume bars in a separate LightweightCharts instance below the
+    // main candle pane so the candle chart can use its full vertical space.
+    // Time-axis sync goes top→bottom and back, guarded by a re-entrance flag.
+    const OSC_PANE_LS_KEY = 'ogz.chartPanel.oscPaneActive';
+    let _oscChart = null;
+    let _oscContainer = null;
+    let _oscVolumeSeries = null;
+    let _oscPaneActive = false;
+    let _oscSyncing = false;            // re-entrance guard for time-axis sync
+    let _oscMainRangeCB = null;
+    let _oscBottomRangeCB = null;
+    let _oscMainCrosshairCB = null;
+    let _oscBottomCrosshairCB = null;
+    let _oscResizeObserver = null;
 
     // ─── Constants ─────────────────────────────────────────────────────────
     const STYLE_ID = 'ogz-chart-panel-styles';
@@ -132,6 +154,170 @@
             '{transition:color 0.08s ease,text-shadow 0.08s ease;}';
         if (document.head) document.head.appendChild(s);
     })();
+
+    // ─── Trade Marker Tooltip CSS ──────────────────────────────────────────
+    (function injectMarkerTooltipStyle() {
+        if (typeof document === 'undefined') return;
+        if (document.getElementById('ogz-chart-marker-tip-style')) return;
+        const s = document.createElement('style');
+        s.id = 'ogz-chart-marker-tip-style';
+        s.textContent = `
+            .ogz-chart-marker-tip {
+                position: absolute;
+                background: rgba(10, 10, 16, 0.96);
+                border: 1px solid rgba(255, 215, 0, 0.35);
+                border-radius: 6px;
+                padding: 8px 12px;
+                color: #e6e6e6;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 11px;
+                line-height: 1.45;
+                pointer-events: none;
+                z-index: 9550;
+                box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55),
+                            0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+                max-width: 280px;
+                opacity: 0;
+                transform: translateY(-2px);
+                transition: opacity 120ms, transform 120ms;
+                white-space: nowrap;
+            }
+            .ogz-chart-marker-tip.show { opacity: 1; transform: translateY(0); }
+            .ogz-chart-marker-tip .tip-head {
+                font-size: 10px;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                color: rgba(255, 215, 0, 0.85);
+                margin-bottom: 4px;
+                font-weight: 700;
+            }
+            .ogz-chart-marker-tip .tip-pnl-pos { color: #22c55e; font-weight: 700; }
+            .ogz-chart-marker-tip .tip-pnl-neg { color: #ef4444; font-weight: 700; }
+            .ogz-chart-marker-tip .tip-meta {
+                color: rgba(255, 255, 255, 0.55);
+                font-size: 10px;
+                margin-top: 4px;
+            }
+            .ogz-chart-marker-tip .tip-hint {
+                font-size: 9px;
+                color: rgba(255, 215, 0, 0.5);
+                margin-top: 6px;
+                letter-spacing: 0.5px;
+            }
+
+            /* Oscillator pane (opt-in split) */
+            .cp-osc-toggle {
+                cursor: pointer;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                color: rgba(255, 255, 255, 0.85);
+                transition: background 150ms, border-color 150ms;
+            }
+            .cp-osc-toggle:hover {
+                background: rgba(255, 215, 0, 0.08);
+                border-color: rgba(255, 215, 0, 0.35);
+            }
+            .cp-osc-toggle.active {
+                background: rgba(255, 215, 0, 0.16);
+                border-color: rgba(255, 215, 0, 0.55);
+                color: #ffd700;
+            }
+            .cp-osc-pane {
+                width: 100%;
+                height: 130px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                background: var(--bg, #0a0a0a);
+                position: relative;
+                margin-top: 4px;
+                border-radius: 0 0 6px 6px;
+            }
+            .cp-osc-label {
+                position: absolute;
+                top: 4px;
+                left: 8px;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 9px;
+                color: rgba(255, 255, 255, 0.4);
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                pointer-events: none;
+                z-index: 2;
+            }
+        `;
+        if (document.head) document.head.appendChild(s);
+    })();
+
+    // ─── Marker Tooltip Helpers ────────────────────────────────────────────
+    function ensureMarkerTooltip() {
+        if (_markerTooltipEl) return _markerTooltipEl;
+        const container = document.getElementById('tvChartContainer') || document.body;
+        const el = document.createElement('div');
+        el.className = 'ogz-chart-marker-tip';
+        container.appendChild(el);
+        _markerTooltipEl = el;
+        return el;
+    }
+
+    function renderMarkerTooltipContent(contexts) {
+        // contexts: Array of trade contexts at the same candle-time.
+        // Most cases one entry, but in tight markets there could be entry + exit
+        // at the same candle.
+        if (!contexts || !contexts.length) return '';
+        const fmtTime = (ms) => {
+            const d = new Date(ms);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        };
+        return contexts.map(c => {
+            const sideText = c.isEntry
+                ? `${c.direction === 'short' ? 'SHORT' : 'LONG'} entry @ $${c.price.toFixed(2)}`
+                : `${c.direction === 'short' ? 'COVER' : 'SELL'} @ $${c.price.toFixed(2)}`;
+            let pnlLine = '';
+            if (c.isClose) {
+                const sign = c.pnl >= 0 ? '+' : '';
+                const cls  = c.pnl >= 0 ? 'tip-pnl-pos' : 'tip-pnl-neg';
+                pnlLine = `<div><span class="${cls}">${sign}$${Math.abs(c.pnl).toFixed(2)}</span></div>`;
+            }
+            let metaBits = [];
+            if (c.strategy)    metaBits.push(`strat: ${c.strategy}`);
+            if (c.pattern)     metaBits.push(`pattern: ${c.pattern}`);
+            if (c.confidence != null) metaBits.push(`conf: ${Number(c.confidence).toFixed(0)}%`);
+            if (c.duration)    metaBits.push(`held: ${c.duration}`);
+            const metaStr = metaBits.length ? `<div class="tip-meta">${metaBits.join(' · ')}</div>` : '';
+
+            return `
+                <div class="tip-head">${c.isEntry ? 'ENTRY' : 'EXIT'} · ${fmtTime(c.tsMs)}</div>
+                <div>${sideText}</div>
+                ${pnlLine}
+                ${metaStr}
+                <div class="tip-hint">click marker to replay</div>
+            `;
+        }).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:6px 0;">');
+    }
+
+    function showMarkerTooltipAt(point, contexts) {
+        if (!point || !contexts || !contexts.length) return;
+        const el = ensureMarkerTooltip();
+        const container = document.getElementById('tvChartContainer');
+        if (!container) return;
+        el.innerHTML = renderMarkerTooltipContent(contexts);
+
+        // Position relative to chart container
+        const rect = container.getBoundingClientRect();
+        const tipW = 240;   // approximate
+        const tipH = 90;
+        let x = point.x + 18;
+        let y = point.y - tipH - 10;
+        if (x + tipW > rect.width)  x = point.x - tipW - 18;
+        if (y < 4)                  y = point.y + 18;
+        el.style.left = Math.max(4, x) + 'px';
+        el.style.top  = Math.max(4, y) + 'px';
+        el.classList.add('show');
+    }
+
+    function hideMarkerTooltip() {
+        if (_markerTooltipEl) _markerTooltipEl.classList.remove('show');
+        _hoveredMarkerTime = null;
+    }
 
     // ─── Helper: Track & Cleanup Listeners ─────────────────────────────────
     function trackListener(target, type, handler) {
@@ -261,6 +447,24 @@
         controls.appendChild(chartTypeSelector);
         controls.appendChild(assetSelector);
         controls.appendChild(timeframeSelector);
+
+        // Oscillator-pane toggle button (opt-in pane split)
+        const oscToggle = document.createElement('button');
+        oscToggle.id = 'cp-oscToggle';
+        oscToggle.className = 'cp-selector cp-osc-toggle';
+        oscToggle.type = 'button';
+        oscToggle.textContent = '📊 Split';
+        oscToggle.title = 'Toggle the bottom oscillator pane (volume in its own row)';
+        oscToggle.addEventListener('click', () => {
+            try {
+                if (_oscPaneActive) {
+                    ChartPanel.destroyOscillatorPane();
+                } else {
+                    ChartPanel.createOscillatorPane();
+                }
+            } catch (e) { /* swallow */ }
+        });
+        controls.appendChild(oscToggle);
 
         // Indicator checkboxes
         const indicatorCheckboxes = document.createElement('div');
@@ -583,7 +787,56 @@
             tooltipEl.style.left = Math.max(4, x) + 'px';
             tooltipEl.style.top = Math.max(4, y) + 'px';
             tooltipEl.style.display = 'block';
+
+            // ─── Trade Marker Tooltip ──────────────────────────────────
+            // Check if the hovered candle-time has any trade markers attached.
+            // If yes, show the rich trade-context floating tooltip with the
+            // entry/exit details, P&L, strategy, pattern, confidence.
+            try {
+                const candleTime = typeof param.time === 'number' ? param.time : (param.time && param.time.timestamp);
+                if (candleTime != null && tradeMarkerData.has(candleTime)) {
+                    if (_hoveredMarkerTime !== candleTime) {
+                        _hoveredMarkerTime = candleTime;
+                        showMarkerTooltipAt(param.point, tradeMarkerData.get(candleTime));
+                    }
+                } else if (_hoveredMarkerTime != null) {
+                    hideMarkerTooltip();
+                }
+            } catch (e) { /* swallow */ }
         });
+
+        // ─── Click Handler — open Trade Replay on marker click ─────────
+        try {
+            tvChart.subscribeClick(param => {
+                try {
+                    if (!param || !param.time) return;
+                    const candleTime = typeof param.time === 'number' ? param.time : (param.time && param.time.timestamp);
+                    if (candleTime == null || !tradeMarkerData.has(candleTime)) return;
+                    const contexts = tradeMarkerData.get(candleTime);
+                    if (!contexts || !contexts.length) return;
+                    // Prefer the close (exit) marker — that's what TradeReplay expects
+                    const target = contexts.find(c => c.isClose) || contexts[0];
+                    const tr = OGZ && typeof OGZ.get === 'function' ? OGZ.get('TradeReplay') : null;
+                    if (tr && typeof tr.openReplay === 'function') {
+                        tr.openReplay({
+                            symbol: (document.getElementById('cp-assetSelector')?.value) || 'ASSET',
+                            side: target.direction,
+                            entry: target.isEntry ? target.price : (target.metadata?.entryPrice ?? target.price),
+                            exit:  target.isClose ? target.price : null,
+                            entryTs: target.tsMs,
+                            exitTs:  target.isClose ? target.tsMs : null,
+                            pnl: target.pnl,
+                            pnlPercent: null,
+                            strategy: target.strategy,
+                            pattern:  target.pattern,
+                            confidence: target.confidence,
+                            indicatorsAtEntry: target.indicators,
+                            narratorLines: target.narratorText ? [target.narratorText] : []
+                        });
+                    }
+                } catch (_) { /* swallow */ }
+            });
+        } catch (_) { /* subscribeClick missing in older lightweight-charts versions — swallow */ }
 
         // Expose for legacy drawing-tools.js
         window.OGZ_chart = tvChart;
@@ -692,13 +945,11 @@
         socket.registerHandler('trade', (d) => {
             try {
                 const data = (d && d.data) ? d.data : d;
-                const price = Number(data.price);
-                if (!isFinite(price) || price <= 0) return;
-                const ts = Math.floor((Number(data.timestamp) || Date.now()) / 1000);
-                const sideLabel = data.action === 'SELL'
-                    ? (data.direction === 'short' ? 'SHORT' : 'EXIT')
-                    : (data.direction === 'short' ? 'SHORT' : 'BUY');
-                ChartPanel.addTradeMarker(price, ts, sideLabel);
+                if (!data || !isFinite(Number(data.price)) || Number(data.price) <= 0) return;
+                // Pass the FULL trade payload so the marker carries all the
+                // white-box context (action, direction, pnl, confidence,
+                // pattern, strategy, duration) for hover-tooltip rendering.
+                ChartPanel.addTradeMarker(data);
             } catch (e) { /* swallow */ }
         });
 
@@ -785,6 +1036,17 @@
                 if (!renderScaffold()) return;
                 if (!initChart()) return;
                 bootstrapWS(document.getElementById(ROOT_ID));
+
+                // Restore oscillator-pane state if the user had it toggled on
+                // last session. Defer to next frame so the main chart finishes
+                // initial layout before we add a sibling that triggers resize.
+                try {
+                    if (localStorage.getItem(OSC_PANE_LS_KEY) === '1') {
+                        requestAnimationFrame(() => {
+                            try { ChartPanel.createOscillatorPane(); } catch (e) { /* swallow */ }
+                        });
+                    }
+                } catch (e) { /* swallow */ }
             } catch (e) {
                 /* swallow */
             }
@@ -1097,12 +1359,31 @@
             _wsBootstrapped = false;
 
             tvChart = null;
+            // Tear down the oscillator pane if active. Note: this preserves
+            // the LS flag — if the user had Split on, they'll get it back on
+            // the next init().
+            try {
+                const wasActive = _oscPaneActive;
+                ChartPanel.destroyOscillatorPane();
+                // destroyOscillatorPane wrote '0' to LS — restore the user's
+                // preference so it auto-restores next mount.
+                if (wasActive) {
+                    try { localStorage.setItem(OSC_PANE_LS_KEY, '1'); } catch (e) { /* swallow */ }
+                }
+            } catch (e) { /* swallow */ }
+
             candleSeries = null;
             volumeSeries = null;
             ghostSeries = null;
             storedCandles = [];
             activeOverlays = [];
             tradeMarkers.clear();
+            tradeMarkerData.clear();
+            if (_markerTooltipEl) {
+                try { _markerTooltipEl.remove(); } catch (e) { /* swallow */ }
+                _markerTooltipEl = null;
+            }
+            _hoveredMarkerTime = null;
         },
 
         /**
@@ -1162,11 +1443,16 @@
                     liveAlpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
                 }
                 const rgb = up ? '34,197,94' : '239,68,68';
-                volumeSeries.update({
+                const volEntry = {
                     time: timeAligned,
                     value: candle.volume || candle.v,
                     color: `rgba(${rgb},${liveAlpha.toFixed(3)})`
-                });
+                };
+                volumeSeries.update(volEntry);
+                // Mirror live volume tick into the oscillator pane when active
+                if (_oscPaneActive && _oscVolumeSeries) {
+                    try { _oscVolumeSeries.update(volEntry); } catch (e) { /* swallow */ }
+                }
             }
 
             if (price != null) {
@@ -1304,13 +1590,18 @@
                     const capVol = sortedVols.length
                         ? sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)]
                         : 1;
-                    volumeSeries.setData(formatted.map(c => {
+                    const volData = formatted.map(c => {
                         const up = c.close >= c.open;
                         const ratio = capVol > 0 ? Math.min(1, (c.volume || 0) / capVol) : 0;
                         const alpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
                         const rgb = up ? '34,197,94' : '239,68,68';
                         return { time: c.time, value: c.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
-                    }));
+                    });
+                    volumeSeries.setData(volData);
+                    // Mirror full historical volume into the oscillator pane when active
+                    if (_oscPaneActive && _oscVolumeSeries) {
+                        try { _oscVolumeSeries.setData(volData); } catch (e) { /* swallow */ }
+                    }
                 }
 
                 storedCandles = formatted;
@@ -1330,43 +1621,305 @@
         },
 
         /**
-         * Add trade marker at price/time.
+         * Add a rich trade marker. Accepts either:
+         *   - (price, time, side)           — legacy 3-arg form (no rich tooltip)
+         *   - (tradeData)                   — preferred: full bot trade payload
+         *
+         * Rich tradeData shape (from OrderExecutor broadcast):
+         *   { action:'BUY'|'SELL'|'SELL_SHORT'|'COVER',
+         *     direction:'long'|'short', price, pnl, timestamp, confidence,
+         *     duration?, pattern?, strategy? }
+         *
+         * Uses LightweightCharts' native setMarkers() — hover/click are
+         * detected via the crosshair callback in initChart(), which reads
+         * tradeMarkerData (a Map keyed by candle-time-seconds) to render
+         * the floating trade tooltip card.
          */
-        addTradeMarker: function (price, time, side) {
+        addTradeMarker: function (arg1, arg2, arg3) {
             if (!candleSeries) return;
-            const key = `${time}:${price}`;
+
+            // Normalize input into a trade-data object
+            let td;
+            if (typeof arg1 === 'object' && arg1 !== null) {
+                td = arg1;
+            } else {
+                td = {
+                    price: Number(arg1),
+                    timestamp: Number(arg2) * 1000,
+                    action: arg3 === 'SHORT' ? 'SELL_SHORT' : arg3 === 'EXIT' ? 'SELL' : 'BUY',
+                    direction: arg3 === 'SHORT' ? 'short' : 'long'
+                };
+            }
+            const price = Number(td.price);
+            const tsMs  = Number(td.timestamp) || Date.now();
+            const tsSec = Math.floor((tsMs > 1e12 ? tsMs : tsMs * 1000) / 1000);
+            if (!isFinite(price) || price <= 0) return;
+
+            const action = String(td.action || '').toUpperCase();
+            const direction = String(td.direction || (action === 'SELL_SHORT' || action === 'COVER' ? 'short' : 'long')).toLowerCase();
+            const isEntry = action === 'BUY' || action === 'SELL_SHORT';
+            const isClose = action === 'SELL' || action === 'COVER';
+            const pnl = Number(td.pnl) || 0;
+            const win = isClose && pnl > 0;
+            const loss = isClose && pnl < 0;
+
+            // Marker visual config
+            let position, color, shape, text;
+            if (isEntry) {
+                position = direction === 'short' ? 'aboveBar' : 'belowBar';
+                color    = direction === 'short' ? '#ff6b8a' : '#22c55e';
+                shape    = direction === 'short' ? 'arrowDown' : 'arrowUp';
+                text     = direction === 'short' ? 'S' : 'L';
+            } else if (isClose) {
+                position = direction === 'short' ? 'belowBar' : 'aboveBar';
+                shape    = win ? 'circle' : (loss ? 'square' : 'circle');
+                color    = win ? '#22c55e' : (loss ? '#ef4444' : '#9ca3af');
+                const sign = pnl >= 0 ? '+' : '';
+                text     = `${sign}$${Math.abs(pnl).toFixed(0)}`;
+            } else {
+                position = 'belowBar';
+                color    = '#9ca3af';
+                shape    = 'circle';
+                text     = '·';
+            }
+
+            const markerObj = { time: tsSec, position, color, shape, text, size: 1 };
+            const key = `${tsSec}:${action}:${price.toFixed(2)}`;
+
+            // Idempotency: skip exact duplicates (same second + action + price)
             if (tradeMarkers.has(key)) return;
 
-            const color = side === 'SHORT' ? '#ff6b8a' : '#22c55e';
-            const pos = side === 'SHORT' ? 'aboveBar' : 'belowBar';
+            tradeMarkers.set(key, markerObj);
 
-            const marker = candleSeries.createPriceLine({
-                price: price,
-                color: color,
-                lineWidth: 2,
-                lineStyle: 0,
-                axisLabelVisible: false,
-                title: side
-            });
+            // Stash full context for tooltip / click
+            const ctxEntry = {
+                key,
+                time: tsSec,
+                price,
+                action,
+                direction,
+                pnl,
+                isEntry,
+                isClose,
+                win,
+                loss,
+                confidence: td.confidence != null ? Number(td.confidence) : null,
+                pattern:    td.pattern || null,
+                strategy:   td.strategy || null,
+                duration:   td.duration || null,
+                narratorText: td.narratorText || null,
+                indicators: td.indicators || null,
+                tsMs
+            };
+            if (!tradeMarkerData.has(tsSec)) tradeMarkerData.set(tsSec, []);
+            tradeMarkerData.get(tsSec).push(ctxEntry);
 
-            tradeMarkers.set(key, marker);
+            // Push to chart
+            const sorted = Array.from(tradeMarkers.values()).sort((a, b) => a.time - b.time);
+            try { candleSeries.setMarkers(sorted); } catch (e) { /* swallow */ }
         },
 
         /**
          * Remove all trade markers.
          */
         clearMarkers: function () {
-            tradeMarkers.forEach(marker => {
-                try { candleSeries.removePriceLine(marker); }
-                catch (e) { /* swallow */ }
-            });
             tradeMarkers.clear();
+            tradeMarkerData.clear();
+            try { if (candleSeries) candleSeries.setMarkers([]); } catch (e) { /* swallow */ }
+            hideMarkerTooltip();
         },
 
         /**
          * Get chart instance (for drawing-tools.js etc).
          */
         getChart: () => tvChart,
+
+        /**
+         * Create the oscillator pane (volume in its own row below the main chart).
+         * Idempotent — calling when already active is a no-op.
+         * Synced with the main chart's time-axis. Safe to destroy at any time.
+         */
+        createOscillatorPane: function () {
+            if (_oscPaneActive || !tvChart || typeof LightweightCharts === 'undefined') return false;
+            const mainContainer = document.getElementById('tvChartContainer');
+            if (!mainContainer || !mainContainer.parentElement) return false;
+
+            try {
+                // Build container right after the main chart
+                _oscContainer = document.createElement('div');
+                _oscContainer.id = 'cp-oscPaneContainer';
+                _oscContainer.className = 'cp-osc-pane';
+                const label = document.createElement('div');
+                label.className = 'cp-osc-label';
+                label.textContent = 'VOLUME';
+                _oscContainer.appendChild(label);
+                mainContainer.parentElement.insertBefore(_oscContainer, mainContainer.nextSibling);
+
+                // Build the aux chart
+                _oscChart = LightweightCharts.createChart(_oscContainer, {
+                    width: _oscContainer.clientWidth,
+                    height: _oscContainer.clientHeight,
+                    layout: { background: { color: '#0a0a0a' }, textColor: '#888' },
+                    grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+                    crosshair: { mode: 0, vertLine: { color: 'rgba(220,38,38,0.45)' }, horzLine: { color: 'rgba(220,38,38,0.45)' } },
+                    timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false, visible: false },
+                    handleScroll: false,
+                    handleScale: false,
+                    rightPriceScale: { borderVisible: false }
+                });
+
+                // Volume series on the aux chart
+                _oscVolumeSeries = _oscChart.addHistogramSeries({
+                    color: '#26a69a',
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: 'right'
+                });
+
+                // Mirror current storedCandles' volume into the aux chart
+                if (storedCandles && storedCandles.length) {
+                    const volData = storedCandles
+                        .filter(c => c && typeof c.time === 'number')
+                        .map(c => {
+                            const up = c.close >= c.open;
+                            return {
+                                time: c.time,
+                                value: c.volume || 0,
+                                color: up ? 'rgba(34,197,94,0.55)' : 'rgba(239,68,68,0.55)'
+                            };
+                        });
+                    try { _oscVolumeSeries.setData(volData); } catch (e) { /* swallow */ }
+                }
+
+                // Hide volume series on the main pane (keeps the candle canvas clean)
+                try { if (volumeSeries) volumeSeries.applyOptions({ visible: false }); } catch (e) { /* swallow */ }
+
+                // Time-axis sync (top → bottom AND bottom → top), guarded against re-entrance
+                _oscMainRangeCB = (range) => {
+                    if (_oscSyncing || !range || !_oscChart) return;
+                    _oscSyncing = true;
+                    try { _oscChart.timeScale().setVisibleLogicalRange(range); }
+                    catch (e) { /* swallow */ }
+                    setTimeout(() => { _oscSyncing = false; }, 0);
+                };
+                _oscBottomRangeCB = (range) => {
+                    if (_oscSyncing || !range || !tvChart) return;
+                    _oscSyncing = true;
+                    try { tvChart.timeScale().setVisibleLogicalRange(range); }
+                    catch (e) { /* swallow */ }
+                    setTimeout(() => { _oscSyncing = false; }, 0);
+                };
+                tvChart.timeScale().subscribeVisibleLogicalRangeChange(_oscMainRangeCB);
+                _oscChart.timeScale().subscribeVisibleLogicalRangeChange(_oscBottomRangeCB);
+
+                // Crosshair sync (top → bottom only; bottom is pointer-passive)
+                _oscMainCrosshairCB = (param) => {
+                    if (!_oscChart || !param || !param.time) return;
+                    try { _oscChart.setCrosshairPosition(NaN, param.time, _oscVolumeSeries); }
+                    catch (e) { /* swallow */ }
+                };
+                tvChart.subscribeCrosshairMove(_oscMainCrosshairCB);
+
+                // ResizeObserver for the aux pane
+                if (typeof ResizeObserver !== 'undefined') {
+                    _oscResizeObserver = new ResizeObserver(() => {
+                        if (_oscChart && _oscContainer) {
+                            try { _oscChart.resize(_oscContainer.clientWidth, _oscContainer.clientHeight); }
+                            catch (e) { /* swallow */ }
+                        }
+                    });
+                    try { _oscResizeObserver.observe(_oscContainer); } catch (e) { /* swallow */ }
+                }
+
+                // Match main chart's current visible range immediately
+                try {
+                    const lr = tvChart.timeScale().getVisibleLogicalRange();
+                    if (lr) _oscChart.timeScale().setVisibleLogicalRange(lr);
+                } catch (e) { /* swallow */ }
+
+                _oscPaneActive = true;
+                try { localStorage.setItem(OSC_PANE_LS_KEY, '1'); } catch (e) { /* swallow */ }
+
+                // Update toggle button UI
+                const btn = document.getElementById('cp-oscToggle');
+                if (btn) {
+                    btn.classList.add('active');
+                    btn.textContent = '📊 Split ✓';
+                }
+
+                // Resize main chart to share vertical space
+                if (tvChart && mainContainer) {
+                    try { tvChart.resize(mainContainer.clientWidth, mainContainer.clientHeight); }
+                    catch (e) { /* swallow */ }
+                }
+
+                return true;
+            } catch (e) {
+                // Roll back partial setup
+                try { ChartPanel.destroyOscillatorPane(); } catch (_) {}
+                return false;
+            }
+        },
+
+        /**
+         * Tear down the oscillator pane. Idempotent.
+         */
+        destroyOscillatorPane: function () {
+            if (!_oscPaneActive && !_oscChart) return;
+            try {
+                // Unsubscribe time-axis sync
+                if (_oscMainRangeCB && tvChart) {
+                    try { tvChart.timeScale().unsubscribeVisibleLogicalRangeChange(_oscMainRangeCB); }
+                    catch (e) { /* swallow */ }
+                }
+                if (_oscBottomRangeCB && _oscChart) {
+                    try { _oscChart.timeScale().unsubscribeVisibleLogicalRangeChange(_oscBottomRangeCB); }
+                    catch (e) { /* swallow */ }
+                }
+                if (_oscMainCrosshairCB && tvChart) {
+                    try { tvChart.unsubscribeCrosshairMove(_oscMainCrosshairCB); }
+                    catch (e) { /* swallow */ }
+                }
+
+                // Tear down ResizeObserver
+                if (_oscResizeObserver) {
+                    try { _oscResizeObserver.disconnect(); } catch (e) { /* swallow */ }
+                    _oscResizeObserver = null;
+                }
+
+                // Remove the aux chart instance
+                if (_oscChart && typeof _oscChart.remove === 'function') {
+                    try { _oscChart.remove(); } catch (e) { /* swallow */ }
+                }
+                _oscChart = null;
+                _oscVolumeSeries = null;
+
+                // Remove the container
+                if (_oscContainer && _oscContainer.parentElement) {
+                    try { _oscContainer.parentElement.removeChild(_oscContainer); }
+                    catch (e) { /* swallow */ }
+                }
+                _oscContainer = null;
+            } catch (e) { /* swallow */ }
+
+            // Restore main-pane volume visibility
+            try { if (volumeSeries) volumeSeries.applyOptions({ visible: true }); } catch (e) { /* swallow */ }
+
+            _oscPaneActive = false;
+            try { localStorage.setItem(OSC_PANE_LS_KEY, '0'); } catch (e) { /* swallow */ }
+
+            // Update toggle button UI
+            const btn = document.getElementById('cp-oscToggle');
+            if (btn) {
+                btn.classList.remove('active');
+                btn.textContent = '📊 Split';
+            }
+        },
+
+        /**
+         * Returns the current oscillator-pane state (for diagnostics / UI sync).
+         */
+        isOscillatorPaneActive: function () { return _oscPaneActive; },
+
 
         /**
          * Get series references.
