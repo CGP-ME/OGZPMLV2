@@ -1,13 +1,13 @@
 # Repo History Snapshot
 
-Generated: 2026-05-22T18:37:22.104Z
+Generated: 2026-05-22T18:46:26.151Z
 Repo root: /opt/ogzprime/OGZPMLV2
 Branch: rebuild/clean-from-baseline
-HEAD: fa168818f34547eb204a0143a3e42658bb047464
-HEAD short: fa168818f345
+HEAD: b1917d21bcfdaf8632304e72d9d02a13b0b1c112
+HEAD short: b1917d21bcfd
 Upstream: origin/rebuild/clean-from-baseline
 Origin: https://github.com/CGP-ME/OGZPMLV2.git
-Commit count: 1230
+Commit count: 1233
 Root commit: c3e94a5844547f0e00e85787018516529f5a6508
 Recent commit limit: 80
 
@@ -27,6 +27,9 @@ SHA without changing that SHA.
 ## Recent Commits
 
 ```
+b1917d2 2026-05-22T18:46:21Z Added Alpaca TSLA runtime switch session form
+f9dfbc0 2026-05-22T18:46:16Z Added state flatten restart session form
+92dfff0 2026-05-22T18:37:22Z Updated repo history snapshot
 fa16881 2026-05-22T18:37:22Z Fixed timeframe selector boot order
 eeaea36 2026-05-22T18:31:04Z Updated repo history snapshot
 c5923ca 2026-05-22T18:30:57Z Fixed gap recovery symbol timeframe routing
@@ -104,14 +107,38 @@ eeee2e7 2026-05-13T23:07:58Z fix(trai-core): Fix 12 BTC asset label fallback
 f450d30 2026-05-13T23:05:54Z fix(trai-decision): Fix 11 BTC-USD fallback in signal recording
 3442d24 2026-05-13T23:03:36Z fix(indicator-engine): Fix 10 throw on missing symbol in constructor
 0d6538a 2026-05-13T23:00:57Z fix(symbol-trading-context): Fix 26 thread symbol into IndicatorEngine config
-782a981 2026-05-13T22:58:27Z fix(spec-parser): boundary regex matches H1/H2 headings
-ee9edad 2026-05-13T20:58:08Z chore(frontend): refresh ssl-server + chart-panel + tombstone system-snapshot
-498a16e 2026-05-13T14:29:36Z fix(state-manager): P1-A trade.size stale after partial close — ANCHOR SHIFT
 ```
 
 ## Recent Commits With Stats
 
 ```
+commit b1917d21bcfdaf8632304e72d9d02a13b0b1c112
+short b1917d2
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:46:21Z
+subject Added Alpaca TSLA runtime switch session form
+
+ ...ession-2026-05-22-alpaca-tsla-runtime-switch.md | 215 +++++++++++++++++++++
+ 1 file changed, 215 insertions(+)
+
+commit f9dfbc053a3219551d8330a08f4cc2f7afcebe4a
+short f9dfbc0
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:46:16Z
+subject Added state flatten restart session form
+
+ .../session-2026-05-22-state-flatten-restart.md    | 104 +++++++++++++++++++++
+ 1 file changed, 104 insertions(+)
+
+commit 92dfff04e64dd0431c1dda5570f8b6fd3564a918
+short 92dfff0
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:37:22Z
+subject Updated repo history snapshot
+
+ ogz-meta/REPO-HISTORY.md | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)
+
 commit fa168818f34547eb204a0143a3e42658bb047464
 short fa16881
 author CGP-ME <cgp@ogzprime.com>
@@ -1411,34 +1438,4 @@ subject fix(symbol-trading-context): Fix 26 thread symbol into IndicatorEngine c
  core/SymbolTradingContext.js                   |    9 +-
  ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md | 2560 ++++++++++++++++++++++++
  2 files changed, 2568 insertions(+), 1 deletion(-)
-
-commit 782a98107704de0b74ce2dbc7c517a431ef44515
-short 782a981
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T22:58:27Z
-subject fix(spec-parser): boundary regex matches H1/H2 headings
-
- ogz-meta/spec-parser.js | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
-
-commit ee9edaddb934fcc91fc9f4a488f9aba97bbb9b8f
-short ee9edad
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T20:58:08Z
-subject chore(frontend): refresh ssl-server + chart-panel + tombstone system-snapshot
-
- ogzprime-ssl-server.js              | 58 ++++++++++++++++++++++++++++++++++++-
- public/js/panels/chart-panel.js     | 49 +++++++++++++++++++++++++++++++
- public/js/panels/system-snapshot.js | 57 +++++++++++++++++++-----------------
- 3 files changed, 137 insertions(+), 27 deletions(-)
-
-commit 498a16e4ec98756231aa8d38581b28f51556ea57
-short 498a16e
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T14:29:36Z
-subject fix(state-manager): P1-A trade.size stale after partial close — ANCHOR SHIFT
-
- core/StateManager.js                         |  1 +
- ogz-meta/specs/baseline-phase0-2026-05-06.md | 43 +++++++++++++++++++---------
- 2 files changed, 30 insertions(+), 14 deletions(-)
 ```
