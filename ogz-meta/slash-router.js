@@ -2199,31 +2199,40 @@ async function architectVerify(manifest, params) {
     return manifest;
   }
 
-  const filePath = path.isAbsolute(parsed.file)
-    ? parsed.file
-    : path.join(process.cwd(), parsed.file);
+  const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
+  const editVerifications = [];
 
-  if (!fs.existsSync(filePath)) {
-    console.error(`❌ architect-verify: target file not found: ${filePath}`);
-    manifest.stop_conditions.manifest_mismatch = true;
-    return manifest;
+  for (let fileIndex = 0; fileIndex < parsedFiles.length; fileIndex++) {
+    const fileEntry = parsedFiles[fileIndex];
+    const filePath = path.isAbsolute(fileEntry.file)
+      ? fileEntry.file
+      : path.join(process.cwd(), fileEntry.file);
+
+    if (!fs.existsSync(filePath)) {
+      console.error(`❌ architect-verify: target file not found: ${filePath}`);
+      manifest.stop_conditions.manifest_mismatch = true;
+      return manifest;
+    }
+
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+
+    fileEntry.edits.forEach((edit, editIndex) => {
+      editVerifications.push({
+        file: fileEntry.file,
+        fileIndex,
+        editIndex,
+        index: editVerifications.length,
+        occurrences: _countOccurrences(fileContents, edit.target),
+        firstLineOfTarget: edit.target.split('\n')[0].slice(0, 100)
+      });
+    });
   }
-
-  const fileContents = fs.readFileSync(filePath, 'utf8');
-
-  // Multi-block: verify every edit's target exists. Fail loud if any single
-  // block has drifted from the spec's authored state.
-  const editVerifications = parsed.edits.map((edit, i) => ({
-    index: i,
-    occurrences: _countOccurrences(fileContents, edit.target),
-    firstLineOfTarget: edit.target.split('\n')[0].slice(0, 100)
-  }));
 
   const missing = editVerifications.filter(v => v.occurrences === 0);
   if (missing.length > 0) {
-    console.error(`❌ architect-verify: ${missing.length}/${parsed.edits.length} target block(s) NOT FOUND in ${parsed.file}`);
+    console.error(`❌ architect-verify: ${missing.length}/${editVerifications.length} target block(s) NOT FOUND`);
     missing.forEach(m => {
-      console.error(`   edit[${m.index}] missing — first line: ${m.firstLineOfTarget}`);
+      console.error(`   ${m.file} edit[${m.editIndex}] missing — first line: ${m.firstLineOfTarget}`);
     });
     console.error(`   Spec authored against an earlier code state; current code has drifted.`);
     manifest.stop_conditions.manifest_mismatch = true;
@@ -2231,19 +2240,20 @@ async function architectVerify(manifest, params) {
   }
 
   updateSection(manifest, 'architect', {
-    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, file: parsed.file },
-    system_map: [parsed.file],
+    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, files: parsedFiles.map(f => f.file) },
+    system_map: parsedFiles.map(f => f.file),
     spec_target_occurrences: editVerifications.reduce((sum, v) => sum + v.occurrences, 0),
     spec_target_verified: true,
-    line_hint: parsed.lineHint,
-    edit_count: parsed.edits.length,
+    line_hint: parsedFiles.map(f => ({ file: f.file, lineHint: f.lineHint || 'n/a' })),
+    edit_count: editVerifications.length,
+    file_count: parsedFiles.length,
     edit_verifications: editVerifications
   });
 
   console.log(`✅ Architect-Verify: Fix ${parsed.fixId} "${parsed.title}"`);
-  console.log(`   File: ${parsed.file}  Edits: ${parsed.edits.length}  Line hint: ${parsed.lineHint || 'n/a'}`);
-  editVerifications.forEach((v, i) => {
-    console.log(`   edit[${i}] occurrences: ${v.occurrences}`);
+  console.log(`   Files: ${parsedFiles.length}  Edits: ${editVerifications.length}`);
+  editVerifications.forEach(v => {
+    console.log(`   ${v.file} edit[${v.editIndex}] occurrences: ${v.occurrences}`);
   });
   return manifest;
 }
@@ -2281,45 +2291,50 @@ async function fixerWrite(manifest, params) {
     return manifest;
   }
 
-  const filePath = path.isAbsolute(parsed.file)
-    ? parsed.file
-    : path.join(process.cwd(), parsed.file);
+  const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
 
   if (manifest.mode === 'EXECUTE') {
-    let fileContents = fs.readFileSync(filePath, 'utf8');
     const perEditResults = [];
+    const filesWritten = [];
 
-    // Apply each edit in order. Fail loud + abort if any target missing
+    // Apply each file's edits in order. Fail loud + abort if any target missing
     // (architect-verify already checked, but re-check to catch concurrent edits
     // and to detect cases where an earlier edit's replacement inadvertently
     // removed a later edit's target).
-    for (let i = 0; i < parsed.edits.length; i++) {
-      const edit = parsed.edits[i];
-      if (!fileContents.includes(edit.target)) {
-        console.error(`❌ fixer-write: edit[${i}] target disappeared mid-apply (concurrent edit or earlier replacement clobbered it)`);
-        manifest.stop_conditions.verification_failed = true;
-        return manifest;
-      }
-      const occurrencesReplaced = (fileContents.match(new RegExp(_escapeRegex(edit.target), 'g')) || []).length;
-      fileContents = fileContents.split(edit.target).join(edit.replacement);
-      perEditResults.push({ index: i, occurrencesReplaced });
-    }
+    for (let fileIndex = 0; fileIndex < parsedFiles.length; fileIndex++) {
+      const fileEntry = parsedFiles[fileIndex];
+      const filePath = path.isAbsolute(fileEntry.file)
+        ? fileEntry.file
+        : path.join(process.cwd(), fileEntry.file);
+      let fileContents = fs.readFileSync(filePath, 'utf8');
 
-    fs.writeFileSync(filePath, fileContents, 'utf8');
+      for (let editIndex = 0; editIndex < fileEntry.edits.length; editIndex++) {
+        const edit = fileEntry.edits[editIndex];
+        if (!fileContents.includes(edit.target)) {
+          console.error(`❌ fixer-write: ${fileEntry.file} edit[${editIndex}] target disappeared mid-apply (concurrent edit or earlier replacement clobbered it)`);
+          manifest.stop_conditions.verification_failed = true;
+          return manifest;
+        }
+        const occurrencesReplaced = (fileContents.match(new RegExp(_escapeRegex(edit.target), 'g')) || []).length;
+        fileContents = fileContents.split(edit.target).join(edit.replacement);
+        perEditResults.push({
+          file: fileEntry.file,
+          fileIndex,
+          editIndex,
+          index: perEditResults.length,
+          occurrencesReplaced
+        });
+      }
+
+      fs.writeFileSync(filePath, fileContents, 'utf8');
+      filesWritten.push(fileEntry.file);
+    }
 
     // FIX 40/40A: /fixer-write must feed the manifest-scoped committer with a
     // canonical repo-relative path. The committer stages manifest.artifacts
     // entries directly through git add, so reject empty/outside-repo paths and
     // normalize separators before deduping.
     const repoRoot = process.cwd();
-    const artifactPath = path.relative(repoRoot, path.resolve(parsed.file)).replace(/\\/g, '/');
-    if (!artifactPath) {
-      throw new Error('fixer-write: parsed file resolved to empty artifact path');
-    }
-    if (artifactPath === '..' || artifactPath.startsWith('../') || path.isAbsolute(artifactPath)) {
-      throw new Error(`fixer-write: refusing outside-repo artifact path: ${parsed.file}`);
-    }
-
     if (!manifest.artifacts) manifest.artifacts = {};
     if (!Array.isArray(manifest.artifacts.files_modified)) {
       manifest.artifacts.files_modified = [];
@@ -2327,21 +2342,31 @@ async function fixerWrite(manifest, params) {
     if (!Array.isArray(manifest.artifacts.files_created)) {
       manifest.artifacts.files_created = [];
     }
-    if (
-      !manifest.artifacts.files_modified.includes(artifactPath) &&
-      !manifest.artifacts.files_created.includes(artifactPath)
-    ) {
-      manifest.artifacts.files_modified.push(artifactPath);
+
+    for (const file of filesWritten) {
+      const artifactPath = path.relative(repoRoot, path.resolve(file)).replace(/\\/g, '/');
+      if (!artifactPath) {
+        throw new Error('fixer-write: parsed file resolved to empty artifact path');
+      }
+      if (artifactPath === '..' || artifactPath.startsWith('../') || path.isAbsolute(artifactPath)) {
+        throw new Error(`fixer-write: refusing outside-repo artifact path: ${file}`);
+      }
+      if (
+        !manifest.artifacts.files_modified.includes(artifactPath) &&
+        !manifest.artifacts.files_created.includes(artifactPath)
+      ) {
+        manifest.artifacts.files_modified.push(artifactPath);
+      }
     }
 
     const totalReplaced = perEditResults.reduce((sum, r) => sum + r.occurrencesReplaced, 0);
 
     updateSection(manifest, 'fixer', {
       changes_applied: [{
-        file: parsed.file,
+        files: filesWritten,
         fixId: parsed.fixId,
         title: parsed.title,
-        editCount: parsed.edits.length,
+        editCount: perEditResults.length,
         totalSitesReplaced: totalReplaced,
         perEditResults,
         spec_driven: true
@@ -2349,9 +2374,9 @@ async function fixerWrite(manifest, params) {
       plan: { spec_driven: true, fixId: parsed.fixId }
     });
 
-    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${parsed.file} — ${parsed.edits.length} edit(s), ${totalReplaced} site(s) replaced`);
+    console.log(`✅ Fixer-Write (EXECUTE): applied Fix ${parsed.fixId} to ${filesWritten.length} file(s) — ${perEditResults.length} edit(s), ${totalReplaced} site(s) replaced`);
     perEditResults.forEach(r => {
-      console.log(`   edit[${r.index}] → ${r.occurrencesReplaced} site(s)`);
+      console.log(`   ${r.file} edit[${r.editIndex}] -> ${r.occurrencesReplaced} site(s)`);
     });
     return manifest;
   }
@@ -2361,8 +2386,9 @@ async function fixerWrite(manifest, params) {
   if (!fs.existsSync(proposalDir)) fs.mkdirSync(proposalDir, { recursive: true });
   const proposalPath = path.join(proposalDir, `${manifest.mission_id}-WRITE-PROPOSAL.md`);
 
-  const editBlocks = parsed.edits.map((edit, i) => `
-## Edit ${i + 1} of ${parsed.edits.length}
+  const editBlocks = parsedFiles.flatMap(fileEntry =>
+    fileEntry.edits.map((edit, i) => `
+## ${fileEntry.file} - Edit ${i + 1} of ${fileEntry.edits.length}
 
 ### str_replace target (verbatim from spec)
 \`\`\`
@@ -2373,7 +2399,8 @@ ${edit.target}
 \`\`\`
 ${edit.replacement}
 \`\`\`
-`).join('\n');
+`)
+  ).join('\n');
 
   const proposalBody = `# WRITE PROPOSAL: ${manifest.mission_id}
 Generated: ${new Date().toISOString()}
@@ -2385,15 +2412,15 @@ been modified. Re-run with --execute to apply.
 ## Source
 - Spec: \`${spec.path}\`
 - Fix: ${parsed.fixId} — ${parsed.title}
-- File: \`${parsed.file}\`
-- Line hint: ${parsed.lineHint || 'n/a'}
-- Edit count: ${parsed.edits.length}
+- Files: ${parsedFiles.map(f => `\`${f.file}\``).join(', ')}
+- Line hints: ${parsedFiles.map(f => `${f.file}: ${f.lineHint || 'n/a'}`).join('; ')}
+- Edit count: ${parsedFiles.reduce((sum, f) => sum + f.edits.length, 0)}
 ${editBlocks}
 
 ## Pre-flight verification (from architect-verify)
 - Total target occurrences across all edits: ${manifest.architect?.spec_target_occurrences ?? 'n/a'}
 - All edits verified: ${manifest.architect?.spec_target_verified ?? 'n/a'}
-- Per-edit verifications: ${JSON.stringify(manifest.architect?.edit_verifications?.map(v => ({i: v.index, occ: v.occurrences})) ?? 'n/a')}
+- Per-edit verifications: ${JSON.stringify(manifest.architect?.edit_verifications?.map(v => ({file: v.file, edit: v.editIndex, occ: v.occurrences})) ?? 'n/a')}
 
 ## Approve
 \`\`\`
@@ -2410,7 +2437,7 @@ node ogz-meta/reject.js ${manifest.mission_id} "<reason>"
 
   updateSection(manifest, 'fixer', {
     proposal_path: proposalPath,
-    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, file: parsed.file }
+    plan: { spec_driven: true, fixId: parsed.fixId, title: parsed.title, files: parsedFiles.map(f => f.file) }
   });
 
   console.log(`✅ Fixer-Write (ADVISORY): proposal written`);
@@ -2619,28 +2646,33 @@ async function mercuryAttack(manifest, params) {
     return manifest;
   }
 
-  const targetFile = parsed.file;
+  const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
+  const targetFiles = parsedFiles.map(f => f.file);
   const fixId = parsed.fixId;
   const fixTitle = parsed.title;
 
   // Build attack-framed prompt. Include the spec's title + line hint + a
   // synthesized description of the change so Mercury has the WHAT before
   // it goes hunting for the failure mode.
-  const editSummary = parsed.edits.map((e, i) => {
-    const firstTarget = e.target.split('\n')[0].slice(0, 80);
-    return `  Edit ${i + 1}/${parsed.edits.length}: ${firstTarget}…`;
-  }).join('\n');
+  const editSummary = parsedFiles.flatMap(fileEntry =>
+    fileEntry.edits.map((e, i) => {
+      const firstTarget = e.target.split('\n')[0].slice(0, 80);
+      return `  ${fileEntry.file} edit ${i + 1}/${fileEntry.edits.length}: ${firstTarget}...`;
+    })
+  ).join('\n');
 
   const attackPrompt = [
-    `Adversarial review of Fix ${fixId} in ${targetFile}.`,
+    `Adversarial review of Fix ${fixId} across ${targetFiles.length} file(s).`,
     `Title: ${fixTitle}`,
-    `Line hint: ${parsed.lineHint || 'n/a'}`,
-    `Edits applied: ${parsed.edits.length}`,
+    `Files: ${targetFiles.join(', ')}`,
+    `Line hints: ${parsedFiles.map(f => `${f.file}: ${f.lineHint || 'n/a'}`).join('; ')}`,
+    `Edits applied: ${parsedFiles.reduce((sum, f) => sum + f.edits.length, 0)}`,
     editSummary,
     ``,
     `## Your job — ATTACK, do not verify`,
     ``,
-    `Read ${targetFile}. The change has ALREADY been applied. For each caller`,
+    `Read these files: ${targetFiles.join(', ')}.`,
+    `The change has ALREADY been applied. For each caller`,
     `in the blast radius, hunt for a state where the new code BREAKS that`,
     `caller's contract or LIES to a downstream consumer. Construct concrete`,
     `failure modes with file:line citations.`,
@@ -2663,18 +2695,23 @@ async function mercuryAttack(manifest, params) {
 
   // Serena blast radius (5s timeout fallback per spec)
   let blastRadiusFormatted = null;
-  let blastMeta = null;
+  let blastMeta = [];
   try {
     const { getBlastRadius, formatForMercury } = require('../tools/serena-bridge');
-    const br = await getBlastRadius(targetFile);
-    blastMeta = { callerCount: br.callerCount, riskLevel: br.riskLevel, latencyMs: br.latencyMs, summary: br.summary };
-    blastRadiusFormatted = formatForMercury(br);
-    console.log(`   Serena: ${br.callerCount} caller(s), risk=${br.riskLevel}, ${br.latencyMs}ms`);
+    const blastResults = [];
+    for (const targetFile of targetFiles) {
+      const br = await getBlastRadius(targetFile);
+      blastMeta.push({ file: targetFile, callerCount: br.callerCount, riskLevel: br.riskLevel, latencyMs: br.latencyMs, summary: br.summary });
+      blastResults.push(`## ${targetFile}\n${formatForMercury(br)}`);
+      console.log(`   Serena ${targetFile}: ${br.callerCount} caller(s), risk=${br.riskLevel}, ${br.latencyMs}ms`);
+    }
+    blastRadiusFormatted = blastResults.join('\n\n');
   } catch (err) {
     console.warn(`   Serena failed: ${err.message} — Mercury attacks without blast radius`);
+    blastMeta = null;
   }
 
-  console.log(`🔍 Mercury-Attack: dispatching against ${targetFile} (Fix ${fixId})...`);
+  console.log(`🔍 Mercury-Attack: dispatching against ${targetFiles.join(', ')} (Fix ${fixId})...`);
   const t0 = Date.now();
   let result;
   try {
@@ -2699,7 +2736,9 @@ async function mercuryAttack(manifest, params) {
   // Write transcript to repo-rooted cognition-history dir.
   const transcriptDir = path.join(__dirname, 'cognition-history', 'mercury-attacks');
   if (!fs.existsSync(transcriptDir)) fs.mkdirSync(transcriptDir, { recursive: true });
-  const fileBase = path.basename(targetFile, path.extname(targetFile));
+  const fileBase = targetFiles.length === 1
+    ? path.basename(targetFiles[0], path.extname(targetFiles[0]))
+    : 'multi-file';
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const transcriptPath = path.join(transcriptDir, `fix${fixId}-${fileBase}-attack-${ts}.md`);
 
@@ -2712,16 +2751,16 @@ async function mercuryAttack(manifest, params) {
     `# Fix ${fixId} — Mercury Adversarial Attack Result`,
     ``,
     `**Generated:** ${new Date().toISOString()}`,
-    `**Target:** \`${targetFile}\``,
+    `**Targets:** ${targetFiles.map(f => `\`${f}\``).join(', ')}`,
     `**Title:** ${fixTitle}`,
-    `**Edits:** ${parsed.edits.length}`,
+    `**Edits:** ${parsedFiles.reduce((sum, f) => sum + f.edits.length, 0)}`,
     `**Iterations:** ${iterations || 'n/a'}`,
     `**Elapsed:** ${elapsed}ms`,
     `**Mission:** ${manifest.mission_id}`,
     ``,
     `## Serena Blast Radius`,
-    blastMeta
-      ? `- Callers: ${blastMeta.callerCount} / Risk: ${blastMeta.riskLevel} / Latency: ${blastMeta.latencyMs}ms\n- ${blastMeta.summary}`
+    Array.isArray(blastMeta)
+      ? blastMeta.map(meta => `- ${meta.file}: callers ${meta.callerCount} / risk ${meta.riskLevel} / latency ${meta.latencyMs}ms\n  ${meta.summary}`).join('\n')
       : `(Serena failed or timed out — Mercury attacked without blast radius)`,
     ``,
     `## Mercury Verdict`,
@@ -2741,7 +2780,7 @@ async function mercuryAttack(manifest, params) {
   updateSection(manifest, 'critic', {
     mercury_attack: {
       dispatched: true,
-      target: targetFile,
+      targets: targetFiles,
       iterations: iterations,
       elapsedMs: elapsed,
       transcript: path.relative(process.cwd(), transcriptPath),
@@ -3002,6 +3041,9 @@ async function anchorVerifyPost(manifest, params) {
     return manifest;
   }
 
+  const parsedFiles = parsed.files || [{ file: parsed.file, lineHint: parsed.lineHint, edits: parsed.edits }];
+  const targetFiles = parsedFiles.map(f => f.file);
+
   // Trade-path = core/, brokers/, modules/, run-empire-v2.js per Trade-Path P0 Law.
   // Other files (foundation/, ogz-meta/, tools/, trai_brain/) feed trade-path but
   // their changes typically don't move the backtest anchor. Running anchors anyway
@@ -3009,9 +3051,9 @@ async function anchorVerifyPost(manifest, params) {
   // ~3 minutes of pipeline time. The litmus: does the file path start with one of
   // the trade-path prefixes?
   const tradePathPrefixes = ['core/', 'brokers/', 'modules/', 'run-empire-v2.js', 'foundation/'];
-  const isTradePath = tradePathPrefixes.some(p => parsed.file.startsWith(p));
+  const isTradePath = targetFiles.some(file => tradePathPrefixes.some(p => file.startsWith(p)));
   if (!isTradePath) {
-    console.log(`⏭️  Anchor-Verify-Post: ${parsed.file} is not trade-path — skipping anchors`);
+    console.log(`⏭️  Anchor-Verify-Post: ${targetFiles.join(', ')} is not trade-path — skipping anchors`);
     return manifest;
   }
 

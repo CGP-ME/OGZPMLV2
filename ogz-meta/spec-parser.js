@@ -33,6 +33,29 @@
  *
  *   **Verification:** ...
  *
+ * Multi-file write specs are also supported. Use one `#### File N:`
+ * subsection per target file:
+ *
+ *   ### Fix N: <title>
+ *
+ *   **Status:** NOT FIXED
+ *
+ *   #### File 1: `path/to/first.js`
+ *   **Line:** ~100
+ *
+ *   **str_replace target:**
+ *   ```js
+ *   <exact code to find in first.js>
+ *   ```
+ *
+ *   **str_replace replacement:**
+ *   ```js
+ *   <replacement for first.js>
+ *   ```
+ *
+ *   #### File 2: `path/to/second.js`
+ *   ...
+ *
  * Return shape (multi-block aware):
  *   {
  *     fixId: "4",
@@ -44,7 +67,10 @@
  *       { target: "<code>", replacement: "<code>" },   // additional (if present)
  *       ...
  *     ],
- *     // Backward-compat shortcuts to the first edit:
+ *     files: [
+ *       { file: "path/to/file.js", lineHint: "~408", edits: [...] }
+ *     ],
+ *     // Backward-compat shortcuts to the first file/edit:
  *     target: edits[0].target,
  *     replacement: edits[0].replacement
  *   }
@@ -94,28 +120,65 @@ function parseFix(specPath, fixId) {
   const sectionEnd = endMatch ? startIdx + startMatch[0].length + endMatch.index : raw.length;
   const section = raw.slice(startIdx, sectionEnd);
 
-  // File: `**File:** \`<path>\``
+  const files = _extractFileSections(section, fixIdStr);
+  const edits = files.flatMap((entry, fileIndex) =>
+    entry.edits.map(edit => ({ ...edit, file: entry.file, fileIndex }))
+  );
+  const firstFile = files[0];
+  const firstEdit = edits[0];
+
+  return {
+    fixId: fixIdStr,
+    title,
+    file: firstFile.file,
+    lineHint: firstFile.lineHint,
+    files,
+    edits,
+    // Backward-compat aliases for callers that read parsed.target / parsed.replacement
+    target: firstEdit.target,
+    replacement: firstEdit.replacement
+  };
+}
+
+function _extractFileSections(section, fixIdStr) {
+  const fileHeadingPattern = /^####\s+File(?:\s+\d+)?:\s+`([^`]+)`\s*$/gm;
+  const headingMatches = Array.from(section.matchAll(fileHeadingPattern));
+
+  if (headingMatches.length > 0) {
+    return headingMatches.map((match, index) => {
+      const file = match[1].trim();
+      const chunkStart = match.index + match[0].length;
+      const next = headingMatches[index + 1];
+      const chunkEnd = next ? next.index : section.length;
+      const chunk = section.slice(chunkStart, chunkEnd);
+      return _parseFileChunk(chunk, file, fixIdStr);
+    });
+  }
+
+  // Legacy single-file format.
   const fileMatch = section.match(/\*\*File:\*\*\s+`([^`]+)`/);
   if (!fileMatch) {
-    throw new Error(`spec-parser: Fix ${fixIdStr} missing "**File:** \`...\`" line`);
+    throw new Error(`spec-parser: Fix ${fixIdStr} missing "**File:** \`...\`" line or "#### File N: \`...\`" subsection`);
   }
   const file = fileMatch[1].trim();
+  return [_parseFileChunk(section, file, fixIdStr)];
+}
 
-  // Optional line hint
-  const lineMatch = section.match(/\*\*Lines?:\*\*\s+([^\n]+)/);
+function _parseFileChunk(chunk, file, fixIdStr) {
+  const lineMatch = chunk.match(/\*\*Lines?:\*\*\s+([^\n]+)/);
   const lineHint = lineMatch ? lineMatch[1].trim() : null;
 
   // Find ALL target headings (with optional annotations like "target (BUY, lines 446-448)")
   // and ALL replacement headings, then pair them by appearance order.
-  const targets = _extractAllFencedBlocks(section, /\*\*str_replace target[^*\n]*:\*\*\s*\n/g);
-  const replacements = _extractAllFencedBlocks(section, /\*\*str_replace replacement[^*\n]*:\*\*\s*\n/g);
+  const targets = _extractAllFencedBlocks(chunk, /\*\*str_replace target[^*\n]*:\*\*\s*\n/g);
+  const replacements = _extractAllFencedBlocks(chunk, /\*\*str_replace replacement[^*\n]*:\*\*\s*\n/g);
 
   if (targets.length === 0) {
-    throw new Error(`spec-parser: Fix ${fixIdStr} has no "**str_replace target:**" fenced block`);
+    throw new Error(`spec-parser: Fix ${fixIdStr} file ${file} has no "**str_replace target:**" fenced block`);
   }
   if (targets.length !== replacements.length) {
     throw new Error(
-      `spec-parser: Fix ${fixIdStr} target/replacement count mismatch — ` +
+      `spec-parser: Fix ${fixIdStr} file ${file} target/replacement count mismatch — ` +
       `${targets.length} target block(s) vs ${replacements.length} replacement block(s)`
     );
   }
@@ -125,16 +188,7 @@ function parseFix(specPath, fixId) {
     replacement: replacements[i]
   }));
 
-  return {
-    fixId: fixIdStr,
-    title,
-    file,
-    lineHint,
-    edits,
-    // Backward-compat aliases for callers that read parsed.target / parsed.replacement
-    target: edits[0].target,
-    replacement: edits[0].replacement
-  };
+  return { file, lineHint, edits };
 }
 
 /**
