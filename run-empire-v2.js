@@ -523,6 +523,12 @@ class OGZPrimeV14Bot {
       activeTimeframes: ['1m', '5m', '15m', '1h', '4h', '1d'],
     });
 
+    const runtimeCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
+    if (typeof runtimeCandleTimeframe !== 'string' || !runtimeCandleTimeframe.trim()) {
+      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${runtimeCandleTimeframe}) - refusing to start without a real candle timeframe`);
+    }
+    this.candleTimeframe = runtimeCandleTimeframe.trim();
+
     // CHANGE 2026-02-21: Adaptive timeframe selection based on market conditions
     // Runtime analysis is pinned to broker.candleTimeframe until SymbolTradingContext
     // and CandleStore support active multi-timeframe context swaps.
@@ -810,11 +816,6 @@ class OGZPrimeV14Bot {
     if (!this.tradingPair) {
       throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
     }
-    const configuredCandleTimeframe = resolvedConfig.config.broker.candleTimeframe;
-    if (typeof configuredCandleTimeframe !== 'string' || !configuredCandleTimeframe.trim()) {
-      throw new Error(`[BOOT][Timeframe] broker.candleTimeframe missing/invalid (${configuredCandleTimeframe}) - refusing to start without a real candle timeframe`);
-    }
-    this.candleTimeframe = configuredCandleTimeframe.trim();
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
 
     // CC-C Multi-Symbol Commit 2/6: per-symbol contexts
