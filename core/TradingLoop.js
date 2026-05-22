@@ -562,9 +562,14 @@ class TradingLoop {
     const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
     const patterns = [...candlePatterns, ...memoryPatterns];
 
-    // Record patterns for learning (skip in fast backtest)
+    // Record patterns for learning (skip in backtest/replay modes)
     if (patterns.length > 0 && !this.ctx.backtestFast) {
       const telemetry = require('./Telemetry').getTelemetry();
+      const canRecordPatternObservations =
+        !this.ctx.config?.enableBacktestMode &&
+        process.env.BACKTEST_NO_PATTERN_SAVE !== 'true' &&
+        typeof this.ctx.patternChecker?.memory?.recordObservation === 'function';
+      let recordedObservations = 0;
       patterns.forEach(pattern => {
         // MED-08: skip telemetry record for nameless patterns instead of
         // collapsing them all into 'unknown_pattern' bucket. Detector contract
@@ -576,8 +581,22 @@ class TradingLoop {
         if (!Array.isArray(pattern.features)) {
           pattern.features = FeatureExtractor.extractArray({ indicators, candles: priceHistory });
         }
+        if (canRecordPatternObservations && Array.isArray(pattern.features) && pattern.features.length > 0) {
+          const observed = this.ctx.patternChecker.memory.recordObservation(pattern.features, {
+            timestamp: this.ctx.marketData?.timestamp ?? Date.now(),
+            strategy: pattern.name || pattern.type || 'pattern',
+            price,
+          });
+          if (observed) recordedObservations++;
+        }
         telemetry.event('pattern_detected', { signature, confidence: pattern.confidence, price });
       });
+      if (recordedObservations > 0) {
+        this._patternObservationCount = (this._patternObservationCount || 0) + recordedObservations;
+        if (this._patternObservationCount === recordedObservations || this._patternObservationCount % 100 === 0) {
+          console.log(`[PATTERN][OBSERVE] recorded=${recordedObservations} total=${this._patternObservationCount} price=${price}`);
+        }
+      }
     }
     this.ctx.broadcastPatternAnalysis(patterns, indicators);
 
