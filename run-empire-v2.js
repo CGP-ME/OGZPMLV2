@@ -379,6 +379,25 @@ function getDirectionDisplayLabel(direction, assetType = 'crypto') {
   return isSell ? 'SHORT' : 'LONG';
 }
 
+function normalizeRuntimeSymbol(symbol) {
+  if (typeof symbol !== 'string' || !symbol.trim()) return null;
+  let normalized = symbol.trim().toUpperCase().replace('XBT', 'BTC').split('/').join('-');
+  if (!normalized.includes('-') && normalized.endsWith('USD') && normalized.length === 6) {
+    normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
+  }
+  return normalized;
+}
+
+function splitSymbols(raw) {
+  if (!raw) return [];
+  return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function describeSymbolContexts(map) {
+  if (!map || map.size === 0) return '(none)';
+  return Array.from(map.keys()).join(',');
+}
+
 /**
  * Main Trading Bot Orchestrator
  * Coordinates all modules for production trading
@@ -624,6 +643,9 @@ class OGZPrimeV14Bot {
     // Default OFF: existing single-broker path runs unchanged (Phase 0 dormant).
     // ON: dual-broker SessionRouter swaps Kraken (crypto) <-> Alpaca (stocks RTH).
     const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
+    if (sessionRouterEnabled && resolvedConfig.config.mode.backtest) {
+      throw new Error('[SessionRouter] SESSION_ROUTER_ENABLED=true is not allowed in backtest mode — refusing live feed contamination of file backtests');
+    }
 
     if (sessionRouterEnabled) {
       console.log('[EMPIRE V2] SessionRouter ENABLED — creating Kraken + Alpaca adapters');
@@ -661,29 +683,39 @@ class OGZPrimeV14Bot {
         // Dual-broker emits may carry .symbol on the wrapper; if absent,
         // infer from the active session's primary symbol. Either source
         // gets normalized to dash-form before storing.
-        const rawSym = (eventData && eventData.symbol)
-          || (raw && typeof raw === 'object' && raw.S)        // Alpaca raw bar
-          || (this.sessionRouter && this.sessionRouter.activeSession === 'crypto'
-              ? (this.sessionRouter.cryptoSymbols && this.sessionRouter.cryptoSymbols[0])
-              : null);
-        if (rawSym) {
-          const sym = String(rawSym).toUpperCase().replace('XBT','BTC').replace('/','-');
-          if (stateManager && stateManager.updateLastPrice) {
-            stateManager.updateLastPrice(sym, ohlcData[5]);
-          }
+        const eventSymbol = eventData && eventData.symbol;
+        const rawSymbol = raw && typeof raw === 'object' && (raw.symbol || raw.S);
+        const sessionPrimary = this.sessionRouter && this.sessionRouter.activeSession === 'crypto'
+          ? (this.sessionRouter.cryptoSymbols && this.sessionRouter.cryptoSymbols[0])
+          : null;
+        const rawSym = eventSymbol || rawSymbol || sessionPrimary;
+        const symbolSource = eventSymbol ? 'event.symbol' : rawSymbol ? 'raw.symbol' : sessionPrimary ? 'sessionPrimary' : 'missing';
+        const sym = normalizeRuntimeSymbol(rawSym);
+        if (!sym) {
+          console.error(`[VIS][OHLC][Runner] dropped ${tf} SessionRouter candle: missing symbol | session=${this.sessionRouter?.activeSession || '(none)'} contexts=${describeSymbolContexts(this.symbolContexts)}`);
+          return;
+        }
+        if (stateManager && stateManager.updateLastPrice) {
+          stateManager.updateLastPrice(sym, ohlcData[5]);
+        }
+        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || '15m';
+        this._visOhlcSeen ??= new Set();
+        const visKey = `session:${this.sessionRouter?.activeSession || 'unknown'}:${sym}:${tf}`;
+        if (!this._visOhlcSeen.has(visKey) || tf === activeTf) {
+          this._visOhlcSeen.add(visKey);
+          console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
         this.storeTimeframeCandle(tf, ohlcData);
-        if (tf === '1m') this.handleMarketData(ohlcData);
+        if (tf === '1m') this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
         if (tf === '5m' && this.timeframeSelector) {
           const tfResult = this.timeframeSelector.evaluate();
           if (tfResult.switched) {
             console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
           }
         }
-        const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || '15m';
         if (tf === activeTf) {
           console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-          this.run15mTradingCycle();
+          this.run15mTradingCycle(sym);
         }
       };
 
@@ -765,7 +797,10 @@ class OGZPrimeV14Bot {
     this.isRunning = false;
     this.marketData = null;
     this.priceHistory = [];  // 1m candles for trading logic
-    this.tradingPair = resolvedConfig.config.broker.tradingPair;
+    this.tradingPair = normalizeRuntimeSymbol(resolvedConfig.config.broker.tradingPair);
+    if (!this.tradingPair) {
+      throw new Error('[BOOT][SymbolContexts] broker.tradingPair missing/invalid — refusing to start without canonical symbol');
+    }
     this._candleStore = new CandleStore({ maxCandles: 250 });  // REFACTOR: shadow priceHistory
 
     // CC-C Multi-Symbol Commit 2/6: per-symbol contexts
@@ -792,7 +827,20 @@ class OGZPrimeV14Bot {
     // concern; CC-C uses '15m' to align with the live runtime path.
     this.symbolContexts = new Map();
     {
-      const symbols = (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim()).filter(Boolean);
+      const brokerId = resolvedConfig.config.broker.id;
+      const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
+      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const rawSymbols = sessionRouterEnabled
+        ? [
+            ...splitSymbols(process.env.ALPACA_SYMBOLS || (sessionsCfg.stockSymbols || []).join(',')),
+            ...(sessionsCfg.cryptoSymbols || []),
+          ]
+        : (brokerId === 'alpaca'
+            ? (splitSymbols(process.env.ALPACA_SYMBOLS).length > 0
+                ? splitSymbols(process.env.ALPACA_SYMBOLS)
+                : [resolvedConfig.config.broker.tradingPair])
+            : [resolvedConfig.config.broker.tradingPair]);
+      const symbols = [...new Set(rawSymbols.map(normalizeRuntimeSymbol).filter(Boolean))];
       const timeframe = '15m';
       for (const sym of symbols) {
         try {
@@ -803,6 +851,7 @@ class OGZPrimeV14Bot {
           console.error(`[BOOT][SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
         }
       }
+      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouter=${sessionRouterEnabled} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} envAlpacaSymbols=${splitSymbols(process.env.ALPACA_SYMBOLS).join(',') || '(none)'}`);
     }
 
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save
@@ -949,7 +998,7 @@ class OGZPrimeV14Bot {
     this.config = {
       // CHANGE 2026-02-28: Use TradingConfig for minTradeConfidence
       minTradeConfidence: TradingConfig.get('confidence.minTradeConfidence'),
-      tradingPair: resolvedConfig.config.broker.tradingPair,
+      tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
@@ -1019,6 +1068,7 @@ class OGZPrimeV14Bot {
       contractValidator: this.contractValidator,
       marketDataAggregator: this.marketDataAggregator,
       patternChecker: this.patternChecker,
+      symbolContexts: this.symbolContexts,
       config: this.config,
       riskManager: this.riskManager,
       pendingTraiDecisions: this.pendingTraiDecisions,
@@ -1179,7 +1229,7 @@ class OGZPrimeV14Bot {
     // wrong asset's candle history into priceHistory if resolvedConfig
     // resolution broke. ConfigLoader.js currently guarantees a value
     // (broker-conditional default), so the throw is defensive.
-    const symbol = resolvedConfig.config.broker.tradingPair || (() => {
+    const symbol = this.tradingPair || (() => {
       throw new Error('loadCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to load candles under BTC-USD default');
     })();
     // Clear in-memory priceHistory before hydrating. Defends against
@@ -1203,7 +1253,7 @@ class OGZPrimeV14Bot {
     // Same fail-loud pattern as the load companion. Saving under wrong asset
     // would persist mismatched candles to disk and propagate the error to
     // the next session's loadCandleHistory.
-    const symbol = resolvedConfig.config.broker.tradingPair || (() => {
+    const symbol = this.tradingPair || (() => {
       throw new Error('saveCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to persist candles under BTC-USD default');
     })();
     // Sync priceHistory to CandleStore before saving
@@ -1333,7 +1383,7 @@ class OGZPrimeV14Bot {
 
       // Subscribe to OHLC events from the broker
       if (this.kraken.on) {
-        const trackedSymbol = symbol;  // closure capture for updateLastPrice
+        const trackedSymbol = normalizeRuntimeSymbol(symbol);  // closure capture for updateLastPrice
         this.kraken.on('ohlc', (eventData) => {
           // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
           const timeframe = eventData.timeframe || '1m';
@@ -1353,12 +1403,23 @@ class OGZPrimeV14Bot {
 
           // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
           // Single-broker mode subscribes to one symbol — pass it through.
-          const ohlcSymbol = (eventData && eventData.symbol)
-            ? String(eventData.symbol).toUpperCase().replace('XBT','BTC').replace('/','-')
-            : trackedSymbol;
+          const eventSymbol = eventData && eventData.symbol;
+          const symbolSource = eventSymbol ? 'event.symbol' : 'subscription';
+          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || trackedSymbol);
+          if (!ohlcSymbol) {
+            console.error(`[VIS][OHLC][Runner] dropped ${timeframe} single-broker candle: missing symbol | broker=${resolvedConfig.config.broker.id} contexts=${describeSymbolContexts(this.symbolContexts)}`);
+            return;
+          }
           const ohlcClose = ohlcData[5];
           if (stateManager && stateManager.updateLastPrice) {
             stateManager.updateLastPrice(ohlcSymbol, ohlcClose);
+          }
+          this._visOhlcSeen ??= new Set();
+          const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
+          const visKey = `single:${resolvedConfig.config.broker.id}:${ohlcSymbol}:${timeframe}`;
+          if (!this._visOhlcSeen.has(visKey) || timeframe === activeTf) {
+            this._visOhlcSeen.add(visKey);
+            console.log(`[VIS][OHLC][Runner] source=single broker=${resolvedConfig.config.broker.id} timeframe=${timeframe} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || '(missing)'} symbol=${ohlcSymbol} close=${ohlcClose} contexts=${describeSymbolContexts(this.symbolContexts)}`);
           }
 
           // Store in timeframe-specific history for dashboard
@@ -1366,7 +1427,7 @@ class OGZPrimeV14Bot {
 
           // CHANGE 2026-02-21: Feed 1m candles to indicators + MTF adapter (granular data)
           if (timeframe === '1m') {
-            this.handleMarketData(ohlcData);
+            this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe });
           }
 
           // CHANGE 2026-02-21: Re-evaluate best timeframe on 5m candle close
@@ -1378,10 +1439,9 @@ class OGZPrimeV14Bot {
           }
 
           // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-          const activeTf = this.timeframeSelector?.currentTimeframe || '15m';
           if (timeframe === activeTf) {
             console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-            this.run15mTradingCycle();
+            this.run15mTradingCycle(ohlcSymbol);
           }
         });
 
@@ -1625,10 +1685,15 @@ class OGZPrimeV14Bot {
    * live/paper mode. Defined as alias to analyzeAndTrade since the trading
    * loop doesn't differentiate timeframes.
    */
-  async run15mTradingCycle() {
+  async run15mTradingCycle(symbol = this.tradingPair) {
     // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
     // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
-    return this.analyzeAndTrade(this.tradingPair);
+    const analysisSymbol = normalizeRuntimeSymbol(symbol);
+    if (!analysisSymbol) {
+      throw new Error(`run15mTradingCycle requires canonical symbol; got ${JSON.stringify(symbol)}`);
+    }
+    console.log(`[VIS][TradingCycle] triggerSymbol=${analysisSymbol} defaultTradingPair=${this.tradingPair}`);
+    return this.analyzeAndTrade(analysisSymbol);
   }
 
   async analyzeAndTrade(symbol) {
@@ -1645,6 +1710,7 @@ class OGZPrimeV14Bot {
     // Update context with current instance state before delegating
     this.tradingLoop.ctx.marketData = this.marketData;
     this.tradingLoop.ctx.priceHistory = this.priceHistory;
+    this.tradingLoop.ctx.symbolContexts = this.symbolContexts;
     this.tradingLoop.ctx.dashboardWs = this.dashboardWs;
     this.tradingLoop.ctx.dashboardWsConnected = this.dashboardWsConnected;
     this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;

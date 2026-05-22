@@ -27,6 +27,15 @@ const _h = (candle) => candle?.h ?? candle?.high ?? 0;
 const _l = (candle) => candle?.l ?? candle?.low ?? 0;
 const _c = (candle) => candle?.c ?? candle?.close ?? 0;
 
+function normalizeCandleSymbol(symbol) {
+  if (typeof symbol !== 'string' || !symbol.trim()) return null;
+  let normalized = symbol.trim().toUpperCase().replace('XBT', 'BTC').split('/').join('-');
+  if (!normalized.includes('-') && normalized.endsWith('USD') && normalized.length === 6) {
+    normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
+  }
+  return normalized;
+}
+
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
@@ -56,17 +65,27 @@ class CandleProcessor {
    *      (live broker WS or BacktestRunner with SYMBOL_MAP) → direct lookup.
    *   2. Single-symbol with aligned tradingPair: ctx.tradingPair matches a
    *      Map key → direct lookup. Common for live single-symbol mode.
-   *   3. Single-symbol with phantom tradingPair: e.g., Phase 0 baseline where
-   *      broker.tradingPair defaults to 'BTC/USD' but the data file is TSLA
-   *      and only TSLA is registered — fall back to the sole Map entry.
+   *   3. Missing-symbol single-symbol legacy feed: if no candle symbol exists,
+   *      fall back to ctx.tradingPair or the sole registered context.
+   *      Explicit candle symbols never fall back to a different context.
    * Returns null in pathological cases (multi-symbol Map with neither
    * candle.symbol nor a matching tradingPair); caller skips routing safely.
    */
   _resolveSymCtx(candle) {
     const map = this.ctx.symbolContexts;
     if (!map || map.size === 0) return null;
-    if (candle.symbol && map.has(candle.symbol)) return map.get(candle.symbol);
-    if (this.ctx.tradingPair && map.has(this.ctx.tradingPair)) return map.get(this.ctx.tradingPair);
+    const candleSymbol = normalizeCandleSymbol(candle.symbol);
+    const tradingPair = normalizeCandleSymbol(this.ctx.tradingPair);
+    if (candleSymbol && map.has(candleSymbol)) return map.get(candleSymbol);
+    if (candleSymbol) {
+      this._missingCandleContextSymbols ??= new Set();
+      if (!this._missingCandleContextSymbols.has(candleSymbol)) {
+        this._missingCandleContextSymbols.add(candleSymbol);
+        console.error(`[VIS][CandleProcessor] symbol=${candleSymbol} has no SymbolTradingContext; contexts=${Array.from(map.keys()).join(',') || '(none)'} ctxTradingPair=${tradingPair || '(missing)'}`);
+      }
+      return null;
+    }
+    if (tradingPair && map.has(tradingPair)) return map.get(tradingPair);
     if (map.size === 1) return map.values().next().value;
     return null;
   }
@@ -89,10 +108,11 @@ class CandleProcessor {
       // CRIT-05-followup: same fail-loud as TRAI sites — refuse to silently
       // poison candleStore under wrong asset symbol when both candle.symbol
       // and ctx.tradingPair are missing.
-      this.ctx._candleStore.addCandle(
-        candle.symbol || this.ctx.tradingPair || (() => {
+      const candleStoreSymbol = normalizeCandleSymbol(candle.symbol || this.ctx.tradingPair || (() => {
           throw new Error('CandleProcessor.processNewCandle (UPDATE): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
-        })(),
+        })());
+      this.ctx._candleStore.addCandle(
+        candleStoreSymbol,
         '15m',
         candle
       );
@@ -136,10 +156,11 @@ class CandleProcessor {
     }
 
     // CRIT-05-followup: NEW candle path — same fail-loud guard.
-    this.ctx._candleStore.addCandle(
-      candle.symbol || this.ctx.tradingPair || (() => {
+    const candleStoreSymbol = normalizeCandleSymbol(candle.symbol || this.ctx.tradingPair || (() => {
         throw new Error('CandleProcessor.processNewCandle (NEW): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
-      })(),
+      })());
+    this.ctx._candleStore.addCandle(
+      candleStoreSymbol,
       '15m',
       candle
     );
@@ -174,9 +195,10 @@ class CandleProcessor {
         this._firstCandleSeenSymbols ??= new Set();
         const sym = symCtx.symbol;
         if (!this._firstCandleSeenSymbols.has(sym)) {
-          console.log(`[BOOT][CandleProcessor] first candle routed to ${sym} context`);
+          console.log(`[VIS][CandleProcessor] first route candleSymbol=${candle.symbol || '(missing)'} selected=${sym} ctxTradingPair=${normalizeCandleSymbol(this.ctx.tradingPair) || '(missing)'} price=${candle.c}`);
           this._firstCandleSeenSymbols.add(sym);
         }
+        console.log(`[VIS][CandleProcessor] route candleSymbol=${candle.symbol || '(missing)'} selected=${sym} price=${candle.c} candles=${this.ctx.priceHistory.length}`);
         symCtx.indicatorEngine.updateCandle({
           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
         });
@@ -402,11 +424,18 @@ class CandleProcessor {
    * Handle incoming market data from WebSocket
    * Kraken OHLC format: [channelID, [time, etime, open, high, low, close, vwap, volume, count], channelName, pair]
    */
-  handleMarketData(ohlcData) {
+  handleMarketData(ohlcInput) {
+    const wrappedInput = ohlcInput && typeof ohlcInput === 'object' && !Array.isArray(ohlcInput)
+      ? ohlcInput
+      : null;
+    const stampedSymbol = normalizeCandleSymbol(wrappedInput?.symbol || wrappedInput?.data?.symbol || wrappedInput?.data?.S);
+    const ohlcData = Array.isArray(ohlcInput)
+      ? ohlcInput
+      : normalizeOhlc(wrappedInput?.data ?? ohlcInput);
 
     // OHLC data is array: [time, etime, open, high, low, close, vwap, volume, count]
     if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
-      console.warn('⚠️ Invalid OHLC data format:', ohlcData);
+      console.warn('⚠️ Invalid OHLC data format:', ohlcInput);
       return;
     }
 
@@ -458,6 +487,7 @@ class CandleProcessor {
       t: parseFloat(time) * 1000,  // Actual timestamp for display
       etime: parseFloat(etime) * 1000  // End time for deduplication
     };
+    if (stampedSymbol) candle.symbol = stampedSymbol;
 
     // Phase 5 REWRITE: ONE CANONICAL PATH - always call processNewCandle
     // processNewCandle now handles both updates (same etime) and new candles
@@ -517,7 +547,8 @@ class CandleProcessor {
     // Distinguishes "no trades" (legitimate zero) from "broker fed garbage"
     // (null). Downstream consumers must check finiteness before using.
     const _parsedVolume = parseFloat(volume);
-    this.ctx.marketData = {
+    const marketData = {
+      symbol: candle.symbol || null,
       price,
       timestamp: parseFloat(time) * 1000,  // Use candle's actual timestamp
       systemTime: Date.now(),  // Keep system time separately if needed
@@ -526,6 +557,9 @@ class CandleProcessor {
       high: parseFloat(high),
       low: parseFloat(low)
     };
+    this.ctx.marketData = marketData;
+    const symCtx = this._resolveSymCtx(candle);
+    if (symCtx) symCtx.marketData = marketData;
 
     // CHANGE 663: Broadcast market data to dashboard
     // BACKTEST_FAST: Skip dashboard broadcast entirely

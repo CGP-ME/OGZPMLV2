@@ -663,10 +663,9 @@ class AlpacaAdapter extends IBrokerAdapter {
                         // regardless of broker id; var name preserved) actually
                         // receives Alpaca bars. Without this the bars arrive
                         // and die in the adapter — no callback was registered,
-                        // no event was emitted. Matches Kraken's payload shape:
-                        // { timeframe, data } so run-empire-v2:1125-1134 handler
-                        // reads eventData.timeframe / eventData.data correctly.
-                        this.emit('ohlc', { timeframe: '1m', data: bar });
+                        // no event was emitted. Matches Kraken's payload shape
+                        // and carries explicit symbol for SessionRouter routing.
+                        this.emit('ohlc', { timeframe: '1m', data: bar, symbol: bar.symbol });
                         const cb = this.subscriptions.get(`bars-${msg.S}`);
                         if (cb) cb(bar);
                     }

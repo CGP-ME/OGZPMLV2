@@ -86,6 +86,7 @@ class TradingLoop {
     // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
     // symCtx pass — declaring them here too was dead code (Mercury attack #4).
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+    console.log(`[VIS][TradingLoop] analyze symbol=${symbol} route=${symCtx ? 'symbolContext' : 'global'} marketSymbol=${this.ctx.marketData?.symbol || '(missing)'} priceHistory=${priceHistory.length} broker=${this.ctx.config?.brokerId || '(missing)'} assetClass=${this.ctx.config?.assetClass || '(missing)'}`);
     if (symCtx && !this._firstAnalyzedSymbols) this._firstAnalyzedSymbols = new Set();
     if (symCtx && !this._firstAnalyzedSymbols.has(symbol)) {
       console.log(`[BOOT][TradingLoop] first analysis cycle for ${symbol} via symCtx path`);

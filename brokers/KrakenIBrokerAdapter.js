@@ -322,17 +322,30 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
           const pair = data.pair;
           // CHANGE 2026-01-29: Extract timeframe from multi-timeframe subscription
           const timeframe = data.timeframe || '1m';
+          const canonicalSymbol = this.fromBrokerSymbol(pair);
+          this._visOhlcEmitSeen ??= new Set();
+          const visKey = `${canonicalSymbol}:${timeframe}`;
+          if (!this._visOhlcEmitSeen.has(visKey)) {
+            this._visOhlcEmitSeen.add(visKey);
+            console.log(`[VIS][OHLC][KrakenIBroker] pair=${pair} symbol=${canonicalSymbol} timeframe=${timeframe} close=${ohlcData && ohlcData[5]}`);
+          }
 
-          // V2 ARCHITECTURE: Emit raw event for subscribers (like run-empire-v2)
-          // CHANGE 2026-01-29: Include timeframe in emitted event
-          this.emit('ohlc', { data: ohlcData, timeframe: timeframe });
+          // V2 ARCHITECTURE: Emit raw event for subscribers (like run-empire-v2).
+          // Keep the canonical symbol attached; run-empire-v2/CandleProcessor
+          // need it to avoid routing Kraken candles into a stale stock context.
+          this.emit('ohlc', {
+            data: ohlcData,
+            timeframe: timeframe,
+            symbol: canonicalSymbol,
+            pair,
+          });
 
           // Also process for callback if provided
           if (callback && ohlcData) {
             const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
 
             const ohlcPacket = {
-              symbol: this.fromBrokerSymbol(pair),
+              symbol: canonicalSymbol,
               o: parseFloat(open),
               h: parseFloat(high),
               l: parseFloat(low),
