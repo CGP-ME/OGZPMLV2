@@ -199,6 +199,25 @@ class StrategyOrchestrator {
     console.log('\n═══════════════════════════════════════════════════════════════\n');
   }
 
+  _logNoSignalSummary(ctx, noSignalStrategies, thrownStrategies) {
+    const verbose = process.env.STRATEGY_DIAG === 'true';
+    const shouldLog = verbose || this.evalCount <= 3 || this.evalCount % 25 === 0;
+    if (!shouldLog) return;
+
+    const candles = Array.isArray(ctx.priceHistory) ? ctx.priceHistory.length : 0;
+    const patterns = Array.isArray(ctx.patterns) ? ctx.patterns.length : 0;
+    const rsi = Number.isFinite(ctx.indicators?.rsi) ? ctx.indicators.rsi.toFixed(1) : 'n/a';
+    const trend = ctx.indicators?.trend || 'n/a';
+    const regime = ctx.regime?.currentRegime || 'n/a';
+    const minStrategyPct = (this.minStrategyConfidence * 100).toFixed(0);
+    const nullList = noSignalStrategies.slice(0, 12).join(',');
+    const thrownList = thrownStrategies.slice(0, 5).join(',');
+
+    console.log(
+      `[ORCH][NO_SIGNAL] eval=${this.evalCount} candles=${candles} patterns=${patterns} rsi=${rsi} trend=${trend} regime=${regime} minStrategy=${minStrategyPct}% returnedNull=${noSignalStrategies.length}/${this.strategies.length}${nullList ? ` nullStrategies=${nullList}` : ''}${thrownList ? ` thrown=${thrownList}` : ''}`
+    );
+  }
+
   /**
    * Register the built-in strategies that map to existing modules.
    * Each strategy has:
@@ -789,6 +808,8 @@ class StrategyOrchestrator {
 
     // ─── Step 1: Run ALL strategies independently ───
     const results = [];
+    const noSignalStrategies = [];
+    const thrownStrategies = [];
     for (const strategy of this.strategies) {
       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
@@ -797,9 +818,16 @@ class StrategyOrchestrator {
 
       try {
         const result = strategy.evaluate(ctx);
+        if (!result || !result.direction) {
+          noSignalStrategies.push(strategy.name);
+          continue;
+        }
         if (result && result.direction) {
           const confidence = assertBaseConfidence01(result.confidence, `${strategy.name}.confidence`);
-          if (confidence <= 0) continue;
+          if (confidence <= 0) {
+            noSignalStrategies.push(`${strategy.name}:conf<=0`);
+            continue;
+          }
           results.push({
             ...result,
             confidence,
@@ -808,6 +836,7 @@ class StrategyOrchestrator {
           });
         }
       } catch (err) {
+        thrownStrategies.push(`${strategy.name}:${err.message}`);
         console.warn(`⚠️ [StrategyOrchestrator] ${strategy.name} threw: ${err.message}`);
       }
     }
@@ -993,6 +1022,7 @@ class StrategyOrchestrator {
       results.slice(0, 5).forEach(r => console.log(`   - ${r.strategyName}: ${(r.confidence * 100).toFixed(1)}% ${r.direction}`));
     } else {
       console.log(`🔍 [ORCH] 0 strategies returned signals (all returned null or conf=0)`);
+      this._logNoSignalSummary(ctx, noSignalStrategies, thrownStrategies);
     }
 
     // Narrator: strategy-eval event. Uses module-cached singleton.
