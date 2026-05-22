@@ -705,7 +705,7 @@ class OGZPrimeV14Bot {
           this._visOhlcSeen.add(visKey);
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
-        this.storeTimeframeCandle(tf, ohlcData);
+        const storedCandle = this.storeTimeframeCandle(tf, ohlcData);
         if (tf === '1m') this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
         if (tf === '5m' && this.timeframeSelector) {
           const tfResult = this.timeframeSelector.evaluate();
@@ -713,9 +713,16 @@ class OGZPrimeV14Bot {
             console.log(`Active trading timeframe: ${tfResult.timeframe} (score: ${tfResult.score.toFixed(2)})`);
           }
         }
-        if (tf === activeTf) {
+        if (tf === activeTf && storedCandle?.isNewCandle) {
           console.log(`V2: ${activeTf} candle closed - running trading analysis`);
           this.run15mTradingCycle(sym);
+        } else if (tf === activeTf && storedCandle && !storedCandle.isNewCandle) {
+          const skipKey = `session:${sym}:${tf}`;
+          this._visActiveTfUpdateSkipped ??= new Set();
+          if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
+            this._visActiveTfUpdateSkipped.add(skipKey);
+            console.log(`[VIS][TradingCycle] waiting for new ${tf} candle boundary before analysis | symbol=${sym} etime=${storedCandle.candle?.etime || '(missing)'}`);
+          }
         }
       };
 
@@ -1423,7 +1430,7 @@ class OGZPrimeV14Bot {
           }
 
           // Store in timeframe-specific history for dashboard
-          this.storeTimeframeCandle(timeframe, ohlcData);
+          const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData);
 
           // CHANGE 2026-02-21: Feed 1m candles to indicators + MTF adapter (granular data)
           if (timeframe === '1m') {
@@ -1439,9 +1446,16 @@ class OGZPrimeV14Bot {
           }
 
           // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-          if (timeframe === activeTf) {
+          if (timeframe === activeTf && storedCandle?.isNewCandle) {
             console.log(`V2: ${activeTf} candle closed - running trading analysis`);
             this.run15mTradingCycle(ohlcSymbol);
+          } else if (timeframe === activeTf && storedCandle && !storedCandle.isNewCandle) {
+            const skipKey = `single:${ohlcSymbol}:${timeframe}`;
+            this._visActiveTfUpdateSkipped ??= new Set();
+            if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
+              this._visActiveTfUpdateSkipped.add(skipKey);
+              console.log(`[VIS][TradingCycle] waiting for new ${timeframe} candle boundary before analysis | symbol=${ohlcSymbol} etime=${storedCandle.candle?.etime || '(missing)'}`);
+            }
           }
         });
 
@@ -1477,7 +1491,9 @@ class OGZPrimeV14Bot {
       this.timeframeHistories[timeframe] = [];
     }
 
-    if (!Array.isArray(ohlcData) || ohlcData.length < 8) return;
+    if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
+      return { isNewCandle: false, candle: null };
+    }
 
     const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
     const candle = {
@@ -1493,10 +1509,13 @@ class OGZPrimeV14Bot {
     const history = this.timeframeHistories[timeframe];
     const lastCandle = history[history.length - 1];
 
+    let isNewCandle = false;
+
     // Update existing candle or add new one based on etime
     if (lastCandle && lastCandle.etime === candle.etime) {
       history[history.length - 1] = candle;
     } else {
+      isNewCandle = true;
       history.push(candle);
       // Keep max 200 candles per timeframe
       if (history.length > 200) {
@@ -1504,10 +1523,7 @@ class OGZPrimeV14Bot {
       }
     }
 
-    // CHANGE 2026-02-21: Sync 15m with priceHistory (trading logic uses 15m candles now)
-    if (timeframe === '15m') {
-      this.timeframeHistories['15m'] = this.priceHistory;
-    }
+    return { isNewCandle, candle };
   }
 
   /**
