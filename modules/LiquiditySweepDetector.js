@@ -95,13 +95,21 @@ class LiquiditySweepDetector {
     if (!ts) return;
     if (this._lastCandleTs && !this._candleIntervalMs) {
       const diff = ts - this._lastCandleTs;
+      if (!Number.isFinite(diff) || diff <= 0) return;
+      if (diff < 60000) {
+        if (!this._subMinuteIntervalWarned) {
+          this._subMinuteIntervalWarned = true;
+          console.warn(`[LiquiditySweep] Ignoring sub-minute candle interval (${diff}ms) while waiting for a closed candle boundary`);
+        }
+        return;
+      }
       if (diff > 0) {
         this._candleIntervalMs = diff;
-        this._candleIntervalMin = Math.round(diff / 60000);
+        this._candleIntervalMin = Math.max(1, Math.round(diff / 60000));
         this._entryWindowBars = Math.max(1, Math.round(this.config.entryWindowMinutes / this._candleIntervalMin));
         this._openingRangeBars = Math.max(1, Math.round(this.config.openingRangeMinutes / this._candleIntervalMin));
         this.stats.detectedIntervalMin = this._candleIntervalMin;
-        console.log(`[LiquiditySweep] Auto-detected ${this._candleIntervalMin}m candles → entryWindow: ${this._entryWindowBars} bars, openingRange: ${this._openingRangeBars} bars`);
+        console.log(`[LiquiditySweep] Auto-detected ${this._candleIntervalMin}m candles -> entryWindow: ${this._entryWindowBars} bars, openingRange: ${this._openingRangeBars} bars`);
       }
     }
     this._lastCandleTs = ts;
