@@ -110,4 +110,47 @@ describe('symbol-aware candle routing', () => {
     );
     expect(ctx.marketData.timeframe).toBe('15m');
   });
+
+  test('gap recovery backfills the active runtime symbol and timeframe', async () => {
+    const priorAlpacaSymbols = process.env.ALPACA_SYMBOLS;
+    process.env.ALPACA_SYMBOLS = 'TSLA';
+    try {
+      const btc = makeSymCtx('BTC-USD');
+      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+      ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+      const processor = new CandleProcessor(ctx);
+
+      expect(processor.candleIntervalMs).toBe(60 * 1000);
+      await processor.attemptBackfill(0, 60 * 1000);
+
+      expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 6);
+    } finally {
+      if (priorAlpacaSymbols === undefined) {
+        delete process.env.ALPACA_SYMBOLS;
+      } else {
+        process.env.ALPACA_SYMBOLS = priorAlpacaSymbols;
+      }
+    }
+  });
+
+  test('gap recovery refuses missing runtime timeframe instead of using global defaults', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '');
+
+    expect(() => new CandleProcessor(ctx)).toThrow('invalid candle timeframe');
+  });
+
+  test('gap recovery refuses missing runtime symbol instead of using config fallback', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), '', '1m');
+    ctx.config.tradingPair = 'TSLA';
+    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000);
+
+    expect(candles).toEqual([]);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing active trading symbol'));
+  });
 });

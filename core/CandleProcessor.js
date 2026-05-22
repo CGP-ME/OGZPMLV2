@@ -36,13 +36,23 @@ function normalizeCandleSymbol(symbol) {
   return normalized;
 }
 
+function timeframeToMs(timeframe) {
+  if (typeof timeframe !== 'string' || !timeframe.trim()) return null;
+  const match = timeframe.trim().toLowerCase().match(/^(\d+)(m|h|d)$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const unitMs = { m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 }[match[2]];
+  return value * unitMs;
+}
+
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
 
     // Gap recovery state
-    this.candleIntervalMs = 15 * 60 * 1000; // 15 minutes default
-    this.gapThresholdMultiplier = 1.5; // Gap if > 1.5x interval (22.5 min for 15m candles)
+    this.candleIntervalMs = this._resolveCandleIntervalMs();
+    this.gapThresholdMultiplier = 1.5; // Gap if > 1.5x active candle interval
     this.cleanCandleCount = 0;
     this.cleanCandlesRequired = 3;
     this.backfillRetryInterval = null;
@@ -55,6 +65,15 @@ class CandleProcessor {
     this.marketCalendar = getMarketCalendar();
 
     console.log('[CandleProcessor] Initialized with gap recovery');
+  }
+
+  _resolveCandleIntervalMs() {
+    const timeframe = this.ctx?.candleTimeframe;
+    const intervalMs = timeframeToMs(timeframe);
+    if (!intervalMs) {
+      throw new Error(`CandleProcessor: invalid candle timeframe for gap recovery (${timeframe})`);
+    }
+    return intervalMs;
   }
 
   /**
@@ -307,14 +326,18 @@ class CandleProcessor {
         return [];
       }
 
-      // Resolve symbol + timeframe from context / env / fallback chain.
-      // Prefer runtime config, then the ALPACA_SYMBOLS env var (first
-      // symbol for single-instrument mode), then a safe default.
-      const resolvedConfig = this.ctx.resolvedConfig || this.ctx.config;
-      const symbol = resolvedConfig?.config?.broker?.tradingPair
-                     || (process.env.ALPACA_SYMBOLS || '').split(',')[0].trim()
-                     || 'TSLA';
-      const timeframe = resolvedConfig?.config?.broker?.candleTimeframe || '1m';
+      const rawSymbol = this.ctx.tradingPair;
+      const symbol = normalizeCandleSymbol(rawSymbol);
+      if (!symbol) {
+        console.error(`[GAP-RECOVERY] Missing active trading symbol for backfill (raw=${rawSymbol})`);
+        return [];
+      }
+
+      const timeframe = this.ctx.candleTimeframe;
+      if (!timeframeToMs(timeframe)) {
+        console.error(`[GAP-RECOVERY] Missing/invalid active timeframe for backfill (${timeframe})`);
+        return [];
+      }
 
       // Calculate how many candles we need
       const missingCount = Math.ceil((gapEnd - gapStart) / this.candleIntervalMs);
