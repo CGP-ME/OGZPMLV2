@@ -841,6 +841,20 @@ class StrategyOrchestrator {
       }
     }
 
+    const rawStrategyResults = results.map(r => ({
+      strategyName: r.strategyName,
+      direction: r.direction,
+      confidence: r.confidence,
+      confidenceScore: r.confidenceScore,
+    }));
+    if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {
+      const rawList = rawStrategyResults
+        .slice(0, 8)
+        .map(r => `${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%`)
+        .join(',');
+      console.log(`[ORCH][RAW_CANDIDATES] eval=${this.evalCount} count=${rawStrategyResults.length} ${rawList}`);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // ATR PRE-ENTRY FILTER — Data-driven threshold from backtest analysis
     // FIX 2026-03-13: 0.40% killed 74% of 15m BTC candles. Lowered to 0.15%
@@ -874,6 +888,7 @@ class StrategyOrchestrator {
     // null = fall back to global filters.atrMinPercent (zero behavior change default)
     const atrFilterEnabled = TradingConfig.get('filters.atrEnabled');
     const globalAtrMin = TradingConfig.get('filters.atrMinPercent');
+    const atrDropped = [];
     if (atrFilterEnabled && filterATRpct > 0 && results.length > 0) {
       const contracts = TradingConfig.BASE_CONFIG.exitContracts;
       for (let i = results.length - 1; i >= 0; i--) {
@@ -881,12 +896,16 @@ class StrategyOrchestrator {
         const contract = contracts[r.strategyName] || contracts.default || {};
         const threshold = contract.atrMinPercent != null ? contract.atrMinPercent : globalAtrMin;
         if (filterATRpct < threshold) {
-          if (this.evalCount % 200 === 0) {
+          atrDropped.push(`${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%<atr${threshold}%`);
+          if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {
             console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below ${threshold}% (${contract.atrMinPercent != null ? 'per-strategy' : 'global'})`);
           }
           results.splice(i, 1);
         }
       }
+    }
+    if (process.env.STRATEGY_DIAG === 'true' && atrDropped.length > 0) {
+      console.log(`[ORCH][FILTER_DROP] eval=${this.evalCount} filter=atr atrPct=${filterATRpct.toFixed(3)} dropped=${atrDropped.join(',')}`);
     }
 
     // ─── Step 2: Sort by ranking score (highest first) ───
@@ -1021,6 +1040,13 @@ class StrategyOrchestrator {
       console.log(`🔍 [ORCH] ${results.length} strategies returned signals:`);
       results.slice(0, 5).forEach(r => console.log(`   - ${r.strategyName}: ${(r.confidence * 100).toFixed(1)}% ${r.direction}`));
     } else {
+      if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {
+        const rawList = rawStrategyResults
+          .slice(0, 8)
+          .map(r => `${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%`)
+          .join(',');
+        console.log(`[ORCH][FILTER_EMPTY] eval=${this.evalCount} rawCandidates=${rawStrategyResults.length} afterFilters=0 raw=${rawList}`);
+      }
       console.log(`🔍 [ORCH] 0 strategies returned signals (all returned null or conf=0)`);
       this._logNoSignalSummary(ctx, noSignalStrategies, thrownStrategies);
     }

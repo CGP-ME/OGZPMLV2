@@ -42,6 +42,26 @@ class TradingLoop {
     console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
   }
 
+  _diag(stage, fields = {}) {
+    if (process.env.STRATEGY_DIAG !== 'true') return;
+    const parts = Object.entries(fields).map(([key, value]) => {
+      let rendered = value;
+      if (typeof value === 'number') {
+        rendered = Number.isFinite(value) ? value.toFixed(4) : String(value);
+      } else if (typeof value === 'boolean') {
+        rendered = value ? 'true' : 'false';
+      } else if (value === null || value === undefined) {
+        rendered = 'null';
+      } else if (Array.isArray(value)) {
+        rendered = value.join(',');
+      } else if (typeof value === 'object') {
+        rendered = JSON.stringify(value);
+      }
+      return `${key}=${rendered}`;
+    });
+    console.log(`[PIPE][${stage}] ${parts.join(' ')}`);
+  }
+
   /**
    * Main analysis loop. Called on every candle.
    * CC-C Commit 5/6: `symbol` is REQUIRED. No null-default fallback to
@@ -96,7 +116,14 @@ class TradingLoop {
     const { price } = this.ctx.marketData;
 
     // ─── WARMUP CHECK ───
-    if (priceHistory.length < 15) return;
+    if (priceHistory.length < 15) {
+      this._diag('WARMUP_BLOCK', {
+        symbol,
+        priceHistory: priceHistory.length,
+        required: 15
+      });
+      return;
+    }
 
     // ─── GATHER DATA ───
     const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx);
@@ -138,6 +165,14 @@ class TradingLoop {
     }
     const confidence = orchResult.confidence / 100;
     const confidenceData = { totalConfidence: orchResult.confidence };
+    this._diag('ORCH_RESULT', {
+      symbol,
+      direction: tradingDirection,
+      confidencePct: orchResult.confidence,
+      winner: orchResult.winnerStrategy || 'none',
+      allResults: Array.isArray(orchResult.allResults) ? orchResult.allResults.length : 0,
+      exitContract: !!orchResult.exitContract
+    });
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
     // HIGH-13: throw if directionFilter is non-string. TradingConfig.js:844
@@ -149,11 +184,23 @@ class TradingLoop {
       throw new Error(`[HIGH-13] pipeline.directionFilter expected string, got ${typeof directionFilter} (${directionFilter})`);
     }
     if (directionFilter === 'long_only' && tradingDirection === 'sell') {
+      this._diag('DIRECTION_FILTER_BLOCK', {
+        symbol,
+        filter: directionFilter,
+        direction: tradingDirection,
+        confidencePct: orchResult.confidence
+      });
       console.log(`🚫 Direction filter: long_only — sell blocked`);
       this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
       return;
     }
     if (directionFilter === 'short_only' && tradingDirection === 'buy') {
+      this._diag('DIRECTION_FILTER_BLOCK', {
+        symbol,
+        filter: directionFilter,
+        direction: tradingDirection,
+        confidencePct: orchResult.confidence
+      });
       console.log(`🚫 Direction filter: short_only — buy blocked`);
       this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
       return;
@@ -201,6 +248,15 @@ class TradingLoop {
     const minConfidence = this.ctx.config.minTradeConfidence;
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };
+    this._diag('ENTRY_CONTEXT', {
+      symbol,
+      finalDirection,
+      confidencePct: orchResult.confidence,
+      minConfidencePct: minConfidence * 100,
+      activeTrades: activeTrades.length,
+      maxPositions,
+      directionFilter
+    });
 
     // ─── STEP 1: EXIT CHECK ───
     // Check each active position for exit conditions
@@ -315,14 +371,36 @@ class TradingLoop {
       });
 
       if (globalHaltReason) {
+        this._diag('ENTRY_BLOCK', {
+          symbol,
+          reason: 'global_halt',
+          detail: globalHaltReason
+        });
         console.error(`[ENTRY] Blocked: new entries halted globally - ${globalHaltReason}`);
         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: globalHaltReason };
       } else if (symbolHaltReason) {
+        this._diag('ENTRY_BLOCK', {
+          symbol,
+          reason: 'symbol_halt',
+          detail: symbolHaltReason
+        });
         console.error(`[ENTRY] Blocked: ${symbol} entries halted - ${symbolHaltReason}`);
         decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: symbolHaltReason };
       } else if (hasPositionInDirection) {
+        this._diag('ENTRY_BLOCK', {
+          symbol,
+          reason: 'same_direction_position',
+          direction: finalDirection,
+          activeTrades: activeTrades.length
+        });
         console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
       } else if (hasOppositePosition) {
+        this._diag('ENTRY_BLOCK', {
+          symbol,
+          reason: 'opposite_position_flip_first',
+          direction: finalDirection,
+          activeTrades: activeTrades.length
+        });
         // Close opposite position first, then open new in next candle
         // This mimics PineScript's strategy.entry which replaces positions
         const oppositeTrade = activeTrades.find(t => {
@@ -343,8 +421,20 @@ class TradingLoop {
           // Note: New position opens on next signal after close completes
         }
       } else if (activeTrades.length >= maxPositions) {
+        this._diag('ENTRY_BLOCK', {
+          symbol,
+          reason: 'max_positions',
+          activeTrades: activeTrades.length,
+          maxPositions
+        });
         console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
       } else {
+        this._diag('RISK_CHECK_START', {
+          symbol,
+          direction: finalDirection,
+          confidencePct: orchResult.confidence,
+          minConfidencePct: minConfidence * 100
+        });
         // ─── RISK CHECK ───
         decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence);
         // CC-A Change 2: stamp indicator state at entry on the decision so
@@ -357,6 +447,18 @@ class TradingLoop {
           decision.rsiAtEntry = indicators?.rsi ?? null;
         }
       }
+    } else if (decision.action === 'HOLD') {
+      const reasons = [];
+      if (finalDirection === 'hold') reasons.push('hold_direction');
+      if (confidence < minConfidence) reasons.push('below_min_confidence');
+      this._diag('ENTRY_SKIP', {
+        symbol,
+        reason: reasons.length > 0 ? reasons.join('|') : 'not_entry_candidate',
+        finalDirection,
+        confidencePct: orchResult.confidence,
+        minConfidencePct: minConfidence * 100,
+        decisionAction: decision.action
+      });
     }
 
     // ─── ATTACH OVERRIDE LEVELS ───
@@ -381,6 +483,14 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
+      this._diag('EXECUTE_HANDOFF', {
+        symbol,
+        action: decision.action,
+        direction: decision.direction || 'none',
+        confidencePct: decision.confidence,
+        winner: orchResult.winnerStrategy || 'none',
+        exitContract: !!orchResult.exitContract
+      });
       // L5: Capture risk gates that were checked during entry evaluation.
       // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
       // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
@@ -453,7 +563,13 @@ class TradingLoop {
         // L5: risk gates checked before entry
         riskGates,
       };
-      await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
+      const executionResult = await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
+      this._diag('EXECUTE_RETURN', {
+        symbol,
+        action: decision.action,
+        success: executionResult?.success ?? null,
+        orderId: executionResult?.orderId || 'none'
+      });
     }
   }
 
@@ -476,6 +592,12 @@ class TradingLoop {
       // Concatenated and surfaced to caller so StateManager can attach to the trade ledger.
       const riskCheck = this.ctx.riskManager.isTradingAllowed();
       const riskGates = [...(riskCheck.riskGates || [])];
+      this._diag('RISK_ALLOWED', {
+        direction,
+        allowed: riskCheck.allowed,
+        reason: riskCheck.reason || 'none',
+        gates: riskGates.length
+      });
       if (!riskCheck.allowed) {
         console.log(`🛑 RISK BLOCK: ${riskCheck.reason} — ${mapped.direction} rejected`);
         return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason, riskGates };
@@ -486,6 +608,13 @@ class TradingLoop {
         direction
       });
       riskGates.push(...(riskAssessment.riskGates || []));
+      this._diag('RISK_ASSESSMENT', {
+        direction,
+        approved: riskAssessment.approved,
+        reason: riskAssessment.reason || 'none',
+        riskLevel: riskAssessment.riskLevel || 'unknown',
+        gates: riskGates.length
+      });
 
       if (!riskAssessment.approved) {
         console.log(`🛑 RISK BLOCK: ${riskAssessment.reason} — ${mapped.direction} rejected`);
