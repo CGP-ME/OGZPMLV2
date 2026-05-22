@@ -2,7 +2,7 @@
 
 **Branch:** `rebuild/clean-from-baseline`  
 **Repo:** `/opt/ogzprime/OGZPMLV2`  
-**Session status:** Code committed, pushed, PM2 restarted, live paper process verified online  
+**Session status:** Code committed, pushed, PM2 restarted, live paper process verified online; stale Jest writers stopped  
 **Runtime pushed head:** `548ae2b` (`Fixed smoke test harness contracts`)  
 **Current P0 anchor used:** `13255.255799695915` via `ogz-meta/anchor-runner`
 
@@ -100,9 +100,10 @@
 | Analysis path | Symbol context | `[VIS][TradingLoop] analyze symbol=BTC-USD route=symbolContext ... broker=kraken assetClass=crypto` |
 | Pattern observation | Firing | `[PATTERN][OBSERVE] recorded=1 total=1 price=76739.4` |
 | No-signal visibility | Firing | `[ORCH][NO_SIGNAL] eval=1 candles=17 patterns=1 rsi=77.8 ...` |
-| Current error log | No fresh writes | `/home/linuxuser/.pm2/logs/ogz-prime-v2-error.log` mtime remained `2026-05-21` after restart |
+| Pattern persistence | Verified | `data/unified-patterns.paper.crypto.json` saved at `2026-05-22T16:26:02.140Z` with `stats.observations=43`, `patternCount=69`, `timesSeenPositive=41` |
+| Current error log | Expected warning writes only | Fresh post-restart writes were the new LiquiditySweep sub-minute interval warnings; old webhook/REST/confidence lines predate this restart |
 
-Pattern persistence note: `UnifiedPatternMemory` saves to `data/unified-patterns.paper.crypto.json` on a 5-minute timer. The live log proves `recordObservation()` fired; disk persistence should be verified after the next save tick, not inferred from the first boot minute.
+Pattern persistence note: the first post-restart disk checks were contaminated by 31 stale `jest --runInBand` processes from May 13-18 that still had Node save timers alive under this repo. Those stale test processes were stopped with exact PID targeting. After they were gone, the next live bot save tick wrote the correct paper crypto pattern bank with live observations.
 
 ---
 
@@ -144,7 +145,7 @@ Newest first:
 | Dead-flat confidence visibility | Improved. `[ORCH][NO_SIGNAL]` now explains no-signal cycles with strategy and indicator context. |
 | Duplicate active candle analysis | Closed. New active timeframe boundary gate is in place. |
 | LiquiditySweep 0m interval | Closed. Sub-minute gaps are ignored until real closed candle boundaries. |
-| Pattern observations not writing | Runtime record path closed. Disk save should be observed after the 5-minute persistence interval. |
+| Pattern observations not writing | Closed. Runtime record path fired and disk persistence was verified after stopping stale Jest writers. |
 | Emoji/mojibake cleanup campaign | Not part of this runtime change. Existing production logs still contain old emoji/mojibake and require module-by-module cleanup only. |
 | SessionRouter final architecture | Not part of this change. Current live PM2 has `SESSION_ROUTER_ENABLED=false` and single-symbol BTC-USD/Kraken routing. |
 | TRAI | Still disabled in live PM2 (`ENABLE_TRAI=false`). Do not bring online before fixing known TRAI phantom feature/position-size paths. |
@@ -153,17 +154,17 @@ Newest first:
 
 ## Open Items for Next Session
 
-1. Verify `data/unified-patterns.paper.crypto.json` after the 5-minute save interval and confirm `stats.observations` increments from live pattern detections.
-2. Decide whether current live PM2 stays on Kraken/BTC-USD paper or moves to Alpaca/stock eval mode. Do not mix broker and asset class.
-3. Keep `SESSION_ROUTER_ENABLED=false` until the pattern-bank swap and cross-asset persistence rules are fully verified.
-4. Run the emoji/mojibake cleanup campaign only module-by-module, with P0/Mercury for hot-path modules and one module commit at a time.
-5. Fix TRAI phantom defaults before enabling TRAI in any eval or live path.
+1. Decide whether current live PM2 stays on Kraken/BTC-USD paper or moves to Alpaca/stock eval mode. Do not mix broker and asset class.
+2. Keep `SESSION_ROUTER_ENABLED=false` until the pattern-bank swap and cross-asset persistence rules are fully verified.
+3. Run the emoji/mojibake cleanup campaign only module-by-module, with P0/Mercury for hot-path modules and one module commit at a time.
+4. Fix TRAI phantom defaults before enabling TRAI in any eval or live path.
+5. Add a guardrail so future Jest/smoke runs cannot leave long-lived timers writing live learned-state files.
 
 ---
 
 ## Context for Next Session
 
-The bot is now restarted on the pushed full-visibility runtime patch. Live PM2 is on Kraken/BTC-USD paper mode, not Alpaca stocks, with SessionRouter disabled and TRAI disabled. State is clean and flat. BTC-USD symbols are flowing through BrokerFactory/Kraken into the symbol context path, duplicate 15m candle updates no longer trigger repeated analyses, no-signal cycles now explain why confidence is flat, and pattern observations are being recorded in memory. The next hard check is disk persistence after the UnifiedPatternMemory 5-minute save timer.
+The bot is now restarted on the pushed full-visibility runtime patch. Live PM2 is on Kraken/BTC-USD paper mode, not Alpaca stocks, with SessionRouter disabled and TRAI disabled. State is clean and flat. BTC-USD symbols are flowing through BrokerFactory/Kraken into the symbol context path, duplicate 15m candle updates no longer trigger repeated analyses, no-signal cycles now explain why confidence is flat, and pattern observations are being recorded and persisted to the paper crypto bank. Stale Jest processes were found writing pattern files from old test sessions and were stopped.
 
 ---
 
