@@ -1,13 +1,13 @@
 # Repo History Snapshot
 
-Generated: 2026-05-22T18:22:43.606Z
+Generated: 2026-05-22T18:31:03.990Z
 Repo root: /opt/ogzprime/OGZPMLV2
 Branch: rebuild/clean-from-baseline
-HEAD: 0cc5e9ad4e81945dd1cbf460283642cf2cbde8c1
-HEAD short: 0cc5e9ad4e81
+HEAD: c5923ca03255cb70df25bcc6178fcdbb1c168a52
+HEAD short: c5923ca03255
 Upstream: origin/rebuild/clean-from-baseline
 Origin: https://github.com/CGP-ME/OGZPMLV2.git
-Commit count: 1226
+Commit count: 1228
 Root commit: c3e94a5844547f0e00e85787018516529f5a6508
 Recent commit limit: 80
 
@@ -27,6 +27,8 @@ SHA without changing that SHA.
 ## Recent Commits
 
 ```
+c5923ca 2026-05-22T18:30:57Z Fixed gap recovery symbol timeframe routing
+6ceeac1 2026-05-22T18:22:47Z Updated repo history snapshot
 0cc5e9a 2026-05-22T18:22:36Z Fixed live candle timeframe provenance
 a8b6714 2026-05-22T18:06:31Z Updated repo history snapshot
 0a6f159 2026-05-22T18:06:13Z Added repo history snapshot automation
@@ -105,13 +107,30 @@ ee9edad 2026-05-13T20:58:08Z chore(frontend): refresh ssl-server + chart-panel +
 498a16e 2026-05-13T14:29:36Z fix(state-manager): P1-A trade.size stale after partial close — ANCHOR SHIFT
 4d56a02 2026-05-13T13:34:34Z fix(order-executor): TIER-2-EXECUTE-CATCH differentiate audit throws
 d54e48d 2026-05-13T13:13:20Z fix(order-executor): P2-B warn when tradeId not found, fallback to oldest
-3e1ba24 2026-05-13T12:39:18Z feat(pipeline): --write multi-block specs — N edits per Fix N
-8b379ae 2026-05-13T12:25:25Z fix(state-manager): S10-BUG-1 closedTradeRecord missing symbol
 ```
 
 ## Recent Commits With Stats
 
 ```
+commit c5923ca03255cb70df25bcc6178fcdbb1c168a52
+short c5923ca
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:30:57Z
+subject Fixed gap recovery symbol timeframe routing
+
+ core/CandleProcessor.js     | 43 +++++++++++++++++++++++++++++++++----------
+ test/symbol-routing.test.js | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 10 deletions(-)
+
+commit 6ceeac1fbb099b31682a73c0abab1e337428889b
+short 6ceeac1
+author CGP-ME <cgp@ogzprime.com>
+date 2026-05-22T18:22:47Z
+subject Updated repo history snapshot
+
+ ogz-meta/REPO-HISTORY.md | 56 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 30 insertions(+), 26 deletions(-)
+
 commit 0cc5e9ad4e81945dd1cbf460283642cf2cbde8c1
 short 0cc5e9a
 author CGP-ME <cgp@ogzprime.com>
@@ -1422,23 +1441,4 @@ subject fix(order-executor): P2-B warn when tradeId not found, fallback to oldes
 
  core/OrderExecutor.js | 3 +++
  1 file changed, 3 insertions(+)
-
-commit 3e1ba24e497e591241bae6bfe0b9da5b81ffd8a7
-short 3e1ba24
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T12:39:18Z
-subject feat(pipeline): --write multi-block specs — N edits per Fix N
-
- ogz-meta/slash-router.js | 103 ++++++++++++++++++++++++++++++++---------------
- ogz-meta/spec-parser.js  | 101 +++++++++++++++++++++++++++++++---------------
- 2 files changed, 140 insertions(+), 64 deletions(-)
-
-commit 8b379aeef354d049385ef204fe5d825df5d927de
-short 8b379ae
-author CGP-ME <cgp@ogzprime.com>
-date 2026-05-13T12:25:25Z
-subject fix(state-manager): S10-BUG-1 closedTradeRecord missing symbol
-
- core/StateManager.js | 1 +
- 1 file changed, 1 insertion(+)
 ```
