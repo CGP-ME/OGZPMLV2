@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Chart Panel Timeframe And Oscillator Controls (2026-05-23)
+
+- Added ticker-click chart switching through the shared chart asset-switch path.
+- Moved RSI, MACD, ATR, and volume into stacked oscillator panes with persisted pane toggles.
+- Kept timeframe changes from blanking the chart preemptively; the chart now waits for historical data and uses a no-data watchdog instead.
+- Verification: `node --check public/js/panels/chart-panel.js`, static marker checks for the new chart paths, web-tier restart only, and live WebSocket historical-candle smoke for all seven chart timeframes.
+
 ### Stock Dashboard Historical Candle Ordering (2026-05-23)
 
 - Fixed Alpaca dashboard historical candle fetches to request newest bars first, then return canonical ascending `{ time, open, high, low, close, volume }` candles for every chart timeframe.

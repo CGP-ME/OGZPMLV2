@@ -98,21 +98,22 @@
     let _markerTooltipEl = null;
     let _hoveredMarkerTime = null;
 
-    // ─── Oscillator Pane (opt-in pane split) ────────────────────────────
-    // Hosts volume bars in a separate LightweightCharts instance below the
-    // main candle pane so the candle chart can use its full vertical space.
-    // Time-axis sync goes top→bottom and back, guarded by a re-entrance flag.
-    const OSC_PANE_LS_KEY = 'ogz.chartPanel.oscPaneActive';
-    let _oscChart = null;
-    let _oscContainer = null;
-    let _oscVolumeSeries = null;
-    let _oscPaneActive = false;
-    let _oscSyncing = false;            // re-entrance guard for time-axis sync
-    let _oscMainRangeCB = null;
-    let _oscBottomRangeCB = null;
-    let _oscMainCrosshairCB = null;
-    let _oscBottomCrosshairCB = null;
-    let _oscResizeObserver = null;
+    // ─── Oscillator Panes (stacked multi-pane system) ───────────────────
+    // Each oscillator (volume, rsi, macd, atr) can be toggled to appear as
+    // its OWN LightweightCharts instance stacked below the main candle pane.
+    // Every active pane is time-axis + crosshair synced to the main chart.
+    // v4 has no native panes — each pane is a separate createChart() instance.
+    //
+    // _oscPanes: registry keyed by 'volume'|'rsi'|'macd'|'atr'. Each entry:
+    //   { container, chart, series, rangeCB, crosshairCB, resizeObserver }
+    // where `series` is an object whose values are the pane's series
+    // (volume/rsi/atr have one; macd has { macd, signal }).
+    // _oscSyncing is a SINGLE re-entrance guard shared across all panes.
+    const OSC_PANE_LS_KEY = 'ogz.chartPanel.oscPanes';   // JSON array of active keys
+    const OSC_PANE_ORDER = ['volume', 'rsi', 'macd', 'atr'];
+    let _oscPanes = {};                 // key -> pane entry (see above)
+    let _oscSyncing = false;            // re-entrance guard for time-axis sync (shared)
+    let _oscMainRangeCB = null;         // single main-chart range sub feeding all panes
 
     // ─── Constants ─────────────────────────────────────────────────────────
     const STYLE_ID = 'ogz-chart-panel-styles';
@@ -224,12 +225,18 @@
             }
             .cp-osc-pane {
                 width: 100%;
-                height: 130px;
+                height: 120px;
                 border-top: 1px solid rgba(255, 255, 255, 0.08);
                 background: var(--bg, #0a0a0a);
                 position: relative;
                 margin-top: 4px;
+            }
+            /* Only the last stacked pane gets the rounded bottom corners */
+            .cp-osc-pane:last-child {
                 border-radius: 0 0 6px 6px;
+            }
+            .cp-osc-pane + .cp-osc-pane {
+                margin-top: 0;
             }
             .cp-osc-label {
                 position: absolute;
@@ -373,6 +380,126 @@
         return TF_SECONDS[tf || DEFAULT_TIMEFRAME] || 60;
     }
 
+    // ─── Helper: Oscillator-Pane Persistence ───────────────────────────────
+    // OSC_PANE_LS_KEY stores a JSON array of active pane keys. When the key is
+    // absent (first-ever load / new feature) the VOLUME pane defaults ON.
+    function readSavedOscPanes() {
+        try {
+            const raw = localStorage.getItem(OSC_PANE_LS_KEY);
+            if (raw == null) return ['volume'];   // default: volume split ON
+            // Back-compat: the key used to hold a '1'/'0' flag.
+            if (raw === '1') return ['volume'];
+            if (raw === '0') return [];
+            const arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return ['volume'];
+            return arr.filter(k => OSC_PANE_ORDER.indexOf(k) !== -1);
+        } catch (e) {
+            return ['volume'];
+        }
+    }
+
+    function persistOscPanes() {
+        try {
+            const active = OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
+            localStorage.setItem(OSC_PANE_LS_KEY, JSON.stringify(active));
+        } catch (e) { /* swallow */ }
+    }
+
+    // ─── Helper: Per-Oscillator Pane Spec ──────────────────────────────────
+    // Describes how to build each oscillator's aux-pane series.
+    const OSC_PANE_SPEC = {
+        volume: {
+            label: 'VOLUME',
+            build: function (chart) {
+                const s = chart.addHistogramSeries({
+                    color: '#26a69a',
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: 'right'
+                });
+                return { volume: s };
+            }
+        },
+        rsi: {
+            label: 'RSI 14',
+            build: function (chart) {
+                const s = chart.addLineSeries({
+                    color: '#ec4899', lineWidth: 1.5, title: 'RSI',
+                    priceScaleId: 'right',
+                    priceFormat: { type: 'custom', minMove: 1, formatter: v => v.toFixed(0) },
+                    lastValueVisible: false, priceLineVisible: false,
+                    // Fixed 0-100 RSI scale
+                    autoscaleInfoProvider: () => ({
+                        priceRange: { minValue: 0, maxValue: 100 }
+                    })
+                });
+                // 70 / 30 guide lines
+                try {
+                    s.createPriceLine({ price: 70, color: 'rgba(239,68,68,0.45)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
+                    s.createPriceLine({ price: 30, color: 'rgba(34,197,94,0.45)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+                } catch (e) { /* swallow */ }
+                return { rsi: s };
+            }
+        },
+        macd: {
+            label: 'MACD 12/26/9',
+            build: function (chart) {
+                const macd = chart.addLineSeries({
+                    color: '#8b5cf6', lineWidth: 1.5, title: 'MACD',
+                    priceScaleId: 'right', lastValueVisible: false, priceLineVisible: false
+                });
+                const signal = chart.addLineSeries({
+                    color: '#fbbf24', lineWidth: 1, title: 'Signal',
+                    priceScaleId: 'right', lastValueVisible: false, priceLineVisible: false
+                });
+                return { macd: macd, signal: signal };
+            }
+        },
+        atr: {
+            label: 'ATR 14',
+            build: function (chart) {
+                const s = chart.addLineSeries({
+                    color: '#f59e0b', lineWidth: 1, title: 'ATR',
+                    priceScaleId: 'right', lastValueVisible: false, priceLineVisible: false
+                });
+                return { atr: s };
+            }
+        }
+    };
+
+    // ─── Helper: Recompute & Feed Oscillator Panes ─────────────────────────
+    // Recompute RSI/MACD/ATR from the given candle array and push the result
+    // into whichever oscillator panes are currently active. Volume is fed
+    // separately by the caller (it already has the colored volData on hand).
+    function feedOscIndicatorPanes(candles) {
+        if (!candles || candles.length < MIN_INDICATOR_CANDLES) return;
+        const haveRsi = _oscPanes['rsi'] && _oscPanes['rsi'].series && _oscPanes['rsi'].series.rsi;
+        const haveMacd = _oscPanes['macd'] && _oscPanes['macd'].series;
+        const haveAtr = _oscPanes['atr'] && _oscPanes['atr'].series && _oscPanes['atr'].series.atr;
+        if (!haveRsi && !haveMacd && !haveAtr) return;
+
+        const Ind = OGZ.get('Indicators');
+        if (!Ind) return;
+        const closes = candles.map(c => c.close);
+        const times = candles.map(c => c.time);
+        const mapSeries = (values) => values
+            .map((v, i) => v != null ? { time: times[i], value: v } : null)
+            .filter(Boolean);
+
+        try {
+            if (haveRsi) {
+                _oscPanes['rsi'].series.rsi.setData(mapSeries(Ind.calculateRSI(closes, 14)));
+            }
+            if (haveAtr) {
+                _oscPanes['atr'].series.atr.setData(mapSeries(Ind.calculateATR(candles, 14)));
+            }
+            if (haveMacd) {
+                const macd = Ind.calculateMACD(closes);
+                if (_oscPanes['macd'].series.macd) _oscPanes['macd'].series.macd.setData(mapSeries(macd.macd));
+                if (_oscPanes['macd'].series.signal) _oscPanes['macd'].series.signal.setData(mapSeries(macd.signal));
+            }
+        } catch (e) { /* swallow */ }
+    }
+
     // ─── Helper: Render Scaffold HTML ─────────────────────────────────────
     function renderScaffold() {
         const root = document.getElementById(ROOT_ID);
@@ -453,14 +580,14 @@
         oscToggle.id = 'cp-oscToggle';
         oscToggle.className = 'cp-selector cp-osc-toggle';
         oscToggle.type = 'button';
-        oscToggle.textContent = '📊 Split';
-        oscToggle.title = 'Toggle the bottom oscillator pane (volume in its own row)';
+        oscToggle.textContent = '📊 Volume Split';
+        oscToggle.title = 'Toggle the volume oscillator pane (volume in its own row below the chart)';
         oscToggle.addEventListener('click', () => {
             try {
-                if (_oscPaneActive) {
-                    ChartPanel.destroyOscillatorPane();
+                if (_oscPanes['volume']) {
+                    ChartPanel.removeOscPane('volume');
                 } else {
-                    ChartPanel.createOscillatorPane();
+                    ChartPanel.addOscPane('volume');
                 }
             } catch (e) { /* swallow */ }
         });
@@ -667,7 +794,12 @@
         sma50Series = tvChart.addLineSeries({ color: '#3b82f6', lineWidth: 1, visible: false, title: 'SMA50', lastValueVisible: false, priceLineVisible: false });
         sma200Series = tvChart.addLineSeries({ color: '#1d4ed8', lineWidth: 2, visible: false, title: 'SMA200', lastValueVisible: false, priceLineVisible: false });
 
-        // Oscillator series
+        // Oscillator series — RSI/MACD/ATR are NO LONGER drawn on the main
+        // price chart (fix #42). They now live in their own stacked aux panes
+        // (see OSC_PANE_SPEC / addOscPane). These main-chart series are kept
+        // DECLARED-but-permanently-hidden to keep the diff focused; nothing
+        // makes them visible and nothing feeds them anymore. A later cleanup
+        // will excise them entirely.
         rsiOverlaySeries = tvChart.addLineSeries({
             color: '#ec4899', lineWidth: 1.5, visible: false, title: 'RSI',
             priceScaleId: 'rsi',
@@ -675,18 +807,8 @@
             lastValueVisible: false, priceLineVisible: false
         });
         tvChart.priceScale('rsi').applyOptions({ visible: false, borderVisible: false });
-
-        removeRsiBands(ChartPanel);
         _trackedRsiSeries = rsiOverlaySeries;
         ChartPanel._rsiOverlaySeries = rsiOverlaySeries;
-        ChartPanel._rsiBand70 = rsiOverlaySeries.createPriceLine({
-            price: 70, color: 'rgba(239,68,68,0.45)', lineWidth: 1, lineStyle: 2,
-            axisLabelVisible: true, title: '70'
-        });
-        ChartPanel._rsiBand30 = rsiOverlaySeries.createPriceLine({
-            price: 30, color: 'rgba(34,197,94,0.45)', lineWidth: 1, lineStyle: 2,
-            axisLabelVisible: true, title: '30'
-        });
 
         macdLineSeries = tvChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1.5, visible: false, title: 'MACD', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
         macdSignalSeries = tvChart.addLineSeries({ color: '#fbbf24', lineWidth: 1, visible: false, title: 'Signal', priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
@@ -709,7 +831,7 @@
         ChartPanel._srLines = [];
 
         // Apply initial layout
-        ChartPanel._applyLayout(false);
+        ChartPanel._applyLayout();
 
         // Visible-range rescale listener
         let _rescaleTimer = null;
@@ -883,6 +1005,7 @@
     let _stopPriceLine = null;
     let _targetPriceLine = null;
     let _lastPositionState = null;
+    let _noDataWatchdogTimer = null;   // fix #42: timeframe-change "no data" watchdog
 
     // Auto-bootstrap historical candles + supplemental WS subscriptions.
     // Core.js routes price/historical_candles/pattern_analysis/depth_update to
@@ -1037,13 +1160,49 @@
                 if (!initChart()) return;
                 bootstrapWS(document.getElementById(ROOT_ID));
 
-                // Restore oscillator-pane state if the user had it toggled on
-                // last session. Defer to next frame so the main chart finishes
-                // initial layout before we add a sibling that triggers resize.
+                // Restore oscillator-pane set from last session. The volume pane
+                // defaults ON when the key is absent (requested default). Defer
+                // to next frame so the main chart finishes initial layout before
+                // we add siblings that trigger resize.
                 try {
-                    if (localStorage.getItem(OSC_PANE_LS_KEY) === '1') {
+                    const keys = readSavedOscPanes();
+                    if (keys.length) {
                         requestAnimationFrame(() => {
-                            try { ChartPanel.createOscillatorPane(); } catch (e) { /* swallow */ }
+                            keys.forEach(k => {
+                                try { ChartPanel.addOscPane(k, true); } catch (e) { /* swallow */ }
+                                // Keep the indicator checkbox UI coherent: an
+                                // rsi/macd/atr pane restored from LS should show
+                                // its checkbox ticked (volume is the Split button).
+                                if (k === 'rsi' || k === 'macd' || k === 'atr') {
+                                    try {
+                                        const root = document.getElementById(ROOT_ID);
+                                        const chk = root && root.querySelector(
+                                            '#cp-indicatorCheckboxes input[value="' + k + '"]');
+                                        if (chk) {
+                                            chk.checked = true;
+                                            if (activeOverlays.indexOf(k) === -1) activeOverlays.push(k);
+                                        }
+                                    } catch (e) { /* swallow */ }
+                                }
+                            });
+                            try { ChartPanel._applyLayout(); } catch (e) { /* swallow */ }
+                        });
+                    }
+                } catch (e) { /* swallow */ }
+
+                // ─── FIX #41: subscribe to watchlist:select ──────────────
+                // Clicking a watchlist ticker emits {symbol, broker}. Switch
+                // the chart by reusing the same asset-switch sequence the
+                // #cp-assetSelector dropdown uses.
+                try {
+                    if (OGZ && OGZ.bus && typeof OGZ.bus.on === 'function') {
+                        OGZ.bus.on('watchlist:select', (payload) => {
+                            try {
+                                const sym = payload && payload.symbol
+                                    ? String(payload.symbol)
+                                    : (typeof payload === 'string' ? payload : null);
+                                if (sym) ChartPanel.switchAsset(sym);
+                            } catch (e) { /* swallow */ }
                         });
                     }
                 } catch (e) { /* swallow */ }
@@ -1053,22 +1212,63 @@
         },
 
         /**
-         * Apply layout margins based on oscillator visibility.
+         * Apply layout for the stacked oscillator-pane system.
+         *
+         * Oscillators (RSI/MACD/ATR/volume) now each live in their OWN aux
+         * LightweightCharts instance (separate DOM panes below the main chart),
+         * so they no longer share the main chart's price scales. This method:
+         *   - keeps the main chart's `right`/`vol` scales sized correctly
+         *     (the in-chart `vol` histogram strip is hidden whenever the
+         *     volume pane is split out, so the price scale can use full height)
+         *   - divides the aux-pane DOM heights evenly across whatever
+         *     oscillator panes are currently active.
+         *
+         * Accepts no argument; reads `_oscPanes` directly. The legacy boolean
+         * arg is ignored for back-compat with any stray caller.
          */
-        _applyLayout: function (hasOsc) {
-            if (hasOsc) {
-                tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.02, bottom: 0.38 } });
-                tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.62, bottom: 0.18 } });
-                tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-                tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-                tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-            } else {
-                tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
-                tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-                tvChart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
-                tvChart.priceScale('macd').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
-                tvChart.priceScale('atr').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
-            }
+        _applyLayout: function () {
+            if (!tvChart) return;
+            const volSplitOut = !!_oscPanes['volume'];
+            try {
+                if (volSplitOut) {
+                    // Volume lives in its own pane — give the price chart full height.
+                    tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.06 } });
+                    tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.999, bottom: 0 } });
+                } else {
+                    // Volume rides inside the main chart as a bottom strip.
+                    tvChart.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+                    tvChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+                }
+            } catch (e) { /* swallow */ }
+
+            // Divide vertical space across the active aux panes. Each pane is a
+            // fixed-height DOM block; we scale that height down as more panes
+            // stack so the price chart keeps a reasonable share.
+            try {
+                const activeKeys = OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
+                const n = activeKeys.length;
+                if (n > 0) {
+                    // 1 pane → 130px, 2 → 110px each, 3 → 96px, 4 → 86px.
+                    const perPane = n <= 1 ? 130 : Math.max(80, Math.round(360 / n));
+                    activeKeys.forEach(k => {
+                        const entry = _oscPanes[k];
+                        if (entry && entry.container) {
+                            entry.container.style.height = perPane + 'px';
+                            if (entry.chart) {
+                                try { entry.chart.resize(entry.container.clientWidth, perPane); }
+                                catch (e) { /* swallow */ }
+                            }
+                        }
+                    });
+                }
+                // Main chart shares the remaining space — let its ResizeObserver
+                // pick up the flex re-layout.
+                const mainContainer = document.getElementById('tvChartContainer');
+                if (mainContainer) {
+                    try { tvChart.resize(mainContainer.clientWidth, mainContainer.clientHeight); }
+                    catch (e) { /* swallow */ }
+                }
+            } catch (e) { /* swallow */ }
         },
 
         /**
@@ -1114,35 +1314,31 @@
                 }
             });
 
-            // Asset selector
+            // Asset selector — delegate to the shared switchAsset() sequence
+            // so the dropdown and the watchlist:select bus event (fix #41)
+            // share ONE code path.
             const assetSel = root.querySelector('#cp-assetSelector');
             if (assetSel) trackListener(assetSel, 'change', (e) => {
-                const socket = OGZ.get('Socket');
-                if (socket) {
-                    socket.send({ type: 'asset_change', asset: e.target.value });
-                    this.clearAll();
-                    const tid = setTimeout(() => {
-                        _trackedTimers.delete(tid);
-                        const tf = root.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
-                        socket.send({ type: 'request_historical', timeframe: tf, asset: e.target.value, limit: 500 });
-                    }, 500);
-                    trackTimer(tid);
-                }
+                this.switchAsset(e.target.value);
             });
 
-            // Timeframe selector
+            // Timeframe selector — fix #42: do NOT call clearAll() preemptively.
+            // The incoming `historical_candles` handler (loadHistorical) does a
+            // full setData() replace, so blanking the chart first only risks a
+            // silent black void if the response is slow/empty. Instead we arm a
+            // ~5s watchdog that surfaces a visible "No data" message.
             const tfSel = root.querySelector('#cp-timeframeSelector');
             if (tfSel) trackListener(tfSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'timeframe_change', timeframe: e.target.value });
-                    this.clearAll();
                     socket.send({
                         type: 'request_historical',
                         timeframe: e.target.value,
                         asset: root.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL,
                         limit: 500
                     });
+                    this._armNoDataWatchdog();
                 }
             });
 
@@ -1161,9 +1357,104 @@
         },
 
         /**
+         * Switch the chart to a new asset/symbol (fix #41).
+         *
+         * This is the SINGLE asset-switch code path, shared by:
+         *   - the #cp-assetSelector dropdown 'change' handler, and
+         *   - the OGZ.bus 'watchlist:select' subscription.
+         *
+         * Sequence (identical to the legacy dropdown behavior):
+         *   1. send `asset_change`
+         *   2. clearAll() — blank the chart
+         *   3. after 500ms, send `request_historical` for the new asset
+         *
+         * Guards: if `symbol` is not a valid <option> of #cp-assetSelector,
+         * the call is ignored. Keeps the dropdown's `.value` in sync so the
+         * UI reflects the active symbol regardless of how the switch began.
+         */
+        switchAsset: function (symbol) {
+            const root = document.getElementById(ROOT_ID);
+            if (!root) return;
+            const assetSel = root.querySelector('#cp-assetSelector');
+            if (!assetSel) return;
+
+            const sym = String(symbol || '').trim();
+            if (!sym) return;
+
+            // Validate: the symbol must be a real option of the selector.
+            const isValidOption = Array.prototype.some.call(
+                assetSel.options, opt => opt.value === sym
+            );
+            if (!isValidOption) return;   // ignore unknown symbols
+
+            // No-op if we're already on this asset.
+            if (assetSel.value === sym) return;
+
+            // Keep the dropdown in sync with the new symbol.
+            assetSel.value = sym;
+
+            const socket = OGZ.get('Socket');
+            if (!socket) return;
+            try { socket.send({ type: 'asset_change', asset: sym }); } catch (e) { /* swallow */ }
+            this.clearAll();
+            const tid = setTimeout(() => {
+                _trackedTimers.delete(tid);
+                const tf = root.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
+                try { socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 }); }
+                catch (e) { /* swallow */ }
+            }, 500);
+            trackTimer(tid);
+        },
+
+        /**
+         * Arm a watchdog after a timeframe change (fix #42). If no
+         * `historical_candles` arrive within ~5s, surface a visible
+         * "No data for this timeframe" message instead of a silent void.
+         * loadHistorical() clears the watchdog on the next data arrival.
+         */
+        _armNoDataWatchdog: function () {
+            this._clearNoDataWatchdog();
+            const tid = setTimeout(() => {
+                _trackedTimers.delete(tid);
+                _noDataWatchdogTimer = null;
+                try {
+                    const pill = document.getElementById('feedStatusPill');
+                    if (pill) {
+                        pill.textContent = '⚠ No data for this timeframe';
+                        pill.style.display = 'block';
+                    }
+                } catch (e) { /* swallow */ }
+            }, 5000);
+            _noDataWatchdogTimer = tid;
+            trackTimer(tid);
+        },
+
+        /**
+         * Clear the no-data watchdog and hide the warning pill if it was
+         * raised by the watchdog.
+         */
+        _clearNoDataWatchdog: function () {
+            if (_noDataWatchdogTimer) {
+                try { clearTimeout(_noDataWatchdogTimer); } catch (e) { /* swallow */ }
+                _trackedTimers.delete(_noDataWatchdogTimer);
+                _noDataWatchdogTimer = null;
+            }
+            try {
+                const pill = document.getElementById('feedStatusPill');
+                if (pill && pill.textContent === '⚠ No data for this timeframe') {
+                    pill.style.display = 'none';
+                }
+            } catch (e) { /* swallow */ }
+        },
+
+        /**
          * Toggle indicator visibility and recalculate layout.
          */
         toggleIndicators: function (active) {
+            // ─── Price-chart overlays (unchanged) ───────────────────────
+            // EMA / SMA / Bollinger / VWAP / Ichimoku / trendlines /
+            // fibonacci / sr are correct price overlays — they stay on the
+            // main chart exactly as before.
             ema20Series.applyOptions({ visible: active.includes('ema') });
             ema50Series.applyOptions({ visible: active.includes('ema') });
             ema200Series.applyOptions({ visible: active.includes('ema') });
@@ -1174,10 +1465,6 @@
             sma20Series.applyOptions({ visible: active.includes('sma') });
             sma50Series.applyOptions({ visible: active.includes('sma') });
             sma200Series.applyOptions({ visible: active.includes('sma') });
-            rsiOverlaySeries.applyOptions({ visible: active.includes('rsi') });
-            macdLineSeries.applyOptions({ visible: active.includes('macd') });
-            macdSignalSeries.applyOptions({ visible: active.includes('macd') });
-            atrSeries.applyOptions({ visible: active.includes('atr') });
             this._ichiTenkan.applyOptions({ visible: active.includes('ichimoku') });
             this._ichiKijun.applyOptions({ visible: active.includes('ichimoku') });
             this._ichiSenkouA.applyOptions({ visible: active.includes('ichimoku') });
@@ -1185,13 +1472,25 @@
             this._trendResistance.applyOptions({ visible: active.includes('trendlines') });
             this._trendSupport.applyOptions({ visible: active.includes('trendlines') });
 
+            // ─── Oscillators (fix #42) ──────────────────────────────────
+            // RSI / MACD / ATR are no longer main-chart overlays — each
+            // toggles its own stacked aux pane. The legacy main-chart series
+            // rsiOverlaySeries/macdLineSeries/macdSignalSeries/atrSeries are
+            // intentionally left hidden + unfed.
+            ['rsi', 'macd', 'atr'].forEach(key => {
+                if (active.includes(key)) {
+                    if (!_oscPanes[key]) this.addOscPane(key);
+                } else {
+                    if (_oscPanes[key]) this.removeOscPane(key);
+                }
+            });
+
             this._fibLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch (e) { } });
             this._fibLines = [];
             this._srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch (e) { } });
             this._srLines = [];
 
-            const hasOsc = active.includes('rsi') || active.includes('macd') || active.includes('atr');
-            this._applyLayout(hasOsc);
+            this._applyLayout();
         },
 
         /**
@@ -1229,11 +1528,18 @@
                 const vwap = Ind.calculateVWAP(candles);
                 vwapSeries.setData(mapSeries(vwap));
 
-                const rsi = Ind.calculateRSI(closes, 14);
-                rsiOverlaySeries.setData(mapSeries(rsi));
+                // ─── Oscillator panes (fix #42) ─────────────────────────
+                // RSI / ATR computed data is routed into their aux panes
+                // when active. The legacy main-chart series stay unfed.
+                if (_oscPanes['rsi'] && _oscPanes['rsi'].series && _oscPanes['rsi'].series.rsi) {
+                    const rsi = Ind.calculateRSI(closes, 14);
+                    try { _oscPanes['rsi'].series.rsi.setData(mapSeries(rsi)); } catch (e) { /* swallow */ }
+                }
 
-                const atr = Ind.calculateATR(candles, 14);
-                atrSeries.setData(mapSeries(atr));
+                if (_oscPanes['atr'] && _oscPanes['atr'].series && _oscPanes['atr'].series.atr) {
+                    const atr = Ind.calculateATR(candles, 14);
+                    try { _oscPanes['atr'].series.atr.setData(mapSeries(atr)); } catch (e) { /* swallow */ }
+                }
 
                 if (activeOverlays.includes('trendlines')) {
                     const trendLines = Ind.calculateTrendLines(candles);
@@ -1243,9 +1549,13 @@
                     });
                 }
 
-                const macd = Ind.calculateMACD(closes);
-                macdLineSeries.setData(mapSeries(macd.macd));
-                macdSignalSeries.setData(mapSeries(macd.signal));
+                if (_oscPanes['macd'] && _oscPanes['macd'].series) {
+                    const macd = Ind.calculateMACD(closes);
+                    try {
+                        if (_oscPanes['macd'].series.macd) _oscPanes['macd'].series.macd.setData(mapSeries(macd.macd));
+                        if (_oscPanes['macd'].series.signal) _oscPanes['macd'].series.signal.setData(mapSeries(macd.signal));
+                    } catch (e) { /* swallow */ }
+                }
 
                 const ichi = Ind.calculateIchimoku(candles);
                 this._ichiTenkan.setData(mapSeries(ichi.tenkan));
@@ -1358,19 +1668,32 @@
             // They will no-op safely because candleSeries is null below.
             _wsBootstrapped = false;
 
-            tvChart = null;
-            // Tear down the oscillator pane if active. Note: this preserves
-            // the LS flag — if the user had Split on, they'll get it back on
-            // the next init().
+            // Tear down ALL active oscillator panes BEFORE nulling tvChart
+            // (removeOscPane needs tvChart to unsubscribe the crosshair sub).
+            // We preserve the persisted active-set in LS so the panes
+            // auto-restore on the next init(): snapshot it first, then
+            // restore it after the removeOscPane calls (which would otherwise
+            // re-persist an empty set).
             try {
-                const wasActive = _oscPaneActive;
-                ChartPanel.destroyOscillatorPane();
-                // destroyOscillatorPane wrote '0' to LS — restore the user's
-                // preference so it auto-restores next mount.
-                if (wasActive) {
-                    try { localStorage.setItem(OSC_PANE_LS_KEY, '1'); } catch (e) { /* swallow */ }
+                const savedSet = OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
+                OSC_PANE_ORDER.slice().forEach(k => {
+                    if (_oscPanes[k]) {
+                        try { ChartPanel.removeOscPane(k); } catch (e) { /* swallow */ }
+                    }
+                });
+                if (savedSet.length) {
+                    try { localStorage.setItem(OSC_PANE_LS_KEY, JSON.stringify(savedSet)); }
+                    catch (e) { /* swallow */ }
                 }
             } catch (e) { /* swallow */ }
+            _oscPanes = {};
+            _oscMainRangeCB = null;
+            _oscSyncing = false;
+
+            // Clear the timeframe-change watchdog if still pending.
+            try { ChartPanel._clearNoDataWatchdog(); } catch (e) { /* swallow */ }
+
+            tvChart = null;
 
             candleSeries = null;
             volumeSeries = null;
@@ -1449,10 +1772,19 @@
                     color: `rgba(${rgb},${liveAlpha.toFixed(3)})`
                 };
                 volumeSeries.update(volEntry);
-                // Mirror live volume tick into the oscillator pane when active
-                if (_oscPaneActive && _oscVolumeSeries) {
-                    try { _oscVolumeSeries.update(volEntry); } catch (e) { /* swallow */ }
+                // Mirror live volume tick into the volume pane when active.
+                const volPane = _oscPanes['volume'];
+                if (volPane && volPane.series && volPane.series.volume) {
+                    try { volPane.series.volume.update(volEntry); } catch (e) { /* swallow */ }
                 }
+            }
+
+            // Feed live RSI/MACD/ATR into their panes (recomputed from the
+            // updated storedCandles window). Cheap enough at tick cadence —
+            // the same indicator math the panel already runs on every toggle.
+            if ((_oscPanes['rsi'] || _oscPanes['macd'] || _oscPanes['atr'])
+                && storedCandles.length >= MIN_INDICATOR_CANDLES) {
+                feedOscIndicatorPanes(storedCandles);
             }
 
             if (price != null) {
@@ -1598,15 +1930,22 @@
                         return { time: c.time, value: c.volume, color: `rgba(${rgb},${alpha.toFixed(3)})` };
                     });
                     volumeSeries.setData(volData);
-                    // Mirror full historical volume into the oscillator pane when active
-                    if (_oscPaneActive && _oscVolumeSeries) {
-                        try { _oscVolumeSeries.setData(volData); } catch (e) { /* swallow */ }
+                    // Mirror full historical volume into the volume pane when active.
+                    const volPane = _oscPanes['volume'];
+                    if (volPane && volPane.series && volPane.series.volume) {
+                        try { volPane.series.volume.setData(volData); } catch (e) { /* swallow */ }
                     }
                 }
 
                 storedCandles = formatted;
 
+                // fix #42: real data arrived — cancel the timeframe-change watchdog.
+                this._clearNoDataWatchdog();
+
                 if (activeOverlays.length > 0) this.calculateIndicators(formatted);
+
+                // Feed any active RSI/MACD/ATR panes with the fresh history.
+                feedOscIndicatorPanes(formatted);
 
                 if (tvChart) {
                     try {
@@ -1735,190 +2074,276 @@
         getChart: () => tvChart,
 
         /**
-         * Create the oscillator pane (volume in its own row below the main chart).
-         * Idempotent — calling when already active is a no-op.
-         * Synced with the main chart's time-axis. Safe to destroy at any time.
+         * Re-sync the single main→pane time-axis subscription. The main
+         * chart has ONE range-change callback; it pushes the range into
+         * every active pane. Bottom→top sync is wired per-pane in
+         * _buildOscPane(). All sync paths share the `_oscSyncing` guard.
          */
-        createOscillatorPane: function () {
-            if (_oscPaneActive || !tvChart || typeof LightweightCharts === 'undefined') return false;
-            const mainContainer = document.getElementById('tvChartContainer');
-            if (!mainContainer || !mainContainer.parentElement) return false;
-
-            try {
-                // Build container right after the main chart
-                _oscContainer = document.createElement('div');
-                _oscContainer.id = 'cp-oscPaneContainer';
-                _oscContainer.className = 'cp-osc-pane';
-                const label = document.createElement('div');
-                label.className = 'cp-osc-label';
-                label.textContent = 'VOLUME';
-                _oscContainer.appendChild(label);
-                mainContainer.parentElement.insertBefore(_oscContainer, mainContainer.nextSibling);
-
-                // Build the aux chart
-                _oscChart = LightweightCharts.createChart(_oscContainer, {
-                    width: _oscContainer.clientWidth,
-                    height: _oscContainer.clientHeight,
-                    layout: { background: { color: '#0a0a0a' }, textColor: '#888' },
-                    grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
-                    crosshair: { mode: 0, vertLine: { color: 'rgba(220,38,38,0.45)' }, horzLine: { color: 'rgba(220,38,38,0.45)' } },
-                    timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false, visible: false },
-                    handleScroll: false,
-                    handleScale: false,
-                    rightPriceScale: { borderVisible: false }
-                });
-
-                // Volume series on the aux chart
-                _oscVolumeSeries = _oscChart.addHistogramSeries({
-                    color: '#26a69a',
-                    priceFormat: { type: 'volume' },
-                    priceScaleId: 'right'
-                });
-
-                // Mirror current storedCandles' volume into the aux chart
-                if (storedCandles && storedCandles.length) {
-                    const volData = storedCandles
-                        .filter(c => c && typeof c.time === 'number')
-                        .map(c => {
-                            const up = c.close >= c.open;
-                            return {
-                                time: c.time,
-                                value: c.volume || 0,
-                                color: up ? 'rgba(34,197,94,0.55)' : 'rgba(239,68,68,0.55)'
-                            };
-                        });
-                    try { _oscVolumeSeries.setData(volData); } catch (e) { /* swallow */ }
-                }
-
-                // Hide volume series on the main pane (keeps the candle canvas clean)
-                try { if (volumeSeries) volumeSeries.applyOptions({ visible: false }); } catch (e) { /* swallow */ }
-
-                // Time-axis sync (top → bottom AND bottom → top), guarded against re-entrance
-                _oscMainRangeCB = (range) => {
-                    if (_oscSyncing || !range || !_oscChart) return;
-                    _oscSyncing = true;
-                    try { _oscChart.timeScale().setVisibleLogicalRange(range); }
-                    catch (e) { /* swallow */ }
-                    setTimeout(() => { _oscSyncing = false; }, 0);
-                };
-                _oscBottomRangeCB = (range) => {
-                    if (_oscSyncing || !range || !tvChart) return;
-                    _oscSyncing = true;
-                    try { tvChart.timeScale().setVisibleLogicalRange(range); }
-                    catch (e) { /* swallow */ }
-                    setTimeout(() => { _oscSyncing = false; }, 0);
-                };
-                tvChart.timeScale().subscribeVisibleLogicalRangeChange(_oscMainRangeCB);
-                _oscChart.timeScale().subscribeVisibleLogicalRangeChange(_oscBottomRangeCB);
-
-                // Crosshair sync (top → bottom only; bottom is pointer-passive)
-                _oscMainCrosshairCB = (param) => {
-                    if (!_oscChart || !param || !param.time) return;
-                    try { _oscChart.setCrosshairPosition(NaN, param.time, _oscVolumeSeries); }
-                    catch (e) { /* swallow */ }
-                };
-                tvChart.subscribeCrosshairMove(_oscMainCrosshairCB);
-
-                // ResizeObserver for the aux pane
-                if (typeof ResizeObserver !== 'undefined') {
-                    _oscResizeObserver = new ResizeObserver(() => {
-                        if (_oscChart && _oscContainer) {
-                            try { _oscChart.resize(_oscContainer.clientWidth, _oscContainer.clientHeight); }
+        _ensureOscMainRangeSub: function () {
+            if (_oscMainRangeCB || !tvChart) return;
+            _oscMainRangeCB = (range) => {
+                if (_oscSyncing || !range) return;
+                _oscSyncing = true;
+                try {
+                    OSC_PANE_ORDER.forEach(k => {
+                        const entry = _oscPanes[k];
+                        if (entry && entry.chart) {
+                            try { entry.chart.timeScale().setVisibleLogicalRange(range); }
                             catch (e) { /* swallow */ }
                         }
                     });
-                    try { _oscResizeObserver.observe(_oscContainer); } catch (e) { /* swallow */ }
+                } finally {
+                    setTimeout(() => { _oscSyncing = false; }, 0);
                 }
-
-                // Match main chart's current visible range immediately
-                try {
-                    const lr = tvChart.timeScale().getVisibleLogicalRange();
-                    if (lr) _oscChart.timeScale().setVisibleLogicalRange(lr);
-                } catch (e) { /* swallow */ }
-
-                _oscPaneActive = true;
-                try { localStorage.setItem(OSC_PANE_LS_KEY, '1'); } catch (e) { /* swallow */ }
-
-                // Update toggle button UI
-                const btn = document.getElementById('cp-oscToggle');
-                if (btn) {
-                    btn.classList.add('active');
-                    btn.textContent = '📊 Split ✓';
-                }
-
-                // Resize main chart to share vertical space
-                if (tvChart && mainContainer) {
-                    try { tvChart.resize(mainContainer.clientWidth, mainContainer.clientHeight); }
-                    catch (e) { /* swallow */ }
-                }
-
-                return true;
-            } catch (e) {
-                // Roll back partial setup
-                try { ChartPanel.destroyOscillatorPane(); } catch (_) {}
-                return false;
-            }
+            };
+            try { tvChart.timeScale().subscribeVisibleLogicalRangeChange(_oscMainRangeCB); }
+            catch (e) { /* swallow */ }
         },
 
         /**
-         * Tear down the oscillator pane. Idempotent.
+         * Build ONE aux LightweightCharts pane for a given oscillator key.
+         * Shared by addOscPane(). Wires per-pane bottom→top time-axis sync,
+         * main→pane crosshair sync, and a ResizeObserver. Returns the pane
+         * registry entry, or null on failure.
+         *
+         * v4 only — each pane is a separate createChart() instance, the same
+         * proven pattern the old single volume pane used.
          */
-        destroyOscillatorPane: function () {
-            if (!_oscPaneActive && !_oscChart) return;
+        _buildOscPane: function (key) {
+            const spec = OSC_PANE_SPEC[key];
+            if (!spec || !tvChart || typeof LightweightCharts === 'undefined') return null;
+            const mainContainer = document.getElementById('tvChartContainer');
+            if (!mainContainer || !mainContainer.parentElement) return null;
+
+            // Build the pane container.
+            const container = document.createElement('div');
+            container.className = 'cp-osc-pane';
+            container.dataset.oscKey = key;
+            const label = document.createElement('div');
+            label.className = 'cp-osc-label';
+            label.textContent = spec.label;
+            container.appendChild(label);
+
+            // Insert in fixed stack order: after the last pane that precedes
+            // `key` in OSC_PANE_ORDER, otherwise right after the main chart.
+            const parent = mainContainer.parentElement;
+            let insertBefore = mainContainer.nextSibling;
+            const idx = OSC_PANE_ORDER.indexOf(key);
+            for (let i = idx - 1; i >= 0; i--) {
+                const prev = _oscPanes[OSC_PANE_ORDER[i]];
+                if (prev && prev.container) {
+                    insertBefore = prev.container.nextSibling;
+                    break;
+                }
+            }
+            // If a later pane already exists, make sure we land before it.
+            for (let i = idx + 1; i < OSC_PANE_ORDER.length; i++) {
+                const later = _oscPanes[OSC_PANE_ORDER[i]];
+                if (later && later.container) {
+                    insertBefore = later.container;
+                    break;
+                }
+            }
+            parent.insertBefore(container, insertBefore);
+
+            // Build the aux chart instance.
+            const chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: { background: { color: '#0a0a0a' }, textColor: '#888' },
+                grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+                crosshair: { mode: 0, vertLine: { color: 'rgba(220,38,38,0.45)' }, horzLine: { color: 'rgba(220,38,38,0.45)' } },
+                timeScale: { rightOffset: 12, timeVisible: true, secondsVisible: false, visible: false },
+                handleScroll: false,
+                handleScale: false,
+                rightPriceScale: { borderVisible: false }
+            });
+
+            // Build the pane's series via its spec.
+            const series = spec.build(chart);
+
+            // Bottom→top time-axis sync (per pane), shares the _oscSyncing guard.
+            const rangeCB = (range) => {
+                if (_oscSyncing || !range || !tvChart) return;
+                _oscSyncing = true;
+                try {
+                    tvChart.timeScale().setVisibleLogicalRange(range);
+                    // Mirror into the OTHER active panes too.
+                    OSC_PANE_ORDER.forEach(k => {
+                        if (k === key) return;
+                        const other = _oscPanes[k];
+                        if (other && other.chart) {
+                            try { other.chart.timeScale().setVisibleLogicalRange(range); }
+                            catch (e) { /* swallow */ }
+                        }
+                    });
+                } finally {
+                    setTimeout(() => { _oscSyncing = false; }, 0);
+                }
+            };
+            try { chart.timeScale().subscribeVisibleLogicalRangeChange(rangeCB); }
+            catch (e) { /* swallow */ }
+
+            // Main→pane crosshair sync. Anchor the crosshair on the pane's
+            // first series so the vertical line lines up with the main chart.
+            const anchorSeries = series[Object.keys(series)[0]];
+            const crosshairCB = (param) => {
+                if (!param || !param.time || !anchorSeries) return;
+                try { chart.setCrosshairPosition(NaN, param.time, anchorSeries); }
+                catch (e) { /* swallow */ }
+            };
+            try { tvChart.subscribeCrosshairMove(crosshairCB); } catch (e) { /* swallow */ }
+
+            // ResizeObserver for the pane.
+            let resizeObserver = null;
+            if (typeof ResizeObserver !== 'undefined') {
+                resizeObserver = new ResizeObserver(() => {
+                    if (chart && container) {
+                        try { chart.resize(container.clientWidth, container.clientHeight); }
+                        catch (e) { /* swallow */ }
+                    }
+                });
+                try { resizeObserver.observe(container); } catch (e) { /* swallow */ }
+            }
+
+            // Match the main chart's current visible range immediately.
             try {
-                // Unsubscribe time-axis sync
-                if (_oscMainRangeCB && tvChart) {
-                    try { tvChart.timeScale().unsubscribeVisibleLogicalRangeChange(_oscMainRangeCB); }
-                    catch (e) { /* swallow */ }
-                }
-                if (_oscBottomRangeCB && _oscChart) {
-                    try { _oscChart.timeScale().unsubscribeVisibleLogicalRangeChange(_oscBottomRangeCB); }
-                    catch (e) { /* swallow */ }
-                }
-                if (_oscMainCrosshairCB && tvChart) {
-                    try { tvChart.unsubscribeCrosshairMove(_oscMainCrosshairCB); }
-                    catch (e) { /* swallow */ }
-                }
-
-                // Tear down ResizeObserver
-                if (_oscResizeObserver) {
-                    try { _oscResizeObserver.disconnect(); } catch (e) { /* swallow */ }
-                    _oscResizeObserver = null;
-                }
-
-                // Remove the aux chart instance
-                if (_oscChart && typeof _oscChart.remove === 'function') {
-                    try { _oscChart.remove(); } catch (e) { /* swallow */ }
-                }
-                _oscChart = null;
-                _oscVolumeSeries = null;
-
-                // Remove the container
-                if (_oscContainer && _oscContainer.parentElement) {
-                    try { _oscContainer.parentElement.removeChild(_oscContainer); }
-                    catch (e) { /* swallow */ }
-                }
-                _oscContainer = null;
+                const lr = tvChart.timeScale().getVisibleLogicalRange();
+                if (lr) chart.timeScale().setVisibleLogicalRange(lr);
             } catch (e) { /* swallow */ }
 
-            // Restore main-pane volume visibility
-            try { if (volumeSeries) volumeSeries.applyOptions({ visible: true }); } catch (e) { /* swallow */ }
-
-            _oscPaneActive = false;
-            try { localStorage.setItem(OSC_PANE_LS_KEY, '0'); } catch (e) { /* swallow */ }
-
-            // Update toggle button UI
-            const btn = document.getElementById('cp-oscToggle');
-            if (btn) {
-                btn.classList.remove('active');
-                btn.textContent = '📊 Split';
-            }
+            return { container, chart, series, rangeCB, crosshairCB, resizeObserver };
         },
 
         /**
-         * Returns the current oscillator-pane state (for diagnostics / UI sync).
+         * Add (activate) a stacked oscillator pane for `key` — one of
+         * 'volume' | 'rsi' | 'macd' | 'atr'. Idempotent. The pane is built
+         * below the price chart, time-axis + crosshair synced, then fed with
+         * data computed from the current storedCandles.
+         *
+         * @param {string} key
+         * @param {boolean} [skipLayout] - when true, the caller will run
+         *        _applyLayout() itself (used by init() batch restore).
          */
-        isOscillatorPaneActive: function () { return _oscPaneActive; },
+        addOscPane: function (key, skipLayout) {
+            if (!OSC_PANE_SPEC[key]) return false;
+            if (_oscPanes[key]) return true;   // idempotent
+            if (!tvChart) return false;
+
+            const entry = this._buildOscPane(key);
+            if (!entry) return false;
+            _oscPanes[key] = entry;
+
+            // Ensure the single main→pane range subscription is live.
+            this._ensureOscMainRangeSub();
+
+            // Feed the pane with current data.
+            if (key === 'volume') {
+                // Hide the in-chart volume strip — volume now lives in its pane.
+                try { if (volumeSeries) volumeSeries.applyOptions({ visible: false }); } catch (e) { /* swallow */ }
+                this._feedVolumePane();
+            } else {
+                feedOscIndicatorPanes(storedCandles);
+            }
+
+            // Persist + UI.
+            persistOscPanes();
+            if (key === 'volume') {
+                const btn = document.getElementById('cp-oscToggle');
+                if (btn) { btn.classList.add('active'); btn.textContent = '📊 Volume Split ✓'; }
+            }
+
+            if (!skipLayout) this._applyLayout();
+            return true;
+        },
+
+        /**
+         * Remove (deactivate) the stacked oscillator pane for `key`.
+         * Idempotent. Unwinds all subscriptions, the chart instance, the
+         * ResizeObserver, and the DOM container.
+         */
+        removeOscPane: function (key) {
+            const entry = _oscPanes[key];
+            if (!entry) return;
+
+            try {
+                if (entry.rangeCB && entry.chart) {
+                    try { entry.chart.timeScale().unsubscribeVisibleLogicalRangeChange(entry.rangeCB); }
+                    catch (e) { /* swallow */ }
+                }
+                if (entry.crosshairCB && tvChart) {
+                    try { tvChart.unsubscribeCrosshairMove(entry.crosshairCB); }
+                    catch (e) { /* swallow */ }
+                }
+                if (entry.resizeObserver) {
+                    try { entry.resizeObserver.disconnect(); } catch (e) { /* swallow */ }
+                }
+                if (entry.chart && typeof entry.chart.remove === 'function') {
+                    try { entry.chart.remove(); } catch (e) { /* swallow */ }
+                }
+                if (entry.container && entry.container.parentElement) {
+                    try { entry.container.parentElement.removeChild(entry.container); }
+                    catch (e) { /* swallow */ }
+                }
+            } catch (e) { /* swallow */ }
+
+            delete _oscPanes[key];
+
+            // If no panes remain, drop the shared main→pane range subscription.
+            if (Object.keys(_oscPanes).length === 0 && _oscMainRangeCB && tvChart) {
+                try { tvChart.timeScale().unsubscribeVisibleLogicalRangeChange(_oscMainRangeCB); }
+                catch (e) { /* swallow */ }
+                _oscMainRangeCB = null;
+            }
+
+            // Restore the in-chart volume strip when the volume pane closes.
+            if (key === 'volume') {
+                try { if (volumeSeries) volumeSeries.applyOptions({ visible: true }); } catch (e) { /* swallow */ }
+                const btn = document.getElementById('cp-oscToggle');
+                if (btn) { btn.classList.remove('active'); btn.textContent = '📊 Volume Split'; }
+            }
+
+            persistOscPanes();
+            this._applyLayout();
+        },
+
+        /**
+         * Feed the volume pane (if active) with colored volume bars derived
+         * from the current storedCandles. Mirrors the alpha-envelope logic
+         * used by the in-chart volume series.
+         */
+        _feedVolumePane: function () {
+            const entry = _oscPanes['volume'];
+            if (!entry || !entry.series || !entry.series.volume) return;
+            if (!storedCandles || !storedCandles.length) return;
+            const sortedVols = storedCandles.map(c => c.volume).filter(v => v > 0).sort((a, b) => a - b);
+            const capVol = sortedVols.length
+                ? sortedVols[Math.min(sortedVols.length - 1, Math.ceil(sortedVols.length * VOL_CAP_PCTILE) - 1)]
+                : 1;
+            const volData = storedCandles
+                .filter(c => c && typeof c.time === 'number')
+                .map(c => {
+                    const up = c.close >= c.open;
+                    const ratio = capVol > 0 ? Math.min(1, (c.volume || 0) / capVol) : 0;
+                    const alpha = VOL_ALPHA_FLOOR + VOL_ALPHA_RANGE * ratio;
+                    const rgb = up ? '34,197,94' : '239,68,68';
+                    return { time: c.time, value: c.volume || 0, color: `rgba(${rgb},${alpha.toFixed(3)})` };
+                });
+            try { entry.series.volume.setData(volData); } catch (e) { /* swallow */ }
+        },
+
+        /**
+         * Returns true if any oscillator pane is currently active.
+         * (Diagnostics / UI sync.)
+         */
+        isOscillatorPaneActive: function () { return Object.keys(_oscPanes).length > 0; },
+
+        /**
+         * Returns the list of active oscillator-pane keys.
+         */
+        getActiveOscPanes: function () {
+            return OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
+        },
 
 
         /**
