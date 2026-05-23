@@ -38,6 +38,148 @@ class OrderExecutor {
     console.log('[OrderExecutor] Initialized (Phase 14 - exact copy)');
   }
 
+  _isEntryAction(action) {
+    return action === 'BUY' || action === 'SELL_SHORT';
+  }
+
+  _isExitAction(action) {
+    return action === 'SELL' || action === 'COVER';
+  }
+
+  _entrySide(action) {
+    if (action === 'BUY') return 'buy';
+    if (action === 'SELL_SHORT') return 'sell';
+    throw new Error(`[ENTRY-PLAN] unsupported entry action ${action}`);
+  }
+
+  _exitSide(action) {
+    if (action === 'SELL') return 'sell';
+    if (action === 'COVER') return 'buy';
+    throw new Error(`[ORDER-PLAN] unsupported exit action ${action}`);
+  }
+
+  _orderQuantityUnit() {
+    const assetClass = String(this.ctx.config?.assetClass || '').trim().toLowerCase();
+    if (['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'].includes(assetClass)) {
+      return 'shares';
+    }
+    if (['crypto', 'cryptos', 'cryptocurrency', 'forex', 'fx', 'futures', 'future'].includes(assetClass)) {
+      return 'base';
+    }
+    throw new Error(`[ORDER-PLAN] unsupported assetClass ${JSON.stringify(this.ctx.config?.assetClass)} for broker quantity planning`);
+  }
+
+  _orderQuantityFromSizeUsd(sizeUsd, price) {
+    if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
+      throw new Error(`[ORDER-PLAN] invalid sizeUsd ${sizeUsd}`);
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error(`[ORDER-PLAN] invalid price ${price}`);
+    }
+
+    const rawQuantity = sizeUsd / price;
+    return this._orderQuantityUnit() === 'shares'
+      ? Math.floor(rawQuantity)
+      : rawQuantity;
+  }
+
+  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, tradeConfidence, confidenceMultiplier, orchResult }) {
+    if (!this._isEntryAction(decision.action)) return null;
+
+    const entryStrategy = orchResult.winnerStrategy;
+    const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
+    const exitContract = orchResult.exitContract;
+    const sizeUsd = positionSize * sizingMultiplier;
+    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price);
+    const quantityUnit = this._orderQuantityUnit();
+
+    return {
+      action: decision.action,
+      side: this._entrySide(decision.action),
+      direction: decision.action === 'BUY' ? 'long' : 'short',
+      symbol,
+      assetClass: this.ctx.config?.assetClass || null,
+      brokerId: this.ctx.config?.brokerId || null,
+      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode,
+      timeframe: this.ctx.config?.timeframe || null,
+      price,
+      accountBalance: currentBalance,
+      baseSizeUsd: positionSize,
+      sizeUsd,
+      confidence: decision.confidence,
+      tradeConfidence,
+      confidenceMultiplier,
+      sizingMultiplier,
+      orderQuantity,
+      quantityUnit,
+      entryStrategy,
+      exitContract
+    };
+  }
+
+  _findExitTrade(decision, symbol) {
+    const openAction = decision.action === 'SELL' ? 'BUY' : 'SELL_SHORT';
+    const trades = stateManager.getTradesBySymbol(symbol)
+      .filter(t => t.action === openAction)
+      .sort((a, b) => a.entryTime - b.entryTime);
+    if (trades.length === 0) return null;
+    if (decision.tradeId) {
+      const matched = trades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
+      if (matched) return matched;
+    }
+    return trades[0];
+  }
+
+  _buildExitPlan({ decision, symbol, price }) {
+    if (!this._isExitAction(decision.action)) return null;
+
+    const trade = this._findExitTrade(decision, symbol);
+    if (!trade) return null;
+
+    const fullSizeUsd = Math.abs(trade.sizeUsd || trade.size || 0);
+    const exitFraction = typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1
+      ? decision.exitFraction
+      : 1;
+    const sizeUsd = fullSizeUsd * exitFraction;
+    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price);
+    const quantityUnit = this._orderQuantityUnit();
+
+    return {
+      action: decision.action,
+      side: this._exitSide(decision.action),
+      direction: 'close',
+      symbol,
+      assetClass: this.ctx.config?.assetClass || null,
+      brokerId: this.ctx.config?.brokerId || null,
+      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode,
+      timeframe: this.ctx.config?.timeframe || null,
+      price,
+      sizeUsd,
+      orderQuantity,
+      quantityUnit,
+      tradeId: trade.orderId || trade.id,
+      exitFraction,
+      exitReason: decision.exitReason || null
+    };
+  }
+
+  async _runPreOrderEntryGate(entryPlan) {
+    if (!entryPlan) return { allowed: true, reason: 'not_entry' };
+
+    const gate = this.ctx.preOrderEntryGate || this.ctx.evalRuleEngine;
+    if (!gate) return { allowed: true, reason: 'no_gate_configured' };
+
+    const result = typeof gate === 'function'
+      ? await gate(entryPlan)
+      : await gate.check(entryPlan);
+
+    if (!result || result.allowed !== false) {
+      return result || { allowed: true };
+    }
+
+    return result;
+  }
+
   /**
    * Execute a trade. CC-C Multi-Symbol Commit 5/6: `symbol` is now a REQUIRED
    * trailing argument. Caller passes the symbol whose candle/decision is being
@@ -58,7 +200,7 @@ class OrderExecutor {
         `[ENTRY-ACTION] OrderExecutor.executeTrade unsupported action ${JSON.stringify(decision?.action)} for ${symbol} - refusing to route order`
       );
     }
-    if (decision.action === 'BUY' || decision.action === 'SELL_SHORT') {
+    if (this._isEntryAction(decision.action)) {
       const missingScope = [];
       const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
       if (!hasText(this.ctx.config?.brokerId)) missingScope.push('brokerId');
@@ -178,6 +320,43 @@ class OrderExecutor {
       }
     }
 
+    const entryPlan = this._buildEntryPlan({
+      decision,
+      symbol,
+      price,
+      positionSize,
+      currentBalance,
+      tradeConfidence,
+      confidenceMultiplier,
+      orchResult
+    });
+    if (entryPlan && entryPlan.orderQuantity <= 0 && !this.ctx.backtestMode && !this.ctx.paperTrading) {
+      console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)}`);
+      return null;
+    }
+    if (entryPlan) {
+      const gateResult = await this._runPreOrderEntryGate(entryPlan);
+      entryPlan.gateResult = gateResult;
+      if (gateResult && gateResult.allowed === false) {
+        const failed = Array.isArray(gateResult.failedRules) && gateResult.failedRules.length > 0
+          ? gateResult.failedRules.map(rule => rule.ruleId || rule).join(',')
+          : (gateResult.reason || 'pre_order_entry_gate');
+        console.warn(`[ENTRY-GATE] BLOCKED ${entryPlan.action} ${symbol} before broker/webhook/state side effects: ${failed}`);
+        return null;
+      }
+    }
+    const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading;
+    const exitPlan = isLiveBrokerRoute ? this._buildExitPlan({ decision, symbol, price }) : null;
+    if (isLiveBrokerRoute && this._isExitAction(decision.action) && !exitPlan) {
+      const haltReason = decision.action === 'SELL'
+        ? 'KILL-5: SELL with no matching BUY'
+        : 'KILL-5: COVER with no matching SELL_SHORT';
+      console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before broker route`);
+      await stateManager.haltSymbol(symbol, haltReason);
+      return null;
+    }
+    const brokerOrderPlan = entryPlan || exitPlan;
+
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
     // We already have sufficient risk management through:
@@ -188,7 +367,6 @@ class OrderExecutor {
 
     try {
       // CHECKPOINT 3: Before ExecutionLayer call
-      const usdAmount = positionSize * price;
       console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${positionSize.toFixed(2)}`);
 
       // Phase 4 REWRITE: Circuit breaker removed (tradingBrain deleted in Phase 2)
@@ -233,19 +411,24 @@ class OrderExecutor {
         // historical `if (!symbol)` HALT is unreachable and removed here. The
         // CRIT-03 wrong-market hazard (defaulting missing tradingPair to
         // BTC-USD) is structurally prevented by the param requirement.
-        const side = decision.action.toLowerCase(); // 'buy' or 'sell'
+        const side = brokerOrderPlan.side; // 'buy' or 'sell'
         try {
           const orderResult = await this.ctx.orderRouter.sendOrder({
             symbol,
             side,
-            amount: positionSize,  // USD amount
-            type: 'market'
+            amount: brokerOrderPlan.orderQuantity,
+            type: 'market',
+            options: {
+              sizeUsd: brokerOrderPlan.sizeUsd,
+              quantityUnit: brokerOrderPlan.quantityUnit
+            }
           });
           tradeResult = {
             success: true,
             orderId: orderResult.orderId || orderResult.id || `LIVE_${Date.now()}`,
             price: orderResult.price || price,
-            amount: positionSize
+            amount: positionSize,
+            orderQuantity: brokerOrderPlan.orderQuantity
           };
         } catch (orderErr) {
           console.error(`❌ Order execution failed: ${orderErr.message}`);
@@ -336,13 +519,10 @@ class OrderExecutor {
           // CHANGE 2026-02-21: Use orchestrator's winning strategy and exit contract
           // The StrategyOrchestrator already determined the winner and created the exit contract
           // Phase 3 REWRITE: orchResult is now passed directly from TradingLoop
-          const entryStrategy = orchResult.winnerStrategy;
-          const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
-
-          const exitContract = orchResult.exitContract;
-
-          // Apply confluence-based position sizing
-          const adjustedPositionSize = positionSize * sizingMultiplier;
+          const entryStrategy = entryPlan.entryStrategy;
+          const sizingMultiplier = entryPlan.sizingMultiplier;
+          const exitContract = entryPlan.exitContract;
+          const adjustedPositionSize = entryPlan.sizeUsd;
 
           // PERMANENT TRADE RECEIPT - shows actual dollars/percent on EVERY trade (live, paper, backtest)
           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
@@ -435,7 +615,7 @@ class OrderExecutor {
             // a long; broker-side action is 'buy'. Quantity uses adjustedPositionSize
             // (post-confluence) divided by fill price, floored to integer shares.
             if (this.ctx.webhookAdapter) {
-              const shares = Math.floor(adjustedPositionSize / price);
+              const shares = entryPlan.orderQuantity;
               if (shares < 1) {
                 // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
                 // internal position and broker is real (operator must know) but emitting
@@ -514,12 +694,10 @@ class OrderExecutor {
           const stateBefore = stateManager.getState();
           console.log(`[CP5-SHORT] BEFORE SHORT - Position: ${stateBefore.position}, Balance: $${stateBefore.balance}`);
 
-          const entryStrategy = orchResult.winnerStrategy;
-          const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
-
-          const exitContract = orchResult.exitContract;
-
-          const adjustedPositionSize = positionSize * sizingMultiplier;
+          const entryStrategy = entryPlan.entryStrategy;
+          const sizingMultiplier = entryPlan.sizingMultiplier;
+          const exitContract = entryPlan.exitContract;
+          const adjustedPositionSize = entryPlan.sizeUsd;
 
           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
           const actualDollars = adjustedPositionSize;
@@ -603,7 +781,7 @@ class OrderExecutor {
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
             // SELL_SHORT opens a short; broker-side action is 'sell'.
             if (this.ctx.webhookAdapter) {
-              const shares = Math.floor(adjustedPositionSize / price);
+              const shares = entryPlan.orderQuantity;
               if (shares < 1) {
                 // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
                 // internal position and broker is real (operator must know) but emitting
@@ -861,7 +1039,7 @@ class OrderExecutor {
               // emit the REDUCED USD when reducePosition handled a partial close.
               if (this.ctx.webhookAdapter) {
                 const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
-                const shares = Math.floor(exitUsd / price);
+                const shares = exitPlan ? exitPlan.orderQuantity : Math.floor(exitUsd / price);
                 if (shares < 1) {
                   // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
                   // internal position and broker is real (operator must know) but emitting
@@ -1187,7 +1365,16 @@ class OrderExecutor {
             return;
           }
 
-          const shortTrade = shortTrades[0];
+          let shortTrade = null;
+          if (decision.tradeId) {
+            shortTrade = shortTrades.find(t => t.orderId === decision.tradeId || t.id === decision.tradeId);
+          }
+          if (!shortTrade) {
+            if (decision.tradeId) {
+              console.warn(`[OrderExecutor] WARN P2-B: tradeId '${decision.tradeId}' not found in ${shortTrades.length} active short trades for ${symbol}. Falling back to oldest (${shortTrades[0]?.orderId || shortTrades[0]?.id}). Exit may attribute to wrong position.`);
+            }
+            shortTrade = shortTrades[0];
+          }
           // SHORT PnL: profit when price goes DOWN (entry - exit)
           const pnl = ((shortTrade.entryPrice - price) / shortTrade.entryPrice) * 100;
           const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
@@ -1278,7 +1465,7 @@ class OrderExecutor {
             // a slow/failed webhook must never stall the trading loop. COVER closes
             // a short, so the broker-side action is 'buy'.
             if (this.ctx.webhookAdapter) {
-              const shares = Math.floor(shortSize / price);
+              const shares = exitPlan ? exitPlan.orderQuantity : Math.floor(shortSize / price);
               if (shares < 1) {
                 // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
                 // internal position and broker is real (operator must know) but emitting

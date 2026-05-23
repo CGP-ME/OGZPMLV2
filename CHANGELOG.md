@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Broker Order Quantity Planning (2026-05-23)
+
+- Fixed live broker routing so stock entries send calculated share quantity instead of USD notional while state, ledger, and P0 accounting continue to track USD position size.
+- Added an explicit pre-order entry plan/gate hook that runs before broker, webhook, or state side effects and carries the same `sizeUsd`, `orderQuantity`, and `quantityUnit` used downstream.
+- Fixed live SELL/COVER routing to derive broker quantity from the matched active trade instead of the generic position-size value, including COVER side mapping to `buy`.
+- Hardened asset-class quantity planning so supported stock/equity/ETF aliases map to shares, crypto/futures/FX aliases map to base units, and unknown asset classes fail loud before routing.
+- Verification: `node --check`, focused Jest OrderExecutor/config tests, `npm run test:smoke`, two Mercury attack passes with adjudication, and full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Live Trading Bypass Guard (2026-05-23)
 
 - Fixed config validation so `LIVE_TRADING=true` cannot start with `ACCOUNT_DRAWDOWN_BYPASS=true` or `RISK_MANAGER_BYPASS=true`, including the silent bootstrap path used by `run-empire-v2.js`.
