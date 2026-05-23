@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Broker-Aware Liveness Watchdog (2026-05-23)
+
+- Fixed the live liveness watchdog so broker ingress, not only active-timeframe analysis candles, satisfies the feed-health check.
+- Added a separate active-timeframe silence check so 1m broker bars cannot mask a broken 15m aggregation/analysis path.
+- Removed the legacy hardcoded `XBTUSD`/Kraken recovery path from the watchdog; REST recovery now uses the active broker, active symbol, and active timeframe.
+- Added stock-market closed-session awareness so expected TSLA/Alpaca quiet periods do not pause trading or trigger crypto backfill contamination.
+
 ### Active-Timeframe REST Boot Hydration (2026-05-23)
 
 - Added live/paper startup hydration from the active broker's REST candles so the bot warms the active timeframe before waiting for the next live candle close.

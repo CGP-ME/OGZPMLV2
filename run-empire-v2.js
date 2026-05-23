@@ -151,6 +151,7 @@ const patternDescriptions = require('./config/pattern-descriptions.json');
 // See: ogz-meta/REFACTOR-PLAN-2026-02-27.md
 const { CandleAggregator } = require('./core/CandleAggregator');
 const { RegimeDetector } = require('./core/RegimeDetector');
+const { getInstance: getMarketCalendar } = require('./foundation/MarketCalendar');
 
 // REFACTOR Phase 4: FeatureExtractor + PatternMemoryStore
 const FeatureExtractor = require('./core/FeatureExtractor');
@@ -442,6 +443,7 @@ function candleToProcessorOhlc(candle, timeframeMs) {
 }
 
 const BOOT_REST_HYDRATION_LIMIT = 60;
+const LIVENESS_BACKFILL_LIMIT = 10;
 
 /**
  * Main Trading Bot Orchestrator
@@ -755,6 +757,9 @@ class OGZPrimeV14Bot {
           console.error(`[VIS][OHLC][Runner] dropped ${tf} SessionRouter candle: missing symbol | session=${this.sessionRouter?.activeSession || '(none)'} contexts=${describeSymbolContexts(this.symbolContexts)}`);
           return;
         }
+        this.lastBrokerDataReceived = Date.now();
+        this.lastBrokerDataSymbol = sym;
+        this.lastBrokerDataTimeframe = tf;
         if (stateManager && stateManager.updateLastPrice) {
           stateManager.updateLastPrice(sym, ohlcData[5]);
         }
@@ -768,6 +773,7 @@ class OGZPrimeV14Bot {
         const storedCandle = this.storeTimeframeCandle(tf, ohlcData);
         this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
+          this._markActiveTimeframeData(sym, tf);
           this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
         } else {
           this._feedAggregatedActiveCandle({
@@ -982,7 +988,15 @@ class OGZPrimeV14Bot {
     this.feedRecoveryCandles = 0;
     // CHANGE 2026-01-16: Liveness watchdog - tracks last data arrival
     this.lastDataReceived = null;  // Set when handleMarketData receives data
+    this.lastBrokerDataReceived = null;
+    this.lastBrokerDataSymbol = null;
+    this.lastBrokerDataTimeframe = null;
+    this.lastActiveTimeframeDataReceived = null;
+    this.lastActiveTimeframeSymbol = null;
+    this.lastActiveTimeframe = null;
+    this.livenessWatchdogStartedAt = null;
     this.livenessCheckInterval = null;  // Periodic check for "no data at all"
+    this.marketCalendar = getMarketCalendar();
     // CHANGE 2025-12-11: Position tracking moved to StateManager (single source of truth)
     // this.currentPosition removed - use stateManager.get('position') instead
     // CHANGE 2025-12-13: STEP 1 - SINGLE SOURCE OF TRUTH
@@ -1439,6 +1453,7 @@ class OGZPrimeV14Bot {
       if (stateManager && stateManager.updateLastPrice) {
         stateManager.updateLastPrice(symbol, latest.c);
       }
+      this._markActiveTimeframeData(symbol, timeframe);
 
       console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
     }
@@ -1600,6 +1615,9 @@ class OGZPrimeV14Bot {
             return;
           }
           const ohlcClose = ohlcData[5];
+          this.lastBrokerDataReceived = Date.now();
+          this.lastBrokerDataSymbol = ohlcSymbol;
+          this.lastBrokerDataTimeframe = timeframe;
           if (stateManager && stateManager.updateLastPrice) {
             stateManager.updateLastPrice(ohlcSymbol, ohlcClose);
           }
@@ -1617,6 +1635,7 @@ class OGZPrimeV14Bot {
 
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
+            this._markActiveTimeframeData(ohlcSymbol, timeframe);
             this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe });
           } else {
             this._feedAggregatedActiveCandle({
@@ -1754,6 +1773,7 @@ class OGZPrimeV14Bot {
 
     const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc);
     this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
+    this._markActiveTimeframeData(symbol, activeTimeframe);
     this.handleMarketData({ data: activeOhlc, symbol, timeframe: activeTimeframe });
     this._emittedAggregatedActiveCandles.add(dedupeKey);
     if (this._emittedAggregatedActiveCandles.size > 1000) {
@@ -1949,58 +1969,164 @@ class OGZPrimeV14Bot {
    * Liveness watchdog - detects when data feed goes completely silent
    * Runs every 60 seconds, pauses trading if no data received in 2 minutes
    */
+  _getLivenessSymbol() {
+    return normalizeRuntimeSymbol(this.sessionRouter?.activeSession === 'crypto'
+      ? this.sessionRouter?.cryptoSymbols?.[0]
+      : this.tradingPair);
+  }
+
+  _getLivenessTimeframe() {
+    const timeframe = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
+    return typeof timeframe === 'string' && timeframe.trim() ? timeframe.trim() : null;
+  }
+
+  _markActiveTimeframeData(symbol, timeframe) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    const activeTimeframe = this._getLivenessTimeframe();
+    if (!canonicalSymbol || timeframe !== activeTimeframe) return;
+    this.lastActiveTimeframeDataReceived = Date.now();
+    this.lastActiveTimeframeSymbol = canonicalSymbol;
+    this.lastActiveTimeframe = activeTimeframe;
+  }
+
+  _isExpectedMarketQuiet() {
+    if (this.sessionRouter?.enabled && this.sessionRouter.activeSession === 'crypto') {
+      return false;
+    }
+
+    const brokerId = this.sessionRouter?.activeBroker?.id || resolvedConfig.config.broker.id;
+    const assetClass = process.env.ASSET_CLASS || resolvedConfig.config.broker.assetClass || '';
+    const isStockFeed = this.sessionRouter?.activeSession === 'stocks' || assetClass === 'stocks' || brokerId === 'alpaca';
+    if (!isStockFeed) return false;
+
+    const phase = this.marketCalendar.getMarketPhase(new Date());
+    if (phase.isOpen) return false;
+
+    const now = Date.now();
+    if (!this._lastExpectedQuietLogAt || now - this._lastExpectedQuietLogAt > 5 * 60 * 1000) {
+      this._lastExpectedQuietLogAt = now;
+      console.log(`[WATCHDOG] market data quiet expected | broker=${brokerId} assetClass=${assetClass || '(missing)'} phase=${phase.phase} next=${phase.nextTransition}`);
+    }
+    return true;
+  }
+
+  async _attemptLivenessBackfill(symbol, timeframe) {
+    const broker = this.sessionRouter?.activeBroker || this.kraken;
+    if (!broker || typeof broker.getCandles !== 'function') {
+      throw new Error('active broker has no getCandles()');
+    }
+
+    const rawCandles = await broker.getCandles(symbol, timeframe, LIVENESS_BACKFILL_LIMIT);
+    const timeframeMs = this.candleAggregator?.getIntervalMs(timeframe);
+    if (!Number.isFinite(timeframeMs) || timeframeMs <= 0) {
+      throw new Error(`invalid liveness timeframe ${timeframe}`);
+    }
+
+    const candles = (Array.isArray(rawCandles) ? rawCandles : [])
+      .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
+      .filter(Boolean)
+      .sort((a, b) => a.etime - b.etime);
+
+    if (candles.length === 0) {
+      return 0;
+    }
+
+    const latest = candles[candles.length - 1];
+    const maxBackfillAgeMs = timeframeMs * 2 + 60 * 1000;
+    const latestAgeMs = Date.now() - latest.etime;
+    if (latestAgeMs > maxBackfillAgeMs) {
+      throw new Error(`latest REST candle is stale (${Math.round(latestAgeMs / 1000)}s old)`);
+    }
+
+    let applied = 0;
+    for (const candle of candles) {
+      const ohlc = candleToProcessorOhlc(candle, timeframeMs);
+      if (!ohlc) continue;
+      this.candleProcessor.processNewCandle(candle, { persist: false });
+      this.storeTimeframeCandle(timeframe, ohlc);
+      this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
+      applied++;
+    }
+
+    if (applied > 0) {
+      const marketData = {
+        symbol,
+        price: latest.c,
+        timestamp: latest.t,
+        timeframe,
+        systemTime: Date.now(),
+        volume: Number.isFinite(latest.v) ? latest.v : null,
+        open: latest.o,
+        high: latest.h,
+        low: latest.l
+      };
+      this.marketData = marketData;
+      const symCtx = this.symbolContexts?.get(symbol);
+      if (symCtx) symCtx.marketData = marketData;
+      if (stateManager && stateManager.updateLastPrice) {
+        stateManager.updateLastPrice(symbol, latest.c);
+      }
+      this._markActiveTimeframeData(symbol, timeframe);
+    }
+
+    return applied;
+  }
+
   startLivenessWatchdog() {
     const LIVENESS_CHECK_INTERVAL = 60000;  // Check every 60 seconds
     const MAX_DATA_SILENCE = 120000;  // 2 minutes without data = dead feed
+    this.livenessWatchdogStartedAt = Date.now();
 
     this.livenessCheckInterval = setInterval(async () => {
-      if (!this.lastDataReceived) {
-        // No data ever received - still warming up
+      if (this._isExpectedMarketQuiet()) {
         return;
       }
 
-      const silenceDuration = Date.now() - this.lastDataReceived;
+      const symbol = this._getLivenessSymbol();
+      const timeframe = this._getLivenessTimeframe();
+      const timeframeMs = timeframe ? this.candleAggregator?.getIntervalMs(timeframe) : null;
+      const activeLimitMs = Number.isFinite(timeframeMs) && timeframeMs > 0
+        ? Math.max(MAX_DATA_SILENCE, timeframeMs * 1.5 + 60 * 1000)
+        : MAX_DATA_SILENCE;
+      const brokerSilenceDuration = Date.now() - (this.lastBrokerDataReceived || this.livenessWatchdogStartedAt);
+      const activeSilenceDuration = Date.now() - (this.lastActiveTimeframeDataReceived || this.lastDataReceived || this.livenessWatchdogStartedAt);
+      const brokerSilent = brokerSilenceDuration > MAX_DATA_SILENCE;
+      const activeTimeframeSilent = activeSilenceDuration > activeLimitMs;
 
-      if (silenceDuration > MAX_DATA_SILENCE && !this.staleFeedPaused) {
-        console.warn('[WATCHDOG] LIVENESS: No data for', Math.round(silenceDuration / 1000), 'seconds - attempting REST backfill...');
+      if ((brokerSilent || activeTimeframeSilent) && !this.staleFeedPaused) {
+        if (!symbol || !timeframe) {
+          console.error(`[CRITICAL] LIVENESS WATCHDOG: missing symbol/timeframe (symbol=${symbol || '(missing)'} timeframe=${timeframe || '(missing)'})`);
+          this.staleFeedPaused = true;
+          stateManager.pauseTrading('Liveness watchdog: missing symbol/timeframe');
+          return;
+        }
+
+        console.warn(`[WATCHDOG] LIVENESS: brokerSilent=${brokerSilent} brokerSilence=${Math.round(brokerSilenceDuration / 1000)}s activeTimeframeSilent=${activeTimeframeSilent} activeSilence=${Math.round(activeSilenceDuration / 1000)}s activeLimit=${Math.round(activeLimitMs / 1000)}s | symbol=${symbol} timeframe=${timeframe} lastBrokerSymbol=${this.lastBrokerDataSymbol || '(none)'} lastBrokerTimeframe=${this.lastBrokerDataTimeframe || '(none)'} lastActiveSymbol=${this.lastActiveTimeframeSymbol || '(none)'} lastActiveTimeframe=${this.lastActiveTimeframe || '(none)'} - attempting REST backfill`);
 
         // ATTEMPT BACKFILL FIRST before halting
         try {
-          const candles = await this.kraken.getHistoricalOHLC('XBTUSD', 15, 10);
-          if (candles && candles.length > 0) {
-            console.log(`REST backfill success: ${candles.length} candles recovered`);
-            // Feed candles through CandleProcessor one at a time (uses canonical processNewCandle)
-            for (const candle of candles) {
-              this.candleProcessor.handleMarketData([
-                candle.t / 1000,  // time (seconds)
-                candle.etime / 1000,  // etime (seconds)
-                candle.o,
-                candle.h,
-                candle.l,
-                candle.c,
-                0,  // vwap (not used)
-                candle.v,
-                0   // count (not used)
-              ]);
-            }
-            this.lastDataReceived = Date.now();
-            console.log('Data feed recovered via REST backfill - continuing');
+          const recovered = await this._attemptLivenessBackfill(symbol, timeframe);
+          if (recovered > 0) {
+            this.lastBrokerDataReceived = Date.now();
+            this.lastBrokerDataSymbol = symbol;
+            this.lastBrokerDataTimeframe = timeframe;
+            console.log(`[WATCHDOG] data feed recovered via REST backfill | symbol=${symbol} timeframe=${timeframe} candles=${recovered}`);
             return; // Don't halt - we recovered
           }
         } catch (backfillError) {
-          console.error('REST backfill failed:', backfillError.message);
+          console.error(`[WATCHDOG] REST backfill failed | symbol=${symbol} timeframe=${timeframe}:`, backfillError.message);
         }
 
         // Backfill failed - now halt
-        console.error('[CRITICAL] LIVENESS WATCHDOG: BACKFILL FAILED - HALTING');
-        console.error('⸏ PAUSING TRADING - DATA FEED APPEARS DEAD');
+        console.error(`[CRITICAL] LIVENESS WATCHDOG: BACKFILL FAILED - HALTING | symbol=${symbol} timeframe=${timeframe}`);
+        console.error('[WATCHDOG] PAUSING TRADING - DATA FEED APPEARS DEAD');
         this.staleFeedPaused = true;
 
         // Notify StateManager to pause
         try {
           const { getInstance: getStateManager } = require('./core/StateManager');
           const stateManager = getStateManager();
-          stateManager.pauseTrading(`Liveness watchdog: No data for ${Math.round(silenceDuration / 1000)}s, backfill failed`);
+          stateManager.pauseTrading(`Liveness watchdog: brokerSilent=${brokerSilent} activeTimeframeSilent=${activeTimeframeSilent}, backfill failed`);
         } catch (error) {
           console.error('Failed to pause via StateManager:', error.message);
         }
