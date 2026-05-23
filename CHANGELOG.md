@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP 15:50 Market-Time Cutoff Enforcement (2026-05-23)
+
+- Added a TTP market-time rule that blocks new stock entries during the configured liquidation window, defaulting to 10 minutes before the NYSE RTH close.
+- Added cutoff enforcement from the exit monitor that cancels target stock pending orders, force-closes tracked active stock trades, directly closes broker-orphan stock positions, and only marks the cutoff complete after a strict broker-position recheck proves the target stock scope is flat.
+- Scoped cancellation and broker-position reads to the configured Alpaca stock symbols so TTP cleanup does not cancel or liquidate crypto/non-TTP brokers, while stock slash aliases are expanded to cover Alpaca broker-returned symbols.
+- Added config validation for cutoff minutes and unsafe market-time disable combinations.
+- Verification: `node --check`, focused Jest coverage for entry blocking, config guardrails, target order cancellation, broker-orphan closing, broker-flat completion, crypto no-op behavior, `npm run test:smoke`, three Mercury attack passes with adjudication, and full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Live Exit Broker Quantity Truth (2026-05-23)
 
 - Fixed live stock exits so full SELL/COVER orders use the active trade's stored broker-unit quantity instead of recalculating shares from USD size at the current exit price.

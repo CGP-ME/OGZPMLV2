@@ -24,6 +24,10 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_VOLUME_CAP_TIMEFRAME: '1m',
       TTP_VOLUME_CAP_FALLBACK_TO_RECENT: 'true',
       TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS: '180000',
+      TTP_MARKET_TIME_ENABLED: 'true',
+      TTP_BLOCK_ENTRIES_AFTER_CUTOFF: 'true',
+      TTP_LIQUIDATION_ENABLED: 'true',
+      TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE: '10',
       MIN_TRADE_CONFIDENCE: '0.50',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
@@ -84,6 +88,12 @@ describe('ConfigLoader live trading safety guard', () => {
           maxReferenceAgeMs: 180000,
           maxReferenceAgeLimitMs: 300000,
         }),
+        marketTime: expect.objectContaining({
+          enabled: true,
+          blockEntriesAfterCutoff: true,
+          liquidationEnabled: true,
+          cutoffMinutesBeforeClose: 10,
+        }),
       }),
     }));
   });
@@ -118,6 +128,23 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS = '600000';
 
     expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS too loose/);
+  });
+
+  test('rejects invalid TTP liquidation cutoff config when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE = '0';
+
+    expect(() => loadConfig()).toThrow(/TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE out of range/);
+  });
+
+  test('rejects disabling both TTP cutoff blocking and liquidation enforcement', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_BLOCK_ENTRIES_AFTER_CUTOFF = 'false';
+    process.env.TTP_LIQUIDATION_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/cannot disable both cutoff entry blocking and liquidation enforcement/);
   });
 
   test('keeps backtest bypass combinations non-blocking', () => {

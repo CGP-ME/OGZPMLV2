@@ -30,6 +30,9 @@ class OrderRouter extends EventEmitter {
     // Map adapter name -> adapter instance
     this.adapters = new Map();
 
+    // Map adapter name -> normalized symbols it owns
+    this.adapterSymbols = new Map();
+
     // Default adapter for unregistered symbols
     this.defaultAdapter = null;
 
@@ -46,11 +49,15 @@ class OrderRouter extends EventEmitter {
 
     // Store adapter reference
     this.adapters.set(name, adapter);
+    if (!this.adapterSymbols.has(name)) {
+      this.adapterSymbols.set(name, new Set());
+    }
 
     // Map each symbol to this adapter
     for (const symbol of symbols) {
       const normalized = this.normalizeSymbol(symbol);
       this.symbolToAdapter.set(normalized, adapter);
+      this.adapterSymbols.get(name).add(normalized);
       console.log(`[OrderRouter] ${normalized} -> ${name}`);
     }
 
@@ -145,24 +152,91 @@ class OrderRouter extends EventEmitter {
    * Get all positions across all registered brokers
    * @returns {Promise<Array>} Aggregated positions
    */
-  async getAllPositions() {
+  async getAllPositions(options = {}) {
+    const symbolSet = this._symbolSet(options.symbols);
     const allPositions = [];
 
     for (const [name, adapter] of this.adapters) {
+      if (symbolSet && !this._adapterMatchesSymbols(name, symbolSet)) {
+        continue;
+      }
+
       try {
         const positions = await adapter.getPositions();
         for (const pos of positions) {
+          if (symbolSet && pos?.symbol && !symbolSet.has(this.normalizeSymbol(pos.symbol))) {
+            continue;
+          }
           allPositions.push({
             ...pos,
             broker: name
           });
         }
       } catch (error) {
+        if (options.strict === true) {
+          throw new Error(`[OrderRouter] Failed to get positions from ${name}: ${error.message}`);
+        }
         console.error(`[OrderRouter] Failed to get positions from ${name}:`, error.message);
       }
     }
 
     return allPositions;
+  }
+
+  async cancelAllOpenOrders(options = {}) {
+    const symbolSet = this._symbolSet(options.symbols);
+    const results = [];
+
+    for (const [name, adapter] of this.adapters) {
+      if (symbolSet && !this._adapterMatchesSymbols(name, symbolSet)) {
+        results.push({ broker: name, skipped: true, reason: 'no_matching_symbols' });
+        continue;
+      }
+      if (typeof adapter.getOpenOrders !== 'function' || typeof adapter.cancelOrder !== 'function') {
+        results.push({ broker: name, success: false, reason: 'adapter_missing_order_cancel_api' });
+        continue;
+      }
+
+      try {
+        const orders = await adapter.getOpenOrders();
+        for (const order of orders || []) {
+          if (symbolSet && order?.symbol && !symbolSet.has(this.normalizeSymbol(order.symbol))) {
+            continue;
+          }
+          const orderId = order.orderId || order.id;
+          if (!orderId) {
+            results.push({ broker: name, success: false, reason: 'missing_order_id', order });
+            continue;
+          }
+          const success = await adapter.cancelOrder(orderId);
+          results.push({ broker: name, orderId, success });
+        }
+      } catch (error) {
+        results.push({ broker: name, success: false, reason: error.message });
+      }
+    }
+
+    const failed = results.filter(r => r.success === false);
+    return {
+      success: failed.length === 0,
+      results,
+      cancelled: results.filter(r => r.success === true).length,
+      failed: failed.length,
+    };
+  }
+
+  _symbolSet(symbols) {
+    if (!Array.isArray(symbols) || symbols.length === 0) return null;
+    return new Set(symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean));
+  }
+
+  _adapterMatchesSymbols(name, symbolSet) {
+    const registered = this.adapterSymbols.get(name);
+    if (!registered || registered.size === 0) return true;
+    for (const symbol of symbolSet) {
+      if (registered.has(symbol)) return true;
+    }
+    return false;
   }
 
   /**

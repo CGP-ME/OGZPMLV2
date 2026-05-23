@@ -251,6 +251,7 @@ const exitContractManager = getExitContractManager();
 // CHANGE 2026-02-28: TradingConfig - Centralized trading parameters
 const TradingConfig = require('./core/TradingConfig');
 const EvalRuleEngine = require('./core/EvalRuleEngine');
+const TtpCutoffEnforcer = require('./core/TtpCutoffEnforcer');
 
 // CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
 const MessageQueue = require('./core/MessageQueue');
@@ -716,14 +717,17 @@ class OGZPrimeV14Bot {
       this.orderRouter = new OrderRouter();
 
       const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const stockSymbols = (process.env.ALPACA_SYMBOLS
+        ? process.env.ALPACA_SYMBOLS.split(',').map(s => s.trim())
+        : sessionsCfg.stockSymbols);
+      this.ttpCutoffSymbols = stockSymbols;
+
       this.sessionRouter = new SessionRouter({
         enabled: true,
         fast: process.env.SESSION_ROUTER_FAST === 'true',
         checkIntervalMs: sessionsCfg.checkIntervalMs,
         forceCloseOnSessionEnd: sessionsCfg.forceCloseOnSessionEnd,
-        stockSymbols: (process.env.ALPACA_SYMBOLS
-          ? process.env.ALPACA_SYMBOLS.split(',').map(s => s.trim())
-          : sessionsCfg.stockSymbols),
+        stockSymbols,
         cryptoSymbols: sessionsCfg.cryptoSymbols,
       });
 
@@ -841,6 +845,7 @@ class OGZPrimeV14Bot {
         ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
         : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
       this.orderRouter.registerBroker(this.kraken, routedSymbols);
+      this.ttpCutoffSymbols = brokerId === 'alpaca' ? routedSymbols : [];
       console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
     }
 
@@ -1150,6 +1155,15 @@ class OGZPrimeV14Bot {
       logTrade: logTrade,
       // FIX 2026-03-29: Add strategyOrchestrator for SMS daily loss tracking
       strategyOrchestrator: this.strategyOrchestrator
+    });
+    this.ttpCutoffEnforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: this.evalRuleEngine,
+      stateManager,
+      orderRouter: this.orderRouter,
+      executeTrade: this.executeTrade.bind(this),
+      getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
+      assetClass: this.config.assetClass,
+      symbols: this.ttpCutoffSymbols,
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies
@@ -1949,6 +1963,13 @@ class OGZPrimeV14Bot {
     const interval = resolvedConfig.config.broker.tradingInterval;
 
     this.tradingInterval = setInterval(async () => {
+      try {
+        await this.ttpCutoffEnforcer?.enforce();
+      } catch (error) {
+        console.error('[TTP_MARKET_TIME] cutoff enforcement error:', error.message);
+        console.error(error.stack);
+      }
+
       const activeTrades = stateManager.get('activeTrades');
       const exitSymbols = activeTrades instanceof Map
         ? [...new Set(Array.from(activeTrades.values())
@@ -1988,6 +2009,35 @@ class OGZPrimeV14Bot {
 
     // CHANGE 2026-01-16: Liveness watchdog - catches "no data at all" scenario
     this.startLivenessWatchdog();
+  }
+
+  getTtpExitPrice(symbol, trade, brokerPositions = []) {
+    const normalized = normalizeRuntimeSymbol(symbol || trade?.symbol);
+    if (!normalized) return null;
+
+    const brokerPosition = Array.isArray(brokerPositions)
+      ? brokerPositions.find(pos => normalizeRuntimeSymbol(pos.symbol) === normalized)
+      : null;
+    const brokerPrice = Number(brokerPosition?.currentPrice);
+    if (Number.isFinite(brokerPrice) && brokerPrice > 0) return brokerPrice;
+
+    const ctx = this.symbolContexts?.get(normalized);
+    const ctxPrice = Number(ctx?.marketData?.close);
+    if (Number.isFinite(ctxPrice) && ctxPrice > 0) return ctxPrice;
+
+    const activeMarketSymbol = normalizeRuntimeSymbol(this.marketData?.symbol);
+    const marketPrice = Number(this.marketData?.close);
+    if (activeMarketSymbol === normalized && Number.isFinite(marketPrice) && marketPrice > 0) {
+      return marketPrice;
+    }
+
+    const candles = this.getSymbolTimeframeCandles(normalized, this.candleTimeframe);
+    const latest = Array.isArray(candles) && candles.length > 0 ? candles[candles.length - 1] : null;
+    const candlePrice = Number(latest?.close ?? latest?.c);
+    if (Number.isFinite(candlePrice) && candlePrice > 0) return candlePrice;
+
+    const statePrice = Number(stateManager.getLastPrice?.(normalized));
+    return Number.isFinite(statePrice) && statePrice > 0 ? statePrice : null;
   }
 
   /**

@@ -17,6 +17,13 @@ function config(overrides = {}) {
         maxReferenceAgeMs: 180000,
         ...overrides.volumeCap,
       },
+      marketTime: {
+        enabled: true,
+        blockEntriesAfterCutoff: true,
+        liquidationEnabled: true,
+        cutoffMinutesBeforeClose: 10,
+        ...overrides.marketTime,
+      },
       ...overrides.ttp,
     },
     ...overrides,
@@ -45,6 +52,18 @@ function candle(offsetMs, volume) {
   return {
     t: BASE_TIME + offsetMs - 60000,
     etime: BASE_TIME + offsetMs,
+    o: 100,
+    h: 101,
+    l: 99,
+    c: 100,
+    v: volume,
+  };
+}
+
+function candleFor(nowMs, offsetMs, volume) {
+  return {
+    t: nowMs + offsetMs - 60000,
+    etime: nowMs + offsetMs,
     o: 100,
     h: 101,
     l: 99,
@@ -87,6 +106,41 @@ describe('EvalRuleEngine TTP volume cap', () => {
       proposedShares: 501,
       action: 'BLOCK_ORDER',
     }));
+  });
+
+  test('blocks new openings during the TTP liquidation window', async () => {
+    const cutoffTime = new Date('2026-05-22T19:50:00.000Z');
+    const engine = makeEngine({
+      candles: [candle(-60000, 100000)],
+      now: () => cutoffTime.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules[0]).toEqual(expect.objectContaining({
+      ruleId: 'TTP_MARKET_TIME',
+      reason: 'liquidation_window_no_openings',
+      cutoffMinute: 950,
+      rthCloseMinute: 960,
+      action: 'BLOCK_ORDER',
+    }));
+  });
+
+  test('allows new openings before the TTP liquidation window', async () => {
+    const beforeCutoff = new Date('2026-05-22T19:49:00.000Z');
+    const engine = makeEngine({
+      candles: [candleFor(beforeCutoff.getTime(), -60000, 100000)],
+      now: () => beforeCutoff.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).toEqual(expect.arrayContaining([
+      'TTP_MARKET_TIME',
+      'TTP_VOLUME_5_PERCENT',
+    ]));
   });
 
   test('aggregates repeated opening orders against the same reference candle', async () => {

@@ -183,6 +183,12 @@ function buildConfig() {
           maxReferenceAgeMs: track('evalRules.ttp.volumeCap.maxReferenceAgeMs', envStrictFloat('TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS', 180000)),
           maxReferenceAgeLimitMs: 300000,
         },
+        marketTime: {
+          enabled: track('evalRules.ttp.marketTime.enabled', envBool('TTP_MARKET_TIME_ENABLED', true)),
+          blockEntriesAfterCutoff: track('evalRules.ttp.marketTime.blockEntriesAfterCutoff', envBool('TTP_BLOCK_ENTRIES_AFTER_CUTOFF', true)),
+          liquidationEnabled: track('evalRules.ttp.marketTime.liquidationEnabled', envBool('TTP_LIQUIDATION_ENABLED', true)),
+          cutoffMinutesBeforeClose: track('evalRules.ttp.marketTime.cutoffMinutesBeforeClose', envStrictFloat('TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE', 10)),
+        },
       },
     },
 
@@ -303,6 +309,7 @@ function validate(config) {
   }
 
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;
+  const ttpMarketTime = config.evalRules?.ttp?.marketTime;
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpVolumeCap?.enabled) {
     if (!Number.isFinite(ttpVolumeCap.percent) || ttpVolumeCap.percent <= 0 || ttpVolumeCap.percent > 1) {
       errors.push(`TTP_VOLUME_CAP_PERCENT out of range: ${ttpVolumeCap.percent}`);
@@ -315,6 +322,14 @@ function validate(config) {
     }
     if (ttpVolumeCap.maxReferenceAgeMs > ttpVolumeCap.maxReferenceAgeLimitMs) {
       errors.push(`TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS too loose: ${ttpVolumeCap.maxReferenceAgeMs} > ${ttpVolumeCap.maxReferenceAgeLimitMs}`);
+    }
+  }
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpMarketTime?.enabled) {
+    if (!Number.isInteger(ttpMarketTime.cutoffMinutesBeforeClose) || ttpMarketTime.cutoffMinutesBeforeClose <= 0 || ttpMarketTime.cutoffMinutesBeforeClose > 120) {
+      errors.push(`TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE out of range: ${ttpMarketTime.cutoffMinutesBeforeClose}`);
+    }
+    if (ttpMarketTime.blockEntriesAfterCutoff !== true && ttpMarketTime.liquidationEnabled !== true) {
+      errors.push('TTP market-time rule cannot disable both cutoff entry blocking and liquidation enforcement');
     }
   }
 

@@ -1,10 +1,13 @@
 'use strict';
 
+const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
+
 class EvalRuleEngine {
-  constructor({ config = {}, getCandles, now = () => Date.now() } = {}) {
+  constructor({ config = {}, getCandles, now = () => Date.now(), marketCalendar = getMarketCalendar() } = {}) {
     this.config = config || {};
     this.getCandles = getCandles;
     this.now = now;
+    this.marketCalendar = marketCalendar;
     this.openingVolumeReservations = new Map();
   }
 
@@ -21,22 +24,91 @@ class EvalRuleEngine {
       return { allowed: true, reason: 'ttp_rules_disabled', passedRules: [], failedRules: [] };
     }
 
+    const passedRules = [];
+    const marketTimeResult = this._checkTtpMarketTime(entryPlan);
+    if (marketTimeResult.allowed === false) {
+      return {
+        allowed: false,
+        failedRules: [marketTimeResult.failure],
+        passedRules,
+        inputs: marketTimeResult.inputs,
+      };
+    }
+    if (marketTimeResult.inputs?.enabled !== false) {
+      passedRules.push('TTP_MARKET_TIME');
+    }
+
     const result = this._checkTtpVolumeCap(entryPlan);
     if (result.allowed === false) {
       return {
         allowed: false,
         failedRules: [result.failure],
-        passedRules: [],
+        passedRules,
         inputs: result.inputs,
       };
+    }
+    if (result.inputs?.enabled !== false) {
+      passedRules.push('TTP_VOLUME_5_PERCENT');
     }
 
     return {
       allowed: true,
       failedRules: [],
-      passedRules: ['TTP_VOLUME_5_PERCENT'],
+      passedRules,
       inputs: result.inputs,
     };
+  }
+
+  getTtpMarketTimeState(date = new Date(this.now())) {
+    const cfg = this.config.ttp?.marketTime || {};
+    if (cfg.enabled !== true) {
+      return { enabled: false, ruleId: 'TTP_MARKET_TIME' };
+    }
+
+    const currentDate = date instanceof Date ? date : new Date(date);
+    const phase = this.marketCalendar.getMarketPhase(currentDate);
+    const et = this.marketCalendar.getNYTimeParts(currentDate);
+    const cutoffMinutesBeforeClose = cfg.cutoffMinutesBeforeClose;
+    const cutoffMinute = phase.rthCloseMinute - cutoffMinutesBeforeClose;
+    const inLiquidationWindow = phase.isRTH === true
+      && et.minuteOfDay >= cutoffMinute
+      && et.minuteOfDay < phase.rthCloseMinute;
+
+    return {
+      enabled: true,
+      ruleId: 'TTP_MARKET_TIME',
+      currentDateET: et.date,
+      currentMinuteET: et.minuteOfDay,
+      cutoffMinute,
+      cutoffMinutesBeforeClose,
+      rthCloseMinute: phase.rthCloseMinute,
+      phase: phase.phase,
+      isRTH: phase.isRTH,
+      inLiquidationWindow,
+      blockEntriesAfterCutoff: cfg.blockEntriesAfterCutoff !== false,
+      liquidationEnabled: cfg.liquidationEnabled !== false,
+    };
+  }
+
+  _checkTtpMarketTime(entryPlan) {
+    const cfg = this.config.ttp?.marketTime || {};
+    if (cfg.enabled !== true || cfg.blockEntriesAfterCutoff === false) {
+      return { allowed: true, inputs: { ruleId: 'TTP_MARKET_TIME', enabled: false } };
+    }
+
+    const state = this.getTtpMarketTimeState(new Date(this.now()));
+    if (state.inLiquidationWindow) {
+      return this._fail('TTP_MARKET_TIME', 'liquidation_window_no_openings', {
+        symbol: entryPlan.symbol,
+        currentDateET: state.currentDateET,
+        currentMinuteET: state.currentMinuteET,
+        cutoffMinute: state.cutoffMinute,
+        rthCloseMinute: state.rthCloseMinute,
+        phase: state.phase,
+      });
+    }
+
+    return { allowed: true, inputs: state };
   }
 
   _checkTtpVolumeCap(entryPlan) {
