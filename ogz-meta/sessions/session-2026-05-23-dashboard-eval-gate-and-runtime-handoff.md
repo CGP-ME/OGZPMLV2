@@ -146,6 +146,8 @@ The first recommended implementation target was a startup hard-fail for `LIVE_TR
 
 **Command-drift note:** A manual no-`SOLO_STRATEGY` command from `ogz-meta/BACKTEST-OPS.md` that enables multiple strategies plus `ENABLE_SMS=true` ended at `$9851.344`. That is a winner-takes-all orchestrator run, not a blended-strategy architecture, and it is not the pipeline P0 anchor. The canonical gate for this commit was `ogz-meta/anchor-runner.js` `runP0('full')`, which reproduced `$13255.255799695915`.
 
+Follow-up doc cleanup: `66f8c32` updated `ogz-meta/BACKTEST-OPS.md` so it no longer calls the no-`SOLO_STRATEGY` command "All Strategies Combined" or implies it is the canonical P0. The file now points canonical P0 verification at `ogz-meta/anchor-runner.js` and labels no-SOLO runs as exploratory winner-takes-all orchestrator runs.
+
 **Evidence files:**
 
 - `ogz-meta/cognition-history/mercury/live-bypass-guard-2026-05-23.md`
@@ -327,6 +329,7 @@ The first recommended implementation target was a startup hard-fail for `LIVE_TR
 | `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-*.md` | Added Mercury attack prompt and response for bot-side Alpaca REST hydration |
 | `ogz-meta/cognition-history/mercury/live-bypass-guard-*.md` | Added Mercury attack prompts and responses for live bypass startup guard |
 | `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
+| `ogz-meta/BACKTEST-OPS.md` | Clarified canonical P0 vs no-SOLO exploratory winner-takes-all runs |
 | `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
 
 ## Current Runtime Snapshot
@@ -396,6 +399,7 @@ Fresh post-resume startup evidence:
 
 Newest first:
 
+- `66f8c32` Fixed backtest ops P0 command wording
 - `06ba5f4` Fixed live trading bypass guard
 - `78ba71c` Fixed Alpaca bot candle hydration
 - `0cdc6ca` Fixed startup entry-state logging
@@ -437,6 +441,7 @@ Newest first:
 | Eval go/no-go checklist | Added by `b4c302d`; live-bypass guard closed by `06ba5f4`, TTP rule layer still open |
 | Paused-state entry enforcement | Closed by `594f023`; entries now refuse to route while `StateManager.isTrading=false` outside real backtest mode |
 | Live trading bypass guard | Closed by `06ba5f4`; `LIVE_TRADING=true` cannot start with account drawdown or risk-manager bypass enabled |
+| `BACKTEST-OPS.md` command drift | Partially corrected by `66f8c32`; deeper rewrite/archive decision still open if the file continues to conflict with sweep tooling |
 | Bot runtime state | Enabled in paper mode after built-in `StateManager.resumeTrading()` and restart; eval still blocked |
 | Trade The Pool rule engine | Open; no eval flip until rule layer is implemented and verified |
 | SessionRouter final architecture | Deferred; keep `SESSION_ROUTER_ENABLED=false` |
@@ -444,7 +449,7 @@ Newest first:
 
 ## Context for Next Session
 
-The latest code head recorded here is `06ba5f4`. Dashboard chart and watchlist fixes are live through the web tier. Paused-state entry enforcement, startup entry-state logging, bot-side Alpaca REST hydration, and live-bypass startup guard are committed and pushed. The bot PM2 process is online, TSLA 15m boot hydration works, and `data/state.json` now has `isTrading=true`; next session must observe a live-market paper signal/skip path end-to-end and implement the TTP rule layer before any eval flip.
+The latest pushed head recorded here is `66f8c32`; latest code-bearing head is `06ba5f4`. Dashboard chart and watchlist fixes are live through the web tier. Paused-state entry enforcement, startup entry-state logging, bot-side Alpaca REST hydration, and live-bypass startup guard are committed and pushed. The bot PM2 process is online, TSLA 15m boot hydration works, and `data/state.json` now has `isTrading=true`; next session must observe a live-market paper signal/skip path end-to-end and implement the TTP rule layer before any eval flip.
 
 ## Recorder Pipeline Disposition
 
