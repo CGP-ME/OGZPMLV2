@@ -129,7 +129,7 @@
         const css = `
             #${ROOT_ID} {
                 display: flex;
-                gap: 8px;
+                gap: 12px;
                 padding: 8px 12px;
                 overflow-x: auto;
                 overflow-y: hidden;
@@ -147,7 +147,7 @@
             }
             .ws-card {
                 flex-shrink: 0;
-                width: 120px;
+                width: 132px;
                 padding: 10px;
                 background: rgba(255, 255, 255, 0.04);
                 border: 1px solid rgba(255, 255, 255, 0.06);

@@ -204,14 +204,12 @@ body.layout-streamer::after {
     z-index: 9300;
 }
 
-/* 16:9 enforcement — letterbox top/bottom if the window is taller than 16:9.
- * Pure CSS, no JS. The aspect-ratio container scales the main grid. */
-body.layout-streamer main.dash-main-grid {
-    aspect-ratio: 16 / 9;
-    max-width: 100vw;
-    max-height: calc(100vw * 9 / 16);
-    margin: 0 auto;
-}
+/* 16:9 letterbox REMOVED (#37). Forcing aspect-ratio:16/9 on the grid put
+ * large black bars down both sides on wide monitors and stranded the left
+ * rail as an orphaned column in the void. Streamer mode now uses the normal
+ * full layout — OBS crops to whatever the streamer frames, and the cam-safe
+ * guide above already marks the webcam zone. What streamer mode actually
+ * needs — $ redaction, the cam guide, the watermark — is unaffected. */
 
 /* In streamer mode, collapse the right rail to compact width — too much
  * personal data otherwise. Left rail keeps Edge Analytics (impersonal). */

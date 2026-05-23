@@ -198,7 +198,7 @@
                 -webkit-text-fill-color: transparent;
                 color: transparent;
                 font-family: 'Orbitron', monospace;
-                font-size: 32px;
+                font-size: 40px;
                 font-weight: 900;
                 letter-spacing: 4px;
                 text-transform: uppercase;
@@ -223,7 +223,7 @@
             }
 
             .hs-tagline {
-                color: #888888;
+                color: #a8a8a8;
                 font-family: 'JetBrains Mono', monospace;
                 font-size: 11px;
                 font-weight: 500;
@@ -496,7 +496,7 @@
                     </div>
                 </div>
 
-                <div class="hs-risk-budget">
+                <div class="hs-risk-budget" title="Risk budget — how much of your session-opening balance has been drawn down. The percentage is current drawdown; the label escalates SAFE → WARN → DANGER as it grows.">
                     <div class="hs-risk-budget-percent" id="hsRiskPercent">0%</div>
                     <div class="hs-risk-budget-level" id="hsRiskLevel">SAFE</div>
                 </div>

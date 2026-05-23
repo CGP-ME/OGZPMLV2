@@ -199,7 +199,7 @@
 
         /* Header strip — will contain brand, status lights, hero price, etc. */
         header#dashHeader {
-            height: 60px;
+            height: 66px;
             border-bottom: 1px solid var(--border-color);
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(8px);
@@ -279,8 +279,13 @@
 
         /* Strategy leaderboard */
         #strategyLeaderboard {
-            flex: 1;
+            /* #38: was flex:1 — as the only flex-grow child of .dash-center,
+               the (usually empty) leaderboard absorbed all leftover column
+               height and ballooned larger than the chart. Now it sizes to
+               its content, floored + capped, and scrolls past the cap. */
+            flex: 0 0 auto;
             min-height: 150px;
+            max-height: 240px;
             background: var(--bg-panel);
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -357,7 +362,7 @@
 
         /* Footer: equity curve + system health */
         footer.dash-footer {
-            height: 100px;
+            height: 135px;
             border-top: 1px solid var(--border-color);
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(8px);
@@ -383,24 +388,6 @@
            Used for mount-points that don't yet have modules.
            Option B: Show a visual placeholder so gaps are obvious.
            ======================================================================== */
-
-        .v2-banner {
-            position: fixed;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(220, 38, 38, 0.15);
-            color: var(--brand-red-bright);
-            padding: 4px 12px;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            z-index: 1000;
-            border-radius: 0 0 6px 6px;
-            border: 1px solid var(--brand-red-line);
-            border-top: none;
-        }
 
         .v2-placeholder {
             display: flex;
@@ -432,8 +419,6 @@
 </head>
 
 <body>
-    <!-- Optional: V2 staging banner -->
-    <div class="v2-banner">DASHBOARD v2 — MODULAR SHELL</div>
 
     <!-- ========================================================================
          HEADER STRIP
@@ -701,6 +686,7 @@
     <script src="/js/panels/goal-tracker.js"></script>
     <script src="/js/panels/voice-manager.js"></script>
     <script src="/js/panels/voice-fx.js"></script>
+    <script src="/js/panels/ambient-fx.js"></script>
 
     <!-- Phase 2 — 4-mode layout switcher (Operator / Trader / Showcase / Streamer).
          Self-registers as OGZ.LayoutSwitcher. Pairs with /css/layouts.css. -->
