@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Active-Timeframe REST Boot Hydration (2026-05-23)
+
+- Added live/paper startup hydration from the active broker's REST candles so the bot warms the active timeframe before waiting for the next live candle close.
+- Replays REST candles through the canonical `CandleProcessor.processNewCandle()` path instead of hand-filling arrays or triggering historical entries.
+- Disables periodic candle-history persistence during boot hydration so active-timeframe REST candles are not written through the legacy `1m` saver.
+- Keeps hydration scoped to the active analysis symbol and active timeframe so SessionRouter work can add broader target-session warmup later without sharing learned candle state across asset classes.
+
 ### Live Entry Cadence Parity (2026-05-23)
 
 - Fixed the live timer loop so it no longer calls full entry analysis between candle closes; live and paper entries now stay candle-close driven like the backtest path.

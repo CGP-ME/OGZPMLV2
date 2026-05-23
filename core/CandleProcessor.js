@@ -122,9 +122,12 @@ class CandleProcessor {
    * Phase 5 REWRITE: Handles both new candles AND updates to existing candles
    * Used by live feed, backfill replay, and intra-candle updates
    * @param {Object} candle - Candle in V2 format { o, h, l, c, v, t, etime }
+   * @param {Object} [options]
+   * @param {boolean} [options.persist=true] - persist periodic live history
    * @returns {boolean} true if new candle, false if update to existing
    */
-  processNewCandle(candle) {
+  processNewCandle(candle, options = {}) {
+    const persist = options.persist !== false;
     const candleTimeframe = this._resolveCandleTimeframe(candle);
     // Check if this is an update to existing candle or a new candle
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
@@ -248,10 +251,12 @@ class CandleProcessor {
     }
 
     // Save counter
-    this.ctx.candleSaveCounter++;
-    if (this.ctx.candleSaveCounter >= 5) {
-      this.ctx.saveCandleHistory();
-      this.ctx.candleSaveCounter = 0;
+    if (persist) {
+      this.ctx.candleSaveCounter++;
+      if (this.ctx.candleSaveCounter >= 5) {
+        this.ctx.saveCandleHistory();
+        this.ctx.candleSaveCounter = 0;
+      }
     }
 
     return true; // Was new candle

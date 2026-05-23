@@ -441,6 +441,8 @@ function candleToProcessorOhlc(candle, timeframeMs) {
   ];
 }
 
+const BOOT_REST_HYDRATION_LIMIT = 60;
+
 /**
  * Main Trading Bot Orchestrator
  * Coordinates all modules for production trading
@@ -1332,6 +1334,116 @@ class OGZPrimeV14Bot {
     this._candleStore.saveToDisk(candleFile, symbol, '1m', 200);
   }
 
+  _getBootHydrationSymbols() {
+    if (this.sessionRouter && this.sessionRouter.enabled) {
+      if (this.sessionRouter.activeSession === 'crypto') {
+        const symbol = normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
+        return symbol ? [symbol] : [];
+      }
+      if (this.sessionRouter.activeSession === 'stocks') {
+        const preferred = normalizeRuntimeSymbol(this.tradingPair);
+        const stocks = (this.sessionRouter.stockSymbols || []).map(normalizeRuntimeSymbol).filter(Boolean);
+        if (preferred && stocks.includes(preferred)) return [preferred];
+        return stocks.length > 0 ? [stocks[0]] : [];
+      }
+      throw new Error(`[BOOT][REST-HYDRATE] SessionRouter active but activeSession missing (${this.sessionRouter.activeSession})`);
+    }
+
+    const symbol = normalizeRuntimeSymbol(this.tradingPair);
+    return symbol ? [symbol] : [];
+  }
+
+  _normalizeHydrationCandle(raw, symbol, timeframe, timeframeMs) {
+    const t = ohlcTimestampMs(raw?.t ?? raw?.time ?? raw?.timestamp);
+    if (!Number.isFinite(t)) return null;
+    const etime = ohlcTimestampMs(raw?.etime) ?? (t + timeframeMs);
+    const candle = {
+      symbol,
+      timeframe,
+      t,
+      etime,
+      o: Number(raw?.o ?? raw?.open),
+      h: Number(raw?.h ?? raw?.high),
+      l: Number(raw?.l ?? raw?.low),
+      c: Number(raw?.c ?? raw?.close),
+      v: Number(raw?.v ?? raw?.volume ?? 0)
+    };
+    if (![candle.o, candle.h, candle.l, candle.c, candle.v].every(Number.isFinite)) {
+      return null;
+    }
+    return candle;
+  }
+
+  async hydrateActiveTimeframeFromRest() {
+    if (this.config.enableBacktestMode ||
+        resolvedConfig.config.mode.backtest ||
+        resolvedConfig.config.mode.execution === 'backtest' ||
+        resolvedConfig.config.mode.candleSource === 'file') {
+      return;
+    }
+
+    const broker = this.sessionRouter?.activeBroker || this.kraken;
+    if (!broker || typeof broker.getCandles !== 'function') {
+      console.warn('[BOOT][REST-HYDRATE] skipped: active broker has no getCandles()');
+      return;
+    }
+
+    const timeframe = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
+    const timeframeMs = this.candleAggregator?.getIntervalMs(timeframe);
+    if (!Number.isFinite(timeframeMs) || timeframeMs <= 0) {
+      throw new Error(`[BOOT][REST-HYDRATE] invalid active timeframe ${timeframe}`);
+    }
+
+    const symbols = this._getBootHydrationSymbols();
+    if (symbols.length === 0) {
+      throw new Error('[BOOT][REST-HYDRATE] no active symbols available for boot hydration');
+    }
+
+    for (const symbol of symbols) {
+      const rawCandles = await broker.getCandles(symbol, timeframe, BOOT_REST_HYDRATION_LIMIT);
+      const candles = (Array.isArray(rawCandles) ? rawCandles : [])
+        .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
+        .filter(Boolean)
+        .sort((a, b) => a.etime - b.etime)
+        .slice(-BOOT_REST_HYDRATION_LIMIT);
+
+      if (candles.length === 0) {
+        console.warn(`[BOOT][REST-HYDRATE] no usable candles returned for ${symbol} @ ${timeframe}`);
+        continue;
+      }
+
+      for (const candle of candles) {
+        this.candleProcessor.processNewCandle(candle, { persist: false });
+        const ohlc = candleToProcessorOhlc(candle, timeframeMs);
+        if (ohlc) {
+          this.storeTimeframeCandle(timeframe, ohlc);
+          this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
+        }
+      }
+
+      const latest = candles[candles.length - 1];
+      const marketData = {
+        symbol,
+        price: latest.c,
+        timestamp: latest.t,
+        timeframe,
+        systemTime: Date.now(),
+        volume: Number.isFinite(latest.v) ? latest.v : null,
+        open: latest.o,
+        high: latest.h,
+        low: latest.l
+      };
+      this.marketData = marketData;
+      const symCtx = this.symbolContexts?.get(symbol);
+      if (symCtx) symCtx.marketData = marketData;
+      if (stateManager && stateManager.updateLastPrice) {
+        stateManager.updateLastPrice(symbol, latest.c);
+      }
+
+      console.log(`[BOOT][REST-HYDRATE] symbol=${symbol} timeframe=${timeframe} candles=${candles.length} latest=${new Date(latest.etime).toISOString()} close=${latest.c}`);
+    }
+  }
+
   /**
    * Start the trading bot
    */
@@ -1395,6 +1507,7 @@ class OGZPrimeV14Bot {
         console.log('"¡ LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
         await this.kraken.connect();
+        await this.hydrateActiveTimeframeFromRest();
         // Subscribe to broker events instead of direct connection
         this.subscribeToMarketData();
 
