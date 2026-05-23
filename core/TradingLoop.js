@@ -39,6 +39,7 @@ class TradingLoop {
   constructor(ctx) {
     this.ctx = ctx;
     this.analyzing = false;
+    this.pendingExitSymbols = new Set();
     console.log('[TradingLoop] Initialized (clean rewrite - direction agnostic)');
   }
 
@@ -85,6 +86,145 @@ class TradingLoop {
       await this._analyze(symbol);
     } finally {
       this.analyzing = false;
+      await this._drainPendingExitChecks();
+    }
+  }
+
+  /**
+   * Exit-only monitor for sub-candle protection. Entry decisions remain
+   * candle-close driven so live/paper cadence matches the backtest path.
+   */
+  async checkExitsOnly(symbol) {
+    if (typeof symbol !== 'string' || !symbol) {
+      throw new Error(
+        `TradingLoop.checkExitsOnly requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
+      );
+    }
+    if (this.analyzing) {
+      this.pendingExitSymbols.add(symbol);
+      this._diag('EXIT_ONLY_QUEUED', { symbol });
+      return;
+    }
+    this.analyzing = true;
+
+    try {
+      await this._checkExitsOnly(symbol);
+    } finally {
+      this.analyzing = false;
+      await this._drainPendingExitChecks();
+    }
+  }
+
+  async _drainPendingExitChecks() {
+    if (!this.pendingExitSymbols || this.pendingExitSymbols.size === 0) return;
+    const symbols = Array.from(this.pendingExitSymbols);
+    this.pendingExitSymbols.clear();
+    for (const symbol of symbols) {
+      await this.checkExitsOnly(symbol);
+    }
+  }
+
+  async _checkExitsOnly(symbol) {
+    const symCtx = this.ctx.symbolContexts?.get(symbol);
+    const marketData = symCtx?.marketData
+      ?? (this.ctx.marketData?.symbol === symbol ? this.ctx.marketData : null);
+    const price = marketData?.price;
+    if (!Number.isFinite(price) || price <= 0) {
+      this._diag('EXIT_ONLY_NO_PRICE', {
+        symbol,
+        marketSymbol: this.ctx.marketData?.symbol || 'missing'
+      });
+      return;
+    }
+
+    const activeTrades = stateManager.getTradesBySymbol(symbol)
+      .filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    if (activeTrades.length === 0) return;
+
+    const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+    const indicatorEngine = symCtx?.indicatorEngine ?? this.ctx.indicatorEngine;
+    const fibonacciDetector = symCtx?.fibonacciDetector ?? this.ctx.fibonacciDetector;
+    const dtoState = indicatorEngine.getSnapshot();
+    const indicators = dtoState.indicators || {};
+    indicators.ema12 = indicators.ema9 ?? null;
+    indicators.ema26 = indicators.ema21 ?? null;
+    indicators.volatility = indicators.atr ?? null;
+    indicators.bbWidth = indicators.bb?.bandwidth ?? null;
+    indicators.bollingerBands = indicators.bb;
+    indicators.trend = indicators.superTrendDirection ?? null;
+
+    let nearestFibLevel = null;
+    if (fibonacciDetector && priceHistory.length >= 30) {
+      const fibLevels = fibonacciDetector.update(priceHistory);
+      if (fibLevels) nearestFibLevel = fibonacciDetector.getNearestLevel(price);
+    }
+    const rawIndicatorState = typeof indicatorEngine.getRawState === 'function'
+      ? indicatorEngine.getRawState()
+      : null;
+    const nearestStructure = this._nearestStructure(price, nearestFibLevel, rawIndicatorState?.sr);
+
+    const _initialBalance = this.ctx.backtestRecorder?.startingBalance ?? stateManager.get('initialBalance');
+    if (!Number.isFinite(_initialBalance) || _initialBalance <= 0) {
+      throw new Error(`TradingLoop exit-only: initialBalance unavailable from backtestRecorder.startingBalance and stateManager.get('initialBalance') (got ${_initialBalance})`);
+    }
+
+    for (const activeTrade of activeTrades) {
+      exitContractManager.updateMaxProfit(activeTrade, price);
+
+      const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
+        indicators,
+        currentTime: marketData?.timestamp ?? Date.now(),
+        accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
+        initialBalance: _initialBalance,
+        currentPosition: stateManager.get('position'),
+        currentPrice: price
+      });
+
+      if (exitCheck.shouldExit) {
+        if (!exitCheck.exitReason) {
+          throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
+        }
+        const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+        await this.ctx.executeTrade({
+          action: isClosingShort ? 'COVER' : 'SELL',
+          direction: 'close',
+          confidence: exitCheck.confidence || 100,
+          exitReason: exitCheck.exitReason,
+          tradeId: activeTrade.id || activeTrade.orderId
+        }, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
+        return;
+      }
+
+      const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id || activeTrade.orderId);
+      if (mpm?.state?.active) {
+        if (!Number.isFinite(indicators.volatility)) {
+          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; dynamic trailing update will be skipped unless ATR is present');
+        }
+        const profitResult = mpm.update(price, {
+          volatility: indicators.volatility ?? null,
+          trend: indicators.trend || 'sideways',
+          volume: marketData?.volume || 0,
+          atr: indicators.atr,
+          rsi: indicators.rsi,
+          candle: priceHistory[priceHistory.length - 1],
+          recentCandles: priceHistory.slice(-20),
+          nearestStructure
+        });
+
+        if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
+          const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+          await this.ctx.executeTrade({
+            action: isClosingShort ? 'COVER' : 'SELL',
+            direction: 'close',
+            confidence: 100,
+            exitSize: profitResult.exitSize,
+            exitFraction: profitResult.exitFraction,
+            exitReason: profitResult.reason,
+            tradeId: activeTrade.id || activeTrade.orderId
+          }, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
+          return;
+        }
+      }
     }
   }
 

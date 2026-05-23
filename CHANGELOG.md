@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Entry Cadence Parity (2026-05-23)
+
+- Fixed the live timer loop so it no longer calls full entry analysis between candle closes; live and paper entries now stay candle-close driven like the backtest path.
+- Kept the interval as an exit-only monitor for active trade symbols, with exact-symbol market data matching and queued exit checks when candle analysis is already running.
+- Verification: `node --check core/TradingLoop.js`, `node --check run-empire-v2.js`, `npm run test:smoke`, Mercury adversarial audit verdict `SHIP`, full current-default P0 `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`, and modifiers-off old-anchor P0 `$13213.042341608163 / 1384 trades / 60.0% WR / PF 1.72`.
+
 ### Alpaca Active-Timeframe Ingestion (2026-05-22)
 
 - Fixed live Alpaca 1m OHLC events starving 15m trading analysis by aggregating lower-timeframe broker bars into the active runtime timeframe before they reach `CandleProcessor`.

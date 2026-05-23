@@ -1780,30 +1780,53 @@ class OGZPrimeV14Bot {
   }
 
   /**
-   * Main trading cycle - runs every 15 seconds
+   * Exit monitor - runs on the configured interval.
+   *
+   * Entries are candle-close driven through run15mTradingCycle(). Backtests
+   * evaluate once per candle, so live/paper must not open positions from this
+   * timer between candle closes. The timer remains for open-position exit
+   * protection and operational warmup status.
    */
   startTradingCycle() {
     const interval = resolvedConfig.config.broker.tradingInterval;
 
     this.tradingInterval = setInterval(async () => {
-      // Reduced to 3 candles - fuck the over-engineering
-      if (!this.marketData || this.priceHistory.length < 3) {
-        console.log(`â³ Warming up... ${this.priceHistory.length}/3 candles (15m timeframe)`);
+      const activeTrades = stateManager.get('activeTrades');
+      const exitSymbols = activeTrades instanceof Map
+        ? [...new Set(Array.from(activeTrades.values())
+            .map(t => normalizeRuntimeSymbol(t.symbol))
+            .filter(Boolean))]
+        : [];
+
+      if (exitSymbols.length === 0) {
+        const activeSymbol = normalizeRuntimeSymbol(this.tradingPair);
+        const activeHistory = activeSymbol && this.symbolContexts?.has(activeSymbol)
+          ? this.symbolContexts.get(activeSymbol).priceHistory
+          : this.priceHistory;
+        if (!this.marketData || activeHistory.length < 3) {
+          console.log(`[EXIT-MONITOR] warming up ${activeHistory.length}/3 candles (${this.candleTimeframe} timeframe); entries wait for candle close`);
+        }
         return;
       }
 
       try {
-        // CC-C Commit 5/6: pass single-symbol canonical from env-resolved
-        // this.tradingPair. Multi-symbol mode (commit 6+) replaces this with
-        // per-symbol OHLC dispatch.
-        await this.analyzeAndTrade(this.tradingPair);
+        this.tradingLoop.ctx.marketData = this.marketData;
+        this.tradingLoop.ctx.priceHistory = this.priceHistory;
+        this.tradingLoop.ctx.symbolContexts = this.symbolContexts;
+        this.tradingLoop.ctx.dashboardWs = this.dashboardWs;
+        this.tradingLoop.ctx.dashboardWsConnected = this.dashboardWsConnected;
+        this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
+        this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
+        for (const symbol of exitSymbols) {
+          await this.tradingLoop.checkExitsOnly(symbol);
+        }
       } catch (error) {
-        console.error('âŒ Trading cycle error:', error.message);
+        console.error('[EXIT-MONITOR] error:', error.message);
         console.error(error.stack);
       }
     }, interval);
 
-    console.log(`â° Trading cycle started (${interval}ms interval)`);
+    console.log(`[EXIT-MONITOR] started (${interval}ms interval); entries run on candle close only`);
 
     // CHANGE 2026-01-16: Liveness watchdog - catches "no data at all" scenario
     this.startLivenessWatchdog();
