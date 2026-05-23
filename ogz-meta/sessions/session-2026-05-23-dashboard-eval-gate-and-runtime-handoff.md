@@ -2,7 +2,7 @@
 
 **Branch:** `rebuild/clean-from-baseline`
 **Repo:** `/opt/ogzprime/OGZPMLV2`
-**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; startup entry-state logging committed; bot-side Alpaca REST hydration committed; runtime bot online with TSLA 15m boot hydration working, but entries are still paused and must not be called trading-ready until explicitly resumed/verified.
+**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; startup entry-state logging committed; bot-side Alpaca REST hydration committed; runtime bot online with TSLA 15m boot hydration working; stale liveness pause cleared through `StateManager.resumeTrading()`; entries are enabled in paper mode, but eval remains NO-GO until live-market signal path and TTP rule layer are proven.
 **Latest code head recorded in this form:** `78ba71c` (`Fixed Alpaca bot candle hydration`)
 
 This session form fills the gap after the May 22 forms. It does not replace the earlier append-only records:
@@ -223,6 +223,35 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.response.md`
 
+### 9. Stale liveness pause was cleared after hydration proof
+
+**Code commit:** none. This was a runtime state operation after `78ba71c` proved the TSLA 15m boot-hydration path.
+
+**Reason:** `data/state.json` still carried the old liveness pause from before the Alpaca adapter fix:
+
+- `isTrading=false`
+- `pauseReason="Liveness watchdog: No data for 164s, backfill failed"`
+- `lastError="Liveness watchdog: No data for 164s, backfill failed"`
+
+**Action:** Used the built-in `StateManager.resumeTrading()` path, not a manual state-file edit.
+
+**Pre/post state:**
+
+- Before: `activeTrades=0`, `recoveryMode=false`, `isTrading=false`, stale liveness pause present
+- After: `activeTrades=0`, `recoveryMode=false`, `isTrading=true`, `pauseReason=null`, `lastError=null`, `symbolEntryHalts={}`
+
+**Post-resume restart verification:**
+
+- Restarted only `ogz-prime-v2`.
+- `ogz-prime-v2` PID changed to `1150476`.
+- `ogz-websocket` stayed `1134427`.
+- `ogz-stripe` stayed `3440510`.
+- Fresh boot log showed `[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-05-22T21:00:00.000Z close=425.04`.
+- Fresh startup log showed `[STARTUP] Bot online and entries enabled`.
+- After one watchdog interval, log showed `[WATCHDOG] market data quiet expected | broker=alpaca assetClass=stocks phase=closed next=Pre-market Monday 04:00 ET`.
+
+**Important limitation:** This proves the runtime can boot cleanly, hydrate TSLA 15m, stay connected, and remain entry-enabled during expected closed-market quiet. It does not prove a market-hours signal, skip, broker order intent, order block, fill, or state mutation. That proof must happen during a live market session or controlled paper signal exercise.
+
 ## Smoke Test Results
 
 | Check | Result | Evidence |
@@ -238,7 +267,9 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | Paused entry enforcement | Pass | `594f023`; focused Jest, smoke, three Mercury passes, fast P0, full P0 |
 | Startup entry-state logging | Pass | `0cdc6ca`; focused Jest, smoke, three Mercury passes, full P0, post-restart PM2 log shows entries blocked |
 | Alpaca bot REST hydration | Pass | `78ba71c`; focused Jest, direct live adapter check, smoke, Mercury, full P0, post-restart boot hydrate loaded 60 TSLA 15m candles |
-| Bot trade readiness | Blocked | `data/state.json` still has `isTrading=false`; resume/clear state requires explicit operator decision after hydration proof |
+| Runtime state resume | Pass | Built-in `StateManager.resumeTrading()` cleared stale liveness pause; post-restart state has `isTrading=true` |
+| Closed-market watchdog behavior | Pass | Post-resume watchdog logged expected stock-market quiet instead of pausing again |
+| Eval readiness | Blocked | Runtime is still paper/dry-run posture and TTP rule layer/live-market signal path are not fully proven |
 
 ## Files Touched
 
@@ -264,11 +295,11 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 
 ## Current Runtime Snapshot
 
-Checked after restarting `ogz-prime-v2` onto `78ba71c`:
+Checked after clearing stale liveness pause and restarting `ogz-prime-v2` onto `78ba71c`:
 
 | Process | Status | PID | Note |
 |---|---:|---:|---|
-| `ogz-prime-v2` | online | `1146397` | Restarted after Alpaca bot candle hydration fix |
+| `ogz-prime-v2` | online | `1150476` | Restarted after resume; entries enabled in paper mode |
 | `ogz-websocket` | online | `1134427` | Restarted for frontend asset deploys |
 | `ogz-stripe` | online | `3440510` | Untouched |
 
@@ -300,13 +331,13 @@ Current `data/state.json` snapshot:
   "dailyTradeCount": 0,
   "symbolEntryHalts": {},
   "recoveryMode": false,
-  "isTrading": false,
-  "lastError": "Liveness watchdog: No data for 164s, backfill failed",
-  "pauseReason": "Liveness watchdog: No data for 164s, backfill failed"
+  "isTrading": true,
+  "lastError": null,
+  "pauseReason": null
 }
 ```
 
-Important: PM2 being online is not the same as the bot being enabled to trade. The current state file says `isTrading=false` due to a liveness watchdog pause. This must be diagnosed before claiming the runtime is trade-ready.
+Important: PM2 being online is not the same as eval readiness. The current state file now has `isTrading=true`, but the runtime is still in paper/dry-run posture and has not yet produced a live-market signal-path proof.
 
 Fresh post-restart startup evidence after `0cdc6ca`:
 
@@ -317,6 +348,13 @@ Fresh post-restart startup evidence after `78ba71c`:
 
 - `ogz-prime-v2` out log: `[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-05-22T21:00:00.000Z close=425.04`
 - `ogz-prime-v2` error log: `[STARTUP] Bot online, but entries are blocked: Liveness watchdog: No data for 164s, backfill failed`
+
+Fresh post-resume startup evidence:
+
+- `StateManager.resumeTrading()` result: `success=true`, `activeTrades=0`, `recoveryMode=false`, `isTrading=true`, `pauseReason=null`, `lastError=null`
+- `ogz-prime-v2` out log: `[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-05-22T21:00:00.000Z close=425.04`
+- `ogz-prime-v2` out log: `[STARTUP] Bot online and entries enabled`
+- `ogz-prime-v2` out log after one watchdog interval: `[WATCHDOG] market data quiet expected | broker=alpaca assetClass=stocks phase=closed next=Pre-market Monday 04:00 ET`
 
 ## Git Log
 
@@ -340,8 +378,8 @@ Newest first:
 
 ## Open Items
 
-1. Explicitly decide whether and when to clear the stale liveness pause and resume trading state now that TSLA 15m boot REST hydration is proven healthy.
-2. After resume, observe the next live-market signal path end-to-end; do not call the bot eval-ready until the entry/skip reason is traceable through signal, gate, broker, state, and logs.
+1. Observe the next live-market signal path end-to-end; do not call the bot eval-ready until the entry/skip reason is traceable through signal, gate, broker, state, and logs.
+2. Keep runtime in paper/dry-run posture until the TTP rule layer and eval posture guard are implemented.
 3. Do not flip eval while `PAPER_TRADING=true`, `LIVE_TRADING=false`, `WEBHOOK_DRY_RUN=true`, and `ACCOUNT_DRAWDOWN_BYPASS=true`.
 4. Implement the runtime posture guard: `LIVE_TRADING=true` plus `ACCOUNT_DRAWDOWN_BYPASS=true` must hard-fail startup.
 5. Implement the Trade The Pool eval rule layer, starting with the 5 percent previous one-minute volume rule.
@@ -361,14 +399,14 @@ Newest first:
 | Watchlist ticker click chart routing | Closed by `e160461`; final browser click recheck belongs to cowork/Chrome smoke |
 | Eval go/no-go checklist | Added by `b4c302d`; code implementation still open |
 | Paused-state entry enforcement | Closed by `594f023`; entries now refuse to route while `StateManager.isTrading=false` outside real backtest mode |
-| Bot trade readiness | Still blocked until the runtime state is resumed and verified after deploy/restart |
+| Bot runtime state | Enabled in paper mode after built-in `StateManager.resumeTrading()` and restart; eval still blocked |
 | Trade The Pool rule engine | Open; no eval flip until rule layer is implemented and verified |
 | SessionRouter final architecture | Deferred; keep `SESSION_ROUTER_ENABLED=false` |
 | TRAI | Deferred; keep `ENABLE_TRAI=false` until known phantom default paths are fixed |
 
 ## Context for Next Session
 
-The latest code head recorded here is `594f023`, with this session-doc follow-up to be committed separately. Dashboard chart and watchlist fixes are live through the web tier. The paused-state entry enforcement is committed but still needs deployment/restart before it protects the running PM2 bot. The bot PM2 process is online but must not be described as trading-ready while `data/state.json` says `isTrading=false`; next session must explicitly resume/verify state before any eval flip.
+The latest code head recorded here is `78ba71c`. Dashboard chart and watchlist fixes are live through the web tier. Paused-state entry enforcement, startup entry-state logging, and bot-side Alpaca REST hydration are committed, pushed, deployed, and runtime-verified. The bot PM2 process is online, TSLA 15m boot hydration works, and `data/state.json` now has `isTrading=true`; next session must observe a live-market paper signal/skip path end-to-end before any eval flip.
 
 ## Recorder Pipeline Disposition
 
