@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stock Dashboard Historical Candle Ordering (2026-05-23)
+
+- Fixed Alpaca dashboard historical candle fetches to request newest bars first, then return canonical ascending `{ time, open, high, low, close, volume }` candles for every chart timeframe.
+- Added numeric timestamp/OHLCV normalization and malformed-bar filtering so invalid Alpaca bar fields do not reach the chart loader.
+- Verification: `node --check server/stock-data-adapter.js`, direct adapter checks for `1m`, `5m`, `15m`, `30m`, `1h`, `4h`, and `1d`, and Mercury adversarial audit found no remaining stale/reversed/malformed/blank path inside the adapter.
+
 ### Broker-Aware Liveness Watchdog (2026-05-23)
 
 - Fixed the live liveness watchdog so broker ingress, not only active-timeframe analysis candles, satisfies the feed-health check.

@@ -33,6 +33,16 @@ function cleanTicker(ticker) {
     return ticker.replace('-USD', '').replace('/', '').toUpperCase();
 }
 
+function toEpochSeconds(value) {
+    const numeric = Number(value);
+    if (value !== null && value !== '' && Number.isFinite(numeric)) {
+        return Math.floor(numeric > 1e12 ? numeric / 1000 : numeric);
+    }
+
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
+}
+
 async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
     if (!API_KEY || !API_SECRET) {
         console.error('[StockAdapter] ALPACA_API_KEY and ALPACA_API_SECRET required');
@@ -64,7 +74,8 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
         timeframe: alpacaTf,
         limit: String(limit),
         adjustment: 'split',
-        feed: 'iex'
+        feed: 'iex',
+        sort: 'desc'
     });
 
     const url = `${DATA_URL}/${symbol}/bars?${params}`;
@@ -91,15 +102,28 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
             return null;
         }
 
-        // Convert Alpaca format to OGZPrime candle format
         const candles = bars.map(bar => ({
-            t: new Date(bar.t).getTime(),
-            o: bar.o,
-            h: bar.h,
-            l: bar.l,
-            c: bar.c,
-            v: bar.v
-        }));
+            time: toEpochSeconds(bar.t),
+            open: Number(bar.o),
+            high: Number(bar.h),
+            low: Number(bar.l),
+            close: Number(bar.c),
+            volume: Number(bar.v)
+        }))
+            .filter(c => (
+                Number.isFinite(c.time) &&
+                Number.isFinite(c.open) &&
+                Number.isFinite(c.high) &&
+                Number.isFinite(c.low) &&
+                Number.isFinite(c.close) &&
+                Number.isFinite(c.volume)
+            ))
+            .sort((a, b) => a.time - b.time);
+
+        if (candles.length === 0) {
+            console.warn(`[StockAdapter] No valid bars returned for ${symbol} @ ${timeframe}`);
+            return null;
+        }
 
         console.log(`[StockAdapter] ${candles.length} candles for ${symbol} @ ${timeframe}`);
         return candles;
