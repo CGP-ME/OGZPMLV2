@@ -270,6 +270,12 @@ function validate(config) {
   if (config.mode.liveTrading && config.mode.backtest) {
     errors.push('Cannot enable both live trading and backtest mode');
   }
+  if (config.mode.liveTrading && config.risk.accountDrawdownBypass) {
+    errors.push('LIVE_TRADING=true cannot run with ACCOUNT_DRAWDOWN_BYPASS=true');
+  }
+  if (config.mode.liveTrading && config.risk.riskManagerBypass) {
+    errors.push('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
+  }
 
   // Balance
   if (config.backtest.initialBalance <= 0) {
@@ -351,10 +357,11 @@ function load(opts = {}) {
     }
     if (errors.length > 0) {
       errors.forEach(e => console.error(`[ConfigLoader] ERROR: ${e}`));
-      if (!config.mode.backtest) {
-        throw new Error(`ConfigLoader: ${errors.length} validation errors — fix before trading`);
-      }
     }
+  }
+
+  if (errors.length > 0 && !config.mode.backtest) {
+    throw new Error(`ConfigLoader: ${errors.length} validation errors: ${errors.join('; ')}`);
   }
 
   // Freeze

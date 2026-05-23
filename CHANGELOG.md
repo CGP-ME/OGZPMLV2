@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Trading Bypass Guard (2026-05-23)
+
+- Fixed config validation so `LIVE_TRADING=true` cannot start with `ACCOUNT_DRAWDOWN_BYPASS=true` or `RISK_MANAGER_BYPASS=true`, including the silent bootstrap path used by `run-empire-v2.js`.
+- Added focused ConfigLoader coverage proving unsafe live bypass combinations fail loud while backtest bypass combinations remain non-blocking.
+
 ### Alpaca Bot Candle Hydration (2026-05-23)
 
 - Fixed the bot-side Alpaca candle adapter so REST hydration requests the latest bounded bar window and returns ascending candles, matching the dashboard candle path without switching the runtime back to BTC/Kraken.
