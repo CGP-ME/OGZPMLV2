@@ -118,9 +118,42 @@ The current runtime is still simulation posture:
 - `SESSION_ROUTER_ENABLED=false`
 - `ENABLE_TRAI=false`
 
-The first recommended implementation target is a startup hard-fail for `LIVE_TRADING=true` with `ACCOUNT_DRAWDOWN_BYPASS=true`.
+The first recommended implementation target was a startup hard-fail for `LIVE_TRADING=true` with `ACCOUNT_DRAWDOWN_BYPASS=true`; this was implemented later in this session by `06ba5f4`.
 
-### 6. Paused-state entry enforcement was added
+### 6. Live trading bypass guard was added
+
+**Commit:** `06ba5f4` - `Fixed live trading bypass guard`
+
+**Root cause:** The eval checklist correctly identified that the bot can be mechanically healthy while still eval-unsafe if live mode starts with safety bypass flags enabled. `run-empire-v2.js` loads `ConfigLoader` with `silent: true`, so validation had to throw outside the console-logging branch.
+
+**Fix:**
+
+- `foundation/ConfigLoader.js` now records validation errors when `LIVE_TRADING=true` is paired with `ACCOUNT_DRAWDOWN_BYPASS=true` or `RISK_MANAGER_BYPASS=true`.
+- Validation errors now throw outside backtest mode even when config is loaded with `{ silent: true }`.
+- Backtest bypass combinations remain non-blocking so tuning/anchor runs can still use drawdown bypass intentionally.
+- Added focused Jest coverage for account-drawdown bypass, risk-manager bypass, clean live mode, and backtest bypass behavior.
+
+**Verification:**
+
+- `node --check foundation/ConfigLoader.js`
+- `node --check test/config-loader-live-guard.test.js`
+- `npx jest test/config-loader-live-guard.test.js --runInBand` - 4 passed
+- `npx jest test/config-loader-live-guard.test.js test/order-executor-pause-gate.test.js test/state-manager-load.test.js --runInBand` - 9 passed across 3 suites
+- `npm run test:smoke` - 13 passed, 0 failed, 1 existing Bombardier warning
+- Mercury pass 1 flagged a live+backtest bypass concern; direct code read found existing `run-empire-v2.js` constructor mutual-exclusion guard.
+- Mercury follow-up accepted the combined shape and returned `SHIP`.
+- Canonical anchor-runner full P0: `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
+
+**Command-drift note:** A manual no-`SOLO_STRATEGY` command from `ogz-meta/BACKTEST-OPS.md` that enables multiple strategies plus `ENABLE_SMS=true` ended at `$9851.344`. That is a winner-takes-all orchestrator run, not a blended-strategy architecture, and it is not the pipeline P0 anchor. The canonical gate for this commit was `ogz-meta/anchor-runner.js` `runP0('full')`, which reproduced `$13255.255799695915`.
+
+**Evidence files:**
+
+- `ogz-meta/cognition-history/mercury/live-bypass-guard-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/live-bypass-guard-2026-05-23.response.md`
+- `ogz-meta/cognition-history/mercury/live-bypass-guard-followup-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/live-bypass-guard-followup-2026-05-23.response.md`
+
+### 7. Paused-state entry enforcement was added
 
 **Commit:** `594f023` - `Fixed paused state entry enforcement`
 
@@ -154,7 +187,7 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.response.md`
 
-### 7. Startup entry-state logging was fixed
+### 8. Startup entry-state logging was fixed
 
 **Commit:** `0cdc6ca` - `Fixed startup entry-state logging`
 
@@ -189,7 +222,7 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.response.md`
 
-### 8. Bot-side Alpaca REST candle hydration was fixed
+### 9. Bot-side Alpaca REST candle hydration was fixed
 
 **Commit:** `78ba71c` - `Fixed Alpaca bot candle hydration`
 
@@ -223,7 +256,7 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.response.md`
 
-### 9. Stale liveness pause was cleared after hydration proof
+### 10. Stale liveness pause was cleared after hydration proof
 
 **Code commit:** none. This was a runtime state operation after `78ba71c` proved the TSLA 15m boot-hydration path.
 
@@ -264,6 +297,7 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | Web asset serving | Pass | `chart-panel.js` and `watchlist-strip.js` returned `HTTP 200` from local web tier |
 | Web-tier restart isolation | Pass | `ogz-websocket` restarted; `ogz-prime-v2` PID stayed `1120365` |
 | Eval checklist doc | Pass | `git diff --check` clean before commit |
+| Live trading bypass guard | Pass | `06ba5f4`; focused Jest, smoke, Mercury follow-up, canonical full P0 |
 | Paused entry enforcement | Pass | `594f023`; focused Jest, smoke, three Mercury passes, fast P0, full P0 |
 | Startup entry-state logging | Pass | `0cdc6ca`; focused Jest, smoke, three Mercury passes, full P0, post-restart PM2 log shows entries blocked |
 | Alpaca bot REST hydration | Pass | `78ba71c`; focused Jest, direct live adapter check, smoke, Mercury, full P0, post-restart boot hydrate loaded 60 TSLA 15m candles |
@@ -286,10 +320,12 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | `test/order-executor-pause-gate.test.js` | Added focused pause-gate regression coverage |
 | `test/state-manager-load.test.js` | Added malformed persisted `isTrading` regression coverage |
 | `test/alpaca-adapter-candles.test.js` | Added Alpaca REST candle request/ordering coverage |
+| `test/config-loader-live-guard.test.js` | Added live-bypass startup guard regression coverage |
 | `CHANGELOG.md` | Added entries for stock candles, chart panel, watchlist routing, and paused-state entry enforcement |
 | `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-*.md` | Added Mercury attack prompts and responses for paused-entry enforcement |
 | `ogz-meta/cognition-history/mercury/startup-entry-state-log-*.md` | Added Mercury attack prompts and responses for startup entry-state logging |
 | `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-*.md` | Added Mercury attack prompt and response for bot-side Alpaca REST hydration |
+| `ogz-meta/cognition-history/mercury/live-bypass-guard-*.md` | Added Mercury attack prompts and responses for live bypass startup guard |
 | `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
 | `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
 
@@ -360,6 +396,7 @@ Fresh post-resume startup evidence:
 
 Newest first:
 
+- `06ba5f4` Fixed live trading bypass guard
 - `78ba71c` Fixed Alpaca bot candle hydration
 - `0cdc6ca` Fixed startup entry-state logging
 - `594f023` Fixed paused state entry enforcement
@@ -379,9 +416,9 @@ Newest first:
 ## Open Items
 
 1. Observe the next live-market signal path end-to-end; do not call the bot eval-ready until the entry/skip reason is traceable through signal, gate, broker, state, and logs.
-2. Keep runtime in paper/dry-run posture until the TTP rule layer and eval posture guard are implemented.
+2. Keep runtime in paper/dry-run posture until the TTP rule layer is implemented.
 3. Do not flip eval while `PAPER_TRADING=true`, `LIVE_TRADING=false`, `WEBHOOK_DRY_RUN=true`, and `ACCOUNT_DRAWDOWN_BYPASS=true`.
-4. Implement the runtime posture guard: `LIVE_TRADING=true` plus `ACCOUNT_DRAWDOWN_BYPASS=true` must hard-fail startup.
+4. Runtime posture guard is implemented for live+bypass startup; verify actual eval `.env` still has `ACCOUNT_DRAWDOWN_BYPASS=false`, `RISK_MANAGER_BYPASS=false`, and `WEBHOOK_DRY_RUN=false` before flip.
 5. Implement the Trade The Pool eval rule layer, starting with the 5 percent previous one-minute volume rule.
 6. Implement or explicitly gate the 15:50 ET liquidation/no-new-entry behavior.
 7. Keep `SESSION_ROUTER_ENABLED=false` until SessionRouter pattern-bank isolation and cross-asset state rules are complete.
@@ -397,8 +434,9 @@ Newest first:
 | Chart panel stacked oscillators | Shipped by `ed8657e`; cowork smoke verified core pane stacking |
 | Chart panel volume restore latency | Open as polish item `#44`; not treated as eval blocker |
 | Watchlist ticker click chart routing | Closed by `e160461`; final browser click recheck belongs to cowork/Chrome smoke |
-| Eval go/no-go checklist | Added by `b4c302d`; code implementation still open |
+| Eval go/no-go checklist | Added by `b4c302d`; live-bypass guard closed by `06ba5f4`, TTP rule layer still open |
 | Paused-state entry enforcement | Closed by `594f023`; entries now refuse to route while `StateManager.isTrading=false` outside real backtest mode |
+| Live trading bypass guard | Closed by `06ba5f4`; `LIVE_TRADING=true` cannot start with account drawdown or risk-manager bypass enabled |
 | Bot runtime state | Enabled in paper mode after built-in `StateManager.resumeTrading()` and restart; eval still blocked |
 | Trade The Pool rule engine | Open; no eval flip until rule layer is implemented and verified |
 | SessionRouter final architecture | Deferred; keep `SESSION_ROUTER_ENABLED=false` |
@@ -406,7 +444,7 @@ Newest first:
 
 ## Context for Next Session
 
-The latest code head recorded here is `78ba71c`. Dashboard chart and watchlist fixes are live through the web tier. Paused-state entry enforcement, startup entry-state logging, and bot-side Alpaca REST hydration are committed, pushed, deployed, and runtime-verified. The bot PM2 process is online, TSLA 15m boot hydration works, and `data/state.json` now has `isTrading=true`; next session must observe a live-market paper signal/skip path end-to-end before any eval flip.
+The latest code head recorded here is `06ba5f4`. Dashboard chart and watchlist fixes are live through the web tier. Paused-state entry enforcement, startup entry-state logging, bot-side Alpaca REST hydration, and live-bypass startup guard are committed and pushed. The bot PM2 process is online, TSLA 15m boot hydration works, and `data/state.json` now has `isTrading=true`; next session must observe a live-market paper signal/skip path end-to-end and implement the TTP rule layer before any eval flip.
 
 ## Recorder Pipeline Disposition
 
@@ -421,7 +459,7 @@ The latest code head recorded here is `78ba71c`. Dashboard chart and watchlist f
 | Critic | Cowork/Chrome smoke found the watchlist bug and volume restore latency; Mercury found two paused-entry hardening gaps before final clean pass |
 | Validator | `git diff --check`, syntax checks, Jest, smoke, Mercury, fast P0, full P0, and PM2 process isolation were verified where applicable |
 | Scribe | This session form records May 23 work, paused-entry enforcement, and current blockers |
-| Committer | Changes were committed as separate logical commits; code commit `594f023` is the paused-entry rollback point |
+| Committer | Changes were committed as separate logical commits; code commit `06ba5f4` is the live-bypass rollback point and `594f023` is the paused-entry rollback point |
 
 ## Next Recommended Move
 
