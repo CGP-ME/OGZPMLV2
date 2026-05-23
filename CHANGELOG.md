@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP 5 Percent Volume Cap Entry Gate (2026-05-23)
+
+- Added a pre-order eval rule engine that blocks live stock entries before broker, webhook, or state side effects when opening/add-on shares would exceed 5% of the previous 1m candle volume.
+- Added zero-volume fallback to the most recent 1m candle with volume, mandatory aggregate reservations per symbol/reference candle, stale/future/malformed candle fail-closed behavior, and config validation for TTP volume-cap values.
+- Wired the rule engine into `run-empire-v2.js` through OrderExecutor's existing pre-order gate while keeping eval/TTP gates disabled by default until explicitly enabled in runtime config.
+- Verification: `node --check`, focused Jest EvalRuleEngine/OrderExecutor/ConfigLoader tests, `npm run test:smoke`, three Mercury attack passes, and full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+- Operational proof still required before eval: single bot process or shared reservation state, production clock sync, and live 1m feed freshness under the enabled eval config.
+
 ### Broker Order Quantity Planning (2026-05-23)
 
 - Fixed live broker routing so stock entries send calculated share quantity instead of USD notional while state, ledger, and P0 accounting continue to track USD position size.

@@ -17,6 +17,13 @@ describe('ConfigLoader live trading safety guard', () => {
       CONFIRM_LIVE_TRADING: 'false',
       RISK_MANAGER_BYPASS: 'false',
       ACCOUNT_DRAWDOWN_BYPASS: 'false',
+      EVAL_RULES_ENABLED: 'false',
+      TTP_RULES_ENABLED: 'false',
+      TTP_VOLUME_CAP_ENABLED: 'true',
+      TTP_VOLUME_CAP_PERCENT: '0.05',
+      TTP_VOLUME_CAP_TIMEFRAME: '1m',
+      TTP_VOLUME_CAP_FALLBACK_TO_RECENT: 'true',
+      TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS: '180000',
       MIN_TRADE_CONFIDENCE: '0.50',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
@@ -60,6 +67,57 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.mode.liveTrading).toBe(true);
     expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
+  });
+
+  test('loads TTP volume cap policy from ConfigLoader defaults', () => {
+    const loaded = loadConfig();
+
+    expect(loaded.config.evalRules).toEqual(expect.objectContaining({
+      enabled: false,
+      ttp: expect.objectContaining({
+        enabled: false,
+        volumeCap: expect.objectContaining({
+          enabled: true,
+          percent: 0.05,
+          timeframe: '1m',
+          fallbackToMostRecentVolume: true,
+          maxReferenceAgeMs: 180000,
+          maxReferenceAgeLimitMs: 300000,
+        }),
+      }),
+    }));
+  });
+
+  test('rejects invalid TTP volume cap config when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_VOLUME_CAP_PERCENT = '1.5';
+
+    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_PERCENT out of range/);
+  });
+
+  test('does not silently fall back on non-numeric TTP volume cap percent', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_VOLUME_CAP_PERCENT = 'not-a-number';
+
+    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_PERCENT out of range/);
+  });
+
+  test('rejects invalid TTP reference-age config when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS = '0';
+
+    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS out of range/);
+  });
+
+  test('rejects loose TTP reference-age config when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS = '600000';
+
+    expect(() => loadConfig()).toThrow(/TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS too loose/);
   });
 
   test('keeps backtest bypass combinations non-blocking', () => {

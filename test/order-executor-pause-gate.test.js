@@ -300,6 +300,52 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
   });
 
+  test('eval rule engine blocks entries through the same pre-order side-effect gate', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn();
+    const webhookAdapter = { emit: jest.fn() };
+    const evalRuleEngine = {
+      check: jest.fn().mockResolvedValue({
+        allowed: false,
+        failedRules: [{ ruleId: 'TTP_VOLUME_5_PERCENT' }],
+      }),
+    };
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        webhookAdapter,
+        evalRuleEngine,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toBeNull();
+    expect(evalRuleEngine.check).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'BUY',
+      symbol: 'TSLA',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+    }));
+    expect(sendOrder).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('live entry throughput preserves one broker route and one state open per allowed candidate', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

@@ -250,6 +250,7 @@ const exitContractManager = getExitContractManager();
 
 // CHANGE 2026-02-28: TradingConfig - Centralized trading parameters
 const TradingConfig = require('./core/TradingConfig');
+const EvalRuleEngine = require('./core/EvalRuleEngine');
 
 // CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
 const MessageQueue = require('./core/MessageQueue');
@@ -1102,6 +1103,10 @@ class OGZPrimeV14Bot {
     // gated; reads WEBHOOK_ORDERS_ENABLED / WEBHOOK_DRY_RUN / SIGNALSTACK_WEBHOOK_URL
     // from .env. Threaded into OrderExecutor ctx for the 4 entry/exit emit sites.
     this.webhookAdapter = new WebhookOrderAdapter();
+    this.evalRuleEngine = new EvalRuleEngine({
+      config: resolvedConfig.config.evalRules,
+      getCandles: (symbol, timeframe) => this.getSymbolTimeframeCandles(symbol, timeframe),
+    });
 
     // REFACTOR Phase 14: OrderExecutor - context with all dependencies
     // Phase 2 REWRITE: executionLayer, tradingBrain, tradingOptimizations deleted
@@ -1136,6 +1141,7 @@ class OGZPrimeV14Bot {
       maxProfitManagers: this.maxProfitManagers,
       // CC-C: side-channel webhook emitter — read at OrderExecutor entry/exit blocks
       webhookAdapter: this.webhookAdapter,
+      evalRuleEngine: this.evalRuleEngine,
       // DynamicPositionSizer NOT WIRED - using inline confidence multiplier
       // Module-level functions
       notifyTrade: notifyTrade,

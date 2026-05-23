@@ -42,6 +42,15 @@ function envFloat(key, fallback) {
   return { value: fallback, source: 'default' };
 }
 
+function envStrictFloat(key, fallback) {
+  const val = process.env[key];
+  if (val === undefined || val === '') {
+    return { value: fallback, source: 'default' };
+  }
+  const parsed = Number(val);
+  return { value: Number.isFinite(parsed) ? parsed : NaN, source: `env:${key}` };
+}
+
 function envInt(key, fallback) {
   const val = process.env[key];
   if (val !== undefined && val !== '') {
@@ -161,6 +170,22 @@ function buildConfig() {
       atrMinPercent: track('filters.atrMinPercent', envFloat('ATR_MIN_PERCENT', 0.15)),
     },
 
+    // --- EVAL RULES ---
+    evalRules: {
+      enabled: track('evalRules.enabled', envBool('EVAL_RULES_ENABLED', false)),
+      ttp: {
+        enabled: track('evalRules.ttp.enabled', envBool('TTP_RULES_ENABLED', false)),
+        volumeCap: {
+          enabled: track('evalRules.ttp.volumeCap.enabled', envBool('TTP_VOLUME_CAP_ENABLED', true)),
+          percent: track('evalRules.ttp.volumeCap.percent', envStrictFloat('TTP_VOLUME_CAP_PERCENT', 0.05)),
+          timeframe: track('evalRules.ttp.volumeCap.timeframe', envStr('TTP_VOLUME_CAP_TIMEFRAME', '1m')),
+          fallbackToMostRecentVolume: track('evalRules.ttp.volumeCap.fallbackToMostRecentVolume', envBool('TTP_VOLUME_CAP_FALLBACK_TO_RECENT', true)),
+          maxReferenceAgeMs: track('evalRules.ttp.volumeCap.maxReferenceAgeMs', envStrictFloat('TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS', 180000)),
+          maxReferenceAgeLimitMs: 300000,
+        },
+      },
+    },
+
     // ─── DYNAMIC TRAILING STOP ───
     trail: {
       atrMultiplier: track('trail.atrMultiplier', envFloat('TRAIL_ATR_MULTIPLIER', 2.0)),
@@ -275,6 +300,22 @@ function validate(config) {
   }
   if (config.mode.liveTrading && config.risk.riskManagerBypass) {
     errors.push('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
+  }
+
+  const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpVolumeCap?.enabled) {
+    if (!Number.isFinite(ttpVolumeCap.percent) || ttpVolumeCap.percent <= 0 || ttpVolumeCap.percent > 1) {
+      errors.push(`TTP_VOLUME_CAP_PERCENT out of range: ${ttpVolumeCap.percent}`);
+    }
+    if (ttpVolumeCap.timeframe !== '1m') {
+      errors.push(`TTP_VOLUME_CAP_TIMEFRAME must be 1m for Trade The Pool volume rule, got ${ttpVolumeCap.timeframe}`);
+    }
+    if (!Number.isFinite(ttpVolumeCap.maxReferenceAgeMs) || ttpVolumeCap.maxReferenceAgeMs <= 0) {
+      errors.push(`TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS out of range: ${ttpVolumeCap.maxReferenceAgeMs}`);
+    }
+    if (ttpVolumeCap.maxReferenceAgeMs > ttpVolumeCap.maxReferenceAgeLimitMs) {
+      errors.push(`TTP_VOLUME_CAP_MAX_REFERENCE_AGE_MS too loose: ${ttpVolumeCap.maxReferenceAgeMs} > ${ttpVolumeCap.maxReferenceAgeLimitMs}`);
+    }
   }
 
   // Balance
