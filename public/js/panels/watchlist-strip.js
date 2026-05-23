@@ -474,7 +474,11 @@
         if (!symbol || !broker) return;
 
         try {
-            setSelected({ symbol, broker });
+            // setSelected is a method of the WatchlistStrip api object — it is
+            // NOT a standalone function in this scope. A bare setSelected(...)
+            // call here throws ReferenceError, which the catch below swallowed
+            // silently — so ticker clicks never emitted 'watchlist:select'.
+            WatchlistStrip.setSelected({ symbol, broker });
         } catch (_) { /* swallow */ }
     }
 

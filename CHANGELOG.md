@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Watchlist Ticker Click Chart Routing (2026-05-23)
+
+- Fixed dashboard watchlist card clicks so they call the `WatchlistStrip.setSelected()` API method instead of a missing bare `setSelected()` function.
+- Restored the `watchlist:select` event emission path that lets chart-panel ticker clicks switch the active chart asset.
+- Verification: `node --check public/js/panels/watchlist-strip.js`, served asset `HTTP 200`, `WatchlistStrip.setSelected` marker present, and web-tier restart only with `ogz-prime-v2` untouched.
+
 ### Chart Panel Timeframe And Oscillator Controls (2026-05-23)
 
 - Added ticker-click chart switching through the shared chart asset-switch path.
