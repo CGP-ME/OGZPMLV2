@@ -355,16 +355,21 @@ class AlpacaAdapter extends IBrokerAdapter {
         try {
             const sym = this.toBrokerSymbol(symbol);
             const tf = this._mapTimeframe(timeframe);
+            const end = new Date();
+            const start = new Date(end.getTime() - this._historicalLookbackMs(timeframe, limit));
 
             const response = await axios.get(
                 `${this.dataUrl}/v2/stocks/${sym}/bars`,
                 {
                     headers: this._authHeaders(),
                     params: {
+                        start: start.toISOString(),
+                        end: end.toISOString(),
                         timeframe: tf,
                         limit: Math.min(limit, 10000),
                         adjustment: 'raw',
-                        feed: 'iex'
+                        feed: 'iex',
+                        sort: 'desc'
                     }
                 }
             );
@@ -376,7 +381,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 l: parseFloat(bar.l),
                 c: parseFloat(bar.c),
                 v: parseFloat(bar.v)
-            }));
+            })).sort((a, b) => a.t - b.t);
         } catch (error) {
             throw new Error(`[Alpaca] Failed to get candles for ${symbol}: ${error.message}`);
         }
@@ -592,6 +597,25 @@ class AlpacaAdapter extends IBrokerAdapter {
             '30m': '30Min', '1h': '1Hour', '4h': '4Hour', '1d': '1Day'
         };
         return map[tf] || '1Min';
+    }
+
+    _historicalLookbackMs(timeframe, limit) {
+        const map = {
+            '1m': 60 * 1000,
+            '5m': 5 * 60 * 1000,
+            '15m': 15 * 60 * 1000,
+            '30m': 30 * 60 * 1000,
+            '1h': 60 * 60 * 1000,
+            '4h': 4 * 60 * 60 * 1000,
+            '1d': 24 * 60 * 60 * 1000
+        };
+        const intervalMs = map[timeframe] || map['1m'];
+        const safeLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 100;
+        const requestedWindowMs = intervalMs * safeLimit * 3;
+        const minimumIntradayWindowMs = 7 * 24 * 60 * 60 * 1000;
+        return timeframe === '1d'
+            ? requestedWindowMs
+            : Math.max(requestedWindowMs, minimumIntradayWindowMs);
     }
 
     _ensureDataStream(callback) {

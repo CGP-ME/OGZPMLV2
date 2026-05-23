@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Bot Candle Hydration (2026-05-23)
+
+- Fixed the bot-side Alpaca candle adapter so REST hydration requests the latest bounded bar window and returns ascending candles, matching the dashboard candle path without switching the runtime back to BTC/Kraken.
+
 ### Startup Entry-State Logging (2026-05-23)
 
 - Fixed the live/paper startup banner so it reports paused-state, global-halt, and active-symbol-halt entry blockers instead of claiming entries are enabled while `OrderExecutor` would refuse them.
