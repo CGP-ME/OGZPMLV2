@@ -74,6 +74,10 @@ function makeBuyTrade(overrides = {}) {
     size: 500,
     sizeUsd: 500,
     entryPrice: 100,
+    entryOrderQuantity: 5,
+    entryOrderQuantityUnit: 'shares',
+    remainingOrderQuantity: 5,
+    remainingOrderQuantityUnit: 'shares',
     entryTime: Date.now() - 60000,
     confidence: 75,
     symbol: 'TSLA',
@@ -92,6 +96,10 @@ function makeShortTrade(overrides = {}) {
     size: 600,
     sizeUsd: 600,
     entryPrice: 100,
+    entryOrderQuantity: 6,
+    entryOrderQuantityUnit: 'shares',
+    remainingOrderQuantity: 6,
+    remainingOrderQuantityUnit: 'shares',
     entryTime: Date.now() - 60000,
     confidence: 75,
     symbol: 'TSLA',
@@ -253,7 +261,14 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).toHaveBeenCalledWith(
       500,
       100,
-      expect.objectContaining({ symbol: 'TSLA', entryStrategy: 'RSI' })
+      expect.objectContaining({
+        symbol: 'TSLA',
+        entryStrategy: 'RSI',
+        entryOrderQuantity: 5,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantity: 5,
+        remainingOrderQuantityUnit: 'shares',
+      })
     );
   });
 
@@ -420,7 +435,7 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'TSLA',
       side: 'sell',
-      amount: 4,
+      amount: 5,
       options: expect.objectContaining({
         sizeUsd: 500,
         quantityUnit: 'shares',
@@ -464,7 +479,7 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'TSLA',
       side: 'buy',
-      amount: 5,
+      amount: 6,
       options: expect.objectContaining({
         sizeUsd: 600,
         quantityUnit: 'shares',
@@ -476,6 +491,92 @@ describe('OrderExecutor pause gate', () => {
       null,
       expect.objectContaining({ orderId: 'SHORT_1', direction: 'short' })
     );
+  });
+
+  test('live stock partial exit reduces state by actual routed share fraction', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_EXIT_PARTIAL', price: 125 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.5 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 2,
+      options: expect.objectContaining({
+        sizeUsd: 200,
+        quantityUnit: 'shares',
+      }),
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      0.4,
+      125,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 2,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  });
+
+  test('live stock exit refuses legacy active trades without stored broker quantity', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        entryOrderQuantity: undefined,
+        entryOrderQuantityUnit: undefined,
+        remainingOrderQuantity: undefined,
+        remainingOrderQuantityUnit: undefined,
+      }),
+    ]);
+    const sendOrder = jest.fn();
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'test_exit' },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    )).rejects.toThrow('missing remainingOrderQuantity');
+    expect(sendOrder).not.toHaveBeenCalled();
   });
 
   test('live stock quantity planning trims and accepts equity asset-class aliases', async () => {

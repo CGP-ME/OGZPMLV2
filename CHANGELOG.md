@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Exit Broker Quantity Truth (2026-05-23)
+
+- Fixed live stock exits so full SELL/COVER orders use the active trade's stored broker-unit quantity instead of recalculating shares from USD size at the current exit price.
+- Stored entry and remaining order quantity/unit on active trades at open time, and kept remaining broker quantity synchronized across live partial exits.
+- Made legacy live active trades without stored broker quantity fail loud before broker routing instead of placing a guessed exit order.
+- Verification: `node --check`, focused Jest coverage for live full exits, live partial exits, legacy missing-quantity refusal, StateManager remaining-quantity mutation, `npm run test:smoke`, two Mercury attack passes with adjudication, and full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### TTP 5 Percent Volume Cap Entry Gate (2026-05-23)
 
 - Added a pre-order eval rule engine that blocks live stock entries before broker, webhook, or state side effects when opening/add-on shares would exceed 5% of the previous 1m candle volume.

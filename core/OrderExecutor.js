@@ -83,6 +83,19 @@ class OrderExecutor {
       : rawQuantity;
   }
 
+  _acceptedOrderQuantity(orderResult, plannedQuantity) {
+    const brokerQuantity = Number(orderResult?.amount ?? orderResult?.qty ?? orderResult?.quantity);
+    if (Number.isFinite(brokerQuantity) && brokerQuantity > 0) {
+      return brokerQuantity;
+    }
+    return plannedQuantity;
+  }
+
+  _tradeRemainingOrderQuantity(trade) {
+    const quantity = Number(trade?.remainingOrderQuantity);
+    return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
+  }
+
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, tradeConfidence, confidenceMultiplier, orchResult }) {
     if (!this._isEntryAction(decision.action)) return null;
 
@@ -140,9 +153,24 @@ class OrderExecutor {
     const exitFraction = typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1
       ? decision.exitFraction
       : 1;
-    const sizeUsd = fullSizeUsd * exitFraction;
-    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price);
     const quantityUnit = this._orderQuantityUnit();
+    const remainingOrderQuantity = this._tradeRemainingOrderQuantity(trade);
+    if (remainingOrderQuantity === null) {
+      throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing remainingOrderQuantity; refusing to recalc live exit quantity from current price`);
+    }
+    const remainingOrderQuantityUnit = trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || quantityUnit;
+    if (remainingOrderQuantityUnit !== quantityUnit) {
+      throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} quantity unit mismatch: stored=${remainingOrderQuantityUnit} planned=${quantityUnit}`);
+    }
+    const rawOrderQuantity = remainingOrderQuantity * exitFraction;
+    const orderQuantity = quantityUnit === 'shares'
+      ? Math.floor(rawOrderQuantity)
+      : rawOrderQuantity;
+    if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} planned non-positive exit quantity ${orderQuantity} from remaining=${remainingOrderQuantity} fraction=${exitFraction}`);
+    }
+    const stateExitFraction = Math.min(1, orderQuantity / remainingOrderQuantity);
+    const sizeUsd = fullSizeUsd * stateExitFraction;
 
     return {
       action: decision.action,
@@ -157,8 +185,10 @@ class OrderExecutor {
       sizeUsd,
       orderQuantity,
       quantityUnit,
+      remainingOrderQuantity,
       tradeId: trade.orderId || trade.id,
       exitFraction,
+      stateExitFraction,
       exitReason: decision.exitReason || null
     };
   }
@@ -428,7 +458,8 @@ class OrderExecutor {
             orderId: orderResult.orderId || orderResult.id || `LIVE_${Date.now()}`,
             price: orderResult.price || price,
             amount: positionSize,
-            orderQuantity: brokerOrderPlan.orderQuantity
+            orderQuantity: this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity),
+            quantityUnit: brokerOrderPlan.quantityUnit
           };
         } catch (orderErr) {
           console.error(`❌ Order execution failed: ${orderErr.message}`);
@@ -547,6 +578,8 @@ class OrderExecutor {
             };
           }
 
+          const entryOrderQuantity = tradeResult.orderQuantity ?? entryPlan.orderQuantity;
+          const entryOrderQuantityUnit = tradeResult.quantityUnit ?? entryPlan.quantityUnit;
           const positionResult = await stateManager.openPosition(adjustedPositionSize, price, {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
@@ -569,6 +602,10 @@ class OrderExecutor {
             executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
             timeframe: this.ctx.config.timeframe,
             symbol,
+            entryOrderQuantity,
+            entryOrderQuantityUnit,
+            remainingOrderQuantity: entryOrderQuantity,
+            remainingOrderQuantityUnit: entryOrderQuantityUnit,
           });
 
           // CHANGE 2025-12-12: Validate StateManager.openPosition() success
@@ -721,6 +758,8 @@ class OrderExecutor {
             };
           }
 
+          const entryOrderQuantity = tradeResult.orderQuantity ?? entryPlan.orderQuantity;
+          const entryOrderQuantityUnit = tradeResult.quantityUnit ?? entryPlan.quantityUnit;
           const positionResult = await stateManager.openPosition(adjustedPositionSize, price, {
             orderId: unifiedResult.orderId,
             confidence: decision.confidence,
@@ -744,7 +783,11 @@ class OrderExecutor {
             assetClass: this.ctx.config.assetClass,
             executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
             timeframe: this.ctx.config.timeframe,
-            symbol
+            symbol,
+            entryOrderQuantity,
+            entryOrderQuantityUnit,
+            remainingOrderQuantity: entryOrderQuantity,
+            remainingOrderQuantityUnit: entryOrderQuantityUnit,
           });
 
           if (!positionResult.success) {
@@ -983,10 +1026,13 @@ class OrderExecutor {
               fraction = decision.exitFraction;
             }
             let closeResult;
+            const stateExitFraction = exitPlan?.stateExitFraction ?? fraction;
             if (isPartialClose) {
-              closeResult = await stateManager.reducePosition(buyTrade.orderId, fraction, price, {
+              closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
                 orderId: buyTrade.orderId,
-                exitReason: decision.exitReason || 'signal'
+                exitReason: decision.exitReason || 'signal',
+                orderQuantity: exitPlan?.orderQuantity,
+                quantityUnit: exitPlan?.quantityUnit
               });
             } else {
               closeResult = await stateManager.closePosition(price, false, null, {
@@ -1038,7 +1084,7 @@ class OrderExecutor {
               // SELL closes a long; broker-side action is 'sell'. Partial-aware:
               // emit the REDUCED USD when reducePosition handled a partial close.
               if (this.ctx.webhookAdapter) {
-                const exitUsd = isPartialClose ? positionAmount * fraction : positionAmount;
+                const exitUsd = isPartialClose ? positionAmount * stateExitFraction : positionAmount;
                 const shares = exitPlan ? exitPlan.orderQuantity : Math.floor(exitUsd / price);
                 if (shares < 1) {
                   // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between

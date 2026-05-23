@@ -776,11 +776,22 @@ class StateManager {
 
     // Update trade size (and possibly delete)
     const remainingSize = tradeSizeUsd - closeSize;
+    const priorOrderQuantity = Number(trade.remainingOrderQuantity);
+    const closedOrderQuantity = Number(context.orderQuantity);
+    const hasBrokerQuantity = Number.isFinite(priorOrderQuantity) && priorOrderQuantity > 0;
+    const hasClosedBrokerQuantity = Number.isFinite(closedOrderQuantity) && closedOrderQuantity > 0;
+    const remainingOrderQuantity = hasBrokerQuantity
+      ? Math.max(0, priorOrderQuantity - (hasClosedBrokerQuantity ? closedOrderQuantity : priorOrderQuantity * fraction))
+      : null;
     if (remainingSize <= 0) {
       this.state.activeTrades.delete(tradeId);
     } else {
       trade.sizeUsd = remainingSize;
       trade.size = remainingSize;  // FIX P1-A: keep both fields in sync — OrderExecutor reads trade.size for P&L computation, fees, console logs
+      if (hasBrokerQuantity) {
+        trade.remainingOrderQuantity = remainingOrderQuantity;
+        trade.remainingOrderQuantityUnit = context.quantityUnit || trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || null;
+      }
     }
 
     // Append exit info to decision ledger
@@ -789,6 +800,8 @@ class StateManager {
         exitSize: closeSize,
         exitFraction: fraction,
         remainingSize: Math.max(0, remainingSize),
+        exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
+        remainingOrderQuantity,
         exitPrice: price,
         exitReason: context.exitReason || 'partial',
         netPnlDollars: netRealizedResult,
