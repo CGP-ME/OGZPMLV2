@@ -120,6 +120,32 @@ The current runtime is still simulation posture:
 
 The first recommended implementation target is a startup hard-fail for `LIVE_TRADING=true` with `ACCOUNT_DRAWDOWN_BYPASS=true`.
 
+## Smoke Test Results
+
+| Check | Result | Evidence |
+|---|---:|---|
+| Stock historical candles | Pass | `d08ddd0`; adapter checks and live WebSocket smoke returned ascending candles for all seven timeframes |
+| Chart panel syntax | Pass | `node --check public/js/panels/chart-panel.js` |
+| Chart panel markers | Pass | `addOscPane=6`, `switchAsset=4`, `register('Chart')=2`, old `createOscillatorPane` path absent |
+| Watchlist syntax | Pass | `node --check public/js/panels/watchlist-strip.js` |
+| Watchlist marker | Pass | `WatchlistStrip.setSelected` marker count `1` |
+| Web asset serving | Pass | `chart-panel.js` and `watchlist-strip.js` returned `HTTP 200` from local web tier |
+| Web-tier restart isolation | Pass | `ogz-websocket` restarted; `ogz-prime-v2` PID stayed `1120365` |
+| Eval checklist doc | Pass | `git diff --check` clean before commit |
+| Bot trade readiness | Blocked | `data/state.json` currently has `isTrading=false` and liveness watchdog pause |
+
+## Files Touched
+
+| File | Action |
+|---|---|
+| `server/stock-data-adapter.js` | Fixed stock historical candle ordering/normalization |
+| `public/unified-dashboard-v2.html` | Removed duplicate manual init block for auto-init modules |
+| `public/js/panels/chart-panel.js` | Deployed chart timeframe and oscillator pane rebuild |
+| `public/js/panels/watchlist-strip.js` | Fixed ticker click event routing |
+| `CHANGELOG.md` | Added entries for stock candles, chart panel, and watchlist routing |
+| `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
+| `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
+
 ## Current Runtime Snapshot
 
 Checked after the watchlist deploy:
@@ -166,7 +192,7 @@ Current `data/state.json` snapshot:
 
 Important: PM2 being online is not the same as the bot being enabled to trade. The current state file says `isTrading=false` due to a liveness watchdog pause. This must be diagnosed before claiming the runtime is trade-ready.
 
-## Recent Commit Log
+## Git Log
 
 Newest first:
 
@@ -194,6 +220,40 @@ Newest first:
 7. Keep `SESSION_ROUTER_ENABLED=false` until SessionRouter pattern-bank isolation and cross-asset state rules are complete.
 8. Keep `ENABLE_TRAI=false` until TRAI phantom feature defaults and phantom 1 percent position sizing are fixed.
 9. Retire or refresh stale frontend staging folders after confirmed deploys so old drops cannot reintroduce fixed bugs.
+
+## Half-Cooked Items Status
+
+| Item | Disposition |
+|---|---|
+| Dashboard stock timeframe blanking | Closed by `d08ddd0` and live seven-timeframe WebSocket smoke |
+| Dashboard celebration/layout double-init | Closed in committed dashboard HTML; stale staging folder must not be reused |
+| Chart panel stacked oscillators | Shipped by `ed8657e`; cowork smoke verified core pane stacking |
+| Chart panel volume restore latency | Open as polish item `#44`; not treated as eval blocker |
+| Watchlist ticker click chart routing | Closed by `e160461`; final browser click recheck belongs to cowork/Chrome smoke |
+| Eval go/no-go checklist | Added by `b4c302d`; code implementation still open |
+| Bot trade readiness | Blocked by current liveness watchdog pause in `data/state.json` |
+| Trade The Pool rule engine | Open; no eval flip until rule layer is implemented and verified |
+| SessionRouter final architecture | Deferred; keep `SESSION_ROUTER_ENABLED=false` |
+| TRAI | Deferred; keep `ENABLE_TRAI=false` until known phantom default paths are fixed |
+
+## Context for Next Session
+
+The repo head is pushed at `e160461` plus this session-doc follow-up when committed. Dashboard chart and watchlist fixes are live through the web tier. The bot PM2 process is online but must not be described as trading-ready because `data/state.json` says `isTrading=false` with a liveness watchdog pause. The next session should diagnose that pause first, then implement eval guards one commit at a time.
+
+## Recorder Pipeline Disposition
+
+| Step | Status |
+|---|---|
+| Warden/scope | Dashboard drops and eval documentation were kept separate from trading-path rule-engine work |
+| Forensics | Current PM2, `.env`, git log, and `data/state.json` were inspected before writing this form |
+| Architect | Eval rule work was scoped into a separate go/no-go checklist rather than mixed into dashboard fixes |
+| Approval | Trey approved dashboard re-drops and requested the session form/checklist path |
+| Fixer | Frontend-only fixes landed through copied staged drops plus scoped verification |
+| Debugger | Syntax, marker, HTTP asset, PM2, and WebSocket smoke checks were run where applicable |
+| Critic | Cowork/Chrome smoke found the watchlist bug and volume restore latency; both were recorded |
+| Validator | `git diff --check`, syntax checks, and PM2 process isolation were verified |
+| Scribe | This session form records May 23 work and current blockers |
+| Committer | Changes were committed as separate logical commits and pushed |
 
 ## Next Recommended Move
 
