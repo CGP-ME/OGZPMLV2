@@ -21,6 +21,7 @@ const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory
 const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Adaptive parameter optimization
 
 const stateManager = getStateManager();
+const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
 
 // CHANGE 2026-03-17: Module-level constants removed, use ctx.backtestFast/backtestMode/paperTrading
 // These are now injected via constructor from ConfigLoader
@@ -52,6 +53,11 @@ class OrderExecutor {
         `OrderExecutor.executeTrade requires explicit non-empty symbol; got ${JSON.stringify(symbol)}`
       );
     }
+    if (!SUPPORTED_ACTIONS.has(decision?.action)) {
+      throw new Error(
+        `[ENTRY-ACTION] OrderExecutor.executeTrade unsupported action ${JSON.stringify(decision?.action)} for ${symbol} - refusing to route order`
+      );
+    }
     if (decision.action === 'BUY' || decision.action === 'SELL_SHORT') {
       const missingScope = [];
       const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
@@ -62,6 +68,14 @@ class OrderExecutor {
       if (!hasText(executionMode)) missingScope.push('executionMode');
       if (missingScope.length > 0) {
         throw new Error(`[ENTRY-SCOPE] ${decision.action} for ${symbol} missing immutable trade scope field(s): ${missingScope.join(', ')} - refusing to route order before state identity is complete`);
+      }
+      if (executionMode === 'backtest' && this.ctx.backtestMode !== true) {
+        throw new Error(`[ENTRY-MODE] ${decision.action} for ${symbol} resolved executionMode=backtest while runtime backtestMode is false - refusing to bypass paused-state entry gate`);
+      }
+      if (executionMode !== 'backtest' && stateManager.get('isTrading') === false) {
+        const pauseReason = stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false';
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: trading paused (${pauseReason})`);
+        return null;
       }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;

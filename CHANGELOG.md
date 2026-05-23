@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Paused State Entry Enforcement (2026-05-23)
+
+- Fixed `OrderExecutor` so `BUY` and `SELL_SHORT` entries refuse to route when `StateManager.isTrading=false` outside real backtest mode.
+- Added fail-loud guards for unsupported action names and inconsistent `executionMode=backtest` without runtime `backtestMode=true`.
+- Verification: `node --check`, focused Jest pause-gate test, `npm run test:smoke`, three Mercury attack passes, fast P0, and full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Watchlist Ticker Click Chart Routing (2026-05-23)
 
 - Fixed dashboard watchlist card clicks so they call the `WatchlistStrip.setSelected()` API method instead of a missing bare `setSelected()` function.
