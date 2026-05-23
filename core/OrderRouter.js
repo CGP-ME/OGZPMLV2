@@ -128,7 +128,7 @@ class OrderRouter extends EventEmitter {
    * @returns {Promise<Object>} Order result
    */
   async sendOrder(order) {
-    const { symbol, side, amount, type = 'market', price, options = {} } = order;
+    const { symbol, side, amount, type = 'market', price, options = {}, traceId, signalId, decisionId } = order;
 
     const adapter = this.getBrokerForSymbol(symbol);
     if (!adapter) {
@@ -136,16 +136,25 @@ class OrderRouter extends EventEmitter {
     }
 
     const brokerName = adapter.getBrokerName ? adapter.getBrokerName() : 'unknown';
-    console.log(`[OrderRouter] Routing ${side} ${amount} ${symbol} -> ${brokerName}`);
+    const traceSuffix = traceId ? ` traceId=${traceId}` : '';
+    console.log(`[OrderRouter] Routing ${side} ${amount} ${symbol} -> ${brokerName}${traceSuffix}`);
 
     // Route to appropriate method
+    let result;
     if (side === 'buy') {
-      return adapter.placeBuyOrder(symbol, amount, type === 'limit' ? price : null, options);
+      result = await adapter.placeBuyOrder(symbol, amount, type === 'limit' ? price : null, options);
     } else if (side === 'sell') {
-      return adapter.placeSellOrder(symbol, amount, type === 'limit' ? price : null, options);
+      result = await adapter.placeSellOrder(symbol, amount, type === 'limit' ? price : null, options);
     } else {
       throw new Error(`[OrderRouter] Invalid side: ${side}`);
     }
+
+    return {
+      ...(result || {}),
+      ...(traceId ? { traceId } : {}),
+      ...(signalId ? { signalId } : {}),
+      ...(decisionId ? { decisionId } : {}),
+    };
   }
 
   /**

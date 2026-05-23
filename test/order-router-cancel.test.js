@@ -82,3 +82,44 @@ describe('OrderRouter cancelAllOpenOrders', () => {
     expect(adapter.cancelOrder).toHaveBeenCalledWith('ORDER_2');
   });
 });
+
+describe('OrderRouter trace metadata', () => {
+  test('preserves trace metadata on the router result without forwarding it to adapter options', async () => {
+    const router = new OrderRouter();
+    const adapter = {
+      getBrokerName: () => 'mock',
+      placeBuyOrder: jest.fn().mockResolvedValue({ orderId: 'ORDER_TRACE_1' }),
+    };
+    router.registerBroker(adapter, ['TSLA']);
+
+    const result = await router.sendOrder({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 5,
+      type: 'market',
+      traceId: 'trace_router_1',
+      signalId: 'signal_router_1',
+      decisionId: 'decision_router_1',
+      options: {
+        sizeUsd: 500,
+        quantityUnit: 'shares',
+      },
+    });
+
+    expect(adapter.placeBuyOrder).toHaveBeenCalledWith(
+      'TSLA',
+      5,
+      null,
+      {
+        sizeUsd: 500,
+        quantityUnit: 'shares',
+      }
+    );
+    expect(result).toEqual(expect.objectContaining({
+      orderId: 'ORDER_TRACE_1',
+      traceId: 'trace_router_1',
+      signalId: 'signal_router_1',
+      decisionId: 'decision_router_1',
+    }));
+  });
+});

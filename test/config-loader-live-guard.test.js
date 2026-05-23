@@ -98,6 +98,15 @@ describe('ConfigLoader live trading safety guard', () => {
     }));
   });
 
+  test('loads eval trace observability defaults from ConfigLoader', () => {
+    const loaded = loadConfig();
+
+    expect(loaded.config.observability).toEqual(expect.objectContaining({
+      evalTraceEnabled: true,
+      evalTraceBacktest: false,
+    }));
+  });
+
   test('rejects invalid TTP volume cap config when eval rules are enabled', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';

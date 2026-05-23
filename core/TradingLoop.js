@@ -29,6 +29,7 @@ const TradingConfig = require('./TradingConfig');
 const { getInstance: getExitContractManager } = require('./ExitContractManager');
 const CandlePatternDetector = require('./CandlePatternDetector');
 const { getNarrator } = require('./TradeNarrator');
+const { createTraceId, emitTrace } = require('./TraceSpine');
 const flagManager = FeatureFlagManager.getInstance();
 
 const candlePatternDetector = new CandlePatternDetector();
@@ -78,12 +79,16 @@ class TradingLoop {
         `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
       );
     }
+    const traceId = createTraceId('trace');
     // Concurrency guard — one analysis at a time
-    if (this.analyzing) return;
+    if (this.analyzing) {
+      emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'concurrency_guard' });
+      return;
+    }
     this.analyzing = true;
 
     try {
-      await this._analyze(symbol);
+      await this._analyze(symbol, traceId);
     } finally {
       this.analyzing = false;
       await this._drainPendingExitChecks();
@@ -125,6 +130,8 @@ class TradingLoop {
   }
 
   async _checkExitsOnly(symbol) {
+    const traceId = createTraceId('trace');
+    emitTrace(this.ctx, 'EXIT_ONLY_START', { traceId, symbol });
     const symCtx = this.ctx.symbolContexts?.get(symbol);
     const marketData = symCtx?.marketData
       ?? (this.ctx.marketData?.symbol === symbol ? this.ctx.marketData : null);
@@ -190,7 +197,9 @@ class TradingLoop {
           direction: 'close',
           confidence: exitCheck.confidence || 100,
           exitReason: exitCheck.exitReason,
-          tradeId: activeTrade.id || activeTrade.orderId
+          tradeId: activeTrade.id || activeTrade.orderId,
+          traceId,
+          signalId: `${traceId}:exit`
         }, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
         return;
       }
@@ -220,7 +229,9 @@ class TradingLoop {
             exitSize: profitResult.exitSize,
             exitFraction: profitResult.exitFraction,
             exitReason: profitResult.reason,
-            tradeId: activeTrade.id || activeTrade.orderId
+            tradeId: activeTrade.id || activeTrade.orderId,
+            traceId,
+            signalId: `${traceId}:exit`
           }, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
           return;
         }
@@ -228,7 +239,7 @@ class TradingLoop {
     }
   }
 
-  async _analyze(symbol) {
+  async _analyze(symbol, traceId = createTraceId('trace')) {
     // CC-C Commit 5/6: `symbol` is REQUIRED. analyzeAndTrade enforces this
     // upstream; the redundant check here is defense-in-depth in case _analyze
     // is ever called from a sibling path that bypasses analyzeAndTrade.
@@ -246,6 +257,15 @@ class TradingLoop {
     // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
     // symCtx pass — declaring them here too was dead code (Mercury attack #4).
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+    emitTrace(this.ctx, 'ANALYSIS_START', {
+      traceId,
+      symbol,
+      route: symCtx ? 'symbolContext' : 'global',
+      brokerId: this.ctx.config?.brokerId || null,
+      assetClass: this.ctx.config?.assetClass || null,
+      timeframe: this.ctx.config?.timeframe || this.ctx.candleTimeframe || null,
+      priceHistory: priceHistory.length,
+    });
     console.log(`[VIS][TradingLoop] analyze symbol=${symbol} route=${symCtx ? 'symbolContext' : 'global'} marketSymbol=${this.ctx.marketData?.symbol || '(missing)'} priceHistory=${priceHistory.length} broker=${this.ctx.config?.brokerId || '(missing)'} assetClass=${this.ctx.config?.assetClass || '(missing)'}`);
     if (symCtx && !this._firstAnalyzedSymbols) this._firstAnalyzedSymbols = new Set();
     if (symCtx && !this._firstAnalyzedSymbols.has(symbol)) {
@@ -261,6 +281,13 @@ class TradingLoop {
         symbol,
         priceHistory: priceHistory.length,
         required: 15
+      });
+      emitTrace(this.ctx, 'ANALYSIS_SKIP', {
+        traceId,
+        symbol,
+        reason: 'warmup',
+        priceHistory: priceHistory.length,
+        required: 15,
       });
       return;
     }
@@ -313,6 +340,15 @@ class TradingLoop {
       allResults: Array.isArray(orchResult.allResults) ? orchResult.allResults.length : 0,
       exitContract: !!orchResult.exitContract
     });
+    emitTrace(this.ctx, 'STRATEGY_DECISION', {
+      traceId,
+      symbol,
+      direction: tradingDirection,
+      confidencePct: orchResult.confidence,
+      winnerStrategy: orchResult.winnerStrategy || null,
+      candidateCount: Array.isArray(orchResult.allResults) ? orchResult.allResults.length : 0,
+      hasExitContract: !!orchResult.exitContract,
+    });
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
     // HIGH-13: throw if directionFilter is non-string. TradingConfig.js:844
@@ -330,6 +366,13 @@ class TradingLoop {
         direction: tradingDirection,
         confidencePct: orchResult.confidence
       });
+      emitTrace(this.ctx, 'DECISION_SKIP', {
+        traceId,
+        symbol,
+        reason: 'direction_filter',
+        filter: directionFilter,
+        direction: tradingDirection,
+      });
       console.log(`🚫 Direction filter: long_only — sell blocked`);
       this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
       return;
@@ -340,6 +383,13 @@ class TradingLoop {
         filter: directionFilter,
         direction: tradingDirection,
         confidencePct: orchResult.confidence
+      });
+      emitTrace(this.ctx, 'DECISION_SKIP', {
+        traceId,
+        symbol,
+        reason: 'direction_filter',
+        filter: directionFilter,
+        direction: tradingDirection,
       });
       console.log(`🚫 Direction filter: short_only — buy blocked`);
       this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
@@ -599,6 +649,14 @@ class TradingLoop {
         minConfidencePct: minConfidence * 100,
         decisionAction: decision.action
       });
+      emitTrace(this.ctx, 'DECISION_SKIP', {
+        traceId,
+        symbol,
+        reason: reasons.length > 0 ? reasons.join('|') : (decision.blockReason || 'not_entry_candidate'),
+        finalDirection,
+        confidencePct: orchResult.confidence,
+        minConfidencePct: minConfidence * 100,
+      });
     }
 
     // ─── ATTACH OVERRIDE LEVELS ───
@@ -623,6 +681,8 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
+      decision.traceId = decision.traceId || traceId;
+      decision.signalId = decision.signalId || `${traceId}:signal`;
       this._diag('EXECUTE_HANDOFF', {
         symbol,
         action: decision.action,
@@ -654,6 +714,8 @@ class TradingLoop {
         assetClass: this.ctx.config?.assetClass || null,
         timeframe: this.ctx.config?.timeframe || '15m',
         executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || 'paper'),
+        traceId: decision.traceId,
+        signalId: decision.signalId,
         // L2: every strategy that fired — winner AND losers with indicator values
         strategySignals: allResults.map(s => ({
           name: s.strategyName || s.name || 'unknown',
@@ -703,12 +765,29 @@ class TradingLoop {
         // L5: risk gates checked before entry
         riskGates,
       };
+      emitTrace(this.ctx, 'EXECUTE_HANDOFF', {
+        traceId: decision.traceId,
+        signalId: decision.signalId,
+        symbol,
+        action: decision.action,
+        direction: decision.direction || null,
+        confidencePct: decision.confidence,
+        riskGateCount: riskGates.length,
+      });
       const executionResult = await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
       this._diag('EXECUTE_RETURN', {
         symbol,
         action: decision.action,
         success: executionResult?.success ?? null,
         orderId: executionResult?.orderId || 'none'
+      });
+      emitTrace(this.ctx, 'EXECUTE_RETURN', {
+        traceId: decision.traceId,
+        signalId: decision.signalId,
+        symbol,
+        action: decision.action,
+        success: executionResult?.success ?? null,
+        orderId: executionResult?.orderId || null,
       });
     }
   }

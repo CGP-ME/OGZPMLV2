@@ -117,6 +117,12 @@ function buildConfig() {
       sentryEnabled: track('monitoring.sentryEnabled', envBool('SENTRY_ENABLED', true)),
     },
 
+    // --- OBSERVABILITY ---
+    observability: {
+      evalTraceEnabled: track('observability.evalTraceEnabled', envBool('EVAL_TRACE_ENABLED', true)),
+      evalTraceBacktest: track('observability.evalTraceBacktest', envBool('EVAL_TRACE_BACKTEST', false)),
+    },
+
     // ─── CONFIDENCE GATES ───
     confidence: {
       minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', 0.50)),

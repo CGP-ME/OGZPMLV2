@@ -315,6 +315,64 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
   });
 
+  test('threads trace identity through entry gate, broker request, and state open', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_TRACE_1', price: 100 });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_test_1',
+        signalId: 'signal_test_1',
+        decisionId: 'decision_test_1',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      traceId: 'trace_test_1',
+      signalId: 'signal_test_1',
+      decisionId: 'decision_test_1',
+    }));
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      traceId: 'trace_test_1',
+      signalId: 'signal_test_1',
+      decisionId: 'decision_test_1',
+      options: expect.objectContaining({
+        sizeUsd: 500,
+        quantityUnit: 'shares',
+      }),
+    }));
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      500,
+      100,
+      expect.objectContaining({
+        traceId: 'trace_test_1',
+        signalId: 'signal_test_1',
+        decisionId: 'decision_test_1',
+      })
+    );
+  });
+
   test('eval rule engine blocks entries through the same pre-order side-effect gate', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

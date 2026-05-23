@@ -1096,6 +1096,8 @@ class OGZPrimeV14Bot {
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
+      evalTraceEnabled: resolvedConfig.config.observability.evalTraceEnabled,
+      evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
       enableShorts: TradingConfig.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,

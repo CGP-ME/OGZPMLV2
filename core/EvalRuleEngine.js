@@ -16,12 +16,14 @@ class EvalRuleEngine {
       return { allowed: true, reason: 'not_entry' };
     }
 
+    const identity = this._identity(entryPlan);
+
     if (this.config.enabled !== true) {
-      return { allowed: true, reason: 'eval_rules_disabled', passedRules: [], failedRules: [] };
+      return { allowed: true, reason: 'eval_rules_disabled', passedRules: [], failedRules: [], ...identity };
     }
 
     if (this.config.ttp?.enabled !== true) {
-      return { allowed: true, reason: 'ttp_rules_disabled', passedRules: [], failedRules: [] };
+      return { allowed: true, reason: 'ttp_rules_disabled', passedRules: [], failedRules: [], ...identity };
     }
 
     const passedRules = [];
@@ -31,7 +33,8 @@ class EvalRuleEngine {
         allowed: false,
         failedRules: [marketTimeResult.failure],
         passedRules,
-        inputs: marketTimeResult.inputs,
+        inputs: { ...identity, ...marketTimeResult.inputs },
+        ...identity,
       };
     }
     if (marketTimeResult.inputs?.enabled !== false) {
@@ -44,7 +47,8 @@ class EvalRuleEngine {
         allowed: false,
         failedRules: [result.failure],
         passedRules,
-        inputs: result.inputs,
+        inputs: { ...identity, ...result.inputs },
+        ...identity,
       };
     }
     if (result.inputs?.enabled !== false) {
@@ -55,7 +59,16 @@ class EvalRuleEngine {
       allowed: true,
       failedRules: [],
       passedRules,
-      inputs: result.inputs,
+      inputs: { ...identity, ...result.inputs },
+      ...identity,
+    };
+  }
+
+  _identity(entryPlan) {
+    return {
+      traceId: entryPlan.traceId || null,
+      signalId: entryPlan.signalId || entryPlan.decisionId || null,
+      symbol: entryPlan.symbol || null,
     };
   }
 

@@ -108,6 +108,26 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
+  test('carries trace identity through eval rule outputs', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 10000)] });
+
+    const result = await engine.check(entryPlan({
+      traceId: 'trace_test_1',
+      signalId: 'signal_test_1',
+      orderQuantity: 501,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.traceId).toBe('trace_test_1');
+    expect(result.signalId).toBe('signal_test_1');
+    expect(result.symbol).toBe('TSLA');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      traceId: 'trace_test_1',
+      signalId: 'signal_test_1',
+      symbol: 'TSLA',
+    }));
+  });
+
   test('blocks new openings during the TTP liquidation window', async () => {
     const cutoffTime = new Date('2026-05-22T19:50:00.000Z');
     const engine = makeEngine({

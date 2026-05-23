@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Trace Spine (2026-05-23)
+
+- Added a structured eval trace spine that carries `traceId`, `signalId`, and `decisionId` from analysis ingress through strategy decision, eval rule checks, broker routing, state mutation, proof logging, and backtest recorder payloads.
+- Kept trace metadata out of broker adapter options while preserving it on router results, so the broker boundary stays clean and runtime logs remain joinable.
+- Added `EVAL_TRACE_ENABLED` and `EVAL_TRACE_BACKTEST` config controls; live/paper tracing is enabled by default, while backtest trace stdout stays off unless explicitly requested.
+- Verification: `node --check`, focused Jest trace/config/eval/router/executor coverage, `npm run test:smoke`, three Mercury adversarial passes, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### TTP 15:50 Market-Time Cutoff Enforcement (2026-05-23)
 
 - Added a TTP market-time rule that blocks new stock entries during the configured liquidation window, defaulting to 10 minutes before the NYSE RTH close.
