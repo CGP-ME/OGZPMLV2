@@ -2,8 +2,8 @@
 
 **Branch:** `rebuild/clean-from-baseline`
 **Repo:** `/opt/ogzprime/OGZPMLV2`
-**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; startup entry-state logging committed; runtime bot online but entries are still paused by the liveness watchdog and must not be called trading-ready.
-**Latest code head recorded in this form:** `0cdc6ca` (`Fixed startup entry-state logging`)
+**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; startup entry-state logging committed; bot-side Alpaca REST hydration committed; runtime bot online with TSLA 15m boot hydration working, but entries are still paused and must not be called trading-ready until explicitly resumed/verified.
+**Latest code head recorded in this form:** `78ba71c` (`Fixed Alpaca bot candle hydration`)
 
 This session form fills the gap after the May 22 forms. It does not replace the earlier append-only records:
 
@@ -189,6 +189,40 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.response.md`
 
+### 8. Bot-side Alpaca REST candle hydration was fixed
+
+**Commit:** `78ba71c` - `Fixed Alpaca bot candle hydration`
+
+**Root cause:** The dashboard stock-data path had already been fixed to request the latest bounded Alpaca bar window, but the live bot still used `brokers/AlpacaAdapter.js:getCandles()`. That adapter requested Alpaca bars without `start`, `end`, or `sort=desc`, so a weekend/closed-market restart returned zero TSLA intraday candles and boot hydration logged no usable TSLA 15m candles.
+
+**Fix:**
+
+- `AlpacaAdapter.getCandles()` now sends `start`, `end`, and `sort=desc` for stock bar requests.
+- Intraday lookback uses at least seven days so closed-market/weekend restarts can hydrate from recent market bars.
+- Returned candles preserve the existing adapter contract `{ t, o, h, l, c, v }` with `t` in epoch milliseconds and ascending time order.
+- No dashboard files, Kraken/BTC adapter files, strategy code, or execution sizing logic were changed.
+
+**Verification:**
+
+- `node --check brokers/AlpacaAdapter.js`
+- `node --check test/alpaca-adapter-candles.test.js`
+- `npx jest test/alpaca-adapter-candles.test.js test/order-executor-pause-gate.test.js test/state-manager-load.test.js --runInBand` - 7 passed
+- Direct live adapter check returned recent TSLA candles:
+  - `1m`: 10 candles, latest `2026-05-22T20:53:00.000Z`
+  - `5m`: 10 candles, latest `2026-05-22T20:50:00.000Z`
+  - `15m`: 60 candles, latest `2026-05-22T20:45:00.000Z`
+  - `1h`: 10 candles, latest `2026-05-22T20:00:00.000Z`
+  - `1d`: 10 candles, latest `2026-05-22T04:00:00.000Z`
+- `npm run test:smoke` - 13 passed, 0 failed, 1 existing Bombardier warning
+- Mercury found no remaining closed-market/weekend zero-candle, stale ordering, contract-shape, Kraken/BTC, or backtest/P0 divergence issue in the adapter patch
+- Full P0: `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
+- Restarted only `ogz-prime-v2`; fresh post-restart log showed `[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-05-22T21:00:00.000Z close=425.04`
+
+**Evidence files:**
+
+- `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-2026-05-23.response.md`
+
 ## Smoke Test Results
 
 | Check | Result | Evidence |
@@ -203,7 +237,8 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | Eval checklist doc | Pass | `git diff --check` clean before commit |
 | Paused entry enforcement | Pass | `594f023`; focused Jest, smoke, three Mercury passes, fast P0, full P0 |
 | Startup entry-state logging | Pass | `0cdc6ca`; focused Jest, smoke, three Mercury passes, full P0, post-restart PM2 log shows entries blocked |
-| Bot trade readiness | Blocked | `data/state.json` still has `isTrading=false`; post-restart REST hydrate logged no usable TSLA 15m candles |
+| Alpaca bot REST hydration | Pass | `78ba71c`; focused Jest, direct live adapter check, smoke, Mercury, full P0, post-restart boot hydrate loaded 60 TSLA 15m candles |
+| Bot trade readiness | Blocked | `data/state.json` still has `isTrading=false`; resume/clear state requires explicit operator decision after hydration proof |
 
 ## Files Touched
 
@@ -216,21 +251,24 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | `core/OrderExecutor.js` | Added supported-action, backtest-mode, and paused-state entry guards |
 | `core/StateManager.js` | Added persisted `isTrading` shape validation on load |
 | `run-empire-v2.js` | Replaced unconditional startup trading banner with entry-block-aware startup log |
+| `brokers/AlpacaAdapter.js` | Fixed bot-side Alpaca REST candle latest-window hydration |
 | `test/order-executor-pause-gate.test.js` | Added focused pause-gate regression coverage |
 | `test/state-manager-load.test.js` | Added malformed persisted `isTrading` regression coverage |
+| `test/alpaca-adapter-candles.test.js` | Added Alpaca REST candle request/ordering coverage |
 | `CHANGELOG.md` | Added entries for stock candles, chart panel, watchlist routing, and paused-state entry enforcement |
 | `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-*.md` | Added Mercury attack prompts and responses for paused-entry enforcement |
 | `ogz-meta/cognition-history/mercury/startup-entry-state-log-*.md` | Added Mercury attack prompts and responses for startup entry-state logging |
+| `ogz-meta/cognition-history/mercury/alpaca-adapter-candles-*.md` | Added Mercury attack prompt and response for bot-side Alpaca REST hydration |
 | `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
 | `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
 
 ## Current Runtime Snapshot
 
-Checked after restarting `ogz-prime-v2` onto `0cdc6ca`:
+Checked after restarting `ogz-prime-v2` onto `78ba71c`:
 
 | Process | Status | PID | Note |
 |---|---:|---:|---|
-| `ogz-prime-v2` | online | `1145400` | Restarted after startup entry-state logging fix |
+| `ogz-prime-v2` | online | `1146397` | Restarted after Alpaca bot candle hydration fix |
 | `ogz-websocket` | online | `1134427` | Restarted for frontend asset deploys |
 | `ogz-stripe` | online | `3440510` | Untouched |
 
@@ -270,15 +308,21 @@ Current `data/state.json` snapshot:
 
 Important: PM2 being online is not the same as the bot being enabled to trade. The current state file says `isTrading=false` due to a liveness watchdog pause. This must be diagnosed before claiming the runtime is trade-ready.
 
-Fresh post-restart startup evidence:
+Fresh post-restart startup evidence after `0cdc6ca`:
 
 - `ogz-prime-v2` error log: `[BOOT][REST-HYDRATE] no usable candles returned for TSLA @ 15m`
+- `ogz-prime-v2` error log: `[STARTUP] Bot online, but entries are blocked: Liveness watchdog: No data for 164s, backfill failed`
+
+Fresh post-restart startup evidence after `78ba71c`:
+
+- `ogz-prime-v2` out log: `[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-05-22T21:00:00.000Z close=425.04`
 - `ogz-prime-v2` error log: `[STARTUP] Bot online, but entries are blocked: Liveness watchdog: No data for 164s, backfill failed`
 
 ## Git Log
 
 Newest first:
 
+- `78ba71c` Fixed Alpaca bot candle hydration
 - `0cdc6ca` Fixed startup entry-state logging
 - `594f023` Fixed paused state entry enforcement
 - `e160461` Fixed watchlist ticker chart routing
@@ -296,8 +340,8 @@ Newest first:
 
 ## Open Items
 
-1. Diagnose why TSLA 15m boot REST hydration returned no usable candles after restart; do not call the bot trading-ready while `data/state.json` has `isTrading=false`.
-2. Explicitly decide whether and when to resume trading state after the candle/liveness path is proven healthy.
+1. Explicitly decide whether and when to clear the stale liveness pause and resume trading state now that TSLA 15m boot REST hydration is proven healthy.
+2. After resume, observe the next live-market signal path end-to-end; do not call the bot eval-ready until the entry/skip reason is traceable through signal, gate, broker, state, and logs.
 3. Do not flip eval while `PAPER_TRADING=true`, `LIVE_TRADING=false`, `WEBHOOK_DRY_RUN=true`, and `ACCOUNT_DRAWDOWN_BYPASS=true`.
 4. Implement the runtime posture guard: `LIVE_TRADING=true` plus `ACCOUNT_DRAWDOWN_BYPASS=true` must hard-fail startup.
 5. Implement the Trade The Pool eval rule layer, starting with the 5 percent previous one-minute volume rule.
