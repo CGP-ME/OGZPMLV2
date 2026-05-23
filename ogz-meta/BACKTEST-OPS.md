@@ -1,8 +1,27 @@
 # OGZPrime Backtest Operations Manual
-## The Single Source of Truth for Running Backtests
+## Operational Command Reference for Running Backtests
 
 **Date:** 2026-03-30  
 **Commit to:** `ogz-meta/BACKTEST-OPS.md`
+
+---
+
+## CURRENT STATUS NOTE — 2026-05-23
+
+This file is an operational command reference, not the canonical Phase 0
+regression anchor.
+
+Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and its current full
+anchor is `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
+Manual commands in this file are for targeted backtests, exploratory runs, and
+tuning. A command that omits `SOLO_STRATEGY` is a no-SOLO, winner-takes-all
+orchestrator run. It enables multiple strategies to compete, but it does not
+blend strategies into one combined signal and it is not the P0 anchor.
+
+For strategy tuning, prefer the sweep tools. `tools/matrix-sweep.js` and the
+SOLO modes in `tools/parallel-backtest.js` run strategy-isolated configs by
+setting `SOLO_STRATEGY` per worker.
 
 ---
 
@@ -51,7 +70,9 @@ SOLO_STRATEGY=RSI                    # Single strategy
 SOLO_STRATEGY=RSI,EMASMACrossover    # Comma-separated for combos
 ```
 
-Without SOLO_STRATEGY, ALL enabled strategies fire simultaneously.
+Without `SOLO_STRATEGY`, all enabled strategies are evaluated, then
+`StrategyOrchestrator` selects a single winning strategy per candle. This is a
+winner-takes-all competition, not a blended combined signal.
 
 ---
 
@@ -246,7 +267,12 @@ ACCOUNT_DRAWDOWN_BYPASS=true \
 node run-empire-v2.js
 ```
 
-### All Strategies Combined
+### Exploratory No-SOLO Winner-Takes-All Run (Not P0)
+
+This command evaluates all enabled strategies through the orchestrator and lets
+the highest-confidence qualified strategy own each trade. Use it only as an
+exploratory multi-strategy competition run. Do not treat this as strategy
+blending, a per-strategy tuning result, or the canonical P0 anchor.
 
 ```bash
 EXECUTION_MODE=backtest CANDLE_SOURCE=file \
@@ -306,7 +332,7 @@ node tools/parallel-backtest.js --full        # Full 60+ configs
 
 | Profile | File | Usage |
 |---|---|---|
-| All strategies backtest | `profiles/backtest-all.env` | Tests everything together |
+| No-SOLO winner-takes-all backtest | `profiles/backtest-all.env` | Exploratory multi-strategy competition run, not P0 |
 | RSI only | `profiles/backtest-rsi.env` | RSI isolation |
 | MASR only | `profiles/backtest-masr.env` | MADynamicSR isolation |
 | Paper trading | `profiles/paper.env` | Live feed, simulated execution |
@@ -350,6 +376,13 @@ Open `public/command-center.html` in browser, drag `backtest-trades.csv` onto it
 
 ### 1. Wrong Data File
 `full-45k.json` is BTC. Stock strategies on BTC = meaningless results. Always specify `CANDLE_DATA_FILE`.
+
+### 1a. P0 Anchor vs Manual Exploratory Runs
+Use `ogz-meta/anchor-runner.js` for canonical P0 verification. Manual commands
+in this file can intentionally exercise different strategy sets, data files,
+direction filters, and toggles such as `ENABLE_SMS=true`; those runs are not
+P0 unless they are launched through the anchor runner or exactly match its
+documented env.
 
 ### 2. ACCOUNT_DRAWDOWN_BYPASS
 Drawdown calculation was fixed at core/StateManager.js:99 on 2026-03-14. Setting `ACCOUNT_DRAWDOWN_BYPASS=false` enables the halt — bot force-closes at `accountDrawdownPercent` threshold (default -10%, StopLossChecker.js:48-62).
