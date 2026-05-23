@@ -24,6 +24,16 @@ function config(overrides = {}) {
         cutoffMinutesBeforeClose: 10,
         ...overrides.marketTime,
       },
+      accountLimits: {
+        enabled: true,
+        enforceDailyLossPause: true,
+        enforceMaxLoss: true,
+        accountStartOfDayDate: '2023-11-14',
+        accountStartOfDayEquity: 50000,
+        dailyLossDollars: 500,
+        maxLossThresholdEquity: 47500,
+        ...overrides.accountLimits,
+      },
       ...overrides.ttp,
     },
     ...overrides,
@@ -42,6 +52,7 @@ function entryPlan(overrides = {}) {
     timeframe: '15m',
     price: 100,
     sizeUsd: 500,
+    currentEquity: 50000,
     orderQuantity: 500,
     quantityUnit: 'shares',
     ...overrides,
@@ -128,6 +139,101 @@ describe('EvalRuleEngine TTP volume cap', () => {
     }));
   });
 
+  test('blocks entries at the fixed start-of-day daily loss pause threshold', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 10000)] });
+
+    const result = await engine.check(entryPlan({
+      currentEquity: 49500,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_DAILY_LOSS_PAUSE',
+      reason: 'daily_loss_pause_reached',
+      accountStartOfDayEquity: 50000,
+      dailyLossDollars: 500,
+      dailyPauseThreshold: 49500,
+      currentEquity: 49500,
+    })]);
+    expect(result.inputs).toEqual(expect.objectContaining({
+      accountStartOfDayEquity: 50000,
+      dailyLossDollars: 500,
+      dailyPauseThreshold: 49500,
+      currentEquity: 49500,
+    }));
+  });
+
+  test('blocks stale start-of-day equity from a prior ET trading date', async () => {
+    const engine = makeEngine({
+      cfg: config({
+        accountLimits: {
+          accountStartOfDayDate: '2023-11-13',
+        },
+      }),
+      candles: [candle(-60000, 10000)],
+    });
+
+    const result = await engine.check(entryPlan({
+      currentEquity: 50000,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_DAILY_LOSS_PAUSE',
+      reason: 'stale_start_of_day_equity',
+      accountStartOfDayDate: '2023-11-13',
+      currentDateET: '2023-11-14',
+      currentEquity: 50000,
+    })]);
+  });
+
+  test('fails closed when current equity is missing from the entry plan', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 10000)] });
+
+    const result = await engine.check(entryPlan({
+      currentEquity: null,
+      accountEquity: undefined,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_ACCOUNT_LIMITS',
+      reason: 'missing_current_equity',
+    })]);
+  });
+
+  test('blocks entries at the max-loss account disable boundary', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 10000)] });
+
+    const result = await engine.check(entryPlan({
+      currentEquity: 47500,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_MAX_LOSS',
+      reason: 'max_loss_threshold_reached',
+      maxLossThresholdEquity: 47500,
+      currentEquity: 47500,
+    })]);
+  });
+
+  test('passes account limits before applying the 5 percent volume rule', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 10000)] });
+
+    const result = await engine.check(entryPlan({
+      currentEquity: 49999,
+      orderQuantity: 500,
+    }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).toEqual(expect.arrayContaining([
+      'TTP_DAILY_LOSS_PAUSE',
+      'TTP_MAX_LOSS',
+      'TTP_VOLUME_5_PERCENT',
+    ]));
+  });
+
   test('blocks new openings during the TTP liquidation window', async () => {
     const cutoffTime = new Date('2026-05-22T19:50:00.000Z');
     const engine = makeEngine({
@@ -150,6 +256,11 @@ describe('EvalRuleEngine TTP volume cap', () => {
   test('allows new openings before the TTP liquidation window', async () => {
     const beforeCutoff = new Date('2026-05-22T19:49:00.000Z');
     const engine = makeEngine({
+      cfg: config({
+        accountLimits: {
+          accountStartOfDayDate: '2026-05-22',
+        },
+      }),
       candles: [candleFor(beforeCutoff.getTime(), -60000, 100000)],
       now: () => beforeCutoff.getTime(),
     });

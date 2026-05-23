@@ -27,13 +27,15 @@ class EvalRuleEngine {
     }
 
     const passedRules = [];
+    const inputs = { ...identity };
     const marketTimeResult = this._checkTtpMarketTime(entryPlan);
+    Object.assign(inputs, marketTimeResult.inputs || {});
     if (marketTimeResult.allowed === false) {
       return {
         allowed: false,
         failedRules: [marketTimeResult.failure],
         passedRules,
-        inputs: { ...identity, ...marketTimeResult.inputs },
+        inputs,
         ...identity,
       };
     }
@@ -41,13 +43,29 @@ class EvalRuleEngine {
       passedRules.push('TTP_MARKET_TIME');
     }
 
+    const accountLimitsResult = this._checkTtpAccountLimits(entryPlan);
+    Object.assign(inputs, accountLimitsResult.inputs || {});
+    if (accountLimitsResult.allowed === false) {
+      return {
+        allowed: false,
+        failedRules: [accountLimitsResult.failure],
+        passedRules,
+        inputs,
+        ...identity,
+      };
+    }
+    if (Array.isArray(accountLimitsResult.passedRules)) {
+      passedRules.push(...accountLimitsResult.passedRules);
+    }
+
     const result = this._checkTtpVolumeCap(entryPlan);
+    Object.assign(inputs, result.inputs || {});
     if (result.allowed === false) {
       return {
         allowed: false,
         failedRules: [result.failure],
         passedRules,
-        inputs: { ...identity, ...result.inputs },
+        inputs,
         ...identity,
       };
     }
@@ -59,7 +77,7 @@ class EvalRuleEngine {
       allowed: true,
       failedRules: [],
       passedRules,
-      inputs: { ...identity, ...result.inputs },
+      inputs,
       ...identity,
     };
   }
@@ -122,6 +140,66 @@ class EvalRuleEngine {
     }
 
     return { allowed: true, inputs: state };
+  }
+
+  _checkTtpAccountLimits(entryPlan) {
+    const cfg = this.config.ttp?.accountLimits || {};
+    if (cfg.enabled !== true) {
+      return { allowed: true, inputs: { ruleId: 'TTP_ACCOUNT_LIMITS', enabled: false }, passedRules: [] };
+    }
+
+    const currentEquity = Number(entryPlan.currentEquity ?? entryPlan.accountEquity);
+    const accountStartOfDayEquity = Number(cfg.accountStartOfDayEquity);
+    const dailyLossDollars = Number(cfg.dailyLossDollars);
+    const maxLossThresholdEquity = Number(cfg.maxLossThresholdEquity);
+    const enforceDailyLossPause = cfg.enforceDailyLossPause !== false;
+    const enforceMaxLoss = cfg.enforceMaxLoss !== false;
+    const accountStartOfDayDate = cfg.accountStartOfDayDate || null;
+    const currentDateET = this.marketCalendar.getNYTimeParts(new Date(this.now())).date;
+    const dailyPauseThreshold = accountStartOfDayEquity - dailyLossDollars;
+    const inputs = {
+      ruleId: 'TTP_ACCOUNT_LIMITS',
+      symbol: entryPlan.symbol,
+      currentEquity,
+      accountStartOfDayDate,
+      currentDateET,
+      accountStartOfDayEquity,
+      dailyLossDollars,
+      dailyPauseThreshold,
+      maxLossThresholdEquity,
+      enforceDailyLossPause,
+      enforceMaxLoss,
+    };
+
+    if (!Number.isFinite(currentEquity)) {
+      return this._fail('TTP_ACCOUNT_LIMITS', 'missing_current_equity', inputs);
+    }
+
+    const passedRules = [];
+    if (enforceMaxLoss) {
+      if (!Number.isFinite(maxLossThresholdEquity) || maxLossThresholdEquity <= 0) {
+        return this._fail('TTP_MAX_LOSS', 'invalid_max_loss_config', inputs);
+      }
+      if (currentEquity <= maxLossThresholdEquity) {
+        return this._fail('TTP_MAX_LOSS', 'max_loss_threshold_reached', inputs);
+      }
+      passedRules.push('TTP_MAX_LOSS');
+    }
+
+    if (enforceDailyLossPause) {
+      if (accountStartOfDayDate !== currentDateET) {
+        return this._fail('TTP_DAILY_LOSS_PAUSE', 'stale_start_of_day_equity', inputs);
+      }
+      if (!Number.isFinite(accountStartOfDayEquity) || accountStartOfDayEquity <= 0 || !Number.isFinite(dailyLossDollars) || dailyLossDollars <= 0) {
+        return this._fail('TTP_DAILY_LOSS_PAUSE', 'invalid_daily_loss_config', inputs);
+      }
+      if (currentEquity <= dailyPauseThreshold) {
+        return this._fail('TTP_DAILY_LOSS_PAUSE', 'daily_loss_pause_reached', inputs);
+      }
+      passedRules.push('TTP_DAILY_LOSS_PAUSE');
+    }
+
+    return { allowed: true, inputs, passedRules };
   }
 
   _checkTtpVolumeCap(entryPlan) {
@@ -284,14 +362,14 @@ class EvalRuleEngine {
     return {
       allowed: false,
       failure: {
+        ...inputs,
         ruleId,
         reason,
         action: 'BLOCK_ORDER',
-        ...inputs,
       },
       inputs: {
-        ruleId,
         ...inputs,
+        ruleId,
       },
     };
   }

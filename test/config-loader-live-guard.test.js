@@ -28,6 +28,13 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_BLOCK_ENTRIES_AFTER_CUTOFF: 'true',
       TTP_LIQUIDATION_ENABLED: 'true',
       TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE: '10',
+      TTP_ACCOUNT_LIMITS_ENABLED: 'true',
+      TTP_DAILY_LOSS_PAUSE_ENABLED: 'true',
+      TTP_MAX_LOSS_ENABLED: 'true',
+      TTP_ACCOUNT_START_OF_DAY_DATE: '2026-05-23',
+      TTP_ACCOUNT_START_OF_DAY_EQUITY: '50000',
+      TTP_DAILY_LOSS_LIMIT_DOLLARS: '500',
+      TTP_MAX_LOSS_THRESHOLD_EQUITY: '47500',
       MIN_TRADE_CONFIDENCE: '0.50',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
@@ -94,6 +101,15 @@ describe('ConfigLoader live trading safety guard', () => {
           liquidationEnabled: true,
           cutoffMinutesBeforeClose: 10,
         }),
+        accountLimits: expect.objectContaining({
+          enabled: true,
+          enforceDailyLossPause: true,
+          enforceMaxLoss: true,
+          accountStartOfDayDate: '2026-05-23',
+          accountStartOfDayEquity: 50000,
+          dailyLossDollars: 500,
+          maxLossThresholdEquity: 47500,
+        }),
       }),
     }));
   });
@@ -154,6 +170,46 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_LIQUIDATION_ENABLED = 'false';
 
     expect(() => loadConfig()).toThrow(/cannot disable both cutoff entry blocking and liquidation enforcement/);
+  });
+
+  test('rejects missing TTP daily loss pause config when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_ACCOUNT_START_OF_DAY_EQUITY = '';
+
+    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured/);
+  });
+
+  test('rejects missing TTP start-of-day date when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '';
+
+    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD/);
+  });
+
+  test('rejects disabling TTP account limits when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_ACCOUNT_LIMITS_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_LIMITS_ENABLED=false is illegal/);
+  });
+
+  test('rejects partial TTP account limit enforcement when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_DAILY_LOSS_PAUSE_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/requires both daily loss pause and max loss enforcement/);
+  });
+
+  test('rejects missing TTP max loss threshold when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '0';
+
+    expect(() => loadConfig()).toThrow(/TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured/);
   });
 
   test('keeps backtest bypass combinations non-blocking', () => {

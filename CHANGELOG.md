@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Account Loss Limit Gate (2026-05-23)
+
+- Added a pre-order TTP account-limit gate that blocks stock entries when current equity is missing, at or below the configured max-loss threshold, at or below the fixed start-of-day daily-loss pause threshold, or based on stale start-of-day equity from another ET trading date.
+- Added explicit config for `TTP_ACCOUNT_START_OF_DAY_DATE`, `TTP_ACCOUNT_START_OF_DAY_EQUITY`, `TTP_DAILY_LOSS_LIMIT_DOLLARS`, and `TTP_MAX_LOSS_THRESHOLD_EQUITY`; when eval/TTP rules are enabled, daily-loss and max-loss enforcement must both stay enabled.
+- Threaded current state equity into the eval entry plan before broker/webhook/state side effects, while keeping all threshold values in ConfigLoader-managed runtime config.
+- Verification: `node --check`, focused Jest ConfigLoader/EvalRuleEngine/OrderExecutor coverage, `npm run test:smoke`, Mercury adversarial recheck, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Eval Trace Spine (2026-05-23)
 
 - Added a structured eval trace spine that carries `traceId`, `signalId`, and `decisionId` from analysis ingress through strategy decision, eval rule checks, broker routing, state mutation, proof logging, and backtest recorder payloads.

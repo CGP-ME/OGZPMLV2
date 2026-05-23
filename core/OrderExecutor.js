@@ -97,7 +97,7 @@ class OrderExecutor {
     return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
   }
 
-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, tradeConfidence, confidenceMultiplier, orchResult }) {
+  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
@@ -121,6 +121,7 @@ class OrderExecutor {
       timeframe: this.ctx.config?.timeframe || null,
       price,
       accountBalance: currentBalance,
+      currentEquity,
       baseSizeUsd: positionSize,
       sizeUsd,
       confidence: decision.confidence,
@@ -295,6 +296,7 @@ class OrderExecutor {
     // equity is reserved in open trades. The old `|| 10000` upgraded that to
     // phantom $10K and the bot sized as if the account were fully flush.
     // Pre-money: halt the entry instead. No fabricated capital.
+    const currentEquity = stateManager.getEquity(price);
     const currentBalance = stateManager.getAvailableCapital(price);
     if (currentBalance <= 0) {
       console.error('[HALT] No available capital — refusing entry');
@@ -386,6 +388,7 @@ class OrderExecutor {
       price,
       positionSize,
       currentBalance,
+      currentEquity,
       tradeConfidence,
       confidenceMultiplier,
       orchResult

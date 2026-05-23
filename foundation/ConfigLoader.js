@@ -195,6 +195,15 @@ function buildConfig() {
           liquidationEnabled: track('evalRules.ttp.marketTime.liquidationEnabled', envBool('TTP_LIQUIDATION_ENABLED', true)),
           cutoffMinutesBeforeClose: track('evalRules.ttp.marketTime.cutoffMinutesBeforeClose', envStrictFloat('TTP_LIQUIDATION_MINUTES_BEFORE_CLOSE', 10)),
         },
+        accountLimits: {
+          enabled: track('evalRules.ttp.accountLimits.enabled', envBool('TTP_ACCOUNT_LIMITS_ENABLED', true)),
+          enforceDailyLossPause: track('evalRules.ttp.accountLimits.enforceDailyLossPause', envBool('TTP_DAILY_LOSS_PAUSE_ENABLED', true)),
+          enforceMaxLoss: track('evalRules.ttp.accountLimits.enforceMaxLoss', envBool('TTP_MAX_LOSS_ENABLED', true)),
+          accountStartOfDayDate: track('evalRules.ttp.accountLimits.accountStartOfDayDate', envStr('TTP_ACCOUNT_START_OF_DAY_DATE', '')),
+          accountStartOfDayEquity: track('evalRules.ttp.accountLimits.accountStartOfDayEquity', envStrictFloat('TTP_ACCOUNT_START_OF_DAY_EQUITY', 0)),
+          dailyLossDollars: track('evalRules.ttp.accountLimits.dailyLossDollars', envStrictFloat('TTP_DAILY_LOSS_LIMIT_DOLLARS', 0)),
+          maxLossThresholdEquity: track('evalRules.ttp.accountLimits.maxLossThresholdEquity', envStrictFloat('TTP_MAX_LOSS_THRESHOLD_EQUITY', 0)),
+        },
       },
     },
 
@@ -316,6 +325,7 @@ function validate(config) {
 
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;
   const ttpMarketTime = config.evalRules?.ttp?.marketTime;
+  const ttpAccountLimits = config.evalRules?.ttp?.accountLimits;
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpVolumeCap?.enabled) {
     if (!Number.isFinite(ttpVolumeCap.percent) || ttpVolumeCap.percent <= 0 || ttpVolumeCap.percent > 1) {
       errors.push(`TTP_VOLUME_CAP_PERCENT out of range: ${ttpVolumeCap.percent}`);
@@ -336,6 +346,32 @@ function validate(config) {
     }
     if (ttpMarketTime.blockEntriesAfterCutoff !== true && ttpMarketTime.liquidationEnabled !== true) {
       errors.push('TTP market-time rule cannot disable both cutoff entry blocking and liquidation enforcement');
+    }
+  }
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled) {
+    if (ttpAccountLimits?.enabled !== true) {
+      errors.push('TTP_ACCOUNT_LIMITS_ENABLED=false is illegal when TTP eval rules are enabled');
+    }
+  }
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpAccountLimits?.enabled) {
+    if (ttpAccountLimits.enforceDailyLossPause !== true || ttpAccountLimits.enforceMaxLoss !== true) {
+      errors.push('TTP account limit rule requires both daily loss pause and max loss enforcement');
+    }
+    if (ttpAccountLimits.enforceDailyLossPause === true) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ttpAccountLimits.accountStartOfDayDate || ''))) {
+        errors.push(`TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}`);
+      }
+      if (!Number.isFinite(ttpAccountLimits.accountStartOfDayEquity) || ttpAccountLimits.accountStartOfDayEquity <= 0) {
+        errors.push(`TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured for daily loss pause, got ${ttpAccountLimits.accountStartOfDayEquity}`);
+      }
+      if (!Number.isFinite(ttpAccountLimits.dailyLossDollars) || ttpAccountLimits.dailyLossDollars <= 0) {
+        errors.push(`TTP_DAILY_LOSS_LIMIT_DOLLARS must be configured for daily loss pause, got ${ttpAccountLimits.dailyLossDollars}`);
+      }
+    }
+    if (ttpAccountLimits.enforceMaxLoss === true) {
+      if (!Number.isFinite(ttpAccountLimits.maxLossThresholdEquity) || ttpAccountLimits.maxLossThresholdEquity <= 0) {
+        errors.push(`TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured for max loss enforcement, got ${ttpAccountLimits.maxLossThresholdEquity}`);
+      }
     }
   }
 

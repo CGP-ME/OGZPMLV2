@@ -2,6 +2,7 @@
 
 const mockStateManager = {
   get: jest.fn(),
+  getEquity: jest.fn(),
   getAvailableCapital: jest.fn(),
   isHalted: jest.fn(() => false),
   getHaltReason: jest.fn(() => null),
@@ -123,6 +124,7 @@ describe('OrderExecutor pause gate', () => {
       if (key === 'lastError') return null;
       return null;
     });
+    mockStateManager.getEquity.mockReturnValue(10000);
     mockStateManager.getAvailableCapital.mockReturnValue(10000);
     mockStateManager.getState.mockReturnValue({ position: 0, balance: 10000 });
     mockStateManager.openPosition.mockResolvedValue({ success: true });
@@ -352,6 +354,7 @@ describe('OrderExecutor pause gate', () => {
       traceId: 'trace_test_1',
       signalId: 'signal_test_1',
       decisionId: 'decision_test_1',
+      currentEquity: 10000,
     }));
     expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
       traceId: 'trace_test_1',
@@ -413,6 +416,7 @@ describe('OrderExecutor pause gate', () => {
       symbol: 'TSLA',
       orderQuantity: 5,
       quantityUnit: 'shares',
+      currentEquity: 10000,
     }));
     expect(sendOrder).not.toHaveBeenCalled();
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
