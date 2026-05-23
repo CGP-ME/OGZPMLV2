@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Startup Entry-State Logging (2026-05-23)
+
+- Fixed the live/paper startup banner so it reports paused-state, global-halt, and active-symbol-halt entry blockers instead of claiming entries are enabled while `OrderExecutor` would refuse them.
+- Hardened `StateManager.load()` so malformed persisted `isTrading` values are forced to paused boolean state and saved back before runtime checks depend on them.
+
 ### Paused State Entry Enforcement (2026-05-23)
 
 - Fixed `OrderExecutor` so `BUY` and `SELL_SHORT` entries refuse to route when `StateManager.isTrading=false` outside real backtest mode.

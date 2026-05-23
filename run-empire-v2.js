@@ -1547,7 +1547,26 @@ class OGZPrimeV14Bot {
         // Start trading cycle
         this.startTradingCycle();
 
-        console.log('Bot is now LIVE and trading\n');
+        const startupEntryBlocks = [];
+        if (stateManager.get('isTrading') === false) {
+          startupEntryBlocks.push(stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false');
+        }
+        const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
+        if (globalHaltReason) {
+          startupEntryBlocks.push(`global halt: ${globalHaltReason}`);
+        }
+        const startupSymbol = this.tradingPair || this.config.tradingPair;
+        const symbolHaltReason = startupSymbol && stateManager.isSymbolHalted(startupSymbol)
+          ? stateManager.getSymbolHaltReason(startupSymbol)
+          : null;
+        if (symbolHaltReason) {
+          startupEntryBlocks.push(`${startupSymbol} halt: ${symbolHaltReason}`);
+        }
+        if (startupEntryBlocks.length > 0) {
+          console.warn(`[STARTUP] Bot online, but entries are blocked: ${startupEntryBlocks.join('; ')}\n`);
+        } else {
+          console.log('[STARTUP] Bot online and entries enabled\n');
+        }
       }
     } catch (error) {
       console.error('âŒ Startup failed:', error.message);

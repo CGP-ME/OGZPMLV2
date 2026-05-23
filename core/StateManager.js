@@ -1305,6 +1305,7 @@ class StateManager {
 
       if (fs.existsSync(stateFile)) {
         const savedState = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        let correctedStateShape = false;
 
         // CRITICAL: Convert Array back to Map
         if (Array.isArray(savedState.activeTrades)) {
@@ -1321,6 +1322,15 @@ class StateManager {
 
         // Restore state
         this.state = { ...this.state, ...savedState };
+        if (typeof this.state.isTrading !== 'boolean') {
+          const invalidIsTrading = this.state.isTrading;
+          const pauseReason = `[StateManager.load] invalid persisted isTrading=${JSON.stringify(invalidIsTrading)}; forcing entries paused`;
+          this.state.isTrading = false;
+          this.state.pauseReason = this.state.pauseReason || pauseReason;
+          this.state.lastError = this.state.lastError || pauseReason;
+          correctedStateShape = true;
+          console.warn(pauseReason);
+        }
         if (!this.state.symbolEntryHalts || typeof this.state.symbolEntryHalts !== 'object' || Array.isArray(this.state.symbolEntryHalts)) {
           this.state.symbolEntryHalts = {};
         } else {
@@ -1375,6 +1385,9 @@ class StateManager {
         }
         if (normalizedExisting > 0) {
           console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
+        }
+        if (correctedStateShape) {
+          this.save();
         }
         const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
         const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
