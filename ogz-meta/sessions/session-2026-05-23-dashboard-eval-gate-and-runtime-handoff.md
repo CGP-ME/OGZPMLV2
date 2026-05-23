@@ -2,8 +2,8 @@
 
 **Branch:** `rebuild/clean-from-baseline`
 **Repo:** `/opt/ogzprime/OGZPMLV2`
-**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; runtime bot online but internally paused by liveness watchdog.
-**Current pushed head:** `e160461` (`Fixed watchlist ticker chart routing`)
+**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; runtime bot online but must not be called trading-ready until state is explicitly resumed/verified.
+**Latest code head recorded in this form:** `594f023` (`Fixed paused state entry enforcement`)
 
 This session form fills the gap after the May 22 forms. It does not replace the earlier append-only records:
 
@@ -120,6 +120,40 @@ The current runtime is still simulation posture:
 
 The first recommended implementation target is a startup hard-fail for `LIVE_TRADING=true` with `ACCOUNT_DRAWDOWN_BYPASS=true`.
 
+### 6. Paused-state entry enforcement was added
+
+**Commit:** `594f023` - `Fixed paused state entry enforcement`
+
+**Root cause:** `StateManager.pauseTrading()` correctly wrote `isTrading=false`, `pauseReason`, and `lastError`, but `OrderExecutor.executeTrade()` did not read that paused state before routing opening entries. PM2 being online could therefore be mistaken for "the bot is allowed to trade."
+
+**Fix:**
+
+- Added a supported-action whitelist in `core/OrderExecutor.js` so malformed/future action names cannot reach `orderRouter.sendOrder`.
+- Added an entry-only paused-state gate for `BUY` and `SELL_SHORT`; outside real backtest mode, `StateManager.isTrading=false` returns `null` before sizing or routing.
+- Added an `ENTRY-MODE` fail-loud guard so `enableBacktestMode` or `executionMode=backtest` cannot bypass the paused-state gate unless runtime `backtestMode=true`.
+- Kept `SELL` and `COVER` exits outside the pause gate by design so recovery/close paths remain available while entries are paused.
+
+**Verification:**
+
+- `node --check core/OrderExecutor.js`
+- `node --check test/order-executor-pause-gate.test.js`
+- `npx jest test/order-executor-pause-gate.test.js --runInBand` - 4 passed
+- `npm run test:smoke` - 13 passed, 0 failed, 1 existing Bombardier warning
+- Mercury pass 1 found the backtest-mode spoof and drove the `ENTRY-MODE` guard
+- Mercury pass 2 found unsupported action names could reach routing and drove the action whitelist
+- Mercury pass 3 found no remaining unsupported-action, mode-spoof, paused-entry, exit-blocking, or P0/backtest blocker
+- Fast P0: `$10059.713394730992 / 49 trades`
+- Full P0: `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
+
+**Evidence files:**
+
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-2026-05-23.response.md`
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-final-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-final-2026-05-23.response.md`
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.response.md`
+
 ## Smoke Test Results
 
 | Check | Result | Evidence |
@@ -132,7 +166,8 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | Web asset serving | Pass | `chart-panel.js` and `watchlist-strip.js` returned `HTTP 200` from local web tier |
 | Web-tier restart isolation | Pass | `ogz-websocket` restarted; `ogz-prime-v2` PID stayed `1120365` |
 | Eval checklist doc | Pass | `git diff --check` clean before commit |
-| Bot trade readiness | Blocked | `data/state.json` currently has `isTrading=false` and liveness watchdog pause |
+| Paused entry enforcement | Pass | `594f023`; focused Jest, smoke, three Mercury passes, fast P0, full P0 |
+| Bot trade readiness | Blocked | `data/state.json` still needs explicit resume/verification before claiming live trade-ready |
 
 ## Files Touched
 
@@ -142,7 +177,10 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | `public/unified-dashboard-v2.html` | Removed duplicate manual init block for auto-init modules |
 | `public/js/panels/chart-panel.js` | Deployed chart timeframe and oscillator pane rebuild |
 | `public/js/panels/watchlist-strip.js` | Fixed ticker click event routing |
-| `CHANGELOG.md` | Added entries for stock candles, chart panel, and watchlist routing |
+| `core/OrderExecutor.js` | Added supported-action, backtest-mode, and paused-state entry guards |
+| `test/order-executor-pause-gate.test.js` | Added focused pause-gate regression coverage |
+| `CHANGELOG.md` | Added entries for stock candles, chart panel, watchlist routing, and paused-state entry enforcement |
+| `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-*.md` | Added Mercury attack prompts and responses for paused-entry enforcement |
 | `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
 | `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
 
@@ -196,6 +234,7 @@ Important: PM2 being online is not the same as the bot being enabled to trade. T
 
 Newest first:
 
+- `594f023` Fixed paused state entry enforcement
 - `e160461` Fixed watchlist ticker chart routing
 - `b4c302d` Added eval go no-go checklist
 - `ed8657e` Added chart panel timeframe and oscillator controls
@@ -211,8 +250,8 @@ Newest first:
 
 ## Open Items
 
-1. Diagnose the current `isTrading=false` liveness watchdog pause before claiming the bot is trading or ready to trade.
-2. Verify whether the liveness pause is expected market-session quiet behavior, stale state from before the broker-aware liveness fix, or a real current data-flow failure.
+1. After deploying/restarting the updated bot code, explicitly decide whether to resume trading state; do not call the bot trading-ready while `data/state.json` has `isTrading=false`.
+2. Verify whether any remaining liveness pause is expected market-session quiet behavior, stale state from before the broker-aware liveness fix, or a real current data-flow failure.
 3. Do not flip eval while `PAPER_TRADING=true`, `LIVE_TRADING=false`, `WEBHOOK_DRY_RUN=true`, and `ACCOUNT_DRAWDOWN_BYPASS=true`.
 4. Implement the runtime posture guard: `LIVE_TRADING=true` plus `ACCOUNT_DRAWDOWN_BYPASS=true` must hard-fail startup.
 5. Implement the Trade The Pool eval rule layer, starting with the 5 percent previous one-minute volume rule.
@@ -231,14 +270,15 @@ Newest first:
 | Chart panel volume restore latency | Open as polish item `#44`; not treated as eval blocker |
 | Watchlist ticker click chart routing | Closed by `e160461`; final browser click recheck belongs to cowork/Chrome smoke |
 | Eval go/no-go checklist | Added by `b4c302d`; code implementation still open |
-| Bot trade readiness | Blocked by current liveness watchdog pause in `data/state.json` |
+| Paused-state entry enforcement | Closed by `594f023`; entries now refuse to route while `StateManager.isTrading=false` outside real backtest mode |
+| Bot trade readiness | Still blocked until the runtime state is resumed and verified after deploy/restart |
 | Trade The Pool rule engine | Open; no eval flip until rule layer is implemented and verified |
 | SessionRouter final architecture | Deferred; keep `SESSION_ROUTER_ENABLED=false` |
 | TRAI | Deferred; keep `ENABLE_TRAI=false` until known phantom default paths are fixed |
 
 ## Context for Next Session
 
-The repo head is pushed at `e160461` plus this session-doc follow-up when committed. Dashboard chart and watchlist fixes are live through the web tier. The bot PM2 process is online but must not be described as trading-ready because `data/state.json` says `isTrading=false` with a liveness watchdog pause. The next session should diagnose that pause first, then implement eval guards one commit at a time.
+The latest code head recorded here is `594f023`, with this session-doc follow-up to be committed separately. Dashboard chart and watchlist fixes are live through the web tier. The paused-state entry enforcement is committed but still needs deployment/restart before it protects the running PM2 bot. The bot PM2 process is online but must not be described as trading-ready while `data/state.json` says `isTrading=false`; next session must explicitly resume/verify state before any eval flip.
 
 ## Recorder Pipeline Disposition
 
@@ -250,14 +290,14 @@ The repo head is pushed at `e160461` plus this session-doc follow-up when commit
 | Approval | Trey approved dashboard re-drops and requested the session form/checklist path |
 | Fixer | Frontend-only fixes landed through copied staged drops plus scoped verification |
 | Debugger | Syntax, marker, HTTP asset, PM2, and WebSocket smoke checks were run where applicable |
-| Critic | Cowork/Chrome smoke found the watchlist bug and volume restore latency; both were recorded |
-| Validator | `git diff --check`, syntax checks, and PM2 process isolation were verified |
-| Scribe | This session form records May 23 work and current blockers |
-| Committer | Changes were committed as separate logical commits and pushed |
+| Critic | Cowork/Chrome smoke found the watchlist bug and volume restore latency; Mercury found two paused-entry hardening gaps before final clean pass |
+| Validator | `git diff --check`, syntax checks, Jest, smoke, Mercury, fast P0, full P0, and PM2 process isolation were verified where applicable |
+| Scribe | This session form records May 23 work, paused-entry enforcement, and current blockers |
+| Committer | Changes were committed as separate logical commits; code commit `594f023` is the paused-entry rollback point |
 
 ## Next Recommended Move
 
-Start with the current liveness pause. The exact next question is:
+Start with deploy/restart/resume discipline around the current liveness pause. The exact next question is:
 
 > Is the bot paused because the market is closed/quiet and the watchdog state was not cleared, or because the Alpaca TSLA feed/backfill path is still failing?
 
