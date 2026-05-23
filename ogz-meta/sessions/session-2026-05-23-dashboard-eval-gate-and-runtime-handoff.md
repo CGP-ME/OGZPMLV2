@@ -2,8 +2,8 @@
 
 **Branch:** `rebuild/clean-from-baseline`
 **Repo:** `/opt/ogzprime/OGZPMLV2`
-**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; runtime bot online but must not be called trading-ready until state is explicitly resumed/verified.
-**Latest code head recorded in this form:** `594f023` (`Fixed paused state entry enforcement`)
+**Session status:** Dashboard fixes committed and pushed; eval checklist committed and pushed; paused-state entry enforcement committed; startup entry-state logging committed; runtime bot online but entries are still paused by the liveness watchdog and must not be called trading-ready.
+**Latest code head recorded in this form:** `0cdc6ca` (`Fixed startup entry-state logging`)
 
 This session form fills the gap after the May 22 forms. It does not replace the earlier append-only records:
 
@@ -154,6 +154,41 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 - `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.md`
 - `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-whitelist-final-2026-05-23.response.md`
 
+### 7. Startup entry-state logging was fixed
+
+**Commit:** `0cdc6ca` - `Fixed startup entry-state logging`
+
+**Root cause:** After paused-state entry enforcement landed, PM2 startup still printed a broad "LIVE and trading" message even when persisted runtime state said entries were paused. That made process liveness look like trading readiness.
+
+**Fix:**
+
+- Replaced the unconditional live/trading startup banner in `run-empire-v2.js`.
+- Startup now reports entry blockers from `StateManager.isTrading=false`, global halt state, and the active symbol halt.
+- `StateManager.load()` now forces malformed persisted `isTrading` values into boolean paused state and saves that corrected shape back to disk.
+- Added regression coverage for malformed persisted `isTrading`.
+
+**Verification:**
+
+- `node --check run-empire-v2.js`
+- `node --check core/StateManager.js`
+- `node --check test/state-manager-load.test.js`
+- `npx jest test/order-executor-pause-gate.test.js test/state-manager-load.test.js --runInBand` - 5 passed
+- `npm run test:smoke` - 13 passed, 0 failed, 1 existing Bombardier warning
+- Mercury pass 1 found malformed persisted `isTrading`
+- Mercury pass 2 found global/symbol halt log-lie coverage gap
+- Mercury pass 3 found no remaining startup-banner log-lie for `isTrading=false`, malformed `isTrading`, global halt, or active-symbol halt
+- Full P0: `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
+- Restarted only `ogz-prime-v2`; fresh post-restart log correctly printed `[STARTUP] Bot online, but entries are blocked: Liveness watchdog: No data for 164s, backfill failed`
+
+**Evidence files:**
+
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-2026-05-23.response.md`
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-final-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-final-2026-05-23.response.md`
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.md`
+- `ogz-meta/cognition-history/mercury/startup-entry-state-log-blocks-final-2026-05-23.response.md`
+
 ## Smoke Test Results
 
 | Check | Result | Evidence |
@@ -167,7 +202,8 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | Web-tier restart isolation | Pass | `ogz-websocket` restarted; `ogz-prime-v2` PID stayed `1120365` |
 | Eval checklist doc | Pass | `git diff --check` clean before commit |
 | Paused entry enforcement | Pass | `594f023`; focused Jest, smoke, three Mercury passes, fast P0, full P0 |
-| Bot trade readiness | Blocked | `data/state.json` still needs explicit resume/verification before claiming live trade-ready |
+| Startup entry-state logging | Pass | `0cdc6ca`; focused Jest, smoke, three Mercury passes, full P0, post-restart PM2 log shows entries blocked |
+| Bot trade readiness | Blocked | `data/state.json` still has `isTrading=false`; post-restart REST hydrate logged no usable TSLA 15m candles |
 
 ## Files Touched
 
@@ -178,19 +214,23 @@ The first recommended implementation target is a startup hard-fail for `LIVE_TRA
 | `public/js/panels/chart-panel.js` | Deployed chart timeframe and oscillator pane rebuild |
 | `public/js/panels/watchlist-strip.js` | Fixed ticker click event routing |
 | `core/OrderExecutor.js` | Added supported-action, backtest-mode, and paused-state entry guards |
+| `core/StateManager.js` | Added persisted `isTrading` shape validation on load |
+| `run-empire-v2.js` | Replaced unconditional startup trading banner with entry-block-aware startup log |
 | `test/order-executor-pause-gate.test.js` | Added focused pause-gate regression coverage |
+| `test/state-manager-load.test.js` | Added malformed persisted `isTrading` regression coverage |
 | `CHANGELOG.md` | Added entries for stock candles, chart panel, watchlist routing, and paused-state entry enforcement |
 | `ogz-meta/cognition-history/mercury/orderexecutor-pause-gate-*.md` | Added Mercury attack prompts and responses for paused-entry enforcement |
+| `ogz-meta/cognition-history/mercury/startup-entry-state-log-*.md` | Added Mercury attack prompts and responses for startup entry-state logging |
 | `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md` | Added eval readiness gate checklist |
 | `ogz-meta/sessions/session-2026-05-23-dashboard-eval-gate-and-runtime-handoff.md` | Added this handoff/session form |
 
 ## Current Runtime Snapshot
 
-Checked after the watchlist deploy:
+Checked after restarting `ogz-prime-v2` onto `0cdc6ca`:
 
 | Process | Status | PID | Note |
 |---|---:|---:|---|
-| `ogz-prime-v2` | online | `1120365` | Bot process was not restarted by dashboard deploys |
+| `ogz-prime-v2` | online | `1145400` | Restarted after startup entry-state logging fix |
 | `ogz-websocket` | online | `1134427` | Restarted for frontend asset deploys |
 | `ogz-stripe` | online | `3440510` | Untouched |
 
@@ -230,10 +270,16 @@ Current `data/state.json` snapshot:
 
 Important: PM2 being online is not the same as the bot being enabled to trade. The current state file says `isTrading=false` due to a liveness watchdog pause. This must be diagnosed before claiming the runtime is trade-ready.
 
+Fresh post-restart startup evidence:
+
+- `ogz-prime-v2` error log: `[BOOT][REST-HYDRATE] no usable candles returned for TSLA @ 15m`
+- `ogz-prime-v2` error log: `[STARTUP] Bot online, but entries are blocked: Liveness watchdog: No data for 164s, backfill failed`
+
 ## Git Log
 
 Newest first:
 
+- `0cdc6ca` Fixed startup entry-state logging
 - `594f023` Fixed paused state entry enforcement
 - `e160461` Fixed watchlist ticker chart routing
 - `b4c302d` Added eval go no-go checklist
@@ -250,8 +296,8 @@ Newest first:
 
 ## Open Items
 
-1. After deploying/restarting the updated bot code, explicitly decide whether to resume trading state; do not call the bot trading-ready while `data/state.json` has `isTrading=false`.
-2. Verify whether any remaining liveness pause is expected market-session quiet behavior, stale state from before the broker-aware liveness fix, or a real current data-flow failure.
+1. Diagnose why TSLA 15m boot REST hydration returned no usable candles after restart; do not call the bot trading-ready while `data/state.json` has `isTrading=false`.
+2. Explicitly decide whether and when to resume trading state after the candle/liveness path is proven healthy.
 3. Do not flip eval while `PAPER_TRADING=true`, `LIVE_TRADING=false`, `WEBHOOK_DRY_RUN=true`, and `ACCOUNT_DRAWDOWN_BYPASS=true`.
 4. Implement the runtime posture guard: `LIVE_TRADING=true` plus `ACCOUNT_DRAWDOWN_BYPASS=true` must hard-fail startup.
 5. Implement the Trade The Pool eval rule layer, starting with the 5 percent previous one-minute volume rule.
