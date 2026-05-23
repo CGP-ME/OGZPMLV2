@@ -1,7 +1,7 @@
 # Eval Go/No-Go Checklist - 2026-05-23
 
 **Repo:** `/opt/ogzprime/OGZPMLV2`
-**Branch:** `rebuild/clean-from-baseline`
+**Branch:** `codex/ttp-eval-gates`
 **Purpose:** Define the exact proof required before Trey clicks go on a Trade The Pool eval.
 
 This checklist separates two different gates:
@@ -49,6 +49,30 @@ Before eval, every test signal must answer these questions without guessing:
 12. What happens on retry or restart?
 
 If any answer is missing, the path is not eval-ready.
+
+## Progressive Signal Trace Ladder
+
+Every pre-eval fix must move the same signal path farther forward or make an existing checkpoint more truthful. Component tests, P0, and Mercury are required gates for hot-path changes, but they are not a substitute for proving where a real signal currently stops.
+
+For each fix, record the earliest checkpoint that is now proven and the earliest checkpoint that is still red/unproven:
+
+| # | Checkpoint | Required proof | Current status |
+|---|------------|----------------|----------------|
+| 1 | Ingress | Real candle/webhook/signal enters with timestamp, source, symbol, timeframe, account, and trace ID. | Partial: Alpaca candles and hydration are wired; single joined trace ID is still missing. |
+| 2 | Normalization | Symbol, broker, asset class, timeframe, and execution mode are canonical before strategy or order logic. | Partial: Alpaca/TSLA defaults and broker quantity planning landed; SessionRouter remains intentionally off. |
+| 3 | State Before | Pre-decision state snapshot proves active trades, pauses, halts, balances, and broker positions before action. | Partial: state guards exist; broker reconciliation proof still required before eval. |
+| 4 | Strategy Decision | StrategyOrchestrator logs winner, rejected strategies or no-signal reason, confidence, and candle basis. | Partial: smoke/no-signal logs exist; eval trace join key still missing. |
+| 5 | Sizing And Intent | Position size, broker order quantity, quantity unit, and sizing config source are visible before gates. | Green for broker quantity mechanics after recent commits; sizing config consolidation remains a separate blocker. |
+| 6 | Risk Gates | RiskManager, pause state, kill switch, and drawdown bypass guards produce explicit pass/fail records. | Partial: live bypass guard and paused-state entry enforcement landed; daily loss/max loss eval accounting still open. |
+| 7 | Eval Gates | Every TTP rule check logs pass/fail with inputs before broker/webhook side effects. | Partial: 5 percent volume and 15:50 market-time gates landed; daily loss, max loss, earnings, and consistency remain open. |
+| 8 | Order Boundary | Broker/webhook request and response are logged with order ID, status, quantity, side, and rejection reason. | Partial: broker quantity routing is fixed; full SignalStack/TTP response trace still needs live-path proof. |
+| 9 | State After | State mutates only after broker/webhook outcome, or records a pending/unknown state with reconciliation path. | Partial: live exit quantity truth landed; restart/retry reconciliation still requires explicit proof. |
+| 10 | Dashboard/Logs | Dashboard and logs show the same symbol, account, state, rule result, order result, and skip/exit reason. | Partial: dashboard visibility improved; eval trace joins are not complete. |
+| 11 | Restart/Retry | Restart replay cannot duplicate entries, lose broker positions, or claim flat while broker is not flat. | Partial: 15:50 enforcer rechecks broker flatness; global restart reconciliation remains open. |
+
+Commit rule: the commit body or session note for every fix must include `Trace ladder advanced:` and `Next red checkpoint:`. If a fix only improves isolated mechanics without advancing the trace ladder, it can still land, but it does not reduce eval go/no-go risk until a trace checkpoint proves it.
+
+Fix order rule: take the earliest red/unproven checkpoint that can disqualify the eval. Do not jump to later polish while an earlier checkpoint can still hide why a signal stopped or why an order was allowed.
 
 ## Gate A - Runtime Posture
 
@@ -203,3 +227,13 @@ Second target: implement the 5 percent previous one-minute volume rule as a pre-
 Third target: implement the 15:50 ET liquidation/no-entry guard.
 
 Do not combine these in one commit.
+
+## Landed Implementation Sequence
+
+The first three implementation targets have landed as separate commits on `codex/ttp-eval-gates`:
+
+1. Runtime posture guard: `LIVE_TRADING=true` cannot run with `ACCOUNT_DRAWDOWN_BYPASS=true` or `RISK_MANAGER_BYPASS=true`.
+2. TTP 5 percent previous one-minute volume rule: pre-order gate blocks oversized opening/add-on stock orders before broker/webhook/state side effects.
+3. TTP 15:50 market-time cutoff: blocks late entries, cancels target stock pending orders, closes tracked and broker-orphan target stock positions, and verifies broker flatness before marking complete.
+
+Next implementation target should advance the trace ladder before adding another silent rule. The next root fix is the structured trace spine: a single join key from signal ingress through strategy decision, sizing, risk/eval gates, order boundary, and state-after snapshot. After that, continue with TTP Daily Loss Pause and max-loss boundary using that trace spine.
