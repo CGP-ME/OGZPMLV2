@@ -14,7 +14,7 @@ Before answering questions or touching files, walk this path:
 pwd
 git branch --show-current
 git log --oneline -8
-git status --short
+git status --short --branch
 git stash list
 ```
 
@@ -37,6 +37,14 @@ ls -t ogz-meta/sessions/ | head -5
 ```
 
 Read those session docs newest-to-oldest until you can explain the current work queue, current branch posture, dirty tree, stashes, Mercury state, and what is blocked.
+
+For daily alignment maintenance runs, also inventory session/report/form candidates across all of `ogz-meta/`, not only `ogz-meta/sessions/`:
+
+```bash
+rg --files ogz-meta | rg '(^|/)(SESSION-|session-|CODEX-WORKLOG-|session-form).*\.(json|md)$|(^|/)session-form\.js$'
+```
+
+Inspect those candidates newest-first by file mtime. Treat ledger handoffs and ledger session forms as leads only unless current session docs, alignment docs, live code, or explicit operator direction corroborate them.
 
 6. Read the current P0 anchor spec.
 
