@@ -121,6 +121,7 @@ function buildConfig() {
     observability: {
       evalTraceEnabled: track('observability.evalTraceEnabled', envBool('EVAL_TRACE_ENABLED', true)),
       evalTraceBacktest: track('observability.evalTraceBacktest', envBool('EVAL_TRACE_BACKTEST', false)),
+      traceEventMaxBufferedBytes: track('observability.traceEventMaxBufferedBytes', envStrictFloat('TRACE_EVENT_MAX_BUFFERED_BYTES', 1048576)),
     },
 
     // ─── CONFIDENCE GATES ───
@@ -332,6 +333,14 @@ function validate(config) {
   }
   if (config.mode.liveTrading && config.risk.riskManagerBypass) {
     errors.push('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
+  }
+
+  if (
+    !Number.isFinite(config.observability.traceEventMaxBufferedBytes)
+    || config.observability.traceEventMaxBufferedBytes <= 0
+    || config.observability.traceEventMaxBufferedBytes > 16777216
+  ) {
+    errors.push(`TRACE_EVENT_MAX_BUFFERED_BYTES out of range: ${config.observability.traceEventMaxBufferedBytes}`);
   }
 
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;

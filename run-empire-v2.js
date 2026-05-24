@@ -1117,6 +1117,7 @@ class OGZPrimeV14Bot {
       timeframe: this.candleTimeframe,
       evalTraceEnabled: resolvedConfig.config.observability.evalTraceEnabled,
       evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
+      traceEventMaxBufferedBytes: resolvedConfig.config.observability.traceEventMaxBufferedBytes,
       enableShorts: TradingConfig.get('features.enableShorts'),
       enableLiveTrading,
       enableBacktestMode,

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Trace WebSocket Feed (2026-05-24)
+
+- Added a structured `trace_event` WebSocket payload from the existing eval trace spine so dashboard/report modules can consume the same real trace events already written to `[EVAL-TRACE]` logs.
+- Kept the existing trace enablement gates intact: traces stay off when `evalTraceEnabled` is false, and backtest trace fanout stays off unless `evalTraceBacktest` is explicitly enabled.
+- Added payload sanitization for circular, non-finite, BigInt, function, accessor, invalid-date, and deeply nested values so telemetry cannot crash the trading path or execute getter/toJSON side effects on normal objects.
+- Added ConfigLoader-owned `TRACE_EVENT_MAX_BUFFERED_BYTES` backpressure control and fail-closed dashboard send skips for invalid caps or unknown/over-limit WebSocket buffers while preserving the console trace line.
+- Verification: `node --check`, focused Jest TraceSpine/ConfigLoader/TradingLoop/OrderExecutor coverage, `npm run test:smoke`, Mercury adversarial passes with adjudication, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Dashboard Chart And Goal Tracker Repair (2026-05-24)
 
 - Fixed the v2 dashboard chart panel sizing by targeting the live `#chartPanel` mount instead of the stale `#chartContainer` selector, allowing the chart to fill the center column.

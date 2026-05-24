@@ -138,7 +138,20 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.observability).toEqual(expect.objectContaining({
       evalTraceEnabled: true,
       evalTraceBacktest: false,
+      traceEventMaxBufferedBytes: 1048576,
     }));
+  });
+
+  test('rejects invalid trace event websocket backpressure config', () => {
+    process.env.TRACE_EVENT_MAX_BUFFERED_BYTES = '0';
+
+    expect(() => loadConfig()).toThrow(/TRACE_EVENT_MAX_BUFFERED_BYTES out of range/);
+  });
+
+  test('rejects loose trace event websocket backpressure config', () => {
+    process.env.TRACE_EVENT_MAX_BUFFERED_BYTES = '16777217';
+
+    expect(() => loadConfig()).toThrow(/TRACE_EVENT_MAX_BUFFERED_BYTES out of range/);
   });
 
   test('rejects invalid TTP volume cap config when eval rules are enabled', () => {
