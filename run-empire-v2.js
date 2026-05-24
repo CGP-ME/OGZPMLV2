@@ -15,6 +15,7 @@ if (resolvedConfig.config.backtest.silent ||
     // Only show critical output: COMPLETE, errors, final results
     const msg = args[0]?.toString() || '';
     if (msg.includes('TRADE-RECEIPT') ||
+        msg.includes('[EVAL-TRACE]') ||
         msg.includes('[SMS-') ||
         msg.includes('[BOOT]') ||
         msg.includes('BACKTEST COMPLETE') ||
@@ -102,6 +103,7 @@ require('./instrument.js');
 
 // ConfigLoader already loaded at line 4 (before Sentry)
 const envPath = resolvedConfig.config.paths.envFile;
+const { createTraceId, emitTrace } = require('./core/TraceSpine');
 
 
 // Log resolved paths for debugging
@@ -736,6 +738,14 @@ class OGZPrimeV14Bot {
       const ohlcHandler = (eventData) => {
         const tf = eventData.timeframe || '1m';
         const raw = eventData.data || eventData;
+        const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
+        emitTrace(this, 'CANDLE_INGRESS', {
+          traceId,
+          source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
+          brokerId: this.sessionRouter?.activeBroker?.id || null,
+          timeframe: tf,
+          payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
+        });
         const normalizedOhlcData = normalizeOhlc(raw);
         if (!normalizedOhlcData) {
           console.warn('[OHLC] dropped unnormalizable payload from', tf);
@@ -762,6 +772,14 @@ class OGZPrimeV14Bot {
           console.error(`[VIS][OHLC][Runner] dropped ${tf} SessionRouter candle: missing symbol | session=${this.sessionRouter?.activeSession || '(none)'} contexts=${describeSymbolContexts(this.symbolContexts)}`);
           return;
         }
+        emitTrace(this, 'CANDLE_NORMALIZED', {
+          traceId,
+          source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
+          symbol: sym,
+          timeframe: tf,
+          close: ohlcData[5],
+          etime: ohlcData[1],
+        });
         this.lastBrokerDataReceived = Date.now();
         this.lastBrokerDataSymbol = sym;
         this.lastBrokerDataTimeframe = tf;
@@ -779,13 +797,14 @@ class OGZPrimeV14Bot {
         this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
           this._markActiveTimeframeData(sym, tf);
-          this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf });
+          this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf, traceId });
         } else {
           this._feedAggregatedActiveCandle({
             symbol: sym,
             sourceTimeframe: tf,
             activeTimeframe: activeTf,
-            sourceLabel: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`
+            sourceLabel: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
+            traceId,
           });
         }
         if (tf === '5m' && this.timeframeSelector) {
@@ -796,7 +815,7 @@ class OGZPrimeV14Bot {
         }
         if (tf === activeTf && storedCandle?.isNewCandle) {
           console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-          this.run15mTradingCycle(sym);
+          this.run15mTradingCycle(sym, traceId);
         } else if (tf === activeTf && storedCandle && !storedCandle.isNewCandle) {
           const skipKey = `session:${sym}:${tf}`;
           this._visActiveTfUpdateSkipped ??= new Set();
@@ -1628,6 +1647,14 @@ class OGZPrimeV14Bot {
           // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
           const timeframe = eventData.timeframe || '1m';
           const raw = eventData.data || eventData;  // Support old format too
+          const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
+          emitTrace(this, 'CANDLE_INGRESS', {
+            traceId,
+            source: `single:${resolvedConfig.config.broker.id}`,
+            brokerId: resolvedConfig.config.broker.id,
+            timeframe,
+            payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
+          });
 
           // CHANGE 2026-04-24: Broker-agnostic OHLC normalizer. Every
           // adapter (Kraken arrays, Alpaca short-object, future adapters
@@ -1656,6 +1683,14 @@ class OGZPrimeV14Bot {
             return;
           }
           const ohlcClose = ohlcData[5];
+          emitTrace(this, 'CANDLE_NORMALIZED', {
+            traceId,
+            source: `single:${resolvedConfig.config.broker.id}`,
+            symbol: ohlcSymbol,
+            timeframe,
+            close: ohlcClose,
+            etime: ohlcData[1],
+          });
           this.lastBrokerDataReceived = Date.now();
           this.lastBrokerDataSymbol = ohlcSymbol;
           this.lastBrokerDataTimeframe = timeframe;
@@ -1677,13 +1712,14 @@ class OGZPrimeV14Bot {
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
             this._markActiveTimeframeData(ohlcSymbol, timeframe);
-            this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe });
+            this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe, traceId });
           } else {
             this._feedAggregatedActiveCandle({
               symbol: ohlcSymbol,
               sourceTimeframe: timeframe,
               activeTimeframe: activeTf,
-              sourceLabel: `single:${resolvedConfig.config.broker.id}`
+              sourceLabel: `single:${resolvedConfig.config.broker.id}`,
+              traceId,
             });
           }
 
@@ -1698,7 +1734,7 @@ class OGZPrimeV14Bot {
           // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
           if (timeframe === activeTf && storedCandle?.isNewCandle) {
             console.log(`V2: ${activeTf} candle closed - running trading analysis`);
-            this.run15mTradingCycle(ohlcSymbol);
+            this.run15mTradingCycle(ohlcSymbol, traceId);
           } else if (timeframe === activeTf && storedCandle && !storedCandle.isNewCandle) {
             const skipKey = `single:${ohlcSymbol}:${timeframe}`;
             this._visActiveTfUpdateSkipped ??= new Set();
@@ -1777,7 +1813,7 @@ class OGZPrimeV14Bot {
     return this.symbolTimeframeHistories.get(canonicalSymbol)?.get(timeframe) || [];
   }
 
-  _feedAggregatedActiveCandle({ symbol, sourceTimeframe, activeTimeframe, sourceLabel }) {
+  _feedAggregatedActiveCandle({ symbol, sourceTimeframe, activeTimeframe, sourceLabel, traceId }) {
     if (!this.candleAggregator || sourceTimeframe === activeTimeframe) {
       return null;
     }
@@ -1815,7 +1851,16 @@ class OGZPrimeV14Bot {
     const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc);
     this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
     this._markActiveTimeframeData(symbol, activeTimeframe);
-    this.handleMarketData({ data: activeOhlc, symbol, timeframe: activeTimeframe });
+    emitTrace(this, 'ACTIVE_CANDLE_AGGREGATED', {
+      traceId,
+      source: sourceLabel,
+      symbol,
+      sourceTimeframe,
+      activeTimeframe,
+      periodStart: activeCandle.t,
+      close: activeCandle.c,
+    });
+    this.handleMarketData({ data: activeOhlc, symbol, timeframe: activeTimeframe, traceId });
     this._emittedAggregatedActiveCandles.add(dedupeKey);
     if (this._emittedAggregatedActiveCandles.size > 1000) {
       this._emittedAggregatedActiveCandles = new Set(Array.from(this._emittedAggregatedActiveCandles).slice(-500));
@@ -1825,7 +1870,7 @@ class OGZPrimeV14Bot {
 
     if (storedCandle?.isNewCandle) {
       console.log(`V2: ${activeTimeframe} aggregate closed - running trading analysis`);
-      this.run15mTradingCycle(symbol);
+      this.run15mTradingCycle(symbol, traceId);
     }
 
     return { storedCandle, activeCandle };
@@ -1835,8 +1880,8 @@ class OGZPrimeV14Bot {
    * Handle incoming market data from WebSocket
    * REFACTOR Phase 19: Thin dispatcher to CandleProcessor
    */
-  handleMarketData(ohlcData) {
-    this.candleProcessor.handleMarketData(ohlcData);
+  handleMarketData(ohlcData, traceContext = null) {
+    this.candleProcessor.handleMarketData(ohlcData, traceContext);
   }
 
   /**
@@ -2224,18 +2269,25 @@ class OGZPrimeV14Bot {
    * live/paper mode. Defined as alias to analyzeAndTrade since the trading
    * loop doesn't differentiate timeframes.
    */
-  async run15mTradingCycle(symbol = this.tradingPair) {
+  async run15mTradingCycle(symbol = this.tradingPair, traceId = null) {
     // CC-C Commit 5/6: pass single-symbol canonical explicitly. Multi-symbol
     // mode (commit 6+) will dispatch per-symbol from the OHLC handler.
     const analysisSymbol = normalizeRuntimeSymbol(symbol);
     if (!analysisSymbol) {
       throw new Error(`run15mTradingCycle requires canonical symbol; got ${JSON.stringify(symbol)}`);
     }
+    const cycleTraceId = traceId || createTraceId('candle');
+    emitTrace(this, 'TRADING_CYCLE_TRIGGER', {
+      traceId: cycleTraceId,
+      symbol: analysisSymbol,
+      timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe,
+      defaultTradingPair: this.tradingPair,
+    });
     console.log(`[VIS][TradingCycle] triggerSymbol=${analysisSymbol} defaultTradingPair=${this.tradingPair}`);
-    return this.analyzeAndTrade(analysisSymbol);
+    return this.analyzeAndTrade(analysisSymbol, cycleTraceId);
   }
 
-  async analyzeAndTrade(symbol) {
+  async analyzeAndTrade(symbol, traceId = null) {
     // CC-C Commit 5/6: `symbol` is REQUIRED. Caller passes the symbol whose
     // candle is being acted on. TradingLoop.analyzeAndTrade enforces this
     // upstream; the redundant entry-check here keeps the runner-side contract
@@ -2255,7 +2307,7 @@ class OGZPrimeV14Bot {
     this.tradingLoop.ctx._lastTraiDecision = this._lastTraiDecision;
     this.tradingLoop.ctx.executeTrade = this.executeTrade.bind(this);
     this.tradingLoop.ctx.broadcastPatternAnalysis = this.broadcastPatternAnalysis.bind(this);
-    return this.tradingLoop.analyzeAndTrade(symbol);
+    return this.tradingLoop.analyzeAndTrade(symbol, traceId || undefined);
   }
 
 
@@ -2386,7 +2438,11 @@ class OGZPrimeV14Bot {
     // canonical. Multi-symbol BacktestRunner (commit 6+) replaces this with
     // per-candle dispatch.
     const tradingPair = this.tradingPair;
-    this.backtestRunner.ctx.analyzeAndTrade = () => this.analyzeAndTrade(tradingPair);
+    this.backtestRunner.ctx.symbol = tradingPair;
+    this.backtestRunner.ctx.timeframe = this.candleTimeframe;
+    this.backtestRunner.ctx.config = this.config;
+    this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
+    this.backtestRunner.ctx.analyzeAndTrade = (traceId) => this.analyzeAndTrade(tradingPair, traceId);
     return this.backtestRunner.loadHistoricalDataAndBacktest();
   }
 

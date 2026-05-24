@@ -19,6 +19,7 @@ const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { normalizeOhlc } = require('../foundation/ohlc-normalize');
 const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
+const { emitTrace } = require('./TraceSpine');
 const stateManager = getStateManager();
 
 // Candle accessors (V2 format)
@@ -117,6 +118,13 @@ class CandleProcessor {
     return timeframe.trim();
   }
 
+  _resolveTraceContext(options = {}) {
+    if (!options) return {};
+    if (typeof options === 'string') return { traceId: options };
+    if (typeof options === 'object') return options;
+    return {};
+  }
+
   /**
    * Process a candle - ONE CANONICAL PATH
    * Phase 5 REWRITE: Handles both new candles AND updates to existing candles
@@ -128,6 +136,7 @@ class CandleProcessor {
    */
   processNewCandle(candle, options = {}) {
     const persist = options.persist !== false;
+    const traceId = this._resolveTraceContext(options).traceId || candle.traceId || null;
     const candleTimeframe = this._resolveCandleTimeframe(candle);
     // Check if this is an update to existing candle or a new candle
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
@@ -166,6 +175,17 @@ class CandleProcessor {
             t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
           });
         }
+      }
+      if (traceId) {
+        emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
+          traceId,
+          symbol: candleStoreSymbol,
+          timeframe: candleTimeframe,
+          update: true,
+          priceHistory: this.ctx.priceHistory.length,
+          close: candle.c,
+          etime: candle.etime,
+        });
       }
       return false; // Was update, not new
     }
@@ -237,6 +257,17 @@ class CandleProcessor {
         if (symCtx.maDynamicSR)    symCtx.maDynamicSRSignal  = symCtx.maDynamicSR.update(candle, symCtx.priceHistory);
         if (symCtx.volumeProfile)  symCtx.volumeProfile.update(candle, symCtx.priceHistory);
       }
+    }
+    if (traceId) {
+      emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
+        traceId,
+        symbol: candleStoreSymbol,
+        timeframe: candleTimeframe,
+        update: false,
+        priceHistory: this.ctx.priceHistory.length,
+        close: candle.c,
+        etime: candle.etime,
+      });
     }
 
     // Warmup log (only first 20 candles)
@@ -394,7 +425,7 @@ class CandleProcessor {
    * @param {number} gapStart - Start timestamp
    * @param {number} gapEnd - End timestamp
    */
-  startBackfillRetry(gapStart, gapEnd) {
+  startBackfillRetry(gapStart, gapEnd, traceContext = {}) {
     if (this.backfillRetryInterval) return; // Already retrying
 
     console.log('[GAP-RECOVERY] Starting retry loop (every 60s)');
@@ -406,7 +437,11 @@ class CandleProcessor {
 
       if (candles.length > 0) {
         console.log(`[GAP-RECOVERY] Retry succeeded: ${candles.length} candles`);
-        this.handleBackfillSuccess(candles);
+        this.handleBackfillSuccess(candles, {
+          ...this._resolveTraceContext(traceContext),
+          gapStart,
+          gapEnd,
+        });
         this.stopBackfillRetry();
       }
     }, this.backfillRetryDelayMs);
@@ -435,8 +470,19 @@ class CandleProcessor {
    *
    * @param {Array<Array>} candles - Normalized canonical arrays (sorted)
    */
-  handleBackfillSuccess(candles) {
+  handleBackfillSuccess(candles, traceContext = {}) {
+    const traceOptions = this._resolveTraceContext(traceContext);
+    const traceId = traceOptions.traceId || null;
     console.log(`[GAP-RECOVERY] Processing ${candles.length} backfilled candles`);
+    if (traceId) {
+      emitTrace(this.ctx, 'GAP_BACKFILL_REPLAY', {
+        traceId,
+        source: traceOptions.source || 'gap_backfill',
+        candles: candles.length,
+        gapStart: traceOptions.gapStart,
+        gapEnd: traceOptions.gapEnd,
+      });
+    }
 
     // One canonical path - dedupe + insert + indicators all in one
     candles.forEach(arr => {
@@ -451,7 +497,7 @@ class CandleProcessor {
         c: arr[5],
         v: arr[7] != null ? arr[7] : 0,
       };
-      this.processNewCandle(candle);
+      this.processNewCandle(candle, { traceId });
     });
 
     console.log(`[GAP-RECOVERY] Backfilled ${candles.length} candles via REST`);
@@ -461,10 +507,12 @@ class CandleProcessor {
    * Handle incoming market data from WebSocket
    * Kraken OHLC format: [channelID, [time, etime, open, high, low, close, vwap, volume, count], channelName, pair]
    */
-  handleMarketData(ohlcInput) {
+  handleMarketData(ohlcInput, traceContext = {}) {
+    const traceOptions = this._resolveTraceContext(traceContext);
     const wrappedInput = ohlcInput && typeof ohlcInput === 'object' && !Array.isArray(ohlcInput)
       ? ohlcInput
       : null;
+    const traceId = traceOptions.traceId || wrappedInput?.traceId || wrappedInput?.data?.traceId || null;
     const stampedSymbol = normalizeCandleSymbol(wrappedInput?.symbol || wrappedInput?.data?.symbol || wrappedInput?.data?.S);
     const sourceTimeframe = typeof wrappedInput?.timeframe === 'string' && wrappedInput.timeframe.trim()
       ? wrappedInput.timeframe.trim()
@@ -483,6 +531,15 @@ class CandleProcessor {
     }
 
     const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
+    if (traceId) {
+      emitTrace(this.ctx, 'CANDLE_PROCESSOR_RECEIVED', {
+        traceId,
+        symbol: stampedSymbol || normalizeCandleSymbol(this.ctx.tradingPair) || null,
+        timeframe: sourceTimeframe,
+        close: Number(close),
+        etime: Number(etime),
+      });
+    }
 
     // CHANGE 2026-01-16: Track when we last received ANY data (for liveness watchdog)
     this.ctx.lastDataReceived = Date.now();
@@ -529,7 +586,8 @@ class CandleProcessor {
       v: parseFloat(volume),
       t: parseFloat(time) * 1000,  // Actual timestamp for display
       etime: parseFloat(etime) * 1000,  // End time for deduplication
-      timeframe: sourceTimeframe
+      timeframe: sourceTimeframe,
+      traceId,
     };
     if (stampedSymbol) candle.symbol = stampedSymbol;
 
@@ -558,13 +616,21 @@ class CandleProcessor {
 
           this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
             if (backfilledCandles.length > 0) {
-              this.handleBackfillSuccess(backfilledCandles);
+              this.handleBackfillSuccess(backfilledCandles, {
+                traceId,
+                source: 'gap_backfill',
+                gapStart: lastCandle.etime,
+                gapEnd: candle.etime,
+              });
               this.cleanCandleCount = 0;
             } else {
               console.error('[GAP-RECOVERY] Backfill failed, halting trading');
               this.ctx.staleFeedPaused = true;
               stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`);
-              this.startBackfillRetry(lastCandle.etime, candle.etime);
+              this.startBackfillRetry(lastCandle.etime, candle.etime, {
+                traceId,
+                source: 'gap_backfill_retry',
+              });
             }
           });
         }
@@ -584,7 +650,7 @@ class CandleProcessor {
     }
 
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
-    this.processNewCandle(candle);
+    this.processNewCandle(candle, { traceId });
 
     // Store latest market data
     // MED-07: propagate null for unparseable volume instead of phantom 0.

@@ -73,13 +73,12 @@ class TradingLoop {
    * runner; multi-symbol mode (commit 6+) passes per-dispatch symbol from
    * the OHLC handler. Throws on missing/invalid so callers fail loud.
    */
-  async analyzeAndTrade(symbol) {
+  async analyzeAndTrade(symbol, traceId = createTraceId('trace')) {
     if (typeof symbol !== 'string' || !symbol) {
       throw new Error(
         `TradingLoop.analyzeAndTrade requires explicit non-empty string symbol; got ${JSON.stringify(symbol)}`
       );
     }
-    const traceId = createTraceId('trace');
     // Concurrency guard — one analysis at a time
     if (this.analyzing) {
       emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'concurrency_guard' });

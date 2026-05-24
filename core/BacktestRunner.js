@@ -13,6 +13,7 @@
 
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
+const { createTraceId, emitTrace } = require('./TraceSpine');
 const stateManager = getStateManager();
 
 class BacktestRunner {
@@ -80,6 +81,22 @@ class BacktestRunner {
             t: polygonCandle.timestamp ?? polygonCandle.t
           };
 
+          const traceId = createTraceId('candle');
+          const traceContext = {
+            traceId,
+            source: 'backtest_file',
+            candleIndex: processedCount + 1,
+          };
+          emitTrace(this.ctx, 'CANDLE_INGRESS', {
+            traceId,
+            source: traceContext.source,
+            symbol: this.ctx.symbol || null,
+            timeframe: this.ctx.timeframe || null,
+            candleIndex: traceContext.candleIndex,
+            close: ohlcvCandle.c,
+            time: ohlcvCandle.t,
+          });
+
           // Feed through handleMarketData (same as live mode)
           this.ctx.handleMarketData([
             ohlcvCandle.t / 1000,  // time (in seconds for Kraken compatibility)
@@ -91,11 +108,11 @@ class BacktestRunner {
             0,  // vwap (not used)
             ohlcvCandle.v,
             1   // count
-          ]);
+          ], traceContext);
 
           // Run trading analysis after warmup (WITH TRAI!)
           if (this.ctx.priceHistory.length >= 15) {  // RSI backtest: was 200
-            await this.ctx.analyzeAndTrade();
+            await this.ctx.analyzeAndTrade(traceId);
           }
 
           processedCount++;
