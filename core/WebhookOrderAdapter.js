@@ -8,18 +8,23 @@ const https = require('https');
 
 class WebhookOrderAdapter {
     constructor(config = {}) {
-        this.webhookUrl = config.webhookUrl || process.env.SIGNALSTACK_WEBHOOK_URL;
-        this.enabled = config.enabled ?? (process.env.WEBHOOK_ORDERS_ENABLED === 'true');
-        // Dry-run default-true unless explicitly disabled. Vendor payload
-        // contract unverified at ship time; operator flips to false only
-        // after eyeballing dry-run logs against SignalStack docs.
-        this.dryRun = config.dryRun ?? (process.env.WEBHOOK_DRY_RUN !== 'false');
+        this.webhookUrl = config.webhookUrl || '';
+        this.enabled = config.enabled === true;
+        this.dryRun = config.dryRun !== false;
+        this.liveTrading = config.liveTrading === true || config.executionMode === 'live';
         this.timeout = config.timeout || 5000;
         this.orderLog = [];
         this.orderLogCap = config.orderLogCap || 500;
         this.lastOrderTime = 0;
 
+        if (this.liveTrading && this.enabled && this.dryRun) {
+            throw new Error('LIVE_TRADING=true cannot initialize WebhookOrderAdapter with WEBHOOK_DRY_RUN=true');
+        }
+
         if (this.enabled && !this.webhookUrl) {
+            if (this.liveTrading) {
+                throw new Error('LIVE_TRADING=true cannot initialize WebhookOrderAdapter with missing SIGNALSTACK_WEBHOOK_URL');
+            }
             console.error('[WebhookOrder] ENABLED but no SIGNALSTACK_WEBHOOK_URL set — disabling');
             this.enabled = false;
         }
@@ -35,10 +40,16 @@ class WebhookOrderAdapter {
             try {
                 const url = new URL(this.webhookUrl);
                 if (url.protocol !== 'https:') {
+                    if (this.liveTrading) {
+                        throw new Error(`LIVE_TRADING=true requires SIGNALSTACK_WEBHOOK_URL to use https:// (got ${url.protocol})`);
+                    }
                     console.error(`[WebhookOrder] SIGNALSTACK_WEBHOOK_URL must use https:// (got ${url.protocol}) — disabling`);
                     this.enabled = false;
                 }
             } catch (e) {
+                if (this.liveTrading) {
+                    throw new Error(`LIVE_TRADING=true requires valid SIGNALSTACK_WEBHOOK_URL: ${e.message}`);
+                }
                 console.error(`[WebhookOrder] INVALID SIGNALSTACK_WEBHOOK_URL (${this.webhookUrl}): ${e.message} — disabling`);
                 this.enabled = false;
             }

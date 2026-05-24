@@ -90,7 +90,7 @@ These flags must be verified from the running PM2 process, not only from `.env`.
 - [ ] `RISK_MANAGER_BYPASS=false`
 - [ ] `ACCOUNT_DRAWDOWN_BYPASS=false`
 - [ ] Startup hard-fails if `LIVE_TRADING=true` and `ACCOUNT_DRAWDOWN_BYPASS=true`.
-- [ ] Startup hard-fails if `LIVE_TRADING=true` and `WEBHOOK_DRY_RUN=true`, unless the selected broker path is a verified direct live broker route and SignalStack is intentionally disabled.
+- [x] Startup hard-fails if `LIVE_TRADING=true` and `WEBHOOK_DRY_RUN=true`, unless the selected broker path is a verified direct live broker route and SignalStack is intentionally disabled.
 
 ## Gate B - State And Broker Truth
 
@@ -202,7 +202,7 @@ Each eval rule must have focused test coverage:
 - [ ] Earnings-night block.
 - [ ] Daily loss pause from start-of-day balance.
 - [ ] Max loss boundary.
-- [ ] Illegal runtime flag combination hard-fails startup.
+- [x] Illegal runtime flag combination hard-fails startup.
 
 ## Gate G - Verification And Commit Discipline
 

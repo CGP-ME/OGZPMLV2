@@ -17,6 +17,11 @@ describe('ConfigLoader live trading safety guard', () => {
       CONFIRM_LIVE_TRADING: 'false',
       RISK_MANAGER_BYPASS: 'false',
       ACCOUNT_DRAWDOWN_BYPASS: 'false',
+      WEBHOOK_ORDERS_ENABLED: 'false',
+      WEBHOOK_DRY_RUN: 'true',
+      SIGNALSTACK_WEBHOOK_URL: '',
+      WEBHOOK_TIMEOUT_MS: '5000',
+      WEBHOOK_ORDER_LOG_CAP: '500',
       EVAL_RULES_ENABLED: 'false',
       TTP_RULES_ENABLED: 'false',
       TTP_VOLUME_CAP_ENABLED: 'true',
@@ -85,6 +90,56 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.mode.liveTrading).toBe(true);
     expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
+  });
+
+  test('throws during live startup when enabled webhook route is still dry-run', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'true';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'https://signalstack.example/webhook';
+
+    expect(() => loadConfig()).toThrow(/WEBHOOK_DRY_RUN=true/);
+  });
+
+  test('throws during live startup when enabled webhook route has no URL', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = '';
+
+    expect(() => loadConfig()).toThrow(/missing SIGNALSTACK_WEBHOOK_URL/);
+  });
+
+  test('throws when enabled webhook route uses non-https URL', () => {
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'http://signalstack.example/webhook';
+
+    expect(() => loadConfig()).toThrow(/must use https/);
+  });
+
+  test('throws when enabled webhook route has malformed URL', () => {
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'not a url';
+
+    expect(() => loadConfig()).toThrow(/SIGNALSTACK_WEBHOOK_URL is invalid/);
+  });
+
+  test('allows direct live broker route when webhook orders are disabled', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'false';
+    process.env.WEBHOOK_DRY_RUN = 'true';
+    process.env.SIGNALSTACK_WEBHOOK_URL = '';
+
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.webhookOrders.enabled).toBe(false);
+    expect(loaded.config.webhookOrders.dryRun).toBe(true);
   });
 
   test('loads TTP volume cap policy from ConfigLoader defaults', () => {

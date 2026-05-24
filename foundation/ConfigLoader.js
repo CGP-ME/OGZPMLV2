@@ -248,6 +248,15 @@ function buildConfig() {
       };
     })(),
 
+    // ─── WEBHOOK ORDER ROUTE (SignalStack/TTP side-channel) ───
+    webhookOrders: {
+      enabled: track('webhookOrders.enabled', envBool('WEBHOOK_ORDERS_ENABLED', false)),
+      dryRun: track('webhookOrders.dryRun', envBool('WEBHOOK_DRY_RUN', true)),
+      webhookUrl: track('webhookOrders.webhookUrl', envStr('SIGNALSTACK_WEBHOOK_URL', '')),
+      timeoutMs: track('webhookOrders.timeoutMs', envInt('WEBHOOK_TIMEOUT_MS', 5000)),
+      orderLogCap: track('webhookOrders.orderLogCap', envInt('WEBHOOK_ORDER_LOG_CAP', 500)),
+    },
+
     // ─── TRAI (AI) ───
     trai: {
       enabled: track('trai.enabled', envBool('ENABLE_TRAI', false)),
@@ -334,6 +343,22 @@ function validate(config) {
   if (config.mode.liveTrading && config.risk.riskManagerBypass) {
     errors.push('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
   }
+  if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
+    errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');
+  }
+  if (config.mode.liveTrading && config.webhookOrders.enabled && !config.webhookOrders.webhookUrl) {
+    errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and missing SIGNALSTACK_WEBHOOK_URL');
+  }
+  if (config.webhookOrders.enabled && config.webhookOrders.webhookUrl) {
+    try {
+      const webhookUrl = new URL(config.webhookOrders.webhookUrl);
+      if (webhookUrl.protocol !== 'https:') {
+        errors.push(`SIGNALSTACK_WEBHOOK_URL must use https:// when WEBHOOK_ORDERS_ENABLED=true, got ${webhookUrl.protocol}`);
+      }
+    } catch (error) {
+      errors.push(`SIGNALSTACK_WEBHOOK_URL is invalid when WEBHOOK_ORDERS_ENABLED=true: ${error.message}`);
+    }
+  }
 
   if (
     !Number.isFinite(config.observability.traceEventMaxBufferedBytes)
@@ -341,6 +366,12 @@ function validate(config) {
     || config.observability.traceEventMaxBufferedBytes > 16777216
   ) {
     errors.push(`TRACE_EVENT_MAX_BUFFERED_BYTES out of range: ${config.observability.traceEventMaxBufferedBytes}`);
+  }
+  if (!Number.isInteger(config.webhookOrders.timeoutMs) || config.webhookOrders.timeoutMs <= 0) {
+    errors.push(`WEBHOOK_TIMEOUT_MS out of range: ${config.webhookOrders.timeoutMs}`);
+  }
+  if (!Number.isInteger(config.webhookOrders.orderLogCap) || config.webhookOrders.orderLogCap <= 0) {
+    errors.push(`WEBHOOK_ORDER_LOG_CAP out of range: ${config.webhookOrders.orderLogCap}`);
   }
 
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;

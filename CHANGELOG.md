@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Webhook Dry-Run Startup Guard (2026-05-24)
+
+- Added ConfigLoader ownership for SignalStack webhook order settings so `WEBHOOK_ORDERS_ENABLED`, `WEBHOOK_DRY_RUN`, `SIGNALSTACK_WEBHOOK_URL`, `WEBHOOK_TIMEOUT_MS`, and `WEBHOOK_ORDER_LOG_CAP` are typed and validated in the same startup path as the rest of eval posture.
+- Made live startup fail loudly when webhook orders are enabled but still dry-run, missing a URL, or using an invalid/non-HTTPS SignalStack URL, while preserving direct live broker mode when webhook orders are disabled.
+- Hardened `WebhookOrderAdapter` with the same live-mode invariant so direct construction cannot silently run live webhook orders in dry-run mode.
+- Verification: `node --check`, focused ConfigLoader/WebhookOrderAdapter Jest coverage, `npm run test:smoke`, Mercury adversarial attack with adjudication, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Webhook Order Dispatch Trace (2026-05-24)
 
 - Added `WEBHOOK_ORDER_DISPATCH` and `WEBHOOK_ORDER_RESULT` trace events around the SignalStack webhook side-channel so eval/report views can see local webhook attempt, dry-run, HTTP status, rejection, or failure outcomes without claiming broker fills.

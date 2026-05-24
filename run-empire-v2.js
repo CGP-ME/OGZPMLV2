@@ -1126,10 +1126,16 @@ class OGZPrimeV14Bot {
 
     console.log(`Trading Mode: ${tradingMode}`);
 
-    // CC-C: Webhook order adapter (TTP via SignalStack). Default OFF + dry-run
-    // gated; reads WEBHOOK_ORDERS_ENABLED / WEBHOOK_DRY_RUN / SIGNALSTACK_WEBHOOK_URL
-    // from .env. Threaded into OrderExecutor ctx for the 4 entry/exit emit sites.
-    this.webhookAdapter = new WebhookOrderAdapter();
+    // CC-C: Webhook order adapter (TTP via SignalStack), fed only by
+    // ConfigLoader so live startup can hard-fail unsafe dry-run posture.
+    this.webhookAdapter = new WebhookOrderAdapter({
+      webhookUrl: resolvedConfig.config.webhookOrders.webhookUrl,
+      enabled: resolvedConfig.config.webhookOrders.enabled,
+      dryRun: resolvedConfig.config.webhookOrders.dryRun,
+      liveTrading: enableLiveTrading,
+      timeout: resolvedConfig.config.webhookOrders.timeoutMs,
+      orderLogCap: resolvedConfig.config.webhookOrders.orderLogCap,
+    });
     this.evalRuleEngine = new EvalRuleEngine({
       config: resolvedConfig.config.evalRules,
       getCandles: (symbol, timeframe) => this.getSymbolTimeframeCandles(symbol, timeframe),
