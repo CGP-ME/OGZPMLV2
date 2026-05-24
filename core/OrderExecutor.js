@@ -218,6 +218,63 @@ class OrderExecutor {
     return result;
   }
 
+  _emitWebhookOrder(action, signal, traceFields = {}) {
+    const baseFields = {
+      traceId: traceFields.traceId || null,
+      signalId: traceFields.signalId || null,
+      decisionId: traceFields.decisionId || null,
+      symbol: signal?.symbol || traceFields.symbol || null,
+      action,
+      webhookAction: signal?.action || null,
+      quantity: signal?.quantity ?? null,
+      orderType: signal?.orderType || null,
+      bypassThrottle: signal?.bypassThrottle === true,
+    };
+
+    emitTrace(this.ctx, 'WEBHOOK_ORDER_DISPATCH', baseFields);
+
+    let emitPromise;
+    try {
+      emitPromise = this.ctx.webhookAdapter.emit(signal);
+    } catch (err) {
+      const message = err?.message || String(err);
+      console.warn(`[WebhookOrder] ${action} emit failed: ${message}`);
+      emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
+        ...baseFields,
+        success: false,
+        sent: false,
+        reason: message,
+        thrown: true,
+      });
+      return Promise.resolve();
+    }
+
+    return Promise.resolve(emitPromise)
+      .then(result => {
+        const response = result?.response || null;
+        emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
+          ...baseFields,
+          success: result?.sent === true,
+          sent: result?.sent === true,
+          reason: result?.reason || null,
+          httpStatus: response?.status ?? null,
+          responseBody: typeof response?.body === 'string' ? response.body.slice(0, 500) : null,
+          dryRun: result?.reason === 'dry_run',
+        });
+      })
+      .catch(err => {
+        const message = err?.message || String(err);
+        console.warn(`[WebhookOrder] ${action} emit failed: ${message}`);
+        emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
+          ...baseFields,
+          success: false,
+          sent: false,
+          reason: message,
+          rejected: true,
+        });
+      });
+  }
+
   /**
    * Execute a trade. CC-C Multi-Symbol Commit 5/6: `symbol` is now a REQUIRED
    * trailing argument. Caller passes the symbol whose candle/decision is being
@@ -784,12 +841,12 @@ class OrderExecutor {
                 // quantity=0 just generates ValidationError without changing the outcome.
                 console.warn(`[WebhookOrder] DRIFT BLOCKED: BUY entry qty=${shares} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot opened internally; TTP won't see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
               } else {
-                this.ctx.webhookAdapter.emit({
+                this._emitWebhookOrder('BUY', {
                   action: 'buy',
                   symbol,
                   quantity: shares,
                   orderType: 'market',
-                }).catch(err => console.warn(`[WebhookOrder] BUY emit failed: ${err.message}`));
+                }, { traceId, signalId, decisionId, symbol });
               }
             }
           }
@@ -982,12 +1039,12 @@ class OrderExecutor {
                 // quantity=0 just generates ValidationError without changing the outcome.
                 console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL_SHORT entry qty=${shares} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot opened internally; TTP won't see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
               } else {
-                this.ctx.webhookAdapter.emit({
+                this._emitWebhookOrder('SELL_SHORT', {
                   action: 'sell',
                   symbol,
                   quantity: shares,
                   orderType: 'market',
-                }).catch(err => console.warn(`[WebhookOrder] SELL_SHORT emit failed: ${err.message}`));
+                }, { traceId, signalId, decisionId, symbol });
               }
             }
           }
@@ -1280,13 +1337,13 @@ class OrderExecutor {
                   // quantity=0 just generates ValidationError without changing the outcome.
                   console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${isPartialClose ? 'partial' : 'full'} exit qty=${shares} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
                 } else {
-                  this.ctx.webhookAdapter.emit({
+                  this._emitWebhookOrder('SELL', {
                     action: 'sell',
                     symbol,
                     quantity: shares,
                     orderType: 'market',
                     bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                  }).catch(err => console.warn(`[WebhookOrder] SELL emit failed: ${err.message}`));
+                  }, { traceId, signalId, decisionId, symbol });
                 }
               }
             }
@@ -1740,13 +1797,13 @@ class OrderExecutor {
                 // quantity=0 just generates ValidationError without changing the outcome.
                 console.warn(`[WebhookOrder] DRIFT BLOCKED: COVER qty=${shares} (shortSize=$${shortSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot covered internally; TTP short position will diverge until next viable emit. INVESTIGATE: short USD too small for asset price.`);
               } else {
-                this.ctx.webhookAdapter.emit({
+                this._emitWebhookOrder('COVER', {
                   action: 'buy',
                   symbol,
                   quantity: shares,
                   orderType: 'market',
                   bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                }).catch(err => console.warn(`[WebhookOrder] COVER emit failed: ${err.message}`));
+                }, { traceId, signalId, decisionId, symbol });
               }
             }
           }

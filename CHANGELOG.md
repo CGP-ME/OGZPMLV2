@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Webhook Order Dispatch Trace (2026-05-24)
+
+- Added `WEBHOOK_ORDER_DISPATCH` and `WEBHOOK_ORDER_RESULT` trace events around the SignalStack webhook side-channel so eval/report views can see local webhook attempt, dry-run, HTTP status, rejection, or failure outcomes without claiming broker fills.
+- Preserved the existing fire-and-forget trading-loop behavior and kept BUY, SELL_SHORT, SELL, and COVER webhook payloads unchanged.
+- Verification: `node --check`, focused OrderExecutor Jest coverage, `npm run test:smoke`, Mercury adversarial attack, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Eval Trace WebSocket Feed (2026-05-24)
 
 - Added a structured `trace_event` WebSocket payload from the existing eval trace spine so dashboard/report modules can consume the same real trace events already written to `[EVAL-TRACE]` logs.

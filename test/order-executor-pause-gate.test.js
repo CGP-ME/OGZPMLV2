@@ -700,4 +700,129 @@ describe('OrderExecutor pause gate', () => {
 
     expect(sendOrder).not.toHaveBeenCalled();
   });
+
+  test('webhook side-channel emits dispatch and local result trace events without blocking', async () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const webhookAdapter = {
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: 'accepted' },
+      }),
+    };
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const executor = makeExecutor(
+      {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      {
+        dashboardWs,
+        dashboardWsConnected: true,
+        webhookAdapter,
+      }
+    );
+
+    await executor._emitWebhookOrder('BUY', {
+      action: 'buy',
+      symbol: 'TSLA',
+      quantity: 5,
+      orderType: 'market',
+    }, {
+      traceId: 'trace_webhook_1',
+      signalId: 'signal_webhook_1',
+      decisionId: 'decision_webhook_1',
+      symbol: 'TSLA',
+    });
+
+    expect(webhookAdapter.emit).toHaveBeenCalledWith({
+      action: 'buy',
+      symbol: 'TSLA',
+      quantity: 5,
+      orderType: 'market',
+    });
+    expect(dashboardWs.send).toHaveBeenCalledTimes(2);
+
+    const dispatch = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    const result = JSON.parse(dashboardWs.send.mock.calls[1][0]);
+    expect(dispatch).toEqual(expect.objectContaining({
+      type: 'trace_event',
+      event: 'WEBHOOK_ORDER_DISPATCH',
+      traceId: 'trace_webhook_1',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(dispatch.fields).toEqual(expect.objectContaining({
+      webhookAction: 'buy',
+      quantity: 5,
+      orderType: 'market',
+      bypassThrottle: false,
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      type: 'trace_event',
+      event: 'WEBHOOK_ORDER_RESULT',
+      traceId: 'trace_webhook_1',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(result.fields).toEqual(expect.objectContaining({
+      success: true,
+      sent: true,
+      httpStatus: 202,
+      responseBody: 'accepted',
+    }));
+
+    logSpy.mockRestore();
+  });
+
+  test('webhook side-channel converts rejected adapter promises into failed result traces', async () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const webhookAdapter = {
+      emit: jest.fn().mockRejectedValue(new Error('network down')),
+    };
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const executor = makeExecutor(
+      {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      {
+        dashboardWs,
+        dashboardWsConnected: true,
+        webhookAdapter,
+      }
+    );
+
+    await expect(executor._emitWebhookOrder('SELL', {
+      action: 'sell',
+      symbol: 'TSLA',
+      quantity: 3,
+      orderType: 'market',
+      bypassThrottle: true,
+    }, {
+      traceId: 'trace_webhook_2',
+      signalId: 'signal_webhook_2',
+      decisionId: 'decision_webhook_2',
+      symbol: 'TSLA',
+    })).resolves.toBeUndefined();
+
+    expect(dashboardWs.send).toHaveBeenCalledTimes(2);
+    const result = JSON.parse(dashboardWs.send.mock.calls[1][0]);
+    expect(result).toEqual(expect.objectContaining({
+      type: 'trace_event',
+      event: 'WEBHOOK_ORDER_RESULT',
+      traceId: 'trace_webhook_2',
+      symbol: 'TSLA',
+      action: 'SELL',
+    }));
+    expect(result.fields).toEqual(expect.objectContaining({
+      success: false,
+      sent: false,
+      reason: 'network down',
+      rejected: true,
+      bypassThrottle: true,
+    }));
+    expect(warnSpy).toHaveBeenCalledWith('[WebhookOrder] SELL emit failed: network down');
+
+    logSpy.mockRestore();
+  });
 });
