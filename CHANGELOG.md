@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Chart And Goal Tracker Repair (2026-05-24)
+
+- Fixed the v2 dashboard chart panel sizing by targeting the live `#chartPanel` mount instead of the stale `#chartContainer` selector, allowing the chart to fill the center column.
+- Added a candle-pane floor so stacked oscillator panes cannot crush the price chart down to an unusable strip.
+- Removed GoalTracker's floating fallback when no docked `#goalTracker` mount exists, preventing the widget from overlaying the watchlist strip.
+- Raised the header strip height to match the current dashboard layout.
+- Verification: JS syntax checks passed, live files serve HTTP 200 from `ogz-websocket`, permissions are `644`, and only `ogz-websocket` was restarted while `ogz-prime-v2` kept its PID.
+
 ### TTP Consistency Profit-Cap Exit Guard (2026-05-23)
 
 - Added a TTP consistency guard that forces a full stock exit when an open position's unrealized profit reaches the configured maximum position-profit ratio against the configured profit target.

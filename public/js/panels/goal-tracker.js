@@ -37,6 +37,15 @@
     const ROOT_ID_TARGET = 'goalTracker';      // preferred mount if exists
     const FLOATING_ROOT_ID = 'ogzGoalTrackerFloating';
 
+    // Profile gate: 'operator' shows the personal Houston-fund framing;
+    // anything else (default) shows a generic profit-goal label so nothing
+    // private renders on a shipped dashboard. Operator opts in per-browser:
+    //   localStorage.setItem('ogz.profile','operator')
+    const IS_OPERATOR = (function () {
+        try { return localStorage.getItem('ogz.profile') === 'operator'; }
+        catch (_) { return false; }
+    })();
+
     // Defaults aligned with original mover/goalTracker.js
     const DEFAULTS = {
         houstonTarget: 10000,
@@ -177,10 +186,15 @@
         let container = document.getElementById(ROOT_ID_TARGET);
         let floating = false;
         if (!container) {
-            container = document.createElement('div');
-            container.id = FLOATING_ROOT_ID;
-            document.body.appendChild(container);
-            floating = true;
+            // The floating top-left fallback was built for the pre-v2 layout.
+            // In the v2 shell it renders ON TOP of the watchlist strip and has
+            // to be clicked away before the dashboard is even usable -- a live
+            // bug on the shipped site. The v2 shell has no docked #goalTracker
+            // mount point, so GoalTracker now does NOT render at all rather
+            // than floating over other panels. To bring it back, add
+            // <div id="goalTracker"></div> to the dashboard at a deliberate,
+            // docked location and it will mount there instead.
+            return false;
         }
         container.innerHTML = `
             <div class="ogz-goal-tracker ${floating ? 'floating' : ''}">
@@ -198,7 +212,7 @@
                 </div>
                 <div class="ogz-gt-houston">
                     <div class="ogz-gt-houston-row">
-                        <span>🚀 Houston Fund</span>
+                        <span>${IS_OPERATOR ? 'Houston Fund' : 'Profit Goal'}</span>
                         <span class="ogz-gt-houston-pct" data-k="houstonPct">0%</span>
                     </div>
                     <div class="ogz-gt-bar">

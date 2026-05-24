@@ -184,6 +184,15 @@
     position: relative;
     width: 100%;
     height: 100%;
+    /* #45 companion: the candle pane is a flex:1 child of .cp-container,
+       which ALSO holds the stacked oscillator panes (volume/rsi/macd/atr --
+       up to ~360px combined). With no floor here, 4 active osc panes crush
+       the candle pane to near-zero on any column that isn't very tall (see
+       the "uhhhh" screenshot -- candle ~40px, only osc labels visible).
+       This floor guarantees the price chart always stays the dominant pane;
+       if the column is too short to fit floor + osc stack, .cp-container's
+       overflow:hidden clips an oscillator rather than the candle. */
+    min-height: 260px;
 }
 
 /* Lightweight Charts canvas styling */

@@ -266,14 +266,18 @@
             padding: 0;
         }
 
-        /* Chart container — sized dynamically by chart.js */
-        #chartContainer {
-            flex: 2;
-            min-height: 300px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px;
+        /* Chart panel -- self-rendered by chart-panel.js (#chartPanel gets
+           class .cp-root at mount). #45: this element previously had NO
+           sizing rule at all -- the old rule here targeted a stale
+           #chartContainer ID that no longer exists in the DOM, so the chart
+           sat at its min-content height and never filled the center column.
+           flex:1 lets it absorb all leftover column height; the strategy
+           leaderboard + readouts row keep their own fixed sizes.
+           Background/border/radius come from .cp-root in chart-panel.css --
+           intentionally NOT duplicated here to avoid a double border. */
+        #chartPanel {
+            flex: 1 1 auto;
+            min-height: 360px;
             overflow: hidden;
         }
 

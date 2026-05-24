@@ -178,7 +178,7 @@
                 background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
                 border-bottom: 1px solid rgba(255, 255, 255, 0.15);
                 box-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-                height: 60px;
+                height: 66px;
                 position: relative;
                 z-index: 10;
             }
