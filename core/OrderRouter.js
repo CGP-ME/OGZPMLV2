@@ -45,7 +45,7 @@ class OrderRouter extends EventEmitter {
    * @param {string[]} symbols - Symbols this adapter handles ['BTC/USD', 'ETH/USD']
    */
   registerBroker(adapter, symbols) {
-    const name = adapter.getBrokerName ? adapter.getBrokerName() : 'unknown';
+    const name = this._normalizeBrokerName(adapter.getBrokerName ? adapter.getBrokerName() : 'unknown');
 
     // Store adapter reference
     this.adapters.set(name, adapter);
@@ -163,12 +163,18 @@ class OrderRouter extends EventEmitter {
    */
   async getAllPositions(options = {}) {
     const symbolSet = this._symbolSet(options.symbols);
+    const brokerNameSet = this._brokerNameSet(options.brokerNames);
     const allPositions = [];
+    let matchedAdapters = 0;
 
     for (const [name, adapter] of this.adapters) {
+      if (brokerNameSet && !brokerNameSet.has(name)) {
+        continue;
+      }
       if (symbolSet && !this._adapterMatchesSymbols(name, symbolSet)) {
         continue;
       }
+      matchedAdapters += 1;
 
       try {
         const positions = await adapter.getPositions();
@@ -189,18 +195,29 @@ class OrderRouter extends EventEmitter {
       }
     }
 
+    if (brokerNameSet && matchedAdapters === 0 && options.strict === true) {
+      throw new Error(`[OrderRouter] broker scope matched no adapters: ${Array.from(brokerNameSet).join(',')}`);
+    }
+
     return allPositions;
   }
 
   async cancelAllOpenOrders(options = {}) {
     const symbolSet = this._symbolSet(options.symbols);
+    const brokerNameSet = this._brokerNameSet(options.brokerNames);
     const results = [];
+    let matchedAdapters = 0;
 
     for (const [name, adapter] of this.adapters) {
+      if (brokerNameSet && !brokerNameSet.has(name)) {
+        results.push({ broker: name, skipped: true, reason: 'broker_not_in_scope' });
+        continue;
+      }
       if (symbolSet && !this._adapterMatchesSymbols(name, symbolSet)) {
         results.push({ broker: name, skipped: true, reason: 'no_matching_symbols' });
         continue;
       }
+      matchedAdapters += 1;
       if (typeof adapter.getOpenOrders !== 'function' || typeof adapter.cancelOrder !== 'function') {
         results.push({ broker: name, success: false, reason: 'adapter_missing_order_cancel_api' });
         continue;
@@ -224,6 +241,13 @@ class OrderRouter extends EventEmitter {
         results.push({ broker: name, success: false, reason: error.message });
       }
     }
+    if (brokerNameSet && matchedAdapters === 0) {
+      results.push({
+        broker: Array.from(brokerNameSet).join(','),
+        success: false,
+        reason: 'broker_scope_matched_no_adapters',
+      });
+    }
 
     const failed = results.filter(r => r.success === false);
     return {
@@ -237,6 +261,33 @@ class OrderRouter extends EventEmitter {
   _symbolSet(symbols) {
     if (!Array.isArray(symbols) || symbols.length === 0) return null;
     return new Set(symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean));
+  }
+
+  _brokerNameSet(brokerNames) {
+    if (!Array.isArray(brokerNames) || brokerNames.length === 0) return null;
+    return new Set(brokerNames.map(name => this._normalizeBrokerName(name)).filter(Boolean));
+  }
+
+  _normalizeBrokerName(name) {
+    return String(name || '').trim().toLowerCase();
+  }
+
+  getBrokerNamesByAssetType(assetTypes = []) {
+    const targetTypes = new Set((Array.isArray(assetTypes) ? assetTypes : [assetTypes])
+      .map(type => String(type || '').trim().toLowerCase())
+      .filter(Boolean));
+    if (targetTypes.size === 0) return [];
+
+    const names = [];
+    for (const [name, adapter] of this.adapters) {
+      const type = typeof adapter.getAssetType === 'function'
+        ? String(adapter.getAssetType() || '').trim().toLowerCase()
+        : '';
+      if (targetTypes.has(type)) {
+        names.push(name);
+      }
+    }
+    return names;
   }
 
   _adapterMatchesSymbols(name, symbolSet) {

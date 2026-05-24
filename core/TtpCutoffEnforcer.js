@@ -9,6 +9,8 @@ class TtpCutoffEnforcer {
     getExitPrice,
     assetClass,
     symbols = [],
+    getSymbols,
+    brokerNames = [],
     now = () => Date.now(),
     logger = console,
   } = {}) {
@@ -18,7 +20,10 @@ class TtpCutoffEnforcer {
     this.executeTrade = executeTrade;
     this.getExitPrice = getExitPrice;
     this.assetClass = assetClass;
-    this.symbols = this._buildSymbolScope(symbols);
+    this.baseSymbols = Array.isArray(symbols) ? symbols.slice() : [];
+    this.getSymbols = typeof getSymbols === 'function' ? getSymbols : null;
+    this.brokerNames = this._normalizeBrokerNames(brokerNames);
+    this.symbols = this._buildSymbolScope(this.baseSymbols);
     this.now = now;
     this.logger = logger;
     this.completedKeys = new Set();
@@ -39,22 +44,23 @@ class TtpCutoffEnforcer {
     }
 
     const key = `${state.currentDateET}:${state.cutoffMinute}`;
-    if (this.completedKeys.has(key)) {
-      return { enforced: true, alreadyCompleted: true, state };
-    }
+    const alreadyCompleted = this.completedKeys.has(key);
     if (this.inFlight) {
       return { enforced: true, alreadyInFlight: true, state };
     }
 
+    const symbolScope = this._currentSymbolScope();
+    const targetAllBrokerStocks = this.brokerNames.length > 0;
+
     this.inFlight = true;
     try {
-      const cancelResult = await this._cancelOpenOrders();
+      const cancelResult = await this._cancelOpenOrders(symbolScope);
       if (cancelResult && cancelResult.success === false) {
         throw new Error(`[TTP_MARKET_TIME] pending-order cancellation failed: ${JSON.stringify(cancelResult.results)}`);
       }
 
-      const brokerPositions = await this._getBrokerPositions();
-      const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions);
+      const brokerPositions = await this._getBrokerPositions(symbolScope);
+      const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions, symbolScope, targetAllBrokerStocks);
       const activeTrades = this._activeTrades();
       const failures = [];
       const closed = [];
@@ -66,7 +72,7 @@ class TtpCutoffEnforcer {
         const symbol = trade.symbol;
         const normalizedSymbol = this._normalizeSymbol(symbol);
         activeTradeSymbols.add(normalizedSymbol);
-        if (!this._isTargetSymbol(normalizedSymbol)) {
+        if (!targetAllBrokerStocks && !this._isTargetSymbol(normalizedSymbol, symbolScope)) {
           failures.push({ tradeId, symbol, reason: 'symbol_not_in_ttp_cutoff_scope' });
           continue;
         }
@@ -103,8 +109,8 @@ class TtpCutoffEnforcer {
         }
       }
 
-      const refreshedPositions = await this._getBrokerPositions();
-      const brokerOrphans = this._ttpBrokerPositions(refreshedPositions)
+      const refreshedPositions = await this._getBrokerPositions(symbolScope);
+      const brokerOrphans = this._ttpBrokerPositions(refreshedPositions, symbolScope, targetAllBrokerStocks)
         .filter(position => !activeTradeSymbols.has(this._normalizeSymbol(position.symbol)));
       const orphanClosed = [];
       for (const position of brokerOrphans) {
@@ -121,7 +127,7 @@ class TtpCutoffEnforcer {
         }
       }
 
-      const finalPositions = this._ttpBrokerPositions(await this._getBrokerPositions());
+      const finalPositions = this._ttpBrokerPositions(await this._getBrokerPositions(symbolScope), symbolScope, targetAllBrokerStocks);
       if (finalPositions.length > 0) {
         failures.push({
           reason: 'broker_positions_still_open_after_cutoff',
@@ -140,7 +146,7 @@ class TtpCutoffEnforcer {
 
       this.completedKeys.add(key);
       this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0}`);
-      return { enforced: true, state, cancelResult, closed, orphanClosed };
+      return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed };
     } finally {
       this.inFlight = false;
     }
@@ -161,18 +167,18 @@ class TtpCutoffEnforcer {
     return this._isTtpStockAssetClass(assetClass);
   }
 
-  async _cancelOpenOrders() {
+  async _cancelOpenOrders(symbolScope) {
     if (!this.orderRouter || typeof this.orderRouter.cancelAllOpenOrders !== 'function') {
       return { success: true, skipped: true, reason: 'missing_cancel_api', cancelled: 0, failed: 0, results: [] };
     }
-    return this.orderRouter.cancelAllOpenOrders({ symbols: this.symbols });
+    return this.orderRouter.cancelAllOpenOrders(this._routerScope(symbolScope));
   }
 
-  async _getBrokerPositions() {
+  async _getBrokerPositions(symbolScope) {
     if (!this.orderRouter || typeof this.orderRouter.getAllPositions !== 'function') {
       return [];
     }
-    return this.orderRouter.getAllPositions({ symbols: this.symbols, strict: true });
+    return this.orderRouter.getAllPositions({ ...this._routerScope(symbolScope), strict: true });
   }
 
   async _closeBrokerPosition(position) {
@@ -206,13 +212,13 @@ class TtpCutoffEnforcer {
     };
   }
 
-  _ttpBrokerPositions(positions) {
+  _ttpBrokerPositions(positions, symbolScope = this._currentSymbolScope(), targetAllBrokerStocks = this.brokerNames.length > 0) {
     if (!Array.isArray(positions)) return [];
     return positions.filter(position => {
       const size = Math.abs(Number(position?.size));
       return Number.isFinite(size)
         && size > 0
-        && this._isTargetSymbol(position?.symbol);
+        && (targetAllBrokerStocks || this._isTargetSymbol(position?.symbol, symbolScope));
     });
   }
 
@@ -223,11 +229,11 @@ class TtpCutoffEnforcer {
       : null;
   }
 
-  _isTargetSymbol(symbol) {
+  _isTargetSymbol(symbol, symbolScope = this._currentSymbolScope()) {
     const normalized = this._normalizeSymbol(symbol);
     if (!normalized) return false;
-    if (this.symbols.length === 0) return !normalized.includes('-');
-    return this.symbols.includes(normalized);
+    if (symbolScope.length === 0) return !normalized.includes('-');
+    return symbolScope.includes(normalized);
   }
 
   _isTtpStockAssetClass(assetClass) {
@@ -249,6 +255,29 @@ class TtpCutoffEnforcer {
       }
     }
     return Array.from(scope);
+  }
+
+  _currentSymbolScope() {
+    const dynamicSymbols = this.getSymbols ? this.getSymbols() : [];
+    const merged = [
+      ...this.baseSymbols,
+      ...(Array.isArray(dynamicSymbols) ? dynamicSymbols : []),
+    ];
+    return this._buildSymbolScope(merged);
+  }
+
+  _normalizeBrokerNames(brokerNames) {
+    if (!Array.isArray(brokerNames)) return [];
+    return [...new Set(brokerNames
+      .map(name => String(name || '').trim().toLowerCase())
+      .filter(Boolean))];
+  }
+
+  _routerScope(symbolScope = this._currentSymbolScope()) {
+    if (this.brokerNames.length > 0) {
+      return { brokerNames: this.brokerNames };
+    }
+    return { symbols: symbolScope };
   }
 
   _normalizeStockSymbol(symbol) {

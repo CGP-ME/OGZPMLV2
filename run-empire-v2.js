@@ -1177,6 +1177,14 @@ class OGZPrimeV14Bot {
       // FIX 2026-03-29: Add strategyOrchestrator for SMS daily loss tracking
       strategyOrchestrator: this.strategyOrchestrator
     });
+    const isTtpStockAssetClass = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf']
+      .includes(String(this.config.assetClass || '').trim().toLowerCase());
+    const stockBrokerNames = this.orderRouter?.getBrokerNamesByAssetType
+      ? this.orderRouter.getBrokerNamesByAssetType(['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'])
+      : [];
+    const ttpCutoffBrokerNames = isTtpStockAssetClass
+      ? (this.sessionRouter ? ['alpaca'] : stockBrokerNames)
+      : [];
     this.ttpCutoffEnforcer = new TtpCutoffEnforcer({
       evalRuleEngine: this.evalRuleEngine,
       stateManager,
@@ -1185,6 +1193,11 @@ class OGZPrimeV14Bot {
       getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
       assetClass: this.config.assetClass,
       symbols: this.ttpCutoffSymbols,
+      getSymbols: () => [
+        ...(Array.isArray(this.ttpCutoffSymbols) ? this.ttpCutoffSymbols : []),
+        ...(Array.isArray(this.sessionRouter?.stockSymbols) ? this.sessionRouter.stockSymbols : []),
+      ],
+      brokerNames: ttpCutoffBrokerNames,
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies

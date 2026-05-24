@@ -236,6 +236,79 @@ describe('TtpCutoffEnforcer', () => {
     ]);
   });
 
+  test('broker-scoped cutoff closes dynamic stock symbols not present at construction', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 2, failed: 0, results: [] })),
+      getAllPositions: jest.fn()
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'MSFT', size: 2, side: 'long', currentPrice: 310 }])
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'MSFT', size: 2, side: 'long', currentPrice: 310 }])
+        .mockResolvedValueOnce([]),
+      sendOrder: jest.fn(async () => ({ orderId: 'CLOSE_MSFT' })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => new Map()) },
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerNames: ['alpaca'],
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({ brokerNames: ['alpaca'] });
+    expect(orderRouter.getAllPositions).toHaveBeenCalledWith({ brokerNames: ['alpaca'], strict: true });
+    expect(orderRouter.sendOrder).toHaveBeenCalledWith({
+      symbol: 'MSFT',
+      side: 'sell',
+      amount: 2,
+      type: 'market',
+      options: {
+        quantityUnit: 'shares',
+        exitReason: 'ttp_1550_broker_reconciliation',
+      },
+    });
+    expect(result.orphanClosed).toEqual([
+      { broker: 'alpaca', symbol: 'MSFT', side: 'sell', amount: 2, orderId: 'CLOSE_MSFT' },
+    ]);
+  });
+
+  test('rechecks after a completed cutoff key so late pending orders cannot survive', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 1, failed: 0, results: [] })),
+      getAllPositions: jest.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => new Map()) },
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      now,
+      logger: { log: jest.fn() },
+    });
+    enforcer.completedKeys.add('2026-05-22:950');
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.alreadyCompleted).toBe(true);
+    expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({
+      symbols: expect.arrayContaining(['TSLA']),
+    });
+  });
+
   test('does not mark complete while target broker positions remain open', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const orderRouter = {
@@ -309,5 +382,48 @@ describe('TtpCutoffEnforcer', () => {
     expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({
       symbols: expect.arrayContaining(['AAPL', 'AAPL-USD']),
     });
+  });
+
+  test('refreshes symbol scope from the supplied getter before each cutoff run', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_MSFT', makeTrade({ id: 'BUY_MSFT', orderId: 'BUY_MSFT', symbol: 'MSFT' })]]);
+    const executeTrade = jest.fn(async () => {
+      activeTrades.delete('BUY_MSFT');
+    });
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 1, failed: 0, results: [] })),
+      getAllPositions: jest.fn()
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'MSFT', size: 1, side: 'long', currentPrice: 310 }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => activeTrades) },
+      orderRouter,
+      executeTrade,
+      getExitPrice: jest.fn(() => 310),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      getSymbols: () => ['MSFT'],
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    await enforcer.enforce();
+
+    expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({
+      symbols: expect.arrayContaining(['TSLA', 'MSFT']),
+    });
+    expect(executeTrade).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'SELL', tradeId: 'BUY_MSFT' }),
+      expect.any(Object),
+      310,
+      expect.any(Object),
+      expect.any(Array),
+      null,
+      null,
+      'MSFT'
+    );
   });
 });
