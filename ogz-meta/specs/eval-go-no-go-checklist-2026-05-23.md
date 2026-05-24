@@ -67,7 +67,7 @@ For each fix, record the earliest checkpoint that is now proven and the earliest
 | 7 | Eval Gates | Every TTP rule check logs pass/fail with inputs before broker/webhook side effects. | Partial: 5 percent volume and 15:50 market-time gates landed; daily loss, max loss, earnings, and consistency remain open. |
 | 8 | Order Boundary | Broker/webhook request and response are logged with order ID, status, quantity, side, and rejection reason. | Partial: broker quantity routing is fixed; full SignalStack/TTP response trace still needs live-path proof. |
 | 9 | State After | State mutates only after broker/webhook outcome, or records a pending/unknown state with reconciliation path. | Partial: live exit quantity truth landed; restart/retry reconciliation still requires explicit proof. |
-| 10 | Dashboard/Logs | Dashboard and logs show the same symbol, account, state, rule result, order result, and skip/exit reason. | Partial: dashboard visibility improved; eval trace joins are not complete. |
+| 10 | Dashboard/Logs | Dashboard and logs show the same symbol, account, state, rule result, order result, and skip/exit reason. | Partial: dashboard visibility improved; eval trace joins are not complete, and the pretty live trade report/customer stimulation pass is now tracked below. |
 | 11 | Restart/Retry | Restart replay cannot duplicate entries, lose broker positions, or claim flat while broker is not flat. | Partial: 15:50 enforcer rechecks broker flatness; global restart reconciliation remains open. |
 
 Commit rule: the commit body or session note for every fix must include `Trace ladder advanced:` and `Next red checkpoint:`. If a fix only improves isolated mechanics without advancing the trace ladder, it can still land, but it does not reduce eval go/no-go risk until a trace checkpoint proves it.
@@ -215,6 +215,21 @@ Each eval rule must have focused test coverage:
 - [ ] Verify state file and broker account after restart.
 - [ ] Verify logs contain the rule check and the broker/order boundary outcome.
 - [ ] Push the passing commit before cowork/GitHub ZIP verification.
+
+## Gate H - Live Trade Report And Dashboard Stimulation
+
+This gate is not a substitute for Gate C signal-path proof. It is the operator/customer presentation layer on top of the same trace data. It must make the live bot easier to understand without ever making the dashboard lie.
+
+- [ ] Build an append-only live trade report feed from existing trace events instead of duplicating trade-path logic in the frontend.
+- [ ] Assemble each trade story by trace ID: ingress, normalization, state before, strategy winner, rejected/no-signal reasons, sizing, risk gates, eval gates, broker/webhook boundary, state after, exit trigger, take-profit/stop details, and final PnL.
+- [ ] Reuse the existing modular dashboard surfaces first: `confidence-heatbar.js`, `bot-intelligence.js`, `strategy-leaderboard.js`, `trade-replay.js`, `custom-alerts.js`, and `ambient-fx.js`.
+- [ ] Feed the existing ensemble/winner UI from real backend payloads. Do not build a second fake strategy slider or duplicate winner display.
+- [ ] Fix the `confidenceHeatbar` duplicate-mount landmine before relying on it for the customer report view. The HTML already has `#confidenceHeatbar`; the module must mount into that element instead of creating a second root with the same id.
+- [ ] Add the customer psychological stimulation pass as a restrained event-driven visual layer: flashes, light-ups, blinks, glows, pulses, and ambient motion are allowed only when tied to real events.
+- [ ] Allowed visual triggers: new signal, strategy winner change, eval gate pass, eval gate block, order sent, broker accepted, broker rejected, state mutation, forced cutoff close, earnings block, consistency cap exit, trade exit, and realized PnL update.
+- [ ] Blocked visual triggers: fake profit, synthetic trades, placeholder wins, hydration defaults, stale account values, disconnected broker state, or any success animation not backed by a real trace event.
+- [ ] Visual intensity must respect operator mode and reduced-motion settings. Effects must never cover critical price, state, broker, risk, or rule-failure information.
+- [ ] The report view must be useful during quiet/no-trade periods: show the latest no-signal reason, data freshness, active symbol/timeframe/account, and last rule checks rather than pretending something happened.
 
 ## First Implementation Target
 
