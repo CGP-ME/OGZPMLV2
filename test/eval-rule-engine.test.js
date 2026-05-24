@@ -34,6 +34,12 @@ function config(overrides = {}) {
         maxLossThresholdEquity: 47500,
         ...overrides.accountLimits,
       },
+      earningsRestriction: {
+        enabled: true,
+        blockEntries: true,
+        requireKnownStatus: true,
+        ...overrides.earningsRestriction,
+      },
       ...overrides.ttp,
     },
     ...overrides,
@@ -55,6 +61,7 @@ function entryPlan(overrides = {}) {
     currentEquity: 50000,
     orderQuantity: 500,
     quantityUnit: 'shares',
+    hasEarningsTonight: false,
     ...overrides,
   };
 }
@@ -230,8 +237,82 @@ describe('EvalRuleEngine TTP volume cap', () => {
     expect(result.passedRules).toEqual(expect.arrayContaining([
       'TTP_DAILY_LOSS_PAUSE',
       'TTP_MAX_LOSS',
+      'TTP_EARNINGS_RESTRICTION',
       'TTP_VOLUME_5_PERCENT',
     ]));
+  });
+
+  test('blocks entries when earnings are scheduled tonight', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 100000)] });
+
+    const result = await engine.check(entryPlan({
+      hasEarningsTonight: true,
+      orderQuantity: 10,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'earnings_tonight_no_openings',
+      hasEarningsTonight: true,
+      statusSource: 'entryPlan.hasEarningsTonight',
+      action: 'BLOCK_ORDER',
+    })]);
+  });
+
+  test('fails closed when earnings status is missing', async () => {
+    const engine = makeEngine({ candles: [candle(-60000, 100000)] });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'missing_earnings_status',
+      hasEarningsTonight: null,
+      action: 'BLOCK_ORDER',
+    })]);
+  });
+
+  test('fails closed when TTP config omits the earnings restriction block', async () => {
+    const cfg = config();
+    delete cfg.ttp.earningsRestriction;
+    const engine = makeEngine({ cfg, candles: [candle(-60000, 100000)] });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'missing_earnings_status',
+      action: 'BLOCK_ORDER',
+    })]);
+  });
+
+  test('accepts an injected earnings provider as the status source', async () => {
+    const getEarningsStatus = jest.fn(() => ({ hasEarningsTonight: false, source: 'test-provider' }));
+    const engine = new EvalRuleEngine({
+      config: config(),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      getEarningsStatus,
+      now: () => BASE_TIME,
+    });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(true);
+    expect(getEarningsStatus).toHaveBeenCalledWith('TSLA', '2023-11-14', expect.objectContaining({ symbol: 'TSLA' }));
+    expect(result.passedRules).toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      statusSource: 'test-provider',
+      hasEarningsTonight: false,
+    }));
   });
 
   test('blocks new openings during the TTP liquidation window', async () => {

@@ -3,9 +3,10 @@
 const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
 
 class EvalRuleEngine {
-  constructor({ config = {}, getCandles, now = () => Date.now(), marketCalendar = getMarketCalendar() } = {}) {
+  constructor({ config = {}, getCandles, getEarningsStatus, now = () => Date.now(), marketCalendar = getMarketCalendar() } = {}) {
     this.config = config || {};
     this.getCandles = getCandles;
+    this.getEarningsStatus = getEarningsStatus;
     this.now = now;
     this.marketCalendar = marketCalendar;
     this.openingVolumeReservations = new Map();
@@ -41,6 +42,21 @@ class EvalRuleEngine {
     }
     if (marketTimeResult.inputs?.enabled !== false) {
       passedRules.push('TTP_MARKET_TIME');
+    }
+
+    const earningsResult = await this._checkTtpEarningsRestriction(entryPlan);
+    Object.assign(inputs, earningsResult.inputs || {});
+    if (earningsResult.allowed === false) {
+      return {
+        allowed: false,
+        failedRules: [earningsResult.failure],
+        passedRules,
+        inputs,
+        ...identity,
+      };
+    }
+    if (earningsResult.inputs?.enabled !== false) {
+      passedRules.push('TTP_EARNINGS_RESTRICTION');
     }
 
     const accountLimitsResult = this._checkTtpAccountLimits(entryPlan);
@@ -140,6 +156,53 @@ class EvalRuleEngine {
     }
 
     return { allowed: true, inputs: state };
+  }
+
+  async _checkTtpEarningsRestriction(entryPlan) {
+    const cfg = this.config.ttp?.earningsRestriction || {
+      enabled: true,
+      blockEntries: true,
+      requireKnownStatus: true,
+    };
+    if (cfg.enabled !== true) {
+      return { allowed: true, inputs: { ruleId: 'TTP_EARNINGS_RESTRICTION', enabled: false } };
+    }
+
+    const currentDateET = this.marketCalendar.getNYTimeParts(new Date(this.now())).date;
+    let statusResult;
+    try {
+      statusResult = await this._resolveEarningsStatus(entryPlan, currentDateET);
+    } catch (error) {
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_status_error', {
+        symbol: entryPlan.symbol,
+        currentDateET,
+        statusSource: 'provider',
+        error: error.message,
+      });
+    }
+
+    const inputs = {
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      symbol: entryPlan.symbol,
+      currentDateET,
+      statusSource: statusResult.source,
+      hasEarningsTonight: statusResult.hasEarningsTonight,
+      requireKnownStatus: cfg.requireKnownStatus !== false,
+      blockEntries: cfg.blockEntries !== false,
+    };
+
+    if (statusResult.known !== true) {
+      if (cfg.requireKnownStatus === false) {
+        return { allowed: true, inputs };
+      }
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'missing_earnings_status', inputs);
+    }
+
+    if (cfg.blockEntries !== false && statusResult.hasEarningsTonight === true) {
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_tonight_no_openings', inputs);
+    }
+
+    return { allowed: true, inputs };
   }
 
   _checkTtpAccountLimits(entryPlan) {
@@ -286,6 +349,53 @@ class EvalRuleEngine {
     this.openingVolumeReservations.set(key, projectedShares);
 
     return { allowed: true, inputs };
+  }
+
+  async _resolveEarningsStatus(entryPlan, currentDateET) {
+    if (typeof entryPlan.hasEarningsTonight === 'boolean') {
+      return {
+        known: true,
+        hasEarningsTonight: entryPlan.hasEarningsTonight,
+        source: 'entryPlan.hasEarningsTonight',
+      };
+    }
+    if (typeof entryPlan.earningsTonight === 'boolean') {
+      return {
+        known: true,
+        hasEarningsTonight: entryPlan.earningsTonight,
+        source: 'entryPlan.earningsTonight',
+      };
+    }
+    if (typeof entryPlan.earnings?.hasEarningsTonight === 'boolean') {
+      return {
+        known: true,
+        hasEarningsTonight: entryPlan.earnings.hasEarningsTonight,
+        source: 'entryPlan.earnings.hasEarningsTonight',
+      };
+    }
+
+    if (typeof this.getEarningsStatus === 'function') {
+      const status = await this.getEarningsStatus(entryPlan.symbol, currentDateET, entryPlan);
+      if (typeof status === 'boolean') {
+        return { known: true, hasEarningsTonight: status, source: 'provider.boolean' };
+      }
+      if (typeof status?.hasEarningsTonight === 'boolean') {
+        return {
+          known: true,
+          hasEarningsTonight: status.hasEarningsTonight,
+          source: status.source || 'provider.hasEarningsTonight',
+        };
+      }
+      if (typeof status?.earningsTonight === 'boolean') {
+        return {
+          known: true,
+          hasEarningsTonight: status.earningsTonight,
+          source: status.source || 'provider.earningsTonight',
+        };
+      }
+    }
+
+    return { known: false, hasEarningsTonight: null, source: null };
   }
 
   _findReferenceCandle(candles, fallbackToMostRecentVolume, maxReferenceAgeMs) {

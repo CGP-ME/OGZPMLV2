@@ -35,6 +35,9 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_ACCOUNT_START_OF_DAY_EQUITY: '50000',
       TTP_DAILY_LOSS_LIMIT_DOLLARS: '500',
       TTP_MAX_LOSS_THRESHOLD_EQUITY: '47500',
+      TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
+      TTP_EARNINGS_BLOCK_ENTRIES: 'true',
+      TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
       MIN_TRADE_CONFIDENCE: '0.50',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
@@ -109,6 +112,11 @@ describe('ConfigLoader live trading safety guard', () => {
           accountStartOfDayEquity: 50000,
           dailyLossDollars: 500,
           maxLossThresholdEquity: 47500,
+        }),
+        earningsRestriction: expect.objectContaining({
+          enabled: true,
+          blockEntries: true,
+          requireKnownStatus: true,
         }),
       }),
     }));
@@ -210,6 +218,22 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '0';
 
     expect(() => loadConfig()).toThrow(/TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured/);
+  });
+
+  test('rejects disabling TTP earnings restriction when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_EARNINGS_RESTRICTION_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_RESTRICTION_ENABLED=false is illegal/);
+  });
+
+  test('rejects allowing unknown TTP earnings status when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'false';
+
+    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal/);
   });
 
   test('keeps backtest bypass combinations non-blocking', () => {

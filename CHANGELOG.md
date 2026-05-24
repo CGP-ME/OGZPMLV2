@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Earnings-Night Restriction Gate (2026-05-23)
+
+- Added a fail-closed pre-order TTP earnings restriction that blocks stock openings when earnings are scheduled tonight or when earnings status is unknown.
+- Added ConfigLoader-managed `TTP_EARNINGS_RESTRICTION_ENABLED`, `TTP_EARNINGS_BLOCK_ENTRIES`, and `TTP_EARNINGS_REQUIRE_KNOWN_STATUS` controls; when eval/TTP rules are enabled, disabling or softening the earnings rule is illegal.
+- Kept earnings status explicit via entry-plan status or an injected provider, with provider errors and malformed provider returns blocking instead of guessing.
+- Verification: `node --check`, focused Jest EvalRuleEngine/ConfigLoader/OrderExecutor/cutoff coverage, `npm run test:smoke`, Mercury adversarial recheck, earnings-block trace proof, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### TTP Account Loss Limit Gate (2026-05-23)
 
 - Added a pre-order TTP account-limit gate that blocks stock entries when current equity is missing, at or below the configured max-loss threshold, at or below the fixed start-of-day daily-loss pause threshold, or based on stale start-of-day equity from another ET trading date.

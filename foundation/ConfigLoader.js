@@ -204,6 +204,11 @@ function buildConfig() {
           dailyLossDollars: track('evalRules.ttp.accountLimits.dailyLossDollars', envStrictFloat('TTP_DAILY_LOSS_LIMIT_DOLLARS', 0)),
           maxLossThresholdEquity: track('evalRules.ttp.accountLimits.maxLossThresholdEquity', envStrictFloat('TTP_MAX_LOSS_THRESHOLD_EQUITY', 0)),
         },
+        earningsRestriction: {
+          enabled: track('evalRules.ttp.earningsRestriction.enabled', envBool('TTP_EARNINGS_RESTRICTION_ENABLED', true)),
+          blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', envBool('TTP_EARNINGS_BLOCK_ENTRIES', true)),
+          requireKnownStatus: track('evalRules.ttp.earningsRestriction.requireKnownStatus', envBool('TTP_EARNINGS_REQUIRE_KNOWN_STATUS', true)),
+        },
       },
     },
 
@@ -326,6 +331,7 @@ function validate(config) {
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;
   const ttpMarketTime = config.evalRules?.ttp?.marketTime;
   const ttpAccountLimits = config.evalRules?.ttp?.accountLimits;
+  const ttpEarningsRestriction = config.evalRules?.ttp?.earningsRestriction;
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpVolumeCap?.enabled) {
     if (!Number.isFinite(ttpVolumeCap.percent) || ttpVolumeCap.percent <= 0 || ttpVolumeCap.percent > 1) {
       errors.push(`TTP_VOLUME_CAP_PERCENT out of range: ${ttpVolumeCap.percent}`);
@@ -352,6 +358,9 @@ function validate(config) {
     if (ttpAccountLimits?.enabled !== true) {
       errors.push('TTP_ACCOUNT_LIMITS_ENABLED=false is illegal when TTP eval rules are enabled');
     }
+    if (ttpEarningsRestriction?.enabled !== true) {
+      errors.push('TTP_EARNINGS_RESTRICTION_ENABLED=false is illegal when TTP eval rules are enabled');
+    }
   }
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpAccountLimits?.enabled) {
     if (ttpAccountLimits.enforceDailyLossPause !== true || ttpAccountLimits.enforceMaxLoss !== true) {
@@ -372,6 +381,14 @@ function validate(config) {
       if (!Number.isFinite(ttpAccountLimits.maxLossThresholdEquity) || ttpAccountLimits.maxLossThresholdEquity <= 0) {
         errors.push(`TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured for max loss enforcement, got ${ttpAccountLimits.maxLossThresholdEquity}`);
       }
+    }
+  }
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpEarningsRestriction?.enabled) {
+    if (ttpEarningsRestriction.blockEntries !== true) {
+      errors.push('TTP_EARNINGS_BLOCK_ENTRIES=false is illegal when TTP eval rules are enabled');
+    }
+    if (ttpEarningsRestriction.requireKnownStatus !== true) {
+      errors.push('TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal when TTP eval rules are enabled');
     }
   }
 
