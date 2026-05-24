@@ -13,8 +13,17 @@ const mockStateManager = {
   getSymbolHaltReason: jest.fn(() => null),
 };
 
+const mockExitContractManager = {
+  updateMaxProfit: jest.fn(),
+  checkExitConditions: jest.fn(() => ({ shouldExit: false })),
+};
+
 jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
+}));
+
+jest.mock('../core/ExitContractManager', () => ({
+  getInstance: () => mockExitContractManager,
 }));
 
 const TradingLoop = require('../core/TradingLoop');
@@ -35,6 +44,8 @@ describe('TradingLoop trace spine', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStateManager.getTradesBySymbol.mockReturnValue([]);
+    mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false });
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -113,5 +124,360 @@ describe('TradingLoop trace spine', () => {
       timeframe: '15m',
       executionMode: 'paper',
     }));
+  });
+
+  test('applies the TTP consistency cap on the main candle exit path', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_MAIN_1' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_MAIN_1',
+      orderId: 'BUY_MAIN_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: {
+        symbol: 'TSLA',
+        price: 190,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      config: {
+        minTradeConfidence: 0.5,
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      strategyOrchestrator: {
+        evaluate: jest.fn(() => ({
+          direction: 'hold',
+          confidence: 0,
+          winnerStrategy: null,
+          allResults: [],
+          confluence: { count: 0, strategies: [] },
+          sizingMultiplier: 1,
+        })),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade,
+      broadcastPatternAnalysis: jest.fn(),
+    };
+    const loop = new TradingLoop(ctx);
+    loop._gatherData = jest.fn(() => ({
+      indicators: {
+        rsi: 55,
+        macd: {},
+        trend: 'sideways',
+        atr: 1,
+        ema20: 100,
+        ema50: 100,
+      },
+      patterns: [],
+      regime: { currentRegime: 'sideways' },
+      tpoResult: null,
+      fibLevels: null,
+      nearestFibLevel: null,
+      nearestStructure: null,
+    }));
+    loop._runTRAI = jest.fn();
+    loop._broadcastDecision = jest.fn();
+
+    await loop._analyze('TSLA', 'trace_consistency_main');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'BUY_MAIN_1',
+      traceId: 'trace_consistency_main',
+      signalId: 'trace_consistency_main:exit',
+    }));
+    expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
+  });
+
+  test('forces a TTP consistency exit when an open stock position reaches the configured profit cap', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_1' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_1',
+      orderId: 'BUY_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: {
+        symbol: 'TSLA',
+        price: 190,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: {
+            enabled: true,
+            maxPositionProfitRatio: 0.30,
+            profitTargetDollars: 3000,
+          },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade,
+    };
+    const loop = new TradingLoop(ctx);
+
+    await loop._checkExitsOnly('TSLA');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'BUY_1',
+    }));
+    expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
+  });
+
+  test('does not let a missing active-trade asset class bypass the TTP consistency cap in stock runtime', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_2' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_2',
+      orderId: 'BUY_2',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 190, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade,
+    };
+    const loop = new TradingLoop(ctx);
+
+    await loop._checkExitsOnly('TSLA');
+
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'BUY_2',
+    }));
+  });
+
+  test('forces a TTP consistency cover when a short position reaches the configured profit cap', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_SHORT_1' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'SHORT_1',
+      orderId: 'SHORT_1',
+      direction: 'SHORT',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const loop = new TradingLoop({
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 10, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade,
+    });
+
+    await loop._checkExitsOnly('TSLA');
+
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'COVER',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'SHORT_1',
+    }));
+  });
+
+  test('fails loud when runtime asset class is missing while TTP consistency rules are enabled', async () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_4',
+      orderId: 'BUY_4',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const loop = new TradingLoop({
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 190, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade: jest.fn(),
+    });
+
+    await expect(loop._checkExitsOnly('TSLA')).rejects.toThrow(/runtime assetClass missing/);
+  });
+
+  test('fails loud instead of filtering out a malformed active trade before TTP consistency evaluation', async () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'MALFORMED_1',
+      orderId: 'MALFORMED_1',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const loop = new TradingLoop({
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 190, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade: jest.fn(),
+    });
+
+    await expect(loop._checkExitsOnly('TSLA')).rejects.toThrow(/missing close side/);
+  });
+
+  test('fails loud when TTP consistency config is missing while TTP eval rules are enabled', async () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_3',
+      orderId: 'BUY_3',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const loop = new TradingLoop({
+      priceHistory: candles(30),
+      marketData: { symbol: 'TSLA', price: 190, timestamp: 1700000000000, volume: 1000 },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: { enabled: true, ttp: { enabled: true } },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade: jest.fn(),
+    });
+
+    await expect(loop._checkExitsOnly('TSLA')).rejects.toThrow(/consistency rule disabled or missing/);
   });
 });

@@ -1211,6 +1211,7 @@ class OGZPrimeV14Bot {
       patternChecker: this.patternChecker,
       symbolContexts: this.symbolContexts,
       config: this.config,
+      evalRules: resolvedConfig.config.evalRules,
       riskManager: this.riskManager,
       pendingTraiDecisions: this.pendingTraiDecisions,
       trai: this.trai,

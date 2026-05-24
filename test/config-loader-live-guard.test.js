@@ -38,12 +38,16 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
       TTP_EARNINGS_BLOCK_ENTRIES: 'true',
       TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
+      TTP_CONSISTENCY_ENABLED: 'true',
+      TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
+      TTP_PROFIT_TARGET_DOLLARS: '3000',
+      TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.10',
       MIN_TRADE_CONFIDENCE: '0.50',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
       STOP_LOSS_PERCENT: '1.5',
       TAKE_PROFIT_PERCENT: '2.0',
-      INITIAL_BALANCE: '10000',
+      INITIAL_BALANCE: '50000',
     };
   });
 
@@ -117,6 +121,12 @@ describe('ConfigLoader live trading safety guard', () => {
           enabled: true,
           blockEntries: true,
           requireKnownStatus: true,
+        }),
+        consistency: expect.objectContaining({
+          enabled: true,
+          maxPositionProfitRatio: 0.30,
+          profitTargetDollars: 3000,
+          maxProfitTargetInitialBalanceRatio: 0.10,
         }),
       }),
     }));
@@ -234,6 +244,47 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'false';
 
     expect(() => loadConfig()).toThrow(/TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal/);
+  });
+
+  test('rejects missing TTP profit target when consistency rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '0';
+
+    expect(() => loadConfig()).toThrow(/TTP_PROFIT_TARGET_DOLLARS must be configured/);
+  });
+
+  test('rejects disabling TTP consistency enforcement when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_CONSISTENCY_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/TTP_CONSISTENCY_ENABLED=false is illegal/);
+  });
+
+  test('rejects invalid TTP consistency ratio when eval rules are enabled', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '1.5';
+
+    expect(() => loadConfig()).toThrow(/TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO out of range/);
+  });
+
+  test('rejects TTP profit targets above the configured initial-balance ratio cap', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.INITIAL_BALANCE = '50000';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '6000';
+
+    expect(() => loadConfig()).toThrow(/TTP_PROFIT_TARGET_DOLLARS too high for initial balance/);
+  });
+
+  test('rejects loosening the TTP profit-target ratio cap above the funded maximum', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.50';
+
+    expect(() => loadConfig()).toThrow(/TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO out of range/);
   });
 
   test('keeps backtest bypass combinations non-blocking', () => {

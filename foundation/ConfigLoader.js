@@ -209,6 +209,12 @@ function buildConfig() {
           blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', envBool('TTP_EARNINGS_BLOCK_ENTRIES', true)),
           requireKnownStatus: track('evalRules.ttp.earningsRestriction.requireKnownStatus', envBool('TTP_EARNINGS_REQUIRE_KNOWN_STATUS', true)),
         },
+        consistency: {
+          enabled: track('evalRules.ttp.consistency.enabled', envBool('TTP_CONSISTENCY_ENABLED', true)),
+          maxPositionProfitRatio: track('evalRules.ttp.consistency.maxPositionProfitRatio', envStrictFloat('TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO', 0.30)),
+          profitTargetDollars: track('evalRules.ttp.consistency.profitTargetDollars', envStrictFloat('TTP_PROFIT_TARGET_DOLLARS', 0)),
+          maxProfitTargetInitialBalanceRatio: track('evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio', envStrictFloat('TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO', 0.10)),
+        },
       },
     },
 
@@ -332,6 +338,7 @@ function validate(config) {
   const ttpMarketTime = config.evalRules?.ttp?.marketTime;
   const ttpAccountLimits = config.evalRules?.ttp?.accountLimits;
   const ttpEarningsRestriction = config.evalRules?.ttp?.earningsRestriction;
+  const ttpConsistency = config.evalRules?.ttp?.consistency;
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpVolumeCap?.enabled) {
     if (!Number.isFinite(ttpVolumeCap.percent) || ttpVolumeCap.percent <= 0 || ttpVolumeCap.percent > 1) {
       errors.push(`TTP_VOLUME_CAP_PERCENT out of range: ${ttpVolumeCap.percent}`);
@@ -361,6 +368,9 @@ function validate(config) {
     if (ttpEarningsRestriction?.enabled !== true) {
       errors.push('TTP_EARNINGS_RESTRICTION_ENABLED=false is illegal when TTP eval rules are enabled');
     }
+    if (ttpConsistency?.enabled !== true) {
+      errors.push('TTP_CONSISTENCY_ENABLED=false is illegal when TTP eval rules are enabled');
+    }
   }
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpAccountLimits?.enabled) {
     if (ttpAccountLimits.enforceDailyLossPause !== true || ttpAccountLimits.enforceMaxLoss !== true) {
@@ -389,6 +399,21 @@ function validate(config) {
     }
     if (ttpEarningsRestriction.requireKnownStatus !== true) {
       errors.push('TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal when TTP eval rules are enabled');
+    }
+  }
+  if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpConsistency?.enabled) {
+    if (!Number.isFinite(ttpConsistency.maxPositionProfitRatio) || ttpConsistency.maxPositionProfitRatio <= 0 || ttpConsistency.maxPositionProfitRatio > 1) {
+      errors.push(`TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO out of range: ${ttpConsistency.maxPositionProfitRatio}`);
+    }
+    if (!Number.isFinite(ttpConsistency.profitTargetDollars) || ttpConsistency.profitTargetDollars <= 0) {
+      errors.push(`TTP_PROFIT_TARGET_DOLLARS must be configured for consistency enforcement, got ${ttpConsistency.profitTargetDollars}`);
+    }
+    if (!Number.isFinite(ttpConsistency.maxProfitTargetInitialBalanceRatio) || ttpConsistency.maxProfitTargetInitialBalanceRatio <= 0 || ttpConsistency.maxProfitTargetInitialBalanceRatio > 0.10) {
+      errors.push(`TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO out of range: ${ttpConsistency.maxProfitTargetInitialBalanceRatio}`);
+    }
+    const maxProfitTargetDollars = config.backtest.initialBalance * ttpConsistency.maxProfitTargetInitialBalanceRatio;
+    if (Number.isFinite(maxProfitTargetDollars) && ttpConsistency.profitTargetDollars > maxProfitTargetDollars) {
+      errors.push(`TTP_PROFIT_TARGET_DOLLARS too high for initial balance: ${ttpConsistency.profitTargetDollars} > ${maxProfitTargetDollars}`);
     }
   }
 

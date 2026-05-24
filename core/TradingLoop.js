@@ -64,6 +64,113 @@ class TradingLoop {
     console.log(`[PIPE][${stage}] ${parts.join(' ')}`);
   }
 
+  _isClosingShort(activeTrade) {
+    const action = String(activeTrade.action || '').trim().toUpperCase();
+    const direction = String(activeTrade.direction || '').trim().toLowerCase();
+    if (direction === 'short' || action === 'SELL_SHORT') return true;
+    if (direction === 'long' || action === 'BUY') return false;
+    throw new Error(`[TradingLoop] active trade ${activeTrade.orderId || activeTrade.id || 'unknown'} missing close side`);
+  }
+
+  _checkTtpConsistencyProfitCap(activeTrade, price) {
+    const evalRules = this.ctx.evalRules || this.ctx.config?.evalRules || {};
+    const cfg = evalRules.ttp?.consistency || {};
+    if (evalRules.enabled !== true || evalRules.ttp?.enabled !== true) {
+      return { enabled: false, shouldExit: false };
+    }
+
+    if (cfg.enabled !== true) {
+      throw new Error('[TTP_CONSISTENCY] consistency rule disabled or missing while TTP eval rules are enabled');
+    }
+
+    const stockAliases = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'];
+    const runtimeAssetClass = String(this.ctx.config?.assetClass || '').trim().toLowerCase();
+    if (!runtimeAssetClass) {
+      throw new Error('[TTP_CONSISTENCY] runtime assetClass missing while TTP eval rules are enabled');
+    }
+    if (!stockAliases.includes(runtimeAssetClass)) {
+      return { enabled: true, shouldExit: false, reason: 'non_stock_runtime_asset_class', assetClass: runtimeAssetClass };
+    }
+    const tradeAssetClass = String(activeTrade.assetClass || '').trim().toLowerCase();
+    if (tradeAssetClass && !stockAliases.includes(tradeAssetClass)) {
+      throw new Error(`[TTP_CONSISTENCY] active trade ${activeTrade.orderId || activeTrade.id || 'unknown'} assetClass=${tradeAssetClass} conflicts with stock runtime`);
+    }
+
+    const profitTargetDollars = Number(cfg.profitTargetDollars);
+    const maxPositionProfitRatio = Number(cfg.maxPositionProfitRatio);
+    if (!Number.isFinite(profitTargetDollars) || profitTargetDollars <= 0) {
+      throw new Error(`[TTP_CONSISTENCY] invalid profitTargetDollars=${cfg.profitTargetDollars}`);
+    }
+    if (!Number.isFinite(maxPositionProfitRatio) || maxPositionProfitRatio <= 0 || maxPositionProfitRatio > 1) {
+      throw new Error(`[TTP_CONSISTENCY] invalid maxPositionProfitRatio=${cfg.maxPositionProfitRatio}`);
+    }
+
+    const entryPrice = Number(activeTrade.entryPrice);
+    const sizeUsd = Number(activeTrade.sizeUsd ?? activeTrade.size);
+    const currentPrice = Number(price);
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+      throw new Error(`[TTP_CONSISTENCY] active trade ${activeTrade.orderId || activeTrade.id || 'unknown'} missing valid entryPrice`);
+    }
+    if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
+      throw new Error(`[TTP_CONSISTENCY] active trade ${activeTrade.orderId || activeTrade.id || 'unknown'} missing valid sizeUsd/size`);
+    }
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+      throw new Error(`[TTP_CONSISTENCY] invalid current price ${price}`);
+    }
+
+    const isShort = this._isClosingShort(activeTrade);
+    const pnlDollars = isShort
+      ? sizeUsd * ((entryPrice - currentPrice) / entryPrice)
+      : sizeUsd * ((currentPrice - entryPrice) / entryPrice);
+    const maxPositionProfitDollars = profitTargetDollars * maxPositionProfitRatio;
+
+    return {
+      enabled: true,
+      shouldExit: pnlDollars >= maxPositionProfitDollars,
+      ruleId: 'TTP_CONSISTENCY_PROFIT_CAP',
+      tradeId: activeTrade.id || activeTrade.orderId || null,
+      symbol: activeTrade.symbol || null,
+      direction: isShort ? 'short' : 'long',
+      entryPrice,
+      currentPrice,
+      sizeUsd,
+      pnlDollars,
+      profitTargetDollars,
+      maxPositionProfitRatio,
+      maxPositionProfitDollars,
+    };
+  }
+
+  _buildTtpConsistencyExitDecision(activeTrade, price, symbol, traceId, source) {
+    const consistencyCheck = this._checkTtpConsistencyProfitCap(activeTrade, price);
+    if (consistencyCheck.enabled) {
+      emitTrace(this.ctx, 'TTP_CONSISTENCY_CHECK', {
+        traceId,
+        symbol,
+        source,
+        tradeId: consistencyCheck.tradeId,
+        shouldExit: consistencyCheck.shouldExit,
+        pnlDollars: consistencyCheck.pnlDollars,
+        maxPositionProfitDollars: consistencyCheck.maxPositionProfitDollars,
+        maxPositionProfitRatio: consistencyCheck.maxPositionProfitRatio,
+        profitTargetDollars: consistencyCheck.profitTargetDollars,
+        reason: consistencyCheck.reason || null,
+      });
+    }
+    if (!consistencyCheck.shouldExit) return null;
+
+    const isClosingShort = this._isClosingShort(activeTrade);
+    return {
+      action: isClosingShort ? 'COVER' : 'SELL',
+      direction: 'close',
+      confidence: 100,
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: activeTrade.id || activeTrade.orderId,
+      traceId,
+      signalId: `${traceId}:exit`,
+    };
+  }
+
   /**
    * Main analysis loop. Called on every candle.
    * CC-C Commit 5/6: `symbol` is REQUIRED. No null-default fallback to
@@ -143,8 +250,7 @@ class TradingLoop {
       return;
     }
 
-    const activeTrades = stateManager.getTradesBySymbol(symbol)
-      .filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    const activeTrades = stateManager.getTradesBySymbol(symbol);
     if (activeTrades.length === 0) return;
 
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
@@ -175,6 +281,18 @@ class TradingLoop {
     }
 
     for (const activeTrade of activeTrades) {
+      const consistencyDecision = this._buildTtpConsistencyExitDecision(
+        activeTrade,
+        price,
+        symbol,
+        traceId,
+        'exit_only'
+      );
+      if (consistencyDecision) {
+        await this.ctx.executeTrade(consistencyDecision, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
+        return;
+      }
+
       exitContractManager.updateMaxProfit(activeTrade, price);
 
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
@@ -190,7 +308,7 @@ class TradingLoop {
         if (!exitCheck.exitReason) {
           throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
         }
-        const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+        const isClosingShort = this._isClosingShort(activeTrade);
         await this.ctx.executeTrade({
           action: isClosingShort ? 'COVER' : 'SELL',
           direction: 'close',
@@ -220,7 +338,7 @@ class TradingLoop {
         });
 
         if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
-          const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+          const isClosingShort = this._isClosingShort(activeTrade);
           await this.ctx.executeTrade({
             action: isClosingShort ? 'COVER' : 'SELL',
             direction: 'close',
@@ -431,8 +549,7 @@ class TradingLoop {
     // leg liquidation, real-money risk). All callers (runner.analyzeAndTrade,
     // run15mTradingCycle, the interval cycle, BacktestRunner) now pass
     // symbol explicitly.
-    const activeTrades = stateManager.getTradesBySymbol(symbol)
-      .filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT');
+    const activeTrades = stateManager.getTradesBySymbol(symbol);
     const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
     const minConfidence = this.ctx.config.minTradeConfidence;
 
@@ -465,9 +582,21 @@ class TradingLoop {
         throw new Error(`TradingLoop exit-check: initialBalance unavailable from backtestRecorder.startingBalance and stateManager.get('initialBalance') (got ${_initialBalance}) — refusing $10K phantom default`);
       }
       for (const activeTrade of activeTrades) {
-      exitContractManager.updateMaxProfit(activeTrade, price);
+        const consistencyDecision = this._buildTtpConsistencyExitDecision(
+          activeTrade,
+          price,
+          symbol,
+          traceId,
+          'candle_exit'
+        );
+        if (consistencyDecision) {
+          decision = consistencyDecision;
+          break;
+        }
 
-      const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
+        exitContractManager.updateMaxProfit(activeTrade, price);
+
+        const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
         indicators,
         currentTime: this.ctx.marketData?.timestamp ?? Date.now(),
         // FIX 2026-04-09: Use getEquity() for live mode to get true account value
@@ -480,7 +609,7 @@ class TradingLoop {
       if (exitCheck.shouldExit) {
         console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
         // Determine correct exit action based on what we're closing
-        const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+        const isClosingShort = this._isClosingShort(activeTrade);
         // MED-01: throw on missing exitReason. All exit checkers
         // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
         // a specific reason. Halt-class — refuses to silently attribute the
@@ -522,7 +651,7 @@ class TradingLoop {
         });
 
         if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
-          const isClosingShort = activeTrade.direction === 'short' || activeTrade.action === 'SELL_SHORT';
+          const isClosingShort = this._isClosingShort(activeTrade);
           decision = {
             action: isClosingShort ? 'COVER' : 'SELL',
             direction: 'close',

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Consistency Profit-Cap Exit Guard (2026-05-23)
+
+- Added a TTP consistency guard that forces a full stock exit when an open position's unrealized profit reaches the configured maximum position-profit ratio against the configured profit target.
+- Added ConfigLoader-managed `TTP_CONSISTENCY_ENABLED`, `TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO`, `TTP_PROFIT_TARGET_DOLLARS`, and `TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO`; when eval/TTP rules are enabled, the consistency rule must stay enabled and the profit target must be explicitly configured inside the initial-balance ratio cap.
+- Hardened stock scope so malformed active-trade asset-class fields cannot skip the guard while crypto/non-stock runtimes remain outside TTP consistency enforcement.
+- Verification: `node --check`, focused Jest TradingLoop/ConfigLoader/eval-gate coverage, Mercury adversarial recheck, `npm run test:smoke`, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### TTP Earnings-Night Restriction Gate (2026-05-23)
 
 - Added a fail-closed pre-order TTP earnings restriction that blocks stock openings when earnings are scheduled tonight or when earnings status is unknown.
