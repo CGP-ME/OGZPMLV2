@@ -1950,9 +1950,17 @@
                 if (tvChart) {
                     try {
                         tvChart.priceScale('right').applyOptions({ autoScale: true });
+                        // fitContent() spreads the whole loaded batch evenly
+                        // across the full chart width. The old scrollToRealTime()
+                        // call right after it fought that: it jumped the
+                        // viewport to the live edge at the default narrow bar
+                        // spacing, so the batch ended up jammed into the right
+                        // ~40% of the x-axis with dead space on the left.
+                        // fitContent() alone is correct for a one-shot
+                        // historical load; live-follow on streaming candles is
+                        // handled separately by the per-tick update path.
                         tvChart.timeScale().fitContent();
                     } catch (e) { /* swallow */ }
-                    tvChart.timeScale().scrollToRealTime();
                 }
             } catch (e) {
                 /* swallow */
