@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Scoped Dashboard Position Projection (2026-05-25)
+
+- Added a scoped `positions` array to `StateManager` `state_update` dashboard payloads so consumers can render backend position truth by trade id, symbol, broker, asset class, execution mode, timeframe, and scope key instead of inferring from the selected chart.
+- Marked legacy 5-part scope keys and default account placeholders as incomplete in the projection, so the dashboard can see the gap instead of treating old scope as full multi-runtime truth.
+- Verification: `node --check core/StateManager.js`, focused scoped `state_update` smoke, two Mercury attempts failed with HTTP 500, and a local adversarial review caught and fixed the legacy-scope completeness issue before commit.
+
 ### Live Webhook Dry-Run Startup Guard (2026-05-24)
 
 - Added ConfigLoader ownership for SignalStack webhook order settings so `WEBHOOK_ORDERS_ENABLED`, `WEBHOOK_DRY_RUN`, `SIGNALSTACK_WEBHOOK_URL`, `WEBHOOK_TIMEOUT_MS`, and `WEBHOOK_ORDER_LOG_CAP` are typed and validated in the same startup path as the rest of eval posture.

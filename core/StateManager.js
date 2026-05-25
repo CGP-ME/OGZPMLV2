@@ -1532,11 +1532,102 @@ class StateManager {
     try { this.broadcastToDashboard({}, { reason: 'dashboard_connect' }); } catch (_) {}
   }
 
+  _getActiveTradesForProjection(state = this.state) {
+    const trades = state.activeTrades;
+    if (trades instanceof Map) {
+      return Array.from(trades.values());
+    }
+    if (Array.isArray(trades)) {
+      return trades
+        .map((entry) => Array.isArray(entry) ? entry[1] : entry)
+        .filter(Boolean);
+    }
+    if (trades && typeof trades === 'object') {
+      return Object.values(trades).filter(Boolean);
+    }
+    return [];
+  }
+
+  _buildScopedDashboardPositions(state = this.state) {
+    const lastPrices = state.lastPrices instanceof Map
+      ? state.lastPrices
+      : new Map(Object.entries(state.lastPrices || {}));
+
+    return this._getActiveTradesForProjection(state).map((trade) => {
+      let symbol = null;
+      if (trade.symbol) {
+        try {
+          symbol = this.normalizeSymbol(String(trade.symbol), 'StateManager.dashboardPosition symbol');
+        } catch (_) {
+          symbol = null;
+        }
+      }
+
+      const action = trade.action || trade.type || null;
+      const side = trade.direction || (action === 'SELL_SHORT' ? 'short' : 'long');
+      const entryPrice = Number(trade.entryPrice ?? trade.price ?? 0);
+      const sizeUsd = Number(trade.sizeUsd ?? trade.size ?? 0);
+      const currentPriceRaw = symbol && lastPrices.has(symbol)
+        ? lastPrices.get(symbol)
+        : (trade.currentPrice ?? trade.lastPrice ?? entryPrice);
+      const currentPrice = Number(currentPriceRaw);
+      let unrealizedPnL = 0;
+
+      if (
+        Number.isFinite(entryPrice) &&
+        entryPrice > 0 &&
+        Number.isFinite(currentPrice) &&
+        Number.isFinite(sizeUsd)
+      ) {
+        unrealizedPnL = side === 'short'
+          ? sizeUsd * ((entryPrice - currentPrice) / entryPrice)
+          : sizeUsd * ((currentPrice - entryPrice) / entryPrice);
+      }
+
+      const brokerId = trade.brokerId || trade.broker || trade.brokerName || null;
+      const hasExplicitAccountId = Boolean(trade.accountId || trade.account);
+      const accountId = trade.accountId || trade.account || 'default';
+      const assetClass = trade.assetClass || trade.assetType || null;
+      const executionMode = trade.executionMode || null;
+      const timeframe = trade.timeframe || null;
+      const scopeKey = trade.scopeKey || null;
+      const scopeKeyVersion = typeof scopeKey === 'string' && scopeKey.split(':').length >= 6 ? 2 : 1;
+
+      return {
+        tradeId: trade.id || trade.orderId || null,
+        orderId: trade.orderId || trade.id || null,
+        symbol,
+        broker: brokerId,
+        brokerId,
+        accountId,
+        accountIdSource: hasExplicitAccountId ? 'trade' : 'default',
+        assetClass,
+        executionMode,
+        timeframe,
+        scopeKey,
+        scopeKeyVersion,
+        scopeComplete: Boolean(symbol && brokerId && hasExplicitAccountId && assetClass && executionMode && timeframe && scopeKeyVersion >= 2),
+        action,
+        side,
+        status: trade.status || 'open',
+        sizeUsd: Number.isFinite(sizeUsd) ? sizeUsd : 0,
+        size: Number.isFinite(sizeUsd) ? sizeUsd : 0,
+        entryPrice: Number.isFinite(entryPrice) ? entryPrice : 0,
+        currentPrice: Number.isFinite(currentPrice) ? currentPrice : 0,
+        unrealizedPnL,
+        openedAt: trade.entryTime || trade.timestamp || null,
+        strategy: trade.strategy || trade.source || null,
+        reason: trade.reason || null
+      };
+    });
+  }
+
   broadcastToDashboard(updates, context) {
     if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return;
 
     try {
       const state = this.getState();
+      const positions = this._buildScopedDashboardPositions(state);
       this.dashboardWs.send(JSON.stringify({
         type: 'state_update',
         source: 'StateManager',
@@ -1551,12 +1642,14 @@ class StateManager {
           totalPnL: state.totalPnL,
           tradeCount: state.tradeCount,
           dailyTradeCount: state.dailyTradeCount,
-          recoveryMode: state.recoveryMode
+          recoveryMode: state.recoveryMode,
+          positions,
+          scopedPositionCount: positions.length
         },
         timestamp: Date.now()
       }));
     } catch (error) {
-      // Silent fail - don't let dashboard issues affect trading
+      console.warn('[StateManager] Dashboard state_update broadcast failed:', error.message);
     }
   }
 
