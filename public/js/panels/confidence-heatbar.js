@@ -180,23 +180,44 @@
         document.head.appendChild(el);
     }
 
+    // The internal scaffold every render path depends on (.hb-track is the
+    // element renderSegments()/renderPlaceholder() write into).
+    const SCAFFOLD_HTML = `
+            <span class="hb-label">ENSEMBLE</span>
+            <div class="hb-track"></div>
+            <span class="hb-winner-tag" aria-live="polite"></span>
+        `;
+
     function mount() {
         if (state.mounted) return true;
-        if (document.getElementById(ROOT_ID)) {
+
+        // Gate H landmine fix. The v2 shell already ships an empty
+        // <div id="confidenceHeatbar"> in the left rail. The module must
+        // mount into that element; it already does (no duplicate root
+        // is ever created; the getElementById guard prevents that). The real
+        // bug: the adopt path below returned immediately without building the
+        // .hb-label/.hb-track/.hb-winner-tag scaffold. That scaffold was
+        // only ever written on the self-create path. So when adopting the
+        // HTML-supplied div, renderSegments()' `.hb-track` lookup returned
+        // null and the heatbar silently rendered nothing despite receiving
+        // live bot_thinking / signal_analysis data. Build the scaffold here.
+        const existing = document.getElementById(ROOT_ID);
+        if (existing) {
+            if (!existing.querySelector('.hb-track')) {
+                existing.innerHTML = SCAFFOLD_HTML;
+            }
             state.mounted = true;
+            renderPlaceholder();
             return true;
         }
+
         const container = document.querySelector('.chart-container');
         if (!container) return false;
         const chart = document.getElementById('tvChartContainer');
 
         const root = document.createElement('div');
         root.id = ROOT_ID;
-        root.innerHTML = `
-            <span class="hb-label">ENSEMBLE</span>
-            <div class="hb-track"></div>
-            <span class="hb-winner-tag" aria-live="polite"></span>
-        `;
+        root.innerHTML = SCAFFOLD_HTML;
 
         if (chart && chart.parentNode === container) {
             container.insertBefore(root, chart);
