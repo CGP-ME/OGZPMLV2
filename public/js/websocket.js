@@ -43,7 +43,7 @@
                         OGZ.state.lastPrice = data.tick.price;
                     }
 
-                    // Auth success → identify + request historical candles for selected asset
+                    // Auth success -> identify + load historical candles for selected asset.
                     if (data.type === 'auth_success') {
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
@@ -54,6 +54,13 @@
                         const tf = document.getElementById('cp-timeframeSelector')?.value
                                 || document.getElementById('timeframeSelector')?.value
                                 || '15m';
+                        // #47: prime both startup paths. `asset_change` updates
+                        // bot-side selected asset state, while `request_historical`
+                        // asks the stock adapter or bot to send historical_candles.
+                        // Fresh loads need both; manual ticker clicks already send
+                        // asset_change, which is why the chart populated only after
+                        // the user clicked a ticker.
+                        this.send({ type: 'asset_change', asset: asset });
                         this.send({ type: 'request_historical', timeframe: tf, asset: asset, limit: 500 });
                     }
 
