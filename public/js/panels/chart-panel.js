@@ -145,6 +145,93 @@
     const DEFAULT_SYMBOL = 'TSLA';
     const DEFAULT_TIMEFRAME = '1m';
 
+    function normalizeWatchlistBroker(broker) {
+        const b = String(broker || '').trim().toUpperCase();
+        if (b === 'ALP' || b === 'ALPACA') return 'alpaca';
+        if (b === 'KRA' || b === 'KRAKEN') return 'kraken';
+        return '';
+    }
+
+    function resolveAssetRequest(input, fallbackBroker) {
+        const source = (input && typeof input === 'object') ? input : { symbol: input };
+        const broker = normalizeWatchlistBroker(source.broker || fallbackBroker);
+        const raw = source.asset || source.symbol || source.ticker || source.value;
+        let symbol = String(raw || '').trim().toUpperCase().replace('/', '-');
+        if (!symbol) return null;
+
+        if (broker === 'kraken') {
+            symbol = symbol.replace(/-USD$/, '');
+            if (symbol.endsWith('USD') && symbol.length > 3) {
+                symbol = symbol.slice(0, -3);
+            }
+            return {
+                symbol: symbol + '-USD',
+                broker,
+                label: source.label || source.name || symbol
+            };
+        }
+
+        if (broker === 'alpaca') {
+            return {
+                symbol: symbol.replace(/-USD$/, ''),
+                broker,
+                label: source.label || source.name || symbol.replace(/-USD$/, '')
+            };
+        }
+
+        return {
+            symbol,
+            broker,
+            label: source.label || source.name || symbol
+        };
+    }
+
+    function findAssetOption(assetSel, symbol) {
+        return Array.prototype.find.call(assetSel.options, opt => opt.value === symbol) || null;
+    }
+
+    function isCurrentWatchlistAsset(asset) {
+        const watchlist = OGZ && typeof OGZ.get === 'function' ? OGZ.get('WatchlistStrip') : null;
+        if (!watchlist || typeof watchlist.getTickers !== 'function') return false;
+        const tickers = watchlist.getTickers();
+        if (!Array.isArray(tickers)) return false;
+        return tickers.some(ticker => {
+            const normalized = resolveAssetRequest(ticker);
+            return normalized &&
+                normalized.symbol === asset.symbol &&
+                normalized.broker === asset.broker;
+        });
+    }
+
+    function ensureAssetOption(assetSel, asset, allowCreate) {
+        if (!assetSel || !asset || !asset.symbol) return false;
+        if (findAssetOption(assetSel, asset.symbol)) return true;
+        if (!allowCreate || !asset.broker) return false;
+
+        const groupLabel = asset.broker === 'kraken'
+            ? 'Crypto (Kraken)'
+            : asset.broker === 'alpaca'
+                ? 'Stocks (Alpaca)'
+                : 'Dynamic Assets';
+
+        let group = Array.prototype.find.call(assetSel.children, child => (
+            child.tagName === 'OPTGROUP' && child.label === groupLabel
+        ));
+        if (!group) {
+            group = document.createElement('optgroup');
+            group.label = groupLabel;
+            assetSel.appendChild(group);
+        }
+
+        const option = document.createElement('option');
+        option.value = asset.symbol;
+        option.textContent = asset.label && asset.label !== asset.symbol
+            ? `${asset.label} (${asset.symbol})`
+            : asset.symbol;
+        group.appendChild(option);
+        return true;
+    }
+
     // ─── CSS Injection (Fallback) ──────────────────────────────────────────
     (function injectFlashStyle() {
         if (typeof document === 'undefined') return;
@@ -1198,10 +1285,7 @@
                     if (OGZ && OGZ.bus && typeof OGZ.bus.on === 'function') {
                         OGZ.bus.on('watchlist:select', (payload) => {
                             try {
-                                const sym = payload && payload.symbol
-                                    ? String(payload.symbol)
-                                    : (typeof payload === 'string' ? payload : null);
-                                if (sym) ChartPanel.switchAsset(sym);
+                                ChartPanel.switchAsset(payload);
                             } catch (e) { /* swallow */ }
                         });
                     }
@@ -1368,24 +1452,29 @@
          *   2. clearAll() — blank the chart
          *   3. after 500ms, send `request_historical` for the new asset
          *
-         * Guards: if `symbol` is not a valid <option> of #cp-assetSelector,
-         * the call is ignored. Keeps the dropdown's `.value` in sync so the
-         * UI reflects the active symbol regardless of how the switch began.
+         * Guards: raw string calls must match an existing selector option.
+         * Structured watchlist payloads may add their broker-normalized
+         * symbol first, keeping the dropdown in sync with the selected card.
          */
-        switchAsset: function (symbol) {
+        switchAsset: function (symbol, broker) {
             const root = document.getElementById(ROOT_ID);
             if (!root) return;
             const assetSel = root.querySelector('#cp-assetSelector');
             if (!assetSel) return;
 
-            const sym = String(symbol || '').trim();
-            if (!sym) return;
+            const asset = resolveAssetRequest(symbol, broker);
+            if (!asset || !asset.symbol) return;
 
-            // Validate: the symbol must be a real option of the selector.
-            const isValidOption = Array.prototype.some.call(
-                assetSel.options, opt => opt.value === sym
+            const allowCreate = !!(
+                symbol &&
+                typeof symbol === 'object' &&
+                isCurrentWatchlistAsset(asset)
             );
-            if (!isValidOption) return;   // ignore unknown symbols
+
+            // Validate: the symbol must already be a selector option, unless
+            // it came from the current watchlist registry.
+            if (!ensureAssetOption(assetSel, asset, allowCreate)) return;
+            const sym = asset.symbol;
 
             // No-op if we're already on this asset.
             if (assetSel.value === sym) return;
