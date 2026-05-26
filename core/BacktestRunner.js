@@ -14,12 +14,19 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const BacktestRecorder = require('./BacktestRecorder');
 const stateManager = getStateManager();
 
 class BacktestRunner {
   constructor(ctx) {
     this.ctx = ctx;
     console.log('[BacktestRunner] Initialized (Phase 18 - exact copy)');
+  }
+
+  assertScopedReportTrades(trades) {
+    for (let i = 0; i < trades.length; i++) {
+      BacktestRecorder.validateTradeScope(trades[i], `BacktestRunner.report trades[${i}]`);
+    }
   }
 
   /**
@@ -160,6 +167,7 @@ class BacktestRunner {
       // which IS the correct final balance. This eliminates the "two different Final Balance" bug
       // that caused confusion in debugging sessions.
       const trades = this.ctx.backtestRecorder?.trades || [];
+      this.assertScopedReportTrades(trades);
       const winners = trades.filter(t => t.netPnlDollars > 0);
       const losers = trades.filter(t => t.netPnlDollars < 0);
       const totalPnL = trades.reduce((sum, t) => sum + (t.netPnlDollars || 0), 0);

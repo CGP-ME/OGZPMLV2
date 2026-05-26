@@ -1287,14 +1287,22 @@ class OrderExecutor {
                 // openPosition stamping it on the trade record, buyTrade.symbol
                 // is the single source of truth here.
                 symbol: buyTrade.symbol,
+                brokerId: buyTrade.brokerId,
+                accountId: buyTrade.accountId,
+                accountIdSource: buyTrade.accountIdSource,
+                assetClass: buyTrade.assetClass,
+                executionMode: buyTrade.executionMode,
+                timeframe: buyTrade.timeframe,
+                scopeKey: buyTrade.scopeKey,
+                scopeKeyVersion: buyTrade.scopeKeyVersion,
                 traceId,
                 signalId,
                 decisionId
               });
-              console.log(`📋 [TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${buyTrade.size || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
+              console.log(`[TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${buyTrade.size || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
             }
 
-            console.log(`📊 Trade closed: ${pnl >= 0 ? '✅' : '❌'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
+            console.log(`Trade closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
             // CHANGE 2025-12-11: Use StateManager for atomic position close
             const positionState = stateManager.getState();
@@ -1787,14 +1795,22 @@ class OrderExecutor {
               // matching note on the SELL path. shortTrade.symbol is the
               // single source of truth (stamped at openPosition time).
               symbol: shortTrade.symbol,
+              brokerId: shortTrade.brokerId,
+              accountId: shortTrade.accountId,
+              accountIdSource: shortTrade.accountIdSource,
+              assetClass: shortTrade.assetClass,
+              executionMode: shortTrade.executionMode,
+              timeframe: shortTrade.timeframe,
+              scopeKey: shortTrade.scopeKey,
+              scopeKeyVersion: shortTrade.scopeKeyVersion,
               traceId,
               signalId,
               decisionId
             });
-            console.log(`📋 [TRADE-LOG] SHORT Strategy: ${shortTrade.entryStrategy || 'unknown'} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
+            console.log(`[TRADE-LOG] SHORT Strategy: ${shortTrade.entryStrategy || 'unknown'} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
           }
 
-          console.log(`📊 SHORT closed: ${pnl >= 0 ? '✅' : '❌'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
+          console.log(`SHORT closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
           // Close position
           const positionState = stateManager.getState();

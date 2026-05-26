@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Report Scope Stamping (2026-05-26)
+
+- Added immutable scope validation to `BacktestRecorder.recordTrade()` so backtest rows missing symbol, broker, account, asset class, execution mode, timeframe, or matching scope key fail before recorder balance or row mutation.
+- Passed stored trade scope from `OrderExecutor` into long and short backtest recorder rows, and made `BacktestRunner` refuse to write reports containing unscoped rows.
+- Added scope columns to backtest CSV export and removed touched trade-log emoji markers from the backtest trade-recording path.
+- Verification: `node --check` for touched runtime/test files, focused BacktestRecorder and OrderExecutor Jest coverage, Mercury adversarial attack with no concrete bypass, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, `git diff --check`, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### StateManager Open Position Scope Gate (2026-05-26)
 
 - Added executable gate `scope.state_manager.open_position_scope_contract` to prove `StateManager.openPosition()` rejects missing trade scope fields and stale supplied scope keys before active-trade, scalar-position, save, listener, or dashboard projection mutation.

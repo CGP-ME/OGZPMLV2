@@ -17,6 +17,72 @@ const path = require('path');
 const TradingConfig = require('./TradingConfig');
 
 class BacktestRecorder {
+    static validateTradeScope(trade, caller = 'BacktestRecorder.validateTradeScope') {
+        const missing = [];
+        const cleanText = (value, name) => {
+            if (value === null || value === undefined) {
+                missing.push(name);
+                return null;
+            }
+            const cleaned = String(value).trim();
+            if (!cleaned) {
+                missing.push(name);
+                return null;
+            }
+            return cleaned;
+        };
+
+        const rawSymbol = cleanText(trade?.symbol, 'symbol');
+        const rawBrokerId = cleanText(trade?.brokerId, 'brokerId');
+        const rawAccountId = cleanText(trade?.accountId, 'accountId');
+        const rawAssetClass = cleanText(trade?.assetClass, 'assetClass');
+        const rawExecutionMode = cleanText(trade?.executionMode, 'executionMode');
+        const rawTimeframe = cleanText(trade?.timeframe, 'timeframe');
+        const rawScopeKey = cleanText(trade?.scopeKey, 'scopeKey');
+
+        if (missing.length > 0) {
+            const error = new Error(`${caller} missing immutable backtest trade scope field(s): ${missing.join(', ')}`);
+            error.code = 'BACKTEST_TRADE_SCOPE_REJECTED';
+            error.missingFields = missing;
+            throw error;
+        }
+
+        const symbol = rawSymbol.toUpperCase().replace('XBT', 'BTC').replace('/', '-');
+        const brokerId = rawBrokerId.toLowerCase();
+        const accountId = rawAccountId;
+        const rawAccountIdSource = trade.accountIdSource !== null && trade.accountIdSource !== undefined
+            ? String(trade.accountIdSource).trim()
+            : '';
+        const accountIdSource = rawAccountIdSource || (accountId !== 'default' ? 'trade' : 'default');
+        const assetClass = rawAssetClass.toLowerCase();
+        const executionMode = rawExecutionMode.toLowerCase();
+        const timeframe = rawTimeframe;
+        const expectedScopeKey = `${executionMode}:${brokerId}:${accountId}:${assetClass}:${symbol}:${timeframe}`;
+        const suppliedScopeKey = String(rawScopeKey).trim();
+
+        if (suppliedScopeKey !== expectedScopeKey) {
+            const error = new Error(`${caller} scopeKey mismatch: supplied ${suppliedScopeKey} expected ${expectedScopeKey}`);
+            error.code = 'BACKTEST_TRADE_SCOPE_REJECTED';
+            error.missingFields = [];
+            error.suppliedScopeKey = suppliedScopeKey;
+            error.expectedScopeKey = expectedScopeKey;
+            throw error;
+        }
+
+        return {
+            symbol,
+            brokerId,
+            accountId,
+            accountIdSource,
+            assetClass,
+            executionMode,
+            timeframe,
+            scopeKey: expectedScopeKey,
+            scopeKeyVersion: 2,
+            scopeComplete: Boolean(accountId && accountId !== 'default' && accountIdSource !== 'default')
+        };
+    }
+
     constructor(config = {}) {
         // FIX MIRROR-RECORDER-BALANCE: phantom $10K fallback removed. Mirror
         // of Fix 13 (TradeJournal). Same coerce/finite/positive check pattern.
@@ -41,6 +107,7 @@ class BacktestRecorder {
      * @param {Object} trade - Trade data from exit handler
      */
     recordTrade(trade) {
+        const tradeScope = BacktestRecorder.validateTradeScope(trade, 'BacktestRecorder.recordTrade');
         // FIX 2026-03-28: trade.size is already USD, no multiplication needed
         const positionSizeUsd = trade.size || trade.sizeUsd || 1;
         const entryPrice = trade.entryPrice || 0;
@@ -120,7 +187,19 @@ class BacktestRecorder {
             // Raw candle data for deep dive
             entryCandle: trade.entryCandle || null,
             exitCandle: trade.exitCandle || null,
-            signalDetails: trade.signalDetails || null
+            signalDetails: trade.signalDetails || null,
+
+            // Immutable runtime scope for report/proof joins
+            symbol: tradeScope.symbol,
+            brokerId: tradeScope.brokerId,
+            accountId: tradeScope.accountId,
+            accountIdSource: tradeScope.accountIdSource,
+            assetClass: tradeScope.assetClass,
+            executionMode: tradeScope.executionMode,
+            timeframe: tradeScope.timeframe,
+            scopeKey: tradeScope.scopeKey,
+            scopeKeyVersion: tradeScope.scopeKeyVersion,
+            scopeComplete: tradeScope.scopeComplete
         };
 
         // === PATTERN-PACK DIMENSIONS (harvestable by matrix-sweep) ===
@@ -180,14 +259,6 @@ class BacktestRecorder {
         else if (conf < 0.75) record.confidenceTier = 'high';
         else record.confidenceTier = 'very_high';
 
-        // FIX TIER-5-BTR-SYMBOL: refuse silent env fallback and 'unknown' sentinel.
-        // Post-Fix 4 (P2-E), trade.symbol is guaranteed non-null at openPosition.
-        // Missing here is an upstream regression — halt instead of hiding.
-        if (typeof trade.symbol !== 'string' || !trade.symbol) {
-          throw new Error(`[TIER-5-BTR-SYMBOL] BacktestRecorder.recordTrade: trade.symbol missing (got ${JSON.stringify(trade.symbol)}) — upstream P2-E violation`);
-        }
-        record.symbol = trade.symbol;
-
         // P&L per share (for TTP 10-cent rule checking)
         record.pnlPerShare = record.size > 0
             ? record.netPnlDollars / record.size
@@ -212,8 +283,8 @@ class BacktestRecorder {
         this.trades.push(record);
 
         // Log running balance
-        const arrow = netPnlDollars >= 0 ? '↑' : '↓';
-        console.log(`💰 Trade #${record.tradeNumber}: ${record.strategyName} ${record.direction.toUpperCase()} | ${netPnlDollars >= 0 ? '+' : ''}$${netPnlDollars.toFixed(2)} (${netPnlPercent >= 0 ? '+' : ''}${netPnlPercent.toFixed(2)}%) | Balance: $${this.balance.toFixed(2)} ${arrow}`);
+        const directionMark = netPnlDollars >= 0 ? 'UP' : 'DOWN';
+        console.log(`Trade #${record.tradeNumber}: ${record.strategyName} ${record.direction.toUpperCase()} | ${netPnlDollars >= 0 ? '+' : ''}$${netPnlDollars.toFixed(2)} (${netPnlPercent >= 0 ? '+' : ''}${netPnlPercent.toFixed(2)}%) | Balance: $${this.balance.toFixed(2)} ${directionMark}`);
 
         return record;
     }
@@ -248,6 +319,15 @@ class BacktestRecorder {
             'hold_bucket',
             'confidence_tier',
             'symbol',
+            'broker_id',
+            'account_id',
+            'account_id_source',
+            'asset_class',
+            'execution_mode',
+            'timeframe',
+            'scope_key',
+            'scope_key_version',
+            'scope_complete',
             'pnl_per_share',
             'exit_type',
             'atr_at_entry',
@@ -280,6 +360,15 @@ class BacktestRecorder {
             t.holdBucket ?? '',
             t.confidenceTier ?? '',
             t.symbol ?? '',
+            t.brokerId ?? '',
+            t.accountId ?? '',
+            t.accountIdSource ?? '',
+            t.assetClass ?? '',
+            t.executionMode ?? '',
+            t.timeframe ?? '',
+            t.scopeKey ?? '',
+            t.scopeKeyVersion ?? '',
+            t.scopeComplete === true ? 'true' : 'false',
             t.pnlPerShare != null ? t.pnlPerShare.toFixed(4) : '',
             t.exitType ?? '',
             t.atrAtEntry != null ? t.atrAtEntry : '',
@@ -290,7 +379,7 @@ class BacktestRecorder {
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 
         require('./AtomicWrite').writeStringAtomic(filepath, csv);
-        console.log(`\n📊 Exported ${this.trades.length} trades to ${filepath}`);
+        console.log(`\nExported ${this.trades.length} trades to ${filepath}`);
 
         return filepath;
     }
