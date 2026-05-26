@@ -166,6 +166,44 @@ function makeBacktestTrade(overrides = {}) {
   };
 }
 
+function patternFeatures() {
+  return [0.51, 0.02, 1, 0.03, 0.01, 0.5, 0.01, 0.02, 0];
+}
+
+function patternScope(overrides = {}) {
+  return {
+    symbol: 'TSLA',
+    brokerId: 'alpaca',
+    accountId: 'acct-main',
+    accountIdSource: 'config',
+    assetClass: 'stocks',
+    executionMode: 'backtest',
+    timeframe: '15m',
+    scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:15m',
+    ...overrides
+  };
+}
+
+function patternBankTrade(overrides = {}) {
+  return {
+    ...patternScope(),
+    id: 'gate-pattern-trade',
+    profitLoss: 25,
+    profitLossPercent: 2.5,
+    holdDuration: 900000,
+    indicators: {
+      rsi: 55,
+      macd: 0.2,
+      macdHistogram: 0.03,
+      primaryPattern: 'breakout'
+    },
+    trend: 'uptrend',
+    timestamp: 1779802200000,
+    volatility: 0.02,
+    ...overrides
+  };
+}
+
 function addTrades(...trades) {
   const sm = stateManager();
   for (const trade of trades) {
@@ -509,6 +547,145 @@ const GATES = [
         acceptedScopeKey: accepted.scopeKey,
         rejectedRows: 3
       };
+    })
+  },
+  {
+    id: 'scope.pattern_memory.scope_isolation',
+    layer: 'scope',
+    description: 'Pattern memory public APIs require compatible immutable scope and reject unscoped learned-state paths.',
+    run: () => withQuietConsole(async () => {
+      const { UnifiedPatternMemory, computeSignature } = require('../../core/UnifiedPatternMemory');
+      const PatternMemoryBank = require('../../core/PatternMemoryBank');
+      const previousEnv = {
+        BACKTEST_MODE: process.env.BACKTEST_MODE,
+        CANDLE_DATA_FILE: process.env.CANDLE_DATA_FILE,
+        BACKTEST_NO_PATTERN_SAVE: process.env.BACKTEST_NO_PATTERN_SAVE
+      };
+      process.env.BACKTEST_MODE = 'true';
+      process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
+      process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
+
+      try {
+        const features = patternFeatures();
+        const memory = new UnifiedPatternMemory({
+          persistToDisk: false,
+          minSamples: 1,
+          successThreshold: 0.6
+        });
+
+        assert.strictEqual(memory.recordOutcome(features, {
+          ...patternScope(),
+          pnl: 12,
+          pnlPercent: 2.4,
+          holdTimeMs: 900000,
+          exitReason: 'take_profit',
+          strategy: 'GateStrategy'
+        }), true, 'scoped UnifiedPatternMemory outcome should record');
+
+        const sameScope = memory.getConfidence(features, patternScope());
+        assert(sameScope, 'same-scope pattern read must return learned result');
+        assert.strictEqual(sameScope.source, 'learned_success', 'same-scope read should preserve learned success');
+        assert.strictEqual(
+          sameScope.stats.scopeKey,
+          'backtest:alpaca:acct-main:stocks:TSLA:15m',
+          'same-scope read must return the scoped row'
+        );
+        assert.strictEqual(memory.getConfidence(features), null, 'missing-scope read must not fall back to global memory');
+        assert.strictEqual(memory.recordObservation(features, patternScope({ timeframe: null })), null, 'missing-scope observation must reject');
+        assert.strictEqual(Object.keys(memory.patterns).length, 1, 'missing-scope observation must not mutate patterns');
+        assert.strictEqual(memory.recordObservation(features, patternScope({
+          scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
+        })), null, 'mismatched-scopeKey observation must reject');
+        assert.strictEqual(Object.keys(memory.patterns).length, 1, 'mismatched-scopeKey observation must not mutate patterns');
+        assert.strictEqual(memory.getConfidence(features, patternScope({
+          scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
+        })), null, 'mismatched-scopeKey read must reject');
+
+        memory.patterns[computeSignature(features)] = {
+          signature: computeSignature(features),
+          features: [...features],
+          status: 'promoted',
+          timesSeen: 1,
+          wins: 10,
+          losses: 0,
+          totalPnL: 10,
+          winRate: 1,
+          avgPnL: 1,
+          firstSeen: Date.now(),
+          lastSeen: Date.now(),
+          lastOutcome: Date.now(),
+          outcomes: [{ timestamp: Date.now(), pnl: 1, isWin: true }]
+        };
+        assert.strictEqual(
+          memory.getConfidence(features, patternScope()).stats.scopeKey,
+          'backtest:alpaca:acct-main:stocks:TSLA:15m',
+          'legacy unscoped exact key must not satisfy scoped reads'
+        );
+
+        assert.strictEqual(memory.getConfidence(features, patternScope({
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          timeframe: '1m',
+          scopeKey: 'backtest:kraken:acct-main:crypto:BTC-USD:1m'
+        })), null, 'cross-asset/timeframe read must return null');
+
+        assert.throws(
+          () => new PatternMemoryBank({
+            featureFlags: {
+              PATTERN_MEMORY_PARTITION: {
+                settings: { backtestPersist: false }
+              }
+            }
+          }),
+          /PatternMemoryBank\.constructor missing immutable pattern scope field\(s\)/,
+          'PatternMemoryBank must refuse unscoped learned-state path'
+        );
+
+        const bank = new PatternMemoryBank({
+          ...patternScope(),
+          dbPath: path.join(os.tmpdir(), `pattern-bank-gate-${Date.now()}.json`),
+          featureFlags: {
+            PATTERN_MEMORY_PARTITION: {
+              settings: { backtestPersist: false }
+            }
+          }
+        });
+        assert(
+          bank.dbPath.endsWith('.backtest.alpaca.acct-main.stocks.TSLA.15m.json'),
+          'PatternMemoryBank dbPath must retain immutable scope suffix'
+        );
+        const tslaPattern = bank.extractPattern(patternBankTrade());
+        const btcPattern = bank.extractPattern(patternBankTrade(patternScope({
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          timeframe: '1m',
+          scopeKey: 'backtest:kraken:acct-main:crypto:BTC-USD:1m'
+        })));
+        assert.notStrictEqual(tslaPattern.hash, btcPattern.hash, 'PatternMemoryBank hashes must differ across scope');
+
+        bank.recordTradeOutcome(patternBankTrade());
+        const records = Object.values(bank.exportMemory().patterns);
+        assert.strictEqual(records.length, 1, 'scoped PatternMemoryBank trade should record exactly one row');
+        assert.strictEqual(records[0].scopeKey, 'backtest:alpaca:acct-main:stocks:TSLA:15m', 'PatternMemoryBank row must carry scopeKey');
+        bank.recordTradeOutcome(patternBankTrade({ brokerId: null }));
+        assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'missing-scope PatternMemoryBank trade must not mutate');
+        bank.recordTradeOutcome(patternBankTrade({
+          scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
+        }));
+        assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'mismatched-scopeKey PatternMemoryBank trade must not mutate');
+
+        return {
+          unifiedScopeKey: sameScope.stats.scopeKey,
+          patternBankHashDiff: true
+        };
+      } finally {
+        for (const [key, value] of Object.entries(previousEnv)) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      }
     })
   },
   {

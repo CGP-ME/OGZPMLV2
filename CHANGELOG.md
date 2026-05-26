@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Memory Scope Gate (2026-05-26)
+
+- Added executable gate `scope.pattern_memory.scope_isolation` to prove `UnifiedPatternMemory` and `PatternMemoryBank` public APIs reject missing or mismatched immutable scope, isolate reads across asset/timeframe/broker scope, and keep legacy unscoped rows from satisfying scoped reads.
+- Verification: `node --check ogz-meta/gates/multi-runtime-gate-runner.js`, `node ogz-meta/gates/multi-runtime-gate-runner.js --gate scope.pattern_memory.scope_isolation`, full scope gate ladder, focused pattern-memory Jest coverage, Mercury adversarial gate review/recheck, and `git diff --check` passed. Mercury left runtime hardening follow-ups for direct `UnifiedPatternMemory.patterns` mutability, `PatternMemoryBank` caller-supplied base path validation, and invalid-trade return semantics. P0 was not run because this commit adds gate coverage only and does not change trading/backtest runtime behavior.
+
 ### Dashboard Live Report Final Feed Drop (2026-05-26)
 
 - Expanded the served Gate H live report from the quiet-period view into the final feed drop: today scoreboard, journal-backed recent closed trades, and new closed-trade flash from real `journal_snapshot` and `trade_closed_replay` WebSocket events.
