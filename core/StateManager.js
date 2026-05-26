@@ -367,7 +367,7 @@ class StateManager {
    * @param {string} context.assetClass - Asset class for this trade
    * @param {string} context.executionMode - paper/live/backtest
    * @param {string} context.timeframe - Candle timeframe that produced the entry
-   * @returns {Promise<{success: boolean, state?: Object, error?: string}>}
+   * @returns {Promise<{success: boolean, state?: Object, error?: string, scopeRejected?: boolean, missingFields?: string[]}>}
    *
    * @example
    * // Open $500 position at $100/share
@@ -393,6 +393,19 @@ class StateManager {
    * - position increases by size (USD)
    */
   async openPosition(size, price, context = {}) {
+    const tradeAction = context.action || 'BUY';
+    const tradeDirection = context.direction || (tradeAction === 'SELL_SHORT' ? 'short' : 'long');
+    const tradeSymbolRaw = context.symbol
+      || (context.ledgerData && context.ledgerData.symbol)
+      || null;
+    let tradeScope;
+
+    try {
+      tradeScope = this.buildTradeScope(context, tradeSymbolRaw, 'StateManager.openPosition scope');
+    } catch (err) {
+      return this._rejectOpenPositionScope(err, context);
+    }
+
     if (this.state.position > 0) {
       console.warn('[StateManager] Already in position, adding to it');
     }
@@ -400,7 +413,6 @@ class StateManager {
     // DEBUG: Log what we're doing
     // FIX 2026-03-28: size is already USD, no multiplication needed
     const usdCost = size;
-    const tradeDirection = context.direction || 'long';
     console.log(`[StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
     console.log(`   Size: $${size.toFixed(2)} USD`);
     console.log(`   Price: $${price}`);
@@ -417,28 +429,7 @@ class StateManager {
     // present inside decisionLedger sub-object). getEquity/getAvailableCapital
     // and SessionRouter need symbol-aware pricing.
     const tradeId = context.orderId || `TRADE_${Date.now()}`;
-    const tradeAction = context.action || 'BUY';
-    const tradeSymbolRaw = context.symbol
-      || (context.ledgerData && context.ledgerData.symbol)
-      || null;
-    const tradeSymbol = tradeSymbolRaw
-      ? this.normalizeSymbol(String(tradeSymbolRaw), 'StateManager.openPosition symbol')
-      : null;
-
-    // FIX P2-E: refuse to open trades with null symbol — they become invisible
-    // to getTradesBySymbol() and the exit path can never find them.
-    if (!tradeSymbol) {
-      console.error(`[StateManager] openPosition BLOCKED - no symbol resolved from context. context.symbol=${context.symbol}, ledgerData.symbol=${context.ledgerData?.symbol}`);
-      return { success: false, error: 'No symbol resolved - refusing to open invisible trade' };
-    }
-
-    let tradeScope;
-    try {
-      tradeScope = this.buildTradeScope(context, tradeSymbol, 'StateManager.openPosition scope');
-    } catch (err) {
-      console.error(`[StateManager] openPosition BLOCKED - ${err.message}`);
-      return { success: false, error: err.message };
-    }
+    const tradeSymbol = tradeScope.symbol;
 
     const trade = {
       id: tradeId,
@@ -470,6 +461,7 @@ class StateManager {
       executionMode: tradeScope.executionMode,
       timeframe: tradeScope.timeframe,
       scopeKey: tradeScope.key,
+      scopeKeyVersion: 2,
     };
 
     // L1: Attach decision ledger skeleton at trade birth
@@ -551,6 +543,28 @@ class StateManager {
       } catch (_) { /* narrator must never break trading */ }
     }
 
+    return result;
+  }
+
+  _rejectOpenPositionScope(err, context = {}) {
+    const missingFields = Array.isArray(err.missingFields) ? err.missingFields : [];
+    const result = {
+      success: false,
+      error: err.message,
+      code: err.code || 'SCOPE_REJECTED',
+      scopeRejected: true,
+      missingFields,
+    };
+
+    if (err.suppliedScopeKey !== undefined) {
+      result.suppliedScopeKey = err.suppliedScopeKey;
+    }
+    if (err.expectedScopeKey !== undefined) {
+      result.expectedScopeKey = err.expectedScopeKey;
+    }
+
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
     return result;
   }
 
@@ -1127,7 +1141,10 @@ class StateManager {
     const rawExecutionMode = cleanText(executionMode, 'executionMode');
     const rawTimeframe = cleanText(timeframe, 'timeframe');
     if (missing.length > 0) {
-      throw new Error(`${caller} missing immutable trade scope field(s): ${missing.join(', ')}`);
+      const error = new Error(`${caller} missing immutable trade scope field(s): ${missing.join(', ')}`);
+      error.code = 'SCOPE_REJECTED';
+      error.missingFields = missing;
+      throw error;
     }
 
     const scope = {
@@ -1140,6 +1157,15 @@ class StateManager {
       timeframe: rawTimeframe
     };
     scope.key = `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`;
+    const suppliedScopeKey = context.scopeKey || context.ledgerData?.scopeKey || null;
+    if (suppliedScopeKey !== null && suppliedScopeKey !== undefined && String(suppliedScopeKey).trim() !== scope.key) {
+      const error = new Error(`${caller} scopeKey mismatch: supplied ${String(suppliedScopeKey).trim()} expected ${scope.key}`);
+      error.code = 'SCOPE_REJECTED';
+      error.missingFields = [];
+      error.suppliedScopeKey = String(suppliedScopeKey).trim();
+      error.expectedScopeKey = scope.key;
+      throw error;
+    }
     return scope;
   }
 

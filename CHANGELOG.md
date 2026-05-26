@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### StateManager Open Position Scope Contract (2026-05-26)
+
+- Moved immutable trade-scope validation to the start of `StateManager.openPosition()` so malformed entries reject before fee calculation, active trade insertion, scalar position updates, saves, listener notifications, or dashboard projection changes.
+- Added structured `SCOPE_REJECTED` results for missing scope fields and mismatched caller-supplied scope keys, while storing a derived `scopeKeyVersion: 2` on accepted trades.
+- Verification: `node --check` for touched runtime/test files, focused StateManager open-position scope Jest coverage, related StateManager/symbol-routing Jest coverage, Mercury adversarial attack with no concrete bypass, `scope.state_manager.dashboard_positions`, `git diff --check`, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### Candle Ingress Scope Gate (2026-05-26)
 
 - Added executable gate `scope.candle_ingress.scope_contract` to prove CandleProcessor accepted candles carry immutable runtime scope and that missing symbol, missing timeframe, and incomplete backfill replay scope reject before storage.
