@@ -40,8 +40,8 @@
  * const PatternMemoryBank = require('./core/PatternMemoryBank');
  * const memory = new PatternMemoryBank({ featureFlags });
  *
- * // Record a pattern outcome
- * memory.recordOutcome(patternHash, { won: true, pnlPercent: 1.5, holdMs: 60000 });
+     * // Record a scoped pattern outcome
+     * memory.recordTradeOutcome(scopedTrade);
  *
  * // Check pattern status before trading
  * const pattern = memory.getPattern(hash);
@@ -53,6 +53,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { normalizePatternScope } = require('./PatternScope');
 
 // Ensure logs directory exists (fire-and-forget at module load)
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
@@ -89,23 +90,35 @@ class PatternMemoryBank {
         const featureFlags = config.featureFlags || {};
         const partitionSettings = featureFlags.PATTERN_MEMORY_PARTITION?.settings || {};
 
+        const constructorScope = normalizePatternScope(config, 'PatternMemoryBank.constructor');
+        if (!constructorScope.ok) {
+            const error = new Error(constructorScope.reason);
+            error.code = constructorScope.code;
+            error.missingFields = constructorScope.missingFields || [];
+            throw error;
+        }
+        const scopeSuffix = `.${constructorScope.brokerId}.${constructorScope.accountId}.${constructorScope.assetClass}.${constructorScope.symbol}.${constructorScope.timeframe}`;
+
         // Determine file based on mode
         let memoryFile = 'learned_patterns.json';
         if (partitionSettings[mode]) {
             memoryFile = partitionSettings[mode];
         } else if (mode === 'live') {
-            memoryFile = 'pattern_memory.live.json';
+            memoryFile = `pattern_memory.live${scopeSuffix}.json`;
         } else if (mode === 'paper') {
-            memoryFile = 'pattern_memory.paper.json';
+            memoryFile = `pattern_memory.paper${scopeSuffix}.json`;
         } else if (mode === 'backtest') {
-            memoryFile = 'pattern_memory.backtest.json';
+            memoryFile = `pattern_memory.backtest${scopeSuffix}.json`;
+        }
+        if (scopeSuffix && !memoryFile.endsWith(`${scopeSuffix}.json`)) {
+            memoryFile = memoryFile.replace(/\.json$/, `${scopeSuffix}.json`);
         }
 
         // If dbPath is provided in config, modify it based on mode
         if (config.dbPath) {
             const basePath = config.dbPath.replace('.json', '');
-            this.dbPath = `${basePath}.${mode}.json`;
-            this.backupPath = `${basePath}.${mode}.backup.json`;
+            this.dbPath = `${basePath}.${mode}${scopeSuffix}.json`;
+            this.backupPath = `${basePath}.${mode}${scopeSuffix}.backup.json`;
         } else {
             const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
             this.dbPath = path.join(dataDir, memoryFile);
@@ -115,7 +128,7 @@ class PatternMemoryBank {
         // Disable persistence for backtest mode if configured
         this.persistenceEnabled = mode !== 'backtest' || partitionSettings.backtestPersist !== false;
 
-        console.log(`🧠 [TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
+        console.log(`[TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
 
         // Statistical thresholds
         this.minTradesSample = config.minTradesSample || 10;  // Need 10+ occurrences
@@ -131,7 +144,7 @@ class PatternMemoryBank {
         for (const record of Object.values(this.memory.patterns)) {
             counts[record.status] = (counts[record.status] || 0) + 1;
         }
-        console.log(`🧠 [TRAI Memory] Initialized: ${counts.PROMOTED} promoted, ${counts.QUARANTINED} quarantined, ${counts.CANDIDATE} candidates`);
+        console.log(`[TRAI Memory] Initialized: ${counts.PROMOTED} promoted, ${counts.QUARANTINED} quarantined, ${counts.CANDIDATE} candidates`);
     }
 
     /**
@@ -233,7 +246,7 @@ class PatternMemoryBank {
             const pattern = this.extractPattern(trade);
 
             if (!pattern || !pattern.hash) {
-                console.warn('⚠️ [TRAI Memory] Invalid pattern extracted, skipping');
+                console.warn('[TRAI Memory] Invalid pattern extracted, skipping');
                 return;
             }
 
@@ -247,6 +260,16 @@ class PatternMemoryBank {
                 this.memory.patterns[pattern.hash] = {
                     name: pattern.name,
                     data: pattern.data,
+                    symbol: pattern.scope.symbol,
+                    brokerId: pattern.scope.brokerId,
+                    accountId: pattern.scope.accountId,
+                    accountIdSource: pattern.scope.accountIdSource,
+                    assetClass: pattern.scope.assetClass,
+                    executionMode: pattern.scope.executionMode,
+                    timeframe: pattern.scope.timeframe,
+                    scopeKey: pattern.scope.scopeKey,
+                    scopeKeyVersion: pattern.scope.scopeKeyVersion,
+                    scopeComplete: pattern.scope.scopeComplete,
                     status: STATUS.CANDIDATE,
                     sampleCount: 0,
                     winCount: 0,
@@ -299,11 +322,11 @@ class PatternMemoryBank {
             // Log status changes
             const winRate = record.winCount / record.sampleCount;
             if (record.status === STATUS.PROMOTED) {
-                console.log(`📚 [TRAI Memory] PROMOTED: "${pattern.name}" - ` +
+                console.log(`[TRAI Memory] PROMOTED: "${pattern.name}" - ` +
                            `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples, ` +
                            `avgR=${record.avgPnLPercent.toFixed(2)}%, score=${record.score.toFixed(3)}`);
             } else if (record.status === STATUS.QUARANTINED) {
-                console.log(`🚫 [TRAI Memory] QUARANTINED: "${pattern.name}" - ` +
+                console.log(`[TRAI Memory] QUARANTINED: "${pattern.name}" - ` +
                            `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples`);
             }
 
@@ -311,9 +334,6 @@ class PatternMemoryBank {
             // TRADE OUTCOME TELEMETRY - JSONL append (fire-and-forget)
             // Ground truth for PatternMemoryBank learning evaluation
             // ═══════════════════════════════════════════════════════════════
-            const tradingMode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
-                               (process.env.TRADING_MODE === 'live' || process.env.ENABLE_LIVE_TRADING === 'true') ? 'live' : 'paper';
-
             const outcomeLabel = pnlPercent > 0.1 ? 'win' : (pnlPercent < -0.1 ? 'loss' : 'breakeven');
 
             const outcomeTelemetry = {
@@ -321,7 +341,14 @@ class PatternMemoryBank {
                 type: 'trade_outcome',
                 tradeId: trade.tradeId || trade.id || `trade_${now}`,
                 decisionId: trade.decisionId || null,  // Join key to trai-decisions.log
-                symbol: trade.symbol ? String(trade.symbol).toUpperCase().replace('XBT', 'BTC').replace('/', '-') : 'BTC-USD',
+                symbol: pattern.scope.symbol,
+                brokerId: pattern.scope.brokerId,
+                accountId: pattern.scope.accountId,
+                accountIdSource: pattern.scope.accountIdSource,
+                assetClass: pattern.scope.assetClass,
+                executionMode: pattern.scope.executionMode,
+                timeframe: pattern.scope.timeframe,
+                scopeKey: pattern.scope.scopeKey,
                 side: trade.entry?.side || trade.side || (pnlPercent > 0 ? 'long' : 'short'),
                 entry: {
                     price: trade.entry?.price || trade.entryPrice || 0,
@@ -340,8 +367,10 @@ class PatternMemoryBank {
                 patternHash: pattern.hash,
                 patternName: pattern.name,
                 meta: {
-                    broker: 'kraken',
-                    mode: tradingMode,
+                    broker: pattern.scope.brokerId,
+                    mode: pattern.scope.executionMode,
+                    assetClass: pattern.scope.assetClass,
+                    timeframe: pattern.scope.timeframe,
                     patternStatus: record.status,
                     patternScore: record.score
                 }
@@ -354,7 +383,7 @@ class PatternMemoryBank {
             this.saveMemory();
 
         } catch (error) {
-            console.error('❌ [TRAI Memory] Error recording trade outcome:', error.message);
+            console.error('[TRAI Memory] Error recording trade outcome:', error.message);
         }
     }
 
@@ -436,8 +465,11 @@ class PatternMemoryBank {
      */
     getPatternConfidence(currentPattern) {
         try {
-            const hash = this.hashPattern(currentPattern);
-            const record = this.memory.patterns[hash];
+            const pattern = this.extractPattern(currentPattern);
+            if (!pattern || !pattern.hash) {
+                return null;
+            }
+            const record = this.memory.patterns[pattern.hash];
 
             if (!record || record.sampleCount < this.minTradesSample) {
                 return null;
@@ -446,7 +478,7 @@ class PatternMemoryBank {
             const winRate = record.winCount / record.sampleCount;
 
             if (record.status === STATUS.PROMOTED) {
-                console.log(`🧠 [TRAI Memory] PROMOTED MATCH: "${record.name}" - ` +
+                console.log(`[TRAI Memory] PROMOTED MATCH: "${record.name}" - ` +
                            `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples, ` +
                            `score=${record.score.toFixed(3)}`);
 
@@ -459,13 +491,14 @@ class PatternMemoryBank {
                         lossCount: record.lossCount,
                         avgPnLPercent: record.avgPnLPercent,
                         score: record.score,
-                        status: record.status
+                        status: record.status,
+                        scopeKey: record.scopeKey
                     }
                 };
             }
 
             if (record.status === STATUS.QUARANTINED || record.status === STATUS.DEAD) {
-                console.log(`⚠️ [TRAI Memory] AVOID (${record.status}): "${record.name}" - ` +
+                console.log(`[TRAI Memory] AVOID (${record.status}): "${record.name}" - ` +
                            `${(winRate * 100).toFixed(1)}% win, ${record.sampleCount} samples`);
 
                 return {
@@ -487,7 +520,7 @@ class PatternMemoryBank {
             return null;
 
         } catch (error) {
-            console.error('❌ [TRAI Memory] Error getting pattern confidence:', error.message);
+            console.error('[TRAI Memory] Error getting pattern confidence:', error.message);
             return null;
         }
     }
@@ -500,6 +533,11 @@ class PatternMemoryBank {
      */
     extractPattern(trade) {
         try {
+            const scope = normalizePatternScope(trade, 'PatternMemoryBank.extractPattern');
+            if (!scope.ok) {
+                return null;
+            }
+
             // Handle both closed trades and current market data
             const indicators = trade.entry?.indicators || trade.indicators;
             const trend = trade.entry?.trend || trade.trend;
@@ -526,6 +564,14 @@ class PatternMemoryBank {
             // Bucket values to create pattern signatures
             // This allows similar (but not identical) market conditions to match
             const patternData = {
+                scopeKey: scope.scopeKey,
+                symbol: scope.symbol,
+                brokerId: scope.brokerId,
+                accountId: scope.accountId,
+                assetClass: scope.assetClass,
+                executionMode: scope.executionMode,
+                timeframe: scope.timeframe,
+
                 // RSI in buckets of 10 (30-40, 40-50, etc) - null if missing
                 rsi: indicators.rsi != null ? Math.round(indicators.rsi / 10) * 10 : null,
 
@@ -557,11 +603,12 @@ class PatternMemoryBank {
             return {
                 hash,
                 name,
-                data: patternData
+                data: patternData,
+                scope
             };
 
         } catch (error) {
-            console.error('❌ [TRAI Memory] Error extracting pattern:', error.message);
+            console.error('[TRAI Memory] Error extracting pattern:', error.message);
             return null;
         }
     }

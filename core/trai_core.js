@@ -778,7 +778,7 @@ BOT STATUS:
         marketData.volatility
       );
       if (!features) return null;
-      return this.patternMemory.getConfidence(features);
+      return this.patternMemory.getConfidence(features, marketData);
     } catch (error) {
       console.error('[TRAI-HIGH-01] checkPatternMemory failed:', error.message);
       return null;
@@ -803,6 +803,14 @@ BOT STATUS:
         holdTimeMs: trade.holdTimeMs != null ? trade.holdTimeMs : trade.holdTime,
         exitReason: trade.exitReason || trade.reason,
         strategy: trade.strategy,
+        symbol: trade.symbol,
+        brokerId: trade.brokerId,
+        accountId: trade.accountId,
+        accountIdSource: trade.accountIdSource,
+        assetClass: trade.assetClass,
+        executionMode: trade.executionMode,
+        timeframe: trade.timeframe,
+        scopeKey: trade.scopeKey,
       });
     } catch (error) {
       console.error('[TRAI-HIGH-01] recordTradeResult failed:', error.message);

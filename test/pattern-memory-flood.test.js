@@ -11,6 +11,18 @@
 
 const { EnhancedPatternChecker } = require('../core/EnhancedPatternRecognition');
 
+const originalEnv = { ...process.env };
+
+beforeAll(() => {
+  process.env.BACKTEST_MODE = 'true';
+  process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
+  process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
+});
+
+afterAll(() => {
+  process.env = originalEnv;
+});
+
 function makeCandle(close, ts) {
   return {
     open: close,

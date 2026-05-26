@@ -1505,12 +1505,20 @@ class OrderExecutor {
                   pnl: pnl,
                   holdDurationMs: holdDuration,  // Add temporal data
                   exitReason: completeTradeResult.exitReason || 'signal',
-                  timestamp: Date.now()
+                  timestamp: Date.now(),
+                  symbol: buyTrade.symbol,
+                  brokerId: buyTrade.brokerId,
+                  accountId: buyTrade.accountId,
+                  accountIdSource: buyTrade.accountIdSource,
+                  assetClass: buyTrade.assetClass,
+                  executionMode: buyTrade.executionMode,
+                  timeframe: buyTrade.timeframe,
+                  scopeKey: buyTrade.scopeKey
                 });
               } else if (this.ctx.config.tradingMode === 'TEST') {
-                console.log('🧪 TEST MODE: Would record P&L pattern but SKIPPING - pattern base protected');
+                console.log('TEST MODE: Would record P&L pattern but SKIPPING - pattern base protected');
               }
-              console.log(`🧠 Pattern learning: ${patternName} → ${pnl.toFixed(2)}%`);
+              console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}%`);
 
               // REMOVED 2026-04-16: Direct UnifiedPatternMemory call was double-counting.
               // TRAI.recordTradeOutcome (below) is the sole recording path — it calls
@@ -1626,7 +1634,7 @@ class OrderExecutor {
                 winRate: this.ctx.performanceAnalyzer?.getWinRate?.() || 0
               });
             } catch (logErr) {
-              console.warn(`⚠️ TradeLogger error: ${logErr.message}`);
+              console.warn(`TradeLogger error: ${logErr.message}`);
             }
 
             // 5. TRAI learning — feed PatternMemoryBank for promotion/quarantine
@@ -1638,6 +1646,13 @@ class OrderExecutor {
                 tradeId: buyTrade.orderId,
                 decisionId: traiDecisionData.decisionId,
                 symbol,
+                brokerId: buyTrade.brokerId,
+                accountId: buyTrade.accountId,
+                accountIdSource: buyTrade.accountIdSource,
+                assetClass: buyTrade.assetClass,
+                executionMode: buyTrade.executionMode,
+                timeframe: buyTrade.timeframe,
+                scopeKey: buyTrade.scopeKey,
                 profitLoss: profitLoss,
                 profitLossPercent: pnl,
                 holdDuration: holdDuration,
@@ -1675,7 +1690,7 @@ class OrderExecutor {
                 originalConfidence: traiDecisionData.originalConfidence
               });
               this.pendingTraiDecisions.delete(buyTrade.orderId);
-              console.log(`🤖 [TRAI] Learning from ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+              console.log(`[TRAI] Learning from ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
             }
             // Clean up active trade
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
@@ -1691,7 +1706,7 @@ class OrderExecutor {
             if (mpm) {
               mpm.reset();
               this.ctx.maxProfitManagers.delete(buyTrade.orderId);
-              console.log(`💰 MaxProfitManager removed for trade ${buyTrade.orderId}`);
+	              console.log(`MaxProfitManager removed for trade ${buyTrade.orderId}`);
             }
           }
 
@@ -1972,6 +1987,13 @@ class OrderExecutor {
               tradeId: shortTrade.orderId,
               decisionId: traiDecisionData.decisionId,
               symbol,
+              brokerId: shortTrade.brokerId,
+              accountId: shortTrade.accountId,
+              accountIdSource: shortTrade.accountIdSource,
+              assetClass: shortTrade.assetClass,
+              executionMode: shortTrade.executionMode,
+              timeframe: shortTrade.timeframe,
+              scopeKey: shortTrade.scopeKey,
               profitLoss: profitLoss,
               profitLossPercent: pnl,
               holdDuration: holdDuration,
@@ -2009,7 +2031,7 @@ class OrderExecutor {
               originalConfidence: traiDecisionData.originalConfidence
             });
             this.pendingTraiDecisions.delete(shortTrade.orderId);
-            console.log(`🤖 [TRAI] Learning from SHORT ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+            console.log(`[TRAI] Learning from SHORT ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
           }
 
           // Pattern exit model

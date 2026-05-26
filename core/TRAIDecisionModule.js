@@ -378,7 +378,7 @@ class TRAIDecisionModule extends EventEmitter {
     let confidence = 0;
     console.log(`[DEBUG] calculateConfidence called with signal.action: ${signal.action}, signal.confidence: ${signal.confidence}`);
 
-    // 🧠 PRIORITY 1: Check UnifiedPatternMemory for learned patterns
+    // PRIORITY 1: Check UnifiedPatternMemory for learned patterns
     // CHANGE 2026-03-18: Direct call to UnifiedPatternMemory instead of traiCore
     console.log('[TRAI-CALC-3] Checking UnifiedPatternMemory');
     try {
@@ -397,19 +397,19 @@ class TRAIDecisionModule extends EventEmitter {
       ];
 
       console.log('[TRAI-CALC-4] Extracted features, calling getConfidence');
-      const learnedPattern = getUnifiedPatternMemory().getConfidence(features);
+      const learnedPattern = getUnifiedPatternMemory().getConfidence(features, context);
       console.log(`[TRAI-CALC-5] learnedPattern result: ${learnedPattern ? JSON.stringify(learnedPattern) : 'null'}`);
 
       if (learnedPattern) {
         if (learnedPattern.source === 'learned_success' || learnedPattern.source === 'dtw_success') {
           // Pattern memory confirms this pattern works!
           console.log(`[TRAI-CALC-6] LEARNED SUCCESS - confidence: ${learnedPattern.confidence}`);
-          console.log(`🧠 [Pattern Memory] Using learned pattern confidence: ${(learnedPattern.confidence * 100).toFixed(1)}%`);
+          console.log(`[Pattern Memory] Using learned pattern confidence: ${(learnedPattern.confidence * 100).toFixed(1)}%`);
           return learnedPattern.confidence;
         } else if (learnedPattern.source === 'learned_failure' || learnedPattern.source === 'dtw_failure') {
           // Pattern memory says avoid this pattern
           console.log('[TRAI-CALC-6] LEARNED FAILURE - returning 0');
-          console.log(`⚠️ [Pattern Memory] Avoiding failed pattern`);
+          console.log('[Pattern Memory] Avoiding failed pattern');
           return 0.0;
         }
       }

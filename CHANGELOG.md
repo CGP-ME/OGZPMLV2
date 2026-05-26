@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Memory Scope Isolation (2026-05-26)
+
+- Added immutable pattern scope normalization so `UnifiedPatternMemory` and `PatternMemoryBank` include symbol, broker, account, asset class, execution mode, timeframe, and scope key in learned-pattern writes and matching.
+- Changed pattern-memory reads without compatible scope to fail closed instead of matching global feature-only patterns, while preserving legacy unscoped records on disk as non-matching history.
+- Threaded available runtime trade scope into pattern observations, outcomes, TRAI checks, and position sizing pattern lookups.
+- Verification: `node --check` for touched runtime/test files, focused pattern-memory Jest coverage, Mercury adversarial attack with local fix for the unscoped `PatternMemoryBank` path gap, Mercury recheck with no concrete bypass, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, `git diff --check`, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### Backtest Report Scope Gate (2026-05-26)
 
 - Added executable gate `scope.backtest_report.scope_contract` to prove backtest report rows reject missing immutable scope or stale scope keys before recorder balance/row mutation, and that `BacktestRunner` refuses to write reports with unscoped rows.

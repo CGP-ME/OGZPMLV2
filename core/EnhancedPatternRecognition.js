@@ -362,7 +362,7 @@ class EnhancedPatternChecker {
     });
 
     // Evaluate the pattern
-    const result = this.evaluatePattern(features);
+    const result = this.evaluatePattern(features, marketData);
 
     // CRITICAL FIX: Always create pattern for learning, even with 0 confidence
     // The bot needs to see patterns to learn from them!
@@ -457,7 +457,7 @@ class EnhancedPatternChecker {
   recordPatternResult(featuresOrSignature, result) {
     // CHANGE 659: Features array required - strict validation
     if (!Array.isArray(featuresOrSignature)) {
-      console.error('âŒ recordPatternResult: Expected features array, got:', typeof featuresOrSignature);
+      console.error('recordPatternResult: Expected features array, got:', typeof featuresOrSignature);
       console.error('   Value received:', featuresOrSignature);
       console.error('   Stack trace:', new Error().stack);
       return false;
@@ -465,11 +465,12 @@ class EnhancedPatternChecker {
 
     // Skip empty arrays (no features to record)
     if (featuresOrSignature.length === 0) {
-      console.warn('âš ï¸ recordPatternResult: Empty features array, skipping');
+      console.warn('recordPatternResult: Empty features array, skipping');
       return false;
     }
     
-    this.memory.recordPattern(featuresOrSignature, result);
+    const recorded = this.memory.recordPattern(featuresOrSignature, result);
+    if (!recorded) return false;
     this.stats.tradeResults++;
     // CHANGE 2026-01-21: Removed aggressive saveToDisk() call
     // PatternMemorySystem already has 5-minute periodic saves (line 234-236)
@@ -477,7 +478,7 @@ class EnhancedPatternChecker {
     // DEBUG 2026-02-02: Confirm pattern was recorded
     // BACKTEST_FAST: Skip verbose logging
     if (process.env.BACKTEST_FAST !== 'true') {
-      console.log(`✅ Pattern RECORDED: features[${featuresOrSignature.length}], pnl=${result?.pnl?.toFixed(2) || '?'}%, total=${this.stats.tradeResults}`);
+      console.log(`Pattern RECORDED: features[${featuresOrSignature.length}], pnl=${result?.pnl?.toFixed(2) || '?'}%, total=${this.stats.tradeResults}`);
     }
     return true;
   }
@@ -519,7 +520,7 @@ class EnhancedPatternChecker {
       ...options
     };
 
-    // ðŸš€ SCALPER FAST PATH: Skip complex similarity matching for speed
+    // SCALPER FAST PATH: Skip complex similarity matching for speed
     if (evalOptions.scalperMode || evalOptions.fastPath) {
       return this.evaluatePatternFastPath(features, evalOptions);
     }
@@ -536,14 +537,14 @@ class EnhancedPatternChecker {
   }
 
   /**
-   * ðŸš€ SCALPER FAST PATH: Lightning-fast pattern evaluation for high-frequency trading
+   * SCALPER FAST PATH: Lightning-fast pattern evaluation for high-frequency trading
    * @param {Array} features - Feature vector
    * @param {Object} options - Evaluation options
    * @returns {Object} Fast evaluation result
    */
   evaluatePatternFastPath(features, options = {}) {
     // Check for exact match first (O(1) lookup)
-    const exactStats = this.memory.getPatternStats(features);
+    const exactStats = this.memory.getPatternStats(features, options);
 
     if (exactStats && exactStats.timesSeen >= 2) { // Lower threshold for speed
       const winRate = exactStats.wins / exactStats.timesSeen;
@@ -596,8 +597,9 @@ class EnhancedPatternChecker {
    * @returns {boolean} Success
    */
   recordTradeResult(features, result) {
-    this.stats.tradeResults++;
-    return this.memory.recordPattern(features, result);
+    const recorded = this.memory.recordPattern(features, result);
+    if (recorded) this.stats.tradeResults++;
+    return recorded;
   }
 
   /**

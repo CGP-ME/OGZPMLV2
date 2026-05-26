@@ -39,9 +39,9 @@
  *                            └──────────────────────┘
  * 
  * LIFECYCLE:
- *   1. OBSERVE:  Pattern detected → recordObservation(features, metadata)
- *   2. OUTCOME:  Trade closes    → recordOutcome(features, { pnl, holdTime })
- *   3. QUERY:    New signal      → getConfidence(features) → boost/kill/neutral
+ *   1. OBSERVE:  Pattern detected → recordObservation(features, scopedMetadata)
+ *   2. OUTCOME:  Trade closes    → recordOutcome(features, scopedOutcome)
+ *   3. QUERY:    New signal      → getConfidence(features, scope) → boost/kill/neutral
  *   4. PROMOTE:  10+ trades, >65% WR → promoted (high confidence in future)
  *   5. QUARANTINE: 10+ trades, <35% WR → quarantined (blocked from trading)
  *   6. DECAY:    Old patterns lose weight over time
@@ -66,6 +66,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { normalizePatternScope } = require('./PatternScope');
 
 // ═══════════════════════════════════════════════════════════════
 // DTW (Dynamic Time Warping) — fuzzy pattern matching
@@ -227,17 +228,20 @@ class UnifiedPatternMemory {
    * Called on every candle by EnhancedPatternRecognition
    * 
    * @param {number[]} features - 9-element feature vector
-   * @param {Object} metadata - { timestamp, strategy, price }
+   * @param {Object} metadata - { timestamp, strategy, price, scope fields }
    * @returns {string|null} Pattern signature
    */
   recordObservation(features, metadata = {}) {
     if (!this._validateFeatures(features)) return null;
 
-    const sig = computeSignature(features);
+    const scope = this._normalizeScope(metadata, 'UnifiedPatternMemory.recordObservation');
+    if (!scope) return null;
+
+    const sig = this._computeScopedSignature(features, scope);
     if (!sig) return null;
 
     if (!this.patterns[sig]) {
-      this.patterns[sig] = this._createPattern(sig, features);
+      this.patterns[sig] = this._createPattern(sig, features, scope);
     }
 
     const p = this.patterns[sig];
@@ -253,19 +257,22 @@ class UnifiedPatternMemory {
    * Called by OrderExecutor when position closes
    * 
    * @param {number[]} features - 9-element feature vector from entry
-   * @param {Object} outcome - { pnl: number, pnlPercent: number, holdTimeMs: number, exitReason: string, strategy: string }
+   * @param {Object} outcome - { pnl: number, pnlPercent: number, holdTimeMs: number, exitReason: string, strategy: string, scope fields }
    * @returns {boolean} Success
    */
   recordOutcome(features, outcome) {
     if (!this._validateFeatures(features)) return false;
     if (!outcome || typeof outcome.pnl !== 'number') return false;
 
-    const sig = computeSignature(features);
+    const scope = this._normalizeScope(outcome, 'UnifiedPatternMemory.recordOutcome');
+    if (!scope) return false;
+
+    const sig = this._computeScopedSignature(features, scope);
     if (!sig) return false;
 
     // Create pattern if it wasn't observed first (edge case)
     if (!this.patterns[sig]) {
-      this.patterns[sig] = this._createPattern(sig, features);
+      this.patterns[sig] = this._createPattern(sig, features, scope);
     }
 
     const p = this.patterns[sig];
@@ -292,6 +299,13 @@ class UnifiedPatternMemory {
       holdTimeMs: outcome.holdTimeMs || 0,
       exitReason: outcome.exitReason || 'unknown',
       strategy: outcome.strategy || 'unknown',
+      scopeKey: scope.scopeKey,
+      symbol: scope.symbol,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
       isWin,
     });
     if (p.outcomes.length > 20) {
@@ -320,11 +334,14 @@ class UnifiedPatternMemory {
    * @param {number[]} features - 9-element feature vector
    * @returns {Object|null} { confidence, source, status, stats } or null
    */
-  getConfidence(features) {
+  getConfidence(features, scopeInput = {}) {
     if (!this._validateFeatures(features)) return null;
 
+    const scope = this._normalizeScope(scopeInput, 'UnifiedPatternMemory.getConfidence');
+    if (!scope) return null;
+
     // Try exact match first (fast)
-    const sig = computeSignature(features);
+    const sig = this._computeScopedSignature(features, scope);
     const exactMatch = this.patterns[sig];
 
     if (exactMatch) {
@@ -353,7 +370,7 @@ class UnifiedPatternMemory {
     }
 
     // Try DTW fuzzy match (slower, for time-stretched patterns)
-    const dtwMatch = this._findDTWMatch(features);
+    const dtwMatch = this._findDTWMatch(features, scope);
     if (dtwMatch) {
       this.stats.dtwMatches++;
       const totalTrades = dtwMatch.pattern.wins + dtwMatch.pattern.losses;
@@ -392,8 +409,8 @@ class UnifiedPatternMemory {
    * @param {number[]} features
    * @returns {boolean}
    */
-  shouldAvoid(features) {
-    const result = this.getConfidence(features);
+  shouldAvoid(features, scopeInput = {}) {
+    const result = this.getConfidence(features, scopeInput);
     if (!result) return false;
     return result.source === 'learned_failure' || result.source === 'dtw_failure';
   }
@@ -404,8 +421,8 @@ class UnifiedPatternMemory {
    * @param {number[]} features
    * @returns {boolean}
    */
-  isPromoted(features) {
-    const result = this.getConfidence(features);
+  isPromoted(features, scopeInput = {}) {
+    const result = this.getConfidence(features, scopeInput);
     if (!result) return false;
     return result.source === 'learned_success' || result.source === 'dtw_success';
   }
@@ -473,13 +490,14 @@ class UnifiedPatternMemory {
   // DTW FUZZY MATCHING
   // ═══════════════════════════════════════════════════════════════
 
-  _findDTWMatch(features) {
+  _findDTWMatch(features, scope) {
     const normFeatures = normalize(features);
     let bestMatch = null;
     let bestSimilarity = 0;
 
     // Only search patterns with enough data
     for (const [sig, pattern] of Object.entries(this.patterns)) {
+      if (pattern.scopeKey !== scope.scopeKey) continue;
       const totalTrades = pattern.wins + pattern.losses;
       if (totalTrades < 3) continue; // Skip very sparse patterns
       if (!pattern.features || pattern.features.length !== features.length) continue;
@@ -646,10 +664,30 @@ class UnifiedPatternMemory {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════
 
-  _createPattern(signature, features) {
+  _normalizeScope(input, caller) {
+    const scope = normalizePatternScope(input, caller);
+    return scope.ok ? scope : null;
+  }
+
+  _computeScopedSignature(features, scope) {
+    const signature = computeSignature(features);
+    return signature ? `${scope.scopeKey}:${signature}` : null;
+  }
+
+  _createPattern(signature, features, scope) {
     return {
       signature,
       features: [...features],
+      symbol: scope.symbol,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      scopeKey: scope.scopeKey,
+      scopeKeyVersion: scope.scopeKeyVersion,
+      scopeComplete: scope.scopeComplete,
       status: 'learning', // learning | neutral | promoted | quarantined
       timesSeen: 0,
       wins: 0,
@@ -674,6 +712,13 @@ class UnifiedPatternMemory {
 
   _getPatternStats(pattern) {
     return {
+      symbol: pattern.symbol || null,
+      brokerId: pattern.brokerId || null,
+      accountId: pattern.accountId || null,
+      assetClass: pattern.assetClass || null,
+      executionMode: pattern.executionMode || null,
+      timeframe: pattern.timeframe || null,
+      scopeKey: pattern.scopeKey || null,
       totalTrades: pattern.wins + pattern.losses,
       wins: pattern.wins,
       losses: pattern.losses,
@@ -741,14 +786,29 @@ class UnifiedPatternMemory {
         pnlPercent: result.pnl, // Old API uses pnl as percentage
         exitReason: result.reason || 'unknown',
         strategy: result.strategy || 'unknown',
+        symbol: result.symbol,
+        brokerId: result.brokerId,
+        accountId: result.accountId,
+        accountIdSource: result.accountIdSource,
+        assetClass: result.assetClass,
+        executionMode: result.executionMode,
+        timeframe: result.timeframe,
+        scopeKey: result.scopeKey,
       });
     } else {
       // Just observation (pattern detected, no outcome yet)
-      this.recordObservation(features, {
+      return Boolean(this.recordObservation(features, {
         timestamp: result.timestamp || Date.now(),
         strategy: result.strategy,
-      });
-      return true;
+        symbol: result.symbol,
+        brokerId: result.brokerId,
+        accountId: result.accountId,
+        accountIdSource: result.accountIdSource,
+        assetClass: result.assetClass,
+        executionMode: result.executionMode,
+        timeframe: result.timeframe,
+        scopeKey: result.scopeKey,
+      }));
     }
   }
 
@@ -757,9 +817,11 @@ class UnifiedPatternMemory {
    * @param {number[]} features
    * @returns {Object|null}
    */
-  getPatternStats(features) {
+  getPatternStats(features, scopeInput = {}) {
     if (!this._validateFeatures(features)) return null;
-    const sig = computeSignature(features);
+    const scope = this._normalizeScope(scopeInput, 'UnifiedPatternMemory.getPatternStats');
+    if (!scope) return null;
+    const sig = this._computeScopedSignature(features, scope);
     const p = this.patterns[sig];
     if (!p) return null;
     return {
@@ -778,7 +840,7 @@ class UnifiedPatternMemory {
    * @returns {Object}
    */
   evaluatePattern(features, options = {}) {
-    const result = this.getConfidence(features);
+    const result = this.getConfidence(features, options);
 
     if (!result) {
       return {
@@ -818,11 +880,14 @@ class UnifiedPatternMemory {
       : (featuresOrQuery.features || []);
 
     if (!this._validateFeatures(features)) return [];
+    const scope = this._normalizeScope(featuresOrQuery, 'UnifiedPatternMemory.findSimilarPatterns');
+    if (!scope) return [];
 
     const matches = [];
     const normFeatures = normalize(features);
 
     for (const [sig, pattern] of Object.entries(this.patterns)) {
+      if (pattern.scopeKey !== scope.scopeKey) continue;
       if (!pattern.features || pattern.features.length !== features.length) continue;
 
       const normStored = normalize(pattern.features);

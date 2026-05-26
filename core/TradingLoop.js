@@ -64,6 +64,18 @@ class TradingLoop {
     console.log(`[PIPE][${stage}] ${parts.join(' ')}`);
   }
 
+  _patternScope(symbol) {
+    return {
+      symbol,
+      brokerId: this.ctx.config?.brokerId,
+      accountId: this.ctx.config?.accountId,
+      accountIdSource: this.ctx.config?.accountIdSource,
+      assetClass: this.ctx.config?.assetClass,
+      executionMode: this.ctx.config?.executionMode,
+      timeframe: this.ctx.config?.timeframe || this.ctx.candleTimeframe,
+    };
+  }
+
   _isClosingShort(activeTrade) {
     const action = String(activeTrade.action || '').trim().toUpperCase();
     const direction = String(activeTrade.direction || '').trim().toLowerCase();
@@ -410,7 +422,7 @@ class TradingLoop {
     }
 
     // ─── GATHER DATA ───
-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx);
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol);
 
     // ─── RUN ORCHESTRATOR ───
     const orchResult = this.ctx.strategyOrchestrator.evaluate(
@@ -514,7 +526,7 @@ class TradingLoop {
     }
 
     // ─── TRAI (async observer, non-blocking) ───
-    this._runTRAI(tradingDirection, orchResult, indicators, patterns, regime, price);
+    this._runTRAI(tradingDirection, orchResult, indicators, patterns, regime, price, symbol);
 
     // ─── LOG ───
     const cleanPrice = Math.round(price).toLocaleString();
@@ -996,7 +1008,7 @@ class TradingLoop {
   // DATA GATHERING — unchanged from original, just extracted
   // ═══════════════════════════════════════════════════════════════
 
-  _gatherData(price, symCtx = null) {
+  _gatherData(price, symCtx = null, symbol = null) {
     // CC-C Multi-Symbol Commit 4/6: same per-symbol shadowing pattern as
     // _analyze. When symCtx is passed, route data-gathering reads through it;
     // otherwise fall back to this.ctx.* for single-symbol legacy callers.
@@ -1015,13 +1027,15 @@ class TradingLoop {
     indicators.trend = indicators.superTrendDirection ?? null;
 
     // Patterns
+    const patternScope = this._patternScope(symbol);
     const memoryPatterns = this.ctx.patternChecker.analyzePatterns({
       candles: priceHistory,
       trend: indicators.trend,
       macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
       macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
       rsi: indicators.rsi,
-      volume: this.ctx.marketData.volume ?? null
+      volume: this.ctx.marketData.volume ?? null,
+      ...patternScope
     });
     // 2026-05-04: Re-enabled per Wolf strategy-resurrection spec.
     // Original disable (2026-03-20 ceb0ffb) cited 2000+ garbage entries in
@@ -1062,6 +1076,7 @@ class TradingLoop {
             timestamp: this.ctx.marketData?.timestamp ?? Date.now(),
             strategy: pattern.name || pattern.type || 'pattern',
             price,
+            ...patternScope,
           });
           if (observed) recordedObservations++;
         }
@@ -1160,18 +1175,19 @@ class TradingLoop {
   // TRAI — async observer, non-blocking
   // ═══════════════════════════════════════════════════════════════
 
-  _runTRAI(direction, orchResult, indicators, patterns, regime, price) {
+  _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol) {
     const skipTRAI = this.ctx.config.enableBacktestMode && !this.ctx.traiEnableBacktest;
     if (!this.ctx.trai || skipTRAI) return;
 
     try {
+      const patternScope = this._patternScope(symbol);
       this.ctx.trai.processDecision(
-        { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now() },
-        { volatility: indicators.volatility, trend: indicators.trend, volume: this.ctx.marketData.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position') }
+        { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now(), ...patternScope },
+        { volatility: indicators.volatility, trend: indicators.trend, volume: this.ctx.marketData.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
       ).then(d => { if (d?.id) this.ctx._lastTraiDecision = d; })
-       .catch(err => console.warn('⚠️ [TRAI] Error:', err.message));
+       .catch(err => console.warn('[TRAI] Error:', err.message));
     } catch (e) {
-      console.error('⚠️ TRAI error:', e.message);
+      console.error('TRAI error:', e.message);
     }
   }
 

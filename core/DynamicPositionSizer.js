@@ -157,6 +157,14 @@ class DynamicPositionSizer {
       atrPercent = null,
       confluenceMultiplier = 1.0,
       price = 0,
+      symbol = null,
+      brokerId = null,
+      accountId = null,
+      accountIdSource = null,
+      assetClass = null,
+      executionMode = null,
+      timeframe = null,
+      scopeKey = null,
     } = params;
 
     if (balance == null || confidence == null || atrPercent == null) {
@@ -188,7 +196,16 @@ class DynamicPositionSizer {
     let patternWinRate = null;
 
     if (features && this._patternMemory) {
-      const patternResult = this._patternMemory.getConfidence(features);
+      const patternResult = this._patternMemory.getConfidence(features, {
+        symbol,
+        brokerId,
+        accountId,
+        accountIdSource,
+        assetClass,
+        executionMode,
+        timeframe,
+        scopeKey,
+      });
       if (patternResult) {
         patternStatus = patternResult.status || 'neutral';
         patternMultiplier = this.patternMultipliers[patternStatus]
