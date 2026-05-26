@@ -39,6 +39,12 @@ class SessionRouter extends EventEmitter {
     this.activeSession = null;     // 'crypto' | 'stocks' | null
     this.activeBroker = null;
     this.transitionInProgress = false;
+    this.failedSafeMode = false;
+    this.failedSafeReason = null;
+    this.failedSafeAt = null;
+    this.failedSafePauseConfirmed = false;
+    this.failedSafePauseError = null;
+    this.failedSafePauseFallbackApplied = false;
     this.lastTransitionAt = 0;
     this.intervalId = null;
 
@@ -113,6 +119,7 @@ class SessionRouter extends EventEmitter {
 
   _checkTransition() {
     if (this.transitionInProgress) return;
+    if (this.failedSafeMode) return;
     const now = new Date(this.clock());
     const phase = getMarketPhase(now);
 
@@ -126,13 +133,68 @@ class SessionRouter extends EventEmitter {
     }
   }
 
+  _stateManagerReportsPaused() {
+    if (!this.stateManager) return false;
+    if (typeof this.stateManager.get === 'function') {
+      return this.stateManager.get('isTrading') === false;
+    }
+    return this.stateManager.state && this.stateManager.state.isTrading === false;
+  }
+
+  _applyLocalPauseFallback(reason) {
+    if (!this.stateManager || !this.stateManager.state || typeof this.stateManager.state !== 'object') {
+      return false;
+    }
+
+    this.stateManager.state.isTrading = false;
+    this.stateManager.state.lastError = reason;
+    this.stateManager.state.pauseReason = reason;
+    this.stateManager.state.pausedAt = Date.now();
+    return true;
+  }
+
+  async _enterFailedSafe(from, to, err, now, options = {}) {
+    const reason = err && err.message ? err.message : String(err);
+    const at = now instanceof Date ? now.toISOString() : new Date(this.clock()).toISOString();
+    this.failedSafeMode = true;
+    this.failedSafeReason = reason;
+    this.failedSafeAt = at;
+    this.failedSafePauseConfirmed = Boolean(options.pauseConfirmed);
+    this.failedSafePauseError = null;
+    this.failedSafePauseFallbackApplied = false;
+
+    console.error(`[SessionRouter] SESSION_FAILED_SAFE: ${from} -> ${to}: ${reason}`);
+    this.emit('session_failed_safe', { from, to, at, reason, activeSession: this.activeSession });
+
+    if (!this.failedSafePauseConfirmed) {
+      const pauseReason = `SessionRouter failed safe: ${from} -> ${to}: ${reason}`;
+      this.failedSafePauseFallbackApplied = this._applyLocalPauseFallback(pauseReason);
+      this.failedSafePauseConfirmed = this._stateManagerReportsPaused();
+      this.failedSafePauseError = this.failedSafePauseFallbackApplied
+        ? null
+        : 'StateManager pauseTrading failed before confirming a paused state';
+      this.emit('session_failed_safe_pause_fallback', {
+        from,
+        to,
+        at,
+        reason,
+        fallbackApplied: this.failedSafePauseFallbackApplied,
+        pauseConfirmed: this.failedSafePauseConfirmed,
+        pauseError: this.failedSafePauseError
+      });
+      console.error('[SessionRouter] Failed-safe pause was not confirmed by StateManager pauseTrading');
+    }
+  }
+
   async _transitionToStocks(now) {
     this.transitionInProgress = true;
     const ny = getNYTimeParts(now);
     console.log(`[SessionRouter] TRANSITION: crypto -> stocks at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
+    let pauseConfirmed = false;
 
     try {
       await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
+      pauseConfirmed = true;
 
       if (typeof this.krakenAdapter.unsubscribeAll === 'function') this.krakenAdapter.unsubscribeAll();
       if (typeof this.krakenAdapter.removeAllListeners === 'function') this.krakenAdapter.removeAllListeners('ohlc');
@@ -160,7 +222,7 @@ class SessionRouter extends EventEmitter {
 
     } catch (err) {
       console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
-      try { await this.stateManager.resumeTrading(); } catch (e) { /* swallow */ }
+      await this._enterFailedSafe('crypto', 'stocks', err, now, { pauseConfirmed });
     } finally {
       this.transitionInProgress = false;
     }
@@ -170,9 +232,11 @@ class SessionRouter extends EventEmitter {
     this.transitionInProgress = true;
     const ny = getNYTimeParts(now);
     console.log(`[SessionRouter] TRANSITION: stocks -> crypto at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
+    let pauseConfirmed = false;
 
     try {
       await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
+      pauseConfirmed = true;
 
       // Force-close stock positions. Each trade is closed at the SYMBOL'S
       // last-known price (StateManager tracks per-symbol prices), not a
@@ -239,13 +303,17 @@ class SessionRouter extends EventEmitter {
 
     } catch (err) {
       console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
-      try { await this.stateManager.resumeTrading(); } catch (e) { /* swallow */ }
+      await this._enterFailedSafe('stocks', 'crypto', err, now, { pauseConfirmed });
     } finally {
       this.transitionInProgress = false;
     }
   }
 
   _activateCrypto() {
+    if (this.failedSafeMode) {
+      console.error('[SessionRouter] Refusing crypto activation while failed-safe mode is active');
+      return;
+    }
     this.activeSession = 'crypto';
     this.activeBroker = this.krakenAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
@@ -266,6 +334,10 @@ class SessionRouter extends EventEmitter {
   }
 
   _activateStocks() {
+    if (this.failedSafeMode) {
+      console.error('[SessionRouter] Refusing stocks activation while failed-safe mode is active');
+      return;
+    }
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
@@ -292,6 +364,12 @@ class SessionRouter extends EventEmitter {
       activeSession: this.activeSession,
       activeBroker: this.activeBroker && this.activeBroker.constructor && this.activeBroker.constructor.name || null,
       transitionInProgress: this.transitionInProgress,
+      failedSafeMode: this.failedSafeMode,
+      failedSafeReason: this.failedSafeReason,
+      failedSafeAt: this.failedSafeAt,
+      failedSafePauseConfirmed: this.failedSafePauseConfirmed,
+      failedSafePauseError: this.failedSafePauseError,
+      failedSafePauseFallbackApplied: this.failedSafePauseFallbackApplied,
       lastTransitionAt: this.lastTransitionAt ? new Date(this.lastTransitionAt).toISOString() : null,
       marketPhase: getMarketPhase(new Date(this.clock())),
     };
