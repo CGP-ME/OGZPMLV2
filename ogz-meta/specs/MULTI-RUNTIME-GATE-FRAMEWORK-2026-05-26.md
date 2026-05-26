@@ -47,6 +47,7 @@ single-symbol P0 cannot see before a broader scenario gate exists.
 | `scope.order_executor.dashboard_trade_payload` | Scope | `OrderExecutor` dashboard `trade` frames carry trade identity from the actual trade record, not loose payload fields. |
 | `scope.position_tracker.close_selection` | Scope | `PositionTracker` closes by trade id or exact full scope, distinguishes same-symbol different-broker/account trades, rejects scopeKey-only requests, and refuses ambiguous same-scope closes. |
 | `scope.position_tracker.scoped_snapshots` | Scope | scoped reads return the requested trade instead of inventing a global first position. |
+| `session_router.transition_journal.state_machine` | SessionRouter | transition phases append ordered durable events, project restart status from the journal, advance epochs from journal-only events, and record order intent before route mutation. |
 | `visibility.trace_ladder.field_contract` | Planned | trace/proof events preserve join keys, immutable scope, state-before, gate results, order intent/result, state-after, and backend projection names. |
 | `visibility.dashboard_backend_truth` | Planned | dashboard payloads render backend-owned `state_update`, `trace_event`, proof JSON, or transition status instead of selected-chart inference. |
 | `visibility.session_router_status_contract` | Planned | SessionRouter exposes transition state, epoch, intent map status, reconciliation snapshot, and failed-safe state through backend status/proof payloads. |

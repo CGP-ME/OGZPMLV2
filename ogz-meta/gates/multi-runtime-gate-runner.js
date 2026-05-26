@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -442,6 +443,137 @@ const GATES = [
       assert.strictEqual(Object.isFrozen(spySnapshot), true, 'snapshot must be frozen');
 
       return { tslaScopeKey: tslaInfo.scopeKey, spyOrderId: spySnapshot.orderId };
+    })
+  },
+  {
+    id: 'session_router.transition_journal.state_machine',
+    layer: 'session_router',
+    description: 'SessionRouter writes ordered durable transition phase events and projects restart status from the journal.',
+    run: () => withQuietConsole(async () => {
+      const SessionRouter = require('../../core/SessionRouter');
+      const tempDirs = [];
+      const now = new Date('2026-05-26T14:30:00.000Z');
+
+      function makeRouter(overrides = {}) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-journal-gate-'));
+        tempDirs.push(dir);
+        const router = new SessionRouter({
+          enabled: true,
+          clock: () => now.getTime(),
+          stockSymbols: ['TSLA'],
+          cryptoSymbols: ['BTC-USD'],
+          forceCloseOnSessionEnd: false,
+          transitionStoreOptions: { dir },
+          ...overrides
+        });
+        router.stateManager = {
+          state: { activeTrades: new Map(), isTrading: true },
+          pauseTrading: async (reason) => {
+            router.stateManager.state.isTrading = false;
+            router.stateManager.state.pauseReason = reason;
+            return { success: true };
+          },
+          resumeTrading: async () => {
+            router.stateManager.state.isTrading = true;
+            return { success: true };
+          }
+        };
+        router.onOhlcCallback = () => {};
+        router.krakenAdapter = {
+          unsubscribeAll: () => {},
+          removeAllListeners: () => {},
+          subscribeToCandles: () => {},
+          on: () => {}
+        };
+        router.alpacaAdapter = {
+          unsubscribeAll: () => {},
+          removeAllListeners: () => {},
+          subscribeToCandles: () => {},
+          on: () => {}
+        };
+        return router;
+      }
+
+      try {
+        const successOps = [];
+        const successRouter = makeRouter();
+        successRouter.activeSession = 'crypto';
+        const originalRecord = successRouter.transitionStore.recordTransitionEvent.bind(successRouter.transitionStore);
+        successRouter.transitionStore.recordTransitionEvent = (eventName, details) => {
+          successOps.push(`event:${eventName}`);
+          return originalRecord(eventName, details);
+        };
+        successRouter.orderRouter = {
+          registerBroker: () => {
+            successOps.push('registerBroker');
+          }
+        };
+
+        await successRouter._transitionToStocks(now);
+
+        const successEvents = successRouter.transitionStore.readEvents();
+        const successStatus = successRouter.transitionStore.readStatus();
+        assert.deepStrictEqual(successEvents.map((event) => event.event), [
+          'SESSION_TRANSITION_PLANNED',
+          'SESSION_FREEZE_SOURCE',
+          'SESSION_ORDER_INTENT_RECORDED',
+          'SESSION_TARGET_ACTIVATED'
+        ], 'success transition must append the ordered phase journal');
+        assert(successEvents.every((event) => event.brokerId === 'alpaca'), 'every success phase must carry brokerId');
+        assert(successEvents.every((event) => Array.isArray(event.symbols) && event.symbols.includes('TSLA')), 'every success phase must carry symbols');
+        assert(successEvents.every((event) => event.timeframe === '15m'), 'every success phase must carry timeframe');
+        assert(successOps.indexOf('event:SESSION_ORDER_INTENT_RECORDED') < successOps.indexOf('registerBroker'), 'order intent must be durable before registerBroker mutates routing');
+        assert.strictEqual(successStatus.state, 'TARGET_ACTIVATED', 'success status should project target activation');
+        assert.strictEqual(successStatus.activeSession, 'stocks', 'success status should project target active session');
+
+        const failureRouter = makeRouter();
+        failureRouter.activeSession = 'crypto';
+        failureRouter.orderRouter = { registerBroker: () => {} };
+        failureRouter.krakenAdapter.unsubscribeAll = () => {
+          throw new Error('kraken unsubscribe failed');
+        };
+
+        await failureRouter._transitionToStocks(now);
+
+        const failureEvents = failureRouter.transitionStore.readEvents();
+        const failureStatus = failureRouter.transitionStore.readStatus();
+        assert.deepStrictEqual(failureEvents.map((event) => event.event), [
+          'SESSION_TRANSITION_PLANNED',
+          'SESSION_FREEZE_SOURCE',
+          'SESSION_FAILED_SAFE'
+        ], 'failed transition must append failed-safe journal phase');
+        assert.strictEqual(failureStatus.state, 'RECOVERY_REQUIRED', 'failed transition must project recovery required');
+        assert.strictEqual(failureStatus.safeModeReason, 'kraken unsubscribe failed', 'failed status should carry failure reason');
+        assert.strictEqual(failureRouter.stateManager.state.isTrading, false, 'failed transition must leave trading paused');
+
+        const crashDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-journal-gate-'));
+        tempDirs.push(crashDir);
+        const TransitionStore = require('../../core/session-router/TransitionStore');
+        const crashStore = new TransitionStore({ dir: crashDir, clock: () => now.getTime() });
+        crashStore.appendEvent({
+          transitionId: 'journal-only',
+          epoch: 17,
+          event: 'SESSION_FREEZE_SOURCE',
+          from: 'crypto',
+          to: 'stocks',
+          brokerId: 'alpaca',
+          symbols: ['TSLA'],
+          timeframe: '15m',
+          activeSession: 'crypto'
+        });
+        assert.strictEqual(crashStore.nextEpoch(), 18, 'journal-only epoch must advance nextEpoch after append-before-state crash');
+        assert.strictEqual(crashStore.readStatus().state, 'FREEZING_SOURCE', 'missing state file should reconstruct latest journal phase');
+
+        return {
+          successEvents: successEvents.length,
+          failureEvents: failureEvents.length,
+          journalOnlyNextEpoch: crashStore.nextEpoch()
+        };
+      } finally {
+        for (const dir of tempDirs) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      }
     })
   }
 ];

@@ -155,9 +155,42 @@ class SessionRouter extends EventEmitter {
     return true;
   }
 
+  _transitionAt(now) {
+    return now instanceof Date ? now.toISOString() : new Date(this.clock()).toISOString();
+  }
+
+  _createTransitionContext(from, to, now, details = {}) {
+    const at = this._transitionAt(now);
+    const epoch = this.transitionStore && typeof this.transitionStore.nextEpoch === 'function'
+      ? this.transitionStore.nextEpoch()
+      : null;
+    return {
+      transitionId: `${from}-to-${to}-${at}`,
+      epoch,
+      from,
+      to,
+      at,
+      ...details
+    };
+  }
+
+  _recordTransitionEvent(eventName, transitionContext, details = {}) {
+    if (!this.transitionStore || typeof this.transitionStore.recordTransitionEvent !== 'function') {
+      throw new Error('SessionRouter transition journal unavailable');
+    }
+    if (!transitionContext || !transitionContext.transitionId || !Number.isFinite(Number(transitionContext.epoch))) {
+      throw new Error('SessionRouter transition context missing durable transitionId/epoch');
+    }
+
+    return this.transitionStore.recordTransitionEvent(eventName, {
+      ...transitionContext,
+      ...details
+    });
+  }
+
   async _enterFailedSafe(from, to, err, now, options = {}) {
     const reason = err && err.message ? err.message : String(err);
-    const at = now instanceof Date ? now.toISOString() : new Date(this.clock()).toISOString();
+    const at = this._transitionAt(now);
     this.failedSafeMode = true;
     this.failedSafeReason = reason;
     this.failedSafeAt = at;
@@ -165,16 +198,48 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseError = null;
     this.failedSafePauseFallbackApplied = false;
 
+    let journalError = null;
+    try {
+      const transitionContext = options.transitionContext || this._createTransitionContext(from, to, now);
+      this._recordTransitionEvent('SESSION_FAILED_SAFE', transitionContext, {
+        reason,
+        activeSession: this.activeSession
+      });
+    } catch (recordErr) {
+      journalError = recordErr;
+      console.error('[SessionRouter] Failed to record SESSION_FAILED_SAFE:', recordErr.message);
+    }
+
     console.error(`[SessionRouter] SESSION_FAILED_SAFE: ${from} -> ${to}: ${reason}`);
-    this.emit('session_failed_safe', { from, to, at, reason, activeSession: this.activeSession });
+    this.emit('session_failed_safe', {
+      from,
+      to,
+      at,
+      reason,
+      activeSession: this.activeSession,
+      journalError: journalError ? journalError.message : null
+    });
 
     if (!this.failedSafePauseConfirmed) {
       const pauseReason = `SessionRouter failed safe: ${from} -> ${to}: ${reason}`;
-      this.failedSafePauseFallbackApplied = this._applyLocalPauseFallback(pauseReason);
+      let pauseErr = null;
+      if (this.stateManager && typeof this.stateManager.pauseTrading === 'function') {
+        try {
+          await this.stateManager.pauseTrading(pauseReason);
+        } catch (errPause) {
+          pauseErr = errPause;
+        }
+      }
+
       this.failedSafePauseConfirmed = this._stateManagerReportsPaused();
-      this.failedSafePauseError = this.failedSafePauseFallbackApplied
-        ? null
-        : 'StateManager pauseTrading failed before confirming a paused state';
+      if (!this.failedSafePauseConfirmed) {
+        this.failedSafePauseFallbackApplied = this._applyLocalPauseFallback(pauseReason);
+        this.failedSafePauseConfirmed = this._stateManagerReportsPaused();
+      }
+
+      this.failedSafePauseError = pauseErr
+        ? pauseErr.message
+        : (this.failedSafePauseConfirmed ? null : 'StateManager pauseTrading failed before confirming a paused state');
       this.emit('session_failed_safe_pause_fallback', {
         from,
         to,
@@ -193,17 +258,36 @@ class SessionRouter extends EventEmitter {
     const ny = getNYTimeParts(now);
     console.log(`[SessionRouter] TRANSITION: crypto -> stocks at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
     let pauseConfirmed = false;
+    let transitionContext = null;
+    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
 
     try {
+      transitionContext = this._createTransitionContext('crypto', 'stocks', now, {
+        brokerId: 'alpaca',
+        symbols: this.stockSymbols,
+        timeframe
+      });
+      this._recordTransitionEvent('SESSION_TRANSITION_PLANNED', transitionContext, {
+        activeSession: this.activeSession
+      });
+
       await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
       pauseConfirmed = true;
+      this._recordTransitionEvent('SESSION_FREEZE_SOURCE', transitionContext, {
+        activeSession: this.activeSession,
+        pauseConfirmed: true
+      });
 
       if (typeof this.krakenAdapter.unsubscribeAll === 'function') this.krakenAdapter.unsubscribeAll();
       if (typeof this.krakenAdapter.removeAllListeners === 'function') this.krakenAdapter.removeAllListeners('ohlc');
 
-      if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+      if (this.orderRouter) {
+        this._recordTransitionEvent('SESSION_ORDER_INTENT_RECORDED', transitionContext, {
+          activeSession: this.activeSession
+        });
+        this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+      }
 
-      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
           this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
@@ -219,12 +303,16 @@ class SessionRouter extends EventEmitter {
       this.lastTransitionAt = Date.now();
 
       await this.stateManager.resumeTrading();
+      pauseConfirmed = false;
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession
+      });
       this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: stocks session');
 
     } catch (err) {
       console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
-      await this._enterFailedSafe('crypto', 'stocks', err, now, { pauseConfirmed });
+      await this._enterFailedSafe('crypto', 'stocks', err, now, { pauseConfirmed, transitionContext });
     } finally {
       this.transitionInProgress = false;
     }
@@ -235,10 +323,25 @@ class SessionRouter extends EventEmitter {
     const ny = getNYTimeParts(now);
     console.log(`[SessionRouter] TRANSITION: stocks -> crypto at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
     let pauseConfirmed = false;
+    let transitionContext = null;
+    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
 
     try {
+      transitionContext = this._createTransitionContext('stocks', 'crypto', now, {
+        brokerId: 'kraken',
+        symbols: this.cryptoSymbols,
+        timeframe
+      });
+      this._recordTransitionEvent('SESSION_TRANSITION_PLANNED', transitionContext, {
+        activeSession: this.activeSession
+      });
+
       await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
       pauseConfirmed = true;
+      this._recordTransitionEvent('SESSION_FREEZE_SOURCE', transitionContext, {
+        activeSession: this.activeSession,
+        pauseConfirmed: true
+      });
 
       // Force-close stock positions. Each trade is closed at the SYMBOL'S
       // last-known price (StateManager tracks per-symbol prices), not a
@@ -277,9 +380,13 @@ class SessionRouter extends EventEmitter {
       if (typeof this.alpacaAdapter.unsubscribeAll === 'function') this.alpacaAdapter.unsubscribeAll();
       if (typeof this.alpacaAdapter.removeAllListeners === 'function') this.alpacaAdapter.removeAllListeners('ohlc');
 
-      if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+      if (this.orderRouter) {
+        this._recordTransitionEvent('SESSION_ORDER_INTENT_RECORDED', transitionContext, {
+          activeSession: this.activeSession
+        });
+        this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+      }
 
-      const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
       // SESSION-HIGH-01: throw on empty cryptoSymbols. Same class as CRIT-03 —
       // refusing to default to BTC-USD which would route a stocks bot's crypto
       // session to the wrong instrument.
@@ -300,12 +407,16 @@ class SessionRouter extends EventEmitter {
       this.lastTransitionAt = Date.now();
 
       await this.stateManager.resumeTrading();
+      pauseConfirmed = false;
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession
+      });
       this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: crypto session');
 
     } catch (err) {
       console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
-      await this._enterFailedSafe('stocks', 'crypto', err, now, { pauseConfirmed });
+      await this._enterFailedSafe('stocks', 'crypto', err, now, { pauseConfirmed, transitionContext });
     } finally {
       this.transitionInProgress = false;
     }

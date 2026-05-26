@@ -5,6 +5,13 @@ const path = require('path');
 const { writeJsonAtomic } = require('../AtomicWrite');
 
 const DEFAULT_STALE_LOCK_MS = 120000;
+const TRANSITION_EVENT_STATES = {
+  SESSION_TRANSITION_PLANNED: { state: 'PLANNED', freezeNewEntries: true },
+  SESSION_FREEZE_SOURCE: { state: 'FREEZING_SOURCE', freezeNewEntries: true },
+  SESSION_ORDER_INTENT_RECORDED: { state: 'ORDER_INTENT_RECORDED', freezeNewEntries: true },
+  SESSION_TARGET_ACTIVATED: { state: 'TARGET_ACTIVATED', freezeNewEntries: false },
+  SESSION_FAILED_SAFE: { state: 'RECOVERY_REQUIRED', freezeNewEntries: true }
+};
 
 function readJsonIfPresent(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -74,12 +81,18 @@ class TransitionStore {
     const epochs = [0];
     const state = this._readStateRaw();
     const lock = this._readLockRaw();
+    const events = this.readEvents();
 
     if (state.data && Number.isFinite(Number(state.data.epoch))) {
       epochs.push(Number(state.data.epoch));
     }
     if (lock.data && Number.isFinite(Number(lock.data.epoch))) {
       epochs.push(Number(lock.data.epoch));
+    }
+    for (const event of events) {
+      if (!event.corrupt && Number.isFinite(Number(event.epoch))) {
+        epochs.push(Number(event.epoch));
+      }
     }
 
     return Math.max(...epochs);
@@ -141,6 +154,81 @@ class TransitionStore {
 
     fs.appendFileSync(this.eventsPath, `${JSON.stringify(record)}\n`, 'utf8');
     return record;
+  }
+
+  _eventState(eventName) {
+    return TRANSITION_EVENT_STATES[eventName] || {
+      state: 'TRANSITION_EVENT',
+      freezeNewEntries: true
+    };
+  }
+
+  _statusFromEvent(event, eventsCount, lock = null) {
+    const eventState = this._eventState(event.event);
+    const epoch = Number.isFinite(Number(event.epoch)) ? Number(event.epoch) : 0;
+    const state = {
+      transitionId: event.transitionId || null,
+      epoch,
+      state: eventState.state,
+      recoveryRequired: eventState.state === 'RECOVERY_REQUIRED',
+      freezeNewEntries: eventState.freezeNewEntries,
+      from: event.from || null,
+      to: event.to || null,
+      activeSession: event.activeSession || null,
+      brokerId: event.brokerId || null,
+      symbols: Array.isArray(event.symbols) ? event.symbols : [],
+      timeframe: event.timeframe || null,
+      safeModeReason: event.reason || event.safeModeReason || null,
+      lastEvent: event.event,
+      lastEventAt: event.at || null,
+      lastEventSeq: event.seq || null,
+      lock,
+      eventsCount
+    };
+
+    return state;
+  }
+
+  _projectFromEvents(events, lock = null) {
+    if (!events.length) return null;
+    const corrupt = events.find((event) => event.corrupt);
+    if (corrupt) {
+      return {
+        state: 'RECOVERY_REQUIRED',
+        recoveryRequired: true,
+        transitionId: null,
+        epoch: this._maxEpochFromFiles(),
+        freezeNewEntries: true,
+        safeModeReason: `corrupt transition event line ${corrupt.seq}: ${corrupt.error}`,
+        lock,
+        eventsCount: events.length
+      };
+    }
+
+    return this._statusFromEvent(events[events.length - 1], events.length, lock);
+  }
+
+  recordTransitionEvent(eventName, details = {}) {
+    const at = details.at || this._nowIso();
+    const epoch = Number.isFinite(Number(details.epoch))
+      ? Number(details.epoch)
+      : this.nextEpoch();
+    const transitionId = details.transitionId || `transition-${at}`;
+    const record = this.appendEvent({
+      ...details,
+      event: eventName,
+      transitionId,
+      epoch,
+      at
+    });
+    const projected = this._statusFromEvent(record, this.readEvents().length);
+
+    return this.writeState({
+      ...projected,
+      recoveryRequired: undefined,
+      lock: undefined,
+      eventsCount: undefined
+    });
   }
 
   markRecoveryRequired(reason, details = {}) {
@@ -248,6 +336,7 @@ class TransitionStore {
   }
 
   readStatus() {
+    const events = this.readEvents();
     const state = this._readStateRaw();
     if (state.error) {
       return {
@@ -257,7 +346,7 @@ class TransitionStore {
         epoch: this._maxEpochFromFiles(),
         freezeNewEntries: true,
         safeModeReason: `corrupt transition-state.json: ${state.error.message}`,
-        eventsCount: this.readEvents().length
+        eventsCount: events.length
       };
     }
 
@@ -270,8 +359,13 @@ class TransitionStore {
         epoch: this._maxEpochFromFiles(),
         freezeNewEntries: true,
         safeModeReason: `corrupt transition-lock.json: ${lock.error.message}`,
-        eventsCount: this.readEvents().length
+        eventsCount: events.length
       };
+    }
+
+    const eventProjection = this._projectFromEvents(events, lock.data || null);
+    if (eventProjection && eventProjection.recoveryRequired && eventProjection.safeModeReason?.startsWith('corrupt transition event')) {
+      return eventProjection;
     }
 
     if (lock.data && this._isLockStale(lock.data)) {
@@ -284,27 +378,31 @@ class TransitionStore {
         freezeNewEntries: true,
         lock: lock.data,
         safeModeReason: 'stale transition lock present',
-        eventsCount: this.readEvents().length
+        eventsCount: events.length
       };
     }
 
     if (!state.data) {
-      return {
+      return eventProjection || {
         state: 'IDLE',
         recoveryRequired: false,
         transitionId: null,
         epoch: this._maxEpochFromFiles(),
         freezeNewEntries: false,
         lock: lock.data || null,
-        eventsCount: this.readEvents().length
+        eventsCount: events.length
       };
+    }
+
+    if (eventProjection && Number(eventProjection.lastEventSeq || 0) > Number(state.data.lastEventSeq || 0)) {
+      return eventProjection;
     }
 
     return {
       ...state.data,
       recoveryRequired: state.data.state === 'RECOVERY_REQUIRED',
       lock: lock.data || null,
-      eventsCount: this.readEvents().length
+      eventsCount: events.length
     };
   }
 }

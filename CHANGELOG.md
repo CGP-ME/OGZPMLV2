@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Transition Journal (2026-05-26)
+
+- Added durable SessionRouter transition phase journaling for planned, source-freeze, order-intent, target-activated, and failed-safe phases, with restart status projection from the append-only journal when the state file is missing or stale.
+- Hardened transition safety so broker routing intent is recorded before `registerBroker()` mutates the active route, journal-only epochs advance the next epoch, and failures after `resumeTrading()` re-enter failed-safe pause instead of relying on the old source pause.
+- Verification: `node --check` for touched runtime/test/gate files, focused SessionRouter Jest coverage, two Mercury adversarial passes with local fixes for valid findings, `node ogz-meta/gates/multi-runtime-gate-runner.js --gate session_router.transition_journal.state_machine`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### Multi-Runtime Gate Framework (2026-05-26)
 
 - Added an executable multi-runtime gate runner that keeps the canonical TSLA P0 anchor as the single-lane regression gate while adding focused scope gates for StateManager dashboard positions, OrderExecutor trade payloads, PositionTracker close selection, and scoped snapshots.

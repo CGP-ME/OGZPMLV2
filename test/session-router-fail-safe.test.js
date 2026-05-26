@@ -1,11 +1,16 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 const SessionRouter = require('../core/SessionRouter');
 
 describe('SessionRouter failed-safe transition behavior', () => {
   const now = new Date('2026-05-26T14:30:00.000Z');
   let consoleLogSpy;
   let consoleErrorSpy;
+  let tempDir;
 
   function makeRouter(overrides = {}) {
     const router = new SessionRouter({
@@ -14,6 +19,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
       stockSymbols: ['TSLA'],
       cryptoSymbols: ['BTC-USD'],
       forceCloseOnSessionEnd: false,
+      transitionStoreOptions: { dir: tempDir },
       ...overrides
     });
 
@@ -46,6 +52,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
   }
 
   beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-fail-safe-'));
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -53,6 +60,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
   afterEach(() => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   test('transition to stocks failure enters failed-safe mode without resuming trading', async () => {
@@ -83,7 +91,8 @@ describe('SessionRouter failed-safe transition behavior', () => {
         from: 'crypto',
         to: 'stocks',
         reason: 'kraken unsubscribe failed',
-        at: now.toISOString()
+        at: now.toISOString(),
+        journalError: null
       })
     ]);
     expect(router.getStatus()).toEqual(expect.objectContaining({
@@ -127,7 +136,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('state write failed');
     expect(router.failedSafePauseConfirmed).toBe(true);
-    expect(router.failedSafePauseError).toBe(null);
+    expect(router.failedSafePauseError).toBe('state write failed');
     expect(router.failedSafePauseFallbackApplied).toBe(true);
     expect(router.stateManager.state.isTrading).toBe(false);
     expect(router.stateManager.state.pauseReason).toBe(
@@ -140,7 +149,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
         reason: 'state write failed',
         fallbackApplied: true,
         pauseConfirmed: true,
-        pauseError: null
+        pauseError: 'state write failed'
       })
     ]);
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
@@ -159,7 +168,8 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('partial pause write failed');
     expect(router.failedSafePauseConfirmed).toBe(true);
-    expect(router.failedSafePauseFallbackApplied).toBe(true);
+    expect(router.failedSafePauseFallbackApplied).toBe(false);
+    expect(router.failedSafePauseError).toBe('partial pause write failed');
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
   });
 
