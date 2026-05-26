@@ -17,10 +17,15 @@ time.
 - `ogz-meta/specs/OPERATOR-DESIGN-GAPS.md`
 - `ogz-meta/specs/thisiswhatimtalkingabout.md`
 - `ogz-meta/specs/MULTI-RUNTIME-CAPABILITY-AUDIT-2026-05-25.md`
+- `ogz-meta/specs/eval-go-no-go-checklist-2026-05-23.md`
+- `ogz-meta/sessions/session-2026-05-24-eval-trace-and-ttp-rule-gates.md`
+- `ogz-meta/codex-design/02-ARCHITECTURE-DESIGN-ADDENDUM-SESSIONROUTER-SAGA-INVARIANTS-2026-05-20.md`
 
 The first three recover the original architecture intent and archive-code
 inventory. The capability audit is the current-code bridge and supplies the
-implementation ladder.
+implementation ladder. The eval checklist, trace session, and SessionRouter
+saga addendum preserve the visibility and transition-safety requirements that
+must survive the architecture expansion.
 
 ## Non-Negotiable Invariants
 
@@ -41,6 +46,10 @@ implementation ladder.
 7. Broker adapters are capability-gated. A command cannot route to a broker
    unless that broker has proven the required market-data, account, order, and
    reconciliation capabilities.
+8. Every runtime expansion preserves the eval trace ladder: ingress,
+   normalization, state-before, decision, gate checks, order boundary,
+   state-after, dashboard/proof payload, and restart/retry status must remain
+   joinable by trace, signal, trade, order, or transition identifiers.
 
 ## Scope Envelope
 
@@ -71,6 +80,77 @@ placeholder such as `default`, never an empty value. The placeholder must be
 visible in logs and dashboard payloads so it cannot be confused with a real
 broker account id.
 
+## Visibility / Eval Transparency Contract
+
+The multi-runtime build must carry forward the eval visibility work already
+landed for Gate H and the signal-through-bot trace ladder. Adding symbols,
+timeframes, directions, accounts, brokers, or SessionRouter transitions is not
+complete unless the operator can still prove what happened without inferring
+from UI selection, stale config, or disconnected logs.
+
+Every trading, session, dashboard, or proof event that represents live runtime
+truth must include the fields below when the field exists for that stage:
+
+- join keys: `traceId`, `signalId`, `decisionId`, `tradeId`, `intentId`,
+  `orderId`, or `transitionId`;
+- immutable scope: `executionMode`, `brokerId`, `accountId`, `assetClass`,
+  `symbol`, `timeframe`, `sessionId` or `modeEpoch`, and `scopeKey`;
+- input source: candle source, session source, adapter source, webhook source,
+  or broker callback source;
+- state-before: active positions, open orders, pause/kill/halt status,
+  balance/equity snapshot, and broker position snapshot when available;
+- gate results: strategy, risk, eval, session-freeze, broker-capability, and
+  reconciliation gates with pass/fail status and reason;
+- order intent: side/action, quantity or notional, destination broker/webhook,
+  `clientOrderId` or idempotency key, dry-run/live posture, and target account;
+- order result: accepted, rejected, pending, unknown, terminal, external order
+  id, broker status, and rejection/failure reason;
+- state-after: exact mutation, pending reconciliation state, or explicit
+  no-mutation reason;
+- dashboard/proof payload: backend event name and payload source used by the
+  UI or proof report.
+
+Existing trace events that must not disappear during the expansion:
+
+- `CANDLE_INGRESS`
+- `CANDLE_PROCESSOR_RECEIVED`
+- `CANDLE_ACCEPTED`
+- `ANALYSIS_START`
+- `STRATEGY_DECISION`
+- `DECISION_SKIP`
+- `EXECUTE_HANDOFF`
+- `ORDER_EXECUTE_START`
+- `ORDER_PLAN`
+- `EVAL_RULE_CHECK`
+- `WEBHOOK_ORDER_DISPATCH`
+- `WEBHOOK_ORDER_RESULT`
+- `STATE_MUTATION`
+- `EXECUTE_RETURN`
+- `state_update`
+- `trace_event`
+
+SessionRouter work must add the same level of proof for boundary swaps:
+
+- `SESSION_TRANSITION_PLANNED`
+- `SESSION_FREEZE_SOURCE`
+- `SESSION_ORDER_INTENT_RECORDED`
+- `SESSION_RECONCILIATION_SNAPSHOT`
+- `SESSION_TARGET_ACTIVATED`
+- `SESSION_FAILED_SAFE`
+
+No visibility regression rule:
+
+- If code moves ownership of state, orders, session transitions, or dashboard
+  truth, the commit must either preserve the same trace/proof fields or
+  document the replacement mapping in the commit body or session note.
+- A dashboard feature is not accepted unless it renders backend-owned
+  `state_update`, `trace_event`, transition status, proof JSON, or another
+  explicitly named backend projection. It must not infer exposure from the
+  selected chart, raw websocket price frames, or local UI state.
+- A SessionRouter feature is not accepted unless its transition journal,
+  epoch/fencing status, broker-intent map, reconciliation snapshot, and
+  safe-mode status are visible through backend status/proof surfaces.
+
 ## Current Verified Runtime Gap
 
 The current runtime has real building blocks but is not the full platform yet:
@@ -86,6 +166,9 @@ The current runtime has real building blocks but is not the full platform yet:
 - MultiTimeframeAdapter and AdaptiveTimeframeSelector exist, but active runtime
   still uses one selected trading timeframe.
 - Dashboard position views still depend on incomplete backend state payloads.
+- Eval trace spine and Gate H surfaces exist, but this architecture ladder must
+  keep them as acceptance gates instead of treating them as a separate frontend
+  project.
 
 ## Build Order
 
@@ -99,6 +182,8 @@ Required changes:
 - Dashboard position payloads must expose scoped positions from backend state.
 - Open positions panel must render backend positions, not selected chart
   guesses.
+- `state_update`, `trace_event`, and Gate H live report payloads must keep
+  rendering backend-owned truth during the scoped-position migration.
 - Broker registry/capability docs must distinguish scaffold, implemented, and
   verified adapters.
 
@@ -123,12 +208,15 @@ Affected paths:
 - Dashboard trade and state events
 - Backtest report rows
 - Pattern-memory writes
+- Eval trace events and proof payload rows
 
 Acceptance gate:
 
 - A BUY or SELL_SHORT without `symbol`, `brokerId`, `assetClass`,
   `executionMode`, `timeframe`, and `scopeKey` fails before openPosition.
 - A close path without trade id or exact scope fails before selecting a trade.
+- The same rejected action emits enough trace/proof context to identify the
+  missing field and the source that attempted to execute.
 
 ### Phase 2 - Replace Scalar Position Truth
 
@@ -171,6 +259,8 @@ Acceptance gate:
 
 - One process sees TSLA and SPY candles, can hold independent scoped positions,
   and dashboard state remains correct.
+- Trace/proof output distinguishes TSLA and SPY ingress, decisions, state
+  mutations, and dashboard rows without relying on the selected chart symbol.
 
 ### Phase 4 - Multi-Timeframe Per Symbol
 
@@ -251,12 +341,17 @@ Required changes:
 - No UI inference.
 - Pattern memory keyed by mode, broker/account where relevant, asset class,
   symbol, timeframe, and strategy/source.
+- Session transition journal, epoch/fencing status, broker-intent map,
+  reconciliation snapshots, and failed-safe state are exposed through backend
+  status/proof surfaces.
 
 Acceptance gate:
 
 - One crypto broker and one stock broker can be active in one process without
   sharing positions, order ids, candle history, learned state, or dashboard
   labels.
+- The operator can follow one transition or order across trace/proof output from
+  ingress or transition planning through final state/reconciliation result.
 
 ## First Build Slice
 
