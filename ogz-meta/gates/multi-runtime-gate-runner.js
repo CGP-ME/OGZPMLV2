@@ -141,6 +141,31 @@ function makeTrade(overrides = {}) {
   };
 }
 
+function makeBacktestTrade(overrides = {}) {
+  return {
+    entryTime: '2026-05-26T13:30:00.000Z',
+    exitTime: '2026-05-26T13:45:00.000Z',
+    direction: 'long',
+    entryPrice: 100,
+    exitPrice: 105,
+    size: 500,
+    strategyName: 'GateStrategy',
+    confidence: 0.72,
+    exitReason: 'take_profit',
+    holdTimeMinutes: 15,
+    symbol: 'TSLA',
+    brokerId: 'alpaca',
+    accountId: 'acct-main',
+    accountIdSource: 'config',
+    assetClass: 'stocks',
+    executionMode: 'backtest',
+    timeframe: '15m',
+    scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:15m',
+    scopeKeyVersion: 2,
+    ...overrides
+  };
+}
+
 function addTrades(...trades) {
   const sm = stateManager();
   for (const trade of trades) {
@@ -422,6 +447,67 @@ const GATES = [
       return {
         rejections: rejectionCount,
         acceptedScopeKey: trade.scopeKey
+      };
+    })
+  },
+  {
+    id: 'scope.backtest_report.scope_contract',
+    layer: 'scope',
+    description: 'BacktestRecorder and BacktestRunner reject unscoped report rows before recorder or report mutation.',
+    run: () => withQuietConsole(async () => {
+      const BacktestRecorder = require('../../core/BacktestRecorder');
+      const BacktestRunner = require('../../core/BacktestRunner');
+      const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+
+      const accepted = recorder.recordTrade(makeBacktestTrade());
+      assert.strictEqual(accepted.symbol, 'TSLA', 'recorded trade must carry symbol');
+      assert.strictEqual(accepted.brokerId, 'alpaca', 'recorded trade must carry brokerId');
+      assert.strictEqual(accepted.accountId, 'acct-main', 'recorded trade must carry accountId');
+      assert.strictEqual(accepted.assetClass, 'stocks', 'recorded trade must carry assetClass');
+      assert.strictEqual(accepted.executionMode, 'backtest', 'recorded trade must carry executionMode');
+      assert.strictEqual(accepted.timeframe, '15m', 'recorded trade must carry timeframe');
+      assert.strictEqual(
+        accepted.scopeKey,
+        'backtest:alpaca:acct-main:stocks:TSLA:15m',
+        'recorded trade must carry derived scopeKey'
+      );
+      assert.strictEqual(accepted.scopeKeyVersion, 2, 'recorded trade must carry scopeKeyVersion 2');
+      assert.strictEqual(accepted.scopeComplete, true, 'explicit account backtest row must be scope complete');
+      assert.strictEqual(recorder.trades.length, 1, 'accepted scoped row must mutate recorder exactly once');
+
+      const missingRecorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+      assert.throws(
+        () => missingRecorder.recordTrade(makeBacktestTrade({ brokerId: null })),
+        /missing immutable backtest trade scope field\(s\): brokerId/,
+        'missing brokerId must reject before recorder mutation'
+      );
+      assert.strictEqual(missingRecorder.trades.length, 0, 'missing brokerId must not append a trade row');
+      assert.strictEqual(missingRecorder.balance, 10000, 'missing brokerId must not mutate balance');
+
+      const staleScopeRecorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+      assert.throws(
+        () => staleScopeRecorder.recordTrade(makeBacktestTrade({
+          scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
+        })),
+        /scopeKey mismatch/,
+        'stale supplied scopeKey must reject before recorder mutation'
+      );
+      assert.strictEqual(staleScopeRecorder.trades.length, 0, 'stale supplied scopeKey must not append a trade row');
+      assert.strictEqual(staleScopeRecorder.balance, 10000, 'stale supplied scopeKey must not mutate balance');
+
+      const runner = new BacktestRunner({});
+      assert.throws(
+        () => runner.assertScopedReportTrades([
+          makeBacktestTrade(),
+          makeBacktestTrade({ timeframe: null })
+        ]),
+        /BacktestRunner\.report trades\[1\] missing immutable backtest trade scope field\(s\): timeframe/,
+        'BacktestRunner must reject unscoped rows before report write'
+      );
+
+      return {
+        acceptedScopeKey: accepted.scopeKey,
+        rejectedRows: 3
       };
     })
   },

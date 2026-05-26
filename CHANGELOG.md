@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Report Scope Gate (2026-05-26)
+
+- Added executable gate `scope.backtest_report.scope_contract` to prove backtest report rows reject missing immutable scope or stale scope keys before recorder balance/row mutation, and that `BacktestRunner` refuses to write reports with unscoped rows.
+- Verification: `node --check ogz-meta/gates/multi-runtime-gate-runner.js`, `node ogz-meta/gates/multi-runtime-gate-runner.js --gate scope.backtest_report.scope_contract`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, and `git diff --check` passed.
+
 ### Backtest Report Scope Stamping (2026-05-26)
 
 - Added immutable scope validation to `BacktestRecorder.recordTrade()` so backtest rows missing symbol, broker, account, asset class, execution mode, timeframe, or matching scope key fail before recorder balance or row mutation.
