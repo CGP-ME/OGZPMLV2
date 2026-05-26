@@ -29,6 +29,13 @@ const IMMUTABLE_FIELDS = Object.freeze([
   'side',
   'direction',
   'orderId',
+  'symbol',
+  'brokerId',
+  'accountId',
+  'assetClass',
+  'executionMode',
+  'timeframe',
+  'scopeKey',
   'exitContract'
 ]);
 
@@ -105,6 +112,7 @@ class PositionTracker {
    * @param {Object} params.exitContract - Exit conditions (WRITE-ONCE)
    * @param {string} params.symbol - Canonical trade symbol
    * @param {string} params.brokerId - Broker identity that owns this trade
+   * @param {string} params.accountId - Account identity that owns this trade
    * @param {string} params.assetClass - Asset class for this trade
    * @param {string} params.executionMode - paper/live/backtest
    * @param {string} params.timeframe - Candle timeframe that produced the entry
@@ -129,6 +137,7 @@ class PositionTracker {
       exitContract,
       symbol,
       brokerId,
+      accountId,
       assetClass,
       executionMode,
       timeframe,
@@ -153,6 +162,8 @@ class PositionTracker {
       scope = this.stateManager.buildTradeScope({
         symbol: symbol ?? metadata.symbol,
         brokerId: brokerId ?? metadata.brokerId,
+        accountId: accountId ?? metadata.accountId,
+        accountIdSource: metadata.accountIdSource,
         assetClass: assetClass ?? metadata.assetClass,
         executionMode: executionMode ?? metadata.executionMode,
         timeframe: timeframe ?? metadata.timeframe
@@ -174,6 +185,8 @@ class PositionTracker {
       signalId,
       symbol: scope.symbol,
       brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
       assetClass: scope.assetClass,
       executionMode: scope.executionMode,
       timeframe: scope.timeframe,

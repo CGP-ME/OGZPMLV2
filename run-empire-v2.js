@@ -1112,6 +1112,7 @@ class OGZPrimeV14Bot {
       minTradeConfidence: TradingConfig.get('confidence.minTradeConfidence'),
       tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
+      accountId: resolvedConfig.config.broker.accountId || 'default',
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,

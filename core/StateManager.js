@@ -377,6 +377,7 @@ class StateManager {
    *   confidence: 75,
    *   symbol: 'BTC-USD',
    *   brokerId: 'kraken',
+   *   accountId: 'default',
    *   assetClass: 'crypto',
    *   executionMode: 'paper',
    *   timeframe: '15m'
@@ -463,6 +464,8 @@ class StateManager {
       // (returning [] for crypto pairs and silently breaking exit-checks).
       symbol: tradeSymbol,
       brokerId: tradeScope.brokerId,
+      accountId: tradeScope.accountId,
+      accountIdSource: tradeScope.accountIdSource,
       assetClass: tradeScope.assetClass,
       executionMode: tradeScope.executionMode,
       timeframe: tradeScope.timeframe,
@@ -1083,6 +1086,24 @@ class StateManager {
 
   buildTradeScope(context, symbol, caller = 'StateManager.buildTradeScope') {
     const brokerId = context.brokerId || context.ledgerData?.brokerId || null;
+    const rawAccountCandidate = context.accountId
+      || context.account
+      || context.brokerAccountId
+      || context.ledgerData?.accountId
+      || context.ledgerData?.account
+      || null;
+    const cleanedAccountCandidate = rawAccountCandidate !== null && rawAccountCandidate !== undefined
+      ? String(rawAccountCandidate).trim()
+      : '';
+    const hasExplicitAccountId = rawAccountCandidate !== null
+      && rawAccountCandidate !== undefined
+      && cleanedAccountCandidate !== ''
+      && cleanedAccountCandidate !== 'default';
+    const accountId = hasExplicitAccountId ? cleanedAccountCandidate : 'default';
+    const suppliedAccountIdSource = context.accountIdSource || context.ledgerData?.accountIdSource || null;
+    const accountIdSource = hasExplicitAccountId
+      ? (suppliedAccountIdSource && suppliedAccountIdSource !== 'default' ? suppliedAccountIdSource : 'trade')
+      : 'default';
     const assetClass = context.assetClass || context.ledgerData?.assetClass || null;
     const executionMode = context.executionMode || context.ledgerData?.executionMode || null;
     const timeframe = context.timeframe || context.ledgerData?.timeframe || null;
@@ -1101,6 +1122,7 @@ class StateManager {
     };
     const rawSymbol = cleanText(symbol, 'symbol');
     const rawBrokerId = cleanText(brokerId, 'brokerId');
+    const rawAccountId = cleanText(accountId, 'accountId');
     const rawAssetClass = cleanText(assetClass, 'assetClass');
     const rawExecutionMode = cleanText(executionMode, 'executionMode');
     const rawTimeframe = cleanText(timeframe, 'timeframe');
@@ -1111,11 +1133,13 @@ class StateManager {
     const scope = {
       symbol: this.normalizeSymbol(rawSymbol, caller),
       brokerId: rawBrokerId.toLowerCase(),
+      accountId: rawAccountId,
+      accountIdSource,
       assetClass: rawAssetClass.toLowerCase(),
       executionMode: rawExecutionMode.toLowerCase(),
       timeframe: rawTimeframe
     };
-    scope.key = `${scope.executionMode}:${scope.brokerId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`;
+    scope.key = `${scope.executionMode}:${scope.brokerId}:${scope.accountId}:${scope.assetClass}:${scope.symbol}:${scope.timeframe}`;
     return scope;
   }
 
@@ -1376,6 +1400,8 @@ class StateManager {
           const scopeInput = {
             symbol: trade.symbol,
             brokerId: trade.brokerId || trade.brokerName || trade.broker || null,
+            accountId: trade.accountId || trade.account || null,
+            accountIdSource: trade.accountIdSource,
             assetClass: trade.assetClass || trade.assetType || null,
             executionMode: trade.executionMode || trade.decisionLedger?.executionMode || null,
             timeframe: trade.timeframe || trade.decisionLedger?.timeframe || null
@@ -1383,6 +1409,8 @@ class StateManager {
           try {
             const scope = this.buildTradeScope(scopeInput, trade.symbol, 'StateManager.load trade scope');
             trade.brokerId = scope.brokerId;
+            trade.accountId = scope.accountId;
+            trade.accountIdSource = scope.accountIdSource;
             trade.assetClass = scope.assetClass;
             trade.executionMode = scope.executionMode;
             trade.timeframe = scope.timeframe;
@@ -1585,8 +1613,9 @@ class StateManager {
       }
 
       const brokerId = trade.brokerId || trade.broker || trade.brokerName || null;
-      const hasExplicitAccountId = Boolean(trade.accountId || trade.account);
       const accountId = trade.accountId || trade.account || 'default';
+      const accountIdSource = trade.accountIdSource || (accountId !== 'default' ? 'trade' : 'default');
+      const hasExplicitAccountId = Boolean(accountId && accountId !== 'default' && accountIdSource !== 'default');
       const assetClass = trade.assetClass || trade.assetType || null;
       const executionMode = trade.executionMode || null;
       const timeframe = trade.timeframe || null;
@@ -1600,7 +1629,7 @@ class StateManager {
         broker: brokerId,
         brokerId,
         accountId,
-        accountIdSource: hasExplicitAccountId ? 'trade' : 'default',
+        accountIdSource,
         assetClass,
         executionMode,
         timeframe,

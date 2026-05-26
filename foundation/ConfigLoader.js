@@ -245,6 +245,7 @@ function buildConfig() {
         candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
         tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
         assetClass: track('broker.assetClass', envStr('ASSET_CLASS', _isKraken ? 'crypto' : 'stocks')),
+        accountId: track('broker.accountId', envStr('BROKER_ACCOUNT_ID', 'default')),
       };
     })(),
 

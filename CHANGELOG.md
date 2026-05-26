@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Account-Scoped Trade Identity (2026-05-25)
+
+- Added `BROKER_ACCOUNT_ID` to ConfigLoader broker config and threaded `accountId` into the bot runtime context so trade scope can distinguish broker accounts instead of stopping at broker/symbol/timeframe.
+- Changed `StateManager.buildTradeScope()` to build six-part scope keys: `executionMode:brokerId:accountId:assetClass:symbol:timeframe`, while forcing the local placeholder account `default` to remain visibly incomplete through `accountIdSource: default`.
+- Stamped account scope on BUY and SELL_SHORT trade records, made PositionTracker treat scope identity fields as immutable, and kept loaded legacy/default-account trades visible as incomplete rather than silently promoting them to real account truth.
+- Verification: syntax checks for touched runtime files, focused account-scope smoke, `BROKER_ACCOUNT_ID` ConfigLoader smoke, two Mercury attempts failed with HTTP 500, local adversarial review fixed default-account source forgery, and full anchor-runner P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Scoped Open Positions Panel (2026-05-25)
 
 - Updated the Open Positions dashboard panel to prefer backend `state.positions` rows from `StateManager` over selected-chart inference, preserving scoped position metadata including broker, account, asset class, execution mode, timeframe, scope key, and scope completeness.
