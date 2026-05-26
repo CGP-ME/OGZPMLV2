@@ -47,6 +47,12 @@ function timeframeToMs(timeframe) {
   return value * unitMs;
 }
 
+function cleanScopeValue(value) {
+  if (value === null || value === undefined) return null;
+  const cleaned = String(value).trim();
+  return cleaned ? cleaned : null;
+}
+
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
@@ -111,11 +117,103 @@ class CandleProcessor {
   }
 
   _resolveCandleTimeframe(candle) {
-    const timeframe = candle?.timeframe || this.ctx.candleTimeframe || this.ctx.config?.timeframe;
+    const timeframe = candle?.timeframe;
     if (typeof timeframe !== 'string' || !timeframe.trim()) {
-      throw new Error(`CandleProcessor.processNewCandle: missing candle timeframe for symbol=${candle?.symbol || this.ctx.tradingPair || '(missing)'}`);
+      throw new Error(`CandleProcessor.processNewCandle: missing candle timeframe for symbol=${candle?.symbol || '(missing)'}`);
     }
     return timeframe.trim();
+  }
+
+  _resolveCandleScopeContext(candle) {
+    const config = this.ctx?.config || {};
+    const accountId = cleanScopeValue(candle.accountId) || cleanScopeValue(config.accountId);
+    const accountIdSource = cleanScopeValue(candle.accountIdSource)
+      || (accountId === 'default' ? 'default' : accountId ? 'config' : null);
+    const executionMode = cleanScopeValue(candle.executionMode)
+      || (config.enableBacktestMode ? 'backtest' : cleanScopeValue(config.executionMode));
+
+    return {
+      brokerId: cleanScopeValue(candle.brokerId) || cleanScopeValue(config.brokerId),
+      accountId,
+      accountIdSource,
+      assetClass: cleanScopeValue(candle.assetClass) || cleanScopeValue(config.assetClass),
+      executionMode,
+      timeframe: cleanScopeValue(candle.timeframe),
+    };
+  }
+
+  _emitCandleScopeRejected(traceId, candle, missingFields, source) {
+    if (!traceId) return;
+    emitTrace(this.ctx, 'CANDLE_SCOPE_REJECTED', {
+      traceId,
+      source: source || 'processNewCandle',
+      missingFields,
+      symbol: candle?.symbol || null,
+      timeframe: candle?.timeframe || null,
+      brokerId: candle?.brokerId || this.ctx?.config?.brokerId || null,
+      accountId: candle?.accountId || this.ctx?.config?.accountId || null,
+      assetClass: candle?.assetClass || this.ctx?.config?.assetClass || null,
+      executionMode: candle?.executionMode || this.ctx?.config?.executionMode || null,
+      scopeKey: candle?.scopeKey || null,
+      scopeKeyPresent: Boolean(candle?.scopeKey),
+    });
+  }
+
+  _attachCandleScope(candle, options = {}) {
+    const traceContext = this._resolveTraceContext(options);
+    const traceId = traceContext.traceId || candle?.traceId || null;
+    const source = traceContext.source || candle?.source || 'processNewCandle';
+    const missing = [];
+
+    if (!candle || typeof candle !== 'object' || Array.isArray(candle)) {
+      this._emitCandleScopeRejected(traceId, candle, ['candle'], source);
+      throw new Error('CandleProcessor.processNewCandle missing immutable candle scope field(s): candle');
+    }
+
+    const symbol = normalizeCandleSymbol(candle.symbol);
+    if (!symbol) missing.push('symbol');
+
+    const scopeContext = this._resolveCandleScopeContext(candle);
+    for (const field of ['brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']) {
+      if (!cleanScopeValue(scopeContext[field])) missing.push(field);
+    }
+
+    if (missing.length > 0) {
+      this._emitCandleScopeRejected(traceId, candle, missing, source);
+      throw new Error(`CandleProcessor.processNewCandle missing immutable candle scope field(s): ${missing.join(', ')}`);
+    }
+
+    const scope = stateManager.buildTradeScope(
+      scopeContext,
+      symbol,
+      'CandleProcessor.processNewCandle'
+    );
+
+    Object.assign(candle, {
+      symbol: scope.symbol,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      scopeKey: scope.key,
+      scopeKeyVersion: 2,
+    });
+
+    return { candle, scope };
+  }
+
+  _stampRuntimeScopeFields(candle) {
+    const scopeContext = this._resolveCandleScopeContext(candle);
+    return {
+      ...candle,
+      brokerId: scopeContext.brokerId,
+      accountId: scopeContext.accountId,
+      accountIdSource: scopeContext.accountIdSource,
+      assetClass: scopeContext.assetClass,
+      executionMode: scopeContext.executionMode,
+    };
   }
 
   _resolveTraceContext(options = {}) {
@@ -136,7 +234,9 @@ class CandleProcessor {
    */
   processNewCandle(candle, options = {}) {
     const persist = options.persist !== false;
-    const traceId = this._resolveTraceContext(options).traceId || candle.traceId || null;
+    const traceId = this._resolveTraceContext(options).traceId || candle?.traceId || null;
+    const scoped = this._attachCandleScope(candle, options);
+    candle = scoped.candle;
     const candleTimeframe = this._resolveCandleTimeframe(candle);
     // Check if this is an update to existing candle or a new candle
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
@@ -145,12 +245,7 @@ class CandleProcessor {
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
       this.ctx.priceHistory[existingIndex] = candle;
-      // CRIT-05-followup: same fail-loud as TRAI sites — refuse to silently
-      // poison candleStore under wrong asset symbol when both candle.symbol
-      // and ctx.tradingPair are missing.
-      const candleStoreSymbol = normalizeCandleSymbol(candle.symbol || this.ctx.tradingPair || (() => {
-          throw new Error('CandleProcessor.processNewCandle (UPDATE): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
-        })());
+      const candleStoreSymbol = candle.symbol;
       this.ctx._candleStore.addCandle(
         candleStoreSymbol,
         candleTimeframe,
@@ -185,6 +280,11 @@ class CandleProcessor {
           priceHistory: this.ctx.priceHistory.length,
           close: candle.c,
           etime: candle.etime,
+          brokerId: candle.brokerId,
+          accountId: candle.accountId,
+          assetClass: candle.assetClass,
+          executionMode: candle.executionMode,
+          scopeKey: candle.scopeKey,
         });
       }
       return false; // Was update, not new
@@ -206,10 +306,7 @@ class CandleProcessor {
       this.ctx.priceHistory.splice(insertIndex, 0, candle);
     }
 
-    // CRIT-05-followup: NEW candle path — same fail-loud guard.
-    const candleStoreSymbol = normalizeCandleSymbol(candle.symbol || this.ctx.tradingPair || (() => {
-        throw new Error('CandleProcessor.processNewCandle (NEW): missing candle.symbol AND ctx.tradingPair — refusing to default to BTC-USD');
-      })());
+    const candleStoreSymbol = candle.symbol;
     this.ctx._candleStore.addCandle(
       candleStoreSymbol,
       candleTimeframe,
@@ -246,10 +343,10 @@ class CandleProcessor {
         this._firstCandleSeenSymbols ??= new Set();
         const sym = symCtx.symbol;
         if (!this._firstCandleSeenSymbols.has(sym)) {
-          console.log(`[VIS][CandleProcessor] first route candleSymbol=${candle.symbol || '(missing)'} selected=${sym} ctxTradingPair=${normalizeCandleSymbol(this.ctx.tradingPair) || '(missing)'} price=${candle.c}`);
+          console.log(`[VIS][CandleProcessor] first route candleSymbol=${candle.symbol} selected=${sym} ctxTradingPair=${normalizeCandleSymbol(this.ctx.tradingPair) || '(missing)'} price=${candle.c}`);
           this._firstCandleSeenSymbols.add(sym);
         }
-        console.log(`[VIS][CandleProcessor] route candleSymbol=${candle.symbol || '(missing)'} selected=${sym} price=${candle.c} candles=${this.ctx.priceHistory.length}`);
+        console.log(`[VIS][CandleProcessor] route candleSymbol=${candle.symbol} selected=${sym} price=${candle.c} candles=${this.ctx.priceHistory.length}`);
         symCtx.indicatorEngine.updateCandle({
           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
         });
@@ -267,13 +364,18 @@ class CandleProcessor {
         priceHistory: this.ctx.priceHistory.length,
         close: candle.c,
         etime: candle.etime,
+        brokerId: candle.brokerId,
+        accountId: candle.accountId,
+        assetClass: candle.assetClass,
+        executionMode: candle.executionMode,
+        scopeKey: candle.scopeKey,
       });
     }
 
     // Warmup log (only first 20 candles)
     if (this.ctx.priceHistory.length <= 20) {
       const candleTime = new Date(candle.t).toLocaleTimeString();
-      console.log(`✅ Candle #${this.ctx.priceHistory.length}/15 [${candleTime}]`);
+      console.log(`Candle #${this.ctx.priceHistory.length}/15 [${candleTime}]`);
     }
 
     // Trim history to 250
@@ -473,6 +575,25 @@ class CandleProcessor {
   handleBackfillSuccess(candles, traceContext = {}) {
     const traceOptions = this._resolveTraceContext(traceContext);
     const traceId = traceOptions.traceId || null;
+    const replaySymbol = normalizeCandleSymbol(traceOptions.symbol);
+    const replayTimeframe = cleanScopeValue(traceOptions.timeframe);
+    const replayScope = {
+      symbol: replaySymbol,
+      timeframe: replayTimeframe,
+      brokerId: traceOptions.brokerId,
+      accountId: traceOptions.accountId,
+      accountIdSource: traceOptions.accountIdSource,
+      assetClass: traceOptions.assetClass,
+      executionMode: traceOptions.executionMode,
+    };
+    const missingReplayScope = [];
+    for (const field of ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']) {
+      if (!cleanScopeValue(replayScope[field])) missingReplayScope.push(field);
+    }
+    if (missingReplayScope.length > 0) {
+      this._emitCandleScopeRejected(traceId, replayScope, missingReplayScope, traceOptions.source || 'gap_backfill');
+      throw new Error(`CandleProcessor.handleBackfillSuccess missing immutable candle scope field(s): ${missingReplayScope.join(', ')}`);
+    }
     console.log(`[GAP-RECOVERY] Processing ${candles.length} backfilled candles`);
     if (traceId) {
       emitTrace(this.ctx, 'GAP_BACKFILL_REPLAY', {
@@ -496,8 +617,19 @@ class CandleProcessor {
         l: arr[4],
         c: arr[5],
         v: arr[7] != null ? arr[7] : 0,
+        symbol: replaySymbol,
+        timeframe: replayTimeframe,
+        brokerId: replayScope.brokerId,
+        accountId: replayScope.accountId,
+        accountIdSource: replayScope.accountIdSource,
+        assetClass: replayScope.assetClass,
+        executionMode: replayScope.executionMode,
+        traceId,
       };
-      this.processNewCandle(candle, { traceId });
+      this.processNewCandle(this._stampRuntimeScopeFields(candle), {
+        traceId,
+        source: traceOptions.source || 'gap_backfill',
+      });
     });
 
     console.log(`[GAP-RECOVERY] Backfilled ${candles.length} candles via REST`);
@@ -513,12 +645,22 @@ class CandleProcessor {
       ? ohlcInput
       : null;
     const traceId = traceOptions.traceId || wrappedInput?.traceId || wrappedInput?.data?.traceId || null;
-    const stampedSymbol = normalizeCandleSymbol(wrappedInput?.symbol || wrappedInput?.data?.symbol || wrappedInput?.data?.S);
-    const sourceTimeframe = typeof wrappedInput?.timeframe === 'string' && wrappedInput.timeframe.trim()
+    const payloadSymbol = normalizeCandleSymbol(wrappedInput?.symbol || wrappedInput?.data?.symbol || wrappedInput?.data?.S);
+    const contextSymbol = normalizeCandleSymbol(this.ctx.tradingPair);
+    const stampedSymbol = payloadSymbol || contextSymbol;
+    const symbolSource = payloadSymbol ? 'payload' : contextSymbol ? 'ctx.tradingPair' : 'missing';
+    const payloadTimeframe = typeof wrappedInput?.timeframe === 'string' && wrappedInput.timeframe.trim()
       ? wrappedInput.timeframe.trim()
-      : this.ctx.candleTimeframe;
+      : null;
+    const sourceTimeframe = payloadTimeframe || this.ctx.candleTimeframe;
+    const timeframeSource = payloadTimeframe ? 'payload' : this.ctx.candleTimeframe ? 'ctx.candleTimeframe' : 'missing';
     if (typeof sourceTimeframe !== 'string' || !sourceTimeframe.trim()) {
+      this._emitCandleScopeRejected(traceId, { symbol: stampedSymbol || null }, ['timeframe'], 'handleMarketData');
       throw new Error(`CandleProcessor.handleMarketData: missing candle timeframe for symbol=${stampedSymbol || this.ctx.tradingPair || '(missing)'}`);
+    }
+    if (!stampedSymbol) {
+      this._emitCandleScopeRejected(traceId, { timeframe: sourceTimeframe }, ['symbol'], 'handleMarketData');
+      throw new Error(`CandleProcessor.handleMarketData: missing candle symbol for timeframe=${sourceTimeframe}`);
     }
     const ohlcData = Array.isArray(ohlcInput)
       ? ohlcInput
@@ -526,7 +668,7 @@ class CandleProcessor {
 
     // OHLC data is array: [time, etime, open, high, low, close, vwap, volume, count]
     if (!Array.isArray(ohlcData) || ohlcData.length < 8) {
-      console.warn('⚠️ Invalid OHLC data format:', ohlcInput);
+      console.warn('[OHLC] Invalid OHLC data format:', ohlcInput);
       return;
     }
 
@@ -534,8 +676,10 @@ class CandleProcessor {
     if (traceId) {
       emitTrace(this.ctx, 'CANDLE_PROCESSOR_RECEIVED', {
         traceId,
-        symbol: stampedSymbol || normalizeCandleSymbol(this.ctx.tradingPair) || null,
+        symbol: stampedSymbol || null,
+        symbolSource,
         timeframe: sourceTimeframe,
+        timeframeSource,
         close: Number(close),
         etime: Number(etime),
       });
@@ -552,11 +696,11 @@ class CandleProcessor {
 
     // If data is more than 2 minutes old, it's stale (but NOT during backtesting!)
     if (dataAge > 120000 && !isBacktesting) {
-      console.error('🚨 STALE DATA:', Math.round(dataAge / 1000), 'seconds old');
+      console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
 
       // AUTO-PAUSE TRADING
       if (!this.ctx.staleFeedPaused) {
-        console.error('⏸️ PAUSING NEW ENTRIES DUE TO STALE DATA');
+        console.error('[STALE DATA] PAUSING NEW ENTRIES DUE TO STALE DATA');
         this.ctx.staleFeedPaused = true;
 
         // Notify StateManager to pause
@@ -568,7 +712,7 @@ class CandleProcessor {
       }
     } else if (this.ctx.staleFeedPaused && dataAge < 30000) {
       // Data is fresh again - resume
-      console.log('✅ Fresh data restored, resuming');
+      console.log('[STALE DATA] Fresh data restored, resuming');
       this.ctx.staleFeedPaused = false;
       this.ctx.feedRecoveryCandles = 0;
       stateManager.resumeTrading();
@@ -578,7 +722,7 @@ class CandleProcessor {
     if (!price || isNaN(price)) return;
 
     // Build proper OHLCV candle structure from Kraken OHLC stream
-    const candle = {
+    const candle = this._stampRuntimeScopeFields({
       o: parseFloat(open),
       h: parseFloat(high),
       l: parseFloat(low),
@@ -587,9 +731,16 @@ class CandleProcessor {
       t: parseFloat(time) * 1000,  // Actual timestamp for display
       etime: parseFloat(etime) * 1000,  // End time for deduplication
       timeframe: sourceTimeframe,
+      symbol: stampedSymbol,
+      symbolSource,
+      timeframeSource,
+      brokerId: wrappedInput?.brokerId,
+      accountId: wrappedInput?.accountId,
+      accountIdSource: wrappedInput?.accountIdSource,
+      assetClass: wrappedInput?.assetClass,
+      executionMode: wrappedInput?.executionMode,
       traceId,
-    };
-    if (stampedSymbol) candle.symbol = stampedSymbol;
+    });
 
     // Phase 5 REWRITE: ONE CANONICAL PATH - always call processNewCandle
     // processNewCandle now handles both updates (same etime) and new candles
@@ -612,13 +763,20 @@ class CandleProcessor {
           console.log(`[GAP-RECOVERY] Overnight/weekend gap ${Math.round(gapMs/60000)} min — expected for stocks, skipping`);
         } else {
           const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
-          console.warn(`⚠️ [GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
+          console.warn(`[GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
 
           this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
             if (backfilledCandles.length > 0) {
               this.handleBackfillSuccess(backfilledCandles, {
                 traceId,
                 source: 'gap_backfill',
+                symbol: candle.symbol,
+                timeframe: candle.timeframe,
+                brokerId: candle.brokerId,
+                accountId: candle.accountId,
+                accountIdSource: candle.accountIdSource,
+                assetClass: candle.assetClass,
+                executionMode: candle.executionMode,
                 gapStart: lastCandle.etime,
                 gapEnd: candle.etime,
               });
@@ -630,6 +788,13 @@ class CandleProcessor {
               this.startBackfillRetry(lastCandle.etime, candle.etime, {
                 traceId,
                 source: 'gap_backfill_retry',
+                symbol: candle.symbol,
+                timeframe: candle.timeframe,
+                brokerId: candle.brokerId,
+                accountId: candle.accountId,
+                accountIdSource: candle.accountIdSource,
+                assetClass: candle.assetClass,
+                executionMode: candle.executionMode,
               });
             }
           });
@@ -641,7 +806,7 @@ class CandleProcessor {
     if (isNewCandle && this.ctx.staleFeedPaused && this.backfillRetryInterval) {
       this.cleanCandleCount++;
       if (this.cleanCandleCount >= this.cleanCandlesRequired) {
-        console.log(`✅ [GAP-RECOVERY] ${this.cleanCandleCount} clean candles - resuming trading`);
+        console.log(`[GAP-RECOVERY] ${this.cleanCandleCount} clean candles - resuming trading`);
         this.ctx.staleFeedPaused = false;
         this.cleanCandleCount = 0;
         this.stopBackfillRetry();
@@ -650,7 +815,7 @@ class CandleProcessor {
     }
 
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
-    this.processNewCandle(candle, { traceId });
+    this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
 
     // Store latest market data
     // MED-07: propagate null for unparseable volume instead of phantom 0.

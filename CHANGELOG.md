@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Candle Ingress Scope Stamping (2026-05-26)
+
+- Added immutable runtime scope stamping at the canonical CandleProcessor boundary so accepted candles carry symbol, broker, account, asset class, execution mode, timeframe, and scope key before storage or strategy-module ingestion.
+- Changed raw market-data and gap-backfill wrapper paths to stamp explicit runtime provenance before entering `processNewCandle()`, while direct missing-symbol or missing-timeframe candles now fail closed with `CANDLE_SCOPE_REJECTED` trace context instead of falling back to the active chart/runtime symbol.
+- Verification: `node --check` for touched runtime/test files, focused CandleProcessor symbol-routing Jest coverage, Mercury adversarial attack with a local fix for stale backfill replay scope, Mercury recheck with no concrete blocker, `git diff --check`, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### SessionRouter Transition Journal (2026-05-26)
 
 - Added durable SessionRouter transition phase journaling for planned, source-freeze, order-intent, target-activated, and failed-safe phases, with restart status projection from the append-only journal when the state file is missing or stale.

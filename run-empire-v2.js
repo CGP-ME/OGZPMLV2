@@ -797,7 +797,20 @@ class OGZPrimeV14Bot {
         this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
           this._markActiveTimeframeData(sym, tf);
-          this.handleMarketData({ data: ohlcData, symbol: sym, timeframe: tf, traceId });
+          this.handleMarketData({
+            data: ohlcData,
+            symbol: sym,
+            timeframe: tf,
+            traceId,
+            ...this.getCandleScopeEnvelope({
+              brokerId: this.sessionRouter?.activeBroker?.id || null,
+              assetClass: this.sessionRouter?.activeSession === 'crypto'
+                ? 'crypto'
+                : this.sessionRouter?.activeSession === 'stocks'
+                  ? 'stocks'
+                  : null,
+            }),
+          });
         } else {
           this._feedAggregatedActiveCandle({
             symbol: sym,
@@ -1734,7 +1747,16 @@ class OGZPrimeV14Bot {
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
             this._markActiveTimeframeData(ohlcSymbol, timeframe);
-            this.handleMarketData({ data: ohlcData, symbol: ohlcSymbol, timeframe, traceId });
+            this.handleMarketData({
+              data: ohlcData,
+              symbol: ohlcSymbol,
+              timeframe,
+              traceId,
+              ...this.getCandleScopeEnvelope({
+                brokerId: resolvedConfig.config.broker.id,
+                assetClass: this.config.assetClass,
+              }),
+            });
           } else {
             this._feedAggregatedActiveCandle({
               symbol: ohlcSymbol,
@@ -1882,7 +1904,13 @@ class OGZPrimeV14Bot {
       periodStart: activeCandle.t,
       close: activeCandle.c,
     });
-    this.handleMarketData({ data: activeOhlc, symbol, timeframe: activeTimeframe, traceId });
+    this.handleMarketData({
+      data: activeOhlc,
+      symbol,
+      timeframe: activeTimeframe,
+      traceId,
+      ...this.getCandleScopeEnvelope(),
+    });
     this._emittedAggregatedActiveCandles.add(dedupeKey);
     if (this._emittedAggregatedActiveCandles.size > 1000) {
       this._emittedAggregatedActiveCandles = new Set(Array.from(this._emittedAggregatedActiveCandles).slice(-500));
@@ -1896,6 +1924,23 @@ class OGZPrimeV14Bot {
     }
 
     return { storedCandle, activeCandle };
+  }
+
+  getCandleScopeEnvelope(overrides = {}) {
+    const activeSession = this.sessionRouter?.activeSession || null;
+    const activeAssetClass = activeSession === 'crypto'
+      ? 'crypto'
+      : activeSession === 'stocks'
+        ? 'stocks'
+        : null;
+    const accountId = overrides.accountId || this.config.accountId;
+    return {
+      brokerId: overrides.brokerId || this.sessionRouter?.activeBroker?.id || this.config.brokerId,
+      accountId,
+      accountIdSource: overrides.accountIdSource || (accountId && accountId !== 'default' ? 'config' : 'default'),
+      assetClass: overrides.assetClass || activeAssetClass || this.config.assetClass,
+      executionMode: overrides.executionMode || this.config.executionMode,
+    };
   }
 
   /**

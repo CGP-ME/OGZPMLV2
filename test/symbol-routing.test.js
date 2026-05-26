@@ -31,7 +31,14 @@ function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m'
     volumeProfile: null,
     candleSaveCounter: 0,
     saveCandleHistory: jest.fn(),
-    config: { enableBacktestMode: true },
+    config: {
+      enableBacktestMode: true,
+      brokerId: 'kraken',
+      accountId: 'acct-1',
+      assetClass: 'crypto',
+      executionMode: 'backtest',
+      timeframe: candleTimeframe,
+    },
     dashboardWsConnected: false,
     dashboardWs: null,
     getCandlesForTimeframe: jest.fn(() => []),
@@ -42,6 +49,21 @@ function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m'
 function ohlc(close = 77724) {
   const start = 1779440400;
   return [start, start + 60, close - 10, close + 20, close - 30, close, close, 12.5, 42];
+}
+
+function candleObject(overrides = {}) {
+  return {
+    symbol: 'BTC-USD',
+    timeframe: '1m',
+    t: 1779440400000,
+    etime: 1779440460000,
+    o: 77714,
+    h: 77744,
+    l: 77694,
+    c: 77724,
+    v: 12.5,
+    ...overrides,
+  };
 }
 
 describe('symbol-aware candle routing', () => {
@@ -78,6 +100,138 @@ describe('symbol-aware candle routing', () => {
     expect(tsla.indicatorEngine.updateCandle).not.toHaveBeenCalled();
     expect(ctx.marketData.symbol).toBe('BTC-USD');
     expect(btc.marketData.symbol).toBe('BTC-USD');
+  });
+
+  test('processNewCandle stamps immutable scope before storage', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    const processor = new CandleProcessor(ctx);
+
+    processor.processNewCandle(candleObject({ symbol: 'XBT/USD' }));
+
+    expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
+      'BTC-USD',
+      '1m',
+      expect.objectContaining({
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        accountId: 'acct-1',
+        assetClass: 'crypto',
+        executionMode: 'backtest',
+        timeframe: '1m',
+        scopeKey: 'backtest:kraken:acct-1:crypto:BTC-USD:1m',
+        scopeKeyVersion: 2,
+      })
+    );
+  });
+
+  test('processNewCandle rejects missing symbol instead of using ctx tradingPair', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.config.evalTraceEnabled = true;
+    ctx.config.evalTraceBacktest = true;
+    const processor = new CandleProcessor(ctx);
+
+    expect(() => processor.processNewCandle(
+      candleObject({ symbol: undefined }),
+      { traceId: 'trace_missing_symbol', source: 'unit' }
+    )).toThrow('missing immutable candle scope field(s): symbol');
+
+    expect(logSpy.mock.calls.some(([message]) => (
+      String(message).includes('[EVAL-TRACE][CANDLE_SCOPE_REJECTED]')
+      && String(message).includes('missingFields=["symbol"]')
+    ))).toBe(true);
+    expect(ctx._candleStore.addCandle).not.toHaveBeenCalled();
+  });
+
+  test('processNewCandle rejects missing timeframe instead of using ctx timeframe', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.config.evalTraceEnabled = true;
+    ctx.config.evalTraceBacktest = true;
+    const processor = new CandleProcessor(ctx);
+
+    expect(() => processor.processNewCandle(
+      candleObject({ timeframe: undefined }),
+      { traceId: 'trace_missing_timeframe', source: 'unit' }
+    )).toThrow('missing immutable candle scope field(s): timeframe');
+
+    expect(logSpy.mock.calls.some(([message]) => (
+      String(message).includes('[EVAL-TRACE][CANDLE_SCOPE_REJECTED]')
+      && String(message).includes('missingFields=["timeframe"]')
+    ))).toBe(true);
+    expect(ctx._candleStore.addCandle).not.toHaveBeenCalled();
+  });
+
+  test('handleMarketData stamps legacy array input from active runtime context', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    const processor = new CandleProcessor(ctx);
+
+    processor.handleMarketData(ohlc(77727), { traceId: 'trace_backtest_array' });
+
+    expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
+      'BTC-USD',
+      '1m',
+      expect.objectContaining({
+        symbol: 'BTC-USD',
+        symbolSource: 'ctx.tradingPair',
+        brokerId: 'kraken',
+        accountId: 'acct-1',
+        assetClass: 'crypto',
+        executionMode: 'backtest',
+        scopeKey: 'backtest:kraken:acct-1:crypto:BTC-USD:1m',
+      })
+    );
+  });
+
+  test('handleBackfillSuccess stamps scope from active runtime context', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    const processor = new CandleProcessor(ctx);
+
+    processor.handleBackfillSuccess([[1779440400000, 1779440460000, 1, 2, 0.5, 1.5, 1.5, 20, 3]], {
+      traceId: 'trace_backfill',
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      accountId: 'acct-1',
+      accountIdSource: 'config',
+      assetClass: 'crypto',
+      executionMode: 'backtest',
+    });
+
+    expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
+      'BTC-USD',
+      '1m',
+      expect.objectContaining({
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        accountId: 'acct-1',
+        assetClass: 'crypto',
+        executionMode: 'backtest',
+        scopeKey: 'backtest:kraken:acct-1:crypto:BTC-USD:1m',
+      })
+    );
+  });
+
+  test('handleBackfillSuccess rejects missing replay scope instead of reading current ctx', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.config.evalTraceEnabled = true;
+    ctx.config.evalTraceBacktest = true;
+    const processor = new CandleProcessor(ctx);
+
+    expect(() => processor.handleBackfillSuccess(
+      [[1779440400000, 1779440460000, 1, 2, 0.5, 1.5, 1.5, 20, 3]],
+      { traceId: 'trace_backfill_missing', symbol: 'BTC-USD', timeframe: '1m' }
+    )).toThrow('missing immutable candle scope field(s): brokerId, accountId, assetClass, executionMode');
+
+    expect(logSpy.mock.calls.some(([message]) => (
+      String(message).includes('[EVAL-TRACE][CANDLE_SCOPE_REJECTED]')
+      && String(message).includes('missingFields=["brokerId","accountId","assetClass","executionMode"]')
+    ))).toBe(true);
+    expect(ctx._candleStore.addCandle).not.toHaveBeenCalled();
   });
 
   test('does not fall back to sole TSLA context when candle is explicitly BTC-USD', () => {
