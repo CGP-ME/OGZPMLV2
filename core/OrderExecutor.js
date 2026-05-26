@@ -97,6 +97,64 @@ class OrderExecutor {
     return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
   }
 
+  _getActiveTradeById(orderId) {
+    if (!orderId) return null;
+
+    const activeTrades = stateManager.get('activeTrades');
+    if (activeTrades instanceof Map) {
+      return activeTrades.get(orderId) || null;
+    }
+    if (Array.isArray(activeTrades)) {
+      const entry = activeTrades.find((item) => {
+        const trade = Array.isArray(item) ? item[1] : item;
+        return trade && (trade.orderId === orderId || trade.id === orderId);
+      });
+      return Array.isArray(entry) ? entry[1] : (entry || null);
+    }
+    if (activeTrades && typeof activeTrades === 'object') {
+      return activeTrades[orderId] || null;
+    }
+
+    return null;
+  }
+
+  _dashboardTradePayload(payload, trade = {}) {
+    const brokerId = trade.brokerId || this.ctx.config?.brokerId || null;
+    const accountId = trade.accountId || this.ctx.config?.accountId || 'default';
+    const accountIdSource = trade.accountIdSource
+      || (accountId && accountId !== 'default' ? 'config' : 'default');
+    const assetClass = trade.assetClass || this.ctx.config?.assetClass || null;
+    const executionMode = trade.executionMode
+      || (this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode)
+      || null;
+    const timeframe = trade.timeframe || this.ctx.config?.timeframe || null;
+    const scopeKey = trade.scopeKey || null;
+    const scopeKeyVersion = typeof scopeKey === 'string' && scopeKey.split(':').length >= 6 ? 2 : 1;
+    const symbol = trade.symbol || payload.symbol || null;
+    const hasExplicitAccountId = Boolean(accountId && accountId !== 'default' && accountIdSource !== 'default');
+    const orderId = trade.orderId || trade.id || payload.orderId || payload.tradeId || null;
+
+    return {
+      ...payload,
+      type: 'trade',
+      tradeId: orderId,
+      orderId,
+      symbol,
+      broker: brokerId,
+      brokerId,
+      accountId,
+      accountIdSource,
+      assetClass,
+      executionMode,
+      timeframe,
+      scopeKey,
+      scopeKeyVersion,
+      scopeComplete: Boolean(symbol && brokerId && hasExplicitAccountId && assetClass && executionMode && timeframe && scopeKeyVersion >= 2),
+      sizeUsd: trade.sizeUsd ?? trade.size ?? payload.sizeUsd ?? null,
+      entryPrice: trade.entryPrice ?? payload.entryPrice ?? null
+    };
+  }
+
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult }) {
     if (!this._isEntryAction(decision.action)) return null;
 
@@ -875,15 +933,16 @@ class OrderExecutor {
 
           // CHANGE 2026-01-23: Broadcast BUY trade to dashboard
           if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-            this.ctx.dashboardWs.send(JSON.stringify({
-              type: 'trade',
+            const openedTrade = this._getActiveTradeById(unifiedResult.orderId);
+            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
               action: 'BUY',
               direction: 'long',
+              symbol,
               price: price,
               pnl: 0,  // No P&L on entry
               timestamp: Date.now(),
               confidence: decision.confidence
-            }));
+            }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
             console.log(`📡 Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
           }
 
@@ -1073,15 +1132,16 @@ class OrderExecutor {
 
           // Dashboard broadcast for SHORT
           if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-            this.ctx.dashboardWs.send(JSON.stringify({
-              type: 'trade',
+            const openedTrade = this._getActiveTradeById(unifiedResult.orderId);
+            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
               action: 'SELL_SHORT',
               direction: 'short',
+              symbol,
               price: price,
               pnl: 0,
               timestamp: Date.now(),
               confidence: decision.confidence
-            }));
+            }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
             console.log(`📡 Broadcast SHORT trade to dashboard at $${price.toFixed(2)}`);
           }
 
@@ -1356,16 +1416,16 @@ class OrderExecutor {
 
             // CHANGE 2026-01-23: Broadcast SELL trade to dashboard
             if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-              this.ctx.dashboardWs.send(JSON.stringify({
-                type: 'trade',
+              this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
                 action: 'SELL',
-                direction: 'short',
+                direction: 'long',
+                symbol,
                 price: price,
                 pnl: completeTradeResult.pnlDollars,
                 timestamp: Date.now(),
                 duration: `${(holdDuration / 60000).toFixed(1)}m`,
                 confidence: decision.confidence
-              }));
+              }, completeTradeResult)));
               console.log(`📡 Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
             }
 
@@ -1814,16 +1874,16 @@ class OrderExecutor {
 
           // Dashboard broadcast for COVER
           if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-            this.ctx.dashboardWs.send(JSON.stringify({
-              type: 'trade',
+            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
               action: 'COVER',
               direction: 'short',
+              symbol,
               price: price,
               pnl: completeTradeResult.pnlDollars,
               timestamp: Date.now(),
               duration: `${(holdDuration / 60000).toFixed(1)}m`,
               confidence: decision.confidence
-            }));
+            }, completeTradeResult)));
             console.log(`📡 Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
           }
 
