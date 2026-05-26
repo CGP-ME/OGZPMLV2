@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### StateManager Open Position Scope Gate (2026-05-26)
+
+- Added executable gate `scope.state_manager.open_position_scope_contract` to prove `StateManager.openPosition()` rejects missing trade scope fields and stale supplied scope keys before active-trade, scalar-position, save, listener, or dashboard projection mutation.
+- Verification: `node --check ogz-meta/gates/multi-runtime-gate-runner.js`, `node ogz-meta/gates/multi-runtime-gate-runner.js --gate scope.state_manager.open_position_scope_contract`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, and `git diff --check` passed.
+
 ### StateManager Open Position Scope Contract (2026-05-26)
 
 - Moved immutable trade-scope validation to the start of `StateManager.openPosition()` so malformed entries reject before fee calculation, active trade insertion, scalar position updates, saves, listener notifications, or dashboard projection changes.

@@ -39,11 +39,13 @@ function stateManager() {
 async function withQuietConsole(fn) {
   const original = {
     log: console.log,
-    warn: console.warn
+    warn: console.warn,
+    error: console.error
   };
   let suppressedLogCount = 0;
   console.log = () => { suppressedLogCount += 1; };
   console.warn = () => { suppressedLogCount += 1; };
+  console.error = () => { suppressedLogCount += 1; };
 
   try {
     const detail = await fn();
@@ -54,6 +56,7 @@ async function withQuietConsole(fn) {
   } finally {
     console.log = original.log;
     console.warn = original.warn;
+    console.error = original.error;
   }
 }
 
@@ -363,6 +366,66 @@ const GATES = [
     })
   },
   {
+    id: 'scope.state_manager.open_position_scope_contract',
+    layer: 'scope',
+    description: 'StateManager openPosition rejects incomplete or stale scope before active trade mutation.',
+    run: () => withQuietConsole(async () => {
+      resetStateManager();
+      const sm = stateManager();
+      const requiredFields = ['symbol', 'brokerId', 'assetClass', 'executionMode', 'timeframe'];
+      let rejectionCount = 0;
+
+      for (const field of requiredFields) {
+        const beforePositions = sm._buildScopedDashboardPositions(sm.state);
+        const result = await sm.openPosition(500, 100, scopeInput({
+          orderId: `gate-missing-${field}`,
+          [field]: null
+        }));
+
+        assert.strictEqual(result.success, false, `missing ${field} must reject`);
+        assert.strictEqual(result.scopeRejected, true, `missing ${field} must be marked scopeRejected`);
+        assert(result.missingFields.includes(field), `missing ${field} must be named in missingFields`);
+        assert.strictEqual(sm.state.activeTrades.size, 0, `missing ${field} must not add activeTrades`);
+        assert.strictEqual(sm.state.position, 0, `missing ${field} must not mutate scalar position`);
+        assert.deepStrictEqual(
+          sm._buildScopedDashboardPositions(sm.state),
+          beforePositions,
+          `missing ${field} must not mutate dashboard projection`
+        );
+        rejectionCount += 1;
+      }
+
+      const staleScopeResult = await sm.openPosition(500, 100, scopeInput({
+        orderId: 'gate-stale-scope',
+        scopeKey: 'paper:alpaca:acct-main:stocks:SPY:15m'
+      }));
+      assert.strictEqual(staleScopeResult.success, false, 'stale supplied scopeKey must reject');
+      assert.strictEqual(staleScopeResult.scopeRejected, true, 'stale supplied scopeKey must be marked scopeRejected');
+      assert.strictEqual(
+        staleScopeResult.expectedScopeKey,
+        'paper:alpaca:acct-main:stocks:TSLA:15m',
+        'stale supplied scopeKey rejection must expose derived expected scope'
+      );
+      assert.strictEqual(sm.state.activeTrades.size, 0, 'stale supplied scopeKey must not add activeTrades');
+      rejectionCount += 1;
+
+      const accepted = await sm.openPosition(500, 100, scopeInput({
+        orderId: 'gate-scoped-open',
+        scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m'
+      }));
+      assert.strictEqual(accepted.success, true, 'fully scoped openPosition should accept');
+      const trade = sm.state.activeTrades.get('gate-scoped-open');
+      assert(trade, 'accepted scoped trade must be stored');
+      assert.strictEqual(trade.scopeKey, 'paper:alpaca:acct-main:stocks:TSLA:15m', 'accepted trade must store derived scopeKey');
+      assert.strictEqual(trade.scopeKeyVersion, 2, 'accepted trade must store scopeKeyVersion 2');
+
+      return {
+        rejections: rejectionCount,
+        acceptedScopeKey: trade.scopeKey
+      };
+    })
+  },
+  {
     id: 'scope.order_executor.dashboard_trade_payload',
     layer: 'scope',
     description: 'OrderExecutor trade broadcasts carry scoped trade identity and cannot be spoofed by loose payload fields.',
@@ -518,7 +581,7 @@ const GATES = [
       );
       assert.match(
         tracker._selectTradeForClose({ ...scopeInput({ symbol: 'TSLA' }), scopeKey: spyLong.scopeKey }).error,
-        /scopeKey does not match/,
+        /scopeKey (does not match|mismatch)/,
         'mismatched supplied scopeKey must be rejected'
       );
 

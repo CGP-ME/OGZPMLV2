@@ -45,6 +45,7 @@ single-symbol P0 cannot see before a broader scenario gate exists.
 | `p0.single_lane.tsla_ema_anchor` | P0 | Full canonical TSLA 2-year EMASMACrossover anchor still matches `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`. |
 | `scope.state_manager.dashboard_positions` | Scope | `StateManager` projects every active trade as its own scoped dashboard position and marks default-account scope incomplete. |
 | `scope.candle_ingress.scope_contract` | Scope | `CandleProcessor` accepts only scoped candles, stamps scope keys before storage/strategy ingestion, preserves legacy array provenance, and rejects missing symbol/timeframe or backfill replay scope. |
+| `scope.state_manager.open_position_scope_contract` | Scope | `StateManager.openPosition()` rejects incomplete trade scope and stale supplied scope keys before active trade, scalar position, save, listener, or dashboard projection mutation. |
 | `scope.order_executor.dashboard_trade_payload` | Scope | `OrderExecutor` dashboard `trade` frames carry trade identity from the actual trade record, not loose payload fields. |
 | `scope.position_tracker.close_selection` | Scope | `PositionTracker` closes by trade id or exact full scope, distinguishes same-symbol different-broker/account trades, rejects scopeKey-only requests, and refuses ambiguous same-scope closes. |
 | `scope.position_tracker.scoped_snapshots` | Scope | scoped reads return the requested trade instead of inventing a global first position. |
