@@ -266,14 +266,14 @@
             padding: 0;
         }
 
-        /* Chart panel -- self-rendered by chart-panel.js (#chartPanel gets
+        /* Chart panel — self-rendered by chart-panel.js (#chartPanel gets
            class .cp-root at mount). #45: this element previously had NO
-           sizing rule at all -- the old rule here targeted a stale
+           sizing rule at all — the old rule here targeted a stale
            #chartContainer ID that no longer exists in the DOM, so the chart
            sat at its min-content height and never filled the center column.
            flex:1 lets it absorb all leftover column height; the strategy
            leaderboard + readouts row keep their own fixed sizes.
-           Background/border/radius come from .cp-root in chart-panel.css --
+           Background/border/radius come from .cp-root in chart-panel.css —
            intentionally NOT duplicated here to avoid a double border. */
         #chartPanel {
             flex: 1 1 auto;
@@ -364,6 +364,17 @@
             z-index: 5;
         }
 
+        /* Live trade report — Gate H quiet-period band (full-width, between the
+           main grid and the Chain of Thought ribbon). Visual styling (bg,
+           border, radius, padding) is owned by live-report.js's injected CSS;
+           only layout/flow lives here so the two rules don't fight. */
+        #liveReport {
+            flex-shrink: 0;
+            max-height: 240px;
+            overflow-y: auto;
+            margin: 12px;
+        }
+
         /* Footer: equity curve + system health */
         footer.dash-footer {
             height: 135px;
@@ -418,6 +429,52 @@
             aside.dash-right-rail {
                 display: none;
             }
+        }
+
+        /* ====================================================================
+         * #50 — Mobile pass for the dashboard SHELL.
+         *
+         * The 1200px breakpoint above already collapses the 3-col grid to one
+         * column and hides the rails. At true tablet / phone widths the header,
+         * watchlist, news ticker, chain-of-thought, footer, and #liveReport
+         * band still need their own compression. Chart-panel internals are
+         * handled by chart-panel.css (which already ships ≤1200/≤768 rules).
+         * ==================================================================== */
+
+        @media (max-width: 768px) {
+            header#dashHeader {
+                height: auto;
+                min-height: 56px;
+                padding: 6px 10px;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            #watchlistStrip { height: 96px; padding: 8px; }
+            #newsTicker     { height: 56px; padding: 6px 8px; }
+            main.dash-main-grid { padding: 8px; gap: 8px; }
+            #strategyLeaderboard { min-height: 120px; max-height: 200px; }
+            #liveReport { margin: 8px; max-height: 320px; }
+            #chainOfThought { height: 120px; padding: 8px; }
+            footer.dash-footer {
+                height: auto;
+                min-height: 120px;
+                grid-template-columns: 1fr;   /* stack equity + system-health */
+                padding: 8px;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header#dashHeader { padding: 4px 8px; gap: 6px; }
+            #watchlistStrip { height: 84px; padding: 6px; }
+            #newsTicker     { height: 48px; padding: 4px 6px; font-size: 10px; }
+            #chainOfThought { height: 96px; padding: 6px; }
+            #liveReport { margin: 6px; max-height: 280px; }
+            footer.dash-footer { min-height: 96px; padding: 6px; gap: 6px; }
+            #systemHealth, #equityCurve { padding: 6px; font-size: 10px; }
+            /* Body-level guard: prevent any rogue child from forcing
+               horizontal scroll on a phone-width viewport. */
+            body { overflow-x: hidden; }
         }
     </style>
 </head>
@@ -562,6 +619,13 @@
     </main>
 
     <!-- ========================================================================
+         LIVE TRADE REPORT (Gate H) — quiet-period honest view
+         Module: public/js/panels/live-report.js — self-renders into #liveReport.
+         Full-width band between the main grid and the Chain of Thought ribbon.
+         ======================================================================== -->
+    <div id="liveReport"></div>
+
+    <!-- ========================================================================
          CHAIN OF THOUGHT RIBBON
 
          Status: NOT YET EXTRACTED FROM MONOLITH
@@ -675,6 +739,7 @@
     <script src="/js/panels/trai-brain.js"></script>
     <script src="/js/panels/open-positions.js"></script>
     <script src="/js/panels/chain-of-thought.js"></script>
+    <script src="/js/panels/live-report.js"></script>
     <script src="/js/panels/equity-curve.js"></script>
     <script src="/js/panels/system-health.js"></script>
     <script src="/js/panels/live-readouts.js"></script>

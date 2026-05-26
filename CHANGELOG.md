@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Frontend Readiness Drop (2026-05-26)
+
+- Added the served Gate H quiet-period live report module and docked it into the unified dashboard so no-trade periods show honest feed, account, symbol, timeframe, position, and latest-reasoning state instead of fake activity.
+- Updated the chart panel startup, watchlist, oscillator, and mobile behavior for the frontend readiness batch: first-load historical candle priming, all served watchlist tickers in the selector, readable oscillator panes, mobile shell compression, and chart/status UI emoji removal.
+- Hardened the empty-chart watchdog so its asset-change kick stays within the current selector optgroup and never falls back across broker or asset-class groups.
+- Verification: `node --check public/js/panels/chart-panel.js`, `node --check public/js/panels/live-report.js`, emoji scan on touched served files, `git diff --check`, Mercury dashboard attack with local fixes, and final Mercury same-group watchdog recheck with no concrete bypass. P0 was not run because this commit changes served dashboard assets only, not trading or backtest execution.
+
 ### Pattern Memory Scope Isolation (2026-05-26)
 
 - Added immutable pattern scope normalization so `UnifiedPatternMemory` and `PatternMemoryBank` include symbol, broker, account, asset class, execution mode, timeframe, and scope key in learned-pattern writes and matching.

@@ -145,93 +145,6 @@
     const DEFAULT_SYMBOL = 'TSLA';
     const DEFAULT_TIMEFRAME = '1m';
 
-    function normalizeWatchlistBroker(broker) {
-        const b = String(broker || '').trim().toUpperCase();
-        if (b === 'ALP' || b === 'ALPACA') return 'alpaca';
-        if (b === 'KRA' || b === 'KRAKEN') return 'kraken';
-        return '';
-    }
-
-    function resolveAssetRequest(input, fallbackBroker) {
-        const source = (input && typeof input === 'object') ? input : { symbol: input };
-        const broker = normalizeWatchlistBroker(source.broker || fallbackBroker);
-        const raw = source.asset || source.symbol || source.ticker || source.value;
-        let symbol = String(raw || '').trim().toUpperCase().replace('/', '-');
-        if (!symbol) return null;
-
-        if (broker === 'kraken') {
-            symbol = symbol.replace(/-USD$/, '');
-            if (symbol.endsWith('USD') && symbol.length > 3) {
-                symbol = symbol.slice(0, -3);
-            }
-            return {
-                symbol: symbol + '-USD',
-                broker,
-                label: source.label || source.name || symbol
-            };
-        }
-
-        if (broker === 'alpaca') {
-            return {
-                symbol: symbol.replace(/-USD$/, ''),
-                broker,
-                label: source.label || source.name || symbol.replace(/-USD$/, '')
-            };
-        }
-
-        return {
-            symbol,
-            broker,
-            label: source.label || source.name || symbol
-        };
-    }
-
-    function findAssetOption(assetSel, symbol) {
-        return Array.prototype.find.call(assetSel.options, opt => opt.value === symbol) || null;
-    }
-
-    function isCurrentWatchlistAsset(asset) {
-        const watchlist = OGZ && typeof OGZ.get === 'function' ? OGZ.get('WatchlistStrip') : null;
-        if (!watchlist || typeof watchlist.getTickers !== 'function') return false;
-        const tickers = watchlist.getTickers();
-        if (!Array.isArray(tickers)) return false;
-        return tickers.some(ticker => {
-            const normalized = resolveAssetRequest(ticker);
-            return normalized &&
-                normalized.symbol === asset.symbol &&
-                normalized.broker === asset.broker;
-        });
-    }
-
-    function ensureAssetOption(assetSel, asset, allowCreate) {
-        if (!assetSel || !asset || !asset.symbol) return false;
-        if (findAssetOption(assetSel, asset.symbol)) return true;
-        if (!allowCreate || !asset.broker) return false;
-
-        const groupLabel = asset.broker === 'kraken'
-            ? 'Crypto (Kraken)'
-            : asset.broker === 'alpaca'
-                ? 'Stocks (Alpaca)'
-                : 'Dynamic Assets';
-
-        let group = Array.prototype.find.call(assetSel.children, child => (
-            child.tagName === 'OPTGROUP' && child.label === groupLabel
-        ));
-        if (!group) {
-            group = document.createElement('optgroup');
-            group.label = groupLabel;
-            assetSel.appendChild(group);
-        }
-
-        const option = document.createElement('option');
-        option.value = asset.symbol;
-        option.textContent = asset.label && asset.label !== asset.symbol
-            ? `${asset.label} (${asset.symbol})`
-            : asset.symbol;
-        group.appendChild(option);
-        return true;
-    }
-
     // ─── CSS Injection (Fallback) ──────────────────────────────────────────
     (function injectFlashStyle() {
         if (typeof document === 'undefined') return;
@@ -642,8 +555,18 @@
                 <option value="TSLA" selected>Tesla (TSLA)</option>
                 <option value="NVDA">NVIDIA (NVDA)</option>
                 <option value="SPY">S&P 500 (SPY)</option>
+                <option value="QQQ">Nasdaq 100 (QQQ)</option>
+                <option value="COIN">Coinbase (COIN)</option>
+                <option value="MARA">Marathon (MARA)</option>
+                <option value="RIOT">Riot Platforms (RIOT)</option>
             </optgroup>
         `;
+        // #48: selector now covers every watchlist ticker the backend serves —
+        // watchlist DEFAULT_TICKERS = TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT (Alpaca)
+        // + BTC,ETH (Kraken). stock-data-adapter STOCK_TICKERS confirms all
+        // seven stocks are supported. Previously only TSLA/NVDA/SPY were
+        // options, so clicking QQQ/COIN/MARA/RIOT in the watchlist hit
+        // switchAsset's unknown-symbol guard and silently did nothing.
 
         const timeframeSelector = document.createElement('select');
         timeframeSelector.id = 'cp-timeframeSelector';
@@ -667,7 +590,7 @@
         oscToggle.id = 'cp-oscToggle';
         oscToggle.className = 'cp-selector cp-osc-toggle';
         oscToggle.type = 'button';
-        oscToggle.textContent = '📊 Volume Split';
+        oscToggle.textContent = 'Volume Split';
         oscToggle.title = 'Toggle the volume oscillator pane (volume in its own row below the chart)';
         oscToggle.addEventListener('click', () => {
             try {
@@ -749,7 +672,7 @@
         feedStatusPill.id = 'feedStatusPill';
         feedStatusPill.className = 'cp-feed-status-pill';
         feedStatusPill.style.display = 'none';
-        feedStatusPill.textContent = '⚠ Bot offline — waiting for feed';
+        feedStatusPill.textContent = 'Bot offline - waiting for feed';
 
         const chartHud = document.createElement('div');
         chartHud.id = 'chartHud';
@@ -1110,17 +1033,59 @@
         }
         _wsBootstrapped = true;
 
-        // (a) Send initial request_historical for the default symbol/timeframe.
-        // This is the same call BindControls makes on asset/timeframe change,
-        // but we need it once at mount otherwise the chart is empty until the
-        // user manually swaps assets. Only fire if socket is OPEN; otherwise
-        // websocket.js's auto-historical-on-connect will handle it.
+        // (a) Initial historical load + empty-chart watchdog "kick".
+        //
+        // VERIFIED SERVER BEHAVIOUR (live socket capture, 2026-05-25): the
+        // server sends `historical_candles` ONLY in response to an asset_change
+        // that is a REAL change. `request_historical` is ignored, and an
+        // `asset_change` to the asset already current is a no-op. Proof:
+        //   asset_change NVDA -> 200 candles
+        //   asset_change TSLA -> 200 candles
+        //   asset_change TSLA again -> 0 candles
+        // So on a fresh load the chart asks for the default asset, the server
+        // already considers it current, and nothing comes back — empty chart.
+        //
+        // Fix: fire the normal request, then arm a 3s watchdog. If no candles
+        // landed, "kick" the server with a guaranteed real change — swap to a
+        // different asset and immediately back. The swap-back IS a real change,
+        // so the intended asset's history is sent. The kick only runs when the
+        // chart would otherwise sit empty, so it is a harmless no-op when the
+        // normal path already worked.
         try {
             const sym = rootEl?.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL;
             const tf  = rootEl?.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
             if (typeof socket.send === 'function') {
                 socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
+                socket.send({ type: 'asset_change', asset: sym });
             }
+            const kickT = trackTimer(setTimeout(() => {
+                _trackedTimers.delete(kickT);
+                if (storedCandles && storedCandles.length > 0) return;  // candles arrived — no kick needed
+                try {
+                    const aSel = rootEl?.querySelector('#cp-assetSelector');
+                    if (!aSel || typeof socket.send !== 'function') return;
+                    const intended = aSel.value;
+                    let other = null;
+                    const intendedOption = Array.prototype.find.call(
+                        aSel.options,
+                        opt => opt.value === intended
+                    );
+                    const intendedGroup = intendedOption ? intendedOption.parentElement : null;
+                    if (intendedGroup && intendedGroup.tagName === 'OPTGROUP') {
+                        for (let i = 0; i < intendedGroup.children.length; i++) {
+                            const v = intendedGroup.children[i].value;
+                            if (v && v !== intended) { other = v; break; }
+                        }
+                    }
+                    if (!other) return;
+                    socket.send({ type: 'asset_change', asset: other });
+                    const backT = trackTimer(setTimeout(() => {
+                        _trackedTimers.delete(backT);
+                        try { socket.send({ type: 'asset_change', asset: intended }); }
+                        catch (e) { /* swallow */ }
+                    }, 700));
+                } catch (e) { /* swallow */ }
+            }, 3000));
         } catch (e) { /* swallow */ }
 
         // (b) `delta` — sub-tick {price, volume, timestamp} from
@@ -1285,7 +1250,10 @@
                     if (OGZ && OGZ.bus && typeof OGZ.bus.on === 'function') {
                         OGZ.bus.on('watchlist:select', (payload) => {
                             try {
-                                ChartPanel.switchAsset(payload);
+                                const sym = payload && payload.symbol
+                                    ? String(payload.symbol)
+                                    : (typeof payload === 'string' ? payload : null);
+                                if (sym) ChartPanel.switchAsset(sym);
                             } catch (e) { /* swallow */ }
                         });
                     }
@@ -1332,8 +1300,11 @@
                 const activeKeys = OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
                 const n = activeKeys.length;
                 if (n > 0) {
-                    // 1 pane → 130px, 2 → 110px each, 3 → 96px, 4 → 86px.
-                    const perPane = n <= 1 ? 130 : Math.max(80, Math.round(360 / n));
+                    // #49: oscillator panes were too short to read — with all
+                    // 4 active each was ~90px, unusable even on a large monitor.
+                    // Raised the floor so each pane stays legible: 1 → 160px,
+                    // otherwise 480/n floored at 130px (2 → 240, 3 → 160, 4 → 130).
+                    const perPane = n <= 1 ? 160 : Math.max(130, Math.round(480 / n));
                     activeKeys.forEach(k => {
                         const entry = _oscPanes[k];
                         if (entry && entry.container) {
@@ -1452,29 +1423,32 @@
          *   2. clearAll() — blank the chart
          *   3. after 500ms, send `request_historical` for the new asset
          *
-         * Guards: raw string calls must match an existing selector option.
-         * Structured watchlist payloads may add their broker-normalized
-         * symbol first, keeping the dropdown in sync with the selected card.
+         * Guards: if `symbol` is not a valid <option> of #cp-assetSelector,
+         * the call is ignored. Keeps the dropdown's `.value` in sync so the
+         * UI reflects the active symbol regardless of how the switch began.
          */
-        switchAsset: function (symbol, broker) {
+        switchAsset: function (symbol) {
             const root = document.getElementById(ROOT_ID);
             if (!root) return;
             const assetSel = root.querySelector('#cp-assetSelector');
             if (!assetSel) return;
 
-            const asset = resolveAssetRequest(symbol, broker);
-            if (!asset || !asset.symbol) return;
+            let sym = String(symbol || '').trim();
+            if (!sym) return;
 
-            const allowCreate = !!(
-                symbol &&
-                typeof symbol === 'object' &&
-                isCurrentWatchlistAsset(asset)
+            // #48: the watchlist emits BARE symbols ('BTC', 'ETH', 'TSLA'...).
+            // Stock symbols already equal the selector option values; crypto in
+            // the selector uses the server's required '-USD' form (verified via
+            // live socket — the server's asset_change accepts 'BTC-USD' and
+            // returns nothing for bare 'BTC'). So if the bare symbol is not a
+            // valid option, try its '-USD' form before giving up.
+            const optionExists = (v) => Array.prototype.some.call(
+                assetSel.options, opt => opt.value === v
             );
-
-            // Validate: the symbol must already be a selector option, unless
-            // it came from the current watchlist registry.
-            if (!ensureAssetOption(assetSel, asset, allowCreate)) return;
-            const sym = asset.symbol;
+            if (!optionExists(sym) && optionExists(sym + '-USD')) {
+                sym = sym + '-USD';
+            }
+            if (!optionExists(sym)) return;   // genuinely unknown symbol — ignore
 
             // No-op if we're already on this asset.
             if (assetSel.value === sym) return;
@@ -1509,7 +1483,7 @@
                 try {
                     const pill = document.getElementById('feedStatusPill');
                     if (pill) {
-                        pill.textContent = '⚠ No data for this timeframe';
+                        pill.textContent = 'No data for this timeframe';
                         pill.style.display = 'block';
                     }
                 } catch (e) { /* swallow */ }
@@ -1530,7 +1504,7 @@
             }
             try {
                 const pill = document.getElementById('feedStatusPill');
-                if (pill && pill.textContent === '⚠ No data for this timeframe') {
+                if (pill && pill.textContent === 'No data for this timeframe') {
                     pill.style.display = 'none';
                 }
             } catch (e) { /* swallow */ }
@@ -2041,7 +2015,7 @@
                         tvChart.priceScale('right').applyOptions({ autoScale: true });
                         // fitContent() spreads the whole loaded batch evenly
                         // across the full chart width. The old scrollToRealTime()
-                        // call right after it fought that: it jumped the
+                        // call right after it FOUGHT that — it jumped the
                         // viewport to the live edge at the default narrow bar
                         // spacing, so the batch ended up jammed into the right
                         // ~40% of the x-axis with dead space on the left.
@@ -2347,7 +2321,7 @@
             persistOscPanes();
             if (key === 'volume') {
                 const btn = document.getElementById('cp-oscToggle');
-                if (btn) { btn.classList.add('active'); btn.textContent = '📊 Volume Split ✓'; }
+                if (btn) { btn.classList.add('active'); btn.textContent = 'Volume Split On'; }
             }
 
             if (!skipLayout) this._applyLayout();
@@ -2397,7 +2371,7 @@
             if (key === 'volume') {
                 try { if (volumeSeries) volumeSeries.applyOptions({ visible: true }); } catch (e) { /* swallow */ }
                 const btn = document.getElementById('cp-oscToggle');
-                if (btn) { btn.classList.remove('active'); btn.textContent = '📊 Volume Split'; }
+                if (btn) { btn.classList.remove('active'); btn.textContent = 'Volume Split'; }
             }
 
             persistOscPanes();
