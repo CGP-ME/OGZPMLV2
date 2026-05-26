@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PositionTracker Exact-Scope Closes (2026-05-25)
+
+- Changed `PositionTracker.closePosition()` to require either an explicit trade id/order id or a complete runtime scope before selecting an active trade to close, preventing multi-symbol or multi-account runs from closing the first global trade.
+- Added side/action-aware selection across BUY and SELL_SHORT trades, with ambiguity protection so duplicate same-scope trades require an explicit trade id or close side instead of guessing which position to close.
+- Verification: `node --check core/PositionTracker.js`, `git diff --check`, focused exact-scope multi-direction close smoke, Mercury adversarial passes found and drove fixes for the scopeKey-only bypass and long-only selector, final Mercury retry failed with HTTP 500, and full anchor-runner P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Account-Scoped Trade Identity (2026-05-25)
 
 - Added `BROKER_ACCOUNT_ID` to ConfigLoader broker config and threaded `accountId` into the bot runtime context so trade scope can distinguish broker accounts instead of stopping at broker/symbol/timeframe.

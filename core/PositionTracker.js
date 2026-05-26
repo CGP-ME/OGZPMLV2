@@ -293,6 +293,94 @@ class PositionTracker {
     return { success: true };
   }
 
+  _hasText(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  }
+
+  _hasExactScope(metadata) {
+    return this._hasText(metadata.symbol)
+      && this._hasText(metadata.brokerId)
+      && this._hasText(metadata.accountId ?? metadata.account ?? metadata.brokerAccountId)
+      && this._hasText(metadata.assetClass)
+      && this._hasText(metadata.executionMode)
+      && this._hasText(metadata.timeframe);
+  }
+
+  _resolveCloseScopeKey(metadata) {
+    if (!this._hasExactScope(metadata)) return null;
+
+    const resolvedScopeKey = this.stateManager.buildTradeScope(
+      metadata,
+      metadata.symbol,
+      'PositionTracker.closePosition scope'
+    ).key;
+
+    if (this._hasText(metadata.scopeKey) && String(metadata.scopeKey).trim() !== resolvedScopeKey) {
+      throw new Error('scopeKey does not match exact closePosition scope');
+    }
+
+    return resolvedScopeKey;
+  }
+
+  _resolveCloseAction(metadata = {}) {
+    const action = this._hasText(metadata.action) ? String(metadata.action).toUpperCase() : null;
+    if (action === 'BUY' || action === 'SELL') return 'BUY';
+    if (action === 'SELL_SHORT' || action === 'COVER') return 'SELL_SHORT';
+
+    const direction = this._hasText(metadata.direction ?? metadata.side)
+      ? String(metadata.direction ?? metadata.side).toLowerCase()
+      : null;
+    if (direction === 'long') return 'BUY';
+    if (direction === 'short') return 'SELL_SHORT';
+
+    return null;
+  }
+
+  _selectTradeForClose(metadata = {}) {
+    const requestedTradeId = metadata.tradeId || metadata.orderId || null;
+    const requestedAction = this._resolveCloseAction(metadata);
+    const activeTrades = this.stateManager.getAllTrades()
+      .filter(t => t.action === 'BUY' || t.action === 'SELL_SHORT')
+      .sort((a, b) => a.entryTime - b.entryTime);
+
+    if (activeTrades.length === 0) {
+      return { success: false, error: 'No active position to close' };
+    }
+
+    if (requestedTradeId) {
+      const trade = activeTrades.find(t => t.orderId === requestedTradeId || t.id === requestedTradeId);
+      if (!trade) return { success: false, error: `Trade ${requestedTradeId} not found for closePosition` };
+      if (requestedAction && trade.action !== requestedAction) {
+        return { success: false, error: `Trade ${requestedTradeId} action does not match requested close side` };
+      }
+      return { success: true, trade };
+    }
+
+    let scopeKey;
+    try {
+      scopeKey = this._resolveCloseScopeKey(metadata);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+
+    if (!scopeKey) {
+      return { success: false, error: 'tradeId or exact scope required for closePosition' };
+    }
+
+    const scopeMatches = activeTrades.filter(t => t.scopeKey === scopeKey);
+    const matches = requestedAction
+      ? scopeMatches.filter(t => t.action === requestedAction)
+      : scopeMatches;
+    if (matches.length === 0) {
+      return { success: false, error: `No active trade for scope ${scopeKey}` };
+    }
+    if (matches.length > 1) {
+      return { success: false, error: `Ambiguous close for scope ${scopeKey}; tradeId or close side required` };
+    }
+
+    return { success: true, trade: matches[0] };
+  }
+
   /**
    * Close a position (full or partial)
    * ALWAYS ALLOWED even when haltNewEntries is true (exit loop must continue)
@@ -314,16 +402,10 @@ class PositionTracker {
       metadata = {}
     } = params;
 
-    // Get active trade
-    const activeTrades = this.stateManager.getAllTrades()
-      .filter(t => t.action === 'BUY')
-      .sort((a, b) => a.entryTime - b.entryTime);
+    const selected = this._selectTradeForClose(metadata);
+    if (!selected.success) return selected;
 
-    if (activeTrades.length === 0) {
-      return { success: false, error: 'No active position to close' };
-    }
-
-    const trade = activeTrades[0];
+    const trade = selected.trade;
     const side = trade.side || 'long';
     const exitTime = metadata.exitTime || Date.now();
 
@@ -340,7 +422,7 @@ class PositionTracker {
       price,
       partial,
       partialSize,
-      { orderId: trade.orderId, exitReason }
+      { orderId: trade.orderId || trade.id, exitReason }
     );
 
     if (!result.success) {
