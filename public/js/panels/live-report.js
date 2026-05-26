@@ -1,29 +1,28 @@
 /**
  * live-report.js — LiveReport: Gate H operator/customer live trade report
  *
- * Commit 4 of gate-h-live-trade-report-PLAN.md — the "quiet-period honest view".
+ * Covers Gate H plan commits 4, 5, 6, 7. Renders, fed ONLY by verified real
+ * events (no synthetic data, no hydration defaults, no fake trades):
  *
- * Gate H requires the report be useful during quiet / no-trade periods: show
- * the active symbol/timeframe/account, data freshness, account state, and the
- * bot's latest reasoning — rather than pretending something happened. This
- * module delivers exactly that, fed ONLY by verified real events:
+ *   - Context strip  → active symbol / timeframe / account (asset_switched)
+ *   - Data freshness → live / Ns ago / STALE clock from message arrival
+ *   - Account state  → position / balance / realized PnL / trades / mode
+ *                       (state_update)
+ *   - Latest bot read → bot_thinking message + reasoning + confidence + regime
+ *                       + winning strategy (commit 6)
+ *   - Today scoreboard → today's trades / today's P&L / win rate / streak
+ *                        (journal_snapshot)
+ *   - Recent closed trades (commit 5) → append-only list of the last ~12
+ *     closed trades from journal_snapshot.recentTrades; new trades prepend
+ *     in real time via trade_closed_replay; each row carries direction,
+ *     entry→exit, hold, P&L, exit reason — every field a real backend value.
+ *   - New-trade flash (commit 7) → the freshly-prepended row briefly glows
+ *     when trade_closed_replay arrives, motion-gated for reduced-motion.
  *
- *   - 'state_update'   → account state (balance, position, PnL, trade count)
- *   - 'asset_switched' → active symbol / broker / asset class
- *   - 'bot_thinking'   → latest bot reasoning + confidence + regime
- *   - socket message arrival → data-freshness clock
- *
- * NO synthetic data. NO hydration-default celebrations. NO fake trades. Every
- * field shows '—' / an honest "awaiting…" string until a real event fills it.
- * The append-only closed-trade feed (journal_snapshot) is commit 5 — this file
- * intentionally stops at the quiet-period surface.
- *
- * Mount contract: renders into <div id="liveReport"></div> if it exists. If no
- * docked mount point is present it renders NOTHING (no floating fallback — the
- * goal-tracker floating-overlay bug is not repeated here).
- *
- * Self-registers as OGZ.LiveReport. Reduced-motion safe (no animation in the
- * quiet view). Operator/customer aware via localStorage 'ogz.profile'.
+ * Mount contract: renders into <div id="liveReport"></div>. If no docked mount
+ * point exists the module renders NOTHING (no floating fallback — the
+ * goal-tracker overlay mistake is not repeated). Operator/customer aware via
+ * localStorage 'ogz.profile'. Reduced-motion safe.
  *
  * Public API: init() / render() / teardown() / _compute()
  *
@@ -36,8 +35,10 @@
     const STYLE_ID = 'ogz-live-report-styles';
 
     // Freshness thresholds (ms)
-    const FRESH_LIVE_MS = 8000;     // < 8s  → "live"
-    const FRESH_RECENT_MS = 20000;  // < 20s → "Ns ago"; beyond → "STALE"
+    const FRESH_LIVE_MS   = 8000;
+    const FRESH_RECENT_MS = 20000;
+    const MAX_TRADE_ROWS  = 12;
+    const FLASH_MS        = 1200;
 
     const IS_OPERATOR = (function () {
         try { return localStorage.getItem('ogz.profile') === 'operator'; }
@@ -47,10 +48,12 @@
     // ─── State ──────────────────────────────────────────────────────────
     const state = {
         mounted: false,
-        lastMsgAt: 0,        // last time ANY tracked socket event arrived
-        asset: null,         // { label, base, broker, assetClass }
-        account: null,       // state_update .state object
-        thinking: null,      // { message, reasoning, confidence, regime, ts }
+        lastMsgAt: 0,
+        asset: null,        // { label, base, broker, assetClass }
+        account: null,      // state_update .state
+        thinking: null,     // { message, reasoning, confidence, regime, winner, ts }
+        journal: null,      // headline stats from journal_snapshot.data
+        recentTrades: [],   // newest-first; rows shaped below
         domRefs: {},
         freshTimer: null
     };
@@ -60,20 +63,21 @@
         return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
             ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
-
     function fmtMoney(n) {
         const v = Number(n);
         if (!isFinite(v)) return '—';
         return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
     function fmtSignedMoney(n) {
         const v = Number(n);
         if (!isFinite(v)) return '—';
         return (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
-    // Position can arrive as 0 / number / string / object — normalize honestly.
+    function fmtPct(n, digits) {
+        const v = Number(n);
+        if (!isFinite(v)) return '—';
+        return v.toFixed(digits == null ? 1 : digits) + '%';
+    }
     function describePosition(pos) {
         if (pos == null) return { text: '—', cls: '' };
         if (typeof pos === 'number') {
@@ -96,12 +100,52 @@
         }
         return { text: '—', cls: '' };
     }
-
     function activeTimeframe() {
-        // The active timeframe is owned by the chart panel's selector — there is
-        // no dedicated socket event for it. Best-effort read; '—' if absent.
         const el = document.getElementById('cp-timeframeSelector');
         return (el && el.value) ? el.value : '—';
+    }
+    function shortTime(ts) {
+        if (!ts) return '';
+        try {
+            return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch (_) { return ''; }
+    }
+    function finiteNumber(v) {
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    }
+    function validPrice(v) {
+        const n = finiteNumber(v);
+        return n != null && n > 0 ? n : null;
+    }
+    function formatHoldTime(raw) {
+        if (typeof raw === 'string' && raw.trim()) return raw;
+        const n = finiteNumber(raw);
+        if (n == null || n <= 0) return null;
+        if (n < 60000) return `${Math.max(1, Math.round(n / 1000))}s`;
+        if (n < 3600000) return `${Math.round(n / 60000)}m`;
+        return `${(n / 3600000).toFixed(1)}h`;
+    }
+    function tradeKey(t) {
+        if (!t) return '';
+        if (t.orderId != null && String(t.orderId) !== '') return 'id:' + String(t.orderId);
+        return [
+            t.timestamp || '',
+            t.direction || '',
+            t.entryPrice || '',
+            t.exitPrice || '',
+            t.netPnl || ''
+        ].join('|');
+    }
+    function dirClass(d) {
+        const u = String(d || '').toUpperCase();
+        if (u === 'LONG' || u === 'BUY')   return { text: 'LONG',  cls: 'lr-long'  };
+        if (u === 'SHORT'|| u === 'SELL_SHORT' || u === 'SELL' || u === 'COVER') {
+            return u === 'SELL' || u === 'COVER' ? { text: 'EXIT', cls: 'lr-flat' }
+                                                  : { text: 'SHORT', cls: 'lr-short' };
+        }
+        return { text: u || '—', cls: '' };
     }
 
     // ─── Style Injection ────────────────────────────────────────────────
@@ -133,15 +177,18 @@
             #${ROOT_ID} .lr-fresh.live   { color: #22c55e; background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.35); }
             #${ROOT_ID} .lr-fresh.recent { color: #fbbf24; background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.30); }
             #${ROOT_ID} .lr-fresh.stale  { color: #ef4444; background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.35); }
+
             #${ROOT_ID} .lr-grid {
                 display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
                 gap: 8px 14px; margin-bottom: 10px;
             }
-            #${ROOT_ID} .lr-cell .lr-k {
+            #${ROOT_ID} .lr-cell .lr-k,
+            #${ROOT_ID} .lr-stat .lr-k {
                 font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
                 color: #71717a; margin-bottom: 2px;
             }
-            #${ROOT_ID} .lr-cell .lr-v {
+            #${ROOT_ID} .lr-cell .lr-v,
+            #${ROOT_ID} .lr-stat .lr-v {
                 font-size: 13px; font-weight: 600; color: #e4e4e7;
             }
             #${ROOT_ID} .lr-v.lr-flat  { color: #a1a1aa; }
@@ -149,6 +196,7 @@
             #${ROOT_ID} .lr-v.lr-short { color: #ef4444; }
             #${ROOT_ID} .lr-v.pos { color: #22c55e; }
             #${ROOT_ID} .lr-v.neg { color: #ef4444; }
+
             #${ROOT_ID} .lr-reason {
                 background: rgba(255, 255, 255, 0.03);
                 border: 1px solid rgba(255, 255, 255, 0.06);
@@ -165,6 +213,69 @@
                 font-size: 10px; color: #71717a; margin-top: 5px;
             }
             #${ROOT_ID} .lr-empty { color: #52525b; font-style: italic; }
+
+            /* Today scoreboard (commit 5 headline) */
+            #${ROOT_ID} .lr-stats-row {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+                gap: 8px 14px;
+                margin-top: 10px;
+                padding-top: 10px;
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
+
+            /* Recent closed trades (commits 5 + 7) */
+            #${ROOT_ID} .lr-trades { margin-top: 10px; }
+            #${ROOT_ID} .lr-trades-head {
+                font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+                color: #71717a; margin-bottom: 6px;
+                display: flex; align-items: center; justify-content: space-between;
+            }
+            #${ROOT_ID} .lr-trades-body {
+                display: flex; flex-direction: column; gap: 4px;
+            }
+            #${ROOT_ID} .lr-tr {
+                display: grid;
+                grid-template-columns: 56px 56px minmax(0, 1fr) 60px 86px minmax(0, 1.4fr);
+                gap: 8px; align-items: center;
+                padding: 5px 8px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 4px;
+                font-size: 11px;
+            }
+            #${ROOT_ID} .lr-tr.win  { border-left: 2px solid #22c55e; }
+            #${ROOT_ID} .lr-tr.loss { border-left: 2px solid #ef4444; }
+            #${ROOT_ID} .lr-tr-time { color: #71717a; font-size: 10px; }
+            #${ROOT_ID} .lr-tr-dir  { font-weight: 700; font-size: 10px; letter-spacing: 0.06em; }
+            #${ROOT_ID} .lr-tr-dir.lr-long  { color: #22c55e; }
+            #${ROOT_ID} .lr-tr-dir.lr-short { color: #ef4444; }
+            #${ROOT_ID} .lr-tr-px   { color: #d1d4dc; font-family: 'JetBrains Mono', monospace; }
+            #${ROOT_ID} .lr-tr-hold { color: #a1a1aa; font-size: 10px; }
+            #${ROOT_ID} .lr-tr-pnl  { font-weight: 700; }
+            #${ROOT_ID} .lr-tr-pnl.pos { color: #22c55e; }
+            #${ROOT_ID} .lr-tr-pnl.neg { color: #ef4444; }
+            #${ROOT_ID} .lr-tr-reason {
+                color: #a1a1aa; font-size: 10px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            }
+
+            /* New-trade flash (commit 7) — motion-gated below */
+            #${ROOT_ID} .lr-tr.lr-flash {
+                animation: lr-flash-kf ${FLASH_MS}ms ease-out 1;
+                box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.45),
+                            0 0 14px rgba(255, 215, 0, 0.35);
+            }
+            @keyframes lr-flash-kf {
+                0%   { background: rgba(255, 215, 0, 0.22); }
+                100% { background: rgba(255, 255, 255, 0.02); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #${ROOT_ID} .lr-tr.lr-flash {
+                    animation: none;
+                    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.35);
+                }
+            }
         `;
         const el = document.createElement('style');
         el.id = STYLE_ID;
@@ -176,10 +287,10 @@
     function mount() {
         if (state.mounted) return true;
         const root = document.getElementById(ROOT_ID);
-        if (!root) return false;   // no docked mount point → render nothing
+        if (!root) return false;
         root.innerHTML = `
             <div class="lr-head">
-                <span class="lr-title">${IS_OPERATOR ? 'Live Trade Report' : 'Live Trade Report'}</span>
+                <span class="lr-title">Live Trade Report</span>
                 <span class="lr-fresh" data-k="fresh">awaiting feed</span>
             </div>
             <div class="lr-grid">
@@ -197,20 +308,41 @@
                 <div class="lr-msg" data-k="reason"><span class="lr-empty">No signal yet — waiting for the bot's first read.</span></div>
                 <div class="lr-meta" data-k="reasonMeta"></div>
             </div>
+            <div class="lr-stats-row">
+                <div class="lr-stat"><div class="lr-k">Today Trades</div><div class="lr-v" data-k="todayTrades">—</div></div>
+                <div class="lr-stat"><div class="lr-k">Today P&L</div><div class="lr-v" data-k="todayPnl">—</div></div>
+                <div class="lr-stat"><div class="lr-k">Today Win Rate</div><div class="lr-v" data-k="todayWR">—</div></div>
+                <div class="lr-stat"><div class="lr-k">Streak</div><div class="lr-v" data-k="streak">—</div></div>
+            </div>
+            <div class="lr-trades">
+                <div class="lr-trades-head">
+                    <span>Recent closed trades</span>
+                    <span data-k="tradesMeta"></span>
+                </div>
+                <div class="lr-trades-body" data-k="tradeList">
+                    <div class="lr-empty">No closed trades this session yet.</div>
+                </div>
+            </div>
         `;
         const q = sel => root.querySelector(sel);
         state.domRefs = {
-            fresh:      q('[data-k="fresh"]'),
-            symbol:     q('[data-k="symbol"]'),
-            tf:         q('[data-k="tf"]'),
-            account:    q('[data-k="account"]'),
-            position:   q('[data-k="position"]'),
-            balance:    q('[data-k="balance"]'),
-            realized:   q('[data-k="realized"]'),
-            trades:     q('[data-k="trades"]'),
-            mode:       q('[data-k="mode"]'),
-            reason:     q('[data-k="reason"]'),
-            reasonMeta: q('[data-k="reasonMeta"]')
+            fresh:       q('[data-k="fresh"]'),
+            symbol:      q('[data-k="symbol"]'),
+            tf:          q('[data-k="tf"]'),
+            account:     q('[data-k="account"]'),
+            position:    q('[data-k="position"]'),
+            balance:     q('[data-k="balance"]'),
+            realized:    q('[data-k="realized"]'),
+            trades:      q('[data-k="trades"]'),
+            mode:        q('[data-k="mode"]'),
+            reason:      q('[data-k="reason"]'),
+            reasonMeta:  q('[data-k="reasonMeta"]'),
+            todayTrades: q('[data-k="todayTrades"]'),
+            todayPnl:    q('[data-k="todayPnl"]'),
+            todayWR:     q('[data-k="todayWR"]'),
+            streak:      q('[data-k="streak"]'),
+            tradesMeta:  q('[data-k="tradesMeta"]'),
+            tradeList:   q('[data-k="tradeList"]')
         };
         state.mounted = true;
         return true;
@@ -239,13 +371,11 @@
         }
     }
 
-    // ─── Render ─────────────────────────────────────────────────────────
-    function render() {
-        if (!state.mounted) return;
+    // ─── Render: quiet-period view (context, account, reasoning) ────────
+    function renderQuiet() {
         const d = state.domRefs;
         const acct = state.account;
 
-        // Context
         if (d.symbol) {
             d.symbol.textContent = state.asset
                 ? (state.asset.label || state.asset.base || state.asset.asset || '—')
@@ -255,12 +385,11 @@
         if (d.account) {
             d.account.textContent = acct && acct.accountId
                 ? String(acct.accountId)
-                : state.asset
-                    ? String(state.asset.accountId || state.asset.broker || state.asset.assetClass || '—').toUpperCase()
+                : state.asset && state.asset.accountId
+                    ? String(state.asset.accountId)
                     : '—';
         }
 
-        // Account state
         if (d.position) {
             const p = describePosition(acct ? acct.position : null);
             d.position.textContent = p.text;
@@ -283,11 +412,9 @@
             d.trades.textContent = acct && acct.tradeCount != null ? String(acct.tradeCount) : '—';
         }
         if (d.mode) {
-            if (!acct) d.mode.textContent = '—';
-            else d.mode.textContent = acct.recoveryMode ? 'RECOVERY' : 'NORMAL';
+            d.mode.textContent = !acct ? '—' : (acct.recoveryMode ? 'RECOVERY' : 'NORMAL');
         }
 
-        // Latest bot reasoning — honest no-signal surface
         if (d.reason) {
             const t = state.thinking;
             if (t && (t.message || t.reasoning)) {
@@ -300,8 +427,9 @@
             const t = state.thinking;
             if (t) {
                 const bits = [];
+                if (t.winner)            bits.push('winner ' + esc(t.winner));
                 if (t.confidence != null) bits.push('confidence ' + Number(t.confidence).toFixed(0) + '%');
-                if (t.regime) bits.push('regime ' + esc(t.regime));
+                if (t.regime)            bits.push('regime ' + esc(t.regime));
                 if (t.ts) {
                     bits.push(new Date(t.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
                 }
@@ -312,7 +440,136 @@
         }
     }
 
-    // ─── Event Handlers (real events only) ──────────────────────────────
+    // ─── Render: today scoreboard from journal_snapshot ─────────────────
+    function renderStats() {
+        const d = state.domRefs;
+        const j = state.journal;
+        if (d.todayTrades) d.todayTrades.textContent = j && j.todayTrades != null ? String(j.todayTrades) : '—';
+        if (d.todayPnl) {
+            if (j && j.todayPnl != null) {
+                const v = Number(j.todayPnl);
+                d.todayPnl.textContent = fmtSignedMoney(v);
+                d.todayPnl.className = 'lr-v ' + (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+            } else {
+                d.todayPnl.textContent = '—';
+                d.todayPnl.className = 'lr-v';
+            }
+        }
+        if (d.todayWR) {
+            d.todayWR.textContent = j && j.todayWinRate != null ? fmtPct(j.todayWinRate) : '—';
+        }
+        if (d.streak) {
+            if (j && j.currentStreak != null) {
+                const type = j.currentStreakType || '';
+                const n = Math.abs(j.currentStreak);
+                if (n === 0) {
+                    d.streak.textContent = '—';
+                    d.streak.className = 'lr-v';
+                } else {
+                    const isWin = /^win/i.test(type) || j.currentStreak > 0;
+                    d.streak.textContent = `${n}${isWin ? 'W' : 'L'}`;
+                    d.streak.className = 'lr-v ' + (isWin ? 'pos' : 'neg');
+                }
+            } else {
+                d.streak.textContent = '—';
+                d.streak.className = 'lr-v';
+            }
+        }
+    }
+
+    // ─── Render: recent closed trades ───────────────────────────────────
+    function renderTrades(flashOrderId) {
+        const d = state.domRefs;
+        if (!d.tradeList) return;
+        if (d.tradesMeta) {
+            const total = state.journal && state.journal.totalTrades != null
+                ? state.journal.totalTrades : state.recentTrades.length;
+            d.tradesMeta.textContent = state.recentTrades.length
+                ? `last ${state.recentTrades.length} of ${total}`
+                : '';
+        }
+        if (!state.recentTrades.length) {
+            d.tradeList.innerHTML = '<div class="lr-empty">No closed trades this session yet.</div>';
+            return;
+        }
+        const frag = document.createDocumentFragment();
+        for (const t of state.recentTrades) {
+            const row = document.createElement('div');
+            const key = tradeKey(t);
+            const pnl = finiteNumber(t.netPnl);
+            const isWin = pnl != null && pnl > 0;
+            const isLoss = pnl != null && pnl < 0;
+            row.className = 'lr-tr' + (isWin ? ' win' : isLoss ? ' loss' : '');
+            if (flashOrderId && key === flashOrderId) row.classList.add('lr-flash');
+
+            const dir = dirClass(t.direction);
+
+            const time = document.createElement('span');
+            time.className = 'lr-tr-time';
+            time.textContent = shortTime(t.timestamp);
+
+            const dirEl = document.createElement('span');
+            dirEl.className = 'lr-tr-dir ' + dir.cls;
+            dirEl.textContent = dir.text;
+
+            const px = document.createElement('span');
+            px.className = 'lr-tr-px';
+            const ep = validPrice(t.entryPrice), xp = validPrice(t.exitPrice);
+            px.textContent = (ep != null && xp != null)
+                ? `${ep.toFixed(2)} → ${xp.toFixed(2)}`
+                : '—';
+
+            const hold = document.createElement('span');
+            hold.className = 'lr-tr-hold';
+            hold.textContent = t.holdTime ? String(t.holdTime) : '—';
+
+            const pnlEl = document.createElement('span');
+            pnlEl.className = 'lr-tr-pnl ' + (isWin ? 'pos' : isLoss ? 'neg' : '');
+            if (pnl != null) {
+                const pct = finiteNumber(t.pnlPercent);
+                const pctPart = pct != null
+                    ? `  (${pct.toFixed(2)}%)`
+                    : '';
+                pnlEl.textContent = fmtSignedMoney(pnl) + pctPart;
+            } else {
+                pnlEl.textContent = '—';
+            }
+
+            const reason = document.createElement('span');
+            reason.className = 'lr-tr-reason';
+            reason.title = t.exitReason ? String(t.exitReason) : '';
+            reason.textContent = t.exitReason ? String(t.exitReason) : '';
+
+            row.appendChild(time);
+            row.appendChild(dirEl);
+            row.appendChild(px);
+            row.appendChild(hold);
+            row.appendChild(pnlEl);
+            row.appendChild(reason);
+            frag.appendChild(row);
+        }
+        d.tradeList.innerHTML = '';
+        d.tradeList.appendChild(frag);
+
+        if (flashOrderId) {
+            // strip the flash class after the animation so re-renders don't re-flash
+            setTimeout(() => {
+                try {
+                    const flashed = d.tradeList.querySelector('.lr-tr.lr-flash');
+                    if (flashed) flashed.classList.remove('lr-flash');
+                } catch (_) { /* swallow */ }
+            }, FLASH_MS + 80);
+        }
+    }
+
+    function render(flashOrderId) {
+        if (!state.mounted) return;
+        renderQuiet();
+        renderStats();
+        renderTrades(flashOrderId);
+    }
+
+    // ─── Event handlers (real events only) ──────────────────────────────
     function onStateUpdate(msg) {
         const s = msg && msg.state ? msg.state : null;
         if (!s) return;
@@ -333,16 +590,65 @@
 
     function onBotThinking(msg) {
         if (!msg) return;
+        const winner = msg.winner_id
+                    || (msg.winner && (msg.winner.id || msg.winner.name))
+                    || null;
         state.thinking = {
-            message: msg.message || null,
+            message:   msg.message || null,
             reasoning: (msg.data && msg.data.reasoning) || null,
             confidence: msg.confidence != null ? msg.confidence
                        : (msg.data && msg.data.confidence != null ? msg.data.confidence : null),
-            regime: (msg.data && msg.data.regime) || null,
-            ts: msg.timestamp || Date.now()
+            regime:    (msg.data && msg.data.regime) || null,
+            winner:    winner,
+            ts:        msg.timestamp || Date.now()
         };
         state.lastMsgAt = Date.now();
         render();
+        tickFreshness();
+    }
+
+    function onJournalSnapshot(msg) {
+        const d = msg && msg.data ? msg.data : null;
+        if (!d) return;
+        state.journal = d;
+        if (Array.isArray(d.recentTrades)) {
+            // journal_snapshot's recentTrades are newest-first per TradeJournal.getSnapshot;
+            // cap to MAX_TRADE_ROWS in case the backend changes the cap.
+            state.recentTrades = d.recentTrades.slice(0, MAX_TRADE_ROWS);
+        }
+        state.lastMsgAt = Date.now();
+        render();
+        tickFreshness();
+    }
+
+    function onTradeClosedReplay(msg) {
+        const d = msg && msg.data ? msg.data : null;
+        if (!d) return;
+        if (d.orderId == null || String(d.orderId) === '') {
+            console.warn('[LiveReport] Ignoring trade_closed_replay without orderId; closed-trade rows require journal-backed identity.');
+            state.lastMsgAt = Date.now();
+            tickFreshness();
+            return;
+        }
+        const row = {
+            orderId:    d.orderId,
+            direction:  d.direction || null,
+            entryPrice: d.entryPrice,
+            exitPrice:  d.exitPrice,
+            netPnl:     d.pnl,
+            pnlPercent: d.pnlPercent,
+            holdTime:   formatHoldTime(d.holdTime),
+            exitReason: d.reason || null,
+            confidence: null,
+            regime:     null,
+            timestamp:  d.timestamp || Date.now()
+        };
+        // Prepend, dedupe by backend id, cap.
+        const rowKey = tradeKey(row);
+        const filtered = state.recentTrades.filter(t => tradeKey(t) !== rowKey);
+        state.recentTrades = [row, ...filtered].slice(0, MAX_TRADE_ROWS);
+        state.lastMsgAt = Date.now();
+        render(rowKey);
         tickFreshness();
     }
 
@@ -351,7 +657,7 @@
         init() {
             try {
                 injectStyles();
-                if (!mount()) return;   // no #liveReport mount point — stay inert
+                if (!mount()) return;
                 render();
 
                 (function bindSocket() {
@@ -360,9 +666,11 @@
                         setTimeout(bindSocket, 250);
                         return;
                     }
-                    socket.registerHandler('state_update',   e => { try { onStateUpdate(e); } catch (_) {} });
-                    socket.registerHandler('asset_switched', e => { try { onAssetSwitched(e); } catch (_) {} });
-                    socket.registerHandler('bot_thinking',   e => { try { onBotThinking(e); } catch (_) {} });
+                    socket.registerHandler('state_update',        e => { try { onStateUpdate(e); } catch (_) {} });
+                    socket.registerHandler('asset_switched',      e => { try { onAssetSwitched(e); } catch (_) {} });
+                    socket.registerHandler('bot_thinking',        e => { try { onBotThinking(e); } catch (_) {} });
+                    socket.registerHandler('journal_snapshot',    e => { try { onJournalSnapshot(e); } catch (_) {} });
+                    socket.registerHandler('trade_closed_replay', e => { try { onTradeClosedReplay(e); } catch (_) {} });
                 })();
 
                 state.freshTimer = setInterval(tickFreshness, 1000);
@@ -383,7 +691,9 @@
                 lastMsgAt: state.lastMsgAt,
                 hasAsset: !!state.asset,
                 hasAccount: !!state.account,
-                hasThinking: !!state.thinking
+                hasThinking: !!state.thinking,
+                hasJournal: !!state.journal,
+                tradeRows: state.recentTrades.length
             };
         }
     };

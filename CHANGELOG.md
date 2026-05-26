@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Live Report Final Feed Drop (2026-05-26)
+
+- Expanded the served Gate H live report from the quiet-period view into the final feed drop: today scoreboard, journal-backed recent closed trades, and new closed-trade flash from real `journal_snapshot` and `trade_closed_replay` WebSocket events.
+- Hardened closed-trade rendering so missing prices and hold times stay blank instead of becoming plausible defaults, account display requires a real account id, and replay rows without `orderId` are rejected before mutating the visible closed-trade list.
+- Verification: `node --check public/js/panels/live-report.js`, emoji scan on the three served dashboard files, `git diff --check`, Mercury dashboard attack with local data-integrity fixes, and Mercury recheck with no blocking findings. P0 was not run because this commit changes served dashboard assets only, not trading or backtest execution.
+
 ### Dashboard Frontend Readiness Drop (2026-05-26)
 
 - Added the served Gate H quiet-period live report module and docked it into the unified dashboard so no-trade periods show honest feed, account, symbol, timeframe, position, and latest-reasoning state instead of fake activity.
