@@ -26,15 +26,14 @@
  *                      We resolve symbol from the chart panel selector.
  *                      action=BUY|SELL_SHORT → open. action=SELL|COVER → close.
  *   - 'price'        → CandleProcessor. Read data.price for current-mark + P&L.
- *   - 'state_update' → StateManager.broadcastToDashboard. AUTHORITATIVE for whether
- *                      a position is open (state.position != 0) and unrealized P&L.
- *                      Shape: { state:{ position, balance, totalBalance,
- *                      realizedPnL, unrealizedPnL, totalPnL, ... } }
- *                      `position` is a SIGNED USD number (>0 long, <0 short, 0 flat).
+ *   - 'state_update' → StateManager.broadcastToDashboard. AUTHORITATIVE position
+ *                      source when state.positions is present. Legacy scalar
+ *                      shape is supported only as a fallback for old backend
+ *                      payloads.
  *
- * The bot's broadcast doesn't include entryPrice/SL/TP. Entry price is captured
- * locally from the BUY/SELL_SHORT 'trade' event. SL/TP render '--' until backend
- * exposes them. NO synthetic data anywhere.
+ * Backend-scoped state_update rows are preferred. Legacy trade events only fill
+ * gaps when an old backend payload does not include scoped positions yet. SL/TP
+ * render '--' until backend exposes them. NO synthetic data anywhere.
  *
  * Listens to OGZ.bus:
  *   - watchlist:select — to scope highlight to selected ticker
@@ -675,6 +674,58 @@
         return 'ALP';
     }
 
+    function normalizeBrokerId(value, symbol) {
+        if (!value) return resolveBroker(symbol);
+
+        const raw = String(value).trim();
+        const lower = raw.toLowerCase();
+        if (lower === 'alpaca' || lower === 'alp') return 'ALP';
+        if (lower === 'kraken' || lower === 'kra') return 'KRA';
+        if (lower === 'coinbase' || lower === 'cb') return 'CB';
+        return raw.toUpperCase();
+    }
+
+    function normalizeBackendPosition(raw, packetTimestamp) {
+        if (!raw || !raw.symbol) return null;
+
+        const symbol = String(raw.symbol).toUpperCase();
+        const broker = normalizeBrokerId(raw.broker || raw.brokerId, symbol);
+        const pending = state.pendingEntries && state.pendingEntries.get(entryKey(symbol, broker));
+        const openedAt = Number(raw.openedAt || raw.entryTime || raw.timestamp || (pending && pending.openedAt) || packetTimestamp || Date.now());
+        const entry = Number(raw.entryPrice ?? raw.entry ?? (pending && pending.entry) ?? 0);
+        const current = Number(raw.currentPrice ?? raw.current ?? raw.lastPrice ?? entry);
+        const size = Number(raw.sizeUsd ?? raw.size ?? 0);
+        const action = String(raw.action || '').toUpperCase();
+        const side = String(raw.side || raw.direction || (action === 'SELL_SHORT' ? 'short' : 'long')).toLowerCase();
+        const unrealizedPnL = raw.unrealizedPnL != null ? Number(raw.unrealizedPnL) : null;
+
+        return {
+            symbol,
+            broker,
+            brokerId: normalizeBrokerId(raw.brokerId || raw.broker, symbol),
+            accountId: raw.accountId,
+            accountIdSource: raw.accountIdSource,
+            assetClass: raw.assetClass,
+            executionMode: raw.executionMode,
+            timeframe: raw.timeframe,
+            scopeKey: raw.scopeKey,
+            scopeComplete: raw.scopeComplete === true,
+            scopeKeyVersion: raw.scopeKeyVersion || 1,
+            side: side === 'short' ? 'short' : 'long',
+            entry: isFinite(entry) ? entry : 0,
+            current: isFinite(current) ? current : 0,
+            stopLoss: Number(raw.stopLoss ?? raw.sl ?? 0) || 0,
+            takeProfit: Number(raw.takeProfit ?? raw.tp ?? 0) || 0,
+            size: isFinite(size) ? Math.abs(size) : 0,
+            openedAt: isFinite(openedAt) ? openedAt : Date.now(),
+            unrealizedPnL: unrealizedPnL != null && isFinite(unrealizedPnL) ? unrealizedPnL : null,
+            strategy: raw.strategy || (pending && pending.strategy) || null,
+            tradeId: raw.tradeId || raw.orderId || null,
+            orderId: raw.orderId || null,
+            status: raw.status || 'open',
+        };
+    }
+
     // Capture entry price keyed by (symbol|broker) so reopens replace entry
     // cleanly when state_update reports a new position.
     function entryKey(symbol, broker) {
@@ -691,8 +742,8 @@
             const data = (d && d.data) ? d.data : d;
             if (!data || !data.action) return;
 
-            const symbol = resolveCurrentSymbol();
-            const broker = resolveBroker(symbol);
+            const symbol = data.symbol ? String(data.symbol).toUpperCase() : resolveCurrentSymbol();
+            const broker = normalizeBrokerId(data.broker || data.brokerId, symbol);
             const price  = parseFloat(data.price);
             const ts     = Number(data.timestamp) || Date.now();
             const action = String(data.action).toUpperCase();
@@ -738,17 +789,15 @@
         } catch (_) { /* swallow */ }
     }
 
-    // 'price' — bot sends data.price for current asset. Single-pair: every
-    // price tick is for the symbol the bot is trading right now. Update all
-    // open rows whose symbol matches.
+    // 'price' — prefer event symbol when present; selected chart is only the
+    // legacy fallback for older single-pair payloads.
     function handlePriceEvent(d) {
         try {
             const data = (d && d.data) ? d.data : d;
             const price = parseFloat(data && (data.price != null ? data.price : data.close));
             if (!isFinite(price) || price <= 0) return;
 
-            // Single-pair bot: figure out current symbol from chart selector.
-            const symbol = resolveCurrentSymbol();
+            const symbol = data.symbol ? String(data.symbol).toUpperCase() : resolveCurrentSymbol();
             let updated = false;
             state.positions.forEach((position) => {
                 if (position.symbol === symbol) {
@@ -767,6 +816,18 @@
         try {
             const s = d && d.state ? d.state : null;
             if (!s) return;
+
+            if (Array.isArray(s.positions)) {
+                const nextPositions = new Map();
+                s.positions.forEach((raw) => {
+                    const position = normalizeBackendPosition(raw, d.timestamp);
+                    if (!position) return;
+                    nextPositions.set(makeKey(position.symbol, position.broker, position.openedAt), position);
+                });
+                state.positions = nextPositions;
+                renderRows();
+                return;
+            }
 
             const sizeUsd = Number(s.position) || 0;
             const unrPnL  = Number(s.unrealizedPnL) || 0;
@@ -897,13 +958,13 @@
 
             const key = makeKey(
                 position.symbol,
-                position.broker || 'ALP',
+                normalizeBrokerId(position.broker, position.symbol),
                 position.openedAt || Date.now()
             );
 
             state.positions.set(key, {
                 symbol: String(position.symbol).toUpperCase(),
-                broker: position.broker || 'ALP',
+                broker: normalizeBrokerId(position.broker, position.symbol),
                 side: (position.side || 'long').toLowerCase(),
                 entry: position.entry || 0,
                 current: position.current || position.entry || 0,
@@ -925,7 +986,7 @@
             state.positions.forEach((pos, key) => {
                 if (
                     pos.symbol === String(symbol).toUpperCase() &&
-                    pos.broker === (broker || 'ALP')
+                    pos.broker === normalizeBrokerId(broker, symbol)
                 ) {
                     state.positions.delete(key);
                     found = true;

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Scoped Open Positions Panel (2026-05-25)
+
+- Updated the Open Positions dashboard panel to prefer backend `state.positions` rows from `StateManager` over selected-chart inference, preserving scoped position metadata including broker, account, asset class, execution mode, timeframe, scope key, and scope completeness.
+- Normalized backend broker labels (`alpaca`, `kraken`, `coinbase`) to the panel's broker IDs so display classes and pending-entry keys stay consistent across backend and legacy event paths.
+- Verification: `node --check public/js/panels/open-positions.js`, focused scoped-state panel smoke, two Mercury attempts failed with HTTP 500, and local adversarial review covered selected-chart leakage, broker-key drift, and cross-symbol price updates. P0 was not run because this commit changes dashboard rendering only, not the trading/backtest execution path.
+
 ### Scoped Dashboard Position Projection (2026-05-25)
 
 - Added a scoped `positions` array to `StateManager` `state_update` dashboard payloads so consumers can render backend position truth by trade id, symbol, broker, asset class, execution mode, timeframe, and scope key instead of inferring from the selected chart.
