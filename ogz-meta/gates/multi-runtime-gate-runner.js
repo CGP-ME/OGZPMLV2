@@ -226,6 +226,143 @@ const GATES = [
     })
   },
   {
+    id: 'scope.candle_ingress.scope_contract',
+    layer: 'scope',
+    description: 'CandleProcessor accepts only scoped candles and rejects missing symbol/timeframe before storage or strategy ingestion.',
+    run: () => withQuietConsole(async () => {
+      const CandleProcessor = require('../../core/CandleProcessor');
+
+      function makeSymCtx(symbol) {
+        return {
+          symbol,
+          indicatorEngine: { updateCandle: () => {} },
+          emaCrossover: null,
+          maDynamicSR: null,
+          volumeProfile: null,
+          priceHistory: [],
+          marketData: null
+        };
+      }
+
+      function makeCtx() {
+        const calls = [];
+        return {
+          calls,
+          symbolContexts: new Map([['BTC-USD', makeSymCtx('BTC-USD')]]),
+          tradingPair: 'BTC-USD',
+          candleTimeframe: '1m',
+          _candleStore: {
+            addCandle: (...args) => calls.push(args)
+          },
+          priceHistory: [],
+          indicatorEngine: { updateCandle: () => {} },
+          mtfAdapter: null,
+          emaCrossover: null,
+          maDynamicSR: null,
+          liquiditySweep: null,
+          volumeProfile: null,
+          candleSaveCounter: 0,
+          saveCandleHistory: () => {},
+          config: {
+            enableBacktestMode: true,
+            brokerId: 'kraken',
+            accountId: 'acct-1',
+            assetClass: 'crypto',
+            executionMode: 'backtest',
+            timeframe: '1m',
+            evalTraceEnabled: true,
+            evalTraceBacktest: true
+          },
+          dashboardWsConnected: false,
+          dashboardWs: null,
+          getCandlesForTimeframe: () => [],
+          broadcastEdgeAnalytics: () => {}
+        };
+      }
+
+      function candle(overrides = {}) {
+        return {
+          symbol: 'BTC-USD',
+          timeframe: '1m',
+          t: 1779440400000,
+          etime: 1779440460000,
+          o: 100,
+          h: 101,
+          l: 99,
+          c: 100.5,
+          v: 42,
+          ...overrides
+        };
+      }
+
+      const scopedCtx = makeCtx();
+      const scopedProcessor = new CandleProcessor(scopedCtx);
+      scopedProcessor.processNewCandle(candle({ symbol: 'XBT/USD' }), {
+        traceId: 'gate_candle_scoped',
+        source: 'gate'
+      });
+      assert.strictEqual(scopedCtx.calls.length, 1, 'scoped candle should be stored exactly once');
+      const stored = scopedCtx.calls[0][2];
+      assert.strictEqual(scopedCtx.calls[0][0], 'BTC-USD', 'candleStore symbol should be normalized');
+      assert.strictEqual(stored.symbol, 'BTC-USD', 'accepted candle must carry normalized symbol');
+      assert.strictEqual(stored.brokerId, 'kraken', 'accepted candle must carry brokerId');
+      assert.strictEqual(stored.accountId, 'acct-1', 'accepted candle must carry accountId');
+      assert.strictEqual(stored.assetClass, 'crypto', 'accepted candle must carry assetClass');
+      assert.strictEqual(stored.executionMode, 'backtest', 'accepted candle must carry executionMode');
+      assert.strictEqual(stored.timeframe, '1m', 'accepted candle must carry timeframe');
+      assert.strictEqual(stored.scopeKey, 'backtest:kraken:acct-1:crypto:BTC-USD:1m', 'accepted candle must carry scopeKey');
+
+      const missingSymbolCtx = makeCtx();
+      assert.throws(
+        () => new CandleProcessor(missingSymbolCtx).processNewCandle(candle({ symbol: undefined }), {
+          traceId: 'gate_candle_missing_symbol',
+          source: 'gate'
+        }),
+        /missing immutable candle scope field\(s\): symbol/,
+        'missing symbol must reject before storage'
+      );
+      assert.strictEqual(missingSymbolCtx.calls.length, 0, 'missing-symbol candle must not reach candleStore');
+
+      const missingTimeframeCtx = makeCtx();
+      assert.throws(
+        () => new CandleProcessor(missingTimeframeCtx).processNewCandle(candle({ timeframe: undefined }), {
+          traceId: 'gate_candle_missing_timeframe',
+          source: 'gate'
+        }),
+        /missing immutable candle scope field\(s\): timeframe/,
+        'missing timeframe must reject before storage'
+      );
+      assert.strictEqual(missingTimeframeCtx.calls.length, 0, 'missing-timeframe candle must not reach candleStore');
+
+      const legacyArrayCtx = makeCtx();
+      new CandleProcessor(legacyArrayCtx).handleMarketData(
+        [1779440400, 1779440460, 100, 101, 99, 100.5, 100.5, 42, 1],
+        { traceId: 'gate_candle_legacy_array' }
+      );
+      const legacyStored = legacyArrayCtx.calls[0][2];
+      assert.strictEqual(legacyStored.symbolSource, 'ctx.tradingPair', 'legacy array path must name runtime symbol source');
+      assert.strictEqual(legacyStored.scopeKey, 'backtest:kraken:acct-1:crypto:BTC-USD:1m', 'legacy array path must carry scopeKey');
+
+      const backfillCtx = makeCtx();
+      const backfillProcessor = new CandleProcessor(backfillCtx);
+      assert.throws(
+        () => backfillProcessor.handleBackfillSuccess(
+          [[1779440400000, 1779440460000, 100, 101, 99, 100.5, 100.5, 42, 1]],
+          { traceId: 'gate_backfill_missing_scope', symbol: 'BTC-USD', timeframe: '1m' }
+        ),
+        /missing immutable candle scope field\(s\): brokerId, accountId, assetClass, executionMode/,
+        'gap backfill replay must reject missing broker/account/asset/mode scope'
+      );
+      assert.strictEqual(backfillCtx.calls.length, 0, 'missing replay scope must not reach candleStore');
+
+      return {
+        scopedKey: stored.scopeKey,
+        rejectionPaths: 3,
+        legacyArrayKey: legacyStored.scopeKey
+      };
+    })
+  },
+  {
     id: 'scope.order_executor.dashboard_trade_payload',
     layer: 'scope',
     description: 'OrderExecutor trade broadcasts carry scoped trade identity and cannot be spoofed by loose payload fields.',

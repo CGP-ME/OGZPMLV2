@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Candle Ingress Scope Gate (2026-05-26)
+
+- Added executable gate `scope.candle_ingress.scope_contract` to prove CandleProcessor accepted candles carry immutable runtime scope and that missing symbol, missing timeframe, and incomplete backfill replay scope reject before storage.
+- Verification: `node --check ogz-meta/gates/multi-runtime-gate-runner.js`, `node ogz-meta/gates/multi-runtime-gate-runner.js --gate scope.candle_ingress.scope_contract`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, and `git diff --check` passed.
+
 ### Candle Ingress Scope Stamping (2026-05-26)
 
 - Added immutable runtime scope stamping at the canonical CandleProcessor boundary so accepted candles carry symbol, broker, account, asset class, execution mode, timeframe, and scope key before storage or strategy-module ingestion.
