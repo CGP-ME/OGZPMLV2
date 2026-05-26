@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PositionTracker Scoped Snapshots (2026-05-25)
+
+- Changed `PositionTracker.getPositionInfo()` and `getActiveTradeSnapshot()` to resolve active trade reads through the same trade id or exact-scope selector used by closes, removing the remaining first-global-BUY snapshot behavior.
+- Added scoped metadata to `getPositionInfo()` output so callers can see which symbol, broker, account, asset class, execution mode, timeframe, and scope key the returned position actually belongs to.
+- Verification: `node --check core/PositionTracker.js`, `git diff --check`, focused scoped snapshot smoke, Mercury adversarial attempt failed with HTTP 500, local adversarial review removed an invented `long` side from missing-scope reads, and full anchor-runner P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### PositionTracker Exact-Scope Closes (2026-05-25)
 
 - Changed `PositionTracker.closePosition()` to require either an explicit trade id/order id or a complete runtime scope before selecting an active trade to close, preventing multi-symbol or multi-account runs from closing the first global trade.

@@ -460,23 +460,26 @@ class PositionTracker {
   /**
    * Get current position info
    */
-  getPositionInfo() {
-    const state = this.stateManager.getState();
-    const trades = this.stateManager.getAllTrades()
-      .filter(t => t.action === 'BUY')
-      .sort((a, b) => a.entryTime - b.entryTime);
-
-    const hasPosition = state.position > 0;
-    const activeTrade = trades[0] || null;
+  getPositionInfo(metadata = {}) {
+    const selected = this._selectTradeForClose(metadata);
+    const activeTrade = selected.success ? selected.trade : null;
 
     return {
-      hasPosition,
-      position: state.position,
-      side: activeTrade?.side || 'long',
+      hasPosition: Boolean(activeTrade),
+      position: activeTrade?.size ?? 0,
+      side: activeTrade?.side || null,
       entryPrice: activeTrade?.entryPrice || 0,
       entryStrategy: activeTrade?.entryStrategy || null,
       entryTime: activeTrade?.entryTime || null,
       exitContract: activeTrade?.exitContract || null,
+      symbol: activeTrade?.symbol || null,
+      brokerId: activeTrade?.brokerId || null,
+      accountId: activeTrade?.accountId || null,
+      assetClass: activeTrade?.assetClass || null,
+      executionMode: activeTrade?.executionMode || null,
+      timeframe: activeTrade?.timeframe || null,
+      scopeKey: activeTrade?.scopeKey || null,
+      error: selected.success ? null : selected.error,
       haltNewEntries: this.haltNewEntries,
       haltReason: this.haltReason
     };
@@ -529,17 +532,12 @@ class PositionTracker {
    * Get READ-ONLY snapshot of the active trade (deep frozen)
    * @returns {Object|null} Deep-frozen active trade snapshot or null
    */
-  getActiveTradeSnapshot() {
-    const trades = this.stateManager.getAllTrades()
-      .filter(t => t.action === 'BUY')
-      .sort((a, b) => a.entryTime - b.entryTime);
-
-    if (trades.length === 0) {
-      return null;
-    }
+  getActiveTradeSnapshot(metadata = {}) {
+    const selected = this._selectTradeForClose(metadata);
+    if (!selected.success) return null;
 
     // Deep clone and freeze to prevent mutations
-    const snapshot = JSON.parse(JSON.stringify(trades[0]));
+    const snapshot = JSON.parse(JSON.stringify(selected.trade));
     return this._deepFreeze(snapshot);
   }
 
