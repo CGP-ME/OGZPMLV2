@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Multi-Runtime Gate Framework (2026-05-26)
+
+- Added an executable multi-runtime gate runner that keeps the canonical TSLA P0 anchor as the single-lane regression gate while adding focused scope gates for StateManager dashboard positions, OrderExecutor trade payloads, PositionTracker close selection, and scoped snapshots.
+- Documented the drift rule for expansion work: P0 can only move after old/new results, code-level causality, scope isolation proof, and adversarial review are recorded in a separate rebaseline path.
+- Verification: `node --check ogz-meta/gates/multi-runtime-gate-runner.js`, `git diff --check`, `node ogz-meta/gates/multi-runtime-gate-runner.js --list`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope`, `node ogz-meta/gates/multi-runtime-gate-runner.js --scope --write-report`, Mercury adversarial attempt failed with HTTP 500, and local adversarial review tightened same-symbol different-broker/account coverage. Full P0 was not run because this commit adds gate tooling/docs and does not change the trading execution path; the P0 gate is registered for explicit runs.
+
 ### Scoped Dashboard Trade Broadcasts (2026-05-25)
 
 - Added scoped trade identity fields to OrderExecutor dashboard `trade` broadcasts, including trade/order id, symbol, broker/account, asset class, execution mode, timeframe, scope key, scope version, and scope completeness.

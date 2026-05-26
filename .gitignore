@@ -151,6 +151,7 @@ test/btc-10k.json
 data/journal/journal-stats.json
 data/pipeline-snapshots.jsonl
 ogz-meta/gates/runs/latest.json
+ogz-meta/gates/runs/multi-runtime-latest.json
 public/proof/gates/latest.json
 public/proof/live-trades.json
 
