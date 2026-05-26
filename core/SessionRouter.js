@@ -22,6 +22,7 @@
 const EventEmitter = require('events');
 const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar');
 const { getInstance: getStateManager } = require('./StateManager');
+const TransitionStore = require('./session-router/TransitionStore');
 
 class SessionRouter extends EventEmitter {
   constructor(config = {}) {
@@ -35,6 +36,7 @@ class SessionRouter extends EventEmitter {
     this.alpacaAdapter = null;
     this.orderRouter = null;
     this.stateManager = getStateManager();
+    this.transitionStore = config.transitionStore || new TransitionStore(config.transitionStoreOptions || {});
 
     this.activeSession = null;     // 'crypto' | 'stocks' | null
     this.activeBroker = null;
@@ -358,6 +360,25 @@ class SessionRouter extends EventEmitter {
     console.log('[SessionRouter] Stopped');
   }
 
+  _getTransitionStoreStatus() {
+    if (!this.transitionStore || typeof this.transitionStore.readStatus !== 'function') {
+      return null;
+    }
+
+    try {
+      return this.transitionStore.readStatus();
+    } catch (err) {
+      return {
+        state: 'RECOVERY_REQUIRED',
+        recoveryRequired: true,
+        transitionId: null,
+        epoch: null,
+        freezeNewEntries: true,
+        safeModeReason: `TransitionStore status read failed: ${err.message}`
+      };
+    }
+  }
+
   getStatus() {
     return {
       enabled: this.enabled,
@@ -370,6 +391,7 @@ class SessionRouter extends EventEmitter {
       failedSafePauseConfirmed: this.failedSafePauseConfirmed,
       failedSafePauseError: this.failedSafePauseError,
       failedSafePauseFallbackApplied: this.failedSafePauseFallbackApplied,
+      transitionStore: this._getTransitionStoreStatus(),
       lastTransitionAt: this.lastTransitionAt ? new Date(this.lastTransitionAt).toISOString() : null,
       marketPhase: getMarketPhase(new Date(this.clock())),
     };
