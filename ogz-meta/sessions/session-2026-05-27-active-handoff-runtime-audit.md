@@ -253,6 +253,97 @@ latest pushed commit: 08961e6
 
 REMIO is not an implementer. Use it for read-only inventory, graphs, and nether-output matrices. Codex verifies and implements on the VPS.
 
+## Pending Architecture / Visibility Ladder
+
+This section is intentionally explicit so the next agent does not mistake partial infrastructure for completed platform capability.
+
+### 1. Multi-timeframe work is not complete
+
+Current state:
+
+- Runtime is still effectively pinned to one active candle timeframe.
+- Earlier verified PM2 posture used `CANDLE_TIMEFRAME=1m`.
+- `run-empire-v2.js` has `AdaptiveTimeframeSelector`, but the active selector is pinned to the configured `broker.candleTimeframe` until live multi-timeframe context swaps are implemented.
+- Strategy-level multi-timeframe/confluence code exists, but that is not the same as a fully verified live multi-timeframe runtime.
+
+Pending MTF work:
+
+- Verify current `run-empire-v2.js`, `core/CandleStore.js`, `core/SymbolTradingContext.js`, `core/CandleProcessor.js`, and `core/StrategyOrchestrator.js` before claiming MTF support.
+- Build/verify active multi-timeframe candle provenance: source timeframe, active timeframe, aggregation path, symbol, broker, asset class, execution mode.
+- Ensure dashboard timeframe switching shows real backend candle changes, not stale selector-side UI state.
+- Ensure LiveReport/proof payloads identify timeframe correctly for every trade and journal row.
+- Add gates for candle provenance and MTF dashboard/backend parity before enabling dynamic MTF behavior.
+
+### 2. Multi-symbol / multi-position / multi-broker ladder is not done
+
+Current state:
+
+- Immutable trade scope and several scope gates have landed.
+- Dashboard scoped positions and PositionTracker scoped close logic have landed.
+- Pattern memory is asset-class scoped, not fully per-symbol.
+- Runtime remains constrained and must be re-verified before any multi-symbol claim.
+
+Pending work:
+
+- Multi-symbol live subscription/fanout is not considered complete.
+- Multi-position admission rules are not considered complete.
+- Multi-broker concurrent runtime is not considered complete.
+- Account-context isolation and broker/account partitioning remain open architecture work.
+- No same-symbol hedge / direction rules need explicit gates before widening runtime behavior.
+- Pattern memory needs per-symbol/timeframe isolation if multi-symbol trading is enabled.
+
+### 3. SessionRouter is not activation-ready
+
+Current state:
+
+- `SESSION_ROUTER_ENABLED=false` was the last verified runtime posture.
+- `TransitionStore` exists.
+- Failure-safe and transition-journal pieces exist.
+- This is partial saga infrastructure, not a green light to enable SessionRouter.
+
+Pending SessionRouter work:
+
+- Durable transition lock acquisition must be verified in the actual router path.
+- Broker REST reconciliation must gate target activation.
+- Epoch fencing / stale callback rejection must be proven.
+- Broker intent idempotency remains required before real transition orders/subscriptions.
+- Source session force-close behavior must be broker-truth-confirmed before local state mutation is trusted.
+- Failure must keep the system in failed-safe/no-entry mode, not resume trading.
+- SessionRouter activation needs its own Mercury attack and gate set before PM2 env changes.
+
+### 4. Frontend files need backend truth verification
+
+Current state:
+
+- Dashboard frontend files have been changed across recent commits.
+- Screenshots showed real live elements, but also showed dangerous provenance mismatch: TSLA selected while BTC-priced candles rendered.
+- `live-report.js` exists in the pushed branch and on the VPS tree, but dashboard correctness depends on backend message parity, not file presence alone.
+
+Pending frontend/backend verification:
+
+- Confirm served `public/unified-dashboard-v2.html` includes the expected `live-report.js` mount/script.
+- Confirm `public/js/panels/chart-panel.js` reads backend symbol/timeframe provenance and does not label BTC candles as TSLA.
+- Confirm `public/js/panels/watchlist-strip.js` selection events match backend historical candle responses.
+- Confirm `public/js/websocket.js` message handlers match server-sent message types exactly.
+- Confirm LiveReport `state_update`, `journal_snapshot`, and `trade_closed_replay` payloads agree on symbol, account, broker, asset class, execution mode, timeframe, and scope key.
+- Confirm open positions panel renders backend scoped positions first and does not infer symbol from chart selector when scoped backend data exists.
+- Confirm no dashboard panel displays fake zeros/defaults where backend data is missing; empty or stale states must be honest.
+- Confirm cache/static asset deploy behavior so browser is serving the committed files, not backups or stale nginx cache.
+
+### 5. Runtime activation remains pending
+
+Current code is pushed, but runtime process activation is a separate operation.
+
+Pending runtime activation checks:
+
+- PM2 restart only with explicit Trey approval.
+- After restart, verify non-secret PM2 env values.
+- Verify scoped journal directory creation and that stale unscoped journal no longer feeds LiveReport.
+- Verify runtime fatal audit file path under `data/runtime-audit/fatal-events.jsonl`.
+- Verify state load with current `data/state.json`.
+- Verify WebSocket emits real message flow, not only connected state.
+- Verify dashboard state from the live browser after backend restart.
+
 ## What Not To Touch Without Explicit Direction
 
 - Do not stage the loose `ogz-meta/ledger/` intake pile.
@@ -284,4 +375,3 @@ pm2 status --no-color
 - dashboard symbol/provenance mismatch;
 - next REMIO nether-output finding after current-tree verification;
 - old-file/sourcegraph curation plan, if explicitly requested.
-
