@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Historical Candle Request Asset Routing (2026-05-27)
+
+- Threaded dashboard `request_historical` / `timeframe_change` asset values from `WebSocketManager` into the runner historical fetch path so the backend fetches the requested asset instead of the currently active asset.
+- Kept non-active historical lookups out of the runner's legacy active timeframe cache so a dashboard request for another symbol cannot poison later active-symbol price frames.
+- Removed the chart panel's client-side asset-swap watchdog kick; initial candle load now relies on the backend's explicit asset/timeframe request contract instead of temporarily switching symbols to provoke a response.
+
 ### Dashboard Price Frame Contract (2026-05-27)
 
 - Added top-level `price`, `close`, `volume`, `timestamp`, `timeframe`, candle, indicator, balance, position, and P&L fields to bot `price` WebSocket frames while preserving the nested `data` payload, so dashboard panels that consume either frame shape read the same real market tick instead of defaulting to zero or blanks.

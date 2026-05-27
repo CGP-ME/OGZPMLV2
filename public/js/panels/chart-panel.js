@@ -1033,59 +1033,19 @@
         }
         _wsBootstrapped = true;
 
-        // (a) Initial historical load + empty-chart watchdog "kick".
+        // (a) Initial historical load.
         //
-        // VERIFIED SERVER BEHAVIOUR (live socket capture, 2026-05-25): the
-        // server sends `historical_candles` ONLY in response to an asset_change
-        // that is a REAL change. `request_historical` is ignored, and an
-        // `asset_change` to the asset already current is a no-op. Proof:
-        //   asset_change NVDA -> 200 candles
-        //   asset_change TSLA -> 200 candles
-        //   asset_change TSLA again -> 0 candles
-        // So on a fresh load the chart asks for the default asset, the server
-        // already considers it current, and nothing comes back — empty chart.
-        //
-        // Fix: fire the normal request, then arm a 3s watchdog. If no candles
-        // landed, "kick" the server with a guaranteed real change — swap to a
-        // different asset and immediately back. The swap-back IS a real change,
-        // so the intended asset's history is sent. The kick only runs when the
-        // chart would otherwise sit empty, so it is a harmless no-op when the
-        // normal path already worked.
+        // Historical candles are requested directly by asset/timeframe. The
+        // backend must answer this contract without a client-side asset-swap
+        // kick; changing the selected asset just to provoke a response can
+        // mislabel candles while multiple symbols/brokers are visible.
         try {
             const sym = rootEl?.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL;
             const tf  = rootEl?.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
             if (typeof socket.send === 'function') {
-                socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
                 socket.send({ type: 'asset_change', asset: sym });
+                socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
             }
-            const kickT = trackTimer(setTimeout(() => {
-                _trackedTimers.delete(kickT);
-                if (storedCandles && storedCandles.length > 0) return;  // candles arrived — no kick needed
-                try {
-                    const aSel = rootEl?.querySelector('#cp-assetSelector');
-                    if (!aSel || typeof socket.send !== 'function') return;
-                    const intended = aSel.value;
-                    let other = null;
-                    const intendedOption = Array.prototype.find.call(
-                        aSel.options,
-                        opt => opt.value === intended
-                    );
-                    const intendedGroup = intendedOption ? intendedOption.parentElement : null;
-                    if (intendedGroup && intendedGroup.tagName === 'OPTGROUP') {
-                        for (let i = 0; i < intendedGroup.children.length; i++) {
-                            const v = intendedGroup.children[i].value;
-                            if (v && v !== intended) { other = v; break; }
-                        }
-                    }
-                    if (!other) return;
-                    socket.send({ type: 'asset_change', asset: other });
-                    const backT = trackTimer(setTimeout(() => {
-                        _trackedTimers.delete(backT);
-                        try { socket.send({ type: 'asset_change', asset: intended }); }
-                        catch (e) { /* swallow */ }
-                    }, 700));
-                } catch (e) { /* swallow */ }
-            }, 3000));
         } catch (e) { /* swallow */ }
 
         // (b) `delta` — sub-tick {price, volume, timestamp} from

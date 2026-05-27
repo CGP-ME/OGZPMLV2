@@ -145,7 +145,7 @@ class WebSocketManager {
             this.ctx.dashboardTimeframe = newTimeframe;
 
             // Fetch historical candles from Kraken REST API
-            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, 200);
+            this.ctx.fetchAndSendHistoricalCandles(newTimeframe, 200, msg.asset);
             return;
           }
 
@@ -155,7 +155,7 @@ class WebSocketManager {
             const limit = msg.limit || 200;
 
             // Fetch historical candles from Kraken REST API
-            this.ctx.fetchAndSendHistoricalCandles(timeframe, limit);
+            this.ctx.fetchAndSendHistoricalCandles(timeframe, limit, msg.asset);
             return;
           }
 

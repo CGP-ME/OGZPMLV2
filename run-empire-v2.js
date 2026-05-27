@@ -2076,11 +2076,14 @@ class OGZPrimeV14Bot {
    * This is the PROPER way to get historical data - REST API, not just WebSocket cache
    * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '4h', '1d'
    * @param {number} limit - Number of candles to fetch
+   * @param {string|null} requestedAsset - Dashboard-requested asset, if any
    */
-  async fetchAndSendHistoricalCandles(timeframe, limit = 200) {
+  async fetchAndSendHistoricalCandles(timeframe, limit = 200, requestedAsset = null) {
+    const requestedDashboardSymbol = normalizeRuntimeSymbol(requestedAsset);
     const fallbackDashboardSymbol = normalizeRuntimeSymbol(
       this.assetManager?.activeAsset || this.tradingPair || resolvedConfig.config.broker.tradingPair
     );
+    const dashboardSymbol = requestedDashboardSymbol || fallbackDashboardSymbol;
 
     try {
       if (!this.kraken || !this.dashboardWs) {
@@ -2088,13 +2091,16 @@ class OGZPrimeV14Bot {
         return;
       }
 
-      console.log(`Fetching ${limit} historical ${timeframe} candles from Kraken REST API...`);
+      if (!dashboardSymbol) {
+        throw new Error('[HISTORICAL] requested asset and runtime asset are both missing');
+      }
+
+      console.log(`Fetching ${limit} historical ${timeframe} ${dashboardSymbol} candles from Kraken REST API...`);
 
       // CHANGE 2026-02-10: Use active asset from MultiAssetManager if available
       const symbol = this.assetManager
-        ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
-        : resolvedConfig.config.broker.tradingPair;
-      const dashboardSymbol = normalizeRuntimeSymbol(this.assetManager?.activeAsset || symbol) || fallbackDashboardSymbol;
+        ? this.assetManager.toSlashFormat(dashboardSymbol)
+        : dashboardSymbol;
       const candles = this._stampDashboardHistoricalCandles(
         await this.kraken.getCandles(symbol, timeframe, limit),
         dashboardSymbol,
@@ -2102,8 +2108,12 @@ class OGZPrimeV14Bot {
       );
 
       if (candles && candles.length > 0) {
-        // Update our local cache with the fetched data
-        this.timeframeHistories[timeframe] = candles.slice(-200);
+        // Update the active-symbol legacy cache only when the request is for
+        // the runtime-active asset. Non-active dashboard lookups must not
+        // poison price-frame candle payloads for the active trading symbol.
+        if (dashboardSymbol === fallbackDashboardSymbol) {
+          this.timeframeHistories[timeframe] = candles.slice(-200);
+        }
 
         // Send to dashboard
         this.dashboardWs.send(JSON.stringify({
@@ -2131,11 +2141,11 @@ class OGZPrimeV14Bot {
     } catch (error) {
       console.error(`Failed to fetch historical ${timeframe} candles:`, error.message);
       // Fall back to cached data
-      const cached = this._getSymbolMatchedCachedCandles(fallbackDashboardSymbol, timeframe);
+      const cached = this._getSymbolMatchedCachedCandles(dashboardSymbol, timeframe);
       if (cached.length > 0 && this.dashboardWs) {
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
-          symbol: fallbackDashboardSymbol,
+          symbol: dashboardSymbol,
           timeframe: timeframe,
           candles: cached
         }));
