@@ -46,6 +46,12 @@ const fs = require('fs');
 const path = require('path');
 const { requirePatternScope } = require('./PatternScope');
 
+function outcomeFromPnl(pnl) {
+  if (pnl > 0) return 'win';
+  if (pnl < 0) return 'loss';
+  return 'flat';
+}
+
 class TradeJournal {
   constructor(config = {}) {
     // ── Storage paths ──────────────────────────────────────────────────
@@ -439,23 +445,36 @@ class TradeJournal {
     const streakHistory = [];  // last 20 win/loss markers
 
     for (const trade of this.trades) {
-      const isWin = trade.netPnl > 0;
-      streakHistory.push(isWin ? 'W' : 'L');
-
-      if (isWin) {
+      const pnl = trade.netPnl;
+      if (pnl > 0) {
+        streakHistory.push('W');
         tempWin++;
         tempLoss = 0;
         longestWin = Math.max(longestWin, tempWin);
-      } else {
+      } else if (pnl < 0) {
+        streakHistory.push('L');
         tempLoss++;
         tempWin = 0;
         longestLoss = Math.max(longestLoss, tempLoss);
+      } else {
+        streakHistory.push('F');
+        tempWin = 0;
+        tempLoss = 0;
       }
     }
 
     // Current streak
-    currentStreak = this.trades[this.trades.length - 1]?.netPnl > 0 ? tempWin : tempLoss;
-    currentType = this.trades[this.trades.length - 1]?.netPnl > 0 ? 'winning' : 'losing';
+    const lastPnl = this.trades[this.trades.length - 1]?.netPnl;
+    if (lastPnl > 0) {
+      currentStreak = tempWin;
+      currentType = 'winning';
+    } else if (lastPnl < 0) {
+      currentStreak = tempLoss;
+      currentType = 'losing';
+    } else {
+      currentStreak = 0;
+      currentType = 'flat';
+    }
 
     return {
       currentStreak,
@@ -518,6 +537,7 @@ class TradeJournal {
         exitPrice: t.exitPrice,
         netPnl: Number(t.netPnl.toFixed(2)),
         pnlPercent: Number(t.pnlPercent.toFixed(2)),
+        outcome: outcomeFromPnl(t.netPnl),
         holdTime: t.holdTimeFormatted,
         exitReason: t.exitReason,
         confidence: t.confidence,

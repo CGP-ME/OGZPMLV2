@@ -170,6 +170,45 @@ function fmtPrice(v) {
   return `$${v.toFixed(2)}`;
 }
 
+function finiteNumberOrNull(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const parsed = Number(v);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function roundedNumberOrNull(v, digits = 2) {
+  const n = finiteNumberOrNull(v);
+  if (n == null) return null;
+  const factor = 10 ** digits;
+  return Math.round(n * factor) / factor;
+}
+
+function closeOutcome(pnl, pnlPercent) {
+  const roundedPnl = roundedNumberOrNull(pnl, 2);
+  const roundedPct = roundedNumberOrNull(pnlPercent, 2);
+  const values = [roundedPnl, roundedPct].filter((v) => v != null);
+  const signs = values.filter((v) => v !== 0).map((v) => Math.sign(v));
+  const hasPositive = signs.includes(1);
+  const hasNegative = signs.includes(-1);
+  const hasZero = values.includes(0);
+
+  if (hasPositive && hasNegative) {
+    return { title: 'UNVERIFIED', result: null };
+  }
+  if (hasZero && signs.length > 0) {
+    return { title: 'UNVERIFIED', result: null };
+  }
+  if (hasPositive) return { title: 'WIN', result: 'win' };
+  if (hasNegative) return { title: 'LOSS', result: 'loss' };
+  if (values.length === 0) {
+    return { title: 'UNVERIFIED', result: null };
+  }
+  return { title: 'BREAK-EVEN', result: 'flat' };
+}
+
 function fmtMs(ms) {
   const n = Math.max(0, ms | 0);
   const s = Math.floor(n / 1000);
@@ -555,7 +594,9 @@ class TradeNarrator {
                   : ctxRec && ctxRec.enteredAt ? (Date.now() - ctxRec.enteredAt)
                   : 0;
       const dir = direction || (ctxRec && ctxRec.direction) || 'long';
-      const isWin = (pnl || 0) > 0;
+      const numericPnl = finiteNumberOrNull(pnl);
+      const numericPnlPercent = finiteNumberOrNull(pnlPercent);
+      const outcome = closeOutcome(numericPnl, numericPnlPercent);
 
       if (this.architect) {
         const body = [
@@ -563,11 +604,11 @@ class TradeNarrator {
           `   strategy:   ${strat}`,
           `   direction:  ${String(dir).toUpperCase()}`,
           `   entry ⇒ exit: ${fmtPrice(entry)} → ${fmtPrice(exitPrice)}`,
-          `   P&L:        ${fmtUsd(pnl)}  (${fmtPct(pnlPercent || 0, 2)})`,
+          `   P&L:        ${fmtUsd(numericPnl)}  (${fmtPct(numericPnlPercent, 2)})`,
           `   hold:       ${fmtMs(held)}`,
           `   reason:     ${reason || '—'}`,
         ].join('\n');
-        this._emitArchitect(isWin ? 'TRADE CLOSED (WIN)' : 'TRADE CLOSED (LOSS)', body);
+        this._emitArchitect(`TRADE CLOSED (${outcome.title})`, body);
       }
 
       if (this.user) {
@@ -579,14 +620,14 @@ class TradeNarrator {
           timestamp: Date.now(),
           strategy_label: label,
           direction: String(dir).toLowerCase(),
-          result: isWin ? 'win' : (pnl === 0 ? 'flat' : 'loss'),
-          pnl_pct: pnlPercent != null ? Number(pnlPercent.toFixed(2)) : null,
-          pnl_usd: pnl != null ? Number(pnl.toFixed(2)) : null,
+          result: outcome.result,
+          pnl_pct: numericPnlPercent != null ? Number(numericPnlPercent.toFixed(2)) : null,
+          pnl_usd: numericPnl != null ? Number(numericPnl.toFixed(2)) : null,
           hold_seconds: Math.floor(held / 1000),
           reason: this._safeReason(reason),
         };
         this._emitUser(
-          `${label} closed ${payload.direction.toUpperCase()} — ${payload.result.toUpperCase()} ${fmtPct(payload.pnl_pct || 0, 2)} (${fmtUsd(payload.pnl_usd || 0)}) held ${fmtMs(held)}.`,
+          `${label} closed ${payload.direction.toUpperCase()} — ${outcome.title} ${fmtPct(payload.pnl_pct || 0, 2)} (${fmtUsd(payload.pnl_usd || 0)}) held ${fmtMs(held)}.`,
           payload
         );
       }

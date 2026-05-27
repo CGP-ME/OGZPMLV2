@@ -221,6 +221,7 @@
         .streak-dot:hover { transform: scale(1.4); }
         .streak-dot.W { background: var(--profit); box-shadow: 0 0 4px var(--profit-dim); }
         .streak-dot.L { background: var(--loss); box-shadow: 0 0 4px var(--loss-dim); }
+        .streak-dot.F { background: var(--text-muted); box-shadow: none; }
         .streak-info {
             display: flex;
             gap: 16px;
@@ -818,8 +819,9 @@ function updateTodayBanner(d) {
 function updateStreakTracker(d) {
     const bar = document.getElementById('streak-bar');
     const wl = d.recentWL || [];
+    const titleFor = (r) => r === 'W' ? 'Win' : r === 'L' ? 'Loss' : 'Break-even';
     bar.innerHTML = wl.map(r =>
-        `<div class="streak-dot ${r}" title="${r === 'W' ? 'Win' : 'Loss'}"></div>`
+        `<div class="streak-dot ${r}" title="${titleFor(r)}"></div>`
     ).join('');
 
     const currentEl = document.getElementById('streak-current');

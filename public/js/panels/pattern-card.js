@@ -776,6 +776,10 @@
                 color: var(--loss-color);
             }
 
+            .pc-hist-outcome.flat {
+                color: var(--text-secondary);
+            }
+
             .pc-hist-outcome.open {
                 color: var(--text-secondary);
             }
@@ -844,8 +848,12 @@
                 <div class="pc-history-header">Recent on ${state.currentSymbol}</div>
                 <div class="pc-history-list">
                     ${history.map(h => {
-                        const outcome = h.meta?.outcome || 'open'; // 'win', 'loss', or 'open'
+                        const outcome = h.meta?.outcome || 'open';
                         const pnl = h.meta?.pnl ? (h.meta.pnl >= 0 ? '+' : '') + h.meta.pnl.toFixed(2) : null;
+                        const outcomeText = outcome === 'open' ? 'OPEN'
+                            : outcome === 'win' ? 'W'
+                            : outcome === 'flat' ? 'F'
+                            : 'L';
                         return `
                             <div class="pc-hist-item">
                                 <div class="pc-hist-left">
@@ -853,7 +861,7 @@
                                     <span class="pc-hist-pattern">${PATTERN_DESCRIPTIONS[h.pattern]?.title || h.pattern}</span>
                                 </div>
                                 <div class="pc-hist-right">
-                                    <span class="pc-hist-outcome ${outcome}">${outcome === 'open' ? 'OPEN' : outcome === 'win' ? 'W' : 'L'}</span>
+                                    <span class="pc-hist-outcome ${outcome}">${outcomeText}</span>
                                     ${pnl ? `<span style="color:${h.meta.pnl >= 0 ? 'var(--profit-color)' : 'var(--loss-color)'};font-size:8px;">${pnl}</span>` : ''}
                                 </div>
                             </div>

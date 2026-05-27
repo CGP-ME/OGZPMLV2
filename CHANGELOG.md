@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Closed Trade Outcome Truth (2026-05-27)
+
+- Classified closed-trade narrator, replay, journal, LiveReport, pattern-card, and trade-journal surfaces with explicit win/loss/flat/unverified outcomes so break-even or conflicting P&L cannot render as a win or loss.
+- Added focused regression coverage for exact flat closes, rounded-zero closes, malformed P&L, conflicting P&L/P&L% signs, flat journal streaks, flat pattern history, and LiveReport outcome handling.
+
 ### Runtime Journal Data Root Config (2026-05-27)
 
 - Added an explicit `ConfigLoader` default for `paths.journalDataDir` under the configured data directory so the scoped `TradeJournalBridge` can start without falling back to unscoped `data/journal`.

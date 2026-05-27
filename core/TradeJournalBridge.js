@@ -44,6 +44,39 @@ function safeScopePathSegment(scope) {
   }).join('__');
 }
 
+function finiteNumberOrNull(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const parsed = Number(v);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function roundedNumberOrNull(v, digits = 2) {
+  const n = finiteNumberOrNull(v);
+  if (n == null) return null;
+  const factor = 10 ** digits;
+  return Math.round(n * factor) / factor;
+}
+
+function classifyReplayOutcome(pnl, pnlPercent) {
+  const roundedPnl = roundedNumberOrNull(pnl, 2);
+  const roundedPct = roundedNumberOrNull(pnlPercent, 2);
+  const values = [roundedPnl, roundedPct].filter((v) => v != null);
+  const signs = values.filter((v) => v !== 0).map((v) => Math.sign(v));
+  const hasPositive = signs.includes(1);
+  const hasNegative = signs.includes(-1);
+  const hasZero = values.includes(0);
+
+  if (hasPositive && hasNegative) return 'unverified';
+  if (hasZero && signs.length > 0) return 'unverified';
+  if (hasPositive) return 'win';
+  if (hasNegative) return 'loss';
+  if (values.length === 0) return 'unverified';
+  return 'flat';
+}
+
 function resolveJournalScope(bot) {
   return requirePatternScope({
     symbol: bot?.config?.tradingPair || bot?.tradingPair,
@@ -239,7 +272,9 @@ class TradeJournalBridge {
   // ════════════════════════════════════════════════════════════════════════
 
   _pushTradeClosedNotification(orderId, exitRecord, replayPath) {
-    const pnl = exitRecord.pnl || 0;
+    const pnl = finiteNumberOrNull(exitRecord.pnl);
+    const pnlPercent = finiteNumberOrNull(exitRecord.pnlPercent);
+    const outcome = classifyReplayOutcome(pnl, pnlPercent);
     this._send({
       type: 'trade_closed_replay',
       data: {
@@ -248,10 +283,13 @@ class TradeJournalBridge {
         entryPrice: exitRecord.entryPrice || 0,
         exitPrice: exitRecord.exitPrice || 0,
         pnl,
-        pnlPercent: exitRecord.pnlPercent || 0,
+        pnlPercent,
+        outcome,
         reason: exitRecord.reason || 'unknown',
         holdTime: exitRecord.holdTime || 0,
-        isWin: pnl >= 0,
+        isWin: outcome === 'win',
+        isLoss: outcome === 'loss',
+        isBreakEven: outcome === 'flat',
         replayAvailable: !!replayPath,
         replayUrl: `/replay?id=${orderId}`,
         timestamp: Date.now()
@@ -260,7 +298,7 @@ class TradeJournalBridge {
 
     // Fresh snapshot so dashboard updates immediately
     this._sendJournalSnapshot();
-    console.log(`📒 Trade closed → replay ${replayPath ? 'saved' : 'skipped'} → notification pushed`);
+    console.log(`Trade closed replay ${replayPath ? 'saved' : 'skipped'}; notification pushed`);
   }
 
 

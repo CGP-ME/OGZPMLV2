@@ -164,4 +164,34 @@ describe('TradeJournal today stats', () => {
 
     journal.destroy();
   });
+
+  test('tracks break-even trades without creating a win or loss streak', () => {
+    writeLedger([oldExit({
+      orderId: 'FLAT-001',
+      timestamp: Date.parse('2026-05-27T11:59:00.000Z'),
+      entryTime: Date.parse('2026-05-27T11:58:00.000Z'),
+      grossPnl: 0,
+      netPnl: 0,
+      pnlPercent: 0,
+      balanceAfter: 10000,
+    })]);
+
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    const snapshot = journal.getSnapshot();
+    const stats = journal.getStats();
+
+    expect(stats.breakEvens).toBe(1);
+    expect(stats.wins).toBe(0);
+    expect(stats.losses).toBe(0);
+    expect(snapshot.currentStreak).toBe(0);
+    expect(snapshot.currentStreakType).toBe('flat');
+    expect(snapshot.recentWL).toEqual(['F']);
+    expect(snapshot.recentTrades[0].outcome).toBe('flat');
+    expect(snapshot.todayTrades).toBe(1);
+    expect(snapshot.todayPnl).toBe(0);
+    expect(snapshot.todayWinRate).toBe(0);
+
+    journal.destroy();
+  });
 });

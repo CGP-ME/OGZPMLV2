@@ -101,4 +101,99 @@ describe('TradeNarrator dashboard prose', () => {
       expect(text).not.toMatch(EMOJI_RE);
     }
   });
+
+  test('labels break-even closes as break-even instead of wins or losses', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.closed({
+      tradeId: 'flat-trade',
+      strategy: 'MADynamicSR',
+      direction: 'short',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0,
+      pnlPercent: 0,
+      reason: 'manual',
+      holdMs: 1000,
+    });
+
+    const userClose = sends.find((payload) => payload.type === 'narrator_event' && payload.event === 'closed');
+    const consoleLines = logSpy.mock.calls.map((call) => call.join(' '));
+
+    expect(userClose).toBeTruthy();
+    expect(userClose.result).toBe('flat');
+    expect(userClose.text).toContain('BREAK-EVEN 0.00%');
+    expect(userClose.text).not.toContain('WIN 0.00%');
+    expect(userClose.text).not.toContain('LOSS 0.00%');
+    expect(consoleLines.some((line) => line.includes('TRADE CLOSED (BREAK-EVEN)'))).toBe(true);
+    expect(consoleLines.some((line) => line.includes('TRADE CLOSED (WIN)'))).toBe(false);
+    expect(consoleLines.some((line) => line.includes('TRADE CLOSED (LOSS)'))).toBe(false);
+  });
+
+  test('does not label rounded-zero or malformed PnL as a visible win', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.closed({
+      tradeId: 'sub-cent-trade',
+      strategy: 'MADynamicSR',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0.004,
+      pnlPercent: 0.004,
+      reason: 'manual',
+      holdMs: 1000,
+    });
+
+    narrator.closed({
+      tradeId: 'malformed-trade',
+      strategy: 'MADynamicSR',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 'not-a-number',
+      pnlPercent: null,
+      reason: 'manual',
+      holdMs: 1000,
+    });
+
+    narrator.closed({
+      tradeId: 'conflicting-trade',
+      strategy: 'MADynamicSR',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0,
+      pnlPercent: 0.01,
+      reason: 'manual',
+      holdMs: 1000,
+    });
+
+    const closes = sends.filter((payload) => payload.type === 'narrator_event' && payload.event === 'closed');
+    expect(closes).toHaveLength(3);
+    expect(closes[0].result).toBe('flat');
+    expect(closes[0].text).toContain('BREAK-EVEN 0.00%');
+    expect(closes[1].result).toBeNull();
+    expect(closes[1].text).toContain('UNVERIFIED');
+    expect(closes[2].result).toBeNull();
+    expect(closes[2].text).toContain('UNVERIFIED 0.01%');
+    for (const close of closes) {
+      expect(close.text).not.toContain('WIN 0.00%');
+      expect(close.text).not.toContain('LOSS 0.00%');
+    }
+  });
 });

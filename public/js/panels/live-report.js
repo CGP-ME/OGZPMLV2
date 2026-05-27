@@ -71,7 +71,8 @@
     function fmtSignedMoney(n) {
         const v = Number(n);
         if (!isFinite(v)) return '—';
-        return (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const sign = v > 0 ? '+' : v < 0 ? '-' : '';
+        return sign + '$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     function fmtPct(n, digits) {
         const v = Number(n);
@@ -114,6 +115,10 @@
         if (v == null || v === '') return null;
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
+    }
+    function normalizeOutcome(v) {
+        const s = String(v || '').trim().toLowerCase();
+        return ['win', 'loss', 'flat', 'unverified'].includes(s) ? s : null;
     }
     function validPrice(v) {
         const n = finiteNumber(v);
@@ -497,8 +502,9 @@
             const row = document.createElement('div');
             const key = tradeKey(t);
             const pnl = finiteNumber(t.netPnl);
-            const isWin = pnl != null && pnl > 0;
-            const isLoss = pnl != null && pnl < 0;
+            const outcome = normalizeOutcome(t.outcome);
+            const isWin = outcome ? outcome === 'win' : pnl != null && pnl > 0;
+            const isLoss = outcome ? outcome === 'loss' : pnl != null && pnl < 0;
             row.className = 'lr-tr' + (isWin ? ' win' : isLoss ? ' loss' : '');
             if (flashOrderId && key === flashOrderId) row.classList.add('lr-flash');
 
@@ -537,8 +543,8 @@
 
             const reason = document.createElement('span');
             reason.className = 'lr-tr-reason';
-            reason.title = t.exitReason ? String(t.exitReason) : '';
-            reason.textContent = t.exitReason ? String(t.exitReason) : '';
+            reason.title = outcome === 'unverified' ? 'unverified outcome' : (t.exitReason ? String(t.exitReason) : '');
+            reason.textContent = outcome === 'unverified' ? 'unverified' : (t.exitReason ? String(t.exitReason) : '');
 
             row.appendChild(time);
             row.appendChild(dirEl);
@@ -637,6 +643,7 @@
             exitPrice:  d.exitPrice,
             netPnl:     d.pnl,
             pnlPercent: d.pnlPercent,
+            outcome:    d.outcome || null,
             holdTime:   formatHoldTime(d.holdTime),
             exitReason: d.reason || null,
             confidence: null,

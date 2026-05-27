@@ -76,4 +76,60 @@ describe('TradeJournalBridge scoped storage', () => {
     expect(() => resolveJournalDataDir(scopedBot({ journalDataDir: '' }), {}))
       .toThrow(/requires configured journalDataDir root/);
   });
+
+  test('does not mark flat or malformed replay notifications as wins', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const sent = [];
+    const bridge = {
+      _send: jest.fn((payload) => sent.push(payload)),
+      _sendJournalSnapshot: jest.fn(),
+    };
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'flat-1', {
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0,
+      pnlPercent: 0,
+      reason: 'manual',
+      holdTime: 0,
+    }, null);
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'rounded-flat-1', {
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0.004,
+      pnlPercent: 0.004,
+      reason: 'manual',
+      holdTime: 0,
+    }, null);
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'bad-pnl-1', {
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 'not-a-number',
+      pnlPercent: null,
+      reason: 'manual',
+      holdTime: 0,
+    }, null);
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'conflicting-pnl-1', {
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 100,
+      pnl: 0,
+      pnlPercent: 0.01,
+      reason: 'manual',
+      holdTime: 0,
+    }, null);
+
+    const [flat, roundedFlat, badPnl, conflictingPnl] = sent.map((payload) => payload.data);
+    expect(flat).toMatchObject({ outcome: 'flat', isWin: false, isLoss: false, isBreakEven: true, pnl: 0, pnlPercent: 0 });
+    expect(roundedFlat).toMatchObject({ outcome: 'flat', isWin: false, isLoss: false, isBreakEven: true, pnl: 0.004, pnlPercent: 0.004 });
+    expect(badPnl).toMatchObject({ outcome: 'unverified', isWin: false, isLoss: false, isBreakEven: false, pnl: null, pnlPercent: null });
+    expect(conflictingPnl).toMatchObject({ outcome: 'unverified', isWin: false, isLoss: false, isBreakEven: false, pnl: 0, pnlPercent: 0.01 });
+    expect(bridge._sendJournalSnapshot).toHaveBeenCalledTimes(4);
+  });
 });
