@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard HTML Template Fresh Reads (2026-05-27)
+
+- Read dashboard HTML token-injection templates from disk on every dashboard request and fail loudly if the `ws-token` meta tag is missing, so frontend drops under `public/` do not require restarting `ogz-websocket`.
+
 ### Crypto Paper Short Direction Runtime Config (2026-05-27)
 
 - Set the `ogz-prime-v2` PM2 env block to `DIRECTION_FILTER=both` and `ENABLE_SHORTS=true` so crypto paper runtime does not inherit the stale `.env` long-only posture.

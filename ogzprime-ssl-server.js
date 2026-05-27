@@ -63,36 +63,59 @@ app.use(express.json());
 // The dashboard frontend (public/js/websocket.js, public/trai-widget.js)
 // reads its WS auth token from <meta name="ws-token" content="...">.
 // We inject the token from WEBSOCKET_AUTH_TOKEN env at request time so
-// the static HTML on disk never carries the secret. Cache the file
-// contents once at boot — the placeholder is the only thing that
-// changes per request.
+// the static HTML on disk never carries the secret. Read the template
+// from disk on each dashboard request so frontend drops become visible
+// without a dashboard server restart.
 const dashboardHtmlPath = path.join(__dirname, 'public', 'unified-dashboard.html');
-let dashboardHtmlCache = null;
-function loadDashboardHtml() {
+const wsTokenMetaPattern = /<meta\s+name=["']ws-token["']\s+content=["'][^"']*["']\s*\/?>/;
+
+function loadDashboardTemplate(filePath, label) {
   try {
-    dashboardHtmlCache = fs.readFileSync(dashboardHtmlPath, 'utf8');
+    return fs.readFileSync(filePath, 'utf8');
   } catch (e) {
-    console.error('[ssl-server] Failed to load unified-dashboard.html for token injection:', e.message);
-    dashboardHtmlCache = null;
+    console.error(`[ssl-server] Failed to load ${label} for token injection:`, e.message);
+    return null;
   }
 }
-loadDashboardHtml();
-function serveDashboardWithToken(req, res) {
-  if (!dashboardHtmlCache) {
-    return res.status(500).send('Dashboard HTML unavailable — server boot loaded no template.');
-  }
-  const token = process.env.WEBSOCKET_AUTH_TOKEN || '';
+
+function injectDashboardToken(templateHtml, label) {
+  const token = process.env.WEBSOCKET_AUTH_TOKEN;
   if (!token) {
-    console.warn('[ssl-server] WEBSOCKET_AUTH_TOKEN not set — dashboard will fail WS auth.');
+    console.error(`[ssl-server] WEBSOCKET_AUTH_TOKEN not set - refusing to serve ${label}.`);
+    return null;
   }
-  // Use a function replacer so the token (which is plain hex) can't be
-  // mistaken for a regex backreference in the replacement string.
-  const html = dashboardHtmlCache.replace(
-    /<meta name="ws-token" content="[^"]*">/,
+  if (!wsTokenMetaPattern.test(templateHtml)) {
+    console.error(`[ssl-server] ${label} missing ws-token meta tag; refusing to serve dashboard without token injection point.`);
+    return null;
+  }
+
+  return templateHtml.replace(
+    wsTokenMetaPattern,
     () => `<meta name="ws-token" content="${token}">`
   );
+}
+
+function serveDashboardTemplateWithToken(req, res, filePath, label, unavailableMessage) {
+  const templateHtml = loadDashboardTemplate(filePath, label);
+  if (!templateHtml) {
+    return res.status(500).send(unavailableMessage);
+  }
+  const html = injectDashboardToken(templateHtml, label);
+  if (!html) {
+    return res.status(500).send(`${label} websocket token injection failed.`);
+  }
   res.set('Cache-Control', 'no-store');
   res.type('html').send(html);
+}
+
+function serveDashboardWithToken(req, res) {
+  return serveDashboardTemplateWithToken(
+    req,
+    res,
+    dashboardHtmlPath,
+    'unified-dashboard.html',
+    'Dashboard HTML unavailable - current disk template could not be loaded.'
+  );
 }
 app.get('/unified-dashboard.html', serveDashboardWithToken);
 
@@ -100,26 +123,14 @@ app.get('/unified-dashboard.html', serveDashboardWithToken);
 // same regex, separate cache for the v2 template. Ship cutover from v1 to
 // v2 routes whenever v2 is validated end-to-end.
 const dashboardV2HtmlPath = path.join(__dirname, 'public', 'unified-dashboard-v2.html');
-let dashboardV2HtmlCache = null;
-try {
-  dashboardV2HtmlCache = fs.readFileSync(dashboardV2HtmlPath, 'utf8');
-} catch (e) {
-  console.error('[ssl-server] Failed to load unified-dashboard-v2.html for token injection:', e.message);
-}
 function serveDashboardV2WithToken(req, res) {
-  if (!dashboardV2HtmlCache) {
-    return res.status(500).send('Dashboard v2 HTML unavailable — server boot loaded no template.');
-  }
-  const token = process.env.WEBSOCKET_AUTH_TOKEN || '';
-  if (!token) {
-    console.warn('[ssl-server] WEBSOCKET_AUTH_TOKEN not set — dashboard v2 will fail WS auth.');
-  }
-  const html = dashboardV2HtmlCache.replace(
-    /<meta name="ws-token" content="[^"]*">/,
-    () => `<meta name="ws-token" content="${token}">`
+  return serveDashboardTemplateWithToken(
+    req,
+    res,
+    dashboardV2HtmlPath,
+    'unified-dashboard-v2.html',
+    'Dashboard v2 HTML unavailable - current disk template could not be loaded.'
   );
-  res.set('Cache-Control', 'no-store');
-  res.type('html').send(html);
 }
 app.get('/unified-dashboard-v2.html', serveDashboardV2WithToken);
 
