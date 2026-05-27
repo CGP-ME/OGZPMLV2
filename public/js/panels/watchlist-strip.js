@@ -96,6 +96,41 @@
         openPositions: [],                 // { symbol, side: 'LONG'|'SHORT' } (from state_update)
     };
 
+    function normalizePriceMatchSymbol(symbol) {
+        const raw = String(symbol || '').trim().toUpperCase();
+        if (!raw) return '';
+        const dashed = raw.replace(/^XBT/, 'BTC').replace(/\//g, '-');
+        const cryptoMatch = dashed.match(/^(BTC|ETH|SOL)-USD$/);
+        if (cryptoMatch) return cryptoMatch[1];
+        const compactCryptoMatch = dashed.match(/^(BTC|XBT|ETH|SOL)USD$/);
+        if (compactCryptoMatch) return compactCryptoMatch[1] === 'XBT' ? 'BTC' : compactCryptoMatch[1];
+        if (dashed === 'BTC' || dashed === 'ETH' || dashed === 'SOL') return dashed;
+        return dashed;
+    }
+
+    function normalizeBrokerCode(broker) {
+        const raw = String(broker || '').trim().toUpperCase();
+        if (!raw) return '';
+        if (raw === 'KRAKEN' || raw === 'KRA') return 'KRA';
+        if (raw === 'ALPACA' || raw === 'ALP') return 'ALP';
+        if (raw === 'COINBASE' || raw === 'CB') return 'CB';
+        return raw;
+    }
+
+    function findTickerForPriceSymbol(symbol, brokerHint, tickers = state.tickers) {
+        const incoming = normalizePriceMatchSymbol(symbol);
+        if (!incoming) return null;
+        const matches = tickers.filter(t => normalizePriceMatchSymbol(t.symbol) === incoming);
+        if (matches.length === 0) return null;
+
+        const broker = normalizeBrokerCode(brokerHint);
+        if (broker) {
+            return matches.find(t => normalizeBrokerCode(t.broker) === broker) || null;
+        }
+
+        return matches.length === 1 ? matches[0] : null;
+    }
+
     // ─── Event Bus (lightweight pubsub) ─────────────────────────────
     // Install OGZ.bus if not present. Used by WatchlistStrip to emit
     // 'watchlist:select' and by other modules to listen.
@@ -489,15 +524,18 @@
      */
     function onPriceEvent(data) {
         try {
-            if (!data || !data.symbol) return;
-            const symbol = String(data.symbol).toUpperCase();
-            const priceCandidate = data.price != null ? data.price : data.close;
+            const payload = data && data.data && typeof data.data === 'object' ? data.data : data;
+            const incomingSymbol = payload && (payload.symbol || payload.asset || data.symbol || data.asset);
+            if (!incomingSymbol) return;
+            const brokerHint = payload && (payload.broker || payload.brokerId || payload.source || data.broker || data.brokerId || data.source);
+            const priceCandidate = payload.price != null ? payload.price : payload.close;
             const price = parseFloat(priceCandidate);
             if (!isFinite(price) || price <= 0) return;
 
             // Ensure this symbol is in our watchlist
-            const ticker = state.tickers.find(t => t.symbol === symbol);
+            const ticker = findTickerForPriceSymbol(incomingSymbol, brokerHint);
             if (!ticker) return;
+            const symbol = ticker.symbol;
 
             const ts = ensureTickerState(symbol, ticker.broker);
             const prevPrice = ts.price;
@@ -719,6 +757,14 @@
                 tickerStatesCount: state.tickerStates.size,
                 cachedCards: state.cardElementCache.size,
             };
+        },
+
+        _normalizePriceSymbol(symbol) {
+            return normalizePriceMatchSymbol(symbol);
+        },
+
+        _resolvePriceTicker(symbol, brokerHint, tickers) {
+            return findTickerForPriceSymbol(symbol, brokerHint, tickers);
         },
     };
 
