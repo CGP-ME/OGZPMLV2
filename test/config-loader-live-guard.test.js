@@ -197,6 +197,34 @@ describe('ConfigLoader live trading safety guard', () => {
     }));
   });
 
+  test('loads data-feed watchdog values from ConfigLoader', () => {
+    const loaded = loadConfig();
+
+    expect(loaded.config.dataFeed).toEqual(expect.objectContaining({
+      bootRestHydrationLimit: 60,
+      livenessBackfillLimit: 10,
+      livenessCheckIntervalMs: 60000,
+      maxDataSilenceMs: 120000,
+      activeTimeframeMultiplier: 1.5,
+      activeTimeframeSlackMs: 60000,
+      maxBackfillAgeMultiplier: 2,
+      maxBackfillAgeSlackMs: 60000,
+      staleDataMaxAgeMs: 120000,
+      staleDataRecoveryAgeMs: 30000,
+      gapThresholdMultiplier: 1.5,
+      gapBackfillBufferCandles: 5,
+      gapRecoveryCleanCandlesRequired: 3,
+      gapBackfillRetryDelayMs: 60000,
+      expectedQuietLogIntervalMs: 300000,
+    }));
+  });
+
+  test('rejects invalid data-feed watchdog config', () => {
+    process.env.LIVENESS_CHECK_INTERVAL_MS = '0';
+
+    expect(() => loadConfig()).toThrow(/livenessCheckIntervalMs out of range/);
+  });
+
   test('rejects invalid trace event websocket backpressure config', () => {
     process.env.TRACE_EVENT_MAX_BUFFERED_BYTES = '0';
 

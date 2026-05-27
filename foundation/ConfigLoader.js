@@ -124,6 +124,25 @@ function buildConfig() {
       traceEventMaxBufferedBytes: track('observability.traceEventMaxBufferedBytes', envStrictFloat('TRACE_EVENT_MAX_BUFFERED_BYTES', 1048576)),
     },
 
+    // --- DATA FEED / WATCHDOG ---
+    dataFeed: {
+      bootRestHydrationLimit: track('dataFeed.bootRestHydrationLimit', envInt('BOOT_REST_HYDRATION_LIMIT', 60)),
+      livenessBackfillLimit: track('dataFeed.livenessBackfillLimit', envInt('LIVENESS_BACKFILL_LIMIT', 10)),
+      livenessCheckIntervalMs: track('dataFeed.livenessCheckIntervalMs', envInt('LIVENESS_CHECK_INTERVAL_MS', 60000)),
+      maxDataSilenceMs: track('dataFeed.maxDataSilenceMs', envInt('LIVENESS_MAX_DATA_SILENCE_MS', 120000)),
+      activeTimeframeMultiplier: track('dataFeed.activeTimeframeMultiplier', envFloat('LIVENESS_ACTIVE_TIMEFRAME_MULTIPLIER', 1.5)),
+      activeTimeframeSlackMs: track('dataFeed.activeTimeframeSlackMs', envInt('LIVENESS_ACTIVE_TIMEFRAME_SLACK_MS', 60000)),
+      maxBackfillAgeMultiplier: track('dataFeed.maxBackfillAgeMultiplier', envFloat('LIVENESS_MAX_BACKFILL_AGE_MULTIPLIER', 2)),
+      maxBackfillAgeSlackMs: track('dataFeed.maxBackfillAgeSlackMs', envInt('LIVENESS_MAX_BACKFILL_AGE_SLACK_MS', 60000)),
+      staleDataMaxAgeMs: track('dataFeed.staleDataMaxAgeMs', envInt('STALE_DATA_MAX_AGE_MS', 120000)),
+      staleDataRecoveryAgeMs: track('dataFeed.staleDataRecoveryAgeMs', envInt('STALE_DATA_RECOVERY_AGE_MS', 30000)),
+      gapThresholdMultiplier: track('dataFeed.gapThresholdMultiplier', envFloat('GAP_THRESHOLD_MULTIPLIER', 1.5)),
+      gapBackfillBufferCandles: track('dataFeed.gapBackfillBufferCandles', envInt('GAP_BACKFILL_BUFFER_CANDLES', 5)),
+      gapRecoveryCleanCandlesRequired: track('dataFeed.gapRecoveryCleanCandlesRequired', envInt('GAP_RECOVERY_CLEAN_CANDLES_REQUIRED', 3)),
+      gapBackfillRetryDelayMs: track('dataFeed.gapBackfillRetryDelayMs', envInt('GAP_BACKFILL_RETRY_DELAY_MS', 60000)),
+      expectedQuietLogIntervalMs: track('dataFeed.expectedQuietLogIntervalMs', envInt('LIVENESS_EXPECTED_QUIET_LOG_INTERVAL_MS', 300000)),
+    },
+
     // ─── CONFIDENCE GATES ───
     confidence: {
       minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', 0.50)),
@@ -373,6 +392,12 @@ function validate(config) {
   }
   if (!Number.isInteger(config.webhookOrders.orderLogCap) || config.webhookOrders.orderLogCap <= 0) {
     errors.push(`WEBHOOK_ORDER_LOG_CAP out of range: ${config.webhookOrders.orderLogCap}`);
+  }
+
+  for (const [name, value] of Object.entries(config.dataFeed || {})) {
+    if (!Number.isFinite(value) || value <= 0) {
+      errors.push(`${name} out of range: ${value}`);
+    }
   }
 
   const ttpVolumeCap = config.evalRules?.ttp?.volumeCap;

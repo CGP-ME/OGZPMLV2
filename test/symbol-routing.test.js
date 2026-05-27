@@ -38,6 +38,23 @@ function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m'
       assetClass: 'crypto',
       executionMode: 'backtest',
       timeframe: candleTimeframe,
+      dataFeed: {
+        bootRestHydrationLimit: 60,
+        livenessBackfillLimit: 10,
+        livenessCheckIntervalMs: 60000,
+        maxDataSilenceMs: 120000,
+        activeTimeframeMultiplier: 1.5,
+        activeTimeframeSlackMs: 60000,
+        maxBackfillAgeMultiplier: 2,
+        maxBackfillAgeSlackMs: 60000,
+        staleDataMaxAgeMs: 120000,
+        staleDataRecoveryAgeMs: 30000,
+        gapThresholdMultiplier: 1.5,
+        gapBackfillBufferCandles: 5,
+        gapRecoveryCleanCandlesRequired: 3,
+        gapBackfillRetryDelayMs: 60000,
+        expectedQuietLogIntervalMs: 300000,
+      },
     },
     dashboardWsConnected: false,
     dashboardWs: null,
@@ -100,6 +117,20 @@ describe('symbol-aware candle routing', () => {
     expect(tsla.indicatorEngine.updateCandle).not.toHaveBeenCalled();
     expect(ctx.marketData.symbol).toBe('BTC-USD');
     expect(btc.marketData.symbol).toBe('BTC-USD');
+  });
+
+  test('falls back to ConfigLoader dataFeed when local context omits dataFeed config', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    delete ctx.config.dataFeed;
+
+    const processor = new CandleProcessor(ctx);
+
+    expect(processor.dataFeedConfig).toEqual(expect.objectContaining({
+      maxDataSilenceMs: expect.any(Number),
+      gapThresholdMultiplier: expect.any(Number),
+      gapBackfillRetryDelayMs: expect.any(Number),
+    }));
   });
 
   test('processNewCandle stamps immutable scope before storage', () => {
@@ -271,13 +302,14 @@ describe('symbol-aware candle routing', () => {
     try {
       const btc = makeSymCtx('BTC-USD');
       const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+      ctx.config.dataFeed.gapBackfillBufferCandles = 2;
       ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
       const processor = new CandleProcessor(ctx);
 
       expect(processor.candleIntervalMs).toBe(60 * 1000);
       await processor.attemptBackfill(0, 60 * 1000);
 
-      expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 6);
+      expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
     } finally {
       if (priorAlpacaSymbols === undefined) {
         delete process.env.ALPACA_SYMBOLS;

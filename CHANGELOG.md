@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Data-Feed Liveness Pause Recovery (2026-05-27)
+
+- Added owned, recoverable pause metadata to `StateManager.pauseTrading()` so data-feed liveness halts can be resumed only by matching fresh data while manual pauses and other safety stops stay blocked.
+- Moved liveness, REST hydration, stale-data, and gap-recovery timing values into `ConfigLoader`/PM2 env, then wired the runner and `CandleProcessor` to consume those config values instead of inline runtime constants.
+- Fixed the restart trap where a persisted legacy liveness pause kept `isTrading=false` even after Kraken candles were flowing again, causing `OrderExecutor` to refuse any future entry signal.
+
 ### Crypto Paper PM2 Runtime Config (2026-05-27)
 
 - Set the `ogz-prime-v2` PM2 env block to explicit Kraken `BTC-USD` crypto paper mode with live trading disabled, SessionRouter disabled, stock symbols cleared, and drawdown/risk bypasses pinned false.

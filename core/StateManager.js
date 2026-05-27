@@ -142,6 +142,10 @@ class StateManager {
       isTrading: false,         // false = paused/stopped
       recoveryMode: false,      // true = emergency mode active
       lastError: null,          // Last error message (for pause reason)
+      pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
       lastUpdate: Date.now()    // Timestamp of last state update
     };
 
@@ -287,6 +291,14 @@ class StateManager {
     await this.acquireLock();
 
     try {
+      return this._applyStateUpdatesLocked(updates, context);
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  _applyStateUpdatesLocked(updates, context = {}) {
+    try {
       // Snapshot for rollback
       const snapshot = { ...this.state };
       const timestamp = Date.now();
@@ -298,7 +310,7 @@ class StateManager {
       for (const [key, value] of Object.entries(updates)) {
         // DEBUG: Log balance changes
         if (key === 'balance') {
-          console.log(`💰 [StateManager] Balance update: ${this.state[key]} → ${value}`);
+          console.log(`[StateManager] Balance update: ${this.state[key]} -> ${value}`);
         }
 
         // CRITICAL FIX: Protect activeTrades Map from being overwritten
@@ -306,11 +318,11 @@ class StateManager {
           // If it's an array, convert to Map
           if (Array.isArray(value)) {
             this.state.activeTrades = new Map(value);
-            console.log(`🔧 [StateManager] Converted activeTrades array to Map with ${value.length} entries`);
+            console.log(`[StateManager] Converted activeTrades array to Map with ${value.length} entries`);
           } else if (value instanceof Map) {
             this.state.activeTrades = value;
           } else {
-            console.warn(`⚠️ [StateManager] Ignoring invalid activeTrades update (not Array or Map):`, value);
+            console.warn('[StateManager] Ignoring invalid activeTrades update (not Array or Map):', value);
             continue; // Skip this update
           }
         } else {
@@ -340,9 +352,6 @@ class StateManager {
       console.error('[StateManager] Update failed:', error);
       // Rollback would go here if needed
       return { success: false, error: error.message };
-
-    } finally {
-      this.releaseLock();
     }
   }
 
@@ -648,16 +657,16 @@ class StateManager {
     if (this.state.activeTrades && this.state.activeTrades.size > 0) {
       if (tradeId && this.state.activeTrades.has(tradeId)) {
         this.state.activeTrades.delete(tradeId);
-        console.log(`🔒 [StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);
-        console.log(`📊 [StateManager] ${this.state.activeTrades.size} active trades remaining`);
+        console.log(`[StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);
+        console.log(`[StateManager] ${this.state.activeTrades.size} active trades remaining`);
       } else if (!partial && (this.state.position - closeSize) <= 0) {
         // Full close with no position remaining - clear all trades
         const tradeCount = this.state.activeTrades.size;
         for (const [id, t] of this.state.activeTrades.entries()) {
           this.state.activeTrades.delete(id);
-          console.log(`🔒 [StateManager] Removed trade ${id} (${t.action || t.type}) from activeTrades`);
+          console.log(`[StateManager] Removed trade ${id} (${t.action || t.type}) from activeTrades`);
         }
-        console.log(`📊 [StateManager] Cleared ${tradeCount} active trades (position fully closed)`);
+        console.log(`[StateManager] Cleared ${tradeCount} active trades (position fully closed)`);
       }
     }
 
@@ -724,7 +733,7 @@ class StateManager {
       lastTradeTime: Date.now()
     };
 
-    console.log(`📊 Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+    console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
 
     const result = this.updateState(updates, {
       action: 'CLOSE_POSITION',
@@ -922,7 +931,7 @@ class StateManager {
    * Emergency state reset (use with caution!)
    */
   async emergencyReset(safeBalance = null) {
-    console.warn('🚨 [StateManager] EMERGENCY RESET INITIATED');
+    console.warn('[StateManager] EMERGENCY RESET INITIATED');
 
     const updates = {
       position: 0,
@@ -943,21 +952,38 @@ class StateManager {
    * Pause trading for safety
    * @param {string} reason - Why trading is being paused
    */
-  async pauseTrading(reason) {
-    console.log('🛑 [StateManager] PAUSING TRADING:', reason);
+  async pauseTrading(reason, options = {}) {
+    console.log('[StateManager] PAUSING TRADING:', reason);
+
+    const source = typeof options.source === 'string' && options.source.trim()
+      ? options.source.trim()
+      : null;
+    const scope = options.scope && typeof options.scope === 'object'
+      ? {
+        symbol: options.scope.symbol || null,
+        timeframe: options.scope.timeframe || null,
+        brokerId: options.scope.brokerId || null,
+        accountId: options.scope.accountId || null,
+        assetClass: options.scope.assetClass || null,
+        executionMode: options.scope.executionMode || null,
+      }
+      : null;
 
     const updates = {
       isTrading: false,
       lastError: reason,
       pausedAt: Date.now(),
-      pauseReason: reason
+      pauseReason: reason,
+      pauseSource: source,
+      pauseRecoverable: options.recoverable === true,
+      pauseScope: scope
     };
 
-    await this.updateState(updates, { action: 'PAUSE_TRADING', reason });
+    await this.updateState(updates, { action: 'PAUSE_TRADING', reason, source, scope });
 
     // Log to console with visible warning
     console.log('═══════════════════════════════════════════════════════');
-    console.log('🚨 TRADING PAUSED - SAFETY STOP');
+    console.log('TRADING PAUSED - SAFETY STOP');
     console.log(`   Reason: ${reason}`);
     console.log(`   Time: ${new Date().toISOString()}`);
     console.log('   Action Required: Review logs and resume manually');
@@ -969,25 +995,119 @@ class StateManager {
   /**
    * Resume trading after pause
    */
-  async resumeTrading() {
-    console.log('✅ [StateManager] RESUMING TRADING');
+  async resumeTrading(context = {}) {
+    console.log('[StateManager] RESUMING TRADING');
 
     const updates = {
       isTrading: true,
       lastError: null,
       pausedAt: null,
       pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
       resumedAt: Date.now()
     };
 
-    await this.updateState(updates, { action: 'RESUME_TRADING' });
+    await this.updateState(updates, { action: 'RESUME_TRADING', ...context });
 
     console.log('═══════════════════════════════════════════════════════');
-    console.log('✅ TRADING RESUMED');
+    console.log('TRADING RESUMED');
     console.log(`   Time: ${new Date().toISOString()}`);
     console.log('═══════════════════════════════════════════════════════');
 
     return { success: true, message: 'Trading resumed' };
+  }
+
+  _pauseScopeMatches(expectedScope = {}) {
+    const stored = this.state.pauseScope;
+    if (!stored || typeof stored !== 'object') return true;
+
+    for (const field of ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode']) {
+      const expectedValue = expectedScope[field];
+      const storedValue = stored[field];
+      if (storedValue === null || storedValue === undefined || storedValue === '') return false;
+      if (expectedValue === null || expectedValue === undefined || expectedValue === '') return false;
+      const left = field === 'symbol'
+        ? this.normalizeSymbol(String(storedValue), 'StateManager.pauseScope')
+        : String(storedValue).trim();
+      const right = field === 'symbol'
+        ? this.normalizeSymbol(String(expectedValue), 'StateManager.resume scope')
+        : String(expectedValue).trim();
+      if (left !== right) return false;
+    }
+
+    return true;
+  }
+
+  async resumeTradingIfPausedBy(source, options = {}) {
+    await this.acquireLock();
+    try {
+      if (this.state.isTrading !== false) {
+        return { success: true, resumed: false, reason: 'not_paused' };
+      }
+
+      const pauseReason = String(this.state.pauseReason || this.state.lastError || '');
+      const legacyPrefixes = Array.isArray(options.legacyReasonPrefixes)
+        ? options.legacyReasonPrefixes
+        : [];
+      const sourceMatches = source && this.state.pauseSource === source;
+      const legacyMatches = options.allowLegacyUnscoped === true
+        && !this.state.pauseSource
+        && legacyPrefixes.some(prefix => pauseReason.startsWith(prefix));
+      if (!sourceMatches && !legacyMatches) {
+        return {
+          success: false,
+          resumed: false,
+          reason: 'pause_source_mismatch',
+          pauseSource: this.state.pauseSource || null,
+          pauseReason,
+        };
+      }
+
+      if (this.state.pauseRecoverable === false && !legacyMatches) {
+        return { success: false, resumed: false, reason: 'pause_not_recoverable', pauseSource: this.state.pauseSource || null };
+      }
+
+      if (!this._pauseScopeMatches(options.scope || {})) {
+        return {
+          success: false,
+          resumed: false,
+          reason: 'pause_scope_mismatch',
+          pauseScope: this.state.pauseScope || null,
+          recoveryScope: options.scope || null,
+        };
+      }
+
+      const updates = {
+        isTrading: true,
+        lastError: null,
+        pausedAt: null,
+        pauseReason: null,
+        pauseSource: null,
+        pauseRecoverable: false,
+        pauseScope: null,
+        resumedAt: Date.now()
+      };
+
+      const result = this._applyStateUpdatesLocked(updates, {
+        action: 'RESUME_TRADING',
+        resumeSource: options.resumeSource || source,
+        resumeReason: options.reason || null,
+        recoveredPauseReason: pauseReason,
+        recoveredPauseSource: this.state.pauseSource || (legacyMatches ? 'legacy' : null),
+      });
+      if (!result.success) return { ...result, resumed: false };
+
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('TRADING RESUMED');
+      console.log(`   Time: ${new Date().toISOString()}`);
+      console.log('═══════════════════════════════════════════════════════');
+
+      return { success: true, resumed: true, reason: 'resumed' };
+    } finally {
+      this.releaseLock();
+    }
   }
 
   // === CHANGE 2025-12-13: STEP 1 - ACTIVE TRADES MANAGEMENT ===
@@ -1020,11 +1140,11 @@ class StateManager {
         this._haltNewEntries = true;
         this._haltReason = `Bypass detected: ${caller} called updateActiveTrade() directly`;
 
-        console.error(`🚨 [StateManager] BYPASS HALT TRIGGERED`);
+        console.error(`[StateManager] BYPASS HALT TRIGGERED`);
         console.error(`   Caller: ${caller}`);
         console.error(`   OrderId: ${orderId}`);
         console.error(`   Stack trace:\n${stack.split('\n').slice(1, 6).join('\n')}`);
-        console.error(`   ⛔ NEW ENTRIES HALTED - exits only until flat`);
+        console.error(`   NEW ENTRIES HALTED - exits only until flat`);
 
         // Emit alert event if listeners registered
         if (this._alertListeners?.length > 0) {
@@ -1041,26 +1161,26 @@ class StateManager {
         }
       } else {
         // Detection mode only (Phase 13A behavior)
-        console.warn(`⚠️ [StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
+        console.warn(`[StateManager] BYPASS DETECTED: updateActiveTrade() called from outside PositionTracker`);
         console.warn(`   Caller: ${caller}`);
         console.warn(`   OrderId: ${orderId}`);
       }
     }
 
-    console.log(`🔍 [StateManager] updateActiveTrade called with orderId: ${orderId}`);
-    console.log(`🔍 [StateManager] this.get exists: ${typeof this.get}`);
-    console.log(`🔍 [StateManager] this.set exists: ${typeof this.set}`);
+    console.log(`[StateManager] updateActiveTrade called with orderId: ${orderId}`);
+    console.log(`[StateManager] this.get exists: ${typeof this.get}`);
+    console.log(`[StateManager] this.set exists: ${typeof this.set}`);
 
     const trades = this.get('activeTrades') || new Map();
-    console.log(`🔍 [StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
+    console.log(`[StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
 
     trades.set(orderId, tradeData);
-    console.log(`🔍 [StateManager] About to call this.set with activeTrades`);
+    console.log(`[StateManager] About to call this.set with activeTrades`);
 
     this.set('activeTrades', trades);
     // FIX 2026-02-16: REMOVED this.save() - was causing race condition!
     // openPosition() saves AFTER updating BOTH activeTrades AND position atomically
-    console.log(`📝 [StateManager] Updated trade ${orderId} (no save - openPosition will save)`);
+    console.log(`[StateManager] Updated trade ${orderId} (no save - openPosition will save)`);
   }
 
   /**
@@ -1073,7 +1193,7 @@ class StateManager {
       this.set('activeTrades', trades);
       // FIX 2026-02-16: REMOVED this.save() - same race condition fix
       // closePosition() saves AFTER updating BOTH activeTrades AND position atomically
-      console.log(`🗑️ [StateManager] Removed trade ${orderId} (no save - closePosition will save)`);
+      console.log(`[StateManager] Removed trade ${orderId} (no save - closePosition will save)`);
     }
   }
 
@@ -1196,7 +1316,7 @@ class StateManager {
   isInSync() {
     const validation = this.validateState();
     if (!validation.valid) {
-      console.error('❌ [StateManager] STATE DESYNC DETECTED:', validation.issues);
+      console.error('[StateManager] STATE DESYNC DETECTED:', validation.issues);
     }
     return validation.valid;
   }
@@ -1715,7 +1835,7 @@ class StateManager {
   }
 
   printState() {
-    console.log('\n📊 === STATE SNAPSHOT ===');
+    console.log('\n=== STATE SNAPSHOT ===');
     console.log(`Position: ${this.state.position} @ ${this.state.entryPrice || 'N/A'}`);
     console.log(`Balance: $${this.state.balance.toFixed(2)} (Total: $${this.state.totalBalance.toFixed(2)})`);
     console.log(`P&L: $${this.state.totalPnL.toFixed(2)} (Realized: $${this.state.realizedPnL.toFixed(2)})`);

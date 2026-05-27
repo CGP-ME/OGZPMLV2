@@ -80,4 +80,144 @@ describe('StateManager load validation', () => {
     expect(trade.remainingOrderQuantity).toBe(3);
     expect(trade.remainingOrderQuantityUnit).toBe('shares');
   });
+
+  test('recoverable data-feed pause resumes only from the matching owner', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    await manager.pauseTrading('Liveness watchdog: brokerSilent=true activeTimeframeSilent=false, backfill failed', {
+      source: 'data_feed_liveness',
+      recoverable: true,
+      scope: {
+        symbol: 'BTC-USD',
+        timeframe: '1m',
+        brokerId: 'kraken',
+        accountId: 'default',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+      },
+    });
+
+    const wrongScope = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: {
+        symbol: 'TSLA',
+        timeframe: '1m',
+        brokerId: 'kraken',
+        accountId: 'default',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+      },
+    });
+    expect(wrongScope.resumed).toBe(false);
+    expect(wrongScope.reason).toBe('pause_scope_mismatch');
+    expect(manager.get('isTrading')).toBe(false);
+
+    const recovered = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: {
+        symbol: 'XBT/USD',
+        timeframe: '1m',
+        brokerId: 'kraken',
+        accountId: 'default',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+      },
+      reason: 'fresh candle restored data feed',
+      resumeSource: 'data_feed_liveness',
+    });
+
+    expect(recovered).toEqual(expect.objectContaining({ success: true, resumed: true }));
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+    expect(manager.get('pauseSource')).toBeNull();
+  });
+
+  test('manual pause is not resumed by data-feed recovery', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    await manager.pauseTrading('operator manual pause');
+
+    const result = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: { symbol: 'BTC-USD', timeframe: '1m' },
+      legacyReasonPrefixes: ['Liveness watchdog:'],
+    });
+
+    expect(result.resumed).toBe(false);
+    expect(result.reason).toBe('pause_source_mismatch');
+    expect(manager.get('isTrading')).toBe(false);
+    expect(manager.get('pauseReason')).toBe('operator manual pause');
+  });
+
+  test('matching pause source still requires recoverable flag', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    await manager.pauseTrading('operator supplied data-feed source but did not mark recoverable', {
+      source: 'data_feed_liveness',
+      recoverable: false,
+      scope: { symbol: 'BTC-USD', timeframe: '1m' },
+    });
+
+    const result = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: { symbol: 'BTC-USD', timeframe: '1m' },
+    });
+
+    expect(result.resumed).toBe(false);
+    expect(result.reason).toBe('pause_not_recoverable');
+    expect(manager.get('isTrading')).toBe(false);
+  });
+
+  test('recoverable pause with incomplete stored scope does not resume from arbitrary candle', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    await manager.pauseTrading('Liveness watchdog: missing symbol/timeframe', {
+      source: 'data_feed_liveness',
+      recoverable: true,
+      scope: { symbol: null, timeframe: '1m', brokerId: 'kraken' },
+    });
+
+    const result = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: { symbol: 'BTC-USD', timeframe: '1m', brokerId: 'kraken' },
+    });
+
+    expect(result.resumed).toBe(false);
+    expect(result.reason).toBe('pause_scope_mismatch');
+    expect(manager.get('isTrading')).toBe(false);
+  });
+
+  test('legacy liveness pause without metadata requires explicit recovery opt-in', async () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: [],
+      isTrading: false,
+      pauseReason: 'Liveness watchdog: brokerSilent=true activeTimeframeSilent=false, backfill failed',
+      lastError: 'Liveness watchdog: brokerSilent=true activeTimeframeSilent=false, backfill failed',
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const blocked = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: { symbol: 'BTC-USD', timeframe: '1m' },
+      legacyReasonPrefixes: ['Liveness watchdog:'],
+      reason: 'fresh candle restored legacy liveness pause',
+    });
+    expect(blocked.resumed).toBe(false);
+    expect(blocked.reason).toBe('pause_source_mismatch');
+    expect(manager.get('isTrading')).toBe(false);
+
+    const result = await manager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope: { symbol: 'BTC-USD', timeframe: '1m' },
+      legacyReasonPrefixes: ['Liveness watchdog:'],
+      allowLegacyUnscoped: true,
+      reason: 'fresh candle restored legacy liveness pause',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ success: true, resumed: true }));
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+  });
 });

@@ -5,10 +5,10 @@
  * Includes gap detection and REST API backfill recovery.
  *
  * Gap Recovery Flow:
- * 1. Gap detected (>1.5x candle interval)
- * 2. Attempt REST backfill via kraken.getHistoricalOHLC()
+ * 1. Gap detected using ConfigLoader dataFeed threshold
+ * 2. Attempt REST backfill through the broker adapter
  * 3. Success: splice candles, replay through indicators, continue
- * 4. Fail: THEN halt, retry every 60s, resume after 3 clean candles
+ * 4. Fail: halt and recover using ConfigLoader dataFeed retry settings
  *
  * @module core/CandleProcessor
  */
@@ -56,14 +56,15 @@ function cleanScopeValue(value) {
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
+    this.dataFeedConfig = this._resolveDataFeedConfig();
 
     // Gap recovery state
     this.candleIntervalMs = this._resolveCandleIntervalMs();
-    this.gapThresholdMultiplier = 1.5; // Gap if > 1.5x active candle interval
+    this.gapThresholdMultiplier = this.dataFeedConfig.gapThresholdMultiplier;
     this.cleanCandleCount = 0;
-    this.cleanCandlesRequired = 3;
+    this.cleanCandlesRequired = this.dataFeedConfig.gapRecoveryCleanCandlesRequired;
     this.backfillRetryInterval = null;
-    this.backfillRetryDelayMs = 60000; // 60 seconds
+    this.backfillRetryDelayMs = this.dataFeedConfig.gapBackfillRetryDelayMs;
 
     // RTH-aware gap detection (CC-SPEC-RTH-GAP-DETECTION.md, 2026-05-05).
     // MarketCalendar is the single source of truth for NYSE sessions, holidays,
@@ -72,6 +73,35 @@ class CandleProcessor {
     this.marketCalendar = getMarketCalendar();
 
     console.log('[CandleProcessor] Initialized with gap recovery');
+  }
+
+  _resolveDataFeedConfig() {
+    const config = this.ctx?.config?.dataFeed || getConfigValue('dataFeed');
+    if (!config || typeof config !== 'object') {
+      throw new Error('CandleProcessor: dataFeed config missing');
+    }
+    return config;
+  }
+
+  _resumeDataFeedPause(scope, reason) {
+    if (typeof stateManager.resumeTradingIfPausedBy !== 'function') {
+      return;
+    }
+
+    stateManager.resumeTradingIfPausedBy('data_feed_liveness', {
+      scope,
+      legacyReasonPrefixes: ['Liveness watchdog:', 'Stale data:', 'Data gap:'],
+      reason,
+      resumeSource: 'data_feed_liveness',
+    }).then(result => {
+      if (result?.resumed || result?.reason === 'not_paused') {
+        this.ctx.staleFeedPaused = false;
+        this.ctx.feedRecoveryCandles = 0;
+        this.cleanCandleCount = 0;
+      }
+    }).catch(error => {
+      console.error(`[CandleProcessor] Failed to recover data-feed pause: ${error.message}`);
+    });
   }
 
   _resolveCandleIntervalMs() {
@@ -479,7 +509,7 @@ class CandleProcessor {
 
       // Calculate how many candles we need
       const missingCount = Math.ceil((gapEnd - gapStart) / this.candleIntervalMs);
-      const fetchCount = missingCount + 5; // Small buffer
+      const fetchCount = missingCount + this.dataFeedConfig.gapBackfillBufferCandles;
 
       console.log(`[GAP-RECOVERY] Fetching ${fetchCount} ${timeframe} candles of ${symbol} to fill ${missingCount} missing`);
 
@@ -530,7 +560,7 @@ class CandleProcessor {
   startBackfillRetry(gapStart, gapEnd, traceContext = {}) {
     if (this.backfillRetryInterval) return; // Already retrying
 
-    console.log('[GAP-RECOVERY] Starting retry loop (every 60s)');
+    console.log(`[GAP-RECOVERY] Starting retry loop (every ${this.backfillRetryDelayMs}ms)`);
 
     this.backfillRetryInterval = setInterval(async () => {
       console.log('[GAP-RECOVERY] Retry attempt...');
@@ -694,8 +724,7 @@ class CandleProcessor {
     const now = Date.now();
     const dataAge = now - (etime * 1000); // etime is in SECONDS, convert to milliseconds
 
-    // If data is more than 2 minutes old, it's stale (but NOT during backtesting!)
-    if (dataAge > 120000 && !isBacktesting) {
+    if (dataAge > this.dataFeedConfig.staleDataMaxAgeMs && !isBacktesting) {
       console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
 
       // AUTO-PAUSE TRADING
@@ -705,17 +734,32 @@ class CandleProcessor {
 
         // Notify StateManager to pause
         try {
-          stateManager.pauseTrading(`Stale data: ${Math.round(dataAge / 1000)}s old`);
+          stateManager.pauseTrading(`Stale data: ${Math.round(dataAge / 1000)}s old`, {
+            source: 'data_feed_liveness',
+            recoverable: true,
+            scope: {
+              symbol: stampedSymbol,
+              timeframe: sourceTimeframe,
+              brokerId: wrappedInput?.brokerId,
+              accountId: wrappedInput?.accountId,
+              assetClass: wrappedInput?.assetClass,
+              executionMode: wrappedInput?.executionMode,
+            },
+          });
         } catch (error) {
           console.error('Failed to pause via StateManager:', error.message);
         }
       }
-    } else if (this.ctx.staleFeedPaused && dataAge < 30000) {
-      // Data is fresh again - resume
-      console.log('[STALE DATA] Fresh data restored, resuming');
-      this.ctx.staleFeedPaused = false;
-      this.ctx.feedRecoveryCandles = 0;
-      stateManager.resumeTrading();
+    } else if (this.ctx.staleFeedPaused && dataAge < this.dataFeedConfig.staleDataRecoveryAgeMs) {
+      console.log('[STALE DATA] Fresh data restored, checking recoverable pause owner');
+      this._resumeDataFeedPause({
+        symbol: stampedSymbol,
+        timeframe: sourceTimeframe,
+        brokerId: wrappedInput?.brokerId,
+        accountId: wrappedInput?.accountId,
+        assetClass: wrappedInput?.assetClass,
+        executionMode: wrappedInput?.executionMode,
+      }, 'fresh candle restored stale data feed');
     }
 
     let price = parseFloat(close);
@@ -760,10 +804,10 @@ class CandleProcessor {
         const tradingPair = this.ctx.tradingPair || '';
         const isStocksMode = /^[A-Z]{1,5}$/.test(tradingPair);
         if (isStocksMode && this._isExpectedMarketClose(lastCandle.etime, candle.etime)) {
-          console.log(`[GAP-RECOVERY] Overnight/weekend gap ${Math.round(gapMs/60000)} min — expected for stocks, skipping`);
+          console.log(`[GAP-RECOVERY] Overnight/weekend gap ${gapMs}ms - expected for stocks, skipping`);
         } else {
           const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
-          console.warn(`[GAP-RECOVERY] Gap detected: ${Math.round(gapMs/60000)} min (${missingCandles} candles missing)`);
+          console.warn(`[GAP-RECOVERY] Gap detected: ${gapMs}ms (${missingCandles} candles missing)`);
 
           this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
             if (backfilledCandles.length > 0) {
@@ -784,7 +828,18 @@ class CandleProcessor {
             } else {
               console.error('[GAP-RECOVERY] Backfill failed, halting trading');
               this.ctx.staleFeedPaused = true;
-              stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`);
+              stateManager.pauseTrading(`Data gap: ${missingCandles} candles missing, backfill failed`, {
+                source: 'data_feed_liveness',
+                recoverable: true,
+                scope: {
+                  symbol: candle.symbol,
+                  timeframe: candle.timeframe,
+                  brokerId: candle.brokerId,
+                  accountId: candle.accountId,
+                  assetClass: candle.assetClass,
+                  executionMode: candle.executionMode,
+                },
+              });
               this.startBackfillRetry(lastCandle.etime, candle.etime, {
                 traceId,
                 source: 'gap_backfill_retry',
@@ -806,11 +861,16 @@ class CandleProcessor {
     if (isNewCandle && this.ctx.staleFeedPaused && this.backfillRetryInterval) {
       this.cleanCandleCount++;
       if (this.cleanCandleCount >= this.cleanCandlesRequired) {
-        console.log(`[GAP-RECOVERY] ${this.cleanCandleCount} clean candles - resuming trading`);
-        this.ctx.staleFeedPaused = false;
-        this.cleanCandleCount = 0;
         this.stopBackfillRetry();
-        stateManager.resumeTrading();
+        console.log(`[GAP-RECOVERY] ${this.cleanCandleCount} clean candles - checking recoverable pause owner`);
+        this._resumeDataFeedPause({
+          symbol: candle.symbol,
+          timeframe: candle.timeframe,
+          brokerId: candle.brokerId,
+          accountId: candle.accountId,
+          assetClass: candle.assetClass,
+          executionMode: candle.executionMode,
+        }, `${this.cleanCandleCount} clean candles restored gap recovery`);
       }
     }
 
