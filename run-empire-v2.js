@@ -1117,6 +1117,7 @@ class OGZPrimeV14Bot {
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
+      journalDataDir: resolvedConfig.config.paths.journalDataDir,
       evalTraceEnabled: resolvedConfig.config.observability.evalTraceEnabled,
       evalTraceBacktest: resolvedConfig.config.observability.evalTraceBacktest,
       traceEventMaxBufferedBytes: resolvedConfig.config.observability.traceEventMaxBufferedBytes,

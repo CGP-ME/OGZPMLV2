@@ -109,6 +109,7 @@ function buildConfig() {
       envFile: track('paths.envFile', envStr('DOTENV_CONFIG_PATH', '.env')),
       stateFile: track('paths.stateFile', envStr('STATE_FILE', '')),
       dataDir: track('paths.dataDir', envStr('DATA_DIR', '')),
+      journalDataDir: track('paths.journalDataDir', envStr('JOURNAL_DATA_DIR', '')),
     },
 
     // ─── MONITORING ───

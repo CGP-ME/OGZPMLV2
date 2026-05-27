@@ -27,6 +27,7 @@ module.exports = {
         TRADING_PAIR: 'BTC-USD',
         ALPACA_SYMBOLS: '',
         CANDLE_TIMEFRAME: '1m',
+        JOURNAL_DATA_DIR: '/opt/ogzprime/OGZPMLV2/data/journal',
         DIRECTION_FILTER: 'both',
         ENABLE_SHORTS: 'true',
         SESSION_ROUTER_ENABLED: 'false',

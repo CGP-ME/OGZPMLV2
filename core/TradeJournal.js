@@ -44,11 +44,16 @@
 
 const fs = require('fs');
 const path = require('path');
+const { requirePatternScope } = require('./PatternScope');
 
 class TradeJournal {
   constructor(config = {}) {
     // ── Storage paths ──────────────────────────────────────────────────
-    const dataDir = config.dataDir || path.join(process.cwd(), 'data', 'journal');
+    if (!config.dataDir) {
+      throw new Error('[TRADE-JOURNAL-SCOPE] TradeJournal requires an explicit scoped dataDir; refusing unscoped data/journal default');
+    }
+    const dataDir = config.dataDir;
+    this.scope = requirePatternScope(config.scope || config, 'TradeJournal');
     this.paths = {
       dir: dataDir,
       ledger: path.join(dataDir, 'trade-ledger.jsonl'),
@@ -140,7 +145,8 @@ class TradeJournal {
         trend: entry.indicators?.trend || 'unknown',
         volatility: entry.indicators?.volatility || 0
       },
-      fees: Number(entry.fees || 0)
+      fees: Number(entry.fees || 0),
+      ...this._scopeRecordFields()
     };
 
     // Store in open trades map
@@ -210,7 +216,8 @@ class TradeJournal {
       patterns: entry?.patterns || [],
       indicators: entry?.indicators || {},
       entryTime: entry?.timestamp || 0,
-      balanceAfter: Number(exit.balance || 0)
+      balanceAfter: Number(exit.balance || 0),
+      ...this._scopeRecordFields()
     };
 
     // ── Append to ledger ──────────────────────────────────────────────
@@ -773,15 +780,18 @@ class TradeJournal {
 
     // ── Today's stats ───────────────────────────────────────────────
     const todayKey = new Date().toISOString().split('T')[0];
+    const tradeDayKey = this._dayKeyForTimestamp(trade.timestamp);
     if (s._todayDate !== todayKey) {
       s._todayDate = todayKey;
       s.todayTrades = 0;
       s.todayPnl = 0;
       s.todayWins = 0;
     }
-    s.todayTrades++;
-    s.todayPnl += pnl;
-    if (isWin) s.todayWins++;
+    if (tradeDayKey === todayKey) {
+      s.todayTrades++;
+      s.todayPnl += pnl;
+      if (isWin) s.todayWins++;
+    }
     s.todayWinRate = s.todayTrades > 0 ? (s.todayWins / s.todayTrades * 100) : 0;
   }
 
@@ -898,18 +908,20 @@ class TradeJournal {
 
       const entries = new Map(); // orderId → entry record
 
-      for (const line of lines) {
+      for (const [index, line] of lines.entries()) {
         let record;
         try {
           record = JSON.parse(line);
         } catch {
-          continue; // Skip malformed lines
+          throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} is malformed JSON`);
         }
 
         if (record.event === 'ENTRY') {
+          this._assertLedgerRecordScope(record, index + 1);
           entries.set(record.orderId, record);
           this.openTrades.set(record.orderId, record);
         } else if (record.event === 'EXIT') {
+          this._assertLedgerRecordScope(record, index + 1);
           this.trades.push(record);
           this.openTrades.delete(record.orderId);
           entries.delete(record.orderId);
@@ -938,10 +950,11 @@ class TradeJournal {
       // Recompute all stats from trades
       this._recomputeAllStats();
 
-      console.log(`📒 TradeJournal: Rebuilt from ledger — ${this.trades.length} completed trades, ${this.openTrades.size} open positions`);
+      console.log(`TradeJournal: Rebuilt from ledger — ${this.trades.length} completed trades, ${this.openTrades.size} open positions`);
 
     } catch (err) {
-      console.error(`📒 TradeJournal: Failed to rebuild from ledger: ${err.message}`);
+      console.error(`TradeJournal: Failed to rebuild from ledger: ${err.message}`);
+      throw err;
     }
   }
 
@@ -981,6 +994,45 @@ class TradeJournal {
     if (hours < 24) return `${hours}h ${minutes % 60}m`;
     const days = Math.floor(hours / 24);
     return `${days}d ${hours % 24}h`;
+  }
+
+  _dayKeyForTimestamp(timestamp) {
+    const ms = Number(timestamp);
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const date = new Date(ms);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().split('T')[0];
+  }
+
+  _scopeRecordFields() {
+    return {
+      symbol: this.scope.symbol,
+      brokerId: this.scope.brokerId,
+      accountId: this.scope.accountId,
+      accountIdSource: this.scope.accountIdSource,
+      assetClass: this.scope.assetClass,
+      executionMode: this.scope.executionMode,
+      timeframe: this.scope.timeframe,
+      scopeKey: this.scope.scopeKey,
+      scopeKeyVersion: this.scope.scopeKeyVersion,
+      scopeComplete: this.scope.scopeComplete
+    };
+  }
+
+  _assertLedgerRecordScope(record, lineNumber) {
+    if (String(record.scopeKey || '') !== this.scope.scopeKey) {
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKey mismatch: got ${record.scopeKey || '(missing)'}, expected ${this.scope.scopeKey}`);
+    }
+    if (Number(record.scopeKeyVersion) !== 2) {
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKeyVersion must be 2; got ${record.scopeKeyVersion || '(missing)'}`);
+    }
+    if (record.scopeComplete !== this.scope.scopeComplete) {
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeComplete mismatch: got ${record.scopeComplete}, expected ${this.scope.scopeComplete}`);
+    }
+    const recordScope = requirePatternScope(record, `TradeJournal.ledger line ${lineNumber}`);
+    if (recordScope.scopeKey !== this.scope.scopeKey) {
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKey mismatch: got ${recordScope.scopeKey}, expected ${this.scope.scopeKey}`);
+    }
   }
 }
 

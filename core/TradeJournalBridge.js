@@ -28,6 +28,51 @@ const TradeReplayCapture = require('./TradeReplayCapture');
 const path = require('path');
 const fs = require('fs');
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
+const { requirePatternScope } = require('./PatternScope');
+
+function safeScopePathSegment(scope) {
+  return [
+    scope.executionMode,
+    scope.brokerId,
+    scope.accountId,
+    scope.assetClass,
+    scope.symbol,
+    scope.timeframe,
+  ].map(part => {
+    const encoded = encodeURIComponent(String(part));
+    return `${encoded.length}-${encoded}`;
+  }).join('__');
+}
+
+function resolveJournalScope(bot) {
+  return requirePatternScope({
+    symbol: bot?.config?.tradingPair || bot?.tradingPair,
+    brokerId: bot?.config?.brokerId,
+    accountId: bot?.config?.accountId,
+    assetClass: bot?.config?.assetClass,
+    executionMode: bot?.config?.executionMode,
+    timeframe: bot?.config?.timeframe || bot?.candleTimeframe,
+  }, 'TradeJournalBridge.dataDir');
+}
+
+function resolveJournalDataDir(bot, config = {}, scope = resolveJournalScope(bot)) {
+  const journalRoot = config.dataDir || bot?.config?.journalDataDir;
+  if (!journalRoot) {
+    throw new Error('[TRADE-JOURNAL-SCOPE] TradeJournalBridge requires configured journalDataDir root; refusing implicit data/journal fallback');
+  }
+  return path.join(journalRoot, safeScopePathSegment(scope));
+}
+
+function resolveReplayDir(journalDataDir, config = {}) {
+  const replayDir = config.replayDir || path.join(journalDataDir, 'replays');
+  const resolvedJournalDir = path.resolve(journalDataDir);
+  const resolvedReplayDir = path.resolve(replayDir);
+  const relative = path.relative(resolvedJournalDir, resolvedReplayDir);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return replayDir;
+  }
+  throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournalBridge.replayDir must stay under scoped journal dataDir (${journalDataDir}); got ${replayDir}`);
+}
 
 class TradeJournalBridge {
   constructor(bot, config = {}) {
@@ -37,20 +82,24 @@ class TradeJournalBridge {
     // FIX MIRROR-JOURNAL-BALANCE companion: coerce raw env-string values to Number,
     // use ?? not || to preserve explicit 0 (constructor will reject 0 as invalid balance,
     // surfacing real upstream bug rather than hiding under $10K phantom).
-    // SPREAD ORDER CRITICAL: ...config must come FIRST, then startingBalance override LAST.
+    // SPREAD ORDER CRITICAL: ...config must come FIRST; scoped dataDir and
+    // startingBalance override LAST so callers cannot reopen the unscoped ledger.
     // Mercury caught Wolf's initial spec putting startingBalance before ...config which
     // caused the spread to silently overwrite the coerced value with raw config input —
     // re-introducing the exact bug Fix 27 was meant to fix.
     const _rawStartingBalance = config.startingBalance ?? TradingConfig.get('startingBalance');
+    const journalScope = resolveJournalScope(this.bot);
+    const journalDataDir = resolveJournalDataDir(this.bot, config, journalScope);
     this.journal = new TradeJournal({
-      dataDir: config.dataDir || path.join(process.cwd(), 'data', 'journal'),
       ...config,
+      dataDir: journalDataDir,
+      scope: journalScope,
       startingBalance: Number(_rawStartingBalance),
     });
 
     // ── Initialize replay capture ───────────────────────────────────
     this.replay = new TradeReplayCapture({
-      replayDir: config.replayDir || path.join(process.cwd(), 'data', 'journal', 'replays'),
+      replayDir: resolveReplayDir(journalDataDir, config),
       candlesBefore: 60,
       candlesAfter: 30
     });
@@ -60,7 +109,7 @@ class TradeJournalBridge {
     this._wireDashboardMessages();
     this._wireBroadcastCycle();
 
-    console.log('📒 TradeJournalBridge v2: Journal + Replay wired into bot');
+    console.log('TradeJournalBridge v2: Journal + Replay wired into bot');
   }
 
 
@@ -420,4 +469,4 @@ class TradeJournalBridge {
   }
 }
 
-module.exports = { TradeJournalBridge, TradeJournal, TradeReplayCapture };
+module.exports = { TradeJournalBridge, TradeJournal, TradeReplayCapture, resolveJournalScope, resolveJournalDataDir, resolveReplayDir };
