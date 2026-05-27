@@ -217,7 +217,7 @@ class TradeNarrator {
         this.user ? 'USER' : null,
       ].filter(Boolean).join('+');
       // eslint-disable-next-line no-console
-      console.log(`🎙️  [Narrator] Enabled mode=${modes} seed=${seed.slice(0, 8)}…`);
+      console.log(`[Narrator] Enabled mode=${modes} seed=${seed.slice(0, 8)}…`);
     }
   }
 
@@ -268,7 +268,7 @@ class TradeNarrator {
           return `   • ${pad(name, 22)} ${pad(conf, 6)} ${sig ? `sig=${String(sig).slice(0, 10)}` : ''}`;
         });
         this._emitArchitect(
-          '🧭 PATTERN SPOTTED',
+          'PATTERN SPOTTED',
           lines.join('\n')
         );
       }
@@ -286,7 +286,7 @@ class TradeNarrator {
           maturity: sampleBucket(best.samples || best.stats?.total || 0),
         };
         this._emitUser(
-          `📐 Spotted ${names.join(', ')} — conviction ${payload.conviction}, maturity ${payload.maturity}.`,
+          `Spotted ${names.join(', ')} — conviction ${payload.conviction}, maturity ${payload.maturity}.`,
           payload
         );
       }
@@ -305,14 +305,14 @@ class TradeNarrator {
 
       if (this.architect) {
         const lines = sorted.slice(0, 6).map(r => {
-          const crown = winner && r.strategyName === winner.strategyName ? '🏆' : '  ';
+          const crown = winner && r.strategyName === winner.strategyName ? '*' : ' ';
           const dir = (r.direction || '—').toUpperCase();
           const conf = fmtPct((r.confidence || 0) * 100, 1);
           const reason = r.reason ? String(r.reason).slice(0, 60) : '';
           return `   ${crown} ${pad(r.strategyName, 22)} ${pad(dir, 5)} ${pad(conf, 8)} ${reason}`;
         });
         this._emitArchitect(
-          '🧪 STRATEGY EVAL',
+          'STRATEGY EVAL',
           lines.join('\n')
         );
       }
@@ -338,7 +338,7 @@ class TradeNarrator {
           field: visible,
         };
         this._emitUser(
-          `🧠 Field evaluated (${visible.length} strategies) — ${winnerLabel} leads with a ${winnerDir} bias.`,
+          `Field evaluated (${visible.length} strategies) — ${winnerLabel} leads with a ${winnerDir} bias.`,
           payload
         );
       }
@@ -367,9 +367,9 @@ class TradeNarrator {
           `confluence  ${(multipliers.confluence || 1).toFixed(2)}x`,
           `combined    ${(multipliers.combined || 1).toFixed(2)}x`,
         ].map(l => `   • ${l}`).join('\n');
-        const cap = capped ? '   ⚠ capped to max position percent' : '';
+        const cap = capped ? '   capped to max position percent' : '';
         this._emitArchitect(
-          '📏 POSITION SIZING',
+          'POSITION SIZING',
           `   Final: ${fmtUsd(sizeUSD)}  (${fmtPct(sizePercent * 100, 2)} of balance)\n${mLines}${cap ? '\n' + cap : ''}${reason ? `\n   reason: ${reason}` : ''}`
         );
       }
@@ -395,7 +395,7 @@ class TradeNarrator {
           pattern_read: patternRead,
         };
         this._emitUser(
-          `⚖️  Sizing stance: ${payload.stance} — pattern read ${payload.pattern_read}.`,
+          `Sizing stance: ${payload.stance} — pattern read ${payload.pattern_read}.`,
           payload
         );
       }
@@ -453,7 +453,7 @@ class TradeNarrator {
           `   confluence: ${confluenceStr}`,
           `   SL / TP:    ${sl} / ${tp}`,
         ].join('\n');
-        this._emitArchitect('✅ ENTERED', body);
+        this._emitArchitect('ENTERED', body);
       }
 
       if (this.user) {
@@ -476,7 +476,7 @@ class TradeNarrator {
           profit_frame: tpBucket,
         };
         this._emitUser(
-          `🎯 Entry taken by ${label} — ${payload.direction.toUpperCase()}, conviction ${payload.conviction}, ${payload.risk_frame}/${payload.profit_frame} risk frame.`,
+          `Entry taken by ${label} — ${payload.direction.toUpperCase()}, conviction ${payload.conviction}, ${payload.risk_frame}/${payload.profit_frame} risk frame.`,
           payload
         );
       }
@@ -506,7 +506,7 @@ class TradeNarrator {
           `   remaining:     ${fmtUsd(remainingSize)}`,
           `   locked profit: ${fmtPct((profitPercent || 0) * 100, 2)}  (${fmtUsd(partialPnl)})`,
         ].join('\n');
-        this._emitArchitect(`📦 TIER ${tier} EXIT`, body);
+        this._emitArchitect(`TIER ${tier} EXIT`, body);
       }
 
       if (this.user) {
@@ -525,7 +525,7 @@ class TradeNarrator {
           pnl_usd: partialPnl != null ? Number(partialPnl.toFixed(2)) : null,
         };
         this._emitUser(
-          `💰 ${label} took partial at tier ${payload.tier} — locked ${fmtPct(payload.locked_pct, 2)} (${fmtUsd(payload.pnl_usd || 0)}).`,
+          `${label} took partial at tier ${payload.tier} — locked ${fmtPct(payload.locked_pct, 2)} (${fmtUsd(payload.pnl_usd || 0)}).`,
           payload
         );
       }
@@ -567,7 +567,7 @@ class TradeNarrator {
           `   hold:       ${fmtMs(held)}`,
           `   reason:     ${reason || '—'}`,
         ].join('\n');
-        this._emitArchitect(isWin ? '🟢 TRADE CLOSED (WIN)' : '🔴 TRADE CLOSED (LOSS)', body);
+        this._emitArchitect(isWin ? 'TRADE CLOSED (WIN)' : 'TRADE CLOSED (LOSS)', body);
       }
 
       if (this.user) {
@@ -585,9 +585,8 @@ class TradeNarrator {
           hold_seconds: Math.floor(held / 1000),
           reason: this._safeReason(reason),
         };
-        const icon = payload.result === 'win' ? '🟢' : payload.result === 'loss' ? '🔴' : '⚪';
         this._emitUser(
-          `${icon} ${label} closed ${payload.direction.toUpperCase()} — ${payload.result.toUpperCase()} ${fmtPct(payload.pnl_pct || 0, 2)} (${fmtUsd(payload.pnl_usd || 0)}) held ${fmtMs(held)}.`,
+          `${label} closed ${payload.direction.toUpperCase()} — ${payload.result.toUpperCase()} ${fmtPct(payload.pnl_pct || 0, 2)} (${fmtUsd(payload.pnl_usd || 0)}) held ${fmtMs(held)}.`,
           payload
         );
       }
@@ -613,7 +612,7 @@ class TradeNarrator {
   _emitUser(line, payload) {
     if (!this.user) return;
     // eslint-disable-next-line no-console
-    console.log(`🎙️  [USER] ${line}`);
+    console.log(`[USER] ${line}`);
     // Inject the USER-scope prose into the broadcast payload so dashboard
     // handlers can render it directly without reconstructing from structured
     // fields. Stdout still gets the raw `line`; WS consumers read `payload.text`.

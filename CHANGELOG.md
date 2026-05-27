@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Narrator Emoji-Free Dashboard Feed (2026-05-27)
+
+- Removed emoji prefixes from `TradeNarrator` user and architect narrator output so `narrator_event` dashboard text and narrator stdout stay operator-safe without broad repo-wide scrubbing.
+- Added focused narrator regression coverage proving emitted dashboard text and console lines from the touched narrator lifecycle methods contain no emoji characters.
+- Verification: `node --check core/TradeNarrator.js`, `node --check test/trade-narrator-no-emoji.test.js`, `npx jest test/trade-narrator-no-emoji.test.js --runInBand`, scoped gate ladder, Mercury narrator attack, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` returned `PASS`.
+
 ### Dashboard HTML Template Fresh Reads (2026-05-27)
 
 - Read dashboard HTML token-injection templates from disk on every dashboard request and fail loudly if the `ws-token` meta tag is missing, so frontend drops under `public/` do not require restarting `ogz-websocket`.
