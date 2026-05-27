@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Trade Exit Metadata (2026-05-27)
+
+- Added `exitReason`, `strategy`, and `strategyName` to dashboard trade payloads from the central `OrderExecutor` trade-frame builder so closed-trade UI rows can show why a trade closed and which strategy owned it.
+- Extended the scoped OrderExecutor dashboard payload gate to cover exit reason and strategy attribution.
+
 ### Dashboard Market Frame Symbol Attribution (2026-05-27)
 
 - Added explicit `symbol` fields to dashboard `price`, `delta`, and `historical_candles` frames so frontend panels can filter by real asset provenance instead of guessing from the active selector.

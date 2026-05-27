@@ -133,6 +133,13 @@ class OrderExecutor {
     const symbol = trade.symbol || payload.symbol || null;
     const hasExplicitAccountId = Boolean(accountId && accountId !== 'default' && accountIdSource !== 'default');
     const orderId = trade.orderId || trade.id || payload.orderId || payload.tradeId || null;
+    const strategy = trade.strategy
+      || trade.strategyName
+      || trade.entryStrategy
+      || payload.strategy
+      || payload.strategyName
+      || null;
+    const exitReason = trade.exitReason || payload.exitReason || null;
 
     return {
       ...payload,
@@ -150,6 +157,9 @@ class OrderExecutor {
       scopeKey,
       scopeKeyVersion,
       scopeComplete: Boolean(symbol && brokerId && hasExplicitAccountId && assetClass && executionMode && timeframe && scopeKeyVersion >= 2),
+      exitReason,
+      strategy,
+      strategyName: strategy,
       sizeUsd: trade.sizeUsd ?? trade.size ?? payload.sizeUsd ?? null,
       entryPrice: trade.entryPrice ?? payload.entryPrice ?? null
     };

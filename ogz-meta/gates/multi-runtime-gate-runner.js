@@ -128,6 +128,8 @@ function makeTrade(overrides = {}) {
     timeframe: scope.timeframe,
     scopeKey: scope.key,
     entryStrategy: overrides.entryStrategy || 'GateStrategy',
+    strategyName: overrides.strategyName || overrides.entryStrategy || 'GateStrategy',
+    exitReason: overrides.exitReason || null,
     entryTime: overrides.entryTime ?? Date.parse('2026-05-26T00:00:00.000Z'),
     entryPrice,
     price: entryPrice,
@@ -700,7 +702,9 @@ const GATES = [
         symbol: 'TSLA',
         accountId: 'acct-main',
         action: 'BUY',
-        side: 'long'
+        side: 'long',
+        entryStrategy: 'Strategy-G',
+        exitReason: 'target_hit'
       });
       const otherBrokerTrade = makeTrade({
         orderId: 'tsla-ibkr',
@@ -732,11 +736,13 @@ const GATES = [
 
       const payload = executor._dashboardTradePayload({
         type: 'price',
-        action: 'BUY',
-        direction: 'short',
+        action: 'SELL',
+        direction: 'long',
         symbol: 'SPY',
         orderId: 'fake-order',
-        price: 200
+        price: 200,
+        strategy: 'SpoofedStrategy',
+        exitReason: 'spoofed_reason'
       }, trade);
 
       assert.strictEqual(payload.type, 'trade', 'dashboard helper must own payload type');
@@ -746,6 +752,9 @@ const GATES = [
       assert.strictEqual(payload.brokerId, 'alpaca', 'brokerId must be carried');
       assert.strictEqual(payload.accountId, 'acct-main', 'accountId must be carried');
       assert.strictEqual(payload.scopeComplete, true, 'explicit account trade payload must be complete');
+      assert.strictEqual(payload.exitReason, 'target_hit', 'exitReason must be carried from trade record, not loose payload');
+      assert.strictEqual(payload.strategy, 'Strategy-G', 'strategy must be carried from trade record, not loose payload');
+      assert.strictEqual(payload.strategyName, 'Strategy-G', 'strategyName must mirror strategy for dashboard consumers');
 
       const otherBrokerPayload = executor._dashboardTradePayload({
         action: 'BUY',
@@ -764,6 +773,8 @@ const GATES = [
 
       return {
         tradeId: payload.tradeId,
+        exitReason: payload.exitReason,
+        strategy: payload.strategy,
         defaultScopeComplete: defaultPayload.scopeComplete
       };
     })
