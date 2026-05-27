@@ -1374,18 +1374,37 @@ krakenSocket.on('message', (data) => {
       }
 
       // SIMPLE DIRECT BROADCAST - NO OVERCOMPLICATED BROADCASTER
+      const parsedPriceVolume = parseFloat(tickerData?.v?.[0]);
+      const priceVolume = Number.isFinite(parsedPriceVolume) ? parsedPriceVolume : null;
+      const priceTimestamp = Date.now();
       const priceMessage = {
         type: 'price',
         symbol: asset,
+        price: price,
+        close: price,
+        volume: priceVolume,
+        timestamp: priceTimestamp,
+        source: 'kraken',
+        timeframe: null,
+        candle: null,
+        indicators: null,
+        candles: [],
+        overlays: null,
         data: {
           symbol: asset,
           asset: asset,
           price: price,
-          timestamp: Date.now(),
+          close: price,
+          volume: priceVolume,
+          timestamp: priceTimestamp,
           source: 'kraken',
+          timeframe: null,
+          candle: null,
+          indicators: null,
+          candles: [],
+          overlays: null,
           allPrices: assetPrices,
           tickCount: tickCount,
-          volume: parseFloat(tickerData.v[0]) || 0
         }
       };
       

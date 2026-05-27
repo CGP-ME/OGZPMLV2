@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Price Frame Contract (2026-05-27)
+
+- Added top-level `price`, `close`, `volume`, `timestamp`, `timeframe`, candle, indicator, balance, position, and P&L fields to bot `price` WebSocket frames while preserving the nested `data` payload, so dashboard panels that consume either frame shape read the same real market tick instead of defaulting to zero or blanks.
+- Rejected missing/invalid dashboard price ticks in core/watchlist consumers instead of converting them to `0`, preserved unknown relay volume as `null`, and cleared indicator readouts when a valid price relay explicitly has no indicator packet.
+- Extended symbol-routing coverage to prove `CandleProcessor` price frames carry symbol and price data at both contract levels.
+
 ### Closed Trade Outcome Truth (2026-05-27)
 
 - Classified closed-trade narrator, replay, journal, LiveReport, pattern-card, and trade-journal surfaces with explicit win/loss/flat/unverified outcomes so break-even or conflicting P&L cannot render as a win or loss.

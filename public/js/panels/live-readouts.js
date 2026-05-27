@@ -482,13 +482,26 @@
         }
     }
 
+    function clearIndicatorReadouts() {
+        state.rsi = '--';
+        state.macd = '--';
+        state.atr = '--';
+        state.volume = '--';
+        updateCell('rsi', NaN);
+        updateCell('macd', NaN);
+        updateCell('atr', NaN);
+        updateCell('volume', NaN);
+    }
+
     // ─── WS Event Handlers ───────────────────────────────────────────────
     function onPrice(data) {
         try {
             if (!data) return;
 
             // Extract indicators from price event
-            if (data.indicators) {
+            if (Object.prototype.hasOwnProperty.call(data, 'indicators') && data.indicators == null) {
+                clearIndicatorReadouts();
+            } else if (data.indicators) {
                 if (isFinite(data.indicators.rsi)) {
                     updateCell('rsi', data.indicators.rsi);
                     state.rsi = Number(data.indicators.rsi).toFixed(0);

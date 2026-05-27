@@ -929,25 +929,45 @@ class CandleProcessor {
         const dashboardSymbol = candle.symbol;
         const dashboardTimeframe = this.ctx.dashboardTimeframe || candle.timeframe;
 
-        this.ctx.dashboardWs.send(JSON.stringify({
+        const dashboardTimestamp = marketData.timestamp;
+        const dashboardCandle = {
+          symbol: dashboardSymbol,
+          timeframe: candle.timeframe,
+          open: parseFloat(open),
+          high: parseFloat(high),
+          low: parseFloat(low),
+          close: price,
+          volume: parseFloat(volume),
+          timestamp: dashboardTimestamp
+        };
+        const dashboardCandles = this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(-50);
+        const dashboardPricePayload = {
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           symbol: dashboardSymbol,
+          price,
+          close: price,
+          volume: marketData.volume,
+          timestamp: dashboardTimestamp,
+          timeframe: dashboardTimeframe,
+          candle: dashboardCandle,
+          indicators: renderPacket.indicators,
+          candles: dashboardCandles,
+          overlays: renderPacket.overlays,
+          balance: currentBalance,
+          position: stateManager.get('position'),
+          totalTrades: stateManager.get('totalTrades') || closedTrades.length,
+          totalPnL,
+          winRate,
           data: {
             symbol: dashboardSymbol,
             price: price,
-            candle: {
-              symbol: dashboardSymbol,
-              timeframe: candle.timeframe,
-              open: parseFloat(open),
-              high: parseFloat(high),
-              low: parseFloat(low),
-              close: price,
-              volume: parseFloat(volume),
-              timestamp: Date.now()
-            },
+            close: price,
+            volume: marketData.volume,
+            timestamp: dashboardTimestamp,
+            candle: dashboardCandle,
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
             // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
-            candles: this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(-50),
+            candles: dashboardCandles,
             timeframe: dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             balance: currentBalance,
@@ -957,7 +977,8 @@ class CandleProcessor {
             totalPnL: totalPnL,
             winRate: winRate
           }
-        }));
+        };
+        this.ctx.dashboardWs.send(JSON.stringify(dashboardPricePayload));
 
         // Broadcast edge analytics data
         this.ctx.broadcastEdgeAnalytics(price, parseFloat(volume), candle);

@@ -182,9 +182,24 @@ describe('symbol-aware candle routing', () => {
       const payload = JSON.parse(ctx.dashboardWs.send.mock.calls[0][0]);
       expect(payload.type).toBe('price');
       expect(payload.symbol).toBe('BTC-USD');
+      expect(payload.price).toBe(77724);
+      expect(payload.close).toBe(77724);
+      expect(payload.timeframe).toBe('1m');
+      expect(payload.candle.symbol).toBe('BTC-USD');
+      expect(payload.candle.timeframe).toBe('1m');
+      expect(payload.candle.close).toBe(77724);
+      expect(payload.timestamp).toBe(payload.candle.timestamp);
+      expect(payload.indicators).toEqual({});
       expect(payload.data.symbol).toBe('BTC-USD');
+      expect(payload.data.price).toBe(77724);
+      expect(payload.data.close).toBe(77724);
+      expect(payload.data.timeframe).toBe('1m');
       expect(payload.data.candle.symbol).toBe('BTC-USD');
       expect(payload.data.candle.timeframe).toBe('1m');
+      expect(payload.data.candle.close).toBe(77724);
+      expect(payload.data.timestamp).toBe(payload.timestamp);
+      expect(payload.data.candle.timestamp).toBe(payload.timestamp);
+      expect(payload.data.indicators).toEqual({});
     } finally {
       if (priorBacktestFast === undefined) {
         delete process.env.BACKTEST_FAST;

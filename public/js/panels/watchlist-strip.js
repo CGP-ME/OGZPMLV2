@@ -491,8 +491,9 @@
         try {
             if (!data || !data.symbol) return;
             const symbol = String(data.symbol).toUpperCase();
-            const price = parseFloat(data.price || data.close || 0);
-            if (!isFinite(price)) return;
+            const priceCandidate = data.price != null ? data.price : data.close;
+            const price = parseFloat(priceCandidate);
+            if (!isFinite(price) || price <= 0) return;
 
             // Ensure this symbol is in our watchlist
             const ticker = state.tickers.find(t => t.symbol === symbol);

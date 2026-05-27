@@ -124,7 +124,9 @@ window.OGZ = (function() {
             socket.registerHandler('price', (d) => {
                 state.lastBotMessageAt = Date.now();
                 const data = d.data || d;
-                const p = parseFloat(data.price || data.close || 0);
+                const priceCandidate = data.price != null ? data.price : data.close;
+                const p = parseFloat(priceCandidate);
+                if (!isFinite(p) || p <= 0) return;
                 state.lastPriceDelta = p - state.lastPrice;
                 state.lastPrice = p;
                 if (this.get('Chart')) this.get('Chart').update(data);
