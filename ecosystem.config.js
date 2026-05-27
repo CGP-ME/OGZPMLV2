@@ -27,6 +27,8 @@ module.exports = {
         TRADING_PAIR: 'BTC-USD',
         ALPACA_SYMBOLS: '',
         CANDLE_TIMEFRAME: '1m',
+        DIRECTION_FILTER: 'both',
+        ENABLE_SHORTS: 'true',
         SESSION_ROUTER_ENABLED: 'false',
         ACCOUNT_DRAWDOWN_BYPASS: 'false',
         RISK_MANAGER_BYPASS: 'false',

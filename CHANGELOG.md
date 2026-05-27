@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Crypto Paper Short Direction Runtime Config (2026-05-27)
+
+- Set the `ogz-prime-v2` PM2 env block to `DIRECTION_FILTER=both` and `ENABLE_SHORTS=true` so crypto paper runtime does not inherit the stale `.env` long-only posture.
+
 ### Data-Feed Liveness Pause Recovery (2026-05-27)
 
 - Added owned, recoverable pause metadata to `StateManager.pauseTrading()` so data-feed liveness halts can be resumed only by matching fresh data while manual pauses and other safety stops stay blocked.
