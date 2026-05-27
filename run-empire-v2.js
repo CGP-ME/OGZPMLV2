@@ -104,7 +104,44 @@ require('./instrument.js');
 // ConfigLoader already loaded at line 4 (before Sentry)
 const envPath = resolvedConfig.config.paths.envFile;
 const { createTraceId, emitTrace } = require('./core/TraceSpine');
+const RuntimeAuditSink = require('./core/RuntimeAuditSink');
 
+const runtimeAuditSink = new RuntimeAuditSink({
+  dataDir: resolvedConfig.config.paths.dataDir || undefined,
+});
+
+function buildRuntimeAuditContext(runtimeScope, extra = {}) {
+  const config = resolvedConfig.config || {};
+  const broker = config.broker || {};
+  const mode = config.mode || {};
+  const executionMode = mode.backtest
+    ? 'backtest'
+    : (mode.liveTrading ? 'live' : (mode.execution || 'paper'));
+
+  return {
+    runtimeScope,
+    configFingerprint: resolvedConfig.fingerprint || null,
+    executionMode,
+    brokerId: broker.id || null,
+    accountId: broker.accountId || 'default',
+    assetClass: broker.assetClass || null,
+    symbol: broker.tradingPair || null,
+    timeframe: broker.candleTimeframe || null,
+    extra,
+  };
+}
+
+function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
+  const result = runtimeAuditSink.capture(
+    eventType,
+    input,
+    buildRuntimeAuditContext(runtimeScope, extra)
+  );
+  if (!result.success) {
+    console.error('[FATAL-AUDIT] Failed to persist runtime fatal audit:', result.error);
+  }
+  return result;
+}
 
 // Log resolved paths for debugging
 console.log('[CHECKPOINT-001] Environment loaded via ConfigLoader');
@@ -221,12 +258,16 @@ try {
 
 // Add uncaught exception handler to catch silent failures
 process.on('uncaughtException', (err) => {
+  captureRuntimeFatal('uncaughtException', err, 'bootstrap');
   console.error('[FATAL] Uncaught Exception:', err);
   console.error('Stack:', err.stack);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  captureRuntimeFatal('unhandledRejection', reason, 'bootstrap', {
+    promise: Object.prototype.toString.call(promise),
+  });
   console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
@@ -2814,13 +2855,17 @@ async function main() {
   process.on('SIGINT', () => bot.shutdown());
   process.on('SIGTERM', () => bot.shutdown());
   process.on('uncaughtException', (error) => {
-    console.error('âŒ Uncaught exception:', error);
+    captureRuntimeFatal('uncaughtException', error, 'main_runtime');
+    console.error('[FATAL] Uncaught exception:', error);
     bot.shutdown();
   });
 
   // CRITICAL: Handle unhandled promise rejections (Change 575)
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('âŒ Unhandled Promise Rejection:', reason);
+    captureRuntimeFatal('unhandledRejection', reason, 'main_runtime', {
+      promise: Object.prototype.toString.call(promise),
+    });
+    console.error('[FATAL] Unhandled Promise Rejection:', reason);
     console.error('   Promise:', promise);
     // Log but don't shutdown - async failures shouldn't kill bot
     console.error('   Bot continuing despite rejection...');
@@ -2832,7 +2877,8 @@ async function main() {
 // Run bot
 if (require.main === module) {
   main().catch(error => {
-    console.error('âŒ Fatal error:', error);
+    captureRuntimeFatal('mainFatal', error, 'main_start');
+    console.error('[FATAL] Fatal error:', error);
     process.exit(1);
   });
 }
