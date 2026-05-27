@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Runtime Journal Data Root Config (2026-05-27)
+
+- Added an explicit `ConfigLoader` default for `paths.journalDataDir` under the configured data directory so the scoped `TradeJournalBridge` can start without falling back to unscoped `data/journal`.
+- Added focused config coverage for default and `DATA_DIR`-derived journal roots.
+
 ### Dashboard Trade Exit Metadata (2026-05-27)
 
 - Added `exitReason`, `strategy`, and `strategyName` to dashboard trade payloads from the central `OrderExecutor` trade-frame builder so closed-trade UI rows can show why a trade closed and which strategy owned it.

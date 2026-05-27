@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 describe('ConfigLoader live trading safety guard', () => {
   let originalEnv;
 
@@ -54,6 +56,8 @@ describe('ConfigLoader live trading safety guard', () => {
       TAKE_PROFIT_PERCENT: '2.0',
       INITIAL_BALANCE: '50000',
     };
+    delete process.env.DATA_DIR;
+    delete process.env.JOURNAL_DATA_DIR;
   });
 
   afterEach(() => {
@@ -217,6 +221,24 @@ describe('ConfigLoader live trading safety guard', () => {
       gapBackfillRetryDelayMs: 60000,
       expectedQuietLogIntervalMs: 300000,
     }));
+  });
+
+  test('loads an explicit journal data root by default', () => {
+    const loaded = loadConfig();
+
+    expect(loaded.config.paths.journalDataDir).toBe(path.join(process.cwd(), 'data', 'journal'));
+    expect(loaded.sources['paths.journalDataDir']).toBe('default');
+  });
+
+  test('derives the default journal data root from DATA_DIR when set', () => {
+    process.env.DATA_DIR = path.join(process.cwd(), 'data', 'paper-runtime');
+
+    const loaded = loadConfig();
+
+    expect(loaded.config.paths.dataDir).toBe(process.env.DATA_DIR);
+    expect(loaded.config.paths.journalDataDir).toBe(path.join(process.env.DATA_DIR, 'journal'));
+    expect(loaded.sources['paths.dataDir']).toBe('env:DATA_DIR');
+    expect(loaded.sources['paths.journalDataDir']).toBe('default');
   });
 
   test('rejects invalid data-feed watchdog config', () => {

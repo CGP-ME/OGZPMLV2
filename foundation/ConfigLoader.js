@@ -22,6 +22,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════
 // ENV READER HELPERS (private — only used inside this file)
@@ -67,6 +68,11 @@ function envBool(key, fallback) {
   return { value: fallback, source: 'default' };
 }
 
+function defaultJournalDataDir(dataDir) {
+  const root = dataDir || path.join(process.cwd(), 'data');
+  return path.join(root, 'journal');
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SCHEMA — every env var the system reads, typed and documented
 // ═══════════════════════════════════════════════════════════════
@@ -78,6 +84,9 @@ function buildConfig() {
     sources[path] = result.source;
     return result.value;
   }
+
+  const dataDirConfig = envStr('DATA_DIR', '');
+  const journalDataDirConfig = envStr('JOURNAL_DATA_DIR', defaultJournalDataDir(dataDirConfig.value));
 
   const config = {
     // ─── EXECUTION MODE ───
@@ -108,8 +117,8 @@ function buildConfig() {
     paths: {
       envFile: track('paths.envFile', envStr('DOTENV_CONFIG_PATH', '.env')),
       stateFile: track('paths.stateFile', envStr('STATE_FILE', '')),
-      dataDir: track('paths.dataDir', envStr('DATA_DIR', '')),
-      journalDataDir: track('paths.journalDataDir', envStr('JOURNAL_DATA_DIR', '')),
+      dataDir: track('paths.dataDir', dataDirConfig),
+      journalDataDir: track('paths.journalDataDir', journalDataDirConfig),
     },
 
     // ─── MONITORING ───
