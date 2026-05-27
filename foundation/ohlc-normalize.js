@@ -19,7 +19,7 @@
  *   - Already-canonical array (passthrough)
  *   - Alpaca-style short-name object: { o, h, l, c, v, t, symbol }
  *   - Long-name object: { open, high, low, close, volume, time }
- *   - Mixed timestamp formats: ISO string, ms number, seconds number
+ *   - Mixed timestamp formats: ISO string, numeric string, ms number, seconds number
  *
  * Returns null if the input can't be normalized (missing time or OHLC
  * fields). Callers should check the return value and skip/log on null
@@ -29,13 +29,16 @@
  */
 'use strict';
 
+const NUMERIC_EPOCH_STRING_RE = /^(?:\d{10}(?:\.\d+)?|\d{13,}(?:\.\d+)?)$/;
+const NUMERIC_LIKE_STRING_RE = /^[+-]?(?:\d+|\d*\.\d+)(?:e[+-]?\d+)?$/i;
+
 /**
  * Coerce a timestamp field to milliseconds since epoch.
  * Accepts ISO-8601 strings, second-precision numbers (< 1e12 means
  * seconds, so multiply by 1000), or millisecond numbers. Returns null
  * on unparseable input.
  */
-function _toMs(raw) {
+function toTimestampMs(raw) {
     if (raw == null) return null;
     if (typeof raw === 'number') {
         if (!isFinite(raw) || raw <= 0) return null;
@@ -44,7 +47,13 @@ function _toMs(raw) {
         return raw < 1e12 ? raw * 1000 : raw;
     }
     if (typeof raw === 'string') {
-        const n = Date.parse(raw);
+        const trimmed = raw.trim();
+        const numeric = Number(trimmed);
+        if (NUMERIC_EPOCH_STRING_RE.test(trimmed) && isFinite(numeric) && numeric > 0) {
+            return numeric < 1e12 ? numeric * 1000 : numeric;
+        }
+        if (NUMERIC_LIKE_STRING_RE.test(trimmed)) return null;
+        const n = Date.parse(trimmed);
         return isFinite(n) ? n : null;
     }
     return null;
@@ -71,7 +80,7 @@ function normalizeOhlc(input) {
     if (!input || typeof input !== 'object') return null;
 
     // Time — accept t (Alpaca short), time (long-name), or timestamp
-    const tMs = _toMs(input.t ?? input.time ?? input.timestamp);
+    const tMs = toTimestampMs(input.t ?? input.time ?? input.timestamp);
     if (tMs == null) return null;
 
     // OHLC — accept short or long field names
@@ -87,7 +96,7 @@ function normalizeOhlc(input) {
     // downstream code using etime to detect bar-close may need the
     // adapter to pass it explicitly, but most indicator math only
     // reads the bar-open time field.
-    const etime = input.etime != null ? _toMs(input.etime) : tMs;
+    const etime = input.etime != null ? toTimestampMs(input.etime) : tMs;
 
     // vwap / count — Alpaca IEX doesn't supply these; Kraken does.
     // null preserves the "not available" semantic rather than faking 0
@@ -98,4 +107,4 @@ function normalizeOhlc(input) {
     return [tMs, etime, o, h, l, c, vwap, v, count];
 }
 
-module.exports = { normalizeOhlc };
+module.exports = { normalizeOhlc, toTimestampMs };

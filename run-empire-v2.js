@@ -358,7 +358,7 @@ const TRAIDecisionModule = loader.get('core', 'TRAIDecisionModule');
 // Infrastructure
 // EMPIRE V2 ARCHITECTURE: Using BrokerFactory for proper abstraction
 const { createBrokerAdapter } = require('./brokers/BrokerFactory');
-const { normalizeOhlc } = require('./foundation/ohlc-normalize');
+const { normalizeOhlc, toTimestampMs } = require('./foundation/ohlc-normalize');
 const TierFeatureFlags = require('./TierFeatureFlags'); // Keep direct - in root not core
 const OgzTpoIntegration = loader.get('core', 'OgzTpoIntegration');
 
@@ -404,16 +404,7 @@ function describeSymbolContexts(map) {
 }
 
 function ohlcTimestampMs(raw) {
-  if (raw == null) return null;
-  if (typeof raw === 'number') {
-    if (!Number.isFinite(raw) || raw <= 0) return null;
-    return raw < 1e12 ? raw * 1000 : raw;
-  }
-  if (typeof raw === 'string') {
-    const parsed = Date.parse(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+  return toTimestampMs(raw);
 }
 
 function normalizeOhlcForProcessor(ohlcData) {

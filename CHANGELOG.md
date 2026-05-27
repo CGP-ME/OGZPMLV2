@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### OHLC Numeric-String Timestamp Normalization (2026-05-27)
+
+- Added broker OHLC timestamp parsing for epoch-shaped numeric strings so live Kraken candle timestamps such as `1779850177.477202` normalize instead of being dropped as invalid.
+- Centralized runner timestamp coercion through the exported `foundation/ohlc-normalize.js` helper to avoid a divergent local parser in `run-empire-v2.js`, while rejecting malformed numeric-like strings before `Date.parse()`.
+- Verification: `node --check foundation/ohlc-normalize.js`, `node --check run-empire-v2.js`, focused OHLC normalization Jest coverage, Mercury adversarial attack with parser-width fix, Mercury recheck with no blocker, and `node ogz-meta/gates/multi-runtime-gate-runner.js --p0 --write-report` returned `PASS` at `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
 ### Pattern Memory Scope Gate (2026-05-26)
 
 - Added executable gate `scope.pattern_memory.scope_isolation` to prove `UnifiedPatternMemory` and `PatternMemoryBank` public APIs reject missing or mismatched immutable scope, isolate reads across asset/timeframe/broker scope, and keep legacy unscoped rows from satisfying scoped reads.
