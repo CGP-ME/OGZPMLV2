@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Crypto Paper PM2 Runtime Config (2026-05-27)
+
+- Set the `ogz-prime-v2` PM2 env block to explicit Kraken `BTC-USD` crypto paper mode with live trading disabled, SessionRouter disabled, stock symbols cleared, and drawdown/risk bypasses pinned false.
+- Verification: `node --check ecosystem.config.js`, live `pm2 env 4` posture check, Mercury adversarial config review with no blocking finding, and canonical P0 was re-run after the runtime timestamp fix held the exact anchor.
+
 ### OHLC Numeric-String Timestamp Normalization (2026-05-27)
 
 - Added broker OHLC timestamp parsing for epoch-shaped numeric strings so live Kraken candle timestamps such as `1779850177.477202` normalize instead of being dropped as invalid.

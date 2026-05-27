@@ -17,6 +17,19 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: 'production',
+        EXECUTION_MODE: 'paper',
+        PAPER_TRADING: 'true',
+        LIVE_TRADING: 'false',
+        CONFIRM_LIVE_TRADING: 'false',
+        BROKER: 'kraken',
+        ASSET_CLASS: 'crypto',
+        PRIMARY_ASSET: 'BTC-USD',
+        TRADING_PAIR: 'BTC-USD',
+        ALPACA_SYMBOLS: '',
+        CANDLE_TIMEFRAME: '1m',
+        SESSION_ROUTER_ENABLED: 'false',
+        ACCOUNT_DRAWDOWN_BYPASS: 'false',
+        RISK_MANAGER_BYPASS: 'false',
         // 2026-04-29: NoWickImbalance enabled. Strategy is disabled in code
         // default; this flip turns it on. Sweep + walk-forward to follow.
         ENABLE_NOWICK: 'true',
