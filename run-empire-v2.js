@@ -822,7 +822,7 @@ class OGZPrimeV14Bot {
           this._visOhlcSeen.add(visKey);
           console.log(`[VIS][OHLC][Runner] source=sessionRouter session=${this.sessionRouter?.activeSession || '(none)'} timeframe=${tf} symbolSource=${symbolSource} payloadSymbol=${eventSymbol || rawSymbol || '(missing)'} symbol=${sym} close=${ohlcData[5]} contexts=${describeSymbolContexts(this.symbolContexts)}`);
         }
-        const storedCandle = this.storeTimeframeCandle(tf, ohlcData);
+        const storedCandle = this.storeTimeframeCandle(tf, ohlcData, sym);
         this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
           this._markActiveTimeframeData(sym, tf);
@@ -1538,7 +1538,7 @@ class OGZPrimeV14Bot {
         this.candleProcessor.processNewCandle(candle, { persist: false });
         const ohlc = candleToProcessorOhlc(candle, timeframeMs);
         if (ohlc) {
-          this.storeTimeframeCandle(timeframe, ohlc);
+          this.storeTimeframeCandle(timeframe, ohlc, symbol);
           this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
         }
       }
@@ -1773,7 +1773,7 @@ class OGZPrimeV14Bot {
           }
 
           // Store in timeframe-specific history for dashboard
-          const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData);
+          const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData, ohlcSymbol);
           this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
 
           // Feed only the active trading timeframe to indicators + strategy context.
@@ -1924,7 +1924,7 @@ class OGZPrimeV14Bot {
       return null;
     }
 
-    const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc);
+    const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc, symbol);
     this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
     this._markActiveTimeframeData(symbol, activeTimeframe);
     emitTrace(this, 'ACTIVE_CANDLE_AGGREGATED', {
@@ -1988,7 +1988,7 @@ class OGZPrimeV14Bot {
    * @param {string} timeframe - '1m', '5m', '15m', '30m', '1h', '1d'
    * @param {Array} ohlcData - Kraken OHLC array [time, etime, o, h, l, c, vwap, vol, count]
    */
-  storeTimeframeCandle(timeframe, ohlcData) {
+  storeTimeframeCandle(timeframe, ohlcData, symbol = null) {
     if (!this.timeframeHistories[timeframe]) {
       this.timeframeHistories[timeframe] = [];
     }
@@ -1999,6 +1999,8 @@ class OGZPrimeV14Bot {
 
     const [time, etime, open, high, low, close, vwap, volume] = ohlcData;
     const candle = {
+      symbol: normalizeRuntimeSymbol(symbol),
+      timeframe,
       t: parseFloat(time) * 1000,
       etime: parseFloat(etime) * 1000,
       o: parseFloat(open),
@@ -2037,6 +2039,38 @@ class OGZPrimeV14Bot {
     return this.timeframeHistories[tf] || this.priceHistory;
   }
 
+  _stampDashboardHistoricalCandles(candles, symbol, timeframe) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    if (!Array.isArray(candles) || !canonicalSymbol) return [];
+    return candles.map(candle => {
+      if (Array.isArray(candle)) {
+        const stamped = candle.slice();
+        stamped.symbol = canonicalSymbol;
+        stamped.timeframe = timeframe;
+        return stamped;
+      }
+      if (candle && typeof candle === 'object') {
+        return {
+          ...candle,
+          symbol: normalizeRuntimeSymbol(candle.symbol) || canonicalSymbol,
+          timeframe: candle.timeframe || timeframe,
+        };
+      }
+      return candle;
+    });
+  }
+
+  _getSymbolMatchedCachedCandles(symbol, timeframe) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    if (!canonicalSymbol) return [];
+
+    const symbolScoped = this.getSymbolTimeframeCandles(canonicalSymbol, timeframe);
+    if (symbolScoped.length > 0) return symbolScoped;
+
+    const globalCached = this.getCandlesForTimeframe(timeframe) || [];
+    return globalCached.filter(candle => normalizeRuntimeSymbol(candle?.symbol) === canonicalSymbol);
+  }
+
   /**
    * CHANGE 2026-01-30: Fetch historical candles from Kraken REST API and send to dashboard
    * This is the PROPER way to get historical data - REST API, not just WebSocket cache
@@ -2044,6 +2078,10 @@ class OGZPrimeV14Bot {
    * @param {number} limit - Number of candles to fetch
    */
   async fetchAndSendHistoricalCandles(timeframe, limit = 200) {
+    const fallbackDashboardSymbol = normalizeRuntimeSymbol(
+      this.assetManager?.activeAsset || this.tradingPair || resolvedConfig.config.broker.tradingPair
+    );
+
     try {
       if (!this.kraken || !this.dashboardWs) {
         console.warn('[WARNING] Cannot fetch historical candles - broker or dashboard not connected');
@@ -2056,7 +2094,12 @@ class OGZPrimeV14Bot {
       const symbol = this.assetManager
         ? this.assetManager.toSlashFormat(this.assetManager.activeAsset)
         : resolvedConfig.config.broker.tradingPair;
-      const candles = await this.kraken.getCandles(symbol, timeframe, limit);
+      const dashboardSymbol = normalizeRuntimeSymbol(this.assetManager?.activeAsset || symbol) || fallbackDashboardSymbol;
+      const candles = this._stampDashboardHistoricalCandles(
+        await this.kraken.getCandles(symbol, timeframe, limit),
+        dashboardSymbol,
+        timeframe
+      );
 
       if (candles && candles.length > 0) {
         // Update our local cache with the fetched data
@@ -2065,6 +2108,7 @@ class OGZPrimeV14Bot {
         // Send to dashboard
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
+          symbol: dashboardSymbol,
           timeframe: timeframe,
           candles: candles
         }));
@@ -2073,23 +2117,25 @@ class OGZPrimeV14Bot {
       } else {
         console.warn(`[WARNING] No historical candles returned for ${timeframe}`);
         // Fall back to cached WebSocket data if available
-        const cached = this.getCandlesForTimeframe(timeframe);
+        const cached = this._getSymbolMatchedCachedCandles(dashboardSymbol, timeframe);
         if (cached.length > 0) {
           this.dashboardWs.send(JSON.stringify({
             type: 'historical_candles',
+            symbol: dashboardSymbol,
             timeframe: timeframe,
             candles: cached
           }));
-          console.log(`Sent ${cached.length} cached ${timeframe} candles as fallback`);
+          console.log(`Sent ${cached.length} cached ${dashboardSymbol} ${timeframe} candles as fallback`);
         }
       }
     } catch (error) {
-      console.error(`âŒ Failed to fetch historical ${timeframe} candles:`, error.message);
+      console.error(`Failed to fetch historical ${timeframe} candles:`, error.message);
       // Fall back to cached data
-      const cached = this.getCandlesForTimeframe(timeframe);
+      const cached = this._getSymbolMatchedCachedCandles(fallbackDashboardSymbol, timeframe);
       if (cached.length > 0 && this.dashboardWs) {
         this.dashboardWs.send(JSON.stringify({
           type: 'historical_candles',
+          symbol: fallbackDashboardSymbol,
           timeframe: timeframe,
           candles: cached
         }));
@@ -2314,7 +2360,7 @@ class OGZPrimeV14Bot {
       const ohlc = candleToProcessorOhlc(candle, timeframeMs);
       if (!ohlc) continue;
       this.candleProcessor.processNewCandle(candle, { persist: false });
-      this.storeTimeframeCandle(timeframe, ohlc);
+      this.storeTimeframeCandle(timeframe, ohlc, symbol);
       this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
       applied++;
     }

@@ -1,11 +1,15 @@
 'use strict';
 
 const CandleProcessor = require('../core/CandleProcessor');
+const ConfigLoader = require('../foundation/ConfigLoader');
 
 function makeSymCtx(symbol) {
   return {
     symbol,
-    indicatorEngine: { updateCandle: jest.fn() },
+    indicatorEngine: {
+      updateCandle: jest.fn(),
+      getRenderPacket: jest.fn(() => ({ indicators: {}, overlays: {} })),
+    },
     emaCrossover: null,
     maDynamicSR: null,
     volumeProfile: null,
@@ -23,7 +27,10 @@ function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m'
       addCandle: jest.fn(),
     },
     priceHistory: [],
-    indicatorEngine: { updateCandle: jest.fn() },
+    indicatorEngine: {
+      updateCandle: jest.fn(),
+      getRenderPacket: jest.fn(() => ({ indicators: {}, overlays: {} })),
+    },
     mtfAdapter: null,
     emaCrossover: null,
     maDynamicSR: null,
@@ -154,6 +161,38 @@ describe('symbol-aware candle routing', () => {
         scopeKeyVersion: 2,
       })
     );
+  });
+
+  test('dashboard price frame carries symbol on top-level, data, and candle payload', () => {
+    const priorBacktestFast = process.env.BACKTEST_FAST;
+    process.env.BACKTEST_FAST = 'false';
+    ConfigLoader.load({ force: true, silent: true });
+    try {
+      const btc = makeSymCtx('BTC-USD');
+      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+      ctx.dashboardWsConnected = true;
+      ctx.dashboardWs = { send: jest.fn() };
+      ctx.dashboardTimeframe = '1m';
+      ctx.getCandlesForTimeframe = jest.fn(() => [candleObject({ symbol: 'BTC-USD' })]);
+      const processor = new CandleProcessor(ctx);
+
+      processor.handleMarketData({ data: ohlc(77724), symbol: 'XBT/USD', timeframe: '1m' });
+
+      expect(ctx.dashboardWs.send).toHaveBeenCalledTimes(1);
+      const payload = JSON.parse(ctx.dashboardWs.send.mock.calls[0][0]);
+      expect(payload.type).toBe('price');
+      expect(payload.symbol).toBe('BTC-USD');
+      expect(payload.data.symbol).toBe('BTC-USD');
+      expect(payload.data.candle.symbol).toBe('BTC-USD');
+      expect(payload.data.candle.timeframe).toBe('1m');
+    } finally {
+      if (priorBacktestFast === undefined) {
+        delete process.env.BACKTEST_FAST;
+      } else {
+        process.env.BACKTEST_FAST = priorBacktestFast;
+      }
+      ConfigLoader.load({ force: true, silent: true });
+    }
   });
 
   test('processNewCandle rejects missing symbol instead of using ctx tradingPair', () => {

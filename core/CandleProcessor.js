@@ -926,11 +926,18 @@ class CandleProcessor {
         const winningTrades = closedTrades.filter(t => t.pnl > 0).length;
         const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
 
+        const dashboardSymbol = candle.symbol;
+        const dashboardTimeframe = this.ctx.dashboardTimeframe || candle.timeframe;
+
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
+          symbol: dashboardSymbol,
           data: {
+            symbol: dashboardSymbol,
             price: price,
             candle: {
+              symbol: dashboardSymbol,
+              timeframe: candle.timeframe,
               open: parseFloat(open),
               high: parseFloat(high),
               low: parseFloat(low),
@@ -940,8 +947,8 @@ class CandleProcessor {
             },
             indicators: renderPacket.indicators,  // Use IndicatorEngine output
             // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
-            candles: this.ctx.getCandlesForTimeframe(this.ctx.dashboardTimeframe).slice(-50),
-            timeframe: this.ctx.dashboardTimeframe,  // Tell dashboard what timeframe this is
+            candles: this.ctx.getCandlesForTimeframe(dashboardTimeframe).slice(-50),
+            timeframe: dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
             balance: currentBalance,
             position: stateManager.get('position'),

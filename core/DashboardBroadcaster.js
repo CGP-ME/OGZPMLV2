@@ -51,10 +51,17 @@ class DashboardBroadcaster {
         };
       }
 
+      const symbol = candle?.symbol || null;
+      if (!symbol) {
+        console.error('[DashboardBroadcaster] Missing candle.symbol; refusing unattributed edge analytics broadcast');
+        return;
+      }
+
       // God Mode: Delta tick emission for zero-lag chart updates
       this.ctx.dashboardWs.send(JSON.stringify({
         type: 'delta',
-        tick: { price, volume, timestamp: Date.now() }
+        symbol,
+        tick: { symbol, price, volume, timestamp: Date.now() }
       }));
 
       // Calculate CVD (Cumulative Volume Delta)
@@ -247,7 +254,7 @@ class DashboardBroadcaster {
       }
 
     } catch (error) {
-      console.error('⚠️ Edge analytics broadcast failed:', error.message);
+      console.error('Edge analytics broadcast failed:', error.message);
     }
   }
 

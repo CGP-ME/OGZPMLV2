@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Market Frame Symbol Attribution (2026-05-27)
+
+- Added explicit `symbol` fields to dashboard `price`, `delta`, and `historical_candles` frames so frontend panels can filter by real asset provenance instead of guessing from the active selector.
+- Added focused coverage for `CandleProcessor` price frames and `DashboardBroadcaster` delta frames carrying symbol metadata, including fail-closed coverage for edge analytics broadcasts missing a candle symbol.
+- Removed emoji/garbled prefixes from the touched dashboard emit log lines without running a broad codebase scrub.
+
 ### Trade Narrator Emoji-Free Dashboard Feed (2026-05-27)
 
 - Removed emoji prefixes from `TradeNarrator` user and architect narrator output so `narrator_event` dashboard text and narrator stdout stay operator-safe without broad repo-wide scrubbing.

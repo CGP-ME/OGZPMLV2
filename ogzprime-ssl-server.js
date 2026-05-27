@@ -55,6 +55,15 @@ const apiPort = process.env.API_PORT || 3010;
 const app = express();
 const httpServer = http.createServer(app);
 
+function normalizeDashboardSymbol(symbol) {
+  if (typeof symbol !== 'string' || !symbol.trim()) return null;
+  let normalized = symbol.trim().toUpperCase().replace('XBT', 'BTC').split('/').join('-');
+  if (!normalized.includes('-') && normalized.endsWith('USD') && normalized.length === 6) {
+    normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
+  }
+  return normalized;
+}
+
 // Middleware
 app.use(express.json());
 
@@ -1163,20 +1172,22 @@ wss.on('connection', (ws, req) => {
               handled = true;
               const tf = data.timeframe || '15m';
               const limit = data.limit || 500;
-              console.log(`📊 [StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
+              const dashboardSymbol = normalizeDashboardSymbol(asset);
+              console.log(`[StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
               fetchStockCandles(asset, tf, limit).then(candles => {
                 if (candles && candles.length > 0 && ws.readyState === WebSocket.OPEN) {
                   ws.send(JSON.stringify({
                     type: 'historical_candles',
+                    symbol: dashboardSymbol,
                     timeframe: tf,
                     candles: candles
                   }));
-                  console.log(`📊 [StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
+                  console.log(`[StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
                 } else {
-                  console.warn(`📊 [StockAdapter] No data for ${asset} @ ${tf}`);
+                  console.warn(`[StockAdapter] No data for ${asset} @ ${tf}`);
                 }
               }).catch(err => {
-                console.error(`📊 [StockAdapter] Error: ${err.message}`);
+                console.error(`[StockAdapter] Error: ${err.message}`);
               });
             }
           } catch (err) {
@@ -1359,13 +1370,15 @@ krakenSocket.on('message', (data) => {
 
       // Log periodically
       if (tickCount % 10 === 0 || tickCount <= 5) {
-        console.log(`🎯 KRAKEN TICK #${tickCount}: ${asset} $${price.toFixed(2)} @ ${new Date().toLocaleTimeString()}`);
+        console.log(`KRAKEN TICK #${tickCount}: ${asset} $${price.toFixed(2)} @ ${new Date().toLocaleTimeString()}`);
       }
 
-      // 🚀 SIMPLE DIRECT BROADCAST - NO OVERCOMPLICATED BROADCASTER
+      // SIMPLE DIRECT BROADCAST - NO OVERCOMPLICATED BROADCASTER
       const priceMessage = {
         type: 'price',
+        symbol: asset,
         data: {
+          symbol: asset,
           asset: asset,
           price: price,
           timestamp: Date.now(),
@@ -1393,13 +1406,13 @@ krakenSocket.on('message', (data) => {
       
       // Log broadcast results periodically
       if (sentCount > 0 && tickCount % 20 === 0) {
-        console.log(`📡 Kraken price broadcast: ${asset} $${price.toFixed(2)} → ${sentCount} clients`);
+        console.log(`Kraken price broadcast: ${asset} $${price.toFixed(2)} -> ${sentCount} clients`);
       }
     }
     
     // Handle subscription status messages
     if (msg.event === 'subscriptionStatus') {
-      console.log(`📊 Kraken subscription: ${msg.status} - ${msg.pair || 'multiple pairs'}`);
+      console.log(`Kraken subscription: ${msg.status} - ${msg.pair || 'multiple pairs'}`);
     }
     
     // Handle system status
