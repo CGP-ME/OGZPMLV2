@@ -235,7 +235,7 @@ window.OGZ = (function() {
 
             // LIVE: Historical candle loading
             socket.registerHandler('historical_candles', (d) => {
-                if (this.get('Chart')) this.get('Chart').loadHistorical(d.candles);
+                if (this.get('Chart')) this.get('Chart').loadHistorical(d);
             });
 
             // LIVE: Balance sync

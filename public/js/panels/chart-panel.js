@@ -145,6 +145,41 @@
     const DEFAULT_SYMBOL = 'TSLA';
     const DEFAULT_TIMEFRAME = '1m';
 
+    function normalizeDashboardSymbol(symbol) {
+        const raw = String(symbol || '').trim().toUpperCase();
+        if (!raw) return '';
+        const dashed = raw.replace(/^XBT/, 'BTC').replace(/\//g, '-');
+        if (dashed === 'BTC' || dashed === 'ETH' || dashed === 'SOL') return `${dashed}-USD`;
+        return dashed;
+    }
+
+    function selectedAssetSymbol() {
+        try {
+            const root = document.getElementById(ROOT_ID);
+            const selector = root && root.querySelector ? root.querySelector('#cp-assetSelector') : null;
+            return normalizeDashboardSymbol(selector && selector.value ? selector.value : DEFAULT_SYMBOL);
+        } catch (_) {
+            return normalizeDashboardSymbol(DEFAULT_SYMBOL);
+        }
+    }
+
+    function payloadSymbol(payload) {
+        if (!payload) return '';
+        const data = payload.data && typeof payload.data === 'object' ? payload.data : null;
+        const candle = payload.candle && typeof payload.candle === 'object' ? payload.candle : null;
+        return normalizeDashboardSymbol(
+            payload.symbol || payload.asset ||
+            (data && (data.symbol || data.asset)) ||
+            (candle && (candle.symbol || candle.asset))
+        );
+    }
+
+    function payloadMatchesSelectedAsset(payload) {
+        const incoming = payloadSymbol(payload);
+        if (!incoming) return false;
+        return incoming === selectedAssetSymbol();
+    }
+
     // ─── CSS Injection (Fallback) ──────────────────────────────────────────
     (function injectFlashStyle() {
         if (typeof document === 'undefined') return;
@@ -1081,6 +1116,7 @@
             try {
                 const data = (d && d.data) ? d.data : d;
                 if (!data || !isFinite(Number(data.price)) || Number(data.price) <= 0) return;
+                if (!ChartPanel.isSelectedAssetPayload(data)) return;
                 // Pass the FULL trade payload so the marker carries all the
                 // white-box context (action, direction, pnl, confidence,
                 // pattern, strategy, duration) for hover-tooltip rendering.
@@ -1736,6 +1772,7 @@
          * Handle live price ticks: update candles, volume, price flash, HUD.
          */
         update: function (d) {
+            if (!this.isSelectedAssetPayload(d)) return;
             if (!candleSeries) return;
             const candle = d.candle || d;
             const price = candle.close || candle.c;
@@ -1918,7 +1955,10 @@
         /**
          * Load historical candles and recalculate indicators.
          */
-        loadHistorical: function (candles) {
+        loadHistorical: function (message) {
+            const envelope = Array.isArray(message) ? { candles: message } : (message || {});
+            if (!this.isSelectedAssetPayload(envelope)) return;
+            const candles = envelope.candles;
             if (!candleSeries || !candles || candles.length === 0) return;
             try {
                 const formatted = candles.map(c => {
@@ -2447,6 +2487,10 @@
                     tooltip: !!_cachedTooltipEl
                 }
             };
+        },
+
+        isSelectedAssetPayload: function (payload) {
+            return payloadMatchesSelectedAsset(payload);
         }
     };
 

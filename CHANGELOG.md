@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kept non-active historical lookups out of the runner's legacy active timeframe cache so a dashboard request for another symbol cannot poison later active-symbol price frames.
 - Removed the chart panel's client-side asset-swap watchdog kick; initial candle load now relies on the backend's explicit asset/timeframe request contract instead of temporarily switching symbols to provoke a response.
 
+### Dashboard Chart Symbol Filtering (2026-05-27)
+
+- Added chart-side symbol filtering for `price`, `trade`, and `historical_candles` frames so future multi-symbol or watchlist price broadcasts cannot append BTC/ETH/stock ticks to the wrong selected chart.
+- Rejected unsymbolized chart frames instead of assigning them to the selected chart, while normalizing bare crypto (`BTC`, `ETH`) and Kraken slash symbols (`XBT/USD`) to the dashboard's dash-form selector values.
+
 ### Dashboard Price Frame Contract (2026-05-27)
 
 - Added top-level `price`, `close`, `volume`, `timestamp`, `timeframe`, candle, indicator, balance, position, and P&L fields to bot `price` WebSocket frames while preserving the nested `data` payload, so dashboard panels that consume either frame shape read the same real market tick instead of defaulting to zero or blanks.
