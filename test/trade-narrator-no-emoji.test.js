@@ -196,4 +196,108 @@ describe('TradeNarrator dashboard prose', () => {
       expect(close.text).not.toContain('LOSS 0.00%');
     }
   });
+
+  test('narrates gate and broker frames through the existing narrator_event contract', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.gateDecision({
+      type: 'gate_event',
+      kind: 'risk_block',
+      symbol: 'BTC-USD',
+      strategy: 'MADynamicSR',
+      passed: false,
+      traceId: 'trace-1',
+      timestamp: 1000,
+    });
+    narrator.brokerResult({
+      type: 'broker_ack',
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      action: 'BUY',
+      orderId: 'order-1',
+      ok: true,
+      timestamp: 1001,
+    });
+
+    const gate = sends.find((payload) => payload.type === 'narrator_event' && payload.event === 'risk_block');
+    const broker = sends.find((payload) => payload.type === 'narrator_event' && payload.event === 'broker_ack');
+
+    expect(gate).toMatchObject({
+      scope: 'USER',
+      symbol: 'BTC-USD',
+      gate_kind: 'risk_block',
+      passed: false,
+      traceId: 'trace-1',
+    });
+    expect(gate.strategy_label).toMatch(/^Strategy-/);
+    expect(gate.strategy_label).not.toBe('MADynamicSR');
+    expect(JSON.stringify(gate)).not.toContain('MADynamicSR');
+    expect(gate.category).toBeUndefined();
+    expect(gate.code).toBeUndefined();
+
+    expect(broker).toMatchObject({
+      scope: 'USER',
+      symbol: 'BTC-USD',
+      broker: 'kraken',
+      action: 'BUY',
+      orderId: 'order-1',
+      ok: true,
+    });
+    expect(broker.category).toBeUndefined();
+    expect(broker.code).toBeUndefined();
+  });
+
+  test('uses market-maker charity flavor only for qualifying fast losses without suppressing closes', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(100000);
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.closed({
+      tradeId: 'loss-1',
+      strategy: 'MADynamicSR',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 99.5,
+      pnl: -5,
+      pnlPercent: -0.5,
+      reason: 'stop_loss',
+      holdMs: 20000,
+    });
+    nowSpy.mockReturnValue(101000);
+    narrator.closed({
+      tradeId: 'loss-2',
+      strategy: 'MADynamicSR',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 99.5,
+      pnl: -5,
+      pnlPercent: -0.5,
+      reason: 'stop_loss',
+      holdMs: 20000,
+    });
+    nowSpy.mockRestore();
+
+    const closes = sends.filter((payload) => payload.type === 'narrator_event' && payload.event === 'closed');
+    expect(closes).toHaveLength(2);
+    expect(closes[0].event).toBe('closed');
+    expect(closes[0].result).toBe('loss');
+    expect(closes[0].text).toContain('charity work for the market makers');
+    expect(closes[1].event).toBe('closed');
+    expect(closes[1].result).toBe('loss');
+    expect(closes[1].text).toContain('LOSS -0.50%');
+    expect(closes[1].text).not.toContain('charity work for the market makers');
+  });
 });

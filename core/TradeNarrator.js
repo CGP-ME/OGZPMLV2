@@ -209,6 +209,72 @@ function closeOutcome(pnl, pnlPercent) {
   return { title: 'BREAK-EVEN', result: 'flat' };
 }
 
+const USER_LINES = Object.freeze({
+  entered: [
+    'Entry taken by {strategy_label} - {direction}, conviction {conviction}, {risk_frame}/{profit_frame} risk frame.',
+    '{strategy_label} stepped in - {direction}, conviction {conviction}. Manage it, do not marry it.',
+  ],
+  closed_win: [
+    '{strategy_label} closed {direction} - WIN {pnl_pct} ({pnl_usd}) held {hold}.',
+    '{strategy_label} got paid - WIN {pnl_pct} ({pnl_usd}) held {hold}.',
+  ],
+  closed_loss: [
+    '{strategy_label} closed {direction} - LOSS {pnl_pct} ({pnl_usd}) held {hold}.',
+    '{strategy_label} took damage - LOSS {pnl_pct} ({pnl_usd}) held {hold}.',
+  ],
+  closed_flat: [
+    '{strategy_label} closed {direction} - BREAK-EVEN {pnl_pct} ({pnl_usd}) held {hold}.',
+    'Scratch exit from {strategy_label} - no trophy, no damage.',
+  ],
+  closed_unverified: [
+    '{strategy_label} closed {direction} - UNVERIFIED {pnl_pct} ({pnl_usd}) held {hold}.',
+  ],
+  closed_loss_fast_stop: [
+    '{strategy_label} closed {direction} - LOSS {pnl_pct} ({pnl_usd}) held {hold}. That was not trading. That was charity work for the market makers.',
+    '{strategy_label} closed {direction} - LOSS {pnl_pct} ({pnl_usd}) held {hold}. We just sponsored liquidity. Do not make it a habit.',
+  ],
+  tier_exit: [
+    '{strategy_label} took partial at tier {tier} - locked {locked_pct} ({pnl_usd}).',
+    'Partial taken by {strategy_label} - bank some meat, leave a runner.',
+  ],
+  gate_pass: [
+    'Gate passed. The setup earned the next check.',
+  ],
+  gate_block: [
+    'Gate blocked it. Good. That setup was trying to sneak past security.',
+    'No entry. Gate said not today.',
+  ],
+  risk_block: [
+    'Risk blocked it. Discipline doing its job.',
+    'Exposure said no. The bot wanted more, risk told it to sit down.',
+  ],
+  broker_ack: [
+    'Broker accepted. Order is in the pipe.',
+    'Broker took it. Execution is live.',
+  ],
+  broker_reject: [
+    'Broker rejected it. Better rejected than ghost-filled.',
+    'Order rejected. That route is dead until proven otherwise.',
+  ],
+  feed_stale: [
+    'Feed stale. Nobody trades ghosts.',
+    'Data is old. Hands off the trigger.',
+  ],
+  symbol_mismatch: [
+    'Symbol mismatch caught. Wrong symbol stream.',
+    'Data attribution broke. Do not trust this panel yet.',
+  ],
+});
+
+function renderUserLine(key, fields = {}) {
+  const lines = USER_LINES[key];
+  if (!Array.isArray(lines) || lines.length === 0) return null;
+  return lines[0].replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, name) => {
+    const value = fields[name];
+    return value == null || value === '' ? '-' : String(value);
+  });
+}
+
 function fmtMs(ms) {
   const n = Math.max(0, ms | 0);
   const s = Math.floor(n / 1000);
@@ -249,6 +315,7 @@ class TradeNarrator {
     // Never touches StateManager — pure in-memory cache, narrator-local.
     this._ctx = new Map();
     this._ctxMax = 200;
+    this._flavorCooldown = new Map();
 
     if (this.enabled) {
       const modes = [
@@ -514,10 +581,14 @@ class TradeNarrator {
           risk_frame: slBucket,
           profit_frame: tpBucket,
         };
-        this._emitUser(
-          `Entry taken by ${label} — ${payload.direction.toUpperCase()}, conviction ${payload.conviction}, ${payload.risk_frame}/${payload.profit_frame} risk frame.`,
-          payload
-        );
+        const line = renderUserLine('entered', {
+          strategy_label: label,
+          direction: payload.direction.toUpperCase(),
+          conviction: payload.conviction,
+          risk_frame: payload.risk_frame,
+          profit_frame: payload.profit_frame,
+        });
+        this._emitUser(line, payload);
       }
     } catch (_) { /* swallow */ }
   }
@@ -563,10 +634,13 @@ class TradeNarrator {
           locked_pct: Number(((profitPercent || 0) * 100).toFixed(2)),
           pnl_usd: partialPnl != null ? Number(partialPnl.toFixed(2)) : null,
         };
-        this._emitUser(
-          `${label} took partial at tier ${payload.tier} — locked ${fmtPct(payload.locked_pct, 2)} (${fmtUsd(payload.pnl_usd || 0)}).`,
-          payload
-        );
+        const line = renderUserLine('tier_exit', {
+          strategy_label: label,
+          tier: payload.tier,
+          locked_pct: fmtPct(payload.locked_pct, 2),
+          pnl_usd: fmtUsd(payload.pnl_usd || 0),
+        });
+        this._emitUser(line, payload);
       }
     } catch (_) { /* swallow */ }
   }
@@ -613,6 +687,13 @@ class TradeNarrator {
 
       if (this.user) {
         const label = this.labelFor(strat);
+        const lineKey = this._closedLineKey({
+          outcome,
+          pnl: numericPnl,
+          pnlPercent: numericPnlPercent,
+          reason,
+          holdMs: held,
+        });
         const payload = {
           type: 'narrator_event',
           scope: 'USER',
@@ -626,14 +707,116 @@ class TradeNarrator {
           hold_seconds: Math.floor(held / 1000),
           reason: this._safeReason(reason),
         };
-        this._emitUser(
-          `${label} closed ${payload.direction.toUpperCase()} — ${outcome.title} ${fmtPct(payload.pnl_pct || 0, 2)} (${fmtUsd(payload.pnl_usd || 0)}) held ${fmtMs(held)}.`,
-          payload
-        );
+        const line = renderUserLine(lineKey, {
+          strategy_label: label,
+          direction: payload.direction.toUpperCase(),
+          pnl_pct: fmtPct(payload.pnl_pct || 0, 2),
+          pnl_usd: fmtUsd(payload.pnl_usd || 0),
+          hold: fmtMs(held),
+        });
+        this._emitUser(line, payload);
       }
 
       // Trade is done — free the context slot
       if (tradeId) this._ctx.delete(tradeId);
+    } catch (_) { /* swallow */ }
+  }
+
+  gateDecision(frame) {
+    if (!this.enabled) return;
+    try {
+      if (!frame || frame.type !== 'gate_event') return;
+      const kind = String(frame.kind || frame.gate_kind || '').toLowerCase();
+      const event = kind.includes('risk') && (kind.includes('block') || frame.passed === false)
+        ? 'risk_block'
+        : kind.includes('block') || frame.passed === false
+          ? 'gate_block'
+          : 'gate_pass';
+      const strategy = frame.strategy || frame.strategyName || frame.data?.strategy || frame.data?.strategyName || null;
+      const label = strategy ? this.labelFor(strategy) : 'Strategy-?';
+      const payload = {
+        type: 'narrator_event',
+        scope: 'USER',
+        event,
+        timestamp: Number.isFinite(frame.timestamp) ? frame.timestamp : Date.now(),
+        symbol: frame.symbol || frame.data?.symbol || null,
+        strategy_label: label,
+        gate_kind: kind || null,
+        passed: frame.passed === true,
+        traceId: frame.traceId || frame.data?.traceId || null,
+      };
+
+      if (this.architect) {
+        this._emitArchitect('GATE DECISION', [
+          `   kind:     ${payload.gate_kind || '-'}`,
+          `   symbol:   ${payload.symbol || '-'}`,
+          `   traceId:  ${payload.traceId || '-'}`,
+          `   passed:   ${payload.passed}`,
+        ].join('\n'));
+      }
+
+      if (this.user) {
+        this._emitUser(renderUserLine(event, payload), payload);
+      }
+    } catch (_) { /* swallow */ }
+  }
+
+  brokerResult(frame) {
+    if (!this.enabled) return;
+    try {
+      if (!frame || (frame.type !== 'broker_ack' && frame.type !== 'broker_reject')) return;
+      const event = frame.type;
+      const payload = {
+        type: 'narrator_event',
+        scope: 'USER',
+        event,
+        timestamp: Number.isFinite(frame.timestamp) ? frame.timestamp : Date.now(),
+        symbol: frame.symbol || frame.data?.symbol || null,
+        broker: frame.broker || frame.brokerId || frame.data?.broker || frame.data?.brokerId || null,
+        action: frame.action || frame.webhookAction || frame.data?.action || frame.data?.webhookAction || null,
+        orderId: frame.orderId || frame.data?.orderId || null,
+        ok: frame.ok === true,
+        reason: frame.reason || frame.data?.reason || null,
+      };
+
+      if (this.architect) {
+        this._emitArchitect(event === 'broker_ack' ? 'BROKER ACCEPTED' : 'BROKER REJECTED', [
+          `   broker:   ${payload.broker || '-'}`,
+          `   symbol:   ${payload.symbol || '-'}`,
+          `   action:   ${payload.action || '-'}`,
+          `   orderId:  ${payload.orderId || '-'}`,
+          `   reason:   ${payload.reason || '-'}`,
+        ].join('\n'));
+      }
+
+      if (this.user) {
+        this._emitUser(renderUserLine(event, payload), payload);
+      }
+    } catch (_) { /* swallow */ }
+  }
+
+  feedIntegrity(frame) {
+    if (!this.enabled) return;
+    try {
+      if (!frame) return;
+      const event = frame.event === 'symbol_mismatch' || frame.type === 'symbol_mismatch'
+        ? 'symbol_mismatch'
+        : frame.event === 'feed_stale' || frame.type === 'feed_stale'
+          ? 'feed_stale'
+          : null;
+      if (!event) return;
+      const payload = {
+        type: 'narrator_event',
+        scope: 'USER',
+        event,
+        timestamp: Number.isFinite(frame.timestamp) ? frame.timestamp : Date.now(),
+        symbol: frame.symbol || null,
+        expectedSymbol: frame.expectedSymbol || null,
+        actualSymbol: frame.actualSymbol || null,
+      };
+      if (this.user) {
+        this._emitUser(renderUserLine(event, payload), payload);
+      }
     } catch (_) { /* swallow */ }
   }
 
@@ -705,6 +888,45 @@ class TradeNarrator {
       if (firstKey != null) this._ctx.delete(firstKey);
     }
     this._ctx.set(tradeId, rec);
+  }
+
+  _closedLineKey({ outcome, pnl, pnlPercent, reason, holdMs }) {
+    if (outcome.result === 'win') return 'closed_win';
+    if (outcome.result === 'flat') return 'closed_flat';
+    if (outcome.result !== 'loss') return 'closed_unverified';
+
+    if (this._isMarketMakerCharity({ pnl, pnlPercent, reason, holdMs })
+        && this._allowFlavor('closed_loss_fast_stop', 60_000)) {
+      return 'closed_loss_fast_stop';
+    }
+    return 'closed_loss';
+  }
+
+  _isMarketMakerCharity({ pnl, pnlPercent, reason, holdMs }) {
+    const n = finiteNumberOrNull(pnl);
+    if (!(n < 0)) return false;
+
+    const pct = finiteNumberOrNull(pnlPercent);
+    const fastFailure = Number.isFinite(holdMs) && holdMs <= 90_000;
+    const meaningfulLoss = pct != null && pct <= -0.25;
+    if (!fastFailure && !meaningfulLoss) return false;
+
+    const r = String(reason || '').toLowerCase();
+    return r.includes('stop')
+      || r.includes('risk')
+      || r.includes('fast')
+      || r.includes('sl')
+      || r.includes('weak')
+      || r.includes('bad_entry')
+      || r.includes('bad_exit');
+  }
+
+  _allowFlavor(key, cooldownMs) {
+    const now = Date.now();
+    const last = this._flavorCooldown.get(key);
+    if (last != null && now - last < cooldownMs) return false;
+    this._flavorCooldown.set(key, now);
+    return true;
   }
 
   _safePatternName(name) {
