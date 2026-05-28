@@ -768,10 +768,20 @@ class OGZPrimeV14Bot {
         const tf = eventData.timeframe || '1m';
         const raw = eventData.data || eventData;
         const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
+        const eventSymbol = eventData && eventData.symbol;
+        const rawSymbol = raw && typeof raw === 'object' && (raw.symbol || raw.S);
+        const sessionPrimary = this.sessionRouter && this.sessionRouter.activeSession === 'crypto'
+          ? (this.sessionRouter.cryptoSymbols && this.sessionRouter.cryptoSymbols[0])
+          : null;
+        const rawSym = eventSymbol || rawSymbol || sessionPrimary;
+        const symbolSource = eventSymbol ? 'event.symbol' : rawSymbol ? 'raw.symbol' : sessionPrimary ? 'sessionPrimary' : 'missing';
+        const sym = normalizeRuntimeSymbol(rawSym);
         emitTrace(this, 'CANDLE_INGRESS', {
           traceId,
           source: `sessionRouter:${this.sessionRouter?.activeSession || 'unknown'}`,
           brokerId: this.sessionRouter?.activeBroker?.id || null,
+          symbol: sym,
+          symbolSource,
           timeframe: tf,
           payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
         });
@@ -789,14 +799,6 @@ class OGZPrimeV14Bot {
         // Dual-broker emits may carry .symbol on the wrapper; if absent,
         // infer from the active session's primary symbol. Either source
         // gets normalized to dash-form before storing.
-        const eventSymbol = eventData && eventData.symbol;
-        const rawSymbol = raw && typeof raw === 'object' && (raw.symbol || raw.S);
-        const sessionPrimary = this.sessionRouter && this.sessionRouter.activeSession === 'crypto'
-          ? (this.sessionRouter.cryptoSymbols && this.sessionRouter.cryptoSymbols[0])
-          : null;
-        const rawSym = eventSymbol || rawSymbol || sessionPrimary;
-        const symbolSource = eventSymbol ? 'event.symbol' : rawSymbol ? 'raw.symbol' : sessionPrimary ? 'sessionPrimary' : 'missing';
-        const sym = normalizeRuntimeSymbol(rawSym);
         if (!sym) {
           console.error(`[VIS][OHLC][Runner] dropped ${tf} SessionRouter candle: missing symbol | session=${this.sessionRouter?.activeSession || '(none)'} contexts=${describeSymbolContexts(this.symbolContexts)}`);
           return;
@@ -1715,10 +1717,15 @@ class OGZPrimeV14Bot {
           const timeframe = eventData.timeframe || '1m';
           const raw = eventData.data || eventData;  // Support old format too
           const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
+          const eventSymbol = eventData && eventData.symbol;
+          const symbolSource = eventSymbol ? 'event.symbol' : 'subscription';
+          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || trackedSymbol);
           emitTrace(this, 'CANDLE_INGRESS', {
             traceId,
             source: `single:${resolvedConfig.config.broker.id}`,
             brokerId: resolvedConfig.config.broker.id,
+            symbol: ohlcSymbol,
+            symbolSource,
             timeframe,
             payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
           });
@@ -1742,9 +1749,6 @@ class OGZPrimeV14Bot {
 
           // FIX 2026-05-05: per-symbol price tracking for cross-asset equity.
           // Single-broker mode subscribes to one symbol — pass it through.
-          const eventSymbol = eventData && eventData.symbol;
-          const symbolSource = eventSymbol ? 'event.symbol' : 'subscription';
-          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || trackedSymbol);
           if (!ohlcSymbol) {
             console.error(`[VIS][OHLC][Runner] dropped ${timeframe} single-broker candle: missing symbol | broker=${resolvedConfig.config.broker.id} contexts=${describeSymbolContexts(this.symbolContexts)}`);
             return;

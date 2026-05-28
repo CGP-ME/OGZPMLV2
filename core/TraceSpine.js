@@ -116,6 +116,23 @@ function coerceTraceFields(ctx, fields) {
   return {};
 }
 
+function traceFieldValue(record, key) {
+  const value = record[key];
+  return value !== undefined && value !== null && value !== '' ? value : null;
+}
+
+function firstTraceScopeField(payloadFields, key) {
+  const direct = traceFieldValue(payloadFields, key);
+  if (direct !== null) return direct;
+
+  const scope = payloadFields.scope;
+  if (scope && typeof scope === 'object' && !Array.isArray(scope)) {
+    return traceFieldValue(scope, key);
+  }
+
+  return null;
+}
+
 function resolveTraceEventMaxBufferedBytes(ctx) {
   const value = ctx?.config?.traceEventMaxBufferedBytes;
   if (Number.isFinite(value) && value > 0 && value <= TRACE_EVENT_MAX_BUFFERED_BYTES_LIMIT) {
@@ -174,7 +191,13 @@ function emitTraceEventToDashboardUnsafe(ctx, event, fields) {
     traceId: payloadFields.traceId || null,
     signalId: payloadFields.signalId || null,
     decisionId: payloadFields.decisionId || null,
-    symbol: payloadFields.symbol || null,
+    symbol: firstTraceScopeField(payloadFields, 'symbol'),
+    timeframe: firstTraceScopeField(payloadFields, 'timeframe'),
+    brokerId: firstTraceScopeField(payloadFields, 'brokerId'),
+    accountId: firstTraceScopeField(payloadFields, 'accountId'),
+    assetClass: firstTraceScopeField(payloadFields, 'assetClass'),
+    executionMode: firstTraceScopeField(payloadFields, 'executionMode'),
+    scopeKey: firstTraceScopeField(payloadFields, 'scopeKey'),
     action: payloadFields.action || null,
     fields: payloadFields,
   };

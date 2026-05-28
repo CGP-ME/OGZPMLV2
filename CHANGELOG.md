@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trace Event Join Key Projection (2026-05-28)
+
+- Promoted canonical trace scope fields (`symbol`, `timeframe`, `brokerId`, `accountId`, `assetClass`, `executionMode`, `scopeKey`) to top-level `trace_event` WebSocket fields and stamped candle-ingress traces with normalized runtime symbols so dashboard visibility can join candle, decision, and state traces without trusting raw payload internals.
+
 ### Runtime Snapshot/Journal Emoji-Free Logs (2026-05-28)
 
 - Removed emoji glyphs from active pipeline snapshot and trade journal bridge runtime log strings, extending the scoped production-log regression coverage without changing snapshot or journal behavior.

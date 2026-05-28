@@ -65,6 +65,90 @@ describe('TraceSpine dashboard trace_event feed', () => {
     }));
   });
 
+  test('promotes available trace join keys to dashboard top-level fields', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: { evalTraceEnabled: true, executionMode: 'paper', traceEventMaxBufferedBytes: 1048576 },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'CANDLE_INGRESS', {
+      traceId: 'trace_join_keys',
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      accountId: 'default',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      scopeKey: 'paper:kraken:default:crypto:BTC-USD:1m',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload).toEqual(expect.objectContaining({
+      type: 'trace_event',
+      event: 'CANDLE_INGRESS',
+      traceId: 'trace_join_keys',
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      accountId: 'default',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      scopeKey: 'paper:kraken:default:crypto:BTC-USD:1m',
+    }));
+  });
+
+  test('does not promote raw payloadSymbol as top-level symbol without canonical symbol', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: { evalTraceEnabled: true, executionMode: 'paper', traceEventMaxBufferedBytes: 1048576 },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'CANDLE_INGRESS', {
+      traceId: 'trace_payload_symbol_only',
+      payloadSymbol: 'XBT/USD',
+      timeframe: '1m',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload.symbol).toBeNull();
+    expect(payload.fields.payloadSymbol).toBe('XBT/USD');
+    expect(payload.timeframe).toBe('1m');
+  });
+
+  test('promotes nested scope join keys when direct fields are absent', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: { evalTraceEnabled: true, executionMode: 'paper', traceEventMaxBufferedBytes: 1048576 },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'STATE_MUTATION', {
+      traceId: 'trace_nested_scope',
+      scope: {
+        symbol: 'TSLA',
+        timeframe: '15m',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stock',
+        executionMode: 'paper',
+        scopeKey: 'paper:alpaca:paper-main:stock:TSLA:15m',
+      },
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      timeframe: '15m',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stock',
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:paper-main:stock:TSLA:15m',
+    }));
+  });
+
   test('does not send backtest trace events unless backtest trace is enabled', () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const ctx = {
