@@ -9,6 +9,11 @@ describe('runtime log hygiene', () => {
       path.join(root, 'core', 'persistent_llm_client.js'),
       path.join(root, 'core', 'PipelineSnapshot.js'),
       path.join(root, 'core', 'TradeJournalBridge.js'),
+      path.join(root, 'core', 'WebSocketManager.js'),
+      path.join(root, 'core', 'TradeJournal.js'),
+      path.join(root, 'core', 'TradeReplayCapture.js'),
+      path.join(root, 'kraken_adapter_simple.js'),
+      path.join(root, 'brokers', 'KrakenIBrokerAdapter.js'),
     ];
     const emojiPattern = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
 

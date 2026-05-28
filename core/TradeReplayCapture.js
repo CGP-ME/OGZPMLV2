@@ -45,7 +45,7 @@ class TradeReplayCapture {
       fs.mkdirSync(this.replayDir, { recursive: true });
     }
 
-    console.log('🎬 TradeReplayCapture initialized');
+    console.log('[TradeReplayCapture] initialized');
   }
 
   /**
@@ -149,9 +149,9 @@ class TradeReplayCapture {
     try {
       const { writeJsonCompactAtomic } = require('./AtomicWrite');
       writeJsonCompactAtomic(filepath, replay);
-      console.log(`🎬 Replay saved: ${orderId} (${mergedCandles.length} candles)`);
+      console.log(`[TradeReplayCapture] Replay saved: ${orderId} (${mergedCandles.length} candles)`);
     } catch (err) {
-      console.warn(`🎬 Replay save failed: ${err.message}`);
+      console.warn(`[TradeReplayCapture] Replay save failed: ${err.message}`);
       return null;
     }
 

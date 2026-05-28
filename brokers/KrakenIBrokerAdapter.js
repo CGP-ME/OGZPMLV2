@@ -32,14 +32,14 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     try {
       await this.kraken.connect();
       this.connected = true;
-      console.log('✅ [KrakenIBroker] Connected to Kraken');
+      console.log('[KrakenIBroker] Connected to Kraken');
 
       // V2 ARCHITECTURE: Emit ready event for subscribers
       this.emit('connected', { broker: 'kraken', ready: true });
 
       return true;
     } catch (error) {
-      console.error('❌ [KrakenIBroker] Connection failed:', error.message);
+      console.error('[KrakenIBroker] Connection failed:', error.message);
       this.connected = false;
       return false;
     }
@@ -51,7 +51,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
       await this.kraken.disconnect();
     }
     this.connected = false;
-    console.log('📴 [KrakenIBroker] Disconnected from Kraken');
+    console.log('[KrakenIBroker] Disconnected from Kraken');
   }
 
   isConnected() {
@@ -279,7 +279,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     };
     const interval = timeframeToInterval[timeframe] || 1;
 
-    console.log(`📊 [KrakenIBroker] Fetching ${limit} historical candles for ${symbol} @ ${timeframe}`);
+    console.log(`[KrakenIBroker] Fetching ${limit} historical candles for ${symbol} @ ${timeframe}`);
     return await this.kraken.getHistoricalOHLC(krakenPair, interval, limit);
   }
 
@@ -310,7 +310,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
 
   subscribeToCandles(symbol, timeframe, callback) {
     // V2 ARCHITECTURE: Use single WebSocket from kraken_adapter_simple
-    console.log('📡 [KrakenIBroker] V2 SINGLE SOURCE: Subscribing via kraken_adapter_simple');
+    console.log('[KrakenIBroker] V2 SINGLE SOURCE: Subscribing via kraken_adapter_simple');
 
     // Connect to kraken_adapter_simple WebSocket if not connected
     if (!this.kraken.ws || this.kraken.ws.readyState !== WebSocket.OPEN) {
@@ -366,7 +366,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     const key = `${symbol}-${timeframe}`;
     this.subscriptions.set(key, callback);
 
-    console.log(`✅ [KrakenIBroker] Subscribed to ${symbol} ${timeframe} via single source`);
+    console.log(`[KrakenIBroker] Subscribed to ${symbol} ${timeframe} via single source`);
   }
 
   subscribeToOrderBook(symbol, callback) {
@@ -380,7 +380,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   unsubscribeAll() {
     this.subscriptions.clear();
     // V2 ARCHITECTURE: WebSocket managed by kraken_adapter_simple
-    console.log('📴 [KrakenIBroker] Cleared all subscriptions');
+    console.log('[KrakenIBroker] Cleared all subscriptions');
   }
 
   // =========================================================================

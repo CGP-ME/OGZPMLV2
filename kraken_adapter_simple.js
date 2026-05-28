@@ -98,10 +98,10 @@ class KrakenAdapterSimple {
       await this.getAuthToken();
 
       this.connected = true;
-      console.log('✅ Kraken adapter connected successfully');
+      console.log('[Kraken] adapter connected successfully');
       return true;
     } catch (error) {
-      console.error('❌ Kraken connection failed:', error.message);
+      console.error('[Kraken] connection failed:', error.message);
       return false;
     }
   }
@@ -126,7 +126,7 @@ class KrakenAdapterSimple {
         this.assetPairs.set(key, value);
       });
 
-      console.log(`✅ Loaded ${this.assetPairs.size} asset pairs`);
+      console.log(`[Kraken] Loaded ${this.assetPairs.size} asset pairs`);
     } catch (error) {
       throw new Error(`Failed to load asset pairs: ${error.message}`);
     }
@@ -140,7 +140,7 @@ class KrakenAdapterSimple {
       }
 
       this.authToken = response.result.token;
-      console.log('✅ WebSocket auth token obtained');
+      console.log('[Kraken] WebSocket auth token obtained');
     } catch (error) {
       throw new Error(`Failed to get auth token: ${error.message}`);
     }
@@ -222,7 +222,7 @@ class KrakenAdapterSimple {
     } catch (error) {
       // Handle 429 rate limit errors
       if (error.response?.status === 429) {
-        console.log(`⚠️ RATE_LIMIT_429: Re-queuing request after ${this.rateLimitBackoff}ms`);
+        console.log(`[Kraken] RATE_LIMIT_429: Re-queuing request after ${this.rateLimitBackoff}ms`);
 
         // Put request back at front of queue
         this.requestQueue.unshift(request);
@@ -254,7 +254,7 @@ class KrakenAdapterSimple {
       const oldestRequest = this.requestTimestamps[0];
       const waitTime = this.requestWindow - (now - oldestRequest);
       if (waitTime > 0) {
-        console.log(`⚠️ RATE_LIMIT_DELAY: ${waitTime}ms (${this.requestTimestamps.length}/${this.maxRequestsPerWindow} requests in window)`);
+        console.log(`[Kraken] RATE_LIMIT_DELAY: ${waitTime}ms (${this.requestTimestamps.length}/${this.maxRequestsPerWindow} requests in window)`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -278,7 +278,7 @@ class KrakenAdapterSimple {
       const since = Math.floor((Date.now() - (count * intervalMs)) / 1000);
 
       const url = `${this.baseUrl}/0/public/OHLC?pair=${pair}&interval=${interval}&since=${since}`;
-      console.log(`📊 [Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
+      console.log(`[Kraken REST] Fetching ${count} historical ${interval}m candles for ${pair}`);
 
       const response = await axios.get(url);
 
@@ -291,12 +291,12 @@ class KrakenAdapterSimple {
       const pairKey = Object.keys(result).find(k => k !== 'last');
 
       if (!pairKey || !result[pairKey]) {
-        console.warn(`⚠️ [Kraken REST] No OHLC data for ${pair}`);
+        console.warn(`[Kraken REST] No OHLC data for ${pair}`);
         return [];
       }
 
       const candles = result[pairKey];
-      console.log(`✅ [Kraken REST] Received ${candles.length} historical candles for ${pair} @ ${interval}m`);
+      console.log(`[Kraken REST] Received ${candles.length} historical candles for ${pair} @ ${interval}m`);
 
       // Convert to our standard format: { t, etime, o, h, l, c, v }
       // Kraken format: [time, open, high, low, close, vwap, volume, count]
@@ -311,7 +311,7 @@ class KrakenAdapterSimple {
       }));
 
     } catch (error) {
-      console.error(`❌ [Kraken REST] Failed to fetch OHLC: ${error.message}`);
+      console.error(`[Kraken REST] Failed to fetch OHLC: ${error.message}`);
       return [];
     }
   }
@@ -498,7 +498,7 @@ class KrakenAdapterSimple {
       throw new Error(`Invalid quantity calculated: ${quantity} for position size ${positionSize} at price ${price}`);
     }
 
-    console.log(`🔥 EXECUTING LIVE ${side.toUpperCase()} ORDER: ${quantity.toFixed(8)} ${symbol.split('-')[0]} at market price`);
+    console.log(`[Kraken] EXECUTING LIVE ${side.toUpperCase()} ORDER: ${quantity.toFixed(8)} ${symbol.split('-')[0]} at market price`);
 
     // Place the order
     const order = {
@@ -510,7 +510,7 @@ class KrakenAdapterSimple {
 
     const result = await this.placeOrder(order);
 
-    console.log(`✅ LIVE ORDER PLACED: ${result.orderId} - ${side} ${quantity.toFixed(8)} ${symbol.split('-')[0]}`);
+    console.log(`[Kraken] LIVE ORDER PLACED: ${result.orderId} - ${side} ${quantity.toFixed(8)} ${symbol.split('-')[0]}`);
 
     return result;
   }
@@ -580,7 +580,7 @@ class KrakenAdapterSimple {
       this.ws = new WebSocket('wss://ws.kraken.com');
 
       this.ws.on('open', () => {
-        console.log('✅ Kraken WebSocket connected');
+        console.log('[Kraken] WebSocket connected');
 
         // FIX 2026-02-04: Set connected flag so onclose handler will auto-reconnect
         // THIS WAS THE BUG: connectWebSocketStream() never set this.connected = true
@@ -590,7 +590,7 @@ class KrakenAdapterSimple {
         // CHANGE 2026-01-16: Reset reconnect counter on successful connection
         // Without this, counter accumulates across disconnects and eventually hits max
         if (this.reconnectAttempts > 0) {
-          console.log(`🔄 Reconnect successful after ${this.reconnectAttempts} attempts - resetting counter`);
+          console.log(`[Kraken] Reconnect successful after ${this.reconnectAttempts} attempts - resetting counter`);
           this.reconnectAttempts = 0;
         }
 
@@ -628,7 +628,7 @@ class KrakenAdapterSimple {
           subscription: { name: 'book', depth: 25 }
         };
         this.ws.send(JSON.stringify(bookSub));
-        console.log('📊 Multi-timeframe: Subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
+        console.log('[Kraken] Multi-timeframe subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that
@@ -638,7 +638,7 @@ class KrakenAdapterSimple {
             this.ws.ping();
           }
         }, 30000); // Ping every 30 seconds
-        console.log('💓 Heartbeat started (30s ping interval)');
+        console.log('[Kraken] Heartbeat started (30s ping interval)');
 
         // CHANGE 2026-01-23: Data watchdog - force reconnect if no data even if socket "open"
         // This catches silent failures where TCP stays alive but Kraken stops sending
@@ -647,14 +647,14 @@ class KrakenAdapterSimple {
         this.dataWatchdogInterval = setInterval(() => {
           const timeSinceData = Date.now() - this.lastDataReceived;
           if (timeSinceData > this.dataTimeout) {
-            console.error(`🚨 DATA WATCHDOG: No data for ${Math.round(timeSinceData/1000)}s - forcing reconnect`);
+            console.error(`[Kraken] DATA WATCHDOG: No data for ${Math.round(timeSinceData/1000)}s - forcing reconnect`);
             // Force close to trigger reconnect logic
             if (this.ws) {
               this.ws.terminate(); // Hard close, don't wait for graceful
             }
           }
         }, 30000); // Check every 30 seconds
-        console.log('🔍 Data watchdog started (60s timeout)');
+        console.log('[Kraken] Data watchdog started (60s timeout)');
       });
 
       // CHANGE 2026-01-21: Respond to server pings to prevent timeout
@@ -683,7 +683,7 @@ class KrakenAdapterSimple {
             // FIX #2: Validate price message shape and value
             const price = parseFloat(tickerData?.c?.[0]);
             if (isNaN(price) || price <= 0) {
-              console.log('⚠️ WS_PRICE_INVALID: Ignoring malformed Kraken message');
+              console.log('[Kraken] WS_PRICE_INVALID: Ignoring malformed Kraken message');
               return;
             }
 
@@ -763,11 +763,11 @@ class KrakenAdapterSimple {
       });
 
       this.ws.on('error', (error) => {
-        console.error('❌ Kraken WebSocket error:', error.message);
+        console.error('[Kraken] WebSocket error:', error.message);
       });
 
       this.ws.on('close', () => {
-        console.log('🔌 Kraken WebSocket disconnected');
+        console.log('[Kraken] WebSocket disconnected');
 
         // CHANGE 2026-01-21: Clear heartbeat interval on disconnect
         if (this.pingInterval) {
@@ -798,12 +798,12 @@ class KrakenAdapterSimple {
 
           // Log warning at certain thresholds but NEVER stop trying
           if (this.reconnectAttempts === 10) {
-            console.warn('⚠️ WS_RECONNECT: 10 attempts failed - will keep trying (check network?)');
+            console.warn('[Kraken] WS_RECONNECT: 10 attempts failed - will keep trying (check network?)');
           } else if (this.reconnectAttempts === 50) {
-            console.error('🚨 WS_RECONNECT: 50 attempts failed - serious connectivity issue!');
+            console.error('[Kraken] WS_RECONNECT: 50 attempts failed - serious connectivity issue');
           }
 
-          console.log(`🔄 WS_RECONNECT delay=${Math.round(delay/1000)}s attempt=${this.reconnectAttempts}`);
+          console.log(`[Kraken] WS_RECONNECT delay=${Math.round(delay/1000)}s attempt=${this.reconnectAttempts}`);
 
           this.reconnectTimeout = setTimeout(() => {
             // Cleanup old websocket
@@ -821,7 +821,7 @@ class KrakenAdapterSimple {
 
       return true;
     } catch (error) {
-      console.error('❌ Failed to connect Kraken WebSocket:', error.message);
+      console.error('[Kraken] Failed to connect Kraken WebSocket:', error.message);
       return false;
     }
   }
@@ -860,7 +860,7 @@ class KrakenAdapterSimple {
       this.ws = null;
     }
     this.connected = false;
-    console.log('🔌 Kraken adapter disconnected');
+    console.log('[Kraken] adapter disconnected');
     return true;
   }
 }

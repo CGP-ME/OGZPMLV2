@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Active Runtime Startup Emoji-Free Logs (2026-05-28)
+
+- Removed emoji and mojibake prefixes from active dashboard WebSocket, Kraken, trade journal, trade replay, and live-mode startup logs observed in fresh PM2 output, and extended scoped runtime-log regression coverage to those sources.
+
 ### Pipeline Snapshot State Source (2026-05-28)
 
 - Attached the canonical `StateManager` singleton to the runtime bot instance and hardened `PipelineSnapshot` state resolution so snapshot logs read real position, balance, and active trades instead of falling back to stale bot fields or the raw StateManager module export.

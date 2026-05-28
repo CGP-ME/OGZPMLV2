@@ -31,38 +31,38 @@ class WebSocketManager {
     // Bot connects to WebSocket relay on port 3010
     const wsUrl = process.env.WS_URL || 'ws://localhost:3010/ws';
 
-    console.log(`\n📊 Connecting to Dashboard WebSocket at ${wsUrl}...`);
+    console.log(`\n[WebSocketManager] Connecting to Dashboard WebSocket at ${wsUrl}...`);
 
     try {
       this.ctx.dashboardWs = new WebSocket(wsUrl);
 
       this.ctx.dashboardWs.on('open', () => {
-        console.log('✅ Dashboard WebSocket connected!');
+        console.log('[WebSocketManager] Dashboard WebSocket connected');
         this.ctx.dashboardWsConnected = true;
         this.ctx.lastPongReceived = Date.now(); // CHANGE 2026-01-28: Track pong for heartbeat
 
-        // 🔒 SECURITY (Change 582): Authenticate first before sending any data
+        // SECURITY (Change 582): Authenticate first before sending any data
         const authToken = process.env.WEBSOCKET_AUTH_TOKEN || 'CHANGE_ME_IN_PRODUCTION';
         if (!authToken || authToken === 'CHANGE_ME_IN_PRODUCTION') {
-          console.error('⚠️ WEBSOCKET_AUTH_TOKEN not set in .env - using default token');
+          console.error('[WebSocketManager] WEBSOCKET_AUTH_TOKEN not set in .env - using default token');
         }
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'auth',
           token: authToken
         }));
-        console.log('🔐 Sent authentication to dashboard');
+        console.log('[WebSocketManager] Sent authentication to dashboard');
 
         // DON'T send identify here - wait for auth_success message
       });
 
       this.ctx.dashboardWs.on('error', (error) => {
-        console.error('⚠️ Dashboard WebSocket error:', error.message);
+        console.error('[WebSocketManager] Dashboard WebSocket error:', error.message);
         this.ctx.dashboardWsConnected = false;
       });
 
       this.ctx.dashboardWs.on('close', () => {
-        console.log('⚠️ Dashboard WebSocket closed - reconnecting in 2s...');
+        console.log('[WebSocketManager] Dashboard WebSocket closed - reconnecting in 2s');
         this.ctx.dashboardWsConnected = false;
         // CHANGE 2026-01-31: Clear both intervals on close
         if (this.ctx.heartbeatInterval) {
@@ -88,7 +88,7 @@ class WebSocketManager {
 
           // Handle authentication success
           if (msg.type === 'auth_success') {
-            console.log('🔓 Dashboard authentication successful!');
+            console.log('[WebSocketManager] Dashboard authentication successful');
 
             // Now send identify message after successful auth
             this.ctx.dashboardWs.send(JSON.stringify({
@@ -116,7 +116,7 @@ class WebSocketManager {
             try {
               getNarrator().setWebSocketClient(this.ctx.dashboardWs);
             } catch (e) {
-              console.warn('⚠️ [Narrator] setWebSocketClient failed:', e.message);
+              console.warn('[Narrator] setWebSocketClient failed:', e.message);
             }
 
             // CHANGE 2026-01-28: Start heartbeat ping interval after auth
@@ -127,7 +127,7 @@ class WebSocketManager {
 
           // Handle authentication errors
           if (msg.type === 'error') {
-            console.error('❌ Dashboard error:', msg.message);
+            console.error('[WebSocketManager] Dashboard error:', msg.message);
             return;
           }
 
@@ -141,7 +141,7 @@ class WebSocketManager {
           // Fetch REAL historical data from Kraken REST API, not just cached WebSocket data
           if (msg.type === 'timeframe_change') {
             const newTimeframe = msg.timeframe || '1m';
-            console.log(`📊 Dashboard timeframe changed to: ${newTimeframe}`);
+            console.log(`[WebSocketManager] Dashboard timeframe changed to: ${newTimeframe}`);
             this.ctx.dashboardTimeframe = newTimeframe;
 
             // Fetch historical candles from Kraken REST API
@@ -169,7 +169,7 @@ class WebSocketManager {
 
           // CHANGE 665: Handle profile switching and dashboard commands
           if (msg.type === 'command') {
-            console.log('🔨 Dashboard command received:', msg.command);
+            console.log('[Dashboard] command received:', msg.command);
 
             // Profile switching (manual only - does NOT affect confidence)
             if (msg.command === 'switch_profile' && msg.profile) {
@@ -204,7 +204,7 @@ class WebSocketManager {
             // PAUSE TRADING - Manual safety stop from dashboard
             else if (msg.command === 'pause_trading') {
               const reason = msg.reason || 'Manual pause from dashboard';
-              console.log('🛑 [Dashboard] Pause command received:', reason);
+              console.log('[Dashboard] Pause command received:', reason);
               stateManager.pauseTrading(reason);
               this.ctx.dashboardWs.send(JSON.stringify({
                 type: 'pause_confirmed',
@@ -215,7 +215,7 @@ class WebSocketManager {
 
             // RESUME TRADING - Manual resume from dashboard
             else if (msg.command === 'resume_trading') {
-              console.log('✅ [Dashboard] Resume command received');
+              console.log('[Dashboard] Resume command received');
               stateManager.resumeTrading();
               this.ctx.dashboardWs.send(JSON.stringify({
                 type: 'resume_confirmed',
@@ -226,16 +226,16 @@ class WebSocketManager {
 
           // TRAI Chat Support - Tech support queries from dashboard
           if (msg.type === 'trai_query' && this.ctx.trai) {
-            console.log('🧠 [TRAI] Received chat query:', msg.query?.substring(0, 50) + '...');
+            console.log('[TRAI] Received chat query:', msg.query?.substring(0, 50) + '...');
             this.ctx.handleTraiQuery(msg);
           }
         } catch (error) {
-          console.error('❌ Dashboard message parse error:', error.message);
+          console.error('[WebSocketManager] Dashboard message parse error:', error.message);
         }
       });
 
     } catch (error) {
-      console.error('❌ Dashboard WebSocket initialization failed:', error.message);
+      console.error('[WebSocketManager] Dashboard WebSocket initialization failed:', error.message);
       this.ctx.dashboardWsConnected = false;
     }
   }
@@ -267,25 +267,25 @@ class WebSocketManager {
     this.ctx.heartbeatInterval = setInterval(() => {
       // Check if socket exists and thinks it's open
       if (!this.ctx.dashboardWs) {
-        console.log('⚠️ [Heartbeat] No WebSocket instance - triggering reconnect');
+        console.log('[Heartbeat] No WebSocket instance - triggering reconnect');
         this.initializeDashboardWebSocket();
         return;
       }
 
       const state = this.ctx.dashboardWs.readyState;
       if (state !== 1) {
-        console.log(`⚠️ [Heartbeat] Socket not open (readyState=${state}) - waiting for reconnect`);
+        console.log(`[Heartbeat] Socket not open (readyState=${state}) - waiting for reconnect`);
         return;
       }
 
       // Check if last pong is too old
       const timeSinceLastPong = Date.now() - (this.ctx.lastPongReceived || 0);
       if (timeSinceLastPong > PONG_TIMEOUT) {
-        console.log('💔 [Heartbeat] TIMEOUT - no pong in ' + Math.round(timeSinceLastPong/1000) + 's - forcing reconnect');
+        console.log('[Heartbeat] TIMEOUT - no pong in ' + Math.round(timeSinceLastPong/1000) + 's - forcing reconnect');
         try {
           this.ctx.dashboardWs.terminate();
         } catch (e) {
-          console.error('❌ [Heartbeat] Terminate failed:', e.message);
+          console.error('[Heartbeat] Terminate failed:', e.message);
         }
         return;
       }
@@ -294,7 +294,7 @@ class WebSocketManager {
       try {
         this.ctx.dashboardWs.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
       } catch (err) {
-        console.error('❌ [Heartbeat] Ping failed:', err.message, '- forcing reconnect');
+        console.error('[Heartbeat] Ping failed:', err.message, '- forcing reconnect');
         try {
           this.ctx.dashboardWs.terminate();
         } catch (e) {}
@@ -309,16 +309,16 @@ class WebSocketManager {
 
       const timeSinceData = Date.now() - (this.ctx.lastDashboardMessageReceived || 0);
       if (timeSinceData > DATA_TIMEOUT) {
-        console.log('🚨 [Watchdog] NO DATA for ' + Math.round(timeSinceData/1000) + 's - forcing reconnect');
+        console.log('[Watchdog] NO DATA for ' + Math.round(timeSinceData/1000) + 's - forcing reconnect');
         try {
           this.ctx.dashboardWs.terminate();
         } catch (e) {
-          console.error('❌ [Watchdog] Terminate failed:', e.message);
+          console.error('[Watchdog] Terminate failed:', e.message);
         }
       }
     }, 30000); // Check every 30s
 
-    console.log('💓 Heartbeat started (ping every 15s, pong timeout 30s, data timeout 60s)');
+    console.log('[WebSocketManager] Heartbeat started (ping every 15s, pong timeout 30s, data timeout 60s)');
   }
 }
 

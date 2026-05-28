@@ -22,7 +22,10 @@ if (resolvedConfig.config.backtest.silent ||
         msg.includes('PATTERN LEARNING') ||
         msg.includes('Final Balance') ||
         msg.includes('Total P&L') ||
-        msg.includes('âŒ Error') ||
+        msg.includes('[ERROR]') ||
+        msg.includes('[FATAL]') ||
+        msg.includes('[WARNING]') ||
+        msg.includes('Error:') ||
         msg.includes('Report saved')) {
       originalLog(...args);
     }
@@ -518,7 +521,7 @@ class OGZPrimeV14Bot {
     // Initialize core modules
     console.log('[CHECKPOINT-008] Creating pattern checker...');
     if (!EnhancedPatternChecker) {
-      console.error('âŒ EnhancedPatternChecker is undefined! Module loading failed.');
+      console.error('[BOOT] EnhancedPatternChecker is undefined. Module loading failed.');
       process.exit(1);
     }
     this.patternChecker = new EnhancedPatternChecker();
@@ -717,7 +720,7 @@ class OGZPrimeV14Bot {
       });
     } else {
       this.trai = null;  // TRAI disabled for fast optimization runs
-      console.log('âš¡ TRAI disabled for fast backtest mode');
+      console.log('[TRAI] disabled for fast backtest mode');
     }
 
     // Phase 2 REWRITE: tradingBrain deleted - orchestrator handles confidence
@@ -1123,7 +1126,7 @@ class OGZPrimeV14Bot {
       minProcessingGapMs: 5,
       staleThresholdMs: 3000,
       onProcess: (data) => this.handleMarketData(data),
-      onError: (msg, err) => console.error('âŒ MessageQueue:', msg, err.message)
+      onError: (msg, err) => console.error('[MessageQueue]', msg, err.message)
     });
 
     // MODE DETECTION: Paper, Live, or Backtest (MUTUAL EXCLUSION)
@@ -1138,7 +1141,7 @@ class OGZPrimeV14Bot {
 
     // Enforce mutual exclusion: Only ONE mode can be active
     if (enableLiveTrading && enableBacktestMode) {
-      throw new Error('âŒ FATAL: Cannot enable both LIVE trading and BACKTEST mode simultaneously!');
+      throw new Error('[FATAL] Cannot enable both LIVE trading and BACKTEST mode simultaneously.');
     }
 
     // Determine trading mode
@@ -1344,7 +1347,7 @@ class OGZPrimeV14Bot {
     if (!resolvedConfig.config.broker.apiSecret) missing.push('KRAKEN_API_SECRET');
     // Note: POLYGON_API_KEY needs to be added to ConfigLoader if still required
     if (missing.length > 0) {
-      console.error('âŒ Missing environment variables:', missing);
+      console.error('[ENV] Missing environment variables:', missing);
       throw new Error(`Missing required environment: ${missing.join(', ')}`);
     }
   }
@@ -1632,7 +1635,7 @@ class OGZPrimeV14Bot {
         console.log('BACKTEST MODE: Loading historical data...');
         await this.loadHistoricalDataAndBacktest();
       } else {
-        console.log('"¡ LIVE/PAPER MODE: Connecting to real-time data...');
+        console.log('[MODE] LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
         await this.kraken.connect();
         await this.hydrateActiveTimeframeFromRest();
@@ -1643,7 +1646,7 @@ class OGZPrimeV14Bot {
 
         // EVENT LOOP MONITORING: DISABLED 2026-02-04
         // if (this.eventLoopMonitor) {
-        //   console.log('âš¡ Starting event loop monitoring...');
+        //   console.log('Starting event loop monitoring...');
         //   this.eventLoopMonitor.start();
         //   console.log('Event loop monitor active');
         // }
@@ -1682,7 +1685,7 @@ class OGZPrimeV14Bot {
         }
       }
     } catch (error) {
-      console.error('âŒ Startup failed:', error.message);
+      console.error('[BOOT] Startup failed:', error.message);
       await this.shutdown();
     }
   }
@@ -1837,7 +1840,7 @@ class OGZPrimeV14Bot {
         console.log('V2: Subscribed to BrokerFactory events (single source of truth)');
       }
     } else {
-      console.error('âŒ Broker not initialized');
+      console.error('[Broker] not initialized');
     }
   }
 
@@ -2789,7 +2792,7 @@ class OGZPrimeV14Bot {
         console.log('[TRAI] Sent chat response');
       }
     } catch (error) {
-      console.error('âŒ [TRAI] Chat query failed:', error.message);
+      console.error('[TRAI] Chat query failed:', error.message);
 
       // Send error response
       if (this.dashboardWs && this.dashboardWs.readyState === 1) {

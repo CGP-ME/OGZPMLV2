@@ -101,7 +101,7 @@ class TradeJournal {
       this._saveStatsCache();
     }, this.config.autoSaveInterval);
 
-    console.log(`📒 TradeJournal initialized | ${this.trades.length} historical trades loaded | Balance: $${this.stats.currentBalance.toFixed(2)}`);
+    console.log(`[TradeJournal] initialized | ${this.trades.length} historical trades loaded | Balance: $${this.stats.currentBalance.toFixed(2)}`);
   }
 
 
@@ -117,7 +117,7 @@ class TradeJournal {
    * @param {string} entry.orderId      - Unique order ID
    * @param {string} entry.direction    - 'BUY' or 'SELL'
    * @param {number} entry.entryPrice   - Entry price in USD
-   * @param {number} entry.size         - Position size in BTC
+   * @param {number} entry.size         - Position size
    * @param {number} entry.usdValue     - USD value of position
    * @param {number} entry.confidence   - Confidence score (0-100)
    * @param {string} entry.regime       - Market regime at entry
@@ -127,7 +127,7 @@ class TradeJournal {
    */
   recordEntry(entry) {
     if (!entry || !entry.orderId || !entry.entryPrice) {
-      console.warn('📒 TradeJournal: Invalid entry data, skipping');
+      console.warn('[TradeJournal] Invalid entry data, skipping');
       return;
     }
 
@@ -161,7 +161,7 @@ class TradeJournal {
     // Append to ledger (crash-safe)
     this._appendLedger(record);
 
-    console.log(`📒 ENTRY logged: ${record.direction} ${record.size.toFixed(6)} BTC @ $${record.entryPrice.toFixed(2)} | Conf: ${record.confidence}% | Regime: ${record.regime}`);
+    console.log(`[TradeJournal] ENTRY logged: ${record.direction} size=${record.size.toFixed(6)} @ $${record.entryPrice.toFixed(2)} | Conf: ${record.confidence}% | Regime: ${record.regime}`);
   }
 
   /**
@@ -180,14 +180,14 @@ class TradeJournal {
    */
   recordExit(exit) {
     if (!exit || !exit.orderId) {
-      console.warn('📒 TradeJournal: Invalid exit data, skipping');
+      console.warn('[TradeJournal] Invalid exit data, skipping');
       return;
     }
 
     const entry = this.openTrades.get(exit.orderId);
     if (!entry) {
       // Trade may have been opened before journal was wired — create synthetic entry
-      console.warn(`📒 TradeJournal: No entry found for ${exit.orderId}, recording exit-only`);
+      console.warn(`[TradeJournal] No entry found for ${exit.orderId}, recording exit-only`);
     }
 
     const now = Date.now();
@@ -244,8 +244,8 @@ class TradeJournal {
     // ── Recompute stats ───────────────────────────────────────────────
     this._updateStats(completedTrade);
 
-    const emoji = netPnl >= 0 ? '✅' : '❌';
-    console.log(`📒 EXIT logged: ${emoji} ${completedTrade.direction} | P&L: $${netPnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%) | Reason: ${completedTrade.exitReason} | Hold: ${completedTrade.holdTimeFormatted}`);
+    const outcome = netPnl > 0 ? 'WIN' : netPnl < 0 ? 'LOSS' : 'FLAT';
+    console.log(`[TradeJournal] EXIT logged: ${outcome} ${completedTrade.direction} | P&L: $${netPnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%) | Reason: ${completedTrade.exitReason} | Hold: ${completedTrade.holdTimeFormatted}`);
 
     return completedTrade;
   }
@@ -608,7 +608,7 @@ class TradeJournal {
     const { writeStringAtomic } = require('./AtomicWrite');
     writeStringAtomic(filepath, csv, 'utf8');
 
-    console.log(`📒 Exported ${filtered.length} trades to ${filepath}`);
+    console.log(`[TradeJournal] Exported ${filtered.length} trades to ${filepath}`);
     return filepath;
   }
 
@@ -646,7 +646,7 @@ class TradeJournal {
       this._autoSaveTimer = null;
     }
     this._saveStatsCache();
-    console.log('📒 TradeJournal destroyed, stats saved');
+    console.log('[TradeJournal] destroyed, stats saved');
   }
 
 
@@ -894,7 +894,7 @@ class TradeJournal {
     try {
       fs.appendFileSync(filepath, line + '\n', 'utf8');
     } catch (err) {
-      console.error(`📒 TradeJournal: Failed to append to ${filepath}: ${err.message}`);
+      console.error(`[TradeJournal] Failed to append to ${filepath}: ${err.message}`);
     }
   }
 
@@ -908,7 +908,7 @@ class TradeJournal {
       const { writeJsonAtomic } = require('./AtomicWrite');
       writeJsonAtomic(this.paths.statsCache, cacheData);
     } catch (err) {
-      console.error(`📒 TradeJournal: Failed to save stats cache: ${err.message}`);
+      console.error(`[TradeJournal] Failed to save stats cache: ${err.message}`);
     }
   }
 
@@ -918,7 +918,7 @@ class TradeJournal {
    */
   _rebuildFromLedger() {
     if (!fs.existsSync(this.paths.ledger)) {
-      console.log('📒 TradeJournal: No existing ledger found, starting fresh');
+      console.log('[TradeJournal] No existing ledger found, starting fresh');
       return;
     }
 
