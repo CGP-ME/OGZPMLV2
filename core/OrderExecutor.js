@@ -98,6 +98,16 @@ class OrderExecutor {
     return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
   }
 
+  _webhookQuantityBlockReason(quantity, quantityUnit) {
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return 'non_positive_quantity';
+    }
+    if (quantityUnit === 'shares' && quantity < 1) {
+      return 'fractional_share_quantity';
+    }
+    return null;
+  }
+
   _getActiveTradeById(orderId) {
     if (!orderId) return null;
 
@@ -199,6 +209,7 @@ class OrderExecutor {
       action: baseFields.action || null,
       webhookAction: baseFields.webhookAction || null,
       quantity: baseFields.quantity ?? null,
+      quantityUnit: baseFields.quantityUnit || null,
       orderType: baseFields.orderType || null,
       bypassThrottle: baseFields.bypassThrottle === true,
       brokerId: this.ctx.config?.brokerId || null,
@@ -222,6 +233,7 @@ class OrderExecutor {
         action: baseFields.action || null,
         webhookAction: baseFields.webhookAction || null,
         quantity: baseFields.quantity ?? null,
+        quantityUnit: baseFields.quantityUnit || null,
         orderType: baseFields.orderType || null,
         bypassThrottle: baseFields.bypassThrottle === true,
         brokerId: this.ctx.config?.brokerId || null,
@@ -370,6 +382,7 @@ class OrderExecutor {
       action,
       webhookAction: signal?.action || null,
       quantity: signal?.quantity ?? null,
+      quantityUnit: signal?.quantityUnit || null,
       orderType: signal?.orderType || null,
       bypassThrottle: signal?.bypassThrottle === true,
     };
@@ -644,12 +657,18 @@ class OrderExecutor {
       }
     }
     const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading;
-    const exitPlan = isLiveBrokerRoute ? this._buildExitPlan({ decision, symbol, price }) : null;
-    if (isLiveBrokerRoute && this._isExitAction(decision.action) && !exitPlan) {
+    const shouldPlanWebhookExit = !this.ctx.backtestMode
+      && this.ctx.webhookAdapter?.enabled === true
+      && this._isExitAction(decision.action);
+    const exitPlan = (isLiveBrokerRoute || shouldPlanWebhookExit)
+      ? this._buildExitPlan({ decision, symbol, price })
+      : null;
+    if ((isLiveBrokerRoute || shouldPlanWebhookExit) && this._isExitAction(decision.action) && !exitPlan) {
       const haltReason = decision.action === 'SELL'
         ? 'KILL-5: SELL with no matching BUY'
         : 'KILL-5: COVER with no matching SELL_SHORT';
-      console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before broker route`);
+      const routeName = isLiveBrokerRoute ? 'broker' : 'webhook';
+      console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
       await stateManager.haltSymbol(symbol, haltReason);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
       return null;
@@ -979,20 +998,23 @@ class OrderExecutor {
 
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
             // a slow/failed webhook must never stall the trading loop. BUY opens
-            // a long; broker-side action is 'buy'. Quantity uses adjustedPositionSize
-            // (post-confluence) divided by fill price, floored to integer shares.
-            if (this.ctx.webhookAdapter) {
-              const shares = entryPlan.orderQuantity;
-              if (shares < 1) {
-                // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
-                // internal position and broker is real (operator must know) but emitting
-                // quantity=0 just generates ValidationError without changing the outcome.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: BUY entry qty=${shares} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot opened internally; TTP won't see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
+            // a long; broker-side action is 'buy'. Quantity comes from the
+            // order plan: integer shares for stocks, fractional base for crypto.
+            if (this.ctx.webhookAdapter?.enabled === true) {
+              const orderQuantity = entryPlan.orderQuantity;
+              const quantityUnit = entryPlan.quantityUnit;
+              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
+              if (blockReason) {
+                // Skip emit on known-bad signal. Drift between internal
+                // position and broker is real and operator-visible, but sending
+                // a non-routable quantity only adds vendor rejection noise.
+                console.warn(`[WebhookOrder] DRIFT BLOCKED: BUY entry quantity=${orderQuantity} ${quantityUnit} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot opened internally; TTP will not see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
               } else {
                 this._emitWebhookOrder('BUY', {
                   action: 'buy',
                   symbol,
-                  quantity: shares,
+                  quantity: orderQuantity,
+                  quantityUnit,
                   orderType: 'market',
                 }, { traceId, signalId, decisionId, symbol });
               }
@@ -1182,18 +1204,21 @@ class OrderExecutor {
 
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
             // SELL_SHORT opens a short; broker-side action is 'sell'.
-            if (this.ctx.webhookAdapter) {
-              const shares = entryPlan.orderQuantity;
-              if (shares < 1) {
-                // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
-                // internal position and broker is real (operator must know) but emitting
-                // quantity=0 just generates ValidationError without changing the outcome.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL_SHORT entry qty=${shares} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot opened internally; TTP won't see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
+            if (this.ctx.webhookAdapter?.enabled === true) {
+              const orderQuantity = entryPlan.orderQuantity;
+              const quantityUnit = entryPlan.quantityUnit;
+              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
+              if (blockReason) {
+                // Skip emit on known-bad signal. Drift between internal
+                // position and broker is real and operator-visible, but sending
+                // a non-routable quantity only adds vendor rejection noise.
+                console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL_SHORT entry quantity=${orderQuantity} ${quantityUnit} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot opened internally; TTP will not see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
               } else {
                 this._emitWebhookOrder('SELL_SHORT', {
                   action: 'sell',
                   symbol,
-                  quantity: shares,
+                  quantity: orderQuantity,
+                  quantityUnit,
                   orderType: 'market',
                 }, { traceId, signalId, decisionId, symbol });
               }
@@ -1488,19 +1513,22 @@ class OrderExecutor {
               // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
               // SELL closes a long; broker-side action is 'sell'. Partial-aware:
               // emit the REDUCED USD when reducePosition handled a partial close.
-              if (this.ctx.webhookAdapter) {
+              if (this.ctx.webhookAdapter?.enabled === true) {
                 const exitUsd = isPartialClose ? positionAmount * stateExitFraction : positionAmount;
-                const shares = exitPlan ? exitPlan.orderQuantity : Math.floor(exitUsd / price);
-                if (shares < 1) {
-                  // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
-                  // internal position and broker is real (operator must know) but emitting
-                  // quantity=0 just generates ValidationError without changing the outcome.
-                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${isPartialClose ? 'partial' : 'full'} exit qty=${shares} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
+                const orderQuantity = exitPlan.orderQuantity;
+                const quantityUnit = exitPlan.quantityUnit;
+                const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
+                if (blockReason) {
+                  // Skip emit on known-bad signal. Drift between internal
+                  // position and broker is real and operator-visible, but sending
+                  // a non-routable quantity only adds vendor rejection noise.
+                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${isPartialClose ? 'partial' : 'full'} exit quantity=${orderQuantity} ${quantityUnit} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
                 } else {
                   this._emitWebhookOrder('SELL', {
                     action: 'sell',
                     symbol,
-                    quantity: shares,
+                    quantity: orderQuantity,
+                    quantityUnit,
                     orderType: 'market',
                     bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
                   }, { traceId, signalId, decisionId, symbol });
@@ -1972,18 +2000,21 @@ class OrderExecutor {
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
             // a slow/failed webhook must never stall the trading loop. COVER closes
             // a short, so the broker-side action is 'buy'.
-            if (this.ctx.webhookAdapter) {
-              const shares = exitPlan ? exitPlan.orderQuantity : Math.floor(shortSize / price);
-              if (shares < 1) {
-                // FIX WEBHOOK-FRACTIONAL: skip emit on known-bad signal. Drift between
-                // internal position and broker is real (operator must know) but emitting
-                // quantity=0 just generates ValidationError without changing the outcome.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: COVER qty=${shares} (shortSize=$${shortSize.toFixed(2)} / price=$${price.toFixed(2)}) — webhook not sent. Bot covered internally; TTP short position will diverge until next viable emit. INVESTIGATE: short USD too small for asset price.`);
+            if (this.ctx.webhookAdapter?.enabled === true) {
+              const orderQuantity = exitPlan.orderQuantity;
+              const quantityUnit = exitPlan.quantityUnit;
+              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
+              if (blockReason) {
+                // Skip emit on known-bad signal. Drift between internal
+                // position and broker is real and operator-visible, but sending
+                // a non-routable quantity only adds vendor rejection noise.
+                console.warn(`[WebhookOrder] DRIFT BLOCKED: COVER quantity=${orderQuantity} ${quantityUnit} (shortSize=$${shortSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot covered internally; TTP short position will diverge until next viable emit. INVESTIGATE: short USD too small for asset price.`);
               } else {
                 this._emitWebhookOrder('COVER', {
                   action: 'buy',
                   symbol,
-                  quantity: shares,
+                  quantity: orderQuantity,
+                  quantityUnit,
                   orderType: 'market',
                   bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
                 }, { traceId, signalId, decisionId, symbol });

@@ -642,6 +642,76 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).not.toHaveBeenCalled();
   });
 
+  test('enabled webhook exit with no matching trade blocks before local state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([]);
+    const webhookAdapter = { enabled: true, emit: jest.fn() };
+    const executor = makeExecutor(
+      {},
+      {
+        webhookAdapter,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'test_exit' },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toBeNull();
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith('TSLA', 'KILL-5: SELL with no matching BUY');
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+  });
+
+  test('enabled webhook exit refuses legacy active trades before local state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        entryOrderQuantity: undefined,
+        entryOrderQuantityUnit: undefined,
+        remainingOrderQuantity: undefined,
+        remainingOrderQuantityUnit: undefined,
+      }),
+    ]);
+    const webhookAdapter = { enabled: true, emit: jest.fn() };
+    const executor = makeExecutor(
+      {},
+      {
+        webhookAdapter,
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'test_exit' },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    )).rejects.toThrow('missing remainingOrderQuantity');
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+  });
+
   test('live stock quantity planning trims and accepts equity asset-class aliases', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -702,6 +772,15 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).not.toHaveBeenCalled();
   });
 
+  test('webhook quantity guard blocks fractional shares but allows fractional base units', () => {
+    const stockExecutor = makeExecutor({ assetClass: 'stocks' });
+    const cryptoExecutor = makeExecutor({ assetClass: 'crypto', brokerId: 'kraken' });
+
+    expect(stockExecutor._webhookQuantityBlockReason(0.5, 'shares')).toBe('fractional_share_quantity');
+    expect(stockExecutor._webhookQuantityBlockReason(0, 'shares')).toBe('non_positive_quantity');
+    expect(cryptoExecutor._webhookQuantityBlockReason(0.016588545429287938, 'base')).toBeNull();
+  });
+
   test('webhook side-channel emits dispatch and local result trace events without blocking', async () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const webhookAdapter = {
@@ -728,6 +807,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'buy',
       symbol: 'TSLA',
       quantity: 5,
+      quantityUnit: 'shares',
       orderType: 'market',
     }, {
       traceId: 'trace_webhook_1',
@@ -740,6 +820,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'buy',
       symbol: 'TSLA',
       quantity: 5,
+      quantityUnit: 'shares',
       orderType: 'market',
     });
     expect(dashboardWs.send).toHaveBeenCalledTimes(3);
@@ -757,6 +838,7 @@ describe('OrderExecutor pause gate', () => {
     expect(dispatch.fields).toEqual(expect.objectContaining({
       webhookAction: 'buy',
       quantity: 5,
+      quantityUnit: 'shares',
       orderType: 'market',
       bypassThrottle: false,
     }));
@@ -785,6 +867,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'BUY',
       webhookAction: 'buy',
       quantity: 5,
+      quantityUnit: 'shares',
       orderType: 'market',
       bypassThrottle: false,
       brokerId: 'alpaca',
@@ -828,6 +911,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'sell',
       symbol: 'TSLA',
       quantity: 3,
+      quantityUnit: 'shares',
       orderType: 'market',
       bypassThrottle: true,
     }, {
@@ -866,6 +950,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'SELL',
       webhookAction: 'sell',
       quantity: 3,
+      quantityUnit: 'shares',
       orderType: 'market',
       bypassThrottle: true,
       brokerId: 'alpaca',
@@ -904,6 +989,7 @@ describe('OrderExecutor pause gate', () => {
       action: 'buy',
       symbol: 'TSLA',
       quantity: 2,
+      quantityUnit: 'shares',
       orderType: 'market',
       bypassThrottle: true,
     }, {
