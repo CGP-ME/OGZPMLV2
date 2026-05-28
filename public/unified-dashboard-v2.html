@@ -420,15 +420,33 @@
             padding: 8px;
         }
 
-        /* Responsive grid for mobile */
+        /* Responsive grid for mobile.
+           #50 (revised 2026-05-28): the old rule hid both rails entirely at
+           ≤1200px, which nuked 60%+ of the dashboard's modules on any tablet.
+           That's the "FUBAR" the operator reported. Now we stack the rails
+           BELOW the center column so every module stays reachable —
+           order: chart-center first (what the operator needs to see),
+           then left rail (TRAI brain + reasoning), then right rail
+           (positions, edge analytics, etc.). On true phone widths the
+           ≤768/≤480 blocks below tighten paddings + sparkline heights. */
         @media (max-width: 1200px) {
             main.dash-main-grid {
                 grid-template-columns: 1fr;
             }
             aside.dash-left-rail,
             aside.dash-right-rail {
-                display: none;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                max-width: 100%;
+                /* Rails were sized for 320-360px sidebars; drop that floor
+                   when they're full-width so contents don't overflow. */
+                min-width: 0;
             }
+            section.dash-center { order: 1; }
+            aside.dash-left-rail  { order: 2; }
+            aside.dash-right-rail { order: 3; }
         }
 
         /* ====================================================================
