@@ -303,6 +303,39 @@
                 animation: op-pnl-flash-down 300ms ease-out;
             }
 
+            .op-current {
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+                transition: color 80ms ease;
+            }
+
+            .op-current.tick-up {
+                animation: op-current-tick-up 240ms ease-out;
+            }
+
+            .op-current.tick-down {
+                animation: op-current-tick-down 240ms ease-out;
+            }
+
+            @keyframes op-current-tick-up {
+                0% { color: rgba(34, 197, 94, 0.95); transform: translateY(-0.5px); }
+                100% { color: var(--text-primary); transform: translateY(0); }
+            }
+
+            @keyframes op-current-tick-down {
+                0% { color: rgba(239, 68, 68, 0.95); transform: translateY(0.5px); }
+                100% { color: var(--text-primary); transform: translateY(0); }
+            }
+
+            .op-row.breathing {
+                animation: op-row-breath 3600ms ease-in-out infinite;
+            }
+
+            @keyframes op-row-breath {
+                0%, 100% { background-color: rgba(255, 255, 255, 0); }
+                50% { background-color: rgba(255, 215, 0, 0.025); }
+            }
+
             .op-time {
                 text-align: right;
                 color: var(--text-secondary);
@@ -399,11 +432,17 @@
 
             @media (prefers-reduced-motion: reduce) {
                 .op-row,
+                .op-row.breathing,
                 .op-pnl.flash-up,
                 .op-pnl.flash-down,
+                .op-current.tick-up,
+                .op-current.tick-down,
                 .op-row.entering,
                 .op-row.exiting {
                     animation: none;
+                }
+                .op-current {
+                    transition: none;
                 }
             }
         `;
@@ -612,16 +651,27 @@
         const pnl = formatPnl(position);
         const timeHeld = formatTimeHeld(position.openedAt);
 
-        // Update current price
+        // Update current price with a subtle per-tick liveness cue.
         const currentEl = document.getElementById(`opCurrent-${symbol}-${broker}-${openedAt}`);
         if (currentEl) {
-            currentEl.textContent = `$${(position.current || position.entry).toFixed(2)}`;
+            const newPrice = position.current || position.entry;
+            const prevPrice = parseFloat((currentEl.textContent || '').replace('$', ''));
+            currentEl.textContent = `$${newPrice.toFixed(2)}`;
+            if (isFinite(prevPrice) && prevPrice > 0 && prevPrice !== newPrice) {
+                currentEl.classList.remove('tick-up', 'tick-down');
+                void currentEl.offsetWidth;
+                currentEl.classList.add(newPrice > prevPrice ? 'tick-up' : 'tick-down');
+            }
+            const rowEl = currentEl.closest('.op-row');
+            if (rowEl && !rowEl.classList.contains('breathing')) {
+                rowEl.classList.add('breathing');
+            }
         }
 
         // Update P&L dollar
         const pnlDolEl = document.getElementById(`opPnlDol-${symbol}-${broker}-${openedAt}`);
         if (pnlDolEl) {
-            const prevValue = parseFloat(pnlDolEl.textContent);
+            const prevValue = parseFloat((pnlDolEl.textContent || '').replace(/[^0-9.-]/g, ''));
             const isUp = pnl.value > prevValue;
 
             pnlDolEl.textContent = pnl.dollar;
