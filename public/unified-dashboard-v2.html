@@ -38,36 +38,36 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
     <!-- Per-panel CSS imports (existing panels) -->
-    <link rel="stylesheet" href="/css/dashboard.css">
-    <link rel="stylesheet" href="/css/trading-panel.css">
-    <link rel="stylesheet" href="/css/asset-tf-card.css">
-    <link rel="stylesheet" href="/css/header-brand.css">
-    <link rel="stylesheet" href="/css/golden-proximity.css">
-    <link rel="stylesheet" href="/css/pattern-sparkline.css">
+    <link rel="stylesheet" href="/css/dashboard.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/trading-panel.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/asset-tf-card.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/header-brand.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/golden-proximity.css?v=1777847456749">
+    <link rel="stylesheet" href="/css/pattern-sparkline.css?v=1777847456749">
 
     <!-- Per-panel CSS imports (NEW modules) -->
-    <link rel="stylesheet" href="/css/panels/news-ticker.css">
-    <link rel="stylesheet" href="/css/panels/watchlist-strip.css">
-    <link rel="stylesheet" href="/css/panels/pattern-card.css">
-    <link rel="stylesheet" href="/css/panels/header-strip.css">
-    <link rel="stylesheet" href="/css/panels/trai-brain.css">
-    <link rel="stylesheet" href="/css/panels/open-positions.css">
-    <link rel="stylesheet" href="/css/panels/chain-of-thought.css">
-    <link rel="stylesheet" href="/css/panels/equity-curve.css">
-    <link rel="stylesheet" href="/css/panels/system-health.css">
-    <link rel="stylesheet" href="/css/panels/live-readouts.css">
-    <link rel="stylesheet" href="/css/panels/cyberpunk-polish.css">
+    <link rel="stylesheet" href="/css/panels/news-ticker.css?v=1778198704738">
+    <link rel="stylesheet" href="/css/panels/watchlist-strip.css?v=1780007965824">
+    <link rel="stylesheet" href="/css/panels/pattern-card.css?v=1778198704762">
+    <link rel="stylesheet" href="/css/panels/header-strip.css?v=1778198704766">
+    <link rel="stylesheet" href="/css/panels/trai-brain.css?v=1778198704778">
+    <link rel="stylesheet" href="/css/panels/open-positions.css?v=1778198704782">
+    <link rel="stylesheet" href="/css/panels/chain-of-thought.css?v=1778198704794">
+    <link rel="stylesheet" href="/css/panels/equity-curve.css?v=1778198704794">
+    <link rel="stylesheet" href="/css/panels/system-health.css?v=1778198704798">
+    <link rel="stylesheet" href="/css/panels/live-readouts.css?v=1778198704834">
+    <link rel="stylesheet" href="/css/panels/cyberpunk-polish.css?v=1778237687548">
 
     <!-- Phase 5 refactor — self-rendering chart + edge-analytics modules.
          Replace legacy chart.js + edge-analytics.js DOM-binders. -->
-    <link rel="stylesheet" href="/css/panels/chart-panel.css">
-    <link rel="stylesheet" href="/css/panels/edge-analytics-panel.css">
+    <link rel="stylesheet" href="/css/panels/chart-panel.css?v=1779627961788">
+    <link rel="stylesheet" href="/css/panels/edge-analytics-panel.css?v=1778238729126">
     <link rel="stylesheet" href="/css/panels/mode-toggle.css">
     <link rel="stylesheet" href="/css/panels/trade-replay.css">
 
     <!-- Phase 2 — 4-mode layout system (Operator / Trader / Showcase / Streamer).
          Driven by public/js/panels/layout-switcher.js via body.layout-<mode>. -->
-    <link rel="stylesheet" href="/css/layouts.css">
+    <link rel="stylesheet" href="/css/layouts.css?v=1779548927391">
 
     <style>
         /* ========================================================================
@@ -699,100 +699,100 @@
          ======================================================================== -->
 
     <!-- Core Orchestrator: provides OGZ namespace + module registry -->
-    <script src="/js/core.js"></script>
+    <script src="/js/core.js?v=1779925633316"></script>
 
     <!-- Data Layer -->
-    <script src="/js/indicators.js"></script>
-    <script src="/js/websocket.js"></script>
+    <script src="/js/indicators.js?v=1776116744941"></script>
+    <script src="/js/websocket.js?v=1779666413045"></script>
 
     <!-- Chart System — Phase 5: legacy chart.js DELETED from import list.
          Replaced by ChartPanel module loaded below. -->
 
     <!-- Utilities & Utilities -->
-    <script src="/js/drawing-tools.js"></script>
-    <script src="/js/theme-customizer.js"></script>
-    <script src="/js/command-palette.js"></script>
+    <script src="/js/drawing-tools.js?v=1776116744941"></script>
+    <script src="/js/theme-customizer.js?v=1776116744941"></script>
+    <script src="/js/command-palette.js?v=1777005166748"></script>
 
     <!-- Execution Layer -->
-    <script src="/js/operator/trade-manager.js"></script>
+    <script src="/js/operator/trade-manager.js?v=1776116744941"></script>
 
     <!-- Panel Modules (self-registering)
          Grouped by subsystem for clarity:
 
          Structural panels (resizing, layout) -->
-    <script src="/js/panels/rail-resize.js"></script>
+    <script src="/js/panels/rail-resize.js?v=1777847456749"></script>
 
     <!-- System monitoring panels -->
-    <script src="/js/panels/system-snapshot.js"></script>
+    <script src="/js/panels/system-snapshot.js?v=1778705869178"></script>
 
     <!-- Edge Analytics subsystem — Phase 5: legacy edge-analytics.js DELETED
          from import list. Replaced by EdgeAnalyticsPanel module loaded below. -->
 
     <!-- Asset/Timeframe cards -->
-    <script src="/js/panels/asset-tf-card.js"></script>
-    <script src="/js/panels/pattern-sparkline.js"></script>
+    <script src="/js/panels/asset-tf-card.js?v=1777847456749"></script>
+    <script src="/js/panels/pattern-sparkline.js?v=1777847456749"></script>
 
     <!-- Bot Intelligence subsystem -->
-    <script src="/js/panels/bot-intelligence.js"></script>
+    <script src="/js/panels/bot-intelligence.js?v=1776116744941"></script>
 
     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
-    <script src="/js/panels/confidence-heatbar.js"></script>
-    <script src="/js/panels/risk-gauge.js"></script>
+    <script src="/js/panels/confidence-heatbar.js?v=1779666442541"></script>
+    <script src="/js/panels/risk-gauge.js?v=1777847456749"></script>
 
     <!-- Phase F: HUD Widgets (Candle Countdown, Session Phase, Size Preview, Strategy Leaderboard) -->
-    <script src="/js/panels/candle-countdown.js"></script>
-    <script src="/js/panels/session-phase.js"></script>
-    <script src="/js/panels/size-preview.js"></script>
-    <script src="/js/panels/strategy-leaderboard.js"></script>
+    <script src="/js/panels/candle-countdown.js?v=1777005601913"></script>
+    <script src="/js/panels/session-phase.js?v=1777945312788"></script>
+    <script src="/js/panels/size-preview.js?v=1777847456749"></script>
+    <script src="/js/panels/strategy-leaderboard.js?v=1780008152632"></script>
 
     <!-- Trading panels -->
-    <script src="/js/panels/trade-log.js"></script>
-    <script src="/js/panels/spoofing-detector.js"></script>
+    <script src="/js/panels/trade-log.js?v=1777847456749"></script>
+    <script src="/js/panels/spoofing-detector.js?v=1776116744941"></script>
 
     <!-- NEW Modules (v2 shells) -->
-    <script src="/js/panels/watchlist-strip.js"></script>
-    <script src="/js/panels/news-ticker.js"></script>
-    <script src="/js/panels/pattern-card.js"></script>
-    <script src="/js/panels/header-strip.js"></script>
-    <script src="/js/panels/trai-brain.js"></script>
-    <script src="/js/panels/open-positions.js"></script>
-    <script src="/js/panels/chain-of-thought.js"></script>
-    <script src="/js/panels/live-report.js"></script>
-    <script src="/js/panels/equity-curve.js"></script>
-    <script src="/js/panels/system-health.js"></script>
-    <script src="/js/panels/live-readouts.js"></script>
-    <script src="/js/panels/celebration.js"></script>
+    <script src="/js/panels/watchlist-strip.js?v=1780007965824"></script>
+    <script src="/js/panels/news-ticker.js?v=1778309686336"></script>
+    <script src="/js/panels/pattern-card.js?v=1779921655195"></script>
+    <script src="/js/panels/header-strip.js?v=1780007913515"></script>
+    <script src="/js/panels/trai-brain.js?v=1778257699149"></script>
+    <script src="/js/panels/open-positions.js?v=1780008102308"></script>
+    <script src="/js/panels/chain-of-thought.js?v=1778309335379"></script>
+    <script src="/js/panels/live-report.js?v=1780008291508"></script>
+    <script src="/js/panels/equity-curve.js?v=1778309936624"></script>
+    <script src="/js/panels/system-health.js?v=1778257698025"></script>
+    <script src="/js/panels/live-readouts.js?v=1779924685801"></script>
+    <script src="/js/panels/celebration.js?v=1778309878156"></script>
 
     <!-- Phase 1 celebration / emotional layer (load order matters: CustomAlerts
          creates the OGZ.bus, the others subscribe to it).
          CustomAlerts must come first; the rest can come in any order. -->
-    <script src="/js/panels/custom-alerts.js"></script>
-    <script src="/js/panels/victory-animations.js"></script>
-    <script src="/js/panels/loss-recovery.js"></script>
-    <script src="/js/panels/milestone-effects.js"></script>
-    <script src="/js/panels/goal-tracker.js"></script>
-    <script src="/js/panels/voice-manager.js"></script>
-    <script src="/js/panels/voice-fx.js"></script>
-    <script src="/js/panels/ambient-fx.js"></script>
+    <script src="/js/panels/custom-alerts.js?v=1779478645349"></script>
+    <script src="/js/panels/victory-animations.js?v=1779478645349"></script>
+    <script src="/js/panels/loss-recovery.js?v=1779478645349"></script>
+    <script src="/js/panels/milestone-effects.js?v=1779478645353"></script>
+    <script src="/js/panels/goal-tracker.js?v=1779627961788"></script>
+    <script src="/js/panels/voice-manager.js?v=1779478645353"></script>
+    <script src="/js/panels/voice-fx.js?v=1779478645353"></script>
+    <script src="/js/panels/ambient-fx.js?v=1779548927395"></script>
 
     <!-- Phase 2 — 4-mode layout switcher (Operator / Trader / Showcase / Streamer).
          Self-registers as OGZ.LayoutSwitcher. Pairs with /css/layouts.css. -->
-    <script src="/js/panels/layout-switcher.js"></script>
+    <script src="/js/panels/layout-switcher.js?v=1779478645357"></script>
 
     <!-- Phase 5 self-rendering modules (replace legacy chart.js + edge-analytics.js) -->
-    <script src="/js/panels/chart-panel.js"></script>
-    <script src="/js/panels/edge-analytics-panel.js"></script>
+    <script src="/js/panels/chart-panel.js?v=1779925726688"></script>
+    <script src="/js/panels/edge-analytics-panel.js?v=1778309916680"></script>
 
     <!-- Mode toggle: PRO ↔ VISUAL switch (operator + customer-facing) -->
     <script src="/js/panels/mode-toggle.js"></script>
 
     <!-- Trade replay: click any closed trade → modal with chart + reasoning -->
-    <script src="/js/panels/trade-replay.js"></script>
+    <script src="/js/panels/trade-replay.js?v=1778310055065"></script>
 
     <!-- Root-level widget (loads last, after all panels registered).
          NOTE: trai-widget.js lives at the public/ root, not in public/js/.
          Path is /trai-widget.js (no /js/ prefix). -->
-    <script src="/trai-widget.js"></script>
+    <script src="/trai-widget.js?v=1777847456749"></script>
 
     <!-- Boot Script -->
     <script>
