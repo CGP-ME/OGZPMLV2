@@ -132,4 +132,113 @@ describe('TradeJournalBridge scoped storage', () => {
     expect(conflictingPnl).toMatchObject({ outcome: 'unverified', isWin: false, isLoss: false, isBreakEven: false, pnl: 0, pnlPercent: 0.01 });
     expect(bridge._sendJournalSnapshot).toHaveBeenCalledTimes(4);
   });
+
+  test('records StateManager USD position size without multiplying by entry price', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['ORDER-1', {
+        orderId: 'ORDER-1',
+        size: 1250,
+        sizeUsd: 1250,
+        entryPrice: 50000,
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({ ok: true })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      regimeDetector: {
+        detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade(
+      { action: 'BUY', confidence: 71 },
+      { totalConfidence: 73 },
+      50000,
+      {},
+      []
+    );
+
+    expect(bridge.journal.recordEntry).toHaveBeenCalledTimes(1);
+    expect(bridge.journal.recordEntry).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'ORDER-1',
+      size: 1250,
+      usdValue: 1250,
+      entryPrice: 50000,
+      confidence: 73,
+      regime: 'test-regime',
+    }));
+    expect(bridge.replay.captureEntry).toHaveBeenCalledWith(
+      'ORDER-1',
+      expect.objectContaining({
+        price: 50000,
+        confidence: 73,
+        regime: 'test-regime',
+      }),
+      []
+    );
+  });
+
+  test('refuses to infer journal USD value from ambiguous legacy size', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const activeTrades = new Map([
+      ['LEGACY-1', {
+        orderId: 'LEGACY-1',
+        size: 0.025,
+        entryPrice: 50000,
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({ ok: true })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      regimeDetector: {
+        detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+    };
+
+    try {
+      TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+      await bot.executeTrade(
+        { action: 'BUY', confidence: 71 },
+        { totalConfidence: 73 },
+        50000,
+        {},
+        []
+      );
+
+      expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
+      expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing explicit USD size'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });

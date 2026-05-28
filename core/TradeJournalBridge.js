@@ -174,12 +174,16 @@ class TradeJournalBridge {
 
         if (lastTrade && decision.action === 'BUY') {
           const regime = bot.regimeDetector?.detectRegime?.(bot.priceHistory);
+          const sizeUsd = Number(lastTrade.sizeUsd ?? lastTrade.usdValue);
+          if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
+            throw new Error(`Entry ${lastTrade.orderId || lastTradeId || 'unknown'} missing explicit USD size (sizeUsd/usdValue); refusing to infer from ambiguous size`);
+          }
           const entryData = {
             orderId: lastTrade.orderId || lastTradeId,
             direction: decision.action,
             entryPrice: lastTrade.entryPrice || price,
-            size: lastTrade.size || 0,
-            usdValue: (lastTrade.size || 0) * (lastTrade.entryPrice || price),
+            size: sizeUsd,
+            usdValue: sizeUsd,
             confidence: confidenceData?.totalConfidence || decision.confidence || 0,
             regime: regime?.currentRegime || 'unknown',
             patterns: lastTrade.patterns || patterns || [],

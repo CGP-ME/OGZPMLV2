@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Bridge USD Entry Values (2026-05-28)
+
+- Fixed `TradeJournalBridge` entry journaling so StateManager USD-sized trades record `usdValue` as the USD position size instead of multiplying the USD size by entry price, and refused to infer USD value from ambiguous legacy `size` fields.
+
 ### Active Runtime Startup Emoji-Free Logs (2026-05-28)
 
 - Removed emoji and mojibake prefixes from active dashboard WebSocket, Kraken, trade journal, trade replay, and live-mode startup logs observed in fresh PM2 output, and extended scoped runtime-log regression coverage to those sources.
