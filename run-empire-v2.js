@@ -512,6 +512,9 @@ class OGZPrimeV14Bot {
     }
     this.pipeline = _pipelineCfg ?? {};
 
+    // Bot-bound telemetry modules read StateManager through the bot instance.
+    this.stateManager = stateManager;
+
     // Initialize core modules
     console.log('[CHECKPOINT-008] Creating pattern checker...');
     if (!EnhancedPatternChecker) {

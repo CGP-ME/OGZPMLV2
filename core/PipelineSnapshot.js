@@ -80,7 +80,7 @@ class PipelineSnapshot {
     const now = Date.now();
 
     // Get references safely
-    const stateManager = bot.stateManager || (typeof require !== 'undefined' ? (() => { try { return require('./StateManager'); } catch(e) { return null; } })() : null);
+    const stateManager = this._resolveStateManager(bot);
     const indicatorEngine = bot.indicatorEngine || bot.engine;
     
     const snap = {
@@ -107,8 +107,8 @@ class PipelineSnapshot {
       patternStats: this._getPatternStats(bot),
 
       // Position & Trades
-      position: this._safeGet(() => stateManager?.get?.('position') || bot.position || 0),
-      balance: this._safeGet(() => stateManager?.get?.('balance') || bot.balance || 0),
+      position: this._safeGet(() => this._getStateValue(stateManager, 'position', bot.position ?? 0)),
+      balance: this._safeGet(() => this._getStateValue(stateManager, 'balance', bot.balance ?? 0)),
       activeTrades: this._getActiveTrades(bot, stateManager),
       tradeStats: this._getTradeStats(bot, stateManager),
 
@@ -223,7 +223,7 @@ class PipelineSnapshot {
 
   _getActiveTrades(bot, stateManager) {
     try {
-      const trades = stateManager?.getAllTrades?.() || [];
+      const trades = this._getTrades(stateManager);
       if (Array.isArray(trades)) {
         return trades.map(t => ({
           orderId: t.orderId,
@@ -248,7 +248,7 @@ class PipelineSnapshot {
 
   _getTradeStats(bot, stateManager) {
     try {
-      const allTrades = stateManager?.getAllTrades?.() || [];
+      const allTrades = this._getTrades(stateManager);
       const closed = Array.isArray(allTrades) 
         ? allTrades.filter(t => t.pnl !== undefined)
         : [];
@@ -316,6 +316,52 @@ class PipelineSnapshot {
 
   _safeGet(fn) {
     try { return fn(); } catch(e) { return null; }
+  }
+
+  _resolveStateManager(bot) {
+    if (bot?.stateManager && typeof bot.stateManager.get === 'function') {
+      return bot.stateManager;
+    }
+
+    try {
+      const stateManagerModule = require('./StateManager');
+      if (typeof stateManagerModule?.getInstance === 'function') {
+        return stateManagerModule.getInstance();
+      }
+      if (typeof stateManagerModule?.get === 'function') {
+        return stateManagerModule;
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
+  }
+
+  _getStateValue(stateManager, key, fallback) {
+    const value = stateManager?.get?.(key);
+    return value ?? fallback;
+  }
+
+  _getTrades(stateManager) {
+    if (typeof stateManager?.getAllTrades === 'function') {
+      return stateManager.getAllTrades();
+    }
+
+    const trades = stateManager?.get?.('activeTrades');
+    if (trades instanceof Map) {
+      return Array.from(trades.values());
+    }
+    if (Array.isArray(trades)) {
+      return trades
+        .map((entry) => Array.isArray(entry) ? entry[1] : entry)
+        .filter(Boolean);
+    }
+    if (trades && typeof trades === 'object') {
+      return Object.values(trades).filter(Boolean);
+    }
+
+    return [];
   }
 
   // Manual trigger

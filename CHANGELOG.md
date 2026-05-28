@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pipeline Snapshot State Source (2026-05-28)
+
+- Attached the canonical `StateManager` singleton to the runtime bot instance and hardened `PipelineSnapshot` state resolution so snapshot logs read real position, balance, and active trades instead of falling back to stale bot fields or the raw StateManager module export.
+
 ### Trace Event Join Key Projection (2026-05-28)
 
 - Promoted canonical trace scope fields (`symbol`, `timeframe`, `brokerId`, `accountId`, `assetClass`, `executionMode`, `scopeKey`) to top-level `trace_event` WebSocket fields and stamped candle-ingress traces with normalized runtime symbols so dashboard visibility can join candle, decision, and state traces without trusting raw payload internals.
