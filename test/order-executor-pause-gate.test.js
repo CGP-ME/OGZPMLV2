@@ -740,10 +740,11 @@ describe('OrderExecutor pause gate', () => {
       quantity: 5,
       orderType: 'market',
     });
-    expect(dashboardWs.send).toHaveBeenCalledTimes(2);
+    expect(dashboardWs.send).toHaveBeenCalledTimes(3);
 
     const dispatch = JSON.parse(dashboardWs.send.mock.calls[0][0]);
     const result = JSON.parse(dashboardWs.send.mock.calls[1][0]);
+    const brokerAck = JSON.parse(dashboardWs.send.mock.calls[2][0]);
     expect(dispatch).toEqual(expect.objectContaining({
       type: 'trace_event',
       event: 'WEBHOOK_ORDER_DISPATCH',
@@ -768,6 +769,28 @@ describe('OrderExecutor pause gate', () => {
       success: true,
       sent: true,
       httpStatus: 202,
+      responseBody: 'accepted',
+    }));
+    expect(brokerAck).toEqual(expect.objectContaining({
+      type: 'broker_ack',
+      ok: true,
+      sent: true,
+      route: 'webhook',
+      traceId: 'trace_webhook_1',
+      signalId: 'signal_webhook_1',
+      decisionId: 'decision_webhook_1',
+      symbol: 'TSLA',
+      action: 'BUY',
+      webhookAction: 'buy',
+      quantity: 5,
+      orderType: 'market',
+      bypassThrottle: false,
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      httpStatus: 202,
+      reason: null,
       responseBody: 'accepted',
     }));
 
@@ -805,8 +828,9 @@ describe('OrderExecutor pause gate', () => {
       symbol: 'TSLA',
     })).resolves.toBeUndefined();
 
-    expect(dashboardWs.send).toHaveBeenCalledTimes(2);
+    expect(dashboardWs.send).toHaveBeenCalledTimes(3);
     const result = JSON.parse(dashboardWs.send.mock.calls[1][0]);
+    const brokerReject = JSON.parse(dashboardWs.send.mock.calls[2][0]);
     expect(result).toEqual(expect.objectContaining({
       type: 'trace_event',
       event: 'WEBHOOK_ORDER_RESULT',
@@ -821,7 +845,84 @@ describe('OrderExecutor pause gate', () => {
       rejected: true,
       bypassThrottle: true,
     }));
+    expect(brokerReject).toEqual(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      sent: false,
+      route: 'webhook',
+      traceId: 'trace_webhook_2',
+      signalId: 'signal_webhook_2',
+      decisionId: 'decision_webhook_2',
+      symbol: 'TSLA',
+      action: 'SELL',
+      webhookAction: 'sell',
+      quantity: 3,
+      orderType: 'market',
+      bypassThrottle: true,
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      httpStatus: null,
+      reason: 'network down',
+    }));
     expect(warnSpy).toHaveBeenCalledWith('[WebhookOrder] SELL emit failed: network down');
+
+    logSpy.mockRestore();
+  });
+
+  test('webhook side-channel broadcasts broker_reject when adapter throws synchronously', async () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const webhookAdapter = {
+      emit: jest.fn(() => {
+        throw new Error('adapter exploded');
+      }),
+    };
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const executor = makeExecutor(
+      {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      {
+        dashboardWs,
+        dashboardWsConnected: true,
+        webhookAdapter,
+      }
+    );
+
+    await expect(executor._emitWebhookOrder('COVER', {
+      action: 'buy',
+      symbol: 'TSLA',
+      quantity: 2,
+      orderType: 'market',
+      bypassThrottle: true,
+    }, {
+      traceId: 'trace_webhook_3',
+      signalId: 'signal_webhook_3',
+      decisionId: 'decision_webhook_3',
+      symbol: 'TSLA',
+    })).resolves.toBeUndefined();
+
+    expect(dashboardWs.send).toHaveBeenCalledTimes(3);
+    const brokerReject = JSON.parse(dashboardWs.send.mock.calls[2][0]);
+    expect(brokerReject).toEqual(expect.objectContaining({
+      type: 'broker_reject',
+      ok: false,
+      sent: false,
+      route: 'webhook',
+      traceId: 'trace_webhook_3',
+      signalId: 'signal_webhook_3',
+      decisionId: 'decision_webhook_3',
+      symbol: 'TSLA',
+      action: 'COVER',
+      webhookAction: 'buy',
+      quantity: 2,
+      orderType: 'market',
+      bypassThrottle: true,
+      reason: 'adapter exploded',
+    }));
+    expect(warnSpy).toHaveBeenCalledWith('[WebhookOrder] COVER emit failed: adapter exploded');
 
     logSpy.mockRestore();
   });

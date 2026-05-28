@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Broker Order Result Feed (2026-05-28)
+
+- Added dashboard `broker_ack` / `broker_reject` frames from the existing webhook order result path so broker acceptance, dry-run, rejection, and adapter failures are visible without changing order dispatch behavior.
+
 ### FeatureFlagManager Emoji-Free Logs (2026-05-28)
 
 - Removed emoji prefixes from `FeatureFlagManager` initialization, reload, and feature-load failure logs so runtime/test output stays operator-safe without changing feature-flag behavior.

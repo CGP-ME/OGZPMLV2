@@ -165,6 +165,77 @@ class OrderExecutor {
     };
   }
 
+  _sendDashboardFrame(frame) {
+    const ws = this.ctx.dashboardWs;
+    if (!ws || ws.readyState !== 1) return false;
+
+    try {
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (err) {
+      console.error(`[OrderExecutor] dashboard ${frame?.type || 'unknown'} broadcast failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  _broadcastBrokerOrderResult(baseFields, result = {}) {
+    const response = result?.response || null;
+    const sent = result?.sent === true;
+    const reason = result?.reason || (sent ? null : 'not_sent');
+    const body = typeof response?.body === 'string' ? response.body.slice(0, 500) : null;
+
+    return this._sendDashboardFrame({
+      type: sent ? 'broker_ack' : 'broker_reject',
+      timestamp: Date.now(),
+      ok: sent,
+      sent,
+      route: 'webhook',
+      traceId: baseFields.traceId || null,
+      signalId: baseFields.signalId || null,
+      decisionId: baseFields.decisionId || null,
+      orderId: result?.orderId || response?.orderId || null,
+      symbol: baseFields.symbol || null,
+      action: baseFields.action || null,
+      webhookAction: baseFields.webhookAction || null,
+      quantity: baseFields.quantity ?? null,
+      orderType: baseFields.orderType || null,
+      bypassThrottle: baseFields.bypassThrottle === true,
+      brokerId: this.ctx.config?.brokerId || null,
+      accountId: this.ctx.config?.accountId || null,
+      assetClass: this.ctx.config?.assetClass || null,
+      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || null),
+      timeframe: this.ctx.config?.timeframe || null,
+      httpStatus: response?.status ?? null,
+      reason,
+      dryRun: reason === 'dry_run',
+      responseBody: body,
+      data: {
+        ok: sent,
+        sent,
+        route: 'webhook',
+        traceId: baseFields.traceId || null,
+        signalId: baseFields.signalId || null,
+        decisionId: baseFields.decisionId || null,
+        orderId: result?.orderId || response?.orderId || null,
+        symbol: baseFields.symbol || null,
+        action: baseFields.action || null,
+        webhookAction: baseFields.webhookAction || null,
+        quantity: baseFields.quantity ?? null,
+        orderType: baseFields.orderType || null,
+        bypassThrottle: baseFields.bypassThrottle === true,
+        brokerId: this.ctx.config?.brokerId || null,
+        accountId: this.ctx.config?.accountId || null,
+        assetClass: this.ctx.config?.assetClass || null,
+        executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || null),
+        timeframe: this.ctx.config?.timeframe || null,
+        httpStatus: response?.status ?? null,
+        reason,
+        dryRun: reason === 'dry_run',
+        responseBody: body,
+      },
+    });
+  }
+
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult }) {
     if (!this._isEntryAction(decision.action)) return null;
 
@@ -314,6 +385,7 @@ class OrderExecutor {
         reason: message,
         thrown: true,
       });
+      this._broadcastBrokerOrderResult(baseFields, { sent: false, reason: message, thrown: true });
       return Promise.resolve();
     }
 
@@ -329,6 +401,7 @@ class OrderExecutor {
           responseBody: typeof response?.body === 'string' ? response.body.slice(0, 500) : null,
           dryRun: result?.reason === 'dry_run',
         });
+        this._broadcastBrokerOrderResult(baseFields, result);
       })
       .catch(err => {
         const message = err?.message || String(err);
@@ -340,6 +413,7 @@ class OrderExecutor {
           reason: message,
           rejected: true,
         });
+        this._broadcastBrokerOrderResult(baseFields, { sent: false, reason: message, rejected: true });
       });
   }
 
