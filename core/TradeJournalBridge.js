@@ -206,7 +206,7 @@ class TradeJournalBridge {
           }, bot.priceHistory || []);
         }
       } catch (err) {
-        console.warn(`📒 Bridge: Entry recording failed (non-critical): ${err.message}`);
+        console.warn(`[TradeJournalBridge] Entry recording failed (non-critical): ${err.message}`);
       }
 
       return result;
@@ -258,7 +258,7 @@ class TradeJournalBridge {
             bridge._pushTradeClosedNotification(orderId, exitRecord, replayPath);
           }
         } catch (err) {
-          console.warn(`📒 Bridge: Exit recording failed (non-critical): ${err.message}`);
+          console.warn(`[TradeJournalBridge] Exit recording failed (non-critical): ${err.message}`);
         }
 
         return result;
@@ -322,7 +322,7 @@ class TradeJournalBridge {
           case 'request_replay_list':     bridge._sendReplayList(msg.limit); break;
         }
       } catch (err) {
-        console.warn(`📒 Bridge: Handler error: ${err.message}`);
+        console.warn(`[TradeJournalBridge] Handler error: ${err.message}`);
       }
     };
 
@@ -344,7 +344,7 @@ class TradeJournalBridge {
           } catch { /* ignore */ }
         });
         clearInterval(hookCheck);
-        console.log('📒 Bridge: Hooked into dashboard WebSocket');
+        console.log('[TradeJournalBridge] Hooked into dashboard WebSocket');
       }
     }, 2000);
     setTimeout(() => clearInterval(hookCheck), 30000);
@@ -372,7 +372,7 @@ class TradeJournalBridge {
         this.bot.dashboardWs.send(JSON.stringify(payload));
       }
     } catch (err) {
-      console.warn(`📒 Bridge: Send failed: ${err.message}`);
+      console.warn(`[TradeJournalBridge] Send failed: ${err.message}`);
     }
   }
 
@@ -406,7 +406,7 @@ class TradeJournalBridge {
     try {
       const filepath = this.journal.exportCSV();
       this._send({ type: 'journal_export_complete', format: 'csv', path: filepath });
-    } catch (err) { console.error(`📒 CSV export failed: ${err.message}`); }
+    } catch (err) { console.error(`[TradeJournalBridge] CSV export failed: ${err.message}`); }
   }
 
   _exportReport() {
@@ -418,7 +418,7 @@ class TradeJournalBridge {
       const { writeJsonAtomic } = require('./AtomicWrite');
       writeJsonAtomic(filepath, report);
       this._send({ type: 'journal_export_complete', format: 'json', path: filepath });
-    } catch (err) { console.error(`📒 Report export failed: ${err.message}`); }
+    } catch (err) { console.error(`[TradeJournalBridge] Report export failed: ${err.message}`); }
   }
 
 
@@ -450,7 +450,7 @@ class TradeJournalBridge {
     app.get('/api/journal/equity', (req, res) => res.json(journal.getEquityCurve(parseInt(req.query.limit) || 500)));
     app.get('/api/journal/breakdown/:dim', (req, res) => res.json(journal.getPerformanceBreakdown(req.params.dim)));
 
-    console.log('📒 Bridge: HTTP routes registered (/journal, /replay, /api/*)');
+    console.log('[TradeJournalBridge] HTTP routes registered (/journal, /replay, /api/*)');
   }
 
   /** Raw HTTP handler for non-Express servers */
@@ -503,7 +503,7 @@ class TradeJournalBridge {
   destroy() {
     if (this._broadcastTimer) clearInterval(this._broadcastTimer);
     this.journal.destroy();
-    console.log('📒 Bridge: Destroyed');
+    console.log('[TradeJournalBridge] Destroyed');
   }
 }
 

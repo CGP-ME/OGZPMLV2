@@ -46,8 +46,8 @@ class PipelineSnapshot {
     // Take one immediately on startup
     setTimeout(() => this.capture(), 5000); // 5s delay to let modules initialize
 
-    console.log(`📸 [PipelineSnapshot] Active — capturing every ${this.intervalMs / 60000} minutes`);
-    console.log(`📸 [PipelineSnapshot] Output: ${this.outputFile}`);
+    console.log(`[PipelineSnapshot] Active - capturing every ${this.intervalMs / 60000} minutes`);
+    console.log(`[PipelineSnapshot] Output: ${this.outputFile}`);
   }
 
   capture() {
@@ -68,10 +68,10 @@ class PipelineSnapshot {
       const candles = snap.candleCount || 0;
       const trades = snap.tradeStats?.total || 0;
       
-      console.log(`📸 [Snapshot #${this.snapshotCount}] $${price} | ${regime} | Conf: ${conf}% | Pos: ${position} | Candles: ${candles} | Trades: ${trades}`);
+      console.log(`[Snapshot #${this.snapshotCount}] $${price} | ${regime} | Conf: ${conf}% | Pos: ${position} | Candles: ${candles} | Trades: ${trades}`);
       
     } catch (e) {
-      console.error(`📸 [PipelineSnapshot] Error: ${e.message}`);
+      console.error(`[PipelineSnapshot] Error: ${e.message}`);
     }
   }
 
@@ -328,7 +328,7 @@ class PipelineSnapshot {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      console.log(`📸 [PipelineSnapshot] Stopped after ${this.snapshotCount} snapshots`);
+      console.log(`[PipelineSnapshot] Stopped after ${this.snapshotCount} snapshots`);
     }
   }
 }
