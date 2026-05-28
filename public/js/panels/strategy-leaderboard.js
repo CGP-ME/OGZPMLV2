@@ -159,6 +159,32 @@
                 padding: 10px 0;
                 font-style: italic;
             }
+            /* #54 leaderboard-polish: session aggregate strip sits between
+               the title row and the per-strategy rows so even at zero
+               attribution the operator sees session total P&L + WR. */
+            #${ROOT_ID} .sl-agg {
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                padding: 4px 0 6px;
+                margin-bottom: 4px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            #${ROOT_ID} .sl-agg-pnl {
+                font-family: 'Orbitron', monospace;
+                font-size: 16px;
+                font-weight: 700;
+                color: #d4d4d8;
+                letter-spacing: 0.04em;
+            }
+            #${ROOT_ID} .sl-agg-pnl.pos { color: #22c55e; }
+            #${ROOT_ID} .sl-agg-pnl.neg { color: #ef4444; }
+            #${ROOT_ID} .sl-agg-meta {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 10px;
+                color: #71717a;
+                letter-spacing: 0.04em;
+            }
             #${ROOT_ID} .sl-hint {
                 margin-top: 8px;
                 padding: 7px 9px;
@@ -212,15 +238,28 @@
 
         const allUnknown = rows.length > 0 && rows.every(r => r.name === 'unknown');
 
+        // #54 leaderboard-polish: surface a session aggregate above the row
+        // list so the panel reads as informative even at zero trades. Sum
+        // P&L + total trade count across whatever the book currently holds.
+        const aggPnl = [...state.book.values()].reduce((s, d) => s + d.pnl, 0);
+        const aggTrades = [...state.book.values()].reduce((s, d) => s + d.trades, 0);
+        const aggWins = [...state.book.values()].reduce((s, d) => s + d.wins, 0);
+        const aggWr = aggTrades > 0 ? (aggWins / aggTrades) * 100 : 0;
+        const aggPnlCls = aggPnl > 0 ? 'pos' : (aggPnl < 0 ? 'neg' : '');
+
         let html = `
             <div class="sl-head">
                 <span>Strategy Leaderboard · Session</span>
                 <button class="sl-reset" data-role="reset" title="Reset session">⟲ reset</button>
             </div>
+            <div class="sl-agg">
+                <span class="sl-agg-pnl ${aggPnlCls}">${fmtUsd(aggPnl)}</span>
+                <span class="sl-agg-meta">${aggTrades} trades · ${aggWr.toFixed(0)}% WR</span>
+            </div>
         `;
 
         if (rows.length === 0) {
-            html += `<div class="sl-empty">No closed trades this session yet.</div>`;
+            html += `<div class="sl-empty">Bot is scanning. Per-strategy attribution fills as trades close.</div>`;
         } else {
             html += rows.map(r => {
                 const pnlClass = r.pnl >= 0 ? 'pos' : 'neg';
