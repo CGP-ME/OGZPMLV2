@@ -55,7 +55,9 @@
         journal: null,      // headline stats from journal_snapshot.data
         recentTrades: [],   // newest-first; rows shaped below
         domRefs: {},
-        freshTimer: null
+        freshTimer: null,
+        replayClickBound: false,
+        replayClickHandler: null
     };
 
     // ─── Helpers ────────────────────────────────────────────────────────
@@ -251,6 +253,14 @@
             }
             #${ROOT_ID} .lr-tr.win  { border-left: 2px solid #22c55e; }
             #${ROOT_ID} .lr-tr.loss { border-left: 2px solid #ef4444; }
+            #${ROOT_ID} .lr-tr-clickable {
+                cursor: pointer;
+                transition: background-color 120ms ease, border-color 120ms ease;
+            }
+            #${ROOT_ID} .lr-tr-clickable:hover {
+                background: rgba(255, 215, 0, 0.06);
+                border-color: rgba(255, 215, 0, 0.25);
+            }
             #${ROOT_ID} .lr-tr-time { color: #71717a; font-size: 10px; }
             #${ROOT_ID} .lr-tr-dir  { font-weight: 700; font-size: 10px; letter-spacing: 0.06em; }
             #${ROOT_ID} .lr-tr-dir.lr-long  { color: #22c55e; }
@@ -506,6 +516,12 @@
             const isWin = outcome ? outcome === 'win' : pnl != null && pnl > 0;
             const isLoss = outcome ? outcome === 'loss' : pnl != null && pnl < 0;
             row.className = 'lr-tr' + (isWin ? ' win' : isLoss ? ' loss' : '');
+            row.classList.add('lr-tr-clickable');
+            row.dataset.tradeKey = key;
+            if (t.orderId != null && String(t.orderId) !== '') row.dataset.orderId = String(t.orderId);
+            if (t.timestamp != null && String(t.timestamp) !== '') row.dataset.ts = String(t.timestamp);
+            if (t.symbol != null && String(t.symbol) !== '') row.dataset.symbol = String(t.symbol);
+            row.title = 'Click to open trade replay';
             if (flashOrderId && key === flashOrderId) row.classList.add('lr-flash');
 
             const dir = dirClass(t.direction);
@@ -667,6 +683,34 @@
                 if (!mount()) return;
                 render();
 
+                if (!state.replayClickBound && state.domRefs && state.domRefs.tradeList) {
+                    state.replayClickHandler = (e) => {
+                        try {
+                            const row = e.target.closest('.lr-tr-clickable');
+                            if (!row) return;
+
+                            let trade = null;
+                            const key = row.dataset.tradeKey || '';
+                            const orderId = row.dataset.orderId || '';
+                            const ts = row.dataset.ts || '';
+
+                            if (key) trade = state.recentTrades.find(t => tradeKey(t) === key) || null;
+                            if (!trade && orderId) trade = state.recentTrades.find(t => String(t.orderId) === orderId) || null;
+                            if (!trade && ts) trade = state.recentTrades.find(t => String(t.timestamp) === ts) || null;
+                            if (!trade) return;
+
+                            const replay = OGZ && typeof OGZ.get === 'function' ? OGZ.get('TradeReplay') : null;
+                            if (replay && typeof replay.openReplay === 'function') {
+                                replay.openReplay(trade);
+                            } else if (window.OGZTradeReplay && typeof window.OGZTradeReplay.openReplay === 'function') {
+                                window.OGZTradeReplay.openReplay(trade);
+                            }
+                        } catch (_) { /* swallow */ }
+                    };
+                    state.domRefs.tradeList.addEventListener('click', state.replayClickHandler);
+                    state.replayClickBound = true;
+                }
+
                 (function bindSocket() {
                     const socket = (OGZ && typeof OGZ.get === 'function') ? OGZ.get('Socket') : null;
                     if (!socket || typeof socket.registerHandler !== 'function') {
@@ -687,6 +731,11 @@
         teardown() {
             try {
                 if (state.freshTimer) { clearInterval(state.freshTimer); state.freshTimer = null; }
+                if (state.replayClickBound && state.domRefs && state.domRefs.tradeList && state.replayClickHandler) {
+                    state.domRefs.tradeList.removeEventListener('click', state.replayClickHandler);
+                    state.replayClickBound = false;
+                    state.replayClickHandler = null;
+                }
                 const s = document.getElementById(STYLE_ID);
                 if (s) s.remove();
                 state.mounted = false;
