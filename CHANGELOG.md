@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Alpaca IEX snapshot price fanout for dashboard stock watchlist symbols so stock cards receive real symbol-stamped `price` frames instead of sitting at zero while the bot is trading crypto.
 - The fanout emits nothing when Alpaca credentials or valid snapshot prices are unavailable; it does not synthesize placeholder prices.
 
+### Dashboard Root Route (2026-05-27)
+
+- Routed `/`, `/index.html`, and legacy dashboard HTML aliases through explicit dashboard token-injection handlers so the fallback domain opens the live operator dashboard instead of a raw legacy static page.
+- Blocked public backup/recovered HTML routes before static serving so stale dashboard snapshots cannot be fetched by exact filename.
+
 ### Dashboard Price Frame Contract (2026-05-27)
 
 - Added top-level `price`, `close`, `volume`, `timestamp`, `timeframe`, candle, indicator, balance, position, and P&L fields to bot `price` WebSocket frames while preserving the nested `data` payload, so dashboard panels that consume either frame shape read the same real market tick instead of defaulting to zero or blanks.

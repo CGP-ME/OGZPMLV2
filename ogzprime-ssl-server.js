@@ -127,7 +127,7 @@ function serveDashboardWithToken(req, res) {
     'Dashboard HTML unavailable - current disk template could not be loaded.'
   );
 }
-app.get('/unified-dashboard.html', serveDashboardWithToken);
+app.get(['/unified-dashboard.html', '/unified-dashboard.html/'], serveDashboardWithToken);
 
 // CHANGE 2026-05-07: v2 token-injection mirrors v1 above. Same env var,
 // same regex, separate cache for the v2 template. Ship cutover from v1 to
@@ -142,7 +142,16 @@ function serveDashboardV2WithToken(req, res) {
     'Dashboard v2 HTML unavailable - current disk template could not be loaded.'
   );
 }
-app.get('/unified-dashboard-v2.html', serveDashboardV2WithToken);
+app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDashboardV2WithToken);
+
+app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2WithToken);
+
+function denyStaticBackup(req, res) {
+  res.status(404).type('text').send('Not found');
+}
+
+app.get(/^\/.*\.bak(?:[./-].*)?$/i, denyStaticBackup);
+app.get(/^\/index-.*\.html$/i, denyStaticBackup);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
