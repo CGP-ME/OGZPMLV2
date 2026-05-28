@@ -50,6 +50,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const PineTALib = require('./pine-transpiler/core/PineTALib');
+const { fetchStockTicker } = require('./server/stock-data-adapter');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
@@ -1026,6 +1027,102 @@ const dashboardSnapshotCache = {
   cvd_update: null,           // DashboardBroadcaster: cvd, buyVolume, sellVolume
   bot_thinking: null          // TradingLoop: latest reasoning + strategy stack
 };
+
+const DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
+const DASHBOARD_STOCK_PRICE_SYMBOLS = String(
+  process.env.DASHBOARD_STOCK_PRICE_SYMBOLS ||
+  process.env.WATCHLIST_STOCK_SYMBOLS ||
+  DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS
+)
+  .split(',')
+  .map(s => normalizeDashboardSymbol(s))
+  .filter(Boolean);
+const parsedStockPriceIntervalMs = Number(process.env.DASHBOARD_STOCK_PRICE_INTERVAL_MS || 30000);
+const DASHBOARD_STOCK_PRICE_INTERVAL_MS = Math.max(
+  5000,
+  Number.isFinite(parsedStockPriceIntervalMs) ? parsedStockPriceIntervalMs : 30000
+);
+const DASHBOARD_STOCK_PRICE_ENABLED = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET);
+let stockPriceFanoutInFlight = false;
+let stockPriceFanoutDisabledLogged = false;
+
+function dashboardClients() {
+  return Array.from(wss.clients).filter(client => (
+    client.readyState === WebSocket.OPEN &&
+    client.authenticated &&
+    client.clientType === 'dashboard'
+  ));
+}
+
+function stockTickerToPriceFrame(ticker) {
+  return {
+    type: 'price',
+    symbol: ticker.symbol,
+    price: ticker.price,
+    close: ticker.close,
+    volume: ticker.volume,
+    timestamp: ticker.timestamp,
+    source: ticker.source,
+    timeframe: null,
+    candle: null,
+    indicators: null,
+    candles: [],
+    overlays: null,
+    data: {
+      symbol: ticker.symbol,
+      asset: ticker.symbol,
+      price: ticker.price,
+      close: ticker.close,
+      volume: ticker.volume,
+      timestamp: ticker.timestamp,
+      source: ticker.source,
+      feed: ticker.feed,
+      change: ticker.change,
+      changePct: ticker.changePct,
+      timeframe: null,
+      candle: null,
+      indicators: null,
+      candles: [],
+      overlays: null
+    }
+  };
+}
+
+async function broadcastDashboardStockPrices() {
+  const dashboards = dashboardClients();
+  if (dashboards.length === 0 || DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0 || stockPriceFanoutInFlight) return;
+  if (!DASHBOARD_STOCK_PRICE_ENABLED) {
+    if (!stockPriceFanoutDisabledLogged) {
+      console.warn('[StockAdapter] Stock price fanout disabled: ALPACA_API_KEY and ALPACA_API_SECRET required');
+      stockPriceFanoutDisabledLogged = true;
+    }
+    return;
+  }
+  stockPriceFanoutInFlight = true;
+  try {
+    for (const symbol of DASHBOARD_STOCK_PRICE_SYMBOLS) {
+      const ticker = await fetchStockTicker(symbol);
+      if (!ticker) continue;
+      const message = JSON.stringify(stockTickerToPriceFrame(ticker));
+      for (const client of dashboards) {
+        if (client.readyState !== WebSocket.OPEN) continue;
+        try {
+          client.send(message);
+        } catch (err) {
+          console.error(`[StockAdapter] Failed to broadcast ${symbol} snapshot:`, err.message);
+        }
+      }
+    }
+  } finally {
+    stockPriceFanoutInFlight = false;
+  }
+}
+
+setInterval(() => {
+  broadcastDashboardStockPrices().catch(err => {
+    console.error('[StockAdapter] Stock price fanout failed:', err.message);
+  });
+}, DASHBOARD_STOCK_PRICE_INTERVAL_MS);
 
 wss.on('connection', (ws, req) => {
   // Simple connection tracking - NO OVERCOMPLICATED BROADCASTER

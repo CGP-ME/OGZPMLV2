@@ -11,6 +11,15 @@ const API_KEY = process.env.ALPACA_API_KEY;
 const API_SECRET = process.env.ALPACA_API_SECRET;
 // Use IEX feed for free/basic plans (SIP requires paid subscription)
 const DATA_URL = 'https://data.alpaca.markets/v2/stocks';
+const DEFAULT_STOCK_TICKER_MAX_AGE_MS = 15 * 60 * 1000;
+const configuredStockTickerMaxAgeMs = Number(
+    process.env.STOCK_TICKER_MAX_AGE_MS ||
+    process.env.DASHBOARD_STOCK_PRICE_MAX_AGE_MS ||
+    DEFAULT_STOCK_TICKER_MAX_AGE_MS
+);
+const STOCK_TICKER_MAX_AGE_MS = Number.isFinite(configuredStockTickerMaxAgeMs) && configuredStockTickerMaxAgeMs > 0
+    ? configuredStockTickerMaxAgeMs
+    : DEFAULT_STOCK_TICKER_MAX_AGE_MS;
 
 // Stock tickers this adapter handles — everything else goes to Kraken
 const STOCK_TICKERS = new Set([
@@ -134,4 +143,84 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
     }
 }
 
-module.exports = { isStock, fetchStockCandles, STOCK_TICKERS, cleanTicker };
+async function fetchStockTicker(ticker) {
+    const symbol = cleanTicker(ticker);
+    if (!STOCK_TICKERS.has(symbol)) {
+        console.warn(`[StockAdapter] Refusing snapshot fetch for non-stock symbol ${symbol}`);
+        return null;
+    }
+
+    if (!API_KEY || !API_SECRET) {
+        console.error('[StockAdapter] ALPACA_API_KEY and ALPACA_API_SECRET required');
+        return null;
+    }
+
+    const params = new URLSearchParams({ feed: 'iex' });
+    const url = `${DATA_URL}/${symbol}/snapshot?${params}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'APCA-API-KEY-ID': API_KEY,
+                'APCA-API-SECRET-KEY': API_SECRET
+            }
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`[StockAdapter] Snapshot HTTP ${response.status} for ${symbol}: ${text}`);
+            return null;
+        }
+
+        const snap = await response.json();
+        const latestTradePrice = Number(snap.latestTrade?.p);
+        const minuteClose = Number(snap.minuteBar?.c);
+        const dayClose = Number(snap.dailyBar?.c);
+        const price = Number.isFinite(latestTradePrice) && latestTradePrice > 0
+            ? latestTradePrice
+            : Number.isFinite(minuteClose) && minuteClose > 0
+                ? minuteClose
+                : Number.isFinite(dayClose) && dayClose > 0
+                    ? dayClose
+                    : null;
+
+        if (!Number.isFinite(price) || price <= 0) {
+            console.warn(`[StockAdapter] No valid snapshot price for ${symbol}`);
+            return null;
+        }
+
+        const prevClose = Number(snap.prevDailyBar?.c);
+        const change = Number.isFinite(prevClose) && prevClose > 0 ? price - prevClose : null;
+        const changePct = change != null ? (change / prevClose) * 100 : null;
+        const volume = Number(snap.dailyBar?.v ?? snap.minuteBar?.v);
+        const sourceTimestamp = snap.latestTrade?.t || snap.minuteBar?.t || snap.dailyBar?.t;
+        const parsedTimestamp = new Date(sourceTimestamp).getTime();
+        if (!Number.isFinite(parsedTimestamp)) {
+            console.warn(`[StockAdapter] No valid snapshot timestamp for ${symbol}`);
+            return null;
+        }
+        const ageMs = Date.now() - parsedTimestamp;
+        if (ageMs > STOCK_TICKER_MAX_AGE_MS) {
+            console.warn(`[StockAdapter] Stale snapshot timestamp for ${symbol}: ageMs=${ageMs}`);
+            return null;
+        }
+
+        return {
+            symbol,
+            price,
+            close: price,
+            change,
+            changePct,
+            volume: Number.isFinite(volume) ? volume : null,
+            timestamp: parsedTimestamp,
+            source: 'alpaca',
+            feed: 'iex'
+        };
+
+    } catch (err) {
+        console.error(`[StockAdapter] Snapshot fetch error for ${symbol}:`, err.message);
+        return null;
+    }
+}
+
+module.exports = { isStock, fetchStockCandles, fetchStockTicker, STOCK_TICKERS, cleanTicker };

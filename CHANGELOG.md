@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Normalized backend crypto price symbols (`BTC-USD`, `BTC/USD`, `XBT/USD`, `BTCUSD`, `ETH-USD`) to the watchlist card keys (`BTC`, `ETH`) so real symbol-stamped price frames update the matching card instead of leaving the strip at zero.
 - Read nested and top-level `price` frame payloads through the same symbol/price resolver, use broker/source hints when present, and refuse ambiguous duplicate-symbol matches instead of updating the first card.
 
+### Dashboard Stock Watchlist Price Fanout (2026-05-27)
+
+- Added Alpaca IEX snapshot price fanout for dashboard stock watchlist symbols so stock cards receive real symbol-stamped `price` frames instead of sitting at zero while the bot is trading crypto.
+- The fanout emits nothing when Alpaca credentials or valid snapshot prices are unavailable; it does not synthesize placeholder prices.
+
 ### Dashboard Price Frame Contract (2026-05-27)
 
 - Added top-level `price`, `close`, `volume`, `timestamp`, `timeframe`, candle, indicator, balance, position, and P&L fields to bot `price` WebSocket frames while preserving the nested `data` payload, so dashboard panels that consume either frame shape read the same real market tick instead of defaulting to zero or blanks.
