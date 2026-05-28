@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Gate Decision Feed (2026-05-28)
+
+- Added scoped `gate_event` WebSocket frames from the existing TradingLoop risk-gate arrays so the dashboard can show real eval/risk pass and block decisions instead of inferring from journal-only data.
+- Routed TradingLoop dashboard decision broadcasts through an explicit send helper that logs serialization/send failures, and changed risk-block HOLD reasoning to report the actual block reason.
+
 ### Historical Candle Request Asset Routing (2026-05-27)
 
 - Threaded dashboard `request_historical` / `timeframe_change` asset values from `WebSocketManager` into the runner historical fetch path so the backend fetches the requested asset instead of the currently active asset.

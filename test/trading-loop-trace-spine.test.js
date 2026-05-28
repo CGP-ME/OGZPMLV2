@@ -39,6 +39,69 @@ function candles(count = 20) {
   }));
 }
 
+function baseEntryContext(overrides = {}) {
+  return {
+    priceHistory: candles(),
+    marketData: {
+      symbol: 'TSLA',
+      price: 100,
+      timestamp: 1700000000000,
+      volume: 1000,
+    },
+    config: {
+      minTradeConfidence: 0.5,
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      timeframe: '15m',
+      executionMode: 'paper',
+      enableBacktestMode: false,
+      evalTraceEnabled: false,
+    },
+    strategyOrchestrator: {
+      strategies: [{ name: 'RSI' }],
+      evaluate: jest.fn(() => ({
+        direction: 'buy',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 80, reason: 'test signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      })),
+    },
+    executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'ORDER_TRACE_1' }),
+    broadcastPatternAnalysis: jest.fn(),
+    dashboardWs: { readyState: 1, send: jest.fn() },
+    ...overrides,
+  };
+}
+
+function stubGatherData(loop) {
+  loop._gatherData = jest.fn(() => ({
+    indicators: {
+      rsi: 55,
+      macd: {},
+      trend: 'sideways',
+      atr: 1,
+      ema20: 100,
+      ema50: 100,
+    },
+    patterns: [],
+    regime: { currentRegime: 'sideways' },
+    tpoResult: null,
+    fibLevels: null,
+    nearestFibLevel: null,
+    nearestStructure: null,
+  }));
+  loop._runTRAI = jest.fn();
+}
+
+function sentFrames(ctx) {
+  return ctx.dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+}
+
 describe('TradingLoop trace spine', () => {
   let logSpy;
 
@@ -124,6 +187,151 @@ describe('TradingLoop trace spine', () => {
       timeframe: '15m',
       executionMode: 'paper',
     }));
+  });
+
+  test('emits a scoped gate_event before approved trade execution', async () => {
+    const ctx = baseEntryContext({
+      executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'ORDER_GATE_PASS_1' }),
+      riskManager: {
+        isTradingAllowed: jest.fn(() => ({
+          allowed: true,
+          riskGates: [{ gate: 'daily_loss_limit', threshold: 500, value: 0, passed: true }],
+        })),
+        assessTradeRisk: jest.fn(() => ({
+          approved: true,
+          riskLevel: 'LOW',
+          recommendation: 'standard',
+          riskGates: [{ gate: 'max_drawdown', threshold: 1000, value: 0, passed: true }],
+        })),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_gate_pass_1');
+
+    expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+    const gateEvent = sentFrames(ctx).find(frame => frame.type === 'gate_event');
+    expect(gateEvent).toEqual(expect.objectContaining({
+      traceId: 'trace_gate_pass_1',
+      signalId: 'trace_gate_pass_1:signal',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      action: 'BUY',
+      kind: 'eval_pass',
+      passed: true,
+    }));
+    expect(gateEvent.riskGates.map(g => g.gate)).toEqual(expect.arrayContaining([
+      'warmup',
+      'min_confidence',
+      'direction_filter',
+      'same_direction_block',
+      'max_positions',
+      'daily_loss_limit',
+      'max_drawdown',
+    ]));
+  });
+
+  test('emits a scoped risk_block gate_event without executing when RiskManager blocks', async () => {
+    const ctx = baseEntryContext({
+      executeTrade: jest.fn(),
+      riskManager: {
+        isTradingAllowed: jest.fn(() => ({
+          allowed: false,
+          reason: 'Daily loss limit',
+          riskGates: [{ gate: 'daily_loss_limit', threshold: 500, value: 750, passed: false, rejectReason: 'Daily loss limit' }],
+        })),
+        assessTradeRisk: jest.fn(),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_gate_block_1');
+
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+    expect(ctx.riskManager.assessTradeRisk).not.toHaveBeenCalled();
+    const frames = sentFrames(ctx);
+    const gateEvent = frames.find(frame => frame.type === 'gate_event');
+    expect(gateEvent).toEqual(expect.objectContaining({
+      traceId: 'trace_gate_block_1',
+      signalId: 'trace_gate_block_1:signal',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      action: 'HOLD',
+      kind: 'risk_block',
+      passed: false,
+      reason: 'Daily loss limit',
+    }));
+    expect(gateEvent.riskGates).toEqual([
+      { gate: 'daily_loss_limit', threshold: 500, value: 750, passed: false, rejectReason: 'Daily loss limit' },
+    ]);
+    expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
+      message: 'Blocked: Daily loss limit',
+    }));
+  });
+
+  test('does not emit entry gate_event frames for exit decisions', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_GATE_1' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_GATE_EXIT_1',
+      orderId: 'BUY_GATE_EXIT_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = baseEntryContext({
+      priceHistory: candles(30),
+      marketData: {
+        symbol: 'TSLA',
+        price: 190,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: { enabled: true, maxPositionProfitRatio: 0.30, profitTargetDollars: 3000 },
+        },
+      },
+      strategyOrchestrator: {
+        strategies: [],
+        evaluate: jest.fn(() => ({
+          direction: 'hold',
+          confidence: 0,
+          winnerStrategy: null,
+          allResults: [],
+          confluence: { count: 0, strategies: [] },
+          sizingMultiplier: 1,
+        })),
+      },
+      executeTrade,
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_gate_exit_1');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'BUY_GATE_EXIT_1',
+    }));
+    expect(sentFrames(ctx).filter(frame => frame.type === 'gate_event')).toEqual([]);
   });
 
   test('applies the TTP consistency cap on the main candle exit path', async () => {

@@ -76,6 +76,70 @@ class TradingLoop {
     };
   }
 
+  _dashboardScope(symbol) {
+    const cfg = this.ctx.config || {};
+    return {
+      symbol,
+      brokerId: cfg.brokerId || null,
+      accountId: cfg.accountId || null,
+      accountIdSource: cfg.accountIdSource || null,
+      assetClass: cfg.assetClass || null,
+      executionMode: cfg.enableBacktestMode ? 'backtest' : (cfg.executionMode || 'paper'),
+      timeframe: cfg.timeframe || this.ctx.candleTimeframe || null,
+    };
+  }
+
+  _sendDashboardFrame(frame) {
+    const ws = this.ctx.dashboardWs;
+    if (!ws || ws.readyState !== 1) return false;
+
+    try {
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (err) {
+      console.error(`[TradingLoop] dashboard ${frame?.type || 'unknown'} broadcast failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  _broadcastGateEvent({ traceId, signalId, symbol, action, kind, decision, riskGates, reason }) {
+    const gates = Array.isArray(riskGates) ? riskGates : [];
+    if (gates.length === 0) return false;
+
+    const failedGate = gates.find(g => g && g.passed === false);
+    const missingPassGate = gates.find(g => !g || typeof g.passed !== 'boolean');
+    const passed = gates.length > 0 && !failedGate && !missingPassGate;
+    const eventKind = kind === 'eval_pass' && !passed ? 'risk_check' : (kind || (passed ? 'eval_pass' : 'risk_block'));
+    const rejectReason = reason
+      || failedGate?.rejectReason
+      || decision?.blockReason
+      || (missingPassGate ? 'risk gate missing pass state' : null);
+    const scope = this._dashboardScope(symbol);
+
+    return this._sendDashboardFrame({
+      type: 'gate_event',
+      timestamp: Date.now(),
+      traceId: traceId || decision?.traceId || null,
+      signalId: signalId || decision?.signalId || null,
+      action: action || decision?.action || null,
+      kind: eventKind,
+      passed,
+      reason: rejectReason,
+      riskGates: gates,
+      data: {
+        ...scope,
+        traceId: traceId || decision?.traceId || null,
+        signalId: signalId || decision?.signalId || null,
+        action: action || decision?.action || null,
+        kind: eventKind,
+        passed,
+        reason: rejectReason,
+        riskGates: gates,
+      },
+      ...scope,
+    });
+  }
+
   _isClosingShort(activeTrade) {
     const action = String(activeTrade.action || '').trim().toUpperCase();
     const direction = String(activeTrade.direction || '').trim().toLowerCase();
@@ -767,6 +831,20 @@ class TradingLoop {
         });
         // ─── RISK CHECK ───
         decision = this._checkRiskAndBuildDecision(finalDirection, orchResult, minConfidence, confidence);
+        if (decision && decision.action === 'HOLD' && Array.isArray(decision.riskGates) && decision.riskGates.length > 0) {
+          decision.traceId = decision.traceId || traceId;
+          decision.signalId = decision.signalId || `${traceId}:signal`;
+          this._broadcastGateEvent({
+            traceId: decision.traceId,
+            signalId: decision.signalId,
+            symbol,
+            action: decision.action,
+            kind: 'risk_block',
+            decision,
+            riskGates: decision.riskGates,
+            reason: decision.blockReason || 'risk gate blocked entry',
+          });
+        }
         // CC-A Change 2: stamp indicator state at entry on the decision so
         // BacktestRecorder Change 1 (record.atrAtEntry / regimeAtEntry /
         // rsiAtEntry) gets real values instead of null. Read-only — no new
@@ -914,6 +992,17 @@ class TradingLoop {
         confidencePct: decision.confidence,
         riskGateCount: riskGates.length,
       });
+      if (decision.action === 'BUY' || decision.action === 'SELL_SHORT') {
+        this._broadcastGateEvent({
+          traceId: decision.traceId,
+          signalId: decision.signalId,
+          symbol,
+          action: decision.action,
+          kind: 'eval_pass',
+          decision,
+          riskGates,
+        });
+      }
       const executionResult = await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
       this._diag('EXECUTE_RETURN', {
         symbol,
@@ -958,7 +1047,7 @@ class TradingLoop {
         gates: riskGates.length
       });
       if (!riskCheck.allowed) {
-        console.log(`🛑 RISK BLOCK: ${riskCheck.reason} — ${mapped.direction} rejected`);
+        console.log(`[RISK] BLOCK: ${riskCheck.reason} - ${mapped.direction} rejected`);
         return { action: 'HOLD', confidence: 0, blockReason: riskCheck.reason, riskGates };
       }
 
@@ -976,13 +1065,13 @@ class TradingLoop {
       });
 
       if (!riskAssessment.approved) {
-        console.log(`🛑 RISK BLOCK: ${riskAssessment.reason} — ${mapped.direction} rejected`);
+        console.log(`[RISK] BLOCK: ${riskAssessment.reason} - ${mapped.direction} rejected`);
         return { action: 'HOLD', confidence: 0, blockReason: riskAssessment.reason, riskGates };
       }
 
-      console.log(`✅ ${mapped.action} DECISION: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
+      console.log(`[DECISION] ${mapped.action}: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
       if (riskAssessment.riskLevel !== 'LOW') {
-        console.log(`   ⚠️ Risk level: ${riskAssessment.riskLevel} — ${riskAssessment.recommendation}`);
+        console.log(`[RISK] Level: ${riskAssessment.riskLevel} - ${riskAssessment.recommendation}`);
       }
 
       return {
@@ -996,7 +1085,7 @@ class TradingLoop {
     }
 
     // Fallback if no riskManager
-    console.log(`✅ ${mapped.action} DECISION: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
+    console.log(`[DECISION] ${mapped.action}: Confidence ${orchResult.confidence.toFixed(1)}% >= ${(minConfidence * 100).toFixed(0)}% | Direction: ${mapped.direction}`);
     return {
       action: mapped.action,
       direction: mapped.direction,
@@ -1201,89 +1290,81 @@ class TradingLoop {
 
   _broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
     // Signal analysis broadcast
-    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-      try {
-        const signals = orchResult?.signalBreakdown?.signals || [];
-        this.ctx.dashboardWs.send(JSON.stringify({
-          type: 'signal_analysis',
-          timestamp: Date.now(),
-          signal: {
-            direction: orchResult.direction,
-            confidence: orchResult.confidence,
-            reasons: orchResult.reasons || [],
-            meta: { signalsFired: signals.length, bullishCount: signals.filter(s => s.direction === 'buy').length, bearishCount: signals.filter(s => s.direction === 'sell').length },
-            signals
-          },
-          modules: {
-            orchestrator: orchResult ? { winner: orchResult.winnerStrategy, direction: orchResult.direction, confidence: orchResult.confidence, confluence: orchResult.confluence, sizingMultiplier: orchResult.sizingMultiplier } : null,
-            regime: { regime: regime?.currentRegime || 'unknown', confidence: regime?.confidence || 0 }
-          }
-        }));
-      } catch (e) { /* fail silently */ }
-    }
+    const signals = orchResult?.signalBreakdown?.signals || [];
+    this._sendDashboardFrame({
+      type: 'signal_analysis',
+      timestamp: Date.now(),
+      signal: {
+        direction: orchResult.direction,
+        confidence: orchResult.confidence,
+        reasons: orchResult.reasons || [],
+        meta: { signalsFired: signals.length, bullishCount: signals.filter(s => s.direction === 'buy').length, bearishCount: signals.filter(s => s.direction === 'sell').length },
+        signals
+      },
+      modules: {
+        orchestrator: orchResult ? { winner: orchResult.winnerStrategy, direction: orchResult.direction, confidence: orchResult.confidence, confluence: orchResult.confluence, sizingMultiplier: orchResult.sizingMultiplier } : null,
+        regime: { regime: regime?.currentRegime || 'unknown', confidence: regime?.confidence || 0 }
+      }
+    });
 
     // Chain-of-thought broadcast + Strategy Winner HUD
-    if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs) {
-      try {
-        const reasoning = decision.action === 'HOLD'
-          ? `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${minConfidence}% minimum`
-          : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
-        this.ctx.dashboardWs.send(JSON.stringify({
-          type: 'bot_thinking',
-          timestamp: Date.now(),
-          message: reasoning,
-          confidence: decision.confidence,
-          data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
-          // Strategy Winner HUD: full battleground for confidence bar chart.
-          // Show ALL configured strategies (zero-confidence placeholders for
-          // non-firing) so the heatbar reflects the complete roster, not
-          // only what produced a signal this cycle. Public `name` is
-          // anonymized via TradeNarrator.labelFor() (Strategy-A/B/C);
-          // `realName` is kept on the wire for internal tooling.
-          strategy_stack: (() => {
-            const orch = this.ctx.strategyOrchestrator;
-            if (!orch || !Array.isArray(orch.strategies)) return undefined;
-            const narrator = getNarrator();
-            const labelOf = narrator && typeof narrator.labelFor === 'function'
-              ? n => narrator.labelFor(n)
-              : n => n;
-            const firing = new Map((orchResult.allResults || []).map(r => [r.strategyName, r]));
-            return orch.strategies
-              .map(s => {
-                const fired = firing.get(s.name);
-                return {
-                  id: s.name,
-                  realName: s.name,
-                  name: labelOf(s.name),
-                  confidence: fired ? fired.confidence : 0,
-                  direction: fired ? (fired.direction || 'hold') : 'hold'
-                };
-              })
-              .sort((a, b) => b.confidence - a.confidence);
-          })(),
-          winner_id: orchResult.winnerStrategy || null
-        }));
-      } catch (e) { /* fail silently */ }
+    const reasoning = decision.action === 'HOLD'
+      ? (decision.blockReason
+        ? `Blocked: ${decision.blockReason}`
+        : `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${minConfidence}% minimum`)
+      : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
+    this._sendDashboardFrame({
+      type: 'bot_thinking',
+      timestamp: Date.now(),
+      message: reasoning,
+      confidence: decision.confidence,
+      data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
+      // Strategy Winner HUD: full battleground for confidence bar chart.
+      // Show ALL configured strategies (zero-confidence placeholders for
+      // non-firing) so the heatbar reflects the complete roster, not
+      // only what produced a signal this cycle. Public `name` is
+      // anonymized via TradeNarrator.labelFor() (Strategy-A/B/C);
+      // `realName` is kept on the wire for internal tooling.
+      strategy_stack: (() => {
+        const orch = this.ctx.strategyOrchestrator;
+        if (!orch || !Array.isArray(orch.strategies)) return undefined;
+        const narrator = getNarrator();
+        const labelOf = narrator && typeof narrator.labelFor === 'function'
+          ? n => narrator.labelFor(n)
+          : n => n;
+        const firing = new Map((orchResult.allResults || []).map(r => [r.strategyName, r]));
+        return orch.strategies
+          .map(s => {
+            const fired = firing.get(s.name);
+            return {
+              id: s.name,
+              realName: s.name,
+              name: labelOf(s.name),
+              confidence: fired ? fired.confidence : 0,
+              direction: fired ? (fired.direction || 'hold') : 'hold'
+            };
+          })
+          .sort((a, b) => b.confidence - a.confidence);
+      })(),
+      winner_id: orchResult.winnerStrategy || null
+    });
 
-      // Golden Setup Emitter: proximity score + confluence matrix
-      try {
-        const conditions = [
-          { label: 'RSI Oversold/Overbought', status: (indicators.rsi < 30 || indicators.rsi > 70) ? 'MET' : 'WAITING', weight: 0.2 },
-          { label: 'EMA Trend Alignment', status: (indicators.ema20 > indicators.ema50) ? 'MET' : 'WAITING', weight: 0.2 },
-          { label: 'Strategy Confluence', status: (orchResult.confluence?.count >= 2) ? 'MET' : 'WAITING', weight: 0.2 },
-          { label: 'High Confidence', status: (orchResult.confidence >= 65) ? 'MET' : 'WAITING', weight: 0.2 },
-          { label: 'Regime Favorable', status: (regime?.currentRegime === 'trending_up' || regime?.currentRegime === 'trending_down') ? 'MET' : 'WAITING', weight: 0.2 }
-        ];
-        const proximity = conditions.reduce((acc, c) => acc + (c.status === 'MET' ? c.weight : 0), 0);
-        this.ctx.dashboardWs.send(JSON.stringify({
-          type: 'golden_setup_state',
-          proximity,
-          is_golden: proximity >= 0.8,
-          conditions,
-          timestamp: Date.now()
-        }));
-      } catch (e) { /* fail silently */ }
-    }
+    // Golden Setup Emitter: proximity score + confluence matrix
+    const conditions = [
+      { label: 'RSI Oversold/Overbought', status: (indicators.rsi < 30 || indicators.rsi > 70) ? 'MET' : 'WAITING', weight: 0.2 },
+      { label: 'EMA Trend Alignment', status: (indicators.ema20 > indicators.ema50) ? 'MET' : 'WAITING', weight: 0.2 },
+      { label: 'Strategy Confluence', status: (orchResult.confluence?.count >= 2) ? 'MET' : 'WAITING', weight: 0.2 },
+      { label: 'High Confidence', status: (orchResult.confidence >= 65) ? 'MET' : 'WAITING', weight: 0.2 },
+      { label: 'Regime Favorable', status: (regime?.currentRegime === 'trending_up' || regime?.currentRegime === 'trending_down') ? 'MET' : 'WAITING', weight: 0.2 }
+    ];
+    const proximity = conditions.reduce((acc, c) => acc + (c.status === 'MET' ? c.weight : 0), 0);
+    this._sendDashboardFrame({
+      type: 'golden_setup_state',
+      proximity,
+      is_golden: proximity >= 0.8,
+      conditions,
+      timestamp: Date.now()
+    });
   }
 }
 
