@@ -72,8 +72,8 @@ class FeatureFlagManager {
     // Tier-specific scaling factors (not toggles - those come from features.json)
     this.tierScaling = this._loadTierScaling();
 
-    console.log(`🎛️ [FeatureFlagManager] Initialized: mode=${this.mode}, tier=${this.tier}`);
-    console.log(`🎛️ [FeatureFlagManager] Enabled features:`,
+    console.log(`[FeatureFlagManager] Initialized: mode=${this.mode}, tier=${this.tier}`);
+    console.log(`[FeatureFlagManager] Enabled features:`,
       Object.keys(this.features).filter(f => this.features[f]?.enabled));
 
     instance = this;
@@ -116,7 +116,7 @@ class FeatureFlagManager {
       const data = JSON.parse(fs.readFileSync(featuresPath, 'utf8'));
       return data.features || {};
     } catch (error) {
-      console.error('❌ [FeatureFlagManager] Failed to load features.json:', error.message);
+      console.error('[FeatureFlagManager] Failed to load features.json:', error.message);
       return {};
     }
   }
@@ -127,7 +127,7 @@ class FeatureFlagManager {
   reload() {
     this.features = this._loadFeatures();
     this.mode = this._detectMode();
-    console.log(`🔄 [FeatureFlagManager] Reloaded features`);
+    console.log('[FeatureFlagManager] Reloaded features');
   }
 
   /**

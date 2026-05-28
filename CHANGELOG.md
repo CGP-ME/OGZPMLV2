@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### FeatureFlagManager Emoji-Free Logs (2026-05-28)
+
+- Removed emoji prefixes from `FeatureFlagManager` initialization, reload, and feature-load failure logs so runtime/test output stays operator-safe without changing feature-flag behavior.
+
 ### Dashboard Gate Decision Feed (2026-05-28)
 
 - Added scoped `gate_event` WebSocket frames from the existing TradingLoop risk-gate arrays so the dashboard can show real eval/risk pass and block decisions instead of inferring from journal-only data.
