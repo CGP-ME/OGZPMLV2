@@ -1138,14 +1138,14 @@ wss.on('connection', (ws, req) => {
   const connectionId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   ws.connectionId = connectionId;
   ws.isAlive = true;
-  ws.authenticated = false; // 🔒 SECURITY: Require authentication
+  ws.authenticated = false; // SECURITY: Require authentication
 
-  console.log(`✅ New WebSocket connection: ${connectionId}`);
+  console.log(`[WS] New WebSocket connection: ${connectionId}`);
 
-  // 🔒 SECURITY: 10-second authentication timeout
+  // SECURITY: 10-second authentication timeout
   const authTimeout = setTimeout(() => {
     if (!ws.authenticated) {
-      console.log(`❌ Client ${connectionId} failed to authenticate - disconnecting`);
+      console.log(`[WS] Client ${connectionId} failed to authenticate - disconnecting`);
       ws.send(JSON.stringify({
         type: 'error',
         message: 'Authentication timeout - connection closed'
@@ -1159,7 +1159,7 @@ wss.on('connection', (ws, req) => {
     try {
       const data = JSON.parse(message.toString());
 
-      // 🔒 SECURITY: First message MUST be authentication
+      // SECURITY: First message MUST be authentication
       if (!ws.authenticated && data.type !== 'auth') {
         ws.send(JSON.stringify({
           type: 'error',
@@ -1169,21 +1169,21 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // 🔒 SECURITY: Handle authentication
+      // SECURITY: Handle authentication
       if (data.type === 'auth') {
         const validToken = process.env.WEBSOCKET_AUTH_TOKEN || 'CHANGE_ME_IN_PRODUCTION';
 
         if (data.token === validToken) {
           ws.authenticated = true;
           clearTimeout(authTimeout);
-          console.log(`🔓 Client ${connectionId} authenticated successfully`);
+          console.log(`[AUTH] Client ${connectionId} authenticated successfully`);
           ws.send(JSON.stringify({
             type: 'auth_success',
             connectionId: connectionId,
             message: 'Authentication successful'
           }));
         } else {
-          console.log(`❌ Client ${connectionId} failed authentication - invalid token`);
+          console.log(`[AUTH] Client ${connectionId} failed authentication - invalid token`);
           ws.send(JSON.stringify({
             type: 'error',
             message: 'Invalid authentication token'
@@ -1210,7 +1210,7 @@ wss.on('connection', (ws, req) => {
 
       // Handle bot 
             if (data.type === 'identify' && data.source === 'trading_bot') {
-        console.log('🤖 TRADING BOT IDENTIFIED!');
+        console.log('[WS] Trading bot identified');
         ws.clientType = 'bot';
 
         ws.send(JSON.stringify({
@@ -1222,7 +1222,7 @@ wss.on('connection', (ws, req) => {
 
       // Handle dashboard identification
       if (data.type === 'identify' && data.source === 'dashboard') {
-        console.log('📊 DASHBOARD IDENTIFIED!');
+        console.log('[WS] Dashboard identified');
         ws.clientType = 'dashboard';
 
         // Replay cached snapshot events so a freshly-loaded browser hydrates
@@ -1239,14 +1239,14 @@ wss.on('connection', (ws, req) => {
             }
           }
           if (replayed > 0) {
-            console.log(`🔁 Replayed ${replayed} cached snapshot events to ${connectionId}`);
+            console.log(`[WS] Replayed ${replayed} cached snapshot events to ${connectionId}`);
           }
         } catch (err) {
           console.error('Snapshot replay failed:', err.message);
         }
       }
 
-      // 🚀 RELAY: Dashboard → Bot (for TRAI queries)
+      // RELAY: Dashboard -> Bot (for TRAI queries)
       if (ws.clientType === 'dashboard' && data.type === 'trai_query') {
         const messageStr = JSON.stringify(data);
 
@@ -1256,7 +1256,7 @@ wss.on('connection', (ws, req) => {
               client.clientType === 'bot') {
             try {
               client.send(messageStr);
-              console.log('🧠 [TRAI] Relayed query to bot');
+              console.log('[TRAI] Relayed query to bot');
             } catch (err) {
               console.error('Error relaying TRAI query to bot:', err.message);
             }
@@ -1310,7 +1310,7 @@ wss.on('connection', (ws, req) => {
                 client.clientType === 'bot') {
               try {
                 client.send(messageStr);
-                console.log(`📊 Relayed ${data.type} (${data.timeframe}) to bot`);
+                console.log(`[WS] Relayed ${data.type} (${data.timeframe}) to bot`);
               } catch (err) {
                 console.error('Error relaying timeframe message to bot:', err.message);
               }
@@ -1332,7 +1332,7 @@ wss.on('connection', (ws, req) => {
               client.clientType === 'bot') {
             try {
               client.send(messageStr);
-              console.log(`📒 Relayed ${data.type} to bot`);
+              console.log(`[Journal] Relayed ${data.type} to bot`);
             } catch (err) {
               console.error('Error relaying journal/replay message to bot:', err.message);
             }
@@ -1340,7 +1340,7 @@ wss.on('connection', (ws, req) => {
         });
       }
 
-      // 🚀 RELAY: Bot messages → Dashboard clients
+      // RELAY: Bot messages -> Dashboard clients
       if (ws.clientType === 'bot' && data.type !== 'identify') {
         // Cache snapshot-style events so newly-connecting dashboards can hydrate.
         // Streaming-style events (price, delta, trade) are NOT cached because
@@ -1365,7 +1365,7 @@ wss.on('connection', (ws, req) => {
 
         // Log relay activity
         if (data.type === 'price') {
-          console.log(`📡 Relayed price to dashboards: $${data.data?.price?.toFixed(2) || 'N/A'}`);
+          console.log(`[WS] Relayed price to dashboards: $${data.data?.price?.toFixed(2) || 'N/A'}`);
         }
       }
 
@@ -1376,12 +1376,12 @@ wss.on('connection', (ws, req) => {
   
   // Handle disconnection
   ws.on('close', () => {
-    console.log(`❌ Client disconnected: ${connectionId}`);
+    console.log(`[WS] Client disconnected: ${connectionId}`);
     // If the bot disconnects, invalidate the snapshot cache. Without this,
     // a dashboard reload after a bot crash would replay stale state and lie
     // to the user about what's currently happening on the bot side.
     if (ws.clientType === 'bot') {
-      console.log('⚠️  Bot disconnected — clearing dashboard snapshot cache');
+      console.log('[WS] Bot disconnected - clearing dashboard snapshot cache');
       for (const key of Object.keys(dashboardSnapshotCache)) {
         dashboardSnapshotCache[key] = null;
       }
@@ -1399,11 +1399,11 @@ let tickCount = 0;
 let assetPrices = {};
 let currentAsset = 'BTC-USD';
 
-// � Kraken WebSocket connection (PUBLIC - no API key needed for market data!)
+// Kraken WebSocket connection (PUBLIC - no API key needed for market data!)
 const KRAKEN_PUBLIC_WS = 'wss://ws.kraken.com';
 
-console.log('🔧 [EMPIRE V2] Kraken direct connection DISABLED - Bot provides all market data');
-console.log('📡 WebSocket server acting as relay only - no direct Kraken connection');
+console.log('[EMPIRE V2] Kraken direct connection DISABLED - Bot provides all market data');
+console.log('[WS] WebSocket server acting as relay only - no direct Kraken connection');
 
 // TEMPORARILY DISABLED to fix data conflicts - bot sends all data
 // const krakenSocket = new WebSocket(KRAKEN_PUBLIC_WS);
@@ -1445,7 +1445,7 @@ krakenSocket.on('open', () => {
     }
   }));
   
-  console.log(`📡 Subscribed to ${pairs.length} trading pairs on Kraken`);
+  console.log(`[Kraken] Subscribed to ${pairs.length} trading pairs on Kraken`);
 });
 
 krakenSocket.on('message', (data) => {
@@ -1542,19 +1542,19 @@ krakenSocket.on('message', (data) => {
     
     // Handle system status
     if (msg.event === 'systemStatus') {
-      console.log(`🐙 Kraken system status: ${msg.status}`);
+      console.log(`[Kraken] System status: ${msg.status}`);
     }
     
   } catch (err) {
     // Ignore heartbeat messages and other non-JSON data
     if (!data.toString().includes('heartbeat')) {
-      console.error('❌ Failed to process Kraken data:', err.message);
+      console.error('[Kraken] Failed to process Kraken data:', err.message);
     }
   }
 });
 
 krakenSocket.on('close', () => {
-  console.warn('⚠️ Kraken WebSocket disconnected - attempting reconnect...');
+  console.warn('[Kraken] WebSocket disconnected - attempting reconnect...');
   
   // Broadcast disconnection to all clients
   const disconnectMessage = JSON.stringify({
@@ -1576,38 +1576,38 @@ krakenSocket.on('close', () => {
   
   // Auto-reconnect after 5 seconds
   setTimeout(() => {
-    console.log('🔄 Reconnecting to Kraken...');
+    console.log('[Kraken] Reconnecting...');
     // In production, you'd reinitialize the connection here
   }, 5000);
 });
 
 krakenSocket.on('error', (err) => {
-  console.error('🚨 Kraken WebSocket error:', err.message);
+  console.error('[Kraken] WebSocket error:', err.message);
 });
 
-// 📊 Enhanced status monitoring
+// Enhanced status monitoring
 setInterval(() => {
   const connectedClients = Array.from(wss.clients).filter(c => c.readyState === WebSocket.OPEN);
   const botClients = connectedClients.filter(c => c.clientType === 'bot');
   
-  console.log(`📊 SYSTEM STATUS:`);
-  console.log(`   � Kraken: ${krakenSocket.readyState === WebSocket.OPEN ? 'Connected ✅' : 'Disconnected ❌'}`);
-  console.log(`   📊 Ticks: ${tickCount}`);
-  console.log(`   💰 Last Price: $${lastKnownPrice ? lastKnownPrice.toFixed(2) : 'N/A'}`);
-  console.log(`   👥 Total Connections: ${connectedClients.length}`);
-  console.log(`   🤖 Bot Connections: ${botClients.length}`);
-  console.log(`   📡 Assets tracked: ${Object.keys(assetPrices).length}`);
+  console.log('[Status] SYSTEM STATUS:');
+  console.log(`   Kraken: ${krakenSocket.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}`);
+  console.log(`   Ticks: ${tickCount}`);
+  console.log(`   Last Price: $${lastKnownPrice ? lastKnownPrice.toFixed(2) : 'N/A'}`);
+  console.log(`   Total Connections: ${connectedClients.length}`);
+  console.log(`   Bot Connections: ${botClients.length}`);
+  console.log(`   Assets tracked: ${Object.keys(assetPrices).length}`);
   
   // Alert if no bot connections
   if (botClients.length === 0) {
-    console.warn('⚠️ WARNING: No trading bot connections detected!');
+    console.warn('[Status] WARNING: No trading bot connections detected');
   }
   
 }, 30000);
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down SSL server...');
+  console.log('\n[Shutdown] Shutting down SSL server...');
 
   // Close all WebSocket connections
   wss.clients.forEach((client) => {
@@ -1621,7 +1621,7 @@ process.on('SIGINT', () => {
   }
 
   httpServer.close(() => {
-    console.log('✅ Server shutdown complete');
+    console.log('[Shutdown] Server shutdown complete');
     process.exit(0);
   });
 });
@@ -1629,8 +1629,8 @@ process.on('SIGINT', () => {
 // CRITICAL FIX: Actually start listening on the port!
 const wsPort = process.env.WS_PORT || 3010;
 httpServer.listen(wsPort, '0.0.0.0', () => {
-  console.log(`🚀 WebSocket server ACTUALLY LISTENING on port ${wsPort}`);
-  console.log(`📡 Dashboard can now connect to ws://localhost:${wsPort}/ws`);
+  console.log(`[WS] WebSocket server listening on port ${wsPort}`);
+  console.log(`[WS] Dashboard endpoint ready at /ws on port ${wsPort}`);
 });
 
 // Network interfaces display

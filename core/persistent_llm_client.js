@@ -99,14 +99,14 @@ class PersistentLLMClient {
    * Initialize — verify provider is reachable
    */
   async initialize() {
-    console.log(`🚀 TRAI LLM Client initializing...`);
+    console.log('[TRAI] LLM client initializing...');
     console.log(`   Provider: ${this.provider.name}`);
     console.log(`   Model:    ${this.model}`);
     console.log(`   Endpoint: ${this.baseUrl}`);
 
     // Validate API key for cloud providers
     if (this.providerName !== 'ollama' && !this.apiKey) {
-      console.warn(`⚠️ No API key set for ${this.provider.name}. Set LLM_API_KEY env var.`);
+      console.warn(`[TRAI] No API key set for ${this.provider.name}. Set LLM_API_KEY env var.`);
       console.warn(`   TRAI will operate in degraded mode (pattern-only, no LLM analysis).`);
       this.isReady = false;
       return;
@@ -121,14 +121,14 @@ class PersistentLLMClient {
         const warmupStart = Date.now();
         await this.generateResponse('Respond with OK.', 10);
         const warmupTime = Date.now() - warmupStart;
-        console.log(`✅ TRAI LLM warm-up complete (${warmupTime}ms)`);
+        console.log(`[TRAI] LLM warm-up complete (${warmupTime}ms)`);
       }
 
       this.isReady = true;
-      console.log(`✅ TRAI LLM Client Ready! Provider: ${this.provider.name} | Model: ${this.model}`);
+      console.log(`[TRAI] LLM client ready. Provider: ${this.provider.name} | Model: ${this.model}`);
     } catch (error) {
-      console.error(`❌ TRAI LLM initialization failed:`, error.message);
-      console.log(`💡 TRAI will operate in degraded mode (pattern-only, no LLM analysis).`);
+      console.error('[TRAI] LLM initialization failed:', error.message);
+      console.log('[TRAI] Operating in degraded mode (pattern-only, no LLM analysis).');
       this.isReady = false;
     }
   }
@@ -175,14 +175,14 @@ class PersistentLLMClient {
       this.totalLatency += latency;
 
       if (latency > 10000) {
-        console.warn(`⚠️ Slow TRAI inference: ${latency}ms`);
+        console.warn(`[TRAI] Slow inference: ${latency}ms`);
       }
 
       // Clean response
       responseText = this._cleanResponse(responseText);
 
       if (!responseText || responseText.length < 5) {
-        console.warn('⚠️ TRAI response empty after cleaning');
+        console.warn('[TRAI] Response empty after cleaning');
         return this._fallbackResponse(prompt);
       }
 
@@ -190,7 +190,7 @@ class PersistentLLMClient {
 
     } catch (error) {
       this.errors++;
-      console.error(`❌ TRAI inference error (${this.provider.name}):`, error.message);
+      console.error(`[TRAI] Inference error (${this.provider.name}):`, error.message);
 
       // Check for content filter error - provide educational guidance instead
       if (error.message && error.message.includes('content_filter')) {
@@ -433,21 +433,21 @@ Ask me about any of these specifically and I'll give you the data!`;
       
       if (!hasModel) {
         const available = models.map(m => m.name).join(', ');
-        console.warn(`⚠️ Ollama model '${this.model}' not found. Available: ${available}`);
+        console.warn(`[TRAI] Ollama model '${this.model}' not found. Available: ${available}`);
         const hasDeepseek = models.some(m => m.name.includes('deepseek'));
         if (hasDeepseek) {
           this.model = models.find(m => m.name.includes('deepseek')).name;
-          console.log(`✅ Falling back to: ${this.model}`);
+          console.log(`[TRAI] Falling back to: ${this.model}`);
         } else {
           throw new Error(`No model found. Run: ollama pull ${this.model}`);
         }
       }
       
       // Warmup
-      console.log(`🔥 Warming up ${this.model}...`);
+      console.log(`[TRAI] Warming up ${this.model}...`);
       const start = Date.now();
       await this._callOllama('Hello', 10);
-      console.log(`✅ Warmup: ${Date.now() - start}ms`);
+      console.log(`[TRAI] Warmup: ${Date.now() - start}ms`);
     } catch (e) {
       throw new Error(`Ollama not reachable at ${this.baseUrl}: ${e.message}`);
     }
@@ -540,7 +540,7 @@ Ask me about any of these specifically and I'll give you the data!`;
   // ─── Status ────────────────────────────────────────────────────
 
   shutdown() {
-    console.log('🛑 TRAI LLM Client shutdown');
+    console.log('[TRAI] LLM client shutdown');
     this.isReady = false;
   }
 

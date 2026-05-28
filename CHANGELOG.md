@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Runtime Server Emoji-Free Logs (2026-05-28)
+
+- Removed emoji glyphs from active WebSocket server and persistent TRAI LLM runtime log strings, with a scoped regression test for those production sources.
+
 ### Webhook Fractional Base Routing (2026-05-28)
 
 - Allowed fractional crypto base-unit quantities on the webhook side channel while preserving stock-share integer guards, and blocked enabled webhook exits before local state mutation when no stored broker quantity can be proven.
