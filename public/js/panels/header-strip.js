@@ -191,6 +191,9 @@
                 min-width: 0;
             }
 
+            /* #51 brand-shrink: 40px logo dwarfed the 36px hero price; pulled to
+               24px so the brand identifies but the hero number wins the eye.
+               Diamond ornament + tagline scaled in proportion. */
             .hs-logo {
                 background: linear-gradient(135deg, #ef4444 0%, #dc2626 45%, #b91c1c 75%, #ef4444 100%);
                 background-clip: text;
@@ -198,39 +201,39 @@
                 -webkit-text-fill-color: transparent;
                 color: transparent;
                 font-family: 'Orbitron', monospace;
-                font-size: 40px;
+                font-size: 24px;
                 font-weight: 900;
-                letter-spacing: 4px;
+                letter-spacing: 2.5px;
                 text-transform: uppercase;
                 line-height: 1;
-                filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.45))
+                filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.4))
                         drop-shadow(0 0 4px rgba(0, 0, 0, 0.85));
                 display: inline-flex;
                 align-items: center;
-                gap: 12px;
+                gap: 9px;
             }
 
             .hs-logo::before {
                 content: '';
                 display: inline-block;
-                width: 14px;
-                height: 14px;
+                width: 10px;
+                height: 10px;
                 transform: rotate(45deg);
                 background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                box-shadow: 0 0 12px rgba(220, 38, 38, 0.55),
+                box-shadow: 0 0 8px rgba(220, 38, 38, 0.55),
                             0 0 0 1px rgba(255, 255, 255, 0.10) inset;
-                filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.55));
+                filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.55));
             }
 
             .hs-tagline {
                 color: #a8a8a8;
                 font-family: 'JetBrains Mono', monospace;
-                font-size: 11px;
+                font-size: 9px;
                 font-weight: 500;
                 text-transform: uppercase;
-                letter-spacing: 2.8px;
-                margin-top: 4px;
-                text-shadow: 0 0 6px rgba(220, 38, 38, 0.18);
+                letter-spacing: 1.4px;
+                margin-top: 3px;
+                text-shadow: 0 0 4px rgba(220, 38, 38, 0.18);
             }
 
             /* Hero price (CENTER zone) */
