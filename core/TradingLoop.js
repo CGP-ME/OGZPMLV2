@@ -116,7 +116,7 @@ class TradingLoop {
       || (missingPassGate ? 'risk gate missing pass state' : null);
     const scope = this._dashboardScope(symbol);
 
-    return this._sendDashboardFrame({
+    const frame = {
       type: 'gate_event',
       timestamp: Date.now(),
       traceId: traceId || decision?.traceId || null,
@@ -137,7 +137,10 @@ class TradingLoop {
         riskGates: gates,
       },
       ...scope,
-    });
+    };
+    const sentFrame = this._sendDashboardFrame(frame);
+    try { getNarrator().gateDecision(frame); } catch (_) { /* narrator is non-critical */ }
+    return sentFrame;
   }
 
   _isClosingShort(activeTrade) {

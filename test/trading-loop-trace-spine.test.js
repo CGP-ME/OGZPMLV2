@@ -27,6 +27,7 @@ jest.mock('../core/ExitContractManager', () => ({
 }));
 
 const TradingLoop = require('../core/TradingLoop');
+const { getNarrator } = require('../core/TradeNarrator');
 
 function candles(count = 20) {
   return Array.from({ length: count }, (_, i) => ({
@@ -206,6 +207,7 @@ describe('TradingLoop trace spine', () => {
       },
     });
     const loop = new TradingLoop(ctx);
+    const gateNarratorSpy = jest.spyOn(getNarrator(), 'gateDecision').mockImplementation(() => {});
     stubGatherData(loop);
 
     await loop._analyze('TSLA', 'trace_gate_pass_1');
@@ -234,6 +236,13 @@ describe('TradingLoop trace spine', () => {
       'daily_loss_limit',
       'max_drawdown',
     ]));
+    expect(gateNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'gate_event',
+      symbol: 'TSLA',
+      kind: 'eval_pass',
+      passed: true,
+    }));
+    gateNarratorSpy.mockRestore();
   });
 
   test('emits a scoped risk_block gate_event without executing when RiskManager blocks', async () => {

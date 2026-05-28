@@ -32,6 +32,7 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
 }));
 
 const OrderExecutor = require('../core/OrderExecutor');
+const { getNarrator } = require('../core/TradeNarrator');
 
 function makeExecutor(config = {}, ctx = {}) {
   return new OrderExecutor({
@@ -710,6 +711,7 @@ describe('OrderExecutor pause gate', () => {
       }),
     };
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const brokerNarratorSpy = jest.spyOn(getNarrator(), 'brokerResult').mockImplementation(() => {});
     const executor = makeExecutor(
       {
         evalTraceEnabled: true,
@@ -793,7 +795,14 @@ describe('OrderExecutor pause gate', () => {
       reason: null,
       responseBody: 'accepted',
     }));
+    expect(brokerNarratorSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'broker_ack',
+      symbol: 'TSLA',
+      action: 'BUY',
+      ok: true,
+    }));
 
+    brokerNarratorSpy.mockRestore();
     logSpy.mockRestore();
   });
 

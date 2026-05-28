@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extended `TradeNarrator` with existing-contract gate, broker, and feed narration hooks plus event-keyed USER phrase selection, without adding a parallel category/code narrator protocol.
 
+### Narrator Gate/Broker Frame Wiring (2026-05-28)
+
+- Wired existing `gate_event` and `broker_ack`/`broker_reject` dashboard frames through `TradeNarrator` so TRAI narration reflects real backend frames instead of parallel triggers.
+
 ### OrderExecutor Emoji-Free Logs (2026-05-28)
 
 - Removed emoji glyphs from `OrderExecutor` production log strings and added a regression check so trading-path runtime output stays operator-safe without changing trade behavior.

@@ -20,6 +20,7 @@ const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
 const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Adaptive parameter optimization
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const { getNarrator } = require('./TradeNarrator');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
@@ -184,7 +185,7 @@ class OrderExecutor {
     const reason = result?.reason || (sent ? null : 'not_sent');
     const body = typeof response?.body === 'string' ? response.body.slice(0, 500) : null;
 
-    return this._sendDashboardFrame({
+    const frame = {
       type: sent ? 'broker_ack' : 'broker_reject',
       timestamp: Date.now(),
       ok: sent,
@@ -233,7 +234,10 @@ class OrderExecutor {
         dryRun: reason === 'dry_run',
         responseBody: body,
       },
-    });
+    };
+    const sentFrame = this._sendDashboardFrame(frame);
+    try { getNarrator().brokerResult(frame); } catch (_) { /* narrator is non-critical */ }
+    return sentFrame;
   }
 
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult }) {
