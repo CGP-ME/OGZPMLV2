@@ -91,6 +91,33 @@
     box-shadow: 0 0 16px rgba(0, 204, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* ─── No-Data State ───────────────────────────────────────────────────────── */
+
+.ws-card.no-data {
+    opacity: 0.55;
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+}
+
+.ws-card.no-data .ws-price {
+    color: rgba(255, 255, 255, 0.4);
+    animation: ws-no-data-pulse 1.8s ease-in-out infinite;
+}
+
+.ws-card.no-data .ws-symbol {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.ws-card.no-data:hover {
+    opacity: 0.85;
+}
+
+@keyframes ws-no-data-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.95; }
+}
+
 /* ─── Header (Symbol + Broker Badge) ──────────────────────────────────────── */
 
 .ws-header {

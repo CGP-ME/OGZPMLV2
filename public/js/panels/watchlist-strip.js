@@ -291,7 +291,7 @@
      * Crypto typically has ~2 decimals, stocks have 2, very high-priced things vary.
      */
     function formatPrice(price) {
-        if (!isFinite(price)) return '--';
+        if (!isFinite(price) || price <= 0) return '--';
         if (price >= 10000) return price.toFixed(0);
         if (price >= 100) return price.toFixed(2);
         if (price >= 1) return price.toFixed(2);
@@ -382,6 +382,9 @@
         if (ticker.symbol === state.selectedSymbol) {
             card.classList.add('selected');
         }
+        if (!isFinite(ts.price) || ts.price <= 0) {
+            card.classList.add('no-data');
+        }
         card.dataset.symbol = ticker.symbol;
         card.dataset.broker = ticker.broker;
 
@@ -462,6 +465,11 @@
         if (priceEl) {
             priceEl.textContent = formatPrice(ts.price);
             priceEl.style.fontSize = ts.price < 10 ? '10px' : '11px';
+        }
+        if (isFinite(ts.price) && ts.price > 0) {
+            card.classList.remove('no-data');
+        } else {
+            card.classList.add('no-data');
         }
 
         // Update % change + color
