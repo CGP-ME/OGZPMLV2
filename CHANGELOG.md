@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### OrderExecutor Emoji-Free Logs (2026-05-28)
+
+- Removed emoji glyphs from `OrderExecutor` production log strings and added a regression check so trading-path runtime output stays operator-safe without changing trade behavior.
+
 ### Dashboard Broker Order Result Feed (2026-05-28)
 
 - Added dashboard `broker_ack` / `broker_reject` frames from the existing webhook order result path so broker acceptance, dry-run, rejection, and adapter failures are visible without changing order dispatch behavior.

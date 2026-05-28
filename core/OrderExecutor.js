@@ -530,7 +530,7 @@ class OrderExecutor {
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
     const maxPositionPercent = TradingConfig.get('positionSizing.maxPositionSize') * 2.5;
     if (basePositionPercent > maxPositionPercent) {
-      console.log(`⚠️ Position capped: ${(basePositionPercent * 100).toFixed(2)}% → ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
+      console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
     }
     // FIX TIER-4-ABSOLUTE-CAP: enforce absoluteCapPercent. Cap existed in
@@ -538,10 +538,10 @@ class OrderExecutor {
     // theoretically 31.25% (5% × 2.5 conf × 2.5 confluence) with no actual ceiling.
     const absoluteCap = TradingConfig.get('positionSizing.absoluteCapPercent');
     if (Number.isFinite(absoluteCap) && absoluteCap > 0 && basePositionPercent > absoluteCap) {
-      console.log(`⚠️ Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% → ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
+      console.log(`Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
       basePositionPercent = absoluteCap;
     }
-    console.log(`📏 Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% → ${confidenceMultiplier.toFixed(1)}x → ${(basePositionPercent * 100).toFixed(2)}% of balance`);
+    console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance`);
 
     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
     const baseSizeUSD = currentBalance * basePositionPercent;
@@ -549,7 +549,7 @@ class OrderExecutor {
     // FIX 2026-03-28: Position size stays in USD (no BTC conversion for stocks)
     const positionSize = baseSizeUSD;
 
-    console.log(`💰 Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
+    console.log(`Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
 
     // CHECKPOINT 2: Position sizing
     console.log(`[CP2] Position size calculated: $${positionSize.toFixed(2)} USD`);
@@ -662,7 +662,7 @@ class OrderExecutor {
 
     try {
       // CHECKPOINT 3: Before ExecutionLayer call
-      console.log(`📍 CP3: Calling ExecutionLayer.executeTrade with USD=$${positionSize.toFixed(2)}`);
+      console.log(`CP3: Calling ExecutionLayer.executeTrade with USD=$${positionSize.toFixed(2)}`);
 
       // Phase 4 REWRITE: Circuit breaker removed (tradingBrain deleted in Phase 2)
 
@@ -674,7 +674,7 @@ class OrderExecutor {
       let tradeResult;
       if (this.ctx.backtestMode || this.ctx.paperTrading) {
         // Backtest/Paper: Simulate trade execution with slippage
-        if (this.ctx.paperTrading) console.log('📝 PAPER MODE: Simulating order (no real execution)');
+        if (this.ctx.paperTrading) console.log('PAPER MODE: Simulating order (no real execution)');
 
         // FIX 2026-03-26 Bug 7: Apply slippage to simulated fills
         // BUY/COVER pay more, SELL/SELL_SHORT receive less
@@ -753,7 +753,7 @@ class OrderExecutor {
             quantityUnit: tradeResult.quantityUnit,
           });
         } catch (orderErr) {
-          console.error(`❌ Order execution failed: ${orderErr.message}`);
+          console.error(`Order execution failed: ${orderErr.message}`);
           tradeResult = { success: false, reason: orderErr.message, traceId, signalId };
           emitTrace(this.ctx, 'BROKER_ORDER_RESULT', {
             traceId,
@@ -766,10 +766,10 @@ class OrderExecutor {
       }
 
       // CHECKPOINT 4: After order execution
-      console.log(`📍 CP4: Order result:`, tradeResult ? `success=${tradeResult.success}` : 'NULL');
+      console.log(`CP4: Order result:`, tradeResult ? `success=${tradeResult.success}` : 'NULL');
 
       if (tradeResult && tradeResult.success) {
-        console.log(`📍 CP4.5: Trade SUCCESS confirmed, creating unified result`);
+        console.log(`CP4.5: Trade SUCCESS confirmed, creating unified result`);
         // Change 588: Create unified tradeResult format
         const unifiedResult = {
           orderId: tradeResult.orderId || `SIM_${Date.now()}`,
@@ -957,7 +957,7 @@ class OrderExecutor {
             trend: indicators.trend || 'sideways'
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmInstance);
-          console.log(`💰 MaxProfitManager started for trade ${unifiedResult.orderId} - tracking profit targets`);
+          console.log(`MaxProfitManager started for trade ${unifiedResult.orderId} - tracking profit targets`);
 
           // CHANGE 2026-02-01: Send Telegram notification for trade
           // Skip notifications during fast backtest
@@ -968,7 +968,7 @@ class OrderExecutor {
               price: price,
               size: positionSize / stateAfter.balance,
               confidence: decision.confidence / 100
-            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+            }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
             // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
             this.ctx.discordNotifier.notifyTrade('buy', price, positionSize);
@@ -1007,7 +1007,7 @@ class OrderExecutor {
             });
 
             if (this.ctx.patternExitShadowMode) {
-              console.log(`🕵️ [SHADOW] Pattern Exit Tracking Started:`);
+              console.log(`[SHADOW] Pattern Exit Tracking Started:`);
               console.log(`   Pattern Target: ${(exitTracking.patternTarget * 100).toFixed(2)}%`);
               console.log(`   Pattern Stop: ${(exitTracking.patternStop * 100).toFixed(2)}%`);
             }
@@ -1027,7 +1027,7 @@ class OrderExecutor {
               timestamp: Date.now(),
               confidence: decision.confidence
             }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
-            console.log(`📡 Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
+            console.log(`Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
           }
 
           // CHANGE 2026-01-25: Log trade for website proof
@@ -1162,7 +1162,7 @@ class OrderExecutor {
             trend: indicators.trend || 'sideways'
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmShortInstance);
-          console.log(`💰 MaxProfitManager started (SHORT) for trade ${unifiedResult.orderId} - tracking profit targets`);
+          console.log(`MaxProfitManager started (SHORT) for trade ${unifiedResult.orderId} - tracking profit targets`);
 
           // Notifications
           if (!this.ctx.backtestFast) {
@@ -1172,7 +1172,7 @@ class OrderExecutor {
               price: price,
               size: positionSize / stateAfter.balance,
               confidence: decision.confidence / 100
-            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+            }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
             this.ctx.discordNotifier.notifyTrade('sell_short', price, positionSize);
 
@@ -1208,7 +1208,7 @@ class OrderExecutor {
             });
 
             if (this.ctx.patternExitShadowMode) {
-              console.log(`🕵️ [SHADOW] Pattern Exit Tracking Started (SHORT):`);
+              console.log(`[SHADOW] Pattern Exit Tracking Started (SHORT):`);
               console.log(`   Pattern Target: ${(exitTracking.patternTarget * 100).toFixed(2)}%`);
               console.log(`   Pattern Stop: ${(exitTracking.patternStop * 100).toFixed(2)}%`);
             }
@@ -1226,7 +1226,7 @@ class OrderExecutor {
               timestamp: Date.now(),
               confidence: decision.confidence
             }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
-            console.log(`📡 Broadcast SHORT trade to dashboard at $${price.toFixed(2)}`);
+            console.log(`Broadcast SHORT trade to dashboard at $${price.toFixed(2)}`);
           }
 
           // Proof logger for SHORT
@@ -1423,7 +1423,7 @@ class OrderExecutor {
 
             // CHANGE 2025-12-12: Validate StateManager.closePosition() success
             if (!closeResult.success) {
-              console.error('❌ StateManager.closePosition failed:', closeResult.error);
+              console.error('StateManager.closePosition failed:', closeResult.error);
               emitTrace(this.ctx, 'STATE_MUTATION', {
                 traceId,
                 signalId,
@@ -1466,7 +1466,7 @@ class OrderExecutor {
             const profitLoss = buyTrade.entryPrice > 0
               ? usdAmount * ((price - buyTrade.entryPrice) / buyTrade.entryPrice)
               : 0;
-            console.log(`📍 CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
+            console.log(`CP8: SELL COMPLETE - New Balance: $${stateManager.get('balance')} (received $${sellValue.toFixed(2)}, P&L: $${profitLoss.toFixed(2)})`);
 
             // CHANGE 2026-02-01: Send notifications for trade close with P&L
             // BACKTEST_FAST: Skip notifications during backtest
@@ -1476,7 +1476,7 @@ class OrderExecutor {
                 entryPrice: buyTrade.entryPrice,
                 exitPrice: price,
                 duration: `${Math.round((Date.now() - buyTrade.entryTime) / 60000)}m`
-              }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+              }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
               // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
               this.ctx.discordNotifier.notifyTrade('sell', price, usdAmount, profitLoss);
@@ -1518,7 +1518,7 @@ class OrderExecutor {
                 duration: `${(holdDuration / 60000).toFixed(1)}m`,
                 confidence: decision.confidence
               }, completeTradeResult)));
-              console.log(`📡 Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+              console.log(`Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
             }
 
             // CHANGE 2026-01-25: Log trade for website proof
@@ -1614,7 +1614,7 @@ class OrderExecutor {
             if (this.tradeExitCount % 10 === 0 && this.ctx.patternChecker?.memory) {
               const health = this.ctx.patternChecker.memory.healthCheck();
               if (!health.healthy) {
-                console.error('🚨 PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!');
+                console.error('PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!');
               }
             }
 
@@ -1801,7 +1801,7 @@ class OrderExecutor {
               exitReason: 'manual_sell'
             });
             if (this.ctx.patternExitShadowMode) {
-              console.log(`🕵️ [SHADOW] Pattern Exit tracking stopped`);
+              console.log(`[SHADOW] Pattern Exit tracking stopped`);
             }
           }
 
@@ -1924,7 +1924,7 @@ class OrderExecutor {
           });
 
           if (!closeResult.success) {
-            console.error('❌ StateManager.closePosition (COVER) failed:', closeResult.error);
+            console.error('StateManager.closePosition (COVER) failed:', closeResult.error);
             emitTrace(this.ctx, 'STATE_MUTATION', {
               traceId,
               signalId,
@@ -1951,7 +1951,7 @@ class OrderExecutor {
             balance: afterCoverState.balance,
           });
           const profitLoss = shortSize * (shortTrade.entryPrice - price);
-          console.log(`📍 CP8-COVER: COVER COMPLETE - New Balance: $${afterCoverState.balance} (P&L: $${profitLoss.toFixed(2)})`);
+          console.log(`CP8-COVER: COVER COMPLETE - New Balance: $${afterCoverState.balance} (P&L: $${profitLoss.toFixed(2)})`);
 
           // Notifications
           if (!this.ctx.backtestFast) {
@@ -1961,7 +1961,7 @@ class OrderExecutor {
               exitPrice: price,
               duration: `${Math.round((Date.now() - shortTrade.entryTime) / 60000)}m`,
               direction: 'short'
-            }).catch(err => console.warn(`📱 Telegram notify failed: ${err.message}`));
+            }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
             this.ctx.discordNotifier.notifyTrade('cover', price, shortSize, profitLoss);
 
@@ -1999,7 +1999,7 @@ class OrderExecutor {
               duration: `${(holdDuration / 60000).toFixed(1)}m`,
               confidence: decision.confidence
             }, completeTradeResult)));
-            console.log(`📡 Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+            console.log(`Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
           }
 
           // Proof logger for COVER
@@ -2142,9 +2142,9 @@ class OrderExecutor {
         // CHANGE 650: REMOVED DUPLICATE TRAI STORAGE - Already properly stored at line 853-861
         // This was overwriting the complete data with incomplete data
 
-        console.log(`✅ ${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${positionSize.toFixed(2)}\n`);
+        console.log(`${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${positionSize.toFixed(2)}\n`);
       } else {
-        console.log(`⛔ Trade blocked: ${tradeResult?.reason || 'Risk limits'}\n`);
+        console.log(`Trade blocked: ${tradeResult?.reason || 'Risk limits'}\n`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', {
           traceId,
           signalId,
@@ -2175,7 +2175,7 @@ class OrderExecutor {
         throw error;
       }
 
-      console.error(`❌ Trade execution failed at checkpoint between CP3 and CP4`);
+      console.error(`Trade execution failed at checkpoint between CP3 and CP4`);
       console.error(`   Error message: ${error.message}`);
       console.error(`   Stack trace:`, error.stack);
       console.error(`   Decision: ${decision?.action}, Confidence: ${decision?.confidence}`);
