@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Strategy Startup Emoji-Free Logs (2026-05-28)
+
+- Removed emoji and mojibake prefixes from active strategy/startup logs for `PerformanceAnalyzer`, `PatternBasedExitModel`, `MADynamicSR`, and the modular-entry startup banner, with regression coverage for those console lines.
+
 ### Trade Journal Bridge USD Entry Values (2026-05-28)
 
 - Fixed `TradeJournalBridge` entry journaling so StateManager USD-sized trades record `usdValue` as the USD position size instead of multiplying the USD size by entry price, and refused to infer USD value from ambiguous legacy `size` fields.

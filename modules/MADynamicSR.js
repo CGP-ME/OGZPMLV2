@@ -95,7 +95,7 @@ class MADynamicSR {
       signalsEmitted: 0     // Signals that passed ALL checks
     };
 
-    console.log(`📐 MADynamicSR initialized (Trader DNA CORRECTED) - Entry MA: ${this.entryMaPeriod}, S/R MA: ${this.srMaPeriod}`);
+    console.log(`[MADynamicSR] initialized (Trader DNA CORRECTED) - Entry MA: ${this.entryMaPeriod}, S/R MA: ${this.srMaPeriod}`);
   }
 
   /**

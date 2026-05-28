@@ -84,7 +84,7 @@ class PatternBasedExitModel {
       patternExits: 0
     };
 
-    console.log('🎯 PatternBasedExitModel initialized');
+    console.log('[PatternBasedExitModel] initialized');
   }
 
   /**
@@ -118,7 +118,7 @@ class PatternBasedExitModel {
     this.activePosition.patternTarget = this.calculatePatternTarget(position.patterns);
     this.activePosition.patternStop = this.calculatePatternStop(position.patterns);
 
-    console.log(`🎯 Exit tracking: ${position.direction?.toUpperCase()} @ ${position.entryPrice}`);
+    console.log(`[PatternBasedExitModel] Exit tracking: ${position.direction?.toUpperCase()} @ ${position.entryPrice}`);
     console.log(`   Target: ${(this.activePosition.patternTarget * 100).toFixed(2)}%`);
     console.log(`   Stop: ${(this.activePosition.patternStop * 100).toFixed(2)}%`);
 
@@ -542,7 +542,7 @@ class PatternBasedExitModel {
    */
   stopTracking(result = {}) {
     if (this.activePosition) {
-      console.log(`🎯 Exit tracking stopped. P&L: ${(result.pnl || 0).toFixed(2)}`);
+      console.log(`[PatternBasedExitModel] Exit tracking stopped. P&L: ${(result.pnl || 0).toFixed(2)}`);
     }
 
     this.activePosition = null;

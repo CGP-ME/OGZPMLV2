@@ -117,12 +117,12 @@ class PerformanceAnalyzer {
     this.reset();
     
     // Log initialization
-    console.log('📊 PerformanceAnalyzer initialized with configuration:');
-    console.log(`   ✅ Tracking ${config.trackingMetrics?.length || 0} metrics`);
-    console.log(`   ✅ Update interval: ${config.updateInterval || 60000}ms`);
-    console.log(`   ✅ Alert thresholds configured`);
-    console.log(`   ✅ Min trades for analysis: ${this.config.minTradesForAnalysis}`);
-    console.log(`   ✅ Edge decay lookback: ${this.config.edgeDecayLookback} trades`);
+    console.log('[PerformanceAnalyzer] initialized with configuration:');
+    console.log(`   Tracking ${config.trackingMetrics?.length || 0} metrics`);
+    console.log(`   Update interval: ${config.updateInterval || 60000}ms`);
+    console.log('   Alert thresholds configured');
+    console.log(`   Min trades for analysis: ${this.config.minTradesForAnalysis}`);
+    console.log(`   Edge decay lookback: ${this.config.edgeDecayLookback} trades`);
   }
   
   /**
@@ -391,7 +391,7 @@ class PerformanceAnalyzer {
     // ====================================================================
     
     if (score < this.config.alertOnTradesBelow) {
-      this.log(`⚠️ Low quality trade detected (${score.toFixed(1)}/100)`, 'warning');
+      this.log(`Low quality trade detected (${score.toFixed(1)}/100)`, 'warning');
     }
     
     return score;
@@ -848,7 +848,7 @@ class PerformanceAnalyzer {
     
     // Log decay if detected
     if (edgeDecayDetected && !this.state.edgeDetectionLogged) {
-      this.log(`⚠️ Edge decay detected! Historical win rate: ${(historicalWinRate * 100).toFixed(1)}%, Recent: ${(recentWinRate * 100).toFixed(1)}%`, 'warning');
+      this.log(`Edge decay detected. Historical win rate: ${(historicalWinRate * 100).toFixed(1)}%, Recent: ${(recentWinRate * 100).toFixed(1)}%`, 'warning');
       this.state.edgeDetectionLogged = true;
     }
     
@@ -1132,20 +1132,20 @@ class PerformanceAnalyzer {
     }
     
     // Format based on severity
-    let prefix = '🔄';
+    let prefix = '[INFO]';
     
     switch (level) {
       case 'error':
-        prefix = '❌';
+        prefix = '[ERROR]';
         break;
       case 'warning':
-        prefix = '⚠️';
+        prefix = '[WARNING]';
         break;
       case 'info':
-        prefix = 'ℹ️';
+        prefix = '[INFO]';
         break;
       case 'debug':
-        prefix = '🔍';
+        prefix = '[DEBUG]';
         break;
     }
     
@@ -1202,7 +1202,7 @@ module.exports = PerformanceAnalyzer;
  * // 3. CHECK FOR EDGE DECAY
  * const edgeStatus = analyzer.detectEdgeDecay();
  * if (edgeStatus.detected) {
- *   console.log('⚠️ Trading edge decay detected!');
+ *   console.log('Trading edge decay detected');
  *   console.log(`Decay amount: ${(edgeStatus.decayAmount * 100).toFixed(1)}%`);
  * }
  * 

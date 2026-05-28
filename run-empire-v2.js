@@ -691,7 +691,7 @@ class OGZPrimeV14Bot {
       recalcInterval: vpConfig.recalcInterval ?? 5,
     });
 
-    console.log('"Š Modular Entry System: MTF + Crossovers + S/R + Liquidity initialized');
+    console.log('[ModularEntry] MTF + Crossovers + S/R + Liquidity initialized');
 
     // EXIT_SYSTEM feature flag: Only ONE exit system active at a time
     // Options: maxprofit, intelligence, pattern, brain, legacy (all active)
@@ -1378,13 +1378,13 @@ class OGZPrimeV14Bot {
         this.mode = 'PAPER';
       } else {
         // BOTH keys confirmed - show BIG warning
-        console.log('\n' + '═”'.repeat(70));
-        console.log('═‘' + ' '.repeat(20) + '[WARNING]  LIVE TRADING MODE ACTIVE  [WARNING]' + ' '.repeat(17) + '═‘');
-        console.log('═‘' + ' '.repeat(68) + '═‘');
-        console.log('═‘' + ' '.repeat(20) + '    REAL MONEY AT RISK!' + ' '.repeat(25) + '═‘');
-        console.log('═‘' + ' '.repeat(68) + '═‘');
-        console.log('═‘' + ' '.repeat(15) + 'Two-key safety confirmed. Proceeding...' + ' '.repeat(14) + '═‘');
-        console.log('═š'.repeat(70) + '\n');
+        console.log('\n' + '='.repeat(70));
+        console.log('=' + ' '.repeat(20) + '[WARNING]  LIVE TRADING MODE ACTIVE  [WARNING]' + ' '.repeat(17) + '=');
+        console.log('=' + ' '.repeat(68) + '=');
+        console.log('=' + ' '.repeat(20) + '    REAL MONEY AT RISK!' + ' '.repeat(25) + '=');
+        console.log('=' + ' '.repeat(68) + '=');
+        console.log('=' + ' '.repeat(15) + 'Two-key safety confirmed. Proceeding...' + ' '.repeat(14) + '=');
+        console.log('='.repeat(70) + '\n');
 
         // 10-second countdown
         console.log('Starting in:');
