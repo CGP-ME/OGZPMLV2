@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
@@ -127,6 +128,147 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(0);
     expect(memory.recordObservation(features, scope({ timeframe: null }))).toBeNull();
     expect(Object.keys(memory.patterns)).toHaveLength(0);
+  });
+
+  test('UnifiedPatternMemory switches paper asset banks without carrying patterns across assets', async () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+    process.env.PAPER_TRADING = 'true';
+    process.env.ASSET_CLASS = 'crypto';
+    process.env.BROKER = 'kraken';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      dataDir: process.env.DATA_DIR,
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+    const cryptoScope = {
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeKey: 'paper:kraken:acct-main:crypto:BTC-USD:1m',
+    };
+    const stockScope = {
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:1m',
+    };
+
+    try {
+      expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.paper.crypto.json'));
+      expect(memory.recordOutcome(features, {
+        ...cryptoScope,
+        pnl: 8,
+        pnlPercent: 1.1,
+        exitReason: 'take_profit',
+        strategy: 'CryptoStrategy',
+      })).toBe(true);
+      expect(memory.getConfidence(features, cryptoScope)).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+
+      const switchResult = memory.switchSessionScope(stockScope, { reason: 'test_switch_to_stocks' });
+      expect(switchResult).toEqual(expect.objectContaining({
+        switched: true,
+        previousPath: path.join(process.env.DATA_DIR, 'unified-patterns.paper.crypto.json'),
+        storagePath: path.join(process.env.DATA_DIR, 'unified-patterns.paper.stocks.json'),
+        assetBucket: 'stocks',
+        loaded: false,
+        targetExists: false,
+      }));
+      expect(fs.existsSync(path.join(process.env.DATA_DIR, 'unified-patterns.paper.crypto.json'))).toBe(true);
+      expect(memory.getConfidence(features, cryptoScope)).toBeNull();
+      expect(memory.getConfidence(features, stockScope)).toBeNull();
+
+      expect(memory.recordOutcome(features, {
+        ...stockScope,
+        pnl: 11,
+        pnlPercent: 1.4,
+        exitReason: 'take_profit',
+        strategy: 'StockStrategy',
+      })).toBe(true);
+      expect(memory.getConfidence(features, stockScope)).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+
+      memory.switchSessionScope(cryptoScope, { reason: 'test_switch_back_to_crypto' });
+      expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.paper.crypto.json'));
+      expect(memory.getConfidence(features, cryptoScope)).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+      expect(memory.getConfidence(features, stockScope)).toBeNull();
+    } finally {
+      await memory.cleanup();
+    }
+  });
+
+  test('UnifiedPatternMemory restores prior bank when target load fails', async () => {
+    delete process.env.BACKTEST_MODE;
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+    process.env.PAPER_TRADING = 'true';
+    process.env.ASSET_CLASS = 'crypto';
+    process.env.BROKER = 'kraken';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      dataDir: process.env.DATA_DIR,
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+    const cryptoScope = {
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeKey: 'paper:kraken:acct-main:crypto:BTC-USD:1m',
+    };
+    const stockScope = {
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:1m',
+    };
+
+    try {
+      expect(memory.recordOutcome(features, {
+        ...cryptoScope,
+        pnl: 8,
+        pnlPercent: 1.1,
+        exitReason: 'take_profit',
+        strategy: 'CryptoStrategy',
+      })).toBe(true);
+      const priorPath = memory.storagePath;
+      fs.mkdirSync(process.env.DATA_DIR, { recursive: true });
+      fs.writeFileSync(path.join(process.env.DATA_DIR, 'unified-patterns.paper.stocks.json'), '{not-json', 'utf8');
+
+      expect(() => memory.switchSessionScope(stockScope, { reason: 'test_corrupt_target' })).toThrow();
+      expect(memory.storagePath).toBe(priorPath);
+      expect(memory.getConfidence(features, cryptoScope)).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+      expect(memory.getConfidence(features, stockScope)).toBeNull();
+    } finally {
+      await memory.cleanup();
+    }
   });
 
   test('PatternMemoryBank hashes and records by immutable scope', () => {

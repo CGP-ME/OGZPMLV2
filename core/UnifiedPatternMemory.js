@@ -125,6 +125,52 @@ const DEFAULT_FEATURE_WEIGHTS = [
   0.05,  // [8] Position context
 ];
 
+function buildDefaultStats() {
+  return {
+    observations: 0,
+    outcomes: 0,
+    promoted: 0,
+    quarantined: 0,
+    dtwMatches: 0,
+    exactMatches: 0,
+    lastPruneTime: 0,
+  };
+}
+
+function resolveInitialMode() {
+  if (process.env.BACKTEST_MODE === 'true') return 'backtest';
+  if (process.env.PAPER_TRADING === 'true') return 'paper';
+  return 'live';
+}
+
+function sanitizePatternBucket(value) {
+  return String(value).trim().replace(/\//g, '-');
+}
+
+function resolveInitialAssetBucket(mode) {
+  if (mode === 'backtest') {
+    let ticker = sanitizePatternBucket(process.env.TRADING_PAIR || '');
+    if (!ticker && process.env.CANDLE_DATA_FILE) {
+      const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
+        .replace(/^polygon-/, '');
+      ticker = base.split('-')[0].toUpperCase();
+    }
+    return ticker || 'default';
+  }
+
+  const cls = process.env.ASSET_CLASS
+    || ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :
+        (process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);
+  if (!cls) {
+    throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: cannot determine asset class - set ASSET_CLASS or BROKER (kraken|alpaca) env');
+  }
+  return sanitizePatternBucket(cls.toLowerCase());
+}
+
+function storagePathForBucket(dataDir, mode, assetBucket) {
+  return path.join(dataDir, `unified-patterns.${mode}.${assetBucket}.json`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // UNIFIED PATTERN MEMORY
 // ═══════════════════════════════════════════════════════════════
@@ -160,50 +206,15 @@ class UnifiedPatternMemory {
     //
     // Spec: ogz-meta/specs/pattern-bank-separation-spec.md
     // Incident: 2026-04-22 crypto bank corruption on broker flip before this fix existed.
-    const mode = process.env.BACKTEST_MODE === 'true' ? 'backtest' :
-                 process.env.PAPER_TRADING === 'true' ? 'paper' : 'live';
-
-    let assetBucket;
-    if (mode === 'backtest') {
-      // Per-ticker. Prefer TRADING_PAIR, fall back to ticker from CANDLE_DATA_FILE
-      // filename (e.g. 'tuning/tsla-15m-2y.json' -> 'TSLA'), finally 'default'.
-      // Wolf's 2026-04-22 catch: backtest commands without TRADING_PAIR otherwise
-      // would fall to ConfigLoader's 'BTC-USD' default and poison the wrong bank.
-      let ticker = (process.env.TRADING_PAIR || '').replace(/\//g, '-');
-      if (!ticker && process.env.CANDLE_DATA_FILE) {
-        const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
-          .replace(/^polygon-/, '');
-        ticker = base.split('-')[0].toUpperCase();
-      }
-      assetBucket = ticker || 'default';
-    } else {
-      // SESSION-HIGH-02: explicit asset class only. Slash-based detection
-      // mis-classified BTC-USD (with dash, the Alpaca format) as 'stocks'.
-      // ConfigLoader now derives broker.assetClass from BROKER env, so the
-      // process.env.ASSET_CLASS read here gets the same value via foundation.
-      // Throws if neither ASSET_CLASS env nor a recognizable BROKER is set.
-      const cls = process.env.ASSET_CLASS
-        || ((process.env.BROKER || '').toLowerCase() === 'kraken' ? 'crypto' :
-            (process.env.BROKER || '').toLowerCase() === 'alpaca' ? 'stocks' : null);
-      if (!cls) {
-        throw new Error('[SESSION-HIGH-02] UnifiedPatternMemory: cannot determine asset class — set ASSET_CLASS or BROKER (kraken|alpaca) env');
-      }
-      assetBucket = cls;
-    }
-
-    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-    this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${assetBucket}.json`);
+    const mode = resolveInitialMode();
+    const assetBucket = resolveInitialAssetBucket(mode);
+    this.dataDir = config.dataDir || process.env.DATA_DIR || (config.storagePath ? path.dirname(config.storagePath) : path.join(process.cwd(), 'data'));
+    this.storagePath = config.storagePath || storagePathForBucket(this.dataDir, mode, assetBucket);
+    this.storageMode = mode;
+    this.assetBucket = assetBucket;
 
     // Stats
-    this.stats = {
-      observations: 0,
-      outcomes: 0,
-      promoted: 0,
-      quarantined: 0,
-      dtwMatches: 0,
-      exactMatches: 0,
-      lastPruneTime: 0,
-    };
+    this.stats = buildDefaultStats();
 
     // Load from disk
     this._load();
@@ -580,51 +591,137 @@ class UnifiedPatternMemory {
     if (!this.config.persistToDisk) return;
 
     try {
-      const dir = path.dirname(this.storagePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      const data = {
-        version: 2,
-        savedAt: new Date().toISOString(),
-        stats: this.stats,
-        config: {
-          minSamples: this.config.minSamples,
-          successThreshold: this.config.successThreshold,
-          failureThreshold: this.config.failureThreshold,
-        },
-        patternCount: Object.keys(this.#patterns).length,
-        patterns: this.#patterns,
-      };
-
-      // Atomic write: write to temp, rename
-      const tmpPath = this.storagePath + '.tmp';
-      fs.writeFileSync(tmpPath, JSON.stringify(data));
-      fs.renameSync(tmpPath, this.storagePath);
+      this.saveOrThrow();
     } catch (err) {
       console.error(`[UnifiedPatternMemory] Save failed: ${err.message}`);
     }
+  }
+
+  saveOrThrow() {
+    if (!this.config.persistToDisk) {
+      return null;
+    }
+
+    return this._writeSnapshotOrThrow(this.storagePath);
+  }
+
+  _writeSnapshotOrThrow(storagePath) {
+    const dir = path.dirname(storagePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const data = {
+      version: 2,
+      savedAt: new Date().toISOString(),
+      stats: this.stats,
+      config: {
+        minSamples: this.config.minSamples,
+        successThreshold: this.config.successThreshold,
+        failureThreshold: this.config.failureThreshold,
+      },
+      patternCount: Object.keys(this.#patterns).length,
+      patterns: this.#patterns,
+    };
+
+    const tmpPath = storagePath + '.tmp';
+    fs.writeFileSync(tmpPath, JSON.stringify(data));
+    fs.renameSync(tmpPath, storagePath);
+    return storagePath;
   }
 
   _load() {
     if (!this.config.persistToDisk) return;
 
     try {
-      if (fs.existsSync(this.storagePath)) {
-        const raw = fs.readFileSync(this.storagePath, 'utf8');
-        const data = JSON.parse(raw);
-
-        if (data.version === 2 && data.patterns) {
-          this.#patterns = data.patterns;
-          this.stats = { ...this.stats, ...data.stats };
-          console.log(`[UnifiedPatternMemory] Loaded ${Object.keys(this.#patterns).length} patterns from disk`);
-        } else {
-          console.log('[UnifiedPatternMemory] Incompatible version, starting fresh');
-        }
-      }
+      this._loadFromPathOrThrow(this.storagePath);
     } catch (err) {
       console.error(`[UnifiedPatternMemory] Load failed: ${err.message}`);
+    }
+  }
+
+  _loadFromPathOrThrow(storagePath) {
+    if (!this.config.persistToDisk) {
+      return { loaded: false, exists: false, patternCount: Object.keys(this.#patterns).length };
+    }
+    if (!fs.existsSync(storagePath)) {
+      this.#patterns = {};
+      this.stats = buildDefaultStats();
+      return { loaded: false, exists: false, patternCount: 0 };
+    }
+
+    const raw = fs.readFileSync(storagePath, 'utf8');
+    const data = JSON.parse(raw);
+    if (!data || data.version !== 2 || !data.patterns || typeof data.patterns !== 'object' || Array.isArray(data.patterns)) {
+      throw new Error(`UnifiedPatternMemory incompatible pattern bank at ${storagePath}`);
+    }
+
+    this.#patterns = data.patterns;
+    this.stats = { ...buildDefaultStats(), ...(data.stats || {}) };
+    console.log(`[UnifiedPatternMemory] Loaded ${Object.keys(this.#patterns).length} patterns from disk`);
+    return { loaded: true, exists: true, patternCount: Object.keys(this.#patterns).length };
+  }
+
+  _resolveStoragePathForScope(scope) {
+    const mode = scope.executionMode === 'backtest' ? 'backtest'
+      : scope.executionMode === 'live' ? 'live'
+        : 'paper';
+    const assetBucket = mode === 'backtest'
+      ? sanitizePatternBucket(scope.symbol)
+      : sanitizePatternBucket(scope.assetClass);
+    return {
+      mode,
+      assetBucket,
+      storagePath: storagePathForBucket(this.dataDir, mode, assetBucket)
+    };
+  }
+
+  switchSessionScope(scopeInput, details = {}) {
+    const scope = this._requireScope(scopeInput, 'UnifiedPatternMemory.switchSessionScope');
+    const target = this._resolveStoragePathForScope(scope);
+    const previousPath = this.storagePath;
+    const previousMode = this.storageMode;
+    const previousBucket = this.assetBucket;
+    const previousPatterns = this.patterns;
+    const previousStats = { ...this.stats };
+
+    if (target.storagePath === previousPath) {
+      return {
+        switched: false,
+        reason: 'already_active',
+        storagePath: this.storagePath,
+        mode: this.storageMode,
+        assetBucket: this.assetBucket,
+        patternCount: Object.keys(this.#patterns).length
+      };
+    }
+
+    try {
+      this.saveOrThrow();
+      this.storagePath = target.storagePath;
+      this.storageMode = target.mode;
+      this.assetBucket = target.assetBucket;
+      this.#patterns = {};
+      this.stats = buildDefaultStats();
+      const loadResult = this._loadFromPathOrThrow(target.storagePath);
+      return {
+        switched: true,
+        reason: details.reason || 'session_scope_switch',
+        previousPath,
+        storagePath: this.storagePath,
+        mode: this.storageMode,
+        assetBucket: this.assetBucket,
+        patternCount: Object.keys(this.#patterns).length,
+        loaded: loadResult.loaded,
+        targetExists: loadResult.exists
+      };
+    } catch (err) {
+      this.storagePath = previousPath;
+      this.storageMode = previousMode;
+      this.assetBucket = previousBucket;
+      this.#patterns = previousPatterns;
+      this.stats = previousStats;
+      throw err;
     }
   }
 
@@ -673,6 +770,17 @@ class UnifiedPatternMemory {
   _normalizeScope(input, caller) {
     const scope = normalizePatternScope(input, caller);
     return scope.ok ? scope : null;
+  }
+
+  _requireScope(input, caller) {
+    const scope = normalizePatternScope(input, caller);
+    if (scope.ok) return scope;
+    const error = new Error(scope.reason);
+    error.code = scope.code;
+    error.missingFields = scope.missingFields || [];
+    error.suppliedScopeKey = scope.suppliedScopeKey;
+    error.expectedScopeKey = scope.expectedScopeKey;
+    throw error;
   }
 
   _computeScopedSignature(features, scope) {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Pattern Memory Handoff (2026-05-29)
+
+- Added a fail-closed `UnifiedPatternMemory.switchSessionScope()` path that saves the outgoing bank, switches to the target session bank, loads the target bank, and rolls back to the prior in-memory bank if save/load fails.
+- Wired `SessionRouter` initial activation and crypto/stocks transitions to switch the active pattern bank before target broker activation, with stocks-to-crypto handoff occurring only after source stock force-close outcomes have landed.
+- Made missing pattern memory owners, malformed switch results, wrong target mode/bucket/path results, and missing runtime timeframe abort the transition into failed-safe instead of letting trading resume with stale or absent learned-state.
+- Added regression coverage for crypto/stocks bank isolation, corrupt target rollback, transition ordering, missing-memory failure, wrong-bank failure, and initial activation ordering.
+
 ### SessionRouter Runtime Scope Stamping (2026-05-29)
 
 - Made `TradingLoop` pattern and dashboard scope builders read the active `SessionRouter` broker/asset envelope when present, instead of stamping pattern observations with stale static config after a broker session switch.

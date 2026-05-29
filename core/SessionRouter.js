@@ -20,6 +20,7 @@
  */
 
 const EventEmitter = require('events');
+const path = require('path');
 const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar');
 const { getInstance: getStateManager } = require('./StateManager');
 const TransitionStore = require('./session-router/TransitionStore');
@@ -188,6 +189,130 @@ class SessionRouter extends EventEmitter {
     });
   }
 
+  _currentTimeframe() {
+    const timeframe = this.ctx && this.ctx.timeframeSelector && this.ctx.timeframeSelector.currentTimeframe
+      ? this.ctx.timeframeSelector.currentTimeframe
+      : this.ctx && this.ctx.candleTimeframe
+        ? this.ctx.candleTimeframe
+        : this.ctx && this.ctx.config
+          ? this.ctx.config.timeframe
+          : null;
+    if (!timeframe) {
+      throw new Error('SessionRouter timeframe missing from runtime config');
+    }
+    return timeframe;
+  }
+
+  _getPatternMemoryForHandoff() {
+    if (this.ctx && this.ctx.patternChecker && !this.ctx.patternChecker.memory) {
+      throw new Error('SessionRouter patternChecker memory unavailable for session handoff');
+    }
+
+    const candidates = [
+      this.ctx && this.ctx.patternChecker && this.ctx.patternChecker.memory,
+      this.ctx && this.ctx.trai && this.ctx.trai.traiCore && this.ctx.trai.traiCore.patternMemory
+    ].filter(Boolean);
+
+    const switchable = candidates.filter((candidate) => (
+      candidate && typeof candidate.switchSessionScope === 'function'
+    ));
+    const unique = Array.from(new Set(switchable));
+    if (unique.length > 1) {
+      throw new Error('SessionRouter pattern memory handoff found multiple switchable memory owners');
+    }
+    if (unique.length === 1) return unique[0];
+
+    const unsafeMemory = candidates.find((candidate) => (
+      candidate
+      && (typeof candidate.recordOutcome === 'function' || typeof candidate.getConfidence === 'function')
+      && typeof candidate.switchSessionScope !== 'function'
+    ));
+    if (unsafeMemory) {
+      throw new Error('SessionRouter pattern memory owner lacks switchSessionScope handoff API');
+    }
+    return null;
+  }
+
+  _targetPatternScope(sessionName, timeframe) {
+    const targetSymbols = sessionName === 'crypto' ? this.cryptoSymbols : this.stockSymbols;
+    if (!Array.isArray(targetSymbols) || targetSymbols.length === 0) {
+      throw new Error(`SessionRouter pattern memory handoff missing ${sessionName} symbol list`);
+    }
+
+    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
+    const executionMode = config.executionMode;
+    const accountId = config.accountId || 'default';
+    const brokerId = sessionName === 'crypto' ? 'kraken' : 'alpaca';
+    const assetClass = sessionName === 'crypto' ? 'crypto' : 'stocks';
+    const resolvedTimeframe = timeframe || config.timeframe || null;
+
+    return {
+      symbol: targetSymbols[0],
+      brokerId,
+      accountId,
+      accountIdSource: config.accountIdSource || (accountId !== 'default' ? 'config' : 'default'),
+      assetClass,
+      executionMode,
+      timeframe: resolvedTimeframe
+    };
+  }
+
+  _handoffPatternMemory(targetSession, transitionContext, timeframe, details = {}) {
+    const memory = this._getPatternMemoryForHandoff();
+    if (!memory) {
+      throw new Error('SessionRouter pattern memory unavailable for session handoff');
+    }
+
+    const scope = this._targetPatternScope(targetSession, timeframe);
+    const expectedMode = scope.executionMode === 'backtest' ? 'backtest'
+      : scope.executionMode === 'live' ? 'live'
+        : 'paper';
+    const expectedBucket = expectedMode === 'backtest' ? scope.symbol : scope.assetClass;
+    const expectedStorageFile = `unified-patterns.${expectedMode}.${expectedBucket}.json`;
+    const result = memory.switchSessionScope(scope, {
+      reason: 'session_router_transition',
+      transitionId: transitionContext && transitionContext.transitionId,
+      from: transitionContext && transitionContext.from,
+      to: transitionContext && transitionContext.to,
+      ...details
+    });
+    if (!result || typeof result !== 'object' || !result.storagePath) {
+      throw new Error('SessionRouter pattern memory handoff did not confirm target storage path');
+    }
+    if (result.switched === false && result.reason !== 'already_active') {
+      throw new Error(`SessionRouter pattern memory handoff refused switch: ${result.reason || 'unknown reason'}`);
+    }
+    const storageFile = path.basename(result.storagePath);
+    if (result.mode !== expectedMode || result.assetBucket !== expectedBucket || storageFile !== expectedStorageFile) {
+      throw new Error(`SessionRouter pattern memory handoff target mismatch: expected ${expectedMode}/${expectedBucket}/${expectedStorageFile}, got ${result.mode || '(missing)'}/${result.assetBucket || '(missing)'}/${storageFile || '(missing)'}`);
+    }
+
+    const eventDetails = {
+      activeSession: this.activeSession,
+      patternMemory: {
+        skipped: false,
+        switched: Boolean(result && result.switched),
+        reason: result && result.reason,
+        previousPath: result && result.previousPath,
+        storagePath: result && result.storagePath,
+        mode: result && result.mode,
+        assetBucket: result && result.assetBucket,
+        patternCount: result && result.patternCount,
+        loaded: result && result.loaded,
+        targetExists: result && result.targetExists
+      }
+    };
+    if (transitionContext) {
+      this._recordTransitionEvent('SESSION_PATTERN_MEMORY_HANDOFF', transitionContext, eventDetails);
+    }
+    this.emit('pattern_memory_handoff', {
+      targetSession,
+      scope,
+      ...eventDetails.patternMemory
+    });
+    return eventDetails.patternMemory;
+  }
+
   async _enterFailedSafe(from, to, err, now, options = {}) {
     const reason = err && err.message ? err.message : String(err);
     const at = this._transitionAt(now);
@@ -259,7 +384,7 @@ class SessionRouter extends EventEmitter {
     console.log(`[SessionRouter] TRANSITION: crypto -> stocks at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
     let pauseConfirmed = false;
     let transitionContext = null;
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+    const timeframe = this._currentTimeframe();
 
     try {
       transitionContext = this._createTransitionContext('crypto', 'stocks', now, {
@@ -277,6 +402,8 @@ class SessionRouter extends EventEmitter {
         activeSession: this.activeSession,
         pauseConfirmed: true
       });
+
+      this._handoffPatternMemory('stocks', transitionContext, timeframe);
 
       if (typeof this.krakenAdapter.unsubscribeAll === 'function') this.krakenAdapter.unsubscribeAll();
       if (typeof this.krakenAdapter.removeAllListeners === 'function') this.krakenAdapter.removeAllListeners('ohlc');
@@ -324,7 +451,7 @@ class SessionRouter extends EventEmitter {
     console.log(`[SessionRouter] TRANSITION: stocks -> crypto at ${ny.hour}:${String(ny.minute).padStart(2,'0')} ET`);
     let pauseConfirmed = false;
     let transitionContext = null;
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+    const timeframe = this._currentTimeframe();
 
     try {
       transitionContext = this._createTransitionContext('stocks', 'crypto', now, {
@@ -415,6 +542,10 @@ class SessionRouter extends EventEmitter {
           }
       }
 
+      this._handoffPatternMemory('crypto', transitionContext, timeframe, {
+        sourceFlatConfirmed: true
+      });
+
       if (typeof this.alpacaAdapter.unsubscribeAll === 'function') this.alpacaAdapter.unsubscribeAll();
       if (typeof this.alpacaAdapter.removeAllListeners === 'function') this.alpacaAdapter.removeAllListeners('ohlc');
 
@@ -465,15 +596,18 @@ class SessionRouter extends EventEmitter {
       console.error('[SessionRouter] Refusing crypto activation while failed-safe mode is active');
       return;
     }
-    this.activeSession = 'crypto';
-    this.activeBroker = this.krakenAdapter;
-    if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
+    const timeframe = this._currentTimeframe();
     // FIX MIRROR-SESSION-CRYPTO: refuse silent BTC-USD default. Same class as
     // SESSION-HIGH-01 which hardened _setActiveSession but left this mirror.
     if (!Array.isArray(this.cryptoSymbols) || this.cryptoSymbols.length === 0) {
       throw new Error('[MIRROR-SESSION-CRYPTO] SessionRouter._activateCrypto: cryptoSymbols empty/non-array — refusing BTC-USD default');
     }
+    this._handoffPatternMemory('crypto', null, timeframe, {
+      reason: 'initial_activation'
+    });
+    this.activeSession = 'crypto';
+    this.activeBroker = this.krakenAdapter;
+    if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
     const primaryCrypto = this.cryptoSymbols[0];
     if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
       this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
@@ -489,10 +623,13 @@ class SessionRouter extends EventEmitter {
       console.error('[SessionRouter] Refusing stocks activation while failed-safe mode is active');
       return;
     }
+    const timeframe = this._currentTimeframe();
+    this._handoffPatternMemory('stocks', null, timeframe, {
+      reason: 'initial_activation'
+    });
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
-    const timeframe = process.env.CANDLE_TIMEFRAME || '15m';
     for (const symbol of this.stockSymbols) {
       if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
         this.alpacaAdapter.subscribeToCandles(symbol, timeframe);

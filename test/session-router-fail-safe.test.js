@@ -37,6 +37,29 @@ describe('SessionRouter failed-safe transition behavior', () => {
     };
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
+    router.ctx = {
+      candleTimeframe: '15m',
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '15m',
+      },
+      patternChecker: {
+        memory: {
+          switchSessionScope: jest.fn((scopeInput) => ({
+            switched: false,
+            reason: 'already_active',
+            storagePath: `/data/unified-patterns.${scopeInput.executionMode}.${scopeInput.assetClass}.json`,
+            mode: scopeInput.executionMode,
+            assetBucket: scopeInput.assetClass,
+            patternCount: 0,
+            loaded: false,
+            targetExists: false,
+          }))
+        }
+      }
+    };
     router.krakenAdapter = {
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),

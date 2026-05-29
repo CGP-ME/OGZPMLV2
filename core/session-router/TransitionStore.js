@@ -8,6 +8,7 @@ const DEFAULT_STALE_LOCK_MS = 120000;
 const TRANSITION_EVENT_STATES = {
   SESSION_TRANSITION_PLANNED: { state: 'PLANNED', freezeNewEntries: true },
   SESSION_FREEZE_SOURCE: { state: 'FREEZING_SOURCE', freezeNewEntries: true },
+  SESSION_PATTERN_MEMORY_HANDOFF: { state: 'PATTERN_MEMORY_HANDOFF', freezeNewEntries: true },
   SESSION_ORDER_INTENT_RECORDED: { state: 'ORDER_INTENT_RECORDED', freezeNewEntries: true },
   SESSION_SOURCE_FLAT_FAILED: { state: 'RECOVERY_REQUIRED', freezeNewEntries: true },
   SESSION_TARGET_ACTIVATED: { state: 'TARGET_ACTIVATED', freezeNewEntries: false },

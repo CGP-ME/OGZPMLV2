@@ -37,6 +37,29 @@ describe('SessionRouter transition journal', () => {
     };
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
+    router.ctx = {
+      candleTimeframe: '15m',
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '15m',
+      },
+      patternChecker: {
+        memory: {
+          switchSessionScope: jest.fn((scopeInput) => ({
+            switched: false,
+            reason: 'already_active',
+            storagePath: `/data/unified-patterns.${scopeInput.executionMode}.${scopeInput.assetClass}.json`,
+            mode: scopeInput.executionMode,
+            assetBucket: scopeInput.assetClass,
+            patternCount: 0,
+            loaded: false,
+            targetExists: false,
+          }))
+        }
+      }
+    };
     router.krakenAdapter = {
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),
@@ -81,6 +104,7 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_TARGET_ACTIVATED'
     ]);
@@ -101,10 +125,20 @@ describe('SessionRouter transition journal', () => {
       pauseConfirmed: true
     }));
     expect(events[2]).toEqual(expect.objectContaining({
+      activeSession: 'crypto',
+      patternMemory: expect.objectContaining({
+        skipped: false,
+        reason: 'already_active',
+        storagePath: '/data/unified-patterns.paper.stocks.json',
+        mode: 'paper',
+        assetBucket: 'stocks'
+      })
+    }));
+    expect(events[3]).toEqual(expect.objectContaining({
       brokerId: 'alpaca',
       symbols: ['TSLA']
     }));
-    expect(events[3]).toEqual(expect.objectContaining({
+    expect(events[4]).toEqual(expect.objectContaining({
       activeSession: 'stocks',
       brokerId: 'alpaca',
       symbols: ['TSLA']
@@ -118,13 +152,250 @@ describe('SessionRouter transition journal', () => {
       activeSession: 'stocks',
       brokerId: 'alpaca',
       lastEvent: 'SESSION_TARGET_ACTIVATED',
-      eventsCount: 4
+      eventsCount: 5
     }));
     expect(intentCall).toBeGreaterThanOrEqual(0);
     expect(recordSpy.mock.invocationCallOrder[intentCall]).toBeLessThan(
       router.orderRouter.registerBroker.mock.invocationCallOrder[0]
     );
     expect(router.stateManager.resumeTrading).toHaveBeenCalledTimes(1);
+  });
+
+  test('transition to stocks switches pattern bank before target broker mutation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    const memory = {
+      switchSessionScope: jest.fn(() => ({
+        switched: true,
+        reason: 'session_router_transition',
+        previousPath: '/data/unified-patterns.paper.crypto.json',
+        storagePath: '/data/unified-patterns.paper.stocks.json',
+        mode: 'paper',
+        assetBucket: 'stocks',
+        patternCount: 0,
+        loaded: false,
+        targetExists: false
+      }))
+    };
+    router.ctx = {
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '1m',
+      },
+      patternChecker: { memory }
+    };
+
+    await router._transitionToStocks(now);
+
+    expect(memory.switchSessionScope).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '1m',
+    }), expect.objectContaining({
+      reason: 'session_router_transition',
+      from: 'crypto',
+      to: 'stocks'
+    }));
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeGreaterThan(
+      router.stateManager.pauseTrading.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.krakenAdapter.unsubscribeAll.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.orderRouter.registerBroker.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.stateManager.resumeTrading.mock.invocationCallOrder[0]
+    );
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_TRANSITION_PLANNED',
+      'SESSION_FREEZE_SOURCE',
+      'SESSION_PATTERN_MEMORY_HANDOFF',
+      'SESSION_ORDER_INTENT_RECORDED',
+      'SESSION_TARGET_ACTIVATED'
+    ]);
+  });
+
+  test('pattern bank switch failure enters failed-safe before target broker mutation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    const memory = {
+      switchSessionScope: jest.fn(() => {
+        throw new Error('target pattern bank corrupt');
+      })
+    };
+    router.ctx = {
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '1m',
+      },
+      patternChecker: { memory }
+    };
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('target pattern bank corrupt');
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_TRANSITION_PLANNED',
+      'SESSION_FREEZE_SOURCE',
+      'SESSION_FAILED_SAFE'
+    ]);
+  });
+
+  test('missing pattern memory owner enters failed-safe before target broker mutation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.ctx = {
+      candleTimeframe: '15m',
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '15m',
+      }
+    };
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter pattern memory unavailable for session handoff');
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_TRANSITION_PLANNED',
+      'SESSION_FREEZE_SOURCE',
+      'SESSION_FAILED_SAFE'
+    ]);
+  });
+
+  test('wrong target pattern bank result enters failed-safe before target broker mutation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    const memory = {
+      switchSessionScope: jest.fn(() => ({
+        switched: true,
+        reason: 'session_router_transition',
+        storagePath: '/data/unified-patterns.paper.crypto.json',
+        mode: 'paper',
+        assetBucket: 'crypto',
+        patternCount: 4,
+        loaded: true,
+        targetExists: true
+      }))
+    };
+    router.ctx = {
+      candleTimeframe: '15m',
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '15m',
+      },
+      patternChecker: { memory }
+    };
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toMatch(/pattern memory handoff target mismatch/);
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
+  });
+
+  test('transition to crypto saves stock outcomes before switching pattern bank', async () => {
+    const router = makeRouter({ forceCloseOnSessionEnd: true });
+    router.activeSession = 'stocks';
+    router.stateManager.getLastPrice = jest.fn(() => 125);
+    router.stateManager.closePosition = jest.fn().mockResolvedValue({ success: true });
+    router.stateManager.state.activeTrades = new Map([
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stocks' }]
+    ]);
+    const memory = {
+      switchSessionScope: jest.fn(() => ({
+        switched: true,
+        reason: 'session_router_transition',
+        previousPath: '/data/unified-patterns.paper.stocks.json',
+        storagePath: '/data/unified-patterns.paper.crypto.json',
+        mode: 'paper',
+        assetBucket: 'crypto',
+        patternCount: 2,
+        loaded: true,
+        targetExists: true
+      }))
+    };
+    router.ctx = {
+      config: {
+        executionMode: 'paper',
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        timeframe: '1m',
+      },
+      patternChecker: { memory }
+    };
+
+    await router._transitionToCrypto(now);
+
+    expect(memory.switchSessionScope).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '1m',
+    }), expect.objectContaining({
+      sourceFlatConfirmed: true
+    }));
+    expect(router.stateManager.closePosition.mock.invocationCallOrder[0]).toBeLessThan(
+      memory.switchSessionScope.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.alpacaAdapter.unsubscribeAll.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.orderRouter.registerBroker.mock.invocationCallOrder[0]
+    );
+  });
+
+  test('initial activation switches pattern bank before broker activation', () => {
+    const router = makeRouter();
+    const memory = router.ctx.patternChecker.memory;
+
+    router._activateCrypto();
+
+    expect(memory.switchSessionScope).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '15m',
+    }), expect.objectContaining({
+      reason: 'initial_activation'
+    }));
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.orderRouter.registerBroker.mock.invocationCallOrder[0]
+    );
+    expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
+      router.krakenAdapter.subscribeToCandles.mock.invocationCallOrder[0]
+    );
+    expect(router.activeSession).toBe('crypto');
   });
 
   test('transition failure appends failed-safe event and keeps trading paused', async () => {
@@ -142,11 +413,12 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_FAILED_SAFE'
     ]);
     expect(new Set(events.map((event) => event.transitionId)).size).toBe(1);
     expect(new Set(events.map((event) => event.epoch)).size).toBe(1);
-    expect(events[2]).toEqual(expect.objectContaining({
+    expect(events[3]).toEqual(expect.objectContaining({
       from: 'crypto',
       to: 'stocks',
       activeSession: 'crypto',
@@ -161,7 +433,7 @@ describe('SessionRouter transition journal', () => {
       activeSession: 'crypto',
       safeModeReason: 'kraken unsubscribe failed',
       lastEvent: 'SESSION_FAILED_SAFE',
-      eventsCount: 3
+      eventsCount: 4
     }));
     expect(router.failedSafeMode).toBe(true);
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
@@ -218,6 +490,7 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_FAILED_SAFE'
     ]);
