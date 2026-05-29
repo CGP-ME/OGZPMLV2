@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Frame Scope Attribution (2026-05-29)
+
+- Required `signal_analysis`, `bot_thinking`, `golden_setup_state`, `gate_event`, and `pattern_analysis` frames to carry explicit symbol and runtime scope before they can reach the dashboard websocket.
+- Threaded the analyzed symbol through TradingLoop dashboard broadcasts and pattern-analysis broadcasts instead of relying on dashboard-side inference.
+- Added fail-closed guards for incomplete scoped telemetry in TradingLoop, TRAI chain-of-thought broadcasts, and pattern-analysis broadcasts.
+
 ### Frontend Empire Dashboard Wiring (2026-05-29)
 
 - Loaded the hardened `run-frontend-empire-v2.js` orchestrator from the v2 dashboard HTML after panel modules register and before the root TRAI widget loads.

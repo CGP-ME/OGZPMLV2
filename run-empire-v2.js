@@ -2603,9 +2603,22 @@ class OGZPrimeV14Bot {
   /**
    * Broadcast pattern analysis to dashboard for transparency
    */
-  broadcastPatternAnalysis(patterns, indicators) {
+  broadcastPatternAnalysis(patterns, indicators, symbol) {
     try {
       if (this.dashboardWs && this.dashboardWs.readyState === 1) {
+        const dashboardSymbol = normalizeRuntimeSymbol(symbol);
+        if (!dashboardSymbol) {
+          throw new Error('[PatternAnalysis] symbol missing; refusing unscoped dashboard broadcast');
+        }
+        const scope = {
+          symbol: dashboardSymbol,
+          ...this.getCandleScopeEnvelope({ symbol: dashboardSymbol })
+        };
+        const missingScope = ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']
+          .filter(field => scope[field] === null || scope[field] === undefined || String(scope[field]).trim() === '');
+        if (missingScope.length > 0) {
+          throw new Error(`[PatternAnalysis] dashboard scope incomplete (${missingScope.join(', ')}) - refusing unscoped dashboard broadcast`);
+        }
         // Format patterns for display
         const primaryPattern = patterns && patterns.length > 0 ? patterns[0] : null;
 
@@ -2637,8 +2650,10 @@ class OGZPrimeV14Bot {
         const message = {
           type: 'pattern_analysis',
           timestamp: Date.now(),
+          ...scope,
           projection_path: projectionPath,
           pattern: {
+            symbol: scope.symbol,
             name: primaryPattern?.name || primaryPattern?.type || 'No strong pattern',
             confidence: primaryPattern?.confidence || 0,
             description: this.getPatternDescription(primaryPattern, indicators),

@@ -286,7 +286,7 @@ class TRAIDecisionModule extends EventEmitter {
     // Emit decision event for monitoring
     this.emit('decision', decision);
 
-    // 📡 Broadcast chain-of-thought to dashboard
+    // Broadcast chain-of-thought to dashboard
     this.broadcastChainOfThought(decision, context);
 
     return decision;
@@ -298,13 +298,30 @@ class TRAIDecisionModule extends EventEmitter {
   broadcastChainOfThought(decision, context) {
     try {
       if (this.wsClient && this.wsClient.readyState === 1) {
+        const scope = {
+          symbol: context.symbol || null,
+          brokerId: context.brokerId || null,
+          accountId: context.accountId || null,
+          accountIdSource: context.accountIdSource || null,
+          assetClass: context.assetClass || null,
+          executionMode: context.executionMode || null,
+          timeframe: context.timeframe || null
+        };
+        const missingScope = ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']
+          .filter(field => scope[field] === null || scope[field] === undefined || String(scope[field]).trim() === '');
+        if (missingScope.length > 0) {
+          console.error(`[TRAI] Dashboard bot_thinking scope incomplete (${missingScope.join(', ')}) - refusing unscoped broadcast`);
+          return;
+        }
         const message = {
           type: 'bot_thinking',
           step: 'trai_analysis',
           timestamp: Date.now(),
+          ...scope,
           message: decision.reasoning,
           confidence: (decision.finalConfidence * 100).toFixed(1),
           data: {
+            ...scope,
             // Market analysis
             price: context.price,
             trend: context.trend,

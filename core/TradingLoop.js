@@ -35,6 +35,12 @@ const flagManager = FeatureFlagManager.getInstance();
 const candlePatternDetector = new CandlePatternDetector();
 const stateManager = getStateManager();
 const exitContractManager = getExitContractManager();
+const SCOPED_DASHBOARD_FRAME_TYPES = new Set([
+  'signal_analysis',
+  'bot_thinking',
+  'golden_setup_state',
+  'gate_event'
+]);
 
 class TradingLoop {
   constructor(ctx) {
@@ -122,9 +128,25 @@ class TradingLoop {
     return scope;
   }
 
+  _missingDashboardScopeFields(frame) {
+    if (!frame || !SCOPED_DASHBOARD_FRAME_TYPES.has(frame.type)) return [];
+    const missing = [];
+    const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+    for (const field of ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']) {
+      if (!hasText(frame[field])) missing.push(field);
+    }
+    return missing;
+  }
+
   _sendDashboardFrame(frame) {
     const ws = this.ctx.dashboardWs;
     if (!ws || ws.readyState !== 1) return false;
+
+    const missingScope = this._missingDashboardScopeFields(frame);
+    if (missingScope.length > 0) {
+      console.error(`[TradingLoop] ${frame?.type || 'dashboard'} scope incomplete (${missingScope.join(', ')}) - refusing unscoped websocket frame`);
+      return false;
+    }
 
     try {
       ws.send(JSON.stringify(frame));
@@ -605,7 +627,7 @@ class TradingLoop {
         direction: tradingDirection,
       });
       console.log(`🚫 Direction filter: long_only — sell blocked`);
-      this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
+      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
       return;
     }
     if (directionFilter === 'short_only' && tradingDirection === 'buy') {
@@ -623,7 +645,7 @@ class TradingLoop {
         direction: tradingDirection,
       });
       console.log(`🚫 Direction filter: short_only — buy blocked`);
-      this._broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData);
+      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
       return;
     }
 
@@ -933,7 +955,7 @@ class TradingLoop {
     this.ctx.lastDirection = finalDirection;
 
     // ─── BROADCAST ───
-    this._broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence);
+    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence);
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
@@ -1219,7 +1241,7 @@ class TradingLoop {
         }
       }
     }
-    this.ctx.broadcastPatternAnalysis(patterns, indicators);
+    this.ctx.broadcastPatternAnalysis(patterns, indicators, symbol);
 
     // Regime
     const _regimeDetector = new RegimeDetector();
@@ -1325,17 +1347,21 @@ class TradingLoop {
   // DASHBOARD BROADCAST
   // ═══════════════════════════════════════════════════════════════
 
-  _broadcastAndReturn(price, indicators, patterns, regime, orchResult, confidenceData) {
-    this._broadcastDecision(price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0);
+  _broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData) {
+    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0);
   }
 
-  _broadcastDecision(price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
+  _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
+    const scope = this._dashboardScope(symbol);
+
     // Signal analysis broadcast
     const signals = orchResult?.signalBreakdown?.signals || [];
     this._sendDashboardFrame({
       type: 'signal_analysis',
       timestamp: Date.now(),
+      ...scope,
       signal: {
+        symbol,
         direction: orchResult.direction,
         confidence: orchResult.confidence,
         reasons: orchResult.reasons || [],
@@ -1357,9 +1383,10 @@ class TradingLoop {
     this._sendDashboardFrame({
       type: 'bot_thinking',
       timestamp: Date.now(),
+      ...scope,
       message: reasoning,
       confidence: decision.confidence,
-      data: { reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
+      data: { ...scope, reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
       // Strategy Winner HUD: full battleground for confidence bar chart.
       // Show ALL configured strategies (zero-confidence placeholders for
       // non-firing) so the heatbar reflects the complete roster, not
@@ -1401,6 +1428,7 @@ class TradingLoop {
     const proximity = conditions.reduce((acc, c) => acc + (c.status === 'MET' ? c.weight : 0), 0);
     this._sendDashboardFrame({
       type: 'golden_setup_state',
+      ...scope,
       proximity,
       is_golden: proximity >= 0.8,
       conditions,
