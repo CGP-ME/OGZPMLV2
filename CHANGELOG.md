@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard State Update Compatibility Frame (2026-05-29)
+
+- Added top-level `state_update` aliases for balance, equity, P&L, trade counts, and scoped positions while preserving the canonical nested `state` payload.
+- Added regression coverage proving the flat aliases mirror the same authoritative `StateManager` snapshot instead of introducing independent dashboard values.
+
 ### Dashboard Pattern Analysis Truth Contract (2026-05-29)
 
 - Removed randomized `projection_path` output from `pattern_analysis` frames so the dashboard no longer receives generated ghost paths as if they were backend evidence.

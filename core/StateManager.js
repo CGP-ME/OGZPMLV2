@@ -1803,24 +1803,37 @@ class StateManager {
     try {
       const state = this.getState();
       const positions = this._buildScopedDashboardPositions(state);
+      const equity = this.getEquity();
+      const dashboardState = {
+        position: state.position,
+        balance: state.balance,
+        totalBalance: state.totalBalance,
+        equity,
+        realizedPnL: state.realizedPnL,
+        unrealizedPnL: state.unrealizedPnL,
+        totalPnL: state.totalPnL,
+        tradeCount: state.tradeCount,
+        dailyTradeCount: state.dailyTradeCount,
+        recoveryMode: state.recoveryMode,
+        positions,
+        scopedPositionCount: positions.length
+      };
       this.dashboardWs.send(JSON.stringify({
         type: 'state_update',
         source: 'StateManager',
         updates: updates,
         context: context,
-        state: {
-          position: state.position,
-          balance: state.balance,
-          totalBalance: state.totalBalance,
-          realizedPnL: state.realizedPnL,
-          unrealizedPnL: state.unrealizedPnL,
-          totalPnL: state.totalPnL,
-          tradeCount: state.tradeCount,
-          dailyTradeCount: state.dailyTradeCount,
-          recoveryMode: state.recoveryMode,
-          positions,
-          scopedPositionCount: positions.length
-        },
+        balance: dashboardState.balance,
+        totalBalance: dashboardState.totalBalance,
+        equity: dashboardState.equity,
+        realizedPnL: dashboardState.realizedPnL,
+        unrealizedPnL: dashboardState.unrealizedPnL,
+        totalPnL: dashboardState.totalPnL,
+        tradeCount: dashboardState.tradeCount,
+        dailyTradeCount: dashboardState.dailyTradeCount,
+        positions: dashboardState.positions,
+        scopedPositionCount: dashboardState.scopedPositionCount,
+        state: dashboardState,
         timestamp: Date.now()
       }));
     } catch (error) {
