@@ -1305,7 +1305,8 @@ class OGZPrimeV14Bot {
     // PIPELINE: Skip dashboard in backtest mode for faster runs
     if (this.pipeline.enableDashboard !== false) {
       this.dashboardBroadcaster = new DashboardBroadcaster({
-        indicatorEngine: indicatorEngine
+        indicatorEngine: indicatorEngine,
+        edgeAnalyticsMaxScopes: resolvedConfig.config.dashboard.edgeAnalyticsMaxScopes
       });
     } else {
       this.dashboardBroadcaster = null;

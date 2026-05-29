@@ -17,6 +17,11 @@ const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('./CandleHelper');
 class DashboardBroadcaster {
   constructor(ctx) {
     this.ctx = ctx;
+    const edgeAnalyticsMaxScopes = Number(ctx?.edgeAnalyticsMaxScopes);
+    if (!Number.isInteger(edgeAnalyticsMaxScopes) || edgeAnalyticsMaxScopes <= 0) {
+      throw new Error(`[DashboardBroadcaster] edgeAnalyticsMaxScopes invalid (${ctx?.edgeAnalyticsMaxScopes})`);
+    }
+    this.edgeAnalyticsMaxScopes = edgeAnalyticsMaxScopes;
     this.edgeAnalyticsByScope = new Map();
     console.log('[DashboardBroadcaster] Initialized (Phase 17 - exact copy)');
   }
@@ -57,6 +62,11 @@ class DashboardBroadcaster {
     const key = this._scopeKey(symbol, timeframe);
     if (!key) return null;
     if (!this.edgeAnalyticsByScope.has(key)) {
+      while (this.edgeAnalyticsByScope.size >= this.edgeAnalyticsMaxScopes) {
+        const oldestKey = this.edgeAnalyticsByScope.keys().next().value;
+        if (!oldestKey) break;
+        this.edgeAnalyticsByScope.delete(oldestKey);
+      }
       this.edgeAnalyticsByScope.set(key, this._buildEdgeAnalyticsState());
     }
     return this.edgeAnalyticsByScope.get(key);
@@ -105,6 +115,37 @@ class DashboardBroadcaster {
     return null;
   }
 
+  _cvdTrend(cvd) {
+    if (cvd > 0) return 'BUYERS';
+    if (cvd < 0) return 'SELLERS';
+    return 'NEUTRAL';
+  }
+
+  _fundingSignal(currentFunding, predictedFunding) {
+    const current = Number(currentFunding);
+    const predicted = Number(predictedFunding);
+    if (!Number.isFinite(current) || !Number.isFinite(predicted)) return 'UNKNOWN';
+    if (current > 0 && predicted > current) return 'RISING';
+    if (current < 0 && predicted < current) return 'FALLING';
+    return 'NEUTRAL';
+  }
+
+  _fearGreedLabel(value) {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return 'UNKNOWN';
+    if (score > 50) return 'GREED';
+    if (score < 50) return 'FEAR';
+    return 'NEUTRAL';
+  }
+
+  _formatDivergence(divergence) {
+    if (!divergence?.type || !divergence?.indicator) return null;
+    const type = String(divergence.type).toUpperCase();
+    const indicator = String(divergence.indicator).toUpperCase();
+    const timeframe = divergence?.timeframe ? ` ${divergence.timeframe}` : '';
+    return `${type} ${indicator}${timeframe}`;
+  }
+
   /**
    * Broadcast Edge Analytics data to dashboard
    * Includes CVD, liquidation levels, funding rates, whale alerts, market internals
@@ -123,6 +164,18 @@ class DashboardBroadcaster {
         console.error(`[DashboardBroadcaster] Missing candle.timeframe for ${symbol}; refusing unattributed edge analytics broadcast`);
         return false;
       }
+      const numericPrice = Number(price);
+      if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        console.error(`[DashboardBroadcaster] Invalid price for ${symbol} ${timeframe}; refusing edge analytics broadcast`);
+        return false;
+      }
+      const numericVolume = Number(volume);
+      if (!Number.isFinite(numericVolume) || numericVolume < 0) {
+        console.error(`[DashboardBroadcaster] Invalid volume for ${symbol} ${timeframe}; refusing edge analytics broadcast`);
+        return false;
+      }
+      price = numericPrice;
+      volume = numericVolume;
       const scopeFields = { symbol, timeframe };
       const edgeAnalytics = this._getEdgeAnalytics(symbol, timeframe);
       if (!edgeAnalytics) {
@@ -150,6 +203,8 @@ class DashboardBroadcaster {
         type: 'cvd_update',
         ...scopeFields,
         cvd: edgeAnalytics.cvd,
+        cvdValue: edgeAnalytics.cvd,
+        cvdTrend: this._cvdTrend(edgeAnalytics.cvd),
         buyVolume: edgeAnalytics.buyVolume,
         sellVolume: edgeAnalytics.sellVolume,
         timestamp: Date.now()
@@ -193,6 +248,10 @@ class DashboardBroadcaster {
           type: 'liquidation_data',
           ...scopeFields,
           levels: liquidationData,
+          longLiqPrice: liquidationData.long.price,
+          longLiqVol: liquidationData.long.volume,
+          shortLiqPrice: liquidationData.short.price,
+          shortLiqVol: liquidationData.short.volume,
           currentPrice: price,
           timestamp: Date.now()
         }));
@@ -203,6 +262,7 @@ class DashboardBroadcaster {
       if (priceHistory.length >= 20 && avgVolume > 0 && volume > avgVolume * 5) {  // 5x average = whale
         const whaleData = {
           ...scopeFields,
+          amount: volume,
           size: volume * price,  // USD value
           price: price,
           side: isBuy ? 'BUY' : 'SELL',
@@ -261,7 +321,10 @@ class DashboardBroadcaster {
           type: 'funding_rate',
           ...scopeFields,
           current: edgeAnalytics.fundingRate,
+          currentFunding: edgeAnalytics.fundingRate,
           predicted: predictedFunding,
+          predictedFunding,
+          fundingSignal: this._fundingSignal(edgeAnalytics.fundingRate, predictedFunding),
           timestamp: Date.now()
         }));
       }
@@ -289,6 +352,8 @@ class DashboardBroadcaster {
           type: 'fear_greed',
           ...scopeFields,
           value: fearGreed,
+          fgValue: fearGreed,
+          fgLabel: this._fearGreedLabel(fearGreed),
           timestamp: Date.now()
         }));
       }
@@ -300,12 +365,18 @@ class DashboardBroadcaster {
         const divergences = this.detectDivergences(priceHistory, timeframe, symbol);
 
         if (divergences.length > 0) {
-          this.ctx.dashboardWs.send(JSON.stringify({
-            type: 'divergence',
-            ...scopeFields,
-            divergences: divergences,
-            timestamp: Date.now()
-          }));
+          const divergenceLabels = divergences
+            .map(div => this._formatDivergence(div))
+            .filter(Boolean);
+          if (divergenceLabels.length > 0) {
+            this.ctx.dashboardWs.send(JSON.stringify({
+              type: 'divergence',
+              ...scopeFields,
+              divergences: divergenceLabels,
+              divergenceDetails: divergences,
+              timestamp: Date.now()
+            }));
+          }
         }
       }
 
@@ -329,7 +400,9 @@ class DashboardBroadcaster {
           type: 'smart_money',
           ...scopeFields,
           flow: flow,
+          smartFlow: flow,
           activity: activity,
+          instActivity: activity,
           dormancy: 'LOW',
           timestamp: Date.now()
         }));
@@ -384,13 +457,13 @@ class DashboardBroadcaster {
         divergences.push({
           type: 'bearish',
           indicator: 'RSI',
-          timeframe: timeframe || '1m'
+          timeframe
         });
       } else if (currentPrice < priceLow * 1.02 && rsi > 30) {
         divergences.push({
           type: 'bullish',
           indicator: 'RSI',
-          timeframe: timeframe || '1m'
+          timeframe
         });
       }
     }
@@ -402,7 +475,7 @@ class DashboardBroadcaster {
       divergences.push({
         type: 'bearish',
         indicator: 'Volume',
-        timeframe: timeframe || '1m'
+        timeframe
       });
     }
 

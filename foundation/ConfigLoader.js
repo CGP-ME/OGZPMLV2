@@ -319,6 +319,7 @@ function buildConfig() {
       errorEventMessageMaxLength: track('dashboard.errorEventMessageMaxLength', envInt('DASHBOARD_ERROR_EVENT_MESSAGE_MAX_LENGTH', 500)),
       errorEventDedupeMaxKeys: track('dashboard.errorEventDedupeMaxKeys', envInt('DASHBOARD_ERROR_EVENT_DEDUPE_MAX_KEYS', 200)),
       brokerStatusDedupeMaxKeys: track('dashboard.brokerStatusDedupeMaxKeys', envInt('DASHBOARD_BROKER_STATUS_DEDUPE_MAX_KEYS', 200)),
+      edgeAnalyticsMaxScopes: track('dashboard.edgeAnalyticsMaxScopes', envInt('DASHBOARD_EDGE_ANALYTICS_MAX_SCOPES', 200)),
     },
 
     // ─── MISC ───

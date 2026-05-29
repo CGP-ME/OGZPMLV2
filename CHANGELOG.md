@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Edge Analytics Frame Contract (2026-05-29)
+
+- Added panel-compatible aliases to real edge analytics frames for CVD, liquidation levels, whale activity, funding, fear/greed, divergence, and smart-money data while preserving the existing backend field names.
+- Required finite positive price and finite non-negative volume before edge analytics frames are broadcast, so malformed candle inputs fail closed instead of sending `NaN` dashboard values.
+- Added a ConfigLoader-backed `DASHBOARD_EDGE_ANALYTICS_MAX_SCOPES` cap for per-symbol/timeframe edge analytics state and regression coverage for bounded scope eviction.
+
 ### Dashboard Frame Scope Attribution (2026-05-29)
 
 - Required `signal_analysis`, `bot_thinking`, `golden_setup_state`, `gate_event`, and `pattern_analysis` frames to carry explicit symbol and runtime scope before they can reach the dashboard websocket.
