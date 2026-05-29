@@ -7,7 +7,7 @@
  * we narrate every step in real time as it happens.
  *
  * What it renders:
- *   - Horizontal ribbon (~140px tall) mounted between main grid and footer
+ *   - Flexible reasoning panel mounted in the dashboard layout
  *   - Streaming reasoning lines: newest at the bottom (bottom-up scroll)
  *   - Each line: timestamp (HH:MM:SS ET) + reasoning text + optional ticker pill +
  *     optional confidence pill
@@ -20,9 +20,9 @@
  * Mounts into <div id="chainOfThought"></div>.
  *
  * Subscribes to WS events:
- *   - narrator_event (✓ verified per CURRENT-ARCHITECTURE.md)
- *   - bot_thinking (⚠ partial verification; optional augmentation)
- *   - signal_analysis (⚠ optional; if present, inject decision-level lines)
+ *   - narrator_event (verified per CURRENT-ARCHITECTURE.md)
+ *   - bot_thinking (partial verification; optional augmentation)
+ *   - signal_analysis (optional; if present, inject decision-level lines)
  * Listens to OGZ.bus:
  *   - watchlist:select — when ticker changes, inject "[scope: TICKER]" divider
  *
@@ -100,7 +100,8 @@
                 display: flex;
                 flex-direction: column;
                 width: 100%;
-                height: 140px;
+                flex: 1 1 auto;
+                min-height: 240px;
                 background: var(--glass-bg);
                 border: 1px solid var(--glass-border);
                 border-radius: 6px;
@@ -111,6 +112,18 @@
                 overflow: hidden;
                 padding: 0;
                 gap: 0;
+            }
+
+            @media (max-width: 768px) {
+                #${ROOT_ID} {
+                    min-height: 160px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                #${ROOT_ID} {
+                    min-height: 140px;
+                }
             }
 
             .cot-header {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Chain Of Thought Layout (2026-05-29)
+
+- Replaced the Chain of Thought module's hardcoded `140px` injected root height with flexible sizing so the panel can fill its dashboard rail and keep entries inside its own scroll area.
+- Replaced the matching static Chain of Thought stylesheet height rule so the loaded CSS cannot override the injected flexible layout.
+- Replaced static and injected mobile Chain of Thought fixed-height rules with responsive minimum-height rules.
+- Removed symbolic status markers from the touched Chain of Thought header comments.
+
 ### Dashboard Pattern Card Shape Parsing (2026-05-29)
 
 - Fixed Pattern Card ingestion to read `pattern_analysis.pattern.name` and nested confidence from the backend's real pattern object shape instead of rendering object coercions.
