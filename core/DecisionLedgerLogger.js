@@ -53,8 +53,18 @@ function writeOnClose(ledger) {
         return;
       }
     } catch (e) {
-      // Schema module not available — skip validation, still write
-      console.warn('[LEDGER] Schema validation skipped:', e.message);
+      console.error(`[LEDGER] Schema validation crashed for ${ledger.tradeId}:`, e.message);
+      _appendLine(getFilePath('malformed'), JSON.stringify({
+        timestamp: new Date().toISOString(),
+        tradeId: ledger.tradeId,
+        errors: [{
+          path: ['schema'],
+          message: e.message,
+          code: 'schema_validation_exception',
+        }],
+        raw: ledger,
+      }));
+      return;
     }
   }
 

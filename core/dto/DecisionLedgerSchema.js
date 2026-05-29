@@ -7,7 +7,7 @@ const StrategySignalSchema = z.object({
   direction: z.enum(['long', 'short', 'hold']),
   baseConfidence: z.number().min(0).max(1),
   reason: z.string(),
-  indicatorValues: z.record(z.union([z.number(), z.string(), z.null()])).optional(),
+  indicatorValues: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),
 });
 
 const OrchestratorDecisionSchema = z.object({
@@ -18,7 +18,7 @@ const OrchestratorDecisionSchema = z.object({
     name: z.string(),
     adjustedConfidence: z.number(),
     rejected: z.boolean().optional(),
-    rejectReason: z.string().optional(),
+    rejectReason: z.string().nullable().optional(),
   })).optional(),
 });
 

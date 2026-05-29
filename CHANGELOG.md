@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Decision Ledger Schema Validation (2026-05-29)
+
+- Fixed the Zod v4 `indicatorValues` record schema so decision-ledger validation returns pass/fail results instead of throwing `_zod` and skipping validation.
+- Updated competing-strategy `rejectReason` validation to accept the producer's explicit `null` value for non-rejected strategies.
+- Changed `DecisionLedgerLogger.writeOnClose()` to route validation exceptions into the malformed ledger instead of writing unvalidated records to the main decisions log.
+- Added regression coverage for valid indicator records, malformed nested indicator values, non-object indicator values, and validation-exception routing.
+
 ### Pattern Maturity Truth Contract (2026-05-29)
 
 - Added a shared pattern-maturity resolver so dashboard and narrator outputs use observed pattern-memory counts instead of converting missing sample evidence into `New`.
