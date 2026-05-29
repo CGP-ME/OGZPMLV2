@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TradingLoop Ledger Confidence Truth Contract (2026-05-29)
+
+- Changed decision-ledger strategy signal confidence fields to require explicit 0..1 values instead of copying possible 0..100 strategy-result values into schema fields.
+- Removed `unknown`, `signal fired`, empty strategy-result arrays, missing winner attribution, and implicit hold substitutions from strategy-signal ledger rows; strategy name, reason, confidence, direction, and winner must now be explicit.
+- Added regression coverage proving winner `finalConfidence`, strategy `baseConfidence`, and competing `adjustedConfidence` share the same 0..1 scale and reject stale 0..100 inputs.
+
 ### Decision Ledger Skeleton Truth Contract (2026-05-29)
 
 - Removed fabricated decision-ledger skeleton defaults for missing symbol, timeframe, execution mode, orchestrator decision, position sizing, exit contract, risk gates, and strategy signal evidence.

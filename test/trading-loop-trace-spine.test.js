@@ -66,7 +66,7 @@ function baseEntryContext(overrides = {}) {
         direction: 'buy',
         confidence: 80,
         winnerStrategy: 'RSI',
-        allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 80, reason: 'test signal' }],
+        allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 0.8, reason: 'test signal' }],
         exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
         confluence: { count: 1, strategies: ['RSI'] },
         sizingMultiplier: 1,
@@ -141,7 +141,7 @@ describe('TradingLoop trace spine', () => {
           direction: 'buy',
           confidence: 80,
           winnerStrategy: 'RSI',
-          allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 80, reason: 'test signal' }],
+          allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 0.8, reason: 'test signal' }],
           exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
           confluence: { count: 1, strategies: ['RSI'] },
           sizingMultiplier: 1,
@@ -188,6 +188,73 @@ describe('TradingLoop trace spine', () => {
       timeframe: '15m',
       executionMode: 'paper',
     }));
+    expect(decision.ledgerData.strategySignals[0].baseConfidence).toBe(0.8);
+    expect(decision.ledgerData.orchestratorDecision.finalConfidence).toBe(0.8);
+    expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].adjustedConfidence).toBe(0.8);
+  });
+
+  test('rejects 0-100 strategy confidences before writing decision ledger evidence', async () => {
+    const ctx = baseEntryContext({
+      strategyOrchestrator: {
+        strategies: [{ name: 'RSI' }],
+        evaluate: jest.fn(() => ({
+          direction: 'buy',
+          confidence: 80,
+          winnerStrategy: 'RSI',
+          allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 80, reason: 'test signal' }],
+          exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+          confluence: { count: 1, strategies: ['RSI'] },
+          sizingMultiplier: 1,
+        })),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await expect(loop._analyze('TSLA', 'trace_bad_ledger_conf')).rejects.toThrow('allResults[0].confidence must be explicit 0..1');
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+  });
+
+  test('rejects executable decisions without strategy-result evidence', async () => {
+    const ctx = baseEntryContext({
+      strategyOrchestrator: {
+        strategies: [{ name: 'RSI' }],
+        evaluate: jest.fn(() => ({
+          direction: 'buy',
+          confidence: 80,
+          winnerStrategy: 'RSI',
+          exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+          confluence: { count: 1, strategies: ['RSI'] },
+          sizingMultiplier: 1,
+        })),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await expect(loop._analyze('TSLA', 'trace_missing_all_results')).rejects.toThrow('orchResult.allResults missing or not an array');
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+  });
+
+  test('rejects executable decisions without winner strategy attribution', async () => {
+    const ctx = baseEntryContext({
+      strategyOrchestrator: {
+        strategies: [{ name: 'RSI' }],
+        evaluate: jest.fn(() => ({
+          direction: 'buy',
+          confidence: 80,
+          allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 0.8, reason: 'test signal' }],
+          exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+          confluence: { count: 1, strategies: ['RSI'] },
+          sizingMultiplier: 1,
+        })),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await expect(loop._analyze('TSLA', 'trace_missing_winner')).rejects.toThrow('orchResult.winnerStrategy missing or blank');
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
   });
 
   test('emits a scoped gate_event before approved trade execution', async () => {
@@ -340,6 +407,7 @@ describe('TradingLoop trace spine', () => {
       exitReason: 'ttp_consistency_profit_cap',
       tradeId: 'BUY_GATE_EXIT_1',
     }));
+    expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
     expect(sentFrames(ctx).filter(frame => frame.type === 'gate_event')).toEqual([]);
   });
 
@@ -425,6 +493,7 @@ describe('TradingLoop trace spine', () => {
       traceId: 'trace_consistency_main',
       signalId: 'trace_consistency_main:exit',
     }));
+    expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
   });
 

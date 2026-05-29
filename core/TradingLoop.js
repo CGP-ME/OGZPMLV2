@@ -71,6 +71,73 @@ class TradingLoop {
     console.log(`[PIPE][${stage}] ${parts.join(' ')}`);
   }
 
+  _ledgerText(value, label) {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`[LEDGER] ${label} missing or blank`);
+    }
+    return value.trim();
+  }
+
+  _ledgerConfidence01(value, label) {
+    const confidence = Number(value);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+      throw new Error(`[LEDGER] ${label} must be explicit 0..1 confidence (got ${value})`);
+    }
+    return confidence;
+  }
+
+  _ledgerDirection(direction, label) {
+    const normalized = this._ledgerText(direction, label).toLowerCase();
+    if (normalized === 'buy' || normalized === 'long') return 'long';
+    if (normalized === 'sell' || normalized === 'short') return 'short';
+    if (normalized === 'hold') return 'hold';
+    throw new Error(`[LEDGER] ${label} unsupported direction ${JSON.stringify(direction)}`);
+  }
+
+  _ledgerStrategyName(result, index) {
+    return this._ledgerText(result?.strategyName || result?.name, `allResults[${index}].strategyName`);
+  }
+
+  _ledgerAllResults(orchResult) {
+    if (!Array.isArray(orchResult?.allResults)) {
+      throw new Error('[LEDGER] orchResult.allResults missing or not an array');
+    }
+    if (orchResult.allResults.length === 0) {
+      throw new Error('[LEDGER] orchResult.allResults empty for executable decision');
+    }
+    return orchResult.allResults;
+  }
+
+  _ledgerWinnerName(orchResult) {
+    return this._ledgerText(orchResult?.winnerStrategy, 'orchResult.winnerStrategy');
+  }
+
+  _ledgerStrategySignal(result, index, indicators) {
+    return {
+      name: this._ledgerStrategyName(result, index),
+      direction: this._ledgerDirection(result?.direction, `allResults[${index}].direction`),
+      baseConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
+      reason: this._ledgerText(result?.reason || result?.reasons?.join('; '), `allResults[${index}].reason`),
+      indicatorValues: {
+        rsi: indicators.rsi,
+        ema20: indicators.ema20,
+        ema50: indicators.ema50,
+        atr: indicators.atr,
+        trend: indicators.trend,
+      },
+    };
+  }
+
+  _ledgerCompetingStrategy(result, index, winnerName) {
+    const name = this._ledgerStrategyName(result, index);
+    return {
+      name,
+      adjustedConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
+      rejected: name !== winnerName,
+      rejectReason: name !== winnerName ? 'Lower confidence than winner' : null,
+    };
+  }
+
   _patternScope(symbol) {
     const cfg = this.ctx.config || {};
     const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
@@ -960,6 +1027,7 @@ class TradingLoop {
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
+      const isEntryAction = decision.action === 'BUY' || decision.action === 'SELL_SHORT';
       decision.traceId = decision.traceId || traceId;
       decision.signalId = decision.signalId || `${traceId}:signal`;
       this._diag('EXECUTE_HANDOFF', {
@@ -970,83 +1038,66 @@ class TradingLoop {
         winner: orchResult.winnerStrategy || 'none',
         exitContract: !!orchResult.exitContract
       });
-      // L5: Capture risk gates that were checked during entry evaluation.
-      // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
-      // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
-      // loss limits, recovery min_confidence) via decision.riskGates — appended below.
-      const riskGates = [
-        { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
-        { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
-        { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
-        { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
-        { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
-        ...(decision.riskGates || []),
-      ];
+      let riskGates = Array.isArray(decision.riskGates) ? decision.riskGates : [];
+      if (isEntryAction) {
+        // L5: Capture risk gates that were checked during entry evaluation.
+        // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
+        // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
+        // loss limits, recovery min_confidence) via decision.riskGates — appended below.
+        riskGates = [
+          { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
+          { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
+          { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
+          { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
+          { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
+          ...riskGates,
+        ];
 
-      // L1+L2: Attach full ledger data to decision for StateManager.openPosition
-      const allResults = orchResult.allResults || [];
-      const winnerName = orchResult.winnerStrategy || null;
-      const ledgerScope = this._patternScope(symbol);
-      decision.ledgerData = {
-        candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
-        symbol,
-        brokerId: ledgerScope.brokerId || null,
-        accountId: ledgerScope.accountId || null,
-        accountIdSource: ledgerScope.accountIdSource || null,
-        assetClass: ledgerScope.assetClass || null,
-        timeframe: ledgerScope.timeframe || null,
-        executionMode: ledgerScope.executionMode || 'paper',
-        traceId: decision.traceId,
-        signalId: decision.signalId,
-        // L2: every strategy that fired — winner AND losers with indicator values
-        strategySignals: allResults.map(s => ({
-          name: s.strategyName || s.name || 'unknown',
-          direction: s.direction === 'buy' ? 'long' : s.direction === 'sell' ? 'short' : 'hold',
-          baseConfidence: (s.confidence || 0),
-          reason: s.reason || s.reasons?.join('; ') || 'signal fired',
-          indicatorValues: {
-            rsi: indicators.rsi,
-            ema20: indicators.ema20,
-            ema50: indicators.ema50,
-            atr: indicators.atr,
-            trend: indicators.trend,
+        // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
+        const allResults = this._ledgerAllResults(orchResult);
+        const winnerName = this._ledgerWinnerName(orchResult);
+        const ledgerScope = this._patternScope(symbol);
+        decision.ledgerData = {
+          candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
+          symbol,
+          brokerId: ledgerScope.brokerId || null,
+          accountId: ledgerScope.accountId || null,
+          accountIdSource: ledgerScope.accountIdSource || null,
+          assetClass: ledgerScope.assetClass || null,
+          timeframe: ledgerScope.timeframe || null,
+          executionMode: ledgerScope.executionMode || 'paper',
+          traceId: decision.traceId,
+          signalId: decision.signalId,
+          // L2: every strategy that fired — winner AND losers with indicator values
+          strategySignals: allResults.map((result, index) => this._ledgerStrategySignal(result, index, indicators)),
+          // L2: orchestrator decision with competing strategies
+          orchestratorDecision: {
+            winnerStrategy: winnerName,
+            finalConfidence: confidence,
+            reason: allResults.length > 1
+              ? `${winnerName} (${orchResult.confidence.toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
+              : `${winnerName} selected at ${orchResult.confidence.toFixed(1)}%`,
+            competingStrategies: allResults.map((result, index) => this._ledgerCompetingStrategy(result, index, winnerName)),
           },
-        })),
-        // L2: orchestrator decision with competing strategies
-        // HIGH-05: ledger honesty — `|| 0` masked legitimate zero-confidence
-        // signals (HOLD path emits 0). Use `??` to preserve zero in ledger
-        // attribution. HIGH-25's warn at :92 already surfaces non-finite.
-        orchestratorDecision: {
-          winnerStrategy: winnerName,
-          finalConfidence: (orchResult.confidence ?? 0) / 100,
-          reason: allResults.length > 1
-            ? `${winnerName} (${(orchResult.confidence ?? 0).toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
-            : `${winnerName} selected at ${(orchResult.confidence ?? 0).toFixed(1)}%`,
-          competingStrategies: allResults.map(r => ({
-            name: r.strategyName || r.name || 'unknown',
-            adjustedConfidence: (r.confidence || 0),
-            rejected: (r.strategyName || r.name) !== winnerName,
-            rejectReason: (r.strategyName || r.name) !== winnerName ? 'Lower confidence than winner' : null,
-          })),
-        },
-        confluence: orchResult.confluence ? {
-          // HIGH-17: ledger honesty for confluence count. Zero strategies
-          // agreeing IS meaningful info; `|| 1` lied it as one. Use `??`
-          // mirroring CRIT-07-followup semantics for sizingMultiplier.
-          count: orchResult.confluence.count ?? 1,
-          agreeingStrategies: orchResult.confluence.strategies || [],
-          // CRIT-07-followup: mirror OrderExecutor's `??` semantics on the
-          // ledger side. With `||` an actual sizingMultiplier of 0 would
-          // be silently logged as 1.0 — diverging from the (correctly
-          // CRIT-07-preserved) zero used by the actual sizing math at
-          // OrderExecutor.js:274 (BUY) and :428 (SHORT).
-          sizingMultiplier: orchResult.sizingMultiplier ?? 1.0,
-          reason: `${orchResult.confluence.count ?? 1} strategies agree on ${orchResult.direction}`,
-        } : { count: 1, sizingMultiplier: 1.0 },
-        exitContract: orchResult.exitContract || null,
-        // L5: risk gates checked before entry
-        riskGates,
-      };
+          confluence: orchResult.confluence ? {
+            // HIGH-17: ledger honesty for confluence count. Zero strategies
+            // agreeing IS meaningful info; `|| 1` lied it as one. Use `??`
+            // mirroring CRIT-07-followup semantics for sizingMultiplier.
+            count: orchResult.confluence.count ?? 1,
+            agreeingStrategies: orchResult.confluence.strategies || [],
+            // CRIT-07-followup: mirror OrderExecutor's `??` semantics on the
+            // ledger side. With `||` an actual sizingMultiplier of 0 would
+            // be silently logged as 1.0 — diverging from the (correctly
+            // CRIT-07-preserved) zero used by the actual sizing math at
+            // OrderExecutor.js:274 (BUY) and :428 (SHORT).
+            sizingMultiplier: orchResult.sizingMultiplier ?? 1.0,
+            reason: `${orchResult.confluence.count ?? 1} strategies agree on ${orchResult.direction}`,
+          } : { count: 1, sizingMultiplier: 1.0 },
+          exitContract: orchResult.exitContract || null,
+          // L5: risk gates checked before entry
+          riskGates,
+        };
+      }
       emitTrace(this.ctx, 'EXECUTE_HANDOFF', {
         traceId: decision.traceId,
         signalId: decision.signalId,
@@ -1056,7 +1107,7 @@ class TradingLoop {
         confidencePct: decision.confidence,
         riskGateCount: riskGates.length,
       });
-      if (decision.action === 'BUY' || decision.action === 'SELL_SHORT') {
+      if (isEntryAction) {
         this._broadcastGateEvent({
           traceId: decision.traceId,
           signalId: decision.signalId,
