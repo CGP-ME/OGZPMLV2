@@ -721,6 +721,54 @@ const GATES = [
         const records = Object.values(bank.exportMemory().patterns);
         assert.strictEqual(records.length, 1, 'scoped PatternMemoryBank trade should record exactly one row');
         assert.strictEqual(records[0].scopeKey, 'backtest:alpaca:acct-main:stocks:TSLA:15m', 'PatternMemoryBank row must carry scopeKey');
+        const publicSnapshot = bank.memory;
+        const publicPatternHash = Object.keys(publicSnapshot.patterns)[0];
+        publicSnapshot.patterns[publicPatternHash].scopeKey = 'corrupted';
+        publicSnapshot.patterns.injected = { scopeKey: 'unscoped' };
+        assert.strictEqual(
+          Object.values(bank.exportMemory().patterns)[0].scopeKey,
+          'backtest:alpaca:acct-main:stocks:TSLA:15m',
+          'PatternMemoryBank public memory snapshot must not mutate stored scope'
+        );
+        assert.strictEqual(
+          bank.exportMemory().patterns.injected,
+          undefined,
+          'PatternMemoryBank public memory snapshot must not inject rows'
+        );
+        assert.throws(
+          () => bank.importMemory(publicSnapshot),
+          /PatternMemoryBank\.validateMemoryStructure pattern .* immutable scope field/,
+          'PatternMemoryBank import must reject corrupted public snapshots'
+        );
+        assert.strictEqual(
+          Object.values(bank.exportMemory().patterns)[0].scopeKey,
+          'backtest:alpaca:acct-main:stocks:TSLA:15m',
+          'rejected PatternMemoryBank import must not mutate stored scope'
+        );
+        assert.strictEqual(
+          bank.exportMemory().patterns.injected,
+          undefined,
+          'rejected PatternMemoryBank import must not inject rows'
+        );
+        const forgedMemory = bank.exportMemory();
+        forgedMemory.patterns[publicPatternHash].sampleCount = 99;
+        assert.throws(
+          () => bank.importMemory(forgedMemory),
+          /PatternMemoryBank\.validateMemoryStructure pattern .* inconsistent outcome counters/,
+          'PatternMemoryBank import must reject fake-but-scope-valid counters'
+        );
+        assert.strictEqual(
+          Object.values(bank.exportMemory().patterns)[0].sampleCount,
+          1,
+          'rejected PatternMemoryBank counter import must not mutate stored counters'
+        );
+        assert.throws(
+          () => {
+            bank.memory = bank.createEmptyMemory();
+          },
+          /PatternMemoryBank\.memory is read-only/,
+          'PatternMemoryBank memory assignment must be rejected'
+        );
         bank.writeOutcomeTelemetry = () => false;
         assert.strictEqual(
           bank.recordTradeOutcome(patternBankTrade({
@@ -780,7 +828,11 @@ const GATES = [
         assert.strictEqual(bank.importMemory(importedMemory), false, 'non-durable PatternMemoryBank import should return false');
         assert.deepStrictEqual(bank.exportMemory(), beforeImportFailure, 'non-durable PatternMemoryBank import must roll back memory');
         const patternHash = Object.keys(bank.exportMemory().patterns)[0];
-        bank.memory.patterns[patternHash].status = 'DEAD';
+        bank.saveMemory = () => true;
+        const pruneSetup = bank.exportMemory();
+        pruneSetup.patterns[patternHash].status = 'DEAD';
+        assert.strictEqual(bank.importMemory(pruneSetup), true, 'PatternMemoryBank prune setup should import');
+        bank.saveMemory = () => false;
         const beforePruneFailure = bank.exportMemory();
         assert.strictEqual(bank.pruneOldPatterns(), 0, 'non-durable PatternMemoryBank prune should return zero');
         assert.deepStrictEqual(bank.exportMemory(), beforePruneFailure, 'non-durable PatternMemoryBank prune must roll back memory');

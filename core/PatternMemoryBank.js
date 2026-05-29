@@ -95,6 +95,8 @@ function assertJsonPathInsideRoot(candidatePath, rootDir, label) {
 }
 
 class PatternMemoryBank {
+    #memory;
+
     constructor(config = {}) {
         // Mode-aware pattern memory persistence to prevent contamination
         let mode = 'paper';  // Default to paper
@@ -115,6 +117,7 @@ class PatternMemoryBank {
             error.missingFields = constructorScope.missingFields || [];
             throw error;
         }
+        this.patternScope = constructorScope;
         const scopeSuffix = `.${constructorScope.brokerId}.${constructorScope.accountId}.${constructorScope.assetClass}.${constructorScope.symbol}.${constructorScope.timeframe}`;
 
         const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
@@ -156,14 +159,22 @@ class PatternMemoryBank {
         this.maxPatternAge = config.maxPatternAge || 90 * 24 * 60 * 60 * 1000;  // 90 days in ms
 
         // Load existing memory or create new
-        this.memory = this.loadMemory();
+        this.#memory = this.loadMemory();
 
         // Count by status
         const counts = { CANDIDATE: 0, PROMOTED: 0, QUARANTINED: 0, DEAD: 0 };
-        for (const record of Object.values(this.memory.patterns)) {
+        for (const record of Object.values(this.#memory.patterns)) {
             counts[record.status] = (counts[record.status] || 0) + 1;
         }
         console.log(`[TRAI Memory] Initialized: ${counts.PROMOTED} promoted, ${counts.QUARANTINED} quarantined, ${counts.CANDIDATE} candidates`);
+    }
+
+    get memory() {
+        return this.cloneMemory();
+    }
+
+    set memory(_) {
+        throw new Error('PatternMemoryBank.memory is read-only; use importMemory() for validated replacements');
     }
 
     /**
@@ -201,7 +212,7 @@ class PatternMemoryBank {
     }
 
     cloneMemory() {
-        return JSON.parse(JSON.stringify(this.memory));
+        return JSON.parse(JSON.stringify(this.#memory));
     }
 
     writeOutcomeTelemetry(outcomeTelemetry) {
@@ -234,7 +245,7 @@ class PatternMemoryBank {
         }
 
         return {
-            patterns,
+            patterns: this.validatePatternRecords(patterns),
             metadata: {
                 ...empty.metadata,
                 ...data.metadata,
@@ -242,6 +253,57 @@ class PatternMemoryBank {
                 lastUpdated: new Date().toISOString()
             }
         };
+    }
+
+    validatePatternRecords(patterns) {
+        const validated = {};
+
+        for (const [hash, record] of Object.entries(patterns || {})) {
+            const missingFields = ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe', 'scopeKey']
+                .filter((field) => record?.[field] == null || record[field] === '');
+            if (missingFields.length > 0) {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} missing immutable scope field(s): ${missingFields.join(', ')}`);
+            }
+
+            const mismatches = [];
+            for (const field of ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe', 'scopeKey']) {
+                if (record[field] !== this.patternScope[field]) {
+                    mismatches.push(field);
+                }
+            }
+            if (mismatches.length > 0) {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} mismatched immutable scope field(s): ${mismatches.join(', ')}`);
+            }
+
+            if (!Object.values(STATUS).includes(record.status)) {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} invalid status: ${record.status}`);
+            }
+            if (!record.name || typeof record.name !== 'string') {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} missing valid name`);
+            }
+            if (!record.data || typeof record.data !== 'object' || Array.isArray(record.data)) {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} missing valid data`);
+            }
+
+            for (const field of ['sampleCount', 'winCount', 'lossCount']) {
+                if (!Number.isInteger(record[field]) || record[field] < 0) {
+                    throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} invalid nonnegative integer field: ${field}`);
+                }
+            }
+            if (record.sampleCount !== record.winCount + record.lossCount) {
+                throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} inconsistent outcome counters`);
+            }
+
+            for (const field of ['totalPnL', 'avgPnLPercent', 'sumPnLSquared', 'avgHoldMs', 'totalHoldMs', 'firstSeenTs', 'lastSeenTs', 'lastOutcomeTs', 'score']) {
+                if (!Number.isFinite(record[field])) {
+                    throw new Error(`PatternMemoryBank.validateMemoryStructure pattern ${hash} invalid finite numeric field: ${field}`);
+                }
+            }
+
+            validated[hash] = record;
+        }
+
+        return validated;
     }
 
     /**
@@ -296,8 +358,8 @@ class PatternMemoryBank {
             const isWin = trade.profitLoss > 0;
 
             // Initialize pattern record if it doesn't exist
-            if (!this.memory.patterns[pattern.hash]) {
-                this.memory.patterns[pattern.hash] = {
+            if (!this.#memory.patterns[pattern.hash]) {
+                this.#memory.patterns[pattern.hash] = {
                     name: pattern.name,
                     data: pattern.data,
                     symbol: pattern.scope.symbol,
@@ -326,16 +388,16 @@ class PatternMemoryBank {
                 };
             }
 
-            const record = this.memory.patterns[pattern.hash];
+            const record = this.#memory.patterns[pattern.hash];
 
             // Update counts
             record.sampleCount++;
             if (isWin) {
                 record.winCount++;
-                this.memory.metadata.totalWins++;
+                this.#memory.metadata.totalWins++;
             } else {
                 record.lossCount++;
-                this.memory.metadata.totalLosses++;
+                this.#memory.metadata.totalLosses++;
             }
 
             // Update PnL stats
@@ -352,8 +414,8 @@ class PatternMemoryBank {
             record.lastOutcomeTs = now;
 
             // Update metadata
-            this.memory.metadata.totalTrades++;
-            this.memory.metadata.lastUpdated = new Date().toISOString();
+            this.#memory.metadata.totalTrades++;
+            this.#memory.metadata.lastUpdated = new Date().toISOString();
 
             // Compute score and update status
             record.score = this.computeScore(record);
@@ -421,13 +483,13 @@ class PatternMemoryBank {
             // Save to disk
             const saved = this.saveMemory();
             if (!saved && memoryBeforeMutation) {
-                this.memory = memoryBeforeMutation;
+                this.#memory = memoryBeforeMutation;
             }
             return saved;
 
         } catch (error) {
             if (memoryBeforeMutation) {
-                this.memory = memoryBeforeMutation;
+                this.#memory = memoryBeforeMutation;
             }
             console.error('[TRAI Memory] Error recording trade outcome:', error.message);
             return false;
@@ -516,7 +578,7 @@ class PatternMemoryBank {
             if (!pattern || !pattern.hash) {
                 return null;
             }
-            const record = this.memory.patterns[pattern.hash];
+            const record = this.#memory.patterns[pattern.hash];
 
             if (!record || record.sampleCount < this.minTradesSample) {
                 return null;
@@ -672,8 +734,8 @@ class PatternMemoryBank {
      * Record news correlation (keyword → price movement)
      */
     recordNewsCorrelation(keyword, priceImpact, timestamp) {
-        if (!this.memory.newsCorrelations[keyword]) {
-            this.memory.newsCorrelations[keyword] = {
+        if (!this.#memory.newsCorrelations[keyword]) {
+            this.#memory.newsCorrelations[keyword] = {
                 occurrences: 0,
                 totalImpact: 0,
                 avgImpact: 0,
@@ -683,7 +745,7 @@ class PatternMemoryBank {
             };
         }
 
-        const record = this.memory.newsCorrelations[keyword];
+        const record = this.#memory.newsCorrelations[keyword];
         record.occurrences++;
         record.totalImpact += priceImpact;
         record.avgImpact = record.totalImpact / record.occurrences;
@@ -707,7 +769,7 @@ class PatternMemoryBank {
      * Get news correlation impact for a keyword
      */
     getNewsCorrelation(keyword) {
-        const record = this.memory.newsCorrelations[keyword];
+        const record = this.#memory.newsCorrelations[keyword];
 
         if (record && record.occurrences >= 5) {
             return {
@@ -734,25 +796,25 @@ class PatternMemoryBank {
             : null;
 
         // First pass: Remove DEAD and old patterns
-        for (const [hash, record] of Object.entries(this.memory.patterns)) {
+        for (const [hash, record] of Object.entries(this.#memory.patterns)) {
             const age = now - record.lastSeenTs;
 
             if (record.status === STATUS.DEAD) {
-                delete this.memory.patterns[hash];
+                delete this.#memory.patterns[hash];
                 pruned++;
                 console.log(`🗑️ [TRAI Memory] Pruned DEAD: "${record.name}"`);
             } else if (age > this.maxPatternAge) {
-                delete this.memory.patterns[hash];
+                delete this.#memory.patterns[hash];
                 pruned++;
                 console.log(`🗑️ [TRAI Memory] Pruned old: "${record.name}" (${Math.floor(age / (24 * 60 * 60 * 1000))} days)`);
             }
         }
 
         // Second pass: If still over cap, drop lowest score oldest first
-        const patternCount = Object.keys(this.memory.patterns).length;
+        const patternCount = Object.keys(this.#memory.patterns).length;
         if (patternCount > MAX_PATTERNS) {
             const toRemove = patternCount - MAX_PATTERNS;
-            const sorted = Object.entries(this.memory.patterns)
+            const sorted = Object.entries(this.#memory.patterns)
                 .map(([hash, record]) => ({ hash, score: record.score, lastSeenTs: record.lastSeenTs }))
                 .sort((a, b) => {
                     // Sort by score ascending, then by lastSeenTs ascending (oldest first)
@@ -762,9 +824,9 @@ class PatternMemoryBank {
 
             for (let i = 0; i < toRemove && i < sorted.length; i++) {
                 const { hash } = sorted[i];
-                const record = this.memory.patterns[hash];
+                const record = this.#memory.patterns[hash];
                 console.log(`🗑️ [TRAI Memory] Pruned (cap): "${record.name}" score=${record.score.toFixed(3)}`);
-                delete this.memory.patterns[hash];
+                delete this.#memory.patterns[hash];
                 pruned++;
             }
         }
@@ -773,7 +835,7 @@ class PatternMemoryBank {
             console.log(`🗑️ [TRAI Memory] Pruned ${pruned} patterns total`);
             const saved = this.saveMemory();
             if (!saved && memoryBeforeMutation) {
-                this.memory = memoryBeforeMutation;
+                this.#memory = memoryBeforeMutation;
                 console.warn('[TRAI Memory] Prune rolled back after failed save');
                 return 0;
             }
@@ -788,7 +850,7 @@ class PatternMemoryBank {
      * @param {string} status - Filter by status (default: PROMOTED)
      */
     getTopPatterns(limit = 50, status = STATUS.PROMOTED) {
-        return Object.entries(this.memory.patterns)
+        return Object.entries(this.#memory.patterns)
             .filter(([_, record]) => record.status === status)
             .map(([hash, record]) => ({
                 hash,
@@ -810,7 +872,7 @@ class PatternMemoryBank {
      * @param {number} limit - Max patterns to return
      */
     getWorstPatterns(limit = 50) {
-        return Object.entries(this.memory.patterns)
+        return Object.entries(this.#memory.patterns)
             .filter(([_, record]) => record.status === STATUS.QUARANTINED || record.status === STATUS.DEAD)
             .map(([hash, record]) => ({
                 hash,
@@ -844,9 +906,9 @@ class PatternMemoryBank {
 
             // Write new memory atomically (Mercury Vector 6 — crash-safe brain persistence)
             const { writeJsonAtomic } = require('./AtomicWrite');
-            writeJsonAtomic(this.dbPath, this.memory);
+            writeJsonAtomic(this.dbPath, this.#memory);
 
-            const total = Object.keys(this.memory.patterns).length;
+            const total = Object.keys(this.#memory.patterns).length;
             console.log(`💾 [TRAI Memory] Saved ${total} patterns`);
             return true;
 
@@ -870,15 +932,15 @@ class PatternMemoryBank {
         const memoryBeforeMutation = this.persistenceEnabled
             ? this.cloneMemory()
             : null;
-        this.memory = this.validateMemoryStructure(data);
+        this.#memory = this.validateMemoryStructure(data);
         const saved = this.saveMemory();
         if (!saved && memoryBeforeMutation) {
-            this.memory = memoryBeforeMutation;
+            this.#memory = memoryBeforeMutation;
             console.warn('[TRAI Memory] Import rolled back after failed save');
             return false;
         }
         console.log('📥 [TRAI Memory] Imported memory with',
-                   Object.keys(this.memory.patterns).length, 'patterns');
+                   Object.keys(this.#memory.patterns).length, 'patterns');
         return saved;
     }
 
@@ -886,7 +948,7 @@ class PatternMemoryBank {
      * Get statistics about TRAI's learning
      */
     getStats() {
-        const patterns = Object.values(this.memory.patterns);
+        const patterns = Object.values(this.#memory.patterns);
         const counts = { CANDIDATE: 0, PROMOTED: 0, QUARANTINED: 0, DEAD: 0 };
         let totalScore = 0;
         let promotedWinRateSum = 0;
@@ -910,17 +972,17 @@ class PatternMemoryBank {
             quarantined: counts.QUARANTINED || 0,
             candidates: counts.CANDIDATE || 0,
             dead: counts.DEAD || 0,
-            totalTrades: this.memory.metadata.totalTrades,
-            totalWins: this.memory.metadata.totalWins,
-            totalLosses: this.memory.metadata.totalLosses,
-            overallWinRate: this.memory.metadata.totalTrades > 0
-                ? this.memory.metadata.totalWins / this.memory.metadata.totalTrades
+            totalTrades: this.#memory.metadata.totalTrades,
+            totalWins: this.#memory.metadata.totalWins,
+            totalLosses: this.#memory.metadata.totalLosses,
+            overallWinRate: this.#memory.metadata.totalTrades > 0
+                ? this.#memory.metadata.totalWins / this.#memory.metadata.totalTrades
                 : 0,
             avgPromotedWinRate: promotedCount > 0 ? promotedWinRateSum / promotedCount : 0,
             avgPromotedR: promotedCount > 0 ? promotedAvgRSum / promotedCount : 0,
             avgScore: patterns.length > 0 ? totalScore / patterns.length : 0,
-            lastUpdated: this.memory.metadata.lastUpdated,
-            created: this.memory.metadata.created
+            lastUpdated: this.#memory.metadata.lastUpdated,
+            created: this.#memory.metadata.created
         };
     }
 
@@ -932,10 +994,10 @@ class PatternMemoryBank {
             ? this.cloneMemory()
             : null;
         console.warn('⚠️ [TRAI Memory] RESETTING ALL LEARNED PATTERNS');
-        this.memory = this.createEmptyMemory();
+        this.#memory = this.createEmptyMemory();
         const saved = this.saveMemory();
         if (!saved && memoryBeforeMutation) {
-            this.memory = memoryBeforeMutation;
+            this.#memory = memoryBeforeMutation;
             console.warn('[TRAI Memory] Reset rolled back after failed save');
             return false;
         }

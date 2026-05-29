@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PatternMemoryBank Read-Only Memory Snapshot (2026-05-29)
+
+- Moved `PatternMemoryBank` live memory behind a private store and changed the public `memory` accessor to return a cloned snapshot, so external callers cannot mutate active pattern rows, counters, scope keys, or injected records.
+- Made memory import validation reject missing or mismatched immutable scope rows, invalid statuses, invalid pattern data, non-finite numeric fields, and inconsistent outcome counters before replacing the live store.
+- Added focused and executable gate coverage proving snapshot mutation, corrupted snapshot import, fake counter import, and direct `memory` assignment cannot corrupt the live bank.
+
 ### PatternMemoryBank Outcome Return Contract (2026-05-29)
 
 - Made `PatternMemoryBank.recordTradeOutcome()` return `true` only when a valid scoped outcome is recorded and its configured persistence step succeeds or is intentionally disabled.

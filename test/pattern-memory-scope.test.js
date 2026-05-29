@@ -168,6 +168,39 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
   });
 
+  test('PatternMemoryBank exposes read-only memory snapshots', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-readonly-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      minTradesSample: 1,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    });
+
+    expect(bank.recordTradeOutcome(bankTrade())).toBe(true);
+    const patternHash = Object.keys(bank.exportMemory().patterns)[0];
+    const snapshot = bank.memory;
+    snapshot.patterns[patternHash].scopeKey = 'corrupted';
+    snapshot.patterns.injected = { scopeKey: 'unscoped' };
+    expect(bank.exportMemory().patterns[patternHash].scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
+    expect(bank.exportMemory().patterns.injected).toBeUndefined();
+    expect(() => bank.importMemory(snapshot)).toThrow(/PatternMemoryBank\.validateMemoryStructure pattern .* immutable scope field/);
+    expect(bank.exportMemory().patterns[patternHash].scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
+    expect(bank.exportMemory().patterns.injected).toBeUndefined();
+    const forged = bank.exportMemory();
+    forged.patterns[patternHash].sampleCount = 99;
+    expect(() => bank.importMemory(forged)).toThrow(/inconsistent outcome counters/);
+    expect(bank.exportMemory().patterns[patternHash].sampleCount).toBe(1);
+    expect(() => {
+      bank.memory = bank.createEmptyMemory();
+    }).toThrow(/PatternMemoryBank\.memory is read-only/);
+  });
+
   test('PatternMemoryBank reports failed outcome durability', () => {
     const PatternMemoryBank = require('../core/PatternMemoryBank');
     delete process.env.BACKTEST_MODE;
@@ -243,7 +276,11 @@ describe('Pattern memory scope isolation', () => {
     expect(bank.importMemory(imported)).toBe(false);
     expect(bank.exportMemory()).toEqual(original);
 
-    bank.memory.patterns[patternHash].status = 'DEAD';
+    bank.saveMemory = () => true;
+    const pruneSetup = bank.exportMemory();
+    pruneSetup.patterns[patternHash].status = 'DEAD';
+    expect(bank.importMemory(pruneSetup)).toBe(true);
+    bank.saveMemory = () => false;
     const beforePrune = bank.exportMemory();
     expect(bank.pruneOldPatterns()).toBe(0);
     expect(bank.exportMemory()).toEqual(beforePrune);
