@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Runtime Scope Stamping (2026-05-29)
+
+- Made `TradingLoop` pattern and dashboard scope builders read the active `SessionRouter` broker/asset envelope when present, instead of stamping pattern observations with stale static config after a broker session switch.
+- Made `OrderExecutor` entry, exit, broker-ack, and `StateManager.openPosition()` scope fields use the same active runtime envelope, while exit plans continue to trust the stored trade scope for close quantities.
+- Added fail-closed guards so enabled `SessionRouter` scope cannot fall back to static broker/asset config, and exit plans reject active trades whose stored immutable scope is incomplete.
+- Added focused regression coverage proving a stock session running under stale crypto config records stock/alpaca scope and plans stock-share quantities.
+
 ### PatternMemoryBank Read-Only Memory Snapshot (2026-05-29)
 
 - Moved `PatternMemoryBank` live memory behind a private store and changed the public `memory` accessor to return a cloned snapshot, so external callers cannot mutate active pattern rows, counters, scope keys, or injected records.

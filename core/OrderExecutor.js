@@ -60,18 +60,54 @@ class OrderExecutor {
     throw new Error(`[ORDER-PLAN] unsupported exit action ${action}`);
   }
 
-  _orderQuantityUnit() {
-    const assetClass = String(this.ctx.config?.assetClass || '').trim().toLowerCase();
+  _runtimeScope(symbol = null, overrides = {}, options = {}) {
+    const cfg = this.ctx.config || {};
+    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const runnerScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
+      ? this.ctx.runner.getCandleScopeEnvelope()
+      : {};
+    const cleanOverrides = Object.fromEntries(
+      Object.entries(overrides || {}).filter(([, value]) => value !== undefined && value !== null)
+    );
+    const scoped = options.preferOverrides
+      ? { ...runnerScope, ...cleanOverrides }
+      : { ...cleanOverrides, ...runnerScope };
+    const accountId = scoped.accountId || cfg.accountId || 'default';
+    const scope = {
+      symbol,
+      brokerId: scoped.brokerId || (!routerEnabled ? cfg.brokerId : null),
+      accountId,
+      accountIdSource: scoped.accountIdSource || cfg.accountIdSource || (accountId !== 'default' ? 'config' : 'default'),
+      assetClass: scoped.assetClass || (!routerEnabled ? cfg.assetClass : null),
+      executionMode: cfg.enableBacktestMode ? 'backtest' : (scoped.executionMode || (!routerEnabled ? cfg.executionMode : null)),
+      timeframe: scoped.timeframe || (!routerEnabled ? (cfg.timeframe || this.ctx.candleTimeframe) : null),
+    };
+    if (routerEnabled) {
+      const missing = [];
+      const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+      if (!hasText(scope.brokerId)) missing.push('brokerId');
+      if (!hasText(scope.assetClass)) missing.push('assetClass');
+      if (!hasText(scope.executionMode)) missing.push('executionMode');
+      if (!hasText(scope.timeframe)) missing.push('timeframe');
+      if (missing.length > 0) {
+        throw new Error(`[SESSION-SCOPE] OrderExecutor runtime scope incomplete (${missing.join(', ')}) - refusing static config fallback`);
+      }
+    }
+    return scope;
+  }
+
+  _orderQuantityUnit(scope = null) {
+    const assetClass = String((scope && scope.assetClass) || this._runtimeScope().assetClass || '').trim().toLowerCase();
     if (['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'].includes(assetClass)) {
       return 'shares';
     }
     if (['crypto', 'cryptos', 'cryptocurrency', 'forex', 'fx', 'futures', 'future'].includes(assetClass)) {
       return 'base';
     }
-    throw new Error(`[ORDER-PLAN] unsupported assetClass ${JSON.stringify(this.ctx.config?.assetClass)} for broker quantity planning`);
+    throw new Error(`[ORDER-PLAN] unsupported assetClass ${JSON.stringify(assetClass)} for broker quantity planning`);
   }
 
-  _orderQuantityFromSizeUsd(sizeUsd, price) {
+  _orderQuantityFromSizeUsd(sizeUsd, price, scope = null) {
     if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
       throw new Error(`[ORDER-PLAN] invalid sizeUsd ${sizeUsd}`);
     }
@@ -80,7 +116,7 @@ class OrderExecutor {
     }
 
     const rawQuantity = sizeUsd / price;
-    return this._orderQuantityUnit() === 'shares'
+    return this._orderQuantityUnit(scope) === 'shares'
       ? Math.floor(rawQuantity)
       : rawQuantity;
   }
@@ -130,15 +166,15 @@ class OrderExecutor {
   }
 
   _dashboardTradePayload(payload, trade = {}) {
-    const brokerId = trade.brokerId || this.ctx.config?.brokerId || null;
-    const accountId = trade.accountId || this.ctx.config?.accountId || 'default';
+    const hasTradeRecord = trade && typeof trade === 'object' && Object.keys(trade).length > 0;
+    const runtimeScope = hasTradeRecord ? {} : this._runtimeScope(trade.symbol || payload.symbol || null);
+    const brokerId = trade.brokerId || runtimeScope.brokerId || null;
+    const accountId = trade.accountId || runtimeScope.accountId || 'default';
     const accountIdSource = trade.accountIdSource
       || (accountId && accountId !== 'default' ? 'config' : 'default');
-    const assetClass = trade.assetClass || this.ctx.config?.assetClass || null;
-    const executionMode = trade.executionMode
-      || (this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode)
-      || null;
-    const timeframe = trade.timeframe || this.ctx.config?.timeframe || null;
+    const assetClass = trade.assetClass || runtimeScope.assetClass || null;
+    const executionMode = trade.executionMode || runtimeScope.executionMode || null;
+    const timeframe = trade.timeframe || runtimeScope.timeframe || null;
     const scopeKey = trade.scopeKey || null;
     const scopeKeyVersion = typeof scopeKey === 'string' && scopeKey.split(':').length >= 6 ? 2 : 1;
     const symbol = trade.symbol || payload.symbol || null;
@@ -194,6 +230,7 @@ class OrderExecutor {
     const sent = result?.sent === true;
     const reason = result?.reason || (sent ? null : 'not_sent');
     const body = typeof response?.body === 'string' ? response.body.slice(0, 500) : null;
+    const scope = this._runtimeScope(baseFields.symbol || null, baseFields, { preferOverrides: true });
 
     const frame = {
       type: sent ? 'broker_ack' : 'broker_reject',
@@ -212,11 +249,11 @@ class OrderExecutor {
       quantityUnit: baseFields.quantityUnit || null,
       orderType: baseFields.orderType || null,
       bypassThrottle: baseFields.bypassThrottle === true,
-      brokerId: this.ctx.config?.brokerId || null,
-      accountId: this.ctx.config?.accountId || null,
-      assetClass: this.ctx.config?.assetClass || null,
-      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || null),
-      timeframe: this.ctx.config?.timeframe || null,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
       httpStatus: response?.status ?? null,
       reason,
       dryRun: reason === 'dry_run',
@@ -236,11 +273,11 @@ class OrderExecutor {
         quantityUnit: baseFields.quantityUnit || null,
         orderType: baseFields.orderType || null,
         bypassThrottle: baseFields.bypassThrottle === true,
-        brokerId: this.ctx.config?.brokerId || null,
-        accountId: this.ctx.config?.accountId || null,
-        assetClass: this.ctx.config?.assetClass || null,
-        executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || null),
-        timeframe: this.ctx.config?.timeframe || null,
+        brokerId: scope.brokerId,
+        accountId: scope.accountId,
+        assetClass: scope.assetClass,
+        executionMode: scope.executionMode,
+        timeframe: scope.timeframe,
         httpStatus: response?.status ?? null,
         reason,
         dryRun: reason === 'dry_run',
@@ -258,9 +295,10 @@ class OrderExecutor {
     const entryStrategy = orchResult.winnerStrategy;
     const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
     const exitContract = orchResult.exitContract;
+    const scope = this._runtimeScope(symbol);
     const sizeUsd = positionSize * sizingMultiplier;
-    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price);
-    const quantityUnit = this._orderQuantityUnit();
+    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope);
+    const quantityUnit = this._orderQuantityUnit(scope);
 
     return {
       traceId: decision.traceId || null,
@@ -270,10 +308,12 @@ class OrderExecutor {
       side: this._entrySide(decision.action),
       direction: decision.action === 'BUY' ? 'long' : 'short',
       symbol,
-      assetClass: this.ctx.config?.assetClass || null,
-      brokerId: this.ctx.config?.brokerId || null,
-      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode,
-      timeframe: this.ctx.config?.timeframe || null,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
       price,
       accountBalance: currentBalance,
       currentEquity,
@@ -309,11 +349,30 @@ class OrderExecutor {
     const trade = this._findExitTrade(decision, symbol);
     if (!trade) return null;
 
+    const scope = {
+      symbol,
+      brokerId: trade.brokerId,
+      accountId: trade.accountId || 'default',
+      accountIdSource: trade.accountIdSource || (trade.accountId && trade.accountId !== 'default' ? 'config' : 'default'),
+      assetClass: trade.assetClass,
+      executionMode: trade.executionMode,
+      timeframe: trade.timeframe,
+    };
+    const missingStoredScope = [];
+    const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+    if (!hasText(scope.brokerId)) missingStoredScope.push('brokerId');
+    if (!hasText(scope.accountId)) missingStoredScope.push('accountId');
+    if (!hasText(scope.assetClass)) missingStoredScope.push('assetClass');
+    if (!hasText(scope.executionMode)) missingStoredScope.push('executionMode');
+    if (!hasText(scope.timeframe)) missingStoredScope.push('timeframe');
+    if (missingStoredScope.length > 0) {
+      throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing immutable scope field(s): ${missingStoredScope.join(', ')} - refusing to plan exit against current SessionRouter scope`);
+    }
     const fullSizeUsd = Math.abs(trade.sizeUsd || trade.size || 0);
     const exitFraction = typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1
       ? decision.exitFraction
       : 1;
-    const quantityUnit = this._orderQuantityUnit();
+    const quantityUnit = this._orderQuantityUnit(scope);
     const remainingOrderQuantity = this._tradeRemainingOrderQuantity(trade);
     if (remainingOrderQuantity === null) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing remainingOrderQuantity; refusing to recalc live exit quantity from current price`);
@@ -340,10 +399,12 @@ class OrderExecutor {
       side: this._exitSide(decision.action),
       direction: 'close',
       symbol,
-      assetClass: this.ctx.config?.assetClass || null,
-      brokerId: this.ctx.config?.brokerId || null,
-      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode,
-      timeframe: this.ctx.config?.timeframe || null,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
       price,
       sizeUsd,
       orderQuantity,
@@ -385,6 +446,12 @@ class OrderExecutor {
       quantityUnit: signal?.quantityUnit || null,
       orderType: signal?.orderType || null,
       bypassThrottle: signal?.bypassThrottle === true,
+      brokerId: traceFields.brokerId || signal?.brokerId || null,
+      accountId: traceFields.accountId || signal?.accountId || null,
+      accountIdSource: traceFields.accountIdSource || signal?.accountIdSource || null,
+      assetClass: traceFields.assetClass || signal?.assetClass || null,
+      executionMode: traceFields.executionMode || signal?.executionMode || null,
+      timeframe: traceFields.timeframe || signal?.timeframe || null,
     };
 
     emitTrace(this.ctx, 'WEBHOOK_ORDER_DISPATCH', baseFields);
@@ -459,6 +526,7 @@ class OrderExecutor {
     decision.decisionId = decision.decisionId || `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const traceId = decision.traceId;
     const signalId = decision.signalId;
+    const executionScope = this._runtimeScope(symbol);
     emitTrace(this.ctx, 'ORDER_EXECUTE_START', {
       traceId,
       signalId,
@@ -467,17 +535,17 @@ class OrderExecutor {
       action: decision.action,
       price,
       confidencePct: decision.confidence,
-      brokerId: this.ctx.config?.brokerId || null,
-      assetClass: this.ctx.config?.assetClass || null,
-      executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode,
+      brokerId: executionScope.brokerId,
+      assetClass: executionScope.assetClass,
+      executionMode: executionScope.executionMode,
     });
     if (this._isEntryAction(decision.action)) {
       const missingScope = [];
       const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
-      if (!hasText(this.ctx.config?.brokerId)) missingScope.push('brokerId');
-      if (!hasText(this.ctx.config?.assetClass)) missingScope.push('assetClass');
-      if (!hasText(this.ctx.config?.timeframe)) missingScope.push('timeframe');
-      const executionMode = this.ctx.config?.enableBacktestMode ? 'backtest' : this.ctx.config?.executionMode;
+      if (!hasText(executionScope.brokerId)) missingScope.push('brokerId');
+      if (!hasText(executionScope.assetClass)) missingScope.push('assetClass');
+      if (!hasText(executionScope.timeframe)) missingScope.push('timeframe');
+      const executionMode = executionScope.executionMode;
       if (!hasText(executionMode)) missingScope.push('executionMode');
       if (missingScope.length > 0) {
         throw new Error(`[ENTRY-SCOPE] ${decision.action} for ${symbol} missing immutable trade scope field(s): ${missingScope.join(', ')} - refusing to route order before state identity is complete`);
@@ -924,12 +992,12 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
-            brokerId: this.ctx.config.brokerId,
-            accountId: this.ctx.config.accountId || 'default',
-            accountIdSource: this.ctx.config.accountId && this.ctx.config.accountId !== 'default' ? 'config' : 'default',
-            assetClass: this.ctx.config.assetClass,
-            executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
-            timeframe: this.ctx.config.timeframe,
+            brokerId: entryPlan.brokerId,
+            accountId: entryPlan.accountId,
+            accountIdSource: entryPlan.accountIdSource,
+            assetClass: entryPlan.assetClass,
+            executionMode: entryPlan.executionMode,
+            timeframe: entryPlan.timeframe,
             symbol,
             entryOrderQuantity,
             entryOrderQuantityUnit,
@@ -1016,7 +1084,7 @@ class OrderExecutor {
                   quantity: orderQuantity,
                   quantityUnit,
                   orderType: 'market',
-                }, { traceId, signalId, decisionId, symbol });
+                }, { traceId, signalId, decisionId, ...entryPlan });
               }
             }
           }
@@ -1138,12 +1206,12 @@ class OrderExecutor {
             atrAtEntry: decision.atrAtEntry ?? null,
             regimeAtEntry: decision.regimeAtEntry ?? null,
             rsiAtEntry: decision.rsiAtEntry ?? null,
-            brokerId: this.ctx.config.brokerId,
-            accountId: this.ctx.config.accountId || 'default',
-            accountIdSource: this.ctx.config.accountId && this.ctx.config.accountId !== 'default' ? 'config' : 'default',
-            assetClass: this.ctx.config.assetClass,
-            executionMode: this.ctx.config.enableBacktestMode ? 'backtest' : this.ctx.config.executionMode,
-            timeframe: this.ctx.config.timeframe,
+            brokerId: entryPlan.brokerId,
+            accountId: entryPlan.accountId,
+            accountIdSource: entryPlan.accountIdSource,
+            assetClass: entryPlan.assetClass,
+            executionMode: entryPlan.executionMode,
+            timeframe: entryPlan.timeframe,
             symbol,
             entryOrderQuantity,
             entryOrderQuantityUnit,
@@ -1220,7 +1288,7 @@ class OrderExecutor {
                   quantity: orderQuantity,
                   quantityUnit,
                   orderType: 'market',
-                }, { traceId, signalId, decisionId, symbol });
+                }, { traceId, signalId, decisionId, ...entryPlan });
               }
             }
           }
@@ -1531,7 +1599,7 @@ class OrderExecutor {
                     quantityUnit,
                     orderType: 'market',
                     bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                  }, { traceId, signalId, decisionId, symbol });
+                  }, { traceId, signalId, decisionId, ...exitPlan });
                 }
               }
             }
@@ -2017,7 +2085,7 @@ class OrderExecutor {
                   quantityUnit,
                   orderType: 'market',
                   bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                }, { traceId, signalId, decisionId, symbol });
+                }, { traceId, signalId, decisionId, ...exitPlan });
               }
             }
           }

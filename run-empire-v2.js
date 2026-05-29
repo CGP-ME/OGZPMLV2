@@ -846,6 +846,7 @@ class OGZPrimeV14Bot {
                 : this.sessionRouter?.activeSession === 'stocks'
                   ? 'stocks'
                   : null,
+              timeframe: tf,
             }),
           });
         } else {
@@ -1228,6 +1229,7 @@ class OGZPrimeV14Bot {
       // CC-C: side-channel webhook emitter — read at OrderExecutor entry/exit blocks
       webhookAdapter: this.webhookAdapter,
       evalRuleEngine: this.evalRuleEngine,
+      runner: this,
       // DynamicPositionSizer NOT WIRED - using inline confidence multiplier
       // Module-level functions
       notifyTrade: notifyTrade,
@@ -1797,6 +1799,7 @@ class OGZPrimeV14Bot {
               ...this.getCandleScopeEnvelope({
                 brokerId: resolvedConfig.config.broker.id,
                 assetClass: this.config.assetClass,
+                timeframe,
               }),
             });
           } else {
@@ -1951,7 +1954,7 @@ class OGZPrimeV14Bot {
       symbol,
       timeframe: activeTimeframe,
       traceId,
-      ...this.getCandleScopeEnvelope(),
+      ...this.getCandleScopeEnvelope({ timeframe: activeTimeframe }),
     });
     this._emittedAggregatedActiveCandles.add(dedupeKey);
     if (this._emittedAggregatedActiveCandles.size > 1000) {
@@ -1975,13 +1978,32 @@ class OGZPrimeV14Bot {
       : activeSession === 'stocks'
         ? 'stocks'
         : null;
+    const routerEnabled = this.sessionRouter?.enabled === true;
     const accountId = overrides.accountId || this.config.accountId;
+    const brokerId = overrides.brokerId || this.sessionRouter?.activeBroker?.id || (!routerEnabled ? this.config.brokerId : null);
+    const assetClass = overrides.assetClass || activeAssetClass || (!routerEnabled ? this.config.assetClass : null);
+    const executionMode = overrides.executionMode || this.config.executionMode;
+    const timeframe = overrides.timeframe || this.timeframeSelector?.currentTimeframe || this.candleTimeframe || this.config.timeframe || null;
+
+    if (routerEnabled) {
+      const missing = [];
+      if (!activeSession) missing.push('activeSession');
+      if (!brokerId) missing.push('brokerId');
+      if (!assetClass) missing.push('assetClass');
+      if (!executionMode) missing.push('executionMode');
+      if (!timeframe) missing.push('timeframe');
+      if (missing.length > 0) {
+        throw new Error(`[SESSION-SCOPE] SessionRouter enabled but runtime scope incomplete (${missing.join(', ')}) - refusing static config fallback`);
+      }
+    }
+
     return {
-      brokerId: overrides.brokerId || this.sessionRouter?.activeBroker?.id || this.config.brokerId,
+      brokerId,
       accountId,
       accountIdSource: overrides.accountIdSource || (accountId && accountId !== 'default' ? 'config' : 'default'),
-      assetClass: overrides.assetClass || activeAssetClass || this.config.assetClass,
-      executionMode: overrides.executionMode || this.config.executionMode,
+      assetClass,
+      executionMode,
+      timeframe,
     };
   }
 

@@ -65,28 +65,61 @@ class TradingLoop {
   }
 
   _patternScope(symbol) {
-    return {
+    const cfg = this.ctx.config || {};
+    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
+      ? this.ctx.runner.getCandleScopeEnvelope()
+      : {};
+    const scope = {
       symbol,
-      brokerId: this.ctx.config?.brokerId,
-      accountId: this.ctx.config?.accountId,
-      accountIdSource: this.ctx.config?.accountIdSource,
-      assetClass: this.ctx.config?.assetClass,
-      executionMode: this.ctx.config?.executionMode,
-      timeframe: this.ctx.config?.timeframe || this.ctx.candleTimeframe,
+      brokerId: runtimeScope.brokerId || (!routerEnabled ? cfg.brokerId : null),
+      accountId: runtimeScope.accountId || cfg.accountId,
+      accountIdSource: runtimeScope.accountIdSource || cfg.accountIdSource,
+      assetClass: runtimeScope.assetClass || (!routerEnabled ? cfg.assetClass : null),
+      executionMode: cfg.enableBacktestMode ? 'backtest' : (runtimeScope.executionMode || (!routerEnabled ? cfg.executionMode : null)),
+      timeframe: runtimeScope.timeframe || (!routerEnabled ? (cfg.timeframe || this.ctx.candleTimeframe) : null),
     };
+    if (routerEnabled) {
+      const missing = [];
+      const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+      if (!hasText(scope.brokerId)) missing.push('brokerId');
+      if (!hasText(scope.assetClass)) missing.push('assetClass');
+      if (!hasText(scope.executionMode)) missing.push('executionMode');
+      if (!hasText(scope.timeframe)) missing.push('timeframe');
+      if (missing.length > 0) {
+        throw new Error(`[SESSION-SCOPE] TradingLoop runtime scope incomplete (${missing.join(', ')}) - refusing static config fallback`);
+      }
+    }
+    return scope;
   }
 
   _dashboardScope(symbol) {
     const cfg = this.ctx.config || {};
-    return {
+    const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
+    const runtimeScope = this.ctx.runner && typeof this.ctx.runner.getCandleScopeEnvelope === 'function'
+      ? this.ctx.runner.getCandleScopeEnvelope()
+      : {};
+    const scope = {
       symbol,
-      brokerId: cfg.brokerId || null,
-      accountId: cfg.accountId || null,
-      accountIdSource: cfg.accountIdSource || null,
-      assetClass: cfg.assetClass || null,
-      executionMode: cfg.enableBacktestMode ? 'backtest' : (cfg.executionMode || 'paper'),
-      timeframe: cfg.timeframe || this.ctx.candleTimeframe || null,
+      brokerId: runtimeScope.brokerId || (!routerEnabled ? cfg.brokerId : null),
+      accountId: runtimeScope.accountId || cfg.accountId || null,
+      accountIdSource: runtimeScope.accountIdSource || cfg.accountIdSource || null,
+      assetClass: runtimeScope.assetClass || (!routerEnabled ? cfg.assetClass : null),
+      executionMode: cfg.enableBacktestMode ? 'backtest' : (runtimeScope.executionMode || (!routerEnabled ? cfg.executionMode : null)),
+      timeframe: runtimeScope.timeframe || (!routerEnabled ? (cfg.timeframe || this.ctx.candleTimeframe) : null),
     };
+    if (routerEnabled) {
+      const missing = [];
+      const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+      if (!hasText(scope.brokerId)) missing.push('brokerId');
+      if (!hasText(scope.assetClass)) missing.push('assetClass');
+      if (!hasText(scope.executionMode)) missing.push('executionMode');
+      if (!hasText(scope.timeframe)) missing.push('timeframe');
+      if (missing.length > 0) {
+        throw new Error(`[SESSION-SCOPE] TradingLoop dashboard scope incomplete (${missing.join(', ')}) - refusing static config fallback`);
+      }
+    }
+    return scope;
   }
 
   _sendDashboardFrame(frame) {
@@ -163,7 +196,8 @@ class TradingLoop {
     }
 
     const stockAliases = ['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'];
-    const runtimeAssetClass = String(this.ctx.config?.assetClass || '').trim().toLowerCase();
+    const runtimeScope = this._patternScope(activeTrade.symbol || this.ctx.marketData?.symbol || null);
+    const runtimeAssetClass = String(runtimeScope.assetClass || '').trim().toLowerCase();
     if (!runtimeAssetClass) {
       throw new Error('[TTP_CONSISTENCY] runtime assetClass missing while TTP eval rules are enabled');
     }
@@ -453,16 +487,17 @@ class TradingLoop {
     // _gatherData re-resolves indicatorEngine/fibonacciDetector via its own
     // symCtx pass — declaring them here too was dead code (Mercury attack #4).
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
+    const analysisScope = this._dashboardScope(symbol);
     emitTrace(this.ctx, 'ANALYSIS_START', {
       traceId,
       symbol,
       route: symCtx ? 'symbolContext' : 'global',
-      brokerId: this.ctx.config?.brokerId || null,
-      assetClass: this.ctx.config?.assetClass || null,
-      timeframe: this.ctx.config?.timeframe || this.ctx.candleTimeframe || null,
+      brokerId: analysisScope.brokerId,
+      assetClass: analysisScope.assetClass,
+      timeframe: analysisScope.timeframe,
       priceHistory: priceHistory.length,
     });
-    console.log(`[VIS][TradingLoop] analyze symbol=${symbol} route=${symCtx ? 'symbolContext' : 'global'} marketSymbol=${this.ctx.marketData?.symbol || '(missing)'} priceHistory=${priceHistory.length} broker=${this.ctx.config?.brokerId || '(missing)'} assetClass=${this.ctx.config?.assetClass || '(missing)'}`);
+    console.log(`[VIS][TradingLoop] analyze symbol=${symbol} route=${symCtx ? 'symbolContext' : 'global'} marketSymbol=${this.ctx.marketData?.symbol || '(missing)'} priceHistory=${priceHistory.length} broker=${analysisScope.brokerId || '(missing)'} assetClass=${analysisScope.assetClass || '(missing)'}`);
     if (symCtx && !this._firstAnalyzedSymbols) this._firstAnalyzedSymbols = new Set();
     if (symCtx && !this._firstAnalyzedSymbols.has(symbol)) {
       console.log(`[BOOT][TradingLoop] first analysis cycle for ${symbol} via symCtx path`);
@@ -928,13 +963,16 @@ class TradingLoop {
       // L1+L2: Attach full ledger data to decision for StateManager.openPosition
       const allResults = orchResult.allResults || [];
       const winnerName = orchResult.winnerStrategy || null;
+      const ledgerScope = this._patternScope(symbol);
       decision.ledgerData = {
         candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
         symbol,
-        brokerId: this.ctx.config?.brokerId || null,
-        assetClass: this.ctx.config?.assetClass || null,
-        timeframe: this.ctx.config?.timeframe || '15m',
-        executionMode: this.ctx.config?.enableBacktestMode ? 'backtest' : (this.ctx.config?.executionMode || 'paper'),
+        brokerId: ledgerScope.brokerId || null,
+        accountId: ledgerScope.accountId || null,
+        accountIdSource: ledgerScope.accountIdSource || null,
+        assetClass: ledgerScope.assetClass || null,
+        timeframe: ledgerScope.timeframe || null,
+        executionMode: ledgerScope.executionMode || 'paper',
         traceId: decision.traceId,
         signalId: decision.signalId,
         // L2: every strategy that fired — winner AND losers with indicator values
