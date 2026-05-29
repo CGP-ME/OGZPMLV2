@@ -33,9 +33,6 @@ class OrderRouter extends EventEmitter {
     // Map adapter name -> normalized symbols it owns
     this.adapterSymbols = new Map();
 
-    // Default adapter for unregistered symbols
-    this.defaultAdapter = null;
-
     console.log('[OrderRouter] Initialized');
   }
 
@@ -56,28 +53,32 @@ class OrderRouter extends EventEmitter {
     // Map each symbol to this adapter
     for (const symbol of symbols) {
       const normalized = this.normalizeSymbol(symbol);
+      if (!normalized) {
+        throw new Error(`[OrderRouter] ${name} attempted to register an empty symbol`);
+      }
+      const existingAdapter = this.symbolToAdapter.get(normalized);
+      if (existingAdapter && existingAdapter !== adapter) {
+        const existingName = this._normalizeBrokerName(
+          existingAdapter.getBrokerName ? existingAdapter.getBrokerName() : 'unknown'
+        );
+        throw new Error(`[OrderRouter] Symbol ${normalized} already registered to ${existingName}; refusing to reassign to ${name}`);
+      }
       this.symbolToAdapter.set(normalized, adapter);
       this.adapterSymbols.get(name).add(normalized);
       console.log(`[OrderRouter] ${normalized} -> ${name}`);
-    }
-
-    // First registered adapter becomes default
-    if (!this.defaultAdapter) {
-      this.defaultAdapter = adapter;
-      console.log(`[OrderRouter] Default adapter: ${name}`);
     }
 
     this.emit('brokerRegistered', { name, symbols });
   }
 
   /**
-   * Set the default adapter for unknown symbols
+   * Default order routing is disabled. Every order symbol must be explicitly
+   * registered to one broker to prevent cross-broker execution.
    * @param {IBrokerAdapter} adapter
    */
   setDefaultAdapter(adapter) {
-    this.defaultAdapter = adapter;
     const name = adapter.getBrokerName ? adapter.getBrokerName() : 'unknown';
-    console.log(`[OrderRouter] Default adapter set: ${name}`);
+    throw new Error(`[OrderRouter] Default adapter fallback disabled; register explicit symbols for ${name}`);
   }
 
   /**
@@ -87,7 +88,7 @@ class OrderRouter extends EventEmitter {
    */
   getBrokerForSymbol(symbol) {
     const normalized = this.normalizeSymbol(symbol);
-    return this.symbolToAdapter.get(normalized) || this.defaultAdapter;
+    return this.symbolToAdapter.get(normalized) || null;
   }
 
   /**
@@ -97,8 +98,11 @@ class OrderRouter extends EventEmitter {
    * @returns {string}
    */
   normalizeSymbol(symbol) {
+    const raw = String(symbol || '').trim();
+    if (!raw) return '';
+
     // Convert XBT to BTC (Kraken legacy)
-    let normalized = symbol.toUpperCase().replace('XBT', 'BTC');
+    let normalized = raw.toUpperCase().replace('XBT', 'BTC');
 
     // Canonical is dash form (BTC-USD)
     if (normalized.includes('-')) {
@@ -130,9 +134,14 @@ class OrderRouter extends EventEmitter {
   async sendOrder(order) {
     const { symbol, side, amount, type = 'market', price, options = {}, traceId, signalId, decisionId } = order;
 
+    const normalizedSymbol = this.normalizeSymbol(symbol);
+    if (!normalizedSymbol) {
+      throw new Error('[OrderRouter] Order symbol is required');
+    }
+
     const adapter = this.getBrokerForSymbol(symbol);
     if (!adapter) {
-      throw new Error(`[OrderRouter] No adapter registered for symbol: ${symbol}`);
+      throw new Error(`[OrderRouter] No adapter registered for symbol: ${normalizedSymbol}`);
     }
 
     const brokerName = adapter.getBrokerName ? adapter.getBrokerName() : 'unknown';
