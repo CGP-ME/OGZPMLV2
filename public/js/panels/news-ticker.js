@@ -5,11 +5,12 @@
  * market-altering events: FOMC announcements, earnings surprises, whale wallet
  * moves, insider filings, unusual volume spikes. Self-injects minimal fallback
  * CSS (positioning + container baseline); real styling via external
- * /css/panels/news-ticker.css. Subscribed to WS event type 'news_event'.
+ * /css/panels/news-ticker.css. Polls /api/trai/events and also listens for
+ * WS event type 'news_event' if a future broadcaster adds it.
  *
  * Renders items RTL in an infinite-scroll marquee animation. NO demo mode,
- * NO synthetic seed events. Empty/honest "Awaiting news events..." placeholder
- * until real backend `news_event` messages arrive.
+ * NO synthetic seed events. Empty/honest source-state placeholder until real
+ * backend news events arrive from REST or WS.
  *
  * Features:
  *   - Live sentiment coloring: bullish (green), neutral (gold), defensive (red)
@@ -20,12 +21,10 @@
  *
  * Self-registers as OGZ.NewsTicker via OGZ.register().
  *
- * TODO verify with backend: news_event
- *   We subscribe to WS event type 'news_event' but have not confirmed
- *   the backend emitter exists or its schema. If backend does not emit
- *   'news_event' with shape { ts, sentiment, headline, source, ticker?, trai_commentary? },
- *   NewsTicker remains in demo mode forever. To wire real TRAI events:
- *   ensure core/DashboardBroadcaster.js (or equivalent) emits news_event.
+ * Current backend source:
+ *   REST /api/trai/events?symbol=X returns real Tavily + TRAI extracted events
+ *   with status {unconfigured|unavailable|empty|ready}. news_event is only a
+ *   future push channel and must not be treated as the active source.
  *
  * @module public/js/panels/news-ticker
  */
@@ -70,6 +69,13 @@
         pollTimer: null,                   // setInterval handle for TRAI events poll
         lastPolledSymbol: null,            // Last symbol we polled for (re-poll on change)
         lastPollTs: 0,                     // Last successful poll timestamp (throttle)
+        feedStatus: 'loading',             // loading|unconfigured|unavailable|empty|ready
+        feedMessage: 'Checking news events...',
+        feedSymbol: DEFAULT_SYMBOL,
+        feedFetchedAt: null,
+        feedCached: false,
+        feedCacheAgeMs: null,
+        pollSeq: 0,
     };
 
     // ─── Fallback CSS injection ─────────────────────────────────────────
@@ -245,6 +251,46 @@
         return item;
     }
 
+    function setFeedStatus(status, symbol, message, fetchedAt, meta) {
+        state.feedStatus = ['loading', 'unconfigured', 'unavailable', 'empty', 'ready'].includes(status)
+            ? status
+            : 'unavailable';
+        state.feedSymbol = symbol || state.feedSymbol || DEFAULT_SYMBOL;
+        state.feedMessage = message || null;
+        state.feedFetchedAt = fetchedAt || null;
+        state.feedCached = !!(meta && meta.cached);
+        state.feedCacheAgeMs = meta && Number.isFinite(Number(meta.cacheAgeMs))
+            ? Number(meta.cacheAgeMs)
+            : null;
+    }
+
+    function formatFeedCheckedAt() {
+        if (!state.feedFetchedAt) return '';
+        const parsed = Date.parse(state.feedFetchedAt);
+        if (!Number.isFinite(parsed)) return '';
+        return new Date(parsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getSourceStatusText() {
+        const checkedAt = formatFeedCheckedAt();
+        const parts = [`News ${state.feedSymbol || DEFAULT_SYMBOL}`];
+        if (state.feedCached) parts.push('cached');
+        if (checkedAt) parts.push(`checked ${checkedAt}`);
+        return parts.join(' - ');
+    }
+
+    function getEmptyStateText() {
+        if (state.feedStatus === 'empty') {
+            const base = state.feedMessage || `No upcoming news events for ${state.feedSymbol || DEFAULT_SYMBOL}.`;
+            const checkedAt = formatFeedCheckedAt();
+            return checkedAt ? `${base} Last checked ${checkedAt}.` : base;
+        }
+        if (state.feedMessage) return state.feedMessage;
+        if (state.feedStatus === 'unconfigured') return 'News feed not configured.';
+        if (state.feedStatus === 'unavailable') return 'News feed unavailable.';
+        return 'Checking news events...';
+    }
+
     // ─── Main render function ───────────────────────────────────────────
     function render() {
         if (!state.mounted) return;
@@ -259,7 +305,6 @@
         const events = prepareEvents();
 
         if (events.length === 0) {
-            // Empty state: show placeholder
             const placeholder = document.createElement('div');
             placeholder.style.cssText = `
                 flex: 0 0 auto;
@@ -268,10 +313,16 @@
                 font-size: 12px;
                 font-family: 'JetBrains Mono', monospace;
             `;
-            placeholder.textContent = 'Waiting for news events...';
+            placeholder.className = `nt-placeholder nt-status-${state.feedStatus}`;
+            placeholder.textContent = getEmptyStateText();
             scroller.appendChild(placeholder);
             return;
         }
+
+        const statusItem = document.createElement('div');
+        statusItem.className = `nt-item nt-source-status nt-status-${state.feedStatus}`;
+        statusItem.textContent = getSourceStatusText();
+        scroller.appendChild(statusItem);
 
         // Render all items
         events.forEach(event => {
@@ -488,24 +539,73 @@
         if (symbol === state.lastPolledSymbol && (Date.now() - state.lastPollTs) < TRAI_POLL_INTERVAL_MS / 2) {
             return;
         }
+        const pollSeq = ++state.pollSeq;
 
         try {
             const res = await fetch(`${TRAI_EVENTS_ENDPOINT}?symbol=${encodeURIComponent(symbol)}`);
-            if (!res.ok) return;
-            const data = await res.json();
-            if (!data || !Array.isArray(data.events)) return;
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (_) {
+                data = null;
+            }
+
+            if (pollSeq !== state.pollSeq || symbol !== detectActiveAsset()) {
+                return;
+            }
+
+            if (!res.ok) {
+                state.events = [];
+                setFeedStatus(
+                    data && data.status ? data.status : 'unavailable',
+                    data && data.symbol ? data.symbol : symbol,
+                    data && data.message ? data.message : 'News feed unavailable.',
+                    data && data.fetchedAt ? data.fetchedAt : null,
+                    data || null
+                );
+                state.lastPolledSymbol = symbol;
+                state.lastPollTs = Date.now();
+                render();
+                return;
+            }
+
+            if (!data || !Array.isArray(data.events)) {
+                state.events = [];
+                setFeedStatus('unavailable', symbol, 'News feed returned an invalid payload.', null);
+                state.lastPolledSymbol = symbol;
+                state.lastPollTs = Date.now();
+                render();
+                return;
+            }
 
             // TRAI returns full set per poll — replace events array (don't append)
+            const responseSymbol = data.symbol ? String(data.symbol) : symbol;
             state.events = data.events
                 .filter(e => e && (e.title || e.summary))
-                .map(e => mapTraiEventToNewsItem(e, symbol));
+                .map(e => mapTraiEventToNewsItem(e, responseSymbol));
             // Cap at 50 (defensive — endpoint typically returns ≤5)
             if (state.events.length > 50) state.events = state.events.slice(0, 50);
+            setFeedStatus(
+                data.status || (state.events.length ? 'ready' : 'empty'),
+                responseSymbol,
+                data.message || null,
+                data.fetchedAt || null,
+                data
+            );
 
             state.lastPolledSymbol = symbol;
             state.lastPollTs = Date.now();
             render();
-        } catch (_) { /* swallow — dashboard non-critical, fail silently */ }
+        } catch (_) {
+            if (pollSeq !== state.pollSeq || symbol !== detectActiveAsset()) {
+                return;
+            }
+            state.events = [];
+            setFeedStatus('unavailable', symbol, 'News feed unavailable.', null);
+            state.lastPolledSymbol = symbol;
+            state.lastPollTs = Date.now();
+            render();
+        }
     }
 
     function startTraiPollLoop() {
@@ -524,6 +624,7 @@
     function onWatchlistSelectAsset(data) {
         // Re-poll TRAI immediately when active asset changes
         if (data && data.ticker) {
+            state.pollSeq += 1;
             state.lastPolledSymbol = null; // bypass throttle
             pollTraiEvents();
         }
@@ -546,6 +647,7 @@
             };
             if (!event.ts || !event.headline) return;
             state.events.push(event);
+            setFeedStatus('ready', event.ticker || state.feedSymbol || DEFAULT_SYMBOL, null);
             // Cap at 50 real events (prevent unbounded growth)
             if (state.events.length > 50) state.events.shift();
             render();
@@ -615,6 +717,7 @@
          */
         clear() {
             state.events = [];
+            setFeedStatus('empty', state.feedSymbol || DEFAULT_SYMBOL, null, null);
             render();
         },
 
@@ -641,6 +744,8 @@
                 state.mounted = false;
                 state.events = [];
                 state.scrollPos = 0;
+                state.pollSeq += 1;
+                setFeedStatus('loading', DEFAULT_SYMBOL, 'Checking news events...', null);
             } catch (_) { /* swallow */ }
         },
 
@@ -653,6 +758,12 @@
                 totalEvents: prepareEvents().length,
                 scrollPos: state.scrollPos,
                 paused: state.paused,
+                feedStatus: state.feedStatus,
+                feedMessage: state.feedMessage,
+                feedSymbol: state.feedSymbol,
+                feedFetchedAt: state.feedFetchedAt,
+                feedCached: state.feedCached,
+                feedCacheAgeMs: state.feedCacheAgeMs,
             };
         },
     };

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### News Ticker Source State Contract (2026-05-29)
+
+- Made `/api/trai/events` expose explicit `unconfigured`, `unavailable`, `empty`, and `ready` states instead of returning silent empty news arrays when Tavily/TRAI sources are missing or failing.
+- Updated the news ticker to render the real source state from `/api/trai/events` so the dashboard no longer displays a permanent waiting state when no news feed is configured.
+
 ### Dashboard Edge Analytics Scope Isolation (2026-05-29)
 
 - Scoped edge analytics state and emitted frames by `symbol` plus `timeframe`, refused missing scope, and used matching symbol/timeframe history for edge calculations so CVD, whale, funding, fear/greed, divergence, and smart-money rails cannot mix assets or timeframes.
