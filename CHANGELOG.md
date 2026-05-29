@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Direct Truth Contract (2026-05-29)
+
+- Changed `TradeJournal.recordEntry()` and `recordExit()` to reject incomplete direct financial records before ledger append, in-memory mutation, equity updates, or stats updates.
+- Removed direct journal fabrication of missing direction, prices, size, P&L, fees, exit reason, regime, indicator, and P&L percent fields; missing optional metadata is now preserved as `null` or omitted from breakdown buckets.
+- Added duplicate order-id rejection, matching-entry enforcement for exits, journal-derived balance accounting, USD-notional consistency checks, and gross P&L consistency checks against recorded entry price movement.
+- Added regression coverage for incomplete direct entries, incomplete exits preserving open state, rejected exit-only records, duplicate order IDs, P&L injection, balance injection, and valid flat/zero-balance closes.
+
 ### Trade Journal Closed Replay Contract (2026-05-29)
 
 - Fixed TradeJournalBridge exit wiring to wrap the actual `OrderExecutor` trade-log sink so closed trades can reach journal snapshots and replay notifications.

@@ -52,6 +52,65 @@ function outcomeFromPnl(pnl) {
   return 'flat';
 }
 
+function finiteNumberOrNull(value) {
+  if (value === null || value === undefined || typeof value === 'boolean') return null;
+  if (typeof value === 'string' && value.trim().length === 0) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function positiveNumberOrNull(value) {
+  const n = finiteNumberOrNull(value);
+  return n !== null && n > 0 ? n : null;
+}
+
+function nonNegativeNumberOrNull(value) {
+  const n = finiteNumberOrNull(value);
+  return n !== null && n >= 0 ? n : null;
+}
+
+function nonEmptyStringOrNull(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function roundFiniteOrNull(value, decimals = 2) {
+  const n = finiteNumberOrNull(value);
+  return n === null ? null : Number(n.toFixed(decimals));
+}
+
+function indicatorNumberOrNull(value) {
+  if (value && typeof value === 'object' && Number.isFinite(Number(value.macd))) {
+    return Number(value.macd);
+  }
+  return finiteNumberOrNull(value);
+}
+
+function tradeSideOrNull(direction) {
+  const value = nonEmptyStringOrNull(direction);
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+  if (normalized === 'buy' || normalized === 'long') return 'long';
+  if (normalized === 'sell' || normalized === 'sell_short' || normalized === 'short') return 'short';
+  return null;
+}
+
+function expectedGrossPnl(entryPrice, exitPrice, usdValue, side) {
+  const move = side === 'short'
+    ? (entryPrice - exitPrice) / entryPrice
+    : (exitPrice - entryPrice) / entryPrice;
+  return usdValue * move;
+}
+
+function pnlTolerance(expected, usdValue) {
+  return Math.max(0.01, Math.abs(expected) * 0.0001, usdValue * 0.000001);
+}
+
+function usdValueTolerance(sizeUsd) {
+  return Math.max(0.01, sizeUsd * 0.000001);
+}
+
 class TradeJournal {
   constructor(config = {}) {
     // ── Storage paths ──────────────────────────────────────────────────
@@ -126,32 +185,60 @@ class TradeJournal {
    * @param {number} [entry.fees]       - Entry fees
    */
   recordEntry(entry) {
-    if (!entry || !entry.orderId || !entry.entryPrice) {
-      console.warn('[TradeJournal] Invalid entry data, skipping');
-      return;
+    const missing = [];
+    const orderId = nonEmptyStringOrNull(entry?.orderId);
+    const direction = nonEmptyStringOrNull(entry?.direction);
+    const side = tradeSideOrNull(direction);
+    const entryPrice = positiveNumberOrNull(entry?.entryPrice);
+    const size = positiveNumberOrNull(entry?.size);
+    const usdValue = positiveNumberOrNull(entry?.usdValue);
+    const confidence = finiteNumberOrNull(entry?.confidence);
+    const fees = nonNegativeNumberOrNull(entry?.fees);
+
+    if (!orderId) missing.push('orderId');
+    if (!direction || !side) missing.push('direction');
+    if (entryPrice === null) missing.push('entryPrice');
+    if (size === null) missing.push('size');
+    if (usdValue === null) missing.push('usdValue');
+    if (confidence === null) missing.push('confidence');
+    if (fees === null) missing.push('fees');
+
+    if (missing.length > 0) {
+      console.warn(`[TradeJournal] Refusing incomplete entry record; missing field(s): ${missing.join(', ')}`);
+      return null;
+    }
+
+    if (Math.abs(size - usdValue) > usdValueTolerance(size)) {
+      console.warn(`[TradeJournal] Refusing entry ${orderId}; size and usdValue must both represent the same USD notional`);
+      return null;
+    }
+
+    if (this.openTrades.has(orderId) || this.trades.some(trade => trade.orderId === orderId)) {
+      console.warn(`[TradeJournal] Refusing duplicate entry orderId: ${orderId}`);
+      return null;
     }
 
     const record = {
       event: 'ENTRY',
       timestamp: Date.now(),
-      orderId: entry.orderId,
-      direction: entry.direction || 'BUY',
-      entryPrice: Number(entry.entryPrice),
-      size: Number(entry.size || 0),
-      usdValue: Number(entry.usdValue || entry.size || 0),  // FIX 2026-03-27: size is now USD
-      confidence: Number(entry.confidence || 0),
-      regime: entry.regime || 'unknown',
-      patterns: (entry.patterns || []).map(p => ({
-        name: p.name || p.type || 'unknown',
-        confidence: p.confidence || 0
-      })),
+      orderId,
+      direction,
+      entryPrice,
+      size,
+      usdValue,
+      confidence,
+      regime: nonEmptyStringOrNull(entry.regime),
+      patterns: Array.isArray(entry.patterns) ? entry.patterns.map(p => ({
+        name: nonEmptyStringOrNull(p?.name) ?? nonEmptyStringOrNull(p?.type),
+        confidence: finiteNumberOrNull(p?.confidence)
+      })).filter(p => p.name !== null) : [],
       indicators: {
-        rsi: entry.indicators?.rsi || 0,
-        macd: entry.indicators?.macd || 0,
-        trend: entry.indicators?.trend || 'unknown',
-        volatility: entry.indicators?.volatility || 0
+        rsi: finiteNumberOrNull(entry.indicators?.rsi),
+        macd: indicatorNumberOrNull(entry.indicators?.macd),
+        trend: nonEmptyStringOrNull(entry.indicators?.trend),
+        volatility: finiteNumberOrNull(entry.indicators?.volatility)
       },
-      fees: Number(entry.fees || 0),
+      fees,
       ...this._scopeRecordFields()
     };
 
@@ -162,6 +249,7 @@ class TradeJournal {
     this._appendLedger(record);
 
     console.log(`[TradeJournal] ENTRY logged: ${record.direction} size=${record.size.toFixed(6)} @ $${record.entryPrice.toFixed(2)} | Conf: ${record.confidence}% | Regime: ${record.regime}`);
+    return record;
   }
 
   /**
@@ -179,50 +267,84 @@ class TradeJournal {
    * @param {number} [exit.balance]    - Account balance after trade
    */
   recordExit(exit) {
-    if (!exit || !exit.orderId) {
-      console.warn('[TradeJournal] Invalid exit data, skipping');
-      return;
-    }
-
-    const entry = this.openTrades.get(exit.orderId);
-    if (!entry) {
-      // Trade may have been opened before journal was wired — create synthetic entry
-      console.warn(`[TradeJournal] No entry found for ${exit.orderId}, recording exit-only`);
+    const orderId = nonEmptyStringOrNull(exit?.orderId);
+    if (!orderId) {
+      console.warn('[TradeJournal] Refusing incomplete exit record; missing field(s): orderId');
+      return null;
     }
 
     const now = Date.now();
-    const entryPrice = entry?.entryPrice || exit.entryPrice || 0;
-    const exitPrice = Number(exit.exitPrice || 0);
-    const grossPnl = Number(exit.pnl || 0);
-    const totalFees = Number(entry?.fees || 0) + Number(exit.fees || 0);
+    const entry = this.openTrades.get(orderId);
+    if (!entry) {
+      console.warn(`[TradeJournal] Refusing exit for ${orderId}; no matching open entry in journal`);
+      return null;
+    }
+
+    const missing = [];
+    const direction = nonEmptyStringOrNull(entry.direction);
+    const side = tradeSideOrNull(direction);
+    const entryPrice = positiveNumberOrNull(entry.entryPrice);
+    const exitPrice = positiveNumberOrNull(exit?.exitPrice);
+    const size = positiveNumberOrNull(entry.size);
+    const usdValue = positiveNumberOrNull(entry.usdValue);
+    const grossPnl = finiteNumberOrNull(exit?.pnl);
+    const entryFees = nonNegativeNumberOrNull(entry.fees);
+    const exitFees = nonNegativeNumberOrNull(exit?.fees);
+    const exitReason = nonEmptyStringOrNull(exit?.reason);
+    const holdTime = nonNegativeNumberOrNull(now - entry.timestamp);
+
+    if (!direction || !side) missing.push('direction');
+    if (entryPrice === null) missing.push('entryPrice');
+    if (exitPrice === null) missing.push('exitPrice');
+    if (size === null) missing.push('size');
+    if (usdValue === null) missing.push('usdValue');
+    if (grossPnl === null) missing.push('pnl');
+    if (entryFees === null) missing.push('entryFees');
+    if (exitFees === null) missing.push('fees');
+    if (!exitReason) missing.push('reason');
+    if (holdTime === null) missing.push('holdTime');
+
+    if (missing.length > 0) {
+      console.warn(`[TradeJournal] Refusing incomplete exit record for ${orderId}; missing field(s): ${missing.join(', ')}`);
+      return null;
+    }
+
+    const expectedGross = expectedGrossPnl(entryPrice, exitPrice, usdValue, side);
+    const tolerance = pnlTolerance(expectedGross, usdValue);
+    if (Math.abs(grossPnl - expectedGross) > tolerance) {
+      console.warn(`[TradeJournal] Refusing exit for ${orderId}; supplied pnl ${grossPnl.toFixed(6)} does not match ${side} price movement ${expectedGross.toFixed(6)}`);
+      return null;
+    }
+
+    const totalFees = entryFees + exitFees;
     const netPnl = grossPnl - totalFees;
-    const holdTime = entry ? (now - entry.timestamp) : Number(exit.holdTime || 0);
-    const pnlPercent = entry?.usdValue > 0 ? (netPnl / entry.usdValue * 100) : 0;
+    const pnlPercent = netPnl / usdValue * 100;
+    const balanceAfter = this.stats.currentBalance + netPnl;
 
     const completedTrade = {
       event: 'EXIT',
       timestamp: now,
-      orderId: exit.orderId,
-      direction: entry?.direction || exit.direction || 'BUY',
-      entryPrice: entryPrice,
-      exitPrice: exitPrice,
-      size: entry?.size || Number(exit.size || 0),
-      usdValue: entry?.usdValue || 0,
-      grossPnl: grossPnl,
+      orderId,
+      direction,
+      entryPrice,
+      exitPrice,
+      size,
+      usdValue,
+      grossPnl,
       fees: totalFees,
-      netPnl: netPnl,
-      pnlPercent: pnlPercent,
+      netPnl,
+      pnlPercent,
       holdTimeMs: holdTime,
       holdTimeFormatted: this._formatDuration(holdTime),
-      exitReason: exit.reason || 'unknown',
-      mfe: Number(exit.maxProfit || 0),     // Max Favorable Excursion
-      mae: Number(exit.maxDrawdown || 0),   // Max Adverse Excursion
-      confidence: entry?.confidence || 0,
-      regime: entry?.regime || 'unknown',
-      patterns: entry?.patterns || [],
-      indicators: entry?.indicators || {},
-      entryTime: entry?.timestamp || 0,
-      balanceAfter: Number(exit.balance || 0),
+      exitReason,
+      mfe: finiteNumberOrNull(exit?.maxProfit),
+      mae: finiteNumberOrNull(exit?.maxDrawdown),
+      confidence: finiteNumberOrNull(entry.confidence),
+      regime: nonEmptyStringOrNull(entry.regime),
+      patterns: Array.isArray(entry.patterns) ? entry.patterns : [],
+      indicators: entry.indicators && typeof entry.indicators === 'object' ? entry.indicators : {},
+      entryTime: entry.timestamp,
+      balanceAfter,
       ...this._scopeRecordFields()
     };
 
@@ -245,7 +367,8 @@ class TradeJournal {
     this._updateStats(completedTrade);
 
     const outcome = netPnl > 0 ? 'WIN' : netPnl < 0 ? 'LOSS' : 'FLAT';
-    console.log(`[TradeJournal] EXIT logged: ${outcome} ${completedTrade.direction} | P&L: $${netPnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%) | Reason: ${completedTrade.exitReason} | Hold: ${completedTrade.holdTimeFormatted}`);
+    const pnlPercentText = pnlPercent === null ? 'n/a' : `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`;
+    console.log(`[TradeJournal] EXIT logged: ${outcome} ${completedTrade.direction} | P&L: $${netPnl.toFixed(2)} (${pnlPercentText}) | Reason: ${completedTrade.exitReason} | Hold: ${completedTrade.holdTimeFormatted}`);
 
     return completedTrade;
   }
@@ -334,7 +457,8 @@ class TradeJournal {
       let key;
       switch (dimension) {
         case 'regime':
-          key = trade.regime || 'unknown';
+          key = nonEmptyStringOrNull(trade.regime);
+          if (!key) continue;
           break;
         case 'pattern':
           // A trade may have multiple patterns — count each
@@ -343,7 +467,8 @@ class TradeJournal {
             this._addToBucket(buckets, key, trade);
           } else {
             for (const p of trade.patterns) {
-              this._addToBucket(buckets, p.name || 'unknown', trade);
+              const patternName = nonEmptyStringOrNull(p?.name);
+              if (patternName) this._addToBucket(buckets, patternName, trade);
             }
             continue; // already added
           }
@@ -355,7 +480,8 @@ class TradeJournal {
           key = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(trade.entryTime || trade.timestamp).getUTCDay()];
           break;
         case 'confidenceBand':
-          const conf = trade.confidence || 0;
+          const conf = finiteNumberOrNull(trade.confidence);
+          if (conf === null) continue;
           if (conf < 55) key = '< 55%';
           else if (conf < 65) key = '55-65%';
           else if (conf < 75) key = '65-75%';
@@ -363,7 +489,8 @@ class TradeJournal {
           else key = '85%+';
           break;
         case 'exitReason':
-          key = trade.exitReason || 'unknown';
+          key = nonEmptyStringOrNull(trade.exitReason);
+          if (!key) continue;
           break;
         case 'month':
           const d = new Date(trade.timestamp);
@@ -535,8 +662,8 @@ class TradeJournal {
         direction: t.direction,
         entryPrice: t.entryPrice,
         exitPrice: t.exitPrice,
-        netPnl: Number(t.netPnl.toFixed(2)),
-        pnlPercent: Number(t.pnlPercent.toFixed(2)),
+        netPnl: roundFiniteOrNull(t.netPnl),
+        pnlPercent: roundFiniteOrNull(t.pnlPercent),
         outcome: outcomeFromPnl(t.netPnl),
         holdTime: t.holdTimeFormatted,
         exitReason: t.exitReason,
@@ -586,7 +713,7 @@ class TradeJournal {
         t.grossPnl.toFixed(2),
         t.fees.toFixed(4),
         t.netPnl.toFixed(2),
-        t.pnlPercent.toFixed(2) + '%',
+        finiteNumberOrNull(t.pnlPercent) === null ? '' : t.pnlPercent.toFixed(2) + '%',
         t.holdTimeFormatted,
         t.exitReason,
         t.confidence,
@@ -602,7 +729,7 @@ class TradeJournal {
     const csv = [headers.join(','), ...rows].join('\n');
 
     // Write to exports directory
-    const filename = options.filename || `ogzprime-trades-${new Date().toISOString().split('T')[0]}.csv`;
+    const filename = nonEmptyStringOrNull(options.filename) ?? this._defaultCSVFilename();
     const filepath = path.join(this.paths.exports, filename);
     // Atomic write — partial CSV exports corrupt downstream tools (Mercury Vector 6)
     const { writeStringAtomic } = require('./AtomicWrite');
@@ -743,7 +870,7 @@ class TradeJournal {
     s.netPnlPercent = (s.netPnl / s.startingBalance) * 100;
 
     // ── Balance ─────────────────────────────────────────────────────
-    s.currentBalance = trade.balanceAfter || (s.currentBalance + pnl);
+    s.currentBalance = Number.isFinite(trade.balanceAfter) ? trade.balanceAfter : (s.currentBalance + pnl);
     if (s.currentBalance > s.peakBalance) {
       s.peakBalance = s.currentBalance;
     }
@@ -926,7 +1053,8 @@ class TradeJournal {
       const raw = fs.readFileSync(this.paths.ledger, 'utf8');
       const lines = raw.split('\n').filter(l => l.trim());
 
-      const entries = new Map(); // orderId → entry record
+      const entries = new Map(); // orderId -> entry record
+      const seenEntryOrderIds = new Set();
 
       for (const [index, line] of lines.entries()) {
         let record;
@@ -938,10 +1066,25 @@ class TradeJournal {
 
         if (record.event === 'ENTRY') {
           this._assertLedgerRecordScope(record, index + 1);
+          const orderId = nonEmptyStringOrNull(record.orderId);
+          if (!orderId) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} ENTRY missing orderId`);
+          }
+          if (seenEntryOrderIds.has(orderId)) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} duplicates ENTRY orderId ${orderId}`);
+          }
+          seenEntryOrderIds.add(orderId);
           entries.set(record.orderId, record);
           this.openTrades.set(record.orderId, record);
         } else if (record.event === 'EXIT') {
           this._assertLedgerRecordScope(record, index + 1);
+          const orderId = nonEmptyStringOrNull(record.orderId);
+          if (!orderId) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT missing orderId`);
+          }
+          if (!entries.has(orderId)) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT has no matching open ENTRY for orderId ${orderId}`);
+          }
           this.trades.push(record);
           this.openTrades.delete(record.orderId);
           entries.delete(record.orderId);
@@ -1024,6 +1167,10 @@ class TradeJournal {
     return date.toISOString().split('T')[0];
   }
 
+  _defaultCSVFilename() {
+    return `ogzprime-trades-${new Date().toISOString().split('T')[0]}.csv`;
+  }
+
   _scopeRecordFields() {
     return {
       symbol: this.scope.symbol,
@@ -1041,10 +1188,16 @@ class TradeJournal {
 
   _assertLedgerRecordScope(record, lineNumber) {
     if (String(record.scopeKey || '') !== this.scope.scopeKey) {
-      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKey mismatch: got ${record.scopeKey || '(missing)'}, expected ${this.scope.scopeKey}`);
+      const actualScopeKey = record.scopeKey === undefined || record.scopeKey === null || record.scopeKey === ''
+        ? 'missing'
+        : String(record.scopeKey);
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKey mismatch: got ${actualScopeKey}, expected ${this.scope.scopeKey}`);
     }
     if (Number(record.scopeKeyVersion) !== 2) {
-      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKeyVersion must be 2; got ${record.scopeKeyVersion || '(missing)'}`);
+      const actualVersion = record.scopeKeyVersion === undefined || record.scopeKeyVersion === null || record.scopeKeyVersion === ''
+        ? 'missing'
+        : String(record.scopeKeyVersion);
+      throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeKeyVersion must be 2; got ${actualVersion}`);
     }
     if (record.scopeComplete !== this.scope.scopeComplete) {
       throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${lineNumber} scopeComplete mismatch: got ${record.scopeComplete}, expected ${this.scope.scopeComplete}`);

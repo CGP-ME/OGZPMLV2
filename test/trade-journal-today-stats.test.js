@@ -86,8 +86,46 @@ describe('TradeJournal today stats', () => {
     };
   }
 
+  function validEntry(overrides = {}) {
+    return {
+      orderId: 'ENTRY-001',
+      direction: 'BUY',
+      entryPrice: 50000,
+      size: 500,
+      usdValue: 500,
+      confidence: 75,
+      regime: 'ranging',
+      patterns: [{ name: 'test_pattern', confidence: 0.7 }],
+      indicators: { rsi: 55, macd: 0.1, trend: 'up', volatility: 0.2 },
+      fees: 0,
+      ...overrides,
+    };
+  }
+
+  function oldEntry(overrides = {}) {
+    return {
+      event: 'ENTRY',
+      timestamp: Date.parse('2026-05-27T11:58:00.000Z'),
+      orderId: 'ENTRY-LEDGER-001',
+      direction: 'BUY',
+      entryPrice: 50000,
+      size: 500,
+      usdValue: 500,
+      confidence: 75,
+      regime: 'ranging',
+      patterns: [],
+      indicators: {},
+      fees: 0,
+      ...scopeFields(),
+      ...overrides,
+    };
+  }
+
   test('does not classify historical rebuilt trades as today', () => {
-    writeLedger([oldExit()]);
+    writeLedger([
+      oldEntry({ orderId: 'TEST-001', timestamp: Date.parse('2026-02-12T06:13:54.519Z') }),
+      oldExit(),
+    ]);
 
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());
@@ -147,11 +185,17 @@ describe('TradeJournal today stats', () => {
   });
 
   test('keeps same-day rebuilt trades in today stats', () => {
-    writeLedger([oldExit({
+    writeLedger([
+      oldEntry({
+        orderId: 'LIVE-001',
+        timestamp: Date.parse('2026-05-27T11:58:00.000Z'),
+      }),
+      oldExit({
       orderId: 'LIVE-001',
       timestamp: Date.parse('2026-05-27T11:59:00.000Z'),
       entryTime: Date.parse('2026-05-27T11:58:00.000Z'),
-    })]);
+      }),
+    ]);
 
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());
@@ -166,7 +210,12 @@ describe('TradeJournal today stats', () => {
   });
 
   test('tracks break-even trades without creating a win or loss streak', () => {
-    writeLedger([oldExit({
+    writeLedger([
+      oldEntry({
+        orderId: 'FLAT-001',
+        timestamp: Date.parse('2026-05-27T11:58:00.000Z'),
+      }),
+      oldExit({
       orderId: 'FLAT-001',
       timestamp: Date.parse('2026-05-27T11:59:00.000Z'),
       entryTime: Date.parse('2026-05-27T11:58:00.000Z'),
@@ -174,7 +223,8 @@ describe('TradeJournal today stats', () => {
       netPnl: 0,
       pnlPercent: 0,
       balanceAfter: 10000,
-    })]);
+      }),
+    ]);
 
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());
@@ -191,6 +241,284 @@ describe('TradeJournal today stats', () => {
     expect(snapshot.todayTrades).toBe(1);
     expect(snapshot.todayPnl).toBe(0);
     expect(snapshot.todayWinRate).toBe(0);
+
+    journal.destroy();
+  });
+
+  test('refuses incomplete direct entry records instead of fabricating defaults', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const result = journal.recordEntry({
+      orderId: 'BAD-ENTRY',
+      entryPrice: 50000,
+      fees: 0,
+    });
+
+    expect(result).toBeNull();
+    expect(journal.openTrades.size).toBe(0);
+    expect(fs.existsSync(path.join(tempDir, 'trade-ledger.jsonl'))).toBe(false);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('missing field(s): direction, size, usdValue, confidence'));
+
+    journal.destroy();
+  });
+
+  test('refuses direct entries whose size and usdValue disagree', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const result = journal.recordEntry(validEntry({
+      orderId: 'BAD-NOTIONAL',
+      size: 100,
+      usdValue: 1000000,
+    }));
+
+    expect(result).toBeNull();
+    expect(journal.openTrades.size).toBe(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('size and usdValue must both represent the same USD notional'));
+
+    journal.destroy();
+  });
+
+  test('refuses incomplete direct exit records without removing open state', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    const entry = journal.recordEntry(validEntry({ orderId: 'ORDER-INCOMPLETE-EXIT' }));
+
+    const result = journal.recordExit({
+      orderId: 'ORDER-INCOMPLETE-EXIT',
+      pnl: 10,
+      fees: 0,
+      reason: 'take_profit',
+    });
+
+    expect(entry).toEqual(expect.objectContaining({ orderId: 'ORDER-INCOMPLETE-EXIT' }));
+    expect(result).toBeNull();
+    expect(journal.openTrades.has('ORDER-INCOMPLETE-EXIT')).toBe(true);
+    expect(journal.getStats().totalTrades).toBe(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('missing field(s): exitPrice'));
+
+    journal.destroy();
+  });
+
+  test('refuses complete-looking exit-only records without a matching journal entry', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const result = journal.recordExit({
+      orderId: 'EXIT-ONLY-FAKE',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 100,
+      size: 25,
+      pnl: 0,
+      fees: 0,
+      reason: 'manual',
+      holdTime: 0,
+    });
+
+    expect(result).toBeNull();
+    expect(journal.getStats().totalTrades).toBe(0);
+    expect(journal.trades).toHaveLength(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('no matching open entry'));
+
+    journal.destroy();
+  });
+
+  test('refuses duplicate direct entry orderIds without overwriting the original open trade', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const first = journal.recordEntry(validEntry({
+      orderId: 'DUP-ENTRY',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      confidence: 75,
+      regime: 'original',
+      fees: 0,
+    }));
+    const duplicate = journal.recordEntry(validEntry({
+      orderId: 'DUP-ENTRY',
+      direction: 'SELL',
+      entryPrice: 200,
+      size: 100,
+      usdValue: 100,
+      confidence: 95,
+      regime: 'fabricated',
+      fees: 0,
+    }));
+    const closed = journal.recordExit({
+      orderId: 'DUP-ENTRY',
+      exitPrice: 110,
+      pnl: 10,
+      fees: 0,
+      reason: 'manual',
+    });
+
+    expect(first).toEqual(expect.objectContaining({ orderId: 'DUP-ENTRY', entryPrice: 100 }));
+    expect(duplicate).toBeNull();
+    expect(closed).toEqual(expect.objectContaining({
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      regime: 'original',
+      netPnl: 10,
+    }));
+    expect(journal.openTrades.has('DUP-ENTRY')).toBe(false);
+    expect(journal.getStats().totalTrades).toBe(1);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('Refusing duplicate entry orderId'));
+
+    journal.destroy();
+  });
+
+  test('refuses exits whose supplied pnl does not match journal entry price movement', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.recordEntry(validEntry({
+      orderId: 'BAD-PNL',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      fees: 0,
+    }));
+
+    const result = journal.recordExit({
+      orderId: 'BAD-PNL',
+      exitPrice: 100,
+      pnl: 1000,
+      fees: 0,
+      reason: 'manual',
+    });
+
+    expect(result).toBeNull();
+    expect(journal.openTrades.has('BAD-PNL')).toBe(true);
+    expect(journal.getStats().totalTrades).toBe(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('does not match long price movement'));
+
+    journal.destroy();
+  });
+
+  test('refuses duplicate ledger entries and exit-only ledger records on rebuild', () => {
+    const TradeJournal = require('../core/TradeJournal');
+
+    writeLedger([
+      oldEntry({ orderId: 'LEDGER-DUP', timestamp: Date.parse('2026-05-27T11:58:00.000Z') }),
+      oldEntry({ orderId: 'LEDGER-DUP', timestamp: Date.parse('2026-05-27T11:59:00.000Z') }),
+    ]);
+    expect(() => new TradeJournal(journalConfig()))
+      .toThrow(/duplicates ENTRY orderId LEDGER-DUP/);
+
+    fs.rmSync(path.join(tempDir, 'trade-ledger.jsonl'), { force: true });
+    writeLedger([oldExit({ orderId: 'LEDGER-EXIT-ONLY' })]);
+    expect(() => new TradeJournal(journalConfig()))
+      .toThrow(/EXIT has no matching open ENTRY/);
+  });
+
+  test('records a flat close with zero pnl and zero fees when the entry exists', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.recordEntry(validEntry({
+      orderId: 'FLAT-DIRECT',
+      entryPrice: 100,
+      size: 25,
+      usdValue: 25,
+      fees: 0,
+    }));
+
+    const accepted = journal.recordExit({
+      orderId: 'FLAT-DIRECT',
+      exitPrice: 100,
+      pnl: 0,
+      fees: 0,
+      reason: 'manual',
+    });
+
+    const snapshot = journal.getSnapshot();
+
+    expect(accepted).toEqual(expect.objectContaining({
+      orderId: 'FLAT-DIRECT',
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 100,
+      netPnl: 0,
+      pnlPercent: 0,
+      exitReason: 'manual',
+    }));
+    expect(snapshot.totalTrades).toBe(1);
+    expect(snapshot.recentTrades[0]).toEqual(expect.objectContaining({
+      orderId: 'FLAT-DIRECT',
+      outcome: 'flat',
+      pnlPercent: 0,
+    }));
+
+    journal.destroy();
+  });
+
+  test('derives zero balance from journal state after a valid full loss', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 100 }));
+    journal.recordEntry(validEntry({
+      orderId: 'ZERO-BALANCE',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      fees: 0,
+    }));
+
+    const accepted = journal.recordExit({
+      orderId: 'ZERO-BALANCE',
+      exitPrice: 1,
+      pnl: -99,
+      fees: 1,
+      reason: 'manual',
+      balance: 1000000,
+    });
+
+    const snapshot = journal.getSnapshot();
+
+    expect(accepted).toEqual(expect.objectContaining({
+      orderId: 'ZERO-BALANCE',
+      balanceAfter: 0,
+      netPnl: -100,
+    }));
+    expect(snapshot.currentBalance).toBe(0);
+    expect(journal.getStats().currentBalance).toBe(0);
+
+    journal.destroy();
+  });
+
+  test('derives balance from journal state instead of caller supplied balance', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    journal.recordEntry(validEntry({
+      orderId: 'BALANCE-INJECTION',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      fees: 0,
+    }));
+
+    const accepted = journal.recordExit({
+      orderId: 'BALANCE-INJECTION',
+      exitPrice: 100,
+      pnl: 0,
+      fees: 0,
+      reason: 'manual',
+      balance: 1000000,
+    });
+
+    expect(accepted).toEqual(expect.objectContaining({
+      orderId: 'BALANCE-INJECTION',
+      balanceAfter: 1000,
+      netPnl: 0,
+    }));
+    expect(journal.getSnapshot().currentBalance).toBe(1000);
 
     journal.destroy();
   });
