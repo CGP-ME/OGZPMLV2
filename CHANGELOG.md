@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Edge Analytics Scope Isolation (2026-05-29)
+
+- Scoped edge analytics state and emitted frames by `symbol` plus `timeframe`, refused missing scope, and used matching symbol/timeframe history for edge calculations so CVD, whale, funding, fear/greed, divergence, and smart-money rails cannot mix assets or timeframes.
+
 ### Strategy Startup Emoji-Free Logs (2026-05-28)
 
 - Removed emoji and mojibake prefixes from active strategy/startup logs for `PerformanceAnalyzer`, `PatternBasedExitModel`, `MADynamicSR`, and the modular-entry startup banner, with regression coverage for those console lines.

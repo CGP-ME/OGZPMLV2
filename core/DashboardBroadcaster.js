@@ -17,73 +17,148 @@ const { c: _c, o: _o, h: _h, l: _l, v: _v, t: _t } = require('./CandleHelper');
 class DashboardBroadcaster {
   constructor(ctx) {
     this.ctx = ctx;
-    this.edgeAnalytics = null;  // Initialized on first use
+    this.edgeAnalyticsByScope = new Map();
     console.log('[DashboardBroadcaster] Initialized (Phase 17 - exact copy)');
+  }
+
+  _normalizeSymbol(symbol) {
+    const raw = String(symbol || '').trim().toUpperCase();
+    if (!raw) return null;
+    return raw.replace(/^XBT/, 'BTC').replace(/\//g, '-');
+  }
+
+  _buildEdgeAnalyticsState() {
+    return {
+      cvd: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      lastFundingCheck: 0,
+      fundingRate: 0.0001,
+      liquidationLevels: { long: {}, short: {} },
+      marketInternals: {},
+      fearGreedValue: 50,
+      smartMoney: { flow: 'NEUTRAL', activity: 'MEDIUM' },
+      whaleTrades: [],
+      lastLiquidationCalc: 0,
+      lastInternalsCalc: 0,
+      lastFearGreedCalc: 0,
+      lastDivergenceCheck: 0,
+      lastSmartMoneyCheck: 0
+    };
+  }
+
+  _scopeKey(symbol, timeframe) {
+    const canonicalSymbol = this._normalizeSymbol(symbol);
+    if (!canonicalSymbol || !timeframe) return null;
+    return `${canonicalSymbol}:${timeframe}`;
+  }
+
+  _getEdgeAnalytics(symbol, timeframe) {
+    const key = this._scopeKey(symbol, timeframe);
+    if (!key) return null;
+    if (!this.edgeAnalyticsByScope.has(key)) {
+      this.edgeAnalyticsByScope.set(key, this._buildEdgeAnalyticsState());
+    }
+    return this.edgeAnalyticsByScope.get(key);
+  }
+
+  _getPriceHistory(symbol, timeframe = null) {
+    const canonicalSymbol = this._normalizeSymbol(symbol);
+    if (!canonicalSymbol) return [];
+
+    const histories = this.ctx.symbolTimeframeHistories;
+    if (histories instanceof Map) {
+      const byTimeframe = histories.get(canonicalSymbol);
+      if (byTimeframe instanceof Map) {
+        const timeframeHistory = timeframe ? byTimeframe.get(timeframe) : null;
+        if (Array.isArray(timeframeHistory) && timeframeHistory.length > 0) return timeframeHistory;
+        return [];
+      }
+    }
+
+    const symbolCtx = this.ctx.symbolContexts instanceof Map
+      ? this.ctx.symbolContexts.get(canonicalSymbol)
+      : null;
+    if (Array.isArray(symbolCtx?.priceHistory) && symbolCtx.priceHistory.length > 0) {
+      return symbolCtx.priceHistory;
+    }
+
+    const history = Array.isArray(this.ctx.priceHistory) ? this.ctx.priceHistory : [];
+    return history.filter(candle => this._normalizeSymbol(candle?.symbol) === canonicalSymbol);
+  }
+
+  _getIndicatorSnapshot(symbol) {
+    const canonicalSymbol = this._normalizeSymbol(symbol);
+    const symbolCtx = this.ctx.symbolContexts instanceof Map
+      ? this.ctx.symbolContexts.get(canonicalSymbol)
+      : null;
+    if (symbolCtx?.indicatorEngine?.getSnapshot) {
+      return symbolCtx.indicatorEngine.getSnapshot();
+    }
+
+    const globalEngine = this.ctx.indicatorEngine;
+    const globalSymbol = this._normalizeSymbol(globalEngine?.config?.symbol);
+    if (globalEngine?.getSnapshot && globalSymbol === canonicalSymbol) {
+      return globalEngine.getSnapshot();
+    }
+
+    return null;
   }
 
   /**
    * Broadcast Edge Analytics data to dashboard
    * Includes CVD, liquidation levels, funding rates, whale alerts, market internals
-   * EXACT COPY from run-empire-v2.js
    */
   broadcastEdgeAnalytics(price, volume, candle) {
     try {
-      if (!this.ctx.dashboardWs || this.ctx.dashboardWs.readyState !== 1) return;
+      if (!this.ctx.dashboardWs || this.ctx.dashboardWs.readyState !== 1) return false;
 
-      // Initialize edge analytics state if needed
-      if (!this.edgeAnalytics) {
-        this.edgeAnalytics = {
-          cvd: 0,
-          buyVolume: 0,
-          sellVolume: 0,
-          lastFundingCheck: 0,
-          fundingRate: 0.0001,
-          liquidationLevels: { long: {}, short: {} },
-          marketInternals: {},
-          fearGreedValue: 50,
-          smartMoney: { flow: 'NEUTRAL', activity: 'MEDIUM' },
-          whaleTrades: [],
-          lastLiquidationCalc: 0,
-          lastInternalsCalc: 0,
-          lastFearGreedCalc: 0,
-          lastDivergenceCheck: 0,
-          lastSmartMoneyCheck: 0
-        };
-      }
-
-      const symbol = candle?.symbol || null;
+      const symbol = this._normalizeSymbol(candle?.symbol);
       if (!symbol) {
         console.error('[DashboardBroadcaster] Missing candle.symbol; refusing unattributed edge analytics broadcast');
-        return;
+        return false;
       }
+      const timeframe = candle?.timeframe || null;
+      if (!timeframe) {
+        console.error(`[DashboardBroadcaster] Missing candle.timeframe for ${symbol}; refusing unattributed edge analytics broadcast`);
+        return false;
+      }
+      const scopeFields = { symbol, timeframe };
+      const edgeAnalytics = this._getEdgeAnalytics(symbol, timeframe);
+      if (!edgeAnalytics) {
+        console.error(`[DashboardBroadcaster] Missing analytics state for ${symbol} ${timeframe}; refusing edge analytics broadcast`);
+        return false;
+      }
+      const priceHistory = this._getPriceHistory(symbol, timeframe);
 
       // God Mode: Delta tick emission for zero-lag chart updates
       this.ctx.dashboardWs.send(JSON.stringify({
         type: 'delta',
-        symbol,
-        tick: { symbol, price, volume, timestamp: Date.now() }
+        ...scopeFields,
+        tick: { symbol, timeframe, price, volume, timestamp: Date.now() }
       }));
 
       // Calculate CVD (Cumulative Volume Delta)
       const isBuy = _c(candle) >= _o(candle);  // Simple: close >= open = buy pressure
       const volumeDelta = isBuy ? volume : -volume;
-      this.edgeAnalytics.cvd += volumeDelta;
-      this.edgeAnalytics.buyVolume += isBuy ? volume : 0;
-      this.edgeAnalytics.sellVolume += !isBuy ? volume : 0;
+      edgeAnalytics.cvd += volumeDelta;
+      edgeAnalytics.buyVolume += isBuy ? volume : 0;
+      edgeAnalytics.sellVolume += !isBuy ? volume : 0;
 
       // Send CVD update
       this.ctx.dashboardWs.send(JSON.stringify({
         type: 'cvd_update',
-        cvd: this.edgeAnalytics.cvd,
-        buyVolume: this.edgeAnalytics.buyVolume,
-        sellVolume: this.edgeAnalytics.sellVolume,
+        ...scopeFields,
+        cvd: edgeAnalytics.cvd,
+        buyVolume: edgeAnalytics.buyVolume,
+        sellVolume: edgeAnalytics.sellVolume,
         timestamp: Date.now()
       }));
 
       // Calculate liquidation levels (every 10 seconds)
       const now = Date.now();
-      if (now - this.edgeAnalytics.lastLiquidationCalc > 10000) {
-        this.edgeAnalytics.lastLiquidationCalc = now;
+      if (now - edgeAnalytics.lastLiquidationCalc > 10000) {
+        edgeAnalytics.lastLiquidationCalc = now;
 
         // Typical leverages for crypto
         const leverages = [10, 25, 50, 100];
@@ -112,10 +187,11 @@ class DashboardBroadcaster {
           liquidationData.short.volume += volume * weight * 10000;
         });
 
-        this.edgeAnalytics.liquidationLevels = liquidationData;
+        edgeAnalytics.liquidationLevels = liquidationData;
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'liquidation_data',
+          ...scopeFields,
           levels: liquidationData,
           currentPrice: price,
           timestamp: Date.now()
@@ -123,18 +199,19 @@ class DashboardBroadcaster {
       }
 
       // Check for whale trades (large volume)
-      const avgVolume = this.ctx.priceHistory.slice(-20).reduce((sum, c) => sum + (_v(c) || 0), 0) / 20;
-      if (volume > avgVolume * 5) {  // 5x average = whale
+      const avgVolume = priceHistory.slice(-20).reduce((sum, c) => sum + (_v(c) || 0), 0) / 20;
+      if (priceHistory.length >= 20 && avgVolume > 0 && volume > avgVolume * 5) {  // 5x average = whale
         const whaleData = {
+          ...scopeFields,
           size: volume * price,  // USD value
           price: price,
           side: isBuy ? 'BUY' : 'SELL',
           timestamp: Date.now()
         };
 
-        this.edgeAnalytics.whaleTrades.push(whaleData);
-        if (this.edgeAnalytics.whaleTrades.length > 10) {
-          this.edgeAnalytics.whaleTrades.shift();
+        edgeAnalytics.whaleTrades.push(whaleData);
+        if (edgeAnalytics.whaleTrades.length > 10) {
+          edgeAnalytics.whaleTrades.shift();
         }
 
         this.ctx.dashboardWs.send(JSON.stringify({
@@ -144,10 +221,10 @@ class DashboardBroadcaster {
       }
 
       // Calculate market internals (every 5 seconds)
-      if (now - this.edgeAnalytics.lastInternalsCalc > 5000) {
-        this.edgeAnalytics.lastInternalsCalc = now;
+      if (now - edgeAnalytics.lastInternalsCalc > 5000) {
+        edgeAnalytics.lastInternalsCalc = now;
 
-        const buySellRatio = this.edgeAnalytics.buyVolume / Math.max(this.edgeAnalytics.sellVolume, 0.01);
+        const buySellRatio = edgeAnalytics.buyVolume / Math.max(edgeAnalytics.sellVolume, 0.01);
         const aggressor = buySellRatio > 1.2 ? 'BUYERS' : buySellRatio < 0.8 ? 'SELLERS' : 'NEUTRAL';
         const spread = _h(candle) - _l(candle);
         const spreadPercent = (spread / price) || 0;
@@ -159,41 +236,43 @@ class DashboardBroadcaster {
           spread: spreadPercent
         };
 
-        this.edgeAnalytics.marketInternals = internals;
+        edgeAnalytics.marketInternals = internals;
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'market_internals',
+          ...scopeFields,
           ...internals,
           timestamp: Date.now()
         }));
       }
 
       // Update funding rates (every 60 seconds)
-      if (now - this.edgeAnalytics.lastFundingCheck > 60000) {
-        this.edgeAnalytics.lastFundingCheck = now;
+      if (now - edgeAnalytics.lastFundingCheck > 60000) {
+        edgeAnalytics.lastFundingCheck = now;
 
-        const momentum = this.ctx.priceHistory.length > 10 ?
-          (price - _c(this.ctx.priceHistory[this.ctx.priceHistory.length - 10])) / _c(this.ctx.priceHistory[this.ctx.priceHistory.length - 10]) : 0;
+        const momentum = priceHistory.length > 10 ?
+          (price - _c(priceHistory[priceHistory.length - 10])) / _c(priceHistory[priceHistory.length - 10]) : 0;
         const fundingBias = momentum * 0.001;
-        this.edgeAnalytics.fundingRate = 0.0001 + fundingBias;
+        edgeAnalytics.fundingRate = 0.0001 + fundingBias;
 
-        const predictedFunding = this.edgeAnalytics.fundingRate * (1 + momentum);
+        const predictedFunding = edgeAnalytics.fundingRate * (1 + momentum);
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'funding_rate',
-          current: this.edgeAnalytics.fundingRate,
+          ...scopeFields,
+          current: edgeAnalytics.fundingRate,
           predicted: predictedFunding,
           timestamp: Date.now()
         }));
       }
 
       // Calculate Fear & Greed (every 30 seconds)
-      if (now - this.edgeAnalytics.lastFearGreedCalc > 30000) {
-        this.edgeAnalytics.lastFearGreedCalc = now;
+      if (now - edgeAnalytics.lastFearGreedCalc > 30000) {
+        edgeAnalytics.lastFearGreedCalc = now;
 
-        const volatility = this.calculateVolatility();
-        const momentum = this.ctx.priceHistory.length > 10 ?
-          (price - _c(this.ctx.priceHistory[this.ctx.priceHistory.length - 10])) / _c(this.ctx.priceHistory[this.ctx.priceHistory.length - 10]) : 0;
+        const volatility = this.calculateVolatility(priceHistory);
+        const momentum = priceHistory.length > 10 ?
+          (price - _c(priceHistory[priceHistory.length - 10])) / _c(priceHistory[priceHistory.length - 10]) : 0;
         const volumeTrend = volume / Math.max(avgVolume, 0.01);
 
         const fearGreed = Math.min(100, Math.max(0,
@@ -201,27 +280,29 @@ class DashboardBroadcaster {
           (momentum > 0 ? 20 : -20) +
           (volatility < 0.02 ? 10 : -10) +
           (volumeTrend > 1 ? 10 : -10) +
-          (this.edgeAnalytics.cvd > 0 ? 10 : -10)
+          (edgeAnalytics.cvd > 0 ? 10 : -10)
         ));
 
-        this.edgeAnalytics.fearGreedValue = fearGreed;
+        edgeAnalytics.fearGreedValue = fearGreed;
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'fear_greed',
+          ...scopeFields,
           value: fearGreed,
           timestamp: Date.now()
         }));
       }
 
       // Detect divergences (every 15 seconds)
-      if (now - this.edgeAnalytics.lastDivergenceCheck > 15000) {
-        this.edgeAnalytics.lastDivergenceCheck = now;
+      if (now - edgeAnalytics.lastDivergenceCheck > 15000) {
+        edgeAnalytics.lastDivergenceCheck = now;
 
-        const divergences = this.detectDivergences();
+        const divergences = this.detectDivergences(priceHistory, timeframe, symbol);
 
         if (divergences.length > 0) {
           this.ctx.dashboardWs.send(JSON.stringify({
             type: 'divergence',
+            ...scopeFields,
             divergences: divergences,
             timestamp: Date.now()
           }));
@@ -229,12 +310,12 @@ class DashboardBroadcaster {
       }
 
       // Smart Money Flow (every 20 seconds)
-      if (now - this.edgeAnalytics.lastSmartMoneyCheck > 20000) {
-        this.edgeAnalytics.lastSmartMoneyCheck = now;
+      if (now - edgeAnalytics.lastSmartMoneyCheck > 20000) {
+        edgeAnalytics.lastSmartMoneyCheck = now;
 
-        const priceChange = this.ctx.priceHistory.length > 10 ?
-          (price - _c(this.ctx.priceHistory[Math.max(0, this.ctx.priceHistory.length - 10)])) / price : 0;
-        const volumeProfile = this.edgeAnalytics.whaleTrades.filter(t => t.side === 'BUY').length;
+        const priceChange = priceHistory.length > 10 ?
+          (price - _c(priceHistory[Math.max(0, priceHistory.length - 10)])) / price : 0;
+        const volumeProfile = edgeAnalytics.whaleTrades.filter(t => t.side === 'BUY').length;
 
         let flow = 'NEUTRAL';
         if (priceChange < -0.02 && volumeProfile > 3) flow = 'ACCUMULATING';
@@ -242,10 +323,11 @@ class DashboardBroadcaster {
 
         const activity = volume > avgVolume * 3 ? 'HIGH' : volume > avgVolume * 1.5 ? 'MEDIUM' : 'LOW';
 
-        this.edgeAnalytics.smartMoney = { flow, activity };
+        edgeAnalytics.smartMoney = { flow, activity };
 
         this.ctx.dashboardWs.send(JSON.stringify({
           type: 'smart_money',
+          ...scopeFields,
           flow: flow,
           activity: activity,
           dormancy: 'LOW',
@@ -253,8 +335,10 @@ class DashboardBroadcaster {
         }));
       }
 
+      return true;
     } catch (error) {
       console.error('Edge analytics broadcast failed:', error.message);
+      return false;
     }
   }
 
@@ -262,12 +346,13 @@ class DashboardBroadcaster {
    * Calculate price volatility for Fear & Greed
    * EXACT COPY from run-empire-v2.js
    */
-  calculateVolatility() {
-    if (this.ctx.priceHistory.length < 20) return 0.02;
+  calculateVolatility(priceHistory = null) {
+    const history = Array.isArray(priceHistory) ? priceHistory : [];
+    if (history.length < 20) return 0.02;
 
     const returns = [];
-    for (let i = 1; i < Math.min(20, this.ctx.priceHistory.length); i++) {
-      const ret = (_c(this.ctx.priceHistory[i]) - _c(this.ctx.priceHistory[i-1])) / _c(this.ctx.priceHistory[i-1]);
+    for (let i = 1; i < Math.min(20, history.length); i++) {
+      const ret = (_c(history[i]) - _c(history[i-1])) / _c(history[i-1]);
       returns.push(ret);
     }
 
@@ -280,17 +365,18 @@ class DashboardBroadcaster {
    * Detect price/indicator divergences
    * EXACT COPY from run-empire-v2.js
    */
-  detectDivergences() {
+  detectDivergences(priceHistory = null, timeframe = null, symbol = null) {
     const divergences = [];
+    const history = Array.isArray(priceHistory) ? priceHistory : [];
 
-    if (this.ctx.priceHistory.length < 20) return divergences;
+    if (history.length < 20) return divergences;
 
-    const recentPrices = this.ctx.priceHistory.slice(-20);
+    const recentPrices = history.slice(-20);
     const priceHigh = Math.max(...recentPrices.map(candle => _h(candle)));
     const priceLow = Math.min(...recentPrices.map(candle => _l(candle)));
     const currentPrice = _c(recentPrices[recentPrices.length - 1]);
 
-    const indicators = this.ctx.indicatorEngine.getSnapshot();
+    const indicators = this._getIndicatorSnapshot(symbol);
     const rsi = indicators?.indicators?.rsi;
 
     if (rsi) {
@@ -298,13 +384,13 @@ class DashboardBroadcaster {
         divergences.push({
           type: 'bearish',
           indicator: 'RSI',
-          timeframe: '1m'
+          timeframe: timeframe || '1m'
         });
       } else if (currentPrice < priceLow * 1.02 && rsi > 30) {
         divergences.push({
           type: 'bullish',
           indicator: 'RSI',
-          timeframe: '1m'
+          timeframe: timeframe || '1m'
         });
       }
     }
@@ -316,7 +402,7 @@ class DashboardBroadcaster {
       divergences.push({
         type: 'bearish',
         indicator: 'Volume',
-        timeframe: '1m'
+        timeframe: timeframe || '1m'
       });
     }
 

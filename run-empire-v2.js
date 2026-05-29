@@ -2890,6 +2890,10 @@ class OGZPrimeV14Bot {
   broadcastEdgeAnalytics(price, volume, candle) {
     this.dashboardBroadcaster.ctx.dashboardWs = this.dashboardWs;
     this.dashboardBroadcaster.ctx.priceHistory = this.priceHistory;
+    this.dashboardBroadcaster.ctx.symbolContexts = this.symbolContexts;
+    this.dashboardBroadcaster.ctx.symbolTimeframeHistories = this.symbolTimeframeHistories;
+    this.dashboardBroadcaster.ctx.dashboardTimeframe = this.dashboardTimeframe;
+    this.dashboardBroadcaster.ctx.activeTimeframe = this.activeTimeframe;
     return this.dashboardBroadcaster.broadcastEdgeAnalytics(price, volume, candle);
   }
 
