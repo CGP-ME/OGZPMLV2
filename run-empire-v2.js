@@ -2620,67 +2620,66 @@ class OGZPrimeV14Bot {
         if (missingScope.length > 0) {
           throw new Error(`[PatternAnalysis] dashboard scope incomplete (${missingScope.join(', ')}) - refusing unscoped dashboard broadcast`);
         }
-        // Format patterns for display
-        const primaryPattern = patterns && patterns.length > 0 ? patterns[0] : null;
+        // Format real patterns for display. Missing names or non-finite
+        // confidence cannot be represented truthfully by the current dashboard
+        // contract, so those entries are omitted instead of defaulted.
+        const dashboardPatterns = Array.isArray(patterns)
+          ? patterns
+              .map(pattern => this.normalizePatternForDashboard(pattern))
+              .filter(Boolean)
+          : [];
+        const primaryPattern = dashboardPatterns.length > 0 ? dashboardPatterns[0] : null;
 
         // Phase 2 REWRITE: profileManager deleted - profiles now in TradingConfig
         const activeProfile = resolvedConfig.config.misc.tradingProfile;
 
         // CHANGE 2.0.12: Include pattern memory stats in dashboard
-        const patternMemoryCount = this.patternChecker?.memory?.patternCount || 0;
-        const patternMemorySize = Object.keys(this.patternChecker?.memory?.memory || {}).length;
-
-        // Generate ghost path projection when a pattern is detected with confidence > 50%
-        // Refuses to project during warmup — atr null means we don't know the noise scale
-        let projectionPath = undefined;
-        const price = indicators.price;
-        if (primaryPattern && (primaryPattern.confidence || 0) > 0.5 && indicators.atr != null && price != null) {
-          const direction = primaryPattern.direction === 'bullish' ? 1 : -1;
-          const currentTime = Math.floor(Date.now() / 1000);
-          const atr = indicators.atr;
-          projectionPath = [];
-          for (let i = 1; i <= 15; i++) {
-            const drift = direction * atr * 0.1 * i + (Math.random() - 0.5) * atr * 0.05;
-            projectionPath.push({
-              time: currentTime + (i * 900), // 15-min increments
-              value: price + drift
-            });
-          }
-        }
+        const rawPatternCount = this.patternChecker?.memory?.patternCount;
+        const patternMemoryCount = Number.isFinite(Number(rawPatternCount)) ? Number(rawPatternCount) : null;
+        const rawPatternMemory = this.patternChecker?.memory?.memory;
+        const patternMemorySize = rawPatternMemory && typeof rawPatternMemory === 'object'
+          ? Object.keys(rawPatternMemory).length
+          : null;
+        const patternGrowthRate = patternMemoryCount !== null && this.candleCount > 0
+          ? `${(patternMemoryCount / this.candleCount).toFixed(2)} patterns/candle`
+          : null;
+        const rawIndicatorState = this.readPatternAnalysisIndicatorState(scope);
+        const indicatorSource = indicators && typeof indicators === 'object' ? indicators : null;
 
         const message = {
           type: 'pattern_analysis',
           timestamp: Date.now(),
           ...scope,
-          projection_path: projectionPath,
-          pattern: {
+          pattern: primaryPattern ? {
             symbol: scope.symbol,
-            name: primaryPattern?.name || primaryPattern?.type || 'No strong pattern',
-            confidence: primaryPattern?.confidence || 0,
-            description: this.getPatternDescription(primaryPattern, indicators),
-            allPatterns: patterns.map(p => ({
-              name: p.name || p.type || 'unknown',
-              confidence: p.confidence || 0
+            name: primaryPattern.name,
+            confidence: primaryPattern.confidence,
+            description: this.getPatternDescription(primaryPattern.raw),
+            allPatterns: dashboardPatterns.map(pattern => ({
+              name: pattern.name,
+              confidence: pattern.confidence
             }))
-          },
+          } : null,
           patternMemory: {
             count: patternMemoryCount,
             uniquePatterns: patternMemorySize,
-            growthRate: `${(patternMemoryCount / Math.max(1, this.candleCount)).toFixed(2)} patterns/candle`,
-            status: patternMemoryCount > 100 ? 'Learning Active ' : 'Building Memory '
+            growthRate: patternGrowthRate,
+            status: patternMemoryCount === null
+              ? 'unavailable'
+              : (patternMemoryCount > 100 ? 'Learning Active' : 'Building Memory')
           },
           indicators: {
-            rsi: indicators.rsi,
-            macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
-            macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
-            trend: indicators.trend,
-            volatility: indicators.volatility,
+            rsi: indicatorSource?.rsi ?? null,
+            macd: indicatorSource?.macd?.macd ?? indicatorSource?.macd?.macdLine ?? null,
+            macdSignal: indicatorSource?.macd?.signal ?? indicatorSource?.macd?.signalLine ?? null,
+            trend: indicatorSource?.trend ?? null,
+            volatility: indicatorSource?.volatility ?? null,
             // CHANGE 2026-01-25: Send EMA in format dashboard expects (ema[20], ema[50], ema[200])
             // Use getRawState() for dashboard compatibility with legacy format
-            ema: indicatorEngine.getRawState().ema || {},
+            ema: rawIndicatorState?.ema ?? null,
             // CHANGE 2026-01-25: Send BB and VWAP for dashboard overlays
-            bb: indicatorEngine.getRawState().bb || {},
-            vwap: indicatorEngine.getRawState().vwap || null
+            bb: rawIndicatorState?.bb ?? null,
+            vwap: rawIndicatorState?.vwap ?? null
           },
           profile: {
             name: activeProfile.name,
@@ -2693,9 +2692,80 @@ class OGZPrimeV14Bot {
         this.dashboardWs.send(JSON.stringify(message));
       }
     } catch (error) {
-      // Fail silently - don't let dashboard issues affect trading
       console.error('[WARNING] Pattern broadcast failed:', error.message);
+      this.emitDashboardErrorEvent('pattern_analysis.dashboard_broadcast', error, {
+        symbol
+      });
     }
+  }
+
+  readPatternAnalysisIndicatorState(scope) {
+    try {
+      const rawState = indicatorEngine.getRawState();
+      return rawState && typeof rawState === 'object' ? rawState : null;
+    } catch (error) {
+      console.error('[WARNING] Pattern indicator state read failed:', error.message);
+      this.emitDashboardErrorEvent('pattern_analysis.indicator_state', error, scope);
+      return null;
+    }
+  }
+
+  emitDashboardErrorEvent(source, error, context = {}) {
+    try {
+      if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return false;
+      if (typeof source !== 'string' || source.trim() === '') return false;
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      if (!rawMessage.trim()) return false;
+      const maxLength = Number(resolvedConfig.config.dashboard.errorEventMessageMaxLength);
+      const message = Number.isFinite(maxLength) && maxLength > 0
+        ? rawMessage.slice(0, Math.floor(maxLength))
+        : rawMessage;
+      const frame = {
+        type: 'error_event',
+        source: source.trim(),
+        severity: 'warning',
+        message,
+        timestamp: Date.now()
+      };
+      for (const field of ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'traceId']) {
+        const value = context?.[field];
+        if (value !== null && value !== undefined && String(value).trim()) {
+          frame[field] = String(value).trim();
+        }
+      }
+      this.dashboardWs.send(JSON.stringify(frame));
+      return true;
+    } catch (sendError) {
+      console.error('[WARNING] Dashboard error_event broadcast failed:', sendError.message);
+      return false;
+    }
+  }
+
+  normalizePatternForDashboard(pattern) {
+    if (!pattern || typeof pattern !== 'object') return null;
+    const rawName = this.resolvePatternDisplayName(pattern);
+    if (!rawName) return null;
+    const confidence = Number(pattern.confidence);
+    if (!Number.isFinite(confidence)) return null;
+    return {
+      raw: pattern,
+      name: rawName,
+      confidence,
+      direction: typeof pattern.direction === 'string' && pattern.direction.trim()
+        ? pattern.direction.trim()
+        : null
+    };
+  }
+
+  resolvePatternDisplayName(pattern) {
+    if (!pattern || typeof pattern !== 'object') return null;
+    const candidates = [pattern.name, pattern.type];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+    return null;
   }
 
   /**
@@ -2724,12 +2794,15 @@ class OGZPrimeV14Bot {
   /**
    * Get human-readable pattern description
    */
-  getPatternDescription(pattern, indicators) {
-    if (!pattern) {
-      return `Market scanning - RSI: ${indicators.rsi?.toFixed(1)}, Trend: ${indicators.trend}, MACD: ${(indicators.macd?.macd || 0).toFixed(4)}`;
+  getPatternDescription(pattern) {
+    if (!pattern || typeof pattern !== 'object') return null;
+    const patternName = this.resolvePatternDisplayName(pattern);
+    if (!patternName) return null;
+    if (typeof pattern.description === 'string' && pattern.description.trim()) {
+      return pattern.description.trim();
     }
-    const patternName = pattern.name || pattern.type || 'unknown';
-    return patternDescriptions[patternName] || `${patternName} pattern detected with ${(pattern.confidence * 100).toFixed(1)}% confidence. Analyzing market structure and momentum.`;
+    const description = patternDescriptions[patternName];
+    return typeof description === 'string' && description.trim() ? description : null;
   }
 
   /**

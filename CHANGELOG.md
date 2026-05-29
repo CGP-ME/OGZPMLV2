@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Pattern Analysis Truth Contract (2026-05-29)
+
+- Removed randomized `projection_path` output from `pattern_analysis` frames so the dashboard no longer receives generated ghost paths as if they were backend evidence.
+- Required pattern-analysis display rows to have a real pattern name/type and finite confidence before they are broadcast; otherwise the frame carries `pattern: null` and the panel stays honestly empty.
+- Changed pattern-memory dashboard stats to report unavailable counters as `null`/`unavailable` instead of zero-derived growth and learning-state defaults.
+- Changed unavailable EMA, Bollinger Band, and VWAP pattern-analysis overlay fields to `null` instead of empty-object defaults.
+- Added scoped `error_event` emission for pattern-analysis producer failures so System Health can surface contract breaks instead of relying only on server logs.
+
 ### Dashboard Edge Analytics Frame Contract (2026-05-29)
 
 - Added panel-compatible aliases to real edge analytics frames for CVD, liquidation levels, whale activity, funding, fear/greed, divergence, and smart-money data while preserving the existing backend field names.
