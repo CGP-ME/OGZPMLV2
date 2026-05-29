@@ -90,7 +90,10 @@ describe('Pattern memory scope isolation', () => {
       scopeKey: 'backtest:kraken:acct-main:crypto:BTC-USD:1m',
     }))).toBeNull();
 
-    memory.patterns[computeSignature(features)] = {
+    const exportedPatterns = memory.patterns;
+    const scopedSignature = Object.keys(exportedPatterns)[0];
+    exportedPatterns[scopedSignature].wins = 999;
+    exportedPatterns[computeSignature(features)] = {
       signature: computeSignature(features),
       features: [...features],
       status: 'promoted',
@@ -106,7 +109,10 @@ describe('Pattern memory scope isolation', () => {
       outcomes: [{ timestamp: Date.now(), pnl: 1, isWin: true }],
     };
 
-    expect(memory.getConfidence(features, scope()).stats.scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
+    const protectedScope = memory.getConfidence(features, scope());
+    expect(protectedScope.stats.scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
+    expect(protectedScope.stats.wins).not.toBe(999);
+    expect(Object.keys(memory.patterns)).toHaveLength(1);
   });
 
   test('UnifiedPatternMemory missing scope rejects before mutation', () => {

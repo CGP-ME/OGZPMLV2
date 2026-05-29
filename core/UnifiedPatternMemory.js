@@ -130,6 +130,8 @@ const DEFAULT_FEATURE_WEIGHTS = [
 // ═══════════════════════════════════════════════════════════════
 
 class UnifiedPatternMemory {
+  #patterns = {};
+
   constructor(config = {}) {
     // Config with env var overrides
     this.config = {
@@ -192,9 +194,6 @@ class UnifiedPatternMemory {
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
     this.storagePath = config.storagePath || path.join(dataDir, `unified-patterns.${mode}.${assetBucket}.json`);
 
-    // Pattern storage — keyed by signature
-    this.patterns = {};
-
     // Stats
     this.stats = {
       observations: 0,
@@ -215,8 +214,15 @@ class UnifiedPatternMemory {
       this._saveTimer = setInterval(() => this.save(), this.config.saveIntervalMs);
     }
 
-    const patternCount = Object.keys(this.patterns).length;
+    const patternCount = Object.keys(this.#patterns).length;
     console.log(`[UnifiedPatternMemory] Initialized: ${patternCount} patterns, mode=${mode}, persist=${this.config.persistToDisk}`);
+  }
+
+  get patterns() {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(this.#patterns);
+    }
+    return JSON.parse(JSON.stringify(this.#patterns));
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -240,11 +246,11 @@ class UnifiedPatternMemory {
     const sig = this._computeScopedSignature(features, scope);
     if (!sig) return null;
 
-    if (!this.patterns[sig]) {
-      this.patterns[sig] = this._createPattern(sig, features, scope);
+    if (!this.#patterns[sig]) {
+      this.#patterns[sig] = this._createPattern(sig, features, scope);
     }
 
-    const p = this.patterns[sig];
+    const p = this.#patterns[sig];
     p.timesSeen++;
     p.lastSeen = Date.now();
     this.stats.observations++;
@@ -271,11 +277,11 @@ class UnifiedPatternMemory {
     if (!sig) return false;
 
     // Create pattern if it wasn't observed first (edge case)
-    if (!this.patterns[sig]) {
-      this.patterns[sig] = this._createPattern(sig, features, scope);
+    if (!this.#patterns[sig]) {
+      this.#patterns[sig] = this._createPattern(sig, features, scope);
     }
 
-    const p = this.patterns[sig];
+    const p = this.#patterns[sig];
     const isWin = outcome.pnl > 0;
 
     // Update stats
@@ -342,7 +348,7 @@ class UnifiedPatternMemory {
 
     // Try exact match first (fast)
     const sig = this._computeScopedSignature(features, scope);
-    const exactMatch = this.patterns[sig];
+    const exactMatch = this.#patterns[sig];
 
     if (exactMatch) {
       const totalTrades = exactMatch.wins + exactMatch.losses;
@@ -496,7 +502,7 @@ class UnifiedPatternMemory {
     let bestSimilarity = 0;
 
     // Only search patterns with enough data
-    for (const [sig, pattern] of Object.entries(this.patterns)) {
+    for (const [sig, pattern] of Object.entries(this.#patterns)) {
       if (pattern.scopeKey !== scope.scopeKey) continue;
       const totalTrades = pattern.wins + pattern.losses;
       if (totalTrades < 3) continue; // Skip very sparse patterns
@@ -524,27 +530,27 @@ class UnifiedPatternMemory {
     const now = Date.now();
     let pruned = 0;
 
-    for (const [sig, pattern] of Object.entries(this.patterns)) {
+    for (const [sig, pattern] of Object.entries(this.#patterns)) {
       const age = now - pattern.firstSeen;
       const totalTrades = pattern.wins + pattern.losses;
 
       // Prune old patterns with few trades
       if (age > maxAgeMs && totalTrades < 3) {
-        delete this.patterns[sig];
+        delete this.#patterns[sig];
         pruned++;
         continue;
       }
 
       // Prune patterns that haven't been seen in 2x max age
       if (now - pattern.lastSeen > maxAgeMs * 2) {
-        delete this.patterns[sig];
+        delete this.#patterns[sig];
         pruned++;
         continue;
       }
     }
 
     // If still over limit, prune least useful
-    const entries = Object.entries(this.patterns);
+    const entries = Object.entries(this.#patterns);
     if (entries.length > this.config.maxPatterns) {
       // Sort by usefulness: promoted > neutral > quarantined, then by recency
       entries.sort((a, b) => {
@@ -556,12 +562,12 @@ class UnifiedPatternMemory {
 
       // Keep only maxPatterns
       const toKeep = entries.slice(0, this.config.maxPatterns);
-      this.patterns = Object.fromEntries(toKeep);
+      this.#patterns = Object.fromEntries(toKeep);
       pruned += entries.length - toKeep.length;
     }
 
     if (pruned > 0) {
-      console.log(`[UnifiedPatternMemory] Pruned ${pruned} patterns. Remaining: ${Object.keys(this.patterns).length}`);
+      console.log(`[UnifiedPatternMemory] Pruned ${pruned} patterns. Remaining: ${Object.keys(this.#patterns).length}`);
     }
     this.stats.lastPruneTime = now;
   }
@@ -588,8 +594,8 @@ class UnifiedPatternMemory {
           successThreshold: this.config.successThreshold,
           failureThreshold: this.config.failureThreshold,
         },
-        patternCount: Object.keys(this.patterns).length,
-        patterns: this.patterns,
+        patternCount: Object.keys(this.#patterns).length,
+        patterns: this.#patterns,
       };
 
       // Atomic write: write to temp, rename
@@ -610,9 +616,9 @@ class UnifiedPatternMemory {
         const data = JSON.parse(raw);
 
         if (data.version === 2 && data.patterns) {
-          this.patterns = data.patterns;
+          this.#patterns = data.patterns;
           this.stats = { ...this.stats, ...data.stats };
-          console.log(`[UnifiedPatternMemory] Loaded ${Object.keys(this.patterns).length} patterns from disk`);
+          console.log(`[UnifiedPatternMemory] Loaded ${Object.keys(this.#patterns).length} patterns from disk`);
         } else {
           console.log('[UnifiedPatternMemory] Incompatible version, starting fresh');
         }
@@ -735,7 +741,7 @@ class UnifiedPatternMemory {
   // ═══════════════════════════════════════════════════════════════
 
   getStats() {
-    const patterns = Object.values(this.patterns);
+    const patterns = Object.values(this.#patterns);
     return {
       total: patterns.length,
       learning: patterns.filter(p => p.status === 'learning').length,
@@ -822,7 +828,7 @@ class UnifiedPatternMemory {
     const scope = this._normalizeScope(scopeInput, 'UnifiedPatternMemory.getPatternStats');
     if (!scope) return null;
     const sig = this._computeScopedSignature(features, scope);
-    const p = this.patterns[sig];
+    const p = this.#patterns[sig];
     if (!p) return null;
     return {
       timesSeen: p.timesSeen,
@@ -886,7 +892,7 @@ class UnifiedPatternMemory {
     const matches = [];
     const normFeatures = normalize(features);
 
-    for (const [sig, pattern] of Object.entries(this.patterns)) {
+    for (const [sig, pattern] of Object.entries(this.#patterns)) {
       if (pattern.scopeKey !== scope.scopeKey) continue;
       if (!pattern.features || pattern.features.length !== features.length) continue;
 
@@ -919,7 +925,7 @@ class UnifiedPatternMemory {
     }
     this.prune();
     this.save();
-    console.log(`[UnifiedPatternMemory] Cleanup complete. ${Object.keys(this.patterns).length} patterns saved.`);
+    console.log(`[UnifiedPatternMemory] Cleanup complete. ${Object.keys(this.#patterns).length} patterns saved.`);
   }
 }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Unified Pattern Memory Private Store (2026-05-29)
+
+- Moved `UnifiedPatternMemory` live pattern rows behind a private store and changed the public `patterns` surface to return a cloned snapshot, so external callers can inspect learned rows without mutating the active memory used by scoped reads, pruning, saving, or loading.
+- Added regression coverage that mutates the exported snapshot and injects a legacy unscoped signature, then proves the live scoped read remains unchanged.
+
 ### SessionRouter Force-Close Failure Gate (2026-05-29)
 
 - Blocked `stocks -> crypto` activation when any session-end source position cannot be force-closed with a proven `StateManager.closePosition` success, routing the transition into failed-safe instead of resuming trading on an unproven-flat source session.
