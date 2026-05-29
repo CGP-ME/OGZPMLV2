@@ -160,6 +160,7 @@ class StateManager {
     this.locked = false;
     /** @type {Array<Function>} Queue of callbacks waiting for lock */
     this.lockQueue = [];
+    this.dashboardHeartbeatInterval = null;
 
     // Bind methods to preserve 'this' context when passed as callbacks
     this.get = this.get.bind(this);
@@ -1767,16 +1768,105 @@ class StateManager {
 
     // CHANGE 2025-12-11: Broadcast to dashboard AFTER state changes
     // This ensures dashboard always shows accurate, post-update state
-    this.broadcastToDashboard(updates, context);
+    try {
+      this.broadcastToDashboard(updates, context);
+    } catch (error) {
+      console.warn('[StateManager] state_update broadcast notification failed:', error.message);
+    }
   }
 
   // === DASHBOARD INTEGRATION ===
   // CHANGE 2025-12-11: Dashboard gets state AFTER updates, never stale data
 
   setDashboardWs(ws) {
+    const heartbeatMs = this._dashboardStateHeartbeatMs();
+    const closeMethod = this._dashboardSocketCloseMethod(ws);
+    this._assertDashboardSocketCanSend(ws);
+    this._assertDashboardSocketOpen(ws);
+    this._clearDashboardStateHeartbeat();
     this.dashboardWs = ws;
     console.log('[StateManager] Dashboard WebSocket connected');
-    try { this.broadcastToDashboard({}, { reason: 'dashboard_connect' }); } catch (_) {}
+    try {
+      this.broadcastToDashboard({}, { reason: 'dashboard_connect' });
+    } catch (error) {
+      console.warn('[StateManager] dashboard_connect state_update failed:', error.message);
+    }
+    this._startDashboardStateHeartbeat(ws, heartbeatMs);
+    this._bindDashboardSocketClose(ws, closeMethod);
+  }
+
+  _dashboardStateHeartbeatMs() {
+    const heartbeatMs = Number(TradingConfig.get('dashboard.stateUpdateHeartbeatMs'));
+    if (!Number.isFinite(heartbeatMs) || heartbeatMs <= 0) {
+      throw new Error(`TradingConfig dashboard.stateUpdateHeartbeatMs must be positive milliseconds; got ${heartbeatMs}`);
+    }
+    return heartbeatMs;
+  }
+
+  _startDashboardStateHeartbeat(ws, heartbeatMs = this._dashboardStateHeartbeatMs()) {
+    this.dashboardHeartbeatInterval = setInterval(() => {
+      if (this.dashboardWs !== ws) return;
+      if (!ws || ws.readyState !== 1) {
+        console.warn('[StateManager] dashboard_heartbeat stopped; socket not open:', ws ? ws.readyState : 'missing');
+        this._clearDashboardStateHeartbeat();
+        if (this.dashboardWs === ws) this.dashboardWs = null;
+        return;
+      }
+      try {
+        this.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+      } catch (error) {
+        console.warn('[StateManager] dashboard_heartbeat state_update failed:', error.message);
+      }
+    }, heartbeatMs);
+    if (typeof this.dashboardHeartbeatInterval.unref === 'function') {
+      this.dashboardHeartbeatInterval.unref();
+    }
+  }
+
+  _clearDashboardStateHeartbeat() {
+    if (this.dashboardHeartbeatInterval) {
+      clearInterval(this.dashboardHeartbeatInterval);
+      this.dashboardHeartbeatInterval = null;
+    }
+  }
+
+  _dashboardSocketCloseMethod(ws) {
+    if (!ws) {
+      throw new Error('StateManager.setDashboardWs requires a dashboard WebSocket instance');
+    }
+    if (typeof ws.once === 'function') return 'once';
+    if (typeof ws.on === 'function') return 'on';
+    if (typeof ws.addEventListener === 'function') return 'addEventListener';
+    throw new Error('StateManager dashboard WebSocket must expose once, on, or addEventListener close binding');
+  }
+
+  _assertDashboardSocketCanSend(ws) {
+    if (typeof ws.send !== 'function') {
+      throw new Error('StateManager dashboard WebSocket must expose send method');
+    }
+  }
+
+  _assertDashboardSocketOpen(ws) {
+    if (ws.readyState !== 1) {
+      throw new Error(`StateManager dashboard WebSocket must be open; readyState=${ws.readyState}`);
+    }
+  }
+
+  _bindDashboardSocketClose(ws, closeMethod = this._dashboardSocketCloseMethod(ws)) {
+    const handleClose = () => {
+      if (this.dashboardWs === ws) {
+        console.warn('[StateManager] dashboard WebSocket closed; state_update broadcasts stopped');
+        this._clearDashboardStateHeartbeat();
+        this.dashboardWs = null;
+      }
+    };
+    if (closeMethod === 'once') {
+      ws.once('close', handleClose);
+    } else if (closeMethod === 'on') {
+      ws.on('close', handleClose);
+    } else if (closeMethod === 'addEventListener') {
+      ws.addEventListener('close', handleClose, { once: true });
+    }
   }
 
   _getActiveTradesForProjection(state = this.state) {
@@ -1871,7 +1961,11 @@ class StateManager {
   }
 
   broadcastToDashboard(updates, context) {
-    if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return;
+    if (!this.dashboardWs) return false;
+    if (this.dashboardWs.readyState !== 1) {
+      console.warn('[StateManager] state_update skipped; dashboard socket not open:', this.dashboardWs.readyState);
+      return false;
+    }
 
     try {
       const state = this.getState();
@@ -1909,8 +2003,10 @@ class StateManager {
         state: dashboardState,
         timestamp: Date.now()
       }));
+      return true;
     } catch (error) {
       console.warn('[StateManager] Dashboard state_update broadcast failed:', error.message);
+      return false;
     }
   }
 

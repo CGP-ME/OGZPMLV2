@@ -32,6 +32,10 @@ describe('StateManager dashboard state_update frame', () => {
   });
 
   afterEach(() => {
+    if (manager && typeof manager._clearDashboardStateHeartbeat === 'function') {
+      manager._clearDashboardStateHeartbeat();
+    }
+    jest.useRealTimers();
     for (const spy of consoleSpies) {
       spy.mockRestore();
     }
@@ -91,5 +95,212 @@ describe('StateManager dashboard state_update frame', () => {
     expect(frame.dailyTradeCount).toBe(frame.state.dailyTradeCount);
     expect(frame.positions).toEqual(frame.state.positions);
     expect(frame.scopedPositionCount).toBe(frame.state.scopedPositionCount);
+  });
+
+  test('emits authoritative state_update heartbeat while dashboard socket stays open', () => {
+    jest.useFakeTimers();
+    const sent = [];
+    let closeHandler = null;
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+      once: jest.fn((event, handler) => {
+        if (event === 'close') closeHandler = handler;
+      }),
+    };
+    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+
+    manager.setDashboardWs(ws);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual(expect.objectContaining({
+      type: 'state_update',
+      context: { reason: 'dashboard_connect' },
+    }));
+
+    jest.advanceTimersByTime(heartbeatMs);
+
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toEqual(expect.objectContaining({
+      type: 'state_update',
+      context: { reason: 'dashboard_heartbeat' },
+    }));
+    expect(sent[1].state).toEqual(expect.objectContaining({
+      balance: manager.state.balance,
+      tradeCount: manager.state.tradeCount,
+    }));
+
+    closeHandler();
+    jest.advanceTimersByTime(heartbeatMs);
+
+    expect(sent).toHaveLength(2);
+    expect(manager.dashboardWs).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] dashboard WebSocket closed; state_update broadcasts stopped'
+    );
+  });
+
+  test('rejects invalid configured heartbeat before sending dashboard state', () => {
+    const sent = [];
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+      once: jest.fn(),
+    };
+    const TradingConfig = require('../core/TradingConfig');
+    TradingConfig.setOverrides({ dashboard: { stateUpdateHeartbeatMs: 0 } });
+
+    expect(() => manager.setDashboardWs(ws)).toThrow('dashboard.stateUpdateHeartbeatMs must be positive milliseconds');
+    expect(sent).toHaveLength(0);
+    expect(manager.dashboardWs).toBeUndefined();
+  });
+
+  test('clears dashboard heartbeat for sockets that expose on instead of once', () => {
+    jest.useFakeTimers();
+    const sent = [];
+    let closeHandler = null;
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+      on: jest.fn((event, handler) => {
+        if (event === 'close') closeHandler = handler;
+      }),
+    };
+    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+
+    manager.setDashboardWs(ws);
+    expect(ws.on).toHaveBeenCalledWith('close', expect.any(Function));
+
+    closeHandler();
+    jest.advanceTimersByTime(heartbeatMs);
+
+    expect(sent).toHaveLength(1);
+    expect(manager.dashboardWs).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] dashboard WebSocket closed; state_update broadcasts stopped'
+    );
+  });
+
+  test('self-clears dashboard heartbeat when active socket is no longer open', () => {
+    jest.useFakeTimers();
+    const sent = [];
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+      once: jest.fn(),
+    };
+    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+
+    manager.setDashboardWs(ws);
+    ws.readyState = 3;
+    jest.advanceTimersByTime(heartbeatMs);
+
+    expect(sent).toHaveLength(1);
+    expect(manager.dashboardHeartbeatInterval).toBeNull();
+    expect(manager.dashboardWs).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] dashboard_heartbeat stopped; socket not open:',
+      3
+    );
+  });
+
+  test('logs heartbeat broadcast failures without throwing out of the interval', () => {
+    jest.useFakeTimers();
+    const sent = [];
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+      once: jest.fn(),
+    };
+    const heartbeatMs = require('../core/TradingConfig').get('dashboard.stateUpdateHeartbeatMs');
+    const originalBroadcast = manager.broadcastToDashboard.bind(manager);
+    manager.broadcastToDashboard = jest.fn((updates, context) => {
+      if (context?.reason === 'dashboard_heartbeat') {
+        throw new Error('forced heartbeat failure');
+      }
+      return originalBroadcast(updates, context);
+    });
+
+    manager.setDashboardWs(ws);
+
+    expect(() => jest.advanceTimersByTime(heartbeatMs)).not.toThrow();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] dashboard_heartbeat state_update failed:',
+      'forced heartbeat failure'
+    );
+    expect(sent).toHaveLength(1);
+  });
+
+  test('rejects sockets without a close binding before sending dashboard state', () => {
+    const sent = [];
+    const ws = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+    };
+
+    expect(() => manager.setDashboardWs(ws)).toThrow('dashboard WebSocket must expose once, on, or addEventListener close binding');
+    expect(sent).toHaveLength(0);
+    expect(manager.dashboardWs).toBeUndefined();
+  });
+
+  test('rejects sockets without send before connecting heartbeat', () => {
+    const ws = {
+      readyState: 1,
+      once: jest.fn(),
+    };
+
+    expect(() => manager.setDashboardWs(ws)).toThrow('dashboard WebSocket must expose send method');
+    expect(manager.dashboardWs).toBeUndefined();
+    expect(manager.dashboardHeartbeatInterval).toBeNull();
+  });
+
+  test('rejects closed sockets before connecting heartbeat', () => {
+    const sent = [];
+    const ws = {
+      readyState: 3,
+      send: payload => sent.push(JSON.parse(payload)),
+      once: jest.fn(),
+    };
+
+    expect(() => manager.setDashboardWs(ws)).toThrow('dashboard WebSocket must be open; readyState=3');
+    expect(sent).toHaveLength(0);
+    expect(manager.dashboardWs).toBeUndefined();
+    expect(manager.dashboardHeartbeatInterval).toBeNull();
+  });
+
+  test('logs skipped state_update when an assigned dashboard socket is no longer open', () => {
+    const ws = {
+      readyState: 3,
+      send: jest.fn(),
+    };
+    manager.dashboardWs = ws;
+
+    expect(manager.broadcastToDashboard({ balance: 1 }, { source: 'unit' })).toBe(false);
+
+    expect(ws.send).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] state_update skipped; dashboard socket not open:',
+      3
+    );
+  });
+
+  test('logs notify broadcast failures without blocking state listeners', () => {
+    const listener = jest.fn();
+    manager.addListener(listener);
+    manager.broadcastToDashboard = jest.fn(() => {
+      throw new Error('forced notify failure');
+    });
+
+    expect(() => manager.notifyListeners({ balance: 1 }, { source: 'unit' })).not.toThrow();
+
+    expect(listener).toHaveBeenCalledWith(
+      { balance: 1 },
+      { source: 'unit' },
+      expect.objectContaining({ balance: manager.state.balance })
+    );
+    expect(console.warn).toHaveBeenCalledWith(
+      '[StateManager] state_update broadcast notification failed:',
+      'forced notify failure'
+    );
   });
 });

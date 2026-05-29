@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### StateManager Dashboard Heartbeat Contract (2026-05-29)
+
+- Added a configured StateManager `state_update` heartbeat so dashboard panels receive authoritative account/position snapshots even when no balance or position field changed.
+- Reused the existing `broadcastToDashboard()` state projection instead of creating a duplicate dashboard channel.
+- Added regression coverage for dashboard-connect snapshot, heartbeat snapshot, heartbeat error logging, invalid heartbeat config rejection, unsupported socket rejection, and heartbeat cleanup on socket close or non-open socket state.
+
 ### TradingLoop Ledger Confidence Truth Contract (2026-05-29)
 
 - Changed decision-ledger strategy signal confidence fields to require explicit 0..1 values instead of copying possible 0..100 strategy-result values into schema fields.
