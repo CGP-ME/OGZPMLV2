@@ -51,6 +51,7 @@ const path = require('path');
 const fs = require('fs');
 const PineTALib = require('./pine-transpiler/core/PineTALib');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
+const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
@@ -1115,14 +1116,19 @@ const dashboardSnapshotCache = {
 };
 
 const DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
-const DASHBOARD_STOCK_PRICE_SYMBOLS = String(
-  process.env.DASHBOARD_STOCK_PRICE_SYMBOLS ||
-  process.env.WATCHLIST_STOCK_SYMBOLS ||
+const DASHBOARD_STOCK_PRICE_SYMBOLS = parseTickerSymbolList(
+  process.env.DASHBOARD_STOCK_PRICE_SYMBOLS || process.env.WATCHLIST_STOCK_SYMBOLS,
   DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS
-)
-  .split(',')
-  .map(s => normalizeDashboardSymbol(s))
-  .filter(Boolean);
+);
+const DEFAULT_DASHBOARD_CRYPTO_PRICE_SYMBOLS = 'BTC-USD,ETH-USD,SOL-USD';
+const DASHBOARD_CRYPTO_PRICE_SYMBOLS = parseTickerSymbolList(
+  process.env.DASHBOARD_CRYPTO_PRICE_SYMBOLS || process.env.WATCHLIST_CRYPTO_SYMBOLS,
+  DEFAULT_DASHBOARD_CRYPTO_PRICE_SYMBOLS
+);
+const DASHBOARD_TICKER_PRICE_SYMBOLS = [
+  ...DASHBOARD_STOCK_PRICE_SYMBOLS,
+  ...DASHBOARD_CRYPTO_PRICE_SYMBOLS,
+];
 const parsedStockPriceIntervalMs = Number(process.env.DASHBOARD_STOCK_PRICE_INTERVAL_MS || 30000);
 const DASHBOARD_STOCK_PRICE_INTERVAL_MS = Math.max(
   5000,
@@ -1215,6 +1221,15 @@ function stockTickerToPriceFrame(ticker) {
   };
 }
 
+function stockTickerToTickerPriceFrame(ticker) {
+  return buildTickerPriceFrame(ticker, {
+    brokerId: 'alpaca',
+    assetClass: 'stock',
+  }, {
+    allowedSymbols: DASHBOARD_STOCK_PRICE_SYMBOLS,
+  });
+}
+
 async function broadcastDashboardStockPrices() {
   const dashboards = dashboardClients();
   if (dashboards.length === 0 || DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0 || stockPriceFanoutInFlight) return;
@@ -1242,11 +1257,18 @@ async function broadcastDashboardStockPrices() {
       const ticker = await fetchStockTicker(symbol);
       if (!ticker) continue;
       successCount++;
-      const message = JSON.stringify(stockTickerToPriceFrame(ticker));
+      const messages = [
+        stockTickerToPriceFrame(ticker),
+        stockTickerToTickerPriceFrame(ticker),
+      ]
+        .filter(Boolean)
+        .map(frame => JSON.stringify(frame));
       for (const client of dashboards) {
         if (client.readyState !== WebSocket.OPEN) continue;
         try {
-          client.send(message);
+          for (const message of messages) {
+            client.send(message);
+          }
         } catch (err) {
           console.error(`[StockAdapter] Failed to broadcast ${symbol} snapshot:`, err.message);
         }
@@ -1662,15 +1684,37 @@ krakenSocket.on('message', (data) => {
           tickCount: tickCount,
         }
       };
+      const parsedOpen = parseFloat(tickerData?.o);
+      const tickerPriceSource = {
+        symbol: asset,
+        price,
+        close: price,
+        volume: priceVolume,
+        timestamp: priceTimestamp,
+        source: 'kraken',
+        brokerId: 'kraken',
+        assetClass: 'crypto',
+      };
+      if (Number.isFinite(parsedOpen) && parsedOpen > 0) {
+        tickerPriceSource.change = price - parsedOpen;
+        tickerPriceSource.changePct = ((price - parsedOpen) / parsedOpen) * 100;
+      }
+      const tickerPriceMessage = buildTickerPriceFrame(tickerPriceSource, {}, {
+        allowedSymbols: DASHBOARD_TICKER_PRICE_SYMBOLS,
+      });
       
       // Broadcast ONLY to authenticated WebSocket clients
       const messageStr = JSON.stringify(priceMessage);
+      const tickerMessageStr = tickerPriceMessage ? JSON.stringify(tickerPriceMessage) : null;
       let sentCount = 0;
 
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN && client.authenticated) {
           try {
             client.send(messageStr);
+            if (tickerMessageStr && client.clientType === 'dashboard') {
+              client.send(tickerMessageStr);
+            }
             sentCount++;
           } catch (err) {
             console.error('Error sending to authenticated client:', err.message);

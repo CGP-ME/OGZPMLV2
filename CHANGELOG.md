@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Ticker Price Frame Contract (2026-05-29)
+
+- Added real `ticker_price` websocket frames alongside existing stock and Kraken `price` broadcasts so frontend orchestration can track watchlist liveness without parsing chart frames.
+- Added a shared ticker frame builder that refuses missing symbol, non-positive price, or missing timestamp instead of defaulting dashboard prices.
+
 ### Dashboard State Update Compatibility Frame (2026-05-29)
 
 - Added top-level `state_update` aliases for balance, equity, P&L, trade counts, and scoped positions while preserving the canonical nested `state` payload.
