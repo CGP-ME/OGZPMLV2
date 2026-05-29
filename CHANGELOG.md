@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Replay Capture Truth Contract (2026-05-29)
+
+- Changed `TradeReplayCapture` to require explicit scoped replay storage, reject incomplete entry captures, and refuse exit replay packets without a matching pending entry capture.
+- Removed replay-list fabrication of missing P&L, entry price, exit price, reason, direction, and saved timestamp values; incomplete legacy replay metadata now surfaces as `null`.
+- Added regression coverage for replay storage scope, missing entry fields, exit-without-entry rejection, flat zero-PnL replay rows, and legacy partial replay rows.
+
 ### Trade Journal Direct Truth Contract (2026-05-29)
 
 - Changed `TradeJournal.recordEntry()` and `recordExit()` to reject incomplete direct financial records before ledger append, in-memory mutation, equity updates, or stats updates.
