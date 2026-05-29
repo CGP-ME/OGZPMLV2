@@ -15,6 +15,7 @@
 
 const IBrokerAdapter = require('./IBrokerAdapter');
 const KrakenAdapterSimple = require('../kraken_adapter_simple');
+const WebSocket = require('ws');
 
 class KrakenIBrokerAdapter extends IBrokerAdapter {
   constructor(options = {}) {
@@ -333,6 +334,16 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     // Connect to kraken_adapter_simple WebSocket if not connected
     if (!this.kraken.ws || this.kraken.ws.readyState !== WebSocket.OPEN) {
       this.kraken.connectWebSocketStream((data) => {
+        if (data.type === 'price') {
+          this.emit('ticker', data);
+          return;
+        }
+
+        if (data.type === 'depth_update') {
+          this.emit('depth_update', data);
+          return;
+        }
+
         // Handle both price and OHLC data from the single source
         if (data.type === 'ohlc') {
           // ohlcData format: [time, etime, open, high, low, close, vwap, volume, count]
@@ -388,7 +399,42 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   subscribeToOrderBook(symbol, callback) {
-    throw new Error('[KrakenIBroker] subscribeToOrderBook not implemented yet');
+    const canonicalSymbol = this.kraken.normalizeKrakenWsPair(symbol);
+    if (!canonicalSymbol) {
+      throw new Error('[KrakenIBroker] subscribeToOrderBook requires a symbol');
+    }
+
+    const handler = (data) => {
+      if (!data || data.symbol !== canonicalSymbol) return;
+      if (typeof callback === 'function') callback(data);
+    };
+
+    this.on('depth_update', handler);
+    this.subscriptions.set(`orderbook-${canonicalSymbol}`, {
+      event: 'depth_update',
+      handler
+    });
+
+    if (!this.kraken.ws || this.kraken.ws.readyState !== WebSocket.OPEN) {
+      this.kraken.connectWebSocketStream(canonicalSymbol, (data) => {
+        if (data.type === 'price') {
+          this.emit('ticker', data);
+        } else if (data.type === 'depth_update') {
+          this.emit('depth_update', data);
+        } else if (data.type === 'ohlc') {
+          this.emit('ohlc', {
+            data: data.data,
+            timeframe: data.timeframe || '1m',
+            symbol: data.symbol,
+            pair: data.pair
+          });
+        }
+      });
+    } else {
+      this.kraken.subscribeOrderBookPair(canonicalSymbol);
+    }
+
+    console.log(`[KrakenIBroker] Subscribed to ${canonicalSymbol} order book via single source`);
   }
 
   subscribeToAccount(callback) {
@@ -396,6 +442,11 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   unsubscribeAll() {
+    for (const subscription of this.subscriptions.values()) {
+      if (subscription && subscription.event && subscription.handler) {
+        this.removeListener(subscription.event, subscription.handler);
+      }
+    }
     this.subscriptions.clear();
     // V2 ARCHITECTURE: WebSocket managed by kraken_adapter_simple
     console.log('[KrakenIBroker] Cleared all subscriptions');

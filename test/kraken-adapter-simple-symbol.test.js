@@ -1,6 +1,11 @@
 const KrakenAdapterSimple = require('../kraken_adapter_simple');
+const KrakenDepth = require('../server/kraken-depth-adapter');
 
 describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
+  beforeEach(() => {
+    KrakenDepth._resetForTest();
+  });
+
   test('normalizes Kraken WebSocket pairs to dashboard symbols', () => {
     const adapter = new KrakenAdapterSimple();
 
@@ -55,5 +60,90 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     expect(adapter.buildPriceCallbackFrame('BTC--USD', 75000, 12.5, 1770000000000)).toBeNull();
     expect(errorSpy).toHaveBeenCalledWith('[Kraken] BUILD_PRICE_INVALID_SYMBOL: BTC--USD');
     errorSpy.mockRestore();
+  });
+
+  test('uses configured symbols for Kraken WebSocket subscriptions', () => {
+    const adapter = new KrakenAdapterSimple({
+      symbols: ['BTC-USD', 'ETH-USD', 'XBT/USD', 'ETH/USD']
+    });
+
+    expect(adapter.wsPairs).toEqual(['XBT/USD', 'ETH/USD']);
+  });
+
+  test('refuses websocket subscription without explicit configured symbols', () => {
+    const adapter = new KrakenAdapterSimple();
+
+    expect(() => adapter.getWebSocketPairs()).toThrow(
+      '[Kraken] WebSocket stream requires config.tradingPair'
+    );
+  });
+
+  test('refuses invalid configured websocket symbols', () => {
+    expect(() => new KrakenAdapterSimple({ symbols: ['BTC--USD'] })).toThrow(
+      '[Kraken] Invalid configured websocket symbol: BTC--USD'
+    );
+  });
+
+  test('builds scoped depth_update frames from Kraken book levels', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const bids = Array.from({ length: 12 }, (_, index) => [75000 - index, 30]);
+    const asks = Array.from({ length: 12 }, (_, index) => [75100 + index, 28]);
+
+    const frame = adapter.buildDepthCallbackFrame('BTC-USD', bids, asks, 1770000000000);
+
+    expect(frame).toMatchObject({
+      type: 'depth_update',
+      symbol: 'BTC-USD',
+      source: 'kraken',
+      isLive: true,
+      timestamp: 1770000000000
+    });
+    expect(frame.walls[0]).toMatchObject({ side: 'BID', price: 75000, size: 2250000 });
+    expect(frame.depth.bids).toHaveLength(12);
+    expect(frame.depth.asks).toHaveLength(12);
+  });
+
+  test('depth liveness is adapter-local and clears across websocket lifecycle', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const bids = Array.from({ length: 12 }, (_, index) => [75000 - index, 30]);
+
+    expect(adapter.buildDepthCallbackFrame('BTC-USD', bids, [], 1770000000000).isLive).toBe(true);
+    adapter.depthLiveSymbolTimestamps.clear();
+
+    expect(adapter.buildDepthCallbackFrame('BTC-USD', [[75000, 30]], [], 1770000001000).isLive).toBe(false);
+  });
+
+  test('depth liveness expires after the adapter data timeout', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const bids = Array.from({ length: 12 }, (_, index) => [75000 - index, 30]);
+
+    expect(adapter.buildDepthCallbackFrame('BTC-USD', bids, [], 1770000000000).isLive).toBe(true);
+    expect(adapter.buildDepthCallbackFrame('BTC-USD', [[75000, 30]], [], 1770000000000 + adapter.dataTimeout + 1).isLive).toBe(false);
+  });
+
+  test('warns and refuses depth_update when all book levels are unusable', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(adapter.buildDepthCallbackFrame('BTC-USD', [[0, 1]], [['bad', 2]], 1770000000000)).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('[Kraken] WS_BOOK_INVALID_LEVELS: no usable bid/ask levels for BTC-USD');
+
+    warnSpy.mockRestore();
+  });
+
+  test('subscribes open websocket order book once per pair', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const send = jest.fn();
+    adapter.ws = { readyState: 1, send };
+
+    expect(adapter.subscribeOrderBookPair('BTC-USD')).toBe(true);
+    expect(adapter.subscribeOrderBookPair('XBT/USD')).toBe(true);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(send.mock.calls[0][0])).toMatchObject({
+      event: 'subscribe',
+      pair: ['XBT/USD'],
+      subscription: { name: 'book', depth: 25 }
+    });
   });
 });

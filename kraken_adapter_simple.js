@@ -36,6 +36,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const querystring = require('querystring');
 const WebSocket = require('ws');
+const KrakenDepth = require('./server/kraken-depth-adapter');
 
 class KrakenAdapterSimple {
   constructor(config = {}) {
@@ -51,6 +52,10 @@ class KrakenAdapterSimple {
 
     // Latest price storage for fallback access
     this.currentPrices = new Map(); // Store latest price per asset
+    this.lastBookSnapshots = new Map();
+    this.wsPairs = this.resolveWebSocketPairs(config);
+    this.bookSubscriptions = new Set();
+    this.depthLiveSymbolTimestamps = new Map();
 
     // WebSocket reconnect management
     this.reconnectAttempts = 0;
@@ -484,6 +489,80 @@ class KrakenAdapterSimple {
     return null;
   }
 
+  toKrakenWsPair(symbol) {
+    const normalized = this.normalizeKrakenWsPair(symbol);
+    if (!normalized || !this.isCanonicalDashboardSymbol(normalized)) return null;
+
+    const map = {
+      'BTC-USD': 'XBT/USD',
+      'ETH-USD': 'ETH/USD',
+      'SOL-USD': 'SOL/USD',
+      'XRP-USD': 'XRP/USD',
+      'ADA-USD': 'ADA/USD',
+      'DOT-USD': 'DOT/USD',
+      'AVAX-USD': 'AVAX/USD',
+      'LINK-USD': 'LINK/USD',
+      'MATIC-USD': 'MATIC/USD',
+      'UNI-USD': 'UNI/USD',
+      'ATOM-USD': 'ATOM/USD',
+      'LTC-USD': 'LTC/USD',
+      'DOGE-USD': 'XDG/USD',
+      'SHIB-USD': 'SHIB/USD',
+      'APT-USD': 'APT/USD',
+      'ARB-USD': 'ARB/USD',
+      'OP-USD': 'OP/USD'
+    };
+    if (map[normalized]) return map[normalized];
+
+    const parts = normalized.split('-');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+    return `${parts[0]}/${parts[1]}`;
+  }
+
+  _collectConfiguredSymbols(value, out) {
+    if (Array.isArray(value)) {
+      for (const item of value) this._collectConfiguredSymbols(item, out);
+      return;
+    }
+    if (typeof value !== 'string') return;
+    for (const token of value.split(',')) {
+      const trimmed = token.trim();
+      if (trimmed) out.push(trimmed);
+    }
+  }
+
+  resolveWebSocketPairs(config = {}) {
+    const symbols = [];
+    this._collectConfiguredSymbols(config.wsPairs, symbols);
+    this._collectConfiguredSymbols(config.tradingPairs, symbols);
+    this._collectConfiguredSymbols(config.symbols, symbols);
+    this._collectConfiguredSymbols(config.tradingPair, symbols);
+
+    const pairs = [];
+    const seen = new Set();
+    for (const symbol of symbols) {
+      const pair = this.toKrakenWsPair(symbol);
+      if (!pair) {
+        throw new Error(`[Kraken] Invalid configured websocket symbol: ${symbol}`);
+      }
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+      pairs.push(pair);
+    }
+    return pairs;
+  }
+
+  getWebSocketPairs(overrideSymbols = null) {
+    const pairs = overrideSymbols
+      ? this.resolveWebSocketPairs({ symbols: overrideSymbols })
+      : this.wsPairs;
+
+    if (!Array.isArray(pairs) || pairs.length === 0) {
+      throw new Error('[Kraken] WebSocket stream requires config.tradingPair, config.symbols, config.tradingPairs, or explicit subscribe symbol');
+    }
+    return pairs;
+  }
+
   isCanonicalDashboardSymbol(symbol) {
     return /^[A-Z0-9]+-[A-Z0-9]+$/.test(String(symbol || ''));
   }
@@ -513,6 +592,60 @@ class KrakenAdapterSimple {
         source: 'kraken'
       }
     };
+  }
+
+  buildDepthCallbackFrame(symbol, bids, asks, timestamp = Date.now()) {
+    if (!this.isCanonicalDashboardSymbol(symbol)) {
+      console.error(`[Kraken] BUILD_DEPTH_INVALID_SYMBOL: ${String(symbol)}`);
+      return null;
+    }
+
+    const hasDepthSnapshot = (Array.isArray(bids) && bids.length > 10)
+      || (Array.isArray(asks) && asks.length > 10);
+    const depthTimestamp = Number(timestamp);
+    const now = Number.isFinite(depthTimestamp) ? depthTimestamp : Date.now();
+    const previousLiveAt = this.depthLiveSymbolTimestamps.get(symbol);
+    const stillFresh = Number.isFinite(previousLiveAt) && (now - previousLiveAt) <= this.dataTimeout;
+    const isLive = hasDepthSnapshot || stillFresh;
+    if (isLive) {
+      this.depthLiveSymbolTimestamps.set(symbol, now);
+    } else {
+      this.depthLiveSymbolTimestamps.delete(symbol);
+    }
+
+    const frame = KrakenDepth.process({
+      bids,
+      asks,
+      timestamp,
+      source: 'kraken',
+      isLive
+    }, {
+      symbol,
+      timestamp,
+      source: 'kraken',
+      isLive
+    });
+    if (!frame) {
+      console.warn(`[Kraken] WS_BOOK_INVALID_LEVELS: no usable bid/ask levels for ${symbol}`);
+    }
+    return frame;
+  }
+
+  subscribeOrderBookPair(symbol) {
+    const pair = this.toKrakenWsPair(symbol);
+    if (!pair) {
+      throw new Error(`[Kraken] subscribeOrderBookPair requires valid symbol: ${String(symbol)}`);
+    }
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+    if (this.bookSubscriptions.has(pair)) return true;
+
+    this.ws.send(JSON.stringify({
+      event: 'subscribe',
+      pair: [pair],
+      subscription: { name: 'book', depth: 25 }
+    }));
+    this.bookSubscriptions.add(pair);
+    return true;
   }
 
   validateOrder(order) {
@@ -735,13 +868,37 @@ class KrakenAdapterSimple {
   }
 
   // Add WebSocket streaming for real-time price data
-  async connectWebSocketStream(onPriceUpdate) {
+  async connectWebSocketStream(symbolOrCallback, maybeCallback) {
+    const explicitSymbols = typeof symbolOrCallback === 'string'
+      ? [symbolOrCallback]
+      : Array.isArray(symbolOrCallback)
+        ? symbolOrCallback
+        : null;
+    const onPriceUpdate = typeof symbolOrCallback === 'function'
+      ? symbolOrCallback
+      : typeof maybeCallback === 'function'
+        ? maybeCallback
+        : null;
+
     try {
       // Public WebSocket for market data (no auth needed for public feeds)
       this.ws = new WebSocket('wss://ws.kraken.com');
 
       this.ws.on('open', () => {
         console.log('[Kraken] WebSocket connected');
+        let wsPairs;
+        try {
+          wsPairs = this.getWebSocketPairs(explicitSymbols);
+        } catch (error) {
+          console.error(`[Kraken] WebSocket subscription refused: ${error.message}`);
+          this.connected = false;
+          try {
+            this.ws.close();
+          } catch (closeError) {
+            console.error(`[Kraken] WebSocket close after subscription refusal failed: ${closeError.message}`);
+          }
+          return;
+        }
 
         // FIX 2026-02-04: Set connected flag so onclose handler will auto-reconnect
         // THIS WAS THE BUG: connectWebSocketStream() never set this.connected = true
@@ -759,7 +916,7 @@ class KrakenAdapterSimple {
         // Subscribe to both ticker AND OHLC data
         const tickerSub = {
           event: 'subscribe',
-          pair: ['XBT/USD'],  // Kraken uses XBT for Bitcoin
+          pair: wsPairs,
           subscription: {
             name: 'ticker'
           }
@@ -774,7 +931,7 @@ class KrakenAdapterSimple {
         for (const interval of ohlcIntervals) {
           const ohlcSub = {
             event: 'subscribe',
-            pair: ['XBT/USD'],
+            pair: wsPairs,
             subscription: {
               name: 'ohlc',
               interval: interval
@@ -785,11 +942,14 @@ class KrakenAdapterSimple {
         // Subscribe to order book for depth/whale wall detection
         const bookSub = {
           event: 'subscribe',
-          pair: [this.tradingPair],
+          pair: wsPairs,
           subscription: { name: 'book', depth: 25 }
         };
         this.ws.send(JSON.stringify(bookSub));
-        console.log('[Kraken] Multi-timeframe subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25)');
+        this.bookSubscriptions.clear();
+        this.depthLiveSymbolTimestamps.clear();
+        for (const pair of wsPairs) this.bookSubscriptions.add(pair);
+        console.log(`[Kraken] Multi-timeframe subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25) for ${wsPairs.join(',')}`);
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that
@@ -926,17 +1086,34 @@ class KrakenAdapterSimple {
             const bookData = msg[1];
             const bids = bookData.bs || bookData.b || [];
             const asks = bookData.as || bookData.a || [];
+            const symbol = this.normalizeKrakenWsPair(msg[3]);
+            if (!symbol) {
+              console.error(`[Kraken] WS_BOOK_UNATTRIBUTED: missing/unknown book pair (${String(msg[3])})`);
+              return;
+            }
+            if (!this.isCanonicalDashboardSymbol(symbol)) {
+              console.error(`[Kraken] WS_BOOK_INVALID_SYMBOL: ${symbol}`);
+              return;
+            }
             if (bids.length > 0 || asks.length > 0) {
-              // Store for depth adapter consumption
-              this.lastBookSnapshot = { bids, asks, timestamp: Date.now() };
-              // Emit to callback if registered
+              const timestamp = Date.now();
+              const depthFrame = this.buildDepthCallbackFrame(symbol, bids, asks, timestamp);
+              if (!depthFrame) return;
+
+              // Store latest book frame per symbol for direct inspection.
+              this.lastBookSnapshots.set(symbol, depthFrame);
+              this.lastBookSnapshot = depthFrame;
+
+              if (onPriceUpdate) {
+                onPriceUpdate(depthFrame);
+              }
               if (this.onBookUpdate) {
-                this.onBookUpdate(this.lastBookSnapshot);
+                this.onBookUpdate(depthFrame);
               }
             }
           }
         } catch (err) {
-          // Ignore non-JSON messages (Kraken sends heartbeats)
+          console.warn(`[Kraken] WS_MESSAGE_PARSE_FAILED: ${err.message}`);
         }
       });
 
@@ -946,6 +1123,8 @@ class KrakenAdapterSimple {
 
       this.ws.on('close', () => {
         console.log('[Kraken] WebSocket disconnected');
+        this.depthLiveSymbolTimestamps.clear();
+        this.bookSubscriptions.clear();
 
         // CHANGE 2026-01-21: Clear heartbeat interval on disconnect
         if (this.pingInterval) {
@@ -1033,6 +1212,8 @@ class KrakenAdapterSimple {
       clearInterval(this.dataWatchdogInterval);
       this.dataWatchdogInterval = null;
     }
+    this.depthLiveSymbolTimestamps.clear();
+    this.bookSubscriptions.clear();
     if (this.ws) {
       this.ws.close();
       this.ws = null;

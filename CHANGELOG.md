@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Kraken Depth Update Dashboard Contract (2026-05-29)
+
+- Added scoped Kraken `depth_update` websocket frames from real book feed data so liquidity-wall panels can render from broker evidence instead of staying disconnected.
+- Changed Kraken WebSocket subscriptions to use configured trading symbols for ticker, OHLC, and book feeds instead of the undefined `this.tradingPair` book subscription value.
+
 ### Dashboard Price Indicator DTO (2026-05-29)
 
 - Changed dashboard `price.indicators` frames to carry an explicit numeric readout DTO for RSI, ATR, MACD, MACD signal, MACD histogram, and volume instead of leaking render-packet indicator objects.

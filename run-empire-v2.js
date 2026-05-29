@@ -745,15 +745,21 @@ class OGZPrimeV14Bot {
 
     if (sessionRouterEnabled) {
       console.log('[EMPIRE V2] SessionRouter ENABLED — creating Kraken + Alpaca adapters');
+      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const primaryCryptoSymbol = Array.isArray(sessionsCfg.cryptoSymbols) ? sessionsCfg.cryptoSymbols[0] : null;
+      if (!primaryCryptoSymbol) {
+        throw new Error('[SessionRouter] cryptoSymbols[0] missing — refusing to configure Kraken depth feed');
+      }
       const krakenAdapter = createBrokerAdapter('kraken', {
         apiKey: resolvedConfig.config.broker.apiKey,
         apiSecret: resolvedConfig.config.broker.apiSecret,
+        tradingPair: primaryCryptoSymbol,
+        symbols: [primaryCryptoSymbol],
       });
       const alpacaAdapter = createBrokerAdapter('alpaca', {});
 
       this.orderRouter = new OrderRouter();
 
-      const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
       const stockSymbols = (process.env.ALPACA_SYMBOLS
         ? process.env.ALPACA_SYMBOLS.split(',').map(s => s.trim())
         : sessionsCfg.stockSymbols);
@@ -878,6 +884,10 @@ class OGZPrimeV14Bot {
       };
 
       this.sessionRouter.wire(krakenAdapter, alpacaAdapter, this.orderRouter, ohlcHandler, this);
+      this.attachDashboardDepthUpdates(krakenAdapter, () => (
+        this.sessionRouter?.activeSession === 'crypto'
+        && this.sessionRouter?.activeBroker === krakenAdapter
+      ), [primaryCryptoSymbol]);
 
       // Default this.kraken to alpaca; SessionRouter.start() corrects via initial
       // activation, and the transition listener keeps this.kraken in sync after.
@@ -898,7 +908,12 @@ class OGZPrimeV14Bot {
       // adapter BrokerFactory returns.
       const brokerId = resolvedConfig.config.broker.id;
       const adapterOptions = brokerId === 'kraken'
-        ? { apiKey: resolvedConfig.config.broker.apiKey, apiSecret: resolvedConfig.config.broker.apiSecret }
+        ? {
+            apiKey: resolvedConfig.config.broker.apiKey,
+            apiSecret: resolvedConfig.config.broker.apiSecret,
+            tradingPair: resolvedConfig.config.broker.tradingPair,
+            symbols: [resolvedConfig.config.broker.tradingPair],
+          }
         : {};
       this.kraken = createBrokerAdapter(brokerId, adapterOptions);
       console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
@@ -915,6 +930,9 @@ class OGZPrimeV14Bot {
         ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
         : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
       this.orderRouter.registerBroker(this.kraken, routedSymbols);
+      if (brokerId === 'kraken') {
+        this.attachDashboardDepthUpdates(this.kraken, () => true, [resolvedConfig.config.broker.tradingPair]);
+      }
       this.ttpCutoffSymbols = brokerId === 'alpaca' ? routedSymbols : [];
       console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
     }
@@ -1692,6 +1710,58 @@ class OGZPrimeV14Bot {
       console.error('[BOOT] Startup failed:', error.message);
       await this.shutdown();
     }
+  }
+
+  attachDashboardDepthUpdates(adapter, isActive, allowedSymbols = []) {
+    if (!adapter || typeof adapter.on !== 'function') return false;
+    if (typeof isActive !== 'function') {
+      throw new Error('[DashboardDepth] attachDashboardDepthUpdates requires an active-session guard');
+    }
+    if (!this._dashboardDepthAdapters) this._dashboardDepthAdapters = new WeakSet();
+    if (this._dashboardDepthAdapters.has(adapter)) return true;
+    const allowed = new Set();
+    for (const rawSymbol of (Array.isArray(allowedSymbols) ? allowedSymbols : [allowedSymbols])) {
+      const normalized = normalizeRuntimeSymbol(rawSymbol);
+      if (!normalized || !normalized.includes('-')) {
+        throw new Error(`[DashboardDepth] invalid allowed depth symbol: ${String(rawSymbol)}`);
+      }
+      allowed.add(normalized);
+    }
+    if (allowed.size === 0) {
+      throw new Error('[DashboardDepth] attachDashboardDepthUpdates requires at least one allowed symbol');
+    }
+
+    adapter.on('depth_update', (frame) => {
+      if (!isActive()) return;
+      if (!frame || frame.type !== 'depth_update') return;
+
+      const symbol = normalizeRuntimeSymbol(frame.symbol);
+      if (!symbol) {
+        this.emitDashboardErrorEvent('depth_update.missing_symbol', new Error('depth_update frame missing symbol'));
+        return;
+      }
+      if (!allowed.has(symbol)) {
+        this.emitDashboardErrorEvent('depth_update.unconfigured_symbol', new Error(`depth_update symbol not configured: ${symbol}`), { symbol });
+        return;
+      }
+      if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return;
+
+      try {
+        this.dashboardWs.send(JSON.stringify({
+          ...frame,
+          symbol,
+          data: {
+            ...(frame.data && typeof frame.data === 'object' ? frame.data : {}),
+            symbol,
+          },
+        }));
+      } catch (error) {
+        this.emitDashboardErrorEvent('depth_update.dashboard_broadcast', error, { symbol });
+      }
+    });
+
+    this._dashboardDepthAdapters.add(adapter);
+    return true;
   }
 
   /**
