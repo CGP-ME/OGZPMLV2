@@ -332,6 +332,7 @@
 
         /* Right rail mount points */
         #openPositions,
+        #edgeAnalyticsPanel,
         #traiBrain,
         #sizePreview,
         #riskGauge,
@@ -350,43 +351,54 @@
             min-height: 150px;
         }
 
-        /* Chain of thought — ribbon below main grid */
+        /* Chain of thought — left rail top slot */
         #chainOfThought {
-            height: 140px;
-            border-top: 1px solid var(--border-color);
-            background: var(--bg-secondary);
+            flex: 1 1 auto;
+            min-height: 240px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             padding: 12px;
             overflow-y: auto;
-            flex-shrink: 0;
-            z-index: 5;
         }
 
-        /* Live trade report — Gate H quiet-period band (full-width, between the
-           main grid and the Chain of Thought ribbon). Visual styling (bg,
-           border, radius, padding) is owned by live-report.js's injected CSS;
-           only layout/flow lives here so the two rules don't fight. */
-        #liveReport {
-            flex-shrink: 0;
-            max-height: 240px;
-            overflow-y: auto;
-            margin: 12px;
-        }
-
-        /* Footer: equity curve + system health */
-        footer.dash-footer {
-            height: 135px;
-            border-top: 1px solid var(--border-color);
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
+        /* Bottom row: equity curve + live trade report */
+        .dash-bottom-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             padding: 12px;
+            min-height: 280px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        #liveReport {
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        #equityCurve {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        /* Footer: slim system health strip */
+        footer.dash-footer {
+            min-height: 56px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 8px 12px;
             flex-shrink: 0;
             z-index: 10;
         }
 
-        #equityCurve,
         #systemHealth {
             background: var(--bg-panel);
             border: 1px solid var(--border-color);
@@ -468,14 +480,20 @@
             #newsTicker     { height: 56px; padding: 6px 8px; }
             main.dash-main-grid { padding: 8px; gap: 8px; }
             #strategyLeaderboard { min-height: 120px; max-height: 200px; }
-            #liveReport { margin: 8px; max-height: 320px; }
-            #chainOfThought { height: 120px; padding: 8px; }
-            footer.dash-footer {
-                height: auto;
-                min-height: 120px;
-                grid-template-columns: 1fr;   /* stack equity + system-health */
+            #chainOfThought { min-height: 160px; padding: 8px; }
+            .dash-bottom-row {
+                grid-template-columns: 1fr;
+                min-height: 0;
                 padding: 8px;
                 gap: 8px;
+            }
+            #liveReport,
+            #equityCurve {
+                min-height: 240px;
+            }
+            footer.dash-footer {
+                min-height: 48px;
+                padding: 6px 8px;
             }
         }
 
@@ -483,10 +501,16 @@
             header#dashHeader { padding: 4px 8px; gap: 6px; }
             #watchlistStrip { height: 84px; padding: 6px; }
             #newsTicker     { height: 48px; padding: 4px 6px; font-size: 10px; }
-            #chainOfThought { height: 96px; padding: 6px; }
-            #liveReport { margin: 6px; max-height: 280px; }
-            footer.dash-footer { min-height: 96px; padding: 6px; gap: 6px; }
-            #systemHealth, #equityCurve { padding: 6px; font-size: 10px; }
+            #chainOfThought { min-height: 140px; padding: 6px; }
+            .dash-bottom-row { padding: 6px; gap: 6px; }
+            #liveReport,
+            #equityCurve {
+                min-height: 200px;
+                padding: 6px;
+                font-size: 10px;
+            }
+            footer.dash-footer { min-height: 40px; padding: 4px 6px; }
+            #systemHealth { padding: 6px; font-size: 10px; }
             /* Body-level guard: prevent any rogue child from forcing
                horizontal scroll on a phone-width viewport. */
             body { overflow-x: hidden; }
@@ -533,16 +557,15 @@
     <main class="dash-main-grid">
 
         <!-- ====================================================================
-             LEFT RAIL: Edge Analytics + Confidence Heatbar
+             LEFT RAIL: Chain of Thought + Confidence Heatbar
              ==================================================================== -->
         <aside class="dash-left-rail">
 
-            <!-- Edge Analytics Panel — Phase 5 refactor.
-                 Self-rendering module: public/js/panels/edge-analytics-panel.js
-                 Builds the 8-section scaffold (Liquidation, CVD, Funding, Whales,
-                 Internals, Smart Money, Fear & Greed, Divergences) at mount time.
-                 All legacy child IDs (cvdValue, fgFill, etc.) preserved inside. -->
-            <div id="edgeAnalyticsPanel"></div>
+            <!-- Chain of Thought -->
+            <!-- Status: SHIPPED — public/js/panels/chain-of-thought.js
+                 Streaming reasoning ribbon. Newest line at bottom. Bot's live decision narration.
+                 Subscribes to narrator_event (verified) + bot_thinking + signal_analysis. -->
+            <div id="chainOfThought"></div>
 
             <!-- Confidence Heatbar (Phase E) -->
             <!-- Status: Module exists as public/js/panels/confidence-heatbar.js
@@ -593,7 +616,7 @@
         </section>
 
         <!-- ====================================================================
-             RIGHT RAIL: Positions, TRAI Brain, Size Preview, Risk Gauge, Trade Log
+             RIGHT RAIL: Positions, Edge Analytics, TRAI Brain, Size Preview, Risk Gauge, Trade Log
              ==================================================================== -->
         <aside class="dash-right-rail">
 
@@ -603,6 +626,13 @@
                  One row per position. Aggregate P&L at top. Live price updates.
                  Highlights selected ticker's position with gold border. -->
             <div id="openPositions"></div>
+
+            <!-- Edge Analytics Panel — Phase 5 refactor.
+                 Self-rendering module: public/js/panels/edge-analytics-panel.js
+                 Builds the 8-section scaffold (Liquidation, CVD, Funding, Whales,
+                 Internals, Smart Money, Fear & Greed, Divergences) at mount time.
+                 All legacy child IDs (cvdValue, fgFill, etc.) preserved inside. -->
+            <div id="edgeAnalyticsPanel"></div>
 
             <!-- TRAI Brain Panel -->
             <!-- Status: SHIPPED — public/js/panels/trai-brain.js
@@ -634,48 +664,29 @@
     </main>
 
     <!-- ========================================================================
-         LIVE TRADE REPORT (Gate H) — quiet-period honest view
-         Module: public/js/panels/live-report.js — self-renders into #liveReport.
-         Full-width band between the main grid and the Chain of Thought ribbon.
+         BOTTOM ROW: Equity Curve + Live Trade Report
          ======================================================================== -->
-    <div id="liveReport"></div>
-
-    <!-- ========================================================================
-         CHAIN OF THOUGHT RIBBON
-
-         Status: NOT YET EXTRACTED FROM MONOLITH
-         Current state: Inline in unified-dashboard.html (trai-widget.js narrative output)
-         TODO: Determine if CoT should be a dedicated panel or remain tightly coupled
-               to the root-level TRAI widget system.
-         For now: Empty mount point. trai-widget.js may populate this directly.
-         ======================================================================== -->
-    <!-- Status: SHIPPED — public/js/panels/chain-of-thought.js
-         Streaming reasoning ribbon. Newest line at bottom. Bot's live decision narration.
-         Subscribes to narrator_event (verified) + bot_thinking + signal_analysis. -->
-    <div id="chainOfThought"></div>
-
-    <!-- ========================================================================
-         FOOTER: Equity Curve + System Health
-         ======================================================================== -->
-    <footer class="dash-footer">
+    <section class="dash-bottom-row">
 
         <!-- Equity Curve (Daily/Weekly/Monthly PnL chart) -->
-        <!-- Status: NOT YET EXTRACTED FROM MONOLITH
-             Current state: Inline in unified-dashboard.html
-             TODO: Extract to public/js/panels/equity-curve.js
-             For now: Leave empty. -->
         <!-- Status: SHIPPED — public/js/panels/equity-curve.js
              SVG line chart matching /proof/track-record/ visuals. Profit target + DD floor
              dashed lines. Trade markers along curve. Range selector (1D/7D/30D/ALL). -->
         <div id="equityCurve"></div>
 
+        <!-- Live Trade Report (Gate H) — quiet-period honest view
+             Module: public/js/panels/live-report.js — self-renders into #liveReport. -->
+        <div id="liveReport"></div>
+    </section>
+
+    <!-- ========================================================================
+         FOOTER: System Health
+         ======================================================================== -->
+    <footer class="dash-footer">
+
         <!-- System Health (Bot status, feed latency, API status) -->
-        <!-- Status: NOT YET EXTRACTED FROM MONOLITH
-             Current state: Status lights inline in header + system-snapshot.js (limited)
-             TODO: Consolidate health indicators into a dedicated system-health.js panel
-             For now: Leave empty. system-snapshot.js may populate this. -->
         <!-- Status: SHIPPED — public/js/panels/system-health.js
-             Footer health strip: SessionRouter, broker WS, errors, uptime, last crash, risk posture, commit.
+             Footer health strip: SessionRouter, broker WS, errors, uptime, risk posture, commit.
              Polls /api/health every 30s + listens to WS state_update / error_event / broker_status. -->
         <div id="systemHealth"></div>
     </footer>
