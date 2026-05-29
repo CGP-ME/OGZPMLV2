@@ -561,11 +561,13 @@ const GATES = [
       const previousEnv = {
         BACKTEST_MODE: process.env.BACKTEST_MODE,
         CANDLE_DATA_FILE: process.env.CANDLE_DATA_FILE,
-        BACKTEST_NO_PATTERN_SAVE: process.env.BACKTEST_NO_PATTERN_SAVE
+        BACKTEST_NO_PATTERN_SAVE: process.env.BACKTEST_NO_PATTERN_SAVE,
+        DATA_DIR: process.env.DATA_DIR
       };
       process.env.BACKTEST_MODE = 'true';
       process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
       process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
+      process.env.DATA_DIR = path.join(os.tmpdir(), `pattern-bank-gate-root-${Date.now()}`);
 
       try {
         const features = patternFeatures();
@@ -644,9 +646,53 @@ const GATES = [
           'PatternMemoryBank must refuse unscoped learned-state path'
         );
 
+        assert.throws(
+          () => new PatternMemoryBank({
+            ...patternScope(),
+            dbPath: path.join(os.tmpdir(), `pattern-bank-gate-outside-${Date.now()}.json`),
+            featureFlags: {
+              PATTERN_MEMORY_PARTITION: {
+                settings: { backtestPersist: false }
+              }
+            }
+          }),
+          /PatternMemoryBank\.dbPath resolves outside learned-state root/,
+          'PatternMemoryBank must refuse caller paths outside learned-state root'
+        );
+
+        assert.throws(
+          () => new PatternMemoryBank({
+            ...patternScope(),
+            dbPath: path.join(process.env.DATA_DIR, '..', `pattern-bank-gate-escaped-${Date.now()}.json`),
+            featureFlags: {
+              PATTERN_MEMORY_PARTITION: {
+                settings: { backtestPersist: false }
+              }
+            }
+          }),
+          /PatternMemoryBank\.dbPath resolves outside learned-state root/,
+          'PatternMemoryBank must refuse dbPath traversal through learned-state root'
+        );
+
+        assert.throws(
+          () => new PatternMemoryBank({
+            ...patternScope(),
+            featureFlags: {
+              PATTERN_MEMORY_PARTITION: {
+                settings: {
+                  backtest: '../escaped-patterns.json',
+                  backtestPersist: false
+                }
+              }
+            }
+          }),
+          /PatternMemoryBank\.memoryFile resolves outside learned-state root/,
+          'PatternMemoryBank must refuse partition filenames outside learned-state root'
+        );
+
         const bank = new PatternMemoryBank({
           ...patternScope(),
-          dbPath: path.join(os.tmpdir(), `pattern-bank-gate-${Date.now()}.json`),
+          dbPath: path.join(process.env.DATA_DIR, `pattern-bank-gate-${Date.now()}.json`),
           featureFlags: {
             PATTERN_MEMORY_PARTITION: {
               settings: { backtestPersist: false }

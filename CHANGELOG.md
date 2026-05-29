@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PatternMemoryBank Learned-State Path Guard (2026-05-29)
+
+- Required explicit `PatternMemoryBank` `dbPath` values and partition override filenames to resolve to `.json` files under the configured learned-state root before any load/save path is accepted.
+- Added focused and executable gate coverage for absolute path escape, `..` traversal through the learned-state root, and partition filename escape attempts.
+
 ### Unified Pattern Memory Private Store (2026-05-29)
 
 - Moved `UnifiedPatternMemory` live pattern rows behind a private store and changed the public `patterns` surface to return a cloned snapshot, so external callers can inspect learned rows without mutating the active memory used by scoped reads, pruning, saving, or loading.

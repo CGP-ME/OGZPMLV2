@@ -76,6 +76,24 @@ const MIN_AVG_R_PROMOTE = 0.15;
 const MAX_WINRATE_QUAR = 0.45;
 const MAX_PATTERNS = 10000;
 
+function assertJsonPathInsideRoot(candidatePath, rootDir, label) {
+    if (typeof candidatePath !== 'string' || candidatePath.trim() === '') {
+        throw new Error(`${label} must be a non-empty JSON path`);
+    }
+    if (!candidatePath.endsWith('.json')) {
+        throw new Error(`${label} must end with .json`);
+    }
+
+    const root = path.resolve(rootDir);
+    const resolved = path.resolve(root, candidatePath);
+    const relative = path.relative(root, resolved);
+    if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`${label} resolves outside learned-state root: ${resolved}`);
+    }
+
+    return resolved;
+}
+
 class PatternMemoryBank {
     constructor(config = {}) {
         // Mode-aware pattern memory persistence to prevent contamination
@@ -99,6 +117,8 @@ class PatternMemoryBank {
         }
         const scopeSuffix = `.${constructorScope.brokerId}.${constructorScope.accountId}.${constructorScope.assetClass}.${constructorScope.symbol}.${constructorScope.timeframe}`;
 
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
+
         // Determine file based on mode
         let memoryFile = 'learned_patterns.json';
         if (partitionSettings[mode]) {
@@ -116,13 +136,12 @@ class PatternMemoryBank {
 
         // If dbPath is provided in config, modify it based on mode
         if (config.dbPath) {
-            const basePath = config.dbPath.replace('.json', '');
-            this.dbPath = `${basePath}.${mode}${scopeSuffix}.json`;
-            this.backupPath = `${basePath}.${mode}${scopeSuffix}.backup.json`;
+            const basePath = config.dbPath.replace(/\.json$/, '');
+            this.dbPath = assertJsonPathInsideRoot(`${basePath}.${mode}${scopeSuffix}.json`, dataDir, 'PatternMemoryBank.dbPath');
+            this.backupPath = assertJsonPathInsideRoot(`${basePath}.${mode}${scopeSuffix}.backup.json`, dataDir, 'PatternMemoryBank.backupPath');
         } else {
-            const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
-            this.dbPath = path.join(dataDir, memoryFile);
-            this.backupPath = path.join(dataDir, memoryFile.replace('.json', '.backup.json'));
+            this.dbPath = assertJsonPathInsideRoot(memoryFile, dataDir, 'PatternMemoryBank.memoryFile');
+            this.backupPath = assertJsonPathInsideRoot(memoryFile.replace(/\.json$/, '.backup.json'), dataDir, 'PatternMemoryBank.backupPath');
         }
 
         // Disable persistence for backtest mode if configured

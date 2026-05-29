@@ -45,6 +45,7 @@ describe('Pattern memory scope isolation', () => {
     process.env.BACKTEST_MODE = 'true';
     process.env.CANDLE_DATA_FILE = 'tuning/tsla-15m-18mo.json';
     process.env.BACKTEST_NO_PATTERN_SAVE = 'true';
+    process.env.DATA_DIR = path.join(os.tmpdir(), `pattern-memory-scope-${Date.now()}`);
     consoleSpies = [
       jest.spyOn(console, 'log').mockImplementation(() => {}),
       jest.spyOn(console, 'warn').mockImplementation(() => {}),
@@ -130,7 +131,7 @@ describe('Pattern memory scope isolation', () => {
 
   test('PatternMemoryBank hashes and records by immutable scope', () => {
     const PatternMemoryBank = require('../core/PatternMemoryBank');
-    const dbPath = path.join(os.tmpdir(), `pattern-bank-scope-${Date.now()}.json`);
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-scope-${Date.now()}.json`);
     const bank = new PatternMemoryBank({
       ...scope(),
       dbPath,
@@ -174,5 +175,51 @@ describe('Pattern memory scope isolation', () => {
         },
       },
     })).toThrow(/PatternMemoryBank\.constructor missing immutable pattern scope field\(s\)/);
+  });
+
+  test('PatternMemoryBank rejects dbPath outside learned-state root', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const outsidePath = path.join(os.tmpdir(), `pattern-bank-outside-${Date.now()}.json`);
+
+    expect(() => new PatternMemoryBank({
+      ...scope(),
+      dbPath: outsidePath,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    })).toThrow(/PatternMemoryBank\.dbPath resolves outside learned-state root/);
+  });
+
+  test('PatternMemoryBank rejects dbPath traversal through learned-state root', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const traversalPath = path.join(process.env.DATA_DIR, '..', `pattern-bank-escaped-${Date.now()}.json`);
+
+    expect(() => new PatternMemoryBank({
+      ...scope(),
+      dbPath: traversalPath,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    })).toThrow(/PatternMemoryBank\.dbPath resolves outside learned-state root/);
+  });
+
+  test('PatternMemoryBank rejects partition filenames outside learned-state root', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+
+    expect(() => new PatternMemoryBank({
+      ...scope(),
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: {
+            backtest: '../escaped-patterns.json',
+            backtestPersist: false,
+          },
+        },
+      },
+    })).toThrow(/PatternMemoryBank\.memoryFile resolves outside learned-state root/);
   });
 });
