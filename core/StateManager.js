@@ -402,8 +402,51 @@ class StateManager {
    * - position increases by size (USD)
    */
   async openPosition(size, price, context = {}) {
-    const tradeAction = context.action || 'BUY';
-    const tradeDirection = context.direction || (tradeAction === 'SELL_SHORT' ? 'short' : 'long');
+    const identityMissing = [];
+    const cleanIdentityText = (value, field) => {
+      if (value === null || value === undefined) {
+        identityMissing.push(field);
+        return null;
+      }
+      const cleaned = String(value).trim();
+      if (!cleaned) {
+        identityMissing.push(field);
+        return null;
+      }
+      return cleaned;
+    };
+    const tradeId = cleanIdentityText(context.orderId, 'orderId');
+    const tradeAction = cleanIdentityText(context.action, 'action');
+    const tradeDirection = cleanIdentityText(context.direction, 'direction');
+    const entryStrategy = cleanIdentityText(context.entryStrategy, 'entryStrategy');
+    if (identityMissing.length > 0) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition missing immutable entry identity field(s): ${identityMissing.join(', ')}`,
+        identityMissing,
+        context
+      );
+    }
+    if (!['BUY', 'SELL_SHORT'].includes(tradeAction)) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition unsupported action ${tradeAction}`,
+        ['action'],
+        context
+      );
+    }
+    if (!['long', 'short'].includes(tradeDirection)) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition unsupported direction ${tradeDirection}`,
+        ['direction'],
+        context
+      );
+    }
+    if ((tradeAction === 'BUY' && tradeDirection !== 'long') || (tradeAction === 'SELL_SHORT' && tradeDirection !== 'short')) {
+      return this._rejectOpenPositionIdentity(
+        `StateManager.openPosition action/direction mismatch: action=${tradeAction} direction=${tradeDirection}`,
+        ['action', 'direction'],
+        context
+      );
+    }
     const tradeSymbolRaw = context.symbol
       || (context.ledgerData && context.ledgerData.symbol)
       || null;
@@ -437,7 +480,6 @@ class StateManager {
     // FIX 2026-05-05: promote `symbol` to a top-level trade field (was only
     // present inside decisionLedger sub-object). getEquity/getAvailableCapital
     // and SessionRouter need symbol-aware pricing.
-    const tradeId = context.orderId || `TRADE_${Date.now()}`;
     const tradeSymbol = tradeScope.symbol;
 
     const trade = {
@@ -476,15 +518,12 @@ class StateManager {
     // L1: Attach decision ledger skeleton at trade birth
     if (context.ledgerData) {
       const { createLedgerSkeleton } = require('./dto/DecisionLedgerSchema');
-      // Normalize symbol to dash canonical before writing to ledger (Option A')
-      const rawSymbol = context.ledgerData.symbol || context.symbol || 'unknown';
-      const ledgerSymbol = rawSymbol === 'unknown' ? rawSymbol : String(rawSymbol).toUpperCase().replace('XBT', 'BTC').replace('/', '-');
       trade.decisionLedger = createLedgerSkeleton({
         tradeId,
         candleTimestamp: context.ledgerData.candleTimestamp || Date.now(),
-        symbol: ledgerSymbol,
-        timeframe: context.ledgerData.timeframe || '15m',
-        executionMode: context.ledgerData.executionMode || 'backtest',
+        symbol: tradeScope.symbol,
+        timeframe: tradeScope.timeframe,
+        executionMode: tradeScope.executionMode,
         entryPrice: price,
         direction: tradeDirection,
         strategySignals: context.ledgerData.strategySignals || [],
@@ -538,7 +577,7 @@ class StateManager {
       try {
         narrator.entered({
           tradeId,
-          strategy: context.entryStrategy || 'default',
+          strategy: entryStrategy,
           direction: tradeDirection,
           price,
           sizeUsd: size,
@@ -574,6 +613,19 @@ class StateManager {
 
     const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
     console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionIdentity(message, missingFields = [], context = {}) {
+    const result = {
+      success: false,
+      error: message,
+      code: 'ENTRY_IDENTITY_REJECTED',
+      identityRejected: true,
+      missingFields,
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
     return result;
   }
 

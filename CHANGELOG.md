@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### StateManager Entry Identity Truth Contract (2026-05-29)
+
+- Changed `StateManager.openPosition()` to reject missing or mismatched immutable entry identity (`orderId`, `action`, `direction`, `entryStrategy`) before active-trade mutation, state mutation, narrator entry output, or dashboard projection.
+- Changed the long-entry `OrderExecutor` call site to pass explicit `BUY`/`long` identity into `StateManager` instead of relying on implicit defaults.
+- Changed open-position decision-ledger birth records to use the derived immutable trade scope for `symbol`, `timeframe`, and `executionMode`.
+- Added regression coverage for missing identity fields, action/direction mismatch rejection, and scoped ledger birth fields.
+
 ### Trade Replay Capture Truth Contract (2026-05-29)
 
 - Changed `TradeReplayCapture` to require explicit scoped replay storage, reject incomplete entry captures, and refuse exit replay packets without a matching pending entry capture.

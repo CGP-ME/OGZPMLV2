@@ -974,6 +974,8 @@ class OrderExecutor {
           const entryOrderQuantityUnit = tradeResult.quantityUnit ?? entryPlan.quantityUnit;
           const positionResult = await stateManager.openPosition(adjustedPositionSize, price, {
             orderId: unifiedResult.orderId,
+            action: 'BUY',
+            direction: 'long',
             confidence: decision.confidence,
             patterns: patterns || [],
             entryIndicators: indicators,

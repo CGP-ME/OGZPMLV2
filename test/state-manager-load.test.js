@@ -55,6 +55,9 @@ describe('StateManager load validation', () => {
 
     await manager.openPosition(500, 100, {
       orderId: 'BUY_1',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
       symbol: 'TSLA',
       brokerId: 'alpaca',
       assetClass: 'stocks',

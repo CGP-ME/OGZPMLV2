@@ -12,6 +12,9 @@ describe('StateManager openPosition scope contract', () => {
 
   const fullScope = (overrides = {}) => ({
     orderId: 'OPEN_SCOPE_1',
+    action: 'BUY',
+    direction: 'long',
+    entryStrategy: 'ScopeTestStrategy',
     symbol: 'TSLA',
     brokerId: 'alpaca',
     accountId: 'acct-main',
@@ -76,6 +79,38 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
+  test.each([
+    ['orderId', { orderId: null }],
+    ['action', { action: null }],
+    ['direction', { direction: null }],
+    ['entryStrategy', { entryStrategy: null }],
+  ])('rejects missing immutable entry identity field %s before mutating active trades', async (field, override) => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.openPosition(500, 100, fullScope(override));
+
+    expect(result.success).toBe(false);
+    expect(result.identityRejected).toBe(true);
+    expect(result.code).toBe('ENTRY_IDENTITY_REJECTED');
+    expect(result.missingFields).toContain(field);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('rejects action and direction mismatch before mutating active trades', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      action: 'BUY',
+      direction: 'short',
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.identityRejected).toBe(true);
+    expect(result.error).toContain('action/direction mismatch');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+  });
+
   test('rejects a caller-supplied scopeKey that does not match derived scope', async () => {
     const result = await manager.openPosition(500, 100, fullScope({
       scopeKey: 'paper:alpaca:acct-main:stocks:SPY:15m',
@@ -92,6 +127,9 @@ describe('StateManager openPosition scope contract', () => {
   test('opens a fully scoped trade and stores the derived immutable scope key', async () => {
     const result = await manager.openPosition(500, 100, fullScope({
       scopeKey: expectedScopeKey,
+      ledgerData: {
+        candleTimestamp: Date.parse('2026-05-29T12:00:00.000Z'),
+      },
     }));
 
     expect(result.success).toBe(true);
@@ -106,5 +144,8 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.timeframe).toBe('15m');
     expect(trade.scopeKey).toBe(expectedScopeKey);
     expect(trade.scopeKeyVersion).toBe(2);
+    expect(trade.decisionLedger.symbol).toBe('TSLA');
+    expect(trade.decisionLedger.timeframe).toBe('15m');
+    expect(trade.decisionLedger.executionMode).toBe('paper');
   });
 });

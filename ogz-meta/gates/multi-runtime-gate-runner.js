@@ -93,6 +93,10 @@ function resetStateManager() {
 
 function scopeInput(overrides = {}) {
   return {
+    orderId: 'gate-scoped-open',
+    action: 'BUY',
+    direction: 'long',
+    entryStrategy: 'GateStrategy',
     symbol: 'TSLA',
     brokerId: 'alpaca',
     accountId: 'acct-main',
