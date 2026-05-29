@@ -52,7 +52,7 @@
     <link rel="stylesheet" href="/css/panels/header-strip.css?v=1778198704766">
     <link rel="stylesheet" href="/css/panels/trai-brain.css?v=1778198704778">
     <link rel="stylesheet" href="/css/panels/open-positions.css?v=1778198704782">
-    <link rel="stylesheet" href="/css/panels/chain-of-thought.css?v=1778198704794">
+    <link rel="stylesheet" href="/css/panels/chain-of-thought.css?v=1780065267327">
     <link rel="stylesheet" href="/css/panels/equity-curve.css?v=1778198704794">
     <link rel="stylesheet" href="/css/panels/system-health.css?v=1778198704798">
     <link rel="stylesheet" href="/css/panels/live-readouts.css?v=1778198704834">
@@ -759,12 +759,12 @@
 
     <!-- NEW Modules (v2 shells) -->
     <script src="/js/panels/watchlist-strip.js?v=1780007965824"></script>
-    <script src="/js/panels/news-ticker.js?v=1778309686336"></script>
-    <script src="/js/panels/pattern-card.js?v=1779921655195"></script>
+    <script src="/js/panels/news-ticker.js?v=1780041905373"></script>
+    <script src="/js/panels/pattern-card.js?v=1780064886694"></script>
     <script src="/js/panels/header-strip.js?v=1780007913515"></script>
     <script src="/js/panels/trai-brain.js?v=1778257699149"></script>
     <script src="/js/panels/open-positions.js?v=1780008102308"></script>
-    <script src="/js/panels/chain-of-thought.js?v=1778309335379"></script>
+    <script src="/js/panels/chain-of-thought.js?v=1780065235751"></script>
     <script src="/js/panels/live-report.js?v=1780008291508"></script>
     <script src="/js/panels/equity-curve.js?v=1778309936624"></script>
     <script src="/js/panels/system-health.js?v=1778257698025"></script>
@@ -788,11 +788,15 @@
     <script src="/js/panels/layout-switcher.js?v=1779478645357"></script>
 
     <!-- Phase 5 self-rendering modules (replace legacy chart.js + edge-analytics.js) -->
-    <script src="/js/panels/chart-panel.js?v=1779925726688"></script>
+    <script src="/js/panels/chart-panel.js?v=1780064472177"></script>
     <script src="/js/panels/edge-analytics-panel.js?v=1778309916680"></script>
 
     <!-- Trade replay: click any closed trade → modal with chart + reasoning -->
     <script src="/js/panels/trade-replay.js?v=1778310055065"></script>
+
+    <!-- Frontend Empire: observes module health and normalized frame flow.
+         core.js remains the boot owner; Empire is auto-called by OGZ.init(). -->
+    <script src="/js/run-frontend-empire-v2.js?v=1780066328846"></script>
 
     <!-- Root-level widget (loads last, after all panels registered).
          NOTE: trai-widget.js lives at the public/ root, not in public/js/.
@@ -816,36 +820,16 @@
             if (window.OGZ && typeof window.OGZ.init === 'function') {
                 window.OGZ.init();
 
-                // Phase 5: ChartPanel + EdgeAnalyticsPanel are NOT in OGZ.init()'s
-                // hardcoded sequence (core.js still references the legacy 'Chart'
-                // and 'Edge' module names). Explicit init required for both.
-                if (window.OGZ.get && window.OGZ.get('ChartPanel')) {
-                    try { window.OGZ.get('ChartPanel').init(); }
-                    catch (e) { console.warn('[Dashboard v2] ChartPanel.init() failed:', e); }
-                }
-                if (window.OGZ.get && window.OGZ.get('EdgeAnalyticsPanel')) {
-                    try { window.OGZ.get('EdgeAnalyticsPanel').init(); }
-                    catch (e) { console.warn('[Dashboard v2] EdgeAnalyticsPanel.init() failed:', e); }
-                }
-
                 if (window.OGZ.get && window.OGZ.get('Theme')) {
                     try { window.OGZ.get('Theme').init(); }
                     catch (e) { console.warn('[Dashboard v2] Theme.init() failed:', e); }
                 }
-                if (window.OGZ.get && window.OGZ.get('TradeReplay')) {
-                    try { window.OGZ.get('TradeReplay').init(); }
-                    catch (e) { console.warn('[Dashboard v2] TradeReplay.init() failed:', e); }
-                }
 
-                // NOTE: The Phase 1 celebration chain (CustomAlerts, Victory-
-                // Animations, LossRecovery, MilestoneEffects, GoalTracker,
-                // VoiceManager, VoiceFX) and the Phase 2 LayoutSwitcher are
-                // NOT init'd here. core.js OGZ.init() already auto-inits every
-                // registered module (everything except the SPECIAL set
-                // Chart/Socket/Theme — see core.js:34-54). Calling init() again
-                // here double-initialized them: LayoutSwitcher built a second
-                // header button, and each celebration module double-subscribed
-                // to socket/bus events (double toasts/sounds on every trade).
+                // NOTE: Registered modules are NOT init'd here. core.js
+                // OGZ.init() already auto-inits every registered module
+                // except the SPECIAL set Chart/Socket/Theme; Theme remains
+                // manual above. Calling init() again here double-initializes
+                // panels and duplicates their event subscriptions.
                 // Registration via OGZ.register() is all the wiring they need.
             } else {
                 console.error('[Dashboard v2] OGZ namespace failed to load. Check core.js.');

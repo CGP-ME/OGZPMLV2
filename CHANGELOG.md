@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend Empire Dashboard Wiring (2026-05-29)
+
+- Loaded the hardened `run-frontend-empire-v2.js` orchestrator from the v2 dashboard HTML after panel modules register and before the root TRAI widget loads.
+- Kept `core.js` as the boot owner so Empire is auto-initialized by the existing `OGZ.init()` pass without calling `bootAll()` or manually reinitializing panels.
+- Removed stale manual `ChartPanel`, `EdgeAnalyticsPanel`, and `TradeReplay` init calls from the v2 boot script because `core.js` already auto-initializes registered modules outside the `Chart`/`Socket`/`Theme` special set.
+
 ### Frontend Empire Orchestrator Dormant Asset (2026-05-29)
 
 - Added a dormant dashboard Empire orchestrator asset that inventories loaded modules/assets, mount presence, frame freshness, symbol-required frame rejections, and module health without taking over `core.js` boot ownership.
