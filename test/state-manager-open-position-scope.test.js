@@ -25,6 +25,40 @@ describe('StateManager openPosition scope contract', () => {
     ...overrides,
   });
 
+  const fullLedgerData = (overrides = {}) => ({
+    candleTimestamp: Date.parse('2026-05-29T12:00:00.000Z'),
+    strategySignals: [{
+      name: 'ScopeTestStrategy',
+      direction: 'long',
+      baseConfidence: 0.75,
+      reason: 'scoped ledger test signal',
+    }],
+    orchestratorDecision: {
+      winnerStrategy: 'ScopeTestStrategy',
+      finalConfidence: 0.75,
+      reason: 'scoped ledger test decision',
+    },
+    confluence: {
+      count: 1,
+      sizingMultiplier: 1,
+    },
+    positionSizing: {
+      basePercent: 0.001,
+      confidenceMultiplier: 1,
+      confluenceMultiplier: 1,
+      finalPercent: 0.001,
+      finalSizeUsd: 500,
+      formula: 'test',
+    },
+    exitContract: {
+      strategyName: 'ScopeTestStrategy',
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1,
+    },
+    riskGates: [],
+    ...overrides,
+  });
+
   const expectedScopeKey = 'paper:alpaca:acct-main:stocks:TSLA:15m';
 
   beforeEach(() => {
@@ -127,9 +161,7 @@ describe('StateManager openPosition scope contract', () => {
   test('opens a fully scoped trade and stores the derived immutable scope key', async () => {
     const result = await manager.openPosition(500, 100, fullScope({
       scopeKey: expectedScopeKey,
-      ledgerData: {
-        candleTimestamp: Date.parse('2026-05-29T12:00:00.000Z'),
-      },
+      ledgerData: fullLedgerData(),
     }));
 
     expect(result.success).toBe(true);
@@ -147,5 +179,31 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.symbol).toBe('TSLA');
     expect(trade.decisionLedger.timeframe).toBe('15m');
     expect(trade.decisionLedger.executionMode).toBe('paper');
+    expect(trade.decisionLedger.positionSizing.finalSizeUsd).toBe(500);
+    expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
+  });
+
+  test('rejects incomplete decision ledger evidence before mutating active trades', async () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: {
+        candleTimestamp: Date.parse('2026-05-29T12:00:00.000Z'),
+      },
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.ledgerRejected).toBe(true);
+    expect(result.code).toBe('LEDGER_SKELETON_REJECTED');
+    expect(result.missingFields).toEqual(expect.arrayContaining([
+      'strategySignals',
+      'orchestratorDecision',
+      'positionSizing',
+      'exitContract',
+    ]));
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 });

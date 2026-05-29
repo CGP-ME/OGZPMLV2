@@ -55,6 +55,35 @@ function validLedger(overrides = {}) {
 }
 
 describe('DecisionLedgerSchema', () => {
+  test.each([
+    'symbol',
+    'timeframe',
+    'executionMode',
+    'strategySignals',
+    'orchestratorDecision',
+    'positionSizing',
+    'exitContract',
+  ])('rejects missing %s instead of fabricating ledger evidence', field => {
+    expect(() => validLedger({ [field]: undefined })).toThrow(`Decision ledger skeleton missing required field(s): ${field}`);
+  });
+
+  test('does not substitute unknown symbol, default timeframe, or zero sizing', () => {
+    const ledger = validLedger();
+
+    expect(ledger.symbol).toBe('TSLA');
+    expect(ledger.timeframe).toBe('15m');
+    expect(ledger.executionMode).toBe('backtest');
+    expect(ledger.orchestratorDecision.reason).toBe('test decision');
+    expect(ledger.positionSizing.finalSizeUsd).toBe(10);
+    expect(ledger.exitContract.strategyName).toBe('MADynamicSR');
+    expect(JSON.stringify(ledger)).not.toContain('unknown');
+    expect(JSON.stringify(ledger)).not.toContain('N/A');
+  });
+
+  test('throws validation issues for invalid explicit fields instead of coercing them', () => {
+    expect(() => validLedger({ executionMode: 'simulated' })).toThrow('executionMode');
+  });
+
   test('validates indicatorValues records without throwing under zod v4', () => {
     const result = validateLedgerSkeleton(validLedger());
 
@@ -62,15 +91,14 @@ describe('DecisionLedgerSchema', () => {
   });
 
   test('reports malformed indicatorValues as validation issues instead of throwing', () => {
-    const ledger = validLedger({
-      strategySignals: [{
-        name: 'MADynamicSR',
-        direction: 'long',
-        baseConfidence: 0.8,
-        reason: 'test signal',
-        indicatorValues: { rsi: { nested: 'not allowed' } },
-      }],
-    });
+    const ledger = validLedger();
+    ledger.strategySignals = [{
+      name: 'MADynamicSR',
+      direction: 'long',
+      baseConfidence: 0.8,
+      reason: 'test signal',
+      indicatorValues: { rsi: { nested: 'not allowed' } },
+    }];
 
     const result = validateLedgerSkeleton(ledger);
 
@@ -79,15 +107,14 @@ describe('DecisionLedgerSchema', () => {
   });
 
   test('rejects non-object indicatorValues instead of treating them as missing', () => {
-    const ledger = validLedger({
-      strategySignals: [{
-        name: 'MADynamicSR',
-        direction: 'long',
-        baseConfidence: 0.8,
-        reason: 'test signal',
-        indicatorValues: 'not-an-object',
-      }],
-    });
+    const ledger = validLedger();
+    ledger.strategySignals = [{
+      name: 'MADynamicSR',
+      direction: 'long',
+      baseConfidence: 0.8,
+      reason: 'test signal',
+      indicatorValues: 'not-an-object',
+    }];
 
     const result = validateLedgerSkeleton(ledger);
 

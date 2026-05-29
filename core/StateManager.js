@@ -518,23 +518,27 @@ class StateManager {
     // L1: Attach decision ledger skeleton at trade birth
     if (context.ledgerData) {
       const { createLedgerSkeleton } = require('./dto/DecisionLedgerSchema');
-      trade.decisionLedger = createLedgerSkeleton({
-        tradeId,
-        candleTimestamp: context.ledgerData.candleTimestamp || Date.now(),
-        symbol: tradeScope.symbol,
-        timeframe: tradeScope.timeframe,
-        executionMode: tradeScope.executionMode,
-        entryPrice: price,
-        direction: tradeDirection,
-        strategySignals: context.ledgerData.strategySignals || [],
-        orchestratorDecision: context.ledgerData.orchestratorDecision || null,
-        confluence: context.ledgerData.confluence || null,
-        positionSizing: context.ledgerData.positionSizing || null,
-        exitContract: context.ledgerData.exitContract || null,
-        // L5: pre-trade + RiskManager gate observability (pass/fail per gate).
-        // Pure instrumentation — never changes trade logic.
-        riskGates: context.ledgerData.riskGates || [],
-      });
+      try {
+        trade.decisionLedger = createLedgerSkeleton({
+          tradeId,
+          candleTimestamp: context.ledgerData.candleTimestamp,
+          symbol: tradeScope.symbol,
+          timeframe: tradeScope.timeframe,
+          executionMode: tradeScope.executionMode,
+          entryPrice: price,
+          direction: tradeDirection,
+          strategySignals: context.ledgerData.strategySignals,
+          orchestratorDecision: context.ledgerData.orchestratorDecision,
+          confluence: context.ledgerData.confluence,
+          positionSizing: context.ledgerData.positionSizing,
+          exitContract: context.ledgerData.exitContract,
+          // L5: pre-trade + RiskManager gate observability (pass/fail per gate).
+          // Pure instrumentation — never changes trade logic.
+          riskGates: context.ledgerData.riskGates,
+        });
+      } catch (err) {
+        return this._rejectOpenPositionLedger(err, context);
+      }
     }
 
     // Add to activeTrades Map
@@ -626,6 +630,23 @@ class StateManager {
     };
     const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
     console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionLedger(err, context = {}) {
+    const missingFields = Array.isArray(err.missingFields) ? err.missingFields : [];
+    const result = {
+      success: false,
+      error: err.message,
+      code: err.code || 'LEDGER_SKELETON_REJECTED',
+      ledgerRejected: true,
+      missingFields,
+    };
+    if (Array.isArray(err.validationIssues) && err.validationIssues.length > 0) {
+      result.validationIssues = err.validationIssues;
+    }
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
     return result;
   }
 

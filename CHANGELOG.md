@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Decision Ledger Skeleton Truth Contract (2026-05-29)
+
+- Removed fabricated decision-ledger skeleton defaults for missing symbol, timeframe, execution mode, orchestrator decision, position sizing, exit contract, risk gates, and strategy signal evidence.
+- Changed `StateManager.openPosition()` to reject incomplete or malformed ledger evidence before active-trade mutation, position mutation, counters, persistence, narrator output, or dashboard projection.
+- Added regression coverage for missing required ledger fields, invalid explicit ledger fields, and incomplete ledger rejection at the open-position boundary.
+
 ### Decision Ledger Schema Validation (2026-05-29)
 
 - Fixed the Zod v4 `indicatorValues` record schema so decision-ledger validation returns pass/fail results instead of throwing `_zod` and skipping validation.
