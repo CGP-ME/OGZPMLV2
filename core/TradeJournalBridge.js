@@ -77,6 +77,82 @@ function classifyReplayOutcome(pnl, pnlPercent) {
   return 'flat';
 }
 
+function nonEmptyStringOrNull(v) {
+  if (typeof v !== 'string') return null;
+  const trimmed = v.trim();
+  return trimmed ? trimmed : null;
+}
+
+function positiveNumberOrNull(v) {
+  const n = finiteNumberOrNull(v);
+  return n != null && n > 0 ? n : null;
+}
+
+function nonNegativeNumberOrNull(v) {
+  const n = finiteNumberOrNull(v);
+  return n != null && n >= 0 ? n : null;
+}
+
+function isCloseLogRecord(record) {
+  const type = nonEmptyStringOrNull(record?.type)?.toUpperCase() || null;
+  const action = nonEmptyStringOrNull(record?.action)?.toUpperCase() || null;
+  return ['EXIT', 'SELL', 'COVER'].includes(type) || ['EXIT', 'SELL', 'COVER'].includes(action);
+}
+
+function normalizeClosedTradeRecord(exitRecord) {
+  const missing = [];
+  const orderId = nonEmptyStringOrNull(exitRecord?.id)
+    || nonEmptyStringOrNull(exitRecord?.orderId)
+    || nonEmptyStringOrNull(exitRecord?.tradeId);
+  const direction = nonEmptyStringOrNull(exitRecord?.direction);
+  const entryPrice = positiveNumberOrNull(exitRecord?.entryPrice);
+  const exitPrice = positiveNumberOrNull(exitRecord?.exitPrice);
+  const pnl = finiteNumberOrNull(exitRecord?.pnl ?? exitRecord?.netPnl ?? exitRecord?.pnlDollars);
+  const pnlPercent = finiteNumberOrNull(exitRecord?.pnlPercent ?? exitRecord?.profitLossPercent);
+  const holdTime = nonNegativeNumberOrNull(exitRecord?.holdTime ?? exitRecord?.holdDuration ?? exitRecord?.holdTimeMs);
+  const reason = nonEmptyStringOrNull(exitRecord?.exitReason) || nonEmptyStringOrNull(exitRecord?.reason);
+  const size = positiveNumberOrNull(exitRecord?.size ?? exitRecord?.sizeUsd ?? exitRecord?.usdValue);
+  const maxProfit = finiteNumberOrNull(exitRecord?.maxProfit ?? exitRecord?.maxProfitPercent);
+  const balance = finiteNumberOrNull(exitRecord?.balance ?? exitRecord?.balanceAfter);
+
+  if (!orderId) missing.push('orderId');
+  if (!direction) missing.push('direction');
+  if (entryPrice == null) missing.push('entryPrice');
+  if (exitPrice == null) missing.push('exitPrice');
+  if (pnl == null) missing.push('pnl');
+  if (holdTime == null) missing.push('holdTime');
+  if (!reason) missing.push('reason');
+
+  return {
+    ok: missing.length === 0,
+    missing,
+    data: {
+      orderId,
+      direction,
+      entryPrice,
+      exitPrice,
+      pnl,
+      pnlPercent,
+      reason,
+      holdTime,
+      size,
+      maxProfit,
+      balance,
+    },
+  };
+}
+
+function closedTradeLogKey(data) {
+  return [
+    data.orderId,
+    data.direction,
+    data.entryPrice,
+    data.exitPrice,
+    data.pnl,
+    data.holdTime,
+  ].join('|');
+}
+
 function resolveJournalScope(bot) {
   return requirePatternScope({
     symbol: bot?.config?.tradingPair || bot?.tradingPair,
@@ -136,6 +212,8 @@ class TradeJournalBridge {
       candlesBefore: 60,
       candlesAfter: 30
     });
+    this._closedTradeLogKeySet = new Set();
+    this._closedTradeLogKeys = [];
 
     // ── Wire everything ─────────────────────────────────────────────
     this._wireTradeEvents();
@@ -217,56 +295,84 @@ class TradeJournalBridge {
     };
 
     // ── Intercept trade EXITS ───────────────────────────────────────
-    const originalLogTrade = bot.logTrade?.bind(bot);
-    if (originalLogTrade) {
-      bot.logTrade = async function(exitRecord) {
-        const result = await originalLogTrade(exitRecord);
+    const wrapLogSink = (owner, key, label) => {
+      if (!owner || typeof owner[key] !== 'function') return false;
+      if (owner[key]._tradeJournalBridgeWrapped === true) return false;
 
+      const originalLogTrade = owner[key];
+      owner[key] = async function(exitRecord) {
         try {
-          if (exitRecord && (exitRecord.type === 'exit' || exitRecord.type === 'SELL' || exitRecord.type === 'COVER')) {
-            const stateManager = bot.stateManager;
-            const balance = stateManager?.get('balance') || 0;
-            const orderId = exitRecord.id || exitRecord.orderId;
-
-            // Record in journal
-            journal.recordExit({
-              orderId,
-              exitPrice: exitRecord.exitPrice || 0,
-              reason: exitRecord.reason || 'unknown',
-              pnl: exitRecord.pnl || 0,
-              fees: 0,
-              maxProfit: exitRecord.maxProfit || 0,
-              holdTime: exitRecord.holdTime || 0,
-              balance,
-              direction: exitRecord.direction,
-              entryPrice: exitRecord.entryPrice,
-              size: exitRecord.size
-            });
-
-            // Capture candle context + save replay
-            const replayPath = replay.captureExit(orderId, {
-              price: exitRecord.exitPrice,
-              exitPrice: exitRecord.exitPrice,
-              entryPrice: exitRecord.entryPrice,
-              reason: exitRecord.reason,
-              pnl: exitRecord.pnl,
-              pnlPercent: exitRecord.pnlPercent || 0,
-              holdTime: exitRecord.holdTime,
-              direction: exitRecord.direction,
-              size: exitRecord.size
-            }, bot.priceHistory || []);
-
-            // ══════════════════════════════════════════════════════════
-            // AUTO-EXPORT: Push trade closed + replay link to dashboard
-            // ══════════════════════════════════════════════════════════
-            bridge._pushTradeClosedNotification(orderId, exitRecord, replayPath);
-          }
-        } catch (err) {
-          console.warn(`[TradeJournalBridge] Exit recording failed (non-critical): ${err.message}`);
+          return await originalLogTrade.call(this, exitRecord);
+        } finally {
+          bridge._recordTradeLogClose(exitRecord, label);
         }
-
-        return result;
       };
+      owner[key]._tradeJournalBridgeWrapped = true;
+      return true;
+    };
+
+    wrapLogSink(bot, 'logTrade', 'bot.logTrade');
+    wrapLogSink(bot.orderExecutor?.ctx, 'logTrade', 'orderExecutor.ctx.logTrade');
+  }
+
+  _recordTradeLogClose(exitRecord, source = 'logTrade') {
+    if (!isCloseLogRecord(exitRecord)) return false;
+
+    const normalized = normalizeClosedTradeRecord(exitRecord);
+    if (!normalized.ok) {
+      console.warn(`[TradeJournalBridge] Refusing closed-trade replay from ${source}; missing field(s): ${normalized.missing.join(', ')}`);
+      return false;
+    }
+
+    const stateManager = this.bot.stateManager;
+    const data = normalized.data;
+    const balance = data.balance ?? finiteNumberOrNull(stateManager?.get?.('balance'));
+    const closeKey = closedTradeLogKey(data);
+    this._closedTradeLogKeySet ??= new Set();
+    this._closedTradeLogKeys ??= [];
+    if (this._closedTradeLogKeySet.has(closeKey)) {
+      console.warn(`[TradeJournalBridge] Duplicate closed-trade log ignored from ${source}: ${data.orderId}`);
+      return false;
+    }
+
+    try {
+      this.journal.recordExit({
+        orderId: data.orderId,
+        exitPrice: data.exitPrice,
+        reason: data.reason,
+        pnl: data.pnl,
+        fees: 0,
+        maxProfit: data.maxProfit,
+        holdTime: data.holdTime,
+        balance,
+        direction: data.direction,
+        entryPrice: data.entryPrice,
+        size: data.size
+      });
+
+      const replayPath = this.replay.captureExit(data.orderId, {
+        price: data.exitPrice,
+        exitPrice: data.exitPrice,
+        entryPrice: data.entryPrice,
+        reason: data.reason,
+        pnl: data.pnl,
+        pnlPercent: data.pnlPercent,
+        holdTime: data.holdTime,
+        direction: data.direction,
+        size: data.size
+      }, this.bot.priceHistory || []);
+
+      this._pushTradeClosedNotification(data.orderId, data, replayPath);
+      this._closedTradeLogKeySet.add(closeKey);
+      this._closedTradeLogKeys.push(closeKey);
+      if (this._closedTradeLogKeys.length > 500) {
+        const expired = this._closedTradeLogKeys.shift();
+        this._closedTradeLogKeySet.delete(expired);
+      }
+      return true;
+    } catch (err) {
+      console.warn(`[TradeJournalBridge] Exit recording failed (non-critical): ${err.message}`);
+      return false;
     }
   }
 
@@ -283,14 +389,14 @@ class TradeJournalBridge {
       type: 'trade_closed_replay',
       data: {
         orderId,
-        direction: exitRecord.direction || 'BUY',
-        entryPrice: exitRecord.entryPrice || 0,
-        exitPrice: exitRecord.exitPrice || 0,
+        direction: nonEmptyStringOrNull(exitRecord.direction),
+        entryPrice: positiveNumberOrNull(exitRecord.entryPrice),
+        exitPrice: positiveNumberOrNull(exitRecord.exitPrice),
         pnl,
         pnlPercent,
         outcome,
-        reason: exitRecord.reason || 'unknown',
-        holdTime: exitRecord.holdTime || 0,
+        reason: nonEmptyStringOrNull(exitRecord.reason),
+        holdTime: nonNegativeNumberOrNull(exitRecord.holdTime),
         isWin: outcome === 'win',
         isLoss: outcome === 'loss',
         isBreakEven: outcome === 'flat',

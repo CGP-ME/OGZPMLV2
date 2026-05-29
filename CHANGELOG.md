@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Closed Replay Contract (2026-05-29)
+
+- Fixed TradeJournalBridge exit wiring to wrap the actual `OrderExecutor` trade-log sink so closed trades can reach journal snapshots and replay notifications.
+- Changed closed-trade replay notifications to reject incomplete close records and expose missing notification fields as `null` instead of fabricating `BUY`, zero prices, `unknown` reasons, or zero hold times.
+- Added OrderExecutor close-log identity for long sells and short covers so both exit directions carry `orderId`, `direction`, `symbol`, strategy, exit reason, P&L, and timing into the journal bridge.
+
 ### Kraken Depth Update Dashboard Contract (2026-05-29)
 
 - Added scoped Kraken `depth_update` websocket frames from real book feed data so liquidity-wall panels can render from broker evidence instead of staying disconnected.

@@ -1761,15 +1761,21 @@ class OrderExecutor {
             try {
               this.ctx.logTrade({
                 // Basic trade info
-                type: completeTradeResult.action || 'BUY',
+                type: 'SELL',
+                action: 'SELL',
+                orderId: buyTrade.orderId,
+                tradeId: buyTrade.orderId,
+                direction: 'long',
+                symbol,
+                strategyName: buyTrade.entryStrategy,
                 entryPrice: buyTrade.entryPrice || buyTrade.price,
                 exitPrice: price,
                 currentPrice: price,
                 size: buyTrade.size,
 
                 // Financial results
-                pnl: completeTradeResult.pnlDollars || 0,
-                pnlPercent: pnl || 0,
+                pnl: completeTradeResult.pnlDollars,
+                pnlPercent: pnl,
                 fees: (buyTrade.size * price) * TradingConfig.get('fees.totalRoundTrip'),  // From TradingConfig
 
                 // Timing
@@ -1796,7 +1802,8 @@ class OrderExecutor {
                 entryReason: buyTrade.reasoning || 'no reason stored',
 
                 // Exit analysis
-                exitReason: completeTradeResult.exitReason || 'signal',
+                exitReason: completeTradeResult.exitReason,
+                reason: completeTradeResult.exitReason,
                 exitIndicators: {
                   rsi: indicators.rsi,
                   macd: indicators.macd?.macd ?? null,
@@ -1811,11 +1818,16 @@ class OrderExecutor {
 
                 // Risk management
                 positionSize: buyTrade.size * buyTrade.entryPrice,
-                riskPercent: (Math.abs(completeTradeResult.pnlDollars || 0) / (stateManager.get('balance') || 1)) * 100,
+                riskPercent: (() => {
+                  const balance = Number(stateManager.get('balance'));
+                  return Number.isFinite(balance) && balance > 0
+                    ? (Math.abs(completeTradeResult.pnlDollars) / balance) * 100
+                    : null;
+                })(),
 
                 // Session context
-                totalTrades: stateManager.get('tradeCount') || 0,
-                winRate: this.ctx.performanceAnalyzer?.getWinRate?.() || 0
+                totalTrades: stateManager.get('tradeCount') ?? null,
+                winRate: this.ctx.performanceAnalyzer?.getWinRate?.() ?? null
               });
             } catch (logErr) {
               console.warn(`TradeLogger error: ${logErr.message}`);
@@ -2103,6 +2115,54 @@ class OrderExecutor {
               confidence: decision.confidence
             }, completeTradeResult)));
             console.log(`Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+          }
+
+          try {
+            this.ctx.logTrade({
+              type: 'COVER',
+              action: 'COVER',
+              orderId: shortTrade.orderId,
+              tradeId: shortTrade.orderId,
+              direction: 'short',
+              symbol,
+              strategyName: shortTrade.entryStrategy,
+              entryPrice: shortTrade.entryPrice || shortTrade.price,
+              exitPrice: price,
+              currentPrice: price,
+              size: shortTrade.size,
+              pnl: completeTradeResult.pnlDollars,
+              pnlPercent: pnl,
+              fees: shortSize * TradingConfig.get('fees.totalRoundTrip'),
+              entryTime: new Date(shortTrade.entryTime).toISOString(),
+              exitTime: new Date().toISOString(),
+              holdTime: holdDuration,
+              balanceBefore: stateManager.get('balance') - completeTradeResult.pnlDollars,
+              balanceAfter: stateManager.get('balance'),
+              confidence: shortTrade.confidence,
+              entryReason: shortTrade.reasoning || null,
+              exitReason: completeTradeResult.exitReason,
+              reason: completeTradeResult.exitReason,
+              exitIndicators: {
+                rsi: indicators.rsi,
+                macd: indicators.macd?.macd ?? null,
+                macdSignal: indicators.macd?.signal ?? null,
+                trend: indicators.trend,
+                volatility: indicators.volatility ?? null
+              },
+              patternType: shortTrade.patterns?.[0]?.name || null,
+              patternConfidence: shortTrade.patterns?.[0]?.confidence ?? null,
+              positionSize: shortTrade.size,
+              riskPercent: (() => {
+                const balance = Number(stateManager.get('balance'));
+                return Number.isFinite(balance) && balance > 0
+                  ? (Math.abs(completeTradeResult.pnlDollars) / balance) * 100
+                  : null;
+              })(),
+              totalTrades: stateManager.get('tradeCount') ?? null,
+              winRate: this.ctx.performanceAnalyzer?.getWinRate?.() ?? null
+            });
+          } catch (logErr) {
+            console.warn(`TradeLogger error: ${logErr.message}`);
           }
 
           // Proof logger for COVER

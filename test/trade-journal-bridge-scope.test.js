@@ -133,6 +133,35 @@ describe('TradeJournalBridge scoped storage', () => {
     expect(bridge._sendJournalSnapshot).toHaveBeenCalledTimes(4);
   });
 
+  test('closed replay notification exposes missing fields as null, not fabricated values', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const sent = [];
+    const bridge = {
+      _send: jest.fn((payload) => sent.push(payload)),
+      _sendJournalSnapshot: jest.fn(),
+    };
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'missing-fields-1', {
+      pnl: null,
+      pnlPercent: null,
+    }, null);
+
+    expect(sent[0].data).toMatchObject({
+      orderId: 'missing-fields-1',
+      direction: null,
+      entryPrice: null,
+      exitPrice: null,
+      pnl: null,
+      pnlPercent: null,
+      outcome: 'unverified',
+      reason: null,
+      holdTime: null,
+      isWin: false,
+      isLoss: false,
+      isBreakEven: false,
+    });
+  });
+
   test('records StateManager USD position size without multiplying by entry price', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const activeTrades = new Map([
@@ -237,6 +266,254 @@ describe('TradeJournalBridge scoped storage', () => {
       expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
       expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing explicit USD size'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('wraps OrderExecutor logTrade sink and records complete close records', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const originalLogTrade = jest.fn(async () => ({ logged: true }));
+    const bot = {
+      executeTrade: jest.fn(async () => ({ ok: true })),
+      orderExecutor: {
+        ctx: {
+          logTrade: originalLogTrade,
+        },
+      },
+      stateManager: {
+        get: jest.fn((key) => {
+          if (key === 'activeTrades') return new Map();
+          if (key === 'balance') return 10050;
+          return null;
+        }),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+        recordExit: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+        captureExit: jest.fn(() => '/tmp/replay.json'),
+      },
+      _pushTradeClosedNotification: jest.fn(),
+      _recordTradeLogClose: TradeJournalBridge.prototype._recordTradeLogClose,
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    const result = await bot.orderExecutor.ctx.logTrade({
+      type: 'SELL',
+      orderId: 'ORDER-1',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 50,
+      pnlPercent: 5,
+      reason: 'take_profit',
+      holdTime: 60000,
+      size: 1000,
+    });
+
+    expect(result).toEqual({ logged: true });
+    expect(originalLogTrade).toHaveBeenCalledTimes(1);
+    expect(bridge.journal.recordExit).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'ORDER-1',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 50,
+      reason: 'take_profit',
+      holdTime: 60000,
+      balance: 10050,
+      size: 1000,
+    }));
+    expect(bridge.replay.captureExit).toHaveBeenCalledWith(
+      'ORDER-1',
+      expect.objectContaining({
+        exitPrice: 105,
+        reason: 'take_profit',
+        pnl: 50,
+        pnlPercent: 5,
+        holdTime: 60000,
+        direction: 'long',
+      }),
+      []
+    );
+    expect(bridge._pushTradeClosedNotification).toHaveBeenCalledWith(
+      'ORDER-1',
+      expect.objectContaining({
+        direction: 'long',
+        entryPrice: 100,
+        exitPrice: 105,
+        pnl: 50,
+        reason: 'take_profit',
+      }),
+      '/tmp/replay.json'
+    );
+  });
+
+  test('refuses incomplete close records after preserving original logTrade side effect', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const originalLogTrade = jest.fn(async () => ({ logged: true }));
+    const bot = {
+      executeTrade: jest.fn(async () => ({ ok: true })),
+      orderExecutor: {
+        ctx: {
+          logTrade: originalLogTrade,
+        },
+      },
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? new Map() : 10000),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+        recordExit: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+        captureExit: jest.fn(),
+      },
+      _pushTradeClosedNotification: jest.fn(),
+      _recordTradeLogClose: TradeJournalBridge.prototype._recordTradeLogClose,
+    };
+
+    try {
+      TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+      await bot.orderExecutor.ctx.logTrade({
+        type: 'SELL',
+        orderId: 'ORDER-2',
+        direction: 'long',
+        entryPrice: 100,
+        pnl: 50,
+        reason: 'take_profit',
+        holdTime: 60000,
+      });
+
+      expect(originalLogTrade).toHaveBeenCalledTimes(1);
+      expect(bridge.journal.recordExit).not.toHaveBeenCalled();
+      expect(bridge.replay.captureExit).not.toHaveBeenCalled();
+      expect(bridge._pushTradeClosedNotification).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing field(s): exitPrice'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('records complete close records even when legacy logTrade throws', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const originalLogTrade = jest.fn(async () => {
+      throw new Error('legacy logger failed');
+    });
+    const bot = {
+      executeTrade: jest.fn(async () => ({ ok: true })),
+      orderExecutor: {
+        ctx: {
+          logTrade: originalLogTrade,
+        },
+      },
+      stateManager: {
+        get: jest.fn((key) => {
+          if (key === 'activeTrades') return new Map();
+          if (key === 'balance') return 10050;
+          return null;
+        }),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+        recordExit: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+        captureExit: jest.fn(() => '/tmp/replay.json'),
+      },
+      _pushTradeClosedNotification: jest.fn(),
+      _recordTradeLogClose: TradeJournalBridge.prototype._recordTradeLogClose,
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+
+    await expect(bot.orderExecutor.ctx.logTrade({
+      type: 'SELL',
+      orderId: 'ORDER-3',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 50,
+      pnlPercent: 5,
+      reason: 'take_profit',
+      holdTime: 60000,
+      size: 1000,
+    })).rejects.toThrow(/legacy logger failed/);
+
+    expect(bridge.journal.recordExit).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'ORDER-3',
+      exitPrice: 105,
+      reason: 'take_profit',
+      pnl: 50,
+    }));
+    expect(bridge._pushTradeClosedNotification).toHaveBeenCalledTimes(1);
+  });
+
+  test('dedupes exact close records when multiple log sinks see the same exit', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const exitRecord = {
+      type: 'SELL',
+      orderId: 'ORDER-4',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 50,
+      pnlPercent: 5,
+      reason: 'take_profit',
+      holdTime: 60000,
+      size: 1000,
+    };
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'balance' ? 10050 : null),
+        },
+        priceHistory: [],
+      },
+      journal: {
+        recordExit: jest.fn(),
+      },
+      replay: {
+        captureExit: jest.fn(() => '/tmp/replay.json'),
+      },
+      _pushTradeClosedNotification: jest.fn(),
+      _closedTradeLogKeySet: new Set(),
+      _closedTradeLogKeys: [],
+    };
+
+    try {
+      const secondSinkRecord = {
+        ...exitRecord,
+        pnlPercent: null,
+        reason: 'signal',
+      };
+
+      expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, exitRecord, 'bot.logTrade')).toBe(true);
+      expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, secondSinkRecord, 'orderExecutor.ctx.logTrade')).toBe(false);
+
+      expect(bridge.journal.recordExit).toHaveBeenCalledTimes(1);
+      expect(bridge.replay.captureExit).toHaveBeenCalledTimes(1);
+      expect(bridge._pushTradeClosedNotification).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Duplicate closed-trade log ignored'));
     } finally {
       warnSpy.mockRestore();
     }
