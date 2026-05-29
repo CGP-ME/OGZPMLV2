@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PatternMemoryBank Outcome Return Contract (2026-05-29)
+
+- Made `PatternMemoryBank.recordTradeOutcome()` return `true` only when a valid scoped outcome is recorded and its configured persistence step succeeds or is intentionally disabled.
+- Made invalid, missing-scope, mismatched-scope, extraction-failed, and non-durable outcomes return `false` so callers and gates can distinguish skipped learning from successful pattern updates.
+- Rolled back in-memory pattern counters, imports, prunes, and resets when the configured persistence step fails, preventing the live bank from acting on memory mutations that did not become durable.
+- Replaced the silent fire-and-forget trade-outcome telemetry append with an explicit synchronous write helper that logs telemetry write failures without changing the pattern-memory durability return contract.
+
 ### PatternMemoryBank Learned-State Path Guard (2026-05-29)
 
 - Required explicit `PatternMemoryBank` `dbPath` values and partition override filenames to resolve to `.json` files under the configured learned-state root before any load/save path is accepted.

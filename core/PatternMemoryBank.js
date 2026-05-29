@@ -200,6 +200,21 @@ class PatternMemoryBank {
         };
     }
 
+    cloneMemory() {
+        return JSON.parse(JSON.stringify(this.memory));
+    }
+
+    writeOutcomeTelemetry(outcomeTelemetry) {
+        try {
+            fs.mkdirSync(LOGS_DIR, { recursive: true });
+            fs.appendFileSync(TRADE_OUTCOMES_LOG, JSON.stringify(outcomeTelemetry) + '\n');
+            return true;
+        } catch (error) {
+            console.error('[TRAI Memory] Failed to write trade outcome telemetry:', error.message);
+            return false;
+        }
+    }
+
     /**
      * Validate and migrate memory structure if needed
      */
@@ -259,16 +274,22 @@ class PatternMemoryBank {
      * This is called after every trade closes to build TRAI's memory
      *
      * @param {Object} trade - Trade data including entry, exit, P&L, and optional decisionId
+     * @returns {boolean} true when the outcome was recorded, false when rejected or not durable
      */
     recordTradeOutcome(trade) {
+        let memoryBeforeMutation = null;
+
         try {
             const pattern = this.extractPattern(trade);
 
             if (!pattern || !pattern.hash) {
                 console.warn('[TRAI Memory] Invalid pattern extracted, skipping');
-                return;
+                return false;
             }
 
+            memoryBeforeMutation = this.persistenceEnabled
+                ? this.cloneMemory()
+                : null;
             const now = Date.now();
             const pnlPercent = trade.profitLossPercent || 0;
             const holdMs = trade.holdDuration || 0;
@@ -395,14 +416,21 @@ class PatternMemoryBank {
                 }
             };
 
-            // Async fire-and-forget (silent failure)
-            fs.appendFile(TRADE_OUTCOMES_LOG, JSON.stringify(outcomeTelemetry) + '\n', () => {});
+            this.writeOutcomeTelemetry(outcomeTelemetry);
 
             // Save to disk
-            this.saveMemory();
+            const saved = this.saveMemory();
+            if (!saved && memoryBeforeMutation) {
+                this.memory = memoryBeforeMutation;
+            }
+            return saved;
 
         } catch (error) {
+            if (memoryBeforeMutation) {
+                this.memory = memoryBeforeMutation;
+            }
             console.error('[TRAI Memory] Error recording trade outcome:', error.message);
+            return false;
         }
     }
 
@@ -701,6 +729,9 @@ class PatternMemoryBank {
     pruneOldPatterns() {
         let pruned = 0;
         const now = Date.now();
+        const memoryBeforeMutation = this.persistenceEnabled
+            ? this.cloneMemory()
+            : null;
 
         // First pass: Remove DEAD and old patterns
         for (const [hash, record] of Object.entries(this.memory.patterns)) {
@@ -740,7 +771,12 @@ class PatternMemoryBank {
 
         if (pruned > 0) {
             console.log(`🗑️ [TRAI Memory] Pruned ${pruned} patterns total`);
-            this.saveMemory();
+            const saved = this.saveMemory();
+            if (!saved && memoryBeforeMutation) {
+                this.memory = memoryBeforeMutation;
+                console.warn('[TRAI Memory] Prune rolled back after failed save');
+                return 0;
+            }
         }
 
         return pruned;
@@ -797,7 +833,7 @@ class PatternMemoryBank {
         // Skip saving if persistence is disabled (e.g., backtest mode)
         if (!this.persistenceEnabled) {
             console.log(`⏭️ [TRAI Memory] Skipping save (persistence disabled for mode)`);
-            return;
+            return true;
         }
 
         try {
@@ -812,9 +848,11 @@ class PatternMemoryBank {
 
             const total = Object.keys(this.memory.patterns).length;
             console.log(`💾 [TRAI Memory] Saved ${total} patterns`);
+            return true;
 
         } catch (error) {
             console.error('❌ [TRAI Memory] Failed to save:', error.message);
+            return false;
         }
     }
 
@@ -822,17 +860,26 @@ class PatternMemoryBank {
      * Export memory for analysis or backup
      */
     exportMemory() {
-        return JSON.parse(JSON.stringify(this.memory));
+        return this.cloneMemory();
     }
 
     /**
      * Import memory from backup or migration
      */
     importMemory(data) {
+        const memoryBeforeMutation = this.persistenceEnabled
+            ? this.cloneMemory()
+            : null;
         this.memory = this.validateMemoryStructure(data);
-        this.saveMemory();
+        const saved = this.saveMemory();
+        if (!saved && memoryBeforeMutation) {
+            this.memory = memoryBeforeMutation;
+            console.warn('[TRAI Memory] Import rolled back after failed save');
+            return false;
+        }
         console.log('📥 [TRAI Memory] Imported memory with',
                    Object.keys(this.memory.patterns).length, 'patterns');
+        return saved;
     }
 
     /**
@@ -881,9 +928,18 @@ class PatternMemoryBank {
      * Reset all memory (use with caution!)
      */
     reset() {
+        const memoryBeforeMutation = this.persistenceEnabled
+            ? this.cloneMemory()
+            : null;
         console.warn('⚠️ [TRAI Memory] RESETTING ALL LEARNED PATTERNS');
         this.memory = this.createEmptyMemory();
-        this.saveMemory();
+        const saved = this.saveMemory();
+        if (!saved && memoryBeforeMutation) {
+            this.memory = memoryBeforeMutation;
+            console.warn('[TRAI Memory] Reset rolled back after failed save');
+            return false;
+        }
+        return saved;
     }
 }
 

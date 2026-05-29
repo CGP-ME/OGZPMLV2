@@ -155,14 +155,101 @@ describe('Pattern memory scope isolation', () => {
     expect(tslaPattern.hash).not.toBe(btcPattern.hash);
     expect(tslaPattern.scope.scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
 
-    bank.recordTradeOutcome(bankTrade());
+    expect(bank.recordTradeOutcome(bankTrade())).toBe(true);
     const records = Object.values(bank.exportMemory().patterns);
     expect(records).toHaveLength(1);
     expect(records[0].scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
     expect(records[0].symbol).toBe('TSLA');
 
-    bank.recordTradeOutcome(bankTrade({ brokerId: null }));
+    expect(bank.recordTradeOutcome(bankTrade({ brokerId: null }))).toBe(false);
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+
+    expect(bank.recordTradeOutcome(bankTrade({ indicators: null }))).toBe(false);
+    expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+  });
+
+  test('PatternMemoryBank reports failed outcome durability', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-save-fail-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+      dbPath,
+      minTradesSample: 1,
+    });
+
+    bank.saveMemory = () => false;
+    expect(bank.recordTradeOutcome(bankTrade({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    }))).toBe(false);
+    expect(Object.values(bank.exportMemory().patterns)).toHaveLength(0);
+  });
+
+  test('PatternMemoryBank separates telemetry failure from memory durability', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-telemetry-fail-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+      dbPath,
+      minTradesSample: 1,
+    });
+
+    bank.writeOutcomeTelemetry = () => false;
+    bank.saveMemory = () => true;
+    expect(bank.recordTradeOutcome(bankTrade({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    }))).toBe(true);
+    expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+  });
+
+  test('PatternMemoryBank rolls back durable mutators when save fails', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-mutator-fail-${Date.now()}.json`);
+    const paperTrade = bankTrade({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+      dbPath,
+      minTradesSample: 1,
+    });
+
+    bank.saveMemory = () => true;
+    expect(bank.recordTradeOutcome(paperTrade)).toBe(true);
+    const original = bank.exportMemory();
+    const patternHash = Object.keys(original.patterns)[0];
+
+    bank.saveMemory = () => false;
+    const imported = bank.createEmptyMemory();
+    imported.patterns.imported = {
+      ...original.patterns[patternHash],
+      name: 'imported-pattern',
+    };
+
+    expect(bank.importMemory(imported)).toBe(false);
+    expect(bank.exportMemory()).toEqual(original);
+
+    bank.memory.patterns[patternHash].status = 'DEAD';
+    const beforePrune = bank.exportMemory();
+    expect(bank.pruneOldPatterns()).toBe(0);
+    expect(bank.exportMemory()).toEqual(beforePrune);
+
+    expect(bank.reset()).toBe(false);
+    expect(bank.exportMemory()).toEqual(beforePrune);
   });
 
   test('PatternMemoryBank refuses unscoped learned-state paths', () => {

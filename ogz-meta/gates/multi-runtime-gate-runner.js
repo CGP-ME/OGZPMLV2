@@ -713,16 +713,79 @@ const GATES = [
         })));
         assert.notStrictEqual(tslaPattern.hash, btcPattern.hash, 'PatternMemoryBank hashes must differ across scope');
 
-        bank.recordTradeOutcome(patternBankTrade());
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade()),
+          true,
+          'scoped PatternMemoryBank trade should return true after recording'
+        );
         const records = Object.values(bank.exportMemory().patterns);
         assert.strictEqual(records.length, 1, 'scoped PatternMemoryBank trade should record exactly one row');
         assert.strictEqual(records[0].scopeKey, 'backtest:alpaca:acct-main:stocks:TSLA:15m', 'PatternMemoryBank row must carry scopeKey');
-        bank.recordTradeOutcome(patternBankTrade({ brokerId: null }));
+        bank.writeOutcomeTelemetry = () => false;
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade({
+            id: 'trade-telemetry-fail',
+            timestamp: 1779802800000
+          })),
+          true,
+          'PatternMemoryBank telemetry failure should not redefine memory durability success'
+        );
+        assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'telemetry failure must not create extra PatternMemoryBank rows');
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade({ brokerId: null })),
+          false,
+          'missing-scope PatternMemoryBank trade should return false'
+        );
         assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'missing-scope PatternMemoryBank trade must not mutate');
-        bank.recordTradeOutcome(patternBankTrade({
-          scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
-        }));
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade({
+            scopeKey: 'backtest:alpaca:acct-main:stocks:SPY:15m'
+          })),
+          false,
+          'mismatched-scopeKey PatternMemoryBank trade should return false'
+        );
         assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'mismatched-scopeKey PatternMemoryBank trade must not mutate');
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade({ indicators: null })),
+          false,
+          'invalid PatternMemoryBank trade should return false'
+        );
+        assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'invalid PatternMemoryBank trade must not mutate');
+        const beforeDurabilityFailure = Object.values(bank.exportMemory().patterns)[0];
+        bank.persistenceEnabled = true;
+        bank.saveMemory = () => false;
+        assert.strictEqual(
+          bank.recordTradeOutcome(patternBankTrade({
+            id: 'trade-save-fail',
+            profitLoss: 50,
+            profitLossPercent: 5,
+            timestamp: 1779803100000
+          })),
+          false,
+          'non-durable PatternMemoryBank trade should return false'
+        );
+        const afterDurabilityFailure = Object.values(bank.exportMemory().patterns)[0];
+        assert.strictEqual(Object.values(bank.exportMemory().patterns).length, 1, 'non-durable PatternMemoryBank trade must not add rows');
+        assert.strictEqual(
+          afterDurabilityFailure.sampleCount,
+          beforeDurabilityFailure.sampleCount,
+          'non-durable PatternMemoryBank trade must roll back in-memory counters'
+        );
+        const beforeImportFailure = bank.exportMemory();
+        const importedMemory = bank.createEmptyMemory();
+        importedMemory.patterns.imported = {
+          ...beforeDurabilityFailure,
+          name: 'imported-pattern'
+        };
+        assert.strictEqual(bank.importMemory(importedMemory), false, 'non-durable PatternMemoryBank import should return false');
+        assert.deepStrictEqual(bank.exportMemory(), beforeImportFailure, 'non-durable PatternMemoryBank import must roll back memory');
+        const patternHash = Object.keys(bank.exportMemory().patterns)[0];
+        bank.memory.patterns[patternHash].status = 'DEAD';
+        const beforePruneFailure = bank.exportMemory();
+        assert.strictEqual(bank.pruneOldPatterns(), 0, 'non-durable PatternMemoryBank prune should return zero');
+        assert.deepStrictEqual(bank.exportMemory(), beforePruneFailure, 'non-durable PatternMemoryBank prune must roll back memory');
+        assert.strictEqual(bank.reset(), false, 'non-durable PatternMemoryBank reset should return false');
+        assert.deepStrictEqual(bank.exportMemory(), beforePruneFailure, 'non-durable PatternMemoryBank reset must roll back memory');
 
         return {
           unifiedScopeKey: sameScope.stats.scopeKey,
