@@ -313,6 +313,14 @@ function buildConfig() {
       enableDashboard: track('strategies.enableDashboard', envBool('ENABLE_DASHBOARD', true)),
     },
 
+    // ─── DASHBOARD OBSERVABILITY ───
+    dashboard: {
+      errorEventDedupeMs: track('dashboard.errorEventDedupeMs', envInt('DASHBOARD_ERROR_EVENT_DEDUPE_MS', 5000)),
+      errorEventMessageMaxLength: track('dashboard.errorEventMessageMaxLength', envInt('DASHBOARD_ERROR_EVENT_MESSAGE_MAX_LENGTH', 500)),
+      errorEventDedupeMaxKeys: track('dashboard.errorEventDedupeMaxKeys', envInt('DASHBOARD_ERROR_EVENT_DEDUPE_MAX_KEYS', 200)),
+      brokerStatusDedupeMaxKeys: track('dashboard.brokerStatusDedupeMaxKeys', envInt('DASHBOARD_BROKER_STATUS_DEDUPE_MAX_KEYS', 200)),
+    },
+
     // ─── MISC ───
     misc: {
       botTier: track('misc.botTier', envStr('BOT_TIER', 'ml')),

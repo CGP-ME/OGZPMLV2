@@ -59,6 +59,20 @@ function cleanStatusText(value) {
   return cleaned.replace(/[^\w:.-]/g, '_').slice(0, 80);
 }
 
+function redactErrorMessage(value, maxLength) {
+  const cleaned = cleanScopeValue(value);
+  if (!cleaned) return null;
+  const redacted = cleaned
+    .replace(/((?:api[_-]?key|token|secret|password|authorization)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]')
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[REDACTED]');
+  return redacted.slice(0, maxLength);
+}
+
+function cleanRedactedStatusText(value) {
+  const redacted = redactErrorMessage(value, 80);
+  return cleanStatusText(redacted);
+}
+
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
@@ -72,6 +86,11 @@ class CandleProcessor {
     this.backfillRetryInterval = null;
     this.backfillRetryDelayMs = this.dataFeedConfig.gapBackfillRetryDelayMs;
     this.lastBrokerStatusTimestampByKey = new Map();
+    this.brokerStatusDedupeMaxKeys = this._resolveDashboardInt('dashboard.brokerStatusDedupeMaxKeys');
+    this.errorEventDedupeMs = this._resolveDashboardInt('dashboard.errorEventDedupeMs', { allowZero: true });
+    this.errorEventMessageMaxLength = this._resolveDashboardInt('dashboard.errorEventMessageMaxLength');
+    this.errorEventDedupeMaxKeys = this._resolveDashboardInt('dashboard.errorEventDedupeMaxKeys');
+    this.lastErrorEventAtByKey = new Map();
 
     // RTH-aware gap detection (CC-SPEC-RTH-GAP-DETECTION.md, 2026-05-05).
     // MarketCalendar is the single source of truth for NYSE sessions, holidays,
@@ -80,6 +99,22 @@ class CandleProcessor {
     this.marketCalendar = getMarketCalendar();
 
     console.log('[CandleProcessor] Initialized with gap recovery');
+  }
+
+  _resolveDashboardInt(path, options = {}) {
+    const value = Number(getConfigValue(path));
+    if (!Number.isFinite(value) || value < 0 || (!options.allowZero && value === 0)) {
+      throw new Error(`CandleProcessor: ${path} config missing/invalid`);
+    }
+    return Math.floor(value);
+  }
+
+  _enforceMapCap(map, maxKeys) {
+    while (map.size > maxKeys) {
+      const oldestKey = map.keys().next().value;
+      if (oldestKey === undefined) break;
+      map.delete(oldestKey);
+    }
   }
 
   _broadcastBrokerStatus(status) {
@@ -117,11 +152,58 @@ class CandleProcessor {
       ].join('|');
       if (this.lastBrokerStatusTimestampByKey.get(statusKey) === frame.timestamp) return false;
       this.lastBrokerStatusTimestampByKey.set(statusKey, frame.timestamp);
+      this._enforceMapCap(this.lastBrokerStatusTimestampByKey, this.brokerStatusDedupeMaxKeys);
 
       ws.send(JSON.stringify(frame));
       return true;
     } catch (error) {
       console.error('[CandleProcessor] broker_status broadcast failed:', error.message);
+      return false;
+    }
+  }
+
+  _broadcastErrorEvent(error, context = {}) {
+    try {
+      const ws = this.ctx?.dashboardWs;
+      if (!ws || ws.readyState !== 1) return false;
+
+      const message = redactErrorMessage(error?.message || error, this.errorEventMessageMaxLength);
+      if (!message) return false;
+
+      const timestamp = Date.now();
+      const frame = {
+        type: 'error_event',
+        source: 'candle_processor.dashboard_broadcast',
+        severity: 'warning',
+        message,
+        timestamp
+      };
+
+      for (const field of ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'traceId']) {
+        const value = cleanRedactedStatusText(context[field]);
+        if (value) frame[field] = value;
+      }
+
+      const eventKey = [
+        frame.source,
+        frame.message,
+        frame.symbol || '',
+        frame.timeframe || '',
+        frame.brokerId || '',
+        frame.accountId || '',
+        frame.assetClass || '',
+        frame.executionMode || '',
+        frame.traceId || ''
+      ].join('|');
+      const lastSentAt = this.lastErrorEventAtByKey.get(eventKey) || 0;
+      if (this.errorEventDedupeMs > 0 && timestamp - lastSentAt < this.errorEventDedupeMs) return false;
+      this.lastErrorEventAtByKey.set(eventKey, timestamp);
+      this._enforceMapCap(this.lastErrorEventAtByKey, this.errorEventDedupeMaxKeys);
+
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (sendError) {
+      console.error('[CandleProcessor] error_event broadcast failed:', sendError.message);
       return false;
     }
   }
@@ -1044,7 +1126,22 @@ class CandleProcessor {
         // Broadcast edge analytics data
         this.ctx.broadcastEdgeAnalytics(price, parseFloat(volume), candle);
       } catch (error) {
-        // Fail silently - don't let dashboard issues affect trading
+        const contextParts = [
+          candle.symbol ? `symbol=${candle.symbol}` : null,
+          candle.timeframe ? `timeframe=${candle.timeframe}` : null,
+          candle.brokerId ? `broker=${candle.brokerId}` : null
+        ].filter(Boolean).join(' ');
+        const suffix = contextParts ? ` (${contextParts})` : '';
+        console.error(`[CandleProcessor] Dashboard broadcast failed${suffix}:`, error.stack || error.message);
+        this._broadcastErrorEvent(error, {
+          symbol: candle.symbol,
+          timeframe: candle.timeframe,
+          brokerId: candle.brokerId,
+          accountId: candle.accountId,
+          assetClass: candle.assetClass,
+          executionMode: candle.executionMode,
+          traceId
+        });
       }
     }
   }
