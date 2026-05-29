@@ -69,6 +69,19 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseFallbackApplied = false;
     this.lastTransitionAt = 0;
     this.intervalId = null;
+    this.activeCallbackEpoch = null;
+    this.activeOhlcSession = null;
+    this.activeOhlcBrokerId = null;
+    this.activeOhlcTransitionId = null;
+    this.activeOhlcCallback = null;
+    this.callbackFenceStats = {
+      accepted: 0,
+      rejected: 0,
+      lastAcceptedAt: null,
+      lastRejectedAt: null,
+      lastRejectedReason: null
+    };
+    this._callbackFenceWarnings = new Set();
 
     // Dash-form symbols only — slash form is a path-traversal hazard
     // (path.join('data', 'BTC/USD.json') creates BTC/ subdir). Kraken's
@@ -359,6 +372,114 @@ class SessionRouter extends EventEmitter {
     return fallback;
   }
 
+  _nowIso() {
+    return new Date(this.clock()).toISOString();
+  }
+
+  _recordOhlcFenceRejection(reason, expected) {
+    const at = this._nowIso();
+    this.callbackFenceStats.rejected += 1;
+    this.callbackFenceStats.lastRejectedAt = at;
+    this.callbackFenceStats.lastRejectedReason = reason;
+
+    const event = {
+      at,
+      reason,
+      expectedSession: expected.sessionName,
+      expectedBrokerId: expected.brokerId,
+      expectedEpoch: expected.epoch,
+      expectedTransitionId: expected.transitionId,
+      activeSession: this.activeSession,
+      activeBrokerId: this._brokerIdFor(this.activeBroker, null),
+      activeEpoch: this.activeCallbackEpoch,
+      transitionInProgress: this.transitionInProgress,
+      failedSafeMode: this.failedSafeMode
+    };
+    this.emit('ohlc_callback_rejected', event);
+
+    const warningKey = `${reason}:${expected.sessionName}:${expected.epoch}`;
+    if (!this._callbackFenceWarnings.has(warningKey)) {
+      this._callbackFenceWarnings.add(warningKey);
+      console.warn(`[SessionRouter] Rejected OHLC callback: ${reason} | expected=${expected.sessionName}/${expected.brokerId}/epoch:${expected.epoch} active=${this.activeSession || '(none)'}/${event.activeBrokerId || '(none)'}/epoch:${this.activeCallbackEpoch || '(none)'}`);
+    }
+  }
+
+  _ohlcFenceRejectReason(expected) {
+    if (this.failedSafeMode) {
+      return 'failed-safe mode active';
+    }
+    if (this.transitionInProgress) {
+      return 'transition in progress';
+    }
+    if (this.activeSession !== expected.sessionName) {
+      return `session mismatch: active=${this.activeSession || '(none)'}`;
+    }
+    if (this.activeBroker !== expected.adapter) {
+      return `broker mismatch: active=${this._brokerIdFor(this.activeBroker, null) || '(none)'}`;
+    }
+    if (this.activeCallbackEpoch !== expected.epoch) {
+      return `epoch mismatch: active=${this.activeCallbackEpoch || '(none)'}`;
+    }
+    return null;
+  }
+
+  _buildOhlcFence(expected) {
+    return (eventData) => {
+      const rejectionReason = this._ohlcFenceRejectReason(expected);
+      if (rejectionReason) {
+        this._recordOhlcFenceRejection(rejectionReason, expected);
+        return;
+      }
+
+      const at = this._nowIso();
+      this.callbackFenceStats.accepted += 1;
+      this.callbackFenceStats.lastAcceptedAt = at;
+
+      const event = eventData && typeof eventData === 'object' && !Array.isArray(eventData)
+        ? { ...eventData }
+        : { data: eventData };
+      event.sessionRouterEpoch = expected.epoch;
+      event.sessionRouterTransitionId = expected.transitionId;
+      event.sessionRouterSession = expected.sessionName;
+      event.sessionRouterBrokerId = expected.brokerId;
+
+      return this.onOhlcCallback(event);
+    };
+  }
+
+  _attachActiveOhlcCallback(sessionName, adapter, transitionContext) {
+    if (!this.onOhlcCallback || typeof this.onOhlcCallback !== 'function') {
+      throw new Error('SessionRouter OHLC callback missing');
+    }
+    if (!adapter || typeof adapter.on !== 'function') {
+      throw new Error(`SessionRouter ${sessionName} adapter cannot attach OHLC callback`);
+    }
+    if (!transitionContext || !Number.isFinite(Number(transitionContext.epoch))) {
+      throw new Error('SessionRouter cannot attach OHLC callback without transition epoch');
+    }
+
+    const brokerId = this._brokerIdFor(adapter, null);
+    if (!brokerId) {
+      throw new Error(`SessionRouter ${sessionName} adapter missing broker identity for OHLC fence`);
+    }
+    const expected = {
+      sessionName,
+      adapter,
+      brokerId,
+      epoch: Number(transitionContext.epoch),
+      transitionId: transitionContext.transitionId
+    };
+    const fencedCallback = this._buildOhlcFence(expected);
+
+    this.activeCallbackEpoch = expected.epoch;
+    this.activeOhlcSession = expected.sessionName;
+    this.activeOhlcBrokerId = expected.brokerId;
+    this.activeOhlcTransitionId = expected.transitionId;
+    this.activeOhlcCallback = fencedCallback;
+    adapter.on('ohlc', fencedCallback);
+    return expected;
+  }
+
   _requireBrokerMethod(adapter, brokerId, methodName) {
     if (!adapter || typeof adapter[methodName] !== 'function') {
       throw new Error(`SessionRouter broker REST reconciliation unavailable: ${brokerId} missing ${methodName}()`);
@@ -629,10 +750,6 @@ class SessionRouter extends EventEmitter {
         }
       }
 
-      if (this.onOhlcCallback && typeof this.alpacaAdapter.on === 'function') {
-        this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
-      }
-
       this.activeSession = 'stocks';
       this.activeBroker = this.alpacaAdapter;
       this.lastTransitionAt = Date.now();
@@ -642,6 +759,7 @@ class SessionRouter extends EventEmitter {
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession
       });
+      this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
       this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: stocks session');
 
@@ -783,10 +901,6 @@ class SessionRouter extends EventEmitter {
         this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
       }
 
-      if (this.onOhlcCallback && typeof this.krakenAdapter.on === 'function') {
-        this.krakenAdapter.on('ohlc', this.onOhlcCallback);
-      }
-
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
       this.lastTransitionAt = Date.now();
@@ -796,6 +910,7 @@ class SessionRouter extends EventEmitter {
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession
       });
+      this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
       this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: crypto session');
 
@@ -834,14 +949,12 @@ class SessionRouter extends EventEmitter {
     if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
       this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
     }
-    if (this.onOhlcCallback && typeof this.krakenAdapter.on === 'function') {
-      this.krakenAdapter.on('ohlc', this.onOhlcCallback);
-    }
     this.activeSession = 'crypto';
     this.activeBroker = this.krakenAdapter;
     this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
       activeSession: this.activeSession
     });
+    this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
     console.log('[SessionRouter] Initial activation: crypto');
   }
 
@@ -868,14 +981,12 @@ class SessionRouter extends EventEmitter {
         this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
       }
     }
-    if (this.onOhlcCallback && typeof this.alpacaAdapter.on === 'function') {
-      this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
-    }
     this.activeSession = 'stocks';
     this.activeBroker = this.alpacaAdapter;
     this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
       activeSession: this.activeSession
     });
+    this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
     console.log('[SessionRouter] Initial activation: stocks');
   }
 
@@ -915,6 +1026,17 @@ class SessionRouter extends EventEmitter {
       failedSafePauseConfirmed: this.failedSafePauseConfirmed,
       failedSafePauseError: this.failedSafePauseError,
       failedSafePauseFallbackApplied: this.failedSafePauseFallbackApplied,
+      callbackFence: {
+        activeEpoch: this.activeCallbackEpoch,
+        activeSession: this.activeOhlcSession,
+        activeBrokerId: this.activeOhlcBrokerId,
+        activeTransitionId: this.activeOhlcTransitionId,
+        accepted: this.callbackFenceStats.accepted,
+        rejected: this.callbackFenceStats.rejected,
+        lastAcceptedAt: this.callbackFenceStats.lastAcceptedAt,
+        lastRejectedAt: this.callbackFenceStats.lastRejectedAt,
+        lastRejectedReason: this.callbackFenceStats.lastRejectedReason
+      },
       transitionStore: this._getTransitionStoreStatus(),
       lastTransitionAt: this.lastTransitionAt ? new Date(this.lastTransitionAt).toISOString() : null,
       marketPhase: getMarketPhase(new Date(this.clock())),

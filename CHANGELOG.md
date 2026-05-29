@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter OHLC Epoch Fencing (2026-05-29)
+
+- Wrapped SessionRouter OHLC callbacks with a router-owned epoch/session/broker fence so stale source-feed callbacks, callbacks during transitions, and callbacks during failed-safe mode are rejected before they can mutate candle, price, state, or trading-cycle data.
+- Required broker identity before OHLC fence attachment so callback metadata cannot silently stamp `crypto` or `stocks` where a real broker ID is required.
+- Stamped accepted SessionRouter candle events with transition epoch, transition ID, session, and broker metadata, and exposed accepted/rejected callback-fence counters through `getStatus()` for dashboard/proof visibility.
+- Added regression coverage for stale source callbacks after a crypto/stocks flip, transition-in-progress rejection, failed-safe rejection, and callback-fence status projection.
+
 ### SessionRouter Broker REST Reconciliation Gate (2026-05-29)
 
 - Added adapter-level broker REST reconciliation before initial SessionRouter activation and before crypto/stocks target activation, requiring positions, open orders, and balance checks to pass before pattern handoff, broker registration, feed subscription, active-session mutation, or trading resume.
