@@ -137,8 +137,12 @@
         wsHandlers: [],
     };
 
-    // Light idle threshold: if no event for N ms, dim the light.
-    const LIGHT_IDLE_MS = 5000;
+    // Event cadences differ: price feed should stale fast, bot/narrator can be quieter.
+    const LIGHT_IDLE_MS_BY_KIND = {
+        data: 5000,
+        bot: 15000,
+        trai: 15000,
+    };
 
     // ─── Event Bus Helper ──────────────────────────────────────────────
     function ensureEventBus() {
@@ -639,7 +643,7 @@
         state.idleTimers[name] = setTimeout(() => {
             lt.active = false;
             updateDisplay();
-        }, LIGHT_IDLE_MS);
+        }, LIGHT_IDLE_MS_BY_KIND[name] || 5000);
     }
 
     function updateStatusLightDOM(name) {
@@ -879,6 +883,18 @@
 
         teardown() {
             if (!state.mounted) return;
+
+            Object.keys(state.idleTimers).forEach(name => {
+                if (state.idleTimers[name]) {
+                    clearTimeout(state.idleTimers[name]);
+                    state.idleTimers[name] = null;
+                }
+            });
+            Object.keys(state.statusLights).forEach(name => {
+                state.statusLights[name].active = false;
+                state.statusLights[name].error = false;
+                state.statusLights[name].lastPulse = 0;
+            });
 
             // Remove event listeners
             if (state.domRefs.accountSelector) {
