@@ -278,21 +278,7 @@
             overflow: hidden;
         }
 
-        /* Strategy leaderboard */
-        #strategyLeaderboard {
-            /* #38: was flex:1 — as the only flex-grow child of .dash-center,
-               the (usually empty) leaderboard absorbed all leftover column
-               height and ballooned larger than the chart. Now it sizes to
-               its content, floored + capped, and scrolls past the cap. */
-            flex: 0 0 auto;
-            min-height: 150px;
-            max-height: 240px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px;
-            overflow-y: auto;
-        }
+        /* Strategy Leaderboard now lives in the right rail with performance modules. */
 
         /* Readouts row: side-by-side live readouts + pattern card */
         .dash-readouts-row {
@@ -336,7 +322,8 @@
         #traiBrain,
         #sizePreview,
         #riskGauge,
-        #tradeLog {
+        #tradeLog,
+        #strategyLeaderboard {
             min-height: 80px;
             background: var(--bg-panel);
             border: 1px solid var(--border-color);
@@ -574,7 +561,7 @@
         </aside>
 
         <!-- ====================================================================
-             CENTER COLUMN: Chart, Strategy Leaderboard, Readouts + Pattern Card
+             CENTER COLUMN: Chart, Readouts + Pattern Card
              ==================================================================== -->
         <section class="dash-center">
 
@@ -586,12 +573,7 @@
                  chartHudOhlc, etc.) so drawing-tools.js + other consumers still work. -->
             <div id="chartPanel"></div>
 
-            <!-- Strategy Leaderboard -->
-            <!-- Status: Module exists as public/js/panels/strategy-leaderboard.js -->
-            <!-- Features: Backtest leaderboard, historical trade performance -->
-            <div id="strategyLeaderboard">
-                <div class="v2-placeholder">[ Strategy Leaderboard ]</div>
-            </div>
+            <!-- Strategy Leaderboard moved to right rail under Trade Log. -->
 
             <!-- Readouts Row: Live Readouts + Pattern Card (side-by-side) -->
             <div class="dash-readouts-row">
@@ -660,6 +642,11 @@
             <div id="tradeLog">
                 <div class="v2-placeholder">[ Trade Log ]</div>
             </div>
+
+            <!-- Strategy Leaderboard -->
+            <!-- Status: Module exists as public/js/panels/strategy-leaderboard.js -->
+            <!-- Features: Backtest leaderboard, historical trade performance -->
+            <div id="strategyLeaderboard"></div>
         </aside>
     </main>
 
