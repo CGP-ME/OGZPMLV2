@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Watchlist Ticker Price Contract (2026-05-29)
+
+- Wired the watchlist panel to consume `ticker_price` frames in addition to `price` frames so server-side stock ticker fanout reaches the visible cards.
+- Made watchlist socket handler installation idempotent across repeated frontend init calls while still rebinding when the Socket module identity changes.
+- Added interval cleanup/restart coverage for the temporary position-sync loop used until backend `position_update` frames are wired.
+
 ### OrderExecutor Dashboard Trade Broadcast Contract (2026-05-29)
 
 - Routed dashboard `trade` frames through the central OrderExecutor dashboard sender instead of direct `ws.send()` calls behind the duplicated `dashboardWsConnected` flag.

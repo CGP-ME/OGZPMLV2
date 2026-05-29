@@ -94,6 +94,9 @@
         cardElementCache: new Map(),      // symbol → DOM element reference
         animationFrameId: null,            // RAF handle for price flash timeouts
         openPositions: [],                 // { symbol, side: 'LONG'|'SHORT' } (from state_update)
+        socketHandlersInstalled: false,
+        socketHandlerSocket: null,
+        positionSyncIntervalId: null,
     };
 
     function normalizePriceMatchSymbol(symbol) {
@@ -622,16 +625,22 @@
                 state.selectedSymbol = state.tickers[0]?.symbol || null;
                 render();
 
-                // Subscribe to price events via Socket
+                // Subscribe to price/ticker events via Socket. Server stock
+                // fanout emits ticker_price; bot candle flow emits price.
                 const socket = OGZ.get && OGZ.get('Socket');
-                if (socket && socket.registerHandler) {
+                if (socket && socket.registerHandler && state.socketHandlerSocket !== socket) {
                     socket.registerHandler('price', onPriceEvent);
+                    socket.registerHandler('ticker_price', onPriceEvent);
+                    state.socketHandlersInstalled = true;
+                    state.socketHandlerSocket = socket;
                     // TODO verify with backend: position_update
                     // socket.registerHandler('position_update', onPositionUpdate);
                 }
 
-                // Periodically sync position states (fallback for missing backend event)
-                setInterval(syncPositionStates, POSITION_POLL_MS);
+                // Periodically sync position states until backend position_update is wired.
+                if (!state.positionSyncIntervalId) {
+                    state.positionSyncIntervalId = setInterval(syncPositionStates, POSITION_POLL_MS);
+                }
             } catch (_) { /* swallow */ }
         },
 
@@ -744,6 +753,11 @@
                 const styleEl = document.getElementById(STYLE_ID);
                 if (styleEl) styleEl.remove();
 
+                if (state.positionSyncIntervalId) {
+                    clearInterval(state.positionSyncIntervalId);
+                    state.positionSyncIntervalId = null;
+                }
+
                 state.mounted = false;
                 state.tickers = [];
                 state.tickerStates.clear();
@@ -764,6 +778,9 @@
                 selectedSymbol: state.selectedSymbol,
                 tickerStatesCount: state.tickerStates.size,
                 cachedCards: state.cardElementCache.size,
+                socketHandlersInstalled: state.socketHandlersInstalled,
+                socketHandlerSocketBound: Boolean(state.socketHandlerSocket),
+                positionSyncIntervalInstalled: Boolean(state.positionSyncIntervalId),
             };
         },
 
