@@ -316,7 +316,7 @@
             .hs-status-cluster {
                 display: flex;
                 align-items: center;
-                gap: 12px;
+                gap: 16px;
                 flex: 0 0 auto;
                 margin-left: auto;
                 justify-self: end;
@@ -324,27 +324,27 @@
 
             .hs-status-lights-bar {
                 display: flex;
-                gap: 15px;
+                gap: 18px;
                 align-items: center;
                 background: rgba(0, 0, 0, 0.5);
-                padding: 8px 15px;
-                border-radius: 20px;
+                padding: 9px 18px;
+                border-radius: 22px;
                 border: 1px solid rgba(255, 255, 255, 0.1);
             }
 
             .hs-status-light {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 7px;
                 font-size: 11px;
-                font-weight: 500;
+                font-weight: 600;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
+                letter-spacing: 0.6px;
             }
 
             .hs-status-light .hs-light {
-                width: 10px;
-                height: 10px;
+                width: 12px;
+                height: 12px;
                 border-radius: 50%;
                 background: #444444;
                 box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
@@ -384,16 +384,16 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding: 6px 12px;
+                padding: 7px 14px;
                 background: rgba(0, 0, 0, 0.5);
-                border-radius: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                min-width: 70px;
+                border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                min-width: 78px;
             }
 
             .hs-risk-budget-percent {
                 font-family: 'Orbitron', monospace;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 700;
                 color: var(--profit-color);
                 letter-spacing: 1px;
