@@ -397,6 +397,105 @@ class KrakenAdapterSimple {
     return map[symbol] || symbol.replace('-', '').replace('/', '');
   }
 
+  normalizeKrakenWsPair(pair) {
+    const raw = String(pair || '').trim().toUpperCase();
+    if (!raw) return null;
+
+    const map = {
+      'XBT/USD': 'BTC-USD',
+      'XXBTZUSD': 'BTC-USD',
+      'ETH/USD': 'ETH-USD',
+      'XETHZUSD': 'ETH-USD',
+      'SOL/USD': 'SOL-USD',
+      'SOLUSD': 'SOL-USD',
+      'XRP/USD': 'XRP-USD',
+      'XXRPZUSD': 'XRP-USD',
+      'ADA/USD': 'ADA-USD',
+      'ADAUSD': 'ADA-USD',
+      'DOT/USD': 'DOT-USD',
+      'DOTUSD': 'DOT-USD',
+      'AVAX/USD': 'AVAX-USD',
+      'AVAXUSD': 'AVAX-USD',
+      'LINK/USD': 'LINK-USD',
+      'LINKUSD': 'LINK-USD',
+      'MATIC/USD': 'MATIC-USD',
+      'MATICUSD': 'MATIC-USD',
+      'UNI/USD': 'UNI-USD',
+      'UNIUSD': 'UNI-USD',
+      'ATOM/USD': 'ATOM-USD',
+      'ATOMUSD': 'ATOM-USD',
+      'LTC/USD': 'LTC-USD',
+      'XLTCZUSD': 'LTC-USD',
+      'DOGE/USD': 'DOGE-USD',
+      'XDG/USD': 'DOGE-USD',
+      'XDGUSD': 'DOGE-USD',
+      'SHIB/USD': 'SHIB-USD',
+      'SHIBUSD': 'SHIB-USD',
+      'APT/USD': 'APT-USD',
+      'APTUSD': 'APT-USD',
+      'ARB/USD': 'ARB-USD',
+      'ARBUSD': 'ARB-USD',
+      'OP/USD': 'OP-USD',
+      'OPUSD': 'OP-USD'
+    };
+    if (map[raw]) return map[raw];
+
+    if (/^[A-Z0-9]+-[A-Z0-9]+$/.test(raw)) {
+      const [base, quote] = raw.split('-');
+      return `${base === 'XBT' ? 'BTC' : base}-${quote}`;
+    }
+
+    if (raw.includes('-')) return null;
+
+    if (raw.includes('/')) {
+      const parts = raw.split('/');
+      if (parts.length !== 2) return null;
+      const [base, quote] = parts;
+      if (!base || !quote) return null;
+      const normalizedBase = base === 'XBT' ? 'BTC' : base;
+      return `${normalizedBase}-${quote}`;
+    }
+
+    if (raw.endsWith('USD') && raw.length > 3) {
+      const base = raw.slice(0, -3);
+      if (!base) return null;
+      return `${base === 'XBT' ? 'BTC' : base}-USD`;
+    }
+
+    return null;
+  }
+
+  isCanonicalDashboardSymbol(symbol) {
+    return /^[A-Z0-9]+-[A-Z0-9]+$/.test(String(symbol || ''));
+  }
+
+  buildPriceCallbackFrame(symbol, price, volume, timestamp) {
+    if (!this.isCanonicalDashboardSymbol(symbol)) {
+      console.error(`[Kraken] BUILD_PRICE_INVALID_SYMBOL: ${symbol || 'missing'}`);
+      return null;
+    }
+
+    return {
+      type: 'price',
+      symbol,
+      asset: symbol,
+      price,
+      close: price,
+      volume,
+      timestamp,
+      source: 'kraken',
+      data: {
+        symbol,
+        asset: symbol,
+        price,
+        close: price,
+        volume,
+        timestamp,
+        source: 'kraken'
+      }
+    };
+  }
+
   validateOrder(order) {
     const errors = [];
 
@@ -687,25 +786,32 @@ class KrakenAdapterSimple {
               return;
             }
 
+            const symbol = this.normalizeKrakenWsPair(msg[3]);
+            if (!symbol) {
+              console.error(`[Kraken] WS_PRICE_UNATTRIBUTED: missing/unknown ticker pair (${msg[3] || 'missing'})`);
+              return;
+            }
+            if (!this.isCanonicalDashboardSymbol(symbol)) {
+              console.error(`[Kraken] WS_PRICE_INVALID_SYMBOL: ${symbol}`);
+              return;
+            }
+
+            const timestamp = Date.now();
+            const volume = parseFloat(tickerData?.v?.[1]) || 0;
+
             // Store latest price for fallback access
-            this.currentPrices.set('BTC-USD', {
+            this.currentPrices.set(symbol, {
               price: price,
-              timestamp: Date.now(),
-              volume: parseFloat(tickerData?.v?.[1]) || 0, // 24h volume
+              timestamp,
+              volume, // 24h volume
               source: 'kraken'
             });
 
             // Call the callback with price update
             if (onPriceUpdate) {
-              onPriceUpdate({
-                type: 'price',
-                data: {
-                  asset: 'BTC--USD',
-                  price: price,
-                  timestamp: Date.now(),
-                  source: 'kraken'
-                }
-              });
+              const frame = this.buildPriceCallbackFrame(symbol, price, volume, timestamp);
+              if (!frame) return;
+              onPriceUpdate(frame);
             }
           }
 
@@ -719,6 +825,15 @@ class KrakenAdapterSimple {
             const ohlcData = msg[1];
             const channelName = msg[2];  // e.g., 'ohlc-1', 'ohlc-5', 'ohlc-15'
             const pair = msg[3];
+            const symbol = this.normalizeKrakenWsPair(pair);
+            if (!symbol) {
+              console.error(`[Kraken] WS_OHLC_UNATTRIBUTED: missing/unknown OHLC pair (${pair || 'missing'})`);
+              return;
+            }
+            if (!this.isCanonicalDashboardSymbol(symbol)) {
+              console.error(`[Kraken] WS_OHLC_INVALID_SYMBOL: ${symbol}`);
+              return;
+            }
 
             // Extract interval from channel name (ohlc-1 → 1, ohlc-60 → 60)
             const interval = parseInt(channelName.split('-')[1], 10);
@@ -736,6 +851,7 @@ class KrakenAdapterSimple {
                 type: 'ohlc',
                 data: ohlcData,
                 pair: pair,
+                symbol,
                 timeframe: timeframe,
                 interval: interval,
                 timestamp: Date.now()
