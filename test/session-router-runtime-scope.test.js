@@ -243,6 +243,237 @@ describe('SessionRouter runtime scope propagation', () => {
     }));
   });
 
+  test('OrderExecutor dashboard trade broadcast uses socket readiness instead of stale connected flag', () => {
+    const send = jest.fn();
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: { readyState: 1, send },
+      dashboardWsConnected: false,
+    });
+
+    const sent = executor._broadcastDashboardTrade({
+      action: 'SELL',
+      direction: 'long',
+      symbol: 'BTC-USD',
+      price: 101,
+      pnl: 12.5,
+      timestamp: 123456,
+      confidence: 88,
+    }, {
+      orderId: 'ORDER-1',
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeKey: 'paper:kraken:acct-main:crypto:BTC-USD:1m',
+      exitReason: 'take_profit',
+      entryStrategy: 'MADynamicSR',
+      sizeUsd: 250,
+      entryPrice: 99,
+    });
+
+    expect(sent).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    const frame = JSON.parse(send.mock.calls[0][0]);
+    expect(frame).toEqual(expect.objectContaining({
+      type: 'trade',
+      action: 'SELL',
+      direction: 'long',
+      tradeId: 'ORDER-1',
+      orderId: 'ORDER-1',
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '1m',
+      scopeComplete: true,
+      exitReason: 'take_profit',
+      strategy: 'MADynamicSR',
+      strategyName: 'MADynamicSR',
+      sizeUsd: 250,
+      entryPrice: 99,
+    }));
+  });
+
+  test('OrderExecutor dashboard trade broadcast catches socket send failures', () => {
+    const send = jest.fn(() => {
+      throw new Error('socket closed during trade emit');
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: { readyState: 1, send },
+      dashboardWsConnected: true,
+    });
+
+    const sent = executor._broadcastDashboardTrade({
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 0,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-2', symbol: 'TSLA' });
+
+    expect(sent).toBe(false);
+    expect(errorSpy).toHaveBeenCalledWith('[OrderExecutor] dashboard trade broadcast failed: socket closed during trade emit');
+    errorSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast logs inconsistent connected socket state', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: null,
+      dashboardWsConnected: true,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 0,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-3', symbol: 'TSLA' })).toBe(false);
+
+    expect(warnSpy).toHaveBeenCalledWith('[OrderExecutor] dashboard trade broadcast skipped: socket missing');
+    warnSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast logs missing live socket even when connected flag is false', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: null,
+      dashboardWsConnected: false,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 0,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-4', symbol: 'TSLA' })).toBe(false);
+
+    expect(warnSpy).toHaveBeenCalledWith('[OrderExecutor] dashboard trade broadcast skipped: socket missing');
+    warnSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast does not warn for missing backtest dashboard socket', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: { ...staleCryptoConfig, enableBacktestMode: true },
+      candleTimeframe: '1m',
+      dashboardWs: null,
+      dashboardWsConnected: false,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 0,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-BACKTEST', symbol: 'TSLA' })).toBe(false);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast logs non-open socket state', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: { readyState: 3, send: jest.fn() },
+      dashboardWsConnected: false,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'SELL',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 5,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-5', symbol: 'TSLA' })).toBe(false);
+
+    expect(warnSpy).toHaveBeenCalledWith('[OrderExecutor] dashboard trade broadcast skipped: socket not open readyState=3');
+    warnSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast rejects symbol mismatch without changing execution path', () => {
+    const send = jest.fn();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: { readyState: 1, send },
+      dashboardWsConnected: true,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      price: 100,
+      pnl: 0,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-6', symbol: 'BTC-USD' })).toBe(false);
+
+    expect(send).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[OrderExecutor] dashboard trade frame build failed: dashboard trade symbol mismatch orderId=ORDER-6 payload=TSLA trade=BTC-USD'
+    );
+    errorSpy.mockRestore();
+  });
+
+  test('OrderExecutor dashboard trade broadcast rejects orderId mismatch without emitting telemetry', () => {
+    const send = jest.fn();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      dashboardWs: { readyState: 1, send },
+      dashboardWsConnected: true,
+    });
+
+    expect(executor._broadcastDashboardTrade({
+      action: 'SELL',
+      direction: 'long',
+      symbol: 'TSLA',
+      orderId: 'ORDER-PAYLOAD',
+      price: 100,
+      pnl: 5,
+      timestamp: 123456,
+      confidence: 75,
+    }, { orderId: 'ORDER-TRADE', symbol: 'TSLA' })).toBe(false);
+
+    expect(send).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[OrderExecutor] dashboard trade frame build failed: dashboard trade orderId mismatch payload=ORDER-PAYLOAD trade=ORDER-TRADE'
+    );
+    errorSpy.mockRestore();
+  });
+
   test('OrderExecutor exit plan trusts stored trade scope over current router scope', () => {
     mockStateManager.getTradesBySymbol.mockReturnValue([{
       id: 'BUY_1',

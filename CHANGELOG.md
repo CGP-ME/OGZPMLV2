@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### OrderExecutor Dashboard Trade Broadcast Contract (2026-05-29)
+
+- Routed dashboard `trade` frames through the central OrderExecutor dashboard sender instead of direct `ws.send()` calls behind the duplicated `dashboardWsConnected` flag.
+- Preserved the existing trade payload contract while ensuring open dashboard sockets receive BUY, SELL_SHORT, SELL, and COVER frames even if the boolean connection mirror drifts stale.
+- Added symbol and orderId mismatch guards so corrupted/stale trade records cannot overwrite live dashboard trade telemetry identity.
+- Added regression coverage for trade frame scope/strategy/exit metadata, send-failure containment, missing/non-open dashboard socket evidence, backtest no-dashboard silence, and identity-mismatch rejection.
+
 ### StateManager Dashboard Heartbeat Contract (2026-05-29)
 
 - Added a configured StateManager `state_update` heartbeat so dashboard panels receive authoritative account/position snapshots even when no balance or position field changed.

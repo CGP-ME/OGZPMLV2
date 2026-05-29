@@ -168,6 +168,17 @@ class OrderExecutor {
   _dashboardTradePayload(payload, trade = {}) {
     const hasTradeRecord = trade && typeof trade === 'object' && Object.keys(trade).length > 0;
     const runtimeScope = hasTradeRecord ? {} : this._runtimeScope(trade.symbol || payload.symbol || null);
+    const payloadSymbol = payload.symbol || null;
+    const tradeSymbol = trade.symbol || null;
+    const orderIdForMismatch = trade.orderId || trade.id || payload.orderId || payload.tradeId || null;
+    const payloadOrderId = payload.orderId || payload.tradeId || null;
+    const tradeOrderId = trade.orderId || trade.id || null;
+    if (payloadSymbol && tradeSymbol && payloadSymbol !== tradeSymbol) {
+      throw new Error(`dashboard trade symbol mismatch orderId=${orderIdForMismatch || 'unknown'} payload=${payloadSymbol} trade=${tradeSymbol}`);
+    }
+    if (payloadOrderId && tradeOrderId && payloadOrderId !== tradeOrderId) {
+      throw new Error(`dashboard trade orderId mismatch payload=${payloadOrderId} trade=${tradeOrderId}`);
+    }
     const brokerId = trade.brokerId || runtimeScope.brokerId || null;
     const accountId = trade.accountId || runtimeScope.accountId || 'default';
     const accountIdSource = trade.accountIdSource
@@ -214,13 +225,35 @@ class OrderExecutor {
 
   _sendDashboardFrame(frame) {
     const ws = this.ctx.dashboardWs;
-    if (!ws || ws.readyState !== 1) return false;
+    if (!ws) {
+      if (this.ctx.dashboardWsConnected === true || this._shouldLogMissingDashboardSocket()) {
+        console.warn(`[OrderExecutor] dashboard ${frame?.type || 'unknown'} broadcast skipped: socket missing`);
+      }
+      return false;
+    }
+    if (ws.readyState !== 1) {
+      console.warn(`[OrderExecutor] dashboard ${frame?.type || 'unknown'} broadcast skipped: socket not open readyState=${ws.readyState}`);
+      return false;
+    }
 
     try {
       ws.send(JSON.stringify(frame));
       return true;
     } catch (err) {
       console.error(`[OrderExecutor] dashboard ${frame?.type || 'unknown'} broadcast failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  _shouldLogMissingDashboardSocket() {
+    return this.ctx.backtestMode !== true && this.ctx.config?.enableBacktestMode !== true;
+  }
+
+  _broadcastDashboardTrade(payload, trade = {}) {
+    try {
+      return this._sendDashboardFrame(this._dashboardTradePayload(payload, trade));
+    } catch (err) {
+      console.error(`[OrderExecutor] dashboard trade frame build failed: ${err.message}`);
       return false;
     }
   }
@@ -1112,9 +1145,9 @@ class OrderExecutor {
           // Phase 4 REWRITE: executionLayer.trades deleted - backtestRecorder handles trade recording
 
           // CHANGE 2026-01-23: Broadcast BUY trade to dashboard
-          if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
+          {
             const openedTrade = this._getActiveTradeById(unifiedResult.orderId);
-            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
+            const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'BUY',
               direction: 'long',
               symbol,
@@ -1122,8 +1155,10 @@ class OrderExecutor {
               pnl: 0,  // No P&L on entry
               timestamp: Date.now(),
               confidence: decision.confidence
-            }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
-            console.log(`Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
+            }, openedTrade || { orderId: unifiedResult.orderId, symbol });
+            if (sentDashboardTrade) {
+              console.log(`Broadcast BUY trade to dashboard at $${price.toFixed(2)}`);
+            }
           }
 
           // CHANGE 2026-01-25: Log trade for website proof
@@ -1314,9 +1349,9 @@ class OrderExecutor {
           }
 
           // Dashboard broadcast for SHORT
-          if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
+          {
             const openedTrade = this._getActiveTradeById(unifiedResult.orderId);
-            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
+            const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'SELL_SHORT',
               direction: 'short',
               symbol,
@@ -1324,8 +1359,10 @@ class OrderExecutor {
               pnl: 0,
               timestamp: Date.now(),
               confidence: decision.confidence
-            }, openedTrade || { orderId: unifiedResult.orderId, symbol })));
-            console.log(`Broadcast SHORT trade to dashboard at $${price.toFixed(2)}`);
+            }, openedTrade || { orderId: unifiedResult.orderId, symbol });
+            if (sentDashboardTrade) {
+              console.log(`Broadcast SHORT trade to dashboard at $${price.toFixed(2)}`);
+            }
           }
 
           // Proof logger for SHORT
@@ -1609,8 +1646,8 @@ class OrderExecutor {
             // Phase 4 REWRITE: executionLayer.trades deleted - backtestRecorder handles trade recording
 
             // CHANGE 2026-01-23: Broadcast SELL trade to dashboard
-            if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-              this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
+            {
+              const sentDashboardTrade = this._broadcastDashboardTrade({
                 action: 'SELL',
                 direction: 'long',
                 symbol,
@@ -1619,8 +1656,10 @@ class OrderExecutor {
                 timestamp: Date.now(),
                 duration: `${(holdDuration / 60000).toFixed(1)}m`,
                 confidence: decision.confidence
-              }, completeTradeResult)));
-              console.log(`Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+              }, completeTradeResult);
+              if (sentDashboardTrade) {
+                console.log(`Broadcast SELL trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+              }
             }
 
             // CHANGE 2026-01-25: Log trade for website proof
@@ -2105,8 +2144,8 @@ class OrderExecutor {
           }
 
           // Dashboard broadcast for COVER
-          if (this.ctx.dashboardWsConnected && this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === 1) {
-            this.ctx.dashboardWs.send(JSON.stringify(this._dashboardTradePayload({
+          {
+            const sentDashboardTrade = this._broadcastDashboardTrade({
               action: 'COVER',
               direction: 'short',
               symbol,
@@ -2115,8 +2154,10 @@ class OrderExecutor {
               timestamp: Date.now(),
               duration: `${(holdDuration / 60000).toFixed(1)}m`,
               confidence: decision.confidence
-            }, completeTradeResult)));
-            console.log(`Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+            }, completeTradeResult);
+            if (sentDashboardTrade) {
+              console.log(`Broadcast COVER trade to dashboard at $${price.toFixed(2)} (P&L: $${completeTradeResult.pnlDollars.toFixed(2)})`);
+            }
           }
 
           try {
