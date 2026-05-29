@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Chart Asset Routing (2026-05-29)
+
+- Fixed chart asset switches by tracking the last successfully sent `asset_change` request instead of comparing against the dropdown value after the browser has already updated it.
+- Rejected cross-symbol and missing-symbol `delta` frames before they can repaint the selected chart HUD, preserving backend symbol attribution as the source of truth.
+- Cancelled stale delayed historical-candle requests during rapid asset switches so an older selection cannot request or race data after a newer selection is active.
+
 ### SessionRouter Broker Intent Idempotency (2026-05-29)
 
 - Added a durable `broker-intents.jsonl` ledger to `TransitionStore` with deterministic broker intent IDs scoped by transition, epoch, session direction, broker, account, execution mode, action, symbol set, symbol, and timeframe.

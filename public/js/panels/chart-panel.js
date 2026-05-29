@@ -82,6 +82,7 @@
     let _cachedHudPrice = null;
     let _cachedHudOhlc = null;
     let _cachedTooltipEl = null;
+    let _loadedAsset = null;
 
     // Teardown tracking
     const _trackedListeners = [];
@@ -1051,6 +1052,7 @@
     let _targetPriceLine = null;
     let _lastPositionState = null;
     let _noDataWatchdogTimer = null;   // fix #42: timeframe-change "no data" watchdog
+    let _pendingAssetHistoryTimer = null;
 
     // Auto-bootstrap historical candles + supplemental WS subscriptions.
     // Core.js routes price/historical_candles/pattern_analysis/depth_update to
@@ -1080,6 +1082,7 @@
             if (typeof socket.send === 'function') {
                 socket.send({ type: 'asset_change', asset: sym });
                 socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
+                _loadedAsset = sym;
             }
         } catch (e) { /* swallow */ }
 
@@ -1089,6 +1092,7 @@
         //   { type:'delta', tick:{ price, volume, timestamp } }
         socket.registerHandler('delta', (d) => {
             try {
+                if (!ChartPanel.isSelectedAssetPayload(d)) return;
                 const tick = (d && d.tick) ? d.tick : (d || {});
                 const p = Number(tick.price);
                 if (!isFinite(p) || p <= 0) return;
@@ -1446,23 +1450,37 @@
             }
             if (!optionExists(sym)) return;   // genuinely unknown symbol — ignore
 
-            // No-op if we're already on this asset.
-            if (assetSel.value === sym) return;
-
-            // Keep the dropdown in sync with the new symbol.
-            assetSel.value = sym;
+            if (_loadedAsset === sym) return;
 
             const socket = OGZ.get('Socket');
-            if (!socket) return;
-            try { socket.send({ type: 'asset_change', asset: sym }); } catch (e) { /* swallow */ }
+            if (!socket || typeof socket.send !== 'function') {
+                console.warn('[ChartPanel] asset_change skipped: socket unavailable', { asset: sym });
+                return;
+            }
+            try {
+                socket.send({ type: 'asset_change', asset: sym });
+                _loadedAsset = sym;
+                assetSel.value = sym;
+            } catch (e) {
+                console.warn('[ChartPanel] asset_change send failed', { asset: sym, error: e && e.message ? e.message : e });
+                return;
+            }
             this.clearAll();
+            if (_pendingAssetHistoryTimer) {
+                clearTimeout(_pendingAssetHistoryTimer);
+                _trackedTimers.delete(_pendingAssetHistoryTimer);
+                _pendingAssetHistoryTimer = null;
+            }
             const tid = setTimeout(() => {
                 _trackedTimers.delete(tid);
+                if (_pendingAssetHistoryTimer === tid) _pendingAssetHistoryTimer = null;
                 const tf = root.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
                 try { socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 }); }
-                catch (e) { /* swallow */ }
+                catch (e) {
+                    console.warn('[ChartPanel] request_historical send failed', { asset: sym, error: e && e.message ? e.message : e });
+                }
             }, 500);
-            trackTimer(tid);
+            _pendingAssetHistoryTimer = trackTimer(tid);
         },
 
         /**
@@ -1684,6 +1702,7 @@
                 try { clearTimeout(tid); } catch (e) { /* swallow */ }
             }
             _trackedTimers.clear();
+            _pendingAssetHistoryTimer = null;
 
             for (const { target, type, handler } of _trackedListeners) {
                 try { target.removeEventListener(type, handler); }
