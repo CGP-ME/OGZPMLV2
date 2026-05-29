@@ -314,8 +314,8 @@
                 <div class="lr-cell"><div class="lr-k">Account</div><div class="lr-v" data-k="account">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Position</div><div class="lr-v" data-k="position">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Balance</div><div class="lr-v" data-k="balance">—</div></div>
-                <div class="lr-cell"><div class="lr-k">Realized P&L</div><div class="lr-v" data-k="realized">—</div></div>
-                <div class="lr-cell"><div class="lr-k">Trades</div><div class="lr-v" data-k="trades">—</div></div>
+                <div class="lr-cell"><div class="lr-k">Realized P&L (lifetime)</div><div class="lr-v" data-k="realized">—</div></div>
+                <div class="lr-cell"><div class="lr-k">Trades (lifetime)</div><div class="lr-v" data-k="trades">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Mode</div><div class="lr-v" data-k="mode">—</div></div>
             </div>
             <div class="lr-reason">
