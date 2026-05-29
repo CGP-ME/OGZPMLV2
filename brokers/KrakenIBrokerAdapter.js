@@ -133,13 +133,17 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   async getPositions() {
-    // Spot trading doesn't have positions, return empty
-    return [];
+    if (typeof this.kraken.getPositions === 'function') {
+      return await this.kraken.getPositions();
+    }
+    if (typeof this.kraken.getOpenPositions === 'function') {
+      return await this.kraken.getOpenPositions();
+    }
+    throw new Error('[KrakenIBroker] Underlying adapter does not expose spot positions');
   }
 
   async getOpenPositions() {
-    // Required for reconciliation - spot trading has no positions
-    return [];
+    return await this.getPositions();
   }
 
   async getOpenOrders() {

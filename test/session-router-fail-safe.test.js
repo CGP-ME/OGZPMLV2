@@ -61,12 +61,20 @@ describe('SessionRouter failed-safe transition behavior', () => {
       }
     };
     router.krakenAdapter = {
+      getBrokerName: jest.fn(() => 'kraken'),
+      getPositions: jest.fn().mockResolvedValue([]),
+      getOpenOrders: jest.fn().mockResolvedValue([]),
+      getBalance: jest.fn().mockResolvedValue({ total: 10000 }),
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),
       subscribeToCandles: jest.fn(),
       on: jest.fn()
     };
     router.alpacaAdapter = {
+      getBrokerName: jest.fn(() => 'alpaca'),
+      getPositions: jest.fn().mockResolvedValue([]),
+      getOpenOrders: jest.fn().mockResolvedValue([]),
+      getBalance: jest.fn().mockResolvedValue({ equity: 10000 }),
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),
       subscribeToCandles: jest.fn(),
@@ -260,12 +268,27 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
   });
 
-  test('direct activation methods refuse to run while failed-safe mode is active', () => {
+  test('pause success without paused state enters failed-safe before broker reconciliation', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.stateManager.pauseTrading.mockResolvedValue({ success: true });
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('StateManager pauseTrading did not confirm paused state');
+    expect(router.krakenAdapter.getPositions).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+  });
+
+  test('direct activation methods refuse to run while failed-safe mode is active', async () => {
     const router = makeRouter();
     router.failedSafeMode = true;
 
-    router._activateCrypto();
-    router._activateStocks();
+    await router._activateCrypto();
+    await router._activateStocks();
 
     expect(router.activeSession).toBe(null);
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();

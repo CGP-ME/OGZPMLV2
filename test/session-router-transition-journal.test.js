@@ -61,12 +61,20 @@ describe('SessionRouter transition journal', () => {
       }
     };
     router.krakenAdapter = {
+      getBrokerName: jest.fn(() => 'kraken'),
+      getPositions: jest.fn().mockResolvedValue([]),
+      getOpenOrders: jest.fn().mockResolvedValue([]),
+      getBalance: jest.fn().mockResolvedValue({ total: 10000 }),
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),
       subscribeToCandles: jest.fn(),
       on: jest.fn()
     };
     router.alpacaAdapter = {
+      getBrokerName: jest.fn(() => 'alpaca'),
+      getPositions: jest.fn().mockResolvedValue([]),
+      getOpenOrders: jest.fn().mockResolvedValue([]),
+      getBalance: jest.fn().mockResolvedValue({ equity: 10000 }),
       unsubscribeAll: jest.fn(),
       removeAllListeners: jest.fn(),
       subscribeToCandles: jest.fn(),
@@ -104,6 +112,7 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_TARGET_ACTIVATED'
@@ -126,6 +135,23 @@ describe('SessionRouter transition journal', () => {
     }));
     expect(events[2]).toEqual(expect.objectContaining({
       activeSession: 'crypto',
+      brokerReconciliation: expect.objectContaining({
+        source: expect.objectContaining({
+          brokerId: 'kraken',
+          openPositions: [],
+          openOrders: [],
+          balanceChecked: true
+        }),
+        target: expect.objectContaining({
+          brokerId: 'alpaca',
+          openPositions: [],
+          openOrders: [],
+          balanceChecked: true
+        })
+      })
+    }));
+    expect(events[3]).toEqual(expect.objectContaining({
+      activeSession: 'crypto',
       patternMemory: expect.objectContaining({
         skipped: false,
         reason: 'already_active',
@@ -134,11 +160,11 @@ describe('SessionRouter transition journal', () => {
         assetBucket: 'stocks'
       })
     }));
-    expect(events[3]).toEqual(expect.objectContaining({
+    expect(events[4]).toEqual(expect.objectContaining({
       brokerId: 'alpaca',
       symbols: ['TSLA']
     }));
-    expect(events[4]).toEqual(expect.objectContaining({
+    expect(events[5]).toEqual(expect.objectContaining({
       activeSession: 'stocks',
       brokerId: 'alpaca',
       symbols: ['TSLA']
@@ -152,7 +178,7 @@ describe('SessionRouter transition journal', () => {
       activeSession: 'stocks',
       brokerId: 'alpaca',
       lastEvent: 'SESSION_TARGET_ACTIVATED',
-      eventsCount: 5
+      eventsCount: 6
     }));
     expect(intentCall).toBeGreaterThanOrEqual(0);
     expect(recordSpy.mock.invocationCallOrder[intentCall]).toBeLessThan(
@@ -203,7 +229,7 @@ describe('SessionRouter transition journal', () => {
       to: 'stocks'
     }));
     expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeGreaterThan(
-      router.stateManager.pauseTrading.mock.invocationCallOrder[0]
+      router.alpacaAdapter.getBalance.mock.invocationCallOrder[0]
     );
     expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
       router.krakenAdapter.unsubscribeAll.mock.invocationCallOrder[0]
@@ -217,9 +243,57 @@ describe('SessionRouter transition journal', () => {
     expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_TARGET_ACTIVATED'
+    ]);
+  });
+
+  test('source broker open position blocks target activation before pattern handoff', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.krakenAdapter.getPositions.mockResolvedValue([
+      { symbol: 'BTC-USD', quantity: 0, side: 'long' }
+    ]);
+    const memory = router.ctx.patternChecker.memory;
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter broker REST reconciliation blocked activation: source kraken open positions=1');
+    expect(memory.switchSessionScope).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_TRANSITION_PLANNED',
+      'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILE_FAILED',
+      'SESSION_FAILED_SAFE'
+    ]);
+  });
+
+  test('target broker open order blocks target activation before pattern handoff', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.alpacaAdapter.getOpenOrders.mockResolvedValue([
+      { orderId: 'ALPACA_OPEN_1', symbol: 'TSLA', side: 'buy', amount: 10, filledAmount: 10, status: 'open' }
+    ]);
+    const memory = router.ctx.patternChecker.memory;
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter broker REST reconciliation blocked activation: target alpaca open orders=1');
+    expect(memory.switchSessionScope).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_TRANSITION_PLANNED',
+      'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILE_FAILED',
+      'SESSION_FAILED_SAFE'
     ]);
   });
 
@@ -252,6 +326,7 @@ describe('SessionRouter transition journal', () => {
     expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_FAILED_SAFE'
     ]);
   });
@@ -280,6 +355,7 @@ describe('SessionRouter transition journal', () => {
     expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_FAILED_SAFE'
     ]);
   });
@@ -364,6 +440,9 @@ describe('SessionRouter transition journal', () => {
       sourceFlatConfirmed: true
     }));
     expect(router.stateManager.closePosition.mock.invocationCallOrder[0]).toBeLessThan(
+      router.alpacaAdapter.getPositions.mock.invocationCallOrder[0]
+    );
+    expect(router.alpacaAdapter.getPositions.mock.invocationCallOrder[0]).toBeLessThan(
       memory.switchSessionScope.mock.invocationCallOrder[0]
     );
     expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
@@ -374,11 +453,11 @@ describe('SessionRouter transition journal', () => {
     );
   });
 
-  test('initial activation switches pattern bank before broker activation', () => {
+  test('initial activation reconciles broker REST and switches pattern bank before broker activation', async () => {
     const router = makeRouter();
     const memory = router.ctx.patternChecker.memory;
 
-    router._activateCrypto();
+    await router._activateCrypto();
 
     expect(memory.switchSessionScope).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'BTC-USD',
@@ -389,6 +468,9 @@ describe('SessionRouter transition journal', () => {
     }), expect.objectContaining({
       reason: 'initial_activation'
     }));
+    expect(router.krakenAdapter.getPositions.mock.invocationCallOrder[0]).toBeLessThan(
+      memory.switchSessionScope.mock.invocationCallOrder[0]
+    );
     expect(memory.switchSessionScope.mock.invocationCallOrder[0]).toBeLessThan(
       router.orderRouter.registerBroker.mock.invocationCallOrder[0]
     );
@@ -396,6 +478,57 @@ describe('SessionRouter transition journal', () => {
       router.krakenAdapter.subscribeToCandles.mock.invocationCallOrder[0]
     );
     expect(router.activeSession).toBe('crypto');
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_BROKER_RECONCILED',
+      'SESSION_TARGET_ACTIVATED'
+    ]);
+  });
+
+  test('initial activation aborts before pattern handoff when target REST is unavailable', async () => {
+    const router = makeRouter();
+    const memory = router.ctx.patternChecker.memory;
+    router.krakenAdapter.getBalance.mockRejectedValue(new Error('kraken REST unavailable'));
+
+    await expect(router._activateCrypto()).rejects.toThrow('kraken REST unavailable');
+
+    expect(memory.switchSessionScope).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.activeSession).toBe(null);
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_BROKER_RECONCILE_FAILED'
+    ]);
+  });
+
+  test('initial activation does not claim active session when broker registration fails', async () => {
+    const router = makeRouter();
+    router.orderRouter.registerBroker.mockImplementation(() => {
+      throw new Error('register failed');
+    });
+
+    await expect(router._activateCrypto()).rejects.toThrow('register failed');
+
+    expect(router.activeSession).toBe(null);
+    expect(router.activeBroker).toBe(null);
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.transitionStore.readEvents().map((event) => event.event)).toEqual([
+      'SESSION_BROKER_RECONCILED'
+    ]);
+  });
+
+  test('start refuses persisted recovery-required transition state before activation', async () => {
+    const router = makeRouter();
+    router.transitionStore.markRecoveryRequired('prior transition failed', {
+      transitionId: 'stocks-to-crypto-prior',
+      epoch: 9
+    });
+
+    await expect(router.start()).rejects.toThrow('SessionRouter transition store requires recovery before start: prior transition failed');
+
+    expect(router.activeSession).toBe(null);
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
   });
 
   test('transition failure appends failed-safe event and keeps trading paused', async () => {
@@ -413,12 +546,13 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_FAILED_SAFE'
     ]);
     expect(new Set(events.map((event) => event.transitionId)).size).toBe(1);
     expect(new Set(events.map((event) => event.epoch)).size).toBe(1);
-    expect(events[3]).toEqual(expect.objectContaining({
+    expect(events[4]).toEqual(expect.objectContaining({
       from: 'crypto',
       to: 'stocks',
       activeSession: 'crypto',
@@ -433,7 +567,7 @@ describe('SessionRouter transition journal', () => {
       activeSession: 'crypto',
       safeModeReason: 'kraken unsubscribe failed',
       lastEvent: 'SESSION_FAILED_SAFE',
-      eventsCount: 4
+      eventsCount: 5
     }));
     expect(router.failedSafeMode).toBe(true);
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
@@ -490,6 +624,7 @@ describe('SessionRouter transition journal', () => {
     expect(events.map((event) => event.event)).toEqual([
       'SESSION_TRANSITION_PLANNED',
       'SESSION_FREEZE_SOURCE',
+      'SESSION_BROKER_RECONCILED',
       'SESSION_PATTERN_MEMORY_HANDOFF',
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_FAILED_SAFE'

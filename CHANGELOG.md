@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Broker REST Reconciliation Gate (2026-05-29)
+
+- Added adapter-level broker REST reconciliation before initial SessionRouter activation and before crypto/stocks target activation, requiring positions, open orders, and balance checks to pass before pattern handoff, broker registration, feed subscription, active-session mutation, or trading resume.
+- Made returned non-fiat position rows and non-terminal open-order rows block activation even when reported with zero size or zero remaining quantity, and made missing, malformed, or empty broker REST responses fail closed.
+- Made startup refuse persisted recovery-required transition state, verify `StateManager` actually reports paused after `pauseTrading()`, and mark the runtime running only after SessionRouter activation has completed.
+- Rewired Kraken spot reconciliation so Kraken positions derive from non-fiat spot balances and Kraken open orders come from the private OpenOrders REST endpoint instead of returning false-empty arrays.
+
 ### SessionRouter Pattern Memory Handoff (2026-05-29)
 
 - Added a fail-closed `UnifiedPatternMemory.switchSessionScope()` path that saves the outgoing bank, switches to the target session bank, loads the target bank, and rolls back to the prior in-memory bank if save/load fails.

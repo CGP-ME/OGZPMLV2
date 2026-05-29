@@ -329,9 +329,10 @@ class KrakenAdapterSimple {
     // Use balance to determine holdings
     const balance = await this.getAccountBalance();
     const positions = [];
+    const fiatAssets = new Set(['ZUSD', 'USD', 'ZEUR', 'EUR', 'ZGBP', 'GBP', 'ZCAD', 'CAD', 'ZAUD', 'AUD', 'ZJPY', 'JPY', 'ZCHF', 'CHF']);
 
     Object.entries(balance).forEach(([asset, amount]) => {
-      if (parseFloat(amount) > 0) {
+      if (!fiatAssets.has(String(asset).toUpperCase()) && parseFloat(amount) > 0) {
         positions.push({
           symbol: asset,
           quantity: parseFloat(amount),
@@ -368,11 +369,29 @@ class KrakenAdapterSimple {
     return await this.getPositions();
   }
 
-  // Get open orders - not implemented in simple adapter
+  // Get open orders through Kraken private REST. SessionRouter reconciliation
+  // treats this as broker truth before switching sessions.
   async getOpenOrders() {
-    // Would need to implement via REST API
-    // For now return empty array
-    return [];
+    const response = await this.makePrivateRequest('/0/private/OpenOrders');
+    if (response.error && response.error.length > 0) {
+      throw new Error(`OpenOrders error: ${response.error.join(', ')}`);
+    }
+
+    const open = response.result && response.result.open ? response.result.open : {};
+    return Object.entries(open).map(([orderId, order]) => {
+      const descr = order.descr || {};
+      const pair = descr.pair || order.pair || '';
+      return {
+        orderId,
+        symbol: this.normalizeKrakenWsPair(pair) || pair || '(missing)',
+        type: descr.ordertype || order.ordertype || '(missing)',
+        side: descr.type || order.type || '(missing)',
+        price: parseFloat(descr.price || order.price || 0),
+        amount: parseFloat(order.vol || order.volume || 0),
+        filledAmount: parseFloat(order.vol_exec || 0),
+        status: order.status || 'open'
+      };
+    });
   }
 
   convertToKrakenSymbol(symbol) {

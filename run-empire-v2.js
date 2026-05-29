@@ -1606,18 +1606,19 @@ class OGZPrimeV14Bot {
     console.log('═'.repeat(60));
     console.log('');
 
-    this.isRunning = true;
-
-    // Start SessionRouter after isRunning so transitions can pause/resume cleanly.
-    // start() is sync — _activate{Crypto,Stocks} runs inside it and populates
+    // Start SessionRouter before marking the bot running. Initial activation
+    // must prove broker REST truth before runtime status can claim live.
+    // start() awaits broker REST reconciliation before activation and populates
     // sessionRouter.activeBroker. We re-sync this.kraken to that broker here
     // because _activate methods do NOT emit 'transition' (only the swap methods do),
     // so without this assignment this.kraken would stay pinned to the construction-
     // time default (alpacaAdapter) until the first real RTH boundary fires.
     if (this.sessionRouter) {
-      this.sessionRouter.start();
+      await this.sessionRouter.start();
       if (this.sessionRouter.activeBroker) this.kraken = this.sessionRouter.activeBroker;
     }
+
+    this.isRunning = true;
 
     // Initialize TRAI Decision Module (Change 574)
     if (this.trai) {

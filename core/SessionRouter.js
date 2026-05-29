@@ -25,6 +25,25 @@ const { getMarketPhase, getNYTimeParts } = require('../foundation/MarketCalendar
 const { getInstance: getStateManager } = require('./StateManager');
 const TransitionStore = require('./session-router/TransitionStore');
 
+const TERMINAL_ORDER_STATUSES = new Set([
+  'closed',
+  'filled',
+  'canceled',
+  'cancelled',
+  'expired',
+  'rejected',
+  'done'
+]);
+const FIAT_BALANCE_SYMBOLS = new Set([
+  'USD', 'ZUSD',
+  'EUR', 'ZEUR',
+  'GBP', 'ZGBP',
+  'CAD', 'ZCAD',
+  'AUD', 'ZAUD',
+  'JPY', 'ZJPY',
+  'CHF', 'ZCHF'
+]);
+
 class SessionRouter extends EventEmitter {
   constructor(config = {}) {
     super();
@@ -95,21 +114,30 @@ class SessionRouter extends EventEmitter {
     return null;
   }
 
-  start() {
+  async start() {
     if (!this.enabled) {
       console.log('[SessionRouter] Disabled (SESSION_ROUTER_ENABLED=false) — single-broker path active');
       return;
     }
     if (!this.krakenAdapter || !this.alpacaAdapter) {
-      console.error('[SessionRouter] Cannot start — missing broker adapters. Call wire() first.');
-      return;
+      throw new Error('[SessionRouter] Cannot start - missing broker adapters. Call wire() first.');
     }
+    this._assertTransitionStoreStartSafe();
 
     const phase = getMarketPhase(new Date(this.clock()));
-    if (phase.isRTH) {
-      this._activateStocks();
-    } else {
-      this._activateCrypto();
+    const targetSession = phase.isRTH ? 'stocks' : 'crypto';
+    try {
+      if (phase.isRTH) {
+        await this._activateStocks();
+      } else {
+        await this._activateCrypto();
+      }
+    } catch (err) {
+      console.error('[SessionRouter] Initial activation FAILED:', err.message);
+      await this._enterFailedSafe('startup', targetSession, err, new Date(this.clock()), {
+        pauseConfirmed: false
+      });
+      throw err;
     }
 
     this.intervalId = setInterval(() => {
@@ -187,6 +215,14 @@ class SessionRouter extends EventEmitter {
       ...transitionContext,
       ...details
     });
+  }
+
+  _assertTransitionStoreStartSafe() {
+    const status = this._getTransitionStoreStatus();
+    if (status && status.recoveryRequired) {
+      const reason = status.safeModeReason || status.lastEvent || status.state || 'unknown transition-store recovery state';
+      throw new Error(`SessionRouter transition store requires recovery before start: ${reason}`);
+    }
   }
 
   _currentTimeframe() {
@@ -313,6 +349,170 @@ class SessionRouter extends EventEmitter {
     return eventDetails.patternMemory;
   }
 
+  _brokerIdFor(adapter, fallback) {
+    if (adapter && typeof adapter.getBrokerName === 'function') {
+      const name = adapter.getBrokerName();
+      if (name) return String(name);
+    }
+    if (adapter && adapter.id) return String(adapter.id);
+    if (adapter && adapter.name) return String(adapter.name);
+    return fallback;
+  }
+
+  _requireBrokerMethod(adapter, brokerId, methodName) {
+    if (!adapter || typeof adapter[methodName] !== 'function') {
+      throw new Error(`SessionRouter broker REST reconciliation unavailable: ${brokerId} missing ${methodName}()`);
+    }
+    return adapter[methodName].bind(adapter);
+  }
+
+  _numericField(...values) {
+    for (const value of values) {
+      if (value === null || value === undefined || value === '') continue;
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  }
+
+  _isFiatBalanceSymbol(symbol) {
+    return FIAT_BALANCE_SYMBOLS.has(String(symbol || '').toUpperCase());
+  }
+
+  _normalizeBrokerPositions(rawPositions, brokerId) {
+    return rawPositions
+      .map((position) => {
+        const symbol = String(
+          position.symbol
+          || position.pair
+          || position.asset
+          || position.instrument
+          || ''
+        ).trim();
+        const size = this._numericField(
+          position.size,
+          position.qty,
+          position.quantity,
+          position.amount,
+          position.volume,
+          position.units,
+          position.position
+        );
+        const side = position.side || (size !== null && size < 0 ? 'short' : 'long');
+        return {
+          brokerId,
+          symbol: symbol || '(missing)',
+          side,
+          size,
+          unsafe: true
+        };
+      })
+      .filter((position) => position.unsafe && !this._isFiatBalanceSymbol(position.symbol));
+  }
+
+  _normalizeBrokerOrders(rawOrders, brokerId) {
+    return rawOrders
+      .map((order) => {
+        const status = String(order.status || '').toLowerCase();
+        const amount = this._numericField(order.amount, order.qty, order.quantity, order.volume, order.size);
+        const filled = this._numericField(order.filledAmount, order.filled_qty, order.executed, order.vol_exec);
+        const remaining = amount !== null && filled !== null ? amount - filled : null;
+        return {
+          brokerId,
+          orderId: order.orderId || order.id || order.txid || '(missing)',
+          symbol: order.symbol || order.pair || order.instrument || '(missing)',
+          side: order.side || order.type || '(missing)',
+          status: status || '(missing)',
+          remaining,
+          unsafe: !TERMINAL_ORDER_STATUSES.has(status)
+        };
+      })
+      .filter((order) => order.unsafe);
+  }
+
+  async _fetchBrokerRestSnapshot(adapter, brokerId) {
+    const getPositions = this._requireBrokerMethod(adapter, brokerId, 'getPositions');
+    const getOpenOrders = this._requireBrokerMethod(adapter, brokerId, 'getOpenOrders');
+    const getBalance = this._requireBrokerMethod(adapter, brokerId, 'getBalance');
+
+    const positionsResult = await getPositions();
+    if (!Array.isArray(positionsResult)) {
+      throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getPositions() returned ${typeof positionsResult}, expected array`);
+    }
+
+    const ordersResult = await getOpenOrders();
+    if (!Array.isArray(ordersResult)) {
+      throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getOpenOrders() returned ${typeof ordersResult}, expected array`);
+    }
+
+    const balanceResult = await getBalance();
+    if (!balanceResult || typeof balanceResult !== 'object') {
+      throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getBalance() returned ${typeof balanceResult}, expected object`);
+    }
+    if (Object.keys(balanceResult).length === 0) {
+      throw new Error(`SessionRouter broker REST reconciliation failed: ${brokerId}.getBalance() returned empty object`);
+    }
+
+    return {
+      brokerId,
+      openPositions: this._normalizeBrokerPositions(positionsResult, brokerId),
+      openOrders: this._normalizeBrokerOrders(ordersResult, brokerId),
+      balanceChecked: true
+    };
+  }
+
+  async _reconcileBrokerRestBeforeActivation(sourceAdapter, targetAdapter, transitionContext, details = {}) {
+    const sourceBrokerId = sourceAdapter
+      ? this._brokerIdFor(sourceAdapter, details.sourceBrokerId || transitionContext.from)
+      : null;
+    const targetBrokerId = this._brokerIdFor(targetAdapter, details.targetBrokerId || transitionContext.to);
+    const snapshots = {};
+
+    try {
+      if (sourceAdapter) {
+        snapshots.source = await this._fetchBrokerRestSnapshot(sourceAdapter, sourceBrokerId);
+      }
+      snapshots.target = await this._fetchBrokerRestSnapshot(targetAdapter, targetBrokerId);
+
+      const unsafeParts = [];
+      for (const [role, snapshot] of Object.entries(snapshots)) {
+        if (!snapshot) continue;
+        if (snapshot.openPositions.length > 0) {
+          unsafeParts.push(`${role} ${snapshot.brokerId} open positions=${snapshot.openPositions.length}`);
+        }
+        if (snapshot.openOrders.length > 0) {
+          unsafeParts.push(`${role} ${snapshot.brokerId} open orders=${snapshot.openOrders.length}`);
+        }
+      }
+
+      if (unsafeParts.length > 0) {
+        throw new Error(`SessionRouter broker REST reconciliation blocked activation: ${unsafeParts.join('; ')}`);
+      }
+
+      this._recordTransitionEvent('SESSION_BROKER_RECONCILED', transitionContext, {
+        activeSession: this.activeSession,
+        brokerReconciliation: snapshots
+      });
+      this.emit('broker_reconciled', {
+        transitionId: transitionContext.transitionId,
+        from: transitionContext.from,
+        to: transitionContext.to,
+        sourceBrokerId,
+        targetBrokerId,
+        snapshots
+      });
+      return snapshots;
+    } catch (err) {
+      const reason = err && err.message ? err.message : String(err);
+      this._recordTransitionEvent('SESSION_BROKER_RECONCILE_FAILED', transitionContext, {
+        activeSession: this.activeSession,
+        reason,
+        brokerReconciliation: snapshots
+      });
+      throw err;
+    }
+  }
+
   async _enterFailedSafe(from, to, err, now, options = {}) {
     const reason = err && err.message ? err.message : String(err);
     const at = this._transitionAt(now);
@@ -397,10 +597,18 @@ class SessionRouter extends EventEmitter {
       });
 
       await this.stateManager.pauseTrading('SessionRouter: transitioning to stocks');
-      pauseConfirmed = true;
+      pauseConfirmed = this._stateManagerReportsPaused();
+      if (!pauseConfirmed) {
+        throw new Error('StateManager pauseTrading did not confirm paused state');
+      }
       this._recordTransitionEvent('SESSION_FREEZE_SOURCE', transitionContext, {
         activeSession: this.activeSession,
         pauseConfirmed: true
+      });
+
+      await this._reconcileBrokerRestBeforeActivation(this.krakenAdapter, this.alpacaAdapter, transitionContext, {
+        sourceBrokerId: 'kraken',
+        targetBrokerId: 'alpaca'
       });
 
       this._handoffPatternMemory('stocks', transitionContext, timeframe);
@@ -464,7 +672,10 @@ class SessionRouter extends EventEmitter {
       });
 
       await this.stateManager.pauseTrading('SessionRouter: transitioning to crypto');
-      pauseConfirmed = true;
+      pauseConfirmed = this._stateManagerReportsPaused();
+      if (!pauseConfirmed) {
+        throw new Error('StateManager pauseTrading did not confirm paused state');
+      }
       this._recordTransitionEvent('SESSION_FREEZE_SOURCE', transitionContext, {
         activeSession: this.activeSession,
         pauseConfirmed: true
@@ -542,6 +753,11 @@ class SessionRouter extends EventEmitter {
           }
       }
 
+      await this._reconcileBrokerRestBeforeActivation(this.alpacaAdapter, this.krakenAdapter, transitionContext, {
+        sourceBrokerId: 'alpaca',
+        targetBrokerId: 'kraken'
+      });
+
       this._handoffPatternMemory('crypto', transitionContext, timeframe, {
         sourceFlatConfirmed: true
       });
@@ -591,7 +807,7 @@ class SessionRouter extends EventEmitter {
     }
   }
 
-  _activateCrypto() {
+  async _activateCrypto() {
     if (this.failedSafeMode) {
       console.error('[SessionRouter] Refusing crypto activation while failed-safe mode is active');
       return;
@@ -602,11 +818,17 @@ class SessionRouter extends EventEmitter {
     if (!Array.isArray(this.cryptoSymbols) || this.cryptoSymbols.length === 0) {
       throw new Error('[MIRROR-SESSION-CRYPTO] SessionRouter._activateCrypto: cryptoSymbols empty/non-array — refusing BTC-USD default');
     }
+    const transitionContext = this._createTransitionContext('startup', 'crypto', new Date(this.clock()), {
+      brokerId: 'kraken',
+      symbols: this.cryptoSymbols,
+      timeframe
+    });
+    await this._reconcileBrokerRestBeforeActivation(null, this.krakenAdapter, transitionContext, {
+      targetBrokerId: 'kraken'
+    });
     this._handoffPatternMemory('crypto', null, timeframe, {
       reason: 'initial_activation'
     });
-    this.activeSession = 'crypto';
-    this.activeBroker = this.krakenAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
     const primaryCrypto = this.cryptoSymbols[0];
     if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
@@ -615,20 +837,31 @@ class SessionRouter extends EventEmitter {
     if (this.onOhlcCallback && typeof this.krakenAdapter.on === 'function') {
       this.krakenAdapter.on('ohlc', this.onOhlcCallback);
     }
+    this.activeSession = 'crypto';
+    this.activeBroker = this.krakenAdapter;
+    this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+      activeSession: this.activeSession
+    });
     console.log('[SessionRouter] Initial activation: crypto');
   }
 
-  _activateStocks() {
+  async _activateStocks() {
     if (this.failedSafeMode) {
       console.error('[SessionRouter] Refusing stocks activation while failed-safe mode is active');
       return;
     }
     const timeframe = this._currentTimeframe();
+    const transitionContext = this._createTransitionContext('startup', 'stocks', new Date(this.clock()), {
+      brokerId: 'alpaca',
+      symbols: this.stockSymbols,
+      timeframe
+    });
+    await this._reconcileBrokerRestBeforeActivation(null, this.alpacaAdapter, transitionContext, {
+      targetBrokerId: 'alpaca'
+    });
     this._handoffPatternMemory('stocks', null, timeframe, {
       reason: 'initial_activation'
     });
-    this.activeSession = 'stocks';
-    this.activeBroker = this.alpacaAdapter;
     if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
     for (const symbol of this.stockSymbols) {
       if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
@@ -638,6 +871,11 @@ class SessionRouter extends EventEmitter {
     if (this.onOhlcCallback && typeof this.alpacaAdapter.on === 'function') {
       this.alpacaAdapter.on('ohlc', this.onOhlcCallback);
     }
+    this.activeSession = 'stocks';
+    this.activeBroker = this.alpacaAdapter;
+    this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+      activeSession: this.activeSession
+    });
     console.log('[SessionRouter] Initial activation: stocks');
   }
 
