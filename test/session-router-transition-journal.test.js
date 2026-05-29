@@ -185,6 +185,60 @@ describe('SessionRouter transition journal', () => {
       router.orderRouter.registerBroker.mock.invocationCallOrder[0]
     );
     expect(router.stateManager.resumeTrading).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(router.transitionStore.lockPath)).toBe(false);
+  });
+
+  test('fresh transition lock blocks broker mutation and enters failed-safe', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+    router.transitionStore.acquireLock({
+      transitionId: 'other-owner',
+      epoch: 1
+    });
+
+    await router._transitionToStocks(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter transition lock unavailable: fresh transition lock already held');
+    expect(router.stateManager.pauseTrading).not.toHaveBeenCalledWith(
+      'SessionRouter: transitioning to stocks'
+    );
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(fs.existsSync(router.transitionStore.lockPath)).toBe(true);
+    expect(router.transitionStore.readEvents()).toHaveLength(0);
+  });
+
+  test('stale transition lock blocks broker mutation and projects recovery required', async () => {
+    const router = makeRouter({
+      transitionStoreOptions: {
+        dir: tempDir,
+        staleLockMs: 1000,
+        clock: () => now.getTime()
+      }
+    });
+    router.activeSession = 'crypto';
+    fs.mkdirSync(tempDir, { recursive: true });
+    fs.writeFileSync(router.transitionStore.lockPath, JSON.stringify({
+      transitionId: 'stale-owner',
+      epoch: 7,
+      ownerId: 'pid:old',
+      acquiredAt: new Date(now.getTime() - 5000).toISOString(),
+      heartbeatAt: new Date(now.getTime() - 5000).toISOString()
+    }), 'utf8');
+
+    await router._transitionToStocks(now);
+
+    const status = router.transitionStore.readStatus();
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter transition lock unavailable: stale transition lock present');
+    expect(status).toEqual(expect.objectContaining({
+      state: 'RECOVERY_REQUIRED',
+      recoveryRequired: true,
+      safeModeReason: 'stale transition lock present'
+    }));
+    expect(router.krakenAdapter.unsubscribeAll).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
   });
 
   test('transition to stocks switches pattern bank before target broker mutation', async () => {
@@ -578,6 +632,16 @@ describe('SessionRouter transition journal', () => {
     const router = makeRouter({
       transitionStore: {
         nextEpoch: jest.fn(() => 44),
+        acquireLock: jest.fn((details) => ({
+          success: true,
+          lock: {
+            transitionId: details.transitionId,
+            epoch: details.epoch,
+            ownerId: 'test-owner',
+            acquiredAt: now.toISOString()
+          }
+        })),
+        releaseLock: jest.fn(() => ({ released: true })),
         recordTransitionEvent: jest.fn(() => {
           throw new Error('journal unavailable');
         }),
@@ -605,7 +669,7 @@ describe('SessionRouter transition journal', () => {
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
   });
 
-  test('target journal failure after resume re-pauses trading and records failed-safe', async () => {
+  test('target journal failure before resume keeps trading paused and records failed-safe', async () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
     const originalRecord = router.transitionStore.recordTransitionEvent.bind(router.transitionStore);
@@ -629,9 +693,10 @@ describe('SessionRouter transition journal', () => {
       'SESSION_ORDER_INTENT_RECORDED',
       'SESSION_FAILED_SAFE'
     ]);
-    expect(router.stateManager.resumeTrading).toHaveBeenCalledTimes(1);
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
     expect(router.stateManager.pauseTrading).toHaveBeenCalledWith(
-      'SessionRouter failed safe: crypto -> stocks: target journal write failed'
+      'SessionRouter: transitioning to stocks'
     );
     expect(router.stateManager.state.isTrading).toBe(false);
     expect(router.failedSafeMode).toBe(true);

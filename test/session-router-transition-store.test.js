@@ -62,6 +62,29 @@ describe('SessionRouter TransitionStore', () => {
     expect(second.lock.transitionId).toBe('stocks-to-crypto');
   });
 
+  test('releaseLock refuses to delete a different transition owner', () => {
+    const store = makeStore();
+    const first = store.acquireLock({ transitionId: 'stocks-to-crypto' });
+    const wrongRelease = store.releaseLock({ transitionId: 'crypto-to-stocks', epoch: first.lock.epoch });
+
+    expect(wrongRelease).toEqual(expect.objectContaining({
+      released: false,
+      error: 'transition lock owner mismatch: expected crypto-to-stocks, found stocks-to-crypto'
+    }));
+    expect(store.acquireLock({ transitionId: 'still-blocked' })).toEqual(expect.objectContaining({
+      success: false,
+      error: 'fresh transition lock already held'
+    }));
+    const correctRelease = store.releaseLock({ transitionId: 'stocks-to-crypto', epoch: first.lock.epoch });
+    expect(correctRelease).toEqual(expect.objectContaining({
+      released: true,
+      lock: expect.objectContaining({
+        transitionId: 'stocks-to-crypto',
+        epoch: first.lock.epoch
+      })
+    }));
+  });
+
   test('stale lock enters recovery required and appends evidence', () => {
     const store = makeStore();
     const first = store.acquireLock({ transitionId: 'stocks-to-crypto' });

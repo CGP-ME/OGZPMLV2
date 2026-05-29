@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Durable Transition Lock Ownership (2026-05-29)
+
+- Wired SessionRouter initial activation and crypto/stocks transitions to acquire a durable `TransitionStore` lock before transition journal writes, broker reconciliation, pattern handoff, subscription changes, or active-session mutation.
+- Scoped transition lock release to the owning transition ID and epoch so a release cannot delete a different owner, and made fresh or stale lock conflicts fail closed before broker mutation.
+- Kept fresh-lock conflicts local instead of writing failed-safe journal events without lock ownership; stale locks still project `RECOVERY_REQUIRED` through `TransitionStore.acquireLock()`.
+- Moved trading resume behind durable target activation, OHLC fence attachment, and transition lock release, so target journal or lock-release failures keep trading paused and route into failed-safe.
+
 ### SessionRouter OHLC Epoch Fencing (2026-05-29)
 
 - Wrapped SessionRouter OHLC callbacks with a router-owned epoch/session/broker fence so stale source-feed callbacks, callbacks during transitions, and callbacks during failed-safe mode are rejected before they can mutate candle, price, state, or trading-cycle data.

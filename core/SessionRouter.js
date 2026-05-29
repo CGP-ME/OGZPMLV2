@@ -216,6 +216,64 @@ class SessionRouter extends EventEmitter {
     };
   }
 
+  _beginTransitionContext(from, to, now, details = {}) {
+    if (!this.transitionStore || typeof this.transitionStore.acquireLock !== 'function') {
+      throw new Error('SessionRouter transition lock unavailable');
+    }
+
+    const transitionContext = this._createTransitionContext(from, to, now, details);
+    const lockResult = this.transitionStore.acquireLock(transitionContext);
+    if (!lockResult || lockResult.success !== true || !lockResult.lock) {
+      const reason = lockResult && lockResult.error ? lockResult.error : 'unknown transition lock failure';
+      throw new Error(`SessionRouter transition lock unavailable: ${reason}`);
+    }
+
+    transitionContext.epoch = Number(lockResult.lock.epoch);
+    transitionContext.lockOwnerId = lockResult.lock.ownerId || null;
+    transitionContext.lockAcquiredAt = lockResult.lock.acquiredAt || null;
+    transitionContext.lockReleased = false;
+    return transitionContext;
+  }
+
+  _releaseTransitionLock(transitionContext) {
+    if (!transitionContext || transitionContext.lockReleased) {
+      return { released: false, skipped: true };
+    }
+    if (!this.transitionStore || typeof this.transitionStore.releaseLock !== 'function') {
+      throw new Error('SessionRouter transition lock release unavailable');
+    }
+
+    const result = this.transitionStore.releaseLock({
+      transitionId: transitionContext.transitionId,
+      epoch: transitionContext.epoch
+    });
+    if (!result || result.released !== true) {
+      const reason = result && result.error ? result.error : 'unknown transition lock release failure';
+      throw new Error(`SessionRouter transition lock release failed: ${reason}`);
+    }
+    transitionContext.lockReleased = true;
+    return result;
+  }
+
+  _releaseTransitionLockAfterFailure(transitionContext) {
+    if (!transitionContext || transitionContext.lockReleased) return;
+    try {
+      this._releaseTransitionLock(transitionContext);
+    } catch (err) {
+      console.error('[SessionRouter] Failed to release transition lock:', err.message);
+      if (this.transitionStore && typeof this.transitionStore.markRecoveryRequired === 'function') {
+        try {
+          this.transitionStore.markRecoveryRequired(`transition lock release failed: ${err.message}`, {
+            transitionId: transitionContext.transitionId,
+            epoch: transitionContext.epoch
+          });
+        } catch (markErr) {
+          console.error('[SessionRouter] Failed to mark transition lock recovery:', markErr.message);
+        }
+      }
+    }
+  }
+
   _recordTransitionEvent(eventName, transitionContext, details = {}) {
     if (!this.transitionStore || typeof this.transitionStore.recordTransitionEvent !== 'function') {
       throw new Error('SessionRouter transition journal unavailable');
@@ -645,15 +703,18 @@ class SessionRouter extends EventEmitter {
     this.failedSafePauseFallbackApplied = false;
 
     let journalError = null;
-    try {
-      const transitionContext = options.transitionContext || this._createTransitionContext(from, to, now);
-      this._recordTransitionEvent('SESSION_FAILED_SAFE', transitionContext, {
-        reason,
-        activeSession: this.activeSession
-      });
-    } catch (recordErr) {
-      journalError = recordErr;
-      console.error('[SessionRouter] Failed to record SESSION_FAILED_SAFE:', recordErr.message);
+    const lockUnavailable = reason.startsWith('SessionRouter transition lock unavailable');
+    if (!lockUnavailable) {
+      try {
+        const transitionContext = options.transitionContext || this._createTransitionContext(from, to, now);
+        this._recordTransitionEvent('SESSION_FAILED_SAFE', transitionContext, {
+          reason,
+          activeSession: this.activeSession
+        });
+      } catch (recordErr) {
+        journalError = recordErr;
+        console.error('[SessionRouter] Failed to record SESSION_FAILED_SAFE:', recordErr.message);
+      }
     }
 
     console.error(`[SessionRouter] SESSION_FAILED_SAFE: ${from} -> ${to}: ${reason}`);
@@ -708,7 +769,7 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
-      transitionContext = this._createTransitionContext('crypto', 'stocks', now, {
+      transitionContext = this._beginTransitionContext('crypto', 'stocks', now, {
         brokerId: 'alpaca',
         symbols: this.stockSymbols,
         timeframe
@@ -754,12 +815,13 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.alpacaAdapter;
       this.lastTransitionAt = Date.now();
 
-      await this.stateManager.resumeTrading();
-      pauseConfirmed = false;
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession
       });
       this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
+      this._releaseTransitionLock(transitionContext);
+      await this.stateManager.resumeTrading();
+      pauseConfirmed = false;
       this.emit('transition', { from: 'crypto', to: 'stocks', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: stocks session');
 
@@ -767,6 +829,7 @@ class SessionRouter extends EventEmitter {
       console.error('[SessionRouter] Transition to stocks FAILED:', err.message);
       await this._enterFailedSafe('crypto', 'stocks', err, now, { pauseConfirmed, transitionContext });
     } finally {
+      this._releaseTransitionLockAfterFailure(transitionContext);
       this.transitionInProgress = false;
     }
   }
@@ -780,7 +843,7 @@ class SessionRouter extends EventEmitter {
     const timeframe = this._currentTimeframe();
 
     try {
-      transitionContext = this._createTransitionContext('stocks', 'crypto', now, {
+      transitionContext = this._beginTransitionContext('stocks', 'crypto', now, {
         brokerId: 'kraken',
         symbols: this.cryptoSymbols,
         timeframe
@@ -905,12 +968,13 @@ class SessionRouter extends EventEmitter {
       this.activeBroker = this.krakenAdapter;
       this.lastTransitionAt = Date.now();
 
-      await this.stateManager.resumeTrading();
-      pauseConfirmed = false;
       this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
         activeSession: this.activeSession
       });
       this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
+      this._releaseTransitionLock(transitionContext);
+      await this.stateManager.resumeTrading();
+      pauseConfirmed = false;
       this.emit('transition', { from: 'stocks', to: 'crypto', at: now.toISOString() });
       console.log('[SessionRouter] ACTIVE: crypto session');
 
@@ -918,6 +982,7 @@ class SessionRouter extends EventEmitter {
       console.error('[SessionRouter] Transition to crypto FAILED:', err.message);
       await this._enterFailedSafe('stocks', 'crypto', err, now, { pauseConfirmed, transitionContext });
     } finally {
+      this._releaseTransitionLockAfterFailure(transitionContext);
       this.transitionInProgress = false;
     }
   }
@@ -933,29 +998,34 @@ class SessionRouter extends EventEmitter {
     if (!Array.isArray(this.cryptoSymbols) || this.cryptoSymbols.length === 0) {
       throw new Error('[MIRROR-SESSION-CRYPTO] SessionRouter._activateCrypto: cryptoSymbols empty/non-array — refusing BTC-USD default');
     }
-    const transitionContext = this._createTransitionContext('startup', 'crypto', new Date(this.clock()), {
+    const transitionContext = this._beginTransitionContext('startup', 'crypto', new Date(this.clock()), {
       brokerId: 'kraken',
       symbols: this.cryptoSymbols,
       timeframe
     });
-    await this._reconcileBrokerRestBeforeActivation(null, this.krakenAdapter, transitionContext, {
-      targetBrokerId: 'kraken'
-    });
-    this._handoffPatternMemory('crypto', null, timeframe, {
-      reason: 'initial_activation'
-    });
-    if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
-    const primaryCrypto = this.cryptoSymbols[0];
-    if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
-      this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+    try {
+      await this._reconcileBrokerRestBeforeActivation(null, this.krakenAdapter, transitionContext, {
+        targetBrokerId: 'kraken'
+      });
+      this._handoffPatternMemory('crypto', null, timeframe, {
+        reason: 'initial_activation'
+      });
+      if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+      const primaryCrypto = this.cryptoSymbols[0];
+      if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
+        this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+      }
+      this.activeSession = 'crypto';
+      this.activeBroker = this.krakenAdapter;
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession
+      });
+      this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
+      this._releaseTransitionLock(transitionContext);
+      console.log('[SessionRouter] Initial activation: crypto');
+    } finally {
+      this._releaseTransitionLockAfterFailure(transitionContext);
     }
-    this.activeSession = 'crypto';
-    this.activeBroker = this.krakenAdapter;
-    this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-      activeSession: this.activeSession
-    });
-    this._attachActiveOhlcCallback('crypto', this.krakenAdapter, transitionContext);
-    console.log('[SessionRouter] Initial activation: crypto');
   }
 
   async _activateStocks() {
@@ -964,30 +1034,35 @@ class SessionRouter extends EventEmitter {
       return;
     }
     const timeframe = this._currentTimeframe();
-    const transitionContext = this._createTransitionContext('startup', 'stocks', new Date(this.clock()), {
+    const transitionContext = this._beginTransitionContext('startup', 'stocks', new Date(this.clock()), {
       brokerId: 'alpaca',
       symbols: this.stockSymbols,
       timeframe
     });
-    await this._reconcileBrokerRestBeforeActivation(null, this.alpacaAdapter, transitionContext, {
-      targetBrokerId: 'alpaca'
-    });
-    this._handoffPatternMemory('stocks', null, timeframe, {
-      reason: 'initial_activation'
-    });
-    if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
-    for (const symbol of this.stockSymbols) {
-      if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-        this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+    try {
+      await this._reconcileBrokerRestBeforeActivation(null, this.alpacaAdapter, transitionContext, {
+        targetBrokerId: 'alpaca'
+      });
+      this._handoffPatternMemory('stocks', null, timeframe, {
+        reason: 'initial_activation'
+      });
+      if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+      for (const symbol of this.stockSymbols) {
+        if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
+          this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+        }
       }
+      this.activeSession = 'stocks';
+      this.activeBroker = this.alpacaAdapter;
+      this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
+        activeSession: this.activeSession
+      });
+      this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
+      this._releaseTransitionLock(transitionContext);
+      console.log('[SessionRouter] Initial activation: stocks');
+    } finally {
+      this._releaseTransitionLockAfterFailure(transitionContext);
     }
-    this.activeSession = 'stocks';
-    this.activeBroker = this.alpacaAdapter;
-    this._recordTransitionEvent('SESSION_TARGET_ACTIVATED', transitionContext, {
-      activeSession: this.activeSession
-    });
-    this._attachActiveOhlcCallback('stocks', this.alpacaAdapter, transitionContext);
-    console.log('[SessionRouter] Initial activation: stocks');
   }
 
   stop() {

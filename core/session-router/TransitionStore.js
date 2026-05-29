@@ -334,10 +334,48 @@ class TransitionStore {
     return { success: true, lock: record };
   }
 
-  releaseLock() {
-    if (fs.existsSync(this.lockPath)) {
-      fs.unlinkSync(this.lockPath);
+  releaseLock(expected = {}) {
+    const lock = this._readLockRaw();
+    if (lock.error) {
+      const recoveryState = this.markRecoveryRequired(
+        `corrupt transition-lock.json: ${lock.error.message}`,
+        expected
+      );
+      return {
+        released: false,
+        recoveryRequired: true,
+        state: recoveryState,
+        error: recoveryState.safeModeReason
+      };
     }
+    if (!lock.data) {
+      return {
+        released: false,
+        notFound: true,
+        error: 'transition lock not found'
+      };
+    }
+
+    if (expected.transitionId && lock.data.transitionId !== expected.transitionId) {
+      return {
+        released: false,
+        lock: lock.data,
+        error: `transition lock owner mismatch: expected ${expected.transitionId}, found ${lock.data.transitionId || '(missing)'}`
+      };
+    }
+    if (Number.isFinite(Number(expected.epoch)) && Number(lock.data.epoch) !== Number(expected.epoch)) {
+      return {
+        released: false,
+        lock: lock.data,
+        error: `transition lock epoch mismatch: expected ${Number(expected.epoch)}, found ${Number(lock.data.epoch)}`
+      };
+    }
+
+    fs.unlinkSync(this.lockPath);
+    return {
+      released: true,
+      lock: lock.data
+    };
   }
 
   readStatus() {
