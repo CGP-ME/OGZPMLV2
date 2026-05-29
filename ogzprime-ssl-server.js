@@ -1140,6 +1140,47 @@ function dashboardClients() {
   ));
 }
 
+function sanitizeBrokerStatusText(value) {
+  const cleaned = String(value || '').trim();
+  if (!cleaned) return null;
+  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, 80);
+}
+
+function broadcastDashboardBrokerStatus(status) {
+  const name = sanitizeBrokerStatusText(status?.name)?.toLowerCase();
+  if (!name || typeof status?.ok !== 'boolean') return false;
+
+  const frame = {
+    type: 'broker_status',
+    name,
+    ok: status.ok,
+    timestamp: Number.isFinite(Number(status.timestamp)) ? Number(status.timestamp) : Date.now()
+  };
+
+  for (const field of ['source', 'reason']) {
+    const value = sanitizeBrokerStatusText(status[field]);
+    if (value) frame[field] = value;
+  }
+
+  for (const field of ['attemptedCount', 'successCount']) {
+    const value = Number(status[field]);
+    if (Number.isFinite(value) && value >= 0) frame[field] = Math.floor(value);
+  }
+
+  const dashboards = dashboardClients();
+  let sentCount = 0;
+  for (const client of dashboards) {
+    try {
+      client.send(JSON.stringify(frame));
+      sentCount++;
+    } catch (err) {
+      console.error(`[WS] Failed to broadcast ${name} broker_status:`, err.message);
+    }
+  }
+
+  return sentCount > 0;
+}
+
 function stockTickerToPriceFrame(ticker) {
   return {
     type: 'price',
@@ -1178,6 +1219,14 @@ async function broadcastDashboardStockPrices() {
   const dashboards = dashboardClients();
   if (dashboards.length === 0 || DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0 || stockPriceFanoutInFlight) return;
   if (!DASHBOARD_STOCK_PRICE_ENABLED) {
+    broadcastDashboardBrokerStatus({
+      name: 'alpaca',
+      ok: false,
+      source: 'stock_price_fanout',
+      reason: 'missing_credentials',
+      attemptedCount: 0,
+      successCount: 0
+    });
     if (!stockPriceFanoutDisabledLogged) {
       console.warn('[StockAdapter] Stock price fanout disabled: ALPACA_API_KEY and ALPACA_API_SECRET required');
       stockPriceFanoutDisabledLogged = true;
@@ -1185,10 +1234,14 @@ async function broadcastDashboardStockPrices() {
     return;
   }
   stockPriceFanoutInFlight = true;
+  let attemptedCount = 0;
+  let successCount = 0;
   try {
     for (const symbol of DASHBOARD_STOCK_PRICE_SYMBOLS) {
+      attemptedCount++;
       const ticker = await fetchStockTicker(symbol);
       if (!ticker) continue;
+      successCount++;
       const message = JSON.stringify(stockTickerToPriceFrame(ticker));
       for (const client of dashboards) {
         if (client.readyState !== WebSocket.OPEN) continue;
@@ -1199,6 +1252,25 @@ async function broadcastDashboardStockPrices() {
         }
       }
     }
+    broadcastDashboardBrokerStatus({
+      name: 'alpaca',
+      ok: successCount > 0,
+      source: 'stock_price_fanout',
+      reason: successCount > 0 ? 'snapshot_ok' : 'no_valid_tickers',
+      attemptedCount,
+      successCount
+    });
+  } catch (err) {
+    broadcastDashboardBrokerStatus({
+      name: 'alpaca',
+      ok: false,
+      source: 'stock_price_fanout',
+      reason: 'fanout_error',
+      attemptedCount,
+      successCount
+    });
+    console.error('[StockAdapter] Stock price fanout failed:', err.message);
+    return false;
   } finally {
     stockPriceFanoutInFlight = false;
   }

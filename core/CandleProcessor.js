@@ -53,6 +53,12 @@ function cleanScopeValue(value) {
   return cleaned ? cleaned : null;
 }
 
+function cleanStatusText(value) {
+  const cleaned = cleanScopeValue(value);
+  if (!cleaned) return null;
+  return cleaned.replace(/[^\w:.-]/g, '_').slice(0, 80);
+}
+
 class CandleProcessor {
   constructor(ctx) {
     this.ctx = ctx;
@@ -65,6 +71,7 @@ class CandleProcessor {
     this.cleanCandlesRequired = this.dataFeedConfig.gapRecoveryCleanCandlesRequired;
     this.backfillRetryInterval = null;
     this.backfillRetryDelayMs = this.dataFeedConfig.gapBackfillRetryDelayMs;
+    this.lastBrokerStatusTimestampByKey = new Map();
 
     // RTH-aware gap detection (CC-SPEC-RTH-GAP-DETECTION.md, 2026-05-05).
     // MarketCalendar is the single source of truth for NYSE sessions, holidays,
@@ -73,6 +80,50 @@ class CandleProcessor {
     this.marketCalendar = getMarketCalendar();
 
     console.log('[CandleProcessor] Initialized with gap recovery');
+  }
+
+  _broadcastBrokerStatus(status) {
+    try {
+      const ws = this.ctx?.dashboardWs;
+      if (!ws || ws.readyState !== 1) return false;
+
+      const brokerName = cleanStatusText(status?.name)?.toLowerCase();
+      if (!brokerName || typeof status?.ok !== 'boolean') return false;
+
+      const frame = {
+        type: 'broker_status',
+        name: brokerName,
+        ok: status.ok,
+        timestamp: Number.isFinite(Number(status.timestamp)) ? Number(status.timestamp) : Date.now()
+      };
+
+      for (const field of ['symbol', 'timeframe', 'source', 'reason']) {
+        const value = cleanStatusText(status[field]);
+        if (value) frame[field] = value;
+      }
+
+      for (const field of ['attemptedCount', 'successCount']) {
+        const value = Number(status[field]);
+        if (Number.isFinite(value) && value >= 0) frame[field] = Math.floor(value);
+      }
+
+      const statusKey = [
+        frame.name,
+        frame.ok ? 'ok' : 'down',
+        frame.symbol || '',
+        frame.timeframe || '',
+        frame.source || '',
+        frame.reason || ''
+      ].join('|');
+      if (this.lastBrokerStatusTimestampByKey.get(statusKey) === frame.timestamp) return false;
+      this.lastBrokerStatusTimestampByKey.set(statusKey, frame.timestamp);
+
+      ws.send(JSON.stringify(frame));
+      return true;
+    } catch (error) {
+      console.error('[CandleProcessor] broker_status broadcast failed:', error.message);
+      return false;
+    }
   }
 
   _resolveDataFeedConfig() {
@@ -979,6 +1030,16 @@ class CandleProcessor {
           }
         };
         this.ctx.dashboardWs.send(JSON.stringify(dashboardPricePayload));
+        this._broadcastBrokerStatus({
+          name: candle.brokerId,
+          ok: true,
+          symbol: dashboardSymbol,
+          timeframe: dashboardTimeframe,
+          source: 'candle_processor',
+          attemptedCount: 1,
+          successCount: 1,
+          timestamp: dashboardTimestamp
+        });
 
         // Broadcast edge analytics data
         this.ctx.broadcastEdgeAnalytics(price, parseFloat(volume), candle);
