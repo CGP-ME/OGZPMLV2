@@ -29,7 +29,6 @@
  * Public API:
  *   init() - Mount to DOM, inject styles, subscribe to WS events
  *   setSymbol(symbol) - Manually set the displayed ticker (used by watchlist listener)
- *   recordPattern(event) - Inject a real PatternEvent (called by WS handler)
  *   getHistory(symbol) - Get recent detection history for a symbol
  *   clearHistory(symbol) - Clear cached history for a symbol
  *   teardown() - Remove DOM, listeners, styles
@@ -538,15 +537,30 @@
         return state.historyByTicker.get(symbol).slice(-MAX_HISTORY_PER_TICKER).reverse();
     }
 
+    function toFiniteNumber(value) {
+        try {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
+        } catch (_) {
+            return 0;
+        }
+    }
+
     function recordDetection(event) {
         if (!event || !event.pattern || !event.symbol) return;
+        const pattern = event.pattern;
+        const patternName = typeof pattern === 'string' ? pattern : pattern.name;
+        if (typeof patternName !== 'string' || patternName.trim() === '') return;
+        const confidence = typeof pattern === 'object' && pattern.confidence != null
+            ? toFiniteNumber(pattern.confidence)
+            : toFiniteNumber(event.confidence);
 
         // Normalize event
         const normalized = {
-            ts: event.ts || Date.now(),
+            ts: event.ts || event.timestamp || Date.now(),
             symbol: String(event.symbol).toUpperCase(),
-            pattern: String(event.pattern).toLowerCase(),
-            confidence: Math.min(1, Math.max(0, Number(event.confidence) || 0)),
+            pattern: String(patternName).toLowerCase(),
+            confidence: Math.min(1, Math.max(0, confidence)),
             bias: event.bias || null,
             neckline: event.neckline,
             meta: event.meta,
@@ -962,17 +976,6 @@
                 const history = getTickerHistory(state.currentSymbol);
                 state.currentPattern = history.length > 0 ? history[0] : null;
                 render();
-            } catch (_) { /* swallow */ }
-        },
-
-
-        /**
-         * Manually record a pattern detection (for testing).
-         * @param {PatternEvent} event
-         */
-        recordPattern(event) {
-            try {
-                recordDetection(event);
             } catch (_) { /* swallow */ }
         },
 

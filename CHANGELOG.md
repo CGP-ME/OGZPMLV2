@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Pattern Card Shape Parsing (2026-05-29)
+
+- Fixed Pattern Card ingestion to read `pattern_analysis.pattern.name` and nested confidence from the backend's real pattern object shape instead of rendering object coercions.
+- Kept the existing symbol requirement fail-closed so pattern frames without backend symbol attribution remain hidden instead of being assigned to the selected ticker.
+- Removed the public `PatternCard.recordPattern()` test injection path so production UI state can only be populated through the WebSocket handler.
+- Made confidence parsing non-throwing before clamping malformed values to zero.
+
 ### Dashboard Chart Asset Routing (2026-05-29)
 
 - Fixed chart asset switches by tracking the last successfully sent `asset_change` request instead of comparing against the dropdown value after the browser has already updated it.
