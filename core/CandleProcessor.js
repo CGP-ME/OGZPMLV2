@@ -117,6 +117,64 @@ class CandleProcessor {
     }
   }
 
+  _numberOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  _firstNumberOrNull(...values) {
+    for (const value of values) {
+      const numeric = this._numberOrNull(value);
+      if (numeric !== null) return numeric;
+    }
+    return null;
+  }
+
+  _buildDashboardIndicators(renderPacket, marketData) {
+    let snapshotIndicators = null;
+    if (this.ctx.indicatorEngine && typeof this.ctx.indicatorEngine.getSnapshot === 'function') {
+      const snapshot = this.ctx.indicatorEngine.getSnapshot();
+      if (snapshot && typeof snapshot === 'object' && snapshot.indicators && typeof snapshot.indicators === 'object') {
+        snapshotIndicators = snapshot.indicators;
+      }
+    }
+
+    const renderIndicators = renderPacket
+      && typeof renderPacket === 'object'
+      && renderPacket.indicators
+      && typeof renderPacket.indicators === 'object'
+      ? renderPacket.indicators
+      : null;
+
+    const snapshot = snapshotIndicators || {};
+    const render = renderIndicators || {};
+    const snapshotMacd = snapshot.macd;
+    const renderMacd = render.macd;
+
+    return {
+      rsi: this._firstNumberOrNull(snapshot.rsi, render.rsi),
+      atr: this._firstNumberOrNull(snapshot.atr, render.atr),
+      macd: this._firstNumberOrNull(
+        snapshotMacd && typeof snapshotMacd === 'object' ? (snapshotMacd.macd ?? snapshotMacd.macdLine) : snapshotMacd,
+        renderMacd && typeof renderMacd === 'object' ? (renderMacd.macd ?? renderMacd.macdLine) : renderMacd
+      ),
+      macdSignal: this._firstNumberOrNull(
+        snapshot.macdSignal,
+        snapshotMacd && typeof snapshotMacd === 'object' ? (snapshotMacd.signal ?? snapshotMacd.signalLine) : null,
+        render.macdSignal,
+        renderMacd && typeof renderMacd === 'object' ? (renderMacd.signal ?? renderMacd.signalLine) : null
+      ),
+      macdHistogram: this._firstNumberOrNull(
+        snapshot.macdHistogram,
+        snapshotMacd && typeof snapshotMacd === 'object' ? (snapshotMacd.hist ?? snapshotMacd.histogram) : null,
+        render.macdHistogram,
+        renderMacd && typeof renderMacd === 'object' ? (renderMacd.hist ?? renderMacd.histogram) : null
+      ),
+      volume: this._firstNumberOrNull(snapshot.volume, render.volume, marketData?.volume),
+    };
+  }
+
   _broadcastBrokerStatus(status) {
     try {
       const ws = this.ctx?.dashboardWs;
@@ -1063,6 +1121,7 @@ class CandleProcessor {
         const dashboardTimeframe = this.ctx.dashboardTimeframe || candle.timeframe;
 
         const dashboardTimestamp = marketData.timestamp;
+        const dashboardIndicators = this._buildDashboardIndicators(renderPacket, marketData);
         const dashboardCandle = {
           symbol: dashboardSymbol,
           timeframe: candle.timeframe,
@@ -1083,7 +1142,7 @@ class CandleProcessor {
           timestamp: dashboardTimestamp,
           timeframe: dashboardTimeframe,
           candle: dashboardCandle,
-          indicators: renderPacket.indicators,
+          indicators: dashboardIndicators,
           candles: dashboardCandles,
           overlays: renderPacket.overlays,
           balance: currentBalance,
@@ -1098,7 +1157,7 @@ class CandleProcessor {
             volume: marketData.volume,
             timestamp: dashboardTimestamp,
             candle: dashboardCandle,
-            indicators: renderPacket.indicators,  // Use IndicatorEngine output
+            indicators: dashboardIndicators,
             // CHANGE 2026-01-29: Send candles for dashboard's selected timeframe
             candles: dashboardCandles,
             timeframe: dashboardTimeframe,  // Tell dashboard what timeframe this is

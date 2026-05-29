@@ -9,6 +9,7 @@ function makeSymCtx(symbol) {
     indicatorEngine: {
       updateCandle: jest.fn(),
       getRenderPacket: jest.fn(() => ({ indicators: {}, overlays: {} })),
+      getSnapshot: jest.fn(() => ({ indicators: {} })),
     },
     emaCrossover: null,
     maDynamicSR: null,
@@ -30,6 +31,7 @@ function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m'
     indicatorEngine: {
       updateCandle: jest.fn(),
       getRenderPacket: jest.fn(() => ({ indicators: {}, overlays: {} })),
+      getSnapshot: jest.fn(() => ({ indicators: {} })),
     },
     mtfAdapter: null,
     emaCrossover: null,
@@ -189,7 +191,14 @@ describe('symbol-aware candle routing', () => {
       expect(payload.candle.timeframe).toBe('1m');
       expect(payload.candle.close).toBe(77724);
       expect(payload.timestamp).toBe(payload.candle.timestamp);
-      expect(payload.indicators).toEqual({});
+      expect(payload.indicators).toEqual({
+        rsi: null,
+        atr: null,
+        macd: null,
+        macdSignal: null,
+        macdHistogram: null,
+        volume: 12.5,
+      });
       expect(payload.data.symbol).toBe('BTC-USD');
       expect(payload.data.price).toBe(77724);
       expect(payload.data.close).toBe(77724);
@@ -199,7 +208,65 @@ describe('symbol-aware candle routing', () => {
       expect(payload.data.candle.close).toBe(77724);
       expect(payload.data.timestamp).toBe(payload.timestamp);
       expect(payload.data.candle.timestamp).toBe(payload.timestamp);
-      expect(payload.data.indicators).toEqual({});
+      expect(payload.data.indicators).toEqual(payload.indicators);
+    } finally {
+      if (priorBacktestFast === undefined) {
+        delete process.env.BACKTEST_FAST;
+      } else {
+        process.env.BACKTEST_FAST = priorBacktestFast;
+      }
+      ConfigLoader.load({ force: true, silent: true });
+    }
+  });
+
+  test('dashboard price frame carries numeric indicator DTO for readout panels', () => {
+    const priorBacktestFast = process.env.BACKTEST_FAST;
+    process.env.BACKTEST_FAST = 'false';
+    ConfigLoader.load({ force: true, silent: true });
+    try {
+      const btc = makeSymCtx('BTC-USD');
+      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+      ctx.dashboardWsConnected = true;
+      ctx.dashboardWs = { send: jest.fn() };
+      ctx.dashboardTimeframe = '1m';
+      ctx.getCandlesForTimeframe = jest.fn(() => [candleObject({ symbol: 'BTC-USD' })]);
+      ctx.indicatorEngine.getRenderPacket.mockReturnValue({
+        indicators: { macd: { macd: 99, signal: 98, hist: 1 }, renderOnly: { debug: true } },
+        overlays: { lines: [] },
+      });
+      ctx.indicatorEngine.getSnapshot.mockReturnValue({
+        indicators: {
+          rsi: 61.4,
+          macd: 1.25,
+          macdSignal: 1.1,
+          macdHistogram: 0.15,
+          atr: 22.8,
+          volume: 42,
+        },
+      });
+      const processor = new CandleProcessor(ctx);
+
+      processor.handleMarketData({ data: ohlc(77724), symbol: 'BTC-USD', timeframe: '1m' });
+
+      const payload = JSON.parse(ctx.dashboardWs.send.mock.calls[0][0]);
+      expect(payload.indicators).toMatchObject({
+        rsi: 61.4,
+        macd: 1.25,
+        macdSignal: 1.1,
+        macdHistogram: 0.15,
+        atr: 22.8,
+        volume: 42,
+      });
+      expect(payload.data.indicators).toEqual(payload.indicators);
+      expect(payload.indicators.macd).not.toEqual(expect.any(Object));
+      expect(Object.keys(payload.indicators).sort()).toEqual([
+        'atr',
+        'macd',
+        'macdHistogram',
+        'macdSignal',
+        'rsi',
+        'volume',
+      ]);
     } finally {
       if (priorBacktestFast === undefined) {
         delete process.env.BACKTEST_FAST;

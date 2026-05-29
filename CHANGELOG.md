@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Price Indicator DTO (2026-05-29)
+
+- Changed dashboard `price.indicators` frames to carry an explicit numeric readout DTO for RSI, ATR, MACD, MACD signal, MACD histogram, and volume instead of leaking render-packet indicator objects.
+- Preserved chart overlays from the render packet while sourcing indicator readouts from the canonical indicator snapshot when available.
+
 ### Dashboard Ticker Price Frame Contract (2026-05-29)
 
 - Added real `ticker_price` websocket frames alongside existing stock and Kraken `price` broadcasts so frontend orchestration can track watchlist liveness without parsing chart frames.
