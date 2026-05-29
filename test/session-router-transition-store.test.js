@@ -312,6 +312,33 @@ describe('SessionRouter TransitionStore', () => {
     }));
   });
 
+  test('source flat failure projects recovery required if process crashes before failed-safe event', () => {
+    const store = makeStore();
+    store.recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', {
+      transitionId: 'stocks-to-crypto-flat-failed',
+      epoch: 12,
+      from: 'stocks',
+      to: 'crypto',
+      activeSession: 'stocks',
+      reason: 'source position still open'
+    });
+
+    const status = store.readStatus();
+
+    expect(status).toEqual(expect.objectContaining({
+      transitionId: 'stocks-to-crypto-flat-failed',
+      epoch: 12,
+      state: 'RECOVERY_REQUIRED',
+      recoveryRequired: true,
+      freezeNewEntries: true,
+      from: 'stocks',
+      to: 'crypto',
+      activeSession: 'stocks',
+      safeModeReason: 'source position still open',
+      lastEvent: 'SESSION_SOURCE_FLAT_FAILED'
+    }));
+  });
+
   test('nextEpoch advances from journal-only epochs after append-before-state crash', () => {
     const store = makeStore();
     store.appendEvent({

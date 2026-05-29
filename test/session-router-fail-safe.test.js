@@ -25,6 +25,8 @@ describe('SessionRouter failed-safe transition behavior', () => {
 
     router.stateManager = {
       state: { activeTrades: new Map(), isTrading: true },
+      getLastPrice: jest.fn(() => 125),
+      closePosition: jest.fn().mockImplementation(async () => ({ success: true })),
       pauseTrading: jest.fn().mockImplementation(async (reason) => {
         router.stateManager.state.isTrading = false;
         router.stateManager.state.pauseReason = reason;
@@ -122,6 +124,68 @@ describe('SessionRouter failed-safe transition behavior', () => {
       'SessionRouter: transitioning to crypto'
     );
     expect(router.stateManager.pauseTrading).toHaveBeenCalledTimes(1);
+  });
+
+  test('transition to crypto fails safe when source position has no close price', async () => {
+    const router = makeRouter({ forceCloseOnSessionEnd: true });
+    router.activeSession = 'stocks';
+    router.stateManager.state.activeTrades = new Map([
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+    ]);
+    router.stateManager.getLastPrice.mockReturnValue(null);
+
+    await router._transitionToCrypto(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter source force-close failed for 1 position(s)');
+    expect(router.activeSession).toBe('stocks');
+    expect(router.stateManager.closePosition).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.stateManager.state.isTrading).toBe(false);
+  });
+
+  test('transition to crypto fails safe when force close is disabled but source positions exist', async () => {
+    const router = makeRouter({ forceCloseOnSessionEnd: false });
+    router.activeSession = 'stocks';
+    router.stateManager.state.activeTrades = new Map([
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+    ]);
+
+    await router._transitionToCrypto(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter source force-close disabled with 1 active position(s)');
+    expect(router.activeSession).toBe('stocks');
+    expect(router.stateManager.closePosition).not.toHaveBeenCalled();
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.stateManager.state.isTrading).toBe(false);
+  });
+
+  test('transition to crypto fails safe when closePosition does not confirm success', async () => {
+    const router = makeRouter({ forceCloseOnSessionEnd: true });
+    router.activeSession = 'stocks';
+    router.stateManager.state.activeTrades = new Map([
+      ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
+    ]);
+    router.stateManager.closePosition.mockResolvedValue({ success: false, error: 'broker close rejected' });
+
+    await router._transitionToCrypto(now);
+
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter source force-close failed for 1 position(s)');
+    expect(router.stateManager.closePosition).toHaveBeenCalledWith(125, false, null, {
+      orderId: 'STOCK_1',
+      exitReason: 'session_close',
+      tradeId: 'STOCK_1'
+    });
+    expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
+    expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.stateManager.state.isTrading).toBe(false);
   });
 
   test('pause failure applies visible local pause fallback', async () => {

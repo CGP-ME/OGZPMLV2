@@ -350,10 +350,23 @@ class SessionRouter extends EventEmitter {
       // at BTC price. closePosition with a real recent price produces
       // accurate P&L; the original silent-$0 path (entryPrice fallback)
       // is closed at the StateManager.closePosition signature level.
-      if (this.forceCloseOnSessionEnd) {
-        const activeTrades = this.stateManager.state && this.stateManager.state.activeTrades;
-        if (activeTrades && activeTrades.size > 0) {
+      const activeTrades = this.stateManager.state && this.stateManager.state.activeTrades;
+      if (activeTrades && activeTrades.size > 0) {
+        if (!this.forceCloseOnSessionEnd) {
+          const failures = Array.from(activeTrades.entries()).map(([orderId, trade]) => ({
+            orderId,
+            symbol: trade && trade.symbol,
+            reason: 'forceCloseOnSessionEnd disabled with active source position'
+          }));
+          this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
+            activeSession: this.activeSession,
+            failures
+          });
+          throw new Error(`SessionRouter source force-close disabled with ${activeTrades.size} active position(s)`);
+        }
+
           console.log(`[SessionRouter] Force-closing ${activeTrades.size} stock position(s)...`);
+          const closeFailures = [];
           for (const [orderId, trade] of activeTrades.entries()) {
             try {
               const symbol = trade.symbol;
@@ -361,20 +374,45 @@ class SessionRouter extends EventEmitter {
                 ? this.stateManager.getLastPrice(symbol)
                 : null;
               if (!exitPrice || exitPrice <= 0) {
+                closeFailures.push({
+                  orderId,
+                  symbol,
+                  reason: 'no last-known price'
+                });
                 console.error(`[SessionRouter] CANNOT force-close ${orderId} (symbol=${symbol}): no last-known price; trade left open`);
                 continue;
               }
-              await this.stateManager.closePosition(exitPrice, false, null, {
+              const closeResult = await this.stateManager.closePosition(exitPrice, false, null, {
                 orderId,
                 exitReason: 'session_close',
                 tradeId: trade.tradeId || orderId,
               });
+              if (!closeResult || closeResult.success === false) {
+                closeFailures.push({
+                  orderId,
+                  symbol,
+                  reason: closeResult && closeResult.error ? closeResult.error : 'closePosition did not confirm success'
+                });
+                console.error(`[SessionRouter] Failed to close ${orderId}:`, closeResult && closeResult.error ? closeResult.error : 'closePosition did not confirm success');
+                continue;
+              }
               console.log(`[SessionRouter] Closed ${orderId} (${symbol}) at $${exitPrice}`);
             } catch (closeErr) {
+              closeFailures.push({
+                orderId,
+                symbol: trade && trade.symbol,
+                reason: closeErr.message
+              });
               console.error(`[SessionRouter] Failed to close ${orderId}:`, closeErr.message);
             }
           }
-        }
+          if (closeFailures.length > 0) {
+            this._recordTransitionEvent('SESSION_SOURCE_FLAT_FAILED', transitionContext, {
+              activeSession: this.activeSession,
+              failures: closeFailures
+            });
+            throw new Error(`SessionRouter source force-close failed for ${closeFailures.length} position(s)`);
+          }
       }
 
       if (typeof this.alpacaAdapter.unsubscribeAll === 'function') this.alpacaAdapter.unsubscribeAll();

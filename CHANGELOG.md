@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Force-Close Failure Gate (2026-05-29)
+
+- Blocked `stocks -> crypto` activation when any session-end source position cannot be force-closed with a proven `StateManager.closePosition` success, routing the transition into failed-safe instead of resuming trading on an unproven-flat source session.
+- Treated `forceCloseOnSessionEnd=false` as unsafe when source positions exist, so config cannot bypass the source-flat proof required before crypto activation.
+- Mapped `SESSION_SOURCE_FLAT_FAILED` to `RECOVERY_REQUIRED` in the durable transition store so a crash between source-flat failure recording and failed-safe recording still projects a blocked recovery state.
+
 ### News Ticker Source State Contract (2026-05-29)
 
 - Made `/api/trai/events` expose explicit `unconfigured`, `unavailable`, `empty`, and `ready` states instead of returning silent empty news arrays when Tavily/TRAI sources are missing or failing.
