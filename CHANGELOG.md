@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend Empire Orchestrator Dormant Asset (2026-05-29)
+
+- Added a dormant dashboard Empire orchestrator asset that inventories loaded modules/assets, mount presence, frame freshness, symbol-required frame rejections, and module health without taking over `core.js` boot ownership.
+- Removed the dropped intake file's hardcoded broker inference, duplicate init paths, and silent frame/timer failure patterns before promoting it into `public/js/`.
+- Cleared broker/account/timeframe/execution-mode scope when a new symbol arrives without those fields, preventing stale scope from silently carrying across symbols.
+- Required real `symbol` fields for Empire symbol extraction instead of accepting `asset` as an alias, and recorded missing Socket bind failures in health while avoiding retry spam.
+- Kept the orchestrator unwired from the dashboard HTML in this slice so production boot behavior is unchanged until the separate wiring commit.
+
 ### Dashboard Chain Of Thought Layout (2026-05-29)
 
 - Replaced the Chain of Thought module's hardcoded `140px` injected root height with flexible sizing so the panel can fill its dashboard rail and keep entries inside its own scroll area.
