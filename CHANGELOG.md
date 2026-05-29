@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Broker Intent Idempotency (2026-05-29)
+
+- Added a durable `broker-intents.jsonl` ledger to `TransitionStore` with deterministic broker intent IDs scoped by transition, epoch, session direction, broker, account, execution mode, action, symbol set, symbol, and timeframe.
+- Routed SessionRouter-owned broker/feed side effects through a record-before-execute/commit-after-success wrapper for `unsubscribeAll`, OHLC listener removal, order-router registration, and candle subscription.
+- Made committed intent replays skip duplicate broker side effects, while recorded-uncommitted or failed intent replays fail closed before touching the broker/feed path.
+- Marked transition recovery required when a broker side effect succeeds but the intent commit fails, preserving the ambiguous state instead of falsely marking the broker intent failed.
+
 ### SessionRouter Durable Transition Lock Ownership (2026-05-29)
 
 - Wired SessionRouter initial activation and crypto/stocks transitions to acquire a durable `TransitionStore` lock before transition journal writes, broker reconciliation, pattern handoff, subscription changes, or active-session mutation.

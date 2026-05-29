@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { writeJsonAtomic } = require('../AtomicWrite');
 
 const DEFAULT_STALE_LOCK_MS = 120000;
@@ -39,6 +40,18 @@ function parseTimestamp(value) {
   return Number.isFinite(millis) ? millis : null;
 }
 
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${stableStringify(value[key])}`
+    )).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 class TransitionStore {
   constructor(options = {}) {
     this.dir = options.dir || path.join(process.cwd(), 'data', 'session-router');
@@ -51,6 +64,7 @@ class TransitionStore {
     this.statePath = path.join(this.dir, 'transition-state.json');
     this.lockPath = path.join(this.dir, 'transition-lock.json');
     this.eventsPath = path.join(this.dir, 'transition-events.jsonl');
+    this.brokerIntentsPath = path.join(this.dir, 'broker-intents.jsonl');
   }
 
   _nowMs() {
@@ -159,6 +173,166 @@ class TransitionStore {
 
     fs.appendFileSync(this.eventsPath, `${JSON.stringify(record)}\n`, 'utf8');
     return record;
+  }
+
+  readBrokerIntents() {
+    if (!fs.existsSync(this.brokerIntentsPath)) return [];
+    const text = fs.readFileSync(this.brokerIntentsPath, 'utf8').trim();
+    if (!text) return [];
+
+    return text.split('\n').map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch (err) {
+        return {
+          seq: index + 1,
+          event: 'CORRUPT_BROKER_INTENT_LINE',
+          corrupt: true,
+          error: err.message,
+          raw: line
+        };
+      }
+    });
+  }
+
+  _assertBrokerIntentsReadable(records) {
+    const corrupt = records.find((record) => record.corrupt);
+    if (corrupt) {
+      throw new Error(`corrupt broker-intents.jsonl line ${corrupt.seq}: ${corrupt.error}`);
+    }
+  }
+
+  _brokerIntentIdentity(details = {}) {
+    return {
+      transitionId: details.transitionId || null,
+      epoch: Number.isFinite(Number(details.epoch)) ? Number(details.epoch) : null,
+      from: details.from || null,
+      to: details.to || null,
+      brokerId: details.brokerId || null,
+      accountId: details.accountId || null,
+      executionMode: details.executionMode || null,
+      action: details.action || null,
+      symbol: details.symbol || null,
+      timeframe: details.timeframe || null,
+      symbols: Array.isArray(details.symbols) ? [...details.symbols].sort() : null
+    };
+  }
+
+  buildBrokerIntentId(details = {}) {
+    const identity = this._brokerIntentIdentity(details);
+    const missing = [];
+    for (const field of ['transitionId', 'epoch', 'from', 'to', 'brokerId', 'accountId', 'executionMode', 'action']) {
+      if (identity[field] === null || identity[field] === '') missing.push(field);
+    }
+    if (missing.length > 0) {
+      throw new Error(`broker intent missing required field(s): ${missing.join(', ')}`);
+    }
+
+    const hash = crypto
+      .createHash('sha256')
+      .update(stableStringify(identity))
+      .digest('hex')
+      .slice(0, 16);
+    return `sr-${identity.epoch}-${hash}`;
+  }
+
+  _appendBrokerIntentRecord(record = {}) {
+    this._ensureDir();
+    const records = this.readBrokerIntents();
+    this._assertBrokerIntentsReadable(records);
+    const seq = records.length + 1;
+    const persisted = {
+      seq,
+      at: record.at || this._nowIso(),
+      ...record,
+      seq
+    };
+
+    fs.appendFileSync(this.brokerIntentsPath, `${JSON.stringify(persisted)}\n`, 'utf8');
+    return persisted;
+  }
+
+  _latestBrokerIntent(intentId) {
+    const records = this.readBrokerIntents();
+    this._assertBrokerIntentsReadable(records);
+    return records.filter((record) => record.intentId === intentId).pop() || null;
+  }
+
+  recordBrokerIntent(details = {}) {
+    const intentId = details.intentId || this.buildBrokerIntentId(details);
+    const latest = this._latestBrokerIntent(intentId);
+    if (latest) {
+      return {
+        intentId,
+        duplicate: true,
+        latest,
+        committed: latest.status === 'COMMITTED',
+        pending: latest.status === 'RECORDED',
+        failed: latest.status === 'FAILED'
+      };
+    }
+
+    const record = this._appendBrokerIntentRecord({
+      ...details,
+      intentId,
+      event: 'BROKER_INTENT_RECORDED',
+      status: 'RECORDED'
+    });
+
+    return {
+      intentId,
+      duplicate: false,
+      record,
+      committed: false,
+      pending: false,
+      failed: false
+    };
+  }
+
+  commitBrokerIntent(intentId, details = {}) {
+    if (!intentId) {
+      throw new Error('broker intent commit missing intentId');
+    }
+    const latest = this._latestBrokerIntent(intentId);
+    if (!latest) {
+      throw new Error(`broker intent ${intentId} cannot commit before record`);
+    }
+    if (latest.status === 'COMMITTED') {
+      return {
+        intentId,
+        duplicate: true,
+        record: latest
+      };
+    }
+    if (latest.status !== 'RECORDED') {
+      throw new Error(`broker intent ${intentId} cannot commit from status ${latest.status || '(missing)'}`);
+    }
+
+    const record = this._appendBrokerIntentRecord({
+      ...details,
+      intentId,
+      event: 'BROKER_INTENT_COMMITTED',
+      status: 'COMMITTED'
+    });
+
+    return {
+      intentId,
+      duplicate: false,
+      record
+    };
+  }
+
+  failBrokerIntent(intentId, reason, details = {}) {
+    if (!intentId) {
+      throw new Error('broker intent failure missing intentId');
+    }
+    return this._appendBrokerIntentRecord({
+      ...details,
+      intentId,
+      event: 'BROKER_INTENT_FAILED',
+      status: 'FAILED',
+      reason: reason || 'unknown broker intent failure'
+    });
   }
 
   _eventState(eventName) {

@@ -374,4 +374,140 @@ describe('SessionRouter TransitionStore', () => {
 
     expect(store.nextEpoch()).toBe(18);
   });
+
+  test('broker intent record and commit are durable and duplicate-safe', () => {
+    const store = makeStore();
+    const details = {
+      transitionId: 'crypto-to-stocks-1',
+      epoch: 22,
+      from: 'crypto',
+      to: 'stocks',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      executionMode: 'paper',
+      action: 'subscribe_candles',
+      symbol: 'TSLA',
+      timeframe: '15m'
+    };
+
+    const recorded = store.recordBrokerIntent(details);
+    const committed = store.commitBrokerIntent(recorded.intentId, details);
+    const replay = store.recordBrokerIntent(details);
+    const records = store.readBrokerIntents();
+
+    expect(recorded).toEqual(expect.objectContaining({
+      duplicate: false,
+      committed: false,
+      pending: false,
+      failed: false
+    }));
+    expect(committed).toEqual(expect.objectContaining({
+      duplicate: false,
+      intentId: recorded.intentId
+    }));
+    expect(replay).toEqual(expect.objectContaining({
+      duplicate: true,
+      committed: true,
+      pending: false,
+      failed: false,
+      intentId: recorded.intentId
+    }));
+    expect(records.map((record) => record.event)).toEqual([
+      'BROKER_INTENT_RECORDED',
+      'BROKER_INTENT_COMMITTED'
+    ]);
+    expect(records[0]).toEqual(expect.objectContaining({
+      seq: 1,
+      intentId: recorded.intentId,
+      status: 'RECORDED',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      executionMode: 'paper',
+      action: 'subscribe_candles',
+      symbol: 'TSLA',
+      timeframe: '15m'
+    }));
+    expect(records[1]).toEqual(expect.objectContaining({
+      seq: 2,
+      intentId: recorded.intentId,
+      status: 'COMMITTED'
+    }));
+  });
+
+  test('broker intent replay fails closed when prior record was not committed', () => {
+    const store = makeStore();
+    const details = {
+      transitionId: 'stocks-to-crypto-1',
+      epoch: 23,
+      from: 'stocks',
+      to: 'crypto',
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      executionMode: 'paper',
+      action: 'register_order_router',
+      symbols: ['ETH-USD', 'BTC-USD'],
+      timeframe: '1m'
+    };
+
+    const recorded = store.recordBrokerIntent(details);
+    const replay = store.recordBrokerIntent({
+      ...details,
+      symbols: ['BTC-USD', 'ETH-USD']
+    });
+
+    expect(replay).toEqual(expect.objectContaining({
+      duplicate: true,
+      committed: false,
+      pending: true,
+      failed: false,
+      intentId: recorded.intentId
+    }));
+    expect(store.readBrokerIntents()).toHaveLength(1);
+  });
+
+  test('broker intent identity includes session direction', () => {
+    const store = makeStore();
+    const shared = {
+      transitionId: 'operator-retry-1',
+      epoch: 25,
+      brokerId: 'kraken',
+      accountId: 'acct-main',
+      accountIdSource: 'config',
+      executionMode: 'paper',
+      action: 'subscribe_candles',
+      symbol: 'BTC-USD',
+      timeframe: '1m'
+    };
+
+    const stocksToCrypto = store.recordBrokerIntent({
+      ...shared,
+      from: 'stocks',
+      to: 'crypto'
+    });
+    const cryptoToStocks = store.recordBrokerIntent({
+      ...shared,
+      from: 'crypto',
+      to: 'stocks'
+    });
+
+    expect(cryptoToStocks.intentId).not.toBe(stocksToCrypto.intentId);
+    expect(store.readBrokerIntents()).toHaveLength(2);
+  });
+
+  test('broker intent requires explicit account scope and execution mode', () => {
+    const store = makeStore();
+
+    expect(() => store.recordBrokerIntent({
+      transitionId: 'crypto-to-stocks-1',
+      epoch: 24,
+      from: 'crypto',
+      to: 'stocks',
+      brokerId: 'alpaca',
+      action: 'subscribe_candles',
+      symbol: 'TSLA',
+      timeframe: '15m'
+    })).toThrow('broker intent missing required field(s): accountId, executionMode');
+  });
 });

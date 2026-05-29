@@ -288,6 +288,104 @@ class SessionRouter extends EventEmitter {
     });
   }
 
+  _brokerIntentDetails(transitionContext, brokerId, action, details = {}) {
+    if (!transitionContext || !transitionContext.transitionId || !Number.isFinite(Number(transitionContext.epoch))) {
+      throw new Error('SessionRouter broker intent missing durable transitionId/epoch');
+    }
+
+    const config = this.ctx && this.ctx.config ? this.ctx.config : {};
+    const accountId = config.accountId;
+    const executionMode = config.executionMode;
+    const timeframe = details.timeframe || transitionContext.timeframe || config.timeframe || null;
+    const missing = [];
+    if (!brokerId) missing.push('brokerId');
+    if (!accountId) missing.push('accountId');
+    if (!executionMode) missing.push('executionMode');
+    if (!action) missing.push('action');
+    if (!timeframe) missing.push('timeframe');
+    if (missing.length > 0) {
+      throw new Error(`SessionRouter broker intent missing required field(s): ${missing.join(', ')}`);
+    }
+
+    return {
+      transitionId: transitionContext.transitionId,
+      epoch: Number(transitionContext.epoch),
+      from: transitionContext.from,
+      to: transitionContext.to,
+      brokerId,
+      accountId,
+      accountIdSource: config.accountIdSource || (accountId !== 'default' ? 'config' : 'default'),
+      executionMode,
+      action,
+      symbol: details.symbol || null,
+      symbols: Array.isArray(details.symbols) ? [...details.symbols] : null,
+      timeframe,
+      activeSession: this.activeSession
+    };
+  }
+
+  async _executeBrokerIntent(transitionContext, brokerId, action, execute, details = {}) {
+    if (!this.transitionStore || typeof this.transitionStore.recordBrokerIntent !== 'function' || typeof this.transitionStore.commitBrokerIntent !== 'function') {
+      throw new Error('SessionRouter broker intent store unavailable');
+    }
+    if (typeof execute !== 'function') {
+      throw new Error(`SessionRouter broker intent ${action || '(missing)'} missing execution function`);
+    }
+
+    const intentDetails = this._brokerIntentDetails(transitionContext, brokerId, action, details);
+    const intent = this.transitionStore.recordBrokerIntent(intentDetails);
+    if (intent.committed) {
+      return {
+        intentId: intent.intentId,
+        skipped: true,
+        reason: 'already_committed'
+      };
+    }
+    if (intent.pending) {
+      throw new Error(`SessionRouter broker intent ${intent.intentId} already recorded without commit; recovery required before replay`);
+    }
+    if (intent.failed) {
+      throw new Error(`SessionRouter broker intent ${intent.intentId} previously failed; recovery required before replay`);
+    }
+
+    let result;
+    try {
+      result = await execute();
+    } catch (err) {
+      const reason = err && err.message ? err.message : String(err);
+      try {
+        this.transitionStore.failBrokerIntent(intent.intentId, reason, intentDetails);
+      } catch (recordErr) {
+        throw new Error(`SessionRouter broker intent ${intent.intentId} failed and failure journal write failed: ${reason}; journalError=${recordErr.message}`);
+      }
+      throw err;
+    }
+
+    try {
+      this.transitionStore.commitBrokerIntent(intent.intentId, intentDetails);
+    } catch (err) {
+      const reason = err && err.message ? err.message : String(err);
+      let recoveryError = null;
+      if (this.transitionStore && typeof this.transitionStore.markRecoveryRequired === 'function') {
+        try {
+          this.transitionStore.markRecoveryRequired(`broker intent ${intent.intentId} completed but commit failed: ${reason}`, intentDetails);
+        } catch (markErr) {
+          recoveryError = markErr;
+        }
+      }
+      if (recoveryError) {
+        throw new Error(`SessionRouter broker intent ${intent.intentId} broker side effect completed but commit failed: ${reason}; recovery mark failed: ${recoveryError.message}`);
+      }
+      throw new Error(`SessionRouter broker intent ${intent.intentId} broker side effect completed but commit failed: ${reason}`);
+    }
+
+    return {
+      intentId: intent.intentId,
+      skipped: false,
+      result
+    };
+  }
+
   _assertTransitionStoreStartSafe() {
     const status = this._getTransitionStoreStatus();
     if (status && status.recoveryRequired) {
@@ -795,19 +893,31 @@ class SessionRouter extends EventEmitter {
 
       this._handoffPatternMemory('stocks', transitionContext, timeframe);
 
-      if (typeof this.krakenAdapter.unsubscribeAll === 'function') this.krakenAdapter.unsubscribeAll();
-      if (typeof this.krakenAdapter.removeAllListeners === 'function') this.krakenAdapter.removeAllListeners('ohlc');
+      if (typeof this.krakenAdapter.unsubscribeAll === 'function') {
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'unsubscribe_all', () => (
+          this.krakenAdapter.unsubscribeAll()
+        ), { timeframe });
+      }
+      if (typeof this.krakenAdapter.removeAllListeners === 'function') {
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'remove_ohlc_listeners', () => (
+          this.krakenAdapter.removeAllListeners('ohlc')
+        ), { timeframe });
+      }
 
       if (this.orderRouter) {
         this._recordTransitionEvent('SESSION_ORDER_INTENT_RECORDED', transitionContext, {
           activeSession: this.activeSession
         });
-        this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+        await this._executeBrokerIntent(transitionContext, 'alpaca', 'register_order_router', () => (
+          this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols)
+        ), { symbols: this.stockSymbols, timeframe });
       }
 
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
+          ), { symbol, timeframe });
         }
       }
 
@@ -943,14 +1053,24 @@ class SessionRouter extends EventEmitter {
         sourceFlatConfirmed: true
       });
 
-      if (typeof this.alpacaAdapter.unsubscribeAll === 'function') this.alpacaAdapter.unsubscribeAll();
-      if (typeof this.alpacaAdapter.removeAllListeners === 'function') this.alpacaAdapter.removeAllListeners('ohlc');
+      if (typeof this.alpacaAdapter.unsubscribeAll === 'function') {
+        await this._executeBrokerIntent(transitionContext, 'alpaca', 'unsubscribe_all', () => (
+          this.alpacaAdapter.unsubscribeAll()
+        ), { timeframe });
+      }
+      if (typeof this.alpacaAdapter.removeAllListeners === 'function') {
+        await this._executeBrokerIntent(transitionContext, 'alpaca', 'remove_ohlc_listeners', () => (
+          this.alpacaAdapter.removeAllListeners('ohlc')
+        ), { timeframe });
+      }
 
       if (this.orderRouter) {
         this._recordTransitionEvent('SESSION_ORDER_INTENT_RECORDED', transitionContext, {
           activeSession: this.activeSession
         });
-        this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'register_order_router', () => (
+          this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols)
+        ), { symbols: this.cryptoSymbols, timeframe });
       }
 
       // SESSION-HIGH-01: throw on empty cryptoSymbols. Same class as CRIT-03 —
@@ -961,7 +1081,9 @@ class SessionRouter extends EventEmitter {
       }
       const primaryCrypto = this.cryptoSymbols[0];
       if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
-        this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'subscribe_candles', () => (
+          this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe)
+        ), { symbol: primaryCrypto, timeframe });
       }
 
       this.activeSession = 'crypto';
@@ -1010,10 +1132,16 @@ class SessionRouter extends EventEmitter {
       this._handoffPatternMemory('crypto', null, timeframe, {
         reason: 'initial_activation'
       });
-      if (this.orderRouter) this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols);
+      if (this.orderRouter) {
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'register_order_router', () => (
+          this.orderRouter.registerBroker(this.krakenAdapter, this.cryptoSymbols)
+        ), { symbols: this.cryptoSymbols, timeframe });
+      }
       const primaryCrypto = this.cryptoSymbols[0];
       if (typeof this.krakenAdapter.subscribeToCandles === 'function') {
-        this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe);
+        await this._executeBrokerIntent(transitionContext, 'kraken', 'subscribe_candles', () => (
+          this.krakenAdapter.subscribeToCandles(primaryCrypto, timeframe)
+        ), { symbol: primaryCrypto, timeframe });
       }
       this.activeSession = 'crypto';
       this.activeBroker = this.krakenAdapter;
@@ -1046,10 +1174,16 @@ class SessionRouter extends EventEmitter {
       this._handoffPatternMemory('stocks', null, timeframe, {
         reason: 'initial_activation'
       });
-      if (this.orderRouter) this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols);
+      if (this.orderRouter) {
+        await this._executeBrokerIntent(transitionContext, 'alpaca', 'register_order_router', () => (
+          this.orderRouter.registerBroker(this.alpacaAdapter, this.stockSymbols)
+        ), { symbols: this.stockSymbols, timeframe });
+      }
       for (const symbol of this.stockSymbols) {
         if (typeof this.alpacaAdapter.subscribeToCandles === 'function') {
-          this.alpacaAdapter.subscribeToCandles(symbol, timeframe);
+          await this._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', () => (
+            this.alpacaAdapter.subscribeToCandles(symbol, timeframe)
+          ), { symbol, timeframe });
         }
       }
       this.activeSession = 'stocks';

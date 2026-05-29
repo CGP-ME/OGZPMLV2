@@ -188,6 +188,124 @@ describe('SessionRouter transition journal', () => {
     expect(fs.existsSync(router.transitionStore.lockPath)).toBe(false);
   });
 
+  test('transition broker side effects are persisted as committed broker intents', async () => {
+    const router = makeRouter();
+    router.activeSession = 'crypto';
+
+    await router._transitionToStocks(now);
+
+    const intentRecords = router.transitionStore.readBrokerIntents();
+    expect(intentRecords.map((record) => `${record.event}:${record.action}:${record.brokerId}:${record.symbol || (record.symbols || []).join(',')}`)).toEqual([
+      'BROKER_INTENT_RECORDED:unsubscribe_all:kraken:',
+      'BROKER_INTENT_COMMITTED:unsubscribe_all:kraken:',
+      'BROKER_INTENT_RECORDED:remove_ohlc_listeners:kraken:',
+      'BROKER_INTENT_COMMITTED:remove_ohlc_listeners:kraken:',
+      'BROKER_INTENT_RECORDED:register_order_router:alpaca:TSLA',
+      'BROKER_INTENT_COMMITTED:register_order_router:alpaca:TSLA',
+      'BROKER_INTENT_RECORDED:subscribe_candles:alpaca:TSLA',
+      'BROKER_INTENT_COMMITTED:subscribe_candles:alpaca:TSLA'
+    ]);
+    expect(new Set(intentRecords.map((record) => record.transitionId))).toEqual(new Set([
+      router.transitionStore.readEvents()[0].transitionId
+    ]));
+    expect(new Set(intentRecords.map((record) => record.epoch)).size).toBe(1);
+    for (const record of intentRecords) {
+      expect(record).toEqual(expect.objectContaining({
+        accountId: 'acct-main',
+        accountIdSource: 'config',
+        executionMode: 'paper',
+        timeframe: '15m'
+      }));
+    }
+  });
+
+  test('committed broker intent replay skips duplicate broker side effect', async () => {
+    const router = makeRouter();
+    const transitionContext = router._beginTransitionContext('crypto', 'stocks', now, {
+      brokerId: 'alpaca',
+      symbols: ['TSLA'],
+      timeframe: '15m'
+    });
+    const execute = jest.fn(() => ({ ok: true }));
+
+    const first = await router._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', execute, {
+      symbol: 'TSLA',
+      timeframe: '15m'
+    });
+    const second = await router._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', execute, {
+      symbol: 'TSLA',
+      timeframe: '15m'
+    });
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(first).toEqual(expect.objectContaining({
+      skipped: false
+    }));
+    expect(second).toEqual(expect.objectContaining({
+      skipped: true,
+      reason: 'already_committed',
+      intentId: first.intentId
+    }));
+    expect(router.transitionStore.readBrokerIntents().map((record) => record.event)).toEqual([
+      'BROKER_INTENT_RECORDED',
+      'BROKER_INTENT_COMMITTED'
+    ]);
+  });
+
+  test('recorded uncommitted broker intent blocks replay before broker side effect', async () => {
+    const router = makeRouter();
+    const transitionContext = router._beginTransitionContext('crypto', 'stocks', now, {
+      brokerId: 'alpaca',
+      symbols: ['TSLA'],
+      timeframe: '15m'
+    });
+    const intentDetails = router._brokerIntentDetails(transitionContext, 'alpaca', 'subscribe_candles', {
+      symbol: 'TSLA',
+      timeframe: '15m'
+    });
+    const prior = router.transitionStore.recordBrokerIntent(intentDetails);
+    const execute = jest.fn();
+
+    await expect(router._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', execute, {
+      symbol: 'TSLA',
+      timeframe: '15m'
+    })).rejects.toThrow(`SessionRouter broker intent ${prior.intentId} already recorded without commit; recovery required before replay`);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(router.transitionStore.readBrokerIntents()).toHaveLength(1);
+  });
+
+  test('commit failure after broker side effect leaves intent uncommitted for recovery', async () => {
+    const router = makeRouter();
+    const transitionContext = router._beginTransitionContext('crypto', 'stocks', now, {
+      brokerId: 'alpaca',
+      symbols: ['TSLA'],
+      timeframe: '15m'
+    });
+    const execute = jest.fn(() => ({ ok: true }));
+    jest.spyOn(router.transitionStore, 'commitBrokerIntent').mockImplementation(() => {
+      throw new Error('intent disk full');
+    });
+
+    await expect(router._executeBrokerIntent(transitionContext, 'alpaca', 'subscribe_candles', execute, {
+      symbol: 'TSLA',
+      timeframe: '15m'
+    })).rejects.toThrow(/broker side effect completed but commit failed: intent disk full/);
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(router.transitionStore.readBrokerIntents().map((record) => record.event)).toEqual([
+      'BROKER_INTENT_RECORDED'
+    ]);
+    expect(router.transitionStore.readEvents().map((record) => record.event)).toEqual([
+      'RECOVERY_REQUIRED'
+    ]);
+    expect(router.transitionStore.readStatus()).toEqual(expect.objectContaining({
+      state: 'RECOVERY_REQUIRED',
+      recoveryRequired: true,
+      safeModeReason: expect.stringContaining('completed but commit failed')
+    }));
+  });
+
   test('fresh transition lock blocks broker mutation and enters failed-safe', async () => {
     const router = makeRouter();
     router.activeSession = 'crypto';
