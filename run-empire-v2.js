@@ -108,6 +108,7 @@ require('./instrument.js');
 const envPath = resolvedConfig.config.paths.envFile;
 const { createTraceId, emitTrace } = require('./core/TraceSpine');
 const RuntimeAuditSink = require('./core/RuntimeAuditSink');
+const { resolvePatternMaturity } = require('./core/PatternMaturity');
 
 const runtimeAuditSink = new RuntimeAuditSink({
   dataDir: resolvedConfig.config.paths.dataDir || undefined,
@@ -2716,20 +2717,29 @@ class OGZPrimeV14Bot {
         const rawIndicatorState = this.readPatternAnalysisIndicatorState(scope);
         const indicatorSource = indicators && typeof indicators === 'object' ? indicators : null;
 
+        const patternItemForDashboard = (pattern) => {
+          const item = {
+            name: pattern.name,
+            confidence: pattern.confidence
+          };
+          if (pattern.maturity) {
+            item.maturity = pattern.maturity;
+            item.sampleCount = pattern.sampleCount;
+          }
+          return item;
+        };
+        const primaryPatternFrame = primaryPattern ? {
+          symbol: scope.symbol,
+          ...patternItemForDashboard(primaryPattern),
+          description: this.getPatternDescription(primaryPattern.raw),
+          allPatterns: dashboardPatterns.map(patternItemForDashboard)
+        } : null;
+
         const message = {
           type: 'pattern_analysis',
           timestamp: Date.now(),
           ...scope,
-          pattern: primaryPattern ? {
-            symbol: scope.symbol,
-            name: primaryPattern.name,
-            confidence: primaryPattern.confidence,
-            description: this.getPatternDescription(primaryPattern.raw),
-            allPatterns: dashboardPatterns.map(pattern => ({
-              name: pattern.name,
-              confidence: pattern.confidence
-            }))
-          } : null,
+          pattern: primaryPatternFrame,
           patternMemory: {
             count: patternMemoryCount,
             uniquePatterns: patternMemorySize,
@@ -2817,10 +2827,13 @@ class OGZPrimeV14Bot {
     if (!rawName) return null;
     const confidence = Number(pattern.confidence);
     if (!Number.isFinite(confidence)) return null;
+    const maturity = resolvePatternMaturity(pattern, pattern.stats);
     return {
       raw: pattern,
       name: rawName,
       confidence,
+      sampleCount: maturity.sampleCount,
+      maturity: maturity.maturity,
       direction: typeof pattern.direction === 'string' && pattern.direction.trim()
         ? pattern.direction.trim()
         : null

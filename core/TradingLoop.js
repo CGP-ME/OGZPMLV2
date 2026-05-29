@@ -30,6 +30,7 @@ const { getInstance: getExitContractManager } = require('./ExitContractManager')
 const CandlePatternDetector = require('./CandlePatternDetector');
 const { getNarrator } = require('./TradeNarrator');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const { stampPatternMaturity } = require('./PatternMaturity');
 const flagManager = FeatureFlagManager.getInstance();
 
 const candlePatternDetector = new CandlePatternDetector();
@@ -1211,6 +1212,11 @@ class TradingLoop {
         !this.ctx.config?.enableBacktestMode &&
         process.env.BACKTEST_NO_PATTERN_SAVE !== 'true' &&
         typeof this.ctx.patternChecker?.memory?.recordObservation === 'function';
+      const canReadPatternStats =
+        typeof this.ctx.patternChecker?.memory?.getPatternStats === 'function';
+      if (canRecordPatternObservations && !canReadPatternStats) {
+        throw new Error('[PATTERN][OBSERVE] pattern memory records observations but exposes no getPatternStats readback');
+      }
       let recordedObservations = 0;
       patterns.forEach(pattern => {
         // MED-08: skip telemetry record for nameless patterns instead of
@@ -1223,14 +1229,24 @@ class TradingLoop {
         if (!Array.isArray(pattern.features)) {
           pattern.features = FeatureExtractor.extractArray({ indicators, candles: priceHistory });
         }
+        let observed = null;
         if (canRecordPatternObservations && Array.isArray(pattern.features) && pattern.features.length > 0) {
-          const observed = this.ctx.patternChecker.memory.recordObservation(pattern.features, {
+          observed = this.ctx.patternChecker.memory.recordObservation(pattern.features, {
             timestamp: this.ctx.marketData?.timestamp ?? Date.now(),
-            strategy: pattern.name || pattern.type || 'pattern',
+            strategy: pattern.name || pattern.type,
             price,
             ...patternScope,
           });
           if (observed) recordedObservations++;
+        }
+        if (Array.isArray(pattern.features) && pattern.features.length > 0) {
+          const stats = canReadPatternStats
+            ? this.ctx.patternChecker.memory.getPatternStats(pattern.features, patternScope)
+            : null;
+          if (canReadPatternStats && observed && !stats) {
+            throw new Error(`[PATTERN][OBSERVE] memory recorded ${observed} but getPatternStats returned no stats`);
+          }
+          stampPatternMaturity(pattern, stats);
         }
         telemetry.event('pattern_detected', { signature, confidence: pattern.confidence, price });
       });

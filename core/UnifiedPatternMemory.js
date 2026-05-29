@@ -840,6 +840,8 @@ class UnifiedPatternMemory {
       avgPnL: pattern.avgPnL,
       timesSeen: pattern.timesSeen,
       status: pattern.status,
+      firstSeen: pattern.firstSeen,
+      lastSeen: pattern.lastSeen,
       age: Date.now() - pattern.firstSeen,
     };
   }
@@ -944,6 +946,8 @@ class UnifiedPatternMemory {
       losses: p.losses,
       totalPnL: p.totalPnL,
       results: p.outcomes.map(o => ({ timestamp: o.timestamp, pnl: o.pnl, success: o.isWin })),
+      firstSeen: p.firstSeen,
+      lastSeen: p.lastSeen,
     };
   }
 

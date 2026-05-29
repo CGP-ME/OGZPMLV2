@@ -137,6 +137,44 @@ describe('TradeNarrator dashboard prose', () => {
     expect(consoleLines.some((line) => line.includes('TRADE CLOSED (LOSS)'))).toBe(false);
   });
 
+  test('does not claim pattern maturity without sample evidence', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.patternSpotted([{ name: 'Learning Pattern', confidence: 0.81 }]);
+
+    const patternEvent = sends.find((payload) => payload.type === 'narrator_event' && payload.event === 'pattern_spotted');
+    expect(patternEvent).toBeTruthy();
+    expect(patternEvent.maturity).toBeUndefined();
+    expect(patternEvent.sampleCount).toBeUndefined();
+    expect(patternEvent.text).toBe('Spotted Learning Pattern - conviction Peak.');
+  });
+
+  test('uses observed sample evidence for pattern maturity narration', () => {
+    const sends = [];
+    const ws = {
+      readyState: 1,
+      bufferedAmount: 0,
+      send: jest.fn((raw) => sends.push(JSON.parse(raw))),
+    };
+    const narrator = new TradeNarrator();
+    narrator.setWebSocketClient(ws);
+
+    narrator.patternSpotted([{ name: 'Learning Pattern', confidence: 0.81, samples: 3, lastSeen: Date.now() }]);
+
+    const patternEvent = sends.find((payload) => payload.type === 'narrator_event' && payload.event === 'pattern_spotted');
+    expect(patternEvent).toBeTruthy();
+    expect(patternEvent.maturity).toBe('Forming');
+    expect(patternEvent.sampleCount).toBe(3);
+    expect(patternEvent.text).toBe('Spotted Learning Pattern - conviction Peak, maturity Forming.');
+  });
+
   test('does not label rounded-zero or malformed PnL as a visible win', () => {
     const sends = [];
     const ws = {

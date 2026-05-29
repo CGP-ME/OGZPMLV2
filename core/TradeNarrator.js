@@ -62,6 +62,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { resolvePatternMaturity } = require('./PatternMaturity');
 
 // ─── Env flag parsing ─────────────────────────────────────────────────────
 function envFlag(name) {
@@ -119,14 +120,6 @@ function winRateBucket(winRate, samples) {
   if (r < 0.55) return 'Emerging';
   if (r < 0.65) return 'Validated';
   return 'Proven';
-}
-
-function sampleBucket(samples) {
-  const n = samples || 0;
-  if (n < 10) return 'New';
-  if (n < 50) return 'Emerging';
-  if (n < 200) return 'Established';
-  return 'Mature';
 }
 
 function slTpBucket(pct) {
@@ -368,7 +361,7 @@ class TradeNarrator {
 
       if (this.architect) {
         const lines = top.map(p => {
-          const name = p.name || p.type || 'unknown';
+          const name = p.name || p.type;
           const conf = p.confidence != null ? fmtPct((p.confidence || 0) * (p.confidence > 1 ? 1 : 100), 0) : '—';
           const sig = p.signature || p.id || '';
           return `   • ${pad(name, 22)} ${pad(conf, 6)} ${sig ? `sig=${String(sig).slice(0, 10)}` : ''}`;
@@ -382,6 +375,7 @@ class TradeNarrator {
       if (this.user) {
         const names = top.map(p => this._safePatternName(p.name || p.type));
         const best = top[0];
+        const maturity = resolvePatternMaturity(best, best.stats);
         const payload = {
           type: 'narrator_event',
           scope: 'USER',
@@ -389,10 +383,14 @@ class TradeNarrator {
           timestamp: Date.now(),
           patterns: names,
           conviction: confidenceBucket(best.confidence || 0),
-          maturity: sampleBucket(best.samples || best.stats?.total || 0),
         };
+        if (maturity.maturity) {
+          payload.maturity = maturity.maturity;
+          payload.sampleCount = maturity.sampleCount;
+        }
+        const maturityText = payload.maturity ? `, maturity ${payload.maturity}` : '';
         this._emitUser(
-          `Spotted ${names.join(', ')} — conviction ${payload.conviction}, maturity ${payload.maturity}.`,
+          `Spotted ${names.join(', ')} - conviction ${payload.conviction}${maturityText}.`,
           payload
         );
       }

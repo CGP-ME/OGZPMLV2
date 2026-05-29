@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Maturity Truth Contract (2026-05-29)
+
+- Added a shared pattern-maturity resolver so dashboard and narrator outputs use observed pattern-memory counts instead of converting missing sample evidence into `New`.
+- Changed TradingLoop pattern observation telemetry to stamp detected patterns with real `sampleCount`, `samples`, `maturity`, and `isNew` metadata after memory observation.
+- Changed `pattern_analysis` frames and `TradeNarrator.patternSpotted()` to omit maturity when no sample evidence exists, preserving an honest empty/unknown state.
+- Added regression coverage for maturity tiers, missing-evidence behavior, stats precedence, and narrator output.
+
 ### StateManager Entry Identity Truth Contract (2026-05-29)
 
 - Changed `StateManager.openPosition()` to reject missing or mismatched immutable entry identity (`orderId`, `action`, `direction`, `entryStrategy`) before active-trade mutation, state mutation, narrator entry output, or dashboard projection.
