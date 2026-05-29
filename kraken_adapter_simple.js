@@ -498,34 +498,59 @@ class KrakenAdapterSimple {
 
   validateOrder(order) {
     const errors = [];
+    let symbol = null;
+    let quantity = null;
 
-    if (!order.symbol) errors.push('Symbol is required');
+    if (!order.symbol) {
+      errors.push('Symbol is required');
+    } else {
+      symbol = this.normalizeKrakenWsPair(order.symbol);
+      if (!symbol || !this.isCanonicalDashboardSymbol(symbol)) {
+        errors.push(`Invalid order symbol: ${order.symbol}`);
+      }
+    }
     if (!order.side || !['buy', 'sell'].includes(order.side)) {
       errors.push('Side must be "buy" or "sell"');
     }
     if (!order.type || !this.capabilities.orderTypes.includes(order.type)) {
       errors.push(`Order type must be one of: ${this.capabilities.orderTypes.join(', ')}`);
     }
-    if (!order.quantity || order.quantity <= 0) {
+    const rawQuantity = Number(order.quantity);
+    if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
       errors.push('Quantity must be greater than 0');
     }
 
-    // Check if symbol exists
-    const krakenSymbol = this.convertToKrakenSymbol(order.symbol);
-    const pair = this.assetPairs.get(krakenSymbol);
-    if (!pair) {
-      errors.push(`Symbol ${order.symbol} not found in Kraken asset pairs`);
-    } else {
-      // Check minimum order size
-      const minOrder = parseFloat(pair.ordermin || 0);
-      if (order.quantity < minOrder) {
-        errors.push(`Order quantity ${order.quantity} below minimum ${minOrder}`);
+    if (symbol) {
+      // Check if symbol exists
+      const krakenSymbol = this.convertToKrakenSymbol(symbol);
+      const pair = this.assetPairs.get(krakenSymbol);
+      if (!pair) {
+        errors.push(`Symbol ${symbol} not found in Kraken asset pairs`);
+      } else {
+        const lotDecimals = Number(pair.lot_decimals);
+        if (!Number.isInteger(lotDecimals) || lotDecimals < 0) {
+          errors.push(`Kraken lot_decimals missing for ${symbol}`);
+        } else if (Number.isFinite(rawQuantity) && rawQuantity > 0) {
+          const precisionFactor = 10 ** lotDecimals;
+          quantity = Math.floor(rawQuantity * precisionFactor) / precisionFactor;
+          if (!Number.isFinite(quantity) || quantity <= 0) {
+            errors.push(`Order quantity ${rawQuantity} rounds below precision for ${symbol}`);
+          }
+        }
+
+        // Check minimum order size
+        const minOrder = parseFloat(pair.ordermin || 0);
+        if (quantity !== null && quantity < minOrder) {
+          errors.push(`Order quantity ${quantity} below minimum ${minOrder}`);
+        }
       }
     }
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
+      symbol,
+      quantity
     };
   }
 
@@ -536,14 +561,16 @@ class KrakenAdapterSimple {
       throw new Error(`Order validation failed: ${validation.errors.join(', ')}`);
     }
 
+    const symbol = validation.symbol;
+    const quantity = validation.quantity;
     // Convert to Kraken format
-    const krakenSymbol = this.convertToKrakenSymbol(order.symbol);
+    const krakenSymbol = this.convertToKrakenSymbol(symbol);
 
     const orderData = {
       pair: krakenSymbol,
       type: order.side,
       ordertype: order.type,
-      volume: order.quantity.toString()
+      volume: quantity.toString()
     };
 
     if (order.type === 'limit' && order.price) {
@@ -560,10 +587,10 @@ class KrakenAdapterSimple {
       return {
         orderId: response.result.txid[0],
         status: 'pending',
-        symbol: order.symbol,
+        symbol,
         side: order.side,
         type: order.type,
-        quantity: order.quantity,
+        quantity,
         price: order.price
       };
     } catch (error) {
@@ -575,26 +602,42 @@ class KrakenAdapterSimple {
   async executeTrade(params) {
     const { direction, positionSize, confidence, marketData } = params;
 
-    // Determine symbol from market data or use BTC-USD as default
-    const symbol = marketData?.symbol || 'BTC-USD';
+    const rawSymbol = marketData?.symbol;
+    if (!rawSymbol) {
+      throw new Error('Kraken executeTrade requires marketData.symbol; refusing to default execution symbol');
+    }
+
+    const symbol = this.normalizeKrakenWsPair(rawSymbol);
+    if (!symbol || !this.isCanonicalDashboardSymbol(symbol)) {
+      throw new Error(`Kraken executeTrade received invalid marketData.symbol: ${rawSymbol}`);
+    }
 
     // Convert direction to Kraken side (buy/sell)
-    const side = direction === 'buy' ? 'buy' : 'sell';
+    const side = String(direction || '').toLowerCase();
+    if (!['buy', 'sell'].includes(side)) {
+      throw new Error(`Kraken executeTrade invalid direction: ${direction}`);
+    }
 
     // Use market orders for live trading
     const orderType = 'market';
 
-    // Calculate quantity based on position size and current price
-    const price = marketData?.price || this.currentPrices.get(symbol);
-    if (!price) {
-      throw new Error(`No price available for ${symbol}`);
+    // Calculate quantity from the explicit decision price. Do not size a live
+    // order from cached adapter state; stale cache can mis-size execution.
+    const marketPrice = Number(marketData?.price?.price ?? marketData?.price);
+    if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
+      throw new Error(`Kraken executeTrade requires positive marketData.price for ${symbol}`);
     }
 
-    const quantity = positionSize / price; // Convert position size to coin quantity
+    const numericPositionSize = Number(positionSize);
+    if (!Number.isFinite(numericPositionSize) || numericPositionSize <= 0) {
+      throw new Error(`Invalid position size for ${symbol}: ${positionSize}`);
+    }
+
+    const quantity = numericPositionSize / marketPrice; // Convert position size to coin quantity
 
     // Validate quantity
     if (isNaN(quantity) || quantity <= 0) {
-      throw new Error(`Invalid quantity calculated: ${quantity} for position size ${positionSize} at price ${price}`);
+      throw new Error(`Invalid quantity calculated: ${quantity} for position size ${numericPositionSize} at price ${marketPrice}`);
     }
 
     console.log(`[Kraken] EXECUTING LIVE ${side.toUpperCase()} ORDER: ${quantity.toFixed(8)} ${symbol.split('-')[0]} at market price`);

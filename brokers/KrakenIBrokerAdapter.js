@@ -200,18 +200,30 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
       meta = {}
     } = params;
 
-    // Call underlying placeOrder with V2 metadata preserved
-    const order = {
-      symbol: marketData.symbol,
-      side: direction.toLowerCase(),
-      type: 'market',
-      quantity: positionSize,
-      decisionId: decisionId,  // CRITICAL: Pass through for TRAI learning
-      confidence: confidence,
-      meta: meta
-    };
+    const rawSymbol = marketData?.symbol;
+    if (!rawSymbol) {
+      throw new Error('[KrakenIBroker] executeTrade requires marketData.symbol; refusing to default execution symbol');
+    }
 
-    const result = await this.kraken.placeOrder(order);
+    const symbol = this.kraken.normalizeKrakenWsPair(rawSymbol);
+    if (!symbol || !this.kraken.isCanonicalDashboardSymbol(symbol)) {
+      throw new Error(`[KrakenIBroker] executeTrade received invalid marketData.symbol: ${rawSymbol}`);
+    }
+
+    const side = String(direction || '').toLowerCase();
+    if (!['buy', 'sell'].includes(side)) {
+      throw new Error(`[KrakenIBroker] executeTrade invalid direction: ${direction}`);
+    }
+
+    const result = await this.kraken.executeTrade({
+      direction: side,
+      positionSize,
+      confidence,
+      marketData: {
+        ...marketData,
+        symbol
+      }
+    });
 
     // Return V2-compatible execution result with full metadata
     return {
@@ -219,11 +231,13 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
       status: 'submitted',
       decisionId: decisionId,      // CRITICAL: For TRAI attribution
       broker: 'kraken',
-      symbol: marketData.symbol,
-      side: direction,
-      requestedQty: positionSize,
+      symbol,
+      side,
+      requestedQty: result.quantity ?? null,
+      requestedSizeUsd: positionSize,
       confidence: confidence,
       timestamp: Date.now(),
+      meta,
       raw: result
     };
   }
