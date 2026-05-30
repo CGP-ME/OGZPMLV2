@@ -184,6 +184,7 @@ describe('symbol-aware candle routing', () => {
       const payload = JSON.parse(ctx.dashboardWs.send.mock.calls[0][0]);
       expect(payload.type).toBe('price');
       expect(payload.symbol).toBe('BTC-USD');
+      expect(payload.asset).toBe('BTC-USD');
       expect(payload.price).toBe(77724);
       expect(payload.close).toBe(77724);
       expect(payload.timeframe).toBe('1m');
@@ -200,6 +201,7 @@ describe('symbol-aware candle routing', () => {
         volume: 12.5,
       });
       expect(payload.data.symbol).toBe('BTC-USD');
+      expect(payload.data.asset).toBe('BTC-USD');
       expect(payload.data.price).toBe(77724);
       expect(payload.data.close).toBe(77724);
       expect(payload.data.timeframe).toBe('1m');

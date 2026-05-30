@@ -97,7 +97,7 @@ class TRAIDecisionModule extends EventEmitter {
    */
   setWebSocketClient(wsClient) {
     this.wsClient = wsClient;
-    console.log('✅ [TRAI] Dashboard WebSocket connected');
+    console.log('[TRAI] Dashboard WebSocket connected');
   }
 
   /**
@@ -124,13 +124,13 @@ class TRAIDecisionModule extends EventEmitter {
           });
 
           await this.traiCore.initialize();
-          console.log('✅ [TRAI] Core AI initialized with process pool (max 4 concurrent)');
+          console.log('[TRAI] Core AI initialized with process pool (max 4 concurrent)');
         } catch (error) {
-          console.log('⚠️ [TRAI] LLM initialization failed, falling back to rule-based mode');
+          console.log('[TRAI] LLM initialization failed, falling back to rule-based mode');
           this.traiCore = null;
         }
       } else {
-        console.log('⚠️ [TRAI] Running in rule-based mode (LLM disabled via TRAI_ENABLE_LLM=false)');
+        console.log('[TRAI] Running in rule-based mode (LLM disabled via TRAI_ENABLE_LLM=false)');
         this.traiCore = null;
       }
       
@@ -300,6 +300,7 @@ class TRAIDecisionModule extends EventEmitter {
       if (this.wsClient && this.wsClient.readyState === 1) {
         const scope = {
           symbol: context.symbol || null,
+          asset: context.symbol || null,
           brokerId: context.brokerId || null,
           accountId: context.accountId || null,
           accountIdSource: context.accountIdSource || null,
@@ -313,6 +314,22 @@ class TRAIDecisionModule extends EventEmitter {
           console.error(`[TRAI] Dashboard bot_thinking scope incomplete (${missingScope.join(', ')}) - refusing unscoped broadcast`);
           return;
         }
+        const finiteNumber = (...values) => {
+          for (const value of values) {
+            const numeric = Number(value);
+            if (Number.isFinite(numeric)) return numeric;
+          }
+          return null;
+        };
+        const macd = context.indicators?.macd;
+        const dashboardIndicators = {
+          rsi: finiteNumber(context.indicators?.rsi),
+          atr: finiteNumber(context.indicators?.atr),
+          macd: finiteNumber(macd?.macd, macd?.macdLine, macd),
+          macdSignal: finiteNumber(macd?.signal, macd?.signalLine, context.indicators?.macdSignal),
+          macdHistogram: finiteNumber(macd?.hist, macd?.histogram, context.indicators?.macdHistogram),
+          volume: finiteNumber(context.indicators?.volume, context.volume)
+        };
         const message = {
           type: 'bot_thinking',
           step: 'trai_analysis',
@@ -328,6 +345,7 @@ class TRAIDecisionModule extends EventEmitter {
             rsi: context.indicators?.rsi,
             macd: context.indicators?.macd,
             volatility: context.volatility,
+            indicators: dashboardIndicators,
 
             // TRAI decision breakdown
             originalConfidence: (decision.originalConfidence * 100).toFixed(1),
@@ -348,8 +366,7 @@ class TRAIDecisionModule extends EventEmitter {
         this.wsClient.send(JSON.stringify(message));
       }
     } catch (error) {
-      // Fail silently - don't let dashboard broadcast issues affect trading
-      console.error('⚠️ [TRAI] Dashboard broadcast failed:', error.message);
+      console.error('[TRAI] Dashboard broadcast failed:', error.message);
     }
   }
   
@@ -740,7 +757,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
       return response;
       
     } catch (error) {
-      console.error('⚠️ [TRAI] LLM reasoning failed:', error.message);
+      console.error('[TRAI] LLM reasoning failed:', error.message);
       return this.generateRuleBasedReasoning(decision, context);
     }
   }
@@ -1020,7 +1037,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    */
   recordTradeOutcome(tradeData) {
     if (!this.traiCore) {
-      console.log('⚠️ [TRAI] Cannot record trade - TRAI Core not initialized');
+      console.log('[TRAI] Cannot record trade - TRAI Core not initialized');
       return;
     }
 

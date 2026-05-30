@@ -505,6 +505,11 @@
             bias: 'long',
             summary: 'Price breaks resistance, pulls back to test it as support, then continues higher. High-probability confirmation setup.',
         },
+        'ml_detected': {
+            title: 'ML Detected Structure',
+            bias: null,
+            summary: 'The model found repeatable structure that does not map to a fixed pattern-library shape. The panel renders the live candle geometry instead of assigning a false label.',
+        },
     };
 
     // ─── Private State ──────────────────────────────────────────────────
@@ -546,11 +551,80 @@
         }
     }
 
+    function normalizePatternKey(value) {
+        if (typeof value !== 'string' || value.trim() === '') return null;
+        const key = value.trim().toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        const aliases = {
+            head_and_shoulders: 'head_shoulders',
+            inverse_head_and_shoulders: 'inv_head_shoulders',
+            triangle_ascending: 'ascending_triangle',
+            triangle_descending: 'descending_triangle',
+            triangle_symmetric: 'symmetric_triangle',
+            flag_bull: 'bull_flag',
+            flag_bear: 'bear_flag',
+            cup_and_handle: 'cup_handle',
+            ml_detected: 'ml_detected'
+        };
+        return aliases[key] || key;
+    }
+
+    function normalizeGeometry(geometry) {
+        const rawPoints = Array.isArray(geometry && geometry.points) ? geometry.points : [];
+        const points = rawPoints.map(point => {
+            const t = Number(point && point.t);
+            const p = Number(point && point.p);
+            return Number.isFinite(t) && Number.isFinite(p) ? { t, p } : null;
+        }).filter(Boolean);
+        if (points.length < 2) return null;
+        return { points };
+    }
+
+    function renderGeometrySvg(geometry) {
+        const normalized = normalizeGeometry(geometry);
+        if (!normalized) return '';
+
+        const points = normalized.points;
+        const firstT = points[0].t;
+        const lastT = points[points.length - 1].t;
+        const minP = Math.min.apply(null, points.map(p => p.p));
+        const maxP = Math.max.apply(null, points.map(p => p.p));
+        const tRange = Math.max(1, lastT - firstT);
+        const pRange = Math.max(0.000001, maxP - minP);
+        const scale = point => {
+            const x = 18 + ((point.t - firstT) / tRange) * 204;
+            const y = 84 - ((point.p - minP) / pRange) * 68;
+            return {
+                x: Math.max(12, Math.min(228, x)),
+                y: Math.max(10, Math.min(90, y))
+            };
+        };
+        const path = points.map(scale).map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+        const first = scale(points[0]);
+        const last = scale(points[points.length - 1]);
+
+        return `<svg viewBox="0 0 240 100" xmlns="http://www.w3.org/2000/svg" class="pc-pattern-svg">
+            <defs>
+                <linearGradient id="ml-geo-bg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style="stop-color:var(--ml-color);stop-opacity:0.08"/>
+                    <stop offset="100%" style="stop-color:var(--ml-color);stop-opacity:0"/>
+                </linearGradient>
+            </defs>
+            <rect x="12" y="10" width="216" height="80" rx="3" fill="url(#ml-geo-bg)" stroke="rgba(255,215,0,0.12)" stroke-width="1"/>
+            <line x1="${first.x.toFixed(1)}" y1="${first.y.toFixed(1)}" x2="${last.x.toFixed(1)}" y2="${last.y.toFixed(1)}" stroke="var(--ml-color)" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
+            <polyline points="${path}" fill="none" stroke="var(--core-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            ${points.map(scale).map(point => `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="2" fill="var(--ml-color)" opacity="0.85"/>`).join('')}
+        </svg>`;
+    }
+
     function recordDetection(event) {
         if (!event || !event.pattern || !event.symbol) return;
         const pattern = event.pattern;
         const patternName = typeof pattern === 'string' ? pattern : pattern.name;
         if (typeof patternName !== 'string' || patternName.trim() === '') return;
+        const patternKey = normalizePatternKey(patternName);
+        if (!patternKey) return;
+        const geometry = typeof pattern === 'object' ? normalizeGeometry(pattern.geometry) : null;
+        if (!PATTERN_ART[patternKey] && !geometry) return;
         const confidence = typeof pattern === 'object' && pattern.confidence != null
             ? toFiniteNumber(pattern.confidence)
             : toFiniteNumber(event.confidence);
@@ -559,10 +633,12 @@
         const normalized = {
             ts: event.ts || event.timestamp || Date.now(),
             symbol: String(event.symbol).toUpperCase(),
-            pattern: String(patternName).toLowerCase(),
+            asset: String(event.asset || event.symbol).toUpperCase(),
+            pattern: patternKey,
             confidence: Math.min(1, Math.max(0, confidence)),
             bias: event.bias || null,
             neckline: event.neckline,
+            geometry,
             meta: event.meta,
         };
 
@@ -627,8 +703,24 @@
             }
 
             .pc-scan-icon {
-                font-size: 24px;
+                width: 24px;
+                height: 24px;
+                border: 1px solid var(--ml-color);
+                border-radius: 50%;
+                position: relative;
                 animation: pc-scan-pulse 2s ease-in-out infinite;
+            }
+
+            .pc-scan-icon::after {
+                content: '';
+                position: absolute;
+                width: 9px;
+                height: 1px;
+                right: -6px;
+                bottom: 1px;
+                background: var(--ml-color);
+                transform: rotate(45deg);
+                transform-origin: left center;
             }
 
             @keyframes pc-scan-pulse {
@@ -840,7 +932,7 @@
 
         root.innerHTML = `
             <div class="pc-state-scanning">
-                <div class="pc-scan-icon">🔍</div>
+                <div class="pc-scan-icon" aria-hidden="true"></div>
                 <div class="pc-scan-label">Pattern engine scanning...</div>
                 <div class="pc-last-detected">${lastAttr}</div>
             </div>
@@ -885,7 +977,7 @@
             `;
         }
 
-        const svg = PATTERN_ART[p.pattern] ? PATTERN_ART[p.pattern]() : '';
+        const svg = PATTERN_ART[p.pattern] ? PATTERN_ART[p.pattern]() : renderGeometrySvg(p.geometry);
 
         root.innerHTML = `
             <div class="pc-detected-wrap">

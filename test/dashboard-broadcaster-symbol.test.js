@@ -25,6 +25,12 @@ describe('DashboardBroadcaster symbol attribution', () => {
       marketData: { symbol: 'BTC-USD' },
       dashboardTimeframe: '1m',
       edgeAnalyticsMaxScopes: 200,
+      config: {
+        brokerId: 'kraken',
+        accountId: 'paper-main',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+      },
       priceHistory,
       indicatorEngine: {
         config: { symbol: 'BTC-USD' },
@@ -66,8 +72,38 @@ describe('DashboardBroadcaster symbol attribution', () => {
     const delta = sent.find((message) => message.type === 'delta');
     expect(delta).toEqual(expect.objectContaining({
       symbol: 'BTC-USD',
+      asset: 'BTC-USD',
       timeframe: '1m',
-      tick: expect.objectContaining({ symbol: 'BTC-USD', timeframe: '1m' }),
+      brokerId: 'kraken',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      source: 'candle_processor',
+      tick: expect.objectContaining({ symbol: 'BTC-USD', asset: 'BTC-USD', timeframe: '1m' }),
+    }));
+  });
+
+  test('delta frames canonicalize Kraken wire symbols before broadcast', () => {
+    const sent = [];
+    const ctx = buildCtx(sent, buildHistory('BTC-USD'));
+    const broadcaster = new DashboardBroadcaster(ctx);
+
+    broadcaster.broadcastEdgeAnalytics(74750, 2.5, {
+      symbol: 'XBT/USD',
+      timeframe: '1m',
+      o: 74700,
+      h: 74800,
+      l: 74650,
+      c: 74750,
+      v: 2.5,
+      t: Date.now(),
+    });
+
+    const delta = sent.find((message) => message.type === 'delta');
+    expect(delta).toEqual(expect.objectContaining({
+      symbol: 'BTC-USD',
+      asset: 'BTC-USD',
+      brokerId: 'kraken',
+      tick: expect.objectContaining({ symbol: 'BTC-USD', asset: 'BTC-USD' }),
     }));
   });
 

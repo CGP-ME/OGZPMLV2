@@ -22,6 +22,7 @@ describe('dashboard ticker_price frame builder', () => {
     expect(frame).toEqual(expect.objectContaining({
       type: 'ticker_price',
       symbol: 'TSLA',
+      asset: 'TSLA',
       price: 123.45,
       close: 123.45,
       volume: 1000,
@@ -58,6 +59,7 @@ describe('dashboard ticker_price frame builder', () => {
     expect(frame).toEqual(expect.objectContaining({
       type: 'ticker_price',
       symbol: 'XBT/USD',
+      asset: 'BTC-USD',
       price: 75000,
     }));
 

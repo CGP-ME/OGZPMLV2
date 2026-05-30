@@ -1197,6 +1197,7 @@ class CandleProcessor {
         const dashboardPricePayload = {
           type: 'price',  // CHANGE 2025-12-11: Match frontend expected message type
           symbol: dashboardSymbol,
+          asset: dashboardSymbol,
           price,
           close: price,
           volume: marketData.volume,
@@ -1213,6 +1214,7 @@ class CandleProcessor {
           winRate,
           data: {
             symbol: dashboardSymbol,
+            asset: dashboardSymbol,
             price: price,
             close: price,
             volume: marketData.volume,

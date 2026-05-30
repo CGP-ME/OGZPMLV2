@@ -110,6 +110,10 @@ const { createTraceId, emitTrace } = require('./core/TraceSpine');
 const RuntimeAuditSink = require('./core/RuntimeAuditSink');
 const { resolvePatternMaturity } = require('./core/PatternMaturity');
 const { isStock: isDashboardStockSymbol, fetchStockCandles } = require('./server/stock-data-adapter');
+const {
+  buildDashboardPatternGeometryFromCandles,
+  normalizeDashboardPatternName
+} = require('./server/dashboard-pattern-contract');
 
 const runtimeAuditSink = new RuntimeAuditSink({
   dataDir: resolvedConfig.config.paths.dataDir || undefined,
@@ -1364,7 +1368,7 @@ class OGZPrimeV14Bot {
   validateEnvironment() {
     // Skip API key validation in backtest mode - not needed for historical data
     if (resolvedConfig.config.mode.backtest || resolvedConfig.config.mode.execution === 'backtest' || resolvedConfig.config.mode.candleSource === 'file') {
-      console.log('⏭️ Skipping API key validation (BACKTEST_MODE)');
+      console.log('Skipping API key validation (BACKTEST_MODE)');
       return;
     }
 
@@ -2724,6 +2728,7 @@ class OGZPrimeV14Bot {
           symbol: dashboardSymbol,
           ...this.getCandleScopeEnvelope({ symbol: dashboardSymbol })
         };
+        scope.asset = scope.symbol;
         const missingScope = ['symbol', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']
           .filter(field => scope[field] === null || scope[field] === undefined || String(scope[field]).trim() === '');
         if (missingScope.length > 0) {
@@ -2732,9 +2737,10 @@ class OGZPrimeV14Bot {
         // Format real patterns for display. Missing names or non-finite
         // confidence cannot be represented truthfully by the current dashboard
         // contract, so those entries are omitted instead of defaulted.
+        const patternGeometry = this.buildDashboardPatternGeometry(scope.symbol);
         const dashboardPatterns = Array.isArray(patterns)
           ? patterns
-              .map(pattern => this.normalizePatternForDashboard(pattern))
+              .map(pattern => this.normalizePatternForDashboard(pattern, patternGeometry, scope.symbol))
               .filter(Boolean)
           : [];
         const primaryPattern = dashboardPatterns.length > 0 ? dashboardPatterns[0] : null;
@@ -2764,10 +2770,17 @@ class OGZPrimeV14Bot {
             item.maturity = pattern.maturity;
             item.sampleCount = pattern.sampleCount;
           }
+          if (pattern.geometry) {
+            item.geometry = pattern.geometry;
+          }
+          if (pattern.asset) {
+            item.asset = pattern.asset;
+          }
           return item;
         };
         const primaryPatternFrame = primaryPattern ? {
           symbol: scope.symbol,
+          asset: scope.symbol,
           ...patternItemForDashboard(primaryPattern),
           description: this.getPatternDescription(primaryPattern.raw),
           allPatterns: dashboardPatterns.map(patternItemForDashboard)
@@ -2788,10 +2801,13 @@ class OGZPrimeV14Bot {
           },
           indicators: {
             rsi: indicatorSource?.rsi ?? null,
+            atr: indicatorSource?.atr ?? null,
             macd: indicatorSource?.macd?.macd ?? indicatorSource?.macd?.macdLine ?? null,
             macdSignal: indicatorSource?.macd?.signal ?? indicatorSource?.macd?.signalLine ?? null,
+            macdHistogram: indicatorSource?.macd?.hist ?? indicatorSource?.macd?.histogram ?? null,
             trend: indicatorSource?.trend ?? null,
             volatility: indicatorSource?.volatility ?? null,
+            volume: indicatorSource?.volume ?? this.marketData?.volume ?? null,
             // CHANGE 2026-01-25: Send EMA in format dashboard expects (ema[20], ema[50], ema[200])
             // Use getRawState() for dashboard compatibility with legacy format
             ema: rawIndicatorState?.ema ?? null,
@@ -2859,19 +2875,29 @@ class OGZPrimeV14Bot {
     }
   }
 
-  normalizePatternForDashboard(pattern) {
+  buildDashboardPatternGeometry(symbol) {
+    const candles = this.symbolContexts?.get(symbol)?.priceHistory || this.priceHistory || [];
+    return buildDashboardPatternGeometryFromCandles(candles);
+  }
+
+  normalizePatternForDashboard(pattern, geometry = null, asset = null) {
     if (!pattern || typeof pattern !== 'object') return null;
     const rawName = this.resolvePatternDisplayName(pattern);
     if (!rawName) return null;
     const confidence = Number(pattern.confidence);
     if (!Number.isFinite(confidence)) return null;
     const maturity = resolvePatternMaturity(pattern, pattern.stats);
+    const patternGeometry = pattern.geometry || geometry || null;
+    const dashboardName = normalizeDashboardPatternName(rawName, Boolean(patternGeometry));
+    if (!dashboardName) return null;
     return {
       raw: pattern,
-      name: rawName,
+      name: dashboardName,
       confidence,
       sampleCount: maturity.sampleCount,
       maturity: maturity.maturity,
+      asset: pattern.asset || pattern.symbol || asset || null,
+      geometry: patternGeometry,
       direction: typeof pattern.direction === 'string' && pattern.direction.trim()
         ? pattern.direction.trim()
         : null

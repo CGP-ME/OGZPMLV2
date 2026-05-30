@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Producer Contract Reconciliation (2026-05-30)
+
+- Reconciled dashboard producer frames with the frontend contract for watched stock and crypto assets, including top-level asset identity on ticker frames.
+- Added real Alpaca stock trade streaming and Kraken crypto ticker fanout for configured dashboard watchlist symbols instead of relabeling one asset's data as another.
+- Hardened pattern and indicator dashboard payloads so generic ML patterns require real geometry and unavailable indicator values remain explicit `null` values instead of fabricated readings.
+
 ### Dashboard Asset Runtime Boundary (2026-05-30)
 
 - Blocked dashboard `asset_change` messages from mutating the live trading runtime; chart asset selection is display-only until SessionRouter owns broker transitions.

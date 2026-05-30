@@ -50,8 +50,10 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const PineTALib = require('./pine-transpiler/core/PineTALib');
+const fetchFn = global.fetch || require('node-fetch');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
+const { ASSET_REGISTRY } = require('./core/SymbolTradingContext');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
@@ -1129,14 +1131,25 @@ const DASHBOARD_TICKER_PRICE_SYMBOLS = [
   ...DASHBOARD_STOCK_PRICE_SYMBOLS,
   ...DASHBOARD_CRYPTO_PRICE_SYMBOLS,
 ];
-const parsedStockPriceIntervalMs = Number(process.env.DASHBOARD_STOCK_PRICE_INTERVAL_MS || 30000);
+const parsedStockPriceIntervalMs = Number(process.env.DASHBOARD_STOCK_PRICE_INTERVAL_MS || 5000);
 const DASHBOARD_STOCK_PRICE_INTERVAL_MS = Math.max(
   5000,
-  Number.isFinite(parsedStockPriceIntervalMs) ? parsedStockPriceIntervalMs : 30000
+  Number.isFinite(parsedStockPriceIntervalMs) ? parsedStockPriceIntervalMs : 5000
+);
+const parsedCryptoPriceIntervalMs = Number(process.env.DASHBOARD_CRYPTO_PRICE_INTERVAL_MS || 5000);
+const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = Math.max(
+  5000,
+  Number.isFinite(parsedCryptoPriceIntervalMs) ? parsedCryptoPriceIntervalMs : 5000
 );
 const DASHBOARD_STOCK_PRICE_ENABLED = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET);
+const ALPACA_DATA_STREAM_URL = process.env.ALPACA_DATA_STREAM_URL || 'wss://stream.data.alpaca.markets/v2/iex';
+const KRAKEN_REST_TICKER_URL = process.env.KRAKEN_REST_TICKER_URL || 'https://api.kraken.com/0/public/Ticker';
 let stockPriceFanoutInFlight = false;
 let stockPriceFanoutDisabledLogged = false;
+let stockPriceStreamSocket = null;
+let stockPriceStreamRetryTimer = null;
+let stockPriceStreamSubscribed = false;
+let cryptoPriceFanoutInFlight = false;
 
 function dashboardClients() {
   return Array.from(wss.clients).filter(client => (
@@ -1187,10 +1200,48 @@ function broadcastDashboardBrokerStatus(status) {
   return sentCount > 0;
 }
 
+function finiteNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function positiveNumber(value) {
+  const numeric = finiteNumber(value);
+  return numeric !== null && numeric > 0 ? numeric : null;
+}
+
+function timestampMs(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric > 1e12 ? Math.floor(numeric) : Math.floor(numeric * 1000);
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Date.now();
+}
+
+function sendDashboardTickerFrames(frames, label) {
+  const messages = frames.filter(Boolean).map(frame => JSON.stringify(frame));
+  if (messages.length === 0) return 0;
+  let sentCount = 0;
+  for (const client of dashboardClients()) {
+    if (client.readyState !== WebSocket.OPEN) continue;
+    try {
+      for (const message of messages) {
+        client.send(message);
+      }
+      sentCount++;
+    } catch (err) {
+      console.error(`[${label}] Failed to broadcast dashboard ticker frame:`, err.message);
+    }
+  }
+  return sentCount;
+}
+
 function stockTickerToPriceFrame(ticker) {
   return {
     type: 'price',
     symbol: ticker.symbol,
+    asset: ticker.symbol,
     price: ticker.price,
     close: ticker.close,
     volume: ticker.volume,
@@ -1223,11 +1274,144 @@ function stockTickerToPriceFrame(ticker) {
 
 function stockTickerToTickerPriceFrame(ticker) {
   return buildTickerPriceFrame(ticker, {
+    asset: ticker.symbol,
     brokerId: 'alpaca',
     assetClass: 'stock',
   }, {
     allowedSymbols: DASHBOARD_STOCK_PRICE_SYMBOLS,
   });
+}
+
+function stockTradeToTicker(trade) {
+  const symbol = typeof trade?.S === 'string' ? trade.S.trim().toUpperCase() : null;
+  const price = positiveNumber(trade?.p);
+  if (!symbol || price === null) return null;
+  return {
+    symbol,
+    price,
+    close: price,
+    volume: finiteNumber(trade?.s),
+    timestamp: timestampMs(trade?.t),
+    source: 'alpaca',
+    feed: 'iex'
+  };
+}
+
+function broadcastStockTicker(ticker, label = 'StockAdapter') {
+  return sendDashboardTickerFrames([
+    stockTickerToPriceFrame(ticker),
+    stockTickerToTickerPriceFrame(ticker),
+  ], label);
+}
+
+function scheduleStockPriceStreamReconnect() {
+  if (stockPriceStreamRetryTimer || dashboardClients().length === 0) return;
+  stockPriceStreamRetryTimer = setTimeout(() => {
+    stockPriceStreamRetryTimer = null;
+    startDashboardStockPriceStream();
+  }, DASHBOARD_STOCK_PRICE_INTERVAL_MS);
+}
+
+function startDashboardStockPriceStream() {
+  if (dashboardClients().length === 0) return false;
+  if (DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0) return false;
+  if (!DASHBOARD_STOCK_PRICE_ENABLED) {
+    broadcastDashboardBrokerStatus({
+      name: 'alpaca',
+      ok: false,
+      source: 'stock_price_stream',
+      reason: 'missing_credentials',
+      attemptedCount: 0,
+      successCount: 0
+    });
+    return false;
+  }
+  if (
+    stockPriceStreamSocket &&
+    (stockPriceStreamSocket.readyState === WebSocket.OPEN || stockPriceStreamSocket.readyState === WebSocket.CONNECTING)
+  ) {
+    return true;
+  }
+
+  stockPriceStreamSubscribed = false;
+  const stream = new WebSocket(ALPACA_DATA_STREAM_URL);
+  stockPriceStreamSocket = stream;
+
+  stream.on('open', () => {
+    stream.send(JSON.stringify({
+      action: 'auth',
+      key: process.env.ALPACA_API_KEY,
+      secret: process.env.ALPACA_API_SECRET
+    }));
+  });
+
+  stream.on('message', (raw) => {
+    let messages;
+    try {
+      messages = JSON.parse(raw.toString());
+    } catch (err) {
+      console.error('[StockAdapter] Alpaca stream parse error:', err.message);
+      return;
+    }
+
+    for (const msg of Array.isArray(messages) ? messages : [messages]) {
+      if (msg?.T === 'success' && msg?.msg === 'authenticated') {
+        stream.send(JSON.stringify({
+          action: 'subscribe',
+          trades: DASHBOARD_STOCK_PRICE_SYMBOLS
+        }));
+        stockPriceStreamSubscribed = true;
+        broadcastDashboardBrokerStatus({
+          name: 'alpaca',
+          ok: true,
+          source: 'stock_price_stream',
+          reason: 'stream_subscribed',
+          attemptedCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length,
+          successCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length
+        });
+        continue;
+      }
+      if (msg?.T === 'error') {
+        broadcastDashboardBrokerStatus({
+          name: 'alpaca',
+          ok: false,
+          source: 'stock_price_stream',
+          reason: 'stream_error',
+          attemptedCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length,
+          successCount: 0
+        });
+        console.error('[StockAdapter] Alpaca stream error:', msg.msg || msg.code || 'unknown');
+        continue;
+      }
+      if (msg?.T === 't') {
+        const ticker = stockTradeToTicker(msg);
+        if (!ticker || !DASHBOARD_STOCK_PRICE_SYMBOLS.includes(ticker.symbol)) continue;
+        broadcastStockTicker(ticker, 'StockAdapter');
+      }
+    }
+  });
+
+  stream.on('close', () => {
+    if (stockPriceStreamSocket === stream) {
+      stockPriceStreamSocket = null;
+      stockPriceStreamSubscribed = false;
+    }
+    scheduleStockPriceStreamReconnect();
+  });
+
+  stream.on('error', (err) => {
+    broadcastDashboardBrokerStatus({
+      name: 'alpaca',
+      ok: false,
+      source: 'stock_price_stream',
+      reason: 'stream_error',
+      attemptedCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length,
+      successCount: stockPriceStreamSubscribed ? DASHBOARD_STOCK_PRICE_SYMBOLS.length : 0
+    });
+    console.error(`[StockAdapter] Alpaca stream error at ${ALPACA_DATA_STREAM_URL}:`, err.message);
+  });
+
+  return true;
 }
 
 async function broadcastDashboardStockPrices() {
@@ -1257,22 +1441,7 @@ async function broadcastDashboardStockPrices() {
       const ticker = await fetchStockTicker(symbol);
       if (!ticker) continue;
       successCount++;
-      const messages = [
-        stockTickerToPriceFrame(ticker),
-        stockTickerToTickerPriceFrame(ticker),
-      ]
-        .filter(Boolean)
-        .map(frame => JSON.stringify(frame));
-      for (const client of dashboards) {
-        if (client.readyState !== WebSocket.OPEN) continue;
-        try {
-          for (const message of messages) {
-            client.send(message);
-          }
-        } catch (err) {
-          console.error(`[StockAdapter] Failed to broadcast ${symbol} snapshot:`, err.message);
-        }
-      }
+      broadcastStockTicker(ticker, 'StockAdapter');
     }
     broadcastDashboardBrokerStatus({
       name: 'alpaca',
@@ -1298,11 +1467,151 @@ async function broadcastDashboardStockPrices() {
   }
 }
 
+function krakenRestPairForSymbol(symbol) {
+  const canonical = String(symbol || '').trim().toUpperCase();
+  const metadata = ASSET_REGISTRY[canonical];
+  if (metadata?.krakenRest) return metadata.krakenRest;
+  return canonical.replace('-', '');
+}
+
+function cryptoTickerToPriceFrame(ticker) {
+  return {
+    type: 'price',
+    symbol: ticker.symbol,
+    asset: ticker.symbol,
+    price: ticker.price,
+    close: ticker.close,
+    volume: ticker.volume,
+    timestamp: ticker.timestamp,
+    source: ticker.source,
+    timeframe: null,
+    candle: null,
+    indicators: null,
+    candles: [],
+    overlays: null,
+    data: {
+      symbol: ticker.symbol,
+      asset: ticker.symbol,
+      price: ticker.price,
+      close: ticker.close,
+      volume: ticker.volume,
+      timestamp: ticker.timestamp,
+      source: ticker.source,
+      feed: ticker.feed,
+      change: ticker.change,
+      changePct: ticker.changePct,
+      timeframe: null,
+      candle: null,
+      indicators: null,
+      candles: [],
+      overlays: null
+    }
+  };
+}
+
+function cryptoTickerToTickerPriceFrame(ticker) {
+  return buildTickerPriceFrame(ticker, {
+    asset: ticker.symbol,
+    brokerId: 'kraken',
+    assetClass: 'crypto',
+  }, {
+    allowedSymbols: DASHBOARD_CRYPTO_PRICE_SYMBOLS,
+  });
+}
+
+async function fetchKrakenCryptoTickers() {
+  const symbolPairs = DASHBOARD_CRYPTO_PRICE_SYMBOLS
+    .map(symbol => ({ symbol, pair: krakenRestPairForSymbol(symbol) }))
+    .filter(item => item.symbol && item.pair);
+  if (symbolPairs.length === 0) return [];
+
+  const url = `${KRAKEN_REST_TICKER_URL}?pair=${encodeURIComponent(symbolPairs.map(item => item.pair).join(','))}`;
+  const response = await fetchFn(url);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+  }
+
+  const payload = await response.json();
+  if (Array.isArray(payload.error) && payload.error.length > 0) {
+    throw new Error(payload.error.join('; '));
+  }
+
+  const result = payload.result && typeof payload.result === 'object' ? payload.result : {};
+  const now = Date.now();
+  return symbolPairs.map(({ symbol, pair }) => {
+    const ticker = result[pair] || result[krakenRestPairForSymbol(symbol)] || null;
+    if (!ticker) return null;
+    const price = positiveNumber(ticker?.c?.[0]);
+    if (price === null) return null;
+    const open = positiveNumber(ticker?.o);
+    const volume = finiteNumber(ticker?.v?.[1] ?? ticker?.v?.[0]);
+    const frame = {
+      symbol,
+      price,
+      close: price,
+      volume,
+      timestamp: now,
+      source: 'kraken_rest',
+      feed: 'rest'
+    };
+    if (open !== null) {
+      frame.change = price - open;
+      frame.changePct = ((price - open) / open) * 100;
+    }
+    return frame;
+  }).filter(Boolean);
+}
+
+async function broadcastDashboardCryptoPrices() {
+  const dashboards = dashboardClients();
+  if (dashboards.length === 0 || DASHBOARD_CRYPTO_PRICE_SYMBOLS.length === 0 || cryptoPriceFanoutInFlight) return;
+  cryptoPriceFanoutInFlight = true;
+  let successCount = 0;
+  try {
+    const tickers = await fetchKrakenCryptoTickers();
+    for (const ticker of tickers) {
+      successCount++;
+      sendDashboardTickerFrames([
+        cryptoTickerToPriceFrame(ticker),
+        cryptoTickerToTickerPriceFrame(ticker),
+      ], 'KrakenAdapter');
+    }
+    broadcastDashboardBrokerStatus({
+      name: 'kraken',
+      ok: successCount > 0,
+      source: 'crypto_price_fanout',
+      reason: successCount > 0 ? 'rest_ok' : 'no_valid_tickers',
+      attemptedCount: DASHBOARD_CRYPTO_PRICE_SYMBOLS.length,
+      successCount
+    });
+  } catch (err) {
+    broadcastDashboardBrokerStatus({
+      name: 'kraken',
+      ok: false,
+      source: 'crypto_price_fanout',
+      reason: 'fanout_error',
+      attemptedCount: DASHBOARD_CRYPTO_PRICE_SYMBOLS.length,
+      successCount
+    });
+    console.error('[KrakenAdapter] Crypto price fanout failed:', err.message);
+  } finally {
+    cryptoPriceFanoutInFlight = false;
+  }
+}
+
 setInterval(() => {
+  startDashboardStockPriceStream();
   broadcastDashboardStockPrices().catch(err => {
     console.error('[StockAdapter] Stock price fanout failed:', err.message);
   });
 }, DASHBOARD_STOCK_PRICE_INTERVAL_MS);
+
+setInterval(() => {
+  broadcastDashboardCryptoPrices().catch(err => {
+    console.error('[KrakenAdapter] Crypto price fanout failed:', err.message);
+  });
+}, DASHBOARD_CRYPTO_PRICE_INTERVAL_MS);
 
 wss.on('connection', (ws, req) => {
   // Simple connection tracking - NO OVERCOMPLICATED BROADCASTER
@@ -1415,6 +1724,13 @@ wss.on('connection', (ws, req) => {
         } catch (err) {
           console.error('Snapshot replay failed:', err.message);
         }
+        startDashboardStockPriceStream();
+        broadcastDashboardStockPrices().catch(err => {
+          console.error('[StockAdapter] Stock price fanout failed:', err.message);
+        });
+        broadcastDashboardCryptoPrices().catch(err => {
+          console.error('[KrakenAdapter] Crypto price fanout failed:', err.message);
+        });
       }
 
       // RELAY: Dashboard -> Bot (for TRAI queries)

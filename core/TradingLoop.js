@@ -175,6 +175,7 @@ class TradingLoop {
       : {};
     const scope = {
       symbol,
+      asset: symbol,
       brokerId: runtimeScope.brokerId || (!routerEnabled ? cfg.brokerId : null),
       accountId: runtimeScope.accountId || cfg.accountId || null,
       accountIdSource: runtimeScope.accountIdSource || cfg.accountIdSource || null,
@@ -1418,8 +1419,29 @@ class TradingLoop {
     this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0);
   }
 
+  _finiteDashboardNumber(...values) {
+    for (const value of values) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) return numeric;
+    }
+    return null;
+  }
+
+  _dashboardIndicatorsPayload(indicators) {
+    const macd = indicators?.macd;
+    return {
+      rsi: this._finiteDashboardNumber(indicators?.rsi),
+      atr: this._finiteDashboardNumber(indicators?.atr),
+      macd: this._finiteDashboardNumber(macd?.macd, macd?.macdLine, macd),
+      macdSignal: this._finiteDashboardNumber(macd?.signal, macd?.signalLine, indicators?.macdSignal),
+      macdHistogram: this._finiteDashboardNumber(macd?.hist, macd?.histogram, indicators?.macdHistogram),
+      volume: this._finiteDashboardNumber(indicators?.volume, this.ctx.marketData?.volume)
+    };
+  }
+
   _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
     const scope = this._dashboardScope(symbol);
+    const dashboardIndicators = this._dashboardIndicatorsPayload(indicators);
 
     // Signal analysis broadcast
     const signals = orchResult?.signalBreakdown?.signals || [];
@@ -1453,7 +1475,14 @@ class TradingLoop {
       ...scope,
       message: reasoning,
       confidence: decision.confidence,
-      data: { ...scope, reasoning, price, regime: regime?.currentRegime || 'unknown', module: orchResult.winnerStrategy || 'orchestrator' },
+      data: {
+        ...scope,
+        reasoning,
+        price,
+        regime: regime?.currentRegime || 'unknown',
+        module: orchResult.winnerStrategy || 'orchestrator',
+        indicators: dashboardIndicators
+      },
       // Strategy Winner HUD: full battleground for confidence bar chart.
       // Show ALL configured strategies (zero-confidence placeholders for
       // non-firing) so the heatbar reflects the complete roster, not

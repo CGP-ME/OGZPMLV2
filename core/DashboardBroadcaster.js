@@ -32,6 +32,11 @@ class DashboardBroadcaster {
     return raw.replace(/^XBT/, 'BTC').replace(/\//g, '-');
   }
 
+  _cleanScopeValue(value) {
+    const text = String(value || '').trim();
+    return text || null;
+  }
+
   _buildEdgeAnalyticsState() {
     return {
       cvd: 0,
@@ -176,19 +181,38 @@ class DashboardBroadcaster {
       }
       price = numericPrice;
       volume = numericVolume;
-      const scopeFields = { symbol, timeframe };
-      const edgeAnalytics = this._getEdgeAnalytics(symbol, timeframe);
-      if (!edgeAnalytics) {
-        console.error(`[DashboardBroadcaster] Missing analytics state for ${symbol} ${timeframe}; refusing edge analytics broadcast`);
+      const canonicalSymbol = this._normalizeSymbol(symbol);
+      if (!canonicalSymbol) {
+        console.error(`[DashboardBroadcaster] Invalid symbol for ${timeframe}; refusing edge analytics broadcast`);
         return false;
       }
-      const priceHistory = this._getPriceHistory(symbol, timeframe);
+      const brokerId = this._cleanScopeValue(candle?.brokerId || this.ctx.config?.brokerId);
+      const assetClass = this._cleanScopeValue(candle?.assetClass || this.ctx.config?.assetClass);
+      const executionMode = this._cleanScopeValue(candle?.executionMode || this.ctx.config?.executionMode);
+      const accountId = this._cleanScopeValue(candle?.accountId || this.ctx.config?.accountId);
+      const source = this._cleanScopeValue(candle?.source || 'candle_processor');
+      const missingScope = [];
+      if (!brokerId) missingScope.push('brokerId');
+      if (!assetClass) missingScope.push('assetClass');
+      if (!executionMode) missingScope.push('executionMode');
+      if (missingScope.length > 0) {
+        console.error(`[DashboardBroadcaster] Dashboard scope incomplete (${missingScope.join(', ')}) for ${canonicalSymbol} ${timeframe}; refusing edge analytics broadcast`);
+        return false;
+      }
+      const scopeFields = { symbol: canonicalSymbol, asset: canonicalSymbol, timeframe, brokerId, assetClass, executionMode, source };
+      if (accountId) scopeFields.accountId = accountId;
+      const edgeAnalytics = this._getEdgeAnalytics(canonicalSymbol, timeframe);
+      if (!edgeAnalytics) {
+        console.error(`[DashboardBroadcaster] Missing analytics state for ${canonicalSymbol} ${timeframe}; refusing edge analytics broadcast`);
+        return false;
+      }
+      const priceHistory = this._getPriceHistory(canonicalSymbol, timeframe);
 
       // God Mode: Delta tick emission for zero-lag chart updates
       this.ctx.dashboardWs.send(JSON.stringify({
         type: 'delta',
         ...scopeFields,
-        tick: { symbol, timeframe, price, volume, timestamp: Date.now() }
+        tick: { symbol: canonicalSymbol, asset: canonicalSymbol, timeframe, price, volume, timestamp: Date.now() }
       }));
 
       // Calculate CVD (Cumulative Volume Delta)

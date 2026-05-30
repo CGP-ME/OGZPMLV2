@@ -16,6 +16,20 @@ function normalizeTickerMatchSymbol(value) {
   return dashed;
 }
 
+function normalizeAssetSymbol(value) {
+  const symbol = normalizeSymbol(value);
+  if (!symbol) return null;
+  const dashed = symbol.replace(/^XBT/, 'BTC').replace(/\//g, '-');
+  const crypto = dashed.match(/^(BTC|ETH|SOL)-USD$/);
+  if (crypto) return `${crypto[1]}-USD`;
+  const compactCrypto = dashed.match(/^(BTC|XBT|ETH|SOL)USD$/);
+  if (compactCrypto) {
+    const base = compactCrypto[1] === 'XBT' ? 'BTC' : compactCrypto[1];
+    return `${base}-USD`;
+  }
+  return dashed;
+}
+
 function finiteNumber(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
@@ -61,11 +75,12 @@ function parseTickerSymbolList(rawValue, fallbackValue) {
 function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
   const source = { ...overrides, ...ticker };
   const symbol = normalizeSymbol(source.symbol);
+  const asset = normalizeAssetSymbol(source.asset || source.symbol);
   const price = positiveNumber(source.price ?? source.close);
   const timestamp = positiveNumber(source.timestamp);
   const allowedSymbols = Array.isArray(options.allowedSymbols) ? options.allowedSymbols : [];
 
-  if (!symbol || price === null || timestamp === null) return null;
+  if (!symbol || !asset || price === null || timestamp === null) return null;
   if (
     allowedSymbols.length > 0 &&
     !allowedSymbols.some(allowed => normalizeTickerMatchSymbol(allowed) === normalizeTickerMatchSymbol(symbol))
@@ -76,6 +91,7 @@ function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
   const frame = {
     type: 'ticker_price',
     symbol,
+    asset,
     price,
     timestamp,
   };
@@ -91,6 +107,7 @@ function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
 
 module.exports = {
   buildTickerPriceFrame,
+  normalizeAssetSymbol,
   normalizeTickerMatchSymbol,
   parseTickerSymbolList,
 };

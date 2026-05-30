@@ -352,6 +352,17 @@ describe('TradingLoop trace spine', () => {
     ]);
     expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
       message: 'Blocked: Daily loss limit',
+      asset: 'TSLA',
+      data: expect.objectContaining({
+        indicators: {
+          rsi: 55,
+          atr: 1,
+          macd: null,
+          macdSignal: null,
+          macdHistogram: null,
+          volume: 1000,
+        }
+      })
     }));
   });
 
