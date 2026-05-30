@@ -417,7 +417,7 @@ describe('symbol-aware candle routing', () => {
     expect(ctx.marketData.timeframe).toBe('15m');
   });
 
-  test('gap recovery backfills the active runtime symbol and timeframe', async () => {
+  test('gap recovery backfills the explicit candle symbol and timeframe', async () => {
     const priorAlpacaSymbols = process.env.ALPACA_SYMBOLS;
     process.env.ALPACA_SYMBOLS = 'TSLA';
     try {
@@ -428,7 +428,12 @@ describe('symbol-aware candle routing', () => {
       const processor = new CandleProcessor(ctx);
 
       expect(processor.candleIntervalMs).toBe(60 * 1000);
-      await processor.attemptBackfill(0, 60 * 1000);
+      await processor.attemptBackfill(0, 60 * 1000, {
+        symbol: 'BTC-USD',
+        timeframe: '1m',
+        brokerId: 'kraken',
+        assetClass: 'crypto'
+      });
 
       expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
     } finally {
@@ -438,6 +443,124 @@ describe('symbol-aware candle routing', () => {
         process.env.ALPACA_SYMBOLS = priorAlpacaSymbols;
       }
     }
+  });
+
+  test('gap recovery uses immutable candle symbol instead of contaminated runtime default', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'NVDA', '1m');
+    ctx.config.dataFeed.gapBackfillBufferCandles = 2;
+    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
+
+    await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      assetClass: 'crypto'
+    });
+
+    expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalledWith('NVDA', '1m', expect.any(Number));
+  });
+
+  test('gap recovery refuses stock symbols through Kraken', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'NVDA', '1m');
+    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'NVDA',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      assetClass: 'stocks'
+    });
+
+    expect(candles).toEqual([]);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA through Kraken'));
+  });
+
+  test('gap recovery refuses configured stock symbols with USD suffix through Kraken', async () => {
+    const priorAlpacaSymbols = process.env.ALPACA_SYMBOLS;
+    process.env.ALPACA_SYMBOLS = 'NVDA';
+    try {
+      const btc = makeSymCtx('BTC-USD');
+      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+      ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+      const processor = new CandleProcessor(ctx);
+
+      const candles = await processor.attemptBackfill(0, 60 * 1000, {
+        symbol: 'NVDA-USD',
+        timeframe: '1m',
+        brokerId: 'kraken'
+      });
+
+      expect(candles).toEqual([]);
+      expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA-USD through Kraken'));
+    } finally {
+      if (priorAlpacaSymbols === undefined) {
+        delete process.env.ALPACA_SYMBOLS;
+      } else {
+        process.env.ALPACA_SYMBOLS = priorAlpacaSymbols;
+      }
+    }
+  });
+
+  test('gap recovery refuses configured stock USD suffix through Kraken even when mislabeled crypto', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'TSLA-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      assetClass: 'crypto'
+    });
+
+    expect(candles).toEqual([]);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol TSLA-USD through Kraken'));
+  });
+
+  test('gap recovery refuses crypto symbols through Alpaca', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    const alpaca = { id: 'alpaca', getCandles: jest.fn().mockResolvedValue([]) };
+    ctx.sessionRouter = { activeBroker: alpaca };
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'alpaca',
+      assetClass: 'crypto'
+    });
+
+    expect(candles).toEqual([]);
+    expect(alpaca.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill crypto symbol BTC-USD through Alpaca'));
+  });
+
+  test('gap recovery refuses broker-ambiguous REST fetches', async () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    delete ctx.config.brokerId;
+    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
+
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      assetClass: 'crypto'
+    });
+
+    expect(candles).toEqual([]);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing broker identity for BTC-USD backfill'));
   });
 
   test('gap recovery refuses missing runtime timeframe instead of using global defaults', () => {
@@ -458,6 +581,6 @@ describe('symbol-aware candle routing', () => {
 
     expect(candles).toEqual([]);
     expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing active trading symbol'));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Missing candle symbol'));
   });
 });

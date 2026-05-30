@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Asset Runtime Boundary (2026-05-30)
+
+- Blocked dashboard `asset_change` messages from mutating the live trading runtime; chart asset selection is display-only until SessionRouter owns broker transitions.
+- Routed bot-side stock historical candle requests through the Alpaca stock adapter instead of sending stock symbols to Kraken.
+- Changed gap recovery to backfill the immutable candle symbol/scope and reject broker/asset-class mismatches such as `NVDA` through Kraken.
+
 ### Watchlist Ticker Price Contract (2026-05-29)
 
 - Wired the watchlist panel to consume `ticker_price` frames in addition to `price` frames so server-side stock ticker fanout reaches the visible cards.

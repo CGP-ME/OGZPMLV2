@@ -109,6 +109,7 @@ const envPath = resolvedConfig.config.paths.envFile;
 const { createTraceId, emitTrace } = require('./core/TraceSpine');
 const RuntimeAuditSink = require('./core/RuntimeAuditSink');
 const { resolvePatternMaturity } = require('./core/PatternMaturity');
+const { isStock: isDashboardStockSymbol, fetchStockCandles } = require('./server/stock-data-adapter');
 
 const runtimeAuditSink = new RuntimeAuditSink({
   dataDir: resolvedConfig.config.paths.dataDir || undefined,
@@ -436,6 +437,10 @@ function normalizeRuntimeSymbol(symbol) {
     normalized = `${normalized.slice(0, 3)}-${normalized.slice(3)}`;
   }
   return normalized;
+}
+
+function looksLikeEquityTicker(symbol) {
+  return typeof symbol === 'string' && /^[A-Z]{1,5}$/.test(symbol);
 }
 
 function splitSymbols(raw) {
@@ -2191,13 +2196,46 @@ class OGZPrimeV14Bot {
     const dashboardSymbol = requestedDashboardSymbol || fallbackDashboardSymbol;
 
     try {
-      if (!this.kraken || !this.dashboardWs) {
-        console.warn('[WARNING] Cannot fetch historical candles - broker or dashboard not connected');
+      if (!this.dashboardWs) {
+        console.warn('[WARNING] Cannot fetch historical candles - dashboard not connected');
         return;
       }
 
       if (!dashboardSymbol) {
         throw new Error('[HISTORICAL] requested asset and runtime asset are both missing');
+      }
+
+      const isStockDashboardSymbol = isDashboardStockSymbol(dashboardSymbol);
+      if (!isStockDashboardSymbol && looksLikeEquityTicker(dashboardSymbol)) {
+        console.warn(`[HISTORICAL] Refusing unsupported equity-like dashboard symbol ${dashboardSymbol}; not routing to Kraken`);
+        return;
+      }
+
+      if (!isStockDashboardSymbol && !this.kraken) {
+        console.warn('[WARNING] Cannot fetch crypto historical candles - Kraken broker not connected');
+        return;
+      }
+
+      if (isStockDashboardSymbol) {
+        console.log(`[StockAdapter] Fetching ${limit} historical ${timeframe} ${dashboardSymbol} candles from Alpaca for dashboard`);
+        const stockCandles = this._stampDashboardHistoricalCandles(
+          await fetchStockCandles(dashboardSymbol, timeframe, limit),
+          dashboardSymbol,
+          timeframe
+        );
+
+        if (stockCandles && stockCandles.length > 0) {
+          this.dashboardWs.send(JSON.stringify({
+            type: 'historical_candles',
+            symbol: dashboardSymbol,
+            timeframe: timeframe,
+            candles: stockCandles
+          }));
+          console.log(`[StockAdapter] Sent ${stockCandles.length} historical ${timeframe} ${dashboardSymbol} candles to dashboard`);
+        } else {
+          console.warn(`[StockAdapter] No historical candles returned for ${dashboardSymbol} @ ${timeframe}`);
+        }
+        return;
       }
 
       console.log(`Fetching ${limit} historical ${timeframe} ${dashboardSymbol} candles from Kraken REST API...`);

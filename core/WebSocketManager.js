@@ -22,6 +22,23 @@ class WebSocketManager {
     console.log('[WebSocketManager] Initialized (Phase 20 - exact copy)');
   }
 
+  handleDashboardAssetChange(asset) {
+    const requestedAsset = typeof asset === 'string' && asset.trim()
+      ? asset.trim().toUpperCase()
+      : null;
+    console.warn(`[WebSocketManager] Ignoring dashboard asset_change ${requestedAsset || '(missing)'} - dashboard asset selection is display-only until SessionRouter owns broker transitions`);
+
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'asset_change_ignored',
+        asset: requestedAsset,
+        reason: 'display_only_runtime_guard'
+      }));
+    }
+
+    return false;
+  }
+
   /**
    * Initialize Dashboard WebSocket connection (Change 528)
    * OPTIONAL - only connects if WS_HOST is set
@@ -161,9 +178,7 @@ class WebSocketManager {
 
           // CHANGE 2026-02-10: Handle asset switching from dashboard (Multi-Asset Manager)
           if (msg.type === 'asset_change') {
-            if (this.ctx.assetManager) {
-              this.ctx.assetManager.switchAsset(msg.asset);
-            }
+            this.handleDashboardAssetChange(msg.asset);
             return;
           }
 

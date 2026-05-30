@@ -37,6 +37,44 @@ function normalizeCandleSymbol(symbol) {
   return normalized;
 }
 
+function looksLikeStockSymbol(symbol) {
+  return typeof symbol === 'string' && /^[A-Z]{1,5}$/.test(symbol);
+}
+
+function looksLikeUsdCryptoSymbol(symbol) {
+  return typeof symbol === 'string' && /^[A-Z0-9]+-USD$/.test(symbol);
+}
+
+function stockBaseSymbol(symbol) {
+  const normalized = normalizeCandleSymbol(symbol);
+  if (!normalized) return null;
+  return normalized.endsWith('-USD') ? normalized.slice(0, -4) : normalized;
+}
+
+function configuredStockSymbols() {
+  const symbols = new Set();
+  try {
+    const configured = getConfigValue('sessions.stockSymbols');
+    if (Array.isArray(configured)) {
+      configured.forEach(symbol => {
+        if (typeof symbol === 'string' && symbol.trim()) symbols.add(symbol.trim().toUpperCase());
+      });
+    }
+  } catch (err) {
+    throw new Error(`[GAP-RECOVERY] Unable to read sessions.stockSymbols config for broker guard: ${err.message}`);
+  }
+
+  String(process.env.ALPACA_SYMBOLS || '').split(',').forEach(symbol => {
+    if (symbol.trim()) symbols.add(symbol.trim().toUpperCase());
+  });
+  return symbols;
+}
+
+function looksLikeConfiguredStockSymbol(symbol) {
+  const base = stockBaseSymbol(symbol);
+  return !!base && configuredStockSymbols().has(base);
+}
+
 function timeframeToMs(timeframe) {
   if (typeof timeframe !== 'string' || !timeframe.trim()) return null;
   const match = timeframe.trim().toLowerCase().match(/^(\d+)(m|h|d)$/);
@@ -677,24 +715,47 @@ class CandleProcessor {
    * @param {number} gapEnd - End timestamp of gap (ms)
    * @returns {Array} Backfilled candles or empty array on failure
    */
-  async attemptBackfill(gapStart, gapEnd) {
+  async attemptBackfill(gapStart, gapEnd, traceContext = {}) {
     try {
-      const broker = this.ctx.kraken;  // Variable name legacy — holds active adapter
+      const broker = this.ctx.sessionRouter?.activeBroker || this.ctx.kraken;
       if (!broker || typeof broker.getCandles !== 'function') {
         console.error('[GAP-RECOVERY] Active broker does not support getCandles() — adapter misconfigured');
         return [];
       }
 
-      const rawSymbol = this.ctx.tradingPair;
+      const rawSymbol = traceContext.symbol;
       const symbol = normalizeCandleSymbol(rawSymbol);
       if (!symbol) {
-        console.error(`[GAP-RECOVERY] Missing active trading symbol for backfill (raw=${rawSymbol})`);
+        console.error(`[GAP-RECOVERY] Missing candle symbol for backfill (raw=${rawSymbol})`);
         return [];
       }
 
-      const timeframe = this.ctx.candleTimeframe;
+      const timeframe = cleanScopeValue(traceContext.timeframe);
       if (!timeframeToMs(timeframe)) {
-        console.error(`[GAP-RECOVERY] Missing/invalid active timeframe for backfill (${timeframe})`);
+        console.error(`[GAP-RECOVERY] Missing/invalid candle timeframe for backfill (${timeframe})`);
+        return [];
+      }
+
+      const brokerId = cleanScopeValue(
+        traceContext.brokerId || broker.id || broker.brokerId || this.ctx.config?.brokerId
+      );
+      if (!brokerId) {
+        console.error(`[GAP-RECOVERY] Missing broker identity for ${symbol} backfill; refusing broker-ambiguous REST fetch`);
+        return [];
+      }
+
+      const assetClass = cleanScopeValue(traceContext.assetClass || this.ctx.config?.assetClass);
+      const brokerKey = brokerId.toLowerCase();
+      const stockSymbol = looksLikeStockSymbol(symbol) || looksLikeConfiguredStockSymbol(symbol);
+      const cryptoUsdSymbol = looksLikeUsdCryptoSymbol(symbol) && !stockSymbol;
+      if (brokerKey === 'kraken' && (
+        assetClass === 'stocks' || stockSymbol
+      )) {
+        console.error(`[GAP-RECOVERY] Refusing to backfill stock symbol ${symbol} through Kraken`);
+        return [];
+      }
+      if (brokerKey === 'alpaca' && (assetClass === 'crypto' || cryptoUsdSymbol)) {
+        console.error(`[GAP-RECOVERY] Refusing to backfill crypto symbol ${symbol} through Alpaca`);
         return [];
       }
 
@@ -756,7 +817,7 @@ class CandleProcessor {
     this.backfillRetryInterval = setInterval(async () => {
       console.log('[GAP-RECOVERY] Retry attempt...');
 
-      const candles = await this.attemptBackfill(gapStart, gapEnd);
+      const candles = await this.attemptBackfill(gapStart, gapEnd, traceContext);
 
       if (candles.length > 0) {
         console.log(`[GAP-RECOVERY] Retry succeeded: ${candles.length} candles`);
@@ -992,26 +1053,33 @@ class CandleProcessor {
         // CC-SPEC-RTH-GAP-DETECTION.md. Mercury attack finding c: negative-match
         // classifier accepted separator-less crypto pairs (BTCUSDC). Tightened
         // to positive US-equity-ticker shape: 1-5 uppercase letters, no digits.
-        const tradingPair = this.ctx.tradingPair || '';
-        const isStocksMode = /^[A-Z]{1,5}$/.test(tradingPair);
+        const gapSymbol = normalizeCandleSymbol(candle.symbol || lastCandle.symbol || this.ctx.tradingPair);
+        const gapAssetClass = cleanScopeValue(candle.assetClass || lastCandle.assetClass || this.ctx.config?.assetClass);
+        const isStocksMode = gapAssetClass === 'stocks' || (
+          gapAssetClass !== 'crypto' && looksLikeStockSymbol(gapSymbol)
+        );
         if (isStocksMode && this._isExpectedMarketClose(lastCandle.etime, candle.etime)) {
           console.log(`[GAP-RECOVERY] Overnight/weekend gap ${gapMs}ms - expected for stocks, skipping`);
         } else {
           const missingCandles = Math.floor(gapMs / this.candleIntervalMs) - 1;
           console.warn(`[GAP-RECOVERY] Gap detected: ${gapMs}ms (${missingCandles} candles missing)`);
 
-          this.attemptBackfill(lastCandle.etime, candle.etime).then(backfilledCandles => {
+          const gapTraceContext = {
+            traceId,
+            source: 'gap_backfill',
+            symbol: candle.symbol,
+            timeframe: candle.timeframe,
+            brokerId: candle.brokerId,
+            accountId: candle.accountId,
+            accountIdSource: candle.accountIdSource,
+            assetClass: candle.assetClass,
+            executionMode: candle.executionMode,
+          };
+
+          this.attemptBackfill(lastCandle.etime, candle.etime, gapTraceContext).then(backfilledCandles => {
             if (backfilledCandles.length > 0) {
               this.handleBackfillSuccess(backfilledCandles, {
-                traceId,
-                source: 'gap_backfill',
-                symbol: candle.symbol,
-                timeframe: candle.timeframe,
-                brokerId: candle.brokerId,
-                accountId: candle.accountId,
-                accountIdSource: candle.accountIdSource,
-                assetClass: candle.assetClass,
-                executionMode: candle.executionMode,
+                ...gapTraceContext,
                 gapStart: lastCandle.etime,
                 gapEnd: candle.etime,
               });
@@ -1032,15 +1100,8 @@ class CandleProcessor {
                 },
               });
               this.startBackfillRetry(lastCandle.etime, candle.etime, {
-                traceId,
+                ...gapTraceContext,
                 source: 'gap_backfill_retry',
-                symbol: candle.symbol,
-                timeframe: candle.timeframe,
-                brokerId: candle.brokerId,
-                accountId: candle.accountId,
-                accountIdSource: candle.accountIdSource,
-                assetClass: candle.assetClass,
-                executionMode: candle.executionMode,
               });
             }
           });

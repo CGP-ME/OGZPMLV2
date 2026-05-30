@@ -1490,9 +1490,13 @@ wss.on('connection', (ws, req) => {
         }
       }
 
-      // CHANGE 2026-02-10: RELAY Dashboard → Bot (for journal/replay/asset requests)
+      if (ws.clientType === 'dashboard' && data.type === 'asset_change') {
+        const asset = typeof data.asset === 'string' && data.asset.trim() ? data.asset.trim().toUpperCase() : '(missing)';
+        console.log(`[WS] Dashboard asset_change ${asset} kept display-only; not relayed to bot runtime`);
+      }
+
+      // CHANGE 2026-02-10: RELAY Dashboard -> Bot (for journal/replay requests)
       if (ws.clientType === 'dashboard' && (
-          data.type === 'asset_change' ||
           data.type.startsWith('request_journal') ||
           data.type.startsWith('request_replay'))) {
         const messageStr = JSON.stringify(data);

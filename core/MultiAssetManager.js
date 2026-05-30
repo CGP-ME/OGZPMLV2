@@ -3,7 +3,8 @@
  * MultiAssetManager — Asset Switching for OGZPrime
  * ============================================================================
  *
- * Handles switching between trading pairs on Kraken. Provides:
+ * Legacy asset registry helpers. Runtime asset switching is disabled until
+ * SessionRouter owns broker transitions end-to-end. Provides:
  *   1. Standard ↔ Kraken symbol mapping (BTC-USD → XXBTZUSD → XBT/USD)
  *   2. Per-asset configuration (min sizes, decimals, formatting)
  *   3. WS resubscription when asset changes
@@ -14,10 +15,8 @@
  *   const MultiAssetManager = require('./core/MultiAssetManager');
  *   this.assetManager = new MultiAssetManager(this);
  *
- * Then in your dashboard WS message handler, add:
- *   if (msg.type === 'asset_change') {
- *     this.assetManager.switchAsset(msg.asset);
- *   }
+ * Dashboard asset_change must stay display-only; do not route it here to mutate
+ * the live trading runtime.
  *
  * @module core/MultiAssetManager
  * @version 1.0.0
@@ -171,7 +170,7 @@ class MultiAssetManager {
    * @param {string} newAsset - e.g. 'ETH-USD'
    * @returns {boolean} success
    */
-  async switchAsset(newAsset) {
+  switchAsset(newAsset) {
     const normalized = this._normalize(newAsset);
     const config = this.getConfig(normalized);
 
@@ -181,66 +180,14 @@ class MultiAssetManager {
       return false;
     }
 
-    if (normalized === this.activeAsset) {
-      console.log(`📊 MultiAsset: Already on ${normalized}`);
-      return true;
-    }
-
-    const oldAsset = this.activeAsset;
-    console.log(`🔄 MultiAsset: Switching ${oldAsset} → ${normalized} (${config.label})`);
-
-    // ── 1. Cache current candle history ──────────────────────────────
-    if (this.bot.priceHistory && this.bot.priceHistory.length > 0) {
-      this.candleCache[oldAsset] = [...this.bot.priceHistory];
-      console.log(`   💾 Cached ${this.bot.priceHistory.length} candles for ${oldAsset}`);
-    }
-
-    // ── 2. Update active asset ──────────────────────────────────────
-    this.activeAsset = normalized;
-    this.bot.config.tradingPair = normalized;
-    this.bot.tradingPair = this.toSlashFormat(normalized);
-
-    // ── 3. Clear current price history ──────────────────────────────
-    // Restore from cache if we've been on this asset before
-    if (this.candleCache[normalized] && this.candleCache[normalized].length > 0) {
-      this.bot.priceHistory = this.candleCache[normalized];
-      console.log(`   📂 Restored ${this.bot.priceHistory.length} cached candles for ${normalized}`);
-    } else {
-      this.bot.priceHistory = [];
-      console.log(`   🧹 Cleared price history for fresh ${normalized} data`);
-    }
-
-    // ── 4. Route to correct broker ──────────────────────────────────
-    if (config.broker === 'alpaca') {
-      console.log(`   📈 Routing to Alpaca (stocks)`);
-      // Stock assets don't use Kraken WS — skip Kraken resubscription
-      // Future: connect Alpaca data stream here
-    } else {
-      // Crypto — resubscribe Kraken WebSocket
-      this._resubscribeWs(config);
-    }
-
-    // ── 5. Fetch historical candles ─────────────────────────────────
-    try {
-      await this.bot.fetchAndSendHistoricalCandles('1m', 200);
-    } catch (err) {
-      console.warn(`   ⚠️ Historical fetch failed: ${err.message}`);
-    }
-
-    // ── 6. Notify dashboard ─────────────────────────────────────────
-    this._notifyDashboard('asset_switched', {
+    console.warn(`[MultiAsset] Refusing runtime asset switch to ${normalized}; SessionRouter must own broker transitions`);
+    this._notifyDashboard('asset_change_ignored', {
       asset: normalized,
-      label: config.label,
-      base: config.base,
       broker: config.broker,
       assetClass: config.assetClass,
-      krakenPair: config.krakenWs || null,
-      decimals: config.decimals,
-      minOrder: config.minOrder
+      reason: 'session_router_required'
     });
-
-    console.log(`✅ MultiAsset: Now trading ${config.label} (${normalized})`);
-    return true;
+    return false;
   }
 
 
