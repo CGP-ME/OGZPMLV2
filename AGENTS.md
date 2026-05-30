@@ -36,6 +36,9 @@ does not match current doctrine.
   cosmetic sweeps with runtime fixes.
 - Preserve unrelated dirty work. Assume unrecognized changes belong to the
   operator or another agent.
+- When Trey approves a commit, treat commit and push as paired unless he says
+  local-only or no-push. This does not authorize staging, committing, or pushing
+  without approval.
 
 ## Trading-Path Gates
 

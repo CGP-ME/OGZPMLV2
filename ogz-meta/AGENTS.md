@@ -198,6 +198,7 @@ Pipeline order:
 - Linked changes still ship as separate commits in dependency order. Reference the prior SHA in the dependent commit body instead of bundling.
 - Commit messages follow the user preference: `Fixed [what was broken]` or `Added [what feature]`.
 - Do not bundle unrelated fixes with docs or cleanup.
+- When Trey approves a commit, treat commit and push as paired unless he explicitly says local-only or no-push. This does not authorize staging, committing, or pushing without approval.
 - Do not push unless Trey approved the commit and required Mercury adversarial review is clean. Once push is approved, push each logical commit individually.
 - The repo docs warn against direct `main` work, while the user preference says push to main because he works alone. Treat this as a live conflict: ask before branch/commit/push decisions.
 - Never commit `.env`, secrets, raw LLM transcripts, huge logs, Trai brain dumps, `node_modules`, or multi-MB scratch files without explicit approval.
