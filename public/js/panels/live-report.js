@@ -39,6 +39,32 @@
     const FRESH_RECENT_MS = 20000;
     const MAX_TRADE_ROWS  = 12;
     const FLASH_MS        = 1200;
+    const TRACE_EVENTS_FOR_REPORT = new Set([
+        'ANALYSIS_SKIP',
+        'ANALYSIS_START',
+        'BROKER_ORDER_REQUEST',
+        'BROKER_ORDER_RESULT',
+        'CANDLE_ACCEPTED',
+        'CANDLE_INGRESS',
+        'CANDLE_PROCESSOR_RECEIVED',
+        'CANDLE_SCOPE_REJECTED',
+        'DECISION_SKIP',
+        'EVAL_RULE_CHECK',
+        'EXECUTE_HANDOFF',
+        'EXECUTE_RETURN',
+        'EXIT_ONLY_START',
+        'GAP_BACKFILL_REPLAY',
+        'ORDER_BLOCKED',
+        'ORDER_EXCEPTION',
+        'ORDER_EXECUTE_START',
+        'ORDER_PLAN',
+        'STATE_MUTATION',
+        'STRATEGY_DECISION',
+        'TRACE_SCHEMA_ERROR',
+        'TTP_CONSISTENCY_CHECK',
+        'WEBHOOK_ORDER_DISPATCH',
+        'WEBHOOK_ORDER_RESULT'
+    ]);
 
     const IS_OPERATOR = (function () {
         try { return localStorage.getItem('ogz.profile') === 'operator'; }
@@ -52,6 +78,7 @@
         asset: null,        // { label, base, broker, assetClass }
         account: null,      // state_update .state
         thinking: null,     // { message, reasoning, confidence, regime, winner, ts }
+        trace: null,        // latest operator-relevant trace_event payload
         journal: null,      // headline stats from journal_snapshot.data
         recentTrades: [],   // newest-first; rows shaped below
         domRefs: {},
@@ -109,14 +136,70 @@
     }
     function shortTime(ts) {
         if (!ts) return '';
+        const ms = timestampMs(ts);
+        if (ms == null) return '';
         try {
-            return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch (_) { return ''; }
+    }
+    function timestampMs(ts) {
+        if (ts == null || ts === '') return null;
+        const n = Number(ts);
+        if (Number.isFinite(n)) return n;
+        const parsed = Date.parse(String(ts));
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    function ageText(ms) {
+        const n = Math.max(0, Number(ms) || 0);
+        if (n < 60000) return Math.round(n / 1000) + 's';
+        if (n < 3600000) return Math.round(n / 60000) + 'm';
+        return (n / 3600000).toFixed(1).replace(/\.0$/, '') + 'h';
     }
     function finiteNumber(v) {
         if (v == null || v === '') return null;
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
+    }
+    function eventText(v) {
+        if (v == null || v === '') return null;
+        const s = String(v).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+        if (!s) return null;
+        return s.length > 240 ? s.slice(0, 237) + '...' : s;
+    }
+    function normalizedTraceEventName(v) {
+        const s = eventText(v);
+        return s ? s.toUpperCase() : null;
+    }
+    function pctText(v) {
+        const n = finiteNumber(v);
+        if (n == null) return null;
+        const text = Math.abs(n) > 0 && Math.abs(n) < 1
+            ? n.toFixed(1).replace(/\.0$/, '')
+            : n.toFixed(0);
+        return text + '%';
+    }
+    function confidenceText(value, explicitPct) {
+        const n = finiteNumber(value);
+        if (n == null) return 'invalid';
+        const pct = explicitPct ? n : (Math.abs(n) <= 1 ? n * 100 : n);
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) return 'invalid';
+        return pctText(pct);
+    }
+    function traceFieldKeys(fields) {
+        if (!fields || typeof fields !== 'object') return [];
+        return Object.keys(fields)
+            .map(eventText)
+            .filter(Boolean)
+            .sort()
+            .slice(0, 12);
+    }
+    function firstValue() {
+        for (let i = 0; i < arguments.length; i++) {
+            if (arguments[i] !== undefined && arguments[i] !== null && arguments[i] !== '') {
+                return arguments[i];
+            }
+        }
+        return null;
     }
     function normalizeOutcome(v) {
         const s = String(v || '').trim().toLowerCase();
@@ -144,6 +227,54 @@
             t.exitPrice || '',
             t.netPnl || ''
         ].join('|');
+    }
+    function renderTraceMeta() {
+        const d = state.domRefs;
+        if (!d.traceMeta) return;
+        const t = state.trace;
+        if (!t) {
+            d.traceMeta.textContent = '';
+            return;
+        }
+        const now = Date.now();
+        const meta = Array.isArray(t.metaParts) ? t.metaParts.slice() : [];
+        if (t.receivedAt != null) meta.push('received ' + ageText(now - t.receivedAt) + ' ago');
+        if (t.eventAt != null) {
+            const eventAge = now - t.eventAt;
+            meta.push((eventAge > FRESH_RECENT_MS ? 'trace stale ' : 'trace age ') + ageText(eventAge));
+        } else {
+            meta.push('trace time unavailable');
+        }
+        if (t.actionRequired) {
+            meta.push(t.actionRequired);
+        } else if (t.knownEvent === false) {
+            meta.push('action required add trace vocabulary');
+        }
+        d.traceMeta.textContent = meta.join('  ·  ');
+    }
+    function socketHandler(name, fn) {
+        return function (event) {
+            try {
+                fn(event);
+            } catch (err) {
+                const message = err && err.message ? err.message : String(err);
+                const safeMessage = eventText(message) || 'trace handler threw without message';
+                console.warn('[LiveReport] socket handler failed for ' + name + ': ' + safeMessage);
+                if (name === 'trace_event') {
+                    state.trace = {
+                        summary: 'TRACE_HANDLER_ERROR | handler trace_event failed',
+                        metaParts: ['error ' + safeMessage],
+                        actionRequired: 'action required inspect trace handler',
+                        receivedAt: Date.now(),
+                        eventAt: null,
+                        knownEvent: false
+                    };
+                    state.lastMsgAt = Date.now();
+                    render();
+                    tickFreshness();
+                }
+            }
+        };
     }
     function dirClass(d) {
         const u = String(d || '').toUpperCase();
@@ -209,15 +340,33 @@
                 border: 1px solid rgba(255, 255, 255, 0.06);
                 border-radius: 6px; padding: 8px 10px;
             }
+            #${ROOT_ID} .lr-trace {
+                margin-top: 8px;
+                background: rgba(255, 255, 255, 0.025);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 6px; padding: 8px 10px;
+            }
             #${ROOT_ID} .lr-reason .lr-k {
+                font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+                color: #71717a; margin-bottom: 4px;
+            }
+            #${ROOT_ID} .lr-trace .lr-k {
                 font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
                 color: #71717a; margin-bottom: 4px;
             }
             #${ROOT_ID} .lr-reason .lr-msg {
                 font-size: 12px; line-height: 1.5; color: #d1d4dc;
             }
+            #${ROOT_ID} .lr-trace .lr-msg {
+                font-size: 11px; line-height: 1.45; color: #d1d4dc;
+                word-break: break-word;
+            }
             #${ROOT_ID} .lr-reason .lr-meta {
                 font-size: 10px; color: #71717a; margin-top: 5px;
+            }
+            #${ROOT_ID} .lr-trace .lr-meta {
+                font-size: 10px; color: #71717a; margin-top: 5px;
+                word-break: break-word;
             }
             #${ROOT_ID} .lr-empty { color: #52525b; font-style: italic; }
 
@@ -323,6 +472,11 @@
                 <div class="lr-msg" data-k="reason"><span class="lr-empty">No signal yet — waiting for the bot's first read.</span></div>
                 <div class="lr-meta" data-k="reasonMeta"></div>
             </div>
+            <div class="lr-trace">
+                <div class="lr-k">Latest pipeline trace</div>
+                <div class="lr-msg" data-k="trace"><span class="lr-empty">Waiting for first trace_event frame.</span></div>
+                <div class="lr-meta" data-k="traceMeta"></div>
+            </div>
             <div class="lr-stats-row">
                 <div class="lr-stat"><div class="lr-k">Today Trades</div><div class="lr-v" data-k="todayTrades">—</div></div>
                 <div class="lr-stat"><div class="lr-k">Today P&L</div><div class="lr-v" data-k="todayPnl">—</div></div>
@@ -352,6 +506,8 @@
             mode:        q('[data-k="mode"]'),
             reason:      q('[data-k="reason"]'),
             reasonMeta:  q('[data-k="reasonMeta"]'),
+            trace:       q('[data-k="trace"]'),
+            traceMeta:   q('[data-k="traceMeta"]'),
             todayTrades: q('[data-k="todayTrades"]'),
             todayPnl:    q('[data-k="todayPnl"]'),
             todayWR:     q('[data-k="todayWR"]'),
@@ -384,6 +540,7 @@
             el.textContent = 'STALE · ' + Math.round(age / 1000) + 's no feed';
             el.className = 'lr-fresh stale';
         }
+        renderTraceMeta();
     }
 
     // ─── Render: quiet-period view (context, account, reasoning) ────────
@@ -452,6 +609,18 @@
             } else {
                 d.reasonMeta.textContent = '';
             }
+        }
+
+        if (d.trace) {
+            const t = state.trace;
+            if (t && t.summary) {
+                d.trace.textContent = t.summary;
+            } else {
+                d.trace.innerHTML = '<span class="lr-empty">Waiting for first trace_event frame.</span>';
+            }
+        }
+        if (d.traceMeta) {
+            renderTraceMeta();
         }
     }
 
@@ -675,6 +844,97 @@
         tickFreshness();
     }
 
+    function summarizeTraceEvent(msg) {
+        if (!msg) return null;
+        const fields = msg.fields && typeof msg.fields === 'object' ? msg.fields : {};
+        const hasRawEventField = Object.prototype.hasOwnProperty.call(msg, 'event');
+        const rawEventName = eventText(msg.event);
+        const normalizedName = normalizedTraceEventName(rawEventName);
+        const hasEventName = !!normalizedName;
+        const knownEvent = hasEventName && TRACE_EVENTS_FOR_REPORT.has(normalizedName);
+        const eventName = hasEventName
+            ? (knownEvent ? normalizedName : 'UNMAPPED_TRACE_EVENT')
+            : 'TRACE_SCHEMA_ERROR';
+        const bits = [eventName];
+        if (!hasEventName) {
+            bits.push('missing required field event');
+        } else if (!knownEvent) {
+            bits.push('event ' + normalizedName);
+            bits.push('action required add trace vocabulary');
+        }
+
+        const action = firstValue(msg.action, fields.action);
+        const direction = firstValue(fields.finalDirection, fields.direction);
+        const reason = firstValue(fields.reason, fields.rejectionReason, fields.noMutationReason);
+        const winner = firstValue(fields.winnerStrategy, fields.winner, fields.strategy);
+        const confidencePct = firstValue(fields.confidencePct, msg.confidencePct);
+        const confidenceRaw = firstValue(fields.confidence, msg.confidence);
+        const minConfidencePct = firstValue(fields.minConfidencePct, msg.minConfidencePct);
+        const minConfidenceRaw = firstValue(fields.minConfidence, msg.minConfidence);
+        const success = firstValue(fields.success);
+        const sent = firstValue(fields.sent);
+
+        if (action != null) bits.push('action ' + eventText(action));
+        if (direction != null) bits.push('direction ' + eventText(direction));
+        if (reason != null) bits.push('reason ' + eventText(reason));
+        if (winner != null) bits.push('winner ' + eventText(winner));
+        if (confidencePct != null) bits.push('confidence ' + (confidenceText(confidencePct, true) || eventText(confidencePct)));
+        else if (confidenceRaw != null) bits.push('confidence ' + (confidenceText(confidenceRaw, false) || eventText(confidenceRaw)));
+        if (minConfidencePct != null) bits.push('min ' + (confidenceText(minConfidencePct, true) || eventText(minConfidencePct)));
+        else if (minConfidenceRaw != null) bits.push('min ' + (confidenceText(minConfidenceRaw, false) || eventText(minConfidenceRaw)));
+        if (success != null) bits.push('success ' + eventText(success));
+        if (sent != null) bits.push('sent ' + eventText(sent));
+
+        const meta = [];
+        const fieldKeys = traceFieldKeys(fields);
+        const traceId = firstValue(msg.traceId, fields.traceId);
+        const symbol = firstValue(msg.symbol, fields.symbol);
+        const timeframe = firstValue(msg.timeframe, fields.timeframe);
+        const broker = firstValue(msg.brokerId, fields.brokerId);
+        const account = firstValue(msg.accountId, fields.accountId);
+        const mode = firstValue(msg.executionMode, fields.executionMode);
+        const scopeKey = firstValue(msg.scopeKey, fields.scopeKey);
+        const ts = msg.timestamp || fields.timestamp || Date.now();
+        const eventAt = timestampMs(ts);
+
+        if (rawEventName && rawEventName !== normalizedName) meta.push('raw event ' + rawEventName);
+        if (!hasEventName) {
+            meta.push(hasRawEventField ? 'event field blank' : 'event field missing');
+            meta.push('schema path trace_event.event');
+        }
+        if ((!hasEventName || !knownEvent) && fieldKeys.length) {
+            meta.push('field keys ' + fieldKeys.join(','));
+        }
+        if (symbol != null) meta.push(eventText(symbol));
+        if (timeframe != null) meta.push(eventText(timeframe));
+        if (broker != null) meta.push('broker ' + eventText(broker));
+        if (account != null) meta.push('account ' + eventText(account));
+        if (mode != null) meta.push('mode ' + eventText(mode));
+        if (traceId != null) meta.push('trace ' + eventText(traceId));
+        if (scopeKey != null) meta.push('scope ' + eventText(scopeKey));
+        if (eventAt != null) meta.push(shortTime(eventAt));
+
+        return {
+            summary: bits.join(' | '),
+            metaParts: meta,
+            actionRequired: !hasEventName
+                ? 'action required fix trace payload schema'
+                : (!knownEvent ? 'action required add trace vocabulary' : null),
+            receivedAt: Date.now(),
+            eventAt,
+            knownEvent
+        };
+    }
+
+    function onTraceEvent(msg) {
+        const summarized = summarizeTraceEvent(msg);
+        if (!summarized) return;
+        state.trace = summarized;
+        state.lastMsgAt = Date.now();
+        render();
+        tickFreshness();
+    }
+
     // ─── Public API ─────────────────────────────────────────────────────
     const api = {
         init() {
@@ -717,11 +977,12 @@
                         setTimeout(bindSocket, 250);
                         return;
                     }
-                    socket.registerHandler('state_update',        e => { try { onStateUpdate(e); } catch (_) {} });
-                    socket.registerHandler('asset_switched',      e => { try { onAssetSwitched(e); } catch (_) {} });
-                    socket.registerHandler('bot_thinking',        e => { try { onBotThinking(e); } catch (_) {} });
-                    socket.registerHandler('journal_snapshot',    e => { try { onJournalSnapshot(e); } catch (_) {} });
-                    socket.registerHandler('trade_closed_replay', e => { try { onTradeClosedReplay(e); } catch (_) {} });
+                    socket.registerHandler('state_update',        socketHandler('state_update', onStateUpdate));
+                    socket.registerHandler('asset_switched',      socketHandler('asset_switched', onAssetSwitched));
+                    socket.registerHandler('bot_thinking',        socketHandler('bot_thinking', onBotThinking));
+                    socket.registerHandler('trace_event',         socketHandler('trace_event', onTraceEvent));
+                    socket.registerHandler('journal_snapshot',    socketHandler('journal_snapshot', onJournalSnapshot));
+                    socket.registerHandler('trade_closed_replay', socketHandler('trade_closed_replay', onTradeClosedReplay));
                 })();
 
                 state.freshTimer = setInterval(tickFreshness, 1000);
@@ -748,6 +1009,7 @@
                 hasAsset: !!state.asset,
                 hasAccount: !!state.account,
                 hasThinking: !!state.thinking,
+                hasTrace: !!state.trace,
                 hasJournal: !!state.journal,
                 tradeRows: state.recentTrades.length
             };

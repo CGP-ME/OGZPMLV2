@@ -560,6 +560,22 @@ class OrderExecutor {
     const traceId = decision.traceId;
     const signalId = decision.signalId;
     const executionScope = this._runtimeScope(symbol);
+    const executionReturn = (success, details = {}) => ({
+      success,
+      reason: success ? null : (details.reason || null),
+      traceId,
+      signalId,
+      decisionId: decision.decisionId,
+      symbol,
+      action: decision.action,
+      brokerId: executionScope.brokerId,
+      accountId: executionScope.accountId,
+      assetClass: executionScope.assetClass,
+      executionMode: executionScope.executionMode,
+      timeframe: executionScope.timeframe,
+      ...details,
+    });
+    const blockedReturn = (reason, details = {}) => executionReturn(false, { reason, ...details });
     emitTrace(this.ctx, 'ORDER_EXECUTE_START', {
       traceId,
       signalId,
@@ -590,14 +606,14 @@ class OrderExecutor {
         const pauseReason = stateManager.get('pauseReason') || stateManager.get('lastError') || 'StateManager.isTrading=false';
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: trading paused (${pauseReason})`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'trading_paused', detail: pauseReason });
-        return null;
+        return blockedReturn('trading_paused', { detail: pauseReason });
       }
       const globalHaltReason = stateManager.isHalted() ? stateManager.getHaltReason() : null;
       const symbolHaltReason = stateManager.isSymbolHalted(symbol) ? stateManager.getSymbolHaltReason(symbol) : null;
       if (globalHaltReason || symbolHaltReason) {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'halted', detail: globalHaltReason || symbolHaltReason });
-        return null;
+        return blockedReturn('halted', { detail: globalHaltReason || symbolHaltReason });
       }
     }
     // Log trade execution
@@ -618,7 +634,7 @@ class OrderExecutor {
     if (currentBalance <= 0) {
       console.error('[HALT] No available capital — refusing entry');
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'no_available_capital', availableCapital: currentBalance });
-      return null;
+      return blockedReturn('no_available_capital', { availableCapital: currentBalance });
     }
     // CHANGE 2026-02-28: Use TradingConfig for position sizing
     // NOTE: DynamicPositionSizer.js exists in core/ but is NOT WIRED - needs tuning first
@@ -635,7 +651,7 @@ class OrderExecutor {
     if (!Number.isFinite(rawConfidence) || rawConfidence <= 0) {
       console.error(`[HALT] Invalid confidence: ${rawConfidence} — skipping trade`);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'invalid_confidence', confidencePct: rawConfidence });
-      return null;
+      return blockedReturn('invalid_confidence', { confidencePct: rawConfidence });
     }
     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
     const tradeConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
@@ -676,7 +692,7 @@ class OrderExecutor {
       if (!orchResult) {
         console.error('[HALT] orchResult absent on BUY — refusing entry (no winner strategy, no exit contract)');
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'missing_orch_result' });
-        return null;
+        return blockedReturn('missing_orch_result');
       }
       if (!orchResult.winnerStrategy) {
         throw new Error('[HIGH-08] BUY entry: orchResult.winnerStrategy missing — orchestrator regression');
@@ -689,7 +705,7 @@ class OrderExecutor {
       if (!orchResult) {
         console.error('[HALT] orchResult absent on SELL_SHORT — refusing entry (no winner strategy, no exit contract)');
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'missing_orch_result' });
-        return null;
+        return blockedReturn('missing_orch_result');
       }
       if (!orchResult.winnerStrategy) {
         throw new Error('[HIGH-08] SHORT entry: orchResult.winnerStrategy missing — orchestrator regression');
@@ -722,7 +738,11 @@ class OrderExecutor {
         orderQuantity: entryPlan.orderQuantity,
         sizeUsd: entryPlan.sizeUsd,
       });
-      return null;
+      return blockedReturn('non_positive_order_quantity', {
+        quantityUnit: entryPlan.quantityUnit,
+        orderQuantity: entryPlan.orderQuantity,
+        sizeUsd: entryPlan.sizeUsd,
+      });
     }
     if (entryPlan) {
       emitTrace(this.ctx, 'ORDER_PLAN', {
@@ -754,7 +774,7 @@ class OrderExecutor {
           : (gateResult.reason || 'pre_order_entry_gate');
         console.warn(`[ENTRY-GATE] BLOCKED ${entryPlan.action} ${symbol} before broker/webhook/state side effects: ${failed}`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: entryPlan.action, reason: 'eval_rule_gate', failedRules: failed });
-        return null;
+        return blockedReturn('eval_rule_gate', { failedRules: failed });
       }
     }
     const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading;
@@ -772,7 +792,7 @@ class OrderExecutor {
       console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
       await stateManager.haltSymbol(symbol, haltReason);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
-      return null;
+      return blockedReturn(haltReason);
     }
     const brokerOrderPlan = entryPlan || exitPlan;
 
@@ -857,10 +877,14 @@ class OrderExecutor {
               quantityUnit: brokerOrderPlan.quantityUnit
             }
           });
+          const brokerOrderId = orderResult?.orderId || orderResult?.id;
+          if (!brokerOrderId) {
+            throw new Error(`missing_broker_order_id for ${side} ${symbol}`);
+          }
           tradeResult = {
             success: true,
-            orderId: orderResult.orderId || orderResult.id || `LIVE_${Date.now()}`,
-            price: orderResult.price || price,
+            orderId: brokerOrderId,
+            price: orderResult.price ?? price,
             amount: positionSize,
             orderQuantity: this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity),
             quantityUnit: brokerOrderPlan.quantityUnit,
@@ -873,6 +897,8 @@ class OrderExecutor {
             symbol,
             success: true,
             orderId: tradeResult.orderId,
+            orderAccepted: true,
+            stateMutationSucceeded: null,
             acceptedOrderQuantity: tradeResult.orderQuantity,
             quantityUnit: tradeResult.quantityUnit,
           });
@@ -884,6 +910,8 @@ class OrderExecutor {
             signalId,
             symbol,
             success: false,
+            orderAccepted: false,
+            stateMutationSucceeded: null,
             reason: orderErr.message,
           });
         }
@@ -894,9 +922,12 @@ class OrderExecutor {
 
       if (tradeResult && tradeResult.success) {
         console.log(`CP4.5: Trade SUCCESS confirmed, creating unified result`);
+        if (!tradeResult.orderId) {
+          throw new Error(`successful_trade_result_missing_order_id for ${decision.action} ${symbol}`);
+        }
         // Change 588: Create unified tradeResult format
         const unifiedResult = {
-          orderId: tradeResult.orderId || `SIM_${Date.now()}`,
+          orderId: tradeResult.orderId,
           action: decision.action,
           traceId,
           signalId,
@@ -1054,7 +1085,13 @@ class OrderExecutor {
               operation: 'openPosition',
               error: positionResult.error,
             });
-            return; // Abort trade
+            return blockedReturn('state_open_failed', {
+              operation: 'openPosition',
+              orderId: unifiedResult.orderId,
+              orderAccepted: true,
+              stateMutationSucceeded: false,
+              error: positionResult.error,
+            });
           }
 
           // CHANGE 2025-12-13: No longer sync to local balance - read from StateManager
@@ -1268,7 +1305,13 @@ class OrderExecutor {
               operation: 'openPosition',
               error: positionResult.error,
             });
-            return;
+            return blockedReturn('state_open_failed', {
+              operation: 'openPosition',
+              orderId: unifiedResult.orderId,
+              orderAccepted: true,
+              stateMutationSucceeded: false,
+              error: positionResult.error,
+            });
           }
 
           const stateAfter = stateManager.getState();
@@ -1429,7 +1472,7 @@ class OrderExecutor {
             console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
             await stateManager.haltSymbol(symbol, haltReason);
             emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
-            return; // Exit early, don't process invalid SELL
+            return blockedReturn(haltReason);
           }
 
           if (buyTrades.length > 0) {
@@ -1570,7 +1613,13 @@ class OrderExecutor {
                 orderId: buyTrade.orderId,
                 error: closeResult.error,
               });
-              return; // Abort close
+              return blockedReturn('state_close_failed', {
+                operation: isPartialClose ? 'reducePosition' : 'closePosition',
+                orderId: buyTrade.orderId,
+                orderAccepted: true,
+                stateMutationSucceeded: false,
+                error: closeResult.error,
+              });
             }
 
             // Get updated state after close
@@ -1981,7 +2030,7 @@ class OrderExecutor {
             console.error(`[KILL-5-MITIGATION] Halting new entries for ${symbol}: ${haltReason}`);
             await stateManager.haltSymbol(symbol, haltReason);
             emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
-            return;
+            return blockedReturn(haltReason);
           }
 
           let shortTrade = null;
@@ -2088,7 +2137,13 @@ class OrderExecutor {
               orderId: shortTrade.orderId,
               error: closeResult.error,
             });
-            return;
+            return blockedReturn('state_close_failed', {
+              operation: 'closePosition',
+              orderId: shortTrade.orderId,
+              orderAccepted: true,
+              stateMutationSucceeded: false,
+              error: closeResult.error,
+            });
           }
 
           const afterCoverState = stateManager.getState();
@@ -2349,14 +2404,28 @@ class OrderExecutor {
         // This was overwriting the complete data with incomplete data
 
         console.log(`${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${positionSize.toFixed(2)}\n`);
+        return executionReturn(true, {
+          orderId: tradeResult.orderId,
+          orderAccepted: true,
+          stateMutationSucceeded: true,
+          price: tradeResult.price ?? price,
+          amount: tradeResult.amount ?? positionSize,
+          orderQuantity: tradeResult.orderQuantity ?? null,
+          quantityUnit: tradeResult.quantityUnit || null,
+        });
       } else {
-        console.log(`Trade blocked: ${tradeResult?.reason || 'Risk limits'}\n`);
+        const blockReason = tradeResult?.reason || 'trade_result_not_successful_without_reason';
+        console.log(`Trade blocked: ${blockReason}\n`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', {
           traceId,
           signalId,
           symbol,
           action: decision.action,
-          reason: tradeResult?.reason || 'Risk limits',
+          reason: blockReason,
+        });
+        return blockedReturn(blockReason, {
+          orderId: tradeResult?.orderId || null,
+          orderAccepted: false,
         });
       }
 
@@ -2393,6 +2462,7 @@ class OrderExecutor {
         action: decision?.action || null,
         message: error.message,
       });
+      return blockedReturn('order_exception', { message: error.message, orderAccepted: false });
 
       // Phase 4 REWRITE: tradingBrain.errorHandler deleted - error logging above is sufficient
     }

@@ -51,6 +51,7 @@ function makeExecutor(config = {}, ctx = {}) {
     maxProfitManagers: new Map(),
     notifyTrade: jest.fn(() => Promise.resolve()),
     discordNotifier: { notifyTrade: jest.fn() },
+    performanceAnalyzer: { processTrade: jest.fn() },
     ...ctx,
   });
 }
@@ -166,7 +167,13 @@ describe('OrderExecutor pause gate', () => {
       'TSLA'
     );
 
-    expect(result).toBeNull();
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'trading_paused',
+      detail: 'manual pause',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
     expect(mockStateManager.getAvailableCapital).not.toHaveBeenCalled();
     expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('trading paused (manual pause)'));
@@ -319,7 +326,13 @@ describe('OrderExecutor pause gate', () => {
       'TSLA'
     );
 
-    expect(result).toBeNull();
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+      failedRules: 'TEST_BLOCK',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
     expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
       sizeUsd: 500,
       orderQuantity: 5,
@@ -346,7 +359,7 @@ describe('OrderExecutor pause gate', () => {
       }
     );
 
-    await executor.executeTrade(
+    const result = await executor.executeTrade(
       {
         action: 'BUY',
         confidence: 50,
@@ -363,6 +376,16 @@ describe('OrderExecutor pause gate', () => {
       'TSLA'
     );
 
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      reason: null,
+      orderId: 'LIVE_TRACE_1',
+      traceId: 'trace_test_1',
+      signalId: 'signal_test_1',
+      decisionId: 'decision_test_1',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
     expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
       traceId: 'trace_test_1',
       signalId: 'signal_test_1',
@@ -387,6 +410,101 @@ describe('OrderExecutor pause gate', () => {
         decisionId: 'decision_test_1',
       })
     );
+  });
+
+  test('live broker response without order id returns explicit failure before state open', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ price: 100 });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_missing_order_id',
+        signalId: 'signal_missing_order_id',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'missing_broker_order_id for buy TSLA',
+      orderId: null,
+      traceId: 'trace_missing_order_id',
+      signalId: 'signal_missing_order_id',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('Order execution failed: missing_broker_order_id for buy TSLA');
+  });
+
+  test('live broker success followed by state open failure returns phase-specific failure', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.openPosition.mockResolvedValueOnce({ success: false, error: 'state write failed' });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_STATE_FAIL', price: 100 });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      {
+        action: 'BUY',
+        confidence: 50,
+        traceId: 'trace_state_open_fail',
+        signalId: 'signal_state_open_fail',
+      },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'state_open_failed',
+      orderId: 'LIVE_STATE_FAIL',
+      orderAccepted: true,
+      stateMutationSucceeded: false,
+      traceId: 'trace_state_open_fail',
+      signalId: 'signal_state_open_fail',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(sendOrder).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.removeActiveTrade).toHaveBeenCalledWith('LIVE_STATE_FAIL');
   });
 
   test('eval rule engine blocks entries through the same pre-order side-effect gate', async () => {
@@ -423,7 +541,13 @@ describe('OrderExecutor pause gate', () => {
       'TSLA'
     );
 
-    expect(result).toBeNull();
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+      failedRules: 'TTP_VOLUME_5_PERCENT',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
     expect(evalRuleEngine.check).toHaveBeenCalledWith(expect.objectContaining({
       action: 'BUY',
       symbol: 'TSLA',
@@ -680,7 +804,12 @@ describe('OrderExecutor pause gate', () => {
       'TSLA'
     );
 
-    expect(result).toBeNull();
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'KILL-5: SELL with no matching BUY',
+      symbol: 'TSLA',
+      action: 'SELL',
+    }));
     expect(mockStateManager.haltSymbol).toHaveBeenCalledWith('TSLA', 'KILL-5: SELL with no matching BUY');
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
     expect(mockStateManager.reducePosition).not.toHaveBeenCalled();

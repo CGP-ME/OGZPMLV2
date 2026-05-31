@@ -1120,19 +1120,30 @@ class TradingLoop {
         });
       }
       const executionResult = await this.ctx.executeTrade(decision, confidenceData, price, indicators, patterns, null, orchResult, symbol);
+      const executionSuccess = typeof executionResult?.success === 'boolean'
+        ? executionResult.success
+        : false;
+      const executionReason = executionResult?.reason
+        || (typeof executionResult?.success === 'boolean' ? null : 'execute_trade_return_missing_success');
       this._diag('EXECUTE_RETURN', {
         symbol,
         action: decision.action,
-        success: executionResult?.success ?? null,
-        orderId: executionResult?.orderId || 'none'
+        success: executionSuccess,
+        orderId: executionResult?.orderId || null,
+        reason: executionReason,
+        orderAccepted: executionResult?.orderAccepted ?? null,
+        stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null
       });
       emitTrace(this.ctx, 'EXECUTE_RETURN', {
         traceId: decision.traceId,
         signalId: decision.signalId,
         symbol,
         action: decision.action,
-        success: executionResult?.success ?? null,
+        success: executionSuccess,
         orderId: executionResult?.orderId || null,
+        reason: executionReason,
+        orderAccepted: executionResult?.orderAccepted ?? null,
+        stateMutationSucceeded: executionResult?.stateMutationSucceeded ?? null,
       });
     }
   }

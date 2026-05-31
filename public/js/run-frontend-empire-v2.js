@@ -119,6 +119,7 @@
         'balance_update',
         'auth_success',
         'error_event',
+        'trace_event',
         'ticker_price',
         'gate_event',
         'broker_ack',

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Signal Path Trace Contract (2026-05-31)
+
+- Stamped eval trace events with runtime broker/account/asset/mode/timeframe scope in `TraceSpine` so missing producer fields no longer make dashboard trace frames unjoinable across Kraken and Alpaca, while marking missing SessionRouter runtime scope as `missing_runtime_scope` instead of falling back to static config.
+- Changed `OrderExecutor.executeTrade()` to return explicit success/failure objects with trace identity and reason data on non-throw paths, reject successful trade records that lack a real order ID, and allow broker result plus `TradingLoop` `EXECUTE_RETURN` trace events to report actual broker order IDs, order acceptance, state-mutation status, or concrete block reasons instead of `null` success/order state.
+- Added a stitched Kraken/Alpaca proof test covering `TradingLoop -> OrderExecutor -> OrderRouter -> broker adapter -> dashboard trace_event` for live BUY signals.
+
+### Dashboard Trace Event Consumer (2026-05-31)
+
+- Routed backend `trace_event` frames through the v2 frontend frame layer and LiveReport so Kraken/Alpaca signal-path trace reasons can be displayed from real eval trace payloads instead of disappearing after websocket relay.
+- Hardened LiveReport trace rendering so every current backend trace event is classified, unmapped future events render as actionable `UNMAPPED_TRACE_EVENT`, malformed frames render as `TRACE_SCHEMA_ERROR` with schema/field-key evidence, trace age is explicit, decimal confidence values render on the correct scale, invalid confidence text/ranges are rejected, and trace handler failures render visibly instead of disappearing silently.
+
 ### Dashboard Producer Contract Reconciliation (2026-05-30)
 
 - Reconciled dashboard producer frames with the frontend contract for watched stock and crypto assets, including top-level asset identity on ticker frames.

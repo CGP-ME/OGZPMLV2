@@ -149,6 +149,189 @@ describe('TraceSpine dashboard trace_event feed', () => {
     }));
   });
 
+  test('stamps missing trace scope from current runtime config', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        executionMode: 'live',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stocks',
+        timeframe: '1m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'ORDER_PLAN', {
+      traceId: 'trace_ctx_scope',
+      signalId: 'trace_ctx_scope:signal',
+      symbol: 'TSLA',
+      action: 'BUY',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      timeframe: '1m',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'live',
+    }));
+    expect(payload.fields).toEqual(expect.objectContaining({
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'live',
+      timeframe: '1m',
+    }));
+  });
+
+  test('keeps explicit trace scope over runtime config scope', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        executionMode: 'live',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stocks',
+        timeframe: '1m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'BROKER_ORDER_REQUEST', {
+      traceId: 'trace_explicit_scope',
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'default',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '5m',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload).toEqual(expect.objectContaining({
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'default',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '5m',
+    }));
+  });
+
+  test('uses runner candle scope before static config when trace fields are missing', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        executionMode: 'live',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stocks',
+        timeframe: '1m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      runner: {
+        getCandleScopeEnvelope: jest.fn(() => ({
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          accountId: 'default',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '5m',
+          scopeKey: 'paper:kraken:default:crypto:BTC-USD:5m',
+        })),
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'ORDER_PLAN', {
+      traceId: 'trace_runner_scope',
+      signalId: 'trace_runner_scope:signal',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(ctx.runner.getCandleScopeEnvelope).toHaveBeenCalledTimes(1);
+    expect(payload).toEqual(expect.objectContaining({
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      accountId: 'default',
+      assetClass: 'crypto',
+      executionMode: 'paper',
+      timeframe: '5m',
+      scopeKey: 'paper:kraken:default:crypto:BTC-USD:5m',
+    }));
+  });
+
+  test('does not invent broker or asset scope without a scope source', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'ORDER_PLAN', {
+      traceId: 'trace_no_scope_source',
+      symbol: 'TSLA',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload.symbol).toBe('TSLA');
+    expect(payload.brokerId).toBeNull();
+    expect(payload.accountId).toBeNull();
+    expect(payload.assetClass).toBeNull();
+    expect(payload.executionMode).toBeNull();
+    expect(payload.fields).not.toHaveProperty('brokerId');
+    expect(payload.fields).not.toHaveProperty('assetClass');
+    expect(payload.fields).not.toHaveProperty('executionMode');
+  });
+
+  test('marks missing SessionRouter runtime scope without static config fallback', () => {
+    const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const ctx = {
+      config: {
+        evalTraceEnabled: true,
+        executionMode: 'live',
+        brokerId: 'alpaca',
+        accountId: 'paper-main',
+        assetClass: 'stocks',
+        timeframe: '1m',
+        traceEventMaxBufferedBytes: 1048576,
+      },
+      runner: {
+        sessionRouter: { enabled: true },
+        getCandleScopeEnvelope: jest.fn(() => ({})),
+      },
+      dashboardWs,
+    };
+
+    emitTrace(ctx, 'ORDER_PLAN', {
+      traceId: 'trace_missing_router_scope',
+      symbol: 'TSLA',
+    });
+
+    const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
+    expect(payload.symbol).toBe('TSLA');
+    expect(payload.accountId).toBe('paper-main');
+    expect(payload.brokerId).toBeNull();
+    expect(payload.assetClass).toBeNull();
+    expect(payload.executionMode).toBeNull();
+    expect(payload.timeframe).toBeNull();
+    expect(payload.fields).toEqual(expect.objectContaining({
+      scopeStatus: 'missing_runtime_scope',
+      missingScopeFields: ['timeframe', 'brokerId', 'assetClass', 'executionMode'],
+    }));
+  });
+
   test('does not send backtest trace events unless backtest trace is enabled', () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const ctx = {
@@ -223,10 +406,10 @@ describe('TraceSpine dashboard trace_event feed', () => {
 
     expect(() => emitTrace(ctx, 'ORDER_PLAN', badFields)).not.toThrow();
 
-    expect(logSpy).toHaveBeenCalledWith('[EVAL-TRACE][ORDER_PLAN] ');
+    expect(logSpy).toHaveBeenCalledWith('[EVAL-TRACE][ORDER_PLAN] executionMode="paper"');
     expect(dashboardWs.send).toHaveBeenCalledTimes(1);
     const payload = JSON.parse(dashboardWs.send.mock.calls[0][0]);
-    expect(payload.fields).toEqual({});
+    expect(payload.fields).toEqual({ executionMode: 'paper' });
     expect(warnSpy).toHaveBeenCalledWith('[EVAL-TRACE] trace_event payload sanitize failed: fields were not object-serializable');
   });
 

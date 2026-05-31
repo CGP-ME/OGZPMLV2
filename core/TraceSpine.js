@@ -3,6 +3,8 @@
 const TRACE_EVENT_MAX_BUFFERED_BYTES_LIMIT = 16777216;
 const TRACE_EVENT_MAX_ARRAY_ITEMS = 100;
 const TRACE_EVENT_MAX_OBJECT_KEYS = 100;
+const TRACE_SCOPE_KEYS = ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'scopeKey'];
+const TRACE_REQUIRED_SCOPE_KEYS = ['symbol', 'timeframe', 'brokerId', 'accountId', 'assetClass', 'executionMode'];
 
 function createTraceId(prefix = 'trace', now = () => Date.now()) {
   const safePrefix = String(prefix || 'trace').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -108,17 +110,20 @@ function safeTraceEntries(ctx, fields) {
 function coerceTraceFields(ctx, fields) {
   const sanitizedFields = sanitizeTracePayload(fields);
   if (sanitizedFields && typeof sanitizedFields === 'object' && !Array.isArray(sanitizedFields)) {
-    return sanitizedFields;
+    return stampTraceScope(ctx, sanitizedFields);
   }
   if (sanitizedFields !== undefined) {
     warnTraceOnce(ctx, '_tracePayloadSanitizeWarned', '[EVAL-TRACE] trace_event payload sanitize failed: fields were not object-serializable');
   }
-  return {};
+  return stampTraceScope(ctx, {});
 }
 
 function traceFieldValue(record, key) {
+  if (!record || typeof record !== 'object') return null;
   const value = record[key];
-  return value !== undefined && value !== null && value !== '' ? value : null;
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return value;
 }
 
 function firstTraceScopeField(payloadFields, key) {
@@ -131,6 +136,63 @@ function firstTraceScopeField(payloadFields, key) {
   }
 
   return null;
+}
+
+function readRunnerTraceScope(ctx) {
+  const runner = ctx && ctx.runner;
+  if (!runner || typeof runner.getCandleScopeEnvelope !== 'function') return {};
+  try {
+    const scope = runner.getCandleScopeEnvelope();
+    if (scope && typeof scope === 'object' && !Array.isArray(scope)) return scope;
+  } catch (err) {
+    warnTraceOnce(ctx, '_traceScopeEnvelopeWarned', `[EVAL-TRACE] trace scope envelope read failed: ${err.message}`);
+  }
+  return {};
+}
+
+function currentTraceScope(ctx) {
+  const cfg = (ctx && ctx.config) || {};
+  const runnerScope = readRunnerTraceScope(ctx);
+  const routerEnabled = ctx?.runner?.sessionRouter?.enabled === true;
+  const configScopeAllowed = !routerEnabled;
+
+  return {
+    symbol: traceFieldValue(runnerScope, 'symbol')
+      || traceFieldValue(ctx?.marketData, 'symbol')
+      || null,
+    timeframe: traceFieldValue(runnerScope, 'timeframe')
+      || (configScopeAllowed ? (traceFieldValue(cfg, 'timeframe') || traceFieldValue(ctx, 'candleTimeframe')) : null),
+    brokerId: traceFieldValue(runnerScope, 'brokerId')
+      || (configScopeAllowed ? traceFieldValue(cfg, 'brokerId') : null),
+    accountId: traceFieldValue(runnerScope, 'accountId')
+      || traceFieldValue(cfg, 'accountId'),
+    assetClass: traceFieldValue(runnerScope, 'assetClass')
+      || (configScopeAllowed ? traceFieldValue(cfg, 'assetClass') : null),
+    executionMode: cfg.enableBacktestMode === true
+      ? 'backtest'
+      : (traceFieldValue(runnerScope, 'executionMode')
+        || (configScopeAllowed ? traceFieldValue(cfg, 'executionMode') : null)),
+    scopeKey: traceFieldValue(runnerScope, 'scopeKey')
+      || (configScopeAllowed ? traceFieldValue(cfg, 'scopeKey') : null),
+  };
+}
+
+function stampTraceScope(ctx, fields) {
+  const out = { ...fields };
+  const scope = currentTraceScope(ctx);
+  for (const key of TRACE_SCOPE_KEYS) {
+    if (firstTraceScopeField(out, key) === null && scope[key] !== null) {
+      out[key] = scope[key];
+    }
+  }
+  if (ctx?.runner?.sessionRouter?.enabled === true) {
+    const missingScopeFields = TRACE_REQUIRED_SCOPE_KEYS.filter(key => firstTraceScopeField(out, key) === null);
+    if (missingScopeFields.length > 0) {
+      out.scopeStatus = out.scopeStatus || 'missing_runtime_scope';
+      out.missingScopeFields = out.missingScopeFields || missingScopeFields;
+    }
+  }
+  return out;
 }
 
 function resolveTraceEventMaxBufferedBytes(ctx) {
@@ -146,15 +208,15 @@ function resolveTraceEventMaxBufferedBytes(ctx) {
   return null;
 }
 
-function emitTraceEventToDashboard(ctx, event, fields) {
+function emitTraceEventToDashboard(ctx, event, fields, fieldsCoerced = false) {
   try {
-    emitTraceEventToDashboardUnsafe(ctx, event, fields);
+    emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced);
   } catch (err) {
     warnTraceOnce(ctx, '_traceEventUnexpectedWarned', `[EVAL-TRACE] trace_event dashboard emit failed: ${err.message}`);
   }
 }
 
-function emitTraceEventToDashboardUnsafe(ctx, event, fields) {
+function emitTraceEventToDashboardUnsafe(ctx, event, fields, fieldsCoerced = false) {
   const ws = ctx && ctx.dashboardWs;
   if (!ws || ws.readyState !== 1 || typeof ws.send !== 'function') return;
 
@@ -182,7 +244,7 @@ function emitTraceEventToDashboardUnsafe(ctx, event, fields) {
     return;
   }
 
-  const payloadFields = coerceTraceFields(ctx, fields);
+  const payloadFields = fieldsCoerced ? fields : coerceTraceFields(ctx, fields);
 
   const payload = {
     type: 'trace_event',
@@ -216,7 +278,7 @@ function emitTrace(ctx, event, fields = {}) {
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}=${renderTraceValue(value)}`);
   console.log(`[EVAL-TRACE][${event}] ${parts.join(' ')}`);
-  emitTraceEventToDashboard(ctx, event, traceFields);
+  emitTraceEventToDashboard(ctx, event, traceFields, true);
 }
 
 module.exports = {
