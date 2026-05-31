@@ -4,6 +4,10 @@
 **Maintained at:** `ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md`
 **Doc origin:** DeepSearch (GPT) v1 dated 2026-05-18, revised by Wolf (Claude Opus) after live-repo verification
 
+**Maintenance note 2026-05-28:** Current live-state verification in the daily maintenance run found branch `codex/multi-runtime-scope-build`, so dated current-state claims below must be treated as historical. Start current-state reasoning from `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md`, which records the committed/pushed-code vs PM2-runtime split, explicit PM2 restart gate, REMIO read-only role, loose-artifact staging restrictions, SessionRouter disabled posture, and dashboard provenance risk (`ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:5,11-19,178-255,314-352`).
+
+**Maintenance note 2026-05-30:** Current P0 enforcement is the executable gate in `ogz-meta/gates/multi-runtime-gate-runner.js` via `ogz-meta/anchor-runner.js`. The current full anchor is `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`; older `$13213.042341608163` references are historical/modifiers-off anchors unless the executable gate is explicitly rebaselined.
+
 ---
 
 # STOP. READ THIS BEFORE YOU DO ANYTHING ELSE.
@@ -445,7 +449,7 @@ If you find this brief making any of those claims and you don't verify them agai
 - Searched for `UnifiedTradingCore.js` — confirmed it does NOT exist; v1 hallucinated this
 - Searched for `ExecutionLayer.js` — confirmed it does NOT exist; v1 hallucinated this
 - Confirmed `BrokerFactory.js` is in `brokers/` not `core/` as v1 claimed
-- Read `ogz-meta/specs/baseline-phase0-2026-05-06.md` in full; confirmed v1's $18,497 anchor is the pre-Fix-2 archival number, NOT the current regression gate ($13,213.042341608163)
+- Read `ogz-meta/specs/baseline-phase0-2026-05-06.md` in full; confirmed v1's $18,497 anchor is the pre-Fix-2 archival number. At that 2026-05-19 verification point, the current regression gate was $13,213.042341608163; newer maintenance notes above supersede that dated number.
 - Confirmed `BASELINE-matrix-2026-04-07.json` exists with different per-config numbers (separate matrix sweep, not the Phase 0 anchor)
 - Verified `ogz-meta/cognition/mercury-bridge.js` exists
 - Verified `trai_brain/mercury-bridge/` contents (ask.js, indexer.js, config.js, etc.)

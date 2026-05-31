@@ -36,9 +36,20 @@ does not match current doctrine.
   cosmetic sweeps with runtime fixes.
 - Preserve unrelated dirty work. Assume unrecognized changes belong to the
   operator or another agent.
+- Treat committed/pushed code and running PM2 state as separate. Do not claim
+  the bot process picked up a commit until restart, env, state, and log evidence
+  prove it; never restart PM2 without explicit Trey approval. Source:
+  `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:5`.
+- External static reviewers such as REMIO are read-only leads. Verify every
+  finding against the VPS tree before implementation. Source:
+  `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:14`.
+- Do not stage loose ledger/intake/proposal/backup piles, public backup files,
+  or proof-track-record artifacts unless Trey explicitly tasks that cleanup.
+  Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17`.
 - When Trey approves a commit, treat commit and push as paired unless he says
   local-only or no-push. This does not authorize staging, committing, or pushing
-  without approval.
+  without approval. Source:
+  `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:13`.
 
 ## Trading-Path Gates
 
@@ -49,7 +60,10 @@ For changes on the trading/backtest execution path:
 - Use attack framing, not confirmation framing.
 - Use `--max-tokens=7750` and `--max-iterations=60`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
-- Required P0 final balance: `13213.042341608163`.
+- Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
+- Current full-anchor expectation: `13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+- Older `13213.042341608163` references are historical/modifiers-off anchors unless the current
+  executable gate is explicitly rebaselined.
 - If the anchor moves, stop and root-cause before continuing.
 
 ## Pipeline Discipline

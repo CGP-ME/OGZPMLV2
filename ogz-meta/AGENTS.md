@@ -67,6 +67,7 @@ For backtests, read `ogz-meta/BACKTEST-OPS.md`; it is the backtest source of tru
 If older guides contradict `BACKTEST-OPS.md`, prefer `BACKTEST-OPS.md` and note the contradiction.
 If Trey says the code is validated and the issue is an env var, compare the exact working command/env against the running process before source-diving.
 Read mermaid charts and specs as context, not decoration. If a brief is long, synthesize the actual constraints and tensions, not just the file list.
+Treat committed/pushed code and running PM2 state as separate facts. A commit does not prove the live process has picked up the bytes; verify PM2 restart time, non-secret env, state, and logs before making runtime claims. Do not restart PM2 without explicit Trey approval. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:5,16,180-196`.
 
 Doc priority:
 1. `ogz-meta/` top-level operational docs.
@@ -139,6 +140,9 @@ Pipeline order:
 - Proactive thinking is welcome; proactive applying is not. For improvements outside the directive, propose the fix and wait for approval.
 - When current verification contradicts memory or an earlier observation, re-check before sounding alarms.
 
+## External Review Leads
+- REMIO/Sourcegraph/static ZIP reviews are read-only leads, not implementers and not authority. Verify every finding against the current VPS tree before applying or citing it. Incomplete or stale ZIP output must be reconciled against live files first. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:14,98-99,244-254`.
+
 ## Editing Rules
 - Change only requested files and the minimum safe lines.
 - Before adding a function/helper/module, search for existing functionality by intent, not just by name.
@@ -193,12 +197,13 @@ Pipeline order:
 - Check `git diff --cached` before committing, especially in parallel-session repos. `git add` is additive and can accidentally include someone else's staged files.
 - Do not use `git add -A` or `git add .`.
 - Stage explicit file paths only.
+- Do not stage loose ledger/intake/proposal/backup piles, public backup files, or proof-track-record artifacts unless Trey explicitly tasks that cleanup. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17,347-351`.
 - For a path-limited one-file commit, prefer `git commit -- <path>` when the index may contain unrelated staged files.
 - One logical change per commit.
 - Linked changes still ship as separate commits in dependency order. Reference the prior SHA in the dependent commit body instead of bundling.
 - Commit messages follow the user preference: `Fixed [what was broken]` or `Added [what feature]`.
 - Do not bundle unrelated fixes with docs or cleanup.
-- When Trey approves a commit, treat commit and push as paired unless he explicitly says local-only or no-push. This does not authorize staging, committing, or pushing without approval.
+- When Trey approves a commit, treat commit and push as paired unless he explicitly says local-only or no-push. This does not authorize staging, committing, or pushing without approval. Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:13`.
 - Do not push unless Trey approved the commit and required Mercury adversarial review is clean. Once push is approved, push each logical commit individually.
 - The repo docs warn against direct `main` work, while the user preference says push to main because he works alone. Treat this as a live conflict: ask before branch/commit/push decisions.
 - Never commit `.env`, secrets, raw LLM transcripts, huge logs, Trai brain dumps, `node_modules`, or multi-MB scratch files without explicit approval.

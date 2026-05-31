@@ -11,8 +11,15 @@
 This file is an operational command reference, not the canonical Phase 0
 regression anchor.
 
-Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and its current full
-anchor is `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and
+`ogz-meta/gates/multi-runtime-gate-runner.js`; its current full anchor is
+`$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+
+Rechecked 2026-05-30 with:
+
+```bash
+node ogz-meta/gates/multi-runtime-gate-runner.js --p0 --write-report
+```
 
 Manual commands in this file are for targeted backtests, exploratory runs, and
 tuning. A command that omits `SOLO_STRATEGY` is a no-SOLO, winner-takes-all
