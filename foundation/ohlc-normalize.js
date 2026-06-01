@@ -33,10 +33,12 @@ const NUMERIC_EPOCH_STRING_RE = /^(?:\d{10}(?:\.\d+)?|\d{13,}(?:\.\d+)?)$/;
 const NUMERIC_LIKE_STRING_RE = /^[+-]?(?:\d+|\d*\.\d+)(?:e[+-]?\d+)?$/i;
 
 /**
- * Coerce a timestamp field to milliseconds since epoch.
+ * Coerce a timestamp field to integer milliseconds since epoch.
  * Accepts ISO-8601 strings, second-precision numbers (< 1e12 means
  * seconds, so multiply by 1000), or millisecond numbers. Returns null
- * on unparseable input.
+ * on unparseable input. Sub-millisecond exchange precision is truncated
+ * at the ingestion boundary because downstream candle/ledger contracts
+ * use Date-compatible millisecond timestamps.
  */
 function toTimestampMs(raw) {
     if (raw == null) return null;
@@ -44,17 +46,17 @@ function toTimestampMs(raw) {
         if (!isFinite(raw) || raw <= 0) return null;
         // Heuristic: timestamps before 1e12 are seconds-precision
         // (Sep 2001 threshold is fine for any realistic bar data)
-        return raw < 1e12 ? raw * 1000 : raw;
+        return Math.trunc(raw < 1e12 ? raw * 1000 : raw);
     }
     if (typeof raw === 'string') {
         const trimmed = raw.trim();
         const numeric = Number(trimmed);
         if (NUMERIC_EPOCH_STRING_RE.test(trimmed) && isFinite(numeric) && numeric > 0) {
-            return numeric < 1e12 ? numeric * 1000 : numeric;
+            return Math.trunc(numeric < 1e12 ? numeric * 1000 : numeric);
         }
         if (NUMERIC_LIKE_STRING_RE.test(trimmed)) return null;
         const n = Date.parse(trimmed);
-        return isFinite(n) ? n : null;
+        return isFinite(n) ? Math.trunc(n) : null;
     }
     return null;
 }

@@ -3,8 +3,8 @@
 const { normalizeOhlc, toTimestampMs } = require('../foundation/ohlc-normalize');
 
 describe('OHLC normalization', () => {
-  test('parses Kraken numeric-string timestamps as Unix seconds', () => {
-    expect(toTimestampMs('1779850177.477202')).toBe(1779850177477.202);
+  test('parses Kraken numeric-string timestamps as integer Unix milliseconds', () => {
+    expect(toTimestampMs('1779850177.477202')).toBe(1779850177477);
     expect(toTimestampMs('1779850800.000000')).toBe(1779850800000);
   });
 
@@ -15,6 +15,7 @@ describe('OHLC normalization', () => {
   test('preserves valid epoch seconds and milliseconds numeric strings', () => {
     expect(toTimestampMs('1779850380')).toBe(1779850380000);
     expect(toTimestampMs('1779850380000')).toBe(1779850380000);
+    expect(toTimestampMs('1779850380000.987')).toBe(1779850380000);
   });
 
   test('rejects numeric strings that are not epoch-shaped timestamps', () => {
@@ -36,7 +37,7 @@ describe('OHLC normalization', () => {
     });
 
     expect(normalized).toEqual([
-      1779850177477.202,
+      1779850177477,
       1779850800000,
       75628.1,
       75656.3,

@@ -17,7 +17,7 @@
 
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
-const { normalizeOhlc } = require('../foundation/ohlc-normalize');
+const { normalizeOhlc, toTimestampMs } = require('../foundation/ohlc-normalize');
 const { getInstance: getMarketCalendar } = require('../foundation/MarketCalendar');
 const { emitTrace } = require('./TraceSpine');
 const stateManager = getStateManager();
@@ -83,6 +83,10 @@ function timeframeToMs(timeframe) {
   if (!Number.isFinite(value) || value <= 0) return null;
   const unitMs = { m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 }[match[2]];
   return value * unitMs;
+}
+
+function isIntegerEpochMs(value) {
+  return Number.isInteger(value) && value >= 1e12;
 }
 
 function cleanScopeValue(value) {
@@ -497,6 +501,15 @@ class CandleProcessor {
     const scoped = this._attachCandleScope(candle, options);
     candle = scoped.candle;
     const candleTimeframe = this._resolveCandleTimeframe(candle);
+    const invalidTimestampFields = [];
+    if (!isIntegerEpochMs(candle?.t)) invalidTimestampFields.push('t');
+    if (!isIntegerEpochMs(candle?.etime)) invalidTimestampFields.push('etime');
+    if (invalidTimestampFields.length > 0) {
+      const message = `CandleProcessor.processNewCandle invalid millisecond timestamp field(s): ${invalidTimestampFields.join(', ')} symbol=${candle?.symbol || '(missing)'} timeframe=${candleTimeframe || '(missing)'}`;
+      console.error(`[OHLC] ${message}`);
+      throw new Error(message);
+    }
+
     // Check if this is an update to existing candle or a new candle
     const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
     const isUpdate = existingIndex !== -1;
@@ -955,6 +968,17 @@ class CandleProcessor {
     }
 
     const [time, etime, open, high, low, close, vwap, volume, count] = ohlcData;
+    const candleTimeMs = toTimestampMs(time);
+    const candleEndTimeMs = toTimestampMs(etime ?? time);
+    if (!Number.isInteger(candleTimeMs) || !Number.isInteger(candleEndTimeMs)) {
+      console.warn('[OHLC] Invalid OHLC timestamp:', {
+        symbol: stampedSymbol,
+        timeframe: sourceTimeframe,
+        time,
+        etime,
+      });
+      return;
+    }
     if (traceId) {
       emitTrace(this.ctx, 'CANDLE_PROCESSOR_RECEIVED', {
         traceId,
@@ -963,7 +987,7 @@ class CandleProcessor {
         timeframe: sourceTimeframe,
         timeframeSource,
         close: Number(close),
-        etime: Number(etime),
+        etime: candleEndTimeMs,
       });
     }
 
@@ -974,7 +998,7 @@ class CandleProcessor {
     // FIX BACKTEST_001: Skip stale check in backtest mode - historical data is intentionally old
     const isBacktesting = getConfigValue('mode.backtest') || this.ctx.config?.enableBacktestMode;
     const now = Date.now();
-    const dataAge = now - (etime * 1000); // etime is in SECONDS, convert to milliseconds
+    const dataAge = now - candleEndTimeMs;
 
     if (dataAge > this.dataFeedConfig.staleDataMaxAgeMs && !isBacktesting) {
       console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
@@ -1024,8 +1048,8 @@ class CandleProcessor {
       l: parseFloat(low),
       c: parseFloat(close),
       v: parseFloat(volume),
-      t: parseFloat(time) * 1000,  // Actual timestamp for display
-      etime: parseFloat(etime) * 1000,  // End time for deduplication
+      t: candleTimeMs,  // Actual timestamp for display
+      etime: candleEndTimeMs,  // End time for deduplication
       timeframe: sourceTimeframe,
       symbol: stampedSymbol,
       symbolSource,
@@ -1137,7 +1161,7 @@ class CandleProcessor {
     const marketData = {
       symbol: candle.symbol || null,
       price,
-      timestamp: parseFloat(time) * 1000,  // Use candle's actual timestamp
+      timestamp: candleTimeMs,  // Use candle's actual timestamp
       timeframe: candle.timeframe,
       systemTime: Date.now(),  // Keep system time separately if needed
       volume: Number.isFinite(_parsedVolume) ? _parsedVolume : null,

@@ -128,6 +128,60 @@ describe('symbol-aware candle routing', () => {
     expect(btc.marketData.symbol).toBe('BTC-USD');
   });
 
+  test('stores raw seconds-array candle timestamps as integer milliseconds', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]));
+    const processor = new CandleProcessor(ctx);
+
+    processor.handleMarketData({
+      data: [
+        1779850177.477202,
+        1779850800.000000,
+        75628.1,
+        75656.3,
+        75613.5,
+        75642.2,
+        75640.0,
+        1.33538492,
+        42,
+      ],
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+    });
+
+    expect(ctx.marketData.timestamp).toBe(1779850177477);
+    expect(ctx.marketData.timestamp).toBe(btc.marketData.timestamp);
+    expect(ctx.priceHistory[0].t).toBe(1779850177477);
+    expect(ctx.priceHistory[0].etime).toBe(1779850800000);
+  });
+
+  test('stores object candle timestamps as integer milliseconds without double scaling', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]));
+    const processor = new CandleProcessor(ctx);
+
+    processor.handleMarketData({
+      data: {
+        symbol: 'BTC-USD',
+        timeframe: '1m',
+        t: '1779850177.477202',
+        etime: '1779850800.000000',
+        o: '75628.10000',
+        h: '75656.30000',
+        l: '75613.50000',
+        c: '75642.20000',
+        v: '1.33538492',
+      },
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+    });
+
+    expect(ctx.marketData.timestamp).toBe(1779850177477);
+    expect(ctx.marketData.timestamp).toBe(btc.marketData.timestamp);
+    expect(ctx.priceHistory[0].t).toBe(1779850177477);
+    expect(ctx.priceHistory[0].etime).toBe(1779850800000);
+  });
+
   test('falls back to ConfigLoader dataFeed when local context omits dataFeed config', () => {
     const btc = makeSymCtx('BTC-USD');
     const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
@@ -163,6 +217,24 @@ describe('symbol-aware candle routing', () => {
         scopeKeyVersion: 2,
       })
     );
+  });
+
+  test('processNewCandle rejects non-millisecond timestamps instead of storing ambiguous candles', () => {
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    const processor = new CandleProcessor(ctx);
+
+    expect(() => processor.processNewCandle(candleObject({
+      t: 1779850177,
+      etime: 1779850800,
+    }))).toThrow('invalid millisecond timestamp field(s): t, etime');
+
+    expect(() => processor.processNewCandle(candleObject({
+      t: 1779850177477.202,
+      etime: 1779850800000,
+    }))).toThrow('invalid millisecond timestamp field(s): t');
+
+    expect(ctx._candleStore.addCandle).not.toHaveBeenCalled();
   });
 
   test('dashboard price frame carries symbol on top-level, data, and candle payload', () => {
