@@ -8,15 +8,164 @@
     let ws = null;
     let handlers = new Map();
     let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    let heartbeatTimer = null;
+    let dataWatchdogTimer = null;
+    let authenticated = false;
+    let lastPongAt = 0;
+    let lastDataAt = 0;
+
+    const WS_PATH = '/ws';
+    const HEARTBEAT_INTERVAL_MS = 15000;
+    const PONG_TIMEOUT_MS = 30000;
+    const DATA_TIMEOUT_MS = 60000;
+    const DATA_WATCHDOG_INTERVAL_MS = 30000;
+    const OPEN = 1;
+    const CONNECTING = 0;
+    const DASHBOARD_DATA_FRAME_TYPES = new Set([
+        'asset_switched',
+        'balance_update',
+        'bot_thinking',
+        'broker_ack',
+        'broker_reject',
+        'candle',
+        'cvd_update',
+        'delta',
+        'depth_update',
+        'divergence',
+        'fear_greed',
+        'funding_rate',
+        'gate_event',
+        'historical_candles',
+        'journal_snapshot',
+        'liquidation_data',
+        'market_internals',
+        'narrator_event',
+        'news_event',
+        'pattern_analysis',
+        'price',
+        'signal_analysis',
+        'smart_money',
+        'state_update',
+        'ticker_price',
+        'trace_event',
+        'trade',
+        'trade_closed_replay',
+        'whale_trade',
+    ]);
+
+    function socketUrl() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.host}${WS_PATH}`;
+    }
+
+    function stopHealthChecks() {
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+        }
+        if (dataWatchdogTimer) {
+            clearInterval(dataWatchdogTimer);
+            dataWatchdogTimer = null;
+        }
+    }
+
+    function clearReconnectTimer() {
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+    }
+
+    function isDataFrame(type) {
+        return DASHBOARD_DATA_FRAME_TYPES.has(type);
+    }
+
+    function sendRaw(data) {
+        if (ws && ws.readyState === OPEN) {
+            ws.send(JSON.stringify(data));
+            return true;
+        }
+        console.warn('[Socket] Send skipped; socket not open:', data && data.type, ws ? ws.readyState : 'none');
+        return false;
+    }
+
+    function scheduleReconnect(reason) {
+        if (reconnectTimer) return;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+        console.log(`[Socket] Reconnecting in ${delay}ms: ${reason}`);
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            reconnectAttempts++;
+            Socket.connect();
+        }, delay);
+    }
+
+    function forceReconnect(reason) {
+        const staleSocket = ws;
+        authenticated = false;
+        ws = null;
+        stopHealthChecks();
+
+        if (staleSocket && staleSocket.readyState === OPEN) {
+            try {
+                staleSocket.close(4000, reason.slice(0, 120));
+            } catch (err) {
+                console.error('[Socket] Failed to close stale connection:', err);
+            }
+        }
+
+        scheduleReconnect(reason);
+    }
+
+    function startHealthChecks() {
+        stopHealthChecks();
+        lastPongAt = Date.now();
+        lastDataAt = Date.now();
+
+        heartbeatTimer = setInterval(() => {
+            if (!ws || ws.readyState !== OPEN || !authenticated) return;
+
+            const timeSincePong = Date.now() - lastPongAt;
+            if (timeSincePong > PONG_TIMEOUT_MS) {
+                console.warn(`[Socket] Heartbeat timeout after ${Math.round(timeSincePong / 1000)}s without pong`);
+                forceReconnect('heartbeat timeout');
+                return;
+            }
+
+            sendRaw({ type: 'ping', timestamp: Date.now() });
+        }, HEARTBEAT_INTERVAL_MS);
+
+        dataWatchdogTimer = setInterval(() => {
+            if (!ws || ws.readyState !== OPEN || !authenticated) return;
+
+            const timeSinceData = Date.now() - lastDataAt;
+            if (timeSinceData > DATA_TIMEOUT_MS) {
+                console.warn(`[Socket] Data watchdog stale after ${Math.round(timeSinceData / 1000)}s without dashboard data`);
+                forceReconnect('data watchdog stale');
+            }
+        }, DATA_WATCHDOG_INTERVAL_MS);
+    }
 
     const Socket = {
         connect: function() {
-            console.log('[Socket] Connecting...');
-            ws = new WebSocket(`wss://${window.location.host}/ws`);
+            if (ws && (ws.readyState === OPEN || ws.readyState === CONNECTING)) {
+                console.log('[Socket] Connect skipped; socket already active.');
+                return;
+            }
 
-            ws.onopen = () => {
-                reconnectAttempts = 0;
-                console.log('[Socket] Connected.');
+            clearReconnectTimer();
+            stopHealthChecks();
+            authenticated = false;
+
+            const url = socketUrl();
+            console.log(`[Socket] Connecting to ${url}...`);
+            const currentSocket = new WebSocket(url);
+            ws = currentSocket;
+
+            currentSocket.onopen = () => {
+                if (currentSocket !== ws) return;
+                console.log('[Socket] Connected. Authenticating...');
                 // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime
                 // token injection. Token is read from <meta name="ws-token">
                 // (server-side injectable via custom route handler) or from
@@ -33,9 +182,16 @@
                 this.send({ type: 'auth', token });
             };
 
-            ws.onmessage = (e) => {
+            currentSocket.onmessage = (e) => {
+                if (currentSocket !== ws) return;
                 try {
                     const data = JSON.parse(e.data);
+                    if (data.type === 'pong') {
+                        lastPongAt = Date.now();
+                    }
+                    if (isDataFrame(data.type)) {
+                        lastDataAt = Date.now();
+                    }
 
                     // God Mode: Delta Merge Engine (dormant — awaits delta emitter)
                     if (data.type === 'delta' && data.tick) {
@@ -45,6 +201,9 @@
 
                     // Auth success -> identify + load historical candles for selected asset.
                     if (data.type === 'auth_success') {
+                        authenticated = true;
+                        reconnectAttempts = 0;
+                        startHealthChecks();
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
                         // then default. Same fallback chain CC-D bakes into asset consumers.
@@ -72,13 +231,19 @@
                 }
             };
 
-            ws.onclose = () => {
-                console.log('[Socket] Disconnected. Reconnecting...');
-                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
-                setTimeout(() => { reconnectAttempts++; this.connect(); }, delay);
+            currentSocket.onclose = (event) => {
+                if (currentSocket !== ws) return;
+                authenticated = false;
+                ws = null;
+                stopHealthChecks();
+                const code = event && event.code != null ? event.code : 'unknown';
+                const reason = event && event.reason ? event.reason : 'no reason';
+                console.log(`[Socket] Disconnected: code=${code}, reason=${reason}`);
+                scheduleReconnect(`close code=${code}`);
             };
 
-            ws.onerror = (err) => {
+            currentSocket.onerror = (err) => {
+                if (currentSocket !== ws) return;
                 console.error('[Socket] Error:', err);
             };
         },
@@ -89,10 +254,10 @@
         },
 
         send: (data) => {
-            if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
+            return sendRaw(data);
         },
 
-        isConnected: () => ws && ws.readyState === 1
+        isConnected: () => Boolean(ws && ws.readyState === OPEN && authenticated)
     };
 
     OGZ.register('Socket', Socket);
