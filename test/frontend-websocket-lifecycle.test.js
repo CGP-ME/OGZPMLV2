@@ -229,4 +229,66 @@ describe('frontend websocket lifecycle', () => {
 
     expect(onPrice).toHaveBeenCalledTimes(2);
   });
+
+  test('dedupes handler registration and unregisters by callback', () => {
+    const harness = createHarness();
+    const onPrice = jest.fn();
+    const onTrade = jest.fn();
+    const socket = openAndAuthenticate(harness);
+
+    expect(harness.Socket.registerHandler('price', onPrice)).toBe(true);
+    expect(harness.Socket.registerHandler('price', onPrice)).toBe(true);
+    expect(harness.Socket.registerHandler('price', onTrade)).toBe(true);
+
+    socket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71000 } });
+    expect(onPrice).toHaveBeenCalledTimes(1);
+    expect(onTrade).toHaveBeenCalledTimes(1);
+
+    expect(harness.Socket.unregisterHandler('price', onPrice)).toBe(true);
+    socket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71001 } });
+    expect(onPrice).toHaveBeenCalledTimes(1);
+    expect(onTrade).toHaveBeenCalledTimes(2);
+    expect(harness.Socket.unregisterHandler('price', onPrice)).toBe(false);
+  });
+
+  test('does not duplicate a re-registered handler after reconnect', () => {
+    const harness = createHarness();
+    const onPrice = jest.fn();
+    harness.Socket.registerHandler('price', onPrice);
+
+    const firstSocket = openAndAuthenticate(harness);
+    firstSocket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71000 } });
+
+    jest.advanceTimersByTime(45000);
+    jest.advanceTimersByTime(1000);
+
+    harness.Socket.registerHandler('price', onPrice);
+
+    const secondSocket = harness.instances[1];
+    secondSocket.open();
+    secondSocket.receive({ type: 'auth_success' });
+    secondSocket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71001 } });
+
+    expect(onPrice).toHaveBeenCalledTimes(2);
+  });
+
+  test('dispatches over a handler snapshot when callbacks unregister during a frame', () => {
+    const harness = createHarness();
+    const socket = openAndAuthenticate(harness);
+    const second = jest.fn();
+    const first = jest.fn(() => {
+      harness.Socket.unregisterHandler('price', first);
+    });
+
+    harness.Socket.registerHandler('price', first);
+    harness.Socket.registerHandler('price', second);
+
+    socket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71000 } });
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+
+    socket.receive({ type: 'price', data: { symbol: 'BTC-USD', price: 71001 } });
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
+  });
 });

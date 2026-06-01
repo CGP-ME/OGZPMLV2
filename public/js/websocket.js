@@ -225,7 +225,7 @@
 
                     // Dispatch to registered handlers
                     const handlerList = handlers.get(data.type);
-                    if (handlerList) handlerList.forEach(cb => cb(data));
+                    if (handlerList) handlerList.slice().forEach(cb => cb(data));
                 } catch (err) {
                     console.error('[Socket] Parse error:', err);
                 }
@@ -249,8 +249,22 @@
         },
 
         registerHandler: (type, cb) => {
+            if (!type || typeof cb !== 'function') return false;
             if (!handlers.has(type)) handlers.set(type, []);
-            handlers.get(type).push(cb);
+            const handlerList = handlers.get(type);
+            if (!handlerList.includes(cb)) handlerList.push(cb);
+            return true;
+        },
+
+        unregisterHandler: (type, cb) => {
+            if (!type || typeof cb !== 'function') return false;
+            const handlerList = handlers.get(type);
+            if (!handlerList) return false;
+            const next = handlerList.filter(handler => handler !== cb);
+            if (next.length === handlerList.length) return false;
+            if (next.length === 0) handlers.delete(type);
+            else handlers.set(type, next);
+            return true;
         },
 
         send: (data) => {
