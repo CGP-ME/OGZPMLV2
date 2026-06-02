@@ -90,6 +90,29 @@ describe('DecisionLedgerSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  test('preserves explicit null structural exit fields instead of blocking trade birth', () => {
+    const ledger = validLedger({
+      exitContract: {
+        strategyName: 'NoWickImbalance',
+        stopLossPercent: -1.5,
+        takeProfitPercent: 1.5,
+        trailingStopPercent: null,
+        trailingActivation: null,
+        maxHoldTimeMinutes: 240,
+        minConfidence: null,
+        useStructuralExits: true,
+        atrMinPercent: null,
+        invalidationConditions: [],
+        _validated: null,
+      },
+    });
+
+    expect(ledger.exitContract.strategyName).toBe('NoWickImbalance');
+    expect(ledger.exitContract.trailingStopPercent).toBeNull();
+    expect(ledger.exitContract.trailingActivation).toBeNull();
+    expect(ledger.exitContract._validated).toBeNull();
+  });
+
   test('reports malformed indicatorValues as validation issues instead of throwing', () => {
     const ledger = validLedger();
     ledger.strategySignals = [{

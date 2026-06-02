@@ -45,10 +45,10 @@ const ExitContractSchema = z.object({
   strategyName: z.string(),
   stopLossPercent: z.number(),
   takeProfitPercent: z.number(),
-  trailingStopPercent: z.number().optional(),
-  trailingActivation: z.number().optional(),
+  trailingStopPercent: z.number().nullable().optional(),
+  trailingActivation: z.number().nullable().optional(),
   maxHoldTimeMinutes: z.number().optional(),
-  _validated: z.string().optional(),
+  _validated: z.string().nullable().optional(),
 }).passthrough();
 
 /**

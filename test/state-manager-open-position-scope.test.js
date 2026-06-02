@@ -183,6 +183,48 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
   });
 
+  test('opens a scoped structural-exit trade with explicit null trailing fields', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      orderId: 'OPEN_NOWICK_1',
+      entryStrategy: 'NoWickImbalance',
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData({
+        strategySignals: [{
+          name: 'NoWickImbalance',
+          direction: 'long',
+          baseConfidence: 0.7,
+          reason: 'NoWick structural exit signal',
+        }],
+        orchestratorDecision: {
+          winnerStrategy: 'NoWickImbalance',
+          finalConfidence: 0.7,
+          reason: 'NoWickImbalance selected',
+        },
+        exitContract: {
+          strategyName: 'NoWickImbalance',
+          stopLossPercent: -1.5,
+          takeProfitPercent: 1.5,
+          trailingStopPercent: null,
+          trailingActivation: null,
+          maxHoldTimeMinutes: 240,
+          minConfidence: null,
+          useStructuralExits: true,
+          atrMinPercent: null,
+          invalidationConditions: [],
+          _validated: null,
+        },
+      }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(1);
+    const trade = manager.get('activeTrades').get('OPEN_NOWICK_1');
+    expect(trade.decisionLedger.exitContract.strategyName).toBe('NoWickImbalance');
+    expect(trade.decisionLedger.exitContract.trailingStopPercent).toBeNull();
+    expect(trade.decisionLedger.exitContract.trailingActivation).toBeNull();
+    expect(trade.decisionLedger.exitContract._validated).toBeNull();
+  });
+
   test('rejects incomplete decision ledger evidence before mutating active trades', async () => {
     const beforePositions = manager._buildScopedDashboardPositions(manager.state);
 
