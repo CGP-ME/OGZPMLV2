@@ -730,7 +730,7 @@ class OrderExecutor {
       confidenceMultiplier,
       orchResult
     });
-    if (entryPlan && entryPlan.orderQuantity <= 0 && !this.ctx.backtestMode && !this.ctx.paperTrading) {
+    if (entryPlan && entryPlan.orderQuantity <= 0) {
       console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)}`);
       emitTrace(this.ctx, 'ORDER_BLOCKED', {
         traceId,

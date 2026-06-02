@@ -402,6 +402,43 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
+  test('backtest stock entry rejects zero-share order plan before simulated execution or state side effects', async () => {
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      1000,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'non_positive_order_quantity',
+      symbol: 'TSLA',
+      action: 'BUY',
+      quantityUnit: 'shares',
+      orderQuantity: 0,
+      sizeUsd: 500,
+    }));
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(MaxProfitManager).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('planned shares quantity=0'));
+  });
+
   test('threads trace identity through entry gate, broker request, and state open', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
