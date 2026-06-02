@@ -41,12 +41,14 @@ jest.mock('../core/MaxProfitManager', () => {
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
     trade: jest.fn(),
+    explanation: jest.fn(),
   },
 }));
 
 const OrderExecutor = require('../core/OrderExecutor');
 const MaxProfitManager = require('../core/MaxProfitManager');
 const { getNarrator } = require('../core/TradeNarrator');
+const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 
 function makeExecutor(config = {}, ctx = {}) {
   return new OrderExecutor({
@@ -788,6 +790,65 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
+  test('live stock cover partial fill reduces short state by accepted broker quantity', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeShortTrade()]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_COVER_PARTIAL_FILL', price: 120, qty: 4 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'COVER', confidence: 100, tradeId: 'SHORT_1', exitReason: 'partial_fill_cover' },
+      { totalConfidence: 100 },
+      120,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 6,
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 400,
+      orderQuantity: 4,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'SHORT_1',
+      4 / 6,
+      120,
+      expect.objectContaining({
+        orderId: 'SHORT_1',
+        exitReason: 'partial_fill_cover',
+        direction: 'short',
+        orderQuantity: 4,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(TradingProofLogger.trade).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'COVER',
+      size: 400,
+      value_usd: 400,
+      pnl: -80,
+    }));
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  });
+
   test('live stock partial exit reduces state by actual routed share fraction', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -828,6 +889,104 @@ describe('OrderExecutor pause gate', () => {
       'BUY_1',
       0.4,
       125,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 2,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  });
+
+  test('live stock partial exit reduces state by accepted broker quantity', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_EXIT_PARTIAL_FILL', price: 125, qty: 2 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.6 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 3,
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 200,
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      0.4,
+      125,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 2,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  });
+
+  test('backtest stock partial exit uses planned share fraction instead of raw requested fraction', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.5 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 200,
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      0.4,
+      125 * (1 - 0.0005),
       expect.objectContaining({
         orderId: 'BUY_1',
         exitReason: 'tier_exit',
@@ -979,6 +1138,116 @@ describe('OrderExecutor pause gate', () => {
       amount: 5,
       options: expect.objectContaining({ quantityUnit: 'shares' }),
     }));
+  });
+
+  test('live stock buy opens state with accepted broker quantity size', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_BUY_PARTIAL_FILL', price: 100, qty: 3 });
+    const executor = makeExecutor(
+      { executionMode: 'live', assetClass: 'stocks' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 5,
+      options: expect.objectContaining({ sizeUsd: 500, quantityUnit: 'shares' }),
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 300,
+      orderQuantity: 3,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      300,
+      100,
+      expect.objectContaining({
+        action: 'BUY',
+        direction: 'long',
+        entryOrderQuantity: 3,
+        remainingOrderQuantity: 3,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantityUnit: 'shares',
+      })
+    );
+  });
+
+  test('live stock sell short opens state with accepted broker quantity size', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_SHORT_PARTIAL_FILL', price: 100, qty: 4 });
+    const executor = makeExecutor(
+      { executionMode: 'live', assetClass: 'stocks' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 5,
+      options: expect.objectContaining({ sizeUsd: 500, quantityUnit: 'shares' }),
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 400,
+      orderQuantity: 4,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      400,
+      100,
+      expect.objectContaining({
+        action: 'SELL_SHORT',
+        direction: 'short',
+        entryOrderQuantity: 4,
+        remainingOrderQuantity: 4,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantityUnit: 'shares',
+      })
+    );
+  });
+
+  test('accepted order quantity rejects broker amount that differs from planned quantity', () => {
+    const executor = makeExecutor();
+
+    expect(() => executor._acceptedOrderQuantity({ amount: 500 }, 3))
+      .toThrow('broker amount 500 differs from planned quantity 3');
+    expect(() => executor._acceptedOrderQuantity({ amount: 2 }, 3))
+      .toThrow('broker amount 2 differs from planned quantity 3');
+    expect(executor._acceptedOrderQuantity({ qty: 2 }, 3)).toBe(2);
+    expect(executor._acceptedOrderQuantity({ amount: 3 }, 3)).toBe(3);
+    expect(executor._acceptedOrderQuantity({}, 3)).toBe(3);
   });
 
   test('live broker quantity planning rejects unsupported asset classes before routing', async () => {

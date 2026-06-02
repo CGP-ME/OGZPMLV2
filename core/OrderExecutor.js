@@ -123,11 +123,41 @@ class OrderExecutor {
   }
 
   _acceptedOrderQuantity(orderResult, plannedQuantity) {
-    const brokerQuantity = Number(orderResult?.amount ?? orderResult?.qty ?? orderResult?.quantity);
+    if (!Number.isFinite(plannedQuantity) || plannedQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] planned order quantity invalid: ${plannedQuantity}`);
+    }
+    const tolerance = Math.max(Math.abs(plannedQuantity) * 1e-8, 1e-12);
+    const explicitQuantity = Number(orderResult?.qty ?? orderResult?.quantity);
+    if (Number.isFinite(explicitQuantity) && explicitQuantity > 0) {
+      if (explicitQuantity > plannedQuantity + tolerance) {
+        throw new Error(`[ORDER-PLAN] accepted order quantity ${explicitQuantity} exceeds planned quantity ${plannedQuantity}`);
+      }
+      return explicitQuantity;
+    }
+
+    const brokerQuantity = Number(orderResult?.amount);
     if (Number.isFinite(brokerQuantity) && brokerQuantity > 0) {
+      if (Math.abs(brokerQuantity - plannedQuantity) > tolerance) {
+        throw new Error(`[ORDER-PLAN] broker amount ${brokerQuantity} differs from planned quantity ${plannedQuantity}; refusing to interpret ambiguous amount as quantity`);
+      }
       return brokerQuantity;
     }
     return plannedQuantity;
+  }
+
+  _acceptedOrderSizeUsd(orderPlan, acceptedQuantity) {
+    const plannedQuantity = Number(orderPlan?.orderQuantity);
+    const plannedSizeUsd = Number(orderPlan?.sizeUsd);
+    if (!Number.isFinite(plannedQuantity) || plannedQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] planned order quantity invalid for size resolution: ${plannedQuantity}`);
+    }
+    if (!Number.isFinite(plannedSizeUsd) || plannedSizeUsd <= 0) {
+      throw new Error(`[ORDER-PLAN] planned order USD invalid for size resolution: ${plannedSizeUsd}`);
+    }
+    if (!Number.isFinite(acceptedQuantity) || acceptedQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] accepted order quantity invalid for size resolution: ${acceptedQuantity}`);
+    }
+    return plannedSizeUsd * (acceptedQuantity / plannedQuantity);
   }
 
   _tradeRemainingOrderQuantity(trade) {
@@ -448,6 +478,60 @@ class OrderExecutor {
       exitFraction,
       stateExitFraction,
       exitReason: decision.exitReason || null
+    };
+  }
+
+  _resolveExecutedExitPlan(exitPlan, tradeResult) {
+    if (!exitPlan) return null;
+
+    const orderQuantity = Number(tradeResult?.orderQuantity ?? exitPlan.orderQuantity);
+    if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] accepted exit quantity invalid for ${exitPlan.symbol}: ${orderQuantity}`);
+    }
+    if (!Number.isFinite(exitPlan.remainingOrderQuantity) || exitPlan.remainingOrderQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] remaining exit quantity invalid for ${exitPlan.symbol}: ${exitPlan.remainingOrderQuantity}`);
+    }
+    if (!Number.isFinite(exitPlan.stateExitFraction) || exitPlan.stateExitFraction <= 0) {
+      throw new Error(`[ORDER-PLAN] planned exit fraction invalid for ${exitPlan.symbol}: ${exitPlan.stateExitFraction}`);
+    }
+
+    const stateExitFraction = Math.min(1, orderQuantity / exitPlan.remainingOrderQuantity);
+    if (!Number.isFinite(stateExitFraction) || stateExitFraction <= 0) {
+      throw new Error(`[ORDER-PLAN] executed exit fraction invalid for ${exitPlan.symbol}: ${stateExitFraction}`);
+    }
+
+    const fullSizeUsd = exitPlan.sizeUsd / exitPlan.stateExitFraction;
+    if (!Number.isFinite(fullSizeUsd) || fullSizeUsd <= 0) {
+      throw new Error(`[ORDER-PLAN] full exit USD invalid for ${exitPlan.symbol}: ${fullSizeUsd}`);
+    }
+
+    return {
+      ...exitPlan,
+      plannedOrderQuantity: exitPlan.orderQuantity,
+      orderQuantity,
+      sizeUsd: fullSizeUsd * stateExitFraction,
+      stateExitFraction,
+    };
+  }
+
+  _resolveExecutedEntryPlan(entryPlan, tradeResult) {
+    if (!entryPlan) return null;
+
+    const orderQuantity = Number(tradeResult?.orderQuantity ?? entryPlan.orderQuantity);
+    const sizeUsd = Number(tradeResult?.amount ?? entryPlan.sizeUsd);
+    if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
+      throw new Error(`[ORDER-PLAN] accepted entry quantity invalid for ${entryPlan.symbol}: ${orderQuantity}`);
+    }
+    if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
+      throw new Error(`[ORDER-PLAN] accepted entry USD invalid for ${entryPlan.symbol}: ${sizeUsd}`);
+    }
+
+    return {
+      ...entryPlan,
+      plannedOrderQuantity: entryPlan.orderQuantity,
+      orderQuantity,
+      sizeUsd,
+      quantityUnit: tradeResult?.quantityUnit || entryPlan.quantityUnit,
     };
   }
 
@@ -785,14 +869,15 @@ class OrderExecutor {
     const shouldPlanWebhookExit = !this.ctx.backtestMode
       && this.ctx.webhookAdapter?.enabled === true
       && this._isExitAction(decision.action);
-    const exitPlan = (isLiveBrokerRoute || shouldPlanWebhookExit)
+    const isExitAction = this._isExitAction(decision.action);
+    const exitPlan = isExitAction
       ? this._buildExitPlan({ decision, symbol, price })
       : null;
-    if ((isLiveBrokerRoute || shouldPlanWebhookExit) && this._isExitAction(decision.action) && !exitPlan) {
+    if (isExitAction && !exitPlan) {
       const haltReason = decision.action === 'SELL'
         ? 'KILL-5: SELL with no matching BUY'
         : 'KILL-5: COVER with no matching SELL_SHORT';
-      const routeName = isLiveBrokerRoute ? 'broker' : 'webhook';
+      const routeName = isLiveBrokerRoute ? 'broker' : (shouldPlanWebhookExit ? 'webhook' : 'execution');
       console.error(`[ORDER-PLAN] ${haltReason} for ${symbol} before ${routeName} route`);
       await stateManager.haltSymbol(symbol, haltReason);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: haltReason });
@@ -843,7 +928,9 @@ class OrderExecutor {
           success: true,
           orderId: `SIM_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           price: fillPrice,
-          amount: positionSize,
+          amount: brokerOrderPlan?.sizeUsd ?? positionSize,
+          orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
+          quantityUnit: brokerOrderPlan?.quantityUnit ?? null,
           traceId,
           signalId
         };
@@ -885,12 +972,14 @@ class OrderExecutor {
           if (!brokerOrderId) {
             throw new Error(`missing_broker_order_id for ${side} ${symbol}`);
           }
+          const acceptedOrderQuantity = this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity);
+          const acceptedSizeUsd = this._acceptedOrderSizeUsd(brokerOrderPlan, acceptedOrderQuantity);
           tradeResult = {
             success: true,
             orderId: brokerOrderId,
             price: orderResult.price ?? price,
-            amount: positionSize,
-            orderQuantity: this._acceptedOrderQuantity(orderResult, brokerOrderPlan.orderQuantity),
+            amount: acceptedSizeUsd,
+            orderQuantity: acceptedOrderQuantity,
             quantityUnit: brokerOrderPlan.quantityUnit,
             traceId,
             signalId
@@ -905,6 +994,8 @@ class OrderExecutor {
             stateMutationSucceeded: null,
             acceptedOrderQuantity: tradeResult.orderQuantity,
             quantityUnit: tradeResult.quantityUnit,
+            amount: tradeResult.amount,
+            sizeUsd: tradeResult.amount,
           });
         } catch (orderErr) {
           console.error(`Order execution failed: ${orderErr.message}`);
@@ -929,6 +1020,22 @@ class OrderExecutor {
         if (!tradeResult.orderId) {
           throw new Error(`successful_trade_result_missing_order_id for ${decision.action} ${symbol}`);
         }
+        const executedExitPlan = exitPlan
+          ? this._resolveExecutedExitPlan(exitPlan, tradeResult)
+          : null;
+        const executedEntryPlan = entryPlan
+          ? this._resolveExecutedEntryPlan(entryPlan, tradeResult)
+          : null;
+        if (executedExitPlan) {
+          tradeResult.amount = executedExitPlan.sizeUsd;
+          tradeResult.orderQuantity = executedExitPlan.orderQuantity;
+          tradeResult.quantityUnit = executedExitPlan.quantityUnit;
+        }
+        if (executedEntryPlan) {
+          tradeResult.amount = executedEntryPlan.sizeUsd;
+          tradeResult.orderQuantity = executedEntryPlan.orderQuantity;
+          tradeResult.quantityUnit = executedEntryPlan.quantityUnit;
+        }
         // Change 588: Create unified tradeResult format
         const unifiedResult = {
           orderId: tradeResult.orderId,
@@ -938,7 +1045,7 @@ class OrderExecutor {
           decisionId,
           entryPrice: price,
           entryTime: this.ctx.marketData?.timestamp ?? Date.now(),
-          size: positionSize,
+          size: tradeResult.amount ?? positionSize,
           confidence: decision.confidence,
           // CHANGE 648: Store full pattern objects with signatures for learning
           // BUGFIX 2026-02-01: Include features array for pattern outcome recording!
@@ -1013,7 +1120,7 @@ class OrderExecutor {
           const entryStrategy = entryPlan.entryStrategy;
           const sizingMultiplier = entryPlan.sizingMultiplier;
           const exitContract = entryPlan.exitContract;
-          const adjustedPositionSize = entryPlan.sizeUsd;
+          const adjustedPositionSize = executedEntryPlan.sizeUsd;
 
           // PERMANENT TRADE RECEIPT - shows actual dollars/percent on EVERY trade (live, paper, backtest)
           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
@@ -1102,7 +1209,7 @@ class OrderExecutor {
           const stateAfter = stateManager.getState();
 
           // CHECKPOINT 6: After position update
-          console.log(`CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${positionSize})`);
+          console.log(`CP6: AFTER BUY - Position: ${stateAfter.position}, Balance: $${stateAfter.balance} (spent $${adjustedPositionSize})`);
           emitTrace(this.ctx, 'STATE_MUTATION', {
             traceId,
             signalId,
@@ -1134,20 +1241,20 @@ class OrderExecutor {
               direction: 'BUY',
               asset: this.ctx.config.symbol || 'BTC',
               price: price,
-              size: positionSize / stateAfter.balance,
+              size: adjustedPositionSize / stateAfter.balance,
               confidence: decision.confidence / 100
             }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
             // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
-            this.ctx.discordNotifier.notifyTrade('buy', price, positionSize);
+            this.ctx.discordNotifier.notifyTrade('buy', price, adjustedPositionSize);
 
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
             // a slow/failed webhook must never stall the trading loop. BUY opens
             // a long; broker-side action is 'buy'. Quantity comes from the
             // order plan: integer shares for stocks, fractional base for crypto.
             if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = entryPlan.orderQuantity;
-              const quantityUnit = entryPlan.quantityUnit;
+              const orderQuantity = executedEntryPlan.orderQuantity;
+              const quantityUnit = executedEntryPlan.quantityUnit;
               const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
               if (blockReason) {
                 // Skip emit on known-bad signal. Drift between internal
@@ -1161,7 +1268,7 @@ class OrderExecutor {
                   quantity: orderQuantity,
                   quantityUnit,
                   orderType: 'market',
-                }, { traceId, signalId, decisionId, ...entryPlan });
+                }, { traceId, signalId, decisionId, ...executedEntryPlan });
               }
             }
           }
@@ -1171,7 +1278,7 @@ class OrderExecutor {
             const exitTracking = this.ctx.patternExitModel.startTracking({
               entryPrice: price,
               direction: 'buy',
-              size: positionSize,
+              size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
               entryTime: this.ctx.marketData?.timestamp ?? Date.now()
@@ -1237,7 +1344,7 @@ class OrderExecutor {
           const entryStrategy = entryPlan.entryStrategy;
           const sizingMultiplier = entryPlan.sizingMultiplier;
           const exitContract = entryPlan.exitContract;
-          const adjustedPositionSize = entryPlan.sizeUsd;
+          const adjustedPositionSize = executedEntryPlan.sizeUsd;
 
           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
           const actualDollars = adjustedPositionSize;
@@ -1350,17 +1457,17 @@ class OrderExecutor {
               direction: 'SELL_SHORT',
               asset: this.ctx.config.symbol || 'BTC',
               price: price,
-              size: positionSize / stateAfter.balance,
+              size: adjustedPositionSize / stateAfter.balance,
               confidence: decision.confidence / 100
             }).catch(err => console.warn(`Telegram notify failed: ${err.message}`));
 
-            this.ctx.discordNotifier.notifyTrade('sell_short', price, positionSize);
+            this.ctx.discordNotifier.notifyTrade('sell_short', price, adjustedPositionSize);
 
             // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
             // SELL_SHORT opens a short; broker-side action is 'sell'.
             if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = entryPlan.orderQuantity;
-              const quantityUnit = entryPlan.quantityUnit;
+              const orderQuantity = executedEntryPlan.orderQuantity;
+              const quantityUnit = executedEntryPlan.quantityUnit;
               const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
               if (blockReason) {
                 // Skip emit on known-bad signal. Drift between internal
@@ -1374,7 +1481,7 @@ class OrderExecutor {
                   quantity: orderQuantity,
                   quantityUnit,
                   orderType: 'market',
-                }, { traceId, signalId, decisionId, ...entryPlan });
+                }, { traceId, signalId, decisionId, ...executedEntryPlan });
               }
             }
           }
@@ -1384,7 +1491,7 @@ class OrderExecutor {
             const exitTracking = this.ctx.patternExitModel.startTracking({
               entryPrice: price,
               direction: 'sell',
-              size: positionSize,
+              size: adjustedPositionSize,
               patterns: patterns || [],
               confidence: decision.confidence / 100,
               entryTime: this.ctx.marketData?.timestamp ?? Date.now()
@@ -1585,13 +1692,16 @@ class OrderExecutor {
               fraction = decision.exitFraction;
             }
             let closeResult;
-            const stateExitFraction = exitPlan?.stateExitFraction ?? fraction;
-            if (isPartialClose) {
+            const stateExitFraction = executedExitPlan?.stateExitFraction ?? fraction;
+            const stateExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
+            const stateExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
+            const statePartialClose = isPartialClose || Boolean(executedExitPlan && stateExitFraction < 1);
+            if (statePartialClose) {
               closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
                 orderId: buyTrade.orderId,
                 exitReason: decision.exitReason || 'signal',
-                orderQuantity: exitPlan?.orderQuantity,
-                quantityUnit: exitPlan?.quantityUnit,
+                orderQuantity: stateExitOrderQuantity,
+                quantityUnit: stateExitQuantityUnit,
                 traceId,
                 signalId,
                 decisionId
@@ -1615,12 +1725,12 @@ class OrderExecutor {
                 symbol,
                 action: decision.action,
                 success: false,
-                operation: isPartialClose ? 'reducePosition' : 'closePosition',
+                operation: statePartialClose ? 'reducePosition' : 'closePosition',
                 orderId: buyTrade.orderId,
                 error: closeResult.error,
               });
               return blockedReturn('state_close_failed', {
-                operation: isPartialClose ? 'reducePosition' : 'closePosition',
+                operation: statePartialClose ? 'reducePosition' : 'closePosition',
                 orderId: buyTrade.orderId,
                 orderAccepted: true,
                 stateMutationSucceeded: false,
@@ -1637,7 +1747,7 @@ class OrderExecutor {
               symbol,
               action: decision.action,
               success: true,
-              operation: isPartialClose ? 'reducePosition' : 'closePosition',
+              operation: statePartialClose ? 'reducePosition' : 'closePosition',
               orderId: buyTrade.orderId,
               position: afterSellState.position,
               balance: afterSellState.balance,
@@ -1652,7 +1762,7 @@ class OrderExecutor {
             // notifyTradeClose/Discord/explanation strings (all paths skipped under
             // BACKTEST_FAST or with TRAI disabled, which is why anchor was unaffected).
             // Correct formula for USD-denominated position: pnl = usd × (priceDelta / entry).
-            const usdAmount = positionAmount;
+            const usdAmount = statePartialClose && executedExitPlan ? executedExitPlan.sizeUsd : positionAmount;
             const sellValue = usdAmount;  // already USD — for display
             const profitLoss = buyTrade.entryPrice > 0
               ? usdAmount * ((price - buyTrade.entryPrice) / buyTrade.entryPrice)
@@ -1676,15 +1786,15 @@ class OrderExecutor {
               // SELL closes a long; broker-side action is 'sell'. Partial-aware:
               // emit the REDUCED USD when reducePosition handled a partial close.
               if (this.ctx.webhookAdapter?.enabled === true) {
-                const exitUsd = isPartialClose ? positionAmount * stateExitFraction : positionAmount;
-                const orderQuantity = exitPlan.orderQuantity;
-                const quantityUnit = exitPlan.quantityUnit;
+                const exitUsd = statePartialClose ? usdAmount : positionAmount;
+                const orderQuantity = stateExitOrderQuantity;
+                const quantityUnit = stateExitQuantityUnit;
                 const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
                 if (blockReason) {
                   // Skip emit on known-bad signal. Drift between internal
                   // position and broker is real and operator-visible, but sending
                   // a non-routable quantity only adds vendor rejection noise.
-                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${isPartialClose ? 'partial' : 'full'} exit quantity=${orderQuantity} ${quantityUnit} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
+                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${statePartialClose ? 'partial' : 'full'} exit quantity=${orderQuantity} ${quantityUnit} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
                 } else {
                   this._emitWebhookOrder('SELL', {
                     action: 'sell',
@@ -1693,7 +1803,7 @@ class OrderExecutor {
                     quantityUnit,
                     orderType: 'market',
                     bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                  }, { traceId, signalId, decisionId, ...exitPlan });
+                  }, { traceId, signalId, decisionId, ...executedExitPlan });
                 }
               }
             }
@@ -1738,8 +1848,8 @@ class OrderExecutor {
               entryPrice: buyTrade.entryPrice,
               pnl: completeTradeResult.pnlDollars,
               pnlPercent: pnl,
-              isPartialClose: isPartialClose,
-              partialFraction: isPartialClose ? fraction : null,
+              isPartialClose: statePartialClose,
+              partialFraction: statePartialClose ? stateExitFraction : null,
               exitReason: completeTradeResult.exitReason || 'signal'
             });
 
@@ -2053,12 +2163,15 @@ class OrderExecutor {
           const pnl = ((shortTrade.entryPrice - price) / shortTrade.entryPrice) * 100;
           const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
           const holdDuration = exitTimestamp - shortTrade.entryTime;
+          const coverExitSizeUsd = executedExitPlan?.sizeUsd ?? Math.abs(shortTrade.sizeUsd || shortTrade.size || 0);
 
           const completeTradeResult = {
             ...shortTrade,
             traceId,
             signalId,
             decisionId,
+            size: coverExitSizeUsd,
+            sizeUsd: coverExitSizeUsd,
             exitPrice: price,
             exitTime: exitTimestamp,
             pnl: pnl,
@@ -2068,7 +2181,7 @@ class OrderExecutor {
               if (!(shortTrade.entryPrice > 0)) {
                 throw new Error(`[MED-02] SHORT exit: shortTrade.entryPrice non-positive (got ${shortTrade.entryPrice}) — refusing to log phantom \$0 P&L`);
               }
-              return shortTrade.size * ((shortTrade.entryPrice - price) / shortTrade.entryPrice);
+              return coverExitSizeUsd * ((shortTrade.entryPrice - price) / shortTrade.entryPrice);
             })(),
             holdDuration: holdDuration,
             exitReason: decision.exitReason || 'signal'
@@ -2084,7 +2197,7 @@ class OrderExecutor {
               exitPrice: price,
               stopLoss: shortTrade.exitContract?.stopLossPercent || 0,
               takeProfit: shortTrade.exitContract?.takeProfitPercent || 0,
-              size: shortTrade.size || 1,
+              size: coverExitSizeUsd,
               // MED-03: SHORT exit symmetric warn — same state-persistence
               // concern as BUY exit at :669-675.
               ...(shortTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — state corruption between open and close`); })()),
@@ -2121,15 +2234,33 @@ class OrderExecutor {
 
           // Close position
           const positionState = stateManager.getState();
-          const shortSize = Math.abs(positionState.position);
-          const closeResult = await stateManager.closePosition(price, false, null, {
-            orderId: shortTrade.orderId,
-            exitReason: decision.exitReason || 'signal',
-            direction: 'short',
-            traceId,
-            signalId,
-            decisionId
-          });
+          const coverStateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
+          const coverStatePartialClose = Boolean(executedExitPlan && coverStateExitFraction < 1);
+          const coverStateOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
+          const coverStateQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
+          const shortSize = coverExitSizeUsd;
+          let closeResult;
+          if (coverStatePartialClose) {
+            closeResult = await stateManager.reducePosition(shortTrade.orderId, coverStateExitFraction, price, {
+              orderId: shortTrade.orderId,
+              exitReason: decision.exitReason || 'signal',
+              direction: 'short',
+              orderQuantity: coverStateOrderQuantity,
+              quantityUnit: coverStateQuantityUnit,
+              traceId,
+              signalId,
+              decisionId
+            });
+          } else {
+            closeResult = await stateManager.closePosition(price, false, null, {
+              orderId: shortTrade.orderId,
+              exitReason: decision.exitReason || 'signal',
+              direction: 'short',
+              traceId,
+              signalId,
+              decisionId
+            });
+          }
 
           if (!closeResult.success) {
             console.error('StateManager.closePosition (COVER) failed:', closeResult.error);
@@ -2139,12 +2270,12 @@ class OrderExecutor {
               symbol,
               action: decision.action,
               success: false,
-              operation: 'closePosition',
+              operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
               orderId: shortTrade.orderId,
               error: closeResult.error,
             });
             return blockedReturn('state_close_failed', {
-              operation: 'closePosition',
+              operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
               orderId: shortTrade.orderId,
               orderAccepted: true,
               stateMutationSucceeded: false,
@@ -2159,12 +2290,12 @@ class OrderExecutor {
             symbol,
             action: decision.action,
             success: true,
-            operation: 'closePosition',
+            operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
             orderId: shortTrade.orderId,
             position: afterCoverState.position,
             balance: afterCoverState.balance,
           });
-          const profitLoss = shortSize * (shortTrade.entryPrice - price);
+          const profitLoss = completeTradeResult.pnlDollars;
           console.log(`CP8-COVER: COVER COMPLETE - New Balance: $${afterCoverState.balance} (P&L: $${profitLoss.toFixed(2)})`);
 
           // Notifications
@@ -2183,8 +2314,8 @@ class OrderExecutor {
             // a slow/failed webhook must never stall the trading loop. COVER closes
             // a short, so the broker-side action is 'buy'.
             if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = exitPlan.orderQuantity;
-              const quantityUnit = exitPlan.quantityUnit;
+              const orderQuantity = coverStateOrderQuantity;
+              const quantityUnit = coverStateQuantityUnit;
               const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
               if (blockReason) {
                 // Skip emit on known-bad signal. Drift between internal
@@ -2199,7 +2330,7 @@ class OrderExecutor {
                   quantityUnit,
                   orderType: 'market',
                   bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                }, { traceId, signalId, decisionId, ...exitPlan });
+                }, { traceId, signalId, decisionId, ...executedExitPlan });
               }
             }
           }
@@ -2233,7 +2364,7 @@ class OrderExecutor {
               entryPrice: shortTrade.entryPrice || shortTrade.price,
               exitPrice: price,
               currentPrice: price,
-              size: shortTrade.size,
+              size: shortSize,
               pnl: completeTradeResult.pnlDollars,
               pnlPercent: pnl,
               fees: shortSize * TradingConfig.get('fees.totalRoundTrip'),
@@ -2255,7 +2386,7 @@ class OrderExecutor {
               },
               patternType: shortTrade.patterns?.[0]?.name || null,
               patternConfidence: shortTrade.patterns?.[0]?.confidence ?? null,
-              positionSize: shortTrade.size,
+              positionSize: shortSize,
               riskPercent: (() => {
                 const balance = Number(stateManager.get('balance'));
                 return Number.isFinite(balance) && balance > 0
@@ -2398,7 +2529,7 @@ class OrderExecutor {
         const performanceData = {
           type: decision.action,
           price,
-          size: positionSize,
+          size: tradeResult.amount ?? positionSize,
           confidence: decision.confidence,
           timestamp: Date.now(),
           result: tradeResult
@@ -2409,7 +2540,7 @@ class OrderExecutor {
         // CHANGE 650: REMOVED DUPLICATE TRAI STORAGE - Already properly stored at line 853-861
         // This was overwriting the complete data with incomplete data
 
-        console.log(`${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${positionSize.toFixed(2)}\n`);
+        console.log(`${decision.action} executed: ${tradeResult.orderId || 'SIMULATED'} | Size: $${(tradeResult.amount ?? positionSize).toFixed(2)}\n`);
         return executionReturn(true, {
           orderId: tradeResult.orderId,
           orderAccepted: true,
