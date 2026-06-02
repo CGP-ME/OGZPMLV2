@@ -715,6 +715,9 @@ class OrderExecutor {
         throw new Error('[HIGH-08] SHORT entry: orchResult.exitContract missing — Fix 7 regression or orchestrator upstream bug');
       }
     }
+    if (this._isEntryAction(decision.action)) {
+      MaxProfitManager.resolveContractStopPercent(orchResult.exitContract);
+    }
 
     const entryPlan = this._buildEntryPlan({
       decision,
@@ -1118,7 +1121,8 @@ class OrderExecutor {
           mpmInstance.start(price, 'buy', adjustedPositionSize, {
             volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
-            trend: indicators.trend || 'sideways'
+            trend: indicators.trend || 'sideways',
+            exitContract
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmInstance);
           console.log(`MaxProfitManager started for trade ${unifiedResult.orderId} - tracking profit targets`);
@@ -1334,7 +1338,8 @@ class OrderExecutor {
           mpmShortInstance.start(price, 'sell', adjustedPositionSize, {
             volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
-            trend: indicators.trend || 'sideways'
+            trend: indicators.trend || 'sideways',
+            exitContract
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmShortInstance);
           console.log(`MaxProfitManager started (SHORT) for trade ${unifiedResult.orderId} - tracking profit targets`);

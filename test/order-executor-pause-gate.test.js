@@ -21,9 +21,22 @@ jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
 
-jest.mock('../core/MaxProfitManager', () => jest.fn().mockImplementation(() => ({
-  start: jest.fn(),
-})));
+jest.mock('../core/MaxProfitManager', () => {
+  const MockMaxProfitManager = jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+  }));
+  MockMaxProfitManager.resolveContractStopPercent = jest.fn((exitContract) => {
+    const rawStopLossPercent = Number(exitContract?.stopLossPercent);
+    if (!Number.isFinite(rawStopLossPercent) || rawStopLossPercent === 0) {
+      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent missing/invalid (got ${exitContract?.stopLossPercent})`);
+    }
+    if (rawStopLossPercent > 0) {
+      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent must be negative risk distance (got ${exitContract.stopLossPercent})`);
+    }
+    return -rawStopLossPercent / 100;
+  });
+  return MockMaxProfitManager;
+});
 
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
@@ -32,6 +45,7 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
 }));
 
 const OrderExecutor = require('../core/OrderExecutor');
+const MaxProfitManager = require('../core/MaxProfitManager');
 const { getNarrator } = require('../core/TradeNarrator');
 
 function makeExecutor(config = {}, ctx = {}) {
@@ -244,6 +258,7 @@ describe('OrderExecutor pause gate', () => {
     });
     const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_1', price: 100 });
     const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const orchResult = makeOrchResult();
     const executor = makeExecutor(
       { executionMode: 'live' },
       {
@@ -260,7 +275,7 @@ describe('OrderExecutor pause gate', () => {
       { rsi: 55, macd: {}, trend: 'sideways' },
       [],
       null,
-      makeOrchResult(),
+      orchResult,
       'TSLA'
     );
 
@@ -290,6 +305,15 @@ describe('OrderExecutor pause gate', () => {
         entryOrderQuantityUnit: 'shares',
         remainingOrderQuantity: 5,
         remainingOrderQuantityUnit: 'shares',
+      })
+    );
+    expect(MaxProfitManager).toHaveBeenCalledTimes(1);
+    expect(MaxProfitManager.mock.results[0].value.start).toHaveBeenCalledWith(
+      100,
+      'buy',
+      500,
+      expect.objectContaining({
+        exitContract: orchResult.exitContract,
       })
     );
   });
@@ -341,6 +365,41 @@ describe('OrderExecutor pause gate', () => {
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
+  });
+
+  test('malformed entry exit contract fails before broker, gate, webhook, or state side effects', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn();
+    const webhookAdapter = { emit: jest.fn() };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        webhookAdapter,
+        preOrderEntryGate,
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ exitContract: { stopLossPercent: 0.5, takeProfitPercent: 1 } }),
+      'TSLA'
+    )).rejects.toThrow(/must be negative risk distance/);
+
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+    expect(sendOrder).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
   test('threads trace identity through entry gate, broker request, and state open', async () => {

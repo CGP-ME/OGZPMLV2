@@ -249,6 +249,7 @@ class MaxProfitManager {
    * @param {number} options.volatility - Current market volatility
    * @param {string} options.marketCondition - Market condition ('trending', 'ranging', etc.)
    * @param {number} options.confidence - Trade confidence score
+   * @param {Object} options.exitContract - Orchestrator exit contract selected for this trade
    * 
    * @returns {Object} - Initialization result with stop prices and targets
    */
@@ -283,6 +284,8 @@ class MaxProfitManager {
       return { success: false, error: 'Invalid direction' };
     }
 
+    const initialStopPercent = this.resolveInitialStopPercent(options);
+
     // ====================================================================
     // STATE INITIALIZATION
     // ====================================================================
@@ -309,7 +312,7 @@ class MaxProfitManager {
       totalFeesEstimated: 0,
       // ═══ PATCH 1: Add state fields for consolidated exit logic ═══
       maxProfitPercent: 0,
-      initialStopPercent: null,
+      initialStopPercent,
       beScaleOutFired: false,
       // Narrator correlation: optional tradeId stashed from caller options.
       // Used only for narrator output; does not affect any trading logic.
@@ -347,7 +350,7 @@ class MaxProfitManager {
     // ====================================================================
     // INITIAL STOP LOSS SETUP
     // ====================================================================
-    const stopDistance = this.config.initialStopLossPercent * volatilityAdjustment.stopFactor;
+    const stopDistance = initialStopPercent * volatilityAdjustment.stopFactor;
     
     if (direction === 'buy') {
       this.state.currentStop = entryPrice * (1 - stopDistance);
@@ -390,6 +393,35 @@ class MaxProfitManager {
       })),
       volatilityAdjustment: volatilityAdjustment
     };
+  }
+
+  resolveInitialStopPercent(options = {}) {
+    if (!Object.prototype.hasOwnProperty.call(options, 'exitContract') || options.exitContract == null) {
+      return this.config.initialStopLossPercent;
+    }
+
+    return MaxProfitManager.resolveContractStopPercent(options.exitContract);
+  }
+
+  static resolveContractStopPercent(exitContract) {
+    if (typeof exitContract !== 'object') {
+      throw new Error(`MaxProfitManager.start: options.exitContract invalid (got ${typeof exitContract}) — refusing to use global stop for a malformed trade contract`);
+    }
+
+    const rawStopLossPercent = Number(exitContract.stopLossPercent);
+    if (!Number.isFinite(rawStopLossPercent) || rawStopLossPercent === 0) {
+      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent missing/invalid (got ${exitContract.stopLossPercent}) — refusing to use global stop for a contracted trade`);
+    }
+    if (rawStopLossPercent > 0) {
+      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent must be negative risk distance (got ${exitContract.stopLossPercent})`);
+    }
+
+    const stopPercent = -rawStopLossPercent / 100;
+    if (!Number.isFinite(stopPercent) || stopPercent <= 0 || stopPercent >= 1) {
+      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent out of range (got ${exitContract.stopLossPercent})`);
+    }
+
+    return stopPercent;
   }
   
   /**
