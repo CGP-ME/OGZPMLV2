@@ -906,6 +906,10 @@ class OGZPrimeV14Bot {
       this.kraken = alpacaAdapter;
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
+        const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
+          source: 'session_transition',
+          brokerId: this.sessionRouter?.activeBroker?.id || null,
+        });
         this.stateManager.clearDashboardRuntimeScope();
         try {
           const transitionSymbol = ev.to === 'stocks'
@@ -916,6 +920,8 @@ class OGZPrimeV14Bot {
           }
           const transitionScope = this.getCandleScopeEnvelope({
             brokerId: this.sessionRouter?.activeBroker?.id || null,
+            accountId: brokerIdentity?.accountId,
+            accountIdSource: brokerIdentity?.accountIdSource,
             assetClass: ev.to === 'stocks' ? 'stocks' : ev.to === 'crypto' ? 'crypto' : null,
             timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe,
           });
@@ -1179,6 +1185,7 @@ class OGZPrimeV14Bot {
     // CHANGE 2025-12-13: MOVED TO StateManager - no longer tracked here
     this.pendingTraiDecisions = new Map();
     this.confidenceHistory = [];  // Used for confidence tracking
+    this.brokerAccountIdentities = new Map();
 
     // Debug flags
     this.ohlcDebugCount = 0; // Log first 5 messages for debugging
@@ -1226,6 +1233,7 @@ class OGZPrimeV14Bot {
       tradingPair: this.tradingPair,
       brokerId: resolvedConfig.config.broker.id,
       accountId: resolvedConfig.config.broker.accountId || 'default',
+      accountIdSource: resolvedConfig.config.broker.accountId && resolvedConfig.config.broker.accountId !== 'default' ? 'config' : 'default',
       assetClass: resolvedConfig.config.broker.assetClass,
       executionMode: enableBacktestMode ? 'backtest' : (enableLiveTrading ? 'live' : 'paper'),
       timeframe: this.candleTimeframe,
@@ -1679,7 +1687,13 @@ class OGZPrimeV14Bot {
     // time default (alpacaAdapter) until the first real RTH boundary fires.
     if (this.sessionRouter) {
       await this.sessionRouter.start();
-      if (this.sessionRouter.activeBroker) this.kraken = this.sessionRouter.activeBroker;
+      if (this.sessionRouter.activeBroker) {
+        this.kraken = this.sessionRouter.activeBroker;
+        this.promoteBrokerAccountIdentity(this.kraken, {
+          source: 'session_router_start',
+          brokerId: this.sessionRouter?.activeBroker?.id || null,
+        });
+      }
     }
 
     this.isRunning = true;
@@ -1705,6 +1719,18 @@ class OGZPrimeV14Bot {
         console.log('[MODE] LIVE/PAPER MODE: Connecting to real-time data...');
         // V2 ARCHITECTURE: Connect broker first to load asset pairs
         await this.kraken.connect();
+        const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
+          source: 'broker_connect',
+          brokerId: this.config.brokerId,
+        });
+        if (brokerIdentity) {
+          this.syncDashboardRuntimeScope(this.tradingPair, {
+            brokerId: brokerIdentity.brokerId,
+            accountId: brokerIdentity.accountId,
+            accountIdSource: brokerIdentity.accountIdSource,
+            timeframe: this.candleTimeframe,
+          });
+        }
         await this.hydrateActiveTimeframeFromRest();
         // Subscribe to broker events instead of direct connection
         this.subscribeToMarketData();
@@ -2098,8 +2124,9 @@ class OGZPrimeV14Bot {
         ? 'stocks'
         : null;
     const routerEnabled = this.sessionRouter?.enabled === true;
-    const accountId = overrides.accountId || this.config.accountId;
     const brokerId = overrides.brokerId || this.sessionRouter?.activeBroker?.id || (!routerEnabled ? this.config.brokerId : null);
+    const accountScope = this.resolveBrokerAccountScope(brokerId, overrides);
+    const accountId = accountScope.accountId;
     const assetClass = overrides.assetClass || activeAssetClass || (!routerEnabled ? this.config.assetClass : null);
     const executionMode = overrides.executionMode || this.config.executionMode;
     const timeframe = overrides.timeframe || this.timeframeSelector?.currentTimeframe || this.candleTimeframe || this.config.timeframe || null;
@@ -2108,6 +2135,7 @@ class OGZPrimeV14Bot {
       const missing = [];
       if (!activeSession) missing.push('activeSession');
       if (!brokerId) missing.push('brokerId');
+      if (!accountId || accountScope.accountIdSource === 'default') missing.push('accountId');
       if (!assetClass) missing.push('assetClass');
       if (!executionMode) missing.push('executionMode');
       if (!timeframe) missing.push('timeframe');
@@ -2119,11 +2147,85 @@ class OGZPrimeV14Bot {
     return {
       brokerId,
       accountId,
-      accountIdSource: overrides.accountIdSource || (accountId && accountId !== 'default' ? 'config' : 'default'),
+      accountIdSource: accountScope.accountIdSource,
       assetClass,
       executionMode,
       timeframe,
     };
+  }
+
+  cleanRuntimeAccountId(value) {
+    if (value === null || value === undefined) return null;
+    const cleaned = String(value).trim();
+    return cleaned && cleaned !== 'default' ? cleaned : null;
+  }
+
+  normalizeBrokerId(value) {
+    if (value === null || value === undefined) return null;
+    const cleaned = String(value).trim().toLowerCase();
+    return cleaned || null;
+  }
+
+  brokerIdFromAdapter(adapter, fallback = null) {
+    if (adapter?.id) return this.normalizeBrokerId(adapter.id);
+    if (typeof adapter?.getBrokerName === 'function') return this.normalizeBrokerId(adapter.getBrokerName());
+    return this.normalizeBrokerId(fallback);
+  }
+
+  promoteBrokerAccountIdentity(adapter, context = {}) {
+    const brokerId = this.brokerIdFromAdapter(adapter, context.brokerId);
+    const adapterIdentity = typeof adapter?.getAccountIdentity === 'function'
+      ? adapter.getAccountIdentity()
+      : null;
+    const accountId = this.cleanRuntimeAccountId(adapterIdentity?.accountId || adapter?.accountId);
+    const accountIdSource = adapterIdentity?.accountIdSource
+      || adapterIdentity?.source
+      || (accountId ? 'broker:adapter' : null);
+
+    if (!brokerId || !accountId || accountIdSource === 'default') {
+      if (brokerId) this.brokerAccountIdentities.delete(brokerId);
+      console.warn(`[SCOPE][Account] broker=${brokerId || '(unknown)'} source=${context.source || 'runtime'} has no verified account identity; runtime scope remains incomplete`);
+      return null;
+    }
+
+    const identity = { brokerId, accountId, accountIdSource };
+    this.brokerAccountIdentities.set(brokerId, identity);
+    if (brokerId === this.normalizeBrokerId(this.config?.brokerId)) {
+      this.config.accountId = accountId;
+      this.config.accountIdSource = accountIdSource;
+    }
+    console.log(`[SCOPE][Account] broker=${brokerId} account identity verified source=${accountIdSource}`);
+    return identity;
+  }
+
+  resolveBrokerAccountScope(brokerId, overrides = {}) {
+    const overrideAccountId = this.cleanRuntimeAccountId(overrides.accountId);
+    if (overrideAccountId && overrides.accountIdSource !== 'default') {
+      return {
+        accountId: overrideAccountId,
+        accountIdSource: overrides.accountIdSource || 'scope',
+      };
+    }
+
+    const normalizedBrokerId = this.normalizeBrokerId(brokerId);
+    const storedIdentity = normalizedBrokerId ? this.brokerAccountIdentities.get(normalizedBrokerId) : null;
+    if (storedIdentity?.accountId && storedIdentity.accountIdSource !== 'default') {
+      return {
+        accountId: storedIdentity.accountId,
+        accountIdSource: storedIdentity.accountIdSource,
+      };
+    }
+
+    const configBrokerId = this.normalizeBrokerId(this.config?.brokerId);
+    const configAccountId = this.cleanRuntimeAccountId(this.config?.accountId);
+    if (configAccountId && (!normalizedBrokerId || normalizedBrokerId === configBrokerId)) {
+      return {
+        accountId: configAccountId,
+        accountIdSource: this.config.accountIdSource || 'config',
+      };
+    }
+
+    return { accountId: null, accountIdSource: null };
   }
 
   syncDashboardRuntimeScope(symbol = this.tradingPair, overrides = {}) {

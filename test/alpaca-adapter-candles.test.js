@@ -69,4 +69,62 @@ describe('AlpacaAdapter candle history', () => {
       sort: 'desc',
     }));
   });
+
+  test('captures account identity from verified account response', async () => {
+    axios.get.mockResolvedValue({
+      data: {
+        id: 'alpaca-account-uuid',
+        account_number: 'PA123456',
+        cash: '10000.25',
+        equity: '10050.50',
+        buying_power: '20000.00',
+        portfolio_value: '10050.50',
+        status: 'ACTIVE',
+      },
+    });
+
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+    const balance = await adapter.getBalance();
+
+    expect(balance).toEqual(expect.objectContaining({
+      USD: 10000.25,
+      equity: 10050.50,
+      buyingPower: 20000,
+      portfolioValue: 10050.50,
+      status: 'ACTIVE',
+      accountId: 'alpaca-account-uuid',
+      accountIdSource: 'broker:id',
+    }));
+    expect(adapter.getAccountIdentity()).toEqual({
+      brokerId: 'alpaca',
+      accountId: 'alpaca-account-uuid',
+      accountIdSource: 'broker:id',
+    });
+  });
+
+  test('keeps account identity missing when account response lacks a broker identifier', async () => {
+    axios.get.mockResolvedValue({
+      data: {
+        cash: '10000.25',
+        equity: '10050.50',
+        buying_power: '20000.00',
+        portfolio_value: '10050.50',
+        status: 'ACTIVE',
+      },
+    });
+
+    const adapter = new AlpacaAdapter({
+      apiKey: 'key',
+      apiSecret: 'secret',
+      mode: 'paper',
+      accountId: 'default',
+    });
+    const balance = await adapter.getBalance();
+
+    expect(balance).toEqual(expect.objectContaining({
+      accountId: null,
+      accountIdSource: null,
+    }));
+    expect(adapter.getAccountIdentity()).toBeNull();
+  });
 });

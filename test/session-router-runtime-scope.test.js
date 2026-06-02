@@ -70,6 +70,20 @@ describe('SessionRouter runtime scope propagation', () => {
     };
   }
 
+  function missingAccountEnabledRouterScope() {
+    return {
+      sessionRouter: { enabled: true },
+      getCandleScopeEnvelope: jest.fn(() => ({
+        brokerId: 'alpaca',
+        accountId: null,
+        accountIdSource: null,
+        assetClass: 'stocks',
+        executionMode: 'paper',
+        timeframe: '5m',
+      })),
+    };
+  }
+
   test('TradingLoop pattern scope follows active SessionRouter scope', () => {
     const runner = stockRunnerScope();
     const loop = new TradingLoop({
@@ -172,6 +186,30 @@ describe('SessionRouter runtime scope propagation', () => {
       quantityUnit: 'shares',
       orderQuantity: 2,
     }));
+  });
+
+  test('OrderExecutor refuses static account fallback when SessionRouter account identity is missing', () => {
+    const executor = new OrderExecutor({
+      config: staleCryptoConfig,
+      candleTimeframe: '1m',
+      runner: missingAccountEnabledRouterScope(),
+    });
+
+    expect(() => executor._buildEntryPlan({
+      decision: { action: 'BUY', confidence: 88 },
+      symbol: 'TSLA',
+      price: 100,
+      positionSize: 250,
+      currentBalance: 10000,
+      currentEquity: 10000,
+      tradeConfidence: 0.88,
+      confidenceMultiplier: 1,
+      orchResult: {
+        winnerStrategy: 'ScopeStrategy',
+        sizingMultiplier: 1,
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+      },
+    })).toThrow(/accountId/);
   });
 
   test('OrderExecutor dashboard trade payload fallback uses active SessionRouter scope', () => {

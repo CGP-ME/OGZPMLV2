@@ -45,6 +45,8 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.ws = null;
         this.accountWs = null;
         this.subscriptions = new Map();
+        this.accountId = this._cleanAccountId(config.accountId || process.env.BROKER_ACCOUNT_ID);
+        this.accountIdSource = this.accountId ? 'config' : null;
     }
 
     // =========================================================================
@@ -57,6 +59,25 @@ class AlpacaAdapter extends IBrokerAdapter {
             'APCA-API-SECRET-KEY': this.apiSecret,
             'Content-Type': 'application/json'
         };
+    }
+
+    _cleanAccountId(value) {
+        if (value === null || value === undefined) return null;
+        const cleaned = String(value).trim();
+        return cleaned && cleaned !== 'default' ? cleaned : null;
+    }
+
+    _captureAccountIdentity(accountPayload = {}) {
+        const id = this._cleanAccountId(accountPayload.id);
+        const accountNumber = this._cleanAccountId(accountPayload.account_number || accountPayload.accountNumber);
+        const accountId = id || accountNumber;
+        if (!accountId) {
+            return null;
+        }
+
+        this.accountId = accountId;
+        this.accountIdSource = id ? 'broker:id' : 'broker:account_number';
+        return this.getAccountIdentity();
     }
 
     // =========================================================================
@@ -152,12 +173,15 @@ class AlpacaAdapter extends IBrokerAdapter {
                 headers: this._authHeaders()
             });
             const acct = response.data;
+            const identity = this._captureAccountIdentity(acct);
             return {
                 USD: parseFloat(acct.cash),
                 equity: parseFloat(acct.equity),
                 buyingPower: parseFloat(acct.buying_power),
                 portfolioValue: parseFloat(acct.portfolio_value),
-                status: acct.status
+                status: acct.status,
+                accountId: identity?.accountId || null,
+                accountIdSource: identity?.accountIdSource || null,
             };
         } catch (error) {
             throw new Error(`[Alpaca] Failed to get balance: ${error.message}`);
@@ -532,6 +556,17 @@ class AlpacaAdapter extends IBrokerAdapter {
 
     getBrokerName() {
         return 'alpaca';
+    }
+
+    getAccountIdentity() {
+        if (!this.accountId) {
+            return null;
+        }
+        return {
+            brokerId: 'alpaca',
+            accountId: this.accountId,
+            accountIdSource: this.accountIdSource || 'broker',
+        };
     }
 
     async getSupportedSymbols() {

@@ -72,7 +72,7 @@ class OrderExecutor {
     const scoped = options.preferOverrides
       ? { ...runnerScope, ...cleanOverrides }
       : { ...cleanOverrides, ...runnerScope };
-    const accountId = scoped.accountId || cfg.accountId || 'default';
+    const accountId = scoped.accountId || (!routerEnabled ? cfg.accountId : null) || 'default';
     const scope = {
       symbol,
       brokerId: scoped.brokerId || (!routerEnabled ? cfg.brokerId : null),
@@ -86,6 +86,7 @@ class OrderExecutor {
       const missing = [];
       const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
       if (!hasText(scope.brokerId)) missing.push('brokerId');
+      if (!hasText(scope.accountId) || scope.accountId === 'default' || scope.accountIdSource === 'default') missing.push('accountId');
       if (!hasText(scope.assetClass)) missing.push('assetClass');
       if (!hasText(scope.executionMode)) missing.push('executionMode');
       if (!hasText(scope.timeframe)) missing.push('timeframe');

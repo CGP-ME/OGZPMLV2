@@ -266,6 +266,15 @@ class IBrokerAdapter extends EventEmitter {
     }
 
     /**
+     * Return the broker account identity verified by connect()/account calls.
+     * Adapters that cannot prove account identity should return null.
+     * @returns {{accountId: string, accountIdSource: string, brokerId?: string}|null}
+     */
+    getAccountIdentity() {
+        return null;
+    }
+
+    /**
      * Get supported symbols/pairs
      * @returns {Promise<Array>} ['BTC-USD', 'ETH-USD', ...] or ['AAPL', 'GOOGL', ...]
      */
