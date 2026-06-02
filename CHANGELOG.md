@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Runtime Scope Contract (2026-06-02)
+
+- Added explicit `state_update` runtime scope status for flat dashboard heartbeats, including complete, incomplete, and unset states, while preventing runtime scope from overwriting open-position scope.
+
 ### Eval Signal Path Trace Contract (2026-05-31)
 
 - Stamped eval trace events with runtime broker/account/asset/mode/timeframe scope in `TraceSpine` so missing producer fields no longer make dashboard trace frames unjoinable across Kraken and Alpaca, while marking missing SessionRouter runtime scope as `missing_runtime_scope` instead of falling back to static config.

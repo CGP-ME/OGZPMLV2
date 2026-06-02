@@ -97,6 +97,188 @@ describe('StateManager dashboard state_update frame', () => {
     expect(frame.scopedPositionCount).toBe(frame.state.scopedPositionCount);
   });
 
+  test('projects runtime scope on flat state_update heartbeats', () => {
+    const sent = [];
+    manager.dashboardWs = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+    };
+    manager.state.activeTrades = new Map();
+
+    const runtimeScope = manager.setDashboardRuntimeScope({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-1',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    });
+
+    manager.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+
+    expect(runtimeScope).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      broker: 'alpaca',
+      accountId: 'paper-1',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:paper-1:stocks:TSLA:15m',
+      scopeKeyVersion: 2,
+      scopeComplete: true,
+    }));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual(expect.objectContaining({
+      type: 'state_update',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      broker: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:paper-1:stocks:TSLA:15m',
+      scopeComplete: true,
+      runtimeScopeStatus: 'complete',
+      runtimeScopeMissing: [],
+    }));
+    expect(sent[0].state.runtimeScope).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      scopeKey: 'paper:alpaca:paper-1:stocks:TSLA:15m',
+    }));
+    expect(sent[0].state.symbol).toBe('TSLA');
+    expect(sent[0].state.positions).toEqual([]);
+  });
+
+  test('marks implicit account runtime scope incomplete without top-level stamping flat state', () => {
+    const sent = [];
+    manager.dashboardWs = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+    };
+    manager.state.activeTrades = new Map();
+
+    const runtimeScope = manager.setDashboardRuntimeScope({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    });
+
+    manager.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+
+    expect(runtimeScope).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'default',
+      accountIdSource: 'default',
+      scopeComplete: false,
+      runtimeScopeStatus: 'incomplete',
+      missingFields: ['accountId'],
+    }));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual(expect.objectContaining({
+      type: 'state_update',
+      runtimeScopeStatus: 'incomplete',
+      runtimeScopeMissing: ['accountId'],
+    }));
+    expect(sent[0].symbol).toBeUndefined();
+    expect(sent[0].state.symbol).toBeUndefined();
+    expect(sent[0].state.runtimeScope).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      accountId: 'default',
+      scopeComplete: false,
+      runtimeScopeStatus: 'incomplete',
+      missingFields: ['accountId'],
+    }));
+  });
+
+  test('marks unset runtime scope explicitly instead of silently omitting it', () => {
+    const sent = [];
+    manager.dashboardWs = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+    };
+    manager.state.activeTrades = new Map();
+
+    manager.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual(expect.objectContaining({
+      type: 'state_update',
+      runtimeScope: null,
+      runtimeScopeStatus: 'unset',
+      runtimeScopeMissing: ['runtimeScope'],
+    }));
+    expect(sent[0].symbol).toBeUndefined();
+    expect(sent[0].state.runtimeScope).toBeNull();
+    expect(sent[0].state.runtimeScopeStatus).toBe('unset');
+  });
+
+  test('does not let runtime scope overwrite active position scope', () => {
+    const sent = [];
+    manager.dashboardWs = {
+      readyState: 1,
+      send: payload => sent.push(JSON.parse(payload)),
+    };
+    manager.state.lastPrices = new Map([['BTC-USD', 101]]);
+    manager.state.activeTrades = new Map([
+      ['BTC-1', {
+        id: 'BTC-1',
+        orderId: 'BTC-1',
+        symbol: 'BTC-USD',
+        direction: 'long',
+        entryPrice: 100,
+        sizeUsd: 1000,
+        brokerId: 'kraken',
+        accountId: 'paper-1',
+        accountIdSource: 'config',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeKey: 'paper:kraken:paper-1:crypto:BTC-USD:1m',
+      }],
+    ]);
+
+    manager.setDashboardRuntimeScope({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-1',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    });
+    manager.broadcastToDashboard({}, { reason: 'dashboard_heartbeat' });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].runtimeScopeStatus).toBe('complete');
+    expect(sent[0].symbol).toBeUndefined();
+    expect(sent[0].state.symbol).toBeUndefined();
+    expect(sent[0].state.runtimeScope.symbol).toBe('TSLA');
+    expect(sent[0].positions).toHaveLength(1);
+    expect(sent[0].positions[0]).toEqual(expect.objectContaining({
+      symbol: 'BTC-USD',
+      brokerId: 'kraken',
+      assetClass: 'crypto',
+      scopeComplete: true,
+    }));
+  });
+
+  test('rejects incomplete runtime scope instead of defaulting flat dashboard state', () => {
+    expect(() => manager.setDashboardRuntimeScope({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-1',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+    })).toThrow(/missing immutable trade scope field\(s\): timeframe/);
+  });
+
   test('emits authoritative state_update heartbeat while dashboard socket stays open', () => {
     jest.useFakeTimers();
     const sent = [];

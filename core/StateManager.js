@@ -149,6 +149,8 @@ class StateManager {
       lastUpdate: Date.now()    // Timestamp of last state update
     };
 
+    this.dashboardRuntimeScope = null;
+
     /** @type {Set<Function>} Listeners notified on state changes */
     this.listeners = new Set();
 
@@ -1363,6 +1365,41 @@ class StateManager {
     return scope;
   }
 
+  setDashboardRuntimeScope(context = {}) {
+    const symbol = context.symbol || context.tradingPair;
+    const scope = this.buildTradeScope(context, symbol, 'StateManager.dashboardRuntimeScope');
+    const missingFields = [];
+    if (scope.accountId === 'default' || scope.accountIdSource === 'default') {
+      missingFields.push('accountId');
+    }
+    const scopeComplete = missingFields.length === 0;
+    this.dashboardRuntimeScope = {
+      symbol: scope.symbol,
+      broker: scope.brokerId,
+      brokerId: scope.brokerId,
+      accountId: scope.accountId,
+      accountIdSource: scope.accountIdSource,
+      assetClass: scope.assetClass,
+      executionMode: scope.executionMode,
+      timeframe: scope.timeframe,
+      scopeKey: scope.key,
+      scopeKeyVersion: 2,
+      scopeComplete,
+      runtimeScopeStatus: scopeComplete ? 'complete' : 'incomplete',
+      missingFields
+    };
+    return { ...this.dashboardRuntimeScope };
+  }
+
+  getDashboardRuntimeScope() {
+    return this.dashboardRuntimeScope ? { ...this.dashboardRuntimeScope } : null;
+  }
+
+  clearDashboardRuntimeScope() {
+    this.dashboardRuntimeScope = null;
+    return true;
+  }
+
   /**
    * Get active trades for ONE symbol. Required argument; throws on missing.
    * No null-fallback to "all trades" — that silent semantic is the footgun
@@ -1971,6 +2008,16 @@ class StateManager {
       const state = this.getState();
       const positions = this._buildScopedDashboardPositions(state);
       const equity = this.getEquity();
+      const runtimeScope = this.getDashboardRuntimeScope();
+      const runtimeScopeStatus = runtimeScope
+        ? (runtimeScope.scopeComplete ? 'complete' : 'incomplete')
+        : 'unset';
+      const runtimeScopeMissing = runtimeScope
+        ? [...(runtimeScope.missingFields || [])]
+        : ['runtimeScope'];
+      const authoritativeRuntimeScope = runtimeScope && runtimeScope.scopeComplete && positions.length === 0
+        ? runtimeScope
+        : null;
       const dashboardState = {
         position: state.position,
         balance: state.balance,
@@ -1982,6 +2029,10 @@ class StateManager {
         tradeCount: state.tradeCount,
         dailyTradeCount: state.dailyTradeCount,
         recoveryMode: state.recoveryMode,
+        runtimeScope,
+        runtimeScopeStatus,
+        runtimeScopeMissing,
+        ...(authoritativeRuntimeScope || {}),
         positions,
         scopedPositionCount: positions.length
       };
@@ -1998,6 +2049,10 @@ class StateManager {
         totalPnL: dashboardState.totalPnL,
         tradeCount: dashboardState.tradeCount,
         dailyTradeCount: dashboardState.dailyTradeCount,
+        runtimeScope,
+        runtimeScopeStatus,
+        runtimeScopeMissing,
+        ...(authoritativeRuntimeScope || {}),
         positions: dashboardState.positions,
         scopedPositionCount: dashboardState.scopedPositionCount,
         state: dashboardState,

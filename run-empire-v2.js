@@ -850,20 +850,22 @@ class OGZPrimeV14Bot {
         this.storeSymbolTimeframeCandle(sym, tf, ohlcData);
         if (tf === activeTf) {
           this._markActiveTimeframeData(sym, tf);
+          const scopeEnvelope = this.getCandleScopeEnvelope({
+            brokerId: this.sessionRouter?.activeBroker?.id || null,
+            assetClass: this.sessionRouter?.activeSession === 'crypto'
+              ? 'crypto'
+              : this.sessionRouter?.activeSession === 'stocks'
+                ? 'stocks'
+                : null,
+            timeframe: tf,
+          });
+          this.syncDashboardRuntimeScope(sym, scopeEnvelope);
           this.handleMarketData({
             data: ohlcData,
             symbol: sym,
             timeframe: tf,
             traceId,
-            ...this.getCandleScopeEnvelope({
-              brokerId: this.sessionRouter?.activeBroker?.id || null,
-              assetClass: this.sessionRouter?.activeSession === 'crypto'
-                ? 'crypto'
-                : this.sessionRouter?.activeSession === 'stocks'
-                  ? 'stocks'
-                  : null,
-              timeframe: tf,
-            }),
+            ...scopeEnvelope,
           });
         } else {
           this._feedAggregatedActiveCandle({
@@ -904,6 +906,38 @@ class OGZPrimeV14Bot {
       this.kraken = alpacaAdapter;
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
+        this.stateManager.clearDashboardRuntimeScope();
+        try {
+          const transitionSymbol = ev.to === 'stocks'
+            ? normalizeRuntimeSymbol(this.sessionRouter.stockSymbols?.[0])
+            : normalizeRuntimeSymbol(this.sessionRouter.cryptoSymbols?.[0]);
+          if (!transitionSymbol) {
+            throw new Error(`missing primary symbol for session ${ev.to || '(missing)'}`);
+          }
+          const transitionScope = this.getCandleScopeEnvelope({
+            brokerId: this.sessionRouter?.activeBroker?.id || null,
+            assetClass: ev.to === 'stocks' ? 'stocks' : ev.to === 'crypto' ? 'crypto' : null,
+            timeframe: this.timeframeSelector?.currentTimeframe || this.candleTimeframe,
+          });
+          this.syncDashboardRuntimeScope(transitionSymbol, transitionScope);
+          if (this.stateManager.dashboardWs) {
+            this.stateManager.broadcastToDashboard({}, {
+              reason: 'session_transition',
+              from: ev.from,
+              to: ev.to,
+            });
+          }
+        } catch (error) {
+          console.error(`[EMPIRE V2] Dashboard runtime scope transition sync failed: ${error.message}`);
+          if (this.stateManager.dashboardWs) {
+            this.stateManager.broadcastToDashboard({}, {
+              reason: 'session_transition_scope_unset',
+              from: ev.from,
+              to: ev.to,
+              error: error.message,
+            });
+          }
+        }
         console.log(`[EMPIRE V2] Session transition: ${ev.from} -> ${ev.to}`);
       });
 
@@ -1205,6 +1239,7 @@ class OGZPrimeV14Bot {
       enableBacktestMode,
       tradingMode
     };
+    this.syncDashboardRuntimeScope(this.tradingPair, { timeframe: this.candleTimeframe });
 
     console.log(`Trading Mode: ${tradingMode}`);
 
@@ -1873,16 +1908,18 @@ class OGZPrimeV14Bot {
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
             this._markActiveTimeframeData(ohlcSymbol, timeframe);
+            const scopeEnvelope = this.getCandleScopeEnvelope({
+              brokerId: resolvedConfig.config.broker.id,
+              assetClass: this.config.assetClass,
+              timeframe,
+            });
+            this.syncDashboardRuntimeScope(ohlcSymbol, scopeEnvelope);
             this.handleMarketData({
               data: ohlcData,
               symbol: ohlcSymbol,
               timeframe,
               traceId,
-              ...this.getCandleScopeEnvelope({
-                brokerId: resolvedConfig.config.broker.id,
-                assetClass: this.config.assetClass,
-                timeframe,
-              }),
+              ...scopeEnvelope,
             });
           } else {
             this._feedAggregatedActiveCandle({
@@ -2087,6 +2124,15 @@ class OGZPrimeV14Bot {
       executionMode,
       timeframe,
     };
+  }
+
+  syncDashboardRuntimeScope(symbol = this.tradingPair, overrides = {}) {
+    const canonicalSymbol = normalizeRuntimeSymbol(symbol);
+    const scope = this.getCandleScopeEnvelope(overrides);
+    return this.stateManager.setDashboardRuntimeScope({
+      symbol: canonicalSymbol,
+      ...scope,
+    });
   }
 
   /**
