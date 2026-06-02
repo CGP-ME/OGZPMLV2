@@ -400,3 +400,131 @@ Then capture the same dashboard/trace ladder for TSLA:
 6. broker/webhook boundary if an order intent appears
 7. state after
 8. dashboard frame alignment
+
+## Pass 3 - 2026-06-02T01:12:20+00:00
+
+This pass checked read-only stock market-data visibility and dashboard ticker frame behavior without restarting PM2.
+
+### Read-Only TSLA Market Data
+
+Read-only Alpaca market-data probe for `TSLA` at `15m`:
+
+```json
+{
+  "symbol": "TSLA",
+  "timeframe": "15m",
+  "nowIso": "2026-06-02T01:10:10.548Z",
+  "ticker": {
+    "bid": 397.65,
+    "ask": 0,
+    "last": 415.3,
+    "volume": 621094
+  },
+  "candleCount": 20,
+  "firstCandle": {
+    "iso": "2026-06-01T16:00:00.000Z",
+    "o": 421.4,
+    "h": 422,
+    "l": 419.35,
+    "c": 419.48,
+    "v": 24725
+  },
+  "lastCandle": {
+    "iso": "2026-06-01T20:45:00.000Z",
+    "o": 415.57,
+    "h": 415.78,
+    "l": 415.3,
+    "c": 415.3,
+    "v": 157,
+    "ageMs": 15910548
+  }
+}
+```
+
+Conclusion: Alpaca data access works. The latest `15m` bar available during this after-hours probe was stale relative to wall clock, so the relay must not present it as live.
+
+### Stock Snapshot Suppression
+
+Current `server/stock-data-adapter.js` rejects stock snapshots older than `STOCK_TICKER_MAX_AGE_MS`:
+
+- `fetchStockTicker()` parses `latestTrade.t || minuteBar.t || dailyBar.t`.
+- If `Date.now() - parsedTimestamp > STOCK_TICKER_MAX_AGE_MS`, it logs `Stale snapshot timestamp for <symbol>` and returns `null`.
+- `pm2 logs ogz-websocket --lines 160 --nostream` showed repeated stale snapshot rejections for `TSLA`, `NVDA`, `SPY`, `QQQ`, `COIN`, `MARA`, and `RIOT`.
+
+Conclusion: blank/stale stock watchlist cards are honest under the current data age. The relay is suppressing stale stock snapshots instead of broadcasting old prices as live.
+
+### Dashboard WebSocket Ticker Capture
+
+Dashboard-classified 30-second capture:
+
+`ogz-meta/cognition-history/live-eval/2026-06-02T01-10-stock-dashboard-capture.jsonl`
+
+Raw capture is retained locally for grep/forensics but not committed because it is 8.9 MB; the compact counts below are the committed evidence.
+
+Observed frame counts:
+
+```json
+{
+  "auth_success": 1,
+  "state_update": 2,
+  "funding_rate": 1,
+  "fear_greed": 1,
+  "liquidation_data": 3,
+  "market_internals": 5,
+  "smart_money": 2,
+  "cvd_update": 11,
+  "bot_thinking": 2,
+  "depth_update": 2115,
+  "trace_event": 164,
+  "price": 10,
+  "broker_status": 10,
+  "delta": 10,
+  "pattern_analysis": 1,
+  "narrator_event": 1,
+  "signal_analysis": 1,
+  "golden_setup_state": 1,
+  "divergence": 1
+}
+```
+
+Observed symbols:
+
+- `price`: `BTC-USD` only
+- `broker_status`: `BTC-USD` only
+- `ticker_price`: `0` frames
+- stock `price`/`ticker_price`: `0` frames
+
+Conclusion: current live dashboard stream still exposes BTC/Kraken runtime frames only. No stock ticker frames reached the dashboard in this 30-second capture.
+
+### Runtime Version Boundary
+
+Current PM2 uptime:
+
+- `ogz-websocket`: started `2026-05-28T20:45:28.639Z`
+- `ogz-prime-v2`: started `2026-06-01T01:05:54.704Z`
+
+Relevant ticker-frame commits on disk:
+
+- `fc487f2` at `2026-05-29T16:50:55Z`: `Added dashboard ticker price frames`
+- `e2f5cd2` at `2026-05-29T20:03:15Z`: `Fixed watchlist ticker price contract`
+- `99fe4c0` at `2026-05-30T07:47:03Z`: `Fixed dashboard producer contract reconciliation`
+
+Conclusion: `ogz-websocket` has not been restarted since before the ticker-price contract commits. The on-disk code builds valid `ticker_price` frames, but the live websocket process cannot be used as proof for those commits until it is restarted.
+
+### Updated Checkoff State
+
+- Stock data source: partial-green. Alpaca REST data access works, but the observed TSLA bar was stale during after-hours.
+- Stock watchlist visibility: honest but not live. Stale stock snapshots are suppressed; no stale prices are broadcast as live.
+- Dashboard ticker-price contract: code-ready, runtime-unproven. PM2 must restart before `ticker_price` can be verified live.
+- TSLA signal path: still blocked until the trade runtime is started/restarted in TSLA/Alpaca posture.
+
+### Next Checkoff Step
+
+The next visibility pass requires runtime action:
+
+1. Restart `ogz-websocket` so the pushed dashboard producer/ticker contract is actually live.
+2. Restart or start `ogz-prime-v2` in controlled TSLA/Alpaca paper posture.
+3. Capture dashboard frames again and require:
+   - `ticker_price` frames for live-capable symbols or explicit stale/no-data status.
+   - TSLA candle ingress through the trace ladder.
+   - broker/status frames that identify Alpaca vs Kraken without cross-symbol contamination.
