@@ -528,3 +528,185 @@ The next visibility pass requires runtime action:
    - `ticker_price` frames for live-capable symbols or explicit stale/no-data status.
    - TSLA candle ingress through the trace ladder.
    - broker/status frames that identify Alpaca vs Kraken without cross-symbol contamination.
+
+## Pass 4 - 2026-06-02T03:46:00+00:00
+
+This pass performed the approved controlled TSLA/Alpaca paper restart and fixed a
+dashboard-owned Alpaca stream collision found during the restart.
+
+### Runtime Action
+
+`ogz-websocket` was restarted after commit `3930bd6` loaded:
+
+- `Fixed dashboard Alpaca stream ownership`
+- `DASHBOARD_STOCK_STREAM_ENABLED` defaults to disabled.
+- The dashboard relay now closes any existing Alpaca stock trade stream, clears
+  any retry timer, and emits an explicit `broker_status` frame with
+  `source=stock_price_stream` and `reason=disabled_bot_owns_stream`.
+
+`ogz-prime-v2` was restarted with controlled paper overrides:
+
+```text
+BROKER=alpaca
+ASSET_CLASS=stocks
+PRIMARY_ASSET=TSLA
+TRADING_PAIR=TSLA
+ALPACA_SYMBOLS=TSLA
+EXECUTION_MODE=paper
+PAPER_TRADING=true
+LIVE_TRADING=false
+CONFIRM_LIVE_TRADING=false
+SESSION_ROUTER_ENABLED=false
+ACCOUNT_DRAWDOWN_BYPASS=false
+RISK_MANAGER_BYPASS=false
+WEBHOOK_ORDERS_ENABLED=true
+WEBHOOK_DRY_RUN=true
+CANDLE_TIMEFRAME=15m
+```
+
+### Mercury Attack
+
+Focused Mercury attack:
+
+```text
+ogz-meta/cognition-history/mercury/dashboard-stock-stream-ownership-2026-06-02.md
+```
+
+Response:
+
+```text
+ogz-meta/cognition-history/mercury/dashboard-stock-stream-ownership-2026-06-02.response.md
+```
+
+Result: Mercury found the first attempt still allowed an existing disabled
+relay stream to survive when the function returned early with no dashboard
+clients. The patch was revised so the disabled ownership branch runs before
+client/symbol early returns and also blocks the reconnect scheduler. The second
+attack concluded the dashboard relay cannot consume the Alpaca stream by
+default and that the underlying stream-ownership mechanism is torn down rather
+than hidden.
+
+### Tests
+
+Passed:
+
+```text
+node --check ogzprime-ssl-server.js
+node --check server/dashboard-stock-stream-config.js
+node --check test/dashboard-stock-stream-config.test.js
+npm test -- --runTestsByPath test/dashboard-stock-stream-config.test.js test/dashboard-ticker-frame.test.js test/stock-data-adapter-ticker.test.js
+```
+
+Jest result: 3 suites passed, 12 tests passed.
+
+### Live Bot Evidence
+
+Post-restart `ogz-prime-v2` logs showed:
+
+```text
+[Alpaca] Connected - account verified
+[BOOT][REST-HYDRATE] symbol=TSLA timeframe=15m candles=60 latest=2026-06-01T21:00:00.000Z close=415.3
+[Alpaca] RX ctrl: success {"T":"success","msg":"connected"}
+[Alpaca] RX ctrl: success {"T":"success","msg":"authenticated"}
+[Alpaca] Data stream authenticated
+[Alpaca] TX subscribe(bars): {"action":"subscribe","bars":["TSLA"]} | url: wss://stream.data.alpaca.markets/v2/iex
+[Alpaca] RX ctrl: subscription {"T":"subscription","bars":["TSLA"]}
+```
+
+The previous Alpaca `406 connection limit exceeded` line was in the error log
+before the restart. Evidence:
+
+```text
+ogz-prime-v2 process created at: 2026-06-02T03:40:51.420Z
+ogz-prime-v2 error log mtime: 2026-06-02T03:40:38.263936904Z
+```
+
+Conclusion: after the dashboard relay stream was disabled, the bot authenticated
+and subscribed to TSLA bars without a new observed 406 during this pass.
+
+### Dashboard Capture
+
+60-second authenticated dashboard capture:
+
+```text
+ogz-meta/cognition-history/live-eval/2026-06-02T03-42-tsla-paper-dashboard-capture.jsonl
+```
+
+Observed frame counts:
+
+```json
+{
+  "auth_success": 1,
+  "broker_status": 39,
+  "price": 39,
+  "state_update": 3,
+  "ticker_price": 39
+}
+```
+
+Observed live symbols:
+
+```json
+{
+  "price": ["BTC-USD", "ETH-USD", "SOL-USD"],
+  "ticker_price": ["BTC-USD", "ETH-USD", "SOL-USD"]
+}
+```
+
+Latest broker status samples included:
+
+```json
+{
+  "name": "alpaca",
+  "ok": false,
+  "source": "stock_price_stream",
+  "reason": "disabled_bot_owns_stream",
+  "attemptedCount": 7,
+  "successCount": 0
+}
+```
+
+and:
+
+```json
+{
+  "name": "kraken",
+  "ok": true,
+  "source": "crypto_price_fanout",
+  "reason": "rest_ok",
+  "attemptedCount": 3,
+  "successCount": 3
+}
+```
+
+### Updated Checkoff State
+
+- Gate A runtime posture: green for controlled TSLA/Alpaca paper rehearsal
+  posture after restart. Not green for live eval because `LIVE_TRADING=false`,
+  `PAPER_TRADING=true`, and `WEBHOOK_DRY_RUN=true` by design.
+- Gate B broker truth: partial-green. Paper Alpaca account was previously
+  verified flat; this pass verified bot authentication and TSLA bar
+  subscription.
+- Gate C TSLA signal path: partial. TSLA historical REST hydrate and Alpaca bar
+  subscription are proven. Intraday TSLA live bar ingress was not observed
+  during this pass because the capture ran at `2026-06-01 23:45 EDT`, outside
+  regular market hours.
+- Gate H dashboard visibility: improved. `ticker_price` is now visible for live
+  crypto symbols after the websocket restart, and the dashboard receives an
+  explicit stock-stream-disabled broker status instead of silently implying a
+  live stock stream.
+
+### Remaining Red Items
+
+1. TSLA live intraday `price`/`ticker_price`/trace ladder still needs a market
+   hours capture. This pass cannot prove live TSLA ticks because it ran after
+   hours.
+2. Stock REST snapshots remain honestly suppressed as stale after hours:
+   `stock_price_fanout` reports `reason=no_valid_tickers`.
+3. No `trade`, `broker_ack`, or `broker_reject` frame was observed. That still
+   requires a real strategy intent/order path.
+4. The dashboard stream shows crypto `price`/`ticker_price` frames while the bot
+   is in TSLA paper posture because the dashboard relay still performs its
+   independent crypto REST fanout for watchlist visibility. This is acceptable
+   only because those frames are symbol-stamped and separate from the bot-owned
+   TSLA bar stream.
