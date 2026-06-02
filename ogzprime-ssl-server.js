@@ -1184,7 +1184,7 @@ function broadcastDashboardBrokerStatus(status) {
     if (value) frame[field] = value;
   }
 
-  for (const field of ['attemptedCount', 'successCount']) {
+  for (const field of ['attemptedCount', 'successCount', 'staleCount']) {
     const value = Number(status[field]);
     if (Number.isFinite(value) && value >= 0) frame[field] = Math.floor(value);
   }
@@ -1470,21 +1470,33 @@ async function broadcastDashboardStockPrices() {
   stockPriceFanoutInFlight = true;
   let attemptedCount = 0;
   let successCount = 0;
+  let staleCount = 0;
+  const rejectCounts = Object.create(null);
   try {
     for (const symbol of DASHBOARD_STOCK_PRICE_SYMBOLS) {
       attemptedCount++;
-      const ticker = await fetchStockTicker(symbol);
+      const ticker = await fetchStockTicker(symbol, {
+        onReject: (result) => {
+          const reason = sanitizeBrokerStatusText(result?.reason) || 'unknown_reject';
+          rejectCounts[reason] = (rejectCounts[reason] || 0) + 1;
+          if (reason === 'stale_snapshot') staleCount++;
+        }
+      });
       if (!ticker) continue;
       successCount++;
       broadcastStockTicker(ticker, 'StockAdapter');
     }
+    const topRejectReason = Object.entries(rejectCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([reason]) => reason)[0] || null;
     broadcastDashboardBrokerStatus({
       name: 'alpaca',
       ok: successCount > 0,
       source: 'stock_price_fanout',
-      reason: successCount > 0 ? 'snapshot_ok' : 'no_valid_tickers',
+      reason: successCount > 0 ? 'snapshot_ok' : (topRejectReason || 'no_valid_tickers'),
       attemptedCount,
-      successCount
+      successCount,
+      staleCount
     });
   } catch (err) {
     broadcastDashboardBrokerStatus({
@@ -1493,7 +1505,8 @@ async function broadcastDashboardStockPrices() {
       source: 'stock_price_fanout',
       reason: 'fanout_error',
       attemptedCount,
-      successCount
+      successCount,
+      staleCount
     });
     console.error('[StockAdapter] Stock price fanout failed:', err.message);
     return false;

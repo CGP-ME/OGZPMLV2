@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Stock Snapshot Status Contract (2026-06-02)
+
+- Converted expected stale Alpaca stock snapshot rejections into structured adapter results so after-hours stock snapshot suppression remains truthful without flooding PM2 error logs.
+- Added dashboard `broker_status` stale snapshot metadata for stock fanout cycles so empty stock watchlist cards report why no ticker frames were emitted instead of collapsing into generic `no_valid_tickers`.
+
 ### Dashboard Depth Transport Contract (2026-06-02)
 
 - Coalesced high-frequency `depth_update` frames per symbol and globally before dashboard broadcast so Kraken book deltas cannot saturate the browser WebSocket while preserving first-frame immediacy, dynamic symbol allow-list validation, and active-session guards.

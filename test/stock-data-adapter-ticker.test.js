@@ -79,10 +79,55 @@ describe('stock-data-adapter ticker snapshots', () => {
         dailyBar: { c: 123.40, v: 1000 },
       }),
     });
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const { fetchStockTicker } = require('../server/stock-data-adapter');
 
     await expect(fetchStockTicker('TSLA')).resolves.toBeNull();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  test('returns structured stale snapshot rejection for dashboard status without warning spam', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        latestTrade: { p: 123.45, t: '2026-05-27T14:28:00Z' },
+        dailyBar: { c: 123.40, v: 1000 },
+      }),
+    });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const { fetchStockTickerResult } = require('../server/stock-data-adapter');
+
+    const result = await fetchStockTickerResult('TSLA');
+
+    expect(result).toMatchObject({
+      ok: false,
+      symbol: 'TSLA',
+      reason: 'stale_snapshot',
+      ageMs: 150000,
+      maxAgeMs: 60000,
+      sourceTimestamp: new Date('2026-05-27T14:28:00Z').getTime(),
+    });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  test('passes structured rejection to fetchStockTicker caller without broadcasting stale data', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        latestTrade: { p: 123.45, t: '2026-05-27T14:28:00Z' },
+        dailyBar: { c: 123.40, v: 1000 },
+      }),
+    });
+    const rejects = [];
+    const { fetchStockTicker } = require('../server/stock-data-adapter');
+
+    await expect(fetchStockTicker('TSLA', { onReject: (result) => rejects.push(result) })).resolves.toBeNull();
+    expect(rejects).toHaveLength(1);
+    expect(rejects[0]).toMatchObject({
+      ok: false,
+      symbol: 'TSLA',
+      reason: 'stale_snapshot',
+    });
   });
 
   test('refuses crypto symbols in the stock snapshot adapter', async () => {

@@ -143,16 +143,24 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
     }
 }
 
-async function fetchStockTicker(ticker) {
+function stockTickerReject(symbol, reason, details = {}) {
+    return {
+        ok: false,
+        symbol,
+        reason,
+        ...details
+    };
+}
+
+async function fetchStockTickerResult(ticker) {
     const symbol = cleanTicker(ticker);
     if (!STOCK_TICKERS.has(symbol)) {
-        console.warn(`[StockAdapter] Refusing snapshot fetch for non-stock symbol ${symbol}`);
-        return null;
+        return stockTickerReject(symbol, 'not_stock_symbol');
     }
 
     if (!API_KEY || !API_SECRET) {
         console.error('[StockAdapter] ALPACA_API_KEY and ALPACA_API_SECRET required');
-        return null;
+        return stockTickerReject(symbol, 'missing_credentials');
     }
 
     const params = new URLSearchParams({ feed: 'iex' });
@@ -169,7 +177,7 @@ async function fetchStockTicker(ticker) {
         if (!response.ok) {
             const text = await response.text();
             console.error(`[StockAdapter] Snapshot HTTP ${response.status} for ${symbol}: ${text}`);
-            return null;
+            return stockTickerReject(symbol, 'http_error', { status: response.status });
         }
 
         const snap = await response.json();
@@ -185,8 +193,7 @@ async function fetchStockTicker(ticker) {
                     : null;
 
         if (!Number.isFinite(price) || price <= 0) {
-            console.warn(`[StockAdapter] No valid snapshot price for ${symbol}`);
-            return null;
+            return stockTickerReject(symbol, 'invalid_price');
         }
 
         const prevClose = Number(snap.prevDailyBar?.c);
@@ -196,31 +203,58 @@ async function fetchStockTicker(ticker) {
         const sourceTimestamp = snap.latestTrade?.t || snap.minuteBar?.t || snap.dailyBar?.t;
         const parsedTimestamp = new Date(sourceTimestamp).getTime();
         if (!Number.isFinite(parsedTimestamp)) {
-            console.warn(`[StockAdapter] No valid snapshot timestamp for ${symbol}`);
-            return null;
+            return stockTickerReject(symbol, 'invalid_timestamp');
         }
         const ageMs = Date.now() - parsedTimestamp;
         if (ageMs > STOCK_TICKER_MAX_AGE_MS) {
-            console.warn(`[StockAdapter] Stale snapshot timestamp for ${symbol}: ageMs=${ageMs}`);
-            return null;
+            return stockTickerReject(symbol, 'stale_snapshot', {
+                ageMs,
+                maxAgeMs: STOCK_TICKER_MAX_AGE_MS,
+                sourceTimestamp: parsedTimestamp
+            });
         }
 
         return {
-            symbol,
-            price,
-            close: price,
-            change,
-            changePct,
-            volume: Number.isFinite(volume) ? volume : null,
-            timestamp: parsedTimestamp,
-            source: 'alpaca',
-            feed: 'iex'
+            ok: true,
+            ticker: {
+                symbol,
+                price,
+                close: price,
+                change,
+                changePct,
+                volume: Number.isFinite(volume) ? volume : null,
+                timestamp: parsedTimestamp,
+                source: 'alpaca',
+                feed: 'iex'
+            }
         };
 
     } catch (err) {
         console.error(`[StockAdapter] Snapshot fetch error for ${symbol}:`, err.message);
-        return null;
+        return stockTickerReject(symbol, 'fetch_error', { error: err.message });
     }
 }
 
-module.exports = { isStock, fetchStockCandles, fetchStockTicker, STOCK_TICKERS, cleanTicker };
+async function fetchStockTicker(ticker, options = {}) {
+    const result = await fetchStockTickerResult(ticker);
+    if (result.ok) return result.ticker;
+
+    if (typeof options.onReject === 'function') {
+        try {
+            options.onReject(result);
+        } catch (err) {
+            console.error('[StockAdapter] Snapshot reject handler failed:', err.message);
+        }
+    }
+
+    return null;
+}
+
+module.exports = {
+    isStock,
+    fetchStockCandles,
+    fetchStockTicker,
+    fetchStockTickerResult,
+    STOCK_TICKERS,
+    cleanTicker
+};
