@@ -42,7 +42,7 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
+const DEFAULT_DATA = 'tuning/tsla-15m-18mo.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
 const WORKER_ENV_ALLOWLIST = [
@@ -91,7 +91,6 @@ const STRATEGIES = [
   'MADynamicSR',
   'LiquiditySweep',
   'SmartMoneySweep',
-  'MarketRegime',
   'MultiTimeframe',
   'OGZTPO',
   'OpeningRangeBreakout',
@@ -299,7 +298,6 @@ const SWEEP_PRESETS = {
     { name: 'MASR-only', env: { SOLO_STRATEGY: 'MADynamicSR' } },
     { name: 'Sweep-only', env: { SOLO_STRATEGY: 'LiquiditySweep' } },
     { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
-    { name: 'Regime-only', env: { SOLO_STRATEGY: 'MarketRegime' } },
     { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
     { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
     { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
@@ -691,7 +689,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
 
 // Data file shortcuts
 const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-2y.json',
+  'tsla': 'tuning/tsla-15m-18mo.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
   'tsla-unseen': 'tuning/tsla-15m-unseen.json',
@@ -769,11 +767,11 @@ Focused Optimization (one variable at a time):
   --rsi          RSI oversold/overbought grid (15 configs)
 
 Strategy Isolation:
-  --strategy-sweep  Test each strategy individually (12 configs)
+  --strategy-sweep  Test each strategy individually (11 configs)
   --solo=NAME       Run sweep with ONLY this strategy enabled
 
 Gauntlet:
-  --gauntlet-atr    12 strategies x 8 ATR levels (96 configs)
+  --gauntlet-atr    11 strategies x 8 ATR levels (88 configs)
 
 Options:
   --data FILE    Candle data file (default: ${DEFAULT_DATA})
@@ -826,7 +824,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  DEFAULT_DATA,
+  DATA_SHORTCUTS,
   STRATEGIES,
+  SWEEP_PRESETS,
   parseSoloStrategies,
   buildDormantStrategyEnableEnv,
   assertDormantStrategyEnvCompatible,

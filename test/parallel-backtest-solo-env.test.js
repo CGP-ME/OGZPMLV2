@@ -1,7 +1,10 @@
 'use strict';
 
 const {
+  DEFAULT_DATA,
+  DATA_SHORTCUTS,
   STRATEGIES,
+  SWEEP_PRESETS,
   parseSoloStrategies,
   buildDormantStrategyEnableEnv,
   assertDormantStrategyEnvCompatible,
@@ -10,6 +13,11 @@ const {
 } = require('../tools/parallel-backtest');
 
 describe('parallel-backtest solo strategy env wiring', () => {
+  test('tsla shortcut uses the current stock eval baseline', () => {
+    expect(DEFAULT_DATA).toBe('tuning/tsla-15m-18mo.json');
+    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-18mo.json');
+  });
+
   test('strategy roster includes exploratory strategies that matrix-sweep can run', () => {
     expect(STRATEGIES).toEqual(expect.arrayContaining([
       'CandlePattern',
@@ -18,6 +26,12 @@ describe('parallel-backtest solo strategy env wiring', () => {
       'OpeningRangeBreakout',
       'SmartMoneySweep',
     ]));
+    expect(STRATEGIES).not.toContain('MarketRegime');
+  });
+
+  test('strategy-sweep excludes deprecated MarketRegime strategy entries', () => {
+    expect(SWEEP_PRESETS['strategy-sweep'].map(config => config.env.SOLO_STRATEGY))
+      .not.toContain('MarketRegime');
   });
 
   test('comma-separated solo strategy list is normalized for orchestrator parity', () => {

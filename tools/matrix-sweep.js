@@ -79,7 +79,7 @@ const RESULTS_DIR = getMatrixDir();
 // DATA FILE SHORTCUTS
 // ===================================================================
 const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-2y.json',
+  'tsla': 'tuning/tsla-15m-18mo.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
   'tsla-unseen': 'tuning/tsla-15m-unseen.json',
@@ -95,7 +95,7 @@ const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
                         'tsla-train', 'tsla-test', 'tsla-unseen'];
 
 // Extract human-readable label from data file path
-// 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
+// 'tuning/tsla-15m-18mo.json'  → 'tsla-18mo'
 // 'tuning/tsla-15m-train.json' → 'tsla-train'
 // 'data/polygon-btc-1y.json'   → 'btc-1y'
 function getDataLabel(dataFile) {
@@ -139,7 +139,7 @@ const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'Liquidit
 // All registered strategies (for exploratory sweeps)
 const ALL_STRATEGIES = [
   ...VALIDATED_STRATEGIES,
-  'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
+  'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
   'NoWickImbalance', 'BreakRetest',
 ];
 
@@ -203,14 +203,36 @@ function getLockedSL(strat) {
   return Math.abs(contract.stopLossPercent);
 }
 
+function usesStructuralExits(strat) {
+  const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default || {};
+  return contract.useStructuralExits === true;
+}
+
+function phaseSweepsExitGeometry(phase) {
+  return phase !== 'conf';
+}
+
+function filterStrategiesForPhase(strategies, phase) {
+  const skipped = [];
+  const runnable = strategies.filter(function(strat) {
+    if (phaseSweepsExitGeometry(phase) && usesStructuralExits(strat)) {
+      skipped.push(strat);
+      return false;
+    }
+    return true;
+  });
+  return { runnable, skipped };
+}
+
 // ===================================================================
 // MATRIX GENERATOR - Builds the combinatorial config list
 // ===================================================================
 
 function generateMatrix(strategies, grid, phase) {
   const configs = [];
+  const phaseStrategies = filterStrategiesForPhase(strategies, phase).runnable;
 
-  for (const strat of strategies) {
+  for (const strat of phaseStrategies) {
     // Get SL values: if phase='conf', use locked exits from TradingConfig
     let slValues;
     if (phase === 'conf' || !grid.stopLoss) {
@@ -706,7 +728,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
 
 async function main() {
   var args = process.argv.slice(2);
-  var dataFile = 'tuning/tsla-15m-2y.json';
+  var dataFile = 'tuning/tsla-15m-18mo.json';
   var stockMode = false;
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
@@ -752,14 +774,14 @@ async function main() {
       console.log('Phases (what to sweep):');
       console.log('  --full         Full matrix: SL x TP x Confidence (default)');
       console.log('  --quick        Reduced grid (fast sanity check)');
-      console.log('  --exits        SL/TP sweep only (confidence locked)');
+      console.log('  --exits        SL/TP sweep only (confidence locked; skips structural-exit strategies)');
       console.log('  --conf         Confidence sweep only (exits locked)\n');
       console.log('Strategy Selection:');
       console.log('  --solo=RSI          Test only RSI');
       console.log('  --solo=EMA          Test only EMASMACrossover');
       console.log('  --all-strategies    Test ALL strategies\n');
       console.log('Data:');
-      console.log('  --data tsla    TSLA 15m 2-year (default)');
+      console.log('  --data tsla    TSLA 15m 18-month (default)');
       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
       console.log('  --stocks       Force zero-commission mode\n');
       console.log('Examples:');
@@ -801,11 +823,19 @@ async function main() {
     process.exit(1);
   }
 
+  var phaseStrategyFilter = filterStrategiesForPhase(strategies, phase);
+  if (phaseStrategyFilter.skipped.length > 0) {
+    console.log('[SKIP] Structural-exit strategies excluded from ' + phase + ' exit-geometry sweep: ' + phaseStrategyFilter.skipped.join(', '));
+  }
+
   // Generate matrix
   var configs = generateMatrix(strategies, GRID[phase], phase);
 
   if (configs.length === 0) {
     console.error('No configurations generated. Check strategy name and phase.');
+    if (phaseStrategyFilter.skipped.length > 0) {
+      console.error('Skipped structural-exit strategies because this phase sweeps exit geometry that their overrideLevels ignore. Use --conf or the ATR sweep instead.');
+    }
     process.exit(1);
   }
 
@@ -816,7 +846,22 @@ async function main() {
   await runMatrix(configs, dataFile, stockMode, soloStrategy, phase);
 }
 
-main().catch(function(err) {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(function(err) {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  DATA_SHORTCUTS,
+  STOCK_TICKERS,
+  VALIDATED_STRATEGIES,
+  ALL_STRATEGIES,
+  GRID,
+  usesStructuralExits,
+  filterStrategiesForPhase,
+  getDataLabel,
+  buildMonotonicTierCube,
+  generateMatrix,
+};
