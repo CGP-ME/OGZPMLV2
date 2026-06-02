@@ -53,6 +53,7 @@ const PineTALib = require('./pine-transpiler/core/PineTALib');
 const fetchFn = global.fetch || require('node-fetch');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
+const { resolveDashboardStockStreamConfig } = require('./server/dashboard-stock-stream-config');
 const { ASSET_REGISTRY } = require('./core/SymbolTradingContext');
 
 const apiPort = process.env.API_PORT || 3010;
@@ -1142,10 +1143,12 @@ const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = Math.max(
   Number.isFinite(parsedCryptoPriceIntervalMs) ? parsedCryptoPriceIntervalMs : 5000
 );
 const DASHBOARD_STOCK_PRICE_ENABLED = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET);
+const DASHBOARD_STOCK_STREAM_CONFIG = resolveDashboardStockStreamConfig(process.env);
 const ALPACA_DATA_STREAM_URL = process.env.ALPACA_DATA_STREAM_URL || 'wss://stream.data.alpaca.markets/v2/iex';
 const KRAKEN_REST_TICKER_URL = process.env.KRAKEN_REST_TICKER_URL || 'https://api.kraken.com/0/public/Ticker';
 let stockPriceFanoutInFlight = false;
 let stockPriceFanoutDisabledLogged = false;
+let stockPriceStreamDisabledLogged = false;
 let stockPriceStreamSocket = null;
 let stockPriceStreamRetryTimer = null;
 let stockPriceStreamSubscribed = false;
@@ -1305,6 +1308,7 @@ function broadcastStockTicker(ticker, label = 'StockAdapter') {
 }
 
 function scheduleStockPriceStreamReconnect() {
+  if (!DASHBOARD_STOCK_STREAM_CONFIG.enabled) return;
   if (stockPriceStreamRetryTimer || dashboardClients().length === 0) return;
   stockPriceStreamRetryTimer = setTimeout(() => {
     stockPriceStreamRetryTimer = null;
@@ -1313,7 +1317,38 @@ function scheduleStockPriceStreamReconnect() {
 }
 
 function startDashboardStockPriceStream() {
-  if (dashboardClients().length === 0) return false;
+  const dashboards = dashboardClients();
+  if (!DASHBOARD_STOCK_STREAM_CONFIG.enabled) {
+    if (stockPriceStreamRetryTimer) {
+      clearTimeout(stockPriceStreamRetryTimer);
+      stockPriceStreamRetryTimer = null;
+    }
+    if (stockPriceStreamSocket) {
+      try {
+        stockPriceStreamSocket.close(1000, 'dashboard_stock_stream_disabled');
+      } catch (err) {
+        console.error('[StockAdapter] Failed to close disabled dashboard stock stream:', err.message);
+      }
+      stockPriceStreamSocket = null;
+      stockPriceStreamSubscribed = false;
+    }
+    if (!stockPriceStreamDisabledLogged) {
+      console.log('[StockAdapter] Dashboard Alpaca trade stream disabled; bot owns the live stock data stream');
+      stockPriceStreamDisabledLogged = true;
+    }
+    if (dashboards.length > 0) {
+      broadcastDashboardBrokerStatus({
+        name: 'alpaca',
+        ok: false,
+        source: 'stock_price_stream',
+        reason: 'disabled_bot_owns_stream',
+        attemptedCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length,
+        successCount: 0
+      });
+    }
+    return false;
+  }
+  if (dashboards.length === 0) return false;
   if (DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0) return false;
   if (!DASHBOARD_STOCK_PRICE_ENABLED) {
     broadcastDashboardBrokerStatus({
