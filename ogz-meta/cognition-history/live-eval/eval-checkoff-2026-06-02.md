@@ -710,3 +710,168 @@ and:
    independent crypto REST fanout for watchlist visibility. This is acceptable
    only because those frames are symbol-stamped and separate from the bot-owned
    TSLA bar stream.
+
+## Pass 5 - 2026-06-02T04:48:00+00:00
+
+This pass closed the dashboard depth producer-flood mechanism and reloaded the
+controlled TSLA/Alpaca paper process.
+
+### Runtime Fix
+
+Commit:
+
+```text
+e9193fc Fixed dashboard depth update flood
+```
+
+The bot no longer sends every Kraken `depth_update` directly to the dashboard.
+`run-empire-v2.js` now routes depth frames through `DashboardDepthCoalescer`,
+which enforces both:
+
+- per-symbol minimum spacing
+- global minimum spacing across all depth symbols
+
+The same path preserves dynamic allowed-symbol validation and active-session
+guards before immediate and trailing sends. Bad
+`DASHBOARD_DEPTH_MIN_INTERVAL_MS` values fail fast instead of weakening the
+throttle.
+
+### Verification
+
+Passed:
+
+```text
+node --check core/DashboardDepthCoalescer.js
+node --check run-empire-v2.js
+node --check test/dashboard-depth-coalescer.test.js
+npm test -- --runTestsByPath test/dashboard-depth-coalescer.test.js
+```
+
+Jest result: 1 suite passed, 7 tests passed.
+
+Mercury final recheck:
+
+```text
+ogz-meta/cognition-history/mercury/dashboard-depth-coalescer-final4-recheck-2026-06-02.response.md
+```
+
+Result: the same-timestamp flood claim was rejected. `_send()` updates the
+per-symbol and global gates synchronously before a second `queue()` call can
+compute `_waitMs()`.
+
+P0:
+
+```json
+{
+  "status": "PASS",
+  "finalBalance": 13255.255799695915,
+  "totalTrades": 1410,
+  "winners": 855,
+  "losers": 555,
+  "winRate": "60.6",
+  "maxDrawdownPercent": "3.17",
+  "profitFactor": "1.71"
+}
+```
+
+### Runtime Reload
+
+`ogz-prime-v2` was restarted with the same controlled paper overrides:
+
+```text
+BROKER=alpaca
+ASSET_CLASS=stocks
+PRIMARY_ASSET=TSLA
+TRADING_PAIR=TSLA
+ALPACA_SYMBOLS=TSLA
+EXECUTION_MODE=paper
+PAPER_TRADING=true
+LIVE_TRADING=false
+CONFIRM_LIVE_TRADING=false
+SESSION_ROUTER_ENABLED=false
+ACCOUNT_DRAWDOWN_BYPASS=false
+RISK_MANAGER_BYPASS=false
+WEBHOOK_ORDERS_ENABLED=true
+WEBHOOK_DRY_RUN=true
+CANDLE_TIMEFRAME=15m
+```
+
+Post-restart evidence:
+
+- `ogz-prime-v2` status: online
+- pid: `1671049`
+- PM2 restarts: `54`
+- startup out-log showed TSLA REST hydrate, Alpaca authentication, TSLA bar
+  subscription, and bot online
+- error-log mtime stayed `2026-06-02T03:40:38Z`, before the
+  `2026-06-02T04:42:37Z` process start, so the old BTC/schema and Alpaca 406
+  error-tail lines were stale
+
+### Dashboard Capture
+
+30-second browser-shaped authenticated dashboard capture:
+
+```text
+ogz-meta/cognition-history/live-eval/2026-06-02T04-48-dashboard-depth-post-restart-ws.jsonl
+```
+
+Observed frame counts:
+
+```json
+{
+  "auth_success": 1,
+  "state_update": 2,
+  "broker_status": 21,
+  "historical_candles": 1,
+  "price": 21,
+  "ticker_price": 21
+}
+```
+
+Observed symbols:
+
+```json
+{
+  "state_update": ["TSLA"],
+  "historical_candles": ["TSLA"],
+  "price": ["BTC-USD", "ETH-USD", "SOL-USD"],
+  "ticker_price": ["BTC-USD", "ETH-USD", "SOL-USD"]
+}
+```
+
+Latest `state_update` scope:
+
+```json
+{
+  "symbol": "TSLA",
+  "brokerId": "alpaca",
+  "accountId": "[present]",
+  "accountIdSource": "broker:id",
+  "runtimeScopeStatus": "complete",
+  "runtimeScopeMissing": []
+}
+```
+
+`depth_update` count was `0` in this capture, expected for TSLA/Alpaca posture.
+The depth coalescer is a Kraken-side producer guard and will show up when a
+Kraken depth producer is active.
+
+### Updated Checkoff State
+
+- Gate A runtime posture: still green for controlled TSLA/Alpaca paper.
+- Gate B broker truth: upgraded. Runtime state now carries broker-verified
+  account identity with complete scope.
+- Gate H dashboard transport: upgraded. The known Kraken depth flood mechanism
+  is now coalesced in the bot before dashboard broadcast and has P0/Mercury
+  evidence.
+
+### Remaining Red Items
+
+1. TSLA live intraday bar ingress through `ANALYSIS_START`,
+   `STRATEGY_DECISION`, and `DECISION_SKIP` or `EVAL_RULE_CHECK` still needs a
+   market-hours capture.
+2. No `trade`, `broker_ack`, or `broker_reject` frame has been observed in the
+   current controlled TSLA paper posture. That still requires a real strategy
+   intent/order path.
+3. Stock REST snapshots remain honestly suppressed when stale. During market
+   hours this must be rechecked for TSLA stock freshness.
