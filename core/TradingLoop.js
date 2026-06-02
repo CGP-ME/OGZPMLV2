@@ -860,7 +860,7 @@ class TradingLoop {
           decision = {
             action: isClosingShort ? 'COVER' : 'SELL',
             direction: 'close',
-            confidence: orchResult.confidence,
+            confidence: 100,
             exitSize: profitResult.exitSize,
             exitFraction: profitResult.exitFraction,
             exitReason: profitResult.reason,

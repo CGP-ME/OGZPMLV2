@@ -7,6 +7,7 @@ const mockStateManager = {
     if (key === 'initialBalance') return 10000;
     return null;
   }),
+  getEquity: jest.fn(() => 10000),
   isHalted: jest.fn(() => false),
   getHaltReason: jest.fn(() => null),
   isSymbolHalted: jest.fn(() => false),
@@ -506,6 +507,65 @@ describe('TradingLoop trace spine', () => {
     }));
     expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
+  });
+
+  test('main candle MaxProfitManager exits do not inherit zero hold confidence', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_MPM_MAIN_1' });
+    const mpm = {
+      state: { active: true },
+      update: jest.fn(() => ({
+        action: 'exit_full',
+        exitSize: 1000,
+        exitFraction: 1,
+        reason: 'max_profit_exit',
+      })),
+    };
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_MPM_1',
+      orderId: 'BUY_MPM_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+
+    const ctx = baseEntryContext({
+      marketData: {
+        symbol: 'TSLA',
+        price: 101,
+        timestamp: 1700000000000,
+        volume: 1000,
+      },
+      strategyOrchestrator: {
+        evaluate: jest.fn(() => ({
+          direction: 'hold',
+          confidence: 0,
+          winnerStrategy: null,
+          allResults: [],
+          confluence: { count: 0, strategies: [] },
+          sizingMultiplier: 1,
+        })),
+      },
+      maxProfitManagers: new Map([['BUY_MPM_1', mpm]]),
+      executeTrade,
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+    loop._broadcastDecision = jest.fn();
+
+    await loop._analyze('TSLA', 'trace_mpm_exit_zero_hold_conf');
+
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      confidence: 100,
+      exitReason: 'max_profit_exit',
+      tradeId: 'BUY_MPM_1',
+    }));
+    expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
   });
 
   test('forces a TTP consistency exit when an open stock position reaches the configured profit cap', async () => {
