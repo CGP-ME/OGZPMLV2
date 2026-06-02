@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Depth Transport Contract (2026-06-02)
+
+- Coalesced high-frequency `depth_update` frames per symbol and globally before dashboard broadcast so Kraken book deltas cannot saturate the browser WebSocket while preserving first-frame immediacy, dynamic symbol allow-list validation, and active-session guards.
+- Added a fail-fast `DASHBOARD_DEPTH_MIN_INTERVAL_MS` integer contract so invalid throttle configuration cannot silently disable the dashboard depth producer guard.
+
 ### Broker Runtime Account Identity Contract (2026-06-02)
 
 - Promoted verified broker account identity from Alpaca `/v2/account` into runtime scope so dashboard `state_update` frames can distinguish complete account scope from the `default` sentinel without faking account IDs.

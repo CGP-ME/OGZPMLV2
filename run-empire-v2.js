@@ -107,6 +107,10 @@ require('./instrument.js');
 // ConfigLoader already loaded at line 4 (before Sentry)
 const envPath = resolvedConfig.config.paths.envFile;
 const { createTraceId, emitTrace } = require('./core/TraceSpine');
+const {
+  DashboardDepthCoalescer,
+  resolveDashboardDepthMinIntervalMs
+} = require('./core/DashboardDepthCoalescer');
 const RuntimeAuditSink = require('./core/RuntimeAuditSink');
 const { resolvePatternMaturity } = require('./core/PatternMaturity');
 const { isStock: isDashboardStockSymbol, fetchStockCandles } = require('./server/stock-data-adapter');
@@ -527,6 +531,10 @@ class OGZPrimeV14Bot {
 
     // Bot-bound telemetry modules read StateManager through the bot instance.
     this.stateManager = stateManager;
+    this.dashboardDepthCoalescer = new DashboardDepthCoalescer({
+      minIntervalMs: resolveDashboardDepthMinIntervalMs(),
+      sendFrame: (symbol, frame, sentAt) => this.sendDashboardDepthFrame(symbol, frame, sentAt),
+    });
 
     // Initialize core modules
     console.log('[CHECKPOINT-008] Creating pattern checker...');
@@ -1790,17 +1798,25 @@ class OGZPrimeV14Bot {
     }
     if (!this._dashboardDepthAdapters) this._dashboardDepthAdapters = new WeakSet();
     if (this._dashboardDepthAdapters.has(adapter)) return true;
-    const allowed = new Set();
-    for (const rawSymbol of (Array.isArray(allowedSymbols) ? allowedSymbols : [allowedSymbols])) {
-      const normalized = normalizeRuntimeSymbol(rawSymbol);
-      if (!normalized || !normalized.includes('-')) {
-        throw new Error(`[DashboardDepth] invalid allowed depth symbol: ${String(rawSymbol)}`);
+    const allowedSymbolsProvider = typeof allowedSymbols === 'function'
+      ? allowedSymbols
+      : () => allowedSymbols;
+    const resolveAllowedDepthSymbols = () => {
+      const allowed = new Set();
+      const rawSymbols = allowedSymbolsProvider();
+      for (const rawSymbol of (Array.isArray(rawSymbols) ? rawSymbols : [rawSymbols])) {
+        const normalized = normalizeRuntimeSymbol(rawSymbol);
+        if (!normalized || !normalized.includes('-')) {
+          throw new Error(`[DashboardDepth] invalid allowed depth symbol: ${String(rawSymbol)}`);
+        }
+        allowed.add(normalized);
       }
-      allowed.add(normalized);
-    }
-    if (allowed.size === 0) {
-      throw new Error('[DashboardDepth] attachDashboardDepthUpdates requires at least one allowed symbol');
-    }
+      if (allowed.size === 0) {
+        throw new Error('[DashboardDepth] attachDashboardDepthUpdates requires at least one allowed symbol');
+      }
+      return allowed;
+    };
+    resolveAllowedDepthSymbols();
 
     adapter.on('depth_update', (frame) => {
       if (!isActive()) return;
@@ -1811,28 +1827,54 @@ class OGZPrimeV14Bot {
         this.emitDashboardErrorEvent('depth_update.missing_symbol', new Error('depth_update frame missing symbol'));
         return;
       }
-      if (!allowed.has(symbol)) {
+      const isDepthSymbolAllowed = () => {
+        try {
+          return resolveAllowedDepthSymbols().has(symbol);
+        } catch (error) {
+          this.emitDashboardErrorEvent('depth_update.allowed_symbols', error, { symbol });
+          return null;
+        }
+      };
+      const depthSymbolAllowed = isDepthSymbolAllowed();
+      if (depthSymbolAllowed !== true) {
+        if (depthSymbolAllowed === null) return;
         this.emitDashboardErrorEvent('depth_update.unconfigured_symbol', new Error(`depth_update symbol not configured: ${symbol}`), { symbol });
         return;
       }
       if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return;
 
-      try {
-        this.dashboardWs.send(JSON.stringify({
-          ...frame,
-          symbol,
-          data: {
-            ...(frame.data && typeof frame.data === 'object' ? frame.data : {}),
-            symbol,
-          },
-        }));
-      } catch (error) {
-        this.emitDashboardErrorEvent('depth_update.dashboard_broadcast', error, { symbol });
-      }
+      const canSendDepthFrame = () => isActive() && isDepthSymbolAllowed() === true;
+      this.queueDashboardDepthFrame(symbol, frame, canSendDepthFrame);
     });
 
     this._dashboardDepthAdapters.add(adapter);
     return true;
+  }
+
+  queueDashboardDepthFrame(symbol, frame, canSend) {
+    const normalized = normalizeRuntimeSymbol(symbol);
+    if (!normalized || !frame || frame.type !== 'depth_update') return false;
+
+    return this.dashboardDepthCoalescer.queue(normalized, frame, canSend);
+  }
+
+  sendDashboardDepthFrame(symbol, frame, sentAt = Date.now()) {
+    if (!this.dashboardWs || this.dashboardWs.readyState !== 1) return false;
+
+    try {
+      this.dashboardWs.send(JSON.stringify({
+        ...frame,
+        symbol,
+        data: {
+          ...(frame.data && typeof frame.data === 'object' ? frame.data : {}),
+          symbol,
+        },
+      }));
+      return true;
+    } catch (error) {
+      this.emitDashboardErrorEvent('depth_update.dashboard_broadcast', error, { symbol });
+      return false;
+    }
   }
 
   /**
@@ -3257,6 +3299,7 @@ class OGZPrimeV14Bot {
     console.log('Modular Entry System cleaned up');
 
     if (this.dashboardWs) {
+      if (this.dashboardDepthCoalescer) this.dashboardDepthCoalescer.clear();
       this.dashboardWs.removeAllListeners();
       this.dashboardWs.close();
       console.log('Dashboard WebSocket cleaned up');
