@@ -46,23 +46,70 @@ const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
 
-if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
+function prepareResultsDir() {
+  if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
+}
 
-// Clean up any leftover state files from previous runs
-try {
-  const dataDir = path.join(PROJECT_ROOT, 'data');
-  if (fs.existsSync(dataDir)) {
-    fs.readdirSync(dataDir)
-      .filter(f => f.startsWith('state-parallel-'))
-      .forEach(f => { try { fs.unlinkSync(path.join(dataDir, f)); } catch(e) {} });
-  }
-} catch(e) {}
+function cleanupParallelStateFiles() {
+  // Clean up any leftover state files from previous runs.
+  try {
+    const dataDir = path.join(PROJECT_ROOT, 'data');
+    if (fs.existsSync(dataDir)) {
+      fs.readdirSync(dataDir)
+        .filter(f => f.startsWith('state-parallel-'))
+        .forEach(f => { try { fs.unlinkSync(path.join(dataDir, f)); } catch(e) {} });
+    }
+  } catch(e) {}
+}
 
 // ═══════════════════════════════════════════════════════════════
 // STRATEGY LIST & GAUNTLET GENERATORS (must be before SWEEP_PRESETS)
 // ═══════════════════════════════════════════════════════════════
 
-const STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'MarketRegime', 'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'SmartMoneySweep'];
+const STRATEGIES = [
+  'RSI',
+  'EMASMACrossover',
+  'MADynamicSR',
+  'LiquiditySweep',
+  'SmartMoneySweep',
+  'MarketRegime',
+  'MultiTimeframe',
+  'OGZTPO',
+  'OpeningRangeBreakout',
+  'CandlePattern',
+  'NoWickImbalance',
+  'BreakRetest',
+];
+
+function parseSoloStrategies(value) {
+  if (!value) return [];
+  return String(value)
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function buildDormantStrategyEnableEnv(soloStrategy) {
+  const soloStrategies = new Set(parseSoloStrategies(soloStrategy));
+  if (soloStrategies.size === 0) return {};
+
+  const env = {};
+  if (soloStrategies.has('nowickimbalance')) env.ENABLE_NOWICK = 'true';
+  if (soloStrategies.has('openingrangebreakout')) env.ENABLE_ORB = 'true';
+  if (soloStrategies.has('breakretest')) env.ENABLE_BREAKRETEST = 'true';
+  return env;
+}
+
+function assertDormantStrategyEnvCompatible(soloStrategy, configEnv = {}) {
+  const requiredEnv = buildDormantStrategyEnableEnv(soloStrategy);
+  for (const [key, requiredValue] of Object.entries(requiredEnv)) {
+    if (!Object.prototype.hasOwnProperty.call(configEnv, key)) continue;
+    if (String(configEnv[key]).toLowerCase() === requiredValue) continue;
+    throw new Error(
+      `Invalid parallel-backtest config: ${key}=${configEnv[key]} conflicts with SOLO_STRATEGY=${soloStrategy}`
+    );
+  }
+}
 
 function generateGauntlet(paramType, values) {
   const configs = [];
@@ -204,11 +251,14 @@ const SWEEP_PRESETS = {
     { name: 'EMA-only', env: { SOLO_STRATEGY: 'EMASMACrossover' } },
     { name: 'MASR-only', env: { SOLO_STRATEGY: 'MADynamicSR' } },
     { name: 'Sweep-only', env: { SOLO_STRATEGY: 'LiquiditySweep' } },
+    { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
     { name: 'Regime-only', env: { SOLO_STRATEGY: 'MarketRegime' } },
     { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
     { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
     { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
-    { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
+    { name: 'Candle-only', env: { SOLO_STRATEGY: 'CandlePattern' } },
+    { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
+    { name: 'BreakRetest-only', env: { SOLO_STRATEGY: 'BreakRetest' } },
   ],
 
   // RSI thresholds sweep - oversold x overbought grid
@@ -287,6 +337,12 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
     delete cleanEnv.ATR_MIN_PERCENT;
 
     const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
+    const selectedSoloStrategy = config.env?.SOLO_STRATEGY || process.env.SOLO_STRATEGY;
+    assertDormantStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
+    const dormantStrategyEnv = buildDormantStrategyEnableEnv(selectedSoloStrategy);
+    for (const key of Object.keys(dormantStrategyEnv)) {
+      delete cleanEnv[key];
+    }
 
     const env = {
       ...cleanEnv,
@@ -311,12 +367,10 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       // FIX 2026-04-09: Enable SMS in sweeps (was silent-killed by _applyPipelineToggles)
       ENABLE_SMS: 'true',
       SMS_VP_RTH_ONLY: 'true',
-      // FIX 2026-05-04: SOLO-targeted strategies whose pipeline toggle defaults false.
-      // Mirrors tools/matrix-sweep.js. Only enables when SOLO_STRATEGY targets that strategy,
-      // so baseline multi-strategy runs are unchanged.
-      ENABLE_NOWICK: process.env.SOLO_STRATEGY === 'NoWickImbalance' ? 'true' : 'false',
-      ENABLE_ORB: process.env.SOLO_STRATEGY === 'OpeningRangeBreakout' ? 'true' : 'false',
-      ENABLE_BREAKRETEST: process.env.SOLO_STRATEGY === 'BreakRetest' ? 'true' : 'false',
+      // SOLO-targeted strategies whose pipeline toggles default false.
+      // Use the worker's selected strategy, not the parent shell alone, so
+      // generated gauntlet/strategy-sweep configs match matrix-sweep wiring.
+      ...dormantStrategyEnv,
       // Disable Sentry (hooks every async op = massive overhead on 45K candles)
       SENTRY_DSN: '',
       NODE_ENV: 'test',
@@ -612,6 +666,9 @@ const DATA_SHORTCUTS = {
 };
 
 async function main() {
+  prepareResultsDir();
+  cleanupParallelStateFiles();
+
   const args = process.argv.slice(2);
   let sweepName = 'real';  // Default to HONORED env vars only
   let dataFile = DEFAULT_DATA;
@@ -677,11 +734,11 @@ Focused Optimization (one variable at a time):
   --rsi          RSI oversold/overbought grid (15 configs)
 
 Strategy Isolation:
-  --strategy-sweep  Test each strategy individually (9 configs)
+  --strategy-sweep  Test each strategy individually (12 configs)
   --solo=NAME       Run sweep with ONLY this strategy enabled
 
 Gauntlet:
-  --gauntlet-atr    9 strategies x 8 ATR levels (72 configs)
+  --gauntlet-atr    12 strategies x 8 ATR levels (96 configs)
 
 Options:
   --data FILE    Candle data file (default: ${DEFAULT_DATA})
@@ -724,7 +781,16 @@ Notes:
   await runParallelSweep(configs, dataFile, stockMode);
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  STRATEGIES,
+  parseSoloStrategies,
+  buildDormantStrategyEnableEnv,
+  assertDormantStrategyEnvCompatible,
+};
