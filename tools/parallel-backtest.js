@@ -45,6 +45,25 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
+const WORKER_ENV_ALLOWLIST = [
+  'PATH',
+  'NODE_PATH',
+  'HOME',
+  'USER',
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'TEMP',
+  'TMP',
+  'BACKTEST_OUTPUT_DIR',
+  'NODE_OPTIONS',
+  'SystemRoot',
+  'SYSTEMROOT',
+  'ComSpec',
+  'COMSPEC',
+  'PATHEXT',
+  'WINDIR',
+];
 
 function prepareResultsDir() {
   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -97,6 +116,10 @@ function buildDormantStrategyEnableEnv(soloStrategy) {
   if (soloStrategies.has('nowickimbalance')) env.ENABLE_NOWICK = 'true';
   if (soloStrategies.has('openingrangebreakout')) env.ENABLE_ORB = 'true';
   if (soloStrategies.has('breakretest')) env.ENABLE_BREAKRETEST = 'true';
+  if (soloStrategies.has('smartmoneysweep')) {
+    env.ENABLE_SMS = 'true';
+    env.SMS_VP_RTH_ONLY = 'true';
+  }
   return env;
 }
 
@@ -109,6 +132,30 @@ function assertDormantStrategyEnvCompatible(soloStrategy, configEnv = {}) {
       `Invalid parallel-backtest config: ${key}=${configEnv[key]} conflicts with SOLO_STRATEGY=${soloStrategy}`
     );
   }
+}
+
+function buildWorkerBaseEnv(sourceEnv = process.env) {
+  const workerBaseEnv = {};
+  for (const key of WORKER_ENV_ALLOWLIST) {
+    if (sourceEnv[key] !== undefined) {
+      workerBaseEnv[key] = sourceEnv[key];
+    }
+  }
+  return workerBaseEnv;
+}
+
+function applySoloStrategyToConfigs(configs, soloStrategy) {
+  if (!soloStrategy) return configs;
+  return configs.map(config => {
+    if (config.env?.SOLO_STRATEGY) return config;
+    return {
+      ...config,
+      env: {
+        ...(config.env || {}),
+        SOLO_STRATEGY: soloStrategy,
+      },
+    };
+  });
 }
 
 function generateGauntlet(paramType, values) {
@@ -327,25 +374,17 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
     const stateFile = path.join(PROJECT_ROOT, 'data', `state-parallel-${uniqueId}.json`);
     const reportTag = `parallel-${uniqueId}`;
     
-    // Start with parent env but DELETE trading vars so they don't contaminate
-    // (user might have set them manually in shell)
-    const cleanEnv = { ...process.env };
-    delete cleanEnv.STOP_LOSS_PERCENT;
-    delete cleanEnv.TAKE_PROFIT_PERCENT;
-    delete cleanEnv.MIN_TRADE_CONFIDENCE;
-    delete cleanEnv.TRAILING_STOP_PERCENT;
-    delete cleanEnv.ATR_MIN_PERCENT;
+    // Build workers from system/runtime essentials only. Trading vars enter
+    // through this worker contract below or through the selected sweep config.
+    const workerBaseEnv = buildWorkerBaseEnv(process.env);
 
     const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
-    const selectedSoloStrategy = config.env?.SOLO_STRATEGY || process.env.SOLO_STRATEGY;
+    const selectedSoloStrategy = config.env?.SOLO_STRATEGY;
     assertDormantStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
     const dormantStrategyEnv = buildDormantStrategyEnableEnv(selectedSoloStrategy);
-    for (const key of Object.keys(dormantStrategyEnv)) {
-      delete cleanEnv[key];
-    }
 
     const env = {
-      ...cleanEnv,
+      ...workerBaseEnv,
       EXECUTION_MODE: 'backtest',
       CANDLE_SOURCE: 'file',
       BACKTEST_MODE: 'true',
@@ -364,9 +403,6 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       SKIP_CSV_EXPORT: 'true',
       // Disable dashboard WebSocket (no server on local PC = infinite reconnect loop)
       ENABLE_DASHBOARD: 'false',
-      // FIX 2026-04-09: Enable SMS in sweeps (was silent-killed by _applyPipelineToggles)
-      ENABLE_SMS: 'true',
-      SMS_VP_RTH_ONLY: 'true',
       // SOLO-targeted strategies whose pipeline toggles default false.
       // Use the worker's selected strategy, not the parent shell alone, so
       // generated gauntlet/strategy-sweep configs match matrix-sweep wiring.
@@ -673,6 +709,7 @@ async function main() {
   let sweepName = 'real';  // Default to HONORED env vars only
   let dataFile = DEFAULT_DATA;
   let stockMode = false;
+  let cliSoloStrategy = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sweep' && args[i+1]) sweepName = args[++i];
@@ -698,15 +735,13 @@ async function main() {
     else if (args[i] === '--gauntlet-atr') sweepName = 'gauntlet-atr';
     else if (args[i] === '--strategy' && args[i+1]) {
       // Single strategy isolation mode - adds SOLO_STRATEGY to all configs
-      const strat = args[++i];
-      process.env.SOLO_STRATEGY = strat;
-      console.log(`[SOLO MODE] Only testing strategy: ${strat}`);
+      cliSoloStrategy = args[++i];
+      console.log(`[SOLO MODE] Only testing strategy: ${cliSoloStrategy}`);
     }
     else if (args[i].startsWith('--solo=')) {
       // Shorthand: --solo=RSI is same as --strategy RSI
-      const strat = args[i].split('=')[1];
-      process.env.SOLO_STRATEGY = strat;
-      console.log(`[SOLO MODE] Only testing strategy: ${strat}`);
+      cliSoloStrategy = args[i].split('=')[1];
+      console.log(`[SOLO MODE] Only testing strategy: ${cliSoloStrategy}`);
     }
     else if (args[i] === '--stocks') stockMode = true;
     // Bare shortcut: tsla, spy, qqq, btc, etc.
@@ -778,6 +813,8 @@ Notes:
     process.exit(1);
   }
 
+  configs = applySoloStrategyToConfigs(configs, cliSoloStrategy);
+
   await runParallelSweep(configs, dataFile, stockMode);
 }
 
@@ -793,4 +830,6 @@ module.exports = {
   parseSoloStrategies,
   buildDormantStrategyEnableEnv,
   assertDormantStrategyEnvCompatible,
+  buildWorkerBaseEnv,
+  applySoloStrategyToConfigs,
 };
