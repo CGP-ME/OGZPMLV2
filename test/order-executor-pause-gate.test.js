@@ -997,6 +997,110 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
+  test('backtest stock partial exit routes minimum whole share when requested fraction is sub-share', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 300, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        size: 300,
+        sizeUsd: 300,
+        entryOrderQuantity: 3,
+        remainingOrderQuantity: 3,
+      }),
+    ]);
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.3 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 100,
+      orderQuantity: 1,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      1 / 3,
+      125 * (1 - 0.0005),
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 1,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  });
+
+  test('backtest stock sub-share partial request full-closes a one-share remainder', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 100, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        size: 100,
+        sizeUsd: 100,
+        entryOrderQuantity: 1,
+        remainingOrderQuantity: 1,
+      }),
+    ]);
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.3 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 100,
+      orderQuantity: 1,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
+      125 * (1 - 0.0005),
+      false,
+      null,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+      })
+    );
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+  });
+
   test('live stock exit refuses legacy active trades without stored broker quantity', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

@@ -446,9 +446,12 @@ class OrderExecutor {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} quantity unit mismatch: stored=${remainingOrderQuantityUnit} planned=${quantityUnit}`);
     }
     const rawOrderQuantity = remainingOrderQuantity * exitFraction;
-    const orderQuantity = quantityUnit === 'shares'
+    let orderQuantity = quantityUnit === 'shares'
       ? Math.floor(rawOrderQuantity)
       : rawOrderQuantity;
+    if (quantityUnit === 'shares' && orderQuantity <= 0 && rawOrderQuantity > 0 && remainingOrderQuantity >= 1) {
+      orderQuantity = 1;
+    }
     if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} planned non-positive exit quantity ${orderQuantity} from remaining=${remainingOrderQuantity} fraction=${exitFraction}`);
     }
@@ -1695,7 +1698,7 @@ class OrderExecutor {
             const stateExitFraction = executedExitPlan?.stateExitFraction ?? fraction;
             const stateExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
             const stateExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
-            const statePartialClose = isPartialClose || Boolean(executedExitPlan && stateExitFraction < 1);
+            const statePartialClose = executedExitPlan ? stateExitFraction < 1 : isPartialClose;
             if (statePartialClose) {
               closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
                 orderId: buyTrade.orderId,
