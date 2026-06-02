@@ -242,3 +242,161 @@ Gate A must be resolved before TSLA eval visibility can be marked green:
 3. Verify PM2 env after restart.
 4. Capture live TSLA candle ingress through `ANALYSIS_START`, `STRATEGY_DECISION`, and either `DECISION_SKIP` or `EVAL_RULE_CHECK`.
 5. Verify Alpaca broker positions and local state agree before any eval flip.
+
+## Pass 2 - 2026-06-02T00:23:56+00:00
+
+This pass checked the runtime/env split without restarting PM2 or modifying runtime files.
+
+### PM2 Env Truth
+
+Filtered `pm2 jlist` showed:
+
+- `ogz-prime-v2`: `TRADING_PAIR=BTC-USD`, `BROKER=kraken`, `ASSET_CLASS=crypto`, `EXECUTION_MODE=paper`, `PAPER_TRADING=true`, `LIVE_TRADING=false`, `SESSION_ROUTER_ENABLED=false`.
+- `ogz-websocket`: `TRADING_PAIR=TSLA`, `ALPACA_SYMBOLS=TSLA`, `PAPER_TRADING=true`, `SESSION_ROUTER_ENABLED=false`.
+- `ogz-stripe`: `TRADING_PAIR=TSLA`, `ALPACA_SYMBOLS=TSLA`, `PAPER_TRADING=true`, `SESSION_ROUTER_ENABLED=false`.
+- None of the filtered PM2 launch envs exposed Alpaca credential keys. Repo-local dotenv does expose them to modules that call `dotenv.config()`.
+
+Conclusion: the active trade process remains a BTC/Kraken paper runtime. The TSLA stock relay posture exists in the web-facing processes, not the running trade engine.
+
+### Repo-Local Dotenv Truth
+
+`dotenv.config()` parsed repo-local `.env` as:
+
+```json
+{
+  "TRADING_PAIR": "TSLA",
+  "BROKER": "alpaca",
+  "ASSET_CLASS": "stocks",
+  "ALPACA_SYMBOLS": "TSLA",
+  "PAPER_TRADING": "true",
+  "LIVE_TRADING": "false",
+  "CONFIRM_LIVE_TRADING": "false",
+  "SESSION_ROUTER_ENABLED": "false",
+  "RISK_MANAGER_BYPASS": "false",
+  "ACCOUNT_DRAWDOWN_BYPASS": "true",
+  "WEBHOOK_ORDERS_ENABLED": "true",
+  "WEBHOOK_DRY_RUN": "true",
+  "CANDLE_TIMEFRAME": "15m",
+  "PRIMARY_ASSET": "TSLA"
+}
+```
+
+Conclusion: the repo-local default can support TSLA/Alpaca paper rehearsal, but it is not eval-ready because drawdown bypass and webhook dry-run are enabled, and eval rules are not enabled.
+
+### Read-Only Alpaca Broker Proof
+
+Read-only paper Alpaca probe using repo-local dotenv:
+
+```json
+{
+  "account": {
+    "status": "ACTIVE",
+    "equity": 100000,
+    "buyingPower": 200000,
+    "portfolioValue": 100000
+  },
+  "positionCount": 0,
+  "tslaPositions": [],
+  "openOrderCount": 0,
+  "tslaOrders": []
+}
+```
+
+Conclusion: broker account truth is now checked for the paper Alpaca account. It is flat for TSLA and has no open TSLA orders.
+
+### ConfigLoader Eval Readiness
+
+Current repo-local dotenv loads successfully as TSLA/Alpaca paper rehearsal:
+
+- broker: `alpaca`
+- trading pair: `TSLA`
+- asset class: `stocks`
+- Alpaca credentials: present
+- risk manager bypass: `false`
+- account drawdown bypass: `true`
+- webhook orders enabled: `true`
+- webhook dry-run: `true`
+- eval rules enabled: `false`
+- TTP rules enabled: `false`
+
+Forcing `LIVE_TRADING=true`, `CONFIRM_LIVE_TRADING=true`, `PAPER_TRADING=false`, `ACCOUNT_DRAWDOWN_BYPASS=false`, `RISK_MANAGER_BYPASS=false`, `WEBHOOK_DRY_RUN=false`, `EVAL_RULES_ENABLED=true`, and `TTP_RULES_ENABLED=true` correctly fails unless all TTP account limits are explicitly configured:
+
+```text
+TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD for daily loss pause
+TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured for daily loss pause
+TTP_DAILY_LOSS_LIMIT_DOLLARS must be configured for daily loss pause
+TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured for max loss enforcement
+TTP_PROFIT_TARGET_DOLLARS must be configured for consistency enforcement
+```
+
+With explicit TTP account limits and `INITIAL_BALANCE=100000`, ConfigLoader accepts the full eval override shape:
+
+```json
+{
+  "mode": {
+    "execution": "live",
+    "liveTrading": true,
+    "paperTrading": false,
+    "confirmLiveTrading": true
+  },
+  "broker": {
+    "id": "alpaca",
+    "tradingPair": "TSLA",
+    "assetClass": "stocks",
+    "apiKeyPresent": true,
+    "apiSecretPresent": true
+  },
+  "risk": {
+    "riskManagerBypass": false,
+    "accountDrawdownBypass": false
+  },
+  "webhookOrders": {
+    "enabled": true,
+    "dryRun": false,
+    "webhookUrlPresent": true
+  },
+  "evalRules": {
+    "enabled": true,
+    "ttpEnabled": true,
+    "accountStartOfDayEquity": 100000,
+    "dailyLossDollars": 3000,
+    "maxLossThresholdEquity": 97000,
+    "profitTargetDollars": 6000
+  }
+}
+```
+
+Conclusion: ConfigLoader blocks missing TTP limits and accepts the intended eval posture only when the eval account basis is explicit. This is code-ready, not runtime-active.
+
+### Updated Checkoff State
+
+- Gate B broker truth: upgraded from blocked to partial-green for Alpaca paper. Broker account is ACTIVE and flat for TSLA.
+- Gate A runtime posture: still blocked for eval because `ogz-prime-v2` is launched as BTC/Kraken/paper.
+- Gate C signal path: still blocked for TSLA live signal visibility until `ogz-prime-v2` is deliberately started/restarted in TSLA/Alpaca posture.
+- Gate D/E/F eval rules: validator is green for explicit eval override shape, but live path remains unobserved.
+
+### Next Checkoff Step
+
+Before eval, run a controlled TSLA/Alpaca paper rehearsal under explicit safe overrides:
+
+- `BROKER=alpaca`
+- `ASSET_CLASS=stocks`
+- `TRADING_PAIR=TSLA`
+- `ALPACA_SYMBOLS=TSLA`
+- `PAPER_TRADING=true`
+- `LIVE_TRADING=false`
+- `WEBHOOK_DRY_RUN=true`
+- `ACCOUNT_DRAWDOWN_BYPASS=false`
+- `RISK_MANAGER_BYPASS=false`
+- `SESSION_ROUTER_ENABLED=false`
+
+Then capture the same dashboard/trace ladder for TSLA:
+
+1. candle ingress
+2. normalization
+3. state before
+4. strategy decision or no-signal reason
+5. risk/eval gate result if a trade intent appears
+6. broker/webhook boundary if an order intent appears
+7. state after
+8. dashboard frame alignment
