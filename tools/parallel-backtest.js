@@ -42,7 +42,7 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const DEFAULT_DATA = 'tuning/tsla-15m-18mo.json';
+const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
 const WORKER_ENV_ALLOWLIST = [
@@ -689,7 +689,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
 
 // Data file shortcuts
 const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-18mo.json',
+  'tsla': 'tuning/tsla-15m-2y.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
   'tsla-unseen': 'tuning/tsla-15m-unseen.json',

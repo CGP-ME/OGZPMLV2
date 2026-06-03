@@ -14,8 +14,8 @@ const {
 
 describe('parallel-backtest solo strategy env wiring', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
-    expect(DEFAULT_DATA).toBe('tuning/tsla-15m-18mo.json');
-    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-18mo.json');
+    expect(DEFAULT_DATA).toBe('tuning/tsla-15m-2y.json');
+    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-2y.json');
   });
 
   test('strategy roster includes exploratory strategies that matrix-sweep can run', () => {

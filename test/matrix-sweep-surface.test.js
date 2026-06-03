@@ -12,8 +12,8 @@ const {
 
 describe('matrix-sweep runnable surface', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
-    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-18mo.json');
-    expect(getDataLabel(DATA_SHORTCUTS.tsla)).toBe('tsla-18mo');
+    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-2y.json');
+    expect(getDataLabel(DATA_SHORTCUTS.tsla)).toBe('tsla-2y');
   });
 
   test('exploratory roster excludes MarketRegime because it is a regime filter, not a solo strategy', () => {

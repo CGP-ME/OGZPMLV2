@@ -79,7 +79,7 @@ const RESULTS_DIR = getMatrixDir();
 // DATA FILE SHORTCUTS
 // ===================================================================
 const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-18mo.json',
+  'tsla': 'tuning/tsla-15m-2y.json',
   'tsla-train': 'tuning/tsla-15m-train.json',
   'tsla-test': 'tuning/tsla-15m-test.json',
   'tsla-unseen': 'tuning/tsla-15m-unseen.json',
@@ -95,7 +95,7 @@ const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
                         'tsla-train', 'tsla-test', 'tsla-unseen'];
 
 // Extract human-readable label from data file path
-// 'tuning/tsla-15m-18mo.json'  → 'tsla-18mo'
+// 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
 // 'tuning/tsla-15m-train.json' → 'tsla-train'
 // 'data/polygon-btc-1y.json'   → 'btc-1y'
 function getDataLabel(dataFile) {
@@ -728,7 +728,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
 
 async function main() {
   var args = process.argv.slice(2);
-  var dataFile = 'tuning/tsla-15m-18mo.json';
+  var dataFile = 'tuning/tsla-15m-2y.json';
   var stockMode = false;
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
