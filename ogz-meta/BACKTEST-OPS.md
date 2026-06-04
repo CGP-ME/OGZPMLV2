@@ -13,7 +13,7 @@ regression anchor.
 
 Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and
 `ogz-meta/gates/multi-runtime-gate-runner.js`; its current full anchor is
-`$10000.26792578263 / 1410 trades / 60.6% WR / PF 1.00`.
+`$10061.215823687478 / 1688 trades / 62.1% WR / PF 1.01`.
 
 Rechecked 2026-06-04 with:
 
@@ -27,6 +27,12 @@ over-credited tiered partial exits by recording more closed cost basis than the
 original entry. The current P0 gate validates the summary and rejects reports
 where `profit_tier_1`, `profit_tier_2`, `profit_tier_3`, or `profit_tier_4`
 exceed their configured original-position fractions.
+
+The intermediate `$10000.26792578263 / 1410 trades / 60.6% WR / PF 1.00`
+anchor is also retired. It was produced before `anchor-runner.js` was hardened
+to build P0 from the explicit `current-eval` tuning profile and a scrubbed
+worker env. The hardened P0 runner stamps its worker env/profile and writes a
+unique timestamped ledger log per run.
 
 Manual commands in this file are for targeted backtests, exploratory runs, and
 tuning. A command that omits `SOLO_STRATEGY` is a no-SOLO, winner-takes-all

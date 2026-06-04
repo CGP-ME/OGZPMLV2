@@ -10,10 +10,10 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10000.26792578263,
-  totalTrades: 1410,
-  winRate: 60.6,
-  profitFactor: 1.00
+  finalBalance: 10061.215823687478,
+  totalTrades: 1688,
+  winRate: 62.1,
+  profitFactor: 1.01
 });
 
 const P0_TIER_FRACTION_CAPS = Object.freeze({
@@ -339,7 +339,9 @@ const GATES = [
       return {
         summary: result.summary,
         log: result.log,
-        report: result.report
+        report: result.report,
+        tuningProfile: result.tuningProfile,
+        workerEnv: result.workerEnv
       };
     }
   },

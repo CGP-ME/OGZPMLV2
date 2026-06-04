@@ -5,7 +5,7 @@
 The P0 anchor was rebaselined from the historical over-credited report to the
 closed-cost-basis report.
 
-Current executable P0:
+Retired intermediate P0:
 
 - finalBalance: `10000.26792578263`
 - totalTrades: `1410`
@@ -14,6 +14,17 @@ Current executable P0:
 - report: `backtest-report-v14MERGED-1780535702346.json`
 - gate report: `ogz-meta/gates/runs/multi-runtime-latest.json`
 - log: `ogz-meta/ledger/phase0-canonical-multi-runtime-gate-2026-06-04.log`
+
+Current executable P0 after `anchor-runner.js` was hardened to use the explicit
+`current-eval` tuning profile and scrubbed worker env:
+
+- finalBalance: `10061.215823687478`
+- totalTrades: `1688`
+- winRate: `62.1`
+- profitFactor: `1.01`
+- report: `backtest-results/worker-reports/backtest-report-1780542189823-phase0-canonical-multi-runtime-gate-2026-06-04T03-02-20-589Z.json`
+- gate report: `ogz-meta/gates/runs/multi-runtime-latest.json`
+- log: `ogz-meta/ledger/phase0-canonical-multi-runtime-gate-2026-06-04T03-02-20-589Z.log`
 
 Retired anchor:
 
@@ -44,7 +55,7 @@ Mechanical comparison:
 `ogz-meta/gates/multi-runtime-gate-runner.js` now validates both summary and
 report-shape accounting:
 
-- P0 summary must match `10000.26792578263 / 1410 / 60.6 / 1.00`.
+- P0 summary must match `10061.215823687478 / 1688 / 62.1 / 1.01`.
 - Tiered exits are grouped by entry identity plus runtime scope.
 - `exitReason` is required and normalized by trim/lowercase.
 - Unknown tier-like labels are rejected.
@@ -56,6 +67,16 @@ report-shape accounting:
   - `profit_tier_4 <= 0.20`
 
 ## Verification
+
+2026-06-04 follow-up:
+
+- `anchor-runner.js` now builds P0 env through `tools/backtest-worker-env.js`
+  instead of broad `process.env` inheritance.
+- P0 uses tuning profile `current-eval`.
+- P0 logs are timestamped to avoid same-day overwrite.
+- `test/anchor-runner-env.test.js` covers the scrubbed P0 env and log tag.
+
+Original commands:
 
 Commands run:
 

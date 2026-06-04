@@ -11,6 +11,9 @@ const {
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
 } = require('../tools/parallel-backtest');
+const {
+  CONFIG_ENV_OVERRIDE_ALLOWLIST,
+} = require('../tools/backtest-worker-env');
 
 describe('parallel-backtest solo strategy env wiring', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
@@ -129,5 +132,18 @@ describe('parallel-backtest solo strategy env wiring', () => {
       { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
       { name: 'baseline', env: { SOLO_STRATEGY: 'RSI' } },
     ]);
+  });
+
+  test('all generated parallel sweep env keys are explicit worker override keys', () => {
+    const keys = new Set();
+
+    for (const preset of Object.values(SWEEP_PRESETS)) {
+      const configs = typeof preset === 'function' ? preset() : preset;
+      for (const config of configs || []) {
+        for (const key of Object.keys(config.env || {})) keys.add(key);
+      }
+    }
+
+    expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
   });
 });

@@ -28,6 +28,17 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
+const {
+  buildWorkerBaseEnv,
+  buildBacktestWorkerEnv,
+  summarizeWorkerEnv,
+} = require('./backtest-worker-env');
+const {
+  DEFAULT_TUNING_PROFILE,
+  listTuningProfileNames,
+  resolveTuningProfile,
+  summarizeTuningProfile,
+} = require('./tuning-profiles');
 
 // ═══════════════════════════════════════════════════════════════
 // HARDWARE DETECTION
@@ -45,25 +56,6 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const TIMEOUT_MS = 0; // No timeout - let it finish
-const WORKER_ENV_ALLOWLIST = [
-  'PATH',
-  'NODE_PATH',
-  'HOME',
-  'USER',
-  'USERPROFILE',
-  'APPDATA',
-  'LOCALAPPDATA',
-  'TEMP',
-  'TMP',
-  'BACKTEST_OUTPUT_DIR',
-  'NODE_OPTIONS',
-  'SystemRoot',
-  'SYSTEMROOT',
-  'ComSpec',
-  'COMSPEC',
-  'PATHEXT',
-  'WINDIR',
-];
 
 function prepareResultsDir() {
   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -131,16 +123,6 @@ function assertDormantStrategyEnvCompatible(soloStrategy, configEnv = {}) {
       `Invalid parallel-backtest config: ${key}=${configEnv[key]} conflicts with SOLO_STRATEGY=${soloStrategy}`
     );
   }
-}
-
-function buildWorkerBaseEnv(sourceEnv = process.env) {
-  const workerBaseEnv = {};
-  for (const key of WORKER_ENV_ALLOWLIST) {
-    if (sourceEnv[key] !== undefined) {
-      workerBaseEnv[key] = sourceEnv[key];
-    }
-  }
-  return workerBaseEnv;
 }
 
 function applySoloStrategyToConfigs(configs, soloStrategy) {
@@ -365,58 +347,31 @@ function generateRSISweep() {
 // WORKER — Runs a single backtest as a child process
 // ═══════════════════════════════════════════════════════════════
 
-function runSingleBacktest(config, dataFile, stockMode = false) {
+function runSingleBacktest(config, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const uniqueId = `${config.name}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`;
     const stateFile = path.join(PROJECT_ROOT, 'data', `state-parallel-${uniqueId}.json`);
     const reportTag = `parallel-${uniqueId}`;
     
-    // Build workers from system/runtime essentials only. Trading vars enter
-    // through this worker contract below or through the selected sweep config.
-    const workerBaseEnv = buildWorkerBaseEnv(process.env);
-
     const instrumentEnv = resolveInstrumentFromDataFile(dataFile);
     const selectedSoloStrategy = config.env?.SOLO_STRATEGY;
     assertDormantStrategyEnvCompatible(selectedSoloStrategy, config.env || {});
     const dormantStrategyEnv = buildDormantStrategyEnableEnv(selectedSoloStrategy);
 
-    const env = {
-      ...workerBaseEnv,
-      EXECUTION_MODE: 'backtest',
-      CANDLE_SOURCE: 'file',
-      BACKTEST_MODE: 'true',
-      BACKTEST_SILENT: 'true',
-      BACKTEST_VERBOSE: 'false',
-      BACKTEST_FAST: 'true',
-      INITIAL_BALANCE: '10000',
-      CANDLE_DATA_FILE: path.resolve(PROJECT_ROOT, dataFile),
-      STATE_FILE: stateFile,
-      DATA_DIR: path.join(PROJECT_ROOT, 'data', 'backtest'),
-      PAPER_TRADING: 'true',
-      // FIX 2026-03-20: Add TEST_MODE to skip lock file check (allows running while live is active)
-      TEST_MODE: 'true',
-      // Skip pattern saving and CSV export to avoid EMFILE on Windows
-      BACKTEST_NO_PATTERN_SAVE: 'true',
-      SKIP_CSV_EXPORT: 'true',
-      // Disable dashboard WebSocket (no server on local PC = infinite reconnect loop)
-      ENABLE_DASHBOARD: 'false',
-      // SOLO-targeted strategies whose pipeline toggles default false.
-      // Use the worker's selected strategy, not the parent shell alone, so
-      // generated gauntlet/strategy-sweep configs match matrix-sweep wiring.
-      ...dormantStrategyEnv,
-      // Disable Sentry (hooks every async op = massive overhead on 45K candles)
-      SENTRY_DSN: '',
-      NODE_ENV: 'test',
-      // Tag for finding the right report file
-      BACKTEST_REPORT_TAG: reportTag,
-      // Pass through STRATEGY_DIAG if set
-      STRATEGY_DIAG: process.env.STRATEGY_DIAG || 'false',
-      // Stock mode: zero commission
-      ...(stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}),
-      ...config.env,
-      ...instrumentEnv,
-    };
+    const env = buildBacktestWorkerEnv({
+      sourceEnv: process.env,
+      projectRoot: PROJECT_ROOT,
+      dataFile,
+      stateFile,
+      dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
+      reportTag,
+      stockMode,
+      profileName,
+      strategyDiag: process.env.STRATEGY_DIAG || 'false',
+      configEnv: { ...dormantStrategyEnv, ...(config.env || {}) },
+      instrumentEnv,
+    });
 
     let output = '';
 
@@ -473,6 +428,7 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       result.elapsed = elapsed;
       result.exitCode = code;
       result.config = config;
+      result.workerEnv = summarizeWorkerEnv(env);
 
       // Clean up state file
       try { fs.unlinkSync(stateFile); } catch(e) {}
@@ -485,6 +441,7 @@ function runSingleBacktest(config, dataFile, stockMode = false) {
       resolve({
         name: config.name,
         config: config,
+        workerEnv: summarizeWorkerEnv(env),
         error: err.message,
         elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
       });
@@ -590,12 +547,15 @@ function parseBacktestOutput(output, name) {
 // PARALLEL RUNNER
 // ═══════════════════════════════════════════════════════════════
 
-async function runParallelSweep(configs, dataFile, stockMode = false) {
+async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
+  const tuningProfile = resolveTuningProfile(profileName);
+
   console.log(`\n${'═'.repeat(70)}`);
   console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE - Zero Fees]' : ''}`);
   console.log(`  ${cpuModel} | ${threadCount} threads | ${MAX_WORKERS} workers`);
   console.log(`  ${configs.length} configurations to test`);
   console.log(`  Data: ${dataFile}`);
+  console.log(`  Profile: ${tuningProfile.name}`);
   console.log(`  Timeout: None (runs until complete)`);
   if (stockMode) console.log(`  Fees: $0 (zero commission stocks)`);
   console.log(`${'═'.repeat(70)}\n`);
@@ -613,7 +573,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
     console.log(`  ⏳ Running... (no timeout, will finish when done)`);
 
     const batchResults = await Promise.all(
-      batch.map(config => runSingleBacktest(config, dataFile, stockMode))
+      batch.map(config => runSingleBacktest(config, dataFile, stockMode, tuningProfile.name))
     );
 
     batchResults.forEach(r => {
@@ -662,6 +622,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false) {
     timestamp: new Date().toISOString(),
     hardware: { cpu: cpuModel, threads: threadCount, workers: MAX_WORKERS },
     dataFile,
+    tuningProfile: summarizeTuningProfile(tuningProfile),
     totalConfigs: configs.length,
     parsedConfigs: ranked.length,
     totalTime: `${totalTime}s`,
@@ -708,6 +669,7 @@ async function main() {
   let dataFile = DEFAULT_DATA;
   let stockMode = false;
   let cliSoloStrategy = null;
+  let profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sweep' && args[i+1]) sweepName = args[++i];
@@ -720,6 +682,12 @@ async function main() {
       const val = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
       if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
+    }
+    else if (args[i] === '--profile' && args[i+1]) {
+      profileName = args[++i];
+    }
+    else if (args[i].startsWith('--profile=')) {
+      profileName = args[i].split('=')[1];
     }
     else if (args[i] === '--real') sweepName = 'real';
     else if (args[i] === '--quick') sweepName = 'quick';  // alias to real
@@ -777,6 +745,7 @@ Options:
   --data FILE    Candle data file (default: ${DEFAULT_DATA})
                  Shortcuts: tsla, spy, qqq, btc, btc-5sec
   --solo=NAME    Test single strategy (RSI, MADynamicSR, EMASMACrossover, SmartMoneySweep, etc)
+  --profile=NAME Tuning profile (${listTuningProfileNames().join(', ')})
   --stocks       Zero commission mode (for stocks)
   --help         Show this help
 
@@ -784,8 +753,8 @@ NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are IGNORED
       (overridden by locked exitContracts per strategy). See ENV-VAR-AUDIT.md.
 
 Examples:
-  node tools/parallel-backtest.js --real --stocks --data=tsla
-  node tools/parallel-backtest.js --atr --solo=RSI --stocks
+  node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
+  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=config-d-flat
 
 Walk-Forward Validation:
   After finding winners, test on unseen data:
@@ -813,7 +782,7 @@ Notes:
 
   configs = applySoloStrategyToConfigs(configs, cliSoloStrategy);
 
-  await runParallelSweep(configs, dataFile, stockMode);
+  await runParallelSweep(configs, dataFile, stockMode, profileName);
 }
 
 if (require.main === module) {
@@ -833,4 +802,7 @@ module.exports = {
   assertDormantStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
+  listTuningProfileNames,
+  resolveTuningProfile,
+  summarizeTuningProfile,
 };

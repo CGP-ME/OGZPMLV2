@@ -9,6 +9,9 @@ const {
   generateMatrix,
   getDataLabel,
 } = require('../tools/matrix-sweep');
+const {
+  CONFIG_ENV_OVERRIDE_ALLOWLIST,
+} = require('../tools/backtest-worker-env');
 
 describe('matrix-sweep runnable surface', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
@@ -55,5 +58,18 @@ describe('matrix-sweep runnable surface', () => {
     expect(generateMatrix(['NoWickImbalance'], GRID.exits, 'exits')).toHaveLength(0);
     expect(generateMatrix(['LiquiditySweep'], GRID.full, 'full')).toHaveLength(0);
     expect(generateMatrix(['SmartMoneySweep'], GRID.quick, 'quick')).toHaveLength(0);
+  });
+
+  test('all generated matrix env keys are explicit worker override keys', () => {
+    const keys = new Set();
+
+    for (const phase of Object.keys(GRID)) {
+      const configs = generateMatrix(ALL_STRATEGIES, GRID[phase], phase);
+      for (const config of configs || []) {
+        for (const key of Object.keys(config.env || {})) keys.add(key);
+      }
+    }
+
+    expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
   });
 });

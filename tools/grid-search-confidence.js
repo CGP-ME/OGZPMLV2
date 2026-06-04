@@ -12,6 +12,11 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { resolveInstrumentFromDataFile } = require('./instrument-env');
+const {
+  buildBacktestWorkerEnv,
+  summarizeWorkerEnv,
+} = require('./backtest-worker-env');
 
 const THRESHOLDS = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
 const CANDLE_LIMIT = 60000;
@@ -20,26 +25,37 @@ const DATA_FILE = path.join(WORK_DIR, 'data/polygon-btc-1y.json');
 
 const PARALLEL = process.argv.includes('--parallel') || process.argv.includes('-p');
 
+function buildGridSearchEnv(threshold, reportTag, stateFile, sourceEnv = process.env) {
+  return buildBacktestWorkerEnv({
+    sourceEnv,
+    projectRoot: WORK_DIR,
+    dataFile: DATA_FILE,
+    stateFile,
+    dataDir: path.join(WORK_DIR, 'data', 'backtest'),
+    reportTag,
+    stockMode: false,
+    configEnv: {
+      PATTERN_DOMINANCE: 'false',
+      CANDLE_LIMIT: String(CANDLE_LIMIT),
+      MIN_TRADE_CONFIDENCE: String(threshold),
+      DEBUG_AGG: '0',
+      DEBUG_BRAIN: '0',
+    },
+    instrumentEnv: resolveInstrumentFromDataFile(DATA_FILE),
+  });
+}
+
 function runBacktest(threshold) {
   return new Promise((resolve) => {
     const pct = (threshold * 100).toFixed(0);
     const logFile = path.join(WORK_DIR, `grid-${pct}pct.log`);
+    const reportTag = `grid-${pct}pct-${Date.now()}`;
+    const stateFile = path.join(WORK_DIR, 'data', `state-${reportTag}.json`);
     const startTime = Date.now();
 
     console.log(`[${pct}%] Starting backtest...`);
 
-    const env = {
-      ...process.env,
-      BACKTEST_MODE: 'true',
-      BACKTEST_FAST: 'true',
-      EXIT_SYSTEM: 'legacy',
-      PATTERN_DOMINANCE: 'false',
-      CANDLE_LIMIT: String(CANDLE_LIMIT),
-      CANDLE_DATA_FILE: DATA_FILE,
-      MIN_TRADE_CONFIDENCE: String(threshold),
-      DEBUG_AGG: '0',
-      DEBUG_BRAIN: '0'
-    };
+    const env = buildGridSearchEnv(threshold, reportTag, stateFile);
 
     const child = spawn('node', ['run-empire-v2.js'], {
       cwd: WORK_DIR,
@@ -53,13 +69,7 @@ function runBacktest(threshold) {
     child.stdout.on('data', (data) => { stdout += data.toString(); });
     child.stderr.on('data', (data) => { stderr += data.toString(); });
 
-    const timeout = setTimeout(() => {
-      child.kill('SIGTERM');
-      console.log(`[${pct}%] TIMEOUT after 40 minutes`);
-    }, 40 * 60 * 1000);
-
     child.on('close', (code) => {
-      clearTimeout(timeout);
       const log = stdout + stderr;
       fs.writeFileSync(logFile, log);
 
@@ -105,9 +115,12 @@ function runBacktest(threshold) {
         winRateNum: winRate,
         pnl: metrics.pnl.toFixed(2) + '%',
         pnlNum: metrics.pnl,
-        duration: duration + 's'
+        duration: duration + 's',
+        exitCode: code,
+        workerEnv: summarizeWorkerEnv(env)
       };
 
+      try { fs.unlinkSync(stateFile); } catch (e) {}
       console.log(`[${pct}%] Done: ${result.trades} trades, ${result.winRate} win rate, ${result.pnl} P&L (${duration}s)`);
       resolve(result);
     });
@@ -185,4 +198,14 @@ async function main() {
   console.log(`\nResults saved to ${resultsFile}`);
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = {
+  THRESHOLDS,
+  CANDLE_LIMIT,
+  DATA_FILE,
+  buildGridSearchEnv,
+  runBacktest,
+};

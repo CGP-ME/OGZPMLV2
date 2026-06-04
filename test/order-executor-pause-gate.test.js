@@ -47,6 +47,7 @@ jest.mock('../ogz-meta/claudito-logger', () => ({
 
 const OrderExecutor = require('../core/OrderExecutor');
 const MaxProfitManager = require('../core/MaxProfitManager');
+const TradingConfig = require('../core/TradingConfig');
 const { getNarrator } = require('../core/TradeNarrator');
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 
@@ -143,9 +144,11 @@ function makeShortTrade(overrides = {}) {
 describe('OrderExecutor pause gate', () => {
   let errorSpy;
   let warnSpy;
+  let clearTradingConfigOverrides;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    clearTradingConfigOverrides = false;
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockStateManager.get.mockImplementation((key) => {
@@ -165,6 +168,7 @@ describe('OrderExecutor pause gate', () => {
   });
 
   afterEach(() => {
+    if (clearTradingConfigOverrides) TradingConfig.clearOverrides();
     errorSpy.mockRestore();
     warnSpy.mockRestore();
   });
@@ -413,6 +417,53 @@ describe('OrderExecutor pause gate', () => {
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
+  });
+
+  test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: false },
+      positionSizing: { maxPositionSize: 0.05, absoluteCapPercent: 0.15 },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: false,
+      failedRules: [{ ruleId: 'SIZE_PROBE' }],
+    });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 2 }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+      failedRules: 'SIZE_PROBE',
+    }));
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      baseSizeUsd: 500,
+      sizeUsd: 1000,
+      confidenceMultiplier: 1,
+      sizingMultiplier: 2,
+      orderQuantity: 10,
+    }));
   });
 
   test('malformed entry exit contract fails before broker, gate, webhook, or state side effects', async () => {

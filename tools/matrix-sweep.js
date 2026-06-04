@@ -73,6 +73,16 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 // FIX 2026-04-16: Route matrix output to unified output directory
 const { getMatrixDir } = require('../core/OutputPaths');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
+const {
+  buildBacktestWorkerEnv,
+  summarizeWorkerEnv,
+} = require('./backtest-worker-env');
+const {
+  DEFAULT_TUNING_PROFILE,
+  listTuningProfileNames,
+  resolveTuningProfile,
+  summarizeTuningProfile,
+} = require('./tuning-profiles');
 const RESULTS_DIR = getMatrixDir();
 
 // ===================================================================
@@ -304,52 +314,27 @@ function generateMatrix(strategies, grid, phase) {
 // (Same pattern as parallel-backtest.js)
 // ===================================================================
 
-function runWorker(config, dataFile, stockMode) {
+function runWorker(config, dataFile, stockMode, profileName) {
   return new Promise(function(resolve) {
     var startTime = Date.now();
     var uid = 'matrix-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
     var stateFile = path.join(PROJECT_ROOT, 'data', 'state-' + uid + '.json');
 
-    // FIX 2026-04-16: Build worker env from scratch (not clone-and-scrub).
-    // Previous approach cloned process.env and deleted 6 known-bad vars.
-    // ~180+ trading env vars could leak from a dirty shell (ENABLE_*,
-    // REGIME_*, VP_*, TRAIL_*, BE_*, etc). Now we build from a whitelist
-    // of only what matrix workers need. Leakage is impossible regardless
-    // of shell state.
-    var workerBaseEnv = {};
-    var SYSTEM_VARS = ['PATH', 'NODE_PATH', 'HOME', 'USERPROFILE',
-                       'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP',
-                       'BACKTEST_OUTPUT_DIR', 'NODE_OPTIONS'];
-    for (var i = 0; i < SYSTEM_VARS.length; i++) {
-      var key = SYSTEM_VARS[i];
-      if (process.env[key] !== undefined) {
-        workerBaseEnv[key] = process.env[key];
-      }
-    }
-
     var instrumentEnv = resolveInstrumentFromDataFile(dataFile);
 
-    var env = Object.assign({}, workerBaseEnv, {
-      EXECUTION_MODE: 'backtest',
-      CANDLE_SOURCE: 'file',
-      BACKTEST_MODE: 'true',
-      BACKTEST_SILENT: 'true',
-      BACKTEST_VERBOSE: 'false',
-      BACKTEST_FAST: 'true',
-      INITIAL_BALANCE: '10000',
-      CANDLE_DATA_FILE: path.resolve(PROJECT_ROOT, dataFile),
-      STATE_FILE: stateFile,
-      DATA_DIR: path.join(PROJECT_ROOT, 'data', 'backtest'),
-      PAPER_TRADING: 'true',
-      TEST_MODE: 'true',
-      BACKTEST_NO_PATTERN_SAVE: 'true',
-      SKIP_CSV_EXPORT: 'true',
-      ENABLE_DASHBOARD: 'false',
-      SENTRY_DSN: '',
-      NODE_ENV: 'test',
-      BACKTEST_REPORT_TAG: uid,
-      STRATEGY_DIAG: 'false',
-    }, stockMode ? { FEE_MAKER: '0', FEE_TAKER: '0' } : {}, config.env, instrumentEnv);
+    var env = buildBacktestWorkerEnv({
+      sourceEnv: process.env,
+      projectRoot: PROJECT_ROOT,
+      dataFile: dataFile,
+      stateFile: stateFile,
+      dataDir: path.join(PROJECT_ROOT, 'data', 'backtest'),
+      reportTag: uid,
+      stockMode: stockMode,
+      profileName: profileName,
+      strategyDiag: 'false',
+      configEnv: config.env,
+      instrumentEnv: instrumentEnv,
+    });
 
     var output = '';
     var child = spawn('node', [RUNNER], {
@@ -373,6 +358,7 @@ function runWorker(config, dataFile, stockMode) {
 
       result.elapsed = elapsed;
       result.exitCode = code;
+      result.workerEnv = summarizeWorkerEnv(env);
 
       // Cleanup
       try { fs.unlinkSync(stateFile); } catch (e) {}
@@ -385,6 +371,7 @@ function runWorker(config, dataFile, stockMode) {
         name: config.name,
         strategy: config.strategy,
         sl: config.sl, tp: config.tp, conf: config.conf,
+        workerEnv: summarizeWorkerEnv(env),
         error: err.message,
         elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
       });
@@ -527,7 +514,8 @@ function tryReadReport(projectRoot, tag) {
 // PARALLEL RUNNER
 // ===================================================================
 
-async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
+async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName) {
+  var tuningProfile = resolveTuningProfile(profileName);
   var totalStart = Date.now();
 
   console.log('\n' + '='.repeat(72));
@@ -535,6 +523,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
   console.log('  ' + cpuModel + ' | ' + threadCount + ' threads | ' + MAX_WORKERS + ' workers');
   console.log('  ' + configs.length + ' configurations to test');
   console.log('  Data: ' + dataFile);
+  console.log('  Profile: ' + tuningProfile.name);
   console.log('  ETA: ~' + Math.ceil(configs.length / MAX_WORKERS * 30 / 60) + ' minutes');
   console.log('='.repeat(72) + '\n');
 
@@ -556,7 +545,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
     process.stdout.write('  Batch ' + batchNum + '/' + totalBatches + ' (' + pct + '% done, ' + batch.length + ' workers)...');
 
     var batchResults = await Promise.all(
-      batch.map(function(c) { return runWorker(c, dataFile, stockMode); })
+      batch.map(function(c) { return runWorker(c, dataFile, stockMode, tuningProfile.name); })
     );
 
     batchResults.forEach(function(r) { results.push(r); });
@@ -659,6 +648,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase) {
     hardware: { cpu: cpuModel, threads: threadCount, workers: MAX_WORKERS },
     dataFile: dataFile,
     stockMode: stockMode,
+    tuningProfile: summarizeTuningProfile(tuningProfile),
     totalConfigs: configs.length,
     parsedConfigs: parsed.length,
     totalTime: totalTime + 's',
@@ -733,6 +723,7 @@ async function main() {
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
   var useAllStrategies = false;
+  var profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
 
   for (var i = 0; i < args.length; i++) {
     if (args[i] === '--data' && args[i + 1]) {
@@ -747,6 +738,10 @@ async function main() {
       phase = args[++i];
     } else if (args[i].indexOf('--phase=') === 0) {
       phase = args[i].split('=')[1];
+    } else if (args[i] === '--profile' && args[i + 1]) {
+      profileName = args[++i];
+    } else if (args[i].indexOf('--profile=') === 0) {
+      profileName = args[i].split('=')[1];
     } else if (args[i] === '--quick') {
       phase = 'quick';
     } else if (args[i] === '--full') {
@@ -780,6 +775,8 @@ async function main() {
       console.log('  --solo=RSI          Test only RSI');
       console.log('  --solo=EMA          Test only EMASMACrossover');
       console.log('  --all-strategies    Test ALL strategies\n');
+      console.log('Profiles:');
+      console.log('  --profile=NAME      Tuning profile (' + listTuningProfileNames().join(', ') + ')\n');
       console.log('Data:');
       console.log('  --data tsla    TSLA 15m 18-month (default)');
       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
@@ -787,7 +784,7 @@ async function main() {
       console.log('Examples:');
       console.log('  node tools/matrix-sweep.js --data tsla');
       console.log('  node tools/matrix-sweep.js --data tsla --solo=RSI --conf');
-      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits');
+      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=config-d-flat');
       console.log('  node tools/matrix-sweep.js --data tsla --quick');
       console.log('  node tools/matrix-sweep.js --data spy --stocks\n');
       console.log('Walk-Forward Workflow:');
@@ -841,9 +838,10 @@ async function main() {
 
   console.log('\n  Phase: ' + phase);
   console.log('  Strategies: ' + strategies.join(', '));
+  console.log('  Profile: ' + resolveTuningProfile(profileName).name);
   console.log('  Total configs: ' + configs.length);
 
-  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase);
+  await runMatrix(configs, dataFile, stockMode, soloStrategy, phase, profileName);
 }
 
 if (require.main === module) {
@@ -864,4 +862,7 @@ module.exports = {
   getDataLabel,
   buildMonotonicTierCube,
   generateMatrix,
+  listTuningProfileNames,
+  resolveTuningProfile,
+  summarizeTuningProfile,
 };

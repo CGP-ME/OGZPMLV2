@@ -42,28 +42,29 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { resolveInstrumentFromDataFile } = require('../tools/instrument-env');
+const {
+  buildBacktestWorkerEnv,
+  summarizeWorkerEnv,
+} = require('../tools/backtest-worker-env');
+const {
+  resolveTuningProfile,
+  summarizeTuningProfile,
+} = require('../tools/tuning-profiles');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 const CANONICAL_ENV = {
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
-  EXECUTION_MODE: 'backtest',
-  CANDLE_SOURCE: 'file',
-  BACKTEST_MODE: 'true',
-  BACKTEST_FAST: 'true',
-  BACKTEST_SILENT: 'true',
-  FEE_MAKER: '0',
-  FEE_TAKER: '0',
   MIN_TRADE_CONFIDENCE: '0.60',
   STOP_LOSS_PERCENT: '2.5',
   ACCOUNT_DRAWDOWN_BYPASS: 'true',
-  BACKTEST_NO_PATTERN_SAVE: 'true',
-  ENABLE_DASHBOARD: 'false',
   DIRECTION_FILTER: 'long_only',
   ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false'
 };
+
+const P0_TUNING_PROFILE = 'current-eval';
 
 const PROFILES = {
   fast: {
@@ -80,6 +81,42 @@ const PROFILES = {
   }
 };
 
+function buildRunStamp(date = new Date()) {
+  return date.toISOString().replace(/[:.]/g, '-');
+}
+
+function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
+  const cfg = PROFILES[profile];
+  if (!cfg) {
+    throw new Error(`anchor-runner: unknown profile "${profile}" — expected one of ${Object.keys(PROFILES).join(', ')}`);
+  }
+
+  const logName = `phase0-${cfg.logSuffix}-${logTag}-${runStamp}.log`;
+  const logPath = path.join(REPO_ROOT, 'ogz-meta', 'ledger', logName);
+  const instrumentEnv = resolveInstrumentFromDataFile(cfg.candleFile);
+  const tuningProfile = resolveTuningProfile(P0_TUNING_PROFILE);
+  const env = buildBacktestWorkerEnv({
+    sourceEnv: process.env,
+    projectRoot: REPO_ROOT,
+    dataFile: cfg.candleFile,
+    stateFile: path.join(REPO_ROOT, cfg.stateFile),
+    dataDir: path.join(REPO_ROOT, 'data', 'backtest', `phase0-${cfg.logSuffix}`),
+    reportTag: `phase0-${cfg.logSuffix}-${logTag}-${runStamp}`,
+    stockMode: true,
+    configEnv: CANONICAL_ENV,
+    instrumentEnv,
+    profileName: tuningProfile.name,
+  });
+
+  return {
+    cfg,
+    env,
+    logPath,
+    tuningProfile,
+    workerEnv: summarizeWorkerEnv(env),
+  };
+}
+
 /**
  * Run a Phase 0 backtest profile and return the parsed summary.
  *
@@ -89,23 +126,13 @@ const PROFILES = {
  * @throws {Error} on profile invalid, backtest exit non-zero, or report missing
  */
 function runP0(profile, logTag) {
-  const cfg = PROFILES[profile];
-  if (!cfg) {
-    throw new Error(`anchor-runner: unknown profile "${profile}" — expected one of ${Object.keys(PROFILES).join(', ')}`);
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const logName = `phase0-${cfg.logSuffix}-${logTag}-${today}.log`;
-  const logPath = path.join(REPO_ROOT, 'ogz-meta', 'ledger', logName);
-
-  const instrumentEnv = resolveInstrumentFromDataFile(cfg.candleFile);
-  const env = {
-    ...process.env,
-    ...CANONICAL_ENV,
-    ...instrumentEnv,
-    CANDLE_DATA_FILE: cfg.candleFile,
-    STATE_FILE: cfg.stateFile
-  };
+  const {
+    cfg,
+    env,
+    logPath,
+    tuningProfile,
+    workerEnv,
+  } = buildP0RunSpec(profile, logTag);
 
   // Stream-capture: write everything to the log file so it's auditable
   // post-run. The "Report saved" line gives us the report JSON path.
@@ -160,6 +187,8 @@ function runP0(profile, logTag) {
     label: cfg.label,
     log: logPath,
     report: reportPath,
+    tuningProfile: summarizeTuningProfile(tuningProfile),
+    workerEnv,
     summary
   };
 }
@@ -176,4 +205,12 @@ function summariesMatch(a, b) {
          a.losers === b.losers;
 }
 
-module.exports = { runP0, summariesMatch, PROFILES, CANONICAL_ENV };
+module.exports = {
+  runP0,
+  summariesMatch,
+  PROFILES,
+  CANONICAL_ENV,
+  P0_TUNING_PROFILE,
+  buildP0RunSpec,
+  buildRunStamp,
+};
