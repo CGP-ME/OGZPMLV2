@@ -184,7 +184,7 @@ describe('SessionRouter runtime scope propagation', () => {
       executionMode: 'paper',
       timeframe: '5m',
       quantityUnit: 'shares',
-      orderQuantity: 2,
+      orderQuantity: 2.5,
     }));
   });
 

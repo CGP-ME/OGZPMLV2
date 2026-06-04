@@ -202,20 +202,24 @@ Disposition: direction semantics are part of the reconstruction surface. Do not
 compare old long-only baseline outputs to current both-direction worker outputs
 without explicitly accounting for that difference.
 
-Additional config-reader bug:
+Resolved config-reader/final-cap bug:
 
 - `ABSOLUTE_POSITION_CAP` is stored by `core/TradingConfig.js` at
   `entryLogic.sizing.absoluteCapPercent`.
-- `core/OrderExecutor.js` reads `TradingConfig.get('positionSizing.absoluteCapPercent')`.
-- That current read returns `undefined`; the real configured cap is readable at
+- Pre-fix `core/OrderExecutor.js` read
+  `TradingConfig.get('positionSizing.absoluteCapPercent')`.
+- That old read returned `undefined`; the real configured cap is readable at
   `TradingConfig.get('entryLogic.sizing.absoluteCapPercent')`.
 - Commit `e23ebe7` claimed to wire the cap, but added the wrong reader path.
+- Pre-fix cap application also happened before `_buildEntryPlan()` multiplied by
+  confluence, so it did not enforce the documented hard ceiling "even with all
+  multipliers."
+- Post-fix `OrderExecutor` resolves the cap from
+  `entryLogic.sizing.absoluteCapPercent`, rejects malformed caps loudly, and
+  caps final entry `sizeUsd` after confluence sizing.
 
-Disposition: real bug, but not yet proven to be the cause of the negative stock
-baselines. With current `current-eval` values, `MAX_POSITION_SIZE_PCT=0.05`
-and dynamic max multiplier `2.5` cap at 12.5%, while
-`ABSOLUTE_POSITION_CAP=0.15`. Therefore the wrong reader is a safety/config
-integrity bug, not automatically the baseline-collapse root cause.
+Disposition: real safety/config integrity bug fixed as one atomic cap-enforcement
+slice. It is still not proven to be the full baseline-collapse root cause.
 
 Partial-exit state:
 

@@ -415,14 +415,29 @@ class OrderExecutor {
     return sentFrame;
   }
 
-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult }) {
+  _resolveAbsolutePositionCap() {
+    const absoluteCap = TradingConfig.get('entryLogic.sizing.absoluteCapPercent');
+    if (!Number.isFinite(absoluteCap) || absoluteCap <= 0) {
+      throw new Error(`[ABSOLUTE_POSITION_CAP] entryLogic.sizing.absoluteCapPercent must be a finite positive decimal; got ${absoluteCap}`);
+    }
+    return absoluteCap;
+  }
+
+  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
     const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
     const exitContract = orchResult.exitContract;
     const scope = this._runtimeScope(symbol);
-    const sizeUsd = positionSize * sizingMultiplier;
+    const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
+    const requestedSizeUsd = positionSize * sizingMultiplier;
+    const absoluteCapSizeUsd = currentBalance * capPercent;
+    const cappedByAbsoluteCap = requestedSizeUsd > absoluteCapSizeUsd;
+    const sizeUsd = cappedByAbsoluteCap ? absoluteCapSizeUsd : requestedSizeUsd;
+    if (cappedByAbsoluteCap) {
+      console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
+    }
     const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope);
     const quantityUnit = this._orderQuantityUnit(scope);
 
@@ -444,7 +459,11 @@ class OrderExecutor {
       accountBalance: currentBalance,
       currentEquity,
       baseSizeUsd: positionSize,
+      requestedSizeUsd,
       sizeUsd,
+      absoluteCapPercent: capPercent,
+      absoluteCapSizeUsd,
+      cappedByAbsoluteCap,
       confidence: decision.confidence,
       tradeConfidence,
       confidenceMultiplier,
@@ -819,10 +838,9 @@ class OrderExecutor {
       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
     }
-    // FIX TIER-4-ABSOLUTE-CAP: enforce absoluteCapPercent. Cap existed in
-    // TradingConfig.js:497 but had no consumer — peak single-trade was
-    // theoretically 31.25% (5% × 2.5 conf × 2.5 confluence) with no actual ceiling.
-    const absoluteCap = TradingConfig.get('positionSizing.absoluteCapPercent');
+    // ABSOLUTE_POSITION_CAP lives at entryLogic.sizing.absoluteCapPercent and
+    // is enforced again inside _buildEntryPlan after confluence sizing.
+    const absoluteCap = this._resolveAbsolutePositionCap();
     if (Number.isFinite(absoluteCap) && absoluteCap > 0 && basePositionPercent > absoluteCap) {
       console.log(`Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
       basePositionPercent = absoluteCap;
@@ -879,7 +897,8 @@ class OrderExecutor {
       currentEquity,
       tradeConfidence,
       confidenceMultiplier,
-      orchResult
+      orchResult,
+      absoluteCapPercent: absoluteCap
     });
     if (entryPlan && entryPlan.orderQuantity <= 0) {
       console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)}`);

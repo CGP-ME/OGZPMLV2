@@ -422,7 +422,7 @@ describe('OrderExecutor pause gate', () => {
   test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
     TradingConfig.setOverrides({
       features: { enableDynamicSizing: false },
-      positionSizing: { maxPositionSize: 0.05, absoluteCapPercent: 0.15 },
+      positionSizing: { maxPositionSize: 0.05 },
     });
     clearTradingConfigOverrides = true;
     mockStateManager.get.mockImplementation((key) => {
@@ -463,6 +463,56 @@ describe('OrderExecutor pause gate', () => {
       confidenceMultiplier: 1,
       sizingMultiplier: 2,
       orderQuantity: 10,
+    }));
+  });
+
+  test('entry sizing enforces entryLogic absolute cap after confidence and confluence', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.05, absoluteCapPercent: 0.99 },
+      entryLogic: { sizing: { absoluteCapPercent: 0.04 } },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: false,
+      failedRules: [{ ruleId: 'SIZE_PROBE' }],
+    });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        preOrderEntryGate,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 90 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 2.5 }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+      failedRules: 'SIZE_PROBE',
+    }));
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      baseSizeUsd: 400,
+      requestedSizeUsd: 1000,
+      sizeUsd: 400,
+      absoluteCapPercent: 0.04,
+      absoluteCapSizeUsd: 400,
+      cappedByAbsoluteCap: true,
+      orderQuantity: 4,
     }));
   });
 
