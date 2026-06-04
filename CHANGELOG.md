@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Worker Direction Contract (2026-06-04)
+
+- Preserved explicit source-env `DIRECTION_FILTER` values in stock sweep worker envs unless the sweep config supplies its own direction, normalized legacy `long`/`short` aliases, and rejected invalid direction tokens instead of silently reverting to `both`.
+- Added focused worker-env tests for source direction preservation, config precedence, alias normalization, invalid direction rejection, and summary stamping.
+
 ### Stock Partial Exit P0 Accounting (2026-06-04)
 
 - Rebaselined the TSLA stock P0 anchor after correcting partial-exit over-crediting and added a P0 gate invariant that rejects tiered exit fills above their configured 30/30/20/20 caps.

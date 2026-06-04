@@ -59,6 +59,17 @@ const STOCK_ZERO_FEE_ENV = Object.freeze({
   FEE_SAFETY_BUFFER: '0',
 });
 
+const DIRECTION_FILTER_ALIASES = Object.freeze({
+  long: 'long_only',
+  short: 'short_only',
+});
+
+const VALID_DIRECTION_FILTERS = Object.freeze(new Set([
+  'both',
+  'long_only',
+  'short_only',
+]));
+
 const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
   'ACCOUNT_DRAWDOWN_BYPASS',
   'ATR_FILTER_ENABLED',
@@ -167,6 +178,27 @@ function assertEnvKeysAllowed(env, allowlist, label) {
   }
 }
 
+function normalizeDirectionFilter(value, label) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return undefined;
+  }
+
+  const raw = String(value).trim();
+  const normalized = DIRECTION_FILTER_ALIASES[raw] || raw;
+  if (!VALID_DIRECTION_FILTERS.has(normalized)) {
+    throw new Error(
+      `Invalid ${label} DIRECTION_FILTER '${raw}'. Expected one of: both, long_only, short_only, long, short.`
+    );
+  }
+  return normalized;
+}
+
+function resolveDirectionFilter(sourceEnv = {}, configEnv = {}) {
+  return normalizeDirectionFilter(configEnv.DIRECTION_FILTER, 'configEnv')
+    || normalizeDirectionFilter(sourceEnv.DIRECTION_FILTER, 'sourceEnv')
+    || CANONICAL_BACKTEST_ENV.DIRECTION_FILTER;
+}
+
 function buildBacktestWorkerEnv(options) {
   const {
     sourceEnv = process.env,
@@ -191,6 +223,11 @@ function buildBacktestWorkerEnv(options) {
   const profile = resolveTuningProfile(profileName);
   assertEnvKeysAllowed(configEnv, CONFIG_ENV_OVERRIDE_ALLOWLIST, 'configEnv');
   assertEnvKeysAllowed(instrumentEnv, INSTRUMENT_ENV_ALLOWLIST, 'instrumentEnv');
+  const directionFilter = resolveDirectionFilter(sourceEnv, configEnv);
+  const normalizedConfigEnv = { ...configEnv };
+  if (normalizedConfigEnv.DIRECTION_FILTER !== undefined) {
+    normalizedConfigEnv.DIRECTION_FILTER = directionFilter;
+  }
 
   return {
     ...buildWorkerBaseEnv(sourceEnv),
@@ -202,7 +239,8 @@ function buildBacktestWorkerEnv(options) {
     BACKTEST_REPORT_TAG: reportTag,
     STRATEGY_DIAG: strategyDiag,
     ...(stockMode ? STOCK_ZERO_FEE_ENV : {}),
-    ...configEnv,
+    DIRECTION_FILTER: directionFilter,
+    ...normalizedConfigEnv,
     ...instrumentEnv,
     TUNING_PROFILE: profile.name,
     BACKTEST_TUNING_PROFILE: profile.name,
@@ -226,6 +264,8 @@ module.exports = {
   DEFAULT_TUNING_PROFILE,
   buildWorkerBaseEnv,
   assertEnvKeysAllowed,
+  normalizeDirectionFilter,
+  resolveDirectionFilter,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
 };

@@ -66,13 +66,13 @@ describe('backtest worker env contract', () => {
     });
   });
 
-  test('canonical stock worker env blocks parent shell and dotenv drift', () => {
+  test('canonical stock worker env preserves explicit direction while blocking other trading drift', () => {
     const env = buildEnv({ stockMode: true });
 
     expect(env.EXECUTION_MODE).toBe('backtest');
     expect(env.CANDLE_SOURCE).toBe('file');
     expect(env.CANDLE_DATA_FILE).toBe(path.resolve(projectRoot, 'tuning/tsla-15m-2y.json'));
-    expect(env.DIRECTION_FILTER).toBe('both');
+    expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
     expect(env.RISK_MANAGER_BYPASS).toBe('true');
     expect(env.EXIT_SYSTEM).toBe('legacy');
@@ -132,8 +132,40 @@ describe('backtest worker env contract', () => {
     expect(env.ATR_MIN_PERCENT).toBe('0.25');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.07');
     expect(env.RISK_MANAGER_BYPASS).toBe('false');
-    expect(env.DIRECTION_FILTER).toBe('both');
+    expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
+  });
+
+  test('explicit sweep direction wins over source env and legacy alias normalizes', () => {
+    const env = buildEnv({
+      stockMode: true,
+      sourceEnv: {
+        PATH: '/usr/bin',
+        DIRECTION_FILTER: 'long',
+      },
+      configEnv: {
+        SOLO_STRATEGY: 'RSI',
+        DIRECTION_FILTER: 'short',
+      },
+    });
+
+    expect(env.DIRECTION_FILTER).toBe('short_only');
+    expect(summarizeWorkerEnv(env).DIRECTION_FILTER).toBe('short_only');
+  });
+
+  test('invalid direction filters fail loudly instead of falling back to both', () => {
+    expect(() => buildEnv({
+      sourceEnv: {
+        PATH: '/usr/bin',
+        DIRECTION_FILTER: 'longs_only',
+      },
+    })).toThrow(/Invalid sourceEnv DIRECTION_FILTER 'longs_only'/);
+
+    expect(() => buildEnv({
+      configEnv: {
+        DIRECTION_FILTER: 'sideways',
+      },
+    })).toThrow(/Invalid configEnv DIRECTION_FILTER 'sideways'/);
   });
 
   test('profile-owned config env overrides fail loudly instead of lying about profile posture', () => {
@@ -165,7 +197,7 @@ describe('backtest worker env contract', () => {
 
     expect(summary).toMatchObject({
       EXECUTION_MODE: 'backtest',
-      DIRECTION_FILTER: 'both',
+      DIRECTION_FILTER: 'long_only',
       EXIT_SYSTEM: 'legacy',
       TUNING_PROFILE: 'current-eval',
       ENABLE_DYNAMIC_SIZING: 'true',
@@ -207,7 +239,7 @@ describe('backtest worker env contract', () => {
       }
     );
 
-    expect(env.DIRECTION_FILTER).toBe('both');
+    expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.EXIT_SYSTEM).toBe('legacy');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.SOLO_STRATEGY).toBeUndefined();
