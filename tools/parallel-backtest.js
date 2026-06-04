@@ -669,7 +669,7 @@ async function main() {
   let dataFile = DEFAULT_DATA;
   let stockMode = false;
   let cliSoloStrategy = null;
-  let profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
+  let profileName = DEFAULT_TUNING_PROFILE;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--sweep' && args[i+1]) sweepName = args[++i];
@@ -754,7 +754,7 @@ NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are IGNORED
 
 Examples:
   node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
-  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=config-d-flat
+  node tools/parallel-backtest.js --atr --solo=RSI --stocks --profile=legacy-wide
 
 Walk-Forward Validation:
   After finding winners, test on unseen data:

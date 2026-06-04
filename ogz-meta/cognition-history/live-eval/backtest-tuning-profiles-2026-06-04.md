@@ -12,21 +12,22 @@ The current TSLA stock backtest surface had three config-drift problems:
    same-day log names, so parent-shell env could move the canonical gate and
    later runs could overwrite earlier P0 logs.
 
-This made it hard to compare current eval sizing, old flat-sizing posture, and
-wide historical target posture without changing `.env` or trusting implicit
-parent-shell state. It also made P0 less deterministic than the gate name
-implied.
+This made it hard to compare current eval sizing and tracked historical target
+posture without changing `.env` or trusting implicit parent-shell state. It also
+made P0 less deterministic than the gate name implied.
 
 ## New Control
 
 Sweep tools now accept an explicit profile:
 
 ```bash
-node tools/parallel-backtest.js --atr --solo=RSI --stocks --data=tsla --profile=config-d-flat
-node tools/matrix-sweep.js --data tsla --solo=RSI --conf --profile=config-d-flat
+node tools/parallel-backtest.js --atr --solo=RSI --stocks --data=tsla --profile=current-eval
+node tools/matrix-sweep.js --data tsla --solo=RSI --conf --profile=legacy-wide
 ```
 
-If no profile is provided, both tools use `current-eval`.
+If no profile is provided, both tools use `current-eval`. Parent-shell
+`TUNING_PROFILE` and `BACKTEST_TUNING_PROFILE` are intentionally ignored for
+profile selection; profiles must be selected by explicit CLI/caller input.
 
 Each worker report or P0 gate detail stamps:
 
@@ -43,7 +44,8 @@ Config-level overrides are validated against an explicit allowlist before the
 worker env is built. Current allowed config override fields are the generated
 sweep dimensions and dormant strategy enable flags used by the repo sweep tools.
 Profile-owned fields such as `ENABLE_DYNAMIC_SIZING` cannot be supplied through
-`configEnv`.
+`configEnv`. Unverified reconstructed profiles are not available as runnable
+profiles.
 
 P0 now uses the same worker-env builder with the pinned `current-eval` profile,
 stock zero-fee mode, and a unique timestamped ledger log name per run.
@@ -51,8 +53,8 @@ stock zero-fee mode, and a unique timestamped ledger log name per run.
 Mercury attack result:
 
 - Initial attack found a real bypass: `configEnv.ENABLE_DYNAMIC_SIZING=true`
-  could override `config-d-flat` while the worker still stamped
-  `TUNING_PROFILE=config-d-flat`.
+  could override a flat reconstructed profile while the worker still stamped the
+  selected profile name.
 - Patch: `tools/backtest-worker-env.js` now rejects config and instrument env
   keys outside explicit allowlists before merge.
 - Recheck did not show a valid remaining bypass. It noted that a selected
@@ -85,20 +87,6 @@ Mercury attack result:
 - Tier targets are 0.007, 0.010, 0.015, final 0.025.
 - Stock sweeps run zero commission with slippage still stamped as 0.0005.
 
-`config-d-flat`
-
-- Restores the March Config D sizing posture as an explicit worker profile.
-- Dynamic confidence sizing is off.
-- Max position percent is 0.04.
-- Absolute position cap is 0.04 before any existing confluence multiplier.
-- Stop/take-profit globals are 2.0 and 2.5.
-- Tier targets remain 0.007, 0.010, 0.015, final 0.025.
-- Evidence: `core/TradingConfig.js@e9a3eca`,
-  `core/OrderExecutor.js@e9a3eca`,
-  `ogz-meta/CONFIG-FINGERPRINT-REGISTRY.md:66-79`.
-- Limit: the old Config D note was pre-Mercury2 and says it cannot be directly
-  reproduced on current code.
-
 `legacy-wide`
 
 - Historical wide-target posture from `.env.gates`.
@@ -107,13 +95,6 @@ Mercury attack result:
 - Tier targets are 0.020, 0.040, 0.060, final 0.100.
 - Useful for checking whether tight tier exits are choking strategy winners.
 
-`balanced20-flat`
-
-- Deprecated profile-table balanced size made explicit for testing only.
-- Dynamic confidence sizing is off.
-- Max position percent is 0.20.
-- This is not claimed as historical worker behavior unless selected.
-
 ## Important Limits
 
 - This does not prove old May positive TSLA artifacts used any exact profile.
@@ -121,8 +102,8 @@ Mercury attack result:
 - Strategy exit contracts can still override global stop-loss and take-profit
   fields. The worker env stamp makes the selected profile visible, but the
   live execution path still follows `TradingConfig` and per-strategy contracts.
-- `config-d-flat` disables the confidence-size multiplier. It does not remove
-  the existing orchestrator confluence multiplier.
+- The earlier `config-d-flat` reconstruction was removed from runnable profiles
+  because it was not mechanically recovered from a stamped artifact.
 - This does not edit `.env`.
 
 ## Verification Plan
@@ -168,7 +149,7 @@ Retired P0 values:
   worker env because the old reports did not include full env stamps and the
   old same-day log was overwritten by a later run.
 
-## Config-D Smoke Result
+## Removed Reconstruction Smoke Result
 
 Command:
 
@@ -191,30 +172,32 @@ Observed winner:
 - win rate: `58.0%`
 - profit factor: `0.82`
 
-The saved JSON stamps `tuningProfile=config-d-flat`,
+The saved JSON stamped `tuningProfile=config-d-flat`,
 `ENABLE_DYNAMIC_SIZING=false`, `MAX_POSITION_SIZE_PCT=0.04`,
 `ABSOLUTE_POSITION_CAP=0.04`, `TRADING_PAIR=TSLA`, `BROKER=alpaca`,
 `ASSET_CLASS=stocks`, zero stock fees, and `FEE_SLIPPAGE=0.0005`.
 
-This proves the profile selection and worker-env stamping path runs end to end.
-It does not reproduce the old positive May EMA artifact by itself.
+This proved the profile selection and worker-env stamping path ran end to end,
+but it did not reproduce the old positive May EMA artifact. Because that profile
+was reconstructed rather than mechanically recovered, it is no longer available
+as a runnable profile.
 
-## Config-D ATR Rerun Set
+## Current Eval ATR Rerun Set
 
 MarketRegime is excluded because it is a filter/multiplier, not a signal
 strategy for this sweep set.
 
 ```bash
-node tools/parallel-backtest.js --atr --solo=RSI --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=EMASMACrossover --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=MADynamicSR --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=LiquiditySweep --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=SmartMoneySweep --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=OGZTPO --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=OpeningRangeBreakout --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=CandlePattern --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=NoWickImbalance --stocks --data=tsla --profile=config-d-flat
-node tools/parallel-backtest.js --atr --solo=BreakRetest --stocks --data=tsla --profile=config-d-flat
+node tools/parallel-backtest.js --atr --solo=RSI --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=EMASMACrossover --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=MADynamicSR --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=LiquiditySweep --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=SmartMoneySweep --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=OGZTPO --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=OpeningRangeBreakout --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=CandlePattern --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=NoWickImbalance --stocks --data=tsla --profile=current-eval
+node tools/parallel-backtest.js --atr --solo=BreakRetest --stocks --data=tsla --profile=current-eval
 ```
 
 Full output logs should be saved under:

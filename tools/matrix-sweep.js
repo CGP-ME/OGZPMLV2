@@ -723,7 +723,7 @@ async function main() {
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
   var useAllStrategies = false;
-  var profileName = process.env.TUNING_PROFILE || process.env.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE;
+  var profileName = DEFAULT_TUNING_PROFILE;
 
   for (var i = 0; i < args.length; i++) {
     if (args[i] === '--data' && args[i + 1]) {
@@ -784,7 +784,7 @@ async function main() {
       console.log('Examples:');
       console.log('  node tools/matrix-sweep.js --data tsla');
       console.log('  node tools/matrix-sweep.js --data tsla --solo=RSI --conf');
-      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=config-d-flat');
+      console.log('  node tools/matrix-sweep.js --data tsla --solo=EMA --exits --profile=current-eval');
       console.log('  node tools/matrix-sweep.js --data tsla --quick');
       console.log('  node tools/matrix-sweep.js --data spy --stocks\n');
       console.log('Walk-Forward Workflow:');

@@ -179,7 +179,7 @@ function buildBacktestWorkerEnv(options) {
     strategyDiag = 'false',
     configEnv = {},
     instrumentEnv = {},
-    profileName = sourceEnv.TUNING_PROFILE || sourceEnv.BACKTEST_TUNING_PROFILE || DEFAULT_TUNING_PROFILE,
+    profileName = DEFAULT_TUNING_PROFILE,
   } = options || {};
 
   if (!projectRoot) throw new Error('buildBacktestWorkerEnv requires projectRoot');

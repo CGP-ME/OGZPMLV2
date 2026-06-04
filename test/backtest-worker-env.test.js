@@ -7,6 +7,7 @@ const {
   summarizeWorkerEnv,
 } = require('../tools/backtest-worker-env');
 const {
+  listTuningProfileNames,
   resolveTuningProfile,
 } = require('../tools/tuning-profiles');
 const {
@@ -32,6 +33,8 @@ describe('backtest worker env contract', () => {
         FEE_SLIPPAGE: '0',
         ENABLE_NOWICK: 'false',
         SOLO_STRATEGY: 'NoWickImbalance',
+        TUNING_PROFILE: 'legacy-wide',
+        BACKTEST_TUNING_PROFILE: 'missing-profile',
       },
       projectRoot,
       dataFile: 'tuning/tsla-15m-2y.json',
@@ -79,6 +82,7 @@ describe('backtest worker env contract', () => {
     expect(env.FEE_SAFETY_BUFFER).toBe('0');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.TUNING_PROFILE).toBe('current-eval');
+    expect(env.BACKTEST_TUNING_PROFILE).toBe('current-eval');
     expect(env.ENABLE_DYNAMIC_SIZING).toBe('true');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.05');
     expect(env.TIER1_TARGET).toBe('0.007');
@@ -87,25 +91,28 @@ describe('backtest worker env contract', () => {
     expect(env.ENABLE_NOWICK).toBeUndefined();
   });
 
-  test('config-d-flat profile restores flat 4 percent sizing posture explicitly', () => {
+  test('explicit legacy-wide profile loads only tracked source-backed values', () => {
     const env = buildEnv({
       stockMode: true,
-      profileName: 'config-d-flat',
+      profileName: 'legacy-wide',
     });
 
-    expect(env.TUNING_PROFILE).toBe('config-d-flat');
-    expect(env.BACKTEST_TUNING_PROFILE).toBe('config-d-flat');
-    expect(env.ENABLE_DYNAMIC_SIZING).toBe('false');
-    expect(env.MAX_POSITION_SIZE_PCT).toBe('0.04');
-    expect(env.ABSOLUTE_POSITION_CAP).toBe('0.04');
-    expect(env.STOP_LOSS_PERCENT).toBe('2.0');
-    expect(env.TAKE_PROFIT_PERCENT).toBe('2.5');
-    expect(env.TIER1_TARGET).toBe('0.007');
+    expect(env.TUNING_PROFILE).toBe('legacy-wide');
+    expect(env.BACKTEST_TUNING_PROFILE).toBe('legacy-wide');
+    expect(env.ENABLE_DYNAMIC_SIZING).toBe('true');
+    expect(env.MAX_POSITION_SIZE_PCT).toBe('0.05');
+    expect(env.ABSOLUTE_POSITION_CAP).toBe('0.15');
+    expect(env.STOP_LOSS_PERCENT).toBe('1.5');
+    expect(env.TAKE_PROFIT_PERCENT).toBe('2.0');
+    expect(env.TIER1_TARGET).toBe('0.020');
+    expect(env.FINAL_TARGET).toBe('0.100');
   });
 
   test('unknown tuning profile fails loudly instead of falling back to eval sizing', () => {
     expect(() => buildEnv({ profileName: 'missing-profile' }))
       .toThrow(/Unknown tuning profile 'missing-profile'/);
+    expect(() => buildEnv({ profileName: 'config-d-flat' }))
+      .toThrow(/Unknown tuning profile 'config-d-flat'/);
   });
 
   test('sweep config env can still override only intentional sweep dimensions', () => {
@@ -131,9 +138,9 @@ describe('backtest worker env contract', () => {
 
   test('profile-owned config env overrides fail loudly instead of lying about profile posture', () => {
     expect(() => buildEnv({
-      profileName: 'config-d-flat',
+      profileName: 'legacy-wide',
       configEnv: {
-        ENABLE_DYNAMIC_SIZING: 'true',
+        ENABLE_DYNAMIC_SIZING: 'false',
       },
     })).toThrow(/Disallowed configEnv override 'ENABLE_DYNAMIC_SIZING'/);
   });
@@ -180,6 +187,10 @@ describe('backtest worker env contract', () => {
 
     expect(profile.env.TIER3_TARGET).toBe('0.060');
     expect(profile.evidence).toEqual(expect.arrayContaining(['.env.gates:239-272']));
+  });
+
+  test('runnable tuning profiles exclude reconstructed config guesses', () => {
+    expect(listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide']);
   });
 
   test('grid-search confidence runner uses the same env contract', () => {
