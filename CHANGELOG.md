@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stock Partial Exit P0 Accounting (2026-06-04)
+
+- Rebaselined the TSLA stock P0 anchor after correcting partial-exit over-crediting and added a P0 gate invariant that rejects tiered exit fills above their configured 30/30/20/20 caps.
+- Added focused P0 accounting tests for over-credited tier exits, normalized tier reason labels, missing exit reasons, unrecognized tier labels, and runtime-scope split attempts.
+
 ### Dashboard Stock Snapshot Status Contract (2026-06-02)
 
 - Converted expected stale Alpaca stock snapshot rejections into structured adapter results so after-hours stock snapshot suppression remains truthful without flooding PM2 error logs.

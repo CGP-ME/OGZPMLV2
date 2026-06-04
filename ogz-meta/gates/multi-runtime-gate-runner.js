@@ -10,10 +10,17 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 13255.255799695915,
+  finalBalance: 10000.26792578263,
   totalTrades: 1410,
   winRate: 60.6,
-  profitFactor: 1.71
+  profitFactor: 1.00
+});
+
+const P0_TIER_FRACTION_CAPS = Object.freeze({
+  profit_tier_1: 0.30,
+  profit_tier_2: 0.30,
+  profit_tier_3: 0.20,
+  profit_tier_4: 0.20
 });
 
 let runtime = null;
@@ -228,6 +235,97 @@ function assertP0Summary(summary) {
   assert.strictEqual(Number(summary.profitFactor).toFixed(2), EXPECTED_P0.profitFactor.toFixed(2), 'P0 profitFactor drifted');
 }
 
+function tradeGroupKey(trade) {
+  return [
+    trade.entryTime,
+    trade.entryPrice,
+    trade.strategyName,
+    trade.direction,
+    trade.symbol,
+    trade.brokerId,
+    trade.accountId,
+    trade.assetClass,
+    trade.executionMode,
+    trade.timeframe
+  ].join('|');
+}
+
+function tradeEntryIdentityKey(trade) {
+  return [
+    trade.entryTime,
+    trade.entryPrice,
+    trade.strategyName,
+    trade.direction,
+    trade.symbol
+  ].join('|');
+}
+
+function tradeRuntimeScopeKey(trade) {
+  return [
+    trade.brokerId,
+    trade.accountId,
+    trade.assetClass,
+    trade.executionMode,
+    trade.timeframe
+  ].join('|');
+}
+
+function normalizedExitReason(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim().toLowerCase();
+}
+
+function assertP0TieredExitAccounting(reportPath) {
+  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  assert(trades.length > 0, 'P0 report must contain trades for accounting validation');
+
+  const groups = new Map();
+  const entryScopes = new Map();
+  for (const trade of trades) {
+    const key = tradeGroupKey(trade);
+    const group = groups.get(key) || { size: 0, tiers: new Map() };
+    const size = Number(trade.size);
+    assert(Number.isFinite(size) && size > 0, `P0 report trade has invalid size ${trade.size}`);
+    group.size += size;
+
+    const exitReason = normalizedExitReason(trade.exitReason);
+    assert(exitReason, `P0 report trade missing exitReason for ${key}`);
+    if (exitReason.includes('tier') && !Object.prototype.hasOwnProperty.call(P0_TIER_FRACTION_CAPS, exitReason)) {
+      throw new Error(`P0 report trade has unrecognized tier exitReason ${JSON.stringify(trade.exitReason)} for ${key}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(P0_TIER_FRACTION_CAPS, exitReason)) {
+      group.tiers.set(exitReason, (group.tiers.get(exitReason) || 0) + size);
+    }
+    groups.set(key, group);
+
+    const entryIdentityKey = tradeEntryIdentityKey(trade);
+    const scopes = entryScopes.get(entryIdentityKey) || new Set();
+    scopes.add(tradeRuntimeScopeKey(trade));
+    entryScopes.set(entryIdentityKey, scopes);
+  }
+
+  for (const [entryIdentityKey, scopes] of entryScopes.entries()) {
+    assert.strictEqual(
+      scopes.size,
+      1,
+      `P0 report entry identity split across runtime scopes for ${entryIdentityKey}: ${Array.from(scopes).join(', ')}`
+    );
+  }
+
+  for (const [key, group] of groups.entries()) {
+    if (group.tiers.size === 0) continue;
+    for (const [tier, tierSize] of group.tiers.entries()) {
+      const cap = P0_TIER_FRACTION_CAPS[tier];
+      const fraction = tierSize / group.size;
+      assert(
+        fraction <= cap + 1e-10,
+        `P0 tiered exit over-credited ${tier} for ${key}: tierSize=${tierSize}, groupSize=${group.size}, fraction=${fraction}, cap=${cap}`
+      );
+    }
+  }
+}
+
 const GATES = [
   {
     id: 'p0.single_lane.tsla_ema_anchor',
@@ -236,6 +334,7 @@ const GATES = [
     run: async () => {
       const { runP0 } = loadRuntime();
       const result = runP0('full', 'multi-runtime-gate');
+      assertP0TieredExitAccounting(result.report);
       assertP0Summary(result.summary);
       return {
         summary: result.summary,
@@ -1339,7 +1438,14 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err && err.stack ? err.stack : String(err));
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err && err.stack ? err.stack : String(err));
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  assertP0TieredExitAccounting,
+  P0_TIER_FRACTION_CAPS
+};

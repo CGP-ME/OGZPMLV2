@@ -2,7 +2,7 @@
 
 **Original capture date:** 2026-05-06 (git SHA `4a6f14a`)
 **Anchor revised:** 2026-05-13 after Fix 2 (P1-A `trade.size` stale after partial close)
-**Current executable anchor reconciled:** 2026-05-30 after KILL 7 default adaptive trailing and multi-runtime gate adoption
+**Current executable anchor reconciled:** 2026-06-04 after tiered partial-exit over-credit hardening
 **Branch:** `rebuild/clean-from-baseline`
 **Purpose:** Reference backtest numbers. Current enforcement lives in `ogz-meta/anchor-runner.js` and `ogz-meta/gates/multi-runtime-gate-runner.js`; every migration phase must match the executable gate before advancing.
 
@@ -48,18 +48,18 @@ Additional env inherited from `.env` at time of run (relevant trading keys, reda
 | Metric | Value | Notes |
 |---|---|---|
 | Initial Balance | $10,000.00 | |
-| **Final Balance** | **$13,255.255799695915** | exact float from current gate report |
-| Total P&L | +$3,255.2557996959144 | |
-| Total Return | +32.55% | |
+| **Final Balance** | **$10,000.26792578263** | exact float from current gate report |
+| Total P&L | +$0.26792578262860633 | |
+| Total Return | +0.002679257826287973% | |
 | Total Trades | 1,410 | |
 | Wins | 855 | |
 | Losses | 555 | |
 | **Win Rate** | **60.6%** | 855 / 1410 |
-| **Max Drawdown** | **3.17%** | $388.04 |
-| Avg Win | $9.142071267535206 | |
+| **Max Drawdown** | **5.09%** | $533.39 |
+| Avg Win | $5.33506790623312 | |
 | Avg Loss | -$8.218405646930977 | |
-| Profit Factor | 1.71 | |
-| Expectancy | $2.31 | |
+| Profit Factor | 1.00 | |
+| Expectancy | $0.00 | |
 | Total Fees | $0.00 | stock mode FEE=0 |
 | Candles Processed | 15,889 | full 2y TSLA 15m dataset |
 | Errors | 0 | |
@@ -73,8 +73,8 @@ node ogz-meta/gates/multi-runtime-gate-runner.js --p0 --write-report
 Current verification report:
 
 - `ogz-meta/gates/runs/multi-runtime-latest.json`
-- `ogz-meta/ledger/phase0-canonical-multi-runtime-gate-2026-05-30.log`
-- `backtest-report-v14MERGED-1780122011846.json`
+- `ogz-meta/ledger/phase0-canonical-multi-runtime-gate-2026-06-04.log`
+- `backtest-report-v14MERGED-1780535702346.json`
 
 ---
 
@@ -89,10 +89,14 @@ Current verification report:
 ## Acceptance criteria for subsequent phases
 
 Phase reproduction **must match**:
-- `Final Balance = $13,255.255799695915` to the cent
+- `Final Balance = $10,000.26792578263` to the cent
 - `Total Trades = 1,410` exactly
 - `Win Rate = 60.6%` exactly (855 wins)
-- `Max Drawdown ≤ 3.20%` (within measurement tolerance)
+- `Profit Factor = 1.00` to two decimals
+- `Max Drawdown ≤ 5.10%` (within measurement tolerance)
+- Tiered partial exits must satisfy the gate's original-position fraction caps:
+  `profit_tier_1 <= 30%`, `profit_tier_2 <= 30%`,
+  `profit_tier_3 <= 20%`, and `profit_tier_4 <= 20%` of each grouped entry.
 
 Any drift in these numbers between phases signals that the migration introduced behavior change. Phase is reverted, investigated, re-proposed.
 
@@ -100,7 +104,15 @@ Any drift in these numbers between phases signals that the migration introduced 
 
 ## Anchor history
 
-The current executable gate moved after KILL 7 wired the previously dormant adaptive trailing modifiers into the real P0 path. The root-cause record is `ogz-meta/sessions/session-2026-05-21-kill7-structure-aware-trailing.md`: default adaptive behavior reproduces `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`, while disabling structure, trend widen, and ratchet modifiers reproduces the old `$13213.042341608163 / 1384 trades / 60.0% WR / PF 1.72`.
+The 2026-06-04 executable gate moved after the stock partial-exit path was
+hardened to record closed cost basis for each tiered exit. The old
+`$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71` report kept the same
+trade count and win rate but over-credited winners by recording more closed USD
+than the original entry on tiered scale-outs. The multi-runtime P0 gate now
+rejects that class directly by checking tiered exit fraction caps against the
+generated report.
+
+The 2026-05-30 executable gate moved after KILL 7 wired the previously dormant adaptive trailing modifiers into the real P0 path. The root-cause record is `ogz-meta/sessions/session-2026-05-21-kill7-structure-aware-trailing.md`: default adaptive behavior reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`, while disabling structure, trend widen, and ratchet modifiers reproduced the old `$13213.042341608163 / 1384 trades / 60.0% WR / PF 1.72`.
 
 **Post-Fix-2 / modifiers-off anchor (historical — do NOT use as the current default gate):**
 - Final Balance: $13,213.042341608163

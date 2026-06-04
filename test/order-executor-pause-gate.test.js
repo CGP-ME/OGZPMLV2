@@ -320,6 +320,52 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
+  test('stock quantity planning preserves Alpaca fractional shares but floors non-fractional stock brokers', () => {
+    const executor = makeExecutor();
+
+    expect(executor._orderQuantityFromSizeUsd(125, 100, {
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+    })).toBe(1.25);
+    expect(executor._orderQuantityFromSizeUsd(125, 100, {
+      brokerId: 'interactivebrokers',
+      assetClass: 'stocks',
+    })).toBe(1);
+  });
+
+  test('generic broker adapter cannot anonymously grant stock fractional support', () => {
+    const unnamedAdapterExecutor = makeExecutor(
+      { brokerId: 'interactivebrokers', assetClass: 'stocks' },
+      {
+        brokerAdapter: {
+          supportsFractionalShares: () => true,
+        },
+      }
+    );
+    const mismatchedAdapterExecutor = makeExecutor(
+      { brokerId: 'interactivebrokers', assetClass: 'stocks' },
+      {
+        brokerAdapter: {
+          getBrokerName: () => 'alpaca',
+          supportsFractionalShares: () => true,
+        },
+      }
+    );
+    const matchedAdapterExecutor = makeExecutor(
+      { brokerId: 'schwab', assetClass: 'stocks' },
+      {
+        brokerAdapter: {
+          getBrokerName: () => 'Schwab',
+          supportsFractionalShares: () => true,
+        },
+      }
+    );
+
+    expect(unnamedAdapterExecutor._orderQuantityFromSizeUsd(125, 100)).toBe(1);
+    expect(mismatchedAdapterExecutor._orderQuantityFromSizeUsd(125, 100)).toBe(1);
+    expect(matchedAdapterExecutor._orderQuantityFromSizeUsd(125, 100)).toBe(1.25);
+  });
+
   test('pre-order entry gate blocks before broker, webhook, or state side effects', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -404,10 +450,10 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
-  test('backtest stock entry rejects zero-share order plan before simulated execution or state side effects', async () => {
+  test('backtest non-fractional stock entry rejects zero-share order plan before simulated execution or state side effects', async () => {
     const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
     const executor = makeExecutor(
-      { enableBacktestMode: true, executionMode: 'backtest' },
+      { enableBacktestMode: true, executionMode: 'backtest', brokerId: 'interactivebrokers' },
       {
         backtestMode: true,
         paperTrading: false,
@@ -849,7 +895,7 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
-  test('live stock partial exit reduces state by actual routed share fraction', async () => {
+  test('live Alpaca stock partial exit preserves requested fractional share quantity', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
@@ -879,20 +925,20 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'TSLA',
       side: 'sell',
-      amount: 2,
+      amount: 2.5,
       options: expect.objectContaining({
-        sizeUsd: 200,
+        sizeUsd: 250,
         quantityUnit: 'shares',
       }),
     }));
     expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
       'BUY_1',
-      0.4,
+      0.5,
       125,
       expect.objectContaining({
         orderId: 'BUY_1',
         exitReason: 'tier_exit',
-        orderQuantity: 2,
+        orderQuantity: 2.5,
         quantityUnit: 'shares',
       })
     );
@@ -951,18 +997,22 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
-  test('backtest stock partial exit uses planned share fraction instead of raw requested fraction', async () => {
+  test('backtest Alpaca stock partial exit uses requested fractional share quantity', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
     });
     mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
     mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const logTrade = jest.fn();
     const executor = makeExecutor(
       { enableBacktestMode: true, executionMode: 'backtest' },
       {
         backtestMode: true,
         paperTrading: false,
+        backtestRecorder,
+        logTrade,
       }
     );
 
@@ -979,25 +1029,34 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: true,
-      amount: 200,
-      orderQuantity: 2,
+      amount: 250,
+      orderQuantity: 2.5,
       quantityUnit: 'shares',
     }));
     expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
       'BUY_1',
-      0.4,
+      0.5,
       125 * (1 - 0.0005),
       expect.objectContaining({
         orderId: 'BUY_1',
         exitReason: 'tier_exit',
-        orderQuantity: 2,
+        orderQuantity: 2.5,
         quantityUnit: 'shares',
       })
     );
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
+      size: 250,
+      exitReason: 'tier_exit',
+    }));
+    expect(logTrade).toHaveBeenCalledWith(expect.objectContaining({
+      size: 250,
+      positionSize: 250,
+      pnl: expect.any(Number),
+    }));
   });
 
-  test('backtest stock partial exit routes minimum whole share when requested fraction is sub-share', async () => {
+  test('backtest Alpaca stock partial exit preserves sub-share requested fraction', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
@@ -1011,11 +1070,223 @@ describe('OrderExecutor pause gate', () => {
         remainingOrderQuantity: 3,
       }),
     ]);
+    const backtestRecorder = { recordTrade: jest.fn() };
     const executor = makeExecutor(
       { enableBacktestMode: true, executionMode: 'backtest' },
       {
         backtestMode: true,
         paperTrading: false,
+        backtestRecorder,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.3 },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 90,
+      orderQuantity: 0.8999999999999999,
+      quantityUnit: 'shares',
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      0.3,
+      125 * (1 - 0.0005),
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 0.8999999999999999,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
+      size: 90,
+      exitReason: 'tier_exit',
+    }));
+  });
+
+  test('backtest Alpaca stock multi-exit records no more than the original entry size', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+
+    const activeTrade = makeBuyTrade({
+      size: 500,
+      sizeUsd: 500,
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      executionMode: 'backtest',
+    });
+    mockStateManager.getTradesBySymbol.mockImplementation(() => (
+      activeTrade.sizeUsd > 0 ? [activeTrade] : []
+    ));
+    mockStateManager.reducePosition.mockImplementation(async (tradeId, fraction, price, context = {}) => {
+      const closedSize = activeTrade.sizeUsd * fraction;
+      activeTrade.sizeUsd -= closedSize;
+      activeTrade.size = activeTrade.sizeUsd;
+      activeTrade.remainingOrderQuantity -= context.orderQuantity;
+      return { success: true };
+    });
+    mockStateManager.closePosition.mockImplementation(async () => {
+      activeTrade.sizeUsd = 0;
+      activeTrade.size = 0;
+      activeTrade.remainingOrderQuantity = 0;
+      return { success: true };
+    });
+
+    const recordedTrades = [];
+    const backtestRecorder = {
+      recordTrade: jest.fn((trade) => recordedTrades.push(trade)),
+    };
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder,
+      }
+    );
+
+    const baseArgs = [
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA',
+    ];
+
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'profit_tier_1', exitFraction: 0.3 },
+      ...baseArgs
+    );
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'profit_tier_2', exitFraction: 150 / 350 },
+      ...baseArgs
+    );
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'profit_tier_3', exitFraction: 100 / 200 },
+      ...baseArgs
+    );
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'max_hold_winner' },
+      ...baseArgs
+    );
+
+    expect(recordedTrades.map(t => t.size)).toEqual([150, 150, 100, 100]);
+    expect(recordedTrades.reduce((sum, trade) => sum + trade.size, 0)).toBeCloseTo(500, 12);
+    expect(mockStateManager.reducePosition).toHaveBeenCalledTimes(3);
+    expect(mockStateManager.closePosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('backtest Alpaca stock partial exits use remaining cost basis for larger later fractions', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+
+    const activeTrade = makeBuyTrade({
+      size: 500,
+      sizeUsd: 500,
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      executionMode: 'backtest',
+    });
+    mockStateManager.getTradesBySymbol.mockImplementation(() => (
+      activeTrade.sizeUsd > 0 ? [activeTrade] : []
+    ));
+    mockStateManager.reducePosition.mockImplementation(async (tradeId, fraction, price, context = {}) => {
+      const closedSize = activeTrade.sizeUsd * fraction;
+      activeTrade.sizeUsd -= closedSize;
+      activeTrade.size = activeTrade.sizeUsd;
+      activeTrade.remainingOrderQuantity -= context.orderQuantity;
+      return { success: true };
+    });
+    mockStateManager.closePosition.mockImplementation(async () => {
+      activeTrade.sizeUsd = 0;
+      activeTrade.size = 0;
+      activeTrade.remainingOrderQuantity = 0;
+      return { success: true };
+    });
+
+    const recordedTrades = [];
+    const backtestRecorder = {
+      recordTrade: jest.fn((trade) => recordedTrades.push(trade)),
+    };
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder,
+      }
+    );
+
+    const baseArgs = [
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA',
+    ];
+
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'profit_tier_1', exitFraction: 0.3 },
+      ...baseArgs
+    );
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'profit_tier_2', exitFraction: 0.8 },
+      ...baseArgs
+    );
+    await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'max_hold_winner' },
+      ...baseArgs
+    );
+
+    expect(recordedTrades.map(t => t.size)).toEqual([150, 280, 70]);
+    expect(recordedTrades.reduce((sum, trade) => sum + trade.size, 0)).toBeCloseTo(500, 12);
+    expect(mockStateManager.reducePosition).toHaveBeenCalledTimes(2);
+    expect(mockStateManager.closePosition).toHaveBeenCalledTimes(1);
+  });
+
+  test('backtest non-fractional stock partial exit routes minimum whole share when requested fraction is sub-share', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 300, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([
+      makeBuyTrade({
+        size: 300,
+        sizeUsd: 300,
+        entryOrderQuantity: 3,
+        remainingOrderQuantity: 3,
+        brokerId: 'interactivebrokers',
+      }),
+    ]);
+    const backtestRecorder = { recordTrade: jest.fn() };
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest', brokerId: 'interactivebrokers' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder,
       }
     );
 
@@ -1048,9 +1319,13 @@ describe('OrderExecutor pause gate', () => {
       })
     );
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
+      size: 100,
+      exitReason: 'tier_exit',
+    }));
   });
 
-  test('backtest stock sub-share partial request full-closes a one-share remainder', async () => {
+  test('backtest non-fractional stock sub-share partial request full-closes a one-share remainder', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
@@ -1062,13 +1337,16 @@ describe('OrderExecutor pause gate', () => {
         sizeUsd: 100,
         entryOrderQuantity: 1,
         remainingOrderQuantity: 1,
+        brokerId: 'interactivebrokers',
       }),
     ]);
+    const backtestRecorder = { recordTrade: jest.fn() };
     const executor = makeExecutor(
-      { enableBacktestMode: true, executionMode: 'backtest' },
+      { enableBacktestMode: true, executionMode: 'backtest', brokerId: 'interactivebrokers' },
       {
         backtestMode: true,
         paperTrading: false,
+        backtestRecorder,
       }
     );
 
@@ -1099,6 +1377,10 @@ describe('OrderExecutor pause gate', () => {
       })
     );
     expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
+      size: 100,
+      exitReason: 'tier_exit',
+    }));
   });
 
   test('live stock exit refuses legacy active trades without stored broker quantity', async () => {

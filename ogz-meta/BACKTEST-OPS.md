@@ -6,20 +6,27 @@
 
 ---
 
-## CURRENT STATUS NOTE — 2026-05-23
+## CURRENT STATUS NOTE — 2026-06-04
 
 This file is an operational command reference, not the canonical Phase 0
 regression anchor.
 
 Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and
 `ogz-meta/gates/multi-runtime-gate-runner.js`; its current full anchor is
-`$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
+`$10000.26792578263 / 1410 trades / 60.6% WR / PF 1.00`.
 
-Rechecked 2026-05-30 with:
+Rechecked 2026-06-04 with:
 
 ```bash
 node ogz-meta/gates/multi-runtime-gate-runner.js --p0 --write-report
 ```
+
+The prior `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
+anchor is retired. It reproduced the same trade count and win rate, but it
+over-credited tiered partial exits by recording more closed cost basis than the
+original entry. The current P0 gate validates the summary and rejects reports
+where `profit_tier_1`, `profit_tier_2`, `profit_tier_3`, or `profit_tier_4`
+exceed their configured original-position fractions.
 
 Manual commands in this file are for targeted backtests, exploratory runs, and
 tuning. A command that omits `SOLO_STRATEGY` is a no-SOLO, winner-takes-all

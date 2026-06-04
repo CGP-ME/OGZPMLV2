@@ -15,6 +15,7 @@ const { getInstance: getStateManager } = require('./StateManager');
 const TradingConfig = require('./TradingConfig');
 const exitContractManager = require('./ExitContractManager');
 const MaxProfitManager = require('./MaxProfitManager');
+const { getBrokerInfo } = require('../brokers/BrokerRegistry');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
 const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory');  // CHANGE 2026-03-18: Unified pattern store
@@ -108,6 +109,69 @@ class OrderExecutor {
     throw new Error(`[ORDER-PLAN] unsupported assetClass ${JSON.stringify(assetClass)} for broker quantity planning`);
   }
 
+  _supportsFractionalOrderQuantity(scope = null) {
+    if (this._orderQuantityUnit(scope) !== 'shares') {
+      return true;
+    }
+
+    const brokerId = String((scope && scope.brokerId) || this._runtimeScope(scope?.symbol || null).brokerId || '').trim().toLowerCase();
+    if (!brokerId) {
+      return false;
+    }
+
+    const brokerInfo = getBrokerInfo(brokerId);
+    if (Array.isArray(brokerInfo?.features) && brokerInfo.features.some(feature => String(feature).toLowerCase() === 'fractional')) {
+      return true;
+    }
+
+    const scopedAdapter = this.ctx[`${brokerId}Adapter`];
+    if (scopedAdapter && typeof scopedAdapter.supportsFractionalShares === 'function') {
+      return scopedAdapter.supportsFractionalShares() === true;
+    }
+
+    const brokerAdapter = this.ctx.brokerAdapter || this.ctx.broker;
+    if (brokerAdapter && typeof brokerAdapter.supportsFractionalShares === 'function') {
+      const adapterBrokerName = typeof brokerAdapter.getBrokerName === 'function'
+        ? String(brokerAdapter.getBrokerName()).trim().toLowerCase()
+        : '';
+      if (this._brokerNameMatchesBrokerId(adapterBrokerName, brokerId, brokerInfo)) {
+        return brokerAdapter.supportsFractionalShares() === true;
+      }
+    }
+
+    return false;
+  }
+
+  _brokerNameMatchesBrokerId(adapterBrokerName, brokerId, brokerInfo = null) {
+    const normalize = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedAdapterName = normalize(adapterBrokerName);
+    const normalizedBrokerId = normalize(brokerId);
+    const normalizedRegistryName = normalize(brokerInfo?.name);
+
+    if (!normalizedAdapterName || !normalizedBrokerId) {
+      return false;
+    }
+    return normalizedAdapterName === normalizedBrokerId
+      || (normalizedRegistryName && normalizedAdapterName === normalizedRegistryName);
+  }
+
+  _normalizeOrderQuantity(rawQuantity, scope = null, options = {}) {
+    if (this._orderQuantityUnit(scope) !== 'shares' || this._supportsFractionalOrderQuantity(scope)) {
+      return rawQuantity;
+    }
+
+    const orderQuantity = Math.floor(rawQuantity);
+    if (
+      options.allowMinimumShare === true
+      && orderQuantity <= 0
+      && rawQuantity > 0
+      && Number(options.remainingOrderQuantity) >= 1
+    ) {
+      return 1;
+    }
+    return orderQuantity;
+  }
+
   _orderQuantityFromSizeUsd(sizeUsd, price, scope = null) {
     if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
       throw new Error(`[ORDER-PLAN] invalid sizeUsd ${sizeUsd}`);
@@ -117,9 +181,7 @@ class OrderExecutor {
     }
 
     const rawQuantity = sizeUsd / price;
-    return this._orderQuantityUnit(scope) === 'shares'
-      ? Math.floor(rawQuantity)
-      : rawQuantity;
+    return this._normalizeOrderQuantity(rawQuantity, scope);
   }
 
   _acceptedOrderQuantity(orderResult, plannedQuantity) {
@@ -446,12 +508,10 @@ class OrderExecutor {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} quantity unit mismatch: stored=${remainingOrderQuantityUnit} planned=${quantityUnit}`);
     }
     const rawOrderQuantity = remainingOrderQuantity * exitFraction;
-    let orderQuantity = quantityUnit === 'shares'
-      ? Math.floor(rawOrderQuantity)
-      : rawOrderQuantity;
-    if (quantityUnit === 'shares' && orderQuantity <= 0 && rawOrderQuantity > 0 && remainingOrderQuantity >= 1) {
-      orderQuantity = 1;
-    }
+    const orderQuantity = this._normalizeOrderQuantity(rawOrderQuantity, scope, {
+      allowMinimumShare: true,
+      remainingOrderQuantity,
+    });
     if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} planned non-positive exit quantity ${orderQuantity} from remaining=${remainingOrderQuantity} fraction=${exitFraction}`);
     }
@@ -1605,6 +1665,7 @@ class OrderExecutor {
             pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
             const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
             const holdDuration = exitTimestamp - buyTrade.entryTime;
+            const longExitSizeUsd = executedExitPlan?.sizeUsd ?? Math.abs(buyTrade.sizeUsd || buyTrade.size || 0);
 
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
@@ -1613,6 +1674,8 @@ class OrderExecutor {
               traceId,
               signalId,
               decisionId,
+              size: longExitSizeUsd,
+              sizeUsd: longExitSizeUsd,
               exitPrice: price,
               exitTime: exitTimestamp,
               pnl: pnl,
@@ -1626,7 +1689,7 @@ class OrderExecutor {
                 if (!(buyTrade.entryPrice > 0)) {
                   throw new Error(`[MED-02] BUY exit: buyTrade.entryPrice non-positive (got ${buyTrade.entryPrice}) — refusing to log phantom \$0 P&L`);
                 }
-                return buyTrade.size * ((price - buyTrade.entryPrice) / buyTrade.entryPrice);
+                return longExitSizeUsd * ((price - buyTrade.entryPrice) / buyTrade.entryPrice);
               })(),
               holdDuration: holdDuration,
               exitReason: decision.exitReason || 'signal'
@@ -1642,7 +1705,7 @@ class OrderExecutor {
                 exitPrice: price,
                 stopLoss: buyTrade.exitContract?.stopLossPercent || 0,
                 takeProfit: buyTrade.exitContract?.takeProfitPercent || 0,
-                size: buyTrade.size || 1,
+                size: longExitSizeUsd || 1,
                 // MED-03: throw when buyTrade.entryStrategy missing at exit time.
                 // Set at trade open from orchResult.winnerStrategy (HIGH-08 covers
                 // missing-at-open). Missing AT EXIT means the trade record lost
@@ -1678,7 +1741,7 @@ class OrderExecutor {
                 signalId,
                 decisionId
               });
-              console.log(`[TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${buyTrade.size || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
+              console.log(`[TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${longExitSizeUsd || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
             }
 
             console.log(`Trade closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
@@ -1980,12 +2043,12 @@ class OrderExecutor {
                 entryPrice: buyTrade.entryPrice || buyTrade.price,
                 exitPrice: price,
                 currentPrice: price,
-                size: buyTrade.size,
+                size: longExitSizeUsd,
 
                 // Financial results
                 pnl: completeTradeResult.pnlDollars,
                 pnlPercent: pnl,
-                fees: (buyTrade.size * price) * TradingConfig.get('fees.totalRoundTrip'),  // From TradingConfig
+                fees: longExitSizeUsd * TradingConfig.get('fees.totalRoundTrip'),
 
                 // Timing
                 entryTime: new Date(buyTrade.entryTime).toISOString(),
@@ -2026,7 +2089,7 @@ class OrderExecutor {
                 patternConfidence: buyTrade.patterns?.[0]?.confidence || 0,
 
                 // Risk management
-                positionSize: buyTrade.size * buyTrade.entryPrice,
+                positionSize: longExitSizeUsd,
                 riskPercent: (() => {
                   const balance = Number(stateManager.get('balance'));
                   return Number.isFinite(balance) && balance > 0

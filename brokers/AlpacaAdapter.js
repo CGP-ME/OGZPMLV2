@@ -593,6 +593,10 @@ class AlpacaAdapter extends IBrokerAdapter {
         return { maker: 0, taker: 0 };
     }
 
+    supportsFractionalShares() {
+        return true;
+    }
+
     isTradeableNow(symbol) {
         // US market hours: 9:30 AM - 4:00 PM ET, Mon-Fri
         const now = new Date();
