@@ -3,6 +3,13 @@
 const DEFAULT_TUNING_PROFILE = 'current-eval';
 
 const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
+  'EXECUTION_MODE',
+  'CANDLE_SOURCE',
+  'BACKTEST_MODE',
+  'TEST_MODE',
+  'BACKTEST_NO_PATTERN_SAVE',
+  'PAPER_TRADING',
+  'NODE_ENV',
   'STOP_LOSS_PERCENT',
   'TAKE_PROFIT_PERCENT',
   'TRAILING_STOP_PERCENT',
@@ -15,8 +22,8 @@ function assertProfileEnvIsHonest(profile) {
   ));
   if (forbidden.length > 0) {
     throw new Error(
-      `Tuning profile '${profile.name}' includes locked-exit env key(s): ${forbidden.join(', ')}. ` +
-      'Per-strategy exit contracts own stop/take/trailing geometry; profiles may only set honored worker/profile knobs.'
+      `Tuning profile '${profile.name}' includes non-profile env key(s): ${forbidden.join(', ')}. ` +
+      'Runtime mode, pattern-write protection, and per-strategy exit contracts must stay owned by the worker and strategy layers.'
     );
   }
 }

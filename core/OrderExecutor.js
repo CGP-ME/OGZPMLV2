@@ -342,6 +342,77 @@ class OrderExecutor {
     return this.ctx.backtestMode !== true && this.ctx.config?.enableBacktestMode !== true;
   }
 
+  _firstPatternWithOutcomeFeatures(trade) {
+    if (!trade || !Array.isArray(trade.patterns)) return null;
+    return trade.patterns.find(pattern =>
+      pattern && Array.isArray(pattern.features) && pattern.features.length > 0
+    ) || null;
+  }
+
+  _patternOutcomeRecordingDisabled() {
+    return this.ctx.config.tradingMode === 'TEST' || this.ctx.testMode === true;
+  }
+
+  _recordClosedTradePatternOutcome(trade, completeTradeResult, pnl, holdDuration) {
+    const pattern = this._firstPatternWithOutcomeFeatures(trade);
+    const patternName = pattern?.name || trade?.entryStrategy || 'unknown';
+
+    if (!pattern) {
+      console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}% (skipped: no entry features)`);
+      return false;
+    }
+
+    if (this._patternOutcomeRecordingDisabled()) {
+      console.log('TEST MODE: Would record P&L pattern but SKIPPING - pattern base protected');
+      return false;
+    }
+
+    const recorded = this.ctx.patternChecker.recordPatternResult(pattern.features, {
+      pnl,
+      holdDurationMs: holdDuration,
+      exitReason: completeTradeResult.exitReason || 'signal',
+      timestamp: Date.now(),
+      symbol: trade.symbol,
+      brokerId: trade.brokerId,
+      accountId: trade.accountId,
+      accountIdSource: trade.accountIdSource,
+      assetClass: trade.assetClass,
+      executionMode: trade.executionMode,
+      timeframe: trade.timeframe,
+      scopeKey: trade.scopeKey
+    });
+
+    if (!recorded) {
+      console.error(`[PATTERN][OUTCOME] recordPatternResult rejected pattern=${patternName} tradeId=${trade.orderId || trade.id} scopeKey=${trade.scopeKey}`);
+    }
+    console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}%`);
+    return recorded;
+  }
+
+  _checkPatternOutcomeHealth() {
+    this.tradeExitCount = (this.tradeExitCount || 0) + 1;
+    if (this.tradeExitCount % 10 !== 0 || this._patternOutcomeRecordingDisabled()) {
+      return null;
+    }
+
+    if (!this.ctx.patternChecker?.memory || typeof this.ctx.patternChecker.memory.healthCheck !== 'function') {
+      console.error('[PATTERN][OUTCOME] health check unavailable - patternChecker.memory.healthCheck missing while pattern outcomes are enabled');
+      return {
+        healthy: false,
+        issues: ['patternChecker.memory.healthCheck missing']
+      };
+    }
+
+    const health = this.ctx.patternChecker.memory.healthCheck();
+    if (!health.healthy) {
+      const issues = Array.isArray(health.issues) && health.issues.length > 0
+        ? ` issues=${health.issues.join('; ')}`
+        : '';
+      console.error(`PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!${issues}`);
+    }
+    return health;
+  }
+
   _broadcastDashboardTrade(payload, trade = {}) {
     try {
       return this._sendDashboardFrame(this._dashboardTradePayload(payload, trade));
@@ -1957,61 +2028,15 @@ class OrderExecutor {
             // 1. SafetyNet DISABLED - too restrictive
             // this.ctx.safetyNet.updateTradeResult(completeTradeResult);
 
-            // 2. Record pattern outcome for learning
-            // FIX 2026-03-14: ALWAYS record pattern results - don't skip if buyTrade.patterns is empty
-            // Previous bug: 90% of patterns had pnl=0 because this block was skipped when patterns array was missing
-            // CHANGE 659: Pass features array for proper pattern matching
-            // recordPatternResult REQUIRES features array, never pass signature string
-            {
-              const pattern = buyTrade.patterns?.[0]; // Primary pattern object (may be undefined)
-              const patternName = pattern?.name || buyTrade.entryStrategy || 'unknown';
-
-              // HIGH-09/10/11/12: pattern feature recording — only on clean features.
-              // Old code fabricated a 9-element vector from synthetic neutrals
-              // (rsi=0.5, macd=0, trend=0, bbWidth=0.02, vol=0.01) when pattern.features
-              // was missing. Two patterns with different REAL features but the same
-              // missing-fields collapsed into the same pattern hash, poisoning
-              // PatternMemoryBank statistics. Per spec Rule #1: skip the record entirely
-              // rather than substitute fabricated values.
-              let featuresForRecording = null;
-              if (pattern && Array.isArray(pattern.features) && pattern.features.length > 0) {
-                featuresForRecording = pattern.features;
-              }
-
-              // SAFE TEST MODE CHECK - Never corrupt patterns in test
-              if (featuresForRecording && this.ctx.config.tradingMode !== 'TEST' && !this.ctx.testMode) {
-                this.ctx.patternChecker.recordPatternResult(featuresForRecording, {
-                  pnl: pnl,
-                  holdDurationMs: holdDuration,  // Add temporal data
-                  exitReason: completeTradeResult.exitReason || 'signal',
-                  timestamp: Date.now(),
-                  symbol: buyTrade.symbol,
-                  brokerId: buyTrade.brokerId,
-                  accountId: buyTrade.accountId,
-                  accountIdSource: buyTrade.accountIdSource,
-                  assetClass: buyTrade.assetClass,
-                  executionMode: buyTrade.executionMode,
-                  timeframe: buyTrade.timeframe,
-                  scopeKey: buyTrade.scopeKey
-                });
-              } else if (this.ctx.config.tradingMode === 'TEST') {
-                console.log('TEST MODE: Would record P&L pattern but SKIPPING - pattern base protected');
-              }
-              console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}%`);
-
-              // REMOVED 2026-04-16: Direct UnifiedPatternMemory call was double-counting.
-              // TRAI.recordTradeOutcome (below) is the sole recording path — it calls
-              // UnifiedPatternMemory.recordOutcome internally via trai_core.recordTradeResult.
-            }
+            // 2. Record pattern outcome for learning.
+            // Outcome recording uses the first clean feature vector captured at
+            // entry, not necessarily patterns[0]. Candlestick labels often lack
+            // features while the same entry-time pattern array can carry a
+            // later array element with the learning feature vector.
+            this._recordClosedTradePatternOutcome(buyTrade, completeTradeResult, pnl, holdDuration);
 
             // FIX 2026-02-26: Run health check every 10 trade exits to detect broken pattern recording
-            this.tradeExitCount = (this.tradeExitCount || 0) + 1;
-            if (this.tradeExitCount % 10 === 0 && this.ctx.patternChecker?.memory) {
-              const health = this.ctx.patternChecker.memory.healthCheck();
-              if (!health.healthy) {
-                console.error('PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!');
-              }
-            }
+            this._checkPatternOutcomeHealth();
 
             // 3. Update PerformanceAnalyzer (using processTrade, not recordTrade)
             this.ctx.performanceAnalyzer.processTrade(completeTradeResult);
@@ -2520,6 +2545,9 @@ class OrderExecutor {
           });
 
           // Risk manager update
+          this._recordClosedTradePatternOutcome(shortTrade, completeTradeResult, pnl, holdDuration);
+          this._checkPatternOutcomeHealth();
+
           if (this.ctx.riskManager) {
             this.ctx.riskManager.recordTradeResult({
               success: pnl >= 0,

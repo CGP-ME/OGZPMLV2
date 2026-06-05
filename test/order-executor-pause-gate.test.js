@@ -1146,6 +1146,155 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
+  test('long exit records outcome from later clean entry pattern when first pattern has no features', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    const features = [0.51, 0.62, 0.41, 0.53, 0.44, 0.35, 0.58, 0.49, 0.5];
+    const activeTrade = makeBuyTrade({
+      patterns: [
+        { name: 'hammer', confidence: 0.82 },
+        { name: 'Learning Pattern', confidence: 0.1, features },
+      ],
+      executionMode: 'backtest',
+      scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:1m',
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([activeTrade]);
+    const recordPatternResult = jest.fn(() => true);
+    const healthCheck = jest.fn(() => ({ healthy: true, issues: [] }));
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder: { recordTrade: jest.fn() },
+        logTrade: jest.fn(),
+        patternChecker: {
+          recordPatternResult,
+          memory: { healthCheck },
+        },
+      }
+    );
+    executor.tradeExitCount = 9;
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'signal' },
+      { totalConfidence: 100 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({ success: true }));
+    expect(recordPatternResult).toHaveBeenCalledTimes(1);
+    expect(recordPatternResult.mock.calls[0][0]).toBe(features);
+    expect(recordPatternResult.mock.calls[0][1]).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      assetClass: 'stocks',
+      executionMode: 'backtest',
+      timeframe: '1m',
+      scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:1m',
+    }));
+    expect(recordPatternResult.mock.calls[0][1].pnl).toBeCloseTo(24.9375, 12);
+    expect(healthCheck).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining('PATTERN SYSTEM UNHEALTHY'));
+  });
+
+  test('short cover records pattern outcome through same closed-trade learning path', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 10000 });
+    const features = [0.45, 0.31, 0.72, 0.48, 0.67, 0.42, 0.39, 0.56, 0.25];
+    const shortTrade = makeShortTrade({
+      patterns: [
+        { name: 'shooting_star', confidence: 0.86 },
+        { name: 'Learning Pattern', confidence: 0.1, features },
+      ],
+      executionMode: 'backtest',
+      scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:1m',
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([shortTrade]);
+    const recordPatternResult = jest.fn(() => true);
+    const healthCheck = jest.fn(() => ({ healthy: true, issues: [] }));
+    const executor = makeExecutor(
+      { enableBacktestMode: true, executionMode: 'backtest' },
+      {
+        backtestMode: true,
+        paperTrading: false,
+        backtestRecorder: { recordTrade: jest.fn() },
+        logTrade: jest.fn(),
+        patternChecker: {
+          recordPatternResult,
+          memory: { healthCheck },
+        },
+      }
+    );
+    executor.tradeExitCount = 9;
+
+    const result = await executor.executeTrade(
+      { action: 'COVER', confidence: 100, tradeId: 'SHORT_1', exitReason: 'signal' },
+      { totalConfidence: 100 },
+      90,
+      { rsi: 45, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({ success: true }));
+    expect(recordPatternResult).toHaveBeenCalledTimes(1);
+    expect(recordPatternResult.mock.calls[0][0]).toBe(features);
+    expect(recordPatternResult.mock.calls[0][1]).toEqual(expect.objectContaining({
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      assetClass: 'stocks',
+      executionMode: 'backtest',
+      timeframe: '1m',
+      scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:1m',
+    }));
+    expect(recordPatternResult.mock.calls[0][1].pnl).toBeCloseTo(9.955, 12);
+    expect(healthCheck).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining('PATTERN SYSTEM UNHEALTHY'));
+  });
+
+  test('pattern outcome health reports missing memory when recording is enabled', () => {
+    const executor = makeExecutor({}, {
+      patternChecker: {},
+    });
+    executor.tradeExitCount = 9;
+
+    const health = executor._checkPatternOutcomeHealth();
+
+    expect(health).toEqual({
+      healthy: false,
+      issues: ['patternChecker.memory.healthCheck missing'],
+    });
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('health check unavailable'));
+  });
+
+  test('pattern outcome health stays quiet when test mode intentionally disables recording', () => {
+    const executor = makeExecutor({ tradingMode: 'TEST' }, {
+      patternChecker: {},
+    });
+    executor.tradeExitCount = 9;
+
+    const health = executor._checkPatternOutcomeHealth();
+
+    expect(health).toBeNull();
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining('health check unavailable'));
+  });
+
   test('backtest Alpaca stock partial exit preserves sub-share requested fraction', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

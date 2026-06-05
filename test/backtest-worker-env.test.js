@@ -18,6 +18,12 @@ const {
 
 describe('backtest worker env contract', () => {
   const projectRoot = '/repo';
+  const LOCKED_EXIT_PROFILE_KEYS = [
+    'STOP_LOSS_PERCENT',
+    'TAKE_PROFIT_PERCENT',
+    'TRAILING_STOP_PERCENT',
+    'TRAILING_ACTIVATION',
+  ];
 
   function buildEnv(overrides = {}) {
     return buildBacktestWorkerEnv({
@@ -54,7 +60,7 @@ describe('backtest worker env contract', () => {
   }
 
   function expectLockedExitProfileKeysAbsent(env) {
-    for (const key of PROFILE_FORBIDDEN_ENV_KEYS) {
+    for (const key of LOCKED_EXIT_PROFILE_KEYS) {
       expect(Object.prototype.hasOwnProperty.call(env, key)).toBe(false);
     }
   }
@@ -80,6 +86,8 @@ describe('backtest worker env contract', () => {
     expect(env.EXECUTION_MODE).toBe('backtest');
     expect(env.CANDLE_SOURCE).toBe('file');
     expect(env.CANDLE_DATA_FILE).toBe(path.resolve(projectRoot, 'tuning/tsla-15m-2y.json'));
+    expect(env.TEST_MODE).toBe('false');
+    expect(env.BACKTEST_NO_PATTERN_SAVE).toBe('true');
     expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
     expect(env.RISK_MANAGER_BYPASS).toBe('true');
@@ -98,6 +106,18 @@ describe('backtest worker env contract', () => {
     expectLockedExitProfileKeysAbsent(env);
     expect(env.SOLO_STRATEGY).toBeUndefined();
     expect(env.ENABLE_NOWICK).toBeUndefined();
+  });
+
+  test('tuning profiles cannot own runtime mode or pattern-write protection keys', () => {
+    expect(PROFILE_FORBIDDEN_ENV_KEYS).toEqual(expect.arrayContaining([
+      'EXECUTION_MODE',
+      'CANDLE_SOURCE',
+      'BACKTEST_MODE',
+      'TEST_MODE',
+      'BACKTEST_NO_PATTERN_SAVE',
+      'PAPER_TRADING',
+      'NODE_ENV',
+    ]));
   });
 
   test('explicit legacy-wide profile loads only tracked source-backed values', () => {
@@ -186,7 +206,17 @@ describe('backtest worker env contract', () => {
   });
 
   test('locked-exit config env overrides fail loudly instead of pretending to tune contracts', () => {
-    for (const key of PROFILE_FORBIDDEN_ENV_KEYS) {
+    for (const key of LOCKED_EXIT_PROFILE_KEYS) {
+      expect(() => buildEnv({
+        configEnv: {
+          [key]: '1',
+        },
+      })).toThrow(new RegExp("Disallowed configEnv override '" + key + "'"));
+    }
+  });
+
+  test('runtime mode config env overrides fail loudly instead of changing worker identity', () => {
+    for (const key of ['EXECUTION_MODE', 'CANDLE_SOURCE', 'BACKTEST_MODE', 'TEST_MODE', 'BACKTEST_NO_PATTERN_SAVE', 'PAPER_TRADING', 'NODE_ENV']) {
       expect(() => buildEnv({
         configEnv: {
           [key]: '1',
@@ -215,6 +245,8 @@ describe('backtest worker env contract', () => {
 
     expect(summary).toMatchObject({
       EXECUTION_MODE: 'backtest',
+      TEST_MODE: 'false',
+      BACKTEST_NO_PATTERN_SAVE: 'true',
       DIRECTION_FILTER: 'long_only',
       EXIT_SYSTEM: 'legacy',
       TUNING_PROFILE: 'current-eval',
