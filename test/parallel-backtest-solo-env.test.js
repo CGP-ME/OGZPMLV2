@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 const {
   DEFAULT_DATA,
   DATA_SHORTCUTS,
@@ -10,6 +13,12 @@ const {
   assertDormantStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
+  parseBacktestOutput,
+  tryReadReport,
+  isCleanParsedResult,
+  getWorkerFailureReason,
+  writeWorkerOutputLog,
+  buildWorkerProcessErrorResult,
 } = require('../tools/parallel-backtest');
 const {
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
@@ -19,6 +28,24 @@ const {
 } = require('../tools/tuning-profiles');
 
 describe('parallel-backtest solo strategy env wiring', () => {
+  function writeWorkerReport(projectRoot, tag, report) {
+    const reportDir = path.join(projectRoot, 'backtest-results', 'worker-reports');
+    fs.mkdirSync(reportDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(reportDir, `backtest-report-123-${tag}.json`),
+      JSON.stringify(report, null, 2)
+    );
+  }
+
+  function withProjectRoot(fn) {
+    const root = fs.mkdtempSync(path.join(__dirname, '.tmp-parallel-report-'));
+    try {
+      return fn(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
   test('tsla shortcut uses the current stock eval baseline', () => {
     expect(DEFAULT_DATA).toBe('tuning/tsla-15m-2y.json');
     expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-2y.json');
@@ -158,6 +185,151 @@ describe('parallel-backtest solo strategy env wiring', () => {
       for (const config of configs || []) {
         expect(Object.keys(config.env || {}).filter(key => forbidden.has(key))).toEqual([]);
       }
+    }
+  });
+
+  test('report fallback preserves worker errors, report path, and zero stock fees', () => {
+    withProjectRoot((projectRoot) => {
+      writeWorkerReport(projectRoot, 'parallel-abc', {
+        summary: {
+          finalBalance: 10005,
+          totalFeesPaid: 0,
+          errors: 2,
+          maxDrawdownPercent: '0.10',
+          profitFactor: '1.20',
+          expectancy: '0.50',
+        },
+        trades: [
+          { netPnlDollars: 5, feesDollars: 0 },
+        ],
+      });
+
+      const result = tryReadReport(projectRoot, 'parallel-abc');
+
+      expect(result.netPnl).toBe(5);
+      expect(result.fees).toBe(0);
+      expect(result.workerErrors).toBe(2);
+      expect(result.reportPath).toMatch(/backtest-report-123-parallel-abc\.json$/);
+      expect(isCleanParsedResult({ ...result, exitCode: 0 })).toBe(false);
+    });
+  });
+
+  test('stdout parser uses the final worker error count', () => {
+    const parsed = parseBacktestOutput([
+      'Progress: 5000/10000 candles | Errors: 0',
+      'Final Balance: $10010.00',
+      'Total Trades: 4',
+      'Win Rate: 50.0%',
+      'Net P&L: $10.00',
+      'Errors: 3',
+    ].join('\n'), 'atr-off');
+
+    expect(parsed.workerErrors).toBe(3);
+    expect(isCleanParsedResult({ ...parsed, exitCode: 0 })).toBe(false);
+  });
+
+  test('nonzero worker exit remains an explicit failed result even with parsed pnl', () => {
+    const result = {
+      name: 'atr-off',
+      netPnl: 123.45,
+      workerErrors: 0,
+      exitCode: 1,
+    };
+
+    expect(isCleanParsedResult(result)).toBe(false);
+    expect(getWorkerFailureReason(result)).toBe('Worker exited with code 1');
+  });
+
+  test('malformed worker error containers fail closed instead of ranking', () => {
+    const result = {
+      name: 'atr-off',
+      netPnl: 123.45,
+      workerErrors: ['candle-parse-error-a', 'candle-parse-error-b'],
+      exitCode: 0,
+    };
+
+    expect(isCleanParsedResult(result)).toBe(false);
+    expect(getWorkerFailureReason(result)).toBe('Worker reported 2 candle processing error(s)');
+  });
+
+  test('malformed inherited worker error objects fail closed', () => {
+    const result = {
+      name: 'atr-off',
+      netPnl: 123.45,
+      workerErrors: Object.create({ message: 'candle parse failed' }),
+      exitCode: 0,
+    };
+
+    expect(isCleanParsedResult(result)).toBe(false);
+    expect(getWorkerFailureReason(result)).toBe('Worker reported 1 candle processing error(s)');
+  });
+
+  test('malformed string worker errors fail closed while numeric zero string stays clean', () => {
+    expect(isCleanParsedResult({
+      name: 'atr-zero',
+      netPnl: 123.45,
+      workerErrors: '0',
+      exitCode: 0,
+    })).toBe(true);
+
+    const result = {
+      name: 'atr-off',
+      netPnl: 123.45,
+      workerErrors: 'candle-parse-error-a',
+      exitCode: 0,
+    };
+
+    expect(isCleanParsedResult(result)).toBe(false);
+    expect(getWorkerFailureReason(result)).toBe('Worker reported 1 candle processing error(s)');
+  });
+
+  test('worker log writer preserves duplicate report-tag outputs', () => {
+    const workerLogDir = fs.mkdtempSync(path.join(__dirname, '.tmp-parallel-worker-logs-'));
+    try {
+      const first = writeWorkerOutputLog('same-tag', 'first output', workerLogDir);
+      const second = writeWorkerOutputLog('same-tag', 'second output', workerLogDir);
+
+      expect(first).not.toBe(second);
+      expect(fs.readFileSync(first, 'utf8')).toBe('first output');
+      expect(fs.readFileSync(second, 'utf8')).toBe('second output');
+    } finally {
+      fs.rmSync(workerLogDir, { recursive: true, force: true });
+    }
+  });
+
+  test('worker log writer preserves empty captured output for failed workers', () => {
+    const workerLogDir = fs.mkdtempSync(path.join(__dirname, '.tmp-parallel-empty-worker-log-'));
+    try {
+      const logPath = writeWorkerOutputLog('empty-output', '', workerLogDir);
+
+      expect(logPath).toMatch(/empty-output\.log$/);
+      expect(fs.existsSync(logPath)).toBe(true);
+      expect(fs.readFileSync(logPath, 'utf8')).toBe('');
+    } finally {
+      fs.rmSync(workerLogDir, { recursive: true, force: true });
+    }
+  });
+
+  test('spawn error result keeps an empty worker log path', () => {
+    const workerLogDir = fs.mkdtempSync(path.join(__dirname, '.tmp-parallel-spawn-error-log-'));
+    try {
+      const result = buildWorkerProcessErrorResult(
+        { name: 'atr-off', env: {} },
+        { EXECUTION_MODE: 'backtest' },
+        'spawn-error',
+        '',
+        new Error('spawn failed'),
+        '0.1',
+        workerLogDir
+      );
+
+      expect(result.error).toBe('spawn failed');
+      expect(result.workerLogPath).toMatch(/spawn-error\.log$/);
+      expect(fs.existsSync(result.workerLogPath)).toBe(true);
+      expect(fs.readFileSync(result.workerLogPath, 'utf8')).toBe('');
+      expect(isCleanParsedResult(result)).toBe(false);
+    } finally {
+      fs.rmSync(workerLogDir, { recursive: true, force: true });
     }
   });
 });

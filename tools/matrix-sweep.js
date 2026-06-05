@@ -83,6 +83,100 @@ const {
   summarizeTuningProfile,
 } = require('./tuning-profiles');
 const RESULTS_DIR = getMatrixDir();
+const WORKER_LOG_DIR = path.join(PROJECT_ROOT, 'backtest-results', 'worker-logs');
+
+function normalizeWorkerErrors(value) {
+  if (value == null || value === false) return 0;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+  }
+  if (typeof value === 'bigint') {
+    return value > 0n ? Math.min(Number(value), Number.MAX_SAFE_INTEGER) : 0;
+  }
+  if (typeof value === 'string') {
+    var trimmed = value.trim();
+    if (!trimmed) return 0;
+    var count = Number(trimmed);
+    if (Number.isFinite(count)) return count > 0 ? Math.trunc(count) : 0;
+    return 1;
+  }
+  if (value) return 1;
+  return 0;
+}
+
+function hasWorkerError(result) {
+  return normalizeWorkerErrors(result && result.workerErrors) > 0
+    || (result && result.error)
+    || (result && result.exitCode !== undefined && result.exitCode !== 0);
+}
+
+function isCleanParsedResult(result) {
+  return result && result.netPnl != null && !hasWorkerError(result);
+}
+
+function getWorkerFailureReason(result) {
+  var workerErrors = normalizeWorkerErrors(result && result.workerErrors);
+  if (workerErrors > 0) {
+    return 'Worker reported ' + workerErrors + ' candle processing error(s)';
+  }
+  if (result && result.exitCode !== undefined && result.exitCode !== 0) {
+    return 'Worker exited with code ' + result.exitCode;
+  }
+  if (result && result.error) return result.error;
+  return null;
+}
+
+function writeWorkerOutputLog(reportTag, output, workerLogDir) {
+  var targetDir = workerLogDir || WORKER_LOG_DIR;
+  fs.mkdirSync(targetDir, { recursive: true });
+  var contents = output == null ? '' : String(output);
+  var safeTag = String(reportTag || ('worker-' + Date.now())).replace(/[^a-zA-Z0-9_.-]/g, '_');
+  for (var attempt = 0; attempt < 1000; attempt += 1) {
+    var suffix = attempt === 0 ? '' : '-' + attempt;
+    var logPath = path.join(targetDir, safeTag + suffix + '.log');
+    try {
+      fs.writeFileSync(logPath, contents, { flag: 'wx' });
+      return logPath;
+    } catch (error) {
+      if (error && error.code === 'EEXIST') continue;
+      throw error;
+    }
+  }
+  throw new Error('Unable to allocate worker log path for ' + safeTag);
+}
+
+function summarizeFailedResult(result) {
+  var error = result.error || getWorkerFailureReason(result);
+  return {
+    name: result.name,
+    strategy: result.strategy,
+    elapsed: result.elapsed,
+    exitCode: result.exitCode,
+    workerErrors: normalizeWorkerErrors(result.workerErrors),
+    error: error || null,
+    netPnl: result.netPnl != null ? result.netPnl : null,
+    trades: result.trades != null ? result.trades : null,
+    winRate: result.winRate != null ? result.winRate : null,
+    reportPath: result.reportPath || null,
+    workerLogPath: result.workerLogPath || null,
+  };
+}
+
+function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elapsed, workerLogDir) {
+  var workerLogPath = writeWorkerOutputLog(reportTag, output, workerLogDir);
+  return {
+    name: config.name,
+    strategy: config.strategy,
+    lockedSL: config.lockedSL,
+    tiers: config.tiers,
+    conf: config.conf,
+    workerEnv: summarizeWorkerEnv(env),
+    error: err.message,
+    elapsed: elapsed,
+    workerLogPath: workerLogPath,
+  };
+}
 
 // ===================================================================
 // DATA FILE SHORTCUTS
@@ -345,6 +439,12 @@ function runWorker(config, dataFile, stockMode, profileName) {
       result.elapsed = elapsed;
       result.exitCode = code;
       result.workerEnv = summarizeWorkerEnv(env);
+      result.workerErrors = normalizeWorkerErrors(result.workerErrors);
+      if (hasWorkerError(result)) {
+        var workerLogPath = writeWorkerOutputLog(uid, output);
+        if (workerLogPath) result.workerLogPath = workerLogPath;
+        if (!result.error) result.error = getWorkerFailureReason(result);
+      }
 
       // Cleanup
       try { fs.unlinkSync(stateFile); } catch (e) {}
@@ -353,14 +453,14 @@ function runWorker(config, dataFile, stockMode, profileName) {
     });
 
     child.on('error', function(err) {
-      resolve({
-        name: config.name,
-        strategy: config.strategy,
-        lockedSL: config.lockedSL, tiers: config.tiers, conf: config.conf,
-        workerEnv: summarizeWorkerEnv(env),
-        error: err.message,
-        elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
-      });
+      resolve(buildWorkerProcessErrorResult(
+        config,
+        env,
+        uid,
+        output,
+        err,
+        ((Date.now() - startTime) / 1000).toFixed(1)
+      ));
     });
   });
 }
@@ -388,6 +488,7 @@ function parseOutput(output, config) {
   var exp = output.match(/Expectancy:\s*\+?\$?([-\d,.]+)/);
   var avgWin = output.match(/Avg Winner:\s*\+?\$?([-\d,.]+)/);
   var avgLoss = output.match(/Avg Loser:\s*\$?([-\d,.]+)/);
+  var errorMatches = Array.from(output.matchAll(/Errors:\s*(\d+)/g));
 
   r.finalBalance = bal ? parseFloat(bal[1].replace(',', '')) : null;
   r.trades = trades ? parseInt(trades[1]) : null;
@@ -399,6 +500,9 @@ function parseOutput(output, config) {
   r.expectancy = exp ? parseFloat(exp[1].replace(',', '')) : null;
   r.avgWin = avgWin ? parseFloat(avgWin[1].replace(',', '')) : null;
   r.avgLoss = avgLoss ? parseFloat(avgLoss[1].replace(',', '')) : null;
+  r.workerErrors = errorMatches.length > 0
+    ? normalizeWorkerErrors(errorMatches[errorMatches.length - 1][1])
+    : 0;
 
   if (r.finalBalance && r.netPnl == null) {
     r.netPnl = r.finalBalance - 10000;
@@ -483,13 +587,15 @@ function tryReadReport(projectRoot, tag) {
       winRate: tradeList.length > 0 ? (winners.length / tradeList.length) * 100 :
                (summary.winRate != null ? parseFloat(summary.winRate) : null),
       netPnl: netPnl,
-      fees: totalFees || summary.totalFeesPaid || null,
+      fees: summary.totalFeesPaid != null ? summary.totalFeesPaid : totalFees,
       maxDrawdown: summary.maxDrawdownPercent != null ? parseFloat(summary.maxDrawdownPercent) : null,
       profitFactor: summary.profitFactor != null && summary.profitFactor !== 'N/A'
                     ? parseFloat(summary.profitFactor) : null,
       expectancy: summary.expectancy != null ? parseFloat(summary.expectancy) : null,
       avgWin: summary.avgWinnerDollars != null ? summary.avgWinnerDollars : null,
       avgLoss: summary.avgLoserDollars != null ? summary.avgLoserDollars : null,
+      workerErrors: normalizeWorkerErrors(summary.errors),
+      reportPath: reportPath,
       // CC-A Change 3: aggregated pattern dimensions for harvester
       dimensionAgg: Object.values(dimensionAgg),
     };
@@ -538,9 +644,9 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     completed += batch.length;
 
     // Quick status line
-    var successes = batchResults.filter(function(r) { return r.netPnl != null; }).length;
+    var successes = batchResults.filter(isCleanParsedResult).length;
     var bestInBatch = batchResults
-      .filter(function(r) { return r.netPnl != null; })
+      .filter(isCleanParsedResult)
       .sort(function(a, b) { return b.netPnl - a.netPnl; })[0];
     var bestStr = bestInBatch ? 'best=$' + bestInBatch.netPnl.toFixed(0) : 'no results';
     console.log(' ' + successes + '/' + batch.length + ' parsed, ' + bestStr);
@@ -551,11 +657,15 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   // -- Per-strategy analysis --
   var strategies = [];
   results.forEach(function(r) { if (strategies.indexOf(r.strategy) === -1) strategies.push(r.strategy); });
-  var parsed = results.filter(function(r) { return r.netPnl != null; });
+  var parsed = results.filter(isCleanParsedResult);
+  var failed = results.filter(function(r) { return r.netPnl == null || hasWorkerError(r); });
 
   console.log('\n' + '='.repeat(72));
   console.log('  MATRIX RESULTS - ' + parsed.length + '/' + results.length + ' parsed in ' + totalTime + 's');
   console.log('='.repeat(72));
+  if (failed.length > 0) {
+    console.log('  ' + failed.length + ' configs failed or reported worker errors');
+  }
 
   var bestPerStrategy = {};
 
@@ -637,12 +747,11 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     tuningProfile: summarizeTuningProfile(tuningProfile),
     totalConfigs: configs.length,
     parsedConfigs: parsed.length,
+    erroredConfigs: failed.length,
     totalTime: totalTime + 's',
     bestPerStrategy: bestPerStrategy,
     results: parsed.sort(function(a, b) { return b.netPnl - a.netPnl; }),
-    failed: results.filter(function(r) { return r.netPnl == null; }).map(function(r) {
-      return { name: r.name, strategy: r.strategy, elapsed: r.elapsed, exitCode: r.exitCode };
-    }),
+    failed: failed.map(summarizeFailedResult),
   };
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   console.log('\nJSON: ' + reportPath);
@@ -849,6 +958,12 @@ module.exports = {
   getDataLabel,
   buildMonotonicTierCube,
   generateMatrix,
+  parseOutput,
+  tryReadReport,
+  isCleanParsedResult,
+  getWorkerFailureReason,
+  writeWorkerOutputLog,
+  buildWorkerProcessErrorResult,
   listTuningProfileNames,
   resolveTuningProfile,
   summarizeTuningProfile,

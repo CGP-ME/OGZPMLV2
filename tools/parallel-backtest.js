@@ -55,6 +55,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
+const WORKER_LOG_DIR = path.join(RESULTS_DIR, 'worker-logs');
 const TIMEOUT_MS = 0; // No timeout - let it finish
 
 function prepareResultsDir() {
@@ -71,6 +72,94 @@ function cleanupParallelStateFiles() {
         .forEach(f => { try { fs.unlinkSync(path.join(dataDir, f)); } catch(e) {} });
     }
   } catch(e) {}
+}
+
+function normalizeWorkerErrors(value) {
+  if (value == null || value === false) return 0;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+  }
+  if (typeof value === 'bigint') {
+    return value > 0n ? Math.min(Number(value), Number.MAX_SAFE_INTEGER) : 0;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const count = Number(trimmed);
+    if (Number.isFinite(count)) return count > 0 ? Math.trunc(count) : 0;
+    return 1;
+  }
+  if (value) return 1;
+  return 0;
+}
+
+function hasWorkerError(result) {
+  return normalizeWorkerErrors(result?.workerErrors) > 0
+    || result?.error
+    || (result?.exitCode !== undefined && result.exitCode !== 0);
+}
+
+function isCleanParsedResult(result) {
+  return result?.netPnl != null && !hasWorkerError(result);
+}
+
+function getWorkerFailureReason(result) {
+  const workerErrors = normalizeWorkerErrors(result?.workerErrors);
+  if (workerErrors > 0) {
+    return `Worker reported ${workerErrors} candle processing error(s)`;
+  }
+  if (result?.exitCode !== undefined && result.exitCode !== 0) {
+    return `Worker exited with code ${result.exitCode}`;
+  }
+  if (result?.error) return result.error;
+  return null;
+}
+
+function writeWorkerOutputLog(reportTag, output, workerLogDir = WORKER_LOG_DIR) {
+  fs.mkdirSync(workerLogDir, { recursive: true });
+  const contents = output == null ? '' : String(output);
+  const safeTag = String(reportTag || `worker-${Date.now()}`).replace(/[^a-zA-Z0-9_.-]/g, '_');
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    const suffix = attempt === 0 ? '' : `-${attempt}`;
+    const logPath = path.join(workerLogDir, `${safeTag}${suffix}.log`);
+    try {
+      fs.writeFileSync(logPath, contents, { flag: 'wx' });
+      return logPath;
+    } catch (error) {
+      if (error && error.code === 'EEXIST') continue;
+      throw error;
+    }
+  }
+  throw new Error(`Unable to allocate worker log path for ${safeTag}`);
+}
+
+function summarizeFailedResult(result) {
+  const error = result.error || getWorkerFailureReason(result);
+  return {
+    name: result.name,
+    elapsed: result.elapsed,
+    exitCode: result.exitCode,
+    workerErrors: normalizeWorkerErrors(result.workerErrors),
+    error: error || null,
+    netPnl: result.netPnl ?? null,
+    trades: result.trades ?? null,
+    winRate: result.winRate ?? null,
+    reportPath: result.reportPath || null,
+    workerLogPath: result.workerLogPath || null,
+  };
+}
+
+function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elapsed, workerLogDir) {
+  const workerLogPath = writeWorkerOutputLog(reportTag, output, workerLogDir);
+  return {
+    name: config.name,
+    config: config,
+    workerEnv: summarizeWorkerEnv(env),
+    error: err.message,
+    elapsed: elapsed,
+    workerLogPath: workerLogPath,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -388,6 +477,12 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
       result.exitCode = code;
       result.config = config;
       result.workerEnv = summarizeWorkerEnv(env);
+      result.workerErrors = normalizeWorkerErrors(result.workerErrors);
+      if (hasWorkerError(result)) {
+        const workerLogPath = writeWorkerOutputLog(reportTag, output);
+        if (workerLogPath) result.workerLogPath = workerLogPath;
+        if (!result.error) result.error = getWorkerFailureReason(result);
+      }
 
       // Clean up state file
       try { fs.unlinkSync(stateFile); } catch(e) {}
@@ -397,13 +492,14 @@ function runSingleBacktest(config, dataFile, stockMode = false, profileName = DE
 
     child.on('error', (err) => {
       if (timer) clearTimeout(timer);
-      resolve({
-        name: config.name,
-        config: config,
-        workerEnv: summarizeWorkerEnv(env),
-        error: err.message,
-        elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
-      });
+      resolve(buildWorkerProcessErrorResult(
+        config,
+        env,
+        reportTag,
+        output,
+        err,
+        ((Date.now() - startTime) / 1000).toFixed(1)
+      ));
     });
   });
 }
@@ -452,13 +548,15 @@ function tryReadReport(projectRoot, tag) {
       winRate: trades.length > 0 ? (winners.length / trades.length) * 100 :
                (summary.winRate != null ? parseFloat(summary.winRate) : null),
       netPnl: netPnl,
-      fees: totalFees || summary.totalFeesPaid || null,
+      fees: summary.totalFeesPaid != null ? summary.totalFeesPaid : totalFees,
       maxDrawdown: summary.maxDrawdownPercent != null ? parseFloat(summary.maxDrawdownPercent) : null,
       profitFactor: summary.profitFactor != null && summary.profitFactor !== 'N/A'
                     ? parseFloat(summary.profitFactor) : null,
       expectancy: summary.expectancy != null ? parseFloat(summary.expectancy) : null,
       avgWin: summary.avgWinnerDollars != null ? summary.avgWinnerDollars : null,
       avgLoss: summary.avgLoserDollars != null ? summary.avgLoserDollars : null,
+      workerErrors: normalizeWorkerErrors(summary.errors),
+      reportPath,
     };
   } catch(e) {
     return null;
@@ -480,6 +578,7 @@ function parseBacktestOutput(output, name) {
   const feesMatch = output.match(/Total Fees.*?:\s*\$?([\d,.]+)/);
   const drawdownMatch = output.match(/Max Drawdown:\s*([\d.]+)%/);
   const profitFactorMatch = output.match(/Profit Factor:\s*([\d.]+)/);
+  const errorMatches = Array.from(output.matchAll(/Errors:\s*(\d+)/g));
   
   // Also try the console dump format (when EMFILE prevents file write)
   const consolePnlMatch = output.match(/Total P&L:\s*\$?([-\d,.]+)\s*\(([-\d,.]+)%\)/);
@@ -493,6 +592,9 @@ function parseBacktestOutput(output, name) {
   result.fees = feesMatch ? parseFloat(feesMatch[1].replace(',', '')) : null;
   result.maxDrawdown = drawdownMatch ? parseFloat(drawdownMatch[1]) : null;
   result.profitFactor = profitFactorMatch ? parseFloat(profitFactorMatch[1]) : null;
+  result.workerErrors = errorMatches.length > 0
+    ? normalizeWorkerErrors(errorMatches[errorMatches.length - 1][1])
+    : 0;
 
   // If we got balance but no PnL, calculate it
   if (result.finalBalance && result.netPnl == null) {
@@ -537,7 +639,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
 
     batchResults.forEach(r => {
       results.push(r);
-      const status = r.error ? '❌' : (r.netPnl > 0 ? '🟢' : (r.netPnl != null ? '🔴' : '⚠️'));
+      const status = r.error ? '[ERR]' : (r.netPnl > 0 ? '[WIN]' : (r.netPnl != null ? '[LOSS]' : '[MISS]'));
       const pnl = r.netPnl != null ? `$${r.netPnl.toFixed(2)}` : 'PARSE FAIL';
       const trades = r.trades || '?';
       const wr = r.winRate != null ? `${r.winRate.toFixed(1)}%` : '?';
@@ -548,7 +650,7 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
   const ranked = results
-    .filter(r => r.netPnl != null)
+    .filter(isCleanParsedResult)
     .sort((a, b) => b.netPnl - a.netPnl);
 
   console.log(`\n${'═'.repeat(70)}`);
@@ -568,11 +670,13 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
   });
 
   // Show configs that failed to parse
-  const failed = results.filter(r => r.netPnl == null);
+  const failed = results.filter(r => r.netPnl == null || hasWorkerError(r));
   if (failed.length > 0) {
-    console.log(`\n  ⚠️  ${failed.length} configs failed to produce parseable results:`);
+    console.log(`\n  ${failed.length} configs failed or reported worker errors:`);
     failed.forEach(r => {
-      console.log(`     ${r.name} (${r.elapsed}s, exit code: ${r.exitCode})`);
+      const err = r.error ? `, ${r.error}` : '';
+      const workerLog = r.workerLogPath ? `, log: ${r.workerLogPath}` : '';
+      console.log(`     ${r.name} (${r.elapsed}s, exit code: ${r.exitCode}${err}${workerLog})`);
     });
   }
 
@@ -584,9 +688,10 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
     tuningProfile: summarizeTuningProfile(tuningProfile),
     totalConfigs: configs.length,
     parsedConfigs: ranked.length,
+    erroredConfigs: failed.length,
     totalTime: `${totalTime}s`,
     results: ranked,
-    failed: failed.map(r => ({ name: r.name, elapsed: r.elapsed, exitCode: r.exitCode })),
+    failed: failed.map(summarizeFailedResult),
     winner: ranked[0] || null,
   };
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -761,6 +866,12 @@ module.exports = {
   assertDormantStrategyEnvCompatible,
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
+  parseBacktestOutput,
+  tryReadReport,
+  isCleanParsedResult,
+  getWorkerFailureReason,
+  writeWorkerOutputLog,
+  buildWorkerProcessErrorResult,
   listTuningProfileNames,
   resolveTuningProfile,
   summarizeTuningProfile,
