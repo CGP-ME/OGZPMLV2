@@ -143,6 +143,65 @@ function findActiveTradeByOrderId(activeTrades, orderId) {
   return null;
 }
 
+function activeTradeEntries(activeTrades) {
+  if (activeTrades instanceof Map) {
+    return Array.from(activeTrades.entries()).map(([key, trade]) => ({ key, trade }));
+  }
+  if (Array.isArray(activeTrades)) {
+    return activeTrades.map((entry, index) => {
+      if (Array.isArray(entry)) return { key: entry[0], trade: entry[1] };
+      return { key: index, trade: entry };
+    });
+  }
+  if (activeTrades && typeof activeTrades === 'object') {
+    return Object.entries(activeTrades).map(([key, trade]) => ({ key, trade }));
+  }
+  return [];
+}
+
+function indicatorObjectOrEmpty(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
+  const missing = [];
+  const orderId = nonEmptyStringOrNull(activeTrade?.orderId) || nonEmptyStringOrNull(activeTrade?.id);
+  const action = entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type);
+  const entryPrice = positiveNumberOrNull(activeTrade?.entryPrice);
+  const sizeUsd = positiveNumberOrNull(activeTrade?.sizeUsd ?? activeTrade?.usdValue);
+  const confidence = finiteNumberOrNull(activeTrade?.confidence);
+  const fees = nonNegativeNumberOrNull(activeTrade?.entryFee ?? activeTrade?.fees);
+  const timestamp = nonNegativeNumberOrNull(activeTrade?.timestamp);
+  const expected = nonEmptyStringOrNull(expectedOrderId);
+
+  if (!orderId) missing.push('activeTrade.orderId');
+  if (expected && orderId && orderId !== expected) missing.push('activeTrade.orderId');
+  if (!action) missing.push('activeTrade.action');
+  if (entryPrice == null) missing.push('entryPrice');
+  if (sizeUsd == null) missing.push('sizeUsd');
+  if (confidence == null) missing.push('confidence');
+  if (fees == null) missing.push('entryFee');
+  if (timestamp == null) missing.push('timestamp');
+
+  return {
+    ok: missing.length === 0,
+    missing,
+    data: {
+      orderId: expected || orderId,
+      direction: action,
+      entryPrice,
+      size: sizeUsd,
+      usdValue: sizeUsd,
+      confidence,
+      regime: nonEmptyStringOrNull(activeTrade?.regimeAtEntry) || nonEmptyStringOrNull(activeTrade?.regime),
+      patterns: Array.isArray(activeTrade?.patterns) ? activeTrade.patterns : [],
+      indicators: indicatorObjectOrEmpty(activeTrade?.entryIndicators || activeTrade?.indicators),
+      fees,
+      timestamp,
+    },
+  };
+}
+
 function normalizeClosedTradeRecord(exitRecord) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(exitRecord?.id)
@@ -232,6 +291,10 @@ function compactTradeRecord(record) {
     direction: nonEmptyStringOrNull(record.direction),
     entryPrice: finiteNumberOrNull(record.entryPrice),
     exitPrice: finiteNumberOrNull(record.exitPrice),
+    entryFee: finiteNumberOrNull(record.entryFee),
+    fees: finiteNumberOrNull(record.fees),
+    timestamp: finiteNumberOrNull(record.timestamp),
+    confidence: finiteNumberOrNull(record.confidence),
     pnl: finiteNumberOrNull(record.pnl ?? record.netPnl ?? record.pnlDollars),
     pnlPercent: finiteNumberOrNull(record.pnlPercent ?? record.profitLossPercent),
     reason: nonEmptyStringOrNull(record.exitReason) || nonEmptyStringOrNull(record.reason),
@@ -305,6 +368,7 @@ class TradeJournalBridge {
     this._maxPendingVisibilityErrors = 50;
     this._closedTradeLogKeySet = new Set();
     this._closedTradeLogKeys = [];
+    this._reconcileOpenStateTrades();
 
     // ── Wire everything ─────────────────────────────────────────────
     this._wireTradeEvents();
@@ -337,12 +401,23 @@ class TradeJournalBridge {
       };
 
       try {
-        const [decision, confidenceData, price, indicators, patterns] = args;
+        const [decision] = args;
         failureContext.action = decision?.action || null;
-        const entryAction = entryActionOrNull(decision?.action);
+        const decisionAction = nonEmptyStringOrNull(decision?.action)?.toUpperCase() || null;
+        const decisionEntryAction = entryActionOrNull(decisionAction);
+        const decisionExitAction = decisionAction === 'SELL' || decisionAction === 'COVER';
+        const resultOrderId = nonEmptyStringOrNull(result?.orderId);
+        const confirmedEntrySideEffect = result?.success === true
+          && result?.orderAccepted === true
+          && result?.stateMutationSucceeded === true
+          && resultOrderId;
+        const stateManager = bot.stateManager;
+        const activeTrades = stateManager?.get('activeTrades') || new Map();
+        const activeTrade = resultOrderId ? findActiveTradeByOrderId(activeTrades, resultOrderId) : null;
+        const activeTradeEntryAction = decisionExitAction ? null : (entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type));
+        const entryAction = activeTradeEntryAction || decisionEntryAction;
 
         if (entryAction) {
-          const resultOrderId = nonEmptyStringOrNull(result?.orderId);
           if (
             result?.success !== true
             || result?.orderAccepted !== true
@@ -355,35 +430,19 @@ class TradeJournalBridge {
             return result;
           }
 
-          const stateManager = bot.stateManager;
-          const activeTrades = stateManager?.get('activeTrades') || new Map();
-          const lastTrade = findActiveTradeByOrderId(activeTrades, resultOrderId);
-          if (!lastTrade) {
+          if (!activeTrade) {
             throw new Error(`Entry ${resultOrderId} succeeded but is missing from StateManager activeTrades; refusing journal capture`);
           }
-          failureContext.orderId = resultOrderId;
-          const regime = bot.regimeDetector?.detectRegime?.(bot.priceHistory);
-          const sizeUsd = Number(lastTrade.sizeUsd ?? lastTrade.usdValue);
-          if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
-            throw new Error(`Entry ${resultOrderId} missing explicit USD size (sizeUsd/usdValue); refusing to infer from ambiguous size`);
+          if (decisionEntryAction && activeTradeEntryAction && decisionEntryAction !== activeTradeEntryAction) {
+            throw new Error(`Entry ${resultOrderId} action mismatch: decision=${decisionEntryAction} activeTrade=${activeTradeEntryAction}`);
           }
-          const entryData = {
-            orderId: resultOrderId,
-            direction: entryAction,
-            entryPrice: lastTrade.entryPrice || price,
-            size: sizeUsd,
-            usdValue: sizeUsd,
-            confidence: confidenceData?.totalConfidence || decision.confidence || 0,
-            regime: regime?.currentRegime || 'unknown',
-            patterns: lastTrade.patterns || patterns || [],
-            indicators: {
-              rsi: indicators?.rsi || 0,
-              macd: indicators?.macd?.macd || indicators?.macd || 0,
-              trend: indicators?.trend || 'unknown',
-              volatility: indicators?.volatility || 0
-            },
-            fees: 0
-          };
+          failureContext.orderId = resultOrderId;
+          failureContext.action = entryAction;
+          const normalizedEntry = sourceBackedEntryFromActiveTrade(activeTrade, resultOrderId);
+          if (!normalizedEntry.ok) {
+            throw new Error(`Entry ${resultOrderId} missing source-backed active trade field(s): ${normalizedEntry.missing.join(', ')}`);
+          }
+          const entryData = normalizedEntry.data;
 
           // Record in journal
           const journalEntry = journal.recordEntry(entryData);
@@ -416,6 +475,8 @@ class TradeJournalBridge {
               },
             });
           }
+        } else if (!decisionExitAction && confirmedEntrySideEffect && activeTrade) {
+          throw new Error(`Entry ${resultOrderId} succeeded but active trade action is not journalable; refusing silent capture skip`);
         }
       } catch (err) {
         console.warn(`[TradeJournalBridge] Entry recording failed (non-critical): ${err.message}`);
@@ -447,6 +508,64 @@ class TradeJournalBridge {
 
     wrapLogSink(bot, 'logTrade', 'bot.logTrade');
     wrapLogSink(bot.orderExecutor?.ctx, 'logTrade', 'orderExecutor.ctx.logTrade');
+  }
+
+  _reconcileOpenStateTrades() {
+    const activeTrades = this.bot?.stateManager?.get?.('activeTrades');
+    for (const { key, trade } of activeTradeEntries(activeTrades)) {
+      const activeOrderId = nonEmptyStringOrNull(trade?.orderId) || nonEmptyStringOrNull(trade?.id);
+      const keyOrderId = nonEmptyStringOrNull(key);
+      const expectedOrderId = activeOrderId;
+      if (!expectedOrderId) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
+          phase: 'entry',
+          source: 'StateManager.activeTrades',
+          orderId: null,
+          action: entryActionOrNull(trade?.action) || entryActionOrNull(trade?.type),
+          missing: ['activeTrade.orderId'],
+          message: 'Open active trade missing orderId/id; refusing journal reconciliation',
+          context: { activeTrade: compactTradeRecord(trade), activeTradeKey: keyOrderId },
+        });
+        continue;
+      }
+
+      if (
+        this.journal.entryOrderIds?.has?.(expectedOrderId)
+        || this.journal.openTrades?.has?.(expectedOrderId)
+        || (Array.isArray(this.journal.trades) && this.journal.trades.some(closed => closed.orderId === expectedOrderId))
+      ) {
+        continue;
+      }
+
+      const normalizedEntry = sourceBackedEntryFromActiveTrade(trade, expectedOrderId);
+      if (!normalizedEntry.ok) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
+          phase: 'entry',
+          source: 'StateManager.activeTrades',
+          orderId: expectedOrderId,
+          action: entryActionOrNull(trade?.action) || entryActionOrNull(trade?.type),
+          missing: normalizedEntry.missing,
+          message: `Open active trade ${expectedOrderId} missing source-backed field(s): ${normalizedEntry.missing.join(', ')}`,
+          context: { activeTrade: compactTradeRecord(trade), activeTradeKey: keyOrderId },
+        });
+        continue;
+      }
+
+      const journalEntry = this.journal.recordEntry({
+        ...normalizedEntry.data,
+        source: 'StateManager.activeTrades',
+      });
+      if (!journalEntry) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
+          phase: 'entry',
+          source: 'StateManager.activeTrades',
+          orderId: expectedOrderId,
+          action: normalizedEntry.data.direction,
+          message: 'TradeJournal.recordEntry returned null during open state reconciliation',
+          context: { activeTrade: compactTradeRecord(trade), activeTradeKey: keyOrderId },
+        });
+      }
+    }
   }
 
   _recordTradeLogClose(exitRecord, source = 'logTrade') {

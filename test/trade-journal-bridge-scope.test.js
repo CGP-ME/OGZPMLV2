@@ -215,9 +215,16 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['ORDER-1', {
         orderId: 'ORDER-1',
+        action: 'BUY',
+        direction: 'long',
         size: 1250,
         sizeUsd: 1250,
         entryPrice: 50000,
+        confidence: 84,
+        entryFee: 3.125,
+        timestamp: 1780000000000,
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 52, macd: { macd: 0.12 }, trend: 'state-up', volatility: 0.19 },
         patterns: [],
       }],
     ]);
@@ -261,15 +268,19 @@ describe('TradeJournalBridge scoped storage', () => {
       size: 1250,
       usdValue: 1250,
       entryPrice: 50000,
-      confidence: 73,
-      regime: 'test-regime',
+      confidence: 84,
+      regime: 'state-regime',
+      fees: 3.125,
+      timestamp: 1780000000000,
+      indicators: { rsi: 52, macd: { macd: 0.12 }, trend: 'state-up', volatility: 0.19 },
     }));
+    expect(bot.regimeDetector.detectRegime).not.toHaveBeenCalled();
     expect(bridge.replay.captureEntry).toHaveBeenCalledWith(
       'ORDER-1',
       expect.objectContaining({
         price: 50000,
-        confidence: 73,
-        regime: 'test-regime',
+        confidence: 84,
+        regime: 'state-regime',
       }),
       []
     );
@@ -285,6 +296,11 @@ describe('TradeJournalBridge scoped storage', () => {
         size: 875,
         sizeUsd: 875,
         entryPrice: 312.45,
+        confidence: 77,
+        entryFee: 2.1875,
+        timestamp: 1780000100000,
+        regimeAtEntry: 'state-bearish',
+        entryIndicators: { rsi: 39, macd: { macd: -0.3 }, trend: 'state-down', volatility: 0.41 },
         patterns: [{ name: 'ema_short', confidence: 0.82 }],
       }],
       ['OLD-LONG-1', {
@@ -338,19 +354,172 @@ describe('TradeJournalBridge scoped storage', () => {
       size: 875,
       usdValue: 875,
       entryPrice: 312.45,
-      confidence: 72,
-      regime: 'bearish',
+      confidence: 77,
+      regime: 'state-bearish',
+      fees: 2.1875,
+      timestamp: 1780000100000,
+      indicators: { rsi: 39, macd: { macd: -0.3 }, trend: 'state-down', volatility: 0.41 },
     }));
+    expect(bot.regimeDetector.detectRegime).not.toHaveBeenCalled();
     expect(bridge.replay.captureEntry).toHaveBeenCalledWith(
       'SHORT-1',
       expect.objectContaining({
         price: 312.45,
         direction: 'SELL_SHORT',
-        confidence: 72,
-        regime: 'bearish',
+        confidence: 77,
+        regime: 'state-bearish',
       }),
       []
     );
+  });
+
+  test('records accepted entries from active trade source even when decision action is missing', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['SHORT-SOURCE-1', {
+        orderId: 'SHORT-SOURCE-1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        size: 900,
+        sizeUsd: 900,
+        entryPrice: 300.25,
+        confidence: 88,
+        entryFee: 2.25,
+        timestamp: 1780000200000,
+        regimeAtEntry: 'source-bear',
+        entryIndicators: { rsi: 36, trend: 'source-down' },
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'SHORT-SOURCE-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(() => ({ orderId: 'SHORT-SOURCE-1' })),
+      },
+      replay: {
+        captureEntry: jest.fn(() => ({ orderId: 'SHORT-SOURCE-1' })),
+      },
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade({}, { totalConfidence: 1 }, 999, { rsi: 99 }, []);
+
+    expect(bridge.journal.recordEntry).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'SHORT-SOURCE-1',
+      direction: 'SELL_SHORT',
+      entryPrice: 300.25,
+      size: 900,
+      usdValue: 900,
+      confidence: 88,
+      fees: 2.25,
+      timestamp: 1780000200000,
+      regime: 'source-bear',
+      indicators: { rsi: 36, trend: 'source-down' },
+    }));
+  });
+
+  test('does not reinterpret explicit exits as entries when the active trade still exists', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['OPEN-LONG-1', {
+        orderId: 'OPEN-LONG-1',
+        action: 'BUY',
+        direction: 'long',
+        sizeUsd: 1000,
+        entryPrice: 100,
+        confidence: 82,
+        entryFee: 2.5,
+        timestamp: 1780000250000,
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 48 },
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'OPEN-LONG-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade({ action: 'SELL', confidence: 80, tradeId: 'OPEN-LONG-1' }, {}, 101, {}, []);
+
+    expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
+    expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
+  });
+
+  test('does not reinterpret explicit cover exits as entries when the active trade still exists', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['OPEN-SHORT-1', {
+        orderId: 'OPEN-SHORT-1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        sizeUsd: 1000,
+        entryPrice: 100,
+        confidence: 82,
+        entryFee: 2.5,
+        timestamp: 1780000260000,
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 48 },
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'OPEN-SHORT-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade({ action: 'COVER', confidence: 80, tradeId: 'OPEN-SHORT-1' }, {}, 99, {}, []);
+
+    expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
+    expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
   });
 
   test('refuses to infer journal USD value from ambiguous legacy size', async () => {
@@ -359,8 +528,13 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['LEGACY-1', {
         orderId: 'LEGACY-1',
+        action: 'BUY',
+        direction: 'long',
         size: 0.025,
         entryPrice: 50000,
+        confidence: 71,
+        entryFee: 0.01,
+        timestamp: 1780000300000,
         patterns: [],
       }],
     ]);
@@ -403,10 +577,174 @@ describe('TradeJournalBridge scoped storage', () => {
 
       expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
       expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing explicit USD size'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('sizeUsd'));
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  test('records visibility failure instead of hardcoding zero fees for source-backed entries', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const activeTrades = new Map([
+      ['NO-FEE-1', {
+        orderId: 'NO-FEE-1',
+        action: 'BUY',
+        direction: 'long',
+        sizeUsd: 500,
+        entryPrice: 250,
+        confidence: 76,
+        timestamp: 1780000500000,
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 51 },
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'NO-FEE-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    try {
+      TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+      await bot.executeTrade({ action: 'BUY', confidence: 76 }, { totalConfidence: 99 }, 250, {}, []);
+
+      expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
+      expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('entryFee'));
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        eventType: 'trade_entry_recording_exception',
+        orderId: 'NO-FEE-1',
+        action: 'BUY',
+        message: expect.stringContaining('entryFee'),
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('startup reconciliation journals open StateManager trades without creating replay captures', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['OPEN-STATE-1', {
+        orderId: 'OPEN-STATE-1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        sizeUsd: 1200,
+        entryPrice: 391.35,
+        confidence: 100,
+        entryFee: 3,
+        timestamp: 1780687800220,
+        regimeAtEntry: 'trending_down',
+        entryIndicators: { rsi: 42, trend: 'down' },
+        patterns: [{ name: 'ema_cross', confidence: 0.9 }],
+      }],
+    ]);
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+        },
+      },
+      journal: {
+        entryOrderIds: new Set(),
+        openTrades: new Map(),
+        trades: [],
+        recordEntry: jest.fn(() => ({ orderId: 'OPEN-STATE-1' })),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+    };
+
+    TradeJournalBridge.prototype._reconcileOpenStateTrades.call(bridge);
+
+    expect(bridge.journal.recordEntry).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'OPEN-STATE-1',
+      direction: 'SELL_SHORT',
+      entryPrice: 391.35,
+      size: 1200,
+      usdValue: 1200,
+      confidence: 100,
+      fees: 3,
+      timestamp: 1780687800220,
+      regime: 'trending_down',
+      indicators: { rsi: 42, trend: 'down' },
+      source: 'StateManager.activeTrades',
+    }));
+    expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
+  });
+
+  test('startup reconciliation refuses map-key orderId fallback for open StateManager trades', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const activeTrades = new Map([
+      ['KEY-ONLY-1', {
+        action: 'BUY',
+        direction: 'long',
+        sizeUsd: 1000,
+        entryPrice: 100,
+        confidence: 80,
+        entryFee: 2.5,
+        timestamp: 1780000600000,
+        regimeAtEntry: 'state-regime',
+        entryIndicators: { rsi: 50 },
+        patterns: [],
+      }],
+    ]);
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+        },
+      },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        entryOrderIds: new Set(),
+        openTrades: new Map(),
+        trades: [],
+        recordEntry: jest.fn(),
+      },
+      replay: {
+        captureEntry: jest.fn(),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    TradeJournalBridge.prototype._reconcileOpenStateTrades.call(bridge);
+
+    expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
+    expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
+    const [record] = readJsonl(visibilityFailurePath);
+    expect(record).toMatchObject({
+      eventType: 'trade_entry_state_reconciliation_refused',
+      orderId: null,
+      missing: ['activeTrade.orderId'],
+      context: expect.objectContaining({ activeTradeKey: 'KEY-ONLY-1' }),
+    });
   });
 
   test('wraps OrderExecutor logTrade sink and records complete close records', async () => {
@@ -666,9 +1004,16 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['ORDER-VIS-1', {
         orderId: 'ORDER-VIS-1',
+        action: 'BUY',
+        direction: 'long',
         sizeUsd: 1250,
         usdValue: 1250,
         entryPrice: 100,
+        confidence: 75,
+        entryFee: 3.125,
+        timestamp: 1780000400000,
+        regimeAtEntry: 'visibility-regime',
+        entryIndicators: { rsi: 44 },
         patterns: [],
       }],
     ]);

@@ -280,6 +280,30 @@ describe('TradeJournal today stats', () => {
     journal.destroy();
   });
 
+  test('records supplied entry timestamp and refuses malformed supplied timestamp', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const entry = journal.recordEntry(validEntry({
+      orderId: 'TIMESTAMPED-ENTRY',
+      timestamp: Date.parse('2026-05-26T11:00:00.000Z'),
+    }));
+    const bad = journal.recordEntry(validEntry({
+      orderId: 'BAD-TIMESTAMP-ENTRY',
+      timestamp: 'not-a-timestamp',
+    }));
+
+    expect(entry).toEqual(expect.objectContaining({
+      orderId: 'TIMESTAMPED-ENTRY',
+      timestamp: Date.parse('2026-05-26T11:00:00.000Z'),
+    }));
+    expect(bad).toBeNull();
+    expect(journal.openTrades.has('BAD-TIMESTAMP-ENTRY')).toBe(false);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('missing field(s): timestamp'));
+
+    journal.destroy();
+  });
+
   test('throws on entry ledger append failure before mutating open state', () => {
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());

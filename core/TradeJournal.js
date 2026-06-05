@@ -206,6 +206,8 @@ class TradeJournal {
     const usdValue = positiveNumberOrNull(entry?.usdValue);
     const confidence = finiteNumberOrNull(entry?.confidence);
     const fees = nonNegativeNumberOrNull(entry?.fees);
+    const hasSuppliedTimestamp = entry?.timestamp !== undefined && entry?.timestamp !== null;
+    const timestamp = hasSuppliedTimestamp ? nonNegativeNumberOrNull(entry?.timestamp) : Date.now();
 
     if (!orderId) missing.push('orderId');
     if (!direction || !side) missing.push('direction');
@@ -214,6 +216,7 @@ class TradeJournal {
     if (usdValue === null) missing.push('usdValue');
     if (confidence === null) missing.push('confidence');
     if (fees === null) missing.push('fees');
+    if (hasSuppliedTimestamp && timestamp === null) missing.push('timestamp');
 
     if (missing.length > 0) {
       console.warn(`[TradeJournal] Refusing incomplete entry record; missing field(s): ${missing.join(', ')}`);
@@ -232,7 +235,7 @@ class TradeJournal {
 
     const record = {
       event: 'ENTRY',
-      timestamp: Date.now(),
+      timestamp,
       orderId,
       direction,
       entryPrice,
