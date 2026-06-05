@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Open Reconciliation (2026-06-05)
+
+- Added a scoped `OPEN_TRADE_RECONCILED` ledger event so verified orphaned journal entries can be removed from open state without fabricating exits, P&L, balance changes, or completed trades.
+- Added target-specific StateManager/broker proof validation and duplicate order ID regressions for reconciled journal entries before and after ledger rebuild.
+
 ### Locked-Exit Sweep Truth Contract (2026-06-05)
 
 - Removed remaining fake locked-exit SL/TP env sweep paths from matrix and parallel tuning tools, and changed worker `configEnv` overrides to reject locked-exit stop/take/trailing keys.

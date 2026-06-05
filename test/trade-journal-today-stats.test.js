@@ -280,6 +280,22 @@ describe('TradeJournal today stats', () => {
     journal.destroy();
   });
 
+  test('throws on entry ledger append failure before mutating open state', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.paths.ledger = path.join(tempDir, 'missing-dir', 'trade-ledger.jsonl');
+
+    try {
+      expect(() => journal.recordEntry(validEntry({ orderId: 'ENTRY-APPEND-FAIL' })))
+        .toThrow(/ENOENT|no such file or directory/i);
+      expect(journal.openTrades.has('ENTRY-APPEND-FAIL')).toBe(false);
+      expect(journal.openTrades.size).toBe(0);
+      expect(consoleSpies[2]).toHaveBeenCalledWith(expect.stringContaining('Failed to append'));
+    } finally {
+      journal.destroy();
+    }
+  });
+
   test('refuses incomplete direct exit records without removing open state', () => {
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());
@@ -299,6 +315,37 @@ describe('TradeJournal today stats', () => {
     expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('missing field(s): exitPrice'));
 
     journal.destroy();
+  });
+
+  test('throws on exit ledger append failure before mutating closed state', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.recordEntry(validEntry({
+      orderId: 'EXIT-APPEND-FAIL',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      confidence: 75,
+      fees: 0,
+    }));
+    journal.paths.ledger = path.join(tempDir, 'missing-dir', 'trade-ledger.jsonl');
+
+    try {
+      expect(() => journal.recordExit({
+        orderId: 'EXIT-APPEND-FAIL',
+        exitPrice: 110,
+        pnl: 10,
+        fees: 0,
+        reason: 'manual',
+      })).toThrow(/ENOENT|no such file or directory/i);
+      expect(journal.openTrades.has('EXIT-APPEND-FAIL')).toBe(true);
+      expect(journal.trades).toHaveLength(0);
+      expect(journal.getStats().totalTrades).toBe(0);
+      expect(consoleSpies[2]).toHaveBeenCalledWith(expect.stringContaining('Failed to append'));
+    } finally {
+      journal.destroy();
+    }
   });
 
   test('refuses complete-looking exit-only records without a matching journal entry', () => {
@@ -519,6 +566,95 @@ describe('TradeJournal today stats', () => {
       netPnl: 0,
     }));
     expect(journal.getSnapshot().currentBalance).toBe(1000);
+
+    journal.destroy();
+  });
+
+  test('reconciles orphaned open journal entries without fabricating completed trade stats', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+
+    journal.recordEntry(validEntry({
+      orderId: 'ORPHAN-JOURNAL-ENTRY',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      confidence: 75,
+      fees: 0,
+    }));
+
+    const reconciliation = journal.recordOpenTradeReconciliation({
+      orderId: 'ORPHAN-JOURNAL-ENTRY',
+      reason: 'state_manager_and_broker_flat',
+      source: 'test.flat_authoritative_reconciliation',
+      statePositionCount: 1,
+      stateActiveTradeCount: 1,
+      stateOpenOrderIds: ['OTHER-ACTIVE-ORDER'],
+      brokerPositionCount: 1,
+      brokerSymbolPositionCount: 0,
+      brokerPositions: [{ symbol: 'ETH-USD', qty: '0.1' }],
+    });
+
+    expect(reconciliation).toEqual(expect.objectContaining({
+      event: 'OPEN_TRADE_RECONCILED',
+      orderId: 'ORPHAN-JOURNAL-ENTRY',
+      reason: 'state_manager_and_broker_flat',
+    }));
+    expect(journal.openTrades.size).toBe(0);
+    expect(journal.trades).toHaveLength(0);
+    expect(journal.getSnapshot()).toEqual(expect.objectContaining({
+      openPositions: 0,
+      totalTrades: 0,
+      netPnl: 0,
+      currentBalance: 1000,
+    }));
+    expect(journal.recordEntry(validEntry({ orderId: 'ORPHAN-JOURNAL-ENTRY' }))).toBeNull();
+
+    journal.destroy();
+
+    const rebuilt = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    expect(rebuilt.openTrades.size).toBe(0);
+    expect(rebuilt.trades).toHaveLength(0);
+    expect(rebuilt.getStats()).toEqual(expect.objectContaining({
+      totalTrades: 0,
+      netPnl: 0,
+      currentBalance: 1000,
+    }));
+    expect(rebuilt.recordEntry(validEntry({ orderId: 'ORPHAN-JOURNAL-ENTRY' }))).toBeNull();
+
+    rebuilt.destroy();
+  });
+
+  test('refuses open journal reconciliation when broker or state proof is not flat', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+
+    journal.recordEntry(validEntry({
+      orderId: 'REAL-OPEN-JOURNAL-ENTRY',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 100,
+      usdValue: 100,
+      confidence: 75,
+      fees: 0,
+    }));
+
+    const reconciliation = journal.recordOpenTradeReconciliation({
+      orderId: 'REAL-OPEN-JOURNAL-ENTRY',
+      reason: 'state_manager_and_broker_flat',
+      source: 'test.non_flat_authoritative_reconciliation',
+      statePositionCount: 1,
+      stateActiveTradeCount: 1,
+      stateOpenOrderIds: ['REAL-OPEN-JOURNAL-ENTRY'],
+      brokerPositionCount: 1,
+      brokerSymbolPositionCount: 1,
+      brokerPositions: [{ symbol: 'btc-usd', qty: '0.1' }],
+    });
+
+    expect(reconciliation).toBeNull();
+    expect(journal.openTrades.has('REAL-OPEN-JOURNAL-ENTRY')).toBe(true);
+    expect(journal.getStats().totalTrades).toBe(0);
 
     journal.destroy();
   });

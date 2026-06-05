@@ -69,10 +69,21 @@ function nonNegativeNumberOrNull(value) {
   return n !== null && n >= 0 ? n : null;
 }
 
+function nonNegativeIntegerOrNull(value) {
+  const n = nonNegativeNumberOrNull(value);
+  return n !== null && Number.isInteger(n) ? n : null;
+}
+
 function nonEmptyStringOrNull(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function nonEmptyStringArrayOrNull(value) {
+  if (!Array.isArray(value)) return null;
+  const strings = value.map(nonEmptyStringOrNull);
+  return strings.every(item => item !== null) ? strings : null;
 }
 
 function roundFiniteOrNull(value, decimals = 2) {
@@ -146,6 +157,7 @@ class TradeJournal {
     // ── In-memory state (rebuilt from ledger on startup) ───────────────
     this.trades = [];           // completed trades (bounded)
     this.openTrades = new Map(); // orderId → entry record
+    this.entryOrderIds = new Set(); // every consumed ENTRY orderId, including reconciled orphans
     this.equityCurve = [];      // { timestamp, balance, equity, drawdown }
     this.stats = this._emptyStats();
 
@@ -213,7 +225,7 @@ class TradeJournal {
       return null;
     }
 
-    if (this.openTrades.has(orderId) || this.trades.some(trade => trade.orderId === orderId)) {
+    if (this.entryOrderIds.has(orderId) || this.openTrades.has(orderId) || this.trades.some(trade => trade.orderId === orderId)) {
       console.warn(`[TradeJournal] Refusing duplicate entry orderId: ${orderId}`);
       return null;
     }
@@ -242,11 +254,12 @@ class TradeJournal {
       ...this._scopeRecordFields()
     };
 
-    // Store in open trades map
-    this.openTrades.set(record.orderId, record);
-
     // Append to ledger (crash-safe)
     this._appendLedger(record);
+
+    // Store in open trades map only after the append-only ledger accepts it.
+    this.entryOrderIds.add(record.orderId);
+    this.openTrades.set(record.orderId, record);
 
     console.log(`[TradeJournal] ENTRY logged: ${record.direction} size=${record.size.toFixed(6)} @ $${record.entryPrice.toFixed(2)} | Conf: ${record.confidence}% | Regime: ${record.regime}`);
     return record;
@@ -371,6 +384,96 @@ class TradeJournal {
     console.log(`[TradeJournal] EXIT logged: ${outcome} ${completedTrade.direction} | P&L: $${netPnl.toFixed(2)} (${pnlPercentText}) | Reason: ${completedTrade.exitReason} | Hold: ${completedTrade.holdTimeFormatted}`);
 
     return completedTrade;
+  }
+
+  /**
+   * Record that an open journal entry was reconciled against authoritative flat
+   * broker and StateManager proof for that order. This removes only orphaned
+   * open journal state; it does not fabricate an EXIT, P&L, balance update, or
+   * completed trade.
+   */
+  recordOpenTradeReconciliation(details = {}) {
+    const missing = [];
+    const orderId = nonEmptyStringOrNull(details.orderId);
+    const reason = nonEmptyStringOrNull(details.reason);
+    const source = nonEmptyStringOrNull(details.source);
+    const statePositionCount = nonNegativeIntegerOrNull(details.statePositionCount);
+    const stateActiveTradeCount = nonNegativeIntegerOrNull(details.stateActiveTradeCount);
+    const stateOpenOrderIds = nonEmptyStringArrayOrNull(details.stateOpenOrderIds);
+    const brokerPositionCount = nonNegativeIntegerOrNull(details.brokerPositionCount);
+    const brokerSymbolPositionCount = nonNegativeIntegerOrNull(details.brokerSymbolPositionCount);
+    const brokerPositions = Array.isArray(details.brokerPositions) ? details.brokerPositions : null;
+
+    if (!orderId) missing.push('orderId');
+    if (!reason) missing.push('reason');
+    if (!source) missing.push('source');
+    if (statePositionCount === null) missing.push('statePositionCount');
+    if (stateActiveTradeCount === null) missing.push('stateActiveTradeCount');
+    if (stateOpenOrderIds === null) missing.push('stateOpenOrderIds');
+    if (brokerPositionCount === null) missing.push('brokerPositionCount');
+    if (brokerSymbolPositionCount === null) missing.push('brokerSymbolPositionCount');
+    if (brokerPositions === null) missing.push('brokerPositions');
+
+    if (missing.length > 0) {
+      console.warn(`[TradeJournal] Refusing open-trade reconciliation; missing field(s): ${missing.join(', ')}`);
+      return null;
+    }
+
+    const entry = this.openTrades.get(orderId);
+    if (!entry) {
+      console.warn(`[TradeJournal] Refusing open-trade reconciliation for ${orderId}; no matching open entry in journal`);
+      return null;
+    }
+
+    const brokerSymbols = brokerPositions.map(position => nonEmptyStringOrNull(position?.symbol));
+    const scopeSymbolKey = this.scope.symbol.toUpperCase();
+    const matchingBrokerSymbols = brokerSymbols.filter(symbol => symbol?.toUpperCase() === scopeSymbolKey);
+
+    if (
+      stateOpenOrderIds.length !== stateActiveTradeCount ||
+      brokerPositions.length !== brokerPositionCount ||
+      brokerSymbols.some(symbol => symbol === null) ||
+      matchingBrokerSymbols.length !== brokerSymbolPositionCount
+    ) {
+      console.warn(`[TradeJournal] Refusing open-trade reconciliation for ${orderId}; reconciliation proof is inconsistent`);
+      return null;
+    }
+
+    if (stateOpenOrderIds.includes(orderId) || brokerSymbolPositionCount !== 0) {
+      console.warn(`[TradeJournal] Refusing open-trade reconciliation for ${orderId}; target order still has authoritative exposure`);
+      return null;
+    }
+
+    const record = {
+      event: 'OPEN_TRADE_RECONCILED',
+      timestamp: Date.now(),
+      orderId,
+      reason,
+      source,
+      statePositionCount,
+      stateActiveTradeCount,
+      stateOpenOrderIds,
+      brokerPositionCount,
+      brokerSymbolPositionCount,
+      brokerPositions,
+      reconciledEntry: {
+        timestamp: entry.timestamp,
+        direction: entry.direction,
+        entryPrice: entry.entryPrice,
+        size: entry.size,
+        usdValue: entry.usdValue,
+        confidence: entry.confidence,
+        regime: entry.regime,
+      },
+      ...this._scopeRecordFields()
+    };
+
+    this._appendLedger(record);
+    this.entryOrderIds.add(orderId);
+    this.openTrades.delete(orderId);
+
+    console.warn(`[TradeJournal] OPEN_TRADE_RECONCILED logged for ${orderId}; journal open state removed after target-specific broker/state proof`);
+    return record;
   }
 
 
@@ -1014,14 +1117,17 @@ class TradeJournal {
   }
 
   _appendLedger(record) {
-    this._appendFile(this.paths.ledger, JSON.stringify(record));
+    this._appendFile(this.paths.ledger, JSON.stringify(record), { critical: true });
   }
 
-  _appendFile(filepath, line) {
+  _appendFile(filepath, line, options = {}) {
     try {
       fs.appendFileSync(filepath, line + '\n', 'utf8');
+      return true;
     } catch (err) {
       console.error(`[TradeJournal] Failed to append to ${filepath}: ${err.message}`);
+      if (options.critical === true) throw err;
+      return false;
     }
   }
 
@@ -1074,6 +1180,7 @@ class TradeJournal {
             throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} duplicates ENTRY orderId ${orderId}`);
           }
           seenEntryOrderIds.add(orderId);
+          this.entryOrderIds.add(orderId);
           entries.set(record.orderId, record);
           this.openTrades.set(record.orderId, record);
         } else if (record.event === 'EXIT') {
@@ -1088,6 +1195,45 @@ class TradeJournal {
           this.trades.push(record);
           this.openTrades.delete(record.orderId);
           entries.delete(record.orderId);
+        } else if (record.event === 'OPEN_TRADE_RECONCILED') {
+          this._assertLedgerRecordScope(record, index + 1);
+          const orderId = nonEmptyStringOrNull(record.orderId);
+          const reason = nonEmptyStringOrNull(record.reason);
+          const source = nonEmptyStringOrNull(record.source);
+          const statePositionCount = nonNegativeIntegerOrNull(record.statePositionCount);
+          const stateActiveTradeCount = nonNegativeIntegerOrNull(record.stateActiveTradeCount);
+          const stateOpenOrderIds = nonEmptyStringArrayOrNull(record.stateOpenOrderIds);
+          const brokerPositionCount = nonNegativeIntegerOrNull(record.brokerPositionCount);
+          const brokerSymbolPositionCount = nonNegativeIntegerOrNull(record.brokerSymbolPositionCount);
+          const brokerPositions = Array.isArray(record.brokerPositions) ? record.brokerPositions : null;
+
+          if (!orderId) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_RECONCILED missing orderId`);
+          }
+          if (!reason || !source || statePositionCount === null || stateActiveTradeCount === null || stateOpenOrderIds === null || brokerPositionCount === null || brokerSymbolPositionCount === null || brokerPositions === null) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_RECONCILED missing reconciliation proof`);
+          }
+          const brokerSymbols = brokerPositions.map(position => nonEmptyStringOrNull(position?.symbol));
+          const scopeSymbolKey = this.scope.symbol.toUpperCase();
+          const matchingBrokerSymbols = brokerSymbols.filter(symbol => symbol?.toUpperCase() === scopeSymbolKey);
+          if (
+            stateOpenOrderIds.length !== stateActiveTradeCount ||
+            brokerPositions.length !== brokerPositionCount ||
+            brokerSymbols.some(symbol => symbol === null) ||
+            matchingBrokerSymbols.length !== brokerSymbolPositionCount
+          ) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_RECONCILED proof is inconsistent`);
+          }
+          if (stateOpenOrderIds.includes(orderId) || brokerSymbolPositionCount !== 0) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_RECONCILED target still has authoritative exposure`);
+          }
+          if (!entries.has(orderId)) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} OPEN_TRADE_RECONCILED has no matching open ENTRY for orderId ${orderId}`);
+          }
+
+          this.entryOrderIds.add(orderId);
+          this.openTrades.delete(orderId);
+          entries.delete(orderId);
         }
       }
 
