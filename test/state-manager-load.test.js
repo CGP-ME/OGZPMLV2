@@ -158,6 +158,137 @@ describe('StateManager load validation', () => {
     expect(trade.remainingOrderQuantityUnit).toBe('shares');
   });
 
+  test('short partial reduction lowers locked USD exposure', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(1200, 400, {
+      orderId: 'SHORT_1',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 3,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+    expect(manager.get('position')).toBeCloseTo(-1200);
+    expect(manager.get('inPosition')).toBeCloseTo(1200);
+
+    const reduced = await manager.reducePosition('SHORT_1', 0.25, 390, {
+      orderId: 'SHORT_1',
+      exitReason: 'tier_exit',
+      orderQuantity: 0.75,
+      quantityUnit: 'shares',
+    });
+
+    expect(reduced.success).toBe(true);
+    expect(manager.get('position')).toBeCloseTo(-900);
+    expect(manager.get('inPosition')).toBeCloseTo(900);
+    const trade = manager.get('activeTrades').get('SHORT_1');
+    expect(trade.sizeUsd).toBeCloseTo(900);
+    expect(trade.remainingOrderQuantity).toBeCloseTo(2.25);
+  });
+
+  test('full close clears stale locked USD exposure when no active trades remain', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(1200, 400, {
+      orderId: 'SHORT_STALE',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 3,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+    manager.set('inPosition', 1918.7714832796617);
+
+    const closed = await manager.closePosition(390, false, null, {
+      tradeId: 'SHORT_STALE',
+      orderId: 'SHORT_STALE',
+      exitReason: 'full_exit',
+    });
+
+    expect(closed.success).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('positionCount')).toBe(0);
+    expect(manager.get('entryPrice')).toBe(0);
+    expect(manager.get('entryTime')).toBeNull();
+  });
+
+  test('load clears flat-state stale locked USD exposure and persists the repair', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0,
+      positionCount: 3,
+      entryPrice: 391.35,
+      entryTime: Date.parse('2026-06-05T14:10:00.000Z'),
+      inPosition: 1918.7714832796617,
+      activeTrades: [],
+      lastPrices: { TSLA: 390.09 },
+      isTrading: true,
+      recoveryMode: false,
+      pauseReason: null,
+      lastError: null,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.validateState().valid).toBe(true);
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.inPosition).toBe(0);
+    expect(saved.position).toBe(0);
+    expect(saved.positionCount).toBe(0);
+    expect(saved.entryPrice).toBe(0);
+    expect(saved.entryTime).toBeNull();
+    expect(saved.activeTrades).toEqual([]);
+  });
+
+  test('load refuses source-less scalar exposure when active trades are empty', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0.001,
+      positionCount: 1,
+      entryPrice: 391.35,
+      entryTime: Date.parse('2026-06-05T14:10:00.000Z'),
+      inPosition: 1234.56,
+      activeTrades: [],
+      lastPrices: { TSLA: 390.09 },
+      isTrading: true,
+      recoveryMode: false,
+      pauseReason: null,
+      lastError: null,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow('Source-less position exposure');
+  });
+
   test('recoverable data-feed pause resumes only from the matching owner', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();

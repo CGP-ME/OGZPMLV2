@@ -267,6 +267,25 @@ class StateManager {
     return Math.max(0, equity - reservedCapital);
   }
 
+  _getActiveTradeExposureUsd(activeTrades = this.state.activeTrades) {
+    if (!activeTrades) {
+      return 0;
+    }
+    if (!(activeTrades instanceof Map)) {
+      throw new Error(`[StateManager] activeTrades exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`);
+    }
+
+    let exposureUsd = 0;
+    for (const [tradeId, trade] of activeTrades.entries()) {
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        throw new Error(`[StateManager] activeTrades exposure invariant failed for ${tradeId}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`);
+      }
+      exposureUsd += Math.abs(sizeUsd);
+    }
+    return exposureUsd;
+  }
+
   /**
    * Record the most recent close price for a symbol.
    * Called from OHLC handlers on each candle close. Powers cross-asset
@@ -795,6 +814,7 @@ class StateManager {
 
     // Position scalar update (kept for compatibility)
     const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
+    const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd();
     const calculatedPosition = isShort
       ? Math.min(0, this.state.position + closeSize)
       : Math.max(0, this.state.position - closeSize);
@@ -820,11 +840,11 @@ class StateManager {
 
     const updates = {
       position: finalPosition,
-      positionCount: partial ? this.state.positionCount : 0,
-      entryPrice: partial ? this.state.entryPrice : 0,
-      entryTime: partial ? this.state.entryTime : null,
+      positionCount: noActiveTradesRemaining ? 0 : this.state.activeTrades.size,
+      entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+      entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
       // FIX 2026-03-28: No balance principal movement - only realizedPnL changes
-      inPosition: Math.max(0, this.state.inPosition - closeSize),
+      inPosition: remainingExposureUsd,
       realizedPnL: this.state.realizedPnL + netRealizedResult,
       totalPnL: this.state.totalPnL + pnl,
       closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
@@ -937,9 +957,14 @@ class StateManager {
 
     // Update global state metrics
     const positionDelta = isShort ? closeSize : -closeSize;
+    const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
+    const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd();
     const updates = {
-      position: this.state.position + positionDelta,
-      inPosition: Math.max(0, this.state.inPosition + positionDelta),
+      position: noActiveTradesRemaining ? 0 : this.state.position + positionDelta,
+      positionCount: noActiveTradesRemaining ? 0 : this.state.positionCount,
+      entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+      entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+      inPosition: remainingExposureUsd,
       realizedPnL: this.state.realizedPnL + netRealizedResult,
       totalPnL: this.state.totalPnL + pnl,
       lastTradeTime: Date.now()
@@ -1820,11 +1845,39 @@ class StateManager {
         if (normalizedExisting > 0) {
           console.warn(`[StateManager] Normalized ${normalizedExisting} persisted trade symbol(s) to dash form.`);
         }
+        const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
+        const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
+        if (activeTradeCount === 0) {
+          const persistedPosition = Number(this.state.position);
+          const persistedInPosition = Number(this.state.inPosition);
+          if (!Number.isFinite(persistedPosition) || persistedPosition !== 0) {
+            throw new Error(
+              `[StateManager.load] Source-less position exposure: activeTrades empty but position=${this.state.position}. Refusing to infer a flat state without active trade evidence.`
+            );
+          }
+          if (!Number.isFinite(persistedInPosition) || persistedInPosition < 0) {
+            throw new Error(
+              `[StateManager.load] Invalid flat-state inPosition=${this.state.inPosition}. Refusing to infer locked exposure without active trade evidence.`
+            );
+          }
+          if (persistedInPosition > 0 || this.state.positionCount !== 0 || this.state.entryPrice !== 0 || this.state.entryTime !== null) {
+            const staleFlatState = {
+              inPosition: this.state.inPosition,
+              positionCount: this.state.positionCount,
+              entryPrice: this.state.entryPrice,
+              entryTime: this.state.entryTime,
+            };
+            this.state.inPosition = 0;
+            this.state.positionCount = 0;
+            this.state.entryPrice = 0;
+            this.state.entryTime = null;
+            correctedStateShape = true;
+            console.warn(`[StateManager] Cleared stale flat position metadata: ${JSON.stringify(staleFlatState)}`);
+          }
+        }
         if (correctedStateShape) {
           this.save();
         }
-        const activeTradeCount = this.state.activeTrades instanceof Map ? this.state.activeTrades.size : 0;
-        const symbolHaltCount = Object.keys(this.state.symbolEntryHalts || {}).length;
         const validation = this.validateState();
         if (
           this.state.recoveryMode === true &&
