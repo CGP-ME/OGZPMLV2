@@ -1585,6 +1585,26 @@ class OGZPrimeV14Bot {
     return candle;
   }
 
+  _getRestRecoveryScopeEnvelope(source, symbol, timeframe, overrides = {}) {
+    try {
+      return this.getCandleScopeEnvelope({
+        ...overrides,
+        timeframe,
+      });
+    } catch (error) {
+      emitTrace(this, 'REST_RECOVERY_SCOPE_REJECTED', {
+        traceId: createTraceId('rest_scope_rejected'),
+        source,
+        symbol,
+        timeframe,
+        brokerId: overrides.brokerId || null,
+        assetClass: overrides.assetClass || null,
+        reason: error.message,
+      });
+      throw error;
+    }
+  }
+
   async hydrateActiveTimeframeFromRest() {
     if (this.config.enableBacktestMode ||
         resolvedConfig.config.mode.backtest ||
@@ -1612,6 +1632,10 @@ class OGZPrimeV14Bot {
 
     const hydrationLimit = this.config.dataFeed.bootRestHydrationLimit;
     for (const symbol of symbols) {
+      const scopeEnvelope = this._getRestRecoveryScopeEnvelope('boot_rest_hydration', symbol, timeframe, {
+        brokerId: this.sessionRouter?.activeBroker?.id || resolvedConfig.config.broker.id,
+        assetClass: this.config.assetClass,
+      });
       const rawCandles = await broker.getCandles(symbol, timeframe, hydrationLimit);
       const candles = (Array.isArray(rawCandles) ? rawCandles : [])
         .map(c => this._normalizeHydrationCandle(c, symbol, timeframe, timeframeMs))
@@ -1624,8 +1648,34 @@ class OGZPrimeV14Bot {
         continue;
       }
 
-      for (const candle of candles) {
-        this.candleProcessor.processNewCandle(candle, { persist: false });
+      for (let index = 0; index < candles.length; index += 1) {
+        const traceId = createTraceId('boot_rest');
+        const candle = {
+          ...candles[index],
+          ...scopeEnvelope,
+          traceId,
+        };
+        const acceptedAsNew = this.candleProcessor.processNewCandle(candle, {
+          persist: false,
+          traceId,
+          source: 'boot_rest_hydration',
+        });
+        emitTrace(this, 'BOOT_REST_HYDRATION_CANDLE', {
+          traceId,
+          source: 'boot_rest_hydration',
+          symbol,
+          timeframe,
+          candleIndex: index + 1,
+          candleCount: candles.length,
+          close: candle.c,
+          etime: candle.etime,
+          brokerId: candle.brokerId,
+          accountId: candle.accountId,
+          assetClass: candle.assetClass,
+          executionMode: candle.executionMode,
+          scopeKey: candle.scopeKey,
+          acceptedAsNew,
+        });
         const ohlc = candleToProcessorOhlc(candle, timeframeMs);
         if (ohlc) {
           this.storeTimeframeCandle(timeframe, ohlc, symbol);
@@ -2703,10 +2753,40 @@ class OGZPrimeV14Bot {
     }
 
     let applied = 0;
-    for (const candle of candles) {
+    const scopeEnvelope = this._getRestRecoveryScopeEnvelope('liveness_rest_backfill', symbol, timeframe, {
+      brokerId: this.sessionRouter?.activeBroker?.id || this.config.brokerId,
+      assetClass: this.config.assetClass,
+    });
+    for (let index = 0; index < candles.length; index += 1) {
+      const traceId = createTraceId('liveness_rest');
+      const candle = {
+        ...candles[index],
+        ...scopeEnvelope,
+        traceId,
+      };
       const ohlc = candleToProcessorOhlc(candle, timeframeMs);
       if (!ohlc) continue;
-      this.candleProcessor.processNewCandle(candle, { persist: false });
+      const acceptedAsNew = this.candleProcessor.processNewCandle(candle, {
+        persist: false,
+        traceId,
+        source: 'liveness_rest_backfill',
+      });
+      emitTrace(this, 'LIVENESS_REST_BACKFILL_CANDLE', {
+        traceId,
+        source: 'liveness_rest_backfill',
+        symbol,
+        timeframe,
+        candleIndex: index + 1,
+        candleCount: candles.length,
+        close: candle.c,
+        etime: candle.etime,
+        brokerId: candle.brokerId,
+        accountId: candle.accountId,
+        assetClass: candle.assetClass,
+        executionMode: candle.executionMode,
+        scopeKey: candle.scopeKey,
+        acceptedAsNew,
+      });
       this.storeTimeframeCandle(timeframe, ohlc, symbol);
       this.storeSymbolTimeframeCandle(symbol, timeframe, ohlc);
       applied++;

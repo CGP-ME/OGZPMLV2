@@ -120,7 +120,7 @@ function extractStringSet(source, setName) {
 
 function extractStaticEmitTraceEvents() {
   const events = new Set();
-  for (const rel of walkJsFiles('core')) {
+  for (const rel of [...walkJsFiles('core'), 'run-empire-v2.js']) {
     const source = readFile(rel);
     const re = /emitTrace\s*\([^,]+,\s*['"]([^'"]+)['"]/g;
     let m;
