@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Tuning Profile Locked-Exit Env Contract (2026-06-05)
+
+- Removed locked-exit global stop/take/trailing env keys from tuning profiles, added a profile invariant against reintroducing them, and stopped P0 from stamping `STOP_LOSS_PERCENT` as canonical profile posture.
+- Added focused profile/env regressions proving profile summaries, worker envs, and the P0 anchor spec do not inherit locked-exit profile keys from ambient process env.
+
 ### Backtest Worker Direction Contract (2026-06-04)
 
 - Preserved explicit source-env `DIRECTION_FILTER` values in stock sweep worker envs unless the sweep config supplies its own direction, normalized legacy `long`/`short` aliases, and rejected invalid direction tokens instead of silently reverting to `both`.

@@ -18,6 +18,7 @@ describe('anchor-runner P0 env contract', () => {
       BACKTEST_TUNING_PROFILE: 'config-d-flat',
       ENABLE_DYNAMIC_SIZING: 'false',
       TIER1_TARGET: '0.99',
+      STOP_LOSS_PERCENT: '0.01',
       FEE_MAKER: '0.99',
       RISK_MANAGER_BYPASS: 'false',
       TRADING_PAIR: 'BTC-USD',
@@ -55,6 +56,8 @@ describe('anchor-runner P0 env contract', () => {
     expect(spec.env.TUNING_PROFILE).toBe('current-eval');
     expect(spec.env.BACKTEST_TUNING_PROFILE).toBe('current-eval');
     expect(spec.env.CANDLE_DATA_FILE).toBe(path.join(process.cwd(), 'tuning/tsla-15m-2y.json'));
+    expect(spec.workerEnv.STOP_LOSS_PERCENT).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(spec.env, 'STOP_LOSS_PERCENT')).toBe(false);
   });
 
   test('uses a timestamped log name for each P0 run', () => {

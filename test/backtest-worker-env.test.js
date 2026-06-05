@@ -7,8 +7,10 @@ const {
   summarizeWorkerEnv,
 } = require('../tools/backtest-worker-env');
 const {
+  PROFILE_FORBIDDEN_ENV_KEYS,
   listTuningProfileNames,
   resolveTuningProfile,
+  summarizeTuningProfile,
 } = require('../tools/tuning-profiles');
 const {
   buildGridSearchEnv,
@@ -51,6 +53,12 @@ describe('backtest worker env contract', () => {
     });
   }
 
+  function expectLockedExitProfileKeysAbsent(env) {
+    for (const key of PROFILE_FORBIDDEN_ENV_KEYS) {
+      expect(Object.prototype.hasOwnProperty.call(env, key)).toBe(false);
+    }
+  }
+
   test('base env copies only system/runtime variables', () => {
     expect(buildWorkerBaseEnv({
       PATH: '/usr/bin',
@@ -87,6 +95,7 @@ describe('backtest worker env contract', () => {
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.05');
     expect(env.TIER1_TARGET).toBe('0.007');
     expect(env.FINAL_TARGET).toBe('0.025');
+    expectLockedExitProfileKeysAbsent(env);
     expect(env.SOLO_STRATEGY).toBeUndefined();
     expect(env.ENABLE_NOWICK).toBeUndefined();
   });
@@ -102,10 +111,9 @@ describe('backtest worker env contract', () => {
     expect(env.ENABLE_DYNAMIC_SIZING).toBe('true');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.05');
     expect(env.ABSOLUTE_POSITION_CAP).toBe('0.15');
-    expect(env.STOP_LOSS_PERCENT).toBe('1.5');
-    expect(env.TAKE_PROFIT_PERCENT).toBe('2.0');
     expect(env.TIER1_TARGET).toBe('0.020');
     expect(env.FINAL_TARGET).toBe('0.100');
+    expectLockedExitProfileKeysAbsent(env);
   });
 
   test('unknown tuning profile fails loudly instead of falling back to eval sizing', () => {
@@ -212,13 +220,17 @@ describe('backtest worker env contract', () => {
     });
     expect(summary.PATH).toBeUndefined();
     expect(summary.HOME).toBeUndefined();
+    expectLockedExitProfileKeysAbsent(summary);
   });
 
   test('profile summaries include source evidence and tunables for report stamping', () => {
     const profile = resolveTuningProfile('legacy-wide');
+    const summary = summarizeTuningProfile(profile);
 
     expect(profile.env.TIER3_TARGET).toBe('0.060');
     expect(profile.evidence).toEqual(expect.arrayContaining(['.env.gates:239-272']));
+    expectLockedExitProfileKeysAbsent(profile.env);
+    expectLockedExitProfileKeysAbsent(summary.env);
   });
 
   test('runnable tuning profiles exclude reconstructed config guesses', () => {

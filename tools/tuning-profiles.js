@@ -2,7 +2,27 @@
 
 const DEFAULT_TUNING_PROFILE = 'current-eval';
 
+const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
+  'STOP_LOSS_PERCENT',
+  'TAKE_PROFIT_PERCENT',
+  'TRAILING_STOP_PERCENT',
+  'TRAILING_ACTIVATION',
+]);
+
+function assertProfileEnvIsHonest(profile) {
+  const forbidden = PROFILE_FORBIDDEN_ENV_KEYS.filter(key => (
+    Object.prototype.hasOwnProperty.call(profile.env || {}, key)
+  ));
+  if (forbidden.length > 0) {
+    throw new Error(
+      `Tuning profile '${profile.name}' includes locked-exit env key(s): ${forbidden.join(', ')}. ` +
+      'Per-strategy exit contracts own stop/take/trailing geometry; profiles may only set honored worker/profile knobs.'
+    );
+  }
+}
+
 function freezeProfile(profile) {
+  assertProfileEnvIsHonest(profile);
   return Object.freeze({
     ...profile,
     env: Object.freeze({ ...profile.env }),
@@ -25,10 +45,6 @@ const PROFILE_DEFINITIONS = Object.freeze({
       BASE_POSITION_PCT: '0.01',
       MAX_POSITION_PCT: '0.05',
       ABSOLUTE_POSITION_CAP: '0.15',
-      STOP_LOSS_PERCENT: '0.8',
-      TAKE_PROFIT_PERCENT: '1.0',
-      TRAILING_STOP_PERCENT: '0.6',
-      TRAILING_ACTIVATION: '0.8',
       TIER1_TARGET: '0.007',
       TIER2_TARGET: '0.010',
       TIER3_TARGET: '0.015',
@@ -57,10 +73,6 @@ const PROFILE_DEFINITIONS = Object.freeze({
       BASE_POSITION_PCT: '0.01',
       MAX_POSITION_PCT: '0.05',
       ABSOLUTE_POSITION_CAP: '0.15',
-      STOP_LOSS_PERCENT: '1.5',
-      TAKE_PROFIT_PERCENT: '2.0',
-      TRAILING_STOP_PERCENT: '3.0',
-      TRAILING_ACTIVATION: '2.5',
       TIER1_TARGET: '0.020',
       TIER2_TARGET: '0.040',
       TIER3_TARGET: '0.060',
@@ -106,6 +118,7 @@ function summarizeTuningProfile(profile) {
 module.exports = {
   DEFAULT_TUNING_PROFILE,
   PROFILE_DEFINITIONS,
+  PROFILE_FORBIDDEN_ENV_KEYS,
   listTuningProfileNames,
   resolveTuningProfile,
   summarizeTuningProfile,
