@@ -22,20 +22,9 @@ jest.mock('../core/StateManager', () => ({
 }));
 
 jest.mock('../core/MaxProfitManager', () => {
-  const MockMaxProfitManager = jest.fn().mockImplementation(() => ({
-    start: jest.fn(),
-  }));
-  MockMaxProfitManager.resolveContractStopPercent = jest.fn((exitContract) => {
-    const rawStopLossPercent = Number(exitContract?.stopLossPercent);
-    if (!Number.isFinite(rawStopLossPercent) || rawStopLossPercent === 0) {
-      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent missing/invalid (got ${exitContract?.stopLossPercent})`);
-    }
-    if (rawStopLossPercent > 0) {
-      throw new Error(`MaxProfitManager.start: exitContract.stopLossPercent must be negative risk distance (got ${exitContract.stopLossPercent})`);
-    }
-    return -rawStopLossPercent / 100;
-  });
-  return MockMaxProfitManager;
+  const { createMockMaxProfitManager } = require('./fixtures/mock-max-profit-manager');
+  const ActualMaxProfitManager = jest.requireActual('../core/MaxProfitManager');
+  return createMockMaxProfitManager(jest, ActualMaxProfitManager);
 });
 
 jest.mock('../ogz-meta/claudito-logger', () => ({

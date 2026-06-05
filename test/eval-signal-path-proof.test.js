@@ -21,9 +21,11 @@ jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
 
-jest.mock('../core/MaxProfitManager', () => jest.fn().mockImplementation(() => ({
-  start: jest.fn(),
-})));
+jest.mock('../core/MaxProfitManager', () => {
+  const { createMockMaxProfitManager } = require('./fixtures/mock-max-profit-manager');
+  const ActualMaxProfitManager = jest.requireActual('../core/MaxProfitManager');
+  return createMockMaxProfitManager(jest, ActualMaxProfitManager);
+});
 
 jest.mock('../ogz-meta/claudito-logger', () => ({
   TradingProofLogger: {
