@@ -174,7 +174,12 @@ describe('TradeJournalBridge scoped storage', () => {
       }],
     ]);
     const bot = {
-      executeTrade: jest.fn(async () => ({ ok: true })),
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'ORDER-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
       stateManager: {
         get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
       },
@@ -222,6 +227,84 @@ describe('TradeJournalBridge scoped storage', () => {
     );
   });
 
+  test('records SELL_SHORT entries from StateManager into journal and replay', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const activeTrades = new Map([
+      ['SHORT-1', {
+        orderId: 'SHORT-1',
+        action: 'SELL_SHORT',
+        direction: 'short',
+        size: 875,
+        sizeUsd: 875,
+        entryPrice: 312.45,
+        patterns: [{ name: 'ema_short', confidence: 0.82 }],
+      }],
+      ['OLD-LONG-1', {
+        orderId: 'OLD-LONG-1',
+        action: 'BUY',
+        direction: 'long',
+        size: 222,
+        sizeUsd: 222,
+        entryPrice: 111.11,
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'SHORT-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      regimeDetector: {
+        detectRegime: jest.fn(() => ({ currentRegime: 'bearish' })),
+      },
+      priceHistory: [],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        recordEntry: jest.fn(() => ({ orderId: 'SHORT-1' })),
+      },
+      replay: {
+        captureEntry: jest.fn(() => ({ orderId: 'SHORT-1' })),
+      },
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade(
+      { action: 'SELL_SHORT', confidence: 68 },
+      { totalConfidence: 72 },
+      312.45,
+      { rsi: 41, trend: 'down', volatility: 0.3 },
+      [{ name: 'signal_pattern', confidence: 0.7 }]
+    );
+
+    expect(bridge.journal.recordEntry).toHaveBeenCalledTimes(1);
+    expect(bridge.journal.recordEntry).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 'SHORT-1',
+      direction: 'SELL_SHORT',
+      size: 875,
+      usdValue: 875,
+      entryPrice: 312.45,
+      confidence: 72,
+      regime: 'bearish',
+    }));
+    expect(bridge.replay.captureEntry).toHaveBeenCalledWith(
+      'SHORT-1',
+      expect.objectContaining({
+        price: 312.45,
+        direction: 'SELL_SHORT',
+        confidence: 72,
+        regime: 'bearish',
+      }),
+      []
+    );
+  });
+
   test('refuses to infer journal USD value from ambiguous legacy size', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -234,7 +317,12 @@ describe('TradeJournalBridge scoped storage', () => {
       }],
     ]);
     const bot = {
-      executeTrade: jest.fn(async () => ({ ok: true })),
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'LEGACY-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
       stateManager: {
         get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
       },

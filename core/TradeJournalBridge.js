@@ -99,6 +99,50 @@ function isCloseLogRecord(record) {
   return ['EXIT', 'SELL', 'COVER'].includes(type) || ['EXIT', 'SELL', 'COVER'].includes(action);
 }
 
+function entryActionOrNull(action) {
+  const normalized = nonEmptyStringOrNull(action)?.toUpperCase() || null;
+  return normalized === 'BUY' || normalized === 'SELL_SHORT' ? normalized : null;
+}
+
+function findActiveTradeByOrderId(activeTrades, orderId) {
+  const targetOrderId = nonEmptyStringOrNull(orderId);
+  if (!targetOrderId) return null;
+
+  if (activeTrades instanceof Map) {
+    if (activeTrades.has(targetOrderId)) {
+      return activeTrades.get(targetOrderId) || null;
+    }
+    for (const trade of activeTrades.values()) {
+      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
+        return trade;
+      }
+    }
+    return null;
+  }
+
+  if (Array.isArray(activeTrades)) {
+    for (const entry of activeTrades) {
+      const trade = Array.isArray(entry) ? entry[1] : entry;
+      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
+        return trade;
+      }
+    }
+    return null;
+  }
+
+  if (activeTrades && typeof activeTrades === 'object') {
+    const keyedTrade = activeTrades[targetOrderId];
+    if (keyedTrade) return keyedTrade;
+    for (const trade of Object.values(activeTrades)) {
+      if (trade && (trade.orderId === targetOrderId || trade.id === targetOrderId)) {
+        return trade;
+      }
+    }
+  }
+
+  return null;
+}
+
 function normalizeClosedTradeRecord(exitRecord) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(exitRecord?.id)
@@ -241,24 +285,36 @@ class TradeJournalBridge {
 
       try {
         const [decision, confidenceData, price, indicators, patterns] = args;
-        const stateManager = bot.stateManager;
-        const activeTrades = stateManager?.get('activeTrades') || new Map();
-        const lastTradeId = activeTrades instanceof Map
-          ? [...activeTrades.keys()].pop()
-          : Object.keys(activeTrades).pop();
-        const lastTrade = lastTradeId
-          ? (activeTrades instanceof Map ? activeTrades.get(lastTradeId) : activeTrades[lastTradeId])
-          : null;
+        const entryAction = entryActionOrNull(decision?.action);
 
-        if (lastTrade && decision.action === 'BUY') {
+        if (entryAction) {
+          const resultOrderId = nonEmptyStringOrNull(result?.orderId);
+          if (
+            result?.success !== true
+            || result?.orderAccepted !== true
+            || result?.stateMutationSucceeded !== true
+            || !resultOrderId
+          ) {
+            if (result?.success === true || result?.orderAccepted === true || result?.stateMutationSucceeded === true) {
+              throw new Error(`Entry ${entryAction} execution result missing confirmed orderId/state mutation; refusing journal capture`);
+            }
+            return result;
+          }
+
+          const stateManager = bot.stateManager;
+          const activeTrades = stateManager?.get('activeTrades') || new Map();
+          const lastTrade = findActiveTradeByOrderId(activeTrades, resultOrderId);
+          if (!lastTrade) {
+            throw new Error(`Entry ${resultOrderId} succeeded but is missing from StateManager activeTrades; refusing journal capture`);
+          }
           const regime = bot.regimeDetector?.detectRegime?.(bot.priceHistory);
           const sizeUsd = Number(lastTrade.sizeUsd ?? lastTrade.usdValue);
           if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
-            throw new Error(`Entry ${lastTrade.orderId || lastTradeId || 'unknown'} missing explicit USD size (sizeUsd/usdValue); refusing to infer from ambiguous size`);
+            throw new Error(`Entry ${resultOrderId} missing explicit USD size (sizeUsd/usdValue); refusing to infer from ambiguous size`);
           }
           const entryData = {
-            orderId: lastTrade.orderId || lastTradeId,
-            direction: decision.action,
+            orderId: resultOrderId,
+            direction: entryAction,
             entryPrice: lastTrade.entryPrice || price,
             size: sizeUsd,
             usdValue: sizeUsd,
