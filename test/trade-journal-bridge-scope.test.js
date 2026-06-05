@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 describe('TradeJournalBridge scoped storage', () => {
@@ -22,6 +24,19 @@ describe('TradeJournalBridge scoped storage', () => {
         ...overrides,
       },
     };
+  }
+
+  function tempVisibilityFailurePath() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-visibility-'));
+    return path.join(dir, 'trade-visibility-failures.jsonl');
+  }
+
+  function readJsonl(filepath) {
+    return fs.readFileSync(filepath, 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
   }
 
   test('derives journal storage from immutable runtime scope', () => {
@@ -126,7 +141,8 @@ describe('TradeJournalBridge scoped storage', () => {
     }, null);
 
     const [flat, roundedFlat, badPnl, conflictingPnl] = sent.map((payload) => payload.data);
-    expect(flat).toMatchObject({ outcome: 'flat', isWin: false, isLoss: false, isBreakEven: true, pnl: 0, pnlPercent: 0 });
+    expect(flat).toMatchObject({ outcome: 'flat', isWin: false, isLoss: false, isBreakEven: true, pnl: 0, pnlPercent: 0, replayAvailable: false, replayUrl: null });
+    expect(flat.journalRecorded).toBeNull();
     expect(roundedFlat).toMatchObject({ outcome: 'flat', isWin: false, isLoss: false, isBreakEven: true, pnl: 0.004, pnlPercent: 0.004 });
     expect(badPnl).toMatchObject({ outcome: 'unverified', isWin: false, isLoss: false, isBreakEven: false, pnl: null, pnlPercent: null });
     expect(conflictingPnl).toMatchObject({ outcome: 'unverified', isWin: false, isLoss: false, isBreakEven: false, pnl: 0, pnlPercent: 0.01 });
@@ -159,6 +175,38 @@ describe('TradeJournalBridge scoped storage', () => {
       isWin: false,
       isLoss: false,
       isBreakEven: false,
+      replayAvailable: false,
+      replayUrl: null,
+      journalRecorded: null,
+    });
+  });
+
+  test('closed replay notification advertises replay URL only when file exists', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const sent = [];
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-replay-url-'));
+    const replayPath = path.join(dir, 'ORDER-REPLAY.json');
+    fs.writeFileSync(replayPath, '{}', 'utf8');
+    const bridge = {
+      _send: jest.fn((payload) => sent.push(payload)),
+      _sendJournalSnapshot: jest.fn(),
+    };
+
+    TradeJournalBridge.prototype._pushTradeClosedNotification.call(bridge, 'ORDER-REPLAY', {
+      direction: 'BUY',
+      entryPrice: 100,
+      exitPrice: 101,
+      pnl: 1,
+      pnlPercent: 1,
+      reason: 'manual',
+      holdTime: 1000,
+    }, replayPath, { journalRecorded: false });
+
+    expect(sent[0].data).toMatchObject({
+      orderId: 'ORDER-REPLAY',
+      journalRecorded: false,
+      replayAvailable: true,
+      replayUrl: '/replay?id=ORDER-REPLAY',
     });
   });
 
@@ -191,10 +239,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const bridge = {
       bot,
       journal: {
-        recordEntry: jest.fn(),
+        recordEntry: jest.fn(() => ({ orderId: 'ORDER-1' })),
       },
       replay: {
-        captureEntry: jest.fn(),
+        captureEntry: jest.fn(() => ({ orderId: 'ORDER-1' })),
       },
     };
 
@@ -339,6 +387,8 @@ describe('TradeJournalBridge scoped storage', () => {
       replay: {
         captureEntry: jest.fn(),
       },
+      visibilityFailurePath: tempVisibilityFailurePath(),
+      _send: jest.fn(),
     };
 
     try {
@@ -382,7 +432,7 @@ describe('TradeJournalBridge scoped storage', () => {
       bot,
       journal: {
         recordEntry: jest.fn(),
-        recordExit: jest.fn(),
+        recordExit: jest.fn(() => ({ orderId: 'ORDER-1' })),
       },
       replay: {
         captureEntry: jest.fn(),
@@ -440,7 +490,8 @@ describe('TradeJournalBridge scoped storage', () => {
         pnl: 50,
         reason: 'take_profit',
       }),
-      '/tmp/replay.json'
+      '/tmp/replay.json',
+      { journalRecorded: true }
     );
   });
 
@@ -470,6 +521,8 @@ describe('TradeJournalBridge scoped storage', () => {
         captureEntry: jest.fn(),
         captureExit: jest.fn(),
       },
+      visibilityFailurePath: tempVisibilityFailurePath(),
+      _send: jest.fn(),
       _pushTradeClosedNotification: jest.fn(),
       _recordTradeLogClose: TradeJournalBridge.prototype._recordTradeLogClose,
     };
@@ -521,7 +574,7 @@ describe('TradeJournalBridge scoped storage', () => {
       bot,
       journal: {
         recordEntry: jest.fn(),
-        recordExit: jest.fn(),
+        recordExit: jest.fn(() => ({ orderId: 'ORDER-3' })),
       },
       replay: {
         captureEntry: jest.fn(),
@@ -578,7 +631,7 @@ describe('TradeJournalBridge scoped storage', () => {
         priceHistory: [],
       },
       journal: {
-        recordExit: jest.fn(),
+        recordExit: jest.fn(() => ({ orderId: 'ORDER-4' })),
       },
       replay: {
         captureExit: jest.fn(() => '/tmp/replay.json'),
@@ -604,6 +657,386 @@ describe('TradeJournalBridge scoped storage', () => {
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Duplicate closed-trade log ignored'));
     } finally {
       warnSpy.mockRestore();
+    }
+  });
+
+  test('records durable visibility failure when entry journal refuses a trade', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const activeTrades = new Map([
+      ['ORDER-VIS-1', {
+        orderId: 'ORDER-VIS-1',
+        sizeUsd: 1250,
+        usdValue: 1250,
+        entryPrice: 100,
+        patterns: [],
+      }],
+    ]);
+    const bot = {
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'ORDER-VIS-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      regimeDetector: {
+        detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
+      },
+      priceHistory: [{ open: 100, high: 101, low: 99, close: 100, volume: 1, timestamp: 1 }],
+    };
+    const bridge = {
+      bot,
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        recordEntry: jest.fn(() => null),
+      },
+      replay: {
+        captureEntry: jest.fn(() => ({ orderId: 'ORDER-VIS-1' })),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    TradeJournalBridge.prototype._wireTradeEvents.call(bridge);
+    await bot.executeTrade(
+      { action: 'BUY', confidence: 71 },
+      { totalConfidence: 73 },
+      100,
+      {},
+      []
+    );
+
+    const [record] = readJsonl(visibilityFailurePath);
+    expect(record).toMatchObject({
+      type: 'trade_visibility_failure',
+      eventType: 'trade_entry_journal_refused',
+      phase: 'entry',
+      source: 'bot.executeTrade',
+      orderId: 'ORDER-VIS-1',
+      message: 'TradeJournal.recordEntry returned null',
+      visibilityLedgerPersisted: true,
+    });
+    expect(record.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'trade_visibility_error',
+      data: expect.objectContaining({ eventType: 'trade_entry_journal_refused', orderId: 'ORDER-VIS-1' }),
+    }));
+  });
+
+  test('records durable visibility failure when close record is incomplete', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const bridge = {
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    try {
+      expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+        type: 'SELL',
+        orderId: 'ORDER-VIS-2',
+        direction: 'long',
+        entryPrice: 100,
+        pnl: 50,
+        reason: 'take_profit',
+        holdTime: 60000,
+      }, 'test.logTrade')).toBe(false);
+
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        type: 'trade_visibility_failure',
+        eventType: 'closed_trade_record_incomplete',
+        phase: 'exit',
+        source: 'test.logTrade',
+        orderId: 'ORDER-VIS-2',
+        action: 'SELL',
+        missing: ['exitPrice'],
+        visibilityLedgerPersisted: true,
+      });
+      expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'trade_visibility_error',
+        data: expect.objectContaining({ eventType: 'closed_trade_record_incomplete', orderId: 'ORDER-VIS-2' }),
+      }));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('records durable visibility failures when exit journal and replay refuse the close', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'balance' ? 10050 : null),
+        },
+        priceHistory: [{ open: 100, high: 105, low: 99, close: 105, volume: 1, timestamp: 2 }],
+      },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+        recordExit: jest.fn(() => null),
+      },
+      replay: {
+        captureExit: jest.fn(() => null),
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+      _pushTradeClosedNotification: jest.fn(),
+      _closedTradeLogKeySet: new Set(),
+      _closedTradeLogKeys: [],
+    };
+
+    expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+      type: 'SELL',
+      orderId: 'ORDER-VIS-3',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 50,
+      pnlPercent: 5,
+      reason: 'take_profit',
+      holdTime: 60000,
+      size: 1000,
+    }, 'test.logTrade')).toBe(true);
+
+    const records = readJsonl(visibilityFailurePath);
+    expect(records.map(record => record.eventType)).toEqual([
+      'trade_exit_journal_refused',
+      'trade_exit_replay_missing',
+    ]);
+    expect(records.every(record => record.orderId === 'ORDER-VIS-3')).toBe(true);
+    expect(records.every(record => record.action === 'SELL')).toBe(true);
+    expect(bridge._send).toHaveBeenCalledTimes(2);
+    expect(bridge._pushTradeClosedNotification).toHaveBeenCalledWith(
+      'ORDER-VIS-3',
+      expect.objectContaining({ orderId: 'ORDER-VIS-3', reason: 'take_profit' }),
+      null,
+      { journalRecorded: false }
+    );
+  });
+
+  test('visibility failure writes runtime-audit fallback when scoped failure ledger cannot persist', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const stderrSpy = jest.spyOn(fs, 'writeSync').mockImplementation(() => {});
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const visibilityFailurePath = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-visibility-directory-'));
+    const visibilityFailureFallbackPath = tempVisibilityFailurePath();
+    const bridge = {
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      visibilityFailureFallbackPath,
+      _send: jest.fn(),
+    };
+
+    try {
+      const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
+        phase: 'entry',
+        source: 'test',
+        orderId: 'ORDER-VIS-4',
+        message: 'forced append failure',
+      });
+
+      expect(record).toMatchObject({
+        eventType: 'trade_entry_journal_refused',
+        orderId: 'ORDER-VIS-4',
+        visibilityLedgerPersisted: false,
+        visibilityFallbackPersisted: true,
+        visibilityAllPersistenceFailed: false,
+      });
+      expect(record.visibilityLedgerError).toEqual(expect.any(String));
+      expect(stderrSpy).not.toHaveBeenCalled();
+      const [fallbackRecord] = readJsonl(visibilityFailureFallbackPath);
+      expect(fallbackRecord).toMatchObject({
+        eventType: 'trade_entry_journal_refused',
+        orderId: 'ORDER-VIS-4',
+        visibilityLedgerPersisted: false,
+        visibilityFallbackPersisted: true,
+      });
+      expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'trade_visibility_error',
+        data: expect.objectContaining({
+          orderId: 'ORDER-VIS-4',
+          visibilityLedgerPersisted: false,
+          visibilityFallbackPersisted: true,
+          visibilityAllPersistenceFailed: false,
+        }),
+      }));
+    } finally {
+      stderrSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('visibility failure stamps total persistence failure, pauses trading, and still emits dashboard evidence', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const stderrSpy = jest.spyOn(fs, 'writeSync').mockImplementation(() => {});
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const visibilityFailurePath = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-visibility-directory-'));
+    const visibilityFailureFallbackPath = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-visibility-fallback-directory-'));
+    const state = { isTrading: true };
+    const bridge = {
+      bot: {
+        stateManager: {
+          pauseTrading: jest.fn((reason) => {
+            state.isTrading = false;
+            state.pauseReason = reason;
+            return Promise.resolve({ success: true });
+          }),
+          get: jest.fn((key) => state[key]),
+        },
+      },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      visibilityFailureFallbackPath,
+      _send: jest.fn(),
+    };
+
+    try {
+      const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
+        phase: 'entry',
+        source: 'test',
+        orderId: 'ORDER-VIS-5',
+        message: 'forced total append failure',
+      });
+
+      expect(record).toMatchObject({
+        eventType: 'trade_entry_journal_refused',
+        orderId: 'ORDER-VIS-5',
+        visibilityLedgerPersisted: false,
+        visibilityFallbackPersisted: false,
+        visibilityAllPersistenceFailed: true,
+        visibilityTradingPauseAttempted: true,
+        visibilityTradingPauseConfirmed: true,
+      });
+      expect(record.visibilityTradingPauseReason).toContain('ORDER-VIS-5');
+      expect(record.visibilityLedgerError).toEqual(expect.any(String));
+      expect(record.visibilityFallbackError).toEqual(expect.any(String));
+      expect(bridge.bot.stateManager.pauseTrading).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER-VIS-5'),
+        expect.objectContaining({
+          source: 'TradeJournalBridge.visibility',
+          recoverable: false,
+          scope: bridge.journal.scope,
+        })
+      );
+      expect(stderrSpy).toHaveBeenCalledWith(
+        2,
+        expect.stringContaining('[TRADE_VISIBILITY_FAILURE_UNPERSISTED]')
+      );
+      expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'trade_visibility_error',
+        data: expect.objectContaining({
+          orderId: 'ORDER-VIS-5',
+          visibilityAllPersistenceFailed: true,
+          visibilityTradingPauseConfirmed: true,
+        }),
+      }));
+    } finally {
+      stderrSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('visibility failure queues dashboard error while socket is disconnected and flushes when open', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const dashboardWs = {
+      readyState: 0,
+      send: jest.fn(),
+    };
+    const bridge = {
+      bot: {
+        dashboardWs,
+        dashboardWsConnected: false,
+      },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      _pendingVisibilityErrors: [],
+      _maxPendingVisibilityErrors: 50,
+    };
+
+    const record = TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
+      phase: 'entry',
+      source: 'test',
+      orderId: 'ORDER-VIS-6',
+      action: 'BUY',
+      message: 'forced disconnected dashboard',
+    });
+
+    expect(record).toMatchObject({
+      orderId: 'ORDER-VIS-6',
+      visibilityLedgerPersisted: true,
+      visibilityDashboardDelivered: false,
+      visibilityDashboardQueued: true,
+    });
+    expect(dashboardWs.send).not.toHaveBeenCalled();
+    expect(bridge._pendingVisibilityErrors).toHaveLength(1);
+
+    dashboardWs.readyState = 1;
+    expect(TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(bridge)).toBe(1);
+    expect(bridge._pendingVisibilityErrors).toHaveLength(0);
+    expect(dashboardWs.send).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(dashboardWs.send.mock.calls[0][0])).toMatchObject({
+      type: 'trade_visibility_error',
+      data: {
+        orderId: 'ORDER-VIS-6',
+        visibilityDashboardDelivered: true,
+        visibilityDashboardQueued: false,
+      },
+    });
+  });
+
+  test('broadcast cycle retries queued visibility errors even without other journal traffic', () => {
+    jest.useFakeTimers();
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const dashboardWs = {
+      readyState: 1,
+      send: jest.fn(),
+    };
+    const payload = {
+      type: 'trade_visibility_error',
+      data: {
+        orderId: 'ORDER-VIS-7',
+        visibilityDashboardDelivered: false,
+        visibilityDashboardQueued: true,
+      },
+    };
+    const bridge = {
+      bot: { dashboardWs },
+      journal: { trades: [] },
+      _pendingVisibilityErrors: [payload],
+    };
+
+    try {
+      TradeJournalBridge.prototype._wireBroadcastCycle.call(bridge);
+      jest.advanceTimersByTime(30000);
+
+      expect(dashboardWs.send).toHaveBeenCalledTimes(1);
+      expect(bridge._pendingVisibilityErrors).toHaveLength(0);
+      expect(JSON.parse(dashboardWs.send.mock.calls[0][0])).toMatchObject({
+        type: 'trade_visibility_error',
+        data: {
+          orderId: 'ORDER-VIS-7',
+          visibilityDashboardDelivered: true,
+          visibilityDashboardQueued: false,
+        },
+      });
+    } finally {
+      clearInterval(bridge._broadcastTimer);
+      jest.useRealTimers();
     }
   });
 });

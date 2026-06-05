@@ -197,6 +197,49 @@ function closedTradeLogKey(data) {
   ].join('|');
 }
 
+function exitActionOrNull(exitRecord, normalizedData = {}) {
+  const explicitAction = nonEmptyStringOrNull(exitRecord?.action);
+  if (explicitAction) return explicitAction.toUpperCase();
+
+  const explicitType = nonEmptyStringOrNull(exitRecord?.type);
+  if (explicitType && explicitType.toUpperCase() !== 'EXIT') return explicitType.toUpperCase();
+
+  const direction = nonEmptyStringOrNull(normalizedData.direction || exitRecord?.direction)?.toLowerCase();
+  if (direction === 'buy' || direction === 'long') return 'SELL';
+  if (direction === 'sell_short' || direction === 'short') return 'COVER';
+  return null;
+}
+
+function errorMessageOrNull(err) {
+  if (!err) return null;
+  if (err instanceof Error) return err.message || err.name || 'Error';
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch (_jsonErr) {
+    return String(err);
+  }
+}
+
+function compactTradeRecord(record) {
+  if (!record || typeof record !== 'object') return {};
+  return {
+    id: nonEmptyStringOrNull(record.id),
+    orderId: nonEmptyStringOrNull(record.orderId),
+    tradeId: nonEmptyStringOrNull(record.tradeId),
+    type: nonEmptyStringOrNull(record.type),
+    action: nonEmptyStringOrNull(record.action),
+    direction: nonEmptyStringOrNull(record.direction),
+    entryPrice: finiteNumberOrNull(record.entryPrice),
+    exitPrice: finiteNumberOrNull(record.exitPrice),
+    pnl: finiteNumberOrNull(record.pnl ?? record.netPnl ?? record.pnlDollars),
+    pnlPercent: finiteNumberOrNull(record.pnlPercent ?? record.profitLossPercent),
+    reason: nonEmptyStringOrNull(record.exitReason) || nonEmptyStringOrNull(record.reason),
+    holdTime: nonNegativeNumberOrNull(record.holdTime ?? record.holdDuration ?? record.holdTimeMs),
+    size: finiteNumberOrNull(record.size ?? record.sizeUsd ?? record.usdValue),
+  };
+}
+
 function resolveJournalScope(bot) {
   return requirePatternScope({
     symbol: bot?.config?.tradingPair || bot?.tradingPair,
@@ -256,6 +299,10 @@ class TradeJournalBridge {
       candlesBefore: 60,
       candlesAfter: 30
     });
+    this.visibilityFailurePath = path.join(journalDataDir, 'trade-visibility-failures.jsonl');
+    this.visibilityFailureFallbackPath = path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    this._pendingVisibilityErrors = [];
+    this._maxPendingVisibilityErrors = 50;
     this._closedTradeLogKeySet = new Set();
     this._closedTradeLogKeys = [];
 
@@ -282,9 +329,16 @@ class TradeJournalBridge {
     const originalExecuteTrade = bot.executeTrade.bind(bot);
     bot.executeTrade = async function(...args) {
       const result = await originalExecuteTrade(...args);
+      const failureContext = {
+        phase: 'entry',
+        source: 'bot.executeTrade',
+        orderId: null,
+        action: null,
+      };
 
       try {
         const [decision, confidenceData, price, indicators, patterns] = args;
+        failureContext.action = decision?.action || null;
         const entryAction = entryActionOrNull(decision?.action);
 
         if (entryAction) {
@@ -307,6 +361,7 @@ class TradeJournalBridge {
           if (!lastTrade) {
             throw new Error(`Entry ${resultOrderId} succeeded but is missing from StateManager activeTrades; refusing journal capture`);
           }
+          failureContext.orderId = resultOrderId;
           const regime = bot.regimeDetector?.detectRegime?.(bot.priceHistory);
           const sizeUsd = Number(lastTrade.sizeUsd ?? lastTrade.usdValue);
           if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
@@ -331,10 +386,18 @@ class TradeJournalBridge {
           };
 
           // Record in journal
-          journal.recordEntry(entryData);
+          const journalEntry = journal.recordEntry(entryData);
+          if (!journalEntry) {
+            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
+              ...failureContext,
+              orderId: entryData.orderId,
+              message: 'TradeJournal.recordEntry returned null',
+              context: { entry: compactTradeRecord(entryData) },
+            });
+          }
 
           // Capture candle context for replay
-          replay.captureEntry(entryData.orderId, {
+          const replayEntry = replay.captureEntry(entryData.orderId, {
             price: entryData.entryPrice,
             direction: entryData.direction,
             confidence: entryData.confidence,
@@ -342,9 +405,24 @@ class TradeJournalBridge {
             patterns: entryData.patterns,
             indicators: entryData.indicators
           }, bot.priceHistory || []);
+          if (!replayEntry) {
+            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
+              ...failureContext,
+              orderId: entryData.orderId,
+              message: 'TradeReplayCapture.captureEntry returned null',
+              context: {
+                entry: compactTradeRecord(entryData),
+                priceHistoryLength: Array.isArray(bot.priceHistory) ? bot.priceHistory.length : null,
+              },
+            });
+          }
         }
       } catch (err) {
         console.warn(`[TradeJournalBridge] Entry recording failed (non-critical): ${err.message}`);
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_recording_exception', {
+          ...failureContext,
+          message: errorMessageOrNull(err),
+        });
       }
 
       return result;
@@ -377,6 +455,15 @@ class TradeJournalBridge {
     const normalized = normalizeClosedTradeRecord(exitRecord);
     if (!normalized.ok) {
       console.warn(`[TradeJournalBridge] Refusing closed-trade replay from ${source}; missing field(s): ${normalized.missing.join(', ')}`);
+      TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'closed_trade_record_incomplete', {
+        phase: 'exit',
+        source,
+        orderId: normalized.data.orderId || nonEmptyStringOrNull(exitRecord?.orderId) || nonEmptyStringOrNull(exitRecord?.id) || nonEmptyStringOrNull(exitRecord?.tradeId),
+        action: exitActionOrNull(exitRecord, normalized.data),
+        missing: normalized.missing,
+        message: `Closed trade record missing field(s): ${normalized.missing.join(', ')}`,
+        context: { exitRecord: compactTradeRecord(exitRecord) },
+      });
       return false;
     }
 
@@ -392,7 +479,7 @@ class TradeJournalBridge {
     }
 
     try {
-      this.journal.recordExit({
+      const journalExit = this.journal.recordExit({
         orderId: data.orderId,
         exitPrice: data.exitPrice,
         reason: data.reason,
@@ -405,6 +492,16 @@ class TradeJournalBridge {
         entryPrice: data.entryPrice,
         size: data.size
       });
+      if (!journalExit) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_journal_refused', {
+          phase: 'exit',
+          source,
+          orderId: data.orderId,
+          action: exitActionOrNull(exitRecord, data),
+          message: 'TradeJournal.recordExit returned null',
+          context: { exitRecord: compactTradeRecord(exitRecord) },
+        });
+      }
 
       const replayPath = this.replay.captureExit(data.orderId, {
         price: data.exitPrice,
@@ -417,8 +514,21 @@ class TradeJournalBridge {
         direction: data.direction,
         size: data.size
       }, this.bot.priceHistory || []);
+      if (!replayPath) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_replay_missing', {
+          phase: 'exit',
+          source,
+          orderId: data.orderId,
+          action: exitActionOrNull(exitRecord, data),
+          message: 'TradeReplayCapture.captureExit returned null',
+          context: {
+            exitRecord: compactTradeRecord(exitRecord),
+            priceHistoryLength: Array.isArray(this.bot.priceHistory) ? this.bot.priceHistory.length : null,
+          },
+        });
+      }
 
-      this._pushTradeClosedNotification(data.orderId, data, replayPath);
+      this._pushTradeClosedNotification(data.orderId, data, replayPath, { journalRecorded: !!journalExit });
       this._closedTradeLogKeySet.add(closeKey);
       this._closedTradeLogKeys.push(closeKey);
       if (this._closedTradeLogKeys.length > 500) {
@@ -428,6 +538,187 @@ class TradeJournalBridge {
       return true;
     } catch (err) {
       console.warn(`[TradeJournalBridge] Exit recording failed (non-critical): ${err.message}`);
+      TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_recording_exception', {
+        phase: 'exit',
+        source,
+        orderId: data.orderId,
+        action: exitActionOrNull(exitRecord, data),
+        message: errorMessageOrNull(err),
+        context: { exitRecord: compactTradeRecord(exitRecord) },
+      });
+      return false;
+    }
+  }
+
+  _recordVisibilityFailure(eventType, details = {}) {
+    const timestamp = new Date().toISOString();
+    const scope = this.journal?.scope || null;
+    const filepath = this.visibilityFailurePath
+      || (this.journal?.paths?.dir ? path.join(this.journal.paths.dir, 'trade-visibility-failures.jsonl') : null);
+    const fallbackPath = this.visibilityFailureFallbackPath
+      || path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    const record = {
+      type: 'trade_visibility_failure',
+      eventType: String(eventType || 'trade_visibility_failure'),
+      timestamp,
+      phase: nonEmptyStringOrNull(details.phase),
+      source: nonEmptyStringOrNull(details.source),
+      orderId: nonEmptyStringOrNull(details.orderId),
+      action: nonEmptyStringOrNull(details.action),
+      missing: Array.isArray(details.missing) ? details.missing.map(String) : [],
+      message: nonEmptyStringOrNull(details.message),
+      scope,
+      context: details.context && typeof details.context === 'object' ? details.context : {},
+      visibilityLedgerPath: filepath,
+      visibilityLedgerPersisted: false,
+      visibilityLedgerError: null,
+      visibilityFallbackPath: fallbackPath,
+      visibilityFallbackPersisted: false,
+      visibilityFallbackError: null,
+      visibilityAllPersistenceFailed: false,
+      visibilityTradingPauseAttempted: false,
+      visibilityTradingPauseConfirmed: false,
+      visibilityTradingPauseReason: null,
+      visibilityTradingPauseError: null,
+      visibilityDashboardDelivered: false,
+      visibilityDashboardQueued: false,
+    };
+
+    if (filepath) {
+      try {
+        fs.mkdirSync(path.dirname(filepath), { recursive: true });
+        record.visibilityLedgerPersisted = true;
+        fs.appendFileSync(filepath, `${JSON.stringify(record)}\n`, 'utf8');
+      } catch (err) {
+        record.visibilityLedgerPersisted = false;
+        record.visibilityLedgerError = errorMessageOrNull(err);
+        console.error(`[TradeJournalBridge] Failed to append trade visibility failure ledger: ${err.message}`);
+        const fallbackPersisted = TradeJournalBridge.prototype._writeVisibilityFailureFallback.call(this, record);
+        record.visibilityAllPersistenceFailed = fallbackPersisted !== true;
+      }
+    } else {
+      record.visibilityLedgerError = 'missing scoped visibility failure path';
+      console.error('[TradeJournalBridge] Trade visibility failure has no scoped ledger path');
+      const fallbackPersisted = TradeJournalBridge.prototype._writeVisibilityFailureFallback.call(this, record);
+      record.visibilityAllPersistenceFailed = fallbackPersisted !== true;
+    }
+
+    if (record.visibilityAllPersistenceFailed) {
+      TradeJournalBridge.prototype._pauseTradingAfterVisibilityPersistenceFailure.call(this, record);
+    }
+
+    TradeJournalBridge.prototype._sendVisibilityFailure.call(this, record);
+    return record;
+  }
+
+  _pauseTradingAfterVisibilityPersistenceFailure(record) {
+    const stateManager = this.bot?.stateManager;
+    const reason = `Trade visibility failure could not be persisted: eventType=${record.eventType || 'unknown'} orderId=${record.orderId || 'unknown'}`;
+    record.visibilityTradingPauseReason = reason;
+
+    if (!stateManager || typeof stateManager.pauseTrading !== 'function') {
+      record.visibilityTradingPauseError = 'StateManager.pauseTrading unavailable';
+      console.error(`[TradeJournalBridge] ${record.visibilityTradingPauseError}; ${reason}`);
+      return record;
+    }
+
+    record.visibilityTradingPauseAttempted = true;
+    try {
+      const pauseResult = stateManager.pauseTrading(reason, {
+        source: 'TradeJournalBridge.visibility',
+        recoverable: false,
+        scope: record.scope || undefined,
+      });
+      if (pauseResult && typeof pauseResult.catch === 'function') {
+        pauseResult.catch((err) => {
+          console.error(`[TradeJournalBridge] Visibility failure pause rejected: ${err.message}`);
+        });
+      }
+      record.visibilityTradingPauseConfirmed =
+        (typeof stateManager.get === 'function' && stateManager.get('isTrading') === false)
+        || stateManager.state?.isTrading === false;
+      if (!record.visibilityTradingPauseConfirmed) {
+        console.error(`[TradeJournalBridge] Visibility failure pause was not confirmed immediately; ${reason}`);
+      }
+    } catch (err) {
+      record.visibilityTradingPauseError = errorMessageOrNull(err);
+      console.error(`[TradeJournalBridge] Visibility failure pause failed: ${record.visibilityTradingPauseError}`);
+    }
+    return record;
+  }
+
+  _sendVisibilityFailure(record) {
+    const payload = {
+      type: 'trade_visibility_error',
+      data: record
+    };
+    const send = typeof this._send === 'function'
+      ? this._send
+      : TradeJournalBridge.prototype._send;
+    const delivered = send.call(this, payload);
+    record.visibilityDashboardDelivered = delivered === true;
+    if (!record.visibilityDashboardDelivered) {
+      if (!Array.isArray(this._pendingVisibilityErrors)) this._pendingVisibilityErrors = [];
+      this._pendingVisibilityErrors.push(payload);
+      while (this._pendingVisibilityErrors.length > (this._maxPendingVisibilityErrors || 50)) {
+        this._pendingVisibilityErrors.shift();
+      }
+      record.visibilityDashboardQueued = true;
+    }
+    return record.visibilityDashboardDelivered;
+  }
+
+  _flushPendingVisibilityErrors() {
+    if (!Array.isArray(this._pendingVisibilityErrors) || this._pendingVisibilityErrors.length === 0) {
+      return 0;
+    }
+    const pending = this._pendingVisibilityErrors;
+    this._pendingVisibilityErrors = [];
+    let deliveredCount = 0;
+    for (const payload of pending) {
+      const send = typeof this._send === 'function'
+        ? this._send
+        : TradeJournalBridge.prototype._send;
+      const data = payload?.data;
+      const previousDelivered = data?.visibilityDashboardDelivered;
+      const previousQueued = data?.visibilityDashboardQueued;
+      if (data) {
+        data.visibilityDashboardDelivered = true;
+        data.visibilityDashboardQueued = false;
+      }
+      if (send.call(this, payload)) {
+        deliveredCount += 1;
+      } else {
+        if (data) {
+          data.visibilityDashboardDelivered = previousDelivered;
+          data.visibilityDashboardQueued = previousQueued;
+        }
+        this._pendingVisibilityErrors.push(payload);
+      }
+    }
+    return deliveredCount;
+  }
+
+  _writeVisibilityFailureFallback(record) {
+    const fallbackPath = record.visibilityFallbackPath
+      || this.visibilityFailureFallbackPath
+      || path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    try {
+      fs.mkdirSync(path.dirname(fallbackPath), { recursive: true });
+      record.visibilityFallbackPath = fallbackPath;
+      record.visibilityFallbackPersisted = true;
+      fs.appendFileSync(fallbackPath, `${JSON.stringify(record)}\n`, 'utf8');
+      return true;
+    } catch (err) {
+      record.visibilityFallbackPersisted = false;
+      record.visibilityFallbackError = errorMessageOrNull(err);
+      record.visibilityAllPersistenceFailed = true;
+      console.error(`[TradeJournalBridge] Failed to append trade visibility fallback ledger: ${err.message}`);
+      try {
+        fs.writeSync(2, `[TRADE_VISIBILITY_FAILURE_UNPERSISTED] ${JSON.stringify(record)}\n`);
+      } catch (_stderrErr) {
+        // Last-resort visibility path failed; do not throw after trade side effects.
+      }
       return false;
     }
   }
@@ -437,10 +728,11 @@ class TradeJournalBridge {
   // TRADE CLOSED NOTIFICATION — Pushes "View Replay" to Dashboard
   // ════════════════════════════════════════════════════════════════════════
 
-  _pushTradeClosedNotification(orderId, exitRecord, replayPath) {
+  _pushTradeClosedNotification(orderId, exitRecord, replayPath, options = {}) {
     const pnl = finiteNumberOrNull(exitRecord.pnl);
     const pnlPercent = finiteNumberOrNull(exitRecord.pnlPercent);
     const outcome = classifyReplayOutcome(pnl, pnlPercent);
+    const replayAvailable = !!(replayPath && fs.existsSync(replayPath));
     this._send({
       type: 'trade_closed_replay',
       data: {
@@ -456,8 +748,9 @@ class TradeJournalBridge {
         isWin: outcome === 'win',
         isLoss: outcome === 'loss',
         isBreakEven: outcome === 'flat',
-        replayAvailable: !!replayPath,
-        replayUrl: `/replay?id=${orderId}`,
+        journalRecorded: options.journalRecorded === true ? true : (options.journalRecorded === false ? false : null),
+        replayAvailable,
+        replayUrl: replayAvailable ? `/replay?id=${orderId}` : null,
         timestamp: Date.now()
       }
     });
@@ -510,6 +803,7 @@ class TradeJournalBridge {
           } catch { /* ignore */ }
         });
         clearInterval(hookCheck);
+        bridge._flushPendingVisibilityErrors();
         console.log('[TradeJournalBridge] Hooked into dashboard WebSocket');
       }
     }, 2000);
@@ -523,6 +817,7 @@ class TradeJournalBridge {
 
   _wireBroadcastCycle() {
     this._broadcastTimer = setInterval(() => {
+      TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
       if (this.journal.trades.length > 0) this._sendJournalSnapshot();
     }, 30000);
   }
@@ -534,12 +829,17 @@ class TradeJournalBridge {
 
   _send(payload) {
     try {
-      if (this.bot.dashboardWs && this.bot.dashboardWsConnected) {
+      if (this.bot.dashboardWs && this.bot.dashboardWs.readyState === 1) {
         this.bot.dashboardWs.send(JSON.stringify(payload));
+        if (payload?.type !== 'trade_visibility_error') {
+          TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
+        }
+        return true;
       }
     } catch (err) {
       console.warn(`[TradeJournalBridge] Send failed: ${err.message}`);
     }
+    return false;
   }
 
   _sendJournalSnapshot() {
