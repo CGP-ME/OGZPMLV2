@@ -80,6 +80,62 @@ function publicResult(result) {
   };
 }
 
+function normalizeExitContractHint(hint, strategyName) {
+  if (!hint || typeof hint !== 'object') {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint must be an object`);
+  }
+
+  const stopLossPercent = Number(hint.stopLossPercent);
+  if (!Number.isFinite(stopLossPercent) || stopLossPercent >= 0) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.stopLossPercent must be a negative finite risk distance (got ${hint.stopLossPercent})`);
+  }
+
+  const takeProfitPercent = Number(hint.takeProfitPercent);
+  if (!Number.isFinite(takeProfitPercent) || takeProfitPercent <= 0) {
+    throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.takeProfitPercent must be a positive finite target distance (got ${hint.takeProfitPercent})`);
+  }
+
+  const normalized = {
+    ...hint,
+    stopLossPercent,
+    takeProfitPercent,
+  };
+
+  const optionalPositiveFields = new Set(['trailingStopPercent', 'maxHoldTimeMinutes']);
+  const optionalNonNegativeFields = new Set(['trailingActivation']);
+  for (const key of [...optionalPositiveFields, ...optionalNonNegativeFields]) {
+    if (hint[key] === undefined) continue;
+    if (hint[key] === null) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be numeric when provided (got null)`);
+    }
+    const numericValue = Number(hint[key]);
+    if (!Number.isFinite(numericValue)) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be finite when provided (got ${hint[key]})`);
+    }
+    if (optionalPositiveFields.has(key) && numericValue <= 0) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be positive when provided (got ${hint[key]})`);
+    }
+    if (optionalNonNegativeFields.has(key) && numericValue < 0) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.${key} must be non-negative when provided (got ${hint[key]})`);
+    }
+    normalized[key] = numericValue;
+  }
+
+  if (hint.invalidationConditions !== undefined) {
+    if (!Array.isArray(hint.invalidationConditions)) {
+      throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.invalidationConditions must be an array when provided`);
+    }
+    for (const condition of hint.invalidationConditions) {
+      if (typeof condition !== 'string' || condition.trim() === '') {
+        throw new Error(`[EXIT-HINT] ${strategyName}.exitContractHint.invalidationConditions entries must be non-empty strings`);
+      }
+    }
+    normalized.invalidationConditions = [...hint.invalidationConditions];
+  }
+
+  return normalized;
+}
+
 class StrategyOrchestrator {
   constructor(config = {}) {
     // Minimum confidence a single strategy needs to fire a trade
@@ -660,6 +716,7 @@ class StrategyOrchestrator {
             stopLoss: signal.stop,
             takeProfit: signal.target,
           },
+          exitContractHint: signal.exitContractHint,
           // Pass order type hint
           orderTypeHint: signal.orderType,
           limitPrice: signal.limitPrice,
@@ -1136,7 +1193,14 @@ class StrategyOrchestrator {
     // DEBUG: Log winner object keys to trace overrideLevels flow
     console.log(`[EXIT-DEBUG] Winner "${winner.strategyName}" keys: ${Object.keys(winner).join(', ')}`);
     console.log(`[EXIT-DEBUG] Winner overrideLevels type: ${typeof winner.overrideLevels}, value: ${JSON.stringify(winner.overrideLevels)}`);
-    if (winner.overrideLevels) {
+    const exitContractHint = winner.exitContractHint || winner.signalData?.exitContractHint;
+    if (winner.strategyName === 'OpeningRangeBreakout' && !exitContractHint) {
+      throw new Error('[EXIT-HINT] OpeningRangeBreakout requires entry-based exitContractHint; refusing current-price override-level math');
+    }
+    if (exitContractHint) {
+      Object.assign(signalOverrides, normalizeExitContractHint(exitContractHint, winner.strategyName));
+      console.log(`[EXIT-DEBUG] ${winner.strategyName} using exitContractHint SL%=${signalOverrides.stopLossPercent.toFixed(2)} TP%=${signalOverrides.takeProfitPercent.toFixed(2)}`);
+    } else if (winner.overrideLevels) {
       const isShort = winner.direction === 'sell';
       if (winner.overrideLevels.stopLoss && price) {
         // FIX 2026-03-27: SL% must always be negative (how far price can move against you)

@@ -278,6 +278,9 @@ class ExitContractManager {
     if (signal.trailingStopPercent !== undefined) {
       contract.trailingStopPercent = signal.trailingStopPercent;
     }
+    if (signal.trailingActivation !== undefined) {
+      contract.trailingActivation = signal.trailingActivation;
+    }
     if (signal.invalidationConditions) {
       contract.invalidationConditions = signal.invalidationConditions;
     }

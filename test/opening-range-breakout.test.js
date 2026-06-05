@@ -19,6 +19,7 @@ describe('OpeningRangeBreakout', () => {
   beforeEach(() => {
     orb = new OpeningRangeBreakout({
       sessionOpenHourUTC: 14, // 9am EST
+      sessionOpenET: '',
       orDurationMinutes: 15,
       fvgScanBars: 10,
       minFVGPercent: 0.01,  // Very permissive for tests
@@ -134,6 +135,7 @@ describe('OpeningRangeBreakout', () => {
     test('transitions to DONE when FVG scan limit exceeded', () => {
       orb = new OpeningRangeBreakout({
         sessionOpenHourUTC: 14,
+        sessionOpenET: '',
         fvgScanBars: 3, // Very short scan window
         minFVGPercent: 0.01,
         maxFVGPercent: 5.0,
