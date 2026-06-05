@@ -194,6 +194,11 @@ class StateManager {
    * Set specific state value (for internal use)
    */
   set(key, value) {
+    if (key === 'activeTrades') {
+      const activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.set');
+      this.state.activeTrades = activeTrades;
+      return activeTrades;
+    }
     this.state[key] = value;
     return value;
   }
@@ -318,15 +323,9 @@ class StateManager {
 
         // CRITICAL FIX: Protect activeTrades Map from being overwritten
         if (key === 'activeTrades') {
-          // If it's an array, convert to Map
+          this.state.activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.updateState');
           if (Array.isArray(value)) {
-            this.state.activeTrades = new Map(value);
             console.log(`[StateManager] Converted activeTrades array to Map with ${value.length} entries`);
-          } else if (value instanceof Map) {
-            this.state.activeTrades = value;
-          } else {
-            console.warn('[StateManager] Ignoring invalid activeTrades update (not Array or Map):', value);
-            continue; // Skip this update
           }
         } else {
           this.state[key] = value;
@@ -379,6 +378,10 @@ class StateManager {
    * @param {string} context.assetClass - Asset class for this trade
    * @param {string} context.executionMode - paper/live/backtest
    * @param {string} context.timeframe - Candle timeframe that produced the entry
+   * @param {number} context.entryOrderQuantity - Broker/base quantity accepted at entry
+   * @param {string} context.entryOrderQuantityUnit - Quantity unit for the accepted entry
+   * @param {number} context.remainingOrderQuantity - Broker/base quantity still open
+   * @param {string} context.remainingOrderQuantityUnit - Quantity unit for the open remainder
    * @returns {Promise<{success: boolean, state?: Object, error?: string, scopeRejected?: boolean, missingFields?: string[]}>}
    *
    * @example
@@ -544,6 +547,11 @@ class StateManager {
       }
     }
 
+    const quantityIssues = this._activeTradeQuantityIssuesForTrade(trade, tradeId);
+    if (quantityIssues.length > 0) {
+      return this._rejectOpenPositionQuantity(quantityIssues, context);
+    }
+
     // Add to activeTrades Map
     if (!this.state.activeTrades) {
       this.state.activeTrades = new Map();
@@ -630,6 +638,20 @@ class StateManager {
       code: 'ENTRY_IDENTITY_REJECTED',
       identityRejected: true,
       missingFields,
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionQuantity(quantityIssues, context = {}) {
+    const message = `StateManager.openPosition active trade quantity invariant failed: ${quantityIssues.join('; ')}`;
+    const result = {
+      success: false,
+      error: message,
+      code: 'ENTRY_QUANTITY_REJECTED',
+      quantityRejected: true,
+      quantityIssues,
     };
     const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
     console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
@@ -967,6 +989,93 @@ class StateManager {
     return this.updateState(updates, { action: 'RECOVERY_MODE', enabled });
   }
 
+  _activeTradeQuantityIssuesForTrade(trade, fallbackTradeId = '<unknown>') {
+    const tradeId = trade?.orderId || trade?.id || fallbackTradeId || '<unknown>';
+    if (!trade || typeof trade !== 'object') {
+      return [`${tradeId}: trade record is not an object`];
+    }
+
+    const issues = [];
+    const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+    const sizeUsd = Number(trade.sizeUsd ?? trade.size);
+    const entryOrderQuantity = Number(trade.entryOrderQuantity);
+    const remainingOrderQuantity = Number(trade.remainingOrderQuantity);
+    const entryOrderQuantityUnit = trade.entryOrderQuantityUnit;
+    const remainingOrderQuantityUnit = trade.remainingOrderQuantityUnit;
+    const tolerance = 1e-12;
+
+    if (!Number.isFinite(sizeUsd) || Math.abs(sizeUsd) <= tolerance) {
+      issues.push(`${tradeId}: invalid open sizeUsd=${trade.sizeUsd ?? trade.size}`);
+    }
+    if (!Number.isFinite(entryOrderQuantity) || entryOrderQuantity <= 0) {
+      issues.push(`${tradeId}: invalid entryOrderQuantity=${trade.entryOrderQuantity}`);
+    }
+    if (!Number.isFinite(remainingOrderQuantity) || remainingOrderQuantity <= 0) {
+      issues.push(`${tradeId}: invalid remainingOrderQuantity=${trade.remainingOrderQuantity}`);
+    }
+    if (!hasText(entryOrderQuantityUnit)) {
+      issues.push(`${tradeId}: missing entryOrderQuantityUnit`);
+    }
+    if (!hasText(remainingOrderQuantityUnit)) {
+      issues.push(`${tradeId}: missing remainingOrderQuantityUnit`);
+    }
+    if (
+      hasText(entryOrderQuantityUnit)
+      && hasText(remainingOrderQuantityUnit)
+      && String(entryOrderQuantityUnit).trim() !== String(remainingOrderQuantityUnit).trim()
+    ) {
+      issues.push(`${tradeId}: quantity unit mismatch entry=${entryOrderQuantityUnit} remaining=${remainingOrderQuantityUnit}`);
+    }
+    if (
+      Number.isFinite(entryOrderQuantity)
+      && entryOrderQuantity > 0
+      && Number.isFinite(remainingOrderQuantity)
+      && remainingOrderQuantity > entryOrderQuantity + tolerance
+    ) {
+      issues.push(`${tradeId}: remainingOrderQuantity=${remainingOrderQuantity} exceeds entryOrderQuantity=${entryOrderQuantity}`);
+    }
+
+    return issues;
+  }
+
+  _normalizeActiveTradesInput(value, caller = 'StateManager.activeTrades') {
+    let activeTrades;
+    if (Array.isArray(value)) {
+      activeTrades = new Map(value);
+    } else if (value instanceof Map) {
+      activeTrades = value;
+    } else {
+      throw new Error(
+        `[${caller}] activeTrades container invariant failed: expected Map/array, got ${Object.prototype.toString.call(value)}`
+      );
+    }
+
+    const issues = [];
+    for (const [tradeId, trade] of activeTrades.entries()) {
+      issues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+    }
+    if (issues.length > 0) {
+      throw new Error(`[${caller}] active trade quantity invariant failed: ${issues.join('; ')}`);
+    }
+
+    return activeTrades;
+  }
+
+  _activeTradeQuantityIssues() {
+    if (!this.state.activeTrades) {
+      return [];
+    }
+    if (!(this.state.activeTrades instanceof Map)) {
+      return [`activeTrades: invalid container ${Object.prototype.toString.call(this.state.activeTrades)}; expected Map`];
+    }
+
+    const issues = [];
+    for (const [tradeId, trade] of this.state.activeTrades.entries()) {
+      issues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+    }
+    return issues;
+  }
+
   /**
    * Validate state consistency
    */
@@ -996,6 +1105,7 @@ class StateManager {
     if (this.state.balance < 0) {
       issues.push('Negative balance detected!');
     }
+    issues.push(...this._activeTradeQuantityIssues());
 
     return {
       valid: issues.length === 0,
@@ -1249,8 +1359,23 @@ class StateManager {
 
     const trades = this.get('activeTrades') || new Map();
     console.log(`[StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
+    if (!(trades instanceof Map)) {
+      throw new Error(`[StateManager.updateActiveTrade] activeTrades container invariant failed: expected Map, got ${typeof trades}`);
+    }
 
-    trades.set(orderId, tradeData);
+    const tradeRecord = tradeData && typeof tradeData === 'object'
+      ? {
+        ...tradeData,
+        id: tradeData.id || orderId,
+        orderId: tradeData.orderId || orderId,
+      }
+      : tradeData;
+    const quantityIssues = this._activeTradeQuantityIssuesForTrade(tradeRecord, orderId);
+    if (quantityIssues.length > 0) {
+      throw new Error(`[StateManager.updateActiveTrade] active trade quantity invariant failed: ${quantityIssues.join('; ')}`);
+    }
+
+    trades.set(orderId, tradeRecord);
     console.log(`[StateManager] About to call this.set with activeTrades`);
 
     this.set('activeTrades', trades);
@@ -1616,6 +1741,11 @@ class StateManager {
 
         // Restore state
         this.state = { ...this.state, ...savedState };
+        if (!(this.state.activeTrades instanceof Map)) {
+          throw new Error(
+            `[StateManager.load] activeTrades container invariant failed: expected serialized array/Map, got ${Object.prototype.toString.call(this.state.activeTrades)}`
+          );
+        }
         if (typeof this.state.isTrading !== 'boolean') {
           const invalidIsTrading = this.state.isTrading;
           const pauseReason = `[StateManager.load] invalid persisted isTrading=${JSON.stringify(invalidIsTrading)}; forcing entries paused`;
@@ -1679,6 +1809,12 @@ class StateManager {
         if (invalidScopeTrades.length > 0) {
           throw new Error(
             `[StateManager.load] Active trade(s) missing immutable scope: ${invalidScopeTrades.join('; ')}. Refusing to infer from current boot config because symbol/broker switching can corrupt positions. Reconcile or quarantine state.json manually.`
+          );
+        }
+        const invalidQuantityTrades = this._activeTradeQuantityIssues();
+        if (invalidQuantityTrades.length > 0) {
+          throw new Error(
+            `[StateManager.load] Active trade quantity invariant failed: ${invalidQuantityTrades.join('; ')}. Refusing to load positions whose USD exposure cannot be matched to broker quantity. Reconcile or quarantine state.json manually.`
           );
         }
         if (normalizedExisting > 0) {

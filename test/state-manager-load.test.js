@@ -49,6 +49,80 @@ describe('StateManager load validation', () => {
     expect(saved.pauseReason).toContain('invalid persisted isTrading');
   });
 
+  test('refuses persisted active trades with positive USD exposure but zero broker quantity', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 287.742144686715,
+      inPosition: 287.742144686715,
+      activeTrades: [[
+        'SIM_ZERO_QTY',
+        {
+          id: 'SIM_ZERO_QTY',
+          orderId: 'SIM_ZERO_QTY',
+          action: 'BUY',
+          direction: 'long',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+          sizeUsd: 287.742144686715,
+          size: 287.742144686715,
+          entryPrice: 420.93036,
+          entryOrderQuantity: 0,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 0,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'EMASMACrossover',
+        },
+      ]],
+      lastPrices: { TSLA: 417.36 },
+      isTrading: false,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow('Active trade quantity invariant failed');
+  });
+
+  test('refuses persisted activeTrades with unsupported container shape', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      activeTrades: {
+        BAD_CONTAINER_TRADE: {
+          id: 'BAD_CONTAINER_TRADE',
+          orderId: 'BAD_CONTAINER_TRADE',
+          action: 'BUY',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          sizeUsd: 500,
+          size: 500,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 5,
+          remainingOrderQuantityUnit: 'shares',
+        },
+      },
+      isTrading: false,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow('activeTrades container invariant failed');
+  });
+
   test('partial reduction keeps remaining broker order quantity in sync', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();

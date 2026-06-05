@@ -28,12 +28,27 @@ let runtime = null;
 function loadRuntime() {
   if (!runtime) {
     const { runP0 } = require('../anchor-runner');
-    const { getInstance: getStateManager } = require('../../core/StateManager');
     runtime = {
       runP0,
-      stateManager: getStateManager(),
-      PositionTracker: require('../../core/PositionTracker'),
-      OrderExecutor: require('../../core/OrderExecutor')
+      get stateManager() {
+        if (!this._stateManager) {
+          const { getInstance: getStateManager } = require('../../core/StateManager');
+          this._stateManager = getStateManager();
+        }
+        return this._stateManager;
+      },
+      get PositionTracker() {
+        if (!this._PositionTracker) {
+          this._PositionTracker = require('../../core/PositionTracker');
+        }
+        return this._PositionTracker;
+      },
+      get OrderExecutor() {
+        if (!this._OrderExecutor) {
+          this._OrderExecutor = require('../../core/OrderExecutor');
+        }
+        return this._OrderExecutor;
+      }
     };
   }
   return runtime;

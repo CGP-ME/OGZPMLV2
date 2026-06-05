@@ -22,6 +22,10 @@ describe('StateManager openPosition scope contract', () => {
     assetClass: 'stocks',
     executionMode: 'paper',
     timeframe: '15m',
+    entryOrderQuantity: 5,
+    entryOrderQuantityUnit: 'shares',
+    remainingOrderQuantity: 5,
+    remainingOrderQuantityUnit: 'shares',
     ...overrides,
   });
 
@@ -143,6 +147,99 @@ describe('StateManager openPosition scope contract', () => {
     expect(result.error).toContain('action/direction mismatch');
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
+  });
+
+  test('rejects non-positive active trade quantity before mutating active trades', async () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.openPosition(500, 100, fullScope({
+      entryOrderQuantity: 0,
+      remainingOrderQuantity: 0,
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.quantityRejected).toBe(true);
+    expect(result.code).toBe('ENTRY_QUANTITY_REJECTED');
+    expect(result.quantityIssues).toEqual(expect.arrayContaining([
+      expect.stringContaining('invalid entryOrderQuantity=0'),
+      expect.stringContaining('invalid remainingOrderQuantity=0'),
+    ]));
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('updateActiveTrade rejects non-positive active trade quantity before mutating active trades', () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    expect(() => manager.updateActiveTrade('BYPASS_ZERO_QTY', {
+      ...fullScope({
+        orderId: 'BYPASS_ZERO_QTY',
+        entryOrderQuantity: 0,
+        remainingOrderQuantity: 0,
+      }),
+      id: 'BYPASS_ZERO_QTY',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+    })).toThrow('active trade quantity invariant failed');
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('set rejects malformed activeTrades maps before mutating active trades', () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    expect(() => manager.set('activeTrades', new Map([[
+      'SET_ZERO_QTY',
+      {
+        ...fullScope({
+          orderId: 'SET_ZERO_QTY',
+          entryOrderQuantity: 0,
+          remainingOrderQuantity: 0,
+        }),
+        id: 'SET_ZERO_QTY',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+      },
+    ]]))).toThrow('active trade quantity invariant failed');
+
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test('updateState rejects malformed activeTrades maps before mutating active trades', async () => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.updateState({
+      activeTrades: new Map([[
+        'UPDATE_ZERO_QTY',
+        {
+          ...fullScope({
+            orderId: 'UPDATE_ZERO_QTY',
+            entryOrderQuantity: 0,
+            remainingOrderQuantity: 0,
+          }),
+          id: 'UPDATE_ZERO_QTY',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          status: 'open',
+        },
+      ]]),
+    }, { action: 'TEST_BAD_ACTIVE_TRADES' });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('active trade quantity invariant failed');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
   test('rejects a caller-supplied scopeKey that does not match derived scope', async () => {
