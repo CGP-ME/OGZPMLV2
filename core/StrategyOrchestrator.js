@@ -409,7 +409,11 @@ class StrategyOrchestrator {
             confidence: conf,
             reason: sig.reason || `Break & Retest ${sig.direction}${fibBoost}`,
             signalData: sig,
-            exitContract: { stopLoss: sig.stopLoss, takeProfit: sig.takeProfit, pt2: sig.pt2 }
+            overrideLevels: sig.stopLoss && sig.takeProfit ? {
+              stopLoss: sig.stopLoss,
+              takeProfit: sig.takeProfit,
+              pt2: sig.pt2
+            } : null
           };
         }
       });
