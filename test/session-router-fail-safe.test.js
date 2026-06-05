@@ -296,6 +296,53 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
   });
 
+  test('market phase resolver refuses missing isRTH instead of defaulting sessions', () => {
+    const router = makeRouter();
+
+    expect(router._targetSessionFromPhase({ phase: 'rth', isRTH: true }, 'test')).toBe('stocks');
+    expect(router._targetSessionFromPhase({ phase: 'ah', isRTH: false }, 'test')).toBe('crypto');
+    expect(() => router._targetSessionFromPhase({ phase: 'holiday' }, 'test'))
+      .toThrow('SessionRouter test market phase missing boolean isRTH (phase=holiday)');
+    expect(() => router._targetSessionFromPhase({ phase: 'rth', isRTH: false }, 'test'))
+      .toThrow('SessionRouter test market phase contradicts isRTH (phase=rth, isRTH=false)');
+    expect(() => router._targetSessionFromPhase({ phase: 'ah', isRTH: true }, 'test'))
+      .toThrow('SessionRouter test market phase contradicts isRTH (phase=ah, isRTH=true)');
+  });
+
+  test('startup malformed market phase enters failed-safe without activating crypto fallback', async () => {
+    const router = makeRouter();
+    jest.spyOn(router, '_targetSessionFromPhase')
+      .mockImplementation(() => {
+        throw new Error('SessionRouter startup market phase missing boolean isRTH (phase=holiday)');
+      });
+
+    await expect(router.start())
+      .rejects
+      .toThrow('SessionRouter startup market phase missing boolean isRTH (phase=holiday)');
+
+    expect(router.activeSession).toBe(null);
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter startup market phase missing boolean isRTH (phase=holiday)');
+    expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();
+    expect(router.alpacaAdapter.subscribeToCandles).not.toHaveBeenCalled();
+  });
+
+  test('transition check malformed market phase enters failed-safe instead of switching sessions', async () => {
+    const router = makeRouter();
+    router.activeSession = 'stocks';
+    const transitionSpy = jest.spyOn(router, '_transitionToCrypto');
+    jest.spyOn(router, '_targetSessionFromPhase')
+      .mockImplementation(() => {
+        throw new Error('SessionRouter transition check market phase missing boolean isRTH (phase=holiday)');
+      });
+
+    await router._checkTransition();
+
+    expect(transitionSpy).not.toHaveBeenCalled();
+    expect(router.failedSafeMode).toBe(true);
+    expect(router.failedSafeReason).toBe('SessionRouter transition check market phase missing boolean isRTH (phase=holiday)');
+  });
+
   test('transition check is blocked while failed-safe mode is active', () => {
     const router = makeRouter();
     router.activeSession = 'crypto';

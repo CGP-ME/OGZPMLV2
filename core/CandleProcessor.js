@@ -709,6 +709,28 @@ class CandleProcessor {
     return isAfterClose && isBeforeOpen && differentDays;
   }
 
+  _isExpectedStockMarketQuiet(assetClass, brokerId) {
+    const cleanAssetClass = cleanScopeValue(assetClass || this.ctx.config?.assetClass);
+    const cleanBrokerId = cleanScopeValue(brokerId || this.ctx.config?.brokerId);
+    const isStockScope = cleanAssetClass === 'stocks' || cleanBrokerId === 'alpaca';
+    if (!isStockScope) return false;
+
+    const phase = this.marketCalendar.getMarketPhase(new Date());
+    if (phase.phase && phase.phase !== 'rth' && phase.isRTH === true) {
+      console.error(`[STALE DATA] market phase contradicts isRTH; treating liveness as active | broker=${cleanBrokerId || '(missing)'} assetClass=${cleanAssetClass || '(missing)'} phase=${phase.phase} isRTH=${phase.isRTH}`);
+      return false;
+    }
+    if (phase.phase === 'rth' && phase.isRTH !== true) {
+      console.error(`[STALE DATA] market phase contradicts isRTH; treating liveness as active | broker=${cleanBrokerId || '(missing)'} assetClass=${cleanAssetClass || '(missing)'} phase=${phase.phase} isRTH=${phase.isRTH}`);
+      return false;
+    }
+    if (phase.isRTH === false) return true;
+    if (phase.isRTH !== true) {
+      console.error(`[STALE DATA] market phase missing boolean isRTH; treating liveness as active | broker=${cleanBrokerId || '(missing)'} assetClass=${cleanAssetClass || '(missing)'} phase=${phase?.phase || '(missing)'}`);
+    }
+    return false;
+  }
+
   /**
    * Attempt to backfill missing candles via REST API.
    *
@@ -1000,7 +1022,13 @@ class CandleProcessor {
     const now = Date.now();
     const dataAge = now - candleEndTimeMs;
 
-    if (dataAge > this.dataFeedConfig.staleDataMaxAgeMs && !isBacktesting) {
+    const staleAssetClass = wrappedInput?.assetClass || this.ctx.config?.assetClass;
+    const staleBrokerId = wrappedInput?.brokerId || this.ctx.config?.brokerId;
+    if (
+      dataAge > this.dataFeedConfig.staleDataMaxAgeMs &&
+      !isBacktesting &&
+      !this._isExpectedStockMarketQuiet(staleAssetClass, staleBrokerId)
+    ) {
       console.error('[STALE DATA]', Math.round(dataAge / 1000), 'seconds old');
 
       // AUTO-PAUSE TRADING

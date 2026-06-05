@@ -2712,7 +2712,19 @@ class OGZPrimeV14Bot {
     if (!isStockFeed) return false;
 
     const phase = this.marketCalendar.getMarketPhase(new Date());
-    if (phase.isOpen) return false;
+    if (phase.phase && phase.phase !== 'rth' && phase.isRTH === true) {
+      console.error(`[WATCHDOG] market phase contradicts isRTH; treating liveness as active | broker=${brokerId} assetClass=${assetClass || '(missing)'} phase=${phase.phase} isRTH=${phase.isRTH}`);
+      return false;
+    }
+    if (phase.phase === 'rth' && phase.isRTH !== true) {
+      console.error(`[WATCHDOG] market phase contradicts isRTH; treating liveness as active | broker=${brokerId} assetClass=${assetClass || '(missing)'} phase=${phase.phase} isRTH=${phase.isRTH}`);
+      return false;
+    }
+    if (phase.isRTH === true) return false;
+    if (phase.isRTH !== false) {
+      console.error(`[WATCHDOG] market phase missing boolean isRTH; treating liveness as active | broker=${brokerId} assetClass=${assetClass || '(missing)'} phase=${phase?.phase || '(missing)'}`);
+      return false;
+    }
 
     const now = Date.now();
     const expectedQuietLogIntervalMs = this.config.dataFeed.expectedQuietLogIntervalMs;

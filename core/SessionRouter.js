@@ -138,9 +138,10 @@ class SessionRouter extends EventEmitter {
     this._assertTransitionStoreStartSafe();
 
     const phase = getMarketPhase(new Date(this.clock()));
-    const targetSession = phase.isRTH ? 'stocks' : 'crypto';
+    let targetSession = 'unknown';
     try {
-      if (phase.isRTH) {
+      targetSession = this._targetSessionFromPhase(phase, 'startup');
+      if (targetSession === 'stocks') {
         await this._activateStocks();
       } else {
         await this._activateCrypto();
@@ -154,25 +155,49 @@ class SessionRouter extends EventEmitter {
     }
 
     this.intervalId = setInterval(() => {
-      try { this._checkTransition(); }
-      catch (err) { console.error('[SessionRouter] Check failed:', err.message); }
+      this._checkTransition().catch((err) => {
+        console.error('[SessionRouter] Check failed:', err.message);
+      });
     }, this.checkIntervalMs);
 
     console.log(`[SessionRouter] Started | initial session: ${this.activeSession}`);
   }
 
-  _checkTransition() {
+  _targetSessionFromPhase(phase, source) {
+    if (!phase || typeof phase.isRTH !== 'boolean') {
+      const phaseLabel = phase && typeof phase.phase === 'string' ? phase.phase : '(missing)';
+      throw new Error(`SessionRouter ${source} market phase missing boolean isRTH (phase=${phaseLabel})`);
+    }
+    if (phase.phase && phase.phase !== 'rth' && phase.isRTH === true) {
+      throw new Error(`SessionRouter ${source} market phase contradicts isRTH (phase=${phase.phase}, isRTH=${phase.isRTH})`);
+    }
+    if (phase.phase === 'rth' && phase.isRTH !== true) {
+      throw new Error(`SessionRouter ${source} market phase contradicts isRTH (phase=${phase.phase}, isRTH=${phase.isRTH})`);
+    }
+    return phase.isRTH === true ? 'stocks' : 'crypto';
+  }
+
+  async _checkTransition() {
     if (this.transitionInProgress) return;
     if (this.failedSafeMode) return;
     const now = new Date(this.clock());
     const phase = getMarketPhase(now);
-
-    if (this.activeSession === 'crypto' && phase.isRTH) {
-      this._transitionToStocks(now);
+    let targetSession;
+    try {
+      targetSession = this._targetSessionFromPhase(phase, 'transition check');
+    } catch (err) {
+      await this._enterFailedSafe(this.activeSession || 'unknown', 'unknown', err, now, {
+        pauseConfirmed: false
+      });
       return;
     }
-    if (this.activeSession === 'stocks' && !phase.isRTH) {
-      this._transitionToCrypto(now);
+
+    if (this.activeSession === 'crypto' && targetSession === 'stocks') {
+      await this._transitionToStocks(now);
+      return;
+    }
+    if (this.activeSession === 'stocks' && targetSession === 'crypto') {
+      await this._transitionToCrypto(now);
       return;
     }
   }

@@ -2,6 +2,7 @@
 
 const CandleProcessor = require('../core/CandleProcessor');
 const ConfigLoader = require('../foundation/ConfigLoader');
+const { getInstance: getStateManager } = require('../core/StateManager');
 
 function makeSymCtx(symbol) {
   return {
@@ -235,6 +236,190 @@ describe('symbol-aware candle routing', () => {
     }))).toThrow('invalid millisecond timestamp field(s): t');
 
     expect(ctx._candleStore.addCandle).not.toHaveBeenCalled();
+  });
+
+  test('does not pause stock runtime for stale candle during non-RTH expected quiet', () => {
+    const now = Date.parse('2026-06-05T21:17:28Z');
+    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const stateManager = getStateManager();
+    const pauseSpy = jest.spyOn(stateManager, 'pauseTrading').mockImplementation(() => {});
+    try {
+      const tsla = makeSymCtx('TSLA');
+      const ctx = makeCtx(new Map([['TSLA', tsla]]), 'TSLA', '15m');
+      ctx.config.enableBacktestMode = false;
+      ctx.config.brokerId = 'alpaca';
+      ctx.config.assetClass = 'stocks';
+      ctx.config.executionMode = 'paper';
+      const processor = new CandleProcessor(ctx);
+      processor.marketCalendar.getMarketPhase = jest.fn(() => ({
+        phase: 'ah',
+        isOpen: true,
+        isRTH: false,
+        nextTransition: 'After-hours ends 20:00 ET',
+        rthCloseMinute: 960,
+      }));
+
+      processor.handleMarketData(candleObject({
+        symbol: 'TSLA',
+        timeframe: '15m',
+        t: now - (75 * 60 * 1000),
+        etime: now - (60 * 60 * 1000),
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+      }));
+
+      expect(pauseSpy).not.toHaveBeenCalled();
+      expect(ctx.staleFeedPaused).not.toBe(true);
+    } finally {
+      pauseSpy.mockRestore();
+      dateSpy.mockRestore();
+    }
+  });
+
+  test('still pauses stock runtime for stale candle during RTH', () => {
+    const now = Date.parse('2026-06-05T15:17:28Z');
+    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const stateManager = getStateManager();
+    const pauseSpy = jest.spyOn(stateManager, 'pauseTrading').mockImplementation(() => {});
+    try {
+      const tsla = makeSymCtx('TSLA');
+      const ctx = makeCtx(new Map([['TSLA', tsla]]), 'TSLA', '15m');
+      ctx.config.enableBacktestMode = false;
+      ctx.config.brokerId = 'alpaca';
+      ctx.config.assetClass = 'stocks';
+      ctx.config.executionMode = 'paper';
+      const processor = new CandleProcessor(ctx);
+      processor.marketCalendar.getMarketPhase = jest.fn(() => ({
+        phase: 'rth',
+        isOpen: true,
+        isRTH: true,
+        nextTransition: 'RTH closes 16:00 ET',
+        rthCloseMinute: 960,
+      }));
+
+      processor.handleMarketData(candleObject({
+        symbol: 'TSLA',
+        timeframe: '15m',
+        t: now - (75 * 60 * 1000),
+        etime: now - (60 * 60 * 1000),
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+      }));
+
+      expect(pauseSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Stale data:'),
+        expect.objectContaining({
+          source: 'data_feed_liveness',
+          recoverable: true,
+          scope: expect.objectContaining({
+            symbol: 'TSLA',
+            timeframe: '15m',
+            brokerId: 'alpaca',
+            accountId: 'acct-1',
+            assetClass: 'stocks',
+            executionMode: 'paper',
+          }),
+        })
+      );
+      expect(ctx.staleFeedPaused).toBe(true);
+    } finally {
+      pauseSpy.mockRestore();
+      dateSpy.mockRestore();
+    }
+  });
+
+  test('fails closed for stale stock candle when market phase omits isRTH', () => {
+    const now = Date.parse('2026-06-05T15:17:28Z');
+    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const stateManager = getStateManager();
+    const pauseSpy = jest.spyOn(stateManager, 'pauseTrading').mockImplementation(() => {});
+    try {
+      const tsla = makeSymCtx('TSLA');
+      const ctx = makeCtx(new Map([['TSLA', tsla]]), 'TSLA', '15m');
+      ctx.config.enableBacktestMode = false;
+      ctx.config.brokerId = 'alpaca';
+      ctx.config.assetClass = 'stocks';
+      ctx.config.executionMode = 'paper';
+      const processor = new CandleProcessor(ctx);
+      processor.marketCalendar.getMarketPhase = jest.fn(() => ({
+        phase: 'holiday',
+        nextTransition: 'Holiday',
+        rthCloseMinute: 960,
+      }));
+
+      processor.handleMarketData(candleObject({
+        symbol: 'TSLA',
+        timeframe: '15m',
+        t: now - (75 * 60 * 1000),
+        etime: now - (60 * 60 * 1000),
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+      }));
+
+      expect(pauseSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Stale data:'),
+        expect.objectContaining({
+          source: 'data_feed_liveness',
+          recoverable: true,
+        })
+      );
+      expect(ctx.staleFeedPaused).toBe(true);
+    } finally {
+      pauseSpy.mockRestore();
+      dateSpy.mockRestore();
+    }
+  });
+
+  test('fails closed for stale stock candle when market phase contradicts isRTH', () => {
+    const now = Date.parse('2026-06-05T15:17:28Z');
+    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const stateManager = getStateManager();
+    const pauseSpy = jest.spyOn(stateManager, 'pauseTrading').mockImplementation(() => {});
+    try {
+      const tsla = makeSymCtx('TSLA');
+      const ctx = makeCtx(new Map([['TSLA', tsla]]), 'TSLA', '15m');
+      ctx.config.enableBacktestMode = false;
+      ctx.config.brokerId = 'alpaca';
+      ctx.config.assetClass = 'stocks';
+      ctx.config.executionMode = 'paper';
+      const processor = new CandleProcessor(ctx);
+      processor.marketCalendar.getMarketPhase = jest.fn(() => ({
+        phase: 'rth',
+        isOpen: true,
+        isRTH: false,
+        nextTransition: 'RTH closes 16:00 ET',
+        rthCloseMinute: 960,
+      }));
+
+      processor.handleMarketData(candleObject({
+        symbol: 'TSLA',
+        timeframe: '15m',
+        t: now - (75 * 60 * 1000),
+        etime: now - (60 * 60 * 1000),
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'paper',
+      }));
+
+      expect(pauseSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Stale data:'),
+        expect.objectContaining({
+          source: 'data_feed_liveness',
+          recoverable: true,
+        })
+      );
+      expect(ctx.staleFeedPaused).toBe(true);
+    } finally {
+      pauseSpy.mockRestore();
+      dateSpy.mockRestore();
+    }
   });
 
   test('dashboard price frame carries symbol on top-level, data, and candle payload', () => {
