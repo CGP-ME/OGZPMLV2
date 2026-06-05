@@ -5,21 +5,20 @@
  *
  * THE FULL OPTIMIZATION MATRIX.
  *
- * Tests every strategy individually x every exit config x every confidence level.
+ * Tests every strategy individually x every honored tier config x every confidence level.
  * Each combination runs in isolation (SOLO_STRATEGY) through the real trading pipeline.
  *
  * What this produces:
- *   A complete Strategy x Exit x Confidence config matrix telling you
- *   the BEST parameters for each strategy, backed by data not guesses.
+ *   A complete Strategy x Tier Targets x Confidence config matrix telling you
+ *   the best honored tunables for each strategy, backed by data not guesses.
  *
  * Dimensions (full grid):
  *   Strategies:  RSI, EMASMACrossover, MADynamicSR, LiquiditySweep (4 validated)
- *   Stop Loss:   [0.5, 0.8, 1.0, 1.5, 2.0, 3.0] (6 values)
- *   Take Profit: [1.0, 1.5, 2.0, 2.5, 3.0, 4.0] (6 values, where TP > SL)
+ *   Tier targets: MPM profit tier target presets or strict-monotonic tier cube
  *   Confidence:  [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75] (8 values)
  *
- *   = 4 strategies x 25 valid SL/TP combos x 8 confidence levels = 800 configs
- *   At ~30s each with 14 workers on 7800X3D = ~30 minutes total
+ *   Structural-exit strategies are skipped for phases where module overrideLevels
+ *   would make tier geometry false data.
  *
  * Metrics captured per run (FIX 2026-04-21):
  *   finalBalance, trades, winRate, netPnl, fees,
@@ -28,8 +27,8 @@
  *
  * Usage:
  *   node tools/matrix-sweep.js --data tsla              # Full matrix, all strategies
- *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only (200 configs)
- *   node tools/matrix-sweep.js --data tsla --phase exits # Just SL/TP sweep, locked conf
+ *   node tools/matrix-sweep.js --data tsla --solo=RSI   # RSI only
+ *   node tools/matrix-sweep.js --data tsla --phase exits # Tier-target sweep, locked conf
  *   node tools/matrix-sweep.js --data tsla --phase conf  # Just confidence, locked exits
  *   # ATR dimension tuning: use `node tools/parallel-backtest.js --atr --data <ticker>`
  *   node tools/matrix-sweep.js --data tsla --quick       # Reduced grid (fast sanity check)
@@ -42,7 +41,7 @@
  * WORKFLOW (from handoff doc):
  *   1. Isolate one strategy
  *   2. Tune entries: confidence sweep (--phase conf)
- *   3. Tune exits: SL/TP sweep (--phase exits)
+ *   3. Tune honored exit targets: tier-target sweep (--phase exits)
  *   4. Retest combined: stacked winners dont always stay winners
  *   5. Validate on unseen data: train/validate/test split
  *
@@ -154,11 +153,10 @@ const ALL_STRATEGIES = [
 ];
 
 const GRID = {
-  // Full grid: SL × Tier targets × Confidence
-  // NOTE: takeProfit is IGNORED by the code — MPM tier targets control profit exits.
-  // We sweep TIER1_TARGET/TIER2_TARGET/TIER3_TARGET instead.
+  // Full grid: Tier targets x Confidence.
+  // STOP_LOSS_PERCENT/TAKE_PROFIT_PERCENT are locked by TradingConfig.exitContracts
+  // and are not emitted as sweep env overrides.
   full: {
-    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0, 3.5, 4.0, 5.0],
     tierPresets: [
       { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
       { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
@@ -169,7 +167,6 @@ const GRID = {
   },
   // Quick sanity check (reduced grid)
   quick: {
-    stopLoss:   [0.5, 0.8, 1.5],
     tierPresets: [
       { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
       { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
@@ -177,22 +174,15 @@ const GRID = {
     ],
     confidence: [0.40, 0.55, 0.70],
   },
-  // Exit-only phase (locked confidence, sweep SL × strict-monotonic tier cube).
-  // FIX 2026-04-22: expanded per operator directive — was 8 irregular SL × 5 named
-  // presets = 40 configs. Now 10 regular-step SL × C(10,3) = 120 strict-monotonic
-  // tier combos = 1,200 configs per strategy. Captures full SL×tier1×tier2×tier3
-  // interaction surface that the prior hand-picked-presets approach missed.
+  // Exit-target phase (locked confidence, sweep strict-monotonic tier cube).
+  // SL/TP env overrides are not honored for locked strategy contracts, so this phase
+  // sweeps only the tier target knobs MaxProfitManager actually reads.
   exits: {
-    // Extended to 5.0% 2026-04-25 to match the `full` phase ceiling.
-    // Previous version stopped at 2.75% which left RSI exit-sweeps
-    // potentially clipped against the upper bound. Now mirrors full.
-    stopLoss:   [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0, 5.0],
     tierPresets: buildMonotonicTierCube([0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275]),
     confidence: [0.60],  // Locked at current validated value
   },
   // Confidence-only phase (locked exits at current best per strategy)
   conf: {
-    stopLoss:   null,  // Uses per-strategy locked exits
     tierPresets: null,  // Uses current MPM defaults
     confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
   },
@@ -206,11 +196,17 @@ const GRID = {
 // two in sync automatically.
 //
 // TradingConfig stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
-// Matrix-sweep passes STOP_LOSS_PERCENT env var to workers as positive absolute. Math.abs() bridges.
+// Matrix-sweep records the locked absolute value as metadata only; it does not emit
+// STOP_LOSS_PERCENT because locked exitContracts own strategy risk.
 const { BASE_CONFIG } = require('../core/TradingConfig.js');
 function getLockedSL(strat) {
   const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
   return Math.abs(contract.stopLossPercent);
+}
+
+function formatTiers(tiers) {
+  if (!tiers) return 'default';
+  return tiers.label + '(' + tiers.t1 + '/' + tiers.t2 + '/' + tiers.t3 + ')';
 }
 
 function usesStructuralExits(strat) {
@@ -243,65 +239,55 @@ function generateMatrix(strategies, grid, phase) {
   const phaseStrategies = filterStrategiesForPhase(strategies, phase).runnable;
 
   for (const strat of phaseStrategies) {
-    // Get SL values: if phase='conf', use locked exits from TradingConfig
-    let slValues;
-    if (phase === 'conf' || !grid.stopLoss) {
-      slValues = [getLockedSL(strat)];
-    } else {
-      slValues = grid.stopLoss;
-    }
-
     // Get tier presets: if phase='conf', use defaults (null = don't set env var)
     const tierPresets = grid.tierPresets || [null];
+    const lockedSL = getLockedSL(strat);
 
-    for (const sl of slValues) {
-      for (const tiers of tierPresets) {
-        for (const conf of grid.confidence) {
-          const shortName = strat.substring(0, 4);
-          const tierLabel = tiers ? tiers.label : 'def';
-          const name = shortName + '_sl' + sl + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
+    for (const tiers of tierPresets) {
+      for (const conf of grid.confidence) {
+        const shortName = strat.substring(0, 4);
+        const tierLabel = tiers ? tiers.label : 'def';
+        const name = shortName + '_lockedsl' + lockedSL + '_' + tierLabel + '_c' + (conf * 100).toFixed(0);
 
-          const env = {
-            SOLO_STRATEGY: strat,
-            STOP_LOSS_PERCENT: String(sl),
-            MIN_TRADE_CONFIDENCE: String(conf),
-          };
+        const env = {
+          SOLO_STRATEGY: strat,
+          MIN_TRADE_CONFIDENCE: String(conf),
+        };
 
-          // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
-          if (tiers) {
-            env.TIER1_TARGET = String(tiers.t1);
-            env.TIER2_TARGET = String(tiers.t2);
-            env.TIER3_TARGET = String(tiers.t3);
-          }
-
-          // SMS needs explicit enable
-          if (strat === 'SmartMoneySweep') {
-            env.ENABLE_SMS = 'true';
-            env.SMS_VP_RTH_ONLY = 'true';
-          }
-
-          // NoWick needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'NoWickImbalance') {
-            env.ENABLE_NOWICK = 'true';
-          }
-
-          // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'BreakRetest') {
-            env.ENABLE_BREAKRETEST = 'true';
-          }
-
-          // ORB needs explicit enable (off by default; sweep uses opt-in env)
-          if (strat === 'OpeningRangeBreakout') {
-            env.ENABLE_ORB = 'true';
-          }
-
-          configs.push({
-            name,
-            strategy: strat,
-            sl, tiers, conf,
-            env,
-          });
+        // Set tier targets if sweeping (otherwise MPM uses TradingConfig defaults)
+        if (tiers) {
+          env.TIER1_TARGET = String(tiers.t1);
+          env.TIER2_TARGET = String(tiers.t2);
+          env.TIER3_TARGET = String(tiers.t3);
         }
+
+        // SMS needs explicit enable
+        if (strat === 'SmartMoneySweep') {
+          env.ENABLE_SMS = 'true';
+          env.SMS_VP_RTH_ONLY = 'true';
+        }
+
+        // NoWick needs explicit enable (off by default; sweep uses opt-in env)
+        if (strat === 'NoWickImbalance') {
+          env.ENABLE_NOWICK = 'true';
+        }
+
+        // BreakRetest needs explicit enable (off by default; sweep uses opt-in env)
+        if (strat === 'BreakRetest') {
+          env.ENABLE_BREAKRETEST = 'true';
+        }
+
+        // ORB needs explicit enable (off by default; sweep uses opt-in env)
+        if (strat === 'OpeningRangeBreakout') {
+          env.ENABLE_ORB = 'true';
+        }
+
+        configs.push({
+          name,
+          strategy: strat,
+          lockedSL, tiers, conf,
+          env,
+        });
       }
     }
   }
@@ -370,7 +356,7 @@ function runWorker(config, dataFile, stockMode, profileName) {
       resolve({
         name: config.name,
         strategy: config.strategy,
-        sl: config.sl, tp: config.tp, conf: config.conf,
+        lockedSL: config.lockedSL, tiers: config.tiers, conf: config.conf,
         workerEnv: summarizeWorkerEnv(env),
         error: err.message,
         elapsed: ((Date.now() - startTime) / 1000).toFixed(1),
@@ -383,8 +369,8 @@ function parseOutput(output, config) {
   var r = {
     name: config.name,
     strategy: config.strategy,
-    sl: config.sl,
-    tp: config.tp,
+    lockedSL: config.lockedSL,
+    tiers: config.tiers,
     conf: config.conf,
   };
 
@@ -593,7 +579,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
 
     console.log('\n  +-- ' + strat + ' (' + stratResults.length + ' configs tested) -----');
     console.log('  |');
-    console.log('  |  BEST:   SL=' + best.sl + '% TP=' + best.tp + '% Conf=' + (best.conf * 100).toFixed(0) + '%');
+    console.log('  |  BEST:   LockedSL=' + best.lockedSL + '% Tiers=' + formatTiers(best.tiers) + ' Conf=' + (best.conf * 100).toFixed(0) + '%');
     console.log('  |          P&L: $' + best.netPnl.toFixed(2) + ' | ' + (best.trades || '?') + ' trades | WR: ' + (best.winRate != null ? best.winRate.toFixed(1) : '?') + '%');
     if (best.maxDrawdown != null) {
       console.log('  |          DD: ' + best.maxDrawdown.toFixed(1) + '% | PF: ' + (best.profitFactor != null ? best.profitFactor.toFixed(2) : '?'));
@@ -606,7 +592,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
     // Show top 5
     console.log('  |  Top 5:');
     stratResults.slice(0, 5).forEach(function(r, idx) {
-      console.log('  |   #' + (idx + 1) + ' SL=' + r.sl + ' TP=' + r.tp + ' C=' + (r.conf * 100).toFixed(0) + '%  ->  $' + r.netPnl.toFixed(2) + ' | ' + (r.trades || '?') + ' trades | WR ' + (r.winRate != null ? r.winRate.toFixed(1) : '?') + '%');
+      console.log('  |   #' + (idx + 1) + ' LockedSL=' + r.lockedSL + ' Tiers=' + formatTiers(r.tiers) + ' C=' + (r.conf * 100).toFixed(0) + '%  ->  $' + r.netPnl.toFixed(2) + ' | ' + (r.trades || '?') + ' trades | WR ' + (r.winRate != null ? r.winRate.toFixed(1) : '?') + '%');
     });
 
     // Sensitivity check: are neighboring configs also profitable?
@@ -621,12 +607,12 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
 
   // -- Cross-strategy summary --
   console.log('\n' + '='.repeat(72));
-  console.log('  BEST CONFIG PER STRATEGY (copy to TradingConfig.exitContracts)');
+  console.log('  BEST HONORED SWEEP CONFIG PER STRATEGY');
   console.log('='.repeat(72));
 
   Object.entries(bestPerStrategy).forEach(function(e) {
     var stName = e[0], b = e[1];
-    console.log('  ' + stName + ': { stopLossPercent: -' + b.sl + ', takeProfitPercent: ' + b.tp + ' }  // conf=' + (b.conf * 100).toFixed(0) + '% -> $' + b.netPnl.toFixed(2));
+    console.log('  ' + stName + ': conf=' + (b.conf * 100).toFixed(0) + '% tiers=' + formatTiers(b.tiers) + ' lockedSL=' + b.lockedSL + '% -> $' + b.netPnl.toFixed(2));
   });
 
   // -- Save results --
@@ -662,9 +648,10 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   console.log('\nJSON: ' + reportPath);
 
   // CSV for spreadsheet analysis
-  var csvHeader = 'strategy,stopLoss,takeProfit,confidence,netPnl,trades,winRate,maxDrawdown,profitFactor,expectancy,avgWin,avgLoss,fees,elapsed';
+  var csvHeader = 'strategy,lockedStopLoss,tierLabel,tier1Target,tier2Target,tier3Target,confidence,netPnl,trades,winRate,maxDrawdown,profitFactor,expectancy,avgWin,avgLoss,fees,elapsed';
   var csvRows = parsed.map(function(r) {
-    return [r.strategy, r.sl, r.tp, r.conf,
+    var tiers = r.tiers || {};
+    return [r.strategy, r.lockedSL, tiers.label || 'default', tiers.t1 || '', tiers.t2 || '', tiers.t3 || '', r.conf,
       r.netPnl != null ? r.netPnl.toFixed(2) : '',
       r.trades || '', r.winRate != null ? r.winRate.toFixed(2) : '',
       r.maxDrawdown != null ? r.maxDrawdown.toFixed(2) : '',
@@ -681,7 +668,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
   // -- Summary --
   var overallBest = parsed.sort(function(a, b) { return b.netPnl - a.netPnl; })[0];
   if (overallBest) {
-    console.log('\nOVERALL BEST: ' + overallBest.strategy + ' SL=' + overallBest.sl + '% TP=' + overallBest.tp + '% Conf=' + (overallBest.conf * 100).toFixed(0) + '%');
+    console.log('\nOVERALL BEST: ' + overallBest.strategy + ' LockedSL=' + overallBest.lockedSL + '% Tiers=' + formatTiers(overallBest.tiers) + ' Conf=' + (overallBest.conf * 100).toFixed(0) + '%');
     console.log('   P&L: $' + overallBest.netPnl.toFixed(2) + ' | Trades: ' + overallBest.trades + ' | WR: ' + (overallBest.winRate != null ? overallBest.winRate.toFixed(1) : '?') + '%');
   }
 
@@ -767,10 +754,10 @@ async function main() {
       console.log('================================\n');
       console.log('Usage: node tools/matrix-sweep.js [options]\n');
       console.log('Phases (what to sweep):');
-      console.log('  --full         Full matrix: SL x TP x Confidence (default)');
+      console.log('  --full         Full matrix: Tier targets x Confidence (default)');
       console.log('  --quick        Reduced grid (fast sanity check)');
-      console.log('  --exits        SL/TP sweep only (confidence locked; skips structural-exit strategies)');
-      console.log('  --conf         Confidence sweep only (exits locked)\n');
+      console.log('  --exits        Tier-target sweep only (confidence locked; skips structural-exit strategies)');
+      console.log('  --conf         Confidence sweep only (tier targets locked)\n');
       console.log('Strategy Selection:');
       console.log('  --solo=RSI          Test only RSI');
       console.log('  --solo=EMA          Test only EMASMACrossover');
@@ -778,7 +765,7 @@ async function main() {
       console.log('Profiles:');
       console.log('  --profile=NAME      Tuning profile (' + listTuningProfileNames().join(', ') + ')\n');
       console.log('Data:');
-      console.log('  --data tsla    TSLA 15m 18-month (default)');
+      console.log('  --data tsla    TSLA 15m 2-year (default)');
       console.log('  --data spy     SPY, --data qqq, nvda, riot, etc.');
       console.log('  --stocks       Force zero-commission mode\n');
       console.log('Examples:');
@@ -789,7 +776,7 @@ async function main() {
       console.log('  node tools/matrix-sweep.js --data spy --stocks\n');
       console.log('Walk-Forward Workflow:');
       console.log('  1. Run --exits on training data:  --data tsla-train --exits');
-      console.log('  2. Lock best SL/TP per strategy');
+      console.log('  2. Lock best honored tier targets per strategy/profile');
       console.log('  3. Run --conf on training data:   --data tsla-train --conf');
       console.log('  4. Lock best confidence');
       console.log('  5. Validate on test data:         --data tsla-test');

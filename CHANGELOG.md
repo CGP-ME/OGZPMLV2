@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Locked-Exit Sweep Truth Contract (2026-06-05)
+
+- Removed remaining fake locked-exit SL/TP env sweep paths from matrix and parallel tuning tools, and changed worker `configEnv` overrides to reject locked-exit stop/take/trailing keys.
+- Matrix full/exit sweeps now tune only honored tier/confidence knobs, record per-strategy locked stop loss as metadata, and no longer print copy-paste `TradingConfig.exitContracts` snippets from env-only sweep results.
+
 ### Tuning Profile Locked-Exit Env Contract (2026-06-05)
 
 - Removed locked-exit global stop/take/trailing env keys from tuning profiles, added a profile invariant against reintroducing them, and stopped P0 from stamping `STOP_LOSS_PERCENT` as canonical profile posture.

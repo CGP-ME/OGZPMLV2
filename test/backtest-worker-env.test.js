@@ -185,6 +185,16 @@ describe('backtest worker env contract', () => {
     })).toThrow(/Disallowed configEnv override 'ENABLE_DYNAMIC_SIZING'/);
   });
 
+  test('locked-exit config env overrides fail loudly instead of pretending to tune contracts', () => {
+    for (const key of PROFILE_FORBIDDEN_ENV_KEYS) {
+      expect(() => buildEnv({
+        configEnv: {
+          [key]: '1',
+        },
+      })).toThrow(new RegExp("Disallowed configEnv override '" + key + "'"));
+    }
+  });
+
   test('instrument env cannot override trading tunables or fees', () => {
     expect(() => buildEnv({
       instrumentEnv: {

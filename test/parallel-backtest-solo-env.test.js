@@ -14,6 +14,9 @@ const {
 const {
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
 } = require('../tools/backtest-worker-env');
+const {
+  PROFILE_FORBIDDEN_ENV_KEYS,
+} = require('../tools/tuning-profiles');
 
 describe('parallel-backtest solo strategy env wiring', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
@@ -145,5 +148,16 @@ describe('parallel-backtest solo strategy env wiring', () => {
     }
 
     expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
+  });
+
+  test('parallel sweep presets never generate locked-exit env overrides', () => {
+    const forbidden = new Set(PROFILE_FORBIDDEN_ENV_KEYS);
+
+    for (const preset of Object.values(SWEEP_PRESETS)) {
+      const configs = typeof preset === 'function' ? preset() : preset;
+      for (const config of configs || []) {
+        expect(Object.keys(config.env || {}).filter(key => forbidden.has(key))).toEqual([]);
+      }
+    }
   });
 });

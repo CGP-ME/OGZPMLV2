@@ -12,6 +12,10 @@ const {
 const {
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
 } = require('../tools/backtest-worker-env');
+const {
+  PROFILE_FORBIDDEN_ENV_KEYS,
+} = require('../tools/tuning-profiles');
+const { BASE_CONFIG } = require('../core/TradingConfig');
 
 describe('matrix-sweep runnable surface', () => {
   test('tsla shortcut uses the current stock eval baseline', () => {
@@ -71,5 +75,27 @@ describe('matrix-sweep runnable surface', () => {
     }
 
     expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
+  });
+
+  test('matrix sweeps never generate locked-exit env overrides', () => {
+    const forbidden = new Set(PROFILE_FORBIDDEN_ENV_KEYS);
+
+    for (const phase of Object.keys(GRID)) {
+      const configs = generateMatrix(ALL_STRATEGIES, GRID[phase], phase);
+      for (const config of configs || []) {
+        expect(Object.keys(config.env || {}).filter(key => forbidden.has(key))).toEqual([]);
+      }
+    }
+  });
+
+  test('exit phase sweeps only honored tier targets with locked SL metadata', () => {
+    const configs = generateMatrix(['RSI'], GRID.exits, 'exits');
+    const lockedRsiStop = Math.abs(BASE_CONFIG.exitContracts.RSI.stopLossPercent);
+
+    expect(configs).toHaveLength(GRID.exits.tierPresets.length * GRID.exits.confidence.length);
+    expect(configs.every(config => config.lockedSL === lockedRsiStop)).toBe(true);
+    expect(configs.every(config => config.env.STOP_LOSS_PERCENT === undefined)).toBe(true);
+    expect(configs.every(config => config.env.TAKE_PROFIT_PERCENT === undefined)).toBe(true);
+    expect(new Set(configs.map(config => config.env.TIER1_TARGET)).size).toBeGreaterThan(1);
   });
 });

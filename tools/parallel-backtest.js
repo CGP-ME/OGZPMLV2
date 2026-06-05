@@ -166,31 +166,6 @@ function generateGauntlet(paramType, values) {
   return configs;
 }
 
-function generateGauntletExits() {
-  const configs = [];
-  const exitCombos = [
-    { sl: 0.5, tp: 1.0 },
-    { sl: 0.8, tp: 1.5 },
-    { sl: 1.0, tp: 2.0 },
-    { sl: 1.5, tp: 2.5 },
-    { sl: 2.0, tp: 3.0 },
-    { sl: 2.5, tp: 4.0 },
-  ];
-  for (const strat of STRATEGIES) {
-    for (const exit of exitCombos) {
-      configs.push({
-        name: `${strat.substring(0,4)}-sl${exit.sl}-tp${exit.tp}`,
-        env: {
-          SOLO_STRATEGY: strat,
-          STOP_LOSS_PERCENT: String(exit.sl),
-          TAKE_PROFIT_PERCENT: String(exit.tp)
-        }
-      });
-    }
-  }
-  return configs;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // PARAMETER SWEEP DEFINITIONS
 // ═══════════════════════════════════════════════════════════════
@@ -200,8 +175,8 @@ function generateGauntletExits() {
 // ═══════════════════════════════════════════════════════════════
 // HONORED: ATR_FILTER_ENABLED, ATR_MIN_PERCENT, RISK_MANAGER_BYPASS,
 //          ACCOUNT_DRAWDOWN_BYPASS, MAX_POSITION_SIZE_PCT, TIER1/2/3_TARGET
-// IGNORED: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
-//          (overridden by locked exitContracts per strategy)
+// REJECTED: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_PERCENT
+//           (locked exitContracts own strategy risk; worker env rejects fake tuning)
 // GHOST:   TRAILING_STOP_ENABLED, REGIME_FILTER_ENABLED, REGIME_ALLOW_*
 //          (never read by trading code)
 // PARTIAL: MIN_TRADE_CONFIDENCE (entry gate works, but strategies have own minConfidence)
@@ -309,22 +284,6 @@ const SWEEP_PRESETS = {
     ];
   },
 };
-
-function generateExitSweep() {
-  const configs = [];
-  const stopLosses = [0.5, 0.8, 1.0, 1.5, 2.0, 3.0];
-  const takeProfits = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
-  for (const sl of stopLosses) {
-    for (const tp of takeProfits) {
-      if (tp <= sl) continue;
-      configs.push({
-        name: `sl${sl}-tp${tp}`,
-        env: { STOP_LOSS_PERCENT: String(sl), TAKE_PROFIT_PERCENT: String(tp) }
-      });
-    }
-  }
-  return configs;
-}
 
 function generateRSISweep() {
   const configs = [];
@@ -749,8 +708,8 @@ Options:
   --stocks       Zero commission mode (for stocks)
   --help         Show this help
 
-NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are IGNORED
-      (overridden by locked exitContracts per strategy). See ENV-VAR-AUDIT.md.
+NOTE: STOP_LOSS_PERCENT, TAKE_PROFIT_PERCENT, TRAILING_STOP_* are not sweep knobs.
+      Locked exitContracts own strategy risk, and worker env rejects fake tuning.
 
 Examples:
   node tools/parallel-backtest.js --real --stocks --data=tsla --profile=current-eval
