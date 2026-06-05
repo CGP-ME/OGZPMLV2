@@ -658,14 +658,127 @@ class TradeJournalBridge {
     const delivered = send.call(this, payload);
     record.visibilityDashboardDelivered = delivered === true;
     if (!record.visibilityDashboardDelivered) {
-      if (!Array.isArray(this._pendingVisibilityErrors)) this._pendingVisibilityErrors = [];
-      this._pendingVisibilityErrors.push(payload);
-      while (this._pendingVisibilityErrors.length > (this._maxPendingVisibilityErrors || 50)) {
-        this._pendingVisibilityErrors.shift();
-      }
+      TradeJournalBridge.prototype._queueVisibilityFailure.call(this, payload);
       record.visibilityDashboardQueued = true;
     }
     return record.visibilityDashboardDelivered;
+  }
+
+  _queueVisibilityFailure(payload) {
+    if (!Array.isArray(this._pendingVisibilityErrors)) this._pendingVisibilityErrors = [];
+    const maxPending = Math.max(1, Math.floor(this._maxPendingVisibilityErrors || 50));
+    this._pendingVisibilityErrors.push(payload);
+    if (this._pendingVisibilityErrors.length <= maxPending) {
+      return;
+    }
+
+    const overflowIndex = this._pendingVisibilityErrors.findIndex(item => item?.data?.eventType === 'trade_visibility_dashboard_queue_overflow');
+    const overflowPayload = overflowIndex >= 0
+      ? this._pendingVisibilityErrors.splice(overflowIndex, 1)[0]
+      : TradeJournalBridge.prototype._createVisibilityQueueOverflowPayload.call(this);
+
+    const keepIndividualSlots = Math.max(0, maxPending - 1);
+    const dropCount = Math.max(0, this._pendingVisibilityErrors.length - keepIndividualSlots);
+    const droppedPayloads = this._pendingVisibilityErrors.splice(0, dropCount);
+    const overflowData = overflowPayload.data;
+    const context = overflowData.context;
+    const droppedOrderIds = droppedPayloads
+      .map(item => nonEmptyStringOrNull(item?.data?.orderId))
+      .filter(Boolean);
+    const droppedEventTypes = droppedPayloads
+      .map(item => nonEmptyStringOrNull(item?.data?.eventType))
+      .filter(Boolean);
+
+    overflowData.timestamp = new Date().toISOString();
+    overflowData.visibilityDashboardDelivered = false;
+    overflowData.visibilityDashboardQueued = true;
+    context.droppedCount += droppedPayloads.length;
+    context.droppedOrderIds = [...context.droppedOrderIds, ...droppedOrderIds].slice(-50);
+    context.droppedEventTypes = [...context.droppedEventTypes, ...droppedEventTypes].slice(-50);
+    TradeJournalBridge.prototype._persistVisibilityQueueOverflow.call(this, overflowData);
+
+    this._pendingVisibilityErrors.push(overflowPayload);
+  }
+
+  _createVisibilityQueueOverflowPayload() {
+    const timestamp = new Date().toISOString();
+    return {
+      type: 'trade_visibility_error',
+      data: {
+        type: 'trade_visibility_failure',
+        eventType: 'trade_visibility_dashboard_queue_overflow',
+        timestamp,
+        phase: 'dashboard',
+        source: 'TradeJournalBridge._queueVisibilityFailure',
+        orderId: null,
+        action: null,
+        missing: [],
+        message: 'Dashboard visibility queue overflowed while disconnected; individual records remain in the scoped visibility ledger when persistence succeeded.',
+        scope: this.journal?.scope || null,
+        context: {
+          droppedCount: 0,
+          droppedOrderIds: [],
+          droppedEventTypes: [],
+          visibilityLedgerPath: this.visibilityFailurePath
+            || (this.journal?.paths?.dir ? path.join(this.journal.paths.dir, 'trade-visibility-failures.jsonl') : null),
+          visibilityFallbackPath: this.visibilityFailureFallbackPath
+            || path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl'),
+        },
+        visibilityDashboardDelivered: false,
+        visibilityDashboardQueued: true,
+        visibilityLedgerPath: null,
+        visibilityLedgerPersisted: false,
+        visibilityLedgerError: null,
+        visibilityFallbackPath: null,
+        visibilityFallbackPersisted: false,
+        visibilityFallbackError: null,
+      }
+    };
+  }
+
+  _persistVisibilityQueueOverflow(record) {
+    const filepath = this.visibilityFailurePath
+      || (this.journal?.paths?.dir ? path.join(this.journal.paths.dir, 'trade-visibility-failures.jsonl') : null);
+    const fallbackPath = this.visibilityFailureFallbackPath
+      || path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
+    record.visibilityLedgerPath = filepath;
+    record.visibilityLedgerPersisted = false;
+    record.visibilityLedgerError = null;
+    record.visibilityFallbackPath = fallbackPath;
+    record.visibilityFallbackPersisted = false;
+    record.visibilityFallbackError = null;
+
+    if (filepath) {
+      try {
+        fs.mkdirSync(path.dirname(filepath), { recursive: true });
+        record.visibilityLedgerPersisted = true;
+        fs.appendFileSync(filepath, `${JSON.stringify(record)}\n`, 'utf8');
+        return true;
+      } catch (err) {
+        record.visibilityLedgerPersisted = false;
+        record.visibilityLedgerError = errorMessageOrNull(err);
+        console.error(`[TradeJournalBridge] Failed to persist dashboard visibility overflow summary: ${err.message}`);
+      }
+    } else {
+      record.visibilityLedgerError = 'missing scoped visibility failure path';
+    }
+
+    try {
+      fs.mkdirSync(path.dirname(fallbackPath), { recursive: true });
+      record.visibilityFallbackPersisted = true;
+      fs.appendFileSync(fallbackPath, `${JSON.stringify(record)}\n`, 'utf8');
+      return true;
+    } catch (err) {
+      record.visibilityFallbackPersisted = false;
+      record.visibilityFallbackError = errorMessageOrNull(err);
+      console.error(`[TradeJournalBridge] Failed to persist dashboard visibility overflow fallback: ${err.message}`);
+      try {
+        fs.writeSync(2, `[TRADE_VISIBILITY_QUEUE_OVERFLOW_UNPERSISTED] ${JSON.stringify(record)}\n`);
+      } catch (_stderrErr) {
+        // Last-resort visibility path failed; do not throw from dashboard queue bookkeeping.
+      }
+      return false;
+    }
   }
 
   _flushPendingVisibilityErrors() {
@@ -792,22 +905,40 @@ class TradeJournalBridge {
     const bot = this.bot;
     const handler = bot._journalMessageHandler;
 
-    const hookCheck = setInterval(() => {
-      if (bot.dashboardWs && bot.dashboardWs.readyState === 1) {
-        bot.dashboardWs.on('message', (data) => {
-          try {
-            const msg = JSON.parse(data.toString());
-            if (msg.type && (msg.type.startsWith('request_journal') || msg.type.startsWith('request_replay'))) {
-              handler(msg);
-            }
-          } catch { /* ignore */ }
-        });
-        clearInterval(hookCheck);
-        bridge._flushPendingVisibilityErrors();
-        console.log('[TradeJournalBridge] Hooked into dashboard WebSocket');
+    if (this._dashboardHookTimer) clearInterval(this._dashboardHookTimer);
+    this._dashboardHookTimer = setInterval(() => {
+      const dashboardWs = bot.dashboardWs;
+      if (!dashboardWs || dashboardWs.readyState !== 1) return;
+
+      this._flushPendingVisibilityErrors();
+      if (this._journalDashboardHookedSocket === dashboardWs) return;
+      if (typeof dashboardWs.on !== 'function') {
+        if (this._journalDashboardHookWarningSocket !== dashboardWs) {
+          console.warn('[TradeJournalBridge] Dashboard WebSocket cannot register journal message handler; visibility errors will still flush through send()');
+          this._journalDashboardHookWarningSocket = dashboardWs;
+        }
+        return;
       }
+
+      TradeJournalBridge.prototype._attachJournalDashboardSocket.call(this, dashboardWs, handler);
+      this._journalDashboardHookedSocket = dashboardWs;
+      console.log('[TradeJournalBridge] Hooked into dashboard WebSocket');
     }, 2000);
-    setTimeout(() => clearInterval(hookCheck), 30000);
+  }
+
+  _attachJournalDashboardSocket(dashboardWs, handler) {
+    if (typeof dashboardWs.on !== 'function') {
+      return false;
+    }
+    dashboardWs.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.type && (msg.type.startsWith('request_journal') || msg.type.startsWith('request_replay'))) {
+          handler(msg);
+        }
+      } catch { /* ignore */ }
+    });
+    return true;
   }
 
 
@@ -968,6 +1099,7 @@ class TradeJournalBridge {
 
   destroy() {
     if (this._broadcastTimer) clearInterval(this._broadcastTimer);
+    if (this._dashboardHookTimer) clearInterval(this._dashboardHookTimer);
     this.journal.destroy();
     console.log('[TradeJournalBridge] Destroyed');
   }

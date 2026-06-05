@@ -999,6 +999,75 @@ describe('TradeJournalBridge scoped storage', () => {
     });
   });
 
+  test('visibility failure queue overflow reports omitted dashboard records instead of silently shifting them away', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const dashboardWs = {
+      readyState: 0,
+      send: jest.fn(),
+    };
+    const bridge = {
+      bot: { dashboardWs },
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      _pendingVisibilityErrors: [],
+      _maxPendingVisibilityErrors: 3,
+    };
+
+    for (let i = 1; i <= 5; i += 1) {
+      TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
+        phase: 'entry',
+        source: 'test',
+        orderId: `ORDER-OVER-${i}`,
+        action: 'BUY',
+        message: `forced disconnected dashboard ${i}`,
+      });
+    }
+
+    const ledgerRecords = readJsonl(visibilityFailurePath);
+    const entryFailureRecords = ledgerRecords.filter(record => record.eventType === 'trade_entry_journal_refused');
+    const overflowRecords = ledgerRecords.filter(record => record.eventType === 'trade_visibility_dashboard_queue_overflow');
+    expect(entryFailureRecords).toHaveLength(5);
+    expect(overflowRecords.length).toBeGreaterThanOrEqual(1);
+    expect(overflowRecords[overflowRecords.length - 1]).toMatchObject({
+      visibilityLedgerPersisted: true,
+      context: {
+        droppedCount: 3,
+        droppedOrderIds: ['ORDER-OVER-1', 'ORDER-OVER-2', 'ORDER-OVER-3'],
+      },
+    });
+    expect(bridge._pendingVisibilityErrors).toHaveLength(3);
+    expect(bridge._pendingVisibilityErrors.map(payload => payload.data.orderId)).toEqual([
+      'ORDER-OVER-4',
+      'ORDER-OVER-5',
+      null,
+    ]);
+    expect(bridge._pendingVisibilityErrors[2].data).toMatchObject({
+      eventType: 'trade_visibility_dashboard_queue_overflow',
+      visibilityDashboardDelivered: false,
+      visibilityDashboardQueued: true,
+      context: {
+        droppedCount: 3,
+        droppedOrderIds: ['ORDER-OVER-1', 'ORDER-OVER-2', 'ORDER-OVER-3'],
+      },
+    });
+
+    dashboardWs.readyState = 1;
+    expect(TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(bridge)).toBe(3);
+    expect(bridge._pendingVisibilityErrors).toHaveLength(0);
+    expect(dashboardWs.send).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(dashboardWs.send.mock.calls[2][0])).toMatchObject({
+      type: 'trade_visibility_error',
+      data: {
+        eventType: 'trade_visibility_dashboard_queue_overflow',
+        visibilityDashboardDelivered: true,
+        visibilityDashboardQueued: false,
+      },
+    });
+  });
+
   test('broadcast cycle retries queued visibility errors even without other journal traffic', () => {
     jest.useFakeTimers();
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
@@ -1036,6 +1105,83 @@ describe('TradeJournalBridge scoped storage', () => {
       });
     } finally {
       clearInterval(bridge._broadcastTimer);
+      jest.useRealTimers();
+    }
+  });
+
+  test('direct dashboard hook flushes queued visibility errors when socket opens', () => {
+    jest.useFakeTimers();
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const dashboardWs = {
+      readyState: 1,
+      on: jest.fn(),
+    };
+    const bridge = {
+      bot: { dashboardWs },
+      _flushPendingVisibilityErrors: jest.fn(() => 1),
+    };
+
+    try {
+      TradeJournalBridge.prototype._tryDirectWsHook.call(bridge);
+
+      expect(() => jest.advanceTimersByTime(2000)).not.toThrow();
+      expect(dashboardWs.on).toHaveBeenCalledWith('message', expect.any(Function));
+      expect(bridge._flushPendingVisibilityErrors).toHaveBeenCalledTimes(1);
+    } finally {
+      clearInterval(bridge._dashboardHookTimer);
+      jest.useRealTimers();
+    }
+  });
+
+  test('direct dashboard hook keeps watching past thirty seconds and flushes late-open sockets', () => {
+    jest.useFakeTimers();
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const dashboardWs = {
+      readyState: 0,
+      on: jest.fn(),
+    };
+    const bridge = {
+      bot: { dashboardWs },
+      _flushPendingVisibilityErrors: jest.fn(() => 1),
+    };
+
+    try {
+      TradeJournalBridge.prototype._tryDirectWsHook.call(bridge);
+      jest.advanceTimersByTime(32000);
+      expect(dashboardWs.on).not.toHaveBeenCalled();
+
+      dashboardWs.readyState = 1;
+      expect(() => jest.advanceTimersByTime(2000)).not.toThrow();
+      expect(dashboardWs.on).toHaveBeenCalledWith('message', expect.any(Function));
+      expect(bridge._flushPendingVisibilityErrors).toHaveBeenCalledTimes(1);
+    } finally {
+      clearInterval(bridge._dashboardHookTimer);
+      jest.useRealTimers();
+    }
+  });
+
+  test('direct dashboard hook flushes visibility errors without crashing when socket cannot register message handlers', () => {
+    jest.useFakeTimers();
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const dashboardWs = {
+      readyState: 1,
+      send: jest.fn(),
+    };
+    const bridge = {
+      bot: { dashboardWs },
+      _flushPendingVisibilityErrors: jest.fn(() => 1),
+    };
+
+    try {
+      TradeJournalBridge.prototype._tryDirectWsHook.call(bridge);
+
+      expect(() => jest.advanceTimersByTime(2000)).not.toThrow();
+      expect(bridge._flushPendingVisibilityErrors).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('cannot register journal message handler'));
+    } finally {
+      clearInterval(bridge._dashboardHookTimer);
+      warnSpy.mockRestore();
       jest.useRealTimers();
     }
   });
