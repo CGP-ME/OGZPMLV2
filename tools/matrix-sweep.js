@@ -55,6 +55,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const TradingConfig = require('../core/TradingConfig');
 
 // ===================================================================
 // HARDWARE DETECTION
@@ -84,6 +85,8 @@ const {
 } = require('./tuning-profiles');
 const RESULTS_DIR = getMatrixDir();
 const WORKER_LOG_DIR = path.join(PROJECT_ROOT, 'backtest-results', 'worker-logs');
+const MATRIX_SWEEP_CONFIG = TradingConfig.getMatrixSweepConfig();
+const DEFAULT_DATA = MATRIX_SWEEP_CONFIG.defaultData;
 
 function normalizeWorkerErrors(value) {
   if (value == null || value === false) return 0;
@@ -181,21 +184,12 @@ function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elap
 // ===================================================================
 // DATA FILE SHORTCUTS
 // ===================================================================
-const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-2y.json',
-  'tsla-train': 'tuning/tsla-15m-train.json',
-  'tsla-test': 'tuning/tsla-15m-test.json',
-  'tsla-unseen': 'tuning/tsla-15m-unseen.json',
-  'spy': 'tuning/spy-15m-2y.json',
-  'qqq': 'tuning/qqq-15m-2y.json',
-  'nvda': 'tuning/nvda-15m-2y.json',
-  'riot': 'tuning/riot-15m-2y.json',
-  'mara': 'tuning/mara-15m-2y.json',
-  'coin': 'tuning/coin-15m-2y.json',
-  'btc': 'data/polygon-btc-1y.json',
-};
-const STOCK_TICKERS = ['tsla', 'spy', 'qqq', 'nvda', 'riot', 'mara', 'coin',
-                        'tsla-train', 'tsla-test', 'tsla-unseen'];
+const DATA_SHORTCUTS = Object.freeze({ ...MATRIX_SWEEP_CONFIG.dataShortcuts });
+const STOCK_TICKERS = Object.freeze([...MATRIX_SWEEP_CONFIG.stockTickers]);
+
+function isStockTickerShortcut(key) {
+  return STOCK_TICKERS.includes(key);
+}
 
 // Extract human-readable label from data file path
 // 'tuning/tsla-15m-2y.json'    → 'tsla-2y'
@@ -232,55 +226,45 @@ function buildMonotonicTierCube(grid) {
   return combos;
 }
 
+function freezeTierPreset(tier) {
+  if (tier == null) return null;
+  return Object.freeze({ ...tier });
+}
+
+function freezeTierPresetList(tiers) {
+  if (tiers == null) return null;
+  return Object.freeze(tiers.map(freezeTierPreset));
+}
+
+function buildGridPhaseFromConfig(phaseConfig) {
+  const tierPresets = Object.prototype.hasOwnProperty.call(phaseConfig, 'tierGrid')
+    ? buildMonotonicTierCube(phaseConfig.tierGrid)
+    : phaseConfig.tierPresets;
+
+  return Object.freeze({
+    tierPresets: freezeTierPresetList(tierPresets),
+    confidence: Object.freeze([...phaseConfig.confidence]),
+  });
+}
+
+function buildGridFromConfig(config) {
+  const grid = {};
+  for (const [phase, phaseConfig] of Object.entries(config.grid)) {
+    grid[phase] = buildGridPhaseFromConfig(phaseConfig);
+  }
+  return Object.freeze(grid);
+}
+
 // ===================================================================
 // MATRIX DIMENSIONS - The search space
 // ===================================================================
 
-// Strategies that have validated walk-forward results
-const VALIDATED_STRATEGIES = ['RSI', 'EMASMACrossover', 'MADynamicSR', 'LiquiditySweep', 'SmartMoneySweep'];
-
-// All registered strategies (for exploratory sweeps)
-const ALL_STRATEGIES = [
+const VALIDATED_STRATEGIES = Object.freeze([...MATRIX_SWEEP_CONFIG.validatedStrategies]);
+const ALL_STRATEGIES = Object.freeze([
   ...VALIDATED_STRATEGIES,
-  'MultiTimeframe', 'OGZTPO', 'OpeningRangeBreakout', 'CandlePattern',
-  'NoWickImbalance', 'BreakRetest',
-];
-
-const GRID = {
-  // Full grid: Tier targets x Confidence.
-  // STOP_LOSS_PERCENT/TAKE_PROFIT_PERCENT are locked by TradingConfig.exitContracts
-  // and are not emitted as sweep env overrides.
-  full: {
-    tierPresets: [
-      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
-      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
-      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
-      { t1: 0.015, t2: 0.020, t3: 0.030, label: 'ultra-wide' },
-    ],
-    confidence: [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75],
-  },
-  // Quick sanity check (reduced grid)
-  quick: {
-    tierPresets: [
-      { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
-      { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
-      { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
-    ],
-    confidence: [0.40, 0.55, 0.70],
-  },
-  // Exit-target phase (locked confidence, sweep strict-monotonic tier cube).
-  // SL/TP env overrides are not honored for locked strategy contracts, so this phase
-  // sweeps only the tier target knobs MaxProfitManager actually reads.
-  exits: {
-    tierPresets: buildMonotonicTierCube([0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275]),
-    confidence: [0.60],  // Locked at current validated value
-  },
-  // Confidence-only phase (locked exits at current best per strategy)
-  conf: {
-    tierPresets: null,  // Uses current MPM defaults
-    confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
-  },
-};
+  ...MATRIX_SWEEP_CONFIG.exploratoryStrategies,
+]);
+const GRID = buildGridFromConfig(MATRIX_SWEEP_CONFIG);
 
 // Locked exits per strategy — pulled from canonical source TradingConfig.exitContracts
 // (DEC-013: contracts are sealed with _validated markers). Previously this was a hardcoded
@@ -292,7 +276,7 @@ const GRID = {
 // TradingConfig stores stopLossPercent as negative (e.g. -0.5 = "stop 0.5% below entry for long").
 // Matrix-sweep records the locked absolute value as metadata only; it does not emit
 // STOP_LOSS_PERCENT because locked exitContracts own strategy risk.
-const { BASE_CONFIG } = require('../core/TradingConfig.js');
+const { BASE_CONFIG } = TradingConfig;
 function getLockedSL(strat) {
   const contract = BASE_CONFIG.exitContracts[strat] || BASE_CONFIG.exitContracts.default;
   return Math.abs(contract.stopLossPercent);
@@ -814,7 +798,7 @@ async function runMatrix(configs, dataFile, stockMode, soloStrategy, phase, prof
 
 async function main() {
   var args = process.argv.slice(2);
-  var dataFile = 'tuning/tsla-15m-2y.json';
+  var dataFile = DEFAULT_DATA;
   var stockMode = false;
   var phase = 'full';       // full | exits | conf | quick
   var soloStrategy = null;  // null = all validated strategies
@@ -825,11 +809,11 @@ async function main() {
     if (args[i] === '--data' && args[i + 1]) {
       var val = args[++i].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i];
-      if (STOCK_TICKERS.indexOf(val) !== -1) stockMode = true;
+      if (isStockTickerShortcut(val)) stockMode = true;
     } else if (args[i].indexOf('--data=') === 0) {
       var dval = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[dval] || args[i].split('=')[1];
-      if (STOCK_TICKERS.indexOf(dval) !== -1) stockMode = true;
+      if (isStockTickerShortcut(dval)) stockMode = true;
     } else if (args[i] === '--phase' && args[i + 1]) {
       phase = args[++i];
     } else if (args[i].indexOf('--phase=') === 0) {
@@ -857,7 +841,7 @@ async function main() {
     } else if (DATA_SHORTCUTS[args[i] ? args[i].toLowerCase() : '']) {
       var key = args[i].toLowerCase();
       dataFile = DATA_SHORTCUTS[key];
-      if (STOCK_TICKERS.indexOf(key) !== -1) stockMode = true;
+      if (isStockTickerShortcut(key)) stockMode = true;
     } else if (args[i] === '--help') {
       console.log('\nOGZPrime Matrix Sweep Backtester');
       console.log('================================\n');
@@ -948,6 +932,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  DEFAULT_DATA,
   DATA_SHORTCUTS,
   STOCK_TICKERS,
   VALIDATED_STRATEGIES,

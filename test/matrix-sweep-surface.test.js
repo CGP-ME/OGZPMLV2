@@ -4,13 +4,17 @@ const fs = require('fs');
 const path = require('path');
 
 const {
+  DEFAULT_DATA,
   DATA_SHORTCUTS,
+  STOCK_TICKERS,
+  VALIDATED_STRATEGIES,
   ALL_STRATEGIES,
   GRID,
   usesStructuralExits,
   filterStrategiesForPhase,
   generateMatrix,
   getDataLabel,
+  buildMonotonicTierCube,
   parseOutput,
   tryReadReport,
   isCleanParsedResult,
@@ -24,7 +28,8 @@ const {
 const {
   PROFILE_FORBIDDEN_ENV_KEYS,
 } = require('../tools/tuning-profiles');
-const { BASE_CONFIG } = require('../core/TradingConfig');
+const TradingConfig = require('../core/TradingConfig');
+const { BASE_CONFIG } = TradingConfig;
 
 describe('matrix-sweep runnable surface', () => {
   function writeWorkerReport(projectRoot, tag, report) {
@@ -46,8 +51,45 @@ describe('matrix-sweep runnable surface', () => {
   }
 
   test('tsla shortcut uses the current stock eval baseline', () => {
-    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-2y.json');
+    const matrixConfig = TradingConfig.getMatrixSweepConfig();
+
+    expect(DEFAULT_DATA).toBe(matrixConfig.defaultData);
+    expect(DATA_SHORTCUTS.tsla).toBe(matrixConfig.defaultData);
     expect(getDataLabel(DATA_SHORTCUTS.tsla)).toBe('tsla-2y');
+  });
+
+  test('matrix sweep surface is owned by TradingConfig and read-only', () => {
+    const matrixConfig = TradingConfig.getMatrixSweepConfig();
+
+    expect(DATA_SHORTCUTS).toEqual(matrixConfig.dataShortcuts);
+    expect(STOCK_TICKERS).toEqual(matrixConfig.stockTickers);
+    expect(VALIDATED_STRATEGIES).toEqual(matrixConfig.validatedStrategies);
+    expect(ALL_STRATEGIES).toEqual([
+      ...matrixConfig.validatedStrategies,
+      ...matrixConfig.exploratoryStrategies,
+    ]);
+    expect(GRID.full.confidence).toEqual(matrixConfig.grid.full.confidence);
+    expect(GRID.quick.tierPresets).toEqual(matrixConfig.grid.quick.tierPresets);
+    expect(GRID.conf.tierPresets).toBeNull();
+    expect(GRID.conf.confidence).toEqual(matrixConfig.grid.conf.confidence);
+    expect(GRID.exits.confidence).toEqual(matrixConfig.grid.exits.confidence);
+    expect(GRID.exits.tierPresets).toEqual(buildMonotonicTierCube(matrixConfig.grid.exits.tierGrid));
+
+    expect(Object.isFrozen(DATA_SHORTCUTS)).toBe(true);
+    expect(Object.isFrozen(STOCK_TICKERS)).toBe(true);
+    expect(Object.isFrozen(VALIDATED_STRATEGIES)).toBe(true);
+    expect(Object.isFrozen(ALL_STRATEGIES)).toBe(true);
+    expect(Object.isFrozen(GRID)).toBe(true);
+    expect(Object.isFrozen(GRID.full)).toBe(true);
+    expect(Object.isFrozen(GRID.full.tierPresets)).toBe(true);
+    expect(Object.isFrozen(GRID.full.tierPresets[0])).toBe(true);
+
+    expect(() => {
+      GRID.full.tierPresets[0].t1 = 0.99;
+    }).toThrow(TypeError);
+    expect(() => {
+      GRID.full.confidence.push(0.99);
+    }).toThrow(TypeError);
   });
 
   test('exploratory roster excludes MarketRegime because it is a regime filter, not a solo strategy', () => {

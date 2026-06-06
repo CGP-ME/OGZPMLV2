@@ -1071,6 +1071,80 @@ const BASE_CONFIG = {
   }),
 
   // =========================================================================
+  // MATRIX SWEEP RUNNER CONFIG
+  // =========================================================================
+  matrixSweep: deepFreezePlain({
+    defaultData: 'tuning/tsla-15m-2y.json',
+    dataShortcuts: {
+      tsla: 'tuning/tsla-15m-2y.json',
+      'tsla-train': 'tuning/tsla-15m-train.json',
+      'tsla-test': 'tuning/tsla-15m-test.json',
+      'tsla-unseen': 'tuning/tsla-15m-unseen.json',
+      spy: 'tuning/spy-15m-2y.json',
+      qqq: 'tuning/qqq-15m-2y.json',
+      nvda: 'tuning/nvda-15m-2y.json',
+      riot: 'tuning/riot-15m-2y.json',
+      mara: 'tuning/mara-15m-2y.json',
+      coin: 'tuning/coin-15m-2y.json',
+      btc: 'data/polygon-btc-1y.json',
+    },
+    stockTickers: [
+      'tsla',
+      'spy',
+      'qqq',
+      'nvda',
+      'riot',
+      'mara',
+      'coin',
+      'tsla-train',
+      'tsla-test',
+      'tsla-unseen',
+    ],
+    validatedStrategies: [
+      'RSI',
+      'EMASMACrossover',
+      'MADynamicSR',
+      'LiquiditySweep',
+      'SmartMoneySweep',
+    ],
+    exploratoryStrategies: [
+      'MultiTimeframe',
+      'OGZTPO',
+      'OpeningRangeBreakout',
+      'CandlePattern',
+      'NoWickImbalance',
+      'BreakRetest',
+    ],
+    grid: {
+      full: {
+        tierPresets: [
+          { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
+          { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
+          { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
+          { t1: 0.015, t2: 0.020, t3: 0.030, label: 'ultra-wide' },
+        ],
+        confidence: [0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75],
+      },
+      quick: {
+        tierPresets: [
+          { t1: 0.005, t2: 0.010, t3: 0.015, label: 'tight' },
+          { t1: 0.007, t2: 0.010, t3: 0.015, label: 'default' },
+          { t1: 0.010, t2: 0.015, t3: 0.020, label: 'wide' },
+        ],
+        confidence: [0.40, 0.55, 0.70],
+      },
+      exits: {
+        tierGrid: [0.005, 0.0075, 0.010, 0.0125, 0.015, 0.0175, 0.020, 0.0225, 0.025, 0.0275],
+        confidence: [0.60],
+      },
+      conf: {
+        tierPresets: null,
+        confidence: [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80],
+      },
+    },
+  }),
+
+  // =========================================================================
   // TUNING PROFILES (single source for backtest/runtime profile tunables)
   // =========================================================================
   tuningProfiles: {
@@ -1422,6 +1496,10 @@ class TradingConfig {
 
   static getParallelBacktestConfig() {
     return deepFreezePlain(clonePlain(BASE_CONFIG.parallelBacktest));
+  }
+
+  static getMatrixSweepConfig() {
+    return deepFreezePlain(clonePlain(BASE_CONFIG.matrixSweep));
   }
 
   static getTuningProfileConfigPaths(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {
