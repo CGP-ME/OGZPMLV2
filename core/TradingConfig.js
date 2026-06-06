@@ -958,7 +958,16 @@ class TradingConfig {
    * Get trading profile
    */
   static getProfile(profileName) {
-    return BASE_CONFIG.profiles[profileName] || BASE_CONFIG.profiles.balanced;
+    const normalized = typeof profileName === 'string' ? profileName.trim() : '';
+    const profile = normalized ? BASE_CONFIG.profiles[normalized] : undefined;
+
+    if (!profile) {
+      throw new Error(
+        `[TradingConfig] Unknown trading profile '${profileName}'. Available: ${Object.keys(BASE_CONFIG.profiles).join(', ')}`
+      );
+    }
+
+    return profile;
   }
 
   /**

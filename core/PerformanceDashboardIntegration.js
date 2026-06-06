@@ -14,6 +14,8 @@ const PerformanceValidator = require('./PerformanceValidator');
 // Phase 2 REWRITE: TradingProfileManager deleted - profiles now in TradingConfig
 // CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
 
+const RUNTIME_PROFILE_DISABLED_REASON = 'runtime_profile_switch_not_wired';
+
 class PerformanceDashboardIntegration extends EventEmitter {
   constructor(config = {}) {
     super();
@@ -21,10 +23,16 @@ class PerformanceDashboardIntegration extends EventEmitter {
     this.config = {
       updateInterval: config.updateInterval || 5000, // 5 second updates
       enableVisualizations: config.enableVisualizations !== false,
-      enableProfileTracking: config.enableProfileTracking !== false,
       enableSafetyTracking: false, // CHANGE 2025-12-11: Disabled - TradingSafetyNet doesn't exist
-      ...config
+      ...config,
+      enableProfileTracking: config.enableProfileTracking === true
     };
+
+    if (this.config.enableProfileTracking) {
+      throw new Error(
+        `[PerformanceDashboardIntegration] Profile tracking is disabled: ${RUNTIME_PROFILE_DISABLED_REASON}`
+      );
+    }
     
     // Initialize all performance modules
     this.visualizer = new PerformanceVisualizer({
@@ -34,9 +42,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
     });
     
     this.validator = new PerformanceValidator();
-
-    // Phase 2 REWRITE: TradingProfileManager deleted - profiles now in TradingConfig
-    this.profileManager = null;
 
     // CHANGE 2025-12-11: TradingSafetyNet commented out - module doesn't exist
     // this.safetyNet = new TradingSafetyNet({
@@ -74,11 +79,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
       // Update validator
       this.validator.recordTrade(tradeData);
       
-      // Update profile manager
-      if (this.config.enableProfileTracking) {
-        this.profileManager.trackPerformance(tradeData);
-      }
-      
       // Update safety net
       if (this.config.enableSafetyTracking) {
         this.safetyNet.updateBalance(currentBalance);
@@ -100,14 +100,6 @@ class PerformanceDashboardIntegration extends EventEmitter {
     try {
       // Get performance metrics
       const performanceReport = this.validator.getPerformanceReport();
-      
-      // Get profile performance
-      const profilePerformance = this.profileManager?.getPerformanceStats?.() || {
-        activeProfile: 'default',
-        trades: 0,
-        winRate: 0,
-        totalPnL: 0
-      };
       
       // Get safety metrics
       const safetyMetrics = this.safetyNet?.getMetrics?.() || {
@@ -139,11 +131,7 @@ class PerformanceDashboardIntegration extends EventEmitter {
           components: performanceReport.components
         },
         
-        profiles: {
-          activeProfile: this.profileManager?.activeProfile?.name || 'default',
-          profileStats: profilePerformance,
-          availableProfiles: this.profileManager?.profiles ? Object.keys(this.profileManager.profiles) : ['default']
-        },
+        profiles: this.getRuntimeProfileStatus(),
         
         safety: {
           emergencyStop: safetyMetrics.emergencyStop,
@@ -174,6 +162,16 @@ class PerformanceDashboardIntegration extends EventEmitter {
       console.error('❌ Error getting live metrics:', error);
       return this.liveMetrics; // Return last known good state
     }
+  }
+
+  getRuntimeProfileStatus() {
+    return {
+      enabled: false,
+      reason: RUNTIME_PROFILE_DISABLED_REASON,
+      activeProfile: null,
+      availableProfiles: [],
+      profileStats: null
+    };
   }
   
   /**
@@ -242,7 +240,7 @@ class PerformanceDashboardIntegration extends EventEmitter {
   getDetailedReport() {
     return {
       performance: this.validator.getPerformanceReport(),
-      profiles: this.profileManager.getDetailedStats(),
+      profiles: this.getRuntimeProfileStatus(),
       safety: this.safetyNet.getDetailedMetrics(),
       visualizations: this.visualizer.getDetailedMetrics()
     };
@@ -259,13 +257,16 @@ class PerformanceDashboardIntegration extends EventEmitter {
   }
   
   /**
-   * 🔧 SWITCH PROFILE: Change trading profile
+   * SWITCH PROFILE: Change trading profile
    */
   switchProfile(profileName) {
-    if (this.config.enableProfileTracking) {
-      return this.profileManager.switchProfile(profileName);
-    }
-    return false;
+    const requestedProfile = typeof profileName === 'string' && profileName.trim()
+      ? profileName.trim()
+      : 'unknown';
+
+    throw new Error(
+      `[PerformanceDashboardIntegration] Runtime profile switch rejected for '${requestedProfile}': ${RUNTIME_PROFILE_DISABLED_REASON}`
+    );
   }
 }
 

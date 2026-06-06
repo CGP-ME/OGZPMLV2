@@ -39,6 +39,30 @@ class WebSocketManager {
     return false;
   }
 
+  rejectDashboardProfileCommand(command, profile) {
+    const normalizedCommand = typeof command === 'string' && command.trim()
+      ? command.trim()
+      : 'unknown';
+    const requestedProfile = typeof profile === 'string' && profile.trim()
+      ? profile.trim()
+      : null;
+    const reason = 'runtime_profile_switch_not_wired';
+
+    console.error(`[WebSocketManager] Rejecting dashboard command ${normalizedCommand}: ${reason}`);
+
+    if (this.ctx.dashboardWs && this.ctx.dashboardWs.readyState === WebSocket.OPEN) {
+      this.ctx.dashboardWs.send(JSON.stringify({
+        type: 'command_rejected',
+        command: normalizedCommand,
+        profile: requestedProfile,
+        reason,
+        message: 'Runtime profile switching is disabled until a flat-state profile owner safely applies and verifies all affected tunables.'
+      }));
+    }
+
+    return false;
+  }
+
   /**
    * Initialize Dashboard WebSocket connection (Change 528)
    * OPTIONAL - only connects if WS_HOST is set
@@ -186,34 +210,20 @@ class WebSocketManager {
           if (msg.type === 'command') {
             console.log('[Dashboard] command received:', msg.command);
 
-            // Profile switching (manual only - does NOT affect confidence)
+            // Profile switching is disabled until a runtime owner can prove
+            // flat-state safety and apply all affected tunables atomically.
             if (msg.command === 'switch_profile' && msg.profile) {
-              const success = this.ctx.profileManager.setActiveProfile(msg.profile);
-              if (success) {
-                // Profile is for reference only - does not override env vars
-                // Send confirmation to dashboard
-                this.ctx.dashboardWs.send(JSON.stringify({
-                  type: 'profile_switched',
-                  profile: msg.profile,
-                  settings: this.ctx.profileManager.getActiveProfile(),
-                  note: 'Profile for reference only - trading uses env vars'
-                }));
-              }
+              this.rejectDashboardProfileCommand(msg.command, msg.profile);
             }
 
             // Get all profiles
             else if (msg.command === 'get_profiles') {
-              this.ctx.dashboardWs.send(JSON.stringify({
-                type: 'profiles_list',
-                profiles: this.ctx.profileManager.getAllProfiles(),
-                active: this.ctx.profileManager.getActiveProfile().name
-              }));
+              this.rejectDashboardProfileCommand(msg.command);
             }
 
             // Dynamic confidence adjustment
             else if (msg.command === 'set_confidence' && msg.confidence) {
-              this.ctx.profileManager.setDynamicConfidence(msg.confidence);
-              // Phase 4 REWRITE: tradingBrain deleted - profileManager handles confidence
+              this.rejectDashboardProfileCommand(msg.command);
             }
 
             // PAUSE TRADING - Manual safety stop from dashboard
