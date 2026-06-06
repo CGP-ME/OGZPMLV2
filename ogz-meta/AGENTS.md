@@ -251,6 +251,11 @@ Pipeline order:
 
 ## WebSocket And Dashboard Rules
 - All dashboard WebSocket URLs must use `/ws`.
+- Public dashboard HTML must never carry `WEBSOCKET_AUTH_TOKEN`; do not inject long-lived runtime secrets into `<meta name="ws-token">`, inline scripts, templates, docs, examples, or backup HTML.
+- Dashboard HTML that can reach browser auth paths must be served with `Cache-Control: no-store` end to end. Verify the public hostname response, not just Express origin code.
+- Browser dashboard auth remains fail-closed until a gated session/ticket layer lands: empty `ws-token` metadata must not be replaced with a default or fallback secret.
+- Before claiming dashboard-token containment, run `npm run scan:secrets`, `npm run test:dashboard-token`, and focused dashboard WebSocket tests, then verify prior exposed tokens are rejected without printing token values.
+- Burned dashboard-token literals belong only as SHA-256 fingerprints under `ogz-meta/security/`; never commit the literal token value, even if it is dead.
 - WebSocket clients must auto-reconnect.
 - Do not block the main loop on disconnect.
 - Handle partial data gracefully.

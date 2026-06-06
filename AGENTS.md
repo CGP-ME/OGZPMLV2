@@ -46,6 +46,12 @@ does not match current doctrine.
 - Do not stage loose ledger/intake/proposal/backup piles, public backup files,
   or proof-track-record artifacts unless Trey explicitly tasks that cleanup.
   Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17`.
+- Public dashboard HTML must never carry `WEBSOCKET_AUTH_TOKEN` or any long-lived
+  dashboard WebSocket secret. Dashboard HTML must be no-store on the public
+  hostname, missing token config must fail closed, and dashboard-token containment
+  requires `npm run scan:secrets`, `npm run test:dashboard-token`, focused tests,
+  and Mercury. Source:
+  `ogz-meta/sessions/session-2026-06-06-dashboard-ws-token-containment.md`.
 - When Trey approves a commit, treat commit and push as paired unless he says
   local-only or no-push. This does not authorize staging, committing, or pushing
   without approval. Source:

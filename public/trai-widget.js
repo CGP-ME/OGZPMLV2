@@ -384,8 +384,8 @@
 
         // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime token
         // injection. See public/js/websocket.js for the matching pattern.
-        // Token comes from <meta name="ws-token"> (server-injectable) or
-        // window.OGZ_DASHBOARD_TOKEN (manual). Empty → server-side reject.
+        // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Empty token fails
+        // closed at the server until gated session/ticket auth lands.
         const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
         const authToken = (metaToken && metaToken !== '') ? metaToken
             : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');

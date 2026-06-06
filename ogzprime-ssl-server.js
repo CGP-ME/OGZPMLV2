@@ -72,14 +72,10 @@ function normalizeDashboardSymbol(symbol) {
 // Middleware
 app.use(express.json());
 
-// CHANGE 2026-04-30: Wire server-side WS-token injection per Wolf
-// CC-SPEC-POST-PHASE3 Commit 7's "OPERATOR ACTIONS REQUIRED" step 3.
-// The dashboard frontend (public/js/websocket.js, public/trai-widget.js)
-// reads its WS auth token from <meta name="ws-token" content="...">.
-// We inject the token from WEBSOCKET_AUTH_TOKEN env at request time so
-// the static HTML on disk never carries the secret. Read the template
-// from disk on each dashboard request so frontend drops become visible
-// without a dashboard server restart.
+// Dashboard HTML is public. It must never receive WEBSOCKET_AUTH_TOKEN.
+// Read templates from disk on each request so frontend drops become visible
+// without a dashboard server restart, and scrub any stale ws-token content
+// before sending the page.
 const dashboardHtmlPath = path.join(__dirname, 'public', 'unified-dashboard.html');
 const wsTokenMetaPattern = /<meta\s+name=["']ws-token["']\s+content=["'][^"']*["']\s*\/?>/;
 
@@ -92,38 +88,25 @@ function loadDashboardTemplate(filePath, label) {
   }
 }
 
-function injectDashboardToken(templateHtml, label) {
-  const token = process.env.WEBSOCKET_AUTH_TOKEN;
-  if (!token) {
-    console.error(`[ssl-server] WEBSOCKET_AUTH_TOKEN not set - refusing to serve ${label}.`);
-    return null;
-  }
-  if (!wsTokenMetaPattern.test(templateHtml)) {
-    console.error(`[ssl-server] ${label} missing ws-token meta tag; refusing to serve dashboard without token injection point.`);
-    return null;
-  }
-
+function scrubDashboardToken(templateHtml) {
   return templateHtml.replace(
     wsTokenMetaPattern,
-    () => `<meta name="ws-token" content="${token}">`
+    () => '<meta name="ws-token" content="">'
   );
 }
 
-function serveDashboardTemplateWithToken(req, res, filePath, label, unavailableMessage) {
+function serveDashboardTemplate(req, res, filePath, label, unavailableMessage) {
   const templateHtml = loadDashboardTemplate(filePath, label);
   if (!templateHtml) {
     return res.status(500).send(unavailableMessage);
   }
-  const html = injectDashboardToken(templateHtml, label);
-  if (!html) {
-    return res.status(500).send(`${label} websocket token injection failed.`);
-  }
+  const html = scrubDashboardToken(templateHtml);
   res.set('Cache-Control', 'no-store');
   res.type('html').send(html);
 }
 
-function serveDashboardWithToken(req, res) {
-  return serveDashboardTemplateWithToken(
+function serveDashboard(req, res) {
+  return serveDashboardTemplate(
     req,
     res,
     dashboardHtmlPath,
@@ -131,14 +114,11 @@ function serveDashboardWithToken(req, res) {
     'Dashboard HTML unavailable - current disk template could not be loaded.'
   );
 }
-app.get(['/unified-dashboard.html', '/unified-dashboard.html/'], serveDashboardWithToken);
+app.get(['/unified-dashboard.html', '/unified-dashboard.html/'], serveDashboard);
 
-// CHANGE 2026-05-07: v2 token-injection mirrors v1 above. Same env var,
-// same regex, separate cache for the v2 template. Ship cutover from v1 to
-// v2 routes whenever v2 is validated end-to-end.
 const dashboardV2HtmlPath = path.join(__dirname, 'public', 'unified-dashboard-v2.html');
-function serveDashboardV2WithToken(req, res) {
-  return serveDashboardTemplateWithToken(
+function serveDashboardV2(req, res) {
+  return serveDashboardTemplate(
     req,
     res,
     dashboardV2HtmlPath,
@@ -146,9 +126,9 @@ function serveDashboardV2WithToken(req, res) {
     'Dashboard v2 HTML unavailable - current disk template could not be loaded.'
   );
 }
-app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDashboardV2WithToken);
+app.get(['/unified-dashboard-v2.html', '/unified-dashboard-v2.html/'], serveDashboardV2);
 
-app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2WithToken);
+app.get(['/', '/index.html', '/index.html/', '/unified-dashboard-legacy.html', '/unified-dashboard-legacy.html/'], serveDashboardV2);
 
 function denyStaticBackup(req, res) {
   res.status(404).type('text').send('Not found');
@@ -1699,7 +1679,16 @@ wss.on('connection', (ws, req) => {
 
       // SECURITY: Handle authentication
       if (data.type === 'auth') {
-        const validToken = process.env.WEBSOCKET_AUTH_TOKEN || 'CHANGE_ME_IN_PRODUCTION';
+        const validToken = process.env.WEBSOCKET_AUTH_TOKEN;
+        if (!validToken) {
+          console.error('[AUTH] WEBSOCKET_AUTH_TOKEN not set - rejecting WebSocket authentication.');
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'WebSocket authentication unavailable'
+          }));
+          ws.close(1011, 'Authentication unavailable');
+          return;
+        }
 
         if (data.token === validToken) {
           ws.authenticated = true;

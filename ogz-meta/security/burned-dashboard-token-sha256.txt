@@ -1,0 +1,4 @@
+# SHA-256 fingerprints of known-burned dashboard WebSocket token literals.
+# Store hashes only. Never store the token literal here.
+305ff5802dcacc952a22a17ec96851655f3c7fc70b25d9da64bf62e11c154c5e
+e075e6e265c44ee9cb236fe859d9730b42ee3a02523202abb393a100062885dc

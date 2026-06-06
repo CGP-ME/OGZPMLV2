@@ -27,9 +27,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- WS auth token. Server-injected at request time.
-         Empty placeholder here is intentional — static file MUST NOT carry the token.
-         See public/js/websocket.js for token resolution priority. -->
+    <!-- Empty WS-token placeholder. Public dashboard HTML MUST NOT carry
+         WEBSOCKET_AUTH_TOKEN; real auth belongs in a gated ticket/session flow. -->
     <meta name="ws-token" content="">
 
     <title>OGZPrime Unified Dashboard v2</title>

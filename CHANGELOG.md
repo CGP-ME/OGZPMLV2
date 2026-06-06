@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard WebSocket Token Containment (2026-06-06)
+
+- Removed server-side `WEBSOCKET_AUTH_TOKEN` injection from public dashboard HTML and changed dashboard templates to scrub `ws-token` meta content to empty before serving.
+- Removed `CHANGE_ME_IN_PRODUCTION` WebSocket auth fallbacks from the dashboard server and bot client so missing auth configuration fails closed instead of accepting or sending a default token.
+- Rotated the runtime dashboard WebSocket token, restarted `ogz-websocket` and `ogz-prime-v2`, and verified the previously exposed token and the historical `.env.example` token-like value are rejected by the live `/ws` endpoint.
+- Hardened active nginx dashboard routes with `Cache-Control: no-store`, `Pragma: no-cache`, and `Expires: 0`, then verified bare public dashboard URLs return empty or absent `ws-token` metadata through `https://ogzprime.org`.
+- Added a streamed repo-wide dashboard-token scanner, burned-token SHA-256 denylist, live dashboard containment smoke check, focused Jest regression, and CI workflow scanner gate for pushes and pull requests targeting `main`/`master`.
+- Scrubbed tracked burned dashboard-token literals from ledger/reference/backup files and replaced the tracked example token with a required runtime-secret placeholder.
+- Documented the remaining prevention gap: GitHub reports `main` and `master` are not branch-protected, so direct pushes can bypass required checks until branch protection is explicitly enabled.
+
 ### TTP Manual Earnings Status Gate (2026-06-06)
 
 - Added strict `TTP_EARNINGS_STATUS_JSON` config validation and manual status consumption in `EvalRuleEngine`, so TTP eval entries require an explicit ET-date/symbol earnings status source instead of assuming no earnings or failing later because no provider is wired.

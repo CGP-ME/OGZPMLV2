@@ -166,13 +166,9 @@
             currentSocket.onopen = () => {
                 if (currentSocket !== ws) return;
                 console.log('[Socket] Connected. Authenticating...');
-                // Wolf CC-SPEC-POST-PHASE3 Commit 7 (2026-04-30): runtime
-                // token injection. Token is read from <meta name="ws-token">
-                // (server-side injectable via custom route handler) or from
-                // window.OGZ_DASHBOARD_TOKEN (set by an inline script tag).
-                // Empty string falls back to no-auth — server will reject
-                // and dashboard surfaces a clear auth-failure error rather
-                // than silently using a leaked literal.
+                // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Until the
+                // gated session/ticket flow lands, an empty token fails closed
+                // at the server instead of silently using a leaked literal.
                 const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
                 const token = (metaToken && metaToken !== '') ? metaToken
                     : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');

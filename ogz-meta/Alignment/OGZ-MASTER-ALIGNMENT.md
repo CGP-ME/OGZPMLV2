@@ -8,6 +8,8 @@
 
 **Maintenance note 2026-05-30:** Current P0 enforcement is the executable gate in `ogz-meta/gates/multi-runtime-gate-runner.js` via `ogz-meta/anchor-runner.js`. The current full anchor is `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`; older `$13213.042341608163` references are historical/modifiers-off anchors unless the executable gate is explicitly rebaselined.
 
+**Maintenance note 2026-06-06:** `ogz-meta/sessions/session-2026-06-06-dashboard-ws-token-containment.md` supersedes older dashboard-token injection guidance. Public dashboard HTML must never carry `WEBSOCKET_AUTH_TOKEN`; dashboard routes scrub `ws-token` metadata to empty, auth secrets fail closed without defaults, dashboard HTML must be `no-store` on the public hostname, and containment proof now includes `npm run scan:secrets`, `npm run test:dashboard-token`, focused WebSocket tests, and Mercury. GitHub branch protection remains an operator decision: CI scans pushes/PRs for `main`/`master`, but unprotected direct pushes can still bypass prevention.
+
 ---
 
 # STOP. READ THIS BEFORE YOU DO ANYTHING ELSE.

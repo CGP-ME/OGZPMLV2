@@ -3,11 +3,13 @@ name: OGZPrime CI
 on:
   push:
     branches:
+      - main
+      - master
       - "mission/**"
       - "feature/**"
       - dev
   pull_request:
-    branches: [ master ]
+    branches: [ main, master ]
 
 jobs:
   ci:
@@ -38,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci || npm install
+
+      - name: Scan for dashboard token secrets
+        run: npm run scan:secrets
 
       - name: Run smoke test
         run: npm run test:smoke

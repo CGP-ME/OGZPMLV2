@@ -3432,7 +3432,7 @@
                 // Auth
                 ws.send(JSON.stringify({
                     type: 'auth',
-                    token: '39ccfbc54660e6075f07730285badebbc40d805748c8eeb7d7f2e32d15ae1c62'
+                    token: '[REDACTED]'
                 }));
 
                 // Start heartbeat to keep connection alive

@@ -15,17 +15,19 @@
     "debug": "node enhanced-safety-diagnostics.js",
     "test": "jest --runInBand",
     "test:smoke": "node scripts/smoke-test.js",
+    "test:dashboard-token": "node scripts/check-dashboard-token-containment.js",
     "test:patterns": "node scripts/test-patterns.js",
     "test:deterministic": "jest test/rsi-deterministic.test.js",
     "test:pine-ta": "npx jest pine-transpiler/__tests__/PineTALib.golden.test.js --runInBand",
     "start:prod": "pm2 start run-empire-v2.js --name ogzprime",
     "telemetry:report": "node scripts/telemetry-report.js",
+    "scan:secrets": "node scripts/scan-secrets.js --tracked",
     "lint:dto": "node scripts/lint-dto.js",
     "scan:dto": "node ogz-meta/ast/scan-dto-violations.js",
     "fix:props": "node ogz-meta/ast/property-to-function.js",
     "baseline": "node tools/generate-baseline.js",
     "regression": "node test/regression/waterfall.js",
-    "ci": "npm run lint:dto && npm run scan:dto && npm test"
+    "ci": "npm run scan:secrets && npm run lint:dto && npm run scan:dto && npm test"
   },
   "keywords": [
     "trading",

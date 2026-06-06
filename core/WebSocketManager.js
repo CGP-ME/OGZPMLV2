@@ -83,9 +83,12 @@ class WebSocketManager {
         this.ctx.lastPongReceived = Date.now(); // CHANGE 2026-01-28: Track pong for heartbeat
 
         // SECURITY (Change 582): Authenticate first before sending any data
-        const authToken = process.env.WEBSOCKET_AUTH_TOKEN || 'CHANGE_ME_IN_PRODUCTION';
-        if (!authToken || authToken === 'CHANGE_ME_IN_PRODUCTION') {
-          console.error('[WebSocketManager] WEBSOCKET_AUTH_TOKEN not set in .env - using default token');
+        const authToken = process.env.WEBSOCKET_AUTH_TOKEN;
+        if (!authToken) {
+          console.error('[WebSocketManager] WEBSOCKET_AUTH_TOKEN not set - closing dashboard WebSocket without authentication.');
+          this.ctx.dashboardWsConnected = false;
+          this.ctx.dashboardWs.close(1011, 'Authentication unavailable');
+          return;
         }
 
         this.ctx.dashboardWs.send(JSON.stringify({
