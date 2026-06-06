@@ -68,6 +68,19 @@ function envBool(key, fallback) {
   return { value: fallback, source: 'default' };
 }
 
+function envJsonObject(key, fallback) {
+  const val = process.env[key];
+  if (val === undefined || val === '') {
+    return { value: fallback, source: 'default' };
+  }
+
+  try {
+    return { value: JSON.parse(val), source: `env:${key}` };
+  } catch (error) {
+    return { value: { __parseError: error.message }, source: `env:${key}` };
+  }
+}
+
 function defaultJournalDataDir(dataDir) {
   const root = dataDir || path.join(process.cwd(), 'data');
   return path.join(root, 'journal');
@@ -238,6 +251,7 @@ function buildConfig() {
           enabled: track('evalRules.ttp.earningsRestriction.enabled', envBool('TTP_EARNINGS_RESTRICTION_ENABLED', true)),
           blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', envBool('TTP_EARNINGS_BLOCK_ENTRIES', true)),
           requireKnownStatus: track('evalRules.ttp.earningsRestriction.requireKnownStatus', envBool('TTP_EARNINGS_REQUIRE_KNOWN_STATUS', true)),
+          manualStatus: track('evalRules.ttp.earningsRestriction.manualStatus', envJsonObject('TTP_EARNINGS_STATUS_JSON', null)),
         },
         consistency: {
           enabled: track('evalRules.ttp.consistency.enabled', envBool('TTP_CONSISTENCY_ENABLED', true)),
@@ -484,6 +498,30 @@ function validate(config) {
     }
     if (ttpEarningsRestriction.requireKnownStatus !== true) {
       errors.push('TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal when TTP eval rules are enabled');
+    }
+    if (ttpEarningsRestriction.requireKnownStatus === true) {
+      const manualStatus = ttpEarningsRestriction.manualStatus;
+      if (!manualStatus || typeof manualStatus !== 'object' || Array.isArray(manualStatus)) {
+        errors.push('TTP_EARNINGS_STATUS_JSON must be configured when known earnings status is required');
+      } else if (manualStatus.__parseError) {
+        errors.push(`TTP_EARNINGS_STATUS_JSON must be valid JSON: ${manualStatus.__parseError}`);
+      } else {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(manualStatus.date || ''))) {
+          errors.push(`TTP_EARNINGS_STATUS_JSON.date must be YYYY-MM-DD, got ${manualStatus.date || '(missing)'}`);
+        }
+        if (!manualStatus.symbols || typeof manualStatus.symbols !== 'object' || Array.isArray(manualStatus.symbols) || Object.keys(manualStatus.symbols).length === 0) {
+          errors.push('TTP_EARNINGS_STATUS_JSON.symbols must be a non-empty object of SYMBOL:boolean entries');
+        } else {
+          for (const [symbol, hasEarningsTonight] of Object.entries(manualStatus.symbols)) {
+            if (!String(symbol || '').trim()) {
+              errors.push('TTP_EARNINGS_STATUS_JSON.symbols contains an empty symbol key');
+            }
+            if (typeof hasEarningsTonight !== 'boolean') {
+              errors.push(`TTP_EARNINGS_STATUS_JSON.symbols.${symbol} must be boolean, got ${typeof hasEarningsTonight}`);
+            }
+          }
+        }
+      }
     }
   }
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpConsistency?.enabled) {

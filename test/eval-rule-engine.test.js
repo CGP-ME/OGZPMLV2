@@ -38,6 +38,10 @@ function config(overrides = {}) {
         enabled: true,
         blockEntries: true,
         requireKnownStatus: true,
+        manualStatus: {
+          date: '2023-11-14',
+          symbols: { TSLA: false },
+        },
         ...overrides.earningsRestriction,
       },
       ...overrides.ttp,
@@ -243,10 +247,19 @@ describe('EvalRuleEngine TTP volume cap', () => {
   });
 
   test('blocks entries when earnings are scheduled tonight', async () => {
-    const engine = makeEngine({ candles: [candle(-60000, 100000)] });
+    const engine = makeEngine({
+      cfg: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-14',
+            symbols: { TSLA: true },
+          },
+        },
+      }),
+      candles: [candle(-60000, 100000)],
+    });
 
     const result = await engine.check(entryPlan({
-      hasEarningsTonight: true,
       orderQuantity: 10,
     }));
 
@@ -255,13 +268,20 @@ describe('EvalRuleEngine TTP volume cap', () => {
       ruleId: 'TTP_EARNINGS_RESTRICTION',
       reason: 'earnings_tonight_no_openings',
       hasEarningsTonight: true,
-      statusSource: 'entryPlan.hasEarningsTonight',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus.TSLA',
       action: 'BLOCK_ORDER',
     })]);
   });
 
-  test('fails closed when earnings status is missing', async () => {
-    const engine = makeEngine({ candles: [candle(-60000, 100000)] });
+  test('fails closed when manual earnings status is missing', async () => {
+    const engine = makeEngine({
+      cfg: config({
+        earningsRestriction: {
+          manualStatus: null,
+        },
+      }),
+      candles: [candle(-60000, 100000)],
+    });
 
     const plan = entryPlan({ orderQuantity: 10 });
     delete plan.hasEarningsTonight;
@@ -270,8 +290,8 @@ describe('EvalRuleEngine TTP volume cap', () => {
     expect(result.allowed).toBe(false);
     expect(result.failedRules).toEqual([expect.objectContaining({
       ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_earnings_status',
-      hasEarningsTonight: null,
+      reason: 'missing_manual_earnings_status',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus',
       action: 'BLOCK_ORDER',
     })]);
   });
@@ -288,15 +308,48 @@ describe('EvalRuleEngine TTP volume cap', () => {
     expect(result.allowed).toBe(false);
     expect(result.failedRules).toEqual([expect.objectContaining({
       ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_earnings_status',
+      reason: 'missing_manual_earnings_status',
       action: 'BLOCK_ORDER',
     })]);
   });
 
-  test('accepts an injected earnings provider as the status source', async () => {
+  test('refuses external earnings provider when manual eval status is missing', async () => {
     const getEarningsStatus = jest.fn(() => ({ hasEarningsTonight: false, source: 'test-provider' }));
     const engine = new EvalRuleEngine({
-      config: config(),
+      config: config({
+        earningsRestriction: {
+          manualStatus: null,
+        },
+      }),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      getEarningsStatus,
+      now: () => BASE_TIME,
+    });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(false);
+    expect(getEarningsStatus).not.toHaveBeenCalled();
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'missing_manual_earnings_status',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus',
+    })]);
+  });
+
+  test('uses manual earnings status config before external provider lookup', async () => {
+    const getEarningsStatus = jest.fn(() => ({ hasEarningsTonight: true, source: 'wrong-provider' }));
+    const engine = new EvalRuleEngine({
+      config: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-14',
+            symbols: { TSLA: false },
+          },
+        },
+      }),
       getCandles: jest.fn(() => [candle(-60000, 100000)]),
       getEarningsStatus,
       now: () => BASE_TIME,
@@ -307,12 +360,126 @@ describe('EvalRuleEngine TTP volume cap', () => {
     const result = await engine.check(plan);
 
     expect(result.allowed).toBe(true);
-    expect(getEarningsStatus).toHaveBeenCalledWith('TSLA', '2023-11-14', expect.objectContaining({ symbol: 'TSLA' }));
+    expect(getEarningsStatus).not.toHaveBeenCalled();
     expect(result.passedRules).toContain('TTP_EARNINGS_RESTRICTION');
     expect(result.inputs).toEqual(expect.objectContaining({
-      statusSource: 'test-provider',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus.TSLA',
       hasEarningsTonight: false,
     }));
+  });
+
+  test('blocks entries when manual earnings status says the symbol has earnings tonight', async () => {
+    const engine = new EvalRuleEngine({
+      config: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-14',
+            symbols: { TSLA: true },
+          },
+        },
+      }),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      now: () => BASE_TIME,
+    });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'earnings_tonight_no_openings',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus.TSLA',
+      hasEarningsTonight: true,
+    })]);
+  });
+
+  test('manual earnings status overrides contradictory entry-plan fields', async () => {
+    const engine = new EvalRuleEngine({
+      config: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-14',
+            symbols: { TSLA: true },
+          },
+        },
+      }),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      now: () => BASE_TIME,
+    });
+
+    const result = await engine.check(entryPlan({
+      hasEarningsTonight: false,
+      earningsTonight: false,
+      earnings: { hasEarningsTonight: false },
+      orderQuantity: 10,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'earnings_tonight_no_openings',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus.TSLA',
+      hasEarningsTonight: true,
+    })]);
+  });
+
+  test('fails closed when manual earnings status is for a different ET date', async () => {
+    const engine = new EvalRuleEngine({
+      config: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-13',
+            symbols: { TSLA: false },
+          },
+        },
+      }),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      now: () => BASE_TIME,
+    });
+
+    const plan = entryPlan({ orderQuantity: 10 });
+    delete plan.hasEarningsTonight;
+    const result = await engine.check(plan);
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'missing_earnings_status',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus',
+      hasEarningsTonight: null,
+    })]);
+  });
+
+  test('stale manual earnings status cannot fall through to entry-plan false fields', async () => {
+    const engine = new EvalRuleEngine({
+      config: config({
+        earningsRestriction: {
+          manualStatus: {
+            date: '2023-11-13',
+            symbols: { TSLA: true },
+          },
+        },
+      }),
+      getCandles: jest.fn(() => [candle(-60000, 100000)]),
+      now: () => BASE_TIME,
+    });
+
+    const result = await engine.check(entryPlan({
+      hasEarningsTonight: false,
+      earningsTonight: false,
+      earnings: { hasEarningsTonight: false },
+      orderQuantity: 10,
+    }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules).toEqual([expect.objectContaining({
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      reason: 'missing_earnings_status',
+      statusSource: 'config.ttp.earningsRestriction.manualStatus',
+      hasEarningsTonight: null,
+    })]);
   });
 
   test('blocks new openings during the TTP liquidation window', async () => {
@@ -336,12 +503,18 @@ describe('EvalRuleEngine TTP volume cap', () => {
 
   test('allows new openings before the TTP liquidation window', async () => {
     const beforeCutoff = new Date('2026-05-22T19:49:00.000Z');
-    const engine = makeEngine({
-      cfg: config({
-        accountLimits: {
-          accountStartOfDayDate: '2026-05-22',
-        },
-      }),
+      const engine = makeEngine({
+        cfg: config({
+          accountLimits: {
+            accountStartOfDayDate: '2026-05-22',
+          },
+          earningsRestriction: {
+            manualStatus: {
+              date: '2026-05-22',
+              symbols: { TSLA: false },
+            },
+          },
+        }),
       candles: [candleFor(beforeCutoff.getTime(), -60000, 100000)],
       now: () => beforeCutoff.getTime(),
     });

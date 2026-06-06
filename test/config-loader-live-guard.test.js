@@ -45,6 +45,7 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
       TTP_EARNINGS_BLOCK_ENTRIES: 'true',
       TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
+      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-05-23","symbols":{"TSLA":false}}',
       TTP_CONSISTENCY_ENABLED: 'true',
       TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
       TTP_PROFIT_TARGET_DOLLARS: '3000',
@@ -180,6 +181,10 @@ describe('ConfigLoader live trading safety guard', () => {
           enabled: true,
           blockEntries: true,
           requireKnownStatus: true,
+          manualStatus: {
+            date: '2026-05-23',
+            symbols: { TSLA: false },
+          },
         }),
         consistency: expect.objectContaining({
           enabled: true,
@@ -362,6 +367,30 @@ describe('ConfigLoader live trading safety guard', () => {
     process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'false';
 
     expect(() => loadConfig()).toThrow(/TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal/);
+  });
+
+  test('rejects missing manual TTP earnings status when known status is required', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    delete process.env.TTP_EARNINGS_STATUS_JSON;
+
+    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON must be configured/);
+  });
+
+  test('rejects malformed manual TTP earnings status JSON', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_EARNINGS_STATUS_JSON = '{bad-json';
+
+    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON must be valid JSON/);
+  });
+
+  test('rejects non-boolean manual TTP earnings symbol values', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.TTP_EARNINGS_STATUS_JSON = '{"date":"2026-05-23","symbols":{"TSLA":"false"}}';
+
+    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON\.symbols\.TSLA must be boolean/);
   });
 
   test('rejects missing TTP profit target when consistency rules are enabled', () => {

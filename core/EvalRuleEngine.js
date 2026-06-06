@@ -164,11 +164,37 @@ class EvalRuleEngine {
       blockEntries: true,
       requireKnownStatus: true,
     };
+    const currentDateET = this.marketCalendar.getNYTimeParts(new Date(this.now())).date;
+    const baseInputs = {
+      ruleId: 'TTP_EARNINGS_RESTRICTION',
+      symbol: entryPlan.symbol,
+      currentDateET,
+    };
     if (cfg.enabled !== true) {
-      return { allowed: true, inputs: { ruleId: 'TTP_EARNINGS_RESTRICTION', enabled: false } };
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_restriction_disabled', {
+        ...baseInputs,
+        enabled: false,
+      });
+    }
+    if (cfg.blockEntries !== true) {
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_block_entries_disabled', {
+        ...baseInputs,
+        blockEntries: cfg.blockEntries,
+      });
+    }
+    if (cfg.requireKnownStatus !== true) {
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'known_earnings_status_required', {
+        ...baseInputs,
+        requireKnownStatus: cfg.requireKnownStatus,
+      });
+    }
+    if (!cfg.manualStatus || typeof cfg.manualStatus !== 'object' || Array.isArray(cfg.manualStatus) || cfg.manualStatus.__parseError) {
+      return this._fail('TTP_EARNINGS_RESTRICTION', 'missing_manual_earnings_status', {
+        ...baseInputs,
+        statusSource: 'config.ttp.earningsRestriction.manualStatus',
+      });
     }
 
-    const currentDateET = this.marketCalendar.getNYTimeParts(new Date(this.now())).date;
     let statusResult;
     try {
       statusResult = await this._resolveEarningsStatus(entryPlan, currentDateET);
@@ -192,9 +218,6 @@ class EvalRuleEngine {
     };
 
     if (statusResult.known !== true) {
-      if (cfg.requireKnownStatus === false) {
-        return { allowed: true, inputs };
-      }
       return this._fail('TTP_EARNINGS_RESTRICTION', 'missing_earnings_status', inputs);
     }
 
@@ -352,6 +375,11 @@ class EvalRuleEngine {
   }
 
   async _resolveEarningsStatus(entryPlan, currentDateET) {
+    const manualStatus = this._resolveManualEarningsStatus(entryPlan.symbol, currentDateET);
+    if (manualStatus) {
+      return manualStatus;
+    }
+
     if (typeof entryPlan.hasEarningsTonight === 'boolean') {
       return {
         known: true,
@@ -396,6 +424,35 @@ class EvalRuleEngine {
     }
 
     return { known: false, hasEarningsTonight: null, source: null };
+  }
+
+  _resolveManualEarningsStatus(symbol, currentDateET) {
+    const manualStatus = this.config.ttp?.earningsRestriction?.manualStatus;
+    if (!manualStatus || typeof manualStatus !== 'object' || Array.isArray(manualStatus)) {
+      return null;
+    }
+
+    const source = 'config.ttp.earningsRestriction.manualStatus';
+    const statusDate = String(manualStatus.date || '').trim();
+    const symbols = manualStatus.symbols;
+    if (statusDate !== currentDateET || !symbols || typeof symbols !== 'object' || Array.isArray(symbols)) {
+      return { known: false, hasEarningsTonight: null, source };
+    }
+
+    const targetSymbol = String(symbol || '').trim().toUpperCase();
+    for (const [configuredSymbol, hasEarningsTonight] of Object.entries(symbols)) {
+      if (String(configuredSymbol || '').trim().toUpperCase() !== targetSymbol) continue;
+      if (typeof hasEarningsTonight !== 'boolean') {
+        return { known: false, hasEarningsTonight: null, source };
+      }
+      return {
+        known: true,
+        hasEarningsTonight,
+        source: `${source}.${String(configuredSymbol).trim().toUpperCase()}`,
+      };
+    }
+
+    return { known: false, hasEarningsTonight: null, source };
   }
 
   _findReferenceCandle(candles, fallbackToMostRecentVolume, maxReferenceAgeMs) {

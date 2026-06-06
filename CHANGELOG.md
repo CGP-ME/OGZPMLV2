@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Manual Earnings Status Gate (2026-06-06)
+
+- Added strict `TTP_EARNINGS_STATUS_JSON` config validation and manual status consumption in `EvalRuleEngine`, so TTP eval entries require an explicit ET-date/symbol earnings status source instead of assuming no earnings or failing later because no provider is wired.
+
 ### TradingLoop Decision Skip Trace Contract (2026-06-06)
 
 - Emitted `DECISION_SKIP` for final hold decisions after strategy evaluation, including structural same-direction/max-position entry blocks and RiskManager entry blocks, so a valid strategy signal cannot disappear from Gate C trace evidence without a no-trade reason.
