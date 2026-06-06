@@ -129,6 +129,10 @@ function freezeTuningProfile(profile) {
   });
 }
 
+function freezeStringMap(values) {
+  return Object.freeze({ ...values });
+}
+
 function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -925,6 +929,43 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // BACKTEST WORKER ENV CONTRACT
+  // =========================================================================
+  backtestWorkerEnv: {
+    canonical: freezeStringMap({
+      EXECUTION_MODE: 'backtest',
+      CANDLE_SOURCE: 'file',
+      BACKTEST_MODE: 'true',
+      BACKTEST_SILENT: 'true',
+      BACKTEST_VERBOSE: 'false',
+      BACKTEST_FAST: 'true',
+      INITIAL_BALANCE: '10000',
+      PAPER_TRADING: 'true',
+      TEST_MODE: 'false',
+      BACKTEST_NO_PATTERN_SAVE: 'true',
+      SKIP_CSV_EXPORT: 'true',
+      ENABLE_DASHBOARD: 'false',
+      SENTRY_DSN: '',
+      NODE_ENV: 'test',
+      DIRECTION_FILTER: 'both',
+      ACCOUNT_DRAWDOWN_BYPASS: 'true',
+      RISK_MANAGER_BYPASS: 'true',
+      EXIT_SYSTEM: 'legacy',
+      FEE_MAKER: '0.0025',
+      FEE_TAKER: '0.0040',
+      FEE_TOTAL_ROUNDTRIP: '0.0065',
+      FEE_SAFETY_BUFFER: '0.001',
+      FEE_SLIPPAGE: '0.0005',
+    }),
+    stockZeroFee: freezeStringMap({
+      FEE_MAKER: '0',
+      FEE_TAKER: '0',
+      FEE_TOTAL_ROUNDTRIP: '0',
+      FEE_SAFETY_BUFFER: '0',
+    }),
+  },
+
+  // =========================================================================
   // TUNING PROFILES (single source for backtest/runtime profile tunables)
   // =========================================================================
   tuningProfiles: {
@@ -936,7 +977,7 @@ const BASE_CONFIG = {
         evidence: [
           '.env:236-269',
           'core/TradingConfig.js tuningProfiles.current-eval',
-          'tools/backtest-worker-env.js canonical worker defaults',
+          'core/TradingConfig.js backtestWorkerEnv.canonical',
         ],
         env: {
           ENABLE_DYNAMIC_SIZING: 'true',
@@ -1264,6 +1305,14 @@ class TradingConfig {
 
   static getTuningProfileDefinitions() {
     return deepFreezePlain(clonePlain(getTuningProfileDefinitions()));
+  }
+
+  static getBacktestWorkerEnvDefaults() {
+    return Object.freeze({ ...BASE_CONFIG.backtestWorkerEnv.canonical });
+  }
+
+  static getBacktestStockZeroFeeEnv() {
+    return Object.freeze({ ...BASE_CONFIG.backtestWorkerEnv.stockZeroFee });
   }
 
   static getTuningProfileConfigPaths(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {

@@ -1,7 +1,10 @@
 'use strict';
 
 const path = require('path');
+const TradingConfig = require('../core/TradingConfig');
 const {
+  CANONICAL_BACKTEST_ENV,
+  STOCK_ZERO_FEE_ENV,
   buildWorkerBaseEnv,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
@@ -78,6 +81,23 @@ describe('backtest worker env contract', () => {
       HOME: '/home/ogz',
       NODE_OPTIONS: '--max-old-space-size=4096',
     });
+  });
+
+  test('canonical worker env values are owned by TradingConfig and exported read-only', () => {
+    expect(CANONICAL_BACKTEST_ENV).toEqual(TradingConfig.getBacktestWorkerEnvDefaults());
+    expect(STOCK_ZERO_FEE_ENV).toEqual(TradingConfig.getBacktestStockZeroFeeEnv());
+    expect(Object.isFrozen(CANONICAL_BACKTEST_ENV)).toBe(true);
+    expect(Object.isFrozen(STOCK_ZERO_FEE_ENV)).toBe(true);
+
+    expect(() => {
+      CANONICAL_BACKTEST_ENV.EXECUTION_MODE = 'live';
+    }).toThrow(TypeError);
+    expect(() => {
+      STOCK_ZERO_FEE_ENV.FEE_MAKER = '0.99';
+    }).toThrow(TypeError);
+
+    expect(TradingConfig.getBacktestWorkerEnvDefaults().EXECUTION_MODE).toBe('backtest');
+    expect(TradingConfig.getBacktestStockZeroFeeEnv().FEE_MAKER).toBe('0');
   });
 
   test('canonical stock worker env preserves explicit direction while blocking other trading drift', () => {

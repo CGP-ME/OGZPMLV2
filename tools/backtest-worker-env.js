@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const TradingConfig = require('../core/TradingConfig');
 const {
   DEFAULT_TUNING_PROFILE,
   resolveTuningProfile,
@@ -26,38 +27,8 @@ const WORKER_ENV_ALLOWLIST = [
   'WINDIR',
 ];
 
-const CANONICAL_BACKTEST_ENV = Object.freeze({
-  EXECUTION_MODE: 'backtest',
-  CANDLE_SOURCE: 'file',
-  BACKTEST_MODE: 'true',
-  BACKTEST_SILENT: 'true',
-  BACKTEST_VERBOSE: 'false',
-  BACKTEST_FAST: 'true',
-  INITIAL_BALANCE: '10000',
-  PAPER_TRADING: 'true',
-  TEST_MODE: 'false',
-  BACKTEST_NO_PATTERN_SAVE: 'true',
-  SKIP_CSV_EXPORT: 'true',
-  ENABLE_DASHBOARD: 'false',
-  SENTRY_DSN: '',
-  NODE_ENV: 'test',
-  DIRECTION_FILTER: 'both',
-  ACCOUNT_DRAWDOWN_BYPASS: 'true',
-  RISK_MANAGER_BYPASS: 'true',
-  EXIT_SYSTEM: 'legacy',
-  FEE_MAKER: '0.0025',
-  FEE_TAKER: '0.0040',
-  FEE_TOTAL_ROUNDTRIP: '0.0065',
-  FEE_SAFETY_BUFFER: '0.001',
-  FEE_SLIPPAGE: '0.0005',
-});
-
-const STOCK_ZERO_FEE_ENV = Object.freeze({
-  FEE_MAKER: '0',
-  FEE_TAKER: '0',
-  FEE_TOTAL_ROUNDTRIP: '0',
-  FEE_SAFETY_BUFFER: '0',
-});
+const CANONICAL_BACKTEST_ENV = TradingConfig.getBacktestWorkerEnvDefaults();
+const STOCK_ZERO_FEE_ENV = TradingConfig.getBacktestStockZeroFeeEnv();
 
 const DIRECTION_FILTER_ALIASES = Object.freeze({
   long: 'long_only',
