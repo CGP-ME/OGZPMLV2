@@ -45,6 +45,107 @@ const envBool = (key, fallback) => {
   return val === 'true' || val === '1';
 };
 
+const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
+  'EXECUTION_MODE',
+  'CANDLE_SOURCE',
+  'BACKTEST_MODE',
+  'TEST_MODE',
+  'BACKTEST_NO_PATTERN_SAVE',
+  'PAPER_TRADING',
+  'NODE_ENV',
+  'STOP_LOSS_PERCENT',
+  'TAKE_PROFIT_PERCENT',
+  'TRAILING_STOP_PERCENT',
+  'TRAILING_ACTIVATION',
+]);
+
+const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
+  ENABLE_DYNAMIC_SIZING: Object.freeze(['features.enableDynamicSizing']),
+  BASE_POSITION_SIZE: Object.freeze(['positionSizing.basePositionSize']),
+  MAX_POSITION_SIZE_PCT: Object.freeze(['positionSizing.maxPositionSize']),
+  BASE_POSITION_PCT: Object.freeze(['entryLogic.sizing.basePositionPercent']),
+  MAX_POSITION_PCT: Object.freeze(['entryLogic.sizing.maxPositionPercent']),
+  ABSOLUTE_POSITION_CAP: Object.freeze(['entryLogic.sizing.absoluteCapPercent']),
+  TIER1_TARGET: Object.freeze(['exits.profitTiers.tier1']),
+  TIER2_TARGET: Object.freeze(['exits.profitTiers.tier2']),
+  TIER3_TARGET: Object.freeze(['exits.profitTiers.tier3']),
+  FINAL_TARGET: Object.freeze(['exits.profitTiers.final']),
+  TIER1_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier1ExitFraction']),
+  TIER2_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier2ExitFraction']),
+  TIER3_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier3ExitFraction']),
+  ACCOUNT_DRAWDOWN_BYPASS: Object.freeze([
+    'risk.accountDrawdownBypass',
+    'exitLogic.safety.accountDrawdownBypass',
+    'universalLimits.accountDrawdownBypass',
+  ]),
+  RISK_MANAGER_BYPASS: Object.freeze(['risk.riskManagerBypass']),
+  EXIT_SYSTEM: Object.freeze(['exits.exitSystem']),
+  FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
+});
+
+const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
+  'ENABLE_DYNAMIC_SIZING',
+  'ACCOUNT_DRAWDOWN_BYPASS',
+  'RISK_MANAGER_BYPASS',
+]));
+
+const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
+  'EXIT_SYSTEM',
+]));
+
+const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
+  'RISK_MANAGER_BYPASS',
+  'EXIT_SYSTEM',
+]));
+
+const PROFILE_SNAPSHOT_MISSING = Symbol('profile_snapshot_missing');
+
+function assertProfileEnvIsHonest(profile) {
+  const forbidden = PROFILE_FORBIDDEN_ENV_KEYS.filter(key => (
+    Object.prototype.hasOwnProperty.call(profile.env || {}, key)
+  ));
+  if (forbidden.length > 0) {
+    throw new Error(
+      `Tuning profile '${profile.name}' includes non-profile env key(s): ${forbidden.join(', ')}. ` +
+      'Runtime mode, pattern-write protection, and locked strategy exit contracts must stay owned by their dedicated layers.'
+    );
+  }
+
+  const unmapped = Object.keys(profile.env || {}).filter(key => !PROFILE_ENV_CONFIG_PATHS[key]);
+  if (unmapped.length > 0) {
+    throw new Error(
+      `Tuning profile '${profile.name}' includes unmapped config key(s): ${unmapped.join(', ')}. ` +
+      'Add an explicit PROFILE_ENV_CONFIG_PATHS mapping before the profile can own the value.'
+    );
+  }
+}
+
+function freezeTuningProfile(profile) {
+  assertProfileEnvIsHonest(profile);
+  return Object.freeze({
+    ...profile,
+    evidence: Object.freeze([...(profile.evidence || [])]),
+    env: Object.freeze({ ...profile.env }),
+  });
+}
+
+function clonePlain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function deepFreezePlain(value) {
+  if (!value || typeof value !== 'object') return value;
+  Object.freeze(value);
+  for (const child of Object.values(value)) {
+    deepFreezePlain(child);
+  }
+  return value;
+}
+
+function sameConfigValue(left, right) {
+  return Object.is(left, right);
+}
+
 // =============================================================================
 // BASE CONFIGURATION - Read from .env with sensible defaults
 // =============================================================================
@@ -74,6 +175,8 @@ const BASE_CONFIG = {
     maxRiskPerTrade: env('MAX_RISK_PER_TRADE', 0.02),           // 2% max risk per trade
     maxDrawdown: env('MAX_DRAWDOWN', 0.18),                      // 18% max account drawdown
     maxDailyLoss: env('MAX_DAILY_LOSS', 0.10),                   // 10% max daily loss
+    riskManagerBypass: envBool('RISK_MANAGER_BYPASS', true),
+    accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
 
     // Recovery mode (after losses)
     recoveryModeReduction: 0.50,                                  // 50% size reduction in recovery
@@ -233,6 +336,7 @@ const BASE_CONFIG = {
     takeProfitPercent: env('TAKE_PROFIT_PERCENT', 1.0),          // 1.0% default TP - VALIDATED
     trailingStopPercent: env('TRAILING_STOP_PERCENT', 0.6),      // 0.6% trailing - tight exits work
     trailingActivation: env('TRAILING_ACTIVATION', 0.8),         // 0.8% profit before trailing kicks in
+    exitSystem: env('EXIT_SYSTEM', 'maxprofit'),
 
     // Breakeven system (percent form)
     breakevenTrigger: env('BREAKEVEN_TRIGGER', 0.5),             // 0.5% profit triggers BE
@@ -821,6 +925,71 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // TUNING PROFILES (single source for backtest/runtime profile tunables)
+  // =========================================================================
+  tuningProfiles: {
+    defaultProfile: 'current-eval',
+    definitions: Object.freeze({
+      'current-eval': freezeTuningProfile({
+        name: 'current-eval',
+        description: 'Current explicit TSLA stock-eval posture; freezes the repo .env values that workers previously inherited implicitly.',
+        evidence: [
+          '.env:236-269',
+          'core/TradingConfig.js tuningProfiles.current-eval',
+          'tools/backtest-worker-env.js canonical worker defaults',
+        ],
+        env: {
+          ENABLE_DYNAMIC_SIZING: 'true',
+          BASE_POSITION_SIZE: '0.01',
+          MAX_POSITION_SIZE_PCT: '0.05',
+          BASE_POSITION_PCT: '0.01',
+          MAX_POSITION_PCT: '0.05',
+          ABSOLUTE_POSITION_CAP: '0.15',
+          TIER1_TARGET: '0.007',
+          TIER2_TARGET: '0.010',
+          TIER3_TARGET: '0.015',
+          FINAL_TARGET: '0.025',
+          TIER1_EXIT_FRACTION: '0.30',
+          TIER2_EXIT_FRACTION: '0.30',
+          TIER3_EXIT_FRACTION: '0.20',
+          ACCOUNT_DRAWDOWN_BYPASS: 'true',
+          RISK_MANAGER_BYPASS: 'true',
+          EXIT_SYSTEM: 'legacy',
+          FEE_SLIPPAGE: '0.0005',
+        },
+      }),
+
+      'legacy-wide': freezeTuningProfile({
+        name: 'legacy-wide',
+        description: 'Wide-target historical posture from .env.gates; useful for testing whether tight MPM tiers are choking winners.',
+        evidence: [
+          '.env.gates:69-72',
+          '.env.gates:239-272',
+        ],
+        env: {
+          ENABLE_DYNAMIC_SIZING: 'true',
+          BASE_POSITION_SIZE: '0.01',
+          MAX_POSITION_SIZE_PCT: '0.05',
+          BASE_POSITION_PCT: '0.01',
+          MAX_POSITION_PCT: '0.05',
+          ABSOLUTE_POSITION_CAP: '0.15',
+          TIER1_TARGET: '0.020',
+          TIER2_TARGET: '0.040',
+          TIER3_TARGET: '0.060',
+          FINAL_TARGET: '0.100',
+          TIER1_EXIT_FRACTION: '0.30',
+          TIER2_EXIT_FRACTION: '0.30',
+          TIER3_EXIT_FRACTION: '0.20',
+          ACCOUNT_DRAWDOWN_BYPASS: 'true',
+          RISK_MANAGER_BYPASS: 'true',
+          EXIT_SYSTEM: 'legacy',
+          FEE_SLIPPAGE: '0.0005',
+        },
+      }),
+    }),
+  },
+
+  // =========================================================================
   // FEATURE FLAGS
   // =========================================================================
   features: {
@@ -883,6 +1052,101 @@ const BASE_CONFIG = {
 
 let activeOverrides = {};
 let configFrozen = false;
+let activeTuningProfile = null;
+let activeTuningProfileAppliedAt = null;
+let activeTuningProfileSource = null;
+
+function normalizeTuningProfileName(profileName) {
+  const fallback = BASE_CONFIG.tuningProfiles.defaultProfile;
+  return String(profileName || fallback).trim();
+}
+
+function getTuningProfileDefinitions() {
+  return BASE_CONFIG.tuningProfiles.definitions;
+}
+
+function coerceProfileEnvValue(envKey, rawValue) {
+  if (PROFILE_BOOLEAN_ENV_KEYS.has(envKey)) {
+    if (rawValue === true || rawValue === false) return rawValue;
+    const normalized = String(rawValue).trim();
+    if (normalized === 'true' || normalized === '1') return true;
+    if (normalized === 'false' || normalized === '0') return false;
+    throw new Error(`[TradingConfig] Tuning profile env key ${envKey} requires a boolean value; got '${rawValue}'`);
+  }
+
+  if (PROFILE_STRING_ENV_KEYS.has(envKey)) {
+    const value = String(rawValue || '').trim();
+    if (!value) {
+      throw new Error(`[TradingConfig] Tuning profile env key ${envKey} requires a non-empty string`);
+    }
+    return value;
+  }
+
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[TradingConfig] Tuning profile env key ${envKey} requires a finite numeric value; got '${rawValue}'`);
+  }
+  return value;
+}
+
+function flattenProfileOverrides(profile) {
+  const overrides = {};
+  for (const [envKey, rawValue] of Object.entries(profile.env)) {
+    const configPaths = PROFILE_ENV_CONFIG_PATHS[envKey];
+    if (!configPaths) {
+      throw new Error(`[TradingConfig] Tuning profile '${profile.name}' has unmapped env key '${envKey}'`);
+    }
+
+    const value = coerceProfileEnvValue(envKey, rawValue);
+    for (const configPath of configPaths) {
+      overrides[configPath] = value;
+    }
+  }
+  return overrides;
+}
+
+function captureOverrideSnapshot(paths) {
+  const snapshot = {};
+  for (const path of paths) {
+    snapshot[path] = Object.prototype.hasOwnProperty.call(activeOverrides, path)
+      ? activeOverrides[path]
+      : PROFILE_SNAPSHOT_MISSING;
+  }
+  return snapshot;
+}
+
+function restoreOverrideSnapshot(snapshot) {
+  const nextOverrides = { ...activeOverrides };
+  for (const [path, value] of Object.entries(snapshot)) {
+    if (value === PROFILE_SNAPSHOT_MISSING) {
+      delete nextOverrides[path];
+    } else {
+      nextOverrides[path] = value;
+    }
+  }
+  activeOverrides = nextOverrides;
+}
+
+function assertFlatProfileState(flatState) {
+  if (typeof flatState === 'function') {
+    return assertFlatProfileState(flatState());
+  }
+
+  if (flatState === true) {
+    return { flat: true };
+  }
+
+  if (!flatState || typeof flatState !== 'object') {
+    throw new Error('[TradingConfig] Flat-state tuning profile apply requires an explicit flatState probe result');
+  }
+
+  if (flatState.flat !== true) {
+    const reason = flatState.reason || 'state_not_flat';
+    throw new Error(`[TradingConfig] Refusing tuning profile apply while state is not flat: ${reason}`);
+  }
+
+  return flatState;
+}
 
 // =============================================================================
 // TRADING CONFIG CLASS
@@ -970,6 +1234,189 @@ class TradingConfig {
     return profile;
   }
 
+  static listTuningProfileNames() {
+    return Object.keys(getTuningProfileDefinitions());
+  }
+
+  static resolveTuningProfile(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {
+    const normalized = normalizeTuningProfileName(profileName);
+    const profile = getTuningProfileDefinitions()[normalized];
+    if (!profile) {
+      throw new Error(`[TradingConfig] Unknown tuning profile '${normalized}'. Available: ${this.listTuningProfileNames().join(', ')}`);
+    }
+    return deepFreezePlain(clonePlain(profile));
+  }
+
+  static summarizeTuningProfile(profileOrName = BASE_CONFIG.tuningProfiles.defaultProfile) {
+    const profile = typeof profileOrName === 'string' || !profileOrName
+      ? this.resolveTuningProfile(profileOrName)
+      : this.resolveTuningProfile(profileOrName.name);
+
+    return {
+      name: profile.name,
+      description: profile.description,
+      evidence: [...profile.evidence],
+      env: { ...profile.env },
+      configPaths: this.getTuningProfileConfigPaths(profile.name),
+      runtimeSnapshotEnvKeys: this.getTuningProfileRuntimeSnapshotKeys(profile.name),
+    };
+  }
+
+  static getTuningProfileDefinitions() {
+    return deepFreezePlain(clonePlain(getTuningProfileDefinitions()));
+  }
+
+  static getTuningProfileConfigPaths(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {
+    const profile = this.resolveTuningProfile(profileName);
+    return Object.freeze([
+      ...new Set(Object.keys(flattenProfileOverrides(profile)).sort()),
+    ]);
+  }
+
+  static getTuningProfileRuntimeSnapshotKeys(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {
+    const profile = this.resolveTuningProfile(profileName);
+    return Object.freeze(
+      Object.keys(profile.env)
+        .filter(key => PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS.has(key))
+        .sort()
+    );
+  }
+
+  static buildTuningProfileOverrides(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {
+    const profile = this.resolveTuningProfile(profileName);
+    return Object.freeze({ ...flattenProfileOverrides(profile) });
+  }
+
+  static getTuningProfileStatus() {
+    return {
+      activeProfile: activeTuningProfile,
+      activeProfileAppliedAt: activeTuningProfileAppliedAt,
+      activeProfileSource: activeTuningProfileSource,
+      profiles: this.listTuningProfileNames(),
+      profileOverrideCount: activeTuningProfile
+        ? this.getTuningProfileConfigPaths(activeTuningProfile).length
+        : 0,
+    };
+  }
+
+  static applyTuningProfile(profileName = BASE_CONFIG.tuningProfiles.defaultProfile, options = {}) {
+    if (configFrozen) {
+      throw new Error('[TradingConfig] Config is frozen; refusing tuning profile apply');
+    }
+
+    const {
+      requireFlat = false,
+      flatState,
+      phase = 'startup',
+      replaceActiveProfile = false,
+      source = 'unknown',
+    } = options;
+
+    let flatStateVerified = false;
+    if (requireFlat) {
+      assertFlatProfileState(flatState);
+      flatStateVerified = true;
+    }
+
+    const profile = this.resolveTuningProfile(profileName);
+    const runtimeSnapshotKeys = this.getTuningProfileRuntimeSnapshotKeys(profile.name);
+    if (phase !== 'startup' && runtimeSnapshotKeys.length > 0) {
+      throw new Error(
+        `[TradingConfig] Tuning profile '${profile.name}' includes startup-snapshot key(s) ${runtimeSnapshotKeys.join(', ')}; ` +
+        `phase '${phase}' would not update constructed runtime objects`
+      );
+    }
+
+    const overrides = this.buildTuningProfileOverrides(profile.name);
+    const paths = Object.keys(overrides);
+    const snapshot = captureOverrideSnapshot(paths);
+    const conflicts = [];
+
+    for (const path of paths) {
+      if (!Object.prototype.hasOwnProperty.call(activeOverrides, path)) continue;
+      if (sameConfigValue(activeOverrides[path], overrides[path])) continue;
+      conflicts.push(`${path}: active=${activeOverrides[path]} profile=${overrides[path]}`);
+    }
+
+    if (conflicts.length > 0 && !replaceActiveProfile) {
+      throw new Error(
+        `[TradingConfig] Tuning profile '${profile.name}' would overwrite active config path(s): ${conflicts.join('; ')}. ` +
+        'Pass replaceActiveProfile=true only after proving state is flat and the caller intends a profile swap.'
+      );
+    }
+
+    if (conflicts.length > 0 && replaceActiveProfile) {
+      if (!flatStateVerified) {
+        assertFlatProfileState(flatState);
+        flatStateVerified = true;
+      }
+    }
+
+    if (replaceActiveProfile && !flatStateVerified) {
+      assertFlatProfileState(flatState);
+    }
+
+    activeOverrides = {
+      ...activeOverrides,
+      ...overrides,
+    };
+    activeTuningProfile = profile.name;
+    activeTuningProfileAppliedAt = new Date().toISOString();
+    activeTuningProfileSource = source;
+
+    try {
+      for (const [path, expected] of Object.entries(overrides)) {
+        const actual = this.get(path);
+        if (!sameConfigValue(actual, expected)) {
+          throw new Error(
+            `[TradingConfig] Tuning profile '${profile.name}' verification failed for ${path}: expected ${expected}, got ${actual}`
+          );
+        }
+      }
+    } catch (err) {
+      restoreOverrideSnapshot(snapshot);
+      throw err;
+    }
+
+    return {
+      profile: profile.name,
+      source,
+      phase,
+      appliedAt: activeTuningProfileAppliedAt,
+      overrideCount: paths.length,
+      configPaths: paths.sort(),
+      runtimeSnapshotEnvKeys: runtimeSnapshotKeys,
+    };
+  }
+
+  static async runWithTuningProfile(profileName, callback, options = {}) {
+    if (typeof callback !== 'function') {
+      throw new Error('[TradingConfig] runWithTuningProfile requires a callback');
+    }
+
+    const profile = this.resolveTuningProfile(profileName);
+    const overrides = this.buildTuningProfileOverrides(profile.name);
+    const paths = Object.keys(overrides);
+    const snapshot = captureOverrideSnapshot(paths);
+    const previousProfile = activeTuningProfile;
+    const previousAppliedAt = activeTuningProfileAppliedAt;
+    const previousSource = activeTuningProfileSource;
+
+    this.applyTuningProfile(profile.name, {
+      ...options,
+      replaceActiveProfile: true,
+    });
+
+    try {
+      return await callback(this.getTuningProfileStatus());
+    } finally {
+      restoreOverrideSnapshot(snapshot);
+      activeTuningProfile = previousProfile;
+      activeTuningProfileAppliedAt = previousAppliedAt;
+      activeTuningProfileSource = previousSource;
+    }
+  }
+
   /**
    * Set temporary overrides (for backtest/dashboard)
    * Does NOT modify .env - values only persist until clearOverrides() or process restart
@@ -1005,6 +1452,9 @@ class TradingConfig {
    */
   static clearOverrides() {
     activeOverrides = {};
+    activeTuningProfile = null;
+    activeTuningProfileAppliedAt = null;
+    activeTuningProfileSource = null;
     console.log('[TradingConfig] Overrides cleared');
   }
 
@@ -1140,6 +1590,10 @@ class TradingConfig {
 module.exports = TradingConfig;
 module.exports.BASE_CONFIG = BASE_CONFIG;
 module.exports.envNumber = envNumber;  // FIX 28: attached AFTER late reassignment
+module.exports.DEFAULT_TUNING_PROFILE = BASE_CONFIG.tuningProfiles.defaultProfile;
+module.exports.PROFILE_FORBIDDEN_ENV_KEYS = PROFILE_FORBIDDEN_ENV_KEYS;
+module.exports.PROFILE_ENV_CONFIG_PATHS = PROFILE_ENV_CONFIG_PATHS;
+module.exports.PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS;
 
 // Quick accessors for the most commonly used values
 module.exports.MIN_CONFIDENCE = () => TradingConfig.get('confidence.minTradeConfidence');
