@@ -10,10 +10,10 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10061.215823687478,
-  totalTrades: 1688,
-  winRate: 62.1,
-  profitFactor: 1.01
+  finalBalance: 10710.667785934895,
+  totalTrades: 1692,
+  winRate: 62.8,
+  profitFactor: 1.15
 });
 
 const P0_TIER_FRACTION_CAPS = Object.freeze({
@@ -341,6 +341,40 @@ function assertP0TieredExitAccounting(reportPath) {
   }
 }
 
+function assertP0LongOnlyNoShortArtifacts(reportPath) {
+  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  assert(trades.length > 0, 'P0 report must contain trades for direction validation');
+
+  const nonLongTrades = trades.filter((trade) => {
+    const direction = String(trade.direction || '').trim().toLowerCase();
+    return direction !== 'long';
+  });
+  assert.strictEqual(
+    nonLongTrades.length,
+    0,
+    `P0 long_only/ENABLE_SHORTS=false report contained ${nonLongTrades.length} non-long trade direction(s)`
+  );
+
+  const shortActions = trades.filter((trade) => {
+    const action = String(trade.action || trade.entryAction || '').trim().toUpperCase();
+    const side = String(trade.side || trade.entrySide || '').trim().toLowerCase();
+    return action === 'SELL_SHORT' || side === 'short';
+  });
+  assert.strictEqual(
+    shortActions.length,
+    0,
+    `P0 long_only/ENABLE_SHORTS=false report contained ${shortActions.length} short action/side marker(s)`
+  );
+
+  const flipExits = trades.filter((trade) => normalizedExitReason(trade.exitReason || trade.reason).includes('flip'));
+  assert.strictEqual(
+    flipExits.length,
+    0,
+    `P0 long_only/ENABLE_SHORTS=false report contained ${flipExits.length} flip exit(s)`
+  );
+}
+
 const GATES = [
   {
     id: 'p0.single_lane.tsla_ema_anchor',
@@ -350,6 +384,7 @@ const GATES = [
       const { runP0 } = loadRuntime();
       const result = runP0('full', 'multi-runtime-gate');
       assertP0TieredExitAccounting(result.report);
+      assertP0LongOnlyNoShortArtifacts(result.report);
       assertP0Summary(result.summary);
       return {
         summary: result.summary,
@@ -1464,5 +1499,6 @@ if (require.main === module) {
 
 module.exports = {
   assertP0TieredExitAccounting,
+  assertP0LongOnlyNoShortArtifacts,
   P0_TIER_FRACTION_CAPS
 };

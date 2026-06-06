@@ -3,7 +3,8 @@ const os = require('os');
 const path = require('path');
 
 const {
-  assertP0TieredExitAccounting
+  assertP0TieredExitAccounting,
+  assertP0LongOnlyNoShortArtifacts
 } = require('../ogz-meta/gates/multi-runtime-gate-runner');
 
 function reportPathFor(trades) {
@@ -90,5 +91,44 @@ describe('P0 tiered exit accounting gate', () => {
     ]);
 
     expect(() => assertP0TieredExitAccounting(reportPath)).toThrow(/split across runtime scopes/);
+  });
+});
+
+describe('P0 long-only direction gate', () => {
+  test('accepts all-long reports without flip exits', () => {
+    const reportPath = reportPathFor([
+      trade({ size: 150, exitReason: 'profit_tier_1' }),
+      trade({ size: 350, exitReason: 'max_hold_winner' })
+    ]);
+
+    expect(() => assertP0LongOnlyNoShortArtifacts(reportPath)).not.toThrow();
+  });
+
+  test('rejects sell direction artifacts, not only short direction labels', () => {
+    const reportPath = reportPathFor([
+      trade({ direction: 'sell', size: 100, exitReason: 'max_hold_winner' })
+    ]);
+
+    expect(() => assertP0LongOnlyNoShortArtifacts(reportPath)).toThrow(/non-long trade direction/);
+  });
+
+  test('rejects explicit short action and side markers', () => {
+    const actionReportPath = reportPathFor([
+      trade({ action: 'SELL_SHORT', size: 100, exitReason: 'max_hold_winner' })
+    ]);
+    const sideReportPath = reportPathFor([
+      trade({ side: 'short', size: 100, exitReason: 'max_hold_winner' })
+    ]);
+
+    expect(() => assertP0LongOnlyNoShortArtifacts(actionReportPath)).toThrow(/short action\/side marker/);
+    expect(() => assertP0LongOnlyNoShortArtifacts(sideReportPath)).toThrow(/short action\/side marker/);
+  });
+
+  test('rejects any flip-style exit reason under long-only P0', () => {
+    const reportPath = reportPathFor([
+      trade({ size: 100, exitReason: 'flip_to_short' })
+    ]);
+
+    expect(() => assertP0LongOnlyNoShortArtifacts(reportPath)).toThrow(/flip exit/);
   });
 });

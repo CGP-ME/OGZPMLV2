@@ -28,6 +28,7 @@ jest.mock('../core/ExitContractManager', () => ({
 }));
 
 const TradingLoop = require('../core/TradingLoop');
+const TradingConfig = require('../core/TradingConfig');
 const { getNarrator } = require('../core/TradeNarrator');
 
 function candles(count = 20) {
@@ -60,6 +61,7 @@ function baseEntryContext(overrides = {}) {
       executionMode: 'paper',
       enableBacktestMode: false,
       evalTraceEnabled: false,
+      traceEventMaxBufferedBytes: 1048576,
     },
     strategyOrchestrator: {
       strategies: [{ name: 'RSI' }],
@@ -75,7 +77,7 @@ function baseEntryContext(overrides = {}) {
     },
     executeTrade: jest.fn().mockResolvedValue({ success: true, orderId: 'ORDER_TRACE_1' }),
     broadcastPatternAnalysis: jest.fn(),
-    dashboardWs: { readyState: 1, send: jest.fn() },
+    dashboardWs: { readyState: 1, bufferedAmount: 0, send: jest.fn() },
     ...overrides,
   };
 }
@@ -102,6 +104,15 @@ function stubGatherData(loop) {
 
 function sentFrames(ctx) {
   return ctx.dashboardWs.send.mock.calls.map(call => JSON.parse(call[0]));
+}
+
+function mockDirectionConfig({ directionFilter = 'both', enableShorts = true } = {}) {
+  const originalGet = TradingConfig.get.bind(TradingConfig);
+  return jest.spyOn(TradingConfig, 'get').mockImplementation((key, defaultValue) => {
+    if (key === 'pipeline.directionFilter') return directionFilter;
+    if (key === 'features.enableShorts') return enableShorts;
+    return originalGet(key, defaultValue);
+  });
 }
 
 describe('TradingLoop trace spine', () => {
@@ -299,6 +310,7 @@ describe('TradingLoop trace spine', () => {
       'warmup',
       'min_confidence',
       'direction_filter',
+      'shorts_enabled',
       'same_direction_block',
       'max_positions',
       'daily_loss_limit',
@@ -311,6 +323,143 @@ describe('TradingLoop trace spine', () => {
       passed: true,
     }));
     gateNarratorSpy.mockRestore();
+  });
+
+  test('blocks short entries when ENABLE_SHORTS is false even if DIRECTION_FILTER is both', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: false });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'test short signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_shorts_disabled_1');
+
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      expect(loop._runTRAI).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+      expect(skipEvent).toEqual(expect.objectContaining({
+        traceId: 'trace_shorts_disabled_1',
+        symbol: 'TSLA',
+      }));
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        reason: 'shorts_disabled',
+        filter: 'both',
+        enableShorts: false,
+        direction: 'sell',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
+  test('allows short entries when ENABLE_SHORTS is true and DIRECTION_FILTER is both', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      const ctx = baseEntryContext();
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'test short signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_shorts_enabled_1');
+
+      expect(ctx.executeTrade).toHaveBeenCalledTimes(1);
+      const decision = ctx.executeTrade.mock.calls[0][0];
+      expect(decision).toEqual(expect.objectContaining({
+        action: 'SELL_SHORT',
+        direction: 'short',
+        traceId: 'trace_shorts_enabled_1',
+      }));
+      const shortGate = decision.ledgerData.riskGates.find(g => g.gate === 'shorts_enabled');
+      expect(shortGate).toEqual({
+        gate: 'shorts_enabled',
+        threshold: true,
+        value: true,
+        passed: true,
+      });
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
+  test('blocks a TPO override that flips an allowed signal into a disallowed short', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'long_only', enableShorts: false });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+      loop._gatherData.mockReturnValue({
+        indicators: {
+          rsi: 55,
+          macd: {},
+          trend: 'sideways',
+          atr: 1,
+          ema20: 100,
+          ema50: 100,
+        },
+        patterns: [],
+        regime: { currentRegime: 'sideways' },
+        tpoResult: {
+          signal: {
+            highProbability: true,
+            strength: 999,
+            action: 'SELL',
+          },
+        },
+        fibLevels: null,
+        nearestFibLevel: null,
+        nearestStructure: null,
+      });
+
+      await loop._analyze('TSLA', 'trace_tpo_short_block_1');
+
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      expect(loop._runTRAI).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        reason: 'direction_filter',
+        filter: 'long_only',
+        enableShorts: false,
+        direction: 'sell',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
+  test('rejects invalid direction filter tokens instead of treating them as both', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'sideways', enableShorts: true });
+    try {
+      const ctx = baseEntryContext();
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await expect(loop._analyze('TSLA', 'trace_bad_direction_filter_1')).rejects.toThrow(
+        'pipeline.directionFilter expected one of both,long_only,short_only'
+      );
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      expect(loop._runTRAI).not.toHaveBeenCalled();
+    } finally {
+      configSpy.mockRestore();
+    }
   });
 
   test('emits a scoped risk_block gate_event without executing when RiskManager blocks', async () => {

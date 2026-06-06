@@ -138,6 +138,36 @@ class TradingLoop {
     };
   }
 
+  _directionGateStatus(direction, directionFilter, enableShorts) {
+    const validFilters = new Set(['both', 'long_only', 'short_only']);
+    const validDirections = new Set(['buy', 'sell', 'hold']);
+    if (typeof directionFilter !== 'string' || !validFilters.has(directionFilter)) {
+      throw new Error(`[DIRECTION-GATE] pipeline.directionFilter expected one of both,long_only,short_only; got ${JSON.stringify(directionFilter)}`);
+    }
+    if (typeof enableShorts !== 'boolean') {
+      throw new Error(`[DIRECTION-GATE] features.enableShorts expected boolean, got ${typeof enableShorts} (${enableShorts})`);
+    }
+    if (typeof direction !== 'string' || !validDirections.has(direction)) {
+      throw new Error(`[DIRECTION-GATE] decision direction expected one of buy,sell,hold; got ${JSON.stringify(direction)}`);
+    }
+
+    const filterBlocksLong = directionFilter === 'short_only' && direction === 'buy';
+    const filterBlocksShort = directionFilter === 'long_only' && direction === 'sell';
+    const filterPassed = !(filterBlocksLong || filterBlocksShort);
+    const shortsPassed = direction !== 'sell' || enableShorts === true;
+    const reason = filterPassed ? (shortsPassed ? null : 'shorts_disabled') : 'direction_filter';
+
+    return {
+      allowed: filterPassed && shortsPassed,
+      reason,
+      direction,
+      directionFilter,
+      enableShorts,
+      filterPassed,
+      shortsPassed,
+    };
+  }
+
   _patternScope(symbol) {
     const cfg = this.ctx.config || {};
     const routerEnabled = this.ctx.runner?.sessionRouter?.enabled === true;
@@ -673,53 +703,8 @@ class TradingLoop {
     });
 
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
-    // HIGH-13: throw if directionFilter is non-string. TradingConfig.js:844
-    // supplies 'both' as the env-default for DIRECTION_FILTER so this throw
-    // catches genuine config breakage, not unset env. Refuses to default to
-    // 'both' at the consumer per Rule #1.
     const directionFilter = TradingConfig.get('pipeline.directionFilter');
-    if (typeof directionFilter !== 'string') {
-      throw new Error(`[HIGH-13] pipeline.directionFilter expected string, got ${typeof directionFilter} (${directionFilter})`);
-    }
-    if (directionFilter === 'long_only' && tradingDirection === 'sell') {
-      this._diag('DIRECTION_FILTER_BLOCK', {
-        symbol,
-        filter: directionFilter,
-        direction: tradingDirection,
-        confidencePct: orchResult.confidence
-      });
-      emitTrace(this.ctx, 'DECISION_SKIP', {
-        traceId,
-        symbol,
-        reason: 'direction_filter',
-        filter: directionFilter,
-        direction: tradingDirection,
-      });
-      console.log(`🚫 Direction filter: long_only — sell blocked`);
-      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
-      return;
-    }
-    if (directionFilter === 'short_only' && tradingDirection === 'buy') {
-      this._diag('DIRECTION_FILTER_BLOCK', {
-        symbol,
-        filter: directionFilter,
-        direction: tradingDirection,
-        confidencePct: orchResult.confidence
-      });
-      emitTrace(this.ctx, 'DECISION_SKIP', {
-        traceId,
-        symbol,
-        reason: 'direction_filter',
-        filter: directionFilter,
-        direction: tradingDirection,
-      });
-      console.log(`🚫 Direction filter: short_only — buy blocked`);
-      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
-      return;
-    }
-
-    // ─── TRAI (async observer, non-blocking) ───
-    this._runTRAI(tradingDirection, orchResult, indicators, patterns, regime, price, symbol);
+    const enableShorts = TradingConfig.get('features.enableShorts');
 
     // ─── LOG ───
     const cleanPrice = Math.round(price).toLocaleString();
@@ -738,6 +723,32 @@ class TradingLoop {
         finalDirection = tpoResult.signal.action === 'BUY' ? 'buy' : 'sell';
       }
     }
+
+    const directionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
+    if (!directionGate.allowed) {
+      this._diag('DIRECTION_GATE_BLOCK', {
+        symbol,
+        reason: directionGate.reason,
+        filter: directionFilter,
+        enableShorts,
+        direction: finalDirection,
+        confidencePct: orchResult.confidence
+      });
+      emitTrace(this.ctx, 'DECISION_SKIP', {
+        traceId,
+        symbol,
+        reason: directionGate.reason,
+        filter: directionFilter,
+        enableShorts,
+        direction: finalDirection,
+      });
+      console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter} enableShorts=${enableShorts}`);
+      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
+      return;
+    }
+
+    // ─── TRAI (async observer, non-blocking) ───
+    this._runTRAI(finalDirection, orchResult, indicators, patterns, regime, price, symbol);
 
     // ═══════════════════════════════════════════════════════════════
     // DECISION ENGINE — Direction agnostic
@@ -766,7 +777,8 @@ class TradingLoop {
       minConfidencePct: minConfidence * 100,
       activeTrades: activeTrades.length,
       maxPositions,
-      directionFilter
+      directionFilter,
+      enableShorts
     });
 
     // ─── STEP 1: EXIT CHECK ───
@@ -1041,14 +1053,16 @@ class TradingLoop {
       });
       let riskGates = Array.isArray(decision.riskGates) ? decision.riskGates : [];
       if (isEntryAction) {
+        const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
         // L5: Capture risk gates that were checked during entry evaluation.
-        // Pre-trade gates built here (warmup, min_confidence, direction_filter, same_direction_block,
+        // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, same_direction_block,
         // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
         // loss limits, recovery min_confidence) via decision.riskGates — appended below.
         riskGates = [
           { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
           { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
-          { gate: 'direction_filter', threshold: null, value: finalDirection, passed: !(directionFilter === 'long_only' && finalDirection === 'sell') && !(directionFilter === 'short_only' && finalDirection === 'buy') },
+          { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
+          { gate: 'shorts_enabled', threshold: true, value: finalDirection === 'sell' ? enableShorts : 'not_applicable', passed: executionDirectionGate.shortsPassed },
           { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
           { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
           ...riskGates,
