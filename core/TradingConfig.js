@@ -966,6 +966,111 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // PARALLEL BACKTEST RUNNER CONFIG
+  // =========================================================================
+  parallelBacktest: deepFreezePlain({
+    defaultData: 'tuning/tsla-15m-2y.json',
+    dataShortcuts: {
+      tsla: 'tuning/tsla-15m-2y.json',
+      'tsla-train': 'tuning/tsla-15m-train.json',
+      'tsla-test': 'tuning/tsla-15m-test.json',
+      'tsla-unseen': 'tuning/tsla-15m-unseen.json',
+      spy: 'tuning/spy-15m-2y.json',
+      qqq: 'tuning/qqq-15m-2y.json',
+      btc: 'data/polygon-btc-1y.json',
+      'btc-5sec': 'data/polygon-btc-5sec.json',
+    },
+    stockDataShortcutKeys: [
+      'tsla',
+      'tsla-train',
+      'tsla-test',
+      'tsla-unseen',
+      'spy',
+      'qqq',
+    ],
+    strategies: [
+      'RSI',
+      'EMASMACrossover',
+      'MADynamicSR',
+      'LiquiditySweep',
+      'SmartMoneySweep',
+      'MultiTimeframe',
+      'OGZTPO',
+      'OpeningRangeBreakout',
+      'CandlePattern',
+      'NoWickImbalance',
+      'BreakRetest',
+    ],
+    sweepPresets: {
+      real: [
+        { name: 'baseline', env: {} },
+        { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
+        { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
+        { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
+        { name: 'size-3pct', env: { MAX_POSITION_SIZE_PCT: '0.03' } },
+        { name: 'size-5pct', env: { MAX_POSITION_SIZE_PCT: '0.05' } },
+        { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
+        { name: 'tiers-tight', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
+        { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.025', TIER3_TARGET: '0.040' } },
+        { name: 'risk-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+        { name: 'risk-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
+      ],
+      atr: [
+        { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
+        { name: 'atr-010', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.10' } },
+        { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
+        { name: 'atr-020', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.20' } },
+        { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
+        { name: 'atr-030', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.30' } },
+        { name: 'atr-035', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.35' } },
+        { name: 'atr-040', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.40' } },
+      ],
+      sizing: [
+        { name: 'size-2pct', env: { MAX_POSITION_SIZE_PCT: '0.02' } },
+        { name: 'size-3pct', env: { MAX_POSITION_SIZE_PCT: '0.03' } },
+        { name: 'size-4pct', env: { MAX_POSITION_SIZE_PCT: '0.04' } },
+        { name: 'size-5pct', env: { MAX_POSITION_SIZE_PCT: '0.05' } },
+        { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
+        { name: 'size-10pct', env: { MAX_POSITION_SIZE_PCT: '0.10' } },
+      ],
+      tiers: [
+        { name: 'tiers-tight', env: { TIER1_TARGET: '0.005', TIER2_TARGET: '0.008', TIER3_TARGET: '0.012' } },
+        { name: 'tiers-configD', env: { TIER1_TARGET: '0.007', TIER2_TARGET: '0.010', TIER3_TARGET: '0.015' } },
+        { name: 'tiers-above-fees', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
+        { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.020', TIER3_TARGET: '0.030' } },
+        { name: 'tiers-no-early', env: { TIER1_TARGET: '0.020', TIER2_TARGET: '0.030', TIER3_TARGET: '0.050' } },
+      ],
+      risk: [
+        { name: 'all-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
+        { name: 'risk-on-dd-bypass', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
+        { name: 'risk-bypass-dd-on', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+        { name: 'all-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
+      ],
+      strategySweep: [
+        { name: 'RSI-only', env: { SOLO_STRATEGY: 'RSI' } },
+        { name: 'EMA-only', env: { SOLO_STRATEGY: 'EMASMACrossover' } },
+        { name: 'MASR-only', env: { SOLO_STRATEGY: 'MADynamicSR' } },
+        { name: 'Sweep-only', env: { SOLO_STRATEGY: 'LiquiditySweep' } },
+        { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
+        { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
+        { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
+        { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
+        { name: 'Candle-only', env: { SOLO_STRATEGY: 'CandlePattern' } },
+        { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
+        { name: 'BreakRetest-only', env: { SOLO_STRATEGY: 'BreakRetest' } },
+      ],
+    },
+    rsiSweep: {
+      oversoldLevels: [15, 20, 25, 30, 35],
+      overboughtLevels: [65, 70, 75, 80, 85],
+      minSpread: 30,
+    },
+    gauntlet: {
+      atrValues: [0, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40],
+    },
+  }),
+
+  // =========================================================================
   // TUNING PROFILES (single source for backtest/runtime profile tunables)
   // =========================================================================
   tuningProfiles: {
@@ -1313,6 +1418,10 @@ class TradingConfig {
 
   static getBacktestStockZeroFeeEnv() {
     return Object.freeze({ ...BASE_CONFIG.backtestWorkerEnv.stockZeroFee });
+  }
+
+  static getParallelBacktestConfig() {
+    return deepFreezePlain(clonePlain(BASE_CONFIG.parallelBacktest));
   }
 
   static getTuningProfileConfigPaths(profileName = BASE_CONFIG.tuningProfiles.defaultProfile) {

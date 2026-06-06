@@ -27,6 +27,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const TradingConfig = require('../core/TradingConfig');
 const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildWorkerBaseEnv,
@@ -53,7 +54,10 @@ const MAX_WORKERS = Math.max(1, is7800X3D ? 14 : threadCount - 2);
 // ═══════════════════════════════════════════════════════════════
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
-const DEFAULT_DATA = 'tuning/tsla-15m-2y.json';
+const PARALLEL_BACKTEST_CONFIG = TradingConfig.getParallelBacktestConfig();
+const DEFAULT_DATA = PARALLEL_BACKTEST_CONFIG.defaultData;
+const DATA_SHORTCUTS = Object.freeze({ ...PARALLEL_BACKTEST_CONFIG.dataShortcuts });
+const STOCK_DATA_SHORTCUTS = new Set(PARALLEL_BACKTEST_CONFIG.stockDataShortcutKeys);
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const WORKER_LOG_DIR = path.join(RESULTS_DIR, 'worker-logs');
 const TIMEOUT_MS = 0; // No timeout - let it finish
@@ -166,19 +170,7 @@ function buildWorkerProcessErrorResult(config, env, reportTag, output, err, elap
 // STRATEGY LIST & GAUNTLET GENERATORS (must be before SWEEP_PRESETS)
 // ═══════════════════════════════════════════════════════════════
 
-const STRATEGIES = [
-  'RSI',
-  'EMASMACrossover',
-  'MADynamicSR',
-  'LiquiditySweep',
-  'SmartMoneySweep',
-  'MultiTimeframe',
-  'OGZTPO',
-  'OpeningRangeBreakout',
-  'CandlePattern',
-  'NoWickImbalance',
-  'BreakRetest',
-];
+const STRATEGIES = Object.freeze([...PARALLEL_BACKTEST_CONFIG.strategies]);
 
 function parseSoloStrategies(value) {
   if (!value) return [];
@@ -271,117 +263,81 @@ function generateGauntlet(paramType, values) {
 // PARTIAL: MIN_TRADE_CONFIDENCE (entry gate works, but strategies have own minConfidence)
 // ═══════════════════════════════════════════════════════════════
 
-const SWEEP_PRESETS = {
+const SWEEP_PRESET_DEFINITIONS = PARALLEL_BACKTEST_CONFIG.sweepPresets;
+
+function cloneSweepConfig(config) {
+  return {
+    name: config.name,
+    env: { ...(config.env || {}) },
+  };
+}
+
+function cloneSweepConfigs(configs) {
+  return (configs || []).map(cloneSweepConfig);
+}
+
+function freezeSweepConfigs(configs) {
+  return Object.freeze(cloneSweepConfigs(configs).map(config => Object.freeze({
+    ...config,
+    env: Object.freeze({ ...config.env }),
+  })));
+}
+
+const SWEEP_PRESETS = Object.freeze({
   // ═══════════════════════════════════════════════════════════════
   // REAL — Only HONORED env vars that actually affect trading
   // ═══════════════════════════════════════════════════════════════
-  real: [
-    { name: 'baseline', env: {} },
-    // ATR filter
-    { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
-    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
-    { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
-    // Position sizing
-    { name: 'size-3pct', env: { MAX_POSITION_SIZE_PCT: '0.03' } },
-    { name: 'size-5pct', env: { MAX_POSITION_SIZE_PCT: '0.05' } },
-    { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
-    // Profit tiers
-    { name: 'tiers-tight', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
-    { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.025', TIER3_TARGET: '0.040' } },
-    // Risk bypasses
-    { name: 'risk-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-    { name: 'risk-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-  ],
+  real: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.real),
 
   // Quick is now an alias to real (old quick was theater)
-  quick: function() { return SWEEP_PRESETS.real; },
+  quick: function() { return cloneSweepConfigs(SWEEP_PRESET_DEFINITIONS.real); },
 
   // ═══════════════════════════════════════════════════════════════
   // FOCUSED SWEEPS — One variable at a time (HONORED only)
   // ═══════════════════════════════════════════════════════════════
 
-  atr: [
-    { name: 'atr-off', env: { ATR_FILTER_ENABLED: 'false' } },
-    { name: 'atr-010', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.10' } },
-    { name: 'atr-015', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.15' } },
-    { name: 'atr-020', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.20' } },
-    { name: 'atr-025', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.25' } },
-    { name: 'atr-030', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.30' } },
-    { name: 'atr-035', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.35' } },
-    { name: 'atr-040', env: { ATR_FILTER_ENABLED: 'true', ATR_MIN_PERCENT: '0.40' } },
-  ],
+  atr: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.atr),
 
-  sizing: [
-    { name: 'size-2pct', env: { MAX_POSITION_SIZE_PCT: '0.02' } },
-    { name: 'size-3pct', env: { MAX_POSITION_SIZE_PCT: '0.03' } },
-    { name: 'size-4pct', env: { MAX_POSITION_SIZE_PCT: '0.04' } },
-    { name: 'size-5pct', env: { MAX_POSITION_SIZE_PCT: '0.05' } },
-    { name: 'size-7pct', env: { MAX_POSITION_SIZE_PCT: '0.07' } },
-    { name: 'size-10pct', env: { MAX_POSITION_SIZE_PCT: '0.10' } },
-  ],
+  sizing: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.sizing),
 
-  tiers: [
-    { name: 'tiers-tight', env: { TIER1_TARGET: '0.005', TIER2_TARGET: '0.008', TIER3_TARGET: '0.012' } },
-    { name: 'tiers-configD', env: { TIER1_TARGET: '0.007', TIER2_TARGET: '0.010', TIER3_TARGET: '0.015' } },
-    { name: 'tiers-above-fees', env: { TIER1_TARGET: '0.010', TIER2_TARGET: '0.015', TIER3_TARGET: '0.020' } },
-    { name: 'tiers-wide', env: { TIER1_TARGET: '0.015', TIER2_TARGET: '0.020', TIER3_TARGET: '0.030' } },
-    { name: 'tiers-no-early', env: { TIER1_TARGET: '0.020', TIER2_TARGET: '0.030', TIER3_TARGET: '0.050' } },
-  ],
+  tiers: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.tiers),
 
-  risk: [
-    { name: 'all-bypass', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'risk-on-dd-bypass', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'true' } },
-    { name: 'risk-bypass-dd-on', env: { RISK_MANAGER_BYPASS: 'true', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-    { name: 'all-on', env: { RISK_MANAGER_BYPASS: 'false', ACCOUNT_DRAWDOWN_BYPASS: 'false' } },
-  ],
+  risk: freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.risk),
 
   // ═══════════════════════════════════════════════════════════════
   // STRATEGY ISOLATION — Test each strategy individually
   // ═══════════════════════════════════════════════════════════════
-  'strategy-sweep': [
-    { name: 'RSI-only', env: { SOLO_STRATEGY: 'RSI' } },
-    { name: 'EMA-only', env: { SOLO_STRATEGY: 'EMASMACrossover' } },
-    { name: 'MASR-only', env: { SOLO_STRATEGY: 'MADynamicSR' } },
-    { name: 'Sweep-only', env: { SOLO_STRATEGY: 'LiquiditySweep' } },
-    { name: 'SMS-only', env: { SOLO_STRATEGY: 'SmartMoneySweep' } },
-    { name: 'MTF-only', env: { SOLO_STRATEGY: 'MultiTimeframe' } },
-    { name: 'TPO-only', env: { SOLO_STRATEGY: 'OGZTPO' } },
-    { name: 'ORB-only', env: { SOLO_STRATEGY: 'OpeningRangeBreakout' } },
-    { name: 'Candle-only', env: { SOLO_STRATEGY: 'CandlePattern' } },
-    { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
-    { name: 'BreakRetest-only', env: { SOLO_STRATEGY: 'BreakRetest' } },
-  ],
+  'strategy-sweep': freezeSweepConfigs(SWEEP_PRESET_DEFINITIONS.strategySweep),
 
   // RSI thresholds sweep - oversold x overbought grid
-  rsi: generateRSISweep(),
+  rsi: freezeSweepConfigs(generateRSISweep()),
 
   // ═══════════════════════════════════════════════════════════════
   // GAUNTLET SWEEPS — All strategies x HONORED parameters
   // ═══════════════════════════════════════════════════════════════
-  'gauntlet-atr': generateGauntlet('atr', [0, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]),
+  'gauntlet-atr': freezeSweepConfigs(generateGauntlet('atr', PARALLEL_BACKTEST_CONFIG.gauntlet.atrValues)),
 
   // ═══════════════════════════════════════════════════════════════
   // FULL — All HONORED sweeps combined
   // ═══════════════════════════════════════════════════════════════
   full: function() {
-    return [
-      ...SWEEP_PRESETS.real,
-      ...SWEEP_PRESETS.atr,
-      ...SWEEP_PRESETS.sizing,
-      ...SWEEP_PRESETS.tiers,
-      ...SWEEP_PRESETS.risk,
-    ];
+    return cloneSweepConfigs([
+      ...SWEEP_PRESET_DEFINITIONS.real,
+      ...SWEEP_PRESET_DEFINITIONS.atr,
+      ...SWEEP_PRESET_DEFINITIONS.sizing,
+      ...SWEEP_PRESET_DEFINITIONS.tiers,
+      ...SWEEP_PRESET_DEFINITIONS.risk,
+    ]);
   },
-};
+});
 
-function generateRSISweep() {
+function generateRSISweep(options = PARALLEL_BACKTEST_CONFIG.rsiSweep) {
   const configs = [];
-  const oversoldLevels = [15, 20, 25, 30, 35];
-  const overboughtLevels = [65, 70, 75, 80, 85];
+  const { oversoldLevels, overboughtLevels, minSpread } = options;
   for (const os of oversoldLevels) {
     for (const ob of overboughtLevels) {
       // Only valid combinations where oversold < overbought with reasonable spread
-      if (ob - os < 30) continue;
+      if (ob - os < minSpread) continue;
       configs.push({
         name: `rsi-${os}-${ob}`,
         env: { RSI_OVERSOLD: String(os), RSI_OVERBOUGHT: String(ob) }
@@ -712,18 +668,6 @@ async function runParallelSweep(configs, dataFile, stockMode = false, profileNam
 // CLI
 // ═══════════════════════════════════════════════════════════════
 
-// Data file shortcuts
-const DATA_SHORTCUTS = {
-  'tsla': 'tuning/tsla-15m-2y.json',
-  'tsla-train': 'tuning/tsla-15m-train.json',
-  'tsla-test': 'tuning/tsla-15m-test.json',
-  'tsla-unseen': 'tuning/tsla-15m-unseen.json',
-  'spy': 'tuning/spy-15m-2y.json',
-  'qqq': 'tuning/qqq-15m-2y.json',
-  'btc': 'data/polygon-btc-1y.json',
-  'btc-5sec': 'data/polygon-btc-5sec.json',
-};
-
 async function main() {
   prepareResultsDir();
   cleanupParallelStateFiles();
@@ -740,12 +684,12 @@ async function main() {
     else if (args[i] === '--data' && args[i+1]) {
       const val = args[++i].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i];
-      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
+      if (STOCK_DATA_SHORTCUTS.has(val)) stockMode = true;
     }
     else if (args[i].startsWith('--data=')) {
       const val = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
-      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(val)) stockMode = true;
+      if (STOCK_DATA_SHORTCUTS.has(val)) stockMode = true;
     }
     else if (args[i] === '--profile' && args[i+1]) {
       profileName = args[++i];
@@ -779,7 +723,7 @@ async function main() {
       const key = args[i].toLowerCase();
       dataFile = DATA_SHORTCUTS[key];
       // Auto-enable stock mode for stock tickers
-      if (['tsla', 'tsla-train', 'tsla-test', 'tsla-unseen', 'spy', 'qqq'].includes(key)) stockMode = true;
+      if (STOCK_DATA_SHORTCUTS.has(key)) stockMode = true;
     }
     else if (args[i] === '--help') {
       console.log(`

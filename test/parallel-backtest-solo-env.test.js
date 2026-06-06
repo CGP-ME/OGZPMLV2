@@ -26,6 +26,7 @@ const {
 const {
   PROFILE_FORBIDDEN_ENV_KEYS,
 } = require('../tools/tuning-profiles');
+const TradingConfig = require('../core/TradingConfig');
 
 describe('parallel-backtest solo strategy env wiring', () => {
   function writeWorkerReport(projectRoot, tag, report) {
@@ -47,8 +48,34 @@ describe('parallel-backtest solo strategy env wiring', () => {
   }
 
   test('tsla shortcut uses the current stock eval baseline', () => {
-    expect(DEFAULT_DATA).toBe('tuning/tsla-15m-2y.json');
-    expect(DATA_SHORTCUTS.tsla).toBe('tuning/tsla-15m-2y.json');
+    const parallelConfig = TradingConfig.getParallelBacktestConfig();
+
+    expect(DEFAULT_DATA).toBe(parallelConfig.defaultData);
+    expect(DATA_SHORTCUTS).toEqual(parallelConfig.dataShortcuts);
+    expect(DATA_SHORTCUTS.tsla).toBe(parallelConfig.defaultData);
+  });
+
+  test('parallel runner sweep surface is owned by TradingConfig and read-only', () => {
+    const parallelConfig = TradingConfig.getParallelBacktestConfig();
+
+    expect(STRATEGIES).toEqual(parallelConfig.strategies);
+    expect(SWEEP_PRESETS.real).toEqual(parallelConfig.sweepPresets.real);
+    expect(SWEEP_PRESETS.atr).toEqual(parallelConfig.sweepPresets.atr);
+    expect(SWEEP_PRESETS['strategy-sweep']).toEqual(parallelConfig.sweepPresets.strategySweep);
+    expect(Object.isFrozen(DATA_SHORTCUTS)).toBe(true);
+    expect(Object.isFrozen(STRATEGIES)).toBe(true);
+    expect(Object.isFrozen(SWEEP_PRESETS)).toBe(true);
+    expect(Object.isFrozen(SWEEP_PRESETS.real)).toBe(true);
+    expect(Object.isFrozen(SWEEP_PRESETS.real[0].env)).toBe(true);
+
+    expect(() => {
+      SWEEP_PRESETS.real[0].env.ATR_FILTER_ENABLED = 'true';
+    }).toThrow(TypeError);
+
+    const full = SWEEP_PRESETS.full();
+    full[0].env.ATR_FILTER_ENABLED = 'true';
+    expect(TradingConfig.getParallelBacktestConfig().sweepPresets.real[0].env.ATR_FILTER_ENABLED)
+      .toBeUndefined();
   });
 
   test('strategy roster includes exploratory strategies that matrix-sweep can run', () => {
