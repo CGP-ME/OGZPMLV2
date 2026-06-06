@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TradingLoop Decision Skip Trace Contract (2026-06-06)
+
+- Emitted `DECISION_SKIP` for final hold decisions after strategy evaluation, including structural same-direction/max-position entry blocks and RiskManager entry blocks, so a valid strategy signal cannot disappear from Gate C trace evidence without a no-trade reason.
+
 ### Trade Journal Open Reconciliation (2026-06-05)
 
 - Added a scoped `OPEN_TRADE_RECONCILED` ledger event so verified orphaned journal entries can be removed from open state without fabricating exits, P&L, balance changes, or completed trades.

@@ -705,6 +705,7 @@ class TradingLoop {
     // ─── DIRECTION FILTER (configurable, not hardcoded) ───
     const directionFilter = TradingConfig.get('pipeline.directionFilter');
     const enableShorts = TradingConfig.get('features.enableShorts');
+    const minConfidence = this.ctx.config.minTradeConfidence;
 
     // ─── LOG ───
     const cleanPrice = Math.round(price).toLocaleString();
@@ -741,6 +742,9 @@ class TradingLoop {
         filter: directionFilter,
         enableShorts,
         direction: finalDirection,
+        finalDirection,
+        confidencePct: orchResult.confidence,
+        minConfidencePct: minConfidence * 100,
       });
       console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter} enableShorts=${enableShorts}`);
       this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
@@ -767,7 +771,6 @@ class TradingLoop {
     // symbol explicitly.
     const activeTrades = stateManager.getTradesBySymbol(symbol);
     const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
-    const minConfidence = this.ctx.config.minTradeConfidence;
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };
     this._diag('ENTRY_CONTEXT', {
@@ -929,6 +932,7 @@ class TradingLoop {
           activeTrades: activeTrades.length
         });
         console.log(`[ENTRY] Blocked: already holding ${finalDirection === 'buy' ? 'long' : 'short'} position`);
+        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'same_direction_position' };
       } else if (hasOppositePosition) {
         this._diag('ENTRY_BLOCK', {
           symbol,
@@ -963,6 +967,7 @@ class TradingLoop {
           maxPositions
         });
         console.log(`[ENTRY] Blocked: at max positions (${activeTrades.length}/${maxPositions})`);
+        decision = { action: 'HOLD', confidence: orchResult.confidence, blockReason: 'max_positions' };
       } else {
         this._diag('RISK_CHECK_START', {
           symbol,
@@ -996,7 +1001,9 @@ class TradingLoop {
           decision.rsiAtEntry = indicators?.rsi ?? null;
         }
       }
-    } else if (decision.action === 'HOLD') {
+    }
+
+    if (decision.action === 'HOLD') {
       const reasons = [];
       if (finalDirection === 'hold') reasons.push('hold_direction');
       if (confidence < minConfidence) reasons.push('below_min_confidence');

@@ -356,6 +356,9 @@ describe('TradingLoop trace spine', () => {
         filter: 'both',
         enableShorts: false,
         direction: 'sell',
+        finalDirection: 'sell',
+        confidencePct: 80,
+        minConfidencePct: 50,
       }));
     } finally {
       configSpy.mockRestore();
@@ -439,6 +442,9 @@ describe('TradingLoop trace spine', () => {
         filter: 'long_only',
         enableShorts: false,
         direction: 'sell',
+        finalDirection: 'sell',
+        confidencePct: 80,
+        minConfidencePct: 50,
       }));
     } finally {
       configSpy.mockRestore();
@@ -474,6 +480,7 @@ describe('TradingLoop trace spine', () => {
         assessTradeRisk: jest.fn(),
       },
     });
+    ctx.config.evalTraceEnabled = true;
     const loop = new TradingLoop(ctx);
     stubGatherData(loop);
 
@@ -500,6 +507,22 @@ describe('TradingLoop trace spine', () => {
     expect(gateEvent.riskGates).toEqual([
       { gate: 'daily_loss_limit', threshold: 500, value: 750, passed: false, rejectReason: 'Daily loss limit' },
     ]);
+    const skipEvent = frames.find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+    expect(skipEvent).toEqual(expect.objectContaining({
+      traceId: 'trace_gate_block_1',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    }));
+    expect(skipEvent.fields).toEqual(expect.objectContaining({
+      reason: 'Daily loss limit',
+      finalDirection: 'buy',
+      confidencePct: 80,
+      minConfidencePct: 50,
+    }));
     expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
       message: 'Blocked: Daily loss limit',
       asset: 'TSLA',
@@ -513,6 +536,50 @@ describe('TradingLoop trace spine', () => {
           volume: 1000,
         }
       })
+    }));
+  });
+
+  test('emits DECISION_SKIP when a valid signal is structurally blocked by an existing same-direction position', async () => {
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_OPEN_SAME_DIRECTION_1',
+      orderId: 'BUY_OPEN_SAME_DIRECTION_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+    const ctx = baseEntryContext({
+      executeTrade: jest.fn(),
+    });
+    ctx.config.evalTraceEnabled = true;
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_same_direction_block_1');
+
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+    const frames = sentFrames(ctx);
+    const skipEvent = frames.find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+    expect(skipEvent).toEqual(expect.objectContaining({
+      traceId: 'trace_same_direction_block_1',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    }));
+    expect(skipEvent.fields).toEqual(expect.objectContaining({
+      reason: 'same_direction_position',
+      finalDirection: 'buy',
+      confidencePct: 80,
+      minConfidencePct: 50,
+    }));
+    expect(frames.find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
+      message: 'Blocked: same_direction_position',
+      asset: 'TSLA',
     }));
   });
 
