@@ -1,0 +1,14 @@
+{
+  "name": "OGZPrime Mobile",
+  "short_name": "OGZPrime",
+  "description": "Mobile monitor cockpit for the OGZPrime trading engine.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

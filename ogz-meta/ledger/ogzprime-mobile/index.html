@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<title>OGZPrime Mobile</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#121217; --panel-2:#17171e; --line:#26262f;
+    --txt:#e8e8ee; --muted:#8a8a99; --gold:#FFD700; --gold-dim:#9a8a1f;
+    --green:#27d07a; --red:#ff5470; --amber:#ffb020; --blue:#4aa8ff;
+    --radius:14px; --tap:44px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    overscroll-behavior-y:none;
+  }
+  .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono","Fira Code",monospace}
+  .app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+  /* Top bar */
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,rgba(10,10,12,.98),rgba(10,10,12,.86));
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.5px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  .brand small{color:var(--gold);font-weight:600}
+  .conn{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+  .conn .led{width:9px;height:9px;border-radius:50%;background:var(--muted);transition:.2s}
+  .conn.online .led{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .conn.connecting .led{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1s infinite}
+  .conn.offline .led{background:var(--red)}
+  @keyframes pulse{50%{opacity:.35}}
+
+  main{flex:1;padding:14px 14px 90px;display:flex;flex-direction:column;gap:12px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card h3{margin:0 0 10px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px}
+  .card h3 .tag{margin-left:auto;font-size:10px;color:var(--gold-dim);letter-spacing:.5px}
+
+  /* Equity hero */
+  .hero .bal{font-size:34px;font-weight:700;letter-spacing:-.5px}
+  .hero .row{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:999px;padding:5px 10px;font-size:12px;color:var(--muted)}
+  .pill b{color:var(--txt);font-weight:600}
+  .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--muted)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .stat .v{font-size:18px;font-weight:600;margin-top:3px}
+
+  /* health chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:999px;padding:6px 11px;font-size:12px}
+  .chip .led{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .chip.ok .led{background:var(--green)} .chip.bad .led{background:var(--red)} .chip.warn .led{background:var(--amber)}
+
+  /* lists */
+  .list{display:flex;flex-direction:column;gap:8px}
+  .trade{display:flex;align-items:center;gap:10px;padding:9px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+  .trade .side{font-weight:700;font-size:12px;padding:2px 7px;border-radius:6px}
+  .trade .side.buy{color:var(--green);background:rgba(39,208,122,.12)}
+  .trade .side.sell{color:var(--red);background:rgba(255,84,112,.12)}
+  .trade .sym{font-weight:600}
+  .trade .meta{margin-left:auto;text-align:right;font-size:12px;color:var(--muted)}
+
+  .empty{color:var(--muted);font-size:13px;padding:8px 2px;font-style:italic}
+
+  /* reasoning */
+  .think{background:#0e0e13;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13px;color:#cdd0da;
+    max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .think .strat{display:inline-block;margin:2px 4px 2px 0;font-size:11px;color:var(--gold);border:1px solid var(--gold-dim);border-radius:6px;padding:1px 7px}
+
+  /* alerts */
+  .alert{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);font-size:13px}
+  .alert .bar{width:3px;align-self:stretch;border-radius:3px;background:var(--blue)}
+  .alert.warn .bar{background:var(--amber)} .alert.err .bar{background:var(--red)} .alert.ok .bar{background:var(--green)}
+  .alert time{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+
+  /* raw inspector */
+  .raw{background:#08080b;border:1px solid var(--line);border-radius:10px;max-height:260px;overflow:auto;font-size:11.5px}
+  .raw .ln{padding:6px 9px;border-bottom:1px solid #161620;display:flex;gap:8px}
+  .raw .ln:last-child{border-bottom:0}
+  .raw .t{color:var(--gold);flex:0 0 auto}
+  .raw .j{color:#aab;word-break:break-word;white-space:pre-wrap}
+  .rawbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .rawbar input{flex:1;min-width:0}
+
+  /* bottom nav */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;max-width:560px;margin:0 auto;
+    background:rgba(15,15,19,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+    padding:6px 6px env(safe-area-inset-bottom)}
+  .nav button{flex:1;background:none;border:0;color:var(--muted);font-size:10.5px;padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:var(--tap)}
+  .nav button .ic{font-size:17px;line-height:1}
+  .nav button.active{color:var(--gold)}
+
+  /* inputs / buttons */
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+  input,select{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;color:var(--txt);
+    padding:11px 12px;font-size:15px;min-height:var(--tap)}
+  input:focus,select:focus{outline:0;border-color:var(--gold-dim)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:var(--tap);
+    background:var(--gold);color:#15140a;border:0;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px}
+  .btn.secondary{background:var(--panel-2);color:var(--txt);border:1px solid var(--line)}
+  .btn.danger{background:rgba(255,84,112,.14);color:var(--red);border:1px solid rgba(255,84,112,.4)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .note{font-size:11.5px;color:var(--gold-dim);border:1px dashed var(--gold-dim);border-radius:10px;padding:9px 11px;margin-top:12px;line-height:1.5}
+
+  .view{display:none;flex-direction:column;gap:12px}
+  .view.active{display:flex}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>OGZPrime <small>MOBILE</small></div>
+    <div class="conn offline" id="conn"><span class="led"></span><span id="connTxt">offline</span></div>
+  </div>
+
+  <main>
+    <!-- COCKPIT -->
+    <section class="view active" id="view-cockpit">
+      <div class="card hero">
+        <h3>Account <span class="tag" id="recoveryTag"></span></h3>
+        <div class="bal mono" id="balance">—</div>
+        <div class="row">
+          <span class="pill">Session P&amp;L <b class="mono" id="sessionPnl">—</b></span>
+          <span class="pill">Total P&amp;L <b class="mono" id="totalPnl">—</b></span>
+          <span class="pill">Win rate <b class="mono" id="winRate">—</b></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Open Position</h3>
+        <div id="positionBox"><div class="empty">No open position reported.</div></div>
+      </div>
+
+      <div class="card">
+        <h3>Guardrails</h3>
+        <div class="grid2">
+          <div class="stat"><div class="k">Risk posture</div><div class="v" id="gRisk">—</div></div>
+          <div class="stat"><div class="k">Size preview</div><div class="v mono" id="gSize">—</div></div>
+          <div class="stat"><div class="k">Max loss</div><div class="v mono" id="gMaxLoss">—</div></div>
+          <div class="stat"><div class="k">Recovery</div><div class="v" id="gRecovery">—</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Broker &amp; Feed Health</h3>
+        <div class="chips" id="healthChips"><div class="empty">Awaiting broker status…</div></div>
+      </div>
+    </section>
+
+    <!-- TRADES -->
+    <section class="view" id="view-trades">
+      <div class="card">
+        <h3>Latest Trades</h3>
+        <div class="list" id="tradeList"><div class="empty">No trades received yet.</div></div>
+      </div>
+    </section>
+
+    <!-- TRAI -->
+    <section class="view" id="view-trai">
+      <div class="card">
+        <h3>TRAI Reasoning <span class="tag" id="traiStrats"></span></h3>
+        <div class="think mono" id="thinkBox"><span class="empty">Waiting for bot_thinking stream…</span></div>
+      </div>
+      <div class="card">
+        <h3>Alerts</h3>
+        <div class="list" id="alertList"><div class="empty">No alerts.</div></div>
+      </div>
+    </section>
+
+    <!-- INSPECT -->
+    <section class="view" id="view-inspect">
+      <div class="card">
+        <h3>Raw Frame Inspector <span class="tag" id="frameCount">0</span></h3>
+        <div class="rawbar">
+          <input id="rawFilter" placeholder="filter by type… (e.g. state_update)">
+          <button class="btn secondary" style="width:auto;margin:0;padding:0 14px" id="rawClear">Clear</button>
+        </div>
+        <div class="raw" id="rawFeed"></div>
+        <div class="hint">Every frame the server sends lands here, newest first. This is how we map your exact
+          message shapes onto the cockpit without guessing field names.</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="card">
+        <h3>Connection</h3>
+        <label for="wsUrl">Bot WebSocket URL</label>
+        <input id="wsUrl" class="mono" placeholder="wss://your-instance:3010/ws" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <label for="wsToken">Auth token</label>
+        <input id="wsToken" class="mono" type="password" placeholder="WEBSOCKET_AUTH_TOKEN" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button class="btn" id="connectBtn">Connect</button>
+        <button class="btn secondary" id="disconnectBtn">Disconnect</button>
+        <div class="note">v1 is <b>monitor-only</b>. The token is kept in page memory only, cleared on disconnect
+          or reload, and sent solely to the endpoint above. This is a stopgap — the production path is short-lived session tickets
+          (Phase 0 auth), not a stored long-lived token. Operator controls (pause / resume / emergency close)
+          are deferred to Phase 3 because they require backend command handlers that don't exist yet.</div>
+      </div>
+      <div class="card">
+        <h3>Status</h3>
+        <div class="grid2">
+          <div class="stat"><div class="k">Socket</div><div class="v" id="sState">closed</div></div>
+          <div class="stat"><div class="k">Authenticated</div><div class="v" id="sAuth">no</div></div>
+          <div class="stat"><div class="k">Frames in</div><div class="v mono" id="sFrames">0</div></div>
+          <div class="stat"><div class="k">Last frame</div><div class="v mono" id="sLast">—</div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <button data-view="cockpit" class="active">Cockpit</button>
+    <button data-view="trades">Trades</button>
+    <button data-view="trai">TRAI</button>
+    <button data-view="inspect">Inspect</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
