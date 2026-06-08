@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TradingConfig Risk Default Removal (2026-06-08)
+
+- Removed stale RiskManager circuit defaults from `TradingConfig.BASE_CONFIG.risk` so RiskManager limits remain owned by explicit ConfigLoader/env/profile sources, while preserving worker-env profile propagation coverage.
+
 ### Risk Manager Daily Loss Alert Percent (2026-06-08)
 
 - Changed RiskManager daily-loss alerts to compare and report period loss percent instead of treating raw PnL dollars as a percent, with regression coverage for the 3% alert threshold.

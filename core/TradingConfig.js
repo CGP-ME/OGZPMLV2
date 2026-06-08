@@ -183,12 +183,9 @@ const BASE_CONFIG = {
   // =========================================================================
   risk: {
     maxRiskPerTrade: env('MAX_RISK_PER_TRADE', 0.02),           // 2% max risk per trade
-    maxDrawdown: env('MAX_DRAWDOWN', 0.18),                      // 18% max account drawdown
-    maxDailyLoss: env('MAX_DAILY_LOSS', 0.10),                   // 10% max daily loss
-    maxWeeklyLoss: env('MAX_WEEKLY_LOSS', 10),
-    maxMonthlyLoss: env('MAX_MONTHLY_LOSS', 20),
-    riskManagerBypass: envBool('RISK_MANAGER_BYPASS', true),
     accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
+    // RiskManager circuit limits are startup-owned by ConfigLoader/RiskManagerConfig.
+    // Profiles may still write risk.* startup overrides, but BASE_CONFIG must not carry stale defaults.
 
     // Recovery mode (after losses)
     recoveryModeReduction: 0.50,                                  // 50% size reduction in recovery

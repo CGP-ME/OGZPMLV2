@@ -1,9 +1,11 @@
 'use strict';
 
+const path = require('path');
 const TradingConfig = require('../core/TradingConfig');
 const {
   PROFILE_DEFINITIONS,
 } = require('../tools/tuning-profiles');
+const { buildBacktestWorkerEnv } = require('../tools/backtest-worker-env');
 
 describe('TradingConfig runtime profile contract', () => {
   afterEach(() => {
@@ -49,6 +51,33 @@ describe('TradingConfig runtime profile contract', () => {
       // Strict-mode engines throw on frozen assignment; either way the value must not change.
     }
     expect(TradingConfig.resolveTuningProfile('legacy-wide').env.TIER1_TARGET).toBe('0.020');
+  });
+
+  test('RiskManager circuit limits are worker-env profile values, not TradingConfig base defaults', () => {
+    expect(TradingConfig.get('risk.maxDrawdown')).toBeUndefined();
+    expect(TradingConfig.get('risk.maxDailyLoss')).toBeUndefined();
+    expect(TradingConfig.get('risk.maxWeeklyLoss')).toBeUndefined();
+    expect(TradingConfig.get('risk.maxMonthlyLoss')).toBeUndefined();
+    expect(TradingConfig.get('risk.riskManagerBypass')).toBeUndefined();
+    expect(TradingConfig.get('risk.accountDrawdownBypass')).toBe(false);
+
+    const workerEnv = buildBacktestWorkerEnv({
+      sourceEnv: {},
+      projectRoot: path.join(__dirname, '..'),
+      dataFile: 'tuning/tsla-15m-750.json',
+      stateFile: 'data/state-unit-risk-profile.json',
+      dataDir: 'data/backtest',
+      reportTag: 'unit-risk-profile',
+      profileName: 'current-eval',
+    });
+
+    expect(workerEnv.MAX_DRAWDOWN).toBe('5');
+    expect(workerEnv.MAX_DAILY_LOSS).toBe('1');
+    expect(workerEnv.MAX_WEEKLY_LOSS).toBe('5');
+    expect(workerEnv.MAX_MONTHLY_LOSS).toBe('5');
+    expect(workerEnv.RISK_MANAGER_BYPASS).toBe('true');
+    expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
+    expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
   });
 
   test('flat-state tuning profile swap applies and restores config without mutating process env', async () => {
