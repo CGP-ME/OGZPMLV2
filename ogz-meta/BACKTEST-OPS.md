@@ -6,20 +6,29 @@
 
 ---
 
-## CURRENT STATUS NOTE — 2026-06-04
+## CURRENT STATUS NOTE — 2026-06-08
 
 This file is an operational command reference, not the canonical Phase 0
 regression anchor.
 
 Canonical P0 is enforced by `ogz-meta/anchor-runner.js` and
 `ogz-meta/gates/multi-runtime-gate-runner.js`; its current full anchor is
-`$10061.215823687478 / 1688 trades / 62.1% WR / PF 1.01`.
+`$10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
 
-Rechecked 2026-06-04 with:
+Rechecked 2026-06-08 with:
 
 ```bash
-node ogz-meta/gates/multi-runtime-gate-runner.js --p0 --write-report
+node ogz-meta/gates/multi-runtime-gate-runner.js --p0
 ```
+
+Fresh worker report:
+`backtest-results/worker-reports/backtest-report-1780954098888-phase0-canonical-multi-runtime-gate-2026-06-08T21-27-03-025Z.json`.
+
+The prior `$10061.215823687478 / 1688 trades / 62.1% WR / PF 1.01`
+anchor is retired. It was produced while the canonical P0 expected ATR-on
+behavior but the `current-eval` tuning profile did not own
+`ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, allowing the executable
+gate to run ATR-off.
 
 The prior `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`
 anchor is retired. It reproduced the same trade count and win rate, but it

@@ -67,7 +67,8 @@ For changes on the trading/backtest execution path:
 - Use `--max-tokens=7750` and `--max-iterations=60`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
-- Current full-anchor expectation: `10061.215823687478 / 1688 trades / 62.1% WR / PF 1.01`.
+- Current full-anchor expectation: `10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
+- Older `10061.215823687478` references are historical ATR-off profile drift anchors from before `current-eval` owned the canonical ATR filter.
 - Older `13255.255799695915` references are historical contaminated partial-exit over-credit anchors.
 - Older `13213.042341608163` references are historical/modifiers-off anchors unless the current
   executable gate is explicitly rebaselined.
