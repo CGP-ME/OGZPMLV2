@@ -97,6 +97,36 @@ describe('Mercury index scope hygiene', () => {
     expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
   });
 
+  test.each([
+    '[^\\x00-\\x7F]',
+    '\\p{Extended_Pictographic}',
+    '\\u{1F600}',
+    '\\d+',
+  ])('literal grep rejects regex-looking proof query %s', async (query) => {
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "ascii";');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('grep', { query, limit: 20 });
+
+    expect(result.error).toContain('literal-only');
+    expect(result.matches).toBeUndefined();
+  });
+
+  test('regex_grep supports regex proof queries with the shared skip policy', async () => {
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "plain";\nconst symbol = "é";');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'é');
+    writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.md', 'é');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('regex_grep', { query: '[^\\x00-\\x7F]', limit: 20 });
+    const files = result.matches.map((match) => match.file);
+
+    expect(result.source).toBe('direct_ripgrep_regex');
+    expect(files).toContain('core/live-path.js');
+    expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
+    expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
+  });
+
   test('grep tool does not delegate around the shared skip policy', async () => {
     writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_TOOLBOX_MARKER";');
     writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'MERCURY_TOOLBOX_MARKER');
