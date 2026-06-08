@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PM2 Eval Live Runtime Env (2026-06-08)
+
+- Changed the committed `ogz-prime-v2` default PM2 env to the Alpaca/TSLA eval-live posture, pinning risk gates, webhook live routing, TTP rule toggles, and current sizing/exit tunables while requiring credentials and day/account-specific TTP values from the host environment.
+
 ### Eval Readiness State/Broker Exposure Gate (2026-06-08)
 
 - Changed the eval PM2 gate from config-only posture to full readiness posture by requiring an explicit `STATE_FILE`, checking persisted StateManager exposure, requiring flat Alpaca broker positions, and failing loud when broker exposure cannot be verified.
