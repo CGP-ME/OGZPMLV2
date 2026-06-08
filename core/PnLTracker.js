@@ -11,10 +11,20 @@
 
 class PnLTracker {
   constructor(config = {}) {
+    if (!Number.isFinite(config.dailyLossLimitPercent) || config.dailyLossLimitPercent < 1 || config.dailyLossLimitPercent > 100) {
+      throw new Error(`[RISK-CONFIG] PnLTracker requires dailyLossLimitPercent from RiskManager config; got ${config.dailyLossLimitPercent}`);
+    }
+    if (!Number.isFinite(config.weeklyLossLimitPercent) || config.weeklyLossLimitPercent < 1 || config.weeklyLossLimitPercent > 100) {
+      throw new Error(`[RISK-CONFIG] PnLTracker requires weeklyLossLimitPercent from RiskManager config; got ${config.weeklyLossLimitPercent}`);
+    }
+    if (!Number.isFinite(config.monthlyLossLimitPercent) || config.monthlyLossLimitPercent < 1 || config.monthlyLossLimitPercent > 100) {
+      throw new Error(`[RISK-CONFIG] PnLTracker requires monthlyLossLimitPercent from RiskManager config; got ${config.monthlyLossLimitPercent}`);
+    }
+
     this.config = {
-      dailyLossLimitPercent: config.dailyLossLimitPercent ?? 5.0,
-      weeklyLossLimitPercent: config.weeklyLossLimitPercent ?? 10.0,
-      monthlyLossLimitPercent: config.monthlyLossLimitPercent ?? 20.0,
+      dailyLossLimitPercent: config.dailyLossLimitPercent,
+      weeklyLossLimitPercent: config.weeklyLossLimitPercent,
+      monthlyLossLimitPercent: config.monthlyLossLimitPercent,
       alertThresholds: {
         consecutiveLosses: config.consecutiveLossesAlert ?? 3,
       },

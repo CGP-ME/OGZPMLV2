@@ -15,13 +15,31 @@
 
 const DrawdownTracker = require('./DrawdownTracker');
 const PnLTracker = require('./PnLTracker');
+const { isRiskManagerConfig } = require('./RiskManagerConfig');
+
+function requireBooleanConfig(config, key) {
+  const value = config[key];
+  if (typeof value !== 'boolean') {
+    throw new Error(`[RISK-CONFIG] RiskManager requires ${key} from RiskManager config; got ${value}`);
+  }
+  return value;
+}
 
 class RiskManager {
   constructor(config = {}) {
+    if (!isRiskManagerConfig(config)) {
+      throw new Error('[RISK-CONFIG] RiskManager requires config from buildRiskManagerConfig');
+    }
+    const riskManagerBypass = requireBooleanConfig(config, 'riskManagerBypass');
+
     this.config = {
+      maxDrawdownPercent: config.maxDrawdownPercent,
+      dailyLossLimitPercent: config.dailyLossLimitPercent,
+      weeklyLossLimitPercent: config.weeklyLossLimitPercent,
+      monthlyLossLimitPercent: config.monthlyLossLimitPercent,
       recoveryConfidenceMultiplier: config.recoveryConfidenceMultiplier ?? 1.5,
       baseConfidenceThreshold: config.baseConfidenceThreshold ?? 0.3,
-      riskManagerBypass: config.riskManagerBypass ?? false,  // Default OFF for safety
+      riskManagerBypass,
       alertThresholds: {
         drawdown: config.drawdownAlert ?? 5,
         dailyLoss: config.dailyLossAlert ?? 3,
@@ -127,17 +145,17 @@ class RiskManager {
     }
 
     // Loss limit checks
-    _gate('daily_loss_limit', 0, breaches.daily ? 1 : 0, !breaches.daily,
+    _gate('daily_loss_limit', this.config.dailyLossLimitPercent, breaches.daily ? 1 : 0, !breaches.daily,
           breaches.daily ? 'Daily loss limit exceeded' : null);
     if (breaches.daily) {
       return { approved: false, reason: 'Daily loss limit exceeded', riskLevel: 'HIGH', blockType: 'DAILY_LIMIT', riskGates };
     }
-    _gate('daily_loss_limit', 0, breaches.weekly ? 1 : 0, !breaches.weekly,
+    _gate('weekly_loss_limit', this.config.weeklyLossLimitPercent, breaches.weekly ? 1 : 0, !breaches.weekly,
           breaches.weekly ? 'Weekly loss limit exceeded' : null);
     if (breaches.weekly) {
       return { approved: false, reason: 'Weekly loss limit exceeded', riskLevel: 'HIGH', blockType: 'WEEKLY_LIMIT', riskGates };
     }
-    _gate('daily_loss_limit', 0, breaches.monthly ? 1 : 0, !breaches.monthly,
+    _gate('monthly_loss_limit', this.config.monthlyLossLimitPercent, breaches.monthly ? 1 : 0, !breaches.monthly,
           breaches.monthly ? 'Monthly loss limit exceeded' : null);
     if (breaches.monthly) {
       return { approved: false, reason: 'Monthly loss limit exceeded', riskLevel: 'HIGH', blockType: 'MONTHLY_LIMIT', riskGates };
@@ -209,15 +227,15 @@ class RiskManager {
     }
 
     const breaches = this.pnlTracker.getLimitBreaches();
-    _gate('daily_loss_limit', 0, breaches.daily ? 1 : 0, !breaches.daily,
+    _gate('daily_loss_limit', this.config.dailyLossLimitPercent, breaches.daily ? 1 : 0, !breaches.daily,
           breaches.daily ? 'Daily loss limit' : null);
     if (breaches.daily) return { allowed: false, reason: 'Daily loss limit', riskGates };
 
-    _gate('daily_loss_limit', 0, breaches.weekly ? 1 : 0, !breaches.weekly,
+    _gate('weekly_loss_limit', this.config.weeklyLossLimitPercent, breaches.weekly ? 1 : 0, !breaches.weekly,
           breaches.weekly ? 'Weekly loss limit' : null);
     if (breaches.weekly) return { allowed: false, reason: 'Weekly loss limit', riskGates };
 
-    _gate('daily_loss_limit', 0, breaches.monthly ? 1 : 0, !breaches.monthly,
+    _gate('monthly_loss_limit', this.config.monthlyLossLimitPercent, breaches.monthly ? 1 : 0, !breaches.monthly,
           breaches.monthly ? 'Monthly loss limit' : null);
     if (breaches.monthly) return { allowed: false, reason: 'Monthly loss limit', riskGates };
 

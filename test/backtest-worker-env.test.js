@@ -111,6 +111,10 @@ describe('backtest worker env contract', () => {
     expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
     expect(env.RISK_MANAGER_BYPASS).toBe('true');
+    expect(env.MAX_DRAWDOWN).toBe('5');
+    expect(env.MAX_DAILY_LOSS).toBe('1');
+    expect(env.MAX_WEEKLY_LOSS).toBe('5');
+    expect(env.MAX_MONTHLY_LOSS).toBe('5');
     expect(env.EXIT_SYSTEM).toBe('legacy');
     expect(env.FEE_MAKER).toBe('0');
     expect(env.FEE_TAKER).toBe('0');
@@ -180,6 +184,10 @@ describe('backtest worker env contract', () => {
     expect(env.ATR_MIN_PERCENT).toBe('0.25');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.07');
     expect(env.RISK_MANAGER_BYPASS).toBe('false');
+    expect(env.MAX_DRAWDOWN).toBe('5');
+    expect(env.MAX_DAILY_LOSS).toBe('1');
+    expect(env.MAX_WEEKLY_LOSS).toBe('5');
+    expect(env.MAX_MONTHLY_LOSS).toBe('5');
     expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
   });

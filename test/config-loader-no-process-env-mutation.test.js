@@ -23,6 +23,10 @@ describe('ConfigLoader process.env immutability', () => {
       LIVE_TRADING: 'false',
       RISK_MANAGER_BYPASS: 'true',
       ACCOUNT_DRAWDOWN_BYPASS: 'true',
+      MAX_DRAWDOWN: '5',
+      MAX_DAILY_LOSS: '1',
+      MAX_WEEKLY_LOSS: '5',
+      MAX_MONTHLY_LOSS: '5',
     };
 
     const ConfigLoader = require('../foundation/ConfigLoader');
@@ -57,6 +61,10 @@ describe('ConfigLoader process.env immutability', () => {
         LIVE_TRADING: 'false',
         RISK_MANAGER_BYPASS: 'true',
         ACCOUNT_DRAWDOWN_BYPASS: 'true',
+        MAX_DRAWDOWN: '5',
+        MAX_DAILY_LOSS: '1',
+        MAX_WEEKLY_LOSS: '5',
+        MAX_MONTHLY_LOSS: '5',
       };
       delete process.env.BACKTEST_MODE;
       delete process.env.STATE_FILE;

@@ -66,7 +66,14 @@ describe('TradingConfig runtime profile contract', () => {
     expect(applied).toEqual(expect.objectContaining({
       profile: 'current-eval',
       overrideCount: expect.any(Number),
-      runtimeSnapshotEnvKeys: ['EXIT_SYSTEM', 'RISK_MANAGER_BYPASS'],
+      runtimeSnapshotEnvKeys: [
+        'EXIT_SYSTEM',
+        'MAX_DAILY_LOSS',
+        'MAX_DRAWDOWN',
+        'MAX_MONTHLY_LOSS',
+        'MAX_WEEKLY_LOSS',
+        'RISK_MANAGER_BYPASS',
+      ],
     }));
     expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.007);
     expect(TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
@@ -110,7 +117,7 @@ describe('TradingConfig runtime profile contract', () => {
       phase: 'runtime',
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
-    })).toThrow(/includes startup-snapshot key\(s\) EXIT_SYSTEM, RISK_MANAGER_BYPASS/);
+    })).toThrow(/includes startup-snapshot key\(s\) EXIT_SYSTEM, MAX_DAILY_LOSS, MAX_DRAWDOWN, MAX_MONTHLY_LOSS, MAX_WEEKLY_LOSS, RISK_MANAGER_BYPASS/);
   });
 
   test('profile apply refuses active override collisions unless profile replacement is explicit', () => {

@@ -11,8 +11,12 @@
 
 class DrawdownTracker {
   constructor(config = {}) {
+    if (!Number.isFinite(config.maxDrawdownPercent) || config.maxDrawdownPercent < 1 || config.maxDrawdownPercent > 100) {
+      throw new Error(`[RISK-CONFIG] DrawdownTracker requires maxDrawdownPercent from RiskManager config; got ${config.maxDrawdownPercent}`);
+    }
+
     this.config = {
-      maxDrawdownPercent: config.maxDrawdownPercent ?? 15,
+      maxDrawdownPercent: config.maxDrawdownPercent,
       recoveryThreshold: config.recoveryThreshold ?? 10,
       recoveryModeBackoffMs: config.recoveryModeBackoffMs ?? 300000, // 5 min
       tradesRequiredToExitRecovery: config.tradesRequiredToExitRecovery ?? 5,

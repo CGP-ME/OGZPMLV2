@@ -311,6 +311,7 @@ const TtpCutoffEnforcer = require('./core/TtpCutoffEnforcer');
 
 // CHANGE 2025-12-11: MessageQueue - Prevent WebSocket race conditions
 const MessageQueue = require('./core/MessageQueue');
+const { buildRiskManagerConfig } = require('./core/RiskManagerConfig');
 
 // CHANGE 2025-12-23: Empire V2 IndicatorEngine - Single source of truth for indicators
 const IndicatorEngine = require('./core/indicators/IndicatorEngine');
@@ -578,13 +579,10 @@ class OGZPrimeV14Bot {
       proximityThreshold: 0.5,
     });
 
-    this.riskManager = new RiskManager({
-      // CHANGE 2026-02-28: Use TradingConfig
-      maxDailyLoss: TradingConfig.get('risk.maxDailyLoss'),
-      maxDrawdown: TradingConfig.get('risk.maxDrawdown'),
-      // CHANGE 2026-03-17: Inject from ConfigLoader (no more process.env in RiskManager)
-      riskManagerBypass: resolvedConfig.config.risk.riskManagerBypass,
-    });
+    this.riskManager = new RiskManager(buildRiskManagerConfig(
+      resolvedConfig.config.risk,
+      resolvedConfig.sources
+    ));
 
     // Phase 3 REWRITE: EntryDecider deleted - decision logic inlined to TradingLoop
     // Gate checks and exit logic now in TradingLoop + ExitContractManager

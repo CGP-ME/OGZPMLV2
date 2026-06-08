@@ -53,6 +53,8 @@ const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   ACCOUNT_DRAWDOWN_BYPASS: 'risk.accountDrawdownBypass',
   MAX_DRAWDOWN: 'risk.maxDrawdown',
   MAX_DAILY_LOSS: 'risk.maxDailyLoss',
+  MAX_WEEKLY_LOSS: 'risk.maxWeeklyLoss',
+  MAX_MONTHLY_LOSS: 'risk.maxMonthlyLoss',
   ATR_FILTER_ENABLED: 'filters.atrEnabled',
   ATR_MIN_PERCENT: 'filters.atrMinPercent',
   CANDLE_DATA_FILE: 'backtest.candleDataFile',
@@ -203,6 +205,8 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['risk.accountDrawdownBypass'] = getSource('ACCOUNT_DRAWDOWN_BYPASS', null, 'false (ACTIVE)');
   resolved['risk.maxDrawdown'] = getSource('MAX_DRAWDOWN', 'risk.maxDrawdown', 10);
   resolved['risk.maxDailyLoss'] = getSource('MAX_DAILY_LOSS', 'risk.maxDailyLoss', 3);
+  resolved['risk.maxWeeklyLoss'] = getSource('MAX_WEEKLY_LOSS', 'risk.maxWeeklyLoss', 10);
+  resolved['risk.maxMonthlyLoss'] = getSource('MAX_MONTHLY_LOSS', 'risk.maxMonthlyLoss', 20);
 
   // === UNIVERSAL LIMITS ===
   resolved['limits.hardStopLoss'] = { value: TradingConfig.get('universalLimits.hardStopLossPercent'), source: 'TradingConfig:universalLimits.hardStopLossPercent' };
@@ -257,6 +261,11 @@ function buildResolvedConfig(context = createAuditContext()) {
   addConfigLoaderLeaves(resolved, context);
 
   return resolved;
+}
+
+function getRiskConfigViolations(context = createAuditContext()) {
+  return (context.configSnapshot.errors || [])
+    .filter(error => /^risk\.[^.]+ requires explicit env\/profile source$/.test(error));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -343,6 +352,7 @@ function run(context = createAuditContext()) {
   console.log('═'.repeat(80));
 
   const resolved = buildResolvedConfig(context);
+  const riskConfigViolations = getRiskConfigViolations(context);
   const fingerprint = buildFingerprint(resolved);
 
   console.log(`\n  Config Fingerprint: ${fingerprint}`);
@@ -362,6 +372,13 @@ function run(context = createAuditContext()) {
     for (const entry of entries) {
       const val = typeof entry.value === 'boolean' ? (entry.value ? 'true' : 'false') : String(entry.value);
       console.log(`  [${sourceLabelFor(entry.source)}] ${entry.key.padEnd(45)} = ${val.padEnd(20)} [${entry.source}]`);
+    }
+  }
+
+  if (riskConfigViolations.length > 0) {
+    console.log(`\n── RISK CONFIG VIOLATIONS ${'─'.repeat(48)}`);
+    for (const violation of riskConfigViolations) {
+      console.log(`  [ERR] ${violation}`);
     }
   }
 
@@ -401,6 +418,7 @@ function run(context = createAuditContext()) {
     timestamp: new Date().toISOString(),
     envFile: context.envPath,
     resolved,
+    riskConfigViolations,
     envReads: envReads.map(r => ({ file: r.file, line: r.line, envVar: r.envVar })),
     runtimeEnvReads: runtimeReads.length,
   };
@@ -419,7 +437,10 @@ function run(context = createAuditContext()) {
 }
 
 if (require.main === module) {
-  run();
+  const auditData = run();
+  if (auditData.riskConfigViolations.length > 0) {
+    process.exitCode = 1;
+  }
 }
 
 module.exports = {
@@ -431,6 +452,7 @@ module.exports = {
   createAuditContext,
   flattenConfigLeaves,
   getPath,
+  getRiskConfigViolations,
   getSourceFromContext,
   isSecretPath,
   REDACTED_VALUE,

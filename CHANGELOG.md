@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Risk Manager Profile Config Ownership (2026-06-08)
+
+- Routed RiskManager construction through source-aware profile/env risk config and rejected default-sourced or unbranded risk-manager config before trade-path use.
+- Added prop-firm-eval risk limit keys to hot-swappable profiles, PM2 env, backtest worker env, and profile startup-snapshot guards so risk-limit swaps cannot pretend to update already-constructed runtime objects.
+- Added audit/test coverage for default-sourced risk violations, direct RiskManager construction bypass attempts, weekly/monthly risk gate labels, and profile-owned risk env propagation.
+
 ### Dashboard WebSocket Token Containment (2026-06-06)
 
 - Removed server-side `WEBSOCKET_AUTH_TOKEN` injection from public dashboard HTML and changed dashboard templates to scrub `ws-token` meta content to empty before serving.

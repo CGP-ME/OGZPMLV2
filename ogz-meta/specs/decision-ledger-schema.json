@@ -186,6 +186,8 @@
               "atr_filter",
               "max_positions",
               "daily_loss_limit",
+              "weekly_loss_limit",
+              "monthly_loss_limit",
               "drawdown_circuit",
               "same_direction_block",
               "kill_switch",

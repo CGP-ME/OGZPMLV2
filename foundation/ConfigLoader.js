@@ -26,6 +26,14 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const path = require('path');
 
+const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
+  'risk.riskManagerBypass',
+  'risk.maxDrawdown',
+  'risk.maxDailyLoss',
+  'risk.maxWeeklyLoss',
+  'risk.maxMonthlyLoss',
+]);
+
 // ═══════════════════════════════════════════════════════════════
 // ENV READER HELPERS (private — only used inside this file)
 // ═══════════════════════════════════════════════════════════════
@@ -270,6 +278,8 @@ function buildConfig() {
       accountDrawdownBypass: track('risk.accountDrawdownBypass', envBool('ACCOUNT_DRAWDOWN_BYPASS', false)),
       maxDrawdown: track('risk.maxDrawdown', envFloat('MAX_DRAWDOWN', 10)),
       maxDailyLoss: track('risk.maxDailyLoss', envFloat('MAX_DAILY_LOSS', 3)),
+      maxWeeklyLoss: track('risk.maxWeeklyLoss', envFloat('MAX_WEEKLY_LOSS', 10)),
+      maxMonthlyLoss: track('risk.maxMonthlyLoss', envFloat('MAX_MONTHLY_LOSS', 20)),
     },
 
     // ─── FILTERS ───
@@ -411,7 +421,7 @@ function buildConfig() {
 // VALIDATION
 // ═══════════════════════════════════════════════════════════════
 
-function validate(config) {
+function validate(config, sources = {}) {
   const errors = [];
   const warnings = [];
 
@@ -604,6 +614,12 @@ function validate(config) {
     errors.push(`initialBalance must be positive: ${config.backtest.initialBalance}`);
   }
 
+  for (const riskPath of REQUIRED_RISK_SOURCE_PATHS) {
+    if (!sources[riskPath] || sources[riskPath] === 'default') {
+      errors.push(`${riskPath} requires explicit env/profile source`);
+    }
+  }
+
   // TEST_MODE requires DATA_DIR to prevent data collision
   if (config.mode.testMode && !config.paths.dataDir) {
     errors.push('TEST_MODE=true requires DATA_DIR to be set (prevents accidental writes to production data)');
@@ -666,7 +682,7 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
   let fp;
   try {
     ({ config, sources } = buildConfig());
-    ({ errors, warnings } = validate(config));
+    ({ errors, warnings } = validate(config, sources));
     fp = fingerprint(config);
   } finally {
     activeEnv = previousEnv;

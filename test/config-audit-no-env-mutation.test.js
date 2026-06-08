@@ -31,6 +31,10 @@ describe('config-audit env boundary', () => {
         LIVE_TRADING: 'false',
         RISK_MANAGER_BYPASS: 'true',
         ACCOUNT_DRAWDOWN_BYPASS: 'true',
+        MAX_DRAWDOWN: '5',
+        MAX_DAILY_LOSS: '1',
+        MAX_WEEKLY_LOSS: '5',
+        MAX_MONTHLY_LOSS: '5',
         KRAKEN_API_KEY: 'audit-test-api-key',
         KRAKEN_API_SECRET: 'audit-test-api-secret',
         SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/audit-secret',
@@ -130,5 +134,31 @@ describe('config-audit env boundary', () => {
     expect(missing).toEqual([]);
     expect(audit.sourceLabelFor('ConfigLoader:mode.liveTrading')).toBe('CFG');
     expect(audit.sourceLabelFor('TradingConfig:pipeline.enableRSI')).toBe('TC');
+  });
+
+  test('surfaces default-sourced risk config as audit violations', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-audit-risk-'));
+    const envPath = path.join(tempDir, '.env');
+    fs.writeFileSync(envPath, 'BACKTEST_MODE=true\n');
+
+    try {
+      process.env = {
+        DOTENV_CONFIG_PATH: envPath,
+        BACKTEST_MODE: 'true',
+      };
+
+      const audit = require('../tools/config-audit');
+      const context = audit.createAuditContext();
+
+      expect(audit.getRiskConfigViolations(context)).toEqual([
+        'risk.riskManagerBypass requires explicit env/profile source',
+        'risk.maxDrawdown requires explicit env/profile source',
+        'risk.maxDailyLoss requires explicit env/profile source',
+        'risk.maxWeeklyLoss requires explicit env/profile source',
+        'risk.maxMonthlyLoss requires explicit env/profile source',
+      ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

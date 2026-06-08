@@ -30,6 +30,10 @@ function validEvalLiveEnv(overrides = {}) {
     ENABLE_TRAI: 'false',
     RISK_MANAGER_BYPASS: 'false',
     ACCOUNT_DRAWDOWN_BYPASS: 'false',
+    MAX_DRAWDOWN: '5',
+    MAX_DAILY_LOSS: '1',
+    MAX_WEEKLY_LOSS: '5',
+    MAX_MONTHLY_LOSS: '5',
     WEBHOOK_ORDERS_ENABLED: 'true',
     WEBHOOK_DRY_RUN: 'false',
     SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
@@ -142,8 +146,17 @@ describe('eval live posture gate', () => {
       expect(cachedAfter.fingerprint).toBe(cachedBefore.fingerprint);
       expect(cachedAfter.config.mode.execution).toBe('paper');
     } finally {
-      process.env = originalEnv;
+      process.env = {
+        ...originalEnv,
+        RISK_MANAGER_BYPASS: originalEnv.RISK_MANAGER_BYPASS || 'false',
+        ACCOUNT_DRAWDOWN_BYPASS: originalEnv.ACCOUNT_DRAWDOWN_BYPASS || 'false',
+        MAX_DRAWDOWN: originalEnv.MAX_DRAWDOWN || '5',
+        MAX_DAILY_LOSS: originalEnv.MAX_DAILY_LOSS || '1',
+        MAX_WEEKLY_LOSS: originalEnv.MAX_WEEKLY_LOSS || '5',
+        MAX_MONTHLY_LOSS: originalEnv.MAX_MONTHLY_LOSS || '5',
+      };
       ConfigLoader.load({ force: true, silent: true });
+      process.env = originalEnv;
     }
   });
 

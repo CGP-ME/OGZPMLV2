@@ -71,6 +71,10 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   TIER1_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier1ExitFraction']),
   TIER2_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier2ExitFraction']),
   TIER3_EXIT_FRACTION: Object.freeze(['exitLogic.tieredExit.tier3ExitFraction']),
+  MAX_DRAWDOWN: Object.freeze(['risk.maxDrawdown']),
+  MAX_DAILY_LOSS: Object.freeze(['risk.maxDailyLoss']),
+  MAX_WEEKLY_LOSS: Object.freeze(['risk.maxWeeklyLoss']),
+  MAX_MONTHLY_LOSS: Object.freeze(['risk.maxMonthlyLoss']),
   ACCOUNT_DRAWDOWN_BYPASS: Object.freeze([
     'risk.accountDrawdownBypass',
     'exitLogic.safety.accountDrawdownBypass',
@@ -93,6 +97,10 @@ const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
 
 const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
   'RISK_MANAGER_BYPASS',
+  'MAX_DRAWDOWN',
+  'MAX_DAILY_LOSS',
+  'MAX_WEEKLY_LOSS',
+  'MAX_MONTHLY_LOSS',
   'EXIT_SYSTEM',
 ]));
 
@@ -177,6 +185,8 @@ const BASE_CONFIG = {
     maxRiskPerTrade: env('MAX_RISK_PER_TRADE', 0.02),           // 2% max risk per trade
     maxDrawdown: env('MAX_DRAWDOWN', 0.18),                      // 18% max account drawdown
     maxDailyLoss: env('MAX_DAILY_LOSS', 0.10),                   // 10% max daily loss
+    maxWeeklyLoss: env('MAX_WEEKLY_LOSS', 10),
+    maxMonthlyLoss: env('MAX_MONTHLY_LOSS', 20),
     riskManagerBypass: envBool('RISK_MANAGER_BYPASS', true),
     accountDrawdownBypass: envBool('ACCOUNT_DRAWDOWN_BYPASS', false),
 
@@ -948,6 +958,10 @@ const BASE_CONFIG = {
       DIRECTION_FILTER: 'both',
       ACCOUNT_DRAWDOWN_BYPASS: 'true',
       RISK_MANAGER_BYPASS: 'true',
+      MAX_DRAWDOWN: '5',
+      MAX_DAILY_LOSS: '1',
+      MAX_WEEKLY_LOSS: '5',
+      MAX_MONTHLY_LOSS: '5',
       EXIT_SYSTEM: 'legacy',
       FEE_MAKER: '0.0025',
       FEE_TAKER: '0.0040',
@@ -1170,6 +1184,10 @@ const BASE_CONFIG = {
           TIER1_EXIT_FRACTION: '0.30',
           TIER2_EXIT_FRACTION: '0.30',
           TIER3_EXIT_FRACTION: '0.20',
+          MAX_DRAWDOWN: '5',
+          MAX_DAILY_LOSS: '1',
+          MAX_WEEKLY_LOSS: '5',
+          MAX_MONTHLY_LOSS: '5',
           ACCOUNT_DRAWDOWN_BYPASS: 'true',
           RISK_MANAGER_BYPASS: 'true',
           EXIT_SYSTEM: 'legacy',
@@ -1198,6 +1216,10 @@ const BASE_CONFIG = {
           TIER1_EXIT_FRACTION: '0.30',
           TIER2_EXIT_FRACTION: '0.30',
           TIER3_EXIT_FRACTION: '0.20',
+          MAX_DRAWDOWN: '5',
+          MAX_DAILY_LOSS: '1',
+          MAX_WEEKLY_LOSS: '5',
+          MAX_MONTHLY_LOSS: '5',
           ACCOUNT_DRAWDOWN_BYPASS: 'true',
           RISK_MANAGER_BYPASS: 'true',
           EXIT_SYSTEM: 'legacy',
