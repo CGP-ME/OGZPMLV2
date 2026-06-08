@@ -134,13 +134,13 @@ for f in "${REQUIRED_FILES[@]}"; do
 done
 echo ""
 
-# ─── Verify ripgrep availability (optional but good for perf) ─
-echo "─── Step 6: Checking ripgrep (optional, adapter has JS fallback) ───"
+# ─── Verify ripgrep availability ──────────────────────────────
+echo "─── Step 6: Checking ripgrep (required for Mercury grep) ───"
 if command -v rg >/dev/null 2>&1; then
   RG_VERSION=$(rg --version | head -1)
-  echo "  ✓ ripgrep available: $RG_VERSION"
+  echo "  OK ripgrep available: $RG_VERSION"
 else
-  echo "  ⚠ ripgrep NOT installed — adapter will use JS fallback (slower but functional)"
+  echo "  ERROR ripgrep NOT installed; Mercury grep fails closed until rg is available"
   echo "    To install: sudo apt-get install -y ripgrep"
 fi
 echo ""

@@ -118,6 +118,26 @@ const SKIP_DIRS = new Set([
   'backtest',
   'pinescript',
   '.claude',
+  // Mercury index hygiene: exclude intake/history artifacts from starter RAG.
+  'proposals',
+  'manifests',
+  'ledger',
+  'cognition-history',
+  'health-reports',
+  'sessions',
+  'replacements',
+  'reports',
+  'ogz-ledger',
+  'cold-traces',
+  'audits',
+  'backups',
+  'prodlock-portable',
+  'test-fixtures',
+  'performance',
+  'restore-reference',
+  'support-missions',
+  'quarantine',
+  'review-artifacts',
 ]);
 
 const SKIP_FILE_EXTENSIONS = new Set([
@@ -135,6 +155,20 @@ const SKIP_FILE_PATTERNS = [
   /\.min\.js$/,
   /package-lock\.json$/,
   /yarn\.lock$/,
+  /call-graph-cache\.json$/,
+  /rag_index\.json$/,
+  /todocontext\d+\.md$/,
+  /\.last-rag-query\.json$/,
+  /MISSION-.*\.md$/,
+  /backtest-report-.*\.json$/,
+  /equity_\d{4}.*\.json$/,
+  /metrics_\d{4}.*\.json$/,
+  /trades_\d{4}.*\.json$/,
+  /debug-.*\.js$/,
+  /tuning-report-.*\.json$/,
+  /round\d+-results\.json$/,
+  /mission0\.md$/,
+  /claudito-cognition-refactor-plan\.md$/,
 ];
 
 const INDEX_FILE_EXTENSIONS = new Set([

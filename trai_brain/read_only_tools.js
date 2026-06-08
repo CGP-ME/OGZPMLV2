@@ -1,6 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const mercuryConfig = require('./mercury-bridge/config');
+
+function buildSkipDirGlobArgs() {
+    const args = [];
+    for (const dir of mercuryConfig.SKIP_DIRS) {
+        args.push('--glob', `!**/${dir}/**`);
+    }
+    return args;
+}
 
 class ReadOnlyToolbox {
     constructor(config = {}) {
@@ -25,7 +34,17 @@ class ReadOnlyToolbox {
         }
 
         const limit = options.limit && Number.isInteger(options.limit) ? options.limit : 20;
-        const args = ['--max-count', String(limit), '--line-number', '--no-heading', query, this.repoRoot];
+        const args = [
+            '--max-count', String(limit),
+            '--line-number',
+            '--no-heading',
+            '--color', 'never',
+            '--fixed-strings',
+            ...buildSkipDirGlobArgs(),
+            '--',
+            query,
+            this.repoRoot,
+        ];
         const result = spawnSync('rg', args, { encoding: 'utf8' });
 
         if (result.error) {
