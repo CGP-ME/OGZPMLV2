@@ -9,7 +9,7 @@ const path = require('path');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
 const {
-  assertEvalLivePosture,
+  assertEvalLiveReadiness,
   readPm2ProcessEnv,
 } = require('./eval-live-posture-gate');
 
@@ -383,8 +383,8 @@ const GATES = [
   {
     id: 'eval.live.posture_config',
     layer: 'eval',
-    description: 'Eval-live posture requires explicit Alpaca stock live config, TTP enforcement, and safe runtime profile state.',
-    run: (context = {}) => assertEvalLivePosture(
+    description: 'Eval-live posture requires explicit Alpaca stock live config, TTP enforcement, flat persisted state, and flat broker exposure.',
+    run: (context = {}) => assertEvalLiveReadiness(
       context.evalSourceEnv || process.env,
       context.evalOptions || {}
     )

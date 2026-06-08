@@ -6,7 +6,10 @@ const path = require('path');
 
 const {
   assertEvalLivePosture,
+  assertEvalLiveReadiness,
   extractPm2RuntimeEnv,
+  readPersistedStateExposure,
+  validateEvalLiveReadiness,
   validateEvalLivePosture,
 } = require('../ogz-meta/gates/eval-live-posture-gate');
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -22,10 +25,14 @@ function validEvalLiveEnv(overrides = {}) {
     LIVE_TRADING: 'true',
     CONFIRM_LIVE_TRADING: 'true',
     BROKER: 'alpaca',
+    ALPACA_MODE: 'paper',
+    ALPACA_API_KEY: 'test-alpaca-key',
+    ALPACA_API_SECRET: 'test-alpaca-secret',
     ASSET_CLASS: 'stocks',
     TRADING_PAIR: 'TSLA',
     ALPACA_SYMBOLS: 'TSLA',
     CANDLE_TIMEFRAME: '15m',
+    STATE_FILE: 'data/state.json',
     SESSION_ROUTER_ENABLED: 'false',
     ENABLE_TRAI: 'false',
     RISK_MANAGER_BYPASS: 'false',
@@ -70,6 +77,18 @@ function validEvalLiveEnv(overrides = {}) {
   };
 }
 
+function writeStateFile(filePath, overrides = {}) {
+  const state = {
+    position: 0,
+    inPosition: 0,
+    activeTrades: [],
+    ...overrides,
+  };
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf8');
+  return filePath;
+}
+
 describe('eval live posture gate', () => {
   test('passes only with explicit Alpaca TSLA live posture and redacts webhook URL', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv());
@@ -84,6 +103,219 @@ describe('eval live posture gate', () => {
       source: 'env:SIGNALSTACK_WEBHOOK_URL',
     });
     expect(JSON.stringify(report)).not.toContain('signalstack.example');
+  });
+
+  test('readiness passes with explicit flat state and flat Alpaca positions', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-ready-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('PASS');
+      expect(report.errors).toEqual([]);
+      expect(report.checked.runtimeExposure).toEqual(expect.objectContaining({
+        localStateExists: true,
+        localActiveTrades: [],
+        localSourceLessExposure: false,
+        brokerPositions: [],
+      }));
+      expect(report.checked.runtimeExposure.stateFile).toEqual({
+        path: stateFile,
+        source: 'env:STATE_FILE',
+      });
+      expect(JSON.stringify(report)).not.toContain('test-alpaca-key');
+      expect(JSON.stringify(report)).not.toContain('test-alpaca-secret');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects persisted local active trades before eval flip', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-local-exposure-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      position: -957.53,
+      inPosition: 957.53,
+      activeTrades: [[
+        'SIM_1780927200191_c8cg9l',
+        {
+          orderId: 'SIM_1780927200191_c8cg9l',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          side: 'short',
+        },
+      ]],
+    });
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/Persisted StateManager activeTrades must be flat/);
+      expect(report.errors.join('\n')).toMatch(/SIM_1780927200191_c8cg9l:TSLA:alpaca:short/);
+      expect(report.checked.runtimeExposure.localActiveTrades).toEqual([
+        'SIM_1780927200191_c8cg9l:TSLA:alpaca:short',
+      ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects source-less persisted exposure without active trade evidence', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-sourceless-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      position: 500,
+      inPosition: 0,
+      activeTrades: [],
+    });
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/source-less exposure must be flat/);
+      expect(report.checked.runtimeExposure.localSourceLessExposure).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects malformed activeTrades instead of treating them as flat', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-malformed-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      activeTrades: ['not-a-trade'],
+    });
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/persisted activeTrades contains malformed entries/);
+      expect(report.checked.runtimeExposure.localActiveTrades).toEqual([]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects open Alpaca broker positions before eval flip', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-broker-exposure-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [{ symbol: 'TSLA', qty: '3', side: 'long' }],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/Alpaca broker positions must be flat/);
+      expect(report.checked.runtimeExposure.brokerPositions).toEqual([
+        { symbol: 'TSLA', size: 3, side: 'long' },
+      ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness fails loudly when broker position reader cannot verify exposure', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-broker-failure-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => {
+          throw new Error('Alpaca REST unavailable');
+        },
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/Broker exposure reconciliation failed: Alpaca REST unavailable/);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness still inspects state when config snapshot is already invalid', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-config-red-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      activeTrades: [['ORDER_RED', { orderId: 'ORDER_RED', symbol: 'TSLA', brokerId: 'alpaca', side: 'long' }]],
+    });
+    const env = validEvalLiveEnv({ STATE_FILE: stateFile });
+    delete env.MAX_DRAWDOWN;
+
+    try {
+      const report = await validateEvalLiveReadiness(env, {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/Runtime exposure reconciliation continuing without config snapshot/);
+      expect(report.errors.join('\n')).toMatch(/Persisted StateManager activeTrades must be flat/);
+      expect(report.checked.runtimeExposure.configSnapshotLoaded).toBe(false);
+      expect(report.checked.runtimeExposure.localActiveTrades).toEqual([
+        'ORDER_RED:TSLA:alpaca:long',
+      ]);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects implicit StateManager state path even while inspecting runtime default', async () => {
+    const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+      STATE_FILE: '',
+    }), {
+      allowInjectedBrokerPositions: true,
+      readBrokerPositions: async () => [],
+    });
+
+    expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/paths\.stateFile must be explicitly sourced/);
+    expect(report.checked.runtimeExposure.stateFile.path).toBe(path.join(process.cwd(), 'data', 'state.json'));
+  });
+
+  test('readiness rejects missing explicit state file as unverifiable exposure', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-missing-state-'));
+    const stateFile = path.join(tempDir, 'missing-state.json');
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/persisted state file missing/);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   test('does not mutate process.env while validating supplied env', () => {
@@ -229,6 +461,42 @@ describe('eval live posture gate', () => {
     }))).toThrow(/eval-live posture gate failed: .*RISK_MANAGER_BYPASS=true/);
   });
 
+  test('readiness assert helper throws with broker and state errors', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-assert-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      activeTrades: [['ORDER_1', { orderId: 'ORDER_1', symbol: 'TSLA', brokerId: 'alpaca', side: 'long' }]],
+    });
+
+    try {
+      await expect(assertEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        allowInjectedBrokerPositions: true,
+        readBrokerPositions: async () => [{ symbol: 'TSLA', qty: '1', side: 'long' }],
+      })).rejects.toThrow(/eval-live readiness gate failed: .*Persisted StateManager activeTrades.*Alpaca broker positions/s);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('readiness rejects injected broker readers unless the test option explicitly allows them', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-injected-reader-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
+
+    try {
+      const report = await validateEvalLiveReadiness(validEvalLiveEnv({
+        STATE_FILE: stateFile,
+      }), {
+        readBrokerPositions: async () => [],
+      });
+
+      expect(report.status).toBe('FAIL');
+      expect(report.errors.join('\n')).toMatch(/injected broker position readers are only allowed/);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test('PM2 env extraction fails closed instead of returning PM2 metadata', () => {
     expect(() => extractPm2RuntimeEnv({
       name: 'ogz-prime-v2',
@@ -254,5 +522,22 @@ describe('eval live posture gate', () => {
     expect(report.status).toBe('PASS');
     expect(JSON.stringify(report)).not.toContain('secret-runtime-token');
     expect(JSON.stringify(report)).not.toContain('secret-ollama-key');
+  });
+
+  test('state exposure reader normalizes StateManager serialized map entries', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-reader-'));
+    const stateFile = writeStateFile(path.join(tempDir, 'state.json'), {
+      activeTrades: [['ORDER_2', { orderId: 'ORDER_2', symbol: 'TSLA', brokerId: 'alpaca', side: 'short' }]],
+    });
+
+    try {
+      expect(readPersistedStateExposure(stateFile)).toEqual(expect.objectContaining({
+        exists: true,
+        activeTrades: ['ORDER_2:TSLA:alpaca:short'],
+        sourceLessExposure: false,
+      }));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Readiness State/Broker Exposure Gate (2026-06-08)
+
+- Changed the eval PM2 gate from config-only posture to full readiness posture by requiring an explicit `STATE_FILE`, checking persisted StateManager exposure, requiring flat Alpaca broker positions, and failing loud when broker exposure cannot be verified.
+
 ### Webhook Execution State Ownership (2026-06-08)
 
 - Changed enabled non-backtest webhook posture from post-state side-channel dispatch into an awaited execution route, blocking dry-run, invalid quantity, unsent, or missing-order-identity results before local trade state can mutate.

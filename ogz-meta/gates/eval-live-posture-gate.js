@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const axios = require('axios');
 const dotenv = require('dotenv');
 
 const ConfigLoader = require('../../foundation/ConfigLoader');
@@ -63,6 +64,7 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
 const REQUIRED_CONFIG_PRESENT = Object.freeze([
   'broker.tradingPair',
   'broker.candleTimeframe',
+  'paths.stateFile',
 ]);
 
 const REQUIRED_NUMERIC_CONFIG = Object.freeze([
@@ -166,6 +168,144 @@ function safeWebhookReport(configSnapshot) {
 
 function addError(errors, message) {
   errors.push(message);
+}
+
+function resolveRepoPath(filePath) {
+  if (!filePath) return null;
+  return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function runtimeStateFilePath(config) {
+  const configuredStateFile = getPath(config, 'paths.stateFile');
+  if (configuredStateFile) return resolveRepoPath(configuredStateFile);
+
+  const configuredDataDir = getPath(config, 'paths.dataDir');
+  const dataDir = configuredDataDir
+    ? resolveRepoPath(configuredDataDir)
+    : path.join(REPO_ROOT, 'data');
+  return path.join(dataDir, 'state.json');
+}
+
+function runtimeStateFilePathFromEnv(effectiveEnv) {
+  const configuredStateFile = effectiveEnv.values.STATE_FILE;
+  if (configuredStateFile) return resolveRepoPath(configuredStateFile);
+
+  const configuredDataDir = effectiveEnv.values.DATA_DIR;
+  const dataDir = configuredDataDir
+    ? resolveRepoPath(configuredDataDir)
+    : path.join(REPO_ROOT, 'data');
+  return path.join(dataDir, 'state.json');
+}
+
+function normalizeSerializedActiveTrades(activeTrades) {
+  if (activeTrades === undefined || activeTrades === null) {
+    throw new Error('persisted activeTrades is required for exposure reconciliation');
+  }
+  if (Array.isArray(activeTrades)) {
+    return activeTrades.map((entry, index) => {
+      if (Array.isArray(entry) && entry.length >= 2) {
+        return { key: entry[0], trade: entry[1] };
+      }
+      return { key: String(index), trade: entry };
+    });
+  }
+  if (activeTrades && typeof activeTrades === 'object') {
+    return Object.entries(activeTrades).map(([key, trade]) => ({ key, trade }));
+  }
+  throw new Error(`persisted activeTrades must be an array/object, got ${typeof activeTrades}`);
+}
+
+function summarizeActiveTrade(entry) {
+  const trade = entry.trade && typeof entry.trade === 'object' ? entry.trade : {};
+  const id = trade.orderId || trade.id || entry.key || '<unknown>';
+  const symbol = trade.symbol || '<missing-symbol>';
+  const side = trade.side || trade.direction || trade.action || '<missing-side>';
+  const brokerId = trade.brokerId || trade.broker || '<missing-broker>';
+  return `${id}:${symbol}:${brokerId}:${side}`;
+}
+
+function readPersistedStateExposure(stateFile) {
+  const resolvedStateFile = resolveRepoPath(stateFile);
+  if (!resolvedStateFile) {
+    throw new Error('state file path is required for persisted exposure reconciliation');
+  }
+  if (!fs.existsSync(resolvedStateFile)) {
+    throw new Error(`persisted state file missing: ${resolvedStateFile}`);
+  }
+
+  const state = JSON.parse(fs.readFileSync(resolvedStateFile, 'utf8'));
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    throw new Error(`persisted state file must contain an object, got ${typeof state}`);
+  }
+  const activeTrades = normalizeSerializedActiveTrades(state.activeTrades);
+  const malformedTrades = activeTrades.filter((entry) => !entry.trade || typeof entry.trade !== 'object');
+  if (malformedTrades.length > 0) {
+    throw new Error(`persisted activeTrades contains malformed entries: ${malformedTrades.map((entry) => entry.key).join(', ')}`);
+  }
+  const position = Number(state.position || 0);
+  const inPosition = Number(state.inPosition || 0);
+
+  return {
+    exists: true,
+    path: resolvedStateFile,
+    activeTrades: activeTrades.map(summarizeActiveTrade),
+    sourceLessExposure: activeTrades.length === 0 && (
+      !Number.isFinite(position)
+      || position !== 0
+      || !Number.isFinite(inPosition)
+      || inPosition !== 0
+    ),
+    position,
+    inPosition,
+  };
+}
+
+function normalizeBrokerPosition(position) {
+  const size = Number(position.size ?? position.qty ?? position.quantity ?? 0);
+  return {
+    symbol: position.symbol || '<missing-symbol>',
+    size,
+    side: position.side || (size < 0 ? 'short' : 'long'),
+  };
+}
+
+async function readAlpacaPositions(effectiveEnv) {
+  const values = effectiveEnv.values;
+  const apiKey = values.ALPACA_API_KEY;
+  const apiSecret = values.ALPACA_API_SECRET;
+  const mode = values.ALPACA_MODE ? String(values.ALPACA_MODE).trim().toLowerCase() : '';
+
+  if (!apiKey) {
+    throw new Error('ALPACA_API_KEY must be explicitly set for broker exposure reconciliation');
+  }
+  if (!apiSecret) {
+    throw new Error('ALPACA_API_SECRET must be explicitly set for broker exposure reconciliation');
+  }
+  if (mode !== 'paper' && mode !== 'live') {
+    throw new Error(`ALPACA_MODE must be explicitly set to paper or live for broker exposure reconciliation, got ${mode || 'missing'}`);
+  }
+
+  const baseUrl = mode === 'live'
+    ? 'https://api.alpaca.markets'
+    : 'https://paper-api.alpaca.markets';
+  const response = await axios.get(`${baseUrl}/v2/positions`, {
+    headers: {
+      'APCA-API-KEY-ID': apiKey,
+      'APCA-API-SECRET-KEY': apiSecret,
+      'Content-Type': 'application/json',
+    },
+    timeout: 10000,
+  });
+  if (!Array.isArray(response.data)) {
+    throw new Error(`Alpaca positions response must be an array, got ${typeof response.data}`);
+  }
+  return response.data.map(normalizeBrokerPosition);
+}
+
+function brokerPositionReader(options = {}) {
+  if (!options.readBrokerPositions) return readAlpacaPositions;
+  if (options.allowInjectedBrokerPositions === true) return options.readBrokerPositions;
+  throw new Error('injected broker position readers are only allowed in explicit test validation options');
 }
 
 function expectEnvExact(report, key, expected) {
@@ -402,10 +542,108 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
   return report;
 }
 
+async function validateEvalLiveReadiness(sourceEnv = process.env, options = {}) {
+  const report = validateEvalLivePosture(sourceEnv, options);
+  report.checked.runtimeExposure = {
+    configSnapshotLoaded: false,
+    stateFile: null,
+    localActiveTrades: [],
+    localStateExists: false,
+    localSourceLessExposure: false,
+    brokerPositions: [],
+  };
+
+  let effectiveEnv;
+  let configSnapshot;
+  try {
+    effectiveEnv = buildEffectiveEnv(sourceEnv, options);
+  } catch (error) {
+    addError(report.errors, `Runtime exposure reconciliation could not load env: ${error.message}`);
+    report.status = 'FAIL';
+    return report;
+  }
+
+  try {
+    configSnapshot = loadConfigSnapshot(sourceEnv, options);
+  } catch (error) {
+    addError(report.errors, `Runtime exposure reconciliation continuing without config snapshot: ${error.message}`);
+  }
+
+  report.checked.runtimeExposure.configSnapshotLoaded = Boolean(configSnapshot);
+  const stateFileSource = configSnapshot
+    ? (configSnapshot.sources['paths.stateFile'] || 'missing')
+    : (effectiveEnv.sources.STATE_FILE ? effectiveEnv.sources.STATE_FILE.replace('STATE_FILE', 'paths.stateFile') : 'missing');
+  const configuredStateFile = configSnapshot
+    ? getPath(configSnapshot.config, 'paths.stateFile')
+    : effectiveEnv.values.STATE_FILE;
+  const resolvedStateFile = configSnapshot
+    ? runtimeStateFilePath(configSnapshot.config)
+    : runtimeStateFilePathFromEnv(effectiveEnv);
+  report.checked.runtimeExposure.stateFile = {
+    path: resolvedStateFile,
+    source: stateFileSource,
+  };
+
+  if (!configuredStateFile || stateFileSource === 'default') {
+    addError(report.errors, `paths.stateFile must be explicitly sourced for eval-live readiness, got ${stateFileSource}`);
+  }
+
+  try {
+    const localExposure = readPersistedStateExposure(resolvedStateFile);
+    report.checked.runtimeExposure.localStateExists = localExposure.exists;
+    report.checked.runtimeExposure.localActiveTrades = localExposure.activeTrades;
+    report.checked.runtimeExposure.localSourceLessExposure = localExposure.sourceLessExposure;
+    report.checked.runtimeExposure.localPosition = localExposure.position;
+    report.checked.runtimeExposure.localInPosition = localExposure.inPosition;
+
+    if (localExposure.activeTrades.length > 0) {
+      addError(report.errors, `Persisted StateManager activeTrades must be flat for eval-live readiness, found ${localExposure.activeTrades.length}: ${localExposure.activeTrades.join(', ')}`);
+    }
+    if (localExposure.sourceLessExposure) {
+      addError(report.errors, `Persisted StateManager source-less exposure must be flat for eval-live readiness, got position=${localExposure.position} inPosition=${localExposure.inPosition}`);
+    }
+  } catch (error) {
+    addError(report.errors, `Persisted StateManager exposure reconciliation failed: ${error.message}`);
+  }
+
+  try {
+    const readBrokerPositions = brokerPositionReader(options);
+    const positions = await readBrokerPositions(effectiveEnv, configSnapshot);
+    if (!Array.isArray(positions)) {
+      throw new Error(`broker position reader must return an array, got ${typeof positions}`);
+    }
+    const normalizedPositions = positions.map(normalizeBrokerPosition);
+    const openPositions = normalizedPositions.filter((position) => (
+      Number.isFinite(position.size) && Math.abs(position.size) > 0
+    ));
+    report.checked.runtimeExposure.brokerPositions = openPositions.map((position) => ({
+      symbol: position.symbol,
+      size: position.size,
+      side: position.side,
+    }));
+    if (openPositions.length > 0) {
+      addError(report.errors, `Alpaca broker positions must be flat for eval-live readiness, found ${openPositions.length}: ${openPositions.map((position) => `${position.symbol}:${position.side}:${position.size}`).join(', ')}`);
+    }
+  } catch (error) {
+    addError(report.errors, `Broker exposure reconciliation failed: ${error.message}`);
+  }
+
+  report.status = report.errors.length === 0 ? 'PASS' : 'FAIL';
+  return report;
+}
+
 function assertEvalLivePosture(sourceEnv = process.env, options = {}) {
   const report = validateEvalLivePosture(sourceEnv, options);
   if (report.status !== 'PASS') {
     throw new Error(`eval-live posture gate failed: ${report.errors.join('; ')}`);
+  }
+  return report;
+}
+
+async function assertEvalLiveReadiness(sourceEnv = process.env, options = {}) {
+  const report = await validateEvalLiveReadiness(sourceEnv, options);
+  if (report.status !== 'PASS') {
+    throw new Error(`eval-live readiness gate failed: ${report.errors.join('; ')}`);
   }
   return report;
 }
@@ -452,10 +690,10 @@ function printReport(report) {
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
-function main() {
+async function main() {
   const args = parseCli(process.argv.slice(2));
   const sourceEnv = args.pm2 ? readPm2ProcessEnv(args.pm2) : process.env;
-  const report = validateEvalLivePosture(sourceEnv, args.pm2 ? { loadDotenv: false } : {});
+  const report = await validateEvalLiveReadiness(sourceEnv, args.pm2 ? { loadDotenv: false } : {});
   printReport(report);
   if (report.status !== 'PASS') {
     process.exitCode = 1;
@@ -463,12 +701,10 @@ function main() {
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(error && error.stack ? error.stack : String(error));
     process.exitCode = 1;
-  }
+  });
 }
 
 module.exports = {
@@ -476,8 +712,12 @@ module.exports = {
   REQUIRED_CONFIG_PRESENT,
   REQUIRED_ENV_EXACT,
   assertEvalLivePosture,
+  assertEvalLiveReadiness,
   buildEffectiveEnv,
   extractPm2RuntimeEnv,
+  readAlpacaPositions,
+  readPersistedStateExposure,
   readPm2ProcessEnv,
+  validateEvalLiveReadiness,
   validateEvalLivePosture,
 };
