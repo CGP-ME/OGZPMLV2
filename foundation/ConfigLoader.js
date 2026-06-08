@@ -649,7 +649,7 @@ let _cached = null;
 
 function buildSnapshot(sourceEnv = process.env, opts = {}) {
   const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
-  const dotenvValues = loadDotenvValues(envPath);
+  const dotenvValues = opts.loadDotenv === false ? {} : loadDotenvValues(envPath);
   const baseEnv = { ...dotenvValues, ...sourceEnv };
   const baseEnvSources = buildDotenvSources(dotenvValues, sourceEnv);
 

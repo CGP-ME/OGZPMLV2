@@ -93,7 +93,11 @@ function getPath(obj, configPath) {
   ), obj);
 }
 
-function loadDotenvForEnv(sourceEnv) {
+function loadDotenvForEnv(sourceEnv, options = {}) {
+  if (options.loadDotenv === false) {
+    return { values: {}, path: null };
+  }
+
   const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
   const resolvedPath = path.isAbsolute(envPath)
     ? envPath
@@ -112,9 +116,9 @@ function loadDotenvForEnv(sourceEnv) {
   }
 }
 
-function buildEffectiveEnv(sourceEnv = process.env) {
+function buildEffectiveEnv(sourceEnv = process.env, options = {}) {
   const baseEnv = { ...sourceEnv };
-  const dotenvResult = loadDotenvForEnv(baseEnv);
+  const dotenvResult = loadDotenvForEnv(baseEnv, options);
   const values = { ...dotenvResult.values, ...baseEnv };
   const sources = {};
 
@@ -132,8 +136,11 @@ function buildEffectiveEnv(sourceEnv = process.env) {
   };
 }
 
-function loadConfigSnapshot(sourceEnv) {
-  return ConfigLoader.snapshot(sourceEnv, { silent: true });
+function loadConfigSnapshot(sourceEnv, options = {}) {
+  return ConfigLoader.snapshot(sourceEnv, {
+    silent: true,
+    loadDotenv: options.loadDotenv !== false,
+  });
 }
 
 function safeWebhookReport(configSnapshot) {
@@ -343,8 +350,8 @@ function validateRuntimeProfile(report) {
   }
 }
 
-function validateEvalLivePosture(sourceEnv = process.env) {
-  const effectiveEnv = buildEffectiveEnv(sourceEnv);
+function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
+  const effectiveEnv = buildEffectiveEnv(sourceEnv, options);
   const report = {
     status: 'FAIL',
     envFile: effectiveEnv.envFile,
@@ -366,7 +373,7 @@ function validateEvalLivePosture(sourceEnv = process.env) {
   }
 
   try {
-    report.configSnapshot = loadConfigSnapshot(sourceEnv);
+    report.configSnapshot = loadConfigSnapshot(sourceEnv, options);
   } catch (error) {
     addError(report.errors, error && error.message ? error.message : String(error));
   }
@@ -395,12 +402,19 @@ function validateEvalLivePosture(sourceEnv = process.env) {
   return report;
 }
 
-function assertEvalLivePosture(sourceEnv = process.env) {
-  const report = validateEvalLivePosture(sourceEnv);
+function assertEvalLivePosture(sourceEnv = process.env, options = {}) {
+  const report = validateEvalLivePosture(sourceEnv, options);
   if (report.status !== 'PASS') {
     throw new Error(`eval-live posture gate failed: ${report.errors.join('; ')}`);
   }
   return report;
+}
+
+function extractPm2RuntimeEnv(process) {
+  if (!process.pm2_env || !process.pm2_env.env || typeof process.pm2_env.env !== 'object') {
+    throw new Error(`PM2 process ${process.name || process.pm_id || '(unknown)'} did not expose nested runtime env`);
+  }
+  return process.pm2_env.env;
 }
 
 function readPm2ProcessEnv(processName) {
@@ -416,9 +430,7 @@ function readPm2ProcessEnv(processName) {
   if (!match) {
     throw new Error(`PM2 process not found: ${processName}`);
   }
-  return match.pm2_env && match.pm2_env.env
-    ? match.pm2_env.env
-    : match.pm2_env;
+  return extractPm2RuntimeEnv(match);
 }
 
 function parseCli(argv) {
@@ -443,7 +455,7 @@ function printReport(report) {
 function main() {
   const args = parseCli(process.argv.slice(2));
   const sourceEnv = args.pm2 ? readPm2ProcessEnv(args.pm2) : process.env;
-  const report = validateEvalLivePosture(sourceEnv);
+  const report = validateEvalLivePosture(sourceEnv, args.pm2 ? { loadDotenv: false } : {});
   printReport(report);
   if (report.status !== 'PASS') {
     process.exitCode = 1;
@@ -465,6 +477,7 @@ module.exports = {
   REQUIRED_ENV_EXACT,
   assertEvalLivePosture,
   buildEffectiveEnv,
+  extractPm2RuntimeEnv,
   readPm2ProcessEnv,
   validateEvalLivePosture,
 };

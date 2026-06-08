@@ -8,7 +8,10 @@ const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
-const { assertEvalLivePosture } = require('./eval-live-posture-gate');
+const {
+  assertEvalLivePosture,
+  readPm2ProcessEnv,
+} = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
   finalBalance: 10710.667785934895,
@@ -381,7 +384,10 @@ const GATES = [
     id: 'eval.live.posture_config',
     layer: 'eval',
     description: 'Eval-live posture requires explicit Alpaca stock live config, TTP enforcement, and safe runtime profile state.',
-    run: () => assertEvalLivePosture(process.env)
+    run: (context = {}) => assertEvalLivePosture(
+      context.evalSourceEnv || process.env,
+      context.evalOptions || {}
+    )
   },
   {
     id: 'p0.single_lane.tsla_ema_anchor',
@@ -1397,6 +1403,9 @@ function selectedGates(argv) {
       runP0Gate = true;
     } else if (arg === '--all') {
       runAll = true;
+    } else if (arg === '--pm2') {
+      if (!argv[i + 1]) throw new Error('--pm2 requires a process name or id');
+      i += 1;
     } else if (arg === '--list' || arg === '--write-report') {
       continue;
     } else {
@@ -1424,17 +1433,47 @@ function selectedGates(argv) {
   });
 }
 
-async function runGate(gate) {
+function pm2ProcessName(argv) {
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === '--pm2') {
+      const processName = argv[i + 1];
+      if (!processName) throw new Error('--pm2 requires a process name or id');
+      return processName;
+    }
+  }
+  return null;
+}
+
+function buildGateContext(argv, gates, deps = { readPm2ProcessEnv }) {
+  const processName = pm2ProcessName(argv);
+  if (!processName) return {};
+
+  if (!gates.some((gate) => gate.layer === 'eval')) {
+    throw new Error('--pm2 requires --eval, --all, or --gate eval.live.posture_config');
+  }
+
+  return {
+    evalSource: `pm2:${processName}`,
+    evalSourceEnv: deps.readPm2ProcessEnv(processName),
+    evalOptions: { loadDotenv: false }
+  };
+}
+
+async function runGate(gate, context = {}) {
   const startedAt = new Date().toISOString();
   try {
-    const detail = await gate.run();
+    const detail = await gate.run(context);
+    const resultDetail = detail || {};
+    if (context.evalSource && gate.layer === 'eval') {
+      resultDetail.source = context.evalSource;
+    }
     return {
       id: gate.id,
       layer: gate.layer,
       status: 'PASS',
       startedAt,
       finishedAt: new Date().toISOString(),
-      detail: detail || {}
+      detail: resultDetail
     };
   } catch (err) {
     return {
@@ -1474,11 +1513,12 @@ async function main() {
     printList();
     return;
   }
+  const context = buildGateContext(argv, gates);
 
   const results = [];
   for (const gate of gates) {
     process.stdout.write(`Running ${gate.id}... `);
-    const result = await runGate(gate);
+    const result = await runGate(gate, context);
     results.push(result);
     console.log(result.status);
     if (result.status === 'FAIL') {
@@ -1513,6 +1553,9 @@ if (require.main === module) {
 module.exports = {
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts,
+  buildGateContext,
+  pm2ProcessName,
+  runGate,
   selectedGates,
   P0_TIER_FRACTION_CAPS
 };

@@ -1,9 +1,12 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const {
   assertEvalLivePosture,
+  extractPm2RuntimeEnv,
   validateEvalLivePosture,
 } = require('../ogz-meta/gates/eval-live-posture-gate');
 const ConfigLoader = require('../foundation/ConfigLoader');
@@ -94,6 +97,27 @@ describe('eval live posture gate', () => {
       LIVE_TRADING: process.env.LIVE_TRADING,
       SIGNALSTACK_WEBHOOK_URL: process.env.SIGNALSTACK_WEBHOOK_URL,
     }).toEqual(before);
+  });
+
+  test('runtime-source validation does not backfill missing PM2 env from dotenv', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-posture-'));
+    const envPath = path.join(tempDir, '.env');
+    fs.writeFileSync(envPath, 'WEBHOOK_DRY_RUN=false\n', 'utf8');
+
+    try {
+      const sourceEnv = validEvalLiveEnv({ DOTENV_CONFIG_PATH: envPath });
+      delete sourceEnv.WEBHOOK_DRY_RUN;
+
+      const dotenvBackfilledReport = validateEvalLivePosture(sourceEnv);
+      const runtimeOnlyReport = validateEvalLivePosture(sourceEnv, { loadDotenv: false });
+
+      expect(dotenvBackfilledReport.status).toBe('PASS');
+      expect(runtimeOnlyReport.status).toBe('FAIL');
+      expect(runtimeOnlyReport.errors.join('\n')).toMatch(/WEBHOOK_DRY_RUN must be explicitly set to false, got missing/);
+      expect(runtimeOnlyReport.checked.env.WEBHOOK_DRY_RUN).toEqual({ value: null, source: 'missing' });
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   test('does not replace the ConfigLoader cached runtime config while validating supplied env', () => {
@@ -190,5 +214,32 @@ describe('eval live posture gate', () => {
     expect(() => assertEvalLivePosture(validEvalLiveEnv({
       RISK_MANAGER_BYPASS: 'true',
     }))).toThrow(/eval-live posture gate failed: .*RISK_MANAGER_BYPASS=true/);
+  });
+
+  test('PM2 env extraction fails closed instead of returning PM2 metadata', () => {
+    expect(() => extractPm2RuntimeEnv({
+      name: 'ogz-prime-v2',
+      pm2_env: { EXECUTION_MODE: 'live' },
+    })).toThrow(/did not expose nested runtime env/);
+
+    const runtimeEnv = { EXECUTION_MODE: 'paper' };
+    expect(extractPm2RuntimeEnv({
+      name: 'ogz-prime-v2',
+      pm2_env: {
+        EXECUTION_MODE: 'metadata-value',
+        env: runtimeEnv,
+      },
+    })).toBe(runtimeEnv);
+  });
+
+  test('runtime-source posture report does not emit unrelated PM2 secret env values', () => {
+    const report = validateEvalLivePosture(validEvalLiveEnv({
+      WEBSOCKET_AUTH_TOKEN: 'secret-runtime-token',
+      OLLAMA_API_KEY: 'secret-ollama-key',
+    }), { loadDotenv: false });
+
+    expect(report.status).toBe('PASS');
+    expect(JSON.stringify(report)).not.toContain('secret-runtime-token');
+    expect(JSON.stringify(report)).not.toContain('secret-ollama-key');
   });
 });
