@@ -45,6 +45,12 @@ describe('TradingConfig runtime profile contract', () => {
     );
     expect(Object.isFrozen(PROFILE_DEFINITIONS)).toBe(true);
     expect(Object.isFrozen(PROFILE_DEFINITIONS['legacy-wide'].env)).toBe(true);
+    expect(TradingConfig.resolveTuningProfile('current-eval').env).toEqual(
+      expect.objectContaining({
+        ATR_FILTER_ENABLED: 'true',
+        ATR_MIN_PERCENT: '0.15',
+      })
+    );
     const resolved = TradingConfig.resolveTuningProfile('legacy-wide');
     expect(Object.isFrozen(resolved)).toBe(true);
     expect(Object.isFrozen(resolved.env)).toBe(true);
@@ -79,6 +85,8 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.MAX_WEEKLY_LOSS).toBe('5');
     expect(workerEnv.MAX_MONTHLY_LOSS).toBe('5');
     expect(workerEnv.RISK_MANAGER_BYPASS).toBe('true');
+    expect(workerEnv.ATR_FILTER_ENABLED).toBe('true');
+    expect(workerEnv.ATR_MIN_PERCENT).toBe('0.15');
     expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
   });
@@ -151,6 +159,8 @@ describe('TradingConfig runtime profile contract', () => {
     expect(TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction')).toBe(0.30);
     expect(TradingConfig.get('fees.slippage')).toBe(0.0005);
     expect(TradingConfig.get('risk.accountDrawdownBypass')).toBe(true);
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+    expect(TradingConfig.get('filters.atrMinPercent')).toBe(0.15);
 
     await TradingConfig.runWithTuningProfile(
       'legacy-wide',

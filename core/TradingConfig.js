@@ -81,6 +81,8 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
     'universalLimits.accountDrawdownBypass',
   ]),
   RISK_MANAGER_BYPASS: Object.freeze(['risk.riskManagerBypass']),
+  ATR_FILTER_ENABLED: Object.freeze(['filters.atrEnabled']),
+  ATR_MIN_PERCENT: Object.freeze(['filters.atrMinPercent']),
   EXIT_SYSTEM: Object.freeze(['exits.exitSystem']),
   FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
 });
@@ -89,6 +91,7 @@ const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
   'ENABLE_DYNAMIC_SIZING',
   'ACCOUNT_DRAWDOWN_BYPASS',
   'RISK_MANAGER_BYPASS',
+  'ATR_FILTER_ENABLED',
 ]));
 
 const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
@@ -1164,6 +1167,7 @@ const BASE_CONFIG = {
         description: 'Current explicit TSLA stock-eval posture; freezes the repo .env values that workers previously inherited implicitly.',
         evidence: [
           '.env:236-269',
+          '.env:328-329',
           'core/TradingConfig.js tuningProfiles.current-eval',
           'core/TradingConfig.js backtestWorkerEnv.canonical',
         ],
@@ -1187,6 +1191,8 @@ const BASE_CONFIG = {
           MAX_MONTHLY_LOSS: '5',
           ACCOUNT_DRAWDOWN_BYPASS: 'true',
           RISK_MANAGER_BYPASS: 'true',
+          ATR_FILTER_ENABLED: 'true',
+          ATR_MIN_PERCENT: '0.15',
           EXIT_SYSTEM: 'legacy',
           FEE_SLIPPAGE: '0.0005',
         },

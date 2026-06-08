@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### P0 ATR Profile Ownership (2026-06-08)
+
+- Pinned the canonical P0 `current-eval` profile to `ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, mapped both keys into `TradingConfig` profile ownership, and covered profile/env application so the P0 anchor cannot silently run ATR-off while asserting ATR-on results.
+
 ### Dashboard Stock Symbol Config Ownership (2026-06-08)
 
 - Routed dashboard stock price symbols and stock candle timeframe conversion through the dashboard stock config owner, removed the stock adapter's hardcoded ticker/timeframe tables and 15m fallback, and made unsupported stock symbols/timeframes fail before Alpaca URL construction.

@@ -4,7 +4,9 @@ const path = require('path');
 const {
   buildP0RunSpec,
   buildRunStamp,
+  CANONICAL_ENV,
   P0_TUNING_PROFILE,
+  assertP0WorkerEnvMatchesProfile,
 } = require('../ogz-meta/anchor-runner');
 
 describe('anchor-runner P0 env contract', () => {
@@ -47,6 +49,8 @@ describe('anchor-runner P0 env contract', () => {
       MAX_DAILY_LOSS: '1',
       MAX_WEEKLY_LOSS: '5',
       MAX_MONTHLY_LOSS: '5',
+      ATR_FILTER_ENABLED: 'true',
+      ATR_MIN_PERCENT: '0.15',
       SOLO_STRATEGY: 'EMASMACrossover',
       ENABLE_EMA: 'true',
       DIRECTION_FILTER: 'long_only',
@@ -62,6 +66,18 @@ describe('anchor-runner P0 env contract', () => {
     expect(spec.env.CANDLE_DATA_FILE).toBe(path.join(process.cwd(), 'tuning/tsla-15m-2y.json'));
     expect(spec.workerEnv.STOP_LOSS_PERCENT).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(spec.env, 'STOP_LOSS_PERCENT')).toBe(false);
+  });
+
+  test('freezes canonical P0 env and rejects profile-owned effective-env drift', () => {
+    const spec = buildP0RunSpec('fast', 'unit', '2026-06-04T00-00-00-000Z');
+    expect(Object.isFrozen(CANONICAL_ENV)).toBe(true);
+
+    expect(() => assertP0WorkerEnvMatchesProfile({
+      ...spec.env,
+      ATR_FILTER_ENABLED: 'false',
+    }, spec.tuningProfile)).toThrow(
+      /final P0 worker env does not match tuning profile 'current-eval'.*ATR_FILTER_ENABLED/
+    );
   });
 
   test('uses a timestamped log name for each P0 run', () => {

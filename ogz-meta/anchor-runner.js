@@ -22,6 +22,8 @@
  *   FEE_TAKER=0
  *   BROKER/TRADING_PAIR/ASSET_CLASS=<derived from CANDLE_DATA_FILE>
  *   MIN_TRADE_CONFIDENCE=0.60
+ *   ATR_FILTER_ENABLED=true
+ *   ATR_MIN_PERCENT=0.15
  *   ACCOUNT_DRAWDOWN_BYPASS=true
  *   STATE_FILE=<state-file>           ← varies
  *   BACKTEST_NO_PATTERN_SAVE=true
@@ -52,7 +54,7 @@ const {
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
-const CANONICAL_ENV = {
+const CANONICAL_ENV = Object.freeze({
   SOLO_STRATEGY: 'EMASMACrossover',
   ENABLE_EMA: 'true',
   MIN_TRADE_CONFIDENCE: '0.60',
@@ -60,7 +62,7 @@ const CANONICAL_ENV = {
   DIRECTION_FILTER: 'long_only',
   ENABLE_SHORTS: 'false',
   ENABLE_TRAI: 'false'
-};
+});
 
 const P0_TUNING_PROFILE = 'current-eval';
 
@@ -81,6 +83,23 @@ const PROFILES = {
 
 function buildRunStamp(date = new Date()) {
   return date.toISOString().replace(/[:.]/g, '-');
+}
+
+function assertP0WorkerEnvMatchesProfile(env, tuningProfile) {
+  const mismatches = [];
+  for (const [key, expectedValue] of Object.entries(tuningProfile.env || {})) {
+    const actualValue = env[key];
+    if (actualValue !== expectedValue) {
+      mismatches.push(`${key}: expected ${expectedValue}, got ${actualValue === undefined ? '<missing>' : actualValue}`);
+    }
+  }
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `anchor-runner: final P0 worker env does not match tuning profile '${tuningProfile.name}' ` +
+      `for profile-owned key(s): ${mismatches.join('; ')}`
+    );
+  }
 }
 
 function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
@@ -105,6 +124,7 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
     instrumentEnv,
     profileName: tuningProfile.name,
   });
+  assertP0WorkerEnvMatchesProfile(env, tuningProfile);
 
   return {
     cfg,
@@ -209,6 +229,7 @@ module.exports = {
   PROFILES,
   CANONICAL_ENV,
   P0_TUNING_PROFILE,
+  assertP0WorkerEnvMatchesProfile,
   buildP0RunSpec,
   buildRunStamp,
 };
