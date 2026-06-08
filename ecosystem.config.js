@@ -23,6 +23,7 @@ const dashboardStockRuntimeEnv = Object.freeze({
   ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
   ALPACA_STOCK_DATA_FEED: 'iex',
   ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+  DASHBOARD_STOCK_PRICE_SYMBOLS: 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT',
   STOCK_TICKER_MAX_AGE_MS: '900000',
   ALPACA_DATA_STREAM_URL: 'wss://stream.data.alpaca.markets/v2/iex',
   ALPACA_STOCK_STREAM_FEED: 'iex',

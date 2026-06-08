@@ -10,6 +10,7 @@ const REQUIRED_STOCK_DATA_ACCESS_KEYS = Object.freeze([
 
 const REQUIRED_STOCK_DATA_CONFIG_KEYS = Object.freeze([
   ...REQUIRED_STOCK_DATA_ACCESS_KEYS,
+  'DASHBOARD_STOCK_PRICE_SYMBOLS',
   'STOCK_TICKER_MAX_AGE_MS',
 ]);
 
@@ -31,6 +32,16 @@ const REQUIRED_STOCK_DOWNLOAD_CONFIG_KEYS = Object.freeze([
   'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS',
   'ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS',
 ]);
+
+const STOCK_TIMEFRAME_CONFIG = Object.freeze({
+  '1m': Object.freeze({ alpaca: '1Min', intervalMs: 60000 }),
+  '5m': Object.freeze({ alpaca: '5Min', intervalMs: 300000 }),
+  '15m': Object.freeze({ alpaca: '15Min', intervalMs: 900000 }),
+  '30m': Object.freeze({ alpaca: '30Min', intervalMs: 1800000 }),
+  '1h': Object.freeze({ alpaca: '1Hour', intervalMs: 3600000 }),
+  '4h': Object.freeze({ alpaca: '4Hour', intervalMs: 14400000 }),
+  '1d': Object.freeze({ alpaca: '1Day', intervalMs: 86400000 }),
+});
 
 function envEnabled(value) {
   const text = String(value || '').trim().toLowerCase();
@@ -74,6 +85,7 @@ function missingKeys(env, keys) {
       return !resolvePositiveInteger(env, key);
     }
     if (key === 'ALPACA_STOCK_DOWNLOAD_SYMBOLS') return resolveSymbolList(env, key).length === 0;
+    if (key === 'DASHBOARD_STOCK_PRICE_SYMBOLS') return resolveSymbolList(env, key).length === 0;
     return !envText(env, key);
   });
 }
@@ -105,12 +117,16 @@ function resolveDashboardStockDataConfig(env = process.env) {
   const missing = missingKeys(env, REQUIRED_STOCK_DATA_CONFIG_KEYS);
   return Object.freeze({
     ...access,
+    stockSymbols: Object.freeze(resolveSymbolList(env, 'DASHBOARD_STOCK_PRICE_SYMBOLS')),
     tickerMaxAgeMs: resolvePositiveInteger(env, 'STOCK_TICKER_MAX_AGE_MS'),
+    timeframes: STOCK_TIMEFRAME_CONFIG,
     missing,
     ready: missing.length === 0,
     sources: Object.freeze({
       ...access.sources,
+      stockSymbols: sourceFor(env, 'DASHBOARD_STOCK_PRICE_SYMBOLS'),
       tickerMaxAgeMs: sourceFor(env, 'STOCK_TICKER_MAX_AGE_MS'),
+      timeframes: 'static:server/dashboard-stock-stream-config.js',
     }),
   });
 }

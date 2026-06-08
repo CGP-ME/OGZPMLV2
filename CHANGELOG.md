@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Stock Symbol Config Ownership (2026-06-08)
+
+- Routed dashboard stock price symbols and stock candle timeframe conversion through the dashboard stock config owner, removed the stock adapter's hardcoded ticker/timeframe tables and 15m fallback, and made unsupported stock symbols/timeframes fail before Alpaca URL construction.
+
 ### Stock Data Downloader Config Ownership (2026-06-08)
 
 - Routed historical Alpaca stock downloader symbols, output path, timeframe labels, year range, request limit, chunk size, and rate limit through the stock config owner; made downloader entry points validate injected config before URL/path/date/rate-limit work; and made imported script calls throw instead of exiting the process.

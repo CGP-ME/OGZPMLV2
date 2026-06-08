@@ -7,21 +7,8 @@
 
 const { resolveDashboardStockDataConfig } = require('./dashboard-stock-stream-config');
 
-const STOCK_DATA_CONFIG = resolveDashboardStockDataConfig(process.env);
-
-// Stock tickers this adapter handles — everything else goes to Kraken
-const STOCK_TICKERS = new Set([
-    'TSLA', 'NVDA', 'AAPL', 'AMZN', 'MSFT', 'GOOGL', 'META', 'AMD',
-    'NFLX', 'SPY', 'QQQ', 'PLTR', 'COIN', 'RIOT', 'MARA'
-]);
-
-const TIMEFRAME_MAP = {
-    '1m': '1Min', '5m': '5Min', '15m': '15Min', '30m': '30Min',
-    '1h': '1Hour', '4h': '4Hour', '1d': '1Day'
-};
-
 function resolveRequestConfig(options = {}) {
-    return options.config || STOCK_DATA_CONFIG;
+    return options.config || resolveDashboardStockDataConfig(process.env);
 }
 
 function missingRequestConfigKeys(config) {
@@ -33,6 +20,12 @@ function missingRequestConfigKeys(config) {
     if (!String(config?.adjustment || '').trim()) missing.push('ALPACA_STOCK_DATA_ADJUSTMENT');
     if (!Number.isInteger(config?.tickerMaxAgeMs) || config.tickerMaxAgeMs <= 0) {
         missing.push('STOCK_TICKER_MAX_AGE_MS');
+    }
+    if (!Array.isArray(config?.stockSymbols) || config.stockSymbols.length === 0) {
+        missing.push('DASHBOARD_STOCK_PRICE_SYMBOLS');
+    }
+    if (!config?.timeframes || typeof config.timeframes !== 'object') {
+        missing.push('DASHBOARD_STOCK_TIMEFRAME_CONFIG');
     }
     return missing;
 }
@@ -46,10 +39,10 @@ function stockDataConfigReject(symbol, config) {
     return stockTickerReject(symbol, reason, { missing });
 }
 
-function isStock(ticker) {
-    // Strip -USD suffix if present, check against stock list
+function isStock(ticker, options = {}) {
+    const config = resolveRequestConfig(options);
     const clean = ticker.replace('-USD', '').replace('/', '').toUpperCase();
-    return STOCK_TICKERS.has(clean);
+    return Array.isArray(config.stockSymbols) && config.stockSymbols.includes(clean);
 }
 
 function cleanTicker(ticker) {
@@ -73,29 +66,26 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500, options
         stockDataConfigReject(symbol, config);
         return null;
     }
+    if (!config.stockSymbols.includes(symbol)) {
+        console.error(`[StockAdapter] Unsupported stock candle symbol ${symbol}: not in DASHBOARD_STOCK_PRICE_SYMBOLS`);
+        return null;
+    }
 
-    const alpacaTf = TIMEFRAME_MAP[timeframe] || '15Min';
+    const timeframeConfig = config.timeframes[timeframe];
+    if (!timeframeConfig) {
+        console.error(`[StockAdapter] Unsupported stock candle timeframe ${timeframe} for ${symbol}`);
+        return null;
+    }
 
     // Calculate start date based on limit and timeframe
     const now = new Date();
-    let msPerBar;
-    switch (timeframe) {
-        case '1m': msPerBar = 60000; break;
-        case '5m': msPerBar = 300000; break;
-        case '15m': msPerBar = 900000; break;
-        case '30m': msPerBar = 1800000; break;
-        case '1h': msPerBar = 3600000; break;
-        case '4h': msPerBar = 14400000; break;
-        case '1d': msPerBar = 86400000; break;
-        default: msPerBar = 900000;
-    }
     // Go back further than needed to account for market hours only
-    const start = new Date(now.getTime() - (msPerBar * limit * 3));
+    const start = new Date(now.getTime() - (timeframeConfig.intervalMs * limit * 3));
 
     const params = new URLSearchParams({
         start: start.toISOString(),
         end: now.toISOString(),
-        timeframe: alpacaTf,
+        timeframe: timeframeConfig.alpaca,
         limit: String(limit),
         adjustment: config.adjustment,
         feed: config.feed,
@@ -169,13 +159,12 @@ function stockTickerReject(symbol, reason, details = {}) {
 
 async function fetchStockTickerResult(ticker, options = {}) {
     const symbol = cleanTicker(ticker);
-    if (!STOCK_TICKERS.has(symbol)) {
-        return stockTickerReject(symbol, 'not_stock_symbol');
-    }
-
     const config = resolveRequestConfig(options);
     if (missingRequestConfigKeys(config).length > 0) {
         return stockDataConfigReject(symbol, config);
+    }
+    if (!config.stockSymbols.includes(symbol)) {
+        return stockTickerReject(symbol, 'not_stock_symbol');
     }
 
     const params = new URLSearchParams({ feed: config.feed });
@@ -270,6 +259,5 @@ module.exports = {
     fetchStockCandles,
     fetchStockTicker,
     fetchStockTickerResult,
-    STOCK_TICKERS,
     cleanTicker
 };

@@ -1098,11 +1098,10 @@ const dashboardSnapshotCache = {
   bot_thinking: null          // TradingLoop: latest reasoning + strategy stack
 };
 
-const DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
-const DASHBOARD_STOCK_PRICE_SYMBOLS = parseTickerSymbolList(
-  process.env.DASHBOARD_STOCK_PRICE_SYMBOLS || process.env.WATCHLIST_STOCK_SYMBOLS,
-  DEFAULT_DASHBOARD_STOCK_PRICE_SYMBOLS
-);
+const DASHBOARD_STOCK_CONFIG = resolveDashboardStockConfig(process.env);
+const DASHBOARD_STOCK_DATA_CONFIG = DASHBOARD_STOCK_CONFIG.data;
+const DASHBOARD_STOCK_STREAM_CONFIG = DASHBOARD_STOCK_CONFIG.stream;
+const DASHBOARD_STOCK_PRICE_SYMBOLS = DASHBOARD_STOCK_DATA_CONFIG.stockSymbols;
 const DEFAULT_DASHBOARD_CRYPTO_PRICE_SYMBOLS = 'BTC-USD,ETH-USD,SOL-USD';
 const DASHBOARD_CRYPTO_PRICE_SYMBOLS = parseTickerSymbolList(
   process.env.DASHBOARD_CRYPTO_PRICE_SYMBOLS || process.env.WATCHLIST_CRYPTO_SYMBOLS,
@@ -1122,9 +1121,6 @@ const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = Math.max(
   5000,
   Number.isFinite(parsedCryptoPriceIntervalMs) ? parsedCryptoPriceIntervalMs : 5000
 );
-const DASHBOARD_STOCK_CONFIG = resolveDashboardStockConfig(process.env);
-const DASHBOARD_STOCK_DATA_CONFIG = DASHBOARD_STOCK_CONFIG.data;
-const DASHBOARD_STOCK_STREAM_CONFIG = DASHBOARD_STOCK_CONFIG.stream;
 const DASHBOARD_STOCK_PRICE_ENABLED = DASHBOARD_STOCK_DATA_CONFIG.ready;
 const KRAKEN_REST_TICKER_URL = process.env.KRAKEN_REST_TICKER_URL || 'https://api.kraken.com/0/public/Ticker';
 let stockPriceFanoutInFlight = false;
@@ -1807,7 +1803,7 @@ wss.on('connection', (ws, req) => {
         if (data.type === 'request_historical') {
           try {
             const { isStock, fetchStockCandles } = require('./server/stock-data-adapter');
-            if (isStock(asset)) {
+            if (isStock(asset, { config: DASHBOARD_STOCK_DATA_CONFIG })) {
               handled = true;
               const tf = data.timeframe || '15m';
               const limit = data.limit || 500;

@@ -79,7 +79,7 @@ describe('dashboard stock stream config', () => {
     })).toEqual(expect.objectContaining({
       ready: false,
       tickerMaxAgeMs: null,
-      missing: ['STOCK_TICKER_MAX_AGE_MS'],
+      missing: ['DASHBOARD_STOCK_PRICE_SYMBOLS', 'STOCK_TICKER_MAX_AGE_MS'],
     }));
 
     expect(resolveDashboardStockDataConfig({
@@ -88,9 +88,11 @@ describe('dashboard stock stream config', () => {
       ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
       ALPACA_STOCK_DATA_FEED: 'iex',
       ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+      DASHBOARD_STOCK_PRICE_SYMBOLS: 'tsla, nvda',
       STOCK_TICKER_MAX_AGE_MS: '60000',
     })).toEqual(expect.objectContaining({
       ready: true,
+      stockSymbols: ['TSLA', 'NVDA'],
       tickerMaxAgeMs: 60000,
       missing: [],
     }));
