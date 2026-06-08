@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const {
+  resolveAlpacaStockDownloadConfig,
   resolveAlpacaStockDataAccessConfig,
   resolveDashboardStockDataConfig,
   resolveDashboardStockStreamConfig,
@@ -93,6 +94,62 @@ describe('dashboard stock stream config', () => {
       tickerMaxAgeMs: 60000,
       missing: [],
     }));
+  });
+
+  test('stock download config requires explicit downloader tunables', () => {
+    const config = resolveAlpacaStockDownloadConfig({
+      ALPACA_API_KEY: 'test-key',
+      ALPACA_API_SECRET: 'test-secret',
+      ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
+      ALPACA_STOCK_DATA_FEED: 'iex',
+      ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+      ALPACA_STOCK_DOWNLOAD_SYMBOLS: 'tsla, nvda',
+      ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR: 'tuning',
+      ALPACA_STOCK_DOWNLOAD_YEARS: '2',
+      ALPACA_STOCK_DOWNLOAD_TIMEFRAME: '15Min',
+      ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME: '15m',
+      ALPACA_STOCK_DOWNLOAD_LIMIT: '10000',
+      ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS: '1',
+      ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS: '200',
+    });
+
+    expect(config).toEqual(expect.objectContaining({
+      ready: true,
+      missing: [],
+      symbols: ['TSLA', 'NVDA'],
+      outputDir: 'tuning',
+      years: 2,
+      timeframe: '15Min',
+      filenameTimeframe: '15m',
+      limit: 10000,
+      chunkMonths: 1,
+      rateLimitMs: 200,
+    }));
+  });
+
+  test('stock download config fails closed on missing or malformed tunables', () => {
+    const config = resolveAlpacaStockDownloadConfig({
+      ALPACA_API_KEY: 'test-key',
+      ALPACA_API_SECRET: 'test-secret',
+      ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
+      ALPACA_STOCK_DATA_FEED: 'iex',
+      ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+      ALPACA_STOCK_DOWNLOAD_SYMBOLS: ' ',
+      ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR: 'tuning',
+      ALPACA_STOCK_DOWNLOAD_YEARS: '0',
+      ALPACA_STOCK_DOWNLOAD_TIMEFRAME: '15Min',
+      ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME: '15m',
+      ALPACA_STOCK_DOWNLOAD_LIMIT: '10000',
+      ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS: 'bad',
+      ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS: '200',
+    });
+
+    expect(config.ready).toBe(false);
+    expect(config.missing).toEqual([
+      'ALPACA_STOCK_DOWNLOAD_SYMBOLS',
+      'ALPACA_STOCK_DOWNLOAD_YEARS',
+      'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS',
+    ]);
   });
 
   test('server clears disabled relay stream before no-client and no-symbol exits', () => {

@@ -20,6 +20,18 @@ const REQUIRED_STOCK_STREAM_CONFIG_KEYS = Object.freeze([
   'ALPACA_STOCK_STREAM_FEED',
 ]);
 
+const REQUIRED_STOCK_DOWNLOAD_CONFIG_KEYS = Object.freeze([
+  ...REQUIRED_STOCK_DATA_ACCESS_KEYS,
+  'ALPACA_STOCK_DOWNLOAD_SYMBOLS',
+  'ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR',
+  'ALPACA_STOCK_DOWNLOAD_YEARS',
+  'ALPACA_STOCK_DOWNLOAD_TIMEFRAME',
+  'ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME',
+  'ALPACA_STOCK_DOWNLOAD_LIMIT',
+  'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS',
+  'ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS',
+]);
+
 function envEnabled(value) {
   const text = String(value || '').trim().toLowerCase();
   return text === 'true' || text === '1';
@@ -37,6 +49,15 @@ function resolvePositiveInteger(env, key) {
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
 
+function resolveSymbolList(env, key) {
+  const raw = envText(env, key);
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map(symbol => symbol.trim().toUpperCase())
+    .filter(Boolean);
+}
+
 function sourceFor(env, key) {
   return envText(env, key) ? `env:${key}` : 'unset';
 }
@@ -44,6 +65,15 @@ function sourceFor(env, key) {
 function missingKeys(env, keys) {
   return keys.filter(key => {
     if (key === 'STOCK_TICKER_MAX_AGE_MS') return !resolvePositiveInteger(env, key);
+    if (
+      key === 'ALPACA_STOCK_DOWNLOAD_YEARS' ||
+      key === 'ALPACA_STOCK_DOWNLOAD_LIMIT' ||
+      key === 'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS' ||
+      key === 'ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS'
+    ) {
+      return !resolvePositiveInteger(env, key);
+    }
+    if (key === 'ALPACA_STOCK_DOWNLOAD_SYMBOLS') return resolveSymbolList(env, key).length === 0;
     return !envText(env, key);
   });
 }
@@ -108,6 +138,35 @@ function resolveDashboardStockStreamConfig(env = process.env) {
   });
 }
 
+function resolveAlpacaStockDownloadConfig(env = process.env) {
+  const access = resolveAlpacaStockDataAccessConfig(env);
+  const missing = missingKeys(env, REQUIRED_STOCK_DOWNLOAD_CONFIG_KEYS);
+  return Object.freeze({
+    ...access,
+    symbols: Object.freeze(resolveSymbolList(env, 'ALPACA_STOCK_DOWNLOAD_SYMBOLS')),
+    outputDir: envText(env, 'ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR'),
+    years: resolvePositiveInteger(env, 'ALPACA_STOCK_DOWNLOAD_YEARS'),
+    timeframe: envText(env, 'ALPACA_STOCK_DOWNLOAD_TIMEFRAME'),
+    filenameTimeframe: envText(env, 'ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME'),
+    limit: resolvePositiveInteger(env, 'ALPACA_STOCK_DOWNLOAD_LIMIT'),
+    chunkMonths: resolvePositiveInteger(env, 'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS'),
+    rateLimitMs: resolvePositiveInteger(env, 'ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS'),
+    missing,
+    ready: missing.length === 0,
+    sources: Object.freeze({
+      ...access.sources,
+      symbols: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_SYMBOLS'),
+      outputDir: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR'),
+      years: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_YEARS'),
+      timeframe: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_TIMEFRAME'),
+      filenameTimeframe: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME'),
+      limit: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_LIMIT'),
+      chunkMonths: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS'),
+      rateLimitMs: sourceFor(env, 'ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS'),
+    }),
+  });
+}
+
 function resolveDashboardStockConfig(env = process.env) {
   return Object.freeze({
     data: resolveDashboardStockDataConfig(env),
@@ -116,6 +175,7 @@ function resolveDashboardStockConfig(env = process.env) {
 }
 
 module.exports = {
+  resolveAlpacaStockDownloadConfig,
   resolveAlpacaStockDataAccessConfig,
   resolveDashboardStockConfig,
   resolveDashboardStockDataConfig,

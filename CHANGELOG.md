@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Stock Data Downloader Config Ownership (2026-06-08)
+
+- Routed historical Alpaca stock downloader symbols, output path, timeframe labels, year range, request limit, chunk size, and rate limit through the stock config owner; made downloader entry points validate injected config before URL/path/date/rate-limit work; and made imported script calls throw instead of exiting the process.
+
 ### Dashboard Alpaca Config Ownership (2026-06-08)
 
 - Routed dashboard Alpaca stock data credentials, URLs, feeds, freshness, and optional stream config through the dashboard stock config owner; made stock adapter callers validate concrete fields instead of trusting `ready`; wired PM2 stock-data config explicitly for websocket and bot processes; and removed emoji output/direct credential reads from the historical stock downloader.

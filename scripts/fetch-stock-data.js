@@ -8,34 +8,51 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const fs = require('fs');
 const path = require('path');
-const { resolveAlpacaStockDataAccessConfig } = require('../server/dashboard-stock-stream-config');
+const { resolveAlpacaStockDownloadConfig } = require('../server/dashboard-stock-stream-config');
 
-const STOCK_DATA_CONFIG = resolveAlpacaStockDataAccessConfig(process.env);
-
-if (!STOCK_DATA_CONFIG.ready) {
-  console.error(`[fetch-stock-data] Missing required Alpaca stock data config: ${STOCK_DATA_CONFIG.missing.join(', ')}`);
-  process.exit(1);
+function missingDownloadConfigFields(config) {
+  const missing = [];
+  if (!String(config?.apiKey || '').trim()) missing.push('ALPACA_API_KEY');
+  if (!String(config?.apiSecret || '').trim()) missing.push('ALPACA_API_SECRET');
+  if (!String(config?.dataUrl || '').trim()) missing.push('ALPACA_STOCK_DATA_URL');
+  if (!String(config?.feed || '').trim()) missing.push('ALPACA_STOCK_DATA_FEED');
+  if (!String(config?.adjustment || '').trim()) missing.push('ALPACA_STOCK_DATA_ADJUSTMENT');
+  if (!Array.isArray(config?.symbols) || config.symbols.length === 0) missing.push('ALPACA_STOCK_DOWNLOAD_SYMBOLS');
+  if (!String(config?.outputDir || '').trim()) missing.push('ALPACA_STOCK_DOWNLOAD_OUTPUT_DIR');
+  if (!Number.isInteger(config?.years) || config.years <= 0) missing.push('ALPACA_STOCK_DOWNLOAD_YEARS');
+  if (!String(config?.timeframe || '').trim()) missing.push('ALPACA_STOCK_DOWNLOAD_TIMEFRAME');
+  if (!String(config?.filenameTimeframe || '').trim()) missing.push('ALPACA_STOCK_DOWNLOAD_FILENAME_TIMEFRAME');
+  if (!Number.isInteger(config?.limit) || config.limit <= 0) missing.push('ALPACA_STOCK_DOWNLOAD_LIMIT');
+  if (!Number.isInteger(config?.chunkMonths) || config.chunkMonths <= 0) missing.push('ALPACA_STOCK_DOWNLOAD_CHUNK_MONTHS');
+  if (!Number.isInteger(config?.rateLimitMs) || config.rateLimitMs <= 0) missing.push('ALPACA_STOCK_DOWNLOAD_RATE_LIMIT_MS');
+  return missing;
 }
 
-const SYMBOLS = ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD', 'COIN', 'MARA', 'RIOT', 'PLTR'];
-const OUTPUT_DIR = path.join(__dirname, '../tuning');
+function assertDownloadConfig(config) {
+  const missing = missingDownloadConfigFields(config);
+  if (missing.length > 0) {
+    throw new Error(`[fetch-stock-data] Missing required Alpaca stock download config: ${missing.join(', ')}`);
+  }
+}
 
-async function fetchBars(symbol, start, end, timeframe = '15Min') {
+async function fetchBars(symbol, start, end, config) {
+  assertDownloadConfig(config);
+
   const params = new URLSearchParams({
     start: start,
     end: end,
-    timeframe: timeframe,
-    limit: '10000',
-    adjustment: STOCK_DATA_CONFIG.adjustment,
-    feed: STOCK_DATA_CONFIG.feed
+    timeframe: config.timeframe,
+    limit: String(config.limit),
+    adjustment: config.adjustment,
+    feed: config.feed
   });
 
-  const url = `${STOCK_DATA_CONFIG.dataUrl}/${symbol}/bars?${params}`;
+  const url = `${config.dataUrl}/${symbol}/bars?${params}`;
 
   const response = await fetch(url, {
     headers: {
-      'APCA-API-KEY-ID': STOCK_DATA_CONFIG.apiKey,
-      'APCA-API-SECRET-KEY': STOCK_DATA_CONFIG.apiSecret
+      'APCA-API-KEY-ID': config.apiKey,
+      'APCA-API-SECRET-KEY': config.apiSecret
     }
   });
 
@@ -48,33 +65,33 @@ async function fetchBars(symbol, start, end, timeframe = '15Min') {
   return data.bars || [];
 }
 
-async function fetchAllData(symbol, years = 2) {
-  console.log(`Fetching ${symbol} (15m, ${years} years)...`);
+async function fetchAllData(symbol, config) {
+  assertDownloadConfig(config);
+
+  console.log(`Fetching ${symbol} (${config.timeframe}, ${config.years} years)...`);
 
   const allBars = [];
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - years);
+  startDate.setFullYear(startDate.getFullYear() - config.years);
 
   let currentStart = new Date(startDate);
 
-  // Fetch in monthly chunks
   while (currentStart < endDate) {
     const chunkEnd = new Date(currentStart);
-    chunkEnd.setMonth(chunkEnd.getMonth() + 1);
+    chunkEnd.setMonth(chunkEnd.getMonth() + config.chunkMonths);
     if (chunkEnd > endDate) chunkEnd.setTime(endDate.getTime());
 
     const startStr = currentStart.toISOString();
     const endStr = chunkEnd.toISOString();
 
     try {
-      const bars = await fetchBars(symbol, startStr, endStr, '15Min');
+      const bars = await fetchBars(symbol, startStr, endStr, config);
       allBars.push(...bars);
 
       process.stdout.write(`\r   ${currentStart.toISOString().split('T')[0]} -> ${chunkEnd.toISOString().split('T')[0]}: +${bars.length} (total: ${allBars.length})`);
 
-      // Rate limit
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, config.rateLimitMs));
     } catch (error) {
       console.error(`\n   Error: ${error.message}`);
     }
@@ -99,20 +116,23 @@ function convertFormat(bars) {
   }));
 }
 
-async function main() {
+async function main(config = resolveAlpacaStockDownloadConfig(process.env)) {
+  assertDownloadConfig(config);
+
+  const outputDir = path.resolve(process.cwd(), config.outputDir);
   console.log('Alpaca Stock Data Fetcher');
   console.log('============================');
-  console.log(`Symbols: ${SYMBOLS.join(', ')}`);
-  console.log(`Interval: 15m, Range: 2 years`);
-  console.log(`Output: ${OUTPUT_DIR}\n`);
+  console.log(`Symbols: ${config.symbols.join(', ')}`);
+  console.log(`Interval: ${config.timeframe}, Range: ${config.years} years`);
+  console.log(`Output: ${outputDir}\n`);
 
-  if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  for (const symbol of SYMBOLS) {
+  for (const symbol of config.symbols) {
     try {
-      const rawBars = await fetchAllData(symbol, 2);
+      const rawBars = await fetchAllData(symbol, config);
 
       if (rawBars.length === 0) {
         console.log(`No data for ${symbol}\n`);
@@ -121,8 +141,8 @@ async function main() {
 
       const candles = convertFormat(rawBars);
 
-      const filename = `${symbol.toLowerCase()}-15m-2y.json`;
-      const filepath = path.join(OUTPUT_DIR, filename);
+      const filename = `${symbol.toLowerCase()}-${config.filenameTimeframe}-${config.years}y.json`;
+      const filepath = path.join(outputDir, filename);
 
       fs.writeFileSync(filepath, JSON.stringify(candles));
 
@@ -142,4 +162,16 @@ async function main() {
   console.log('Done!');
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  convertFormat,
+  fetchAllData,
+  fetchBars,
+  main,
+};
