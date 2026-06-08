@@ -32,7 +32,7 @@ const OPERATOR_ENV_VALUES = Object.freeze({
   INITIAL_BALANCE: '50000',
 });
 
-function loadPrimeAppWithEnv(envValues) {
+function loadAppWithEnv(appName, envValues) {
   const originalValues = {};
   for (const key of OPERATOR_ENV_KEYS) {
     originalValues[key] = process.env[key];
@@ -46,7 +46,7 @@ function loadPrimeAppWithEnv(envValues) {
   try {
     jest.resetModules();
     const ecosystem = require('../ecosystem.config');
-    return ecosystem.apps.find((app) => app.name === 'ogz-prime-v2');
+    return ecosystem.apps.find((app) => app.name === appName);
   } finally {
     for (const key of OPERATOR_ENV_KEYS) {
       if (originalValues[key] === undefined) {
@@ -57,6 +57,10 @@ function loadPrimeAppWithEnv(envValues) {
     }
     jest.resetModules();
   }
+}
+
+function loadPrimeAppWithEnv(envValues) {
+  return loadAppWithEnv('ogz-prime-v2', envValues);
 }
 
 describe('ecosystem eval live profile', () => {
@@ -100,5 +104,26 @@ describe('ecosystem eval live profile', () => {
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_KEY);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_SECRET);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.SIGNALSTACK_WEBHOOK_URL);
+  });
+
+  test('dashboard stock data config is explicit on websocket and bot PM2 processes', () => {
+    const websocket = loadAppWithEnv('ogz-websocket', OPERATOR_ENV_VALUES);
+    const prime = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+
+    for (const app of [websocket, prime]) {
+      expect(app.env).toEqual(expect.objectContaining({
+        ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
+        ALPACA_STOCK_DATA_FEED: 'iex',
+        ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+        STOCK_TICKER_MAX_AGE_MS: '900000',
+        ALPACA_DATA_STREAM_URL: 'wss://stream.data.alpaca.markets/v2/iex',
+        ALPACA_STOCK_STREAM_FEED: 'iex',
+      }));
+    }
+
+    expect(websocket.env).toEqual(expect.objectContaining({
+      ALPACA_API_KEY: OPERATOR_ENV_VALUES.ALPACA_API_KEY,
+      ALPACA_API_SECRET: OPERATOR_ENV_VALUES.ALPACA_API_SECRET,
+    }));
   });
 });

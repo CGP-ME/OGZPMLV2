@@ -53,7 +53,7 @@ const PineTALib = require('./pine-transpiler/core/PineTALib');
 const fetchFn = global.fetch || require('node-fetch');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
-const { resolveDashboardStockStreamConfig } = require('./server/dashboard-stock-stream-config');
+const { resolveDashboardStockConfig } = require('./server/dashboard-stock-stream-config');
 const { ASSET_REGISTRY } = require('./core/SymbolTradingContext');
 
 const apiPort = process.env.API_PORT || 3010;
@@ -1122,9 +1122,10 @@ const DASHBOARD_CRYPTO_PRICE_INTERVAL_MS = Math.max(
   5000,
   Number.isFinite(parsedCryptoPriceIntervalMs) ? parsedCryptoPriceIntervalMs : 5000
 );
-const DASHBOARD_STOCK_PRICE_ENABLED = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET);
-const DASHBOARD_STOCK_STREAM_CONFIG = resolveDashboardStockStreamConfig(process.env);
-const ALPACA_DATA_STREAM_URL = process.env.ALPACA_DATA_STREAM_URL || 'wss://stream.data.alpaca.markets/v2/iex';
+const DASHBOARD_STOCK_CONFIG = resolveDashboardStockConfig(process.env);
+const DASHBOARD_STOCK_DATA_CONFIG = DASHBOARD_STOCK_CONFIG.data;
+const DASHBOARD_STOCK_STREAM_CONFIG = DASHBOARD_STOCK_CONFIG.stream;
+const DASHBOARD_STOCK_PRICE_ENABLED = DASHBOARD_STOCK_DATA_CONFIG.ready;
 const KRAKEN_REST_TICKER_URL = process.env.KRAKEN_REST_TICKER_URL || 'https://api.kraken.com/0/public/Ticker';
 let stockPriceFanoutInFlight = false;
 let stockPriceFanoutDisabledLogged = false;
@@ -1276,7 +1277,7 @@ function stockTradeToTicker(trade) {
     volume: finiteNumber(trade?.s),
     timestamp: timestampMs(trade?.t),
     source: 'alpaca',
-    feed: 'iex'
+    feed: DASHBOARD_STOCK_STREAM_CONFIG.feed
   };
 }
 
@@ -1285,6 +1286,13 @@ function broadcastStockTicker(ticker, label = 'StockAdapter') {
     stockTickerToPriceFrame(ticker),
     stockTickerToTickerPriceFrame(ticker),
   ], label);
+}
+
+function dashboardStockConfigMissingReason(config, nonCredentialReason = 'missing_stock_data_config') {
+  const missing = Array.isArray(config?.missing) ? config.missing : [];
+  return missing.includes('ALPACA_API_KEY') || missing.includes('ALPACA_API_SECRET')
+    ? 'missing_credentials'
+    : nonCredentialReason;
 }
 
 function scheduleStockPriceStreamReconnect() {
@@ -1330,12 +1338,12 @@ function startDashboardStockPriceStream() {
   }
   if (dashboards.length === 0) return false;
   if (DASHBOARD_STOCK_PRICE_SYMBOLS.length === 0) return false;
-  if (!DASHBOARD_STOCK_PRICE_ENABLED) {
+  if (!DASHBOARD_STOCK_STREAM_CONFIG.ready) {
     broadcastDashboardBrokerStatus({
       name: 'alpaca',
       ok: false,
       source: 'stock_price_stream',
-      reason: 'missing_credentials',
+      reason: dashboardStockConfigMissingReason(DASHBOARD_STOCK_STREAM_CONFIG, 'missing_stream_config'),
       attemptedCount: 0,
       successCount: 0
     });
@@ -1349,14 +1357,14 @@ function startDashboardStockPriceStream() {
   }
 
   stockPriceStreamSubscribed = false;
-  const stream = new WebSocket(ALPACA_DATA_STREAM_URL);
+  const stream = new WebSocket(DASHBOARD_STOCK_STREAM_CONFIG.streamUrl);
   stockPriceStreamSocket = stream;
 
   stream.on('open', () => {
     stream.send(JSON.stringify({
       action: 'auth',
-      key: process.env.ALPACA_API_KEY,
-      secret: process.env.ALPACA_API_SECRET
+      key: DASHBOARD_STOCK_STREAM_CONFIG.apiKey,
+      secret: DASHBOARD_STOCK_STREAM_CONFIG.apiSecret
     }));
   });
 
@@ -1423,7 +1431,7 @@ function startDashboardStockPriceStream() {
       attemptedCount: DASHBOARD_STOCK_PRICE_SYMBOLS.length,
       successCount: stockPriceStreamSubscribed ? DASHBOARD_STOCK_PRICE_SYMBOLS.length : 0
     });
-    console.error(`[StockAdapter] Alpaca stream error at ${ALPACA_DATA_STREAM_URL}:`, err.message);
+    console.error(`[StockAdapter] Alpaca stream error at ${DASHBOARD_STOCK_STREAM_CONFIG.streamUrl}:`, err.message);
   });
 
   return true;
@@ -1437,12 +1445,12 @@ async function broadcastDashboardStockPrices() {
       name: 'alpaca',
       ok: false,
       source: 'stock_price_fanout',
-      reason: 'missing_credentials',
+      reason: dashboardStockConfigMissingReason(DASHBOARD_STOCK_DATA_CONFIG),
       attemptedCount: 0,
       successCount: 0
     });
     if (!stockPriceFanoutDisabledLogged) {
-      console.warn('[StockAdapter] Stock price fanout disabled: ALPACA_API_KEY and ALPACA_API_SECRET required');
+      console.warn(`[StockAdapter] Stock price fanout disabled: missing ${DASHBOARD_STOCK_DATA_CONFIG.missing.join(', ') || 'required config'}`);
       stockPriceFanoutDisabledLogged = true;
     }
     return;
@@ -1456,6 +1464,7 @@ async function broadcastDashboardStockPrices() {
     for (const symbol of DASHBOARD_STOCK_PRICE_SYMBOLS) {
       attemptedCount++;
       const ticker = await fetchStockTicker(symbol, {
+        config: DASHBOARD_STOCK_DATA_CONFIG,
         onReject: (result) => {
           const reason = sanitizeBrokerStatusText(result?.reason) || 'unknown_reject';
           rejectCounts[reason] = (rejectCounts[reason] || 0) + 1;
@@ -1804,7 +1813,7 @@ wss.on('connection', (ws, req) => {
               const limit = data.limit || 500;
               const dashboardSymbol = normalizeDashboardSymbol(asset);
               console.log(`[StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
-              fetchStockCandles(asset, tf, limit).then(candles => {
+              fetchStockCandles(asset, tf, limit, { config: DASHBOARD_STOCK_DATA_CONFIG }).then(candles => {
                 if (candles && candles.length > 0 && ws.readyState === WebSocket.OPEN) {
                   ws.send(JSON.stringify({
                     type: 'historical_candles',

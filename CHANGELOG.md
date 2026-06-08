@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Alpaca Config Ownership (2026-06-08)
+
+- Routed dashboard Alpaca stock data credentials, URLs, feeds, freshness, and optional stream config through the dashboard stock config owner; made stock adapter callers validate concrete fields instead of trusting `ready`; wired PM2 stock-data config explicitly for websocket and bot processes; and removed emoji output/direct credential reads from the historical stock downloader.
+
 ### Alpaca Adapter Config Ownership (2026-06-08)
 
 - Routed Alpaca credentials, mode, and symbols through ConfigLoader-owned broker config, rejected missing explicit live/paper Alpaca startup inputs, removed direct adapter/runtime fallback reads of `process.env.ALPACA_*`, and made stock backtest workers supply explicit backtest-only Alpaca adapter inputs.

@@ -14,6 +14,21 @@ const evalOperatorEnv = Object.freeze({
   INITIAL_BALANCE: process.env.INITIAL_BALANCE,
 });
 
+const alpacaCredentialEnv = Object.freeze({
+  ALPACA_API_KEY: process.env.ALPACA_API_KEY,
+  ALPACA_API_SECRET: process.env.ALPACA_API_SECRET,
+});
+
+const dashboardStockRuntimeEnv = Object.freeze({
+  ALPACA_STOCK_DATA_URL: 'https://data.alpaca.markets/v2/stocks',
+  ALPACA_STOCK_DATA_FEED: 'iex',
+  ALPACA_STOCK_DATA_ADJUSTMENT: 'split',
+  STOCK_TICKER_MAX_AGE_MS: '900000',
+  ALPACA_DATA_STREAM_URL: 'wss://stream.data.alpaca.markets/v2/iex',
+  ALPACA_STOCK_STREAM_FEED: 'iex',
+  DASHBOARD_STOCK_STREAM_ENABLED: process.env.DASHBOARD_STOCK_STREAM_ENABLED,
+});
+
 module.exports = {
   apps: [
     {
@@ -22,6 +37,8 @@ module.exports = {
       cwd: '/opt/ogzprime/OGZPMLV2',
       watch: false,
       env: {
+        ...alpacaCredentialEnv,
+        ...dashboardStockRuntimeEnv,
         NODE_ENV: 'production',
         PORT: 3010
       }
@@ -33,6 +50,7 @@ module.exports = {
       watch: false,
       env: {
         ...evalOperatorEnv,
+        ...dashboardStockRuntimeEnv,
         NODE_ENV: 'production',
         EXECUTION_MODE: 'live',
         BACKTEST_MODE: 'false',

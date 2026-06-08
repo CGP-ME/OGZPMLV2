@@ -5,21 +5,9 @@
  */
 'use strict';
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const { resolveDashboardStockDataConfig } = require('./dashboard-stock-stream-config');
 
-const API_KEY = process.env.ALPACA_API_KEY;
-const API_SECRET = process.env.ALPACA_API_SECRET;
-// Use IEX feed for free/basic plans (SIP requires paid subscription)
-const DATA_URL = 'https://data.alpaca.markets/v2/stocks';
-const DEFAULT_STOCK_TICKER_MAX_AGE_MS = 15 * 60 * 1000;
-const configuredStockTickerMaxAgeMs = Number(
-    process.env.STOCK_TICKER_MAX_AGE_MS ||
-    process.env.DASHBOARD_STOCK_PRICE_MAX_AGE_MS ||
-    DEFAULT_STOCK_TICKER_MAX_AGE_MS
-);
-const STOCK_TICKER_MAX_AGE_MS = Number.isFinite(configuredStockTickerMaxAgeMs) && configuredStockTickerMaxAgeMs > 0
-    ? configuredStockTickerMaxAgeMs
-    : DEFAULT_STOCK_TICKER_MAX_AGE_MS;
+const STOCK_DATA_CONFIG = resolveDashboardStockDataConfig(process.env);
 
 // Stock tickers this adapter handles — everything else goes to Kraken
 const STOCK_TICKERS = new Set([
@@ -31,6 +19,32 @@ const TIMEFRAME_MAP = {
     '1m': '1Min', '5m': '5Min', '15m': '15Min', '30m': '30Min',
     '1h': '1Hour', '4h': '4Hour', '1d': '1Day'
 };
+
+function resolveRequestConfig(options = {}) {
+    return options.config || STOCK_DATA_CONFIG;
+}
+
+function missingRequestConfigKeys(config) {
+    const missing = [];
+    if (!String(config?.apiKey || '').trim()) missing.push('ALPACA_API_KEY');
+    if (!String(config?.apiSecret || '').trim()) missing.push('ALPACA_API_SECRET');
+    if (!String(config?.dataUrl || '').trim()) missing.push('ALPACA_STOCK_DATA_URL');
+    if (!String(config?.feed || '').trim()) missing.push('ALPACA_STOCK_DATA_FEED');
+    if (!String(config?.adjustment || '').trim()) missing.push('ALPACA_STOCK_DATA_ADJUSTMENT');
+    if (!Number.isInteger(config?.tickerMaxAgeMs) || config.tickerMaxAgeMs <= 0) {
+        missing.push('STOCK_TICKER_MAX_AGE_MS');
+    }
+    return missing;
+}
+
+function stockDataConfigReject(symbol, config) {
+    const missing = missingRequestConfigKeys(config);
+    const reason = missing.includes('ALPACA_API_KEY') || missing.includes('ALPACA_API_SECRET')
+        ? 'missing_credentials'
+        : 'missing_stock_data_config';
+    console.error(`[StockAdapter] Missing required Alpaca stock data config for ${symbol}: ${missing.join(', ') || 'unknown'}`);
+    return stockTickerReject(symbol, reason, { missing });
+}
 
 function isStock(ticker) {
     // Strip -USD suffix if present, check against stock list
@@ -52,13 +66,14 @@ function toEpochSeconds(value) {
     return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : NaN;
 }
 
-async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
-    if (!API_KEY || !API_SECRET) {
-        console.error('[StockAdapter] ALPACA_API_KEY and ALPACA_API_SECRET required');
+async function fetchStockCandles(ticker, timeframe = '15m', limit = 500, options = {}) {
+    const config = resolveRequestConfig(options);
+    const symbol = cleanTicker(ticker);
+    if (missingRequestConfigKeys(config).length > 0) {
+        stockDataConfigReject(symbol, config);
         return null;
     }
 
-    const symbol = cleanTicker(ticker);
     const alpacaTf = TIMEFRAME_MAP[timeframe] || '15Min';
 
     // Calculate start date based on limit and timeframe
@@ -82,18 +97,18 @@ async function fetchStockCandles(ticker, timeframe = '15m', limit = 500) {
         end: now.toISOString(),
         timeframe: alpacaTf,
         limit: String(limit),
-        adjustment: 'split',
-        feed: 'iex',
+        adjustment: config.adjustment,
+        feed: config.feed,
         sort: 'desc'
     });
 
-    const url = `${DATA_URL}/${symbol}/bars?${params}`;
+    const url = `${config.dataUrl}/${symbol}/bars?${params}`;
 
     try {
         const response = await fetch(url, {
             headers: {
-                'APCA-API-KEY-ID': API_KEY,
-                'APCA-API-SECRET-KEY': API_SECRET
+                'APCA-API-KEY-ID': config.apiKey,
+                'APCA-API-SECRET-KEY': config.apiSecret
             }
         });
 
@@ -152,25 +167,25 @@ function stockTickerReject(symbol, reason, details = {}) {
     };
 }
 
-async function fetchStockTickerResult(ticker) {
+async function fetchStockTickerResult(ticker, options = {}) {
     const symbol = cleanTicker(ticker);
     if (!STOCK_TICKERS.has(symbol)) {
         return stockTickerReject(symbol, 'not_stock_symbol');
     }
 
-    if (!API_KEY || !API_SECRET) {
-        console.error('[StockAdapter] ALPACA_API_KEY and ALPACA_API_SECRET required');
-        return stockTickerReject(symbol, 'missing_credentials');
+    const config = resolveRequestConfig(options);
+    if (missingRequestConfigKeys(config).length > 0) {
+        return stockDataConfigReject(symbol, config);
     }
 
-    const params = new URLSearchParams({ feed: 'iex' });
-    const url = `${DATA_URL}/${symbol}/snapshot?${params}`;
+    const params = new URLSearchParams({ feed: config.feed });
+    const url = `${config.dataUrl}/${symbol}/snapshot?${params}`;
 
     try {
         const response = await fetch(url, {
             headers: {
-                'APCA-API-KEY-ID': API_KEY,
-                'APCA-API-SECRET-KEY': API_SECRET
+                'APCA-API-KEY-ID': config.apiKey,
+                'APCA-API-SECRET-KEY': config.apiSecret
             }
         });
 
@@ -206,10 +221,10 @@ async function fetchStockTickerResult(ticker) {
             return stockTickerReject(symbol, 'invalid_timestamp');
         }
         const ageMs = Date.now() - parsedTimestamp;
-        if (ageMs > STOCK_TICKER_MAX_AGE_MS) {
+        if (ageMs > config.tickerMaxAgeMs) {
             return stockTickerReject(symbol, 'stale_snapshot', {
                 ageMs,
-                maxAgeMs: STOCK_TICKER_MAX_AGE_MS,
+                maxAgeMs: config.tickerMaxAgeMs,
                 sourceTimestamp: parsedTimestamp
             });
         }
@@ -225,7 +240,7 @@ async function fetchStockTickerResult(ticker) {
                 volume: Number.isFinite(volume) ? volume : null,
                 timestamp: parsedTimestamp,
                 source: 'alpaca',
-                feed: 'iex'
+                feed: config.feed
             }
         };
 
@@ -236,7 +251,7 @@ async function fetchStockTickerResult(ticker) {
 }
 
 async function fetchStockTicker(ticker, options = {}) {
-    const result = await fetchStockTickerResult(ticker);
+    const result = await fetchStockTickerResult(ticker, options);
     if (result.ok) return result.ticker;
 
     if (typeof options.onReject === 'function') {
