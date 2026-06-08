@@ -5,10 +5,8 @@
  * Run: node tools/config-audit.js
  * 
  * Or from run-empire-v2.js:
- *   if (process.argv.includes('--audit-config')) {
- *     require('./tools/config-audit.js');
- *     process.exit(0);
- *   }
+ *   require('./tools/config-audit.js').run();
+ *   process.exit(0);
  * 
  * Outputs the ACTUAL values every module will receive, with source tracking.
  * Use this to prove the pipeline isn't being poisoned by hidden defaults.
@@ -19,28 +17,127 @@
 
 'use strict';
 
-// Load env first (same as run-empire-v2.js)
-const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
-require('dotenv').config({ path: envPath });
-
-// Normalize BACKTEST_MODE (same as run-empire-v2.js lines 28-41)
-if (process.env.EXECUTION_MODE === 'backtest' || process.env.CANDLE_SOURCE === 'file') {
-  process.env.BACKTEST_MODE = 'true';
-}
-
-const TradingConfig = require('../core/TradingConfig');
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
+const ConfigLoader = require('../foundation/ConfigLoader');
+const TradingConfig = require('../core/TradingConfig');
+
+const REDACTED_VALUE = '[REDACTED]';
+const SECRET_PATH_PATTERN = /(^|[._-])(apiKey|apiSecret|secret|token|dsn|webhookUrl|password|privateKey)($|[._-])/i;
+const SECRET_ENV_PATTERN = /(^|_)(API_KEY|API_SECRET|SECRET|TOKEN|DSN|WEBHOOK_URL|PASSWORD|PRIVATE_KEY)($|_)/i;
+
+const CONFIG_LOADER_ENV_PATHS = Object.freeze({
+  EXECUTION_MODE: 'mode.execution',
+  BACKTEST_MODE: 'mode.backtest',
+  PAPER_TRADING: 'mode.paperTrading',
+  LIVE_TRADING: 'mode.liveTrading',
+  CANDLE_SOURCE: 'mode.candleSource',
+  MIN_TRADE_CONFIDENCE: 'confidence.minTradeConfidence',
+  MIN_STRATEGY_CONFIDENCE: 'confidence.minStrategyConfidence',
+  MAX_CONFIDENCE: 'confidence.maxConfidence',
+  BASE_POSITION_SIZE: 'sizing.basePositionSize',
+  MAX_POSITION_SIZE_PCT: 'sizing.maxPositionSize',
+  MAX_POSITIONS: 'sizing.maxPositions',
+  STOP_LOSS_PERCENT: 'exits.stopLossPercent',
+  TAKE_PROFIT_PERCENT: 'exits.takeProfitPercent',
+  TRAILING_STOP_PERCENT: 'exits.trailingStopPercent',
+  TRAILING_ACTIVATION: 'exits.trailingActivation',
+  TIER1_TARGET: 'tiers.tier1',
+  TIER2_TARGET: 'tiers.tier2',
+  TIER3_TARGET: 'tiers.tier3',
+  FINAL_TARGET: 'tiers.final',
+  FEE_MAKER: 'fees.makerFee',
+  FEE_TAKER: 'fees.takerFee',
+  RISK_MANAGER_BYPASS: 'risk.riskManagerBypass',
+  ACCOUNT_DRAWDOWN_BYPASS: 'risk.accountDrawdownBypass',
+  MAX_DRAWDOWN: 'risk.maxDrawdown',
+  MAX_DAILY_LOSS: 'risk.maxDailyLoss',
+  ATR_FILTER_ENABLED: 'filters.atrEnabled',
+  ATR_MIN_PERCENT: 'filters.atrMinPercent',
+  CANDLE_DATA_FILE: 'backtest.candleDataFile',
+  INITIAL_BALANCE: 'backtest.initialBalance',
+  BACKTEST_SILENT: 'backtest.silent',
+  BACKTEST_FAST: 'backtest.fast',
+  BACKTEST_VERBOSE: 'backtest.verbose',
+  BACKTEST_NO_PATTERN_SAVE: 'backtest.noPatternSave',
+  TRAIL_ATR_MULTIPLIER: 'trail.atrMultiplier',
+  TRAIL_MIN_ACTIVATION: 'trail.minActivation',
+  TRAIL_TREND_WIDEN: 'trail.trendWiden',
+  TRAIL_STRUCTURE_TIGHTEN: 'trail.structureTighten',
+});
+
+function createAuditContext() {
+  const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
+  const configSnapshot = ConfigLoader.load({ force: true, silent: true });
+  return { envPath, configSnapshot };
+}
 
 // ═══════════════════════════════════════════════════════════════
 // TRACE EVERY VALUE
 // ═══════════════════════════════════════════════════════════════
 
-function getSource(envKey, configPath, hardcodedDefault) {
+function getPath(obj, configPath) {
+  if (!configPath) return undefined;
+  const parts = configPath.split('.');
+  let value = obj;
+  for (const part of parts) {
+    if (value === undefined || value === null) return undefined;
+    value = value[part];
+  }
+  return value;
+}
+
+function flattenConfigLeaves(obj, prefix = '', leaves = {}) {
+  if (obj === null || obj === undefined || typeof obj !== 'object' || Array.isArray(obj)) {
+    if (prefix) leaves[prefix] = obj;
+    return leaves;
+  }
+
+  for (const [key, value] of Object.entries(obj)) {
+    const pathKey = prefix ? `${prefix}.${key}` : key;
+    flattenConfigLeaves(value, pathKey, leaves);
+  }
+
+  return leaves;
+}
+
+function isSecretPath(configPath) {
+  const candidate = String(configPath || '');
+  const normalizedCandidate = candidate.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
+  return (
+    SECRET_PATH_PATTERN.test(candidate) ||
+    SECRET_PATH_PATTERN.test(normalizedCandidate) ||
+    SECRET_ENV_PATTERN.test(candidate) ||
+    SECRET_ENV_PATTERN.test(normalizedCandidate)
+  );
+}
+
+function auditEntry(configPath, entry) {
+  if (!isSecretPath(configPath)) return entry;
+  return {
+    ...entry,
+    value: REDACTED_VALUE,
+    redacted: true,
+  };
+}
+
+function getSourceFromContext(context, envKey, configPath, hardcodedDefault) {
+  const loaderPath = CONFIG_LOADER_ENV_PATHS[envKey];
+  const loaderVal = getPath(context.configSnapshot.config, loaderPath);
+  if (loaderPath && loaderVal !== undefined && loaderVal !== '') {
+    return auditEntry(loaderPath, {
+      value: loaderVal,
+      source: context.configSnapshot.sources[loaderPath] || `ConfigLoader:${loaderPath}`,
+      raw: false,
+    });
+  }
+
   const envVal = process.env[envKey];
   const configVal = configPath ? TradingConfig.get(configPath) : undefined;
   
   if (envVal !== undefined && envVal !== '') {
-    return { value: envVal, source: `env:${envKey}`, raw: true };
+    return auditEntry(envKey, { value: envVal, source: `env:${envKey}`, raw: true });
   }
   if (configVal !== undefined && configVal !== null) {
     return { value: configVal, source: `TradingConfig:${configPath}`, raw: false };
@@ -48,14 +145,30 @@ function getSource(envKey, configPath, hardcodedDefault) {
   return { value: hardcodedDefault, source: 'hardcoded-default', raw: false };
 }
 
-function buildResolvedConfig() {
+function addConfigLoaderLeaves(resolved, context) {
+  const leaves = flattenConfigLeaves(context.configSnapshot.config);
+  for (const [configPath, value] of Object.entries(leaves)) {
+    if (Object.prototype.hasOwnProperty.call(resolved, configPath)) continue;
+    resolved[configPath] = auditEntry(configPath, {
+      value,
+      source: context.configSnapshot.sources[configPath] || `ConfigLoader:${configPath}`,
+      raw: false,
+    });
+  }
+  return resolved;
+}
+
+function buildResolvedConfig(context = createAuditContext()) {
+  const getSource = (envKey, configPath, hardcodedDefault) => (
+    getSourceFromContext(context, envKey, configPath, hardcodedDefault)
+  );
   const resolved = {};
 
   // === EXECUTION MODE ===
   resolved['mode.execution'] = getSource('EXECUTION_MODE', 'pipeline.executionMode', 'paper');
   resolved['mode.backtest'] = getSource('BACKTEST_MODE', null, 'false');
   resolved['mode.paperTrading'] = getSource('PAPER_TRADING', null, 'false');
-  resolved['mode.liveTading'] = getSource('LIVE_TRADING', null, 'false');
+  resolved['mode.liveTrading'] = getSource('LIVE_TRADING', null, 'false');
   resolved['mode.candleSource'] = getSource('CANDLE_SOURCE', 'pipeline.candleSource', 'websocket');
 
   // === CONFIDENCE GATES ===
@@ -141,6 +254,8 @@ function buildResolvedConfig() {
     }
   }
 
+  addConfigLoaderLeaves(resolved, context);
+
   return resolved;
 }
 
@@ -203,93 +318,122 @@ function findEnvReads() {
   return results;
 }
 
+function buildFingerprint(resolved) {
+  const sortedKeys = Object.keys(resolved).sort();
+  const fingerprintData = sortedKeys.map(k => `${k}=${JSON.stringify(resolved[k].value)}`).join('|');
+  return crypto.createHash('sha256').update(fingerprintData).digest('hex').substring(0, 16);
+}
+
+function sourceLabelFor(source) {
+  if (source.startsWith('env:') || source.startsWith('dotenv:')) return 'ENV';
+  if (source.startsWith('derived:')) return 'DER';
+  if (source.startsWith('ConfigLoader:')) return 'CFG';
+  if (source.startsWith('TradingConfig')) return 'TC';
+  if (source === 'default' || source === 'hardcoded-default') return 'DEF';
+  return 'UNK';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN OUTPUT
 // ═══════════════════════════════════════════════════════════════
 
-console.log('\n' + '═'.repeat(80));
-console.log('  OGZPRIME CONFIG AUDIT — Resolved Values & Sources');
-console.log('═'.repeat(80));
+function run(context = createAuditContext()) {
+  console.log('\n' + '═'.repeat(80));
+  console.log('  OGZPRIME CONFIG AUDIT — Resolved Values & Sources');
+  console.log('═'.repeat(80));
 
-const resolved = buildResolvedConfig();
+  const resolved = buildResolvedConfig(context);
+  const fingerprint = buildFingerprint(resolved);
 
-// Generate fingerprint
-const sortedKeys = Object.keys(resolved).sort();
-const fingerprintData = sortedKeys.map(k => `${k}=${JSON.stringify(resolved[k].value)}`).join('|');
-const fingerprint = crypto.createHash('sha256').update(fingerprintData).digest('hex').substring(0, 16);
+  console.log(`\n  Config Fingerprint: ${fingerprint}`);
+  console.log(`  Env File: ${context.envPath}`);
+  console.log(`  Timestamp: ${new Date().toISOString()}\n`);
 
-console.log(`\n  Config Fingerprint: ${fingerprint}`);
-console.log(`  Env File: ${envPath}`);
-console.log(`  Timestamp: ${new Date().toISOString()}\n`);
-
-// Print grouped
-const groups = {};
-for (const [key, entry] of Object.entries(resolved)) {
-  const group = key.split('.')[0];
-  if (!groups[group]) groups[group] = [];
-  groups[group].push({ key, ...entry });
-}
-
-for (const [groupName, entries] of Object.entries(groups)) {
-  console.log(`\n── ${groupName.toUpperCase()} ${'─'.repeat(70 - groupName.length)}`);
-  for (const entry of entries) {
-    const val = typeof entry.value === 'boolean' ? (entry.value ? 'true' : 'false') : String(entry.value);
-    const sourceIcon = entry.source.startsWith('env:') ? '🌐' : 
-                       entry.source.startsWith('TradingConfig') ? '📋' : 
-                       entry.source === 'hardcoded-default' ? '⚠️' : '❓';
-    console.log(`  ${sourceIcon} ${entry.key.padEnd(45)} = ${val.padEnd(20)} [${entry.source}]`);
+  // Print grouped
+  const groups = {};
+  for (const [key, entry] of Object.entries(resolved)) {
+    const group = key.split('.')[0];
+    if (!groups[group]) groups[group] = [];
+    groups[group].push({ key, ...entry });
   }
-}
 
-// ENV LEAK SCAN
-console.log(`\n${'═'.repeat(80)}`);
-console.log('  PROCESS.ENV READS IN ACTIVE PIPELINE FILES');
-console.log(`${'═'.repeat(80)}\n`);
-
-const envReads = findEnvReads();
-const byFile = {};
-for (const r of envReads) {
-  if (!byFile[r.file]) byFile[r.file] = [];
-  byFile[r.file].push(r);
-}
-
-let totalReads = 0;
-for (const [file, reads] of Object.entries(byFile)) {
-  // Separate bootstrap (TradingConfig, run-empire-v2 top) from runtime
-  const isBootstrap = file === 'core/TradingConfig.js' || file === 'instrument.js';
-  const label = isBootstrap ? '(bootstrap — OK)' : '(RUNTIME — should be injected)';
-  console.log(`  ${file} ${label}`);
-  for (const r of reads) {
-    const icon = isBootstrap ? '  ✅' : '  ⚠️';
-    console.log(`${icon} Line ${String(r.line).padEnd(5)} ${r.envVar.padEnd(30)} ${r.code.substring(0, 80)}`);
-    totalReads++;
+  for (const [groupName, entries] of Object.entries(groups)) {
+    console.log(`\n── ${groupName.toUpperCase()} ${'─'.repeat(70 - groupName.length)}`);
+    for (const entry of entries) {
+      const val = typeof entry.value === 'boolean' ? (entry.value ? 'true' : 'false') : String(entry.value);
+      console.log(`  [${sourceLabelFor(entry.source)}] ${entry.key.padEnd(45)} = ${val.padEnd(20)} [${entry.source}]`);
+    }
   }
-  console.log('');
+
+  // ENV LEAK SCAN
+  console.log(`\n${'═'.repeat(80)}`);
+  console.log('  PROCESS.ENV READS IN ACTIVE PIPELINE FILES');
+  console.log(`${'═'.repeat(80)}\n`);
+
+  const envReads = findEnvReads();
+  const byFile = {};
+  for (const r of envReads) {
+    if (!byFile[r.file]) byFile[r.file] = [];
+    byFile[r.file].push(r);
+  }
+
+  let totalReads = 0;
+  for (const [file, reads] of Object.entries(byFile)) {
+    // Separate bootstrap (TradingConfig, run-empire-v2 top) from runtime
+    const isBootstrap = file === 'core/TradingConfig.js' || file === 'instrument.js';
+    const label = isBootstrap ? '(bootstrap — OK)' : '(RUNTIME — should be injected)';
+    console.log(`  ${file} ${label}`);
+    for (const r of reads) {
+      const readLabel = isBootstrap ? '[BOOT]' : '[RUNTIME]';
+      console.log(`  ${readLabel} Line ${String(r.line).padEnd(5)} ${r.envVar.padEnd(30)} ${r.code.substring(0, 80)}`);
+      totalReads++;
+    }
+    console.log('');
+  }
+
+  console.log(`\n  Total: ${totalReads} direct process.env reads across ${Object.keys(byFile).length} active files`);
+  const runtimeReads = envReads.filter(r => r.file !== 'core/TradingConfig.js' && r.file !== 'instrument.js');
+  console.log(`  Runtime reads (should be 0): ${runtimeReads.length}`);
+
+  // Save to file
+  const auditData = {
+    fingerprint,
+    timestamp: new Date().toISOString(),
+    envFile: context.envPath,
+    resolved,
+    envReads: envReads.map(r => ({ file: r.file, line: r.line, envVar: r.envVar })),
+    runtimeEnvReads: runtimeReads.length,
+  };
+
+  const outPath = path.join(__dirname, '..', 'backtest-results', `config-audit-${Date.now()}.json`);
+  try {
+    if (!fs.existsSync(path.dirname(outPath))) fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, JSON.stringify(auditData, null, 2));
+    console.log(`\n[config-audit] Audit saved: ${outPath}`);
+  } catch (e) {
+    console.log(`\n[config-audit] Could not save audit file: ${e.message}`);
+  }
+
+  console.log(`\n${'═'.repeat(80)}\n`);
+  return auditData;
 }
 
-console.log(`\n  Total: ${totalReads} direct process.env reads across ${Object.keys(byFile).length} active files`);
-const runtimeReads = envReads.filter(r => r.file !== 'core/TradingConfig.js' && r.file !== 'instrument.js');
-console.log(`  Runtime reads (should be 0): ${runtimeReads.length}`);
+if (require.main === module) {
+  run();
+}
 
-// Save to file
-const fs = require('fs');
-const path = require('path');
-const auditData = {
-  fingerprint,
-  timestamp: new Date().toISOString(),
-  envFile: envPath,
-  resolved,
-  envReads: envReads.map(r => ({ file: r.file, line: r.line, envVar: r.envVar })),
-  runtimeEnvReads: runtimeReads.length,
+module.exports = {
+  CONFIG_LOADER_ENV_PATHS,
+  addConfigLoaderLeaves,
+  auditEntry,
+  buildFingerprint,
+  buildResolvedConfig,
+  createAuditContext,
+  flattenConfigLeaves,
+  getPath,
+  getSourceFromContext,
+  isSecretPath,
+  REDACTED_VALUE,
+  run,
+  sourceLabelFor,
 };
-
-const outPath = path.join(__dirname, '..', 'backtest-results', `config-audit-${Date.now()}.json`);
-try {
-  if (!fs.existsSync(path.dirname(outPath))) fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(auditData, null, 2));
-  console.log(`\n📁 Audit saved: ${outPath}`);
-} catch (e) {
-  console.log(`\n⚠️ Could not save audit file: ${e.message}`);
-}
-
-console.log(`\n${'═'.repeat(80)}\n`);
