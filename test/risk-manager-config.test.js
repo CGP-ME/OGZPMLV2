@@ -150,6 +150,31 @@ describe('RiskManager config wiring', () => {
     }));
   });
 
+  test('daily loss alert uses percent loss instead of raw PnL dollars', () => {
+    const riskManager = new RiskManager(buildRiskManagerConfig({
+      maxDrawdown: 50,
+      maxDailyLoss: 10,
+      maxWeeklyLoss: 20,
+      maxMonthlyLoss: 30,
+      riskManagerBypass: false,
+    }, explicitRiskSources));
+
+    riskManager.initializeBalance(10000);
+    riskManager.recordTradeResult({ success: false, pnl: -299 });
+    expect(riskManager.alertsTriggered.some(alert => alert.type === 'daily_loss')).toBe(false);
+    const preAlertState = riskManager.pnlTracker.getState();
+    expect(preAlertState.dailyPnL).toBe(-299);
+    expect(preAlertState.dailyLossPercent).toBeCloseTo(2.99);
+
+    riskManager.recordTradeResult({ success: false, pnl: -1 });
+    expect(riskManager.alertsTriggered).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'daily_loss',
+        message: 'Daily loss at 3.00%',
+      }),
+    ]));
+  });
+
   test('RiskManager construction rejects untrusted config objects before tracker defaults can apply', () => {
     expect(() => new RiskManager({
       dailyLossLimitPercent: 10,

@@ -287,8 +287,8 @@ class RiskManager {
     if (ddState.currentDrawdown >= this.config.alertThresholds.drawdown) {
       this._triggerAlert('drawdown', `Drawdown at ${ddState.currentDrawdown.toFixed(2)}%`);
     }
-    if (pnlState.dailyPnL < 0 && Math.abs(pnlState.dailyPnL) >= this.config.alertThresholds.dailyLoss) {
-      this._triggerAlert('daily_loss', `Daily loss at ${Math.abs(pnlState.dailyPnL).toFixed(2)}%`);
+    if (pnlState.dailyLossPercent >= this.config.alertThresholds.dailyLoss) {
+      this._triggerAlert('daily_loss', `Daily loss at ${pnlState.dailyLossPercent.toFixed(2)}%`);
     }
   }
 

@@ -176,7 +176,7 @@ class PnLTracker {
     const stats = this.state[period];
     if (stats.startBalance <= 0) return;
 
-    const lossPercent = (Math.abs(Math.min(0, stats.pnl)) / stats.startBalance) * 100;
+    const lossPercent = this._getLossPercent(period);
     let limit;
 
     if (period === 'dailyStats') limit = this.config.dailyLossLimitPercent;
@@ -186,6 +186,12 @@ class PnLTracker {
     if (lossPercent >= limit) {
       stats.breachedLimit = true;
     }
+  }
+
+  _getLossPercent(period) {
+    const stats = this.state[period];
+    if (!stats || stats.startBalance <= 0) return 0;
+    return (Math.abs(Math.min(0, stats.pnl)) / stats.startBalance) * 100;
   }
 
   /**
@@ -224,6 +230,9 @@ class PnLTracker {
       dailyPnL: this.state.dailyStats.pnl,
       weeklyPnL: this.state.weeklyStats.pnl,
       monthlyPnL: this.state.monthlyStats.pnl,
+      dailyLossPercent: this._getLossPercent('dailyStats'),
+      weeklyLossPercent: this._getLossPercent('weeklyStats'),
+      monthlyLossPercent: this._getLossPercent('monthlyStats'),
       limitBreaches: this.getLimitBreaches(),
     };
   }

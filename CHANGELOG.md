@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Risk Manager Daily Loss Alert Percent (2026-06-08)
+
+- Changed RiskManager daily-loss alerts to compare and report period loss percent instead of treating raw PnL dollars as a percent, with regression coverage for the 3% alert threshold.
+
 ### Risk Manager Profile Config Ownership (2026-06-08)
 
 - Routed RiskManager construction through source-aware profile/env risk config and rejected default-sourced or unbranded risk-manager config before trade-path use.
