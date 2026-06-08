@@ -141,7 +141,7 @@ class TRAICore extends EventEmitter {
     this.analysisInterval = null;
     this.monitoringInterval = null;
 
-    console.log('🧠 TRAI Core initializing...');
+    console.log('TRAI Core initializing...');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -150,31 +150,31 @@ class TRAICore extends EventEmitter {
 
   async initialize() {
     try {
-      console.log('📚 Loading TRAI static brain...');
+      console.log('Loading TRAI static brain...');
       await this.loadStaticBrain();
 
-      console.log('🎭 Initializing personality and communication...');
+      console.log('Initializing personality and communication...');
       await this.initializeCommunication();
 
-      console.log('🧪 Setting up learning and adaptation systems...');
+      console.log('Setting up learning and adaptation systems...');
       await this.initializeLearning();
 
-      console.log('🔥 Starting persistent LLM client...');
+      console.log('Starting persistent LLM client...');
       try {
         await this.persistentLLM.initialize();
         this.llmReady = true;
-        console.log('✅ TRAI LLM Ready!');
+        console.log('TRAI LLM Ready!');
       } catch (error) {
-        console.error('❌ Failed to start LLM client:', error.message);
-        console.warn('⚠️ TRAI will use pattern-only mode (no LLM analysis)');
+        console.error('Failed to start LLM client:', error.message);
+        console.warn('TRAI will use pattern-only mode (no LLM analysis)');
         this.llmReady = false;
       }
 
       this.initialized = true;
-      console.log('✅ TRAI Core initialized successfully!');
+      console.log('TRAI Core initialized successfully!');
       this.emit('initialized', { timestamp: Date.now() });
     } catch (error) {
-      console.error('❌ TRAI initialization failed:', error);
+      console.error('TRAI initialization failed:', error);
       throw error;
     }
   }
@@ -182,14 +182,14 @@ class TRAICore extends EventEmitter {
   async loadStaticBrain() {
     // SINGLETON: Check if brain is already loaded
     if (staticBrainInstance) {
-      console.log('📊 Using cached static brain (already loaded)');
+      console.log('Using cached static brain (already loaded)');
       this.staticBrain = staticBrainInstance;
       return;
     }
 
     // Prevent multiple simultaneous loads
     if (isLoadingBrain) {
-      console.log('⏳ Static brain is currently loading, waiting...');
+      console.log('Static brain is currently loading, waiting...');
       while (isLoadingBrain) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
@@ -201,14 +201,14 @@ class TRAICore extends EventEmitter {
     const brainPath = path.resolve(this.config.staticBrainPath);
 
     try {
-      console.log('🧠 Loading static brain for the FIRST time...');
+      console.log('Loading static brain for the FIRST time...');
 
       const masterIndexPath = path.join(brainPath, 'master_index.json');
       if (fs.existsSync(masterIndexPath)) {
         const masterIndex = JSON.parse(fs.readFileSync(masterIndexPath, 'utf-8'));
         this.staticBrain.index = masterIndex;
         console.log(
-          `📊 Loaded brain index: ${Object.keys(masterIndex.trai_static_brain.categories).length} categories`
+          `Loaded brain index: ${Object.keys(masterIndex.trai_static_brain.categories).length} categories`
         );
       }
 
@@ -222,13 +222,13 @@ class TRAICore extends EventEmitter {
         const categoryData = JSON.parse(fs.readFileSync(categoryPath, 'utf-8'));
 
         this.staticBrain[categoryName] = categoryData;
-        console.log(`📁 Loaded category: ${categoryName} (${categoryData.total_messages} messages)`);
+        console.log(`Loaded category: ${categoryName} (${categoryData.total_messages} messages)`);
       }
 
       staticBrainInstance = this.staticBrain;
-      console.log('✅ Static brain cached for future use');
+      console.log('Static brain cached for future use');
     } catch (error) {
-      console.error('❌ Failed to load static brain:', error);
+      console.error('Failed to load static brain:', error);
       throw error;
     } finally {
       isLoadingBrain = false;
@@ -239,12 +239,12 @@ class TRAICore extends EventEmitter {
     // PRODUCTION READY: ElevenLabs voice & D-ID video TRAINED and ready for launch
     // Subscriptions paused until product launch to save costs
     if (this.config.enableVoice && this.config.elevenlabsApiKey) {
-      console.log('🎤 Initializing ElevenLabs voice synthesis...');
+      console.log('Initializing ElevenLabs voice synthesis...');
     }
     if (this.config.enableVideo && this.config.didApiKey) {
-      console.log('🎬 Initializing D-ID video generation...');
+      console.log('Initializing D-ID video generation...');
     }
-    console.log('💬 Communication systems ready (voice/video available for launch)');
+    console.log('Communication systems ready (voice/video available for launch)');
   }
 
   async initializeLearning() {
@@ -254,7 +254,7 @@ class TRAICore extends EventEmitter {
       adaptationRate: 0.1,
       lastCommit: Date.now(),
     };
-    console.log('🧠 Learning systems initialized');
+    console.log('Learning systems initialized');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -278,7 +278,7 @@ class TRAICore extends EventEmitter {
       await this.learnFromInteraction(query, response, context);
       return response;
     } catch (error) {
-      console.error('❌ TRAI query processing failed:', error);
+      console.error('TRAI query processing failed:', error);
       return {
         error: true,
         message: 'I encountered an issue processing your request. Please try again.',
@@ -317,7 +317,7 @@ class TRAICore extends EventEmitter {
     try {
       return this.memoryStore.retrieve(query, { topK: this.config.memoryTopK });
     } catch (error) {
-      console.error('❌ [TRAI] Memory retrieval failed:', error.message);
+      console.error('[TRAI] Memory retrieval failed:', error.message);
       return [];
     }
   }
@@ -422,7 +422,7 @@ class TRAICore extends EventEmitter {
     const { primaryCategory, context: analysisContext } = analysis;
 
     if (!this.llmReady) {
-      console.warn('⚠️ TRAI LLM not ready, using fallback');
+      console.warn('TRAI LLM not ready, using fallback');
       return this.getFallbackResponse(primaryCategory);
     }
 
@@ -491,12 +491,12 @@ class TRAICore extends EventEmitter {
       this.processPool.totalCompleted++;
 
       if (inferenceTime > 10000) {
-        console.warn(`⚠️ Slow TRAI inference: ${inferenceTime}ms`);
+        console.warn(`Slow TRAI inference: ${inferenceTime}ms`);
       }
 
       return response.trim();
     } catch (error) {
-      console.error('⚠️ TRAI persistent LLM error:', error.message);
+      console.error('TRAI persistent LLM error:', error.message);
       this.processPool.totalTimedOut++;
       return this.getFallbackResponse(primaryCategory);
     }
@@ -586,13 +586,13 @@ BOT STATUS:
 
   async generateVoiceResponse(text) {
     if (!this.config.elevenlabsApiKey) return null;
-    console.log('🎤 Would generate voice for:', text.substring(0, 50));
+    console.log('Would generate voice for:', text.substring(0, 50));
     return 'voice_url_placeholder';
   }
 
   async generateVideoResponse(text) {
     if (!this.config.didApiKey) return null;
-    console.log('🎬 Would generate video for:', text.substring(0, 50));
+    console.log('Would generate video for:', text.substring(0, 50));
     return 'video_url_placeholder';
   }
 
@@ -721,7 +721,7 @@ BOT STATUS:
       }
 
       await this.saveStaticBrain();
-      console.log(`🧠 Committed ${importantLearnings.length} learnings to journal + static brain`);
+      console.log(`Committed ${importantLearnings.length} learnings to journal + static brain`);
     }
 
     this.learningQueue = [];
@@ -743,7 +743,7 @@ BOT STATUS:
       const categoryFile = path.join(brainPath, `${category}.json`);
       require('./AtomicWrite').writeJsonAtomic(categoryFile, data);
     }
-    console.log('💾 Static brain updated and saved');
+    console.log('Static brain updated and saved');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -868,17 +868,17 @@ BOT STATUS:
 
     // Store interval refs for cleanup on shutdown
     this.analysisInterval = setInterval(async () => {
-      try { await this.analyzeBotState(); } catch (e) { console.error('🚨 TRAI analysis failed:', e); }
+      try { await this.analyzeBotState(); } catch (e) { console.error('TRAI analysis failed:', e); }
     }, 120000);
 
     this.monitoringInterval = setInterval(async () => {
-      try { await this.proactiveMonitoring(); } catch (e) { console.error('🚨 TRAI monitoring error:', e); }
+      try { await this.proactiveMonitoring(); } catch (e) { console.error('TRAI monitoring error:', e); }
     }, 30000);
 
-    console.log('🔗 TRAI integrated with bot (analysis + proactive monitoring active)');
+    console.log('TRAI integrated with bot (analysis + proactive monitoring active)');
 
     setTimeout(async () => {
-      try { await this.analyzeBotState(); } catch (e) { console.error('🚨 TRAI initial analysis failed:', e); }
+      try { await this.analyzeBotState(); } catch (e) { console.error('TRAI initial analysis failed:', e); }
     }, 30000);
   }
 
@@ -904,14 +904,14 @@ BOT STATUS:
 
     if (alerts.length > 0 && this.bot.broadcastToClients) {
       alerts.forEach((alert) => {
-        console.log(`🚨 TRAI ${alert.level}:`, alert.message);
+        console.log(`TRAI ${alert.level}:`, alert.message);
         this.bot.broadcastToClients({ type: 'trai_alert', level: alert.level, message: alert.message, timestamp: Date.now() });
       });
     }
   }
 
   async analyzeBotState() {
-    console.log('🧠 TRAI analyzing bot state...');
+    console.log('TRAI analyzing bot state...');
     if (!this.bot || !this.bot.systemState) return;
 
     const state = this.bot.systemState;
@@ -925,7 +925,7 @@ BOT STATUS:
         context: 'bot_state_analysis',
       });
 
-      console.log('🤖 TRAI AI Analysis:');
+      console.log('TRAI AI Analysis:');
       console.log(analysis);
 
       if (this.bot.broadcastToClients) {
@@ -936,7 +936,7 @@ BOT STATUS:
 
       return analysis;
     } catch (error) {
-      console.error('❌ TRAI analysis error:', error);
+      console.error('TRAI analysis error:', error);
       this.provideOptimizationSuggestions(state);
     }
   }
@@ -1029,7 +1029,7 @@ Quick status update — what's going on with the bot right now and what we shoul
     }
 
     if (suggestions.length > 0) {
-      console.log('💡 TRAI Optimization Suggestions:');
+      console.log('TRAI Optimization Suggestions:');
       suggestions.forEach((s) => console.log(`   • ${s}`));
     }
   }
@@ -1050,7 +1050,7 @@ Quick status update — what's going on with the bot right now and what we shoul
   }
 
   onTradeExecuted(trade) {
-    console.log('📊 TRAI analyzing trade execution:', trade.id);
+    console.log('TRAI analyzing trade execution:', trade.id);
     this.workingMemory.set(`trade_${trade.id}`, {
       trade,
       analysis: this.analyzeTradePerformance(trade),
@@ -1059,7 +1059,7 @@ Quick status update — what's going on with the bot right now and what we shoul
   }
 
   onErrorOccurred(error) {
-    console.log('🚨 TRAI learning from error:', error.message);
+    console.log('TRAI learning from error:', error.message);
     this.workingMemory.set(`error_${Date.now()}`, {
       error: error.message,
       stack: error.stack,
@@ -1088,7 +1088,7 @@ Quick status update — what's going on with the bot right now and what we shoul
   // ═══════════════════════════════════════════════════════════════
 
   shutdown() {
-    console.log('🛑 Shutting down TRAI Core...');
+    console.log('Shutting down TRAI Core...');
 
     if (this.analysisInterval) { clearInterval(this.analysisInterval); this.analysisInterval = null; }
     if (this.monitoringInterval) { clearInterval(this.monitoringInterval); this.monitoringInterval = null; }
@@ -1103,7 +1103,7 @@ Quick status update — what's going on with the bot right now and what we shoul
     this.learningQueue = [];
     this.initialized = false;
 
-    console.log('✅ TRAI Core shutdown complete');
+    console.log('TRAI Core shutdown complete');
   }
 }
 
