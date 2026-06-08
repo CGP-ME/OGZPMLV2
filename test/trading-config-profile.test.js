@@ -5,7 +5,10 @@ const TradingConfig = require('../core/TradingConfig');
 const {
   PROFILE_DEFINITIONS,
 } = require('../tools/tuning-profiles');
-const { buildBacktestWorkerEnv } = require('../tools/backtest-worker-env');
+const {
+  buildBacktestWorkerEnv,
+  summarizeWorkerEnv,
+} = require('../tools/backtest-worker-env');
 
 describe('TradingConfig runtime profile contract', () => {
   afterEach(() => {
@@ -78,6 +81,46 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.RISK_MANAGER_BYPASS).toBe('true');
     expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
+  });
+
+  test('stock backtest workers carry explicit Alpaca adapter config without leaking credentials in summaries', () => {
+    const workerEnv = buildBacktestWorkerEnv({
+      sourceEnv: {
+        ALPACA_MODE: 'live',
+        ALPACA_API_KEY: 'parent-live-key',
+        ALPACA_API_SECRET: 'parent-live-secret',
+      },
+      projectRoot: path.join(__dirname, '..'),
+      dataFile: 'tuning/tsla-15m-750.json',
+      stateFile: 'data/state-unit-alpaca-worker.json',
+      dataDir: 'data/backtest',
+      reportTag: 'unit-alpaca-worker',
+      profileName: 'current-eval',
+      stockMode: true,
+      instrumentEnv: {
+        BROKER: 'alpaca',
+        TRADING_PAIR: 'TSLA',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+      },
+    });
+
+    expect(workerEnv.ALPACA_MODE).toBe('paper');
+    expect(workerEnv.ALPACA_API_KEY).toBe('backtest-alpaca-key');
+    expect(workerEnv.ALPACA_API_SECRET).toBe('backtest-alpaca-secret');
+    expect(workerEnv.BROKER).toBe('alpaca');
+    expect(workerEnv.TRADING_PAIR).toBe('TSLA');
+
+    const summary = summarizeWorkerEnv(workerEnv);
+    expect(summary).toEqual(expect.objectContaining({
+      ALPACA_MODE: 'paper',
+      ALPACA_API_KEY_PRESENT: true,
+      ALPACA_API_SECRET_PRESENT: true,
+      BROKER: 'alpaca',
+      TRADING_PAIR: 'TSLA',
+    }));
+    expect(JSON.stringify(summary)).not.toContain('backtest-alpaca-key');
+    expect(JSON.stringify(summary)).not.toContain('parent-live-key');
   });
 
   test('flat-state tuning profile swap applies and restores config without mutating process env', async () => {

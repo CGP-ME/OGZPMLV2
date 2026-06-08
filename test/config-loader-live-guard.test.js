@@ -28,6 +28,11 @@ describe('ConfigLoader live trading safety guard', () => {
       SIGNALSTACK_WEBHOOK_URL: '',
       WEBHOOK_TIMEOUT_MS: '5000',
       WEBHOOK_ORDER_LOG_CAP: '500',
+      BROKER: 'alpaca',
+      ALPACA_MODE: 'paper',
+      ALPACA_API_KEY: 'test-alpaca-key',
+      ALPACA_API_SECRET: 'test-alpaca-secret',
+      TRADING_PAIR: 'TSLA',
       EVAL_RULES_ENABLED: 'false',
       TTP_RULES_ENABLED: 'false',
       TTP_VOLUME_CAP_ENABLED: 'true',
@@ -149,6 +154,46 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.errors).toEqual([]);
     expect(loaded.config.webhookOrders.enabled).toBe(false);
     expect(loaded.config.webhookOrders.dryRun).toBe(true);
+  });
+
+  test('rejects Alpaca broker config without an explicit API key outside backtest', () => {
+    process.env.ALPACA_API_KEY = '';
+
+    expect(() => loadConfig()).toThrow(/ALPACA_API_KEY must be configured/);
+  });
+
+  test('rejects Alpaca broker config without an explicit API secret outside backtest', () => {
+    process.env.ALPACA_API_SECRET = '';
+
+    expect(() => loadConfig()).toThrow(/ALPACA_API_SECRET must be configured/);
+  });
+
+  test('rejects Alpaca broker config without an explicit paper or live mode outside backtest', () => {
+    process.env.ALPACA_MODE = '';
+
+    expect(() => loadConfig()).toThrow(/ALPACA_MODE must be explicitly set to paper or live/);
+  });
+
+  test('rejects Alpaca broker config without an explicit symbol source outside backtest', () => {
+    delete process.env.ALPACA_SYMBOLS;
+    delete process.env.TRADING_PAIR;
+
+    expect(() => loadConfig()).toThrow(/ALPACA_SYMBOLS or TRADING_PAIR must be explicitly configured/);
+  });
+
+  test('keeps Alpaca credentials non-blocking for backtest mode', () => {
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.CANDLE_SOURCE = 'file';
+    process.env.BACKTEST_MODE = 'true';
+    process.env.ALPACA_MODE = '';
+    process.env.ALPACA_API_KEY = '';
+    process.env.ALPACA_API_SECRET = '';
+    delete process.env.TRADING_PAIR;
+
+    const loaded = loadConfig();
+
+    expect(loaded.config.mode.backtest).toBe(true);
+    expect(loaded.errors.join('\n')).not.toMatch(/ALPACA_API_KEY|ALPACA_API_SECRET|ALPACA_MODE/);
   });
 
   test('loads TTP volume cap policy from ConfigLoader defaults', () => {

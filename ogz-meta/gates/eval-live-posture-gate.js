@@ -63,6 +63,7 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
 
 const REQUIRED_CONFIG_PRESENT = Object.freeze([
   'broker.tradingPair',
+  'broker.alpacaSymbols',
   'broker.candleTimeframe',
   'paths.stateFile',
 ]);
@@ -269,11 +270,14 @@ function normalizeBrokerPosition(position) {
   };
 }
 
-async function readAlpacaPositions(effectiveEnv) {
+async function readAlpacaPositions(effectiveEnv, configSnapshot) {
   const values = effectiveEnv.values;
-  const apiKey = values.ALPACA_API_KEY;
-  const apiSecret = values.ALPACA_API_SECRET;
-  const mode = values.ALPACA_MODE ? String(values.ALPACA_MODE).trim().toLowerCase() : '';
+  const brokerConfig = configSnapshot?.config?.broker || null;
+  const brokerSources = configSnapshot?.sources || {};
+  const apiKey = brokerConfig ? brokerConfig.alpacaApiKey : values.ALPACA_API_KEY;
+  const apiSecret = brokerConfig ? brokerConfig.alpacaApiSecret : values.ALPACA_API_SECRET;
+  const modeRaw = brokerConfig ? brokerConfig.alpacaMode : values.ALPACA_MODE;
+  const mode = modeRaw ? String(modeRaw).trim().toLowerCase() : '';
 
   if (!apiKey) {
     throw new Error('ALPACA_API_KEY must be explicitly set for broker exposure reconciliation');
@@ -283,6 +287,17 @@ async function readAlpacaPositions(effectiveEnv) {
   }
   if (mode !== 'paper' && mode !== 'live') {
     throw new Error(`ALPACA_MODE must be explicitly set to paper or live for broker exposure reconciliation, got ${mode || 'missing'}`);
+  }
+  if (brokerConfig) {
+    for (const [pathName, source] of Object.entries({
+      'broker.alpacaApiKey': brokerSources['broker.alpacaApiKey'],
+      'broker.alpacaApiSecret': brokerSources['broker.alpacaApiSecret'],
+      'broker.alpacaMode': brokerSources['broker.alpacaMode'],
+    })) {
+      if (!source || source === 'default') {
+        throw new Error(`${pathName} must be explicitly sourced for broker exposure reconciliation`);
+      }
+    }
   }
 
   const baseUrl = mode === 'live'
@@ -366,8 +381,8 @@ function expectConfigPresent(report, configPath) {
 
 function validateSymbolConsistency(report) {
   const tradingPair = getPath(report.configSnapshot.config, 'broker.tradingPair');
-  const alpacaSymbols = report.effectiveEnv.values.ALPACA_SYMBOLS;
-  const alpacaSymbolsSource = report.effectiveEnv.sources.ALPACA_SYMBOLS || 'missing';
+  const alpacaSymbols = getPath(report.configSnapshot.config, 'broker.alpacaSymbols');
+  const alpacaSymbolsSource = report.configSnapshot.sources['broker.alpacaSymbols'] || 'missing';
   const symbols = typeof alpacaSymbols === 'string'
     ? alpacaSymbols.split(',').map((symbol) => symbol.trim()).filter(Boolean)
     : [];
@@ -378,8 +393,8 @@ function validateSymbolConsistency(report) {
     alpacaSymbolsSource,
   };
 
-  if (!alpacaSymbols) {
-    addError(report.errors, 'ALPACA_SYMBOLS must be explicitly set for eval-live posture');
+  if (!alpacaSymbols || alpacaSymbolsSource === 'default') {
+    addError(report.errors, `broker.alpacaSymbols must be explicitly sourced for eval-live posture, got ${alpacaSymbolsSource}`);
     return;
   }
   if (symbols.length !== 1) {

@@ -51,22 +51,31 @@ function stockBaseSymbol(symbol) {
   return normalized.endsWith('-USD') ? normalized.slice(0, -4) : normalized;
 }
 
+function addConfiguredStockSymbols(symbols, raw) {
+  String(raw || '').split(',').forEach(symbol => {
+    if (symbol.trim()) symbols.add(symbol.trim().toUpperCase());
+  });
+}
+
 function configuredStockSymbols() {
   const symbols = new Set();
   try {
-    const configured = getConfigValue('sessions.stockSymbols');
-    if (Array.isArray(configured)) {
-      configured.forEach(symbol => {
+    const sessionSymbols = getConfigValue('sessions.stockSymbols');
+    if (Array.isArray(sessionSymbols)) {
+      sessionSymbols.forEach(symbol => {
         if (typeof symbol === 'string' && symbol.trim()) symbols.add(symbol.trim().toUpperCase());
       });
     }
-  } catch (err) {
-    throw new Error(`[GAP-RECOVERY] Unable to read sessions.stockSymbols config for broker guard: ${err.message}`);
-  }
 
-  String(process.env.ALPACA_SYMBOLS || '').split(',').forEach(symbol => {
-    if (symbol.trim()) symbols.add(symbol.trim().toUpperCase());
-  });
+    addConfiguredStockSymbols(symbols, getConfigValue('broker.alpacaSymbols'));
+    const brokerId = getConfigValue('broker.id');
+    const assetClass = getConfigValue('broker.assetClass');
+    if (brokerId === 'alpaca' || assetClass === 'stocks') {
+      addConfiguredStockSymbols(symbols, getConfigValue('broker.tradingPair'));
+    }
+  } catch (err) {
+    throw new Error(`[GAP-RECOVERY] Unable to read stock symbol config for broker guard: ${err.message}`);
+  }
   return symbols;
 }
 

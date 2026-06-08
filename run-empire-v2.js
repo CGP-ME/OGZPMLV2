@@ -144,6 +144,30 @@ function buildRuntimeAuditContext(runtimeScope, extra = {}) {
   };
 }
 
+function resolveAlpacaSymbols(brokerConfig = {}, options = {}) {
+  const explicitSymbols = splitSymbols(brokerConfig.alpacaSymbols);
+  const fallbackSymbols = splitSymbols(options.fallbackSymbols);
+  const tradingPairSymbols = splitSymbols(brokerConfig.tradingPair);
+  const symbols = explicitSymbols.length > 0
+    ? explicitSymbols
+    : (fallbackSymbols.length > 0 ? fallbackSymbols : tradingPairSymbols);
+  if (symbols.length === 0) {
+    throw new Error('[Alpaca] ALPACA_SYMBOLS or TRADING_PAIR must provide at least one symbol');
+  }
+  return symbols;
+}
+
+function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
+  return {
+    apiKey: brokerConfig.alpacaApiKey,
+    apiSecret: brokerConfig.alpacaApiSecret,
+    mode: brokerConfig.alpacaMode,
+    tradingPair: brokerConfig.tradingPair,
+    symbols: resolveAlpacaSymbols(brokerConfig, options),
+    accountId: brokerConfig.accountId,
+  };
+}
+
 function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
   const result = runtimeAuditSink.capture(
     eventType,
@@ -454,7 +478,8 @@ function looksLikeEquityTicker(symbol) {
 
 function splitSymbols(raw) {
   if (!raw) return [];
-  return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+  const values = Array.isArray(raw) ? raw : String(raw).split(',');
+  return values.map(s => String(s).trim()).filter(Boolean);
 }
 
 function describeSymbolContexts(map) {
@@ -772,13 +797,14 @@ class OGZPrimeV14Bot {
         tradingPair: primaryCryptoSymbol,
         symbols: [primaryCryptoSymbol],
       });
-      const alpacaAdapter = createBrokerAdapter('alpaca', {});
+      const alpacaAdapterOptions = buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
+        fallbackSymbols: sessionsCfg.stockSymbols,
+      });
+      const alpacaAdapter = createBrokerAdapter('alpaca', alpacaAdapterOptions);
 
       this.orderRouter = new OrderRouter();
 
-      const stockSymbols = (process.env.ALPACA_SYMBOLS
-        ? process.env.ALPACA_SYMBOLS.split(',').map(s => s.trim())
-        : sessionsCfg.stockSymbols);
+      const stockSymbols = alpacaAdapterOptions.symbols;
       this.ttpCutoffSymbols = stockSymbols;
 
       this.sessionRouter = new SessionRouter({
@@ -970,7 +996,9 @@ class OGZPrimeV14Bot {
             tradingPair: resolvedConfig.config.broker.tradingPair,
             symbols: [resolvedConfig.config.broker.tradingPair],
           }
-        : {};
+        : brokerId === 'alpaca'
+          ? buildAlpacaAdapterOptions(resolvedConfig.config.broker)
+          : {};
       this.kraken = createBrokerAdapter(brokerId, adapterOptions);
       console.log('[EMPIRE V2] Created ' + brokerId + ' adapter via BrokerFactory');
       console.log('[DEBUG] Broker adapter type:', this.kraken.constructor.name);
@@ -980,10 +1008,9 @@ class OGZPrimeV14Bot {
       // REFACTOR Phase 5: OrderRouter for multi-broker routing
       // Future: Add more brokers with orderRouter.registerBroker(adapter, symbols)
       this.orderRouter = new OrderRouter();
-      // FIX 2026-04-22: symbols match broker — ALPACA_SYMBOLS env for stocks (default 'TSLA'),
-      // hardcoded crypto list for Kraken. Override stocks with e.g. ALPACA_SYMBOLS='TSLA,NVDA,SPY'.
+      // Symbols match the resolved broker config. ConfigLoader owns Alpaca env reads.
       const routedSymbols = brokerId === 'alpaca'
-        ? (process.env.ALPACA_SYMBOLS || 'TSLA').split(',').map(s => s.trim())
+        ? adapterOptions.symbols
         : ['BTC-USD', 'XBT-USD', 'ETH-USD', 'SOL-USD'];
       this.orderRouter.registerBroker(this.kraken, routedSymbols);
       if (brokerId === 'kraken') {
@@ -1058,15 +1085,16 @@ class OGZPrimeV14Bot {
       const brokerId = resolvedConfig.config.broker.id;
       const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
       const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
+      const alpacaSymbols = resolveAlpacaSymbols(resolvedConfig.config.broker, {
+        fallbackSymbols: sessionsCfg.stockSymbols,
+      });
       const rawSymbols = sessionRouterEnabled
         ? [
-            ...splitSymbols(process.env.ALPACA_SYMBOLS || (sessionsCfg.stockSymbols || []).join(',')),
+            ...alpacaSymbols,
             ...(sessionsCfg.cryptoSymbols || []),
           ]
         : (brokerId === 'alpaca'
-            ? (splitSymbols(process.env.ALPACA_SYMBOLS).length > 0
-                ? splitSymbols(process.env.ALPACA_SYMBOLS)
-                : [resolvedConfig.config.broker.tradingPair])
+            ? alpacaSymbols
             : [resolvedConfig.config.broker.tradingPair]);
       const symbols = [...new Set(rawSymbols.map(normalizeRuntimeSymbol).filter(Boolean))];
       const timeframe = this.candleTimeframe;
@@ -1079,7 +1107,7 @@ class OGZPrimeV14Bot {
           console.error(`[BOOT][SymbolContexts] FAILED to register ${sym}: ${err.message} — skipping (bot continues with successful subset)`);
         }
       }
-      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouter=${sessionRouterEnabled} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} envAlpacaSymbols=${splitSymbols(process.env.ALPACA_SYMBOLS).join(',') || '(none)'}`);
+      console.log(`[VIS][BOOT][SymbolContexts] broker=${brokerId} sessionRouter=${sessionRouterEnabled} tradingPair=${this.tradingPair} registered=${describeSymbolContexts(this.symbolContexts)} alpacaSymbols=${alpacaSymbols.join(',') || '(none)'}`);
     }
 
     this.candleSaveCounter = 0; // CHANGE 2026-01-28: Track candles for periodic save

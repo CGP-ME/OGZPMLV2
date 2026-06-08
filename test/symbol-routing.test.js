@@ -1,8 +1,56 @@
 'use strict';
 
+const originalSymbolRoutingEnv = { ...process.env };
+process.env = {
+  ...originalSymbolRoutingEnv,
+  DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
+  EXECUTION_MODE: 'backtest',
+  CANDLE_SOURCE: 'file',
+  BACKTEST_MODE: 'true',
+  BROKER: 'alpaca',
+  ALPACA_MODE: 'paper',
+  ALPACA_API_KEY: 'test-alpaca-key',
+  ALPACA_API_SECRET: 'test-alpaca-secret',
+  TRADING_PAIR: 'TSLA',
+  ASSET_CLASS: 'stocks',
+  RISK_MANAGER_BYPASS: 'false',
+  ACCOUNT_DRAWDOWN_BYPASS: 'false',
+  MAX_DRAWDOWN: '5',
+  MAX_DAILY_LOSS: '1',
+  MAX_WEEKLY_LOSS: '5',
+  MAX_MONTHLY_LOSS: '5',
+};
+
 const CandleProcessor = require('../core/CandleProcessor');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const { getInstance: getStateManager } = require('../core/StateManager');
+
+function primeConfigForSymbolRouting(overrides = {}) {
+  const originalEnv = process.env;
+  process.env = {
+    ...originalEnv,
+    DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
+    EXECUTION_MODE: 'backtest',
+    CANDLE_SOURCE: 'file',
+    BACKTEST_MODE: 'true',
+    BROKER: 'alpaca',
+    ALPACA_MODE: 'paper',
+    ALPACA_API_KEY: 'test-alpaca-key',
+    ALPACA_API_SECRET: 'test-alpaca-secret',
+    ALPACA_SYMBOLS: '',
+    TRADING_PAIR: 'TSLA',
+    ASSET_CLASS: 'stocks',
+    RISK_MANAGER_BYPASS: 'false',
+    ACCOUNT_DRAWDOWN_BYPASS: 'false',
+    MAX_DRAWDOWN: '5',
+    MAX_DAILY_LOSS: '1',
+    MAX_WEEKLY_LOSS: '5',
+    MAX_MONTHLY_LOSS: '5',
+    ...overrides,
+  };
+  ConfigLoader.load({ force: true, silent: true, loadDotenv: false });
+  process.env = originalEnv;
+}
 
 function makeSymCtx(symbol) {
   return {
@@ -98,6 +146,7 @@ describe('symbol-aware candle routing', () => {
   let errorSpy;
 
   beforeEach(() => {
+    primeConfigForSymbolRouting();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -105,6 +154,10 @@ describe('symbol-aware candle routing', () => {
   afterEach(() => {
     logSpy.mockRestore();
     errorSpy.mockRestore();
+  });
+
+  afterAll(() => {
+    process.env = originalSymbolRoutingEnv;
   });
 
   test('routes Kraken XBT slash symbols into BTC-USD context, not TSLA', () => {
@@ -239,6 +292,12 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('does not pause stock runtime for stale candle during non-RTH expected quiet', () => {
+    primeConfigForSymbolRouting({
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'websocket',
+      BACKTEST_MODE: 'false',
+      PAPER_TRADING: 'true',
+    });
     const now = Date.parse('2026-06-05T21:17:28Z');
     const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
     const stateManager = getStateManager();
@@ -279,6 +338,12 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('still pauses stock runtime for stale candle during RTH', () => {
+    primeConfigForSymbolRouting({
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'websocket',
+      BACKTEST_MODE: 'false',
+      PAPER_TRADING: 'true',
+    });
     const now = Date.parse('2026-06-05T15:17:28Z');
     const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
     const stateManager = getStateManager();
@@ -333,6 +398,12 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('fails closed for stale stock candle when market phase omits isRTH', () => {
+    primeConfigForSymbolRouting({
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'websocket',
+      BACKTEST_MODE: 'false',
+      PAPER_TRADING: 'true',
+    });
     const now = Date.parse('2026-06-05T15:17:28Z');
     const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
     const stateManager = getStateManager();
@@ -377,6 +448,12 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('fails closed for stale stock candle when market phase contradicts isRTH', () => {
+    primeConfigForSymbolRouting({
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'websocket',
+      BACKTEST_MODE: 'false',
+      PAPER_TRADING: 'true',
+    });
     const now = Date.parse('2026-06-05T15:17:28Z');
     const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
     const stateManager = getStateManager();
@@ -677,31 +754,22 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('gap recovery backfills the explicit candle symbol and timeframe', async () => {
-    const priorAlpacaSymbols = process.env.ALPACA_SYMBOLS;
-    process.env.ALPACA_SYMBOLS = 'TSLA';
-    try {
-      const btc = makeSymCtx('BTC-USD');
-      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
-      ctx.config.dataFeed.gapBackfillBufferCandles = 2;
-      ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
-      const processor = new CandleProcessor(ctx);
+    primeConfigForSymbolRouting({ ALPACA_SYMBOLS: 'TSLA' });
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.config.dataFeed.gapBackfillBufferCandles = 2;
+    ctx.kraken = { getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
 
-      expect(processor.candleIntervalMs).toBe(60 * 1000);
-      await processor.attemptBackfill(0, 60 * 1000, {
-        symbol: 'BTC-USD',
-        timeframe: '1m',
-        brokerId: 'kraken',
-        assetClass: 'crypto'
-      });
+    expect(processor.candleIntervalMs).toBe(60 * 1000);
+    await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'BTC-USD',
+      timeframe: '1m',
+      brokerId: 'kraken',
+      assetClass: 'crypto'
+    });
 
-      expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
-    } finally {
-      if (priorAlpacaSymbols === undefined) {
-        delete process.env.ALPACA_SYMBOLS;
-      } else {
-        process.env.ALPACA_SYMBOLS = priorAlpacaSymbols;
-      }
-    }
+    expect(ctx.kraken.getCandles).toHaveBeenCalledWith('BTC-USD', '1m', 3);
   });
 
   test('gap recovery uses immutable candle symbol instead of contaminated runtime default', async () => {
@@ -741,30 +809,21 @@ describe('symbol-aware candle routing', () => {
   });
 
   test('gap recovery refuses configured stock symbols with USD suffix through Kraken', async () => {
-    const priorAlpacaSymbols = process.env.ALPACA_SYMBOLS;
-    process.env.ALPACA_SYMBOLS = 'NVDA';
-    try {
-      const btc = makeSymCtx('BTC-USD');
-      const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
-      ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
-      const processor = new CandleProcessor(ctx);
+    primeConfigForSymbolRouting({ ALPACA_SYMBOLS: 'NVDA' });
+    const btc = makeSymCtx('BTC-USD');
+    const ctx = makeCtx(new Map([['BTC-USD', btc]]), 'BTC-USD', '1m');
+    ctx.kraken = { id: 'kraken', getCandles: jest.fn().mockResolvedValue([]) };
+    const processor = new CandleProcessor(ctx);
 
-      const candles = await processor.attemptBackfill(0, 60 * 1000, {
-        symbol: 'NVDA-USD',
-        timeframe: '1m',
-        brokerId: 'kraken'
-      });
+    const candles = await processor.attemptBackfill(0, 60 * 1000, {
+      symbol: 'NVDA-USD',
+      timeframe: '1m',
+      brokerId: 'kraken'
+    });
 
-      expect(candles).toEqual([]);
-      expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA-USD through Kraken'));
-    } finally {
-      if (priorAlpacaSymbols === undefined) {
-        delete process.env.ALPACA_SYMBOLS;
-      } else {
-        process.env.ALPACA_SYMBOLS = priorAlpacaSymbols;
-      }
-    }
+    expect(candles).toEqual([]);
+    expect(ctx.kraken.getCandles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Refusing to backfill stock symbol NVDA-USD through Kraken'));
   });
 
   test('gap recovery refuses configured stock USD suffix through Kraken even when mislabeled crypto', async () => {

@@ -29,6 +29,11 @@ const WORKER_ENV_ALLOWLIST = [
 
 const CANONICAL_BACKTEST_ENV = TradingConfig.getBacktestWorkerEnvDefaults();
 const STOCK_ZERO_FEE_ENV = TradingConfig.getBacktestStockZeroFeeEnv();
+const STOCK_BACKTEST_ALPACA_ENV = Object.freeze({
+  ALPACA_MODE: 'paper',
+  ALPACA_API_KEY: 'backtest-alpaca-key',
+  ALPACA_API_SECRET: 'backtest-alpaca-secret',
+});
 
 const DIRECTION_FILTER_ALIASES = Object.freeze({
   long: 'long_only',
@@ -109,6 +114,8 @@ const SUMMARY_KEYS = [
   'FEE_TOTAL_ROUNDTRIP',
   'FEE_SAFETY_BUFFER',
   'FEE_SLIPPAGE',
+  'ALPACA_MODE',
+  'ALPACA_SYMBOLS',
   'TRADING_PAIR',
   'BROKER',
   'ASSET_CLASS',
@@ -213,6 +220,7 @@ function buildBacktestWorkerEnv(options) {
     BACKTEST_REPORT_TAG: reportTag,
     STRATEGY_DIAG: strategyDiag,
     ...(stockMode ? STOCK_ZERO_FEE_ENV : {}),
+    ...(stockMode ? STOCK_BACKTEST_ALPACA_ENV : {}),
     DIRECTION_FILTER: directionFilter,
     ...normalizedConfigEnv,
     ...instrumentEnv,
@@ -226,6 +234,8 @@ function summarizeWorkerEnv(env) {
   for (const key of SUMMARY_KEYS) {
     if (env[key] !== undefined) summary[key] = env[key];
   }
+  if (env.ALPACA_API_KEY !== undefined) summary.ALPACA_API_KEY_PRESENT = Boolean(env.ALPACA_API_KEY);
+  if (env.ALPACA_API_SECRET !== undefined) summary.ALPACA_API_SECRET_PRESENT = Boolean(env.ALPACA_API_SECRET);
   return summary;
 }
 
@@ -233,6 +243,7 @@ module.exports = {
   WORKER_ENV_ALLOWLIST,
   CANONICAL_BACKTEST_ENV,
   STOCK_ZERO_FEE_ENV,
+  STOCK_BACKTEST_ALPACA_ENV,
   CONFIG_ENV_OVERRIDE_ALLOWLIST,
   INSTRUMENT_ENV_ALLOWLIST,
   DEFAULT_TUNING_PROFILE,

@@ -21,6 +21,29 @@ describe('AlpacaAdapter candle history', () => {
     jest.useRealTimers();
   });
 
+  test('rejects direct construction without explicit credentials and mode', () => {
+    expect(() => new AlpacaAdapter({ apiSecret: 'secret', mode: 'paper' })).toThrow(/apiKey is required/);
+    expect(() => new AlpacaAdapter({ apiKey: 'key', mode: 'paper' })).toThrow(/apiSecret is required/);
+    expect(() => new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret' })).toThrow(/mode must be explicitly set/);
+  });
+
+  test('does not inherit account identity from ambient broker env', () => {
+    const priorAccountId = process.env.BROKER_ACCOUNT_ID;
+    process.env.BROKER_ACCOUNT_ID = 'stale-env-account';
+
+    try {
+      const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+
+      expect(adapter.getAccountIdentity()).toBeNull();
+    } finally {
+      if (priorAccountId === undefined) {
+        delete process.env.BROKER_ACCOUNT_ID;
+      } else {
+        process.env.BROKER_ACCOUNT_ID = priorAccountId;
+      }
+    }
+  });
+
   test('requests latest intraday candles and returns them in ascending order', async () => {
     axios.get.mockResolvedValue({
       data: {

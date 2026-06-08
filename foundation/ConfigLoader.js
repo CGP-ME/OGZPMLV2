@@ -353,6 +353,10 @@ function buildConfig() {
         id: track('broker.id', { value: _brokerId, source: _brokerIdResult.source }),
         apiKey: track('broker.apiKey', envStr('KRAKEN_API_KEY', '')),
         apiSecret: track('broker.apiSecret', envStr('KRAKEN_API_SECRET', '')),
+        alpacaApiKey: track('broker.alpacaApiKey', envStr('ALPACA_API_KEY', '')),
+        alpacaApiSecret: track('broker.alpacaApiSecret', envStr('ALPACA_API_SECRET', '')),
+        alpacaMode: track('broker.alpacaMode', envStr('ALPACA_MODE', '')),
+        alpacaSymbols: track('broker.alpacaSymbols', envStr('ALPACA_SYMBOLS', '')),
         tradingPair: track('broker.tradingPair', envStr('TRADING_PAIR', _isKraken ? 'BTC-USD' : 'TSLA')),
         candleTimeframe: track('broker.candleTimeframe', envStr('CANDLE_TIMEFRAME', '15m')),
         tradingInterval: track('broker.tradingInterval', envInt('TRADING_INTERVAL', 15000)),
@@ -479,6 +483,23 @@ function validate(config, sources = {}) {
       }
     } catch (error) {
       errors.push(`SIGNALSTACK_WEBHOOK_URL is invalid when WEBHOOK_ORDERS_ENABLED=true: ${error.message}`);
+    }
+  }
+
+  if (!config.mode.backtest && config.broker.id === 'alpaca') {
+    if (!config.broker.alpacaApiKey) {
+      errors.push('ALPACA_API_KEY must be configured when BROKER=alpaca outside backtest mode');
+    }
+    if (!config.broker.alpacaApiSecret) {
+      errors.push('ALPACA_API_SECRET must be configured when BROKER=alpaca outside backtest mode');
+    }
+    if (config.broker.alpacaMode !== 'paper' && config.broker.alpacaMode !== 'live') {
+      errors.push(`ALPACA_MODE must be explicitly set to paper or live when BROKER=alpaca outside backtest mode, got ${config.broker.alpacaMode || '(missing)'}`);
+    }
+    const hasExplicitAlpacaSymbols = !!config.broker.alpacaSymbols && sources['broker.alpacaSymbols'] !== 'default';
+    const hasExplicitTradingPair = !!config.broker.tradingPair && sources['broker.tradingPair'] !== 'default';
+    if (!hasExplicitAlpacaSymbols && !hasExplicitTradingPair) {
+      errors.push('ALPACA_SYMBOLS or TRADING_PAIR must be explicitly configured when BROKER=alpaca outside backtest mode');
     }
   }
 
@@ -638,6 +659,8 @@ function fingerprint(config) {
   if (safe.broker) {
     safe.broker.apiKey = safe.broker.apiKey ? '[SET]' : '[UNSET]';
     safe.broker.apiSecret = safe.broker.apiSecret ? '[SET]' : '[UNSET]';
+    safe.broker.alpacaApiKey = safe.broker.alpacaApiKey ? '[SET]' : '[UNSET]';
+    safe.broker.alpacaApiSecret = safe.broker.alpacaApiSecret ? '[SET]' : '[UNSET]';
   }
   const str = JSON.stringify(safe, Object.keys(safe).sort());
   return crypto.createHash('sha256').update(str).digest('hex').substring(0, 16);

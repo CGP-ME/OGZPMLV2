@@ -105,6 +105,17 @@ describe('eval live posture gate', () => {
     expect(JSON.stringify(report)).not.toContain('signalstack.example');
   });
 
+  test('rejects eval posture without explicit ConfigLoader-owned Alpaca symbols', () => {
+    const env = validEvalLiveEnv();
+    delete env.ALPACA_SYMBOLS;
+
+    const report = validateEvalLivePosture(env);
+
+    expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/broker\.alpacaSymbols must be explicitly sourced/);
+    expect(report.checked.symbol.alpacaSymbolsSource).toBe('default');
+  });
+
   test('readiness passes with explicit flat state and flat Alpaca positions', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-ready-'));
     const stateFile = writeStateFile(path.join(tempDir, 'state.json'));
@@ -386,6 +397,9 @@ describe('eval live posture gate', () => {
         MAX_DAILY_LOSS: originalEnv.MAX_DAILY_LOSS || '1',
         MAX_WEEKLY_LOSS: originalEnv.MAX_WEEKLY_LOSS || '5',
         MAX_MONTHLY_LOSS: originalEnv.MAX_MONTHLY_LOSS || '5',
+        ALPACA_MODE: originalEnv.ALPACA_MODE || 'paper',
+        ALPACA_API_KEY: originalEnv.ALPACA_API_KEY || 'test-alpaca-key',
+        ALPACA_API_SECRET: originalEnv.ALPACA_API_SECRET || 'test-alpaca-secret',
       };
       ConfigLoader.load({ force: true, silent: true });
       process.env = originalEnv;

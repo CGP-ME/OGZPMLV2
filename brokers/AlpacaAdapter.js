@@ -22,11 +22,19 @@ class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
         super();
         this.config = config;
-        this.apiKey = config.apiKey || process.env.ALPACA_API_KEY;
-        this.apiSecret = config.apiSecret || process.env.ALPACA_API_SECRET;
+        this.apiKey = config.apiKey;
+        this.apiSecret = config.apiSecret;
+        if (!this.apiKey) {
+            throw new Error('[Alpaca] apiKey is required');
+        }
+        if (!this.apiSecret) {
+            throw new Error('[Alpaca] apiSecret is required');
+        }
 
-        // Paper vs live — paper is ALWAYS the default, live is opt-in
-        const mode = (config.mode || process.env.ALPACA_MODE || 'paper').toLowerCase();
+        const mode = String(config.mode || '').toLowerCase();
+        if (mode !== 'paper' && mode !== 'live') {
+            throw new Error(`[Alpaca] mode must be explicitly set to paper or live, got ${mode || '(missing)'}`);
+        }
         if (mode === 'live') {
             this.baseUrl = 'https://api.alpaca.markets';
             this.dataUrl = 'https://data.alpaca.markets';
@@ -45,7 +53,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.ws = null;
         this.accountWs = null;
         this.subscriptions = new Map();
-        this.accountId = this._cleanAccountId(config.accountId || process.env.BROKER_ACCOUNT_ID);
+        this.accountId = this._cleanAccountId(config.accountId);
         this.accountIdSource = this.accountId ? 'config' : null;
     }
 
