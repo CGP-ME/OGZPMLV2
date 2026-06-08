@@ -8,6 +8,7 @@ const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const REPORT_PATH = path.join(REPO_ROOT, 'ogz-meta', 'gates', 'runs', 'multi-runtime-latest.json');
+const { assertEvalLivePosture } = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
   finalBalance: 10710.667785934895,
@@ -376,6 +377,12 @@ function assertP0LongOnlyNoShortArtifacts(reportPath) {
 }
 
 const GATES = [
+  {
+    id: 'eval.live.posture_config',
+    layer: 'eval',
+    description: 'Eval-live posture requires explicit Alpaca stock live config, TTP enforcement, and safe runtime profile state.',
+    run: () => assertEvalLivePosture(process.env)
+  },
   {
     id: 'p0.single_lane.tsla_ema_anchor',
     layer: 'p0',
@@ -1370,6 +1377,7 @@ const GATES = [
 
 function selectedGates(argv) {
   const ids = [];
+  let runEval = false;
   let runScope = false;
   let runP0Gate = false;
   let runAll = false;
@@ -1381,6 +1389,8 @@ function selectedGates(argv) {
       if (!id) throw new Error('--gate requires a gate id');
       ids.push(id);
       i += 1;
+    } else if (arg === '--eval') {
+      runEval = true;
     } else if (arg === '--scope') {
       runScope = true;
     } else if (arg === '--p0') {
@@ -1397,6 +1407,9 @@ function selectedGates(argv) {
   if (runAll) return GATES;
 
   const selected = new Set(ids);
+  if (runEval) {
+    for (const gate of GATES.filter((g) => g.layer === 'eval')) selected.add(gate.id);
+  }
   if (runScope) {
     for (const gate of GATES.filter((g) => g.layer === 'scope')) selected.add(gate.id);
   }
@@ -1451,7 +1464,7 @@ async function main() {
   if (argv.includes('--list') || argv.length === 0) {
     printList();
     if (argv.length === 0) {
-      console.log('\nRun --scope for focused multi-runtime scope gates or --p0 for the full canonical anchor.');
+      console.log('\nRun --eval for eval-live posture, --scope for focused multi-runtime scope gates, or --p0 for the full canonical anchor.');
     }
     return;
   }
@@ -1500,5 +1513,6 @@ if (require.main === module) {
 module.exports = {
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts,
+  selectedGates,
   P0_TIER_FRACTION_CAPS
 };

@@ -647,14 +647,11 @@ function deepFreeze(obj) {
 
 let _cached = null;
 
-function load(opts = {}) {
-  if (_cached && !opts.force) return _cached;
-
-  // Load .env if not already loaded
-  const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
+function buildSnapshot(sourceEnv = process.env, opts = {}) {
+  const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
   const dotenvValues = loadDotenvValues(envPath);
-  const baseEnv = { ...dotenvValues, ...process.env };
-  const baseEnvSources = buildDotenvSources(dotenvValues, process.env);
+  const baseEnv = { ...dotenvValues, ...sourceEnv };
+  const baseEnvSources = buildDotenvSources(dotenvValues, sourceEnv);
 
   const previousEnv = activeEnv;
   const previousEnvSources = activeEnvSources;
@@ -695,7 +692,7 @@ function load(opts = {}) {
   // Freeze
   const frozen = deepFreeze(config);
 
-  _cached = {
+  return {
     config: frozen,
     sources,
     fingerprint: fp,
@@ -703,6 +700,16 @@ function load(opts = {}) {
     warnings,
     timestamp: new Date().toISOString(),
   };
+}
+
+function snapshot(sourceEnv = process.env, opts = {}) {
+  return buildSnapshot(sourceEnv, opts);
+}
+
+function load(opts = {}) {
+  if (_cached && !opts.force) return _cached;
+
+  _cached = buildSnapshot(process.env, opts);
 
   return _cached;
 }
@@ -718,4 +725,4 @@ function get(path) {
   return val;
 }
 
-module.exports = { load, get, fingerprint, validate };
+module.exports = { load, get, fingerprint, snapshot, validate };
