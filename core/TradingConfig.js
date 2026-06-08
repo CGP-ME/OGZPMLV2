@@ -4,7 +4,7 @@
  * SINGLE SOURCE OF TRUTH for ALL trading parameters.
  *
  * RULES:
- * 1. This is the ONLY file that reads process.env for trading params
+ * 1. ConfigLoader owns dotenv loading; this file reads already-loaded process.env values for trading params
  * 2. All other files import from TradingConfig, NEVER from process.env directly
  * 3. If you find parseFloat(process.env.TRADING_PARAM) anywhere else, it's a bug
  * 4. Use setOverrides() for backtest/dashboard temporary config changes
@@ -12,8 +12,6 @@
  * Created: 2026-02-28
  * Purpose: Eliminate scattered hardcoded values across 15+ files
  */
-
-require('dotenv').config();
 
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
