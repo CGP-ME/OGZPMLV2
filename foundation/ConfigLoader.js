@@ -21,69 +21,128 @@
 
 'use strict';
 
+const fs = require('fs');
 const crypto = require('crypto');
+const dotenv = require('dotenv');
 const path = require('path');
 
 // ═══════════════════════════════════════════════════════════════
 // ENV READER HELPERS (private — only used inside this file)
 // ═══════════════════════════════════════════════════════════════
 
+let activeEnv = process.env;
+let activeEnvSources = {};
+
+function envSource() {
+  return activeEnv || process.env;
+}
+
+function valueSource(key) {
+  return activeEnvSources[key] || `env:${key}`;
+}
+
 function envStr(key, fallback) {
-  const val = process.env[key];
-  if (val !== undefined && val !== '') return { value: val, source: `env:${key}` };
+  const val = envSource()[key];
+  if (val !== undefined && val !== '') return { value: val, source: valueSource(key) };
   return { value: fallback, source: 'default' };
 }
 
 function envFloat(key, fallback) {
-  const val = process.env[key];
+  const val = envSource()[key];
   if (val !== undefined && val !== '') {
     const parsed = parseFloat(val);
-    if (!isNaN(parsed)) return { value: parsed, source: `env:${key}` };
+    if (!isNaN(parsed)) return { value: parsed, source: valueSource(key) };
   }
   return { value: fallback, source: 'default' };
 }
 
 function envStrictFloat(key, fallback) {
-  const val = process.env[key];
+  const val = envSource()[key];
   if (val === undefined || val === '') {
     return { value: fallback, source: 'default' };
   }
   const parsed = Number(val);
-  return { value: Number.isFinite(parsed) ? parsed : NaN, source: `env:${key}` };
+  return { value: Number.isFinite(parsed) ? parsed : NaN, source: valueSource(key) };
 }
 
 function envInt(key, fallback) {
-  const val = process.env[key];
+  const val = envSource()[key];
   if (val !== undefined && val !== '') {
     const parsed = parseInt(val, 10);
-    if (!isNaN(parsed)) return { value: parsed, source: `env:${key}` };
+    if (!isNaN(parsed)) return { value: parsed, source: valueSource(key) };
   }
   return { value: fallback, source: 'default' };
 }
 
 function envBool(key, fallback) {
-  const val = process.env[key];
-  if (val === 'true' || val === '1') return { value: true, source: `env:${key}` };
-  if (val === 'false' || val === '0') return { value: false, source: `env:${key}` };
+  const val = envSource()[key];
+  if (val === 'true' || val === '1') return { value: true, source: valueSource(key) };
+  if (val === 'false' || val === '0') return { value: false, source: valueSource(key) };
   return { value: fallback, source: 'default' };
 }
 
 function envJsonObject(key, fallback) {
-  const val = process.env[key];
+  const val = envSource()[key];
   if (val === undefined || val === '') {
     return { value: fallback, source: 'default' };
   }
 
   try {
-    return { value: JSON.parse(val), source: `env:${key}` };
+    return { value: JSON.parse(val), source: valueSource(key) };
   } catch (error) {
-    return { value: { __parseError: error.message }, source: `env:${key}` };
+    return { value: { __parseError: error.message }, source: valueSource(key) };
   }
 }
 
 function defaultJournalDataDir(dataDir) {
   const root = dataDir || path.join(process.cwd(), 'data');
   return path.join(root, 'journal');
+}
+
+function loadDotenvValues(envPath) {
+  const resolvedPath = path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+  try {
+    return dotenv.parse(fs.readFileSync(resolvedPath));
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return {};
+    }
+    throw error;
+  }
+}
+
+function buildDotenvSources(dotenvValues, sourceEnv) {
+  const sources = {};
+  Object.keys(dotenvValues).forEach(key => {
+    if (sourceEnv[key] === undefined) {
+      sources[key] = `dotenv:${key}`;
+    }
+  });
+  return sources;
+}
+
+function buildEffectiveEnv(sourceEnv, sourceOverrides = {}) {
+  const effectiveEnv = { ...sourceEnv };
+  const sources = { ...sourceOverrides };
+  if (effectiveEnv.EXECUTION_MODE === 'backtest' || effectiveEnv.CANDLE_SOURCE === 'file') {
+    effectiveEnv.BACKTEST_MODE = 'true';
+    if (sourceEnv.BACKTEST_MODE !== 'true' && sourceEnv.BACKTEST_MODE !== '1') {
+      sources.BACKTEST_MODE = 'derived:backtest-mode';
+    }
+  }
+
+  if (effectiveEnv.BACKTEST_MODE === 'true') {
+    if (!effectiveEnv.STATE_FILE) {
+      effectiveEnv.STATE_FILE = path.join(process.cwd(), 'data', 'state-backtest.json');
+      sources.STATE_FILE = 'derived:backtest-state-isolation';
+    }
+    if (!effectiveEnv.DATA_DIR) {
+      effectiveEnv.DATA_DIR = path.join(process.cwd(), 'data', 'backtest');
+      sources.DATA_DIR = 'derived:backtest-state-isolation';
+    }
+  }
+
+  return { values: effectiveEnv, sources };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -593,23 +652,29 @@ function load(opts = {}) {
 
   // Load .env if not already loaded
   const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
-  require('dotenv').config({ path: envPath });
+  const dotenvValues = loadDotenvValues(envPath);
+  const baseEnv = { ...dotenvValues, ...process.env };
+  const baseEnvSources = buildDotenvSources(dotenvValues, process.env);
 
-  // Normalize BACKTEST_MODE
-  if (process.env.EXECUTION_MODE === 'backtest' || process.env.CANDLE_SOURCE === 'file') {
-    process.env.BACKTEST_MODE = 'true';
+  const previousEnv = activeEnv;
+  const previousEnvSources = activeEnvSources;
+  const effectiveEnv = buildEffectiveEnv(baseEnv, baseEnvSources);
+  activeEnv = effectiveEnv.values;
+  activeEnvSources = effectiveEnv.sources;
+
+  let config;
+  let sources;
+  let errors;
+  let warnings;
+  let fp;
+  try {
+    ({ config, sources } = buildConfig());
+    ({ errors, warnings } = validate(config));
+    fp = fingerprint(config);
+  } finally {
+    activeEnv = previousEnv;
+    activeEnvSources = previousEnvSources;
   }
-
-  // Backtest state isolation - set before buildConfig reads these values
-  if (process.env.BACKTEST_MODE === 'true') {
-    const path = require('path');
-    process.env.STATE_FILE = process.env.STATE_FILE || path.join(process.cwd(), 'data', 'state-backtest.json');
-    process.env.DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data', 'backtest');
-  }
-
-  const { config, sources } = buildConfig();
-  const { errors, warnings } = validate(config);
-  const fp = fingerprint(config);
 
   // Log
   if (!opts.silent) {
