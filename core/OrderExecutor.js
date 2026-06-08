@@ -237,6 +237,56 @@ class OrderExecutor {
     return null;
   }
 
+  _webhookExecutionBlockReason(orderPlan) {
+    if (!orderPlan) {
+      return 'webhook_missing_order_plan';
+    }
+    if (this.ctx.webhookAdapter?.dryRun !== false) {
+      return 'webhook_dry_run';
+    }
+    const quantityReason = this._webhookQuantityBlockReason(orderPlan.orderQuantity, orderPlan.quantityUnit);
+    return quantityReason ? `webhook_${quantityReason}` : null;
+  }
+
+  _webhookSignalForOrderPlan(action, orderPlan) {
+    const webhookAction = action === 'BUY' || action === 'COVER' ? 'buy' : 'sell';
+    return {
+      action: webhookAction,
+      symbol: orderPlan.symbol,
+      quantity: orderPlan.orderQuantity,
+      quantityUnit: orderPlan.quantityUnit,
+      orderType: 'market',
+      ...(this._isExitAction(action) ? { bypassThrottle: true } : {}),
+    };
+  }
+
+  _extractWebhookOrderId(result = {}) {
+    const directId = result?.orderId || result?.id;
+    if (typeof directId === 'string' && directId.trim()) {
+      return directId.trim();
+    }
+
+    const response = result?.response || {};
+    const responseId = response?.orderId || response?.order_id || response?.id;
+    if (typeof responseId === 'string' && responseId.trim()) {
+      return responseId.trim();
+    }
+
+    if (typeof response?.body === 'string' && response.body.trim()) {
+      try {
+        const parsed = JSON.parse(response.body);
+        const parsedId = parsed?.orderId || parsed?.order_id || parsed?.id;
+        if (typeof parsedId === 'string' && parsedId.trim()) {
+          return parsedId.trim();
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
   _getActiveTradeById(orderId) {
     if (!orderId) return null;
 
@@ -705,7 +755,7 @@ class OrderExecutor {
     return result;
   }
 
-  _emitWebhookOrder(action, signal, traceFields = {}) {
+  _emitWebhookOrderWithResult(action, signal, traceFields = {}) {
     const baseFields = {
       traceId: traceFields.traceId || null,
       signalId: traceFields.signalId || null,
@@ -732,6 +782,7 @@ class OrderExecutor {
       emitPromise = this.ctx.webhookAdapter.emit(signal);
     } catch (err) {
       const message = err?.message || String(err);
+      const result = { sent: false, reason: message, thrown: true };
       console.warn(`[WebhookOrder] ${action} emit failed: ${message}`);
       emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
         ...baseFields,
@@ -740,26 +791,34 @@ class OrderExecutor {
         reason: message,
         thrown: true,
       });
-      this._broadcastBrokerOrderResult(baseFields, { sent: false, reason: message, thrown: true });
-      return Promise.resolve();
+      this._broadcastBrokerOrderResult(baseFields, result);
+      return Promise.resolve(result);
     }
 
     return Promise.resolve(emitPromise)
       .then(result => {
+        const normalizedResult = result || { sent: false, reason: 'missing_webhook_result' };
+        const orderId = this._extractWebhookOrderId(normalizedResult);
+        const resultForTrace = orderId
+          ? { ...normalizedResult, orderId }
+          : normalizedResult;
         const response = result?.response || null;
         emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
           ...baseFields,
-          success: result?.sent === true,
-          sent: result?.sent === true,
-          reason: result?.reason || null,
+          success: normalizedResult?.sent === true,
+          sent: normalizedResult?.sent === true,
+          reason: normalizedResult?.reason || null,
+          orderId: orderId || null,
           httpStatus: response?.status ?? null,
           responseBody: typeof response?.body === 'string' ? response.body.slice(0, 500) : null,
-          dryRun: result?.reason === 'dry_run',
+          dryRun: normalizedResult?.reason === 'dry_run',
         });
-        this._broadcastBrokerOrderResult(baseFields, result);
+        this._broadcastBrokerOrderResult(baseFields, resultForTrace);
+        return resultForTrace;
       })
       .catch(err => {
         const message = err?.message || String(err);
+        const result = { sent: false, reason: message, rejected: true };
         console.warn(`[WebhookOrder] ${action} emit failed: ${message}`);
         emitTrace(this.ctx, 'WEBHOOK_ORDER_RESULT', {
           ...baseFields,
@@ -768,8 +827,14 @@ class OrderExecutor {
           reason: message,
           rejected: true,
         });
-        this._broadcastBrokerOrderResult(baseFields, { sent: false, reason: message, rejected: true });
+        this._broadcastBrokerOrderResult(baseFields, result);
+        return result;
       });
+  }
+
+  _emitWebhookOrder(action, signal, traceFields = {}) {
+    return this._emitWebhookOrderWithResult(action, signal, traceFields)
+      .then(() => undefined);
   }
 
   /**
@@ -1022,7 +1087,8 @@ class OrderExecutor {
         return blockedReturn('eval_rule_gate', { failedRules: failed });
       }
     }
-    const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading;
+    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
+    const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading && !isWebhookExecutionRoute;
     const shouldPlanWebhookExit = !this.ctx.backtestMode
       && this.ctx.webhookAdapter?.enabled === true
       && this._isExitAction(decision.action);
@@ -1041,6 +1107,31 @@ class OrderExecutor {
       return blockedReturn(haltReason);
     }
     const brokerOrderPlan = entryPlan || exitPlan;
+    if (isWebhookExecutionRoute) {
+      const webhookBlockReason = this._webhookExecutionBlockReason(brokerOrderPlan);
+      if (webhookBlockReason) {
+        console.warn(`[WebhookOrder] BLOCKED ${decision.action} ${symbol} before execution/state side effects: ${webhookBlockReason}`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: decision.action,
+          reason: webhookBlockReason,
+          route: 'webhook',
+          orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
+          quantityUnit: brokerOrderPlan?.quantityUnit ?? null,
+          sizeUsd: brokerOrderPlan?.sizeUsd ?? null,
+        });
+        return blockedReturn(webhookBlockReason, {
+          route: 'webhook',
+          orderAccepted: false,
+          stateMutationSucceeded: false,
+          orderQuantity: brokerOrderPlan?.orderQuantity ?? null,
+          quantityUnit: brokerOrderPlan?.quantityUnit ?? null,
+          sizeUsd: brokerOrderPlan?.sizeUsd ?? null,
+        });
+      }
+    }
 
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
@@ -1062,7 +1153,61 @@ class OrderExecutor {
 
       // Phase 4 REWRITE: executionLayer deleted - use orderRouter for live, simulate for backtest/paper
       let tradeResult;
-      if (this.ctx.backtestMode || this.ctx.paperTrading) {
+      if (isWebhookExecutionRoute) {
+        const webhookSignal = this._webhookSignalForOrderPlan(decision.action, brokerOrderPlan);
+        const webhookResult = await this._emitWebhookOrderWithResult(decision.action, webhookSignal, {
+          traceId,
+          signalId,
+          decisionId,
+          ...brokerOrderPlan,
+        });
+        const webhookOrderId = this._extractWebhookOrderId(webhookResult);
+        if (webhookResult?.sent !== true) {
+          const webhookReason = webhookResult?.reason || 'not_sent';
+          tradeResult = {
+            success: false,
+            reason: `webhook_${webhookReason}`,
+            traceId,
+            signalId,
+          };
+          emitTrace(this.ctx, 'ORDER_BLOCKED', {
+            traceId,
+            signalId,
+            symbol,
+            action: decision.action,
+            reason: tradeResult.reason,
+            route: 'webhook',
+            stateMutationSucceeded: false,
+          });
+        } else if (!webhookOrderId) {
+          tradeResult = {
+            success: false,
+            reason: 'missing_webhook_order_id',
+            traceId,
+            signalId,
+          };
+          emitTrace(this.ctx, 'ORDER_BLOCKED', {
+            traceId,
+            signalId,
+            symbol,
+            action: decision.action,
+            reason: 'missing_webhook_order_id',
+            route: 'webhook',
+            stateMutationSucceeded: false,
+          });
+        } else {
+          tradeResult = {
+            success: true,
+            orderId: webhookOrderId,
+            price,
+            amount: brokerOrderPlan.sizeUsd,
+            orderQuantity: brokerOrderPlan.orderQuantity,
+            quantityUnit: brokerOrderPlan.quantityUnit,
+            traceId,
+            signalId,
+          };
+        }
+      } else if (this.ctx.backtestMode || this.ctx.paperTrading) {
         // Backtest/Paper: Simulate trade execution with slippage
         if (this.ctx.paperTrading) console.log('PAPER MODE: Simulating order (no real execution)');
 
@@ -1405,29 +1550,6 @@ class OrderExecutor {
             // CHANGE 2026-02-01: Re-enable Discord notifications (broken since v7)
             this.ctx.discordNotifier.notifyTrade('buy', price, adjustedPositionSize);
 
-            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
-            // a slow/failed webhook must never stall the trading loop. BUY opens
-            // a long; broker-side action is 'buy'. Quantity comes from the
-            // order plan: integer shares for stocks, fractional base for crypto.
-            if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = executedEntryPlan.orderQuantity;
-              const quantityUnit = executedEntryPlan.quantityUnit;
-              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
-              if (blockReason) {
-                // Skip emit on known-bad signal. Drift between internal
-                // position and broker is real and operator-visible, but sending
-                // a non-routable quantity only adds vendor rejection noise.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: BUY entry quantity=${orderQuantity} ${quantityUnit} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot opened internally; TTP will not see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
-              } else {
-                this._emitWebhookOrder('BUY', {
-                  action: 'buy',
-                  symbol,
-                  quantity: orderQuantity,
-                  quantityUnit,
-                  orderType: 'market',
-                }, { traceId, signalId, decisionId, ...executedEntryPlan });
-              }
-            }
           }
 
           // Start pattern exit tracking (shadow mode or active)
@@ -1620,27 +1742,6 @@ class OrderExecutor {
 
             this.ctx.discordNotifier.notifyTrade('sell_short', price, adjustedPositionSize);
 
-            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
-            // SELL_SHORT opens a short; broker-side action is 'sell'.
-            if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = executedEntryPlan.orderQuantity;
-              const quantityUnit = executedEntryPlan.quantityUnit;
-              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
-              if (blockReason) {
-                // Skip emit on known-bad signal. Drift between internal
-                // position and broker is real and operator-visible, but sending
-                // a non-routable quantity only adds vendor rejection noise.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL_SHORT entry quantity=${orderQuantity} ${quantityUnit} (positionSize=$${adjustedPositionSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot opened internally; TTP will not see this entry. INVESTIGATE: position size too small for asset price, or wrong asset class for strategy.`);
-              } else {
-                this._emitWebhookOrder('SELL_SHORT', {
-                  action: 'sell',
-                  symbol,
-                  quantity: orderQuantity,
-                  quantityUnit,
-                  orderType: 'market',
-                }, { traceId, signalId, decisionId, ...executedEntryPlan });
-              }
-            }
           }
 
           // Pattern exit tracking for shorts
@@ -1942,30 +2043,6 @@ class OrderExecutor {
               // CHANGE 2026-02-01: Re-enable Discord notifications for SELL
               this.ctx.discordNotifier.notifyTrade('sell', price, usdAmount, profitLoss);
 
-              // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget.
-              // SELL closes a long; broker-side action is 'sell'. Partial-aware:
-              // emit the REDUCED USD when reducePosition handled a partial close.
-              if (this.ctx.webhookAdapter?.enabled === true) {
-                const exitUsd = statePartialClose ? usdAmount : positionAmount;
-                const orderQuantity = stateExitOrderQuantity;
-                const quantityUnit = stateExitQuantityUnit;
-                const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
-                if (blockReason) {
-                  // Skip emit on known-bad signal. Drift between internal
-                  // position and broker is real and operator-visible, but sending
-                  // a non-routable quantity only adds vendor rejection noise.
-                  console.warn(`[WebhookOrder] DRIFT BLOCKED: SELL ${statePartialClose ? 'partial' : 'full'} exit quantity=${orderQuantity} ${quantityUnit} (exitUsd=$${exitUsd.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot reduced position internally; TTP long position will diverge until next viable emit. INVESTIGATE: exit USD too small for asset price, or partial-close fraction too aggressive.`);
-                } else {
-                  this._emitWebhookOrder('SELL', {
-                    action: 'sell',
-                    symbol,
-                    quantity: orderQuantity,
-                    quantityUnit,
-                    orderType: 'market',
-                    bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                  }, { traceId, signalId, decisionId, ...executedExitPlan });
-                }
-              }
             }
 
             // Phase 4 REWRITE: executionLayer.trades deleted - backtestRecorder handles trade recording
@@ -2424,29 +2501,6 @@ class OrderExecutor {
 
             this.ctx.discordNotifier.notifyTrade('cover', price, shortSize, profitLoss);
 
-            // CC-C: SignalStack webhook emit (TTP via IBKR). Fire-and-forget —
-            // a slow/failed webhook must never stall the trading loop. COVER closes
-            // a short, so the broker-side action is 'buy'.
-            if (this.ctx.webhookAdapter?.enabled === true) {
-              const orderQuantity = coverStateOrderQuantity;
-              const quantityUnit = coverStateQuantityUnit;
-              const blockReason = this._webhookQuantityBlockReason(orderQuantity, quantityUnit);
-              if (blockReason) {
-                // Skip emit on known-bad signal. Drift between internal
-                // position and broker is real and operator-visible, but sending
-                // a non-routable quantity only adds vendor rejection noise.
-                console.warn(`[WebhookOrder] DRIFT BLOCKED: COVER quantity=${orderQuantity} ${quantityUnit} (shortSize=$${shortSize.toFixed(2)} / price=$${price.toFixed(2)}) - webhook not sent (${blockReason}). Bot covered internally; TTP short position will diverge until next viable emit. INVESTIGATE: short USD too small for asset price.`);
-              } else {
-                this._emitWebhookOrder('COVER', {
-                  action: 'buy',
-                  symbol,
-                  quantity: orderQuantity,
-                  quantityUnit,
-                  orderType: 'market',
-                  bypassThrottle: true,  // exits MUST go through; vendor-side throttle is TTP's concern
-                }, { traceId, signalId, decisionId, ...executedExitPlan });
-              }
-            }
           }
 
           // Dashboard broadcast for COVER

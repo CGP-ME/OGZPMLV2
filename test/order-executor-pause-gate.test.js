@@ -408,6 +408,166 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED BUY TSLA before broker/webhook/state side effects'));
   });
 
+  test('enabled webhook dry-run blocks paper entry before simulated execution or state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = { enabled: true, dryRun: true, emit: jest.fn() };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'webhook_dry_run',
+      route: 'webhook',
+      orderAccepted: false,
+      stateMutationSucceeded: false,
+      symbol: 'TSLA',
+      action: 'SELL_SHORT',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED SELL_SHORT TSLA before execution/state side effects: webhook_dry_run'));
+  });
+
+  test('enabled webhook route rejects fractional stock quantity before state mutation', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: false },
+      positionSizing: { maxPositionSize: 0.01 },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = { enabled: true, dryRun: false, emit: jest.fn() };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      1000,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 1 }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'webhook_fractional_share_quantity',
+      route: 'webhook',
+      orderAccepted: false,
+      stateMutationSucceeded: false,
+      orderQuantity: 0.1,
+      quantityUnit: 'shares',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('enabled webhook route opens state only after sent response supplies order identity', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_ORDER_1"}' },
+      }),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'WEBHOOK_ORDER_1',
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'buy',
+      symbol: 'TSLA',
+      quantity: 5,
+      quantityUnit: 'shares',
+      orderType: 'market',
+    }));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      500,
+      100,
+      expect.objectContaining({
+        orderId: 'WEBHOOK_ORDER_1',
+        action: 'BUY',
+        entryOrderQuantity: 5,
+        remainingOrderQuantity: 5,
+      })
+    );
+  });
+
+  test('enabled webhook route sent response without order identity blocks local state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: 'accepted' },
+      }),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'missing_webhook_order_id',
+      orderAccepted: false,
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('flat sizing profile disables confidence multiplier before confluence sizing', async () => {
     TradingConfig.setOverrides({
       features: { enableDynamicSizing: false },
@@ -1912,7 +2072,7 @@ describe('OrderExecutor pause gate', () => {
     expect(cryptoExecutor._webhookQuantityBlockReason(0.016588545429287938, 'base')).toBeNull();
   });
 
-  test('webhook side-channel emits dispatch and local result trace events without blocking', async () => {
+  test('webhook emit helper broadcasts dispatch and local result trace events', async () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const webhookAdapter = {
       emit: jest.fn().mockResolvedValue({
@@ -2020,7 +2180,7 @@ describe('OrderExecutor pause gate', () => {
     logSpy.mockRestore();
   });
 
-  test('webhook side-channel converts rejected adapter promises into failed result traces', async () => {
+  test('webhook emit helper converts rejected adapter promises into failed result traces', async () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const webhookAdapter = {
       emit: jest.fn().mockRejectedValue(new Error('network down')),
@@ -2096,7 +2256,7 @@ describe('OrderExecutor pause gate', () => {
     logSpy.mockRestore();
   });
 
-  test('webhook side-channel broadcasts broker_reject when adapter throws synchronously', async () => {
+  test('webhook emit helper broadcasts broker_reject when adapter throws synchronously', async () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const webhookAdapter = {
       emit: jest.fn(() => {

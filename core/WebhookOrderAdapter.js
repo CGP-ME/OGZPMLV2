@@ -1,8 +1,8 @@
-// CC-C: Webhook Order Adapter — side-channel emitter for TTP via SignalStack.
+// CC-C: Webhook Order Adapter for TTP via SignalStack.
 // Bot keeps Alpaca for market data; this adapter POSTs entry/exit signals
 // to a SignalStack webhook which routes orders to TTP (Trader Evolution / IBKR).
-// Fire-and-forget contract: callers MUST .catch() the returned Promise so a
-// slow/failed webhook never stalls the trading loop.
+// OrderExecutor treats enabled non-backtest webhook posture as an execution
+// route and awaits a sent response before mutating local trade state.
 
 const https = require('https');
 
@@ -30,9 +30,8 @@ class WebhookOrderAdapter {
         }
         // Mercury fix #8 + re-attack #1: validate URL at construction AND
         // require https:// scheme. Otherwise a malformed URL only fails at
-        // request time inside emit()'s try/catch, returning {sent:false} —
-        // caller fires fire-and-forget so the misconfig is invisible to the
-        // operator. Re-attack also surfaced: new URL() accepts http://, ftp://,
+        // request time inside emit()'s try/catch, returning {sent:false}.
+        // Re-attack also surfaced: new URL() accepts http://, ftp://,
         // etc., but _post() hardcodes port:443 + https.request — wrong-scheme
         // URLs would silently fail every request. Validate once, fail loud,
         // disable the adapter so dry-run logs surface the problem.

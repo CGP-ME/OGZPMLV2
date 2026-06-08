@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Webhook Execution State Ownership (2026-06-08)
+
+- Changed enabled non-backtest webhook posture from post-state side-channel dispatch into an awaited execution route, blocking dry-run, invalid quantity, unsent, or missing-order-identity results before local trade state can mutate.
+
 ### TradingConfig Risk Default Removal (2026-06-08)
 
 - Removed stale RiskManager circuit defaults from `TradingConfig.BASE_CONFIG.risk` so RiskManager limits remain owned by explicit ConfigLoader/env/profile sources, while preserving worker-env profile propagation coverage.

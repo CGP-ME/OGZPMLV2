@@ -214,7 +214,7 @@ const OrderRouter = require('./core/OrderRouter');
 
 // REFACTOR Phase 14: OrderExecutor - exact copy of executeTrade() extracted
 const OrderExecutor = require('./core/OrderExecutor');
-// CC-C: Webhook order adapter (TTP via SignalStack) — side-channel emitter
+// CC-C: Webhook order adapter (TTP via SignalStack)
 const WebhookOrderAdapter = require('./core/WebhookOrderAdapter');
 // CC-C Multi-Symbol Commit 2/6: per-symbol trading context container
 const { SymbolTradingContext } = require('./core/SymbolTradingContext');
@@ -1303,7 +1303,7 @@ class OGZPrimeV14Bot {
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
       orderRouter: this.orderRouter,
       maxProfitManagers: this.maxProfitManagers,
-      // CC-C: side-channel webhook emitter — read at OrderExecutor entry/exit blocks
+      // CC-C: webhook execution route, owned by OrderExecutor when enabled
       webhookAdapter: this.webhookAdapter,
       evalRuleEngine: this.evalRuleEngine,
       runner: this,
