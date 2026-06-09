@@ -467,28 +467,88 @@ function slidingWindow(text, windowSize, overlap) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EMBEDDER (GitHub Models — OpenAI-compatible, BATCHED)
+// EMBEDDER (OpenAI-compatible default, local Ollama opt-in)
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Call an OpenAI-compatible embeddings endpoint with a BATCH of strings.
+ * Call the configured embeddings endpoint with a BATCH of strings.
  * Returns an array of embedding vectors in the same order as the input.
- *
- * Default endpoint: GitHub Models inference API
- *   POST https://models.github.ai/inference/embeddings
- *   Body: { model: 'openai/text-embedding-3-small', input: [str1, str2, ...] }
- *   Auth: Authorization: Bearer <GITHUB_TOKEN>
- *
- * Endpoint, model, and auth are all env-overridable so this same function
- * works against OpenAI direct, Azure OpenAI, or any other OpenAI-format
- * embed endpoint.
- *
- * Why batched: GitHub Models free tier is 150 requests/day for embeddings.
- * Single-string requests would take 20 days for a full repo reindex. Batching
- * up to ~30 chunks per request fits within the 64K-tokens-per-request limit
- * and drops full reindex to under 100 requests.
  */
 function embedBatch(texts) {
+  if (config.EMBED_PROVIDER === 'ollama') {
+    return embedBatchOllama(texts);
+  }
+  return embedBatchOpenAICompatible(texts);
+}
+
+function assertEmbeddingDimensions(embeddings, expectedCount) {
+  if (!Array.isArray(embeddings) || embeddings.length !== expectedCount) {
+    throw new Error(`Embed response count mismatch: expected ${expectedCount}, got ${Array.isArray(embeddings) ? embeddings.length : 'non-array'}`);
+  }
+  embeddings.forEach((embedding, idx) => {
+    if (!Array.isArray(embedding) || embedding.length !== config.EMBED_DIMENSIONS) {
+      throw new Error(`Embedding ${idx} length mismatch: expected ${config.EMBED_DIMENSIONS}, got ${Array.isArray(embedding) ? embedding.length : 'non-array'}`);
+    }
+  });
+}
+
+function embedBatchOllama(texts) {
+  return new Promise((resolve, reject) => {
+    if (!Array.isArray(texts) || texts.length === 0) {
+      return reject(new Error('embedBatch requires a non-empty array of strings'));
+    }
+
+    const url = new URL(config.EMBED_ENDPOINT);
+    const payload = JSON.stringify({
+      model: config.EMBED_MODEL,
+      input: texts,
+    });
+
+    const reqOptions = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname + (url.search || ''),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        'Accept': 'application/json',
+      },
+    };
+
+    const transport = url.protocol === 'https:' ? https : http;
+    const req = transport.request(reqOptions, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`Ollama embed endpoint returned ${res.statusCode}: ${data.slice(0, 500)}`));
+        }
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed.embeddings)) {
+            if (parsed.embeddings.length !== texts.length) {
+              return reject(new Error(`Ollama embed response count mismatch: expected ${texts.length}, got ${parsed.embeddings.length}`));
+            }
+            return resolve(parsed.embeddings);
+          }
+          if (Array.isArray(parsed.embedding) && texts.length === 1) {
+            return resolve([parsed.embedding]);
+          }
+          reject(new Error(`Unrecognized Ollama embed response shape: ${data.slice(0, 300)}`));
+        } catch (err) {
+          reject(new Error(`Failed to parse Ollama embed response: ${err.message}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+function embedBatchOpenAICompatible(texts) {
   return new Promise((resolve, reject) => {
     if (!Array.isArray(texts) || texts.length === 0) {
       return reject(new Error('embedBatch requires a non-empty array of strings'));
@@ -710,6 +770,7 @@ async function main() {
   console.log(`[MERCURY-BRIDGE] Endpoint: ${config.EMBED_ENDPOINT}`);
   console.log(`[MERCURY-BRIDGE] Model:    ${config.EMBED_MODEL}`);
   console.log(`[MERCURY-BRIDGE] Batching: max ${config.EMBED_BATCH_MAX_CHUNKS} chunks or ${config.EMBED_BATCH_MAX_TOKENS} tokens per request`);
+  console.log(`[MERCURY-BRIDGE] Batch failure mode: ${config.EMBED_FAIL_ON_BATCH_ERROR ? 'fatal' : 'skip failed chunks'}`);
 
   // Pack all chunks into batches that respect both per-request token limit
   // and per-request chunk count limit. Then send them with rate-limit pacing.
@@ -739,13 +800,24 @@ async function main() {
 
     try {
       const embeddings = await embedBatch(batchTexts);
+      assertEmbeddingDimensions(embeddings, batchTexts.length);
       // Assign embeddings back to the chunks in order
       batchIndices.forEach((chunkIdx, j) => {
         allChunks[chunkIdx].embedding = embeddings[j];
+      allChunks[chunkIdx].embed_index_id = config.EMBED_INDEX_ID;
+      allChunks[chunkIdx].embed_provider = config.EMBED_PROVIDER;
+      allChunks[chunkIdx].embed_endpoint_id = config.EMBED_ENDPOINT_ID;
+      allChunks[chunkIdx].embed_model = config.EMBED_MODEL;
+      allChunks[chunkIdx].embed_dimensions = config.EMBED_DIMENSIONS;
       });
     } catch (err) {
       embedErrors += batchIndices.length;
-      console.warn(`\n[MERCURY-BRIDGE] Batch ${batchesSent + 1}/${batches.length} failed: ${err.message}`);
+      const failureMessage = `Batch ${batchesSent + 1}/${batches.length} failed: ${err.message}`;
+      console.warn(`\n[MERCURY-BRIDGE] ${failureMessage}`);
+      if (config.EMBED_FAIL_ON_BATCH_ERROR) {
+        await store.disconnect();
+        throw new Error(`${failureMessage}; refusing to write partial index`);
+      }
       // Mark these chunks as un-embeddable; they will be skipped during storage
       batchIndices.forEach((chunkIdx) => {
         allChunks[chunkIdx].embedding = null;
@@ -777,6 +849,10 @@ async function main() {
   }
 
   if (embedErrors > 0) {
+    if (config.EMBED_FAIL_ON_BATCH_ERROR) {
+      await store.disconnect();
+      throw new Error(`${embedErrors} chunks failed to embed; refusing to write partial index`);
+    }
     console.warn(`[MERCURY-BRIDGE] WARNING: ${embedErrors} chunks failed to embed and will be skipped`);
   }
 
@@ -792,6 +868,11 @@ async function main() {
     chunks_produced: allChunks.length,
     chunks_embedded: embedded.length,
     embed_errors: embedErrors,
+    embed_index_id: config.EMBED_INDEX_ID,
+    embed_provider: config.EMBED_PROVIDER,
+    embed_endpoint_id: config.EMBED_ENDPOINT_ID,
+    embed_model: config.EMBED_MODEL,
+    embed_dimensions: config.EMBED_DIMENSIONS,
     elapsed_ms: elapsedMs,
   });
 
@@ -813,4 +894,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { walkRepo, chunkJavaScript, chunkMarkdown, chunkJsonl, embedText, processFile };
+module.exports = { walkRepo, chunkJavaScript, chunkMarkdown, chunkJsonl, embedText, processFile, assertEmbeddingDimensions };

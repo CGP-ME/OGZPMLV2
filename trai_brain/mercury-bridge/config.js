@@ -15,14 +15,26 @@ const path = require('path');
 const REPO_ROOT = process.env.OGZ_REPO_ROOT
   || path.resolve(__dirname, '..', '..');
 
+// ─── Embeddings ───────────────────────────────────────────────
+// Default Mercury retrieval is local. OpenAI-compatible embeddings remain
+// available only by explicit env override:
+//   EMBED_PROVIDER=openai-compatible
+const EMBED_PROVIDER = (process.env.EMBED_PROVIDER || 'ollama').toLowerCase();
+
 // ─── MongoDB ──────────────────────────────────────────────────
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'ogz_knowledge';
-const MONGO_COLLECTION_CHUNKS = process.env.MONGO_COLLECTION_CHUNKS || 'chunks';
-const MONGO_COLLECTION_STATS = process.env.MONGO_COLLECTION_STATS || 'index_stats';
+const DEFAULT_MONGO_COLLECTION_CHUNKS = EMBED_PROVIDER === 'ollama'
+  ? 'chunks_local_nomic'
+  : 'chunks';
+const DEFAULT_MONGO_COLLECTION_STATS = EMBED_PROVIDER === 'ollama'
+  ? 'index_stats_local_nomic'
+  : 'index_stats';
+const MONGO_COLLECTION_CHUNKS = process.env.MONGO_COLLECTION_CHUNKS || DEFAULT_MONGO_COLLECTION_CHUNKS;
+const MONGO_COLLECTION_STATS = process.env.MONGO_COLLECTION_STATS || DEFAULT_MONGO_COLLECTION_STATS;
 
-// ─── Embeddings (OpenAI-compatible endpoint) ─────────────────
-// Default: OpenAI direct API with text-embedding-3-small
+// ─── Embeddings: OpenAI-compatible endpoint ──────────────────
+// Optional explicit path: OpenAI direct API with text-embedding-3-small
 //
 // Why OpenAI direct over GitHub Models:
 //   - No rate limits (Tier 1: 3000 RPM, 1M TPM — effectively unlimited for us)
@@ -42,36 +54,123 @@ const MONGO_COLLECTION_STATS = process.env.MONGO_COLLECTION_STATS || 'index_stat
 //   EMBED_ENDPOINT=https://api.openai.com/v1/embeddings
 //   EMBED_MODEL=text-embedding-3-small
 //   EMBED_API_KEY=<openai_api_key>  (or set OPENAI_API_KEY)
+// ─── Embeddings: local Ollama opt-in ─────────────────────────
+// Do not read global OLLAMA_URL here; this bridge path is for local memory
+// retrieval, and the global OLLAMA_URL may point at remote inference tunnels.
+const LOCAL_OLLAMA_EMBED_URL = process.env.MERCURY_LOCAL_OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
+
 const EMBED_ENDPOINT = process.env.EMBED_ENDPOINT
-  || 'https://api.openai.com/v1/embeddings';
+  || (EMBED_PROVIDER === 'ollama'
+    ? `${LOCAL_OLLAMA_EMBED_URL.replace(/\/+$/, '')}/api/embed`
+    : 'https://api.openai.com/v1/embeddings');
+const EMBED_ENDPOINT_HOST = (() => {
+  try {
+    return new URL(EMBED_ENDPOINT).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+})();
 const EMBED_MODEL = process.env.EMBED_MODEL
-  || 'text-embedding-3-small';
-const EMBED_API_KEY = process.env.EMBED_API_KEY
-  || process.env.OPENAI_API_KEY
-  || process.env.GITHUB_TOKEN
-  || '';
+  || (EMBED_PROVIDER === 'ollama' ? OLLAMA_EMBED_MODEL : 'text-embedding-3-small');
+const EMBED_API_KEY = EMBED_PROVIDER === 'openai-compatible'
+  ? (process.env.EMBED_API_KEY
+    || (EMBED_ENDPOINT_HOST.endsWith('github.ai') ? process.env.GITHUB_TOKEN : process.env.OPENAI_API_KEY)
+    || process.env.GITHUB_TOKEN
+    || '')
+  : '';
+
+if (!['openai-compatible', 'ollama'].includes(EMBED_PROVIDER)) {
+  throw new Error(`Unsupported EMBED_PROVIDER=${EMBED_PROVIDER}. Use openai-compatible or ollama.`);
+}
+
+if (EMBED_PROVIDER === 'ollama') {
+  const endpointUrl = new URL(EMBED_ENDPOINT);
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+  if (!localHosts.has(endpointUrl.hostname)) {
+    throw new Error(`EMBED_PROVIDER=ollama requires a local endpoint, got ${EMBED_ENDPOINT}. Use MERCURY_LOCAL_OLLAMA_URL=http://localhost:11434.`);
+  }
+}
+
+function slugEmbedIndexPart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function normalizeEmbedEndpointIdentity(endpoint) {
+  let parsed;
+  try {
+    parsed = new URL(endpoint);
+  } catch (err) {
+    throw new Error(`Invalid EMBED_ENDPOINT=${endpoint}`);
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('EMBED_ENDPOINT must not contain credentials, query parameters, or fragments');
+  }
+  const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+  return `${parsed.protocol}//${parsed.host.toLowerCase()}${pathname}`;
+}
+
+function resolveEmbedDimensions(provider, model) {
+  if (process.env.EMBED_DIMENSIONS) {
+    const dimensions = parseInt(process.env.EMBED_DIMENSIONS, 10);
+    if (!Number.isFinite(dimensions) || dimensions <= 0) {
+      throw new Error(`Invalid EMBED_DIMENSIONS=${process.env.EMBED_DIMENSIONS}`);
+    }
+    return dimensions;
+  }
+
+  const normalizedProvider = String(provider).toLowerCase();
+  const normalizedModel = String(model).toLowerCase();
+  if (normalizedProvider === 'ollama' && normalizedModel === 'nomic-embed-text') return 768;
+  if (normalizedProvider === 'openai-compatible' && normalizedModel.endsWith('text-embedding-3-small')) return 1536;
+
+  throw new Error(`EMBED_DIMENSIONS is required for ${provider}/${model}`);
+}
+
+const EMBED_DIMENSIONS = resolveEmbedDimensions(EMBED_PROVIDER, EMBED_MODEL);
+const EMBED_ENDPOINT_ID = normalizeEmbedEndpointIdentity(EMBED_ENDPOINT);
+const EMBED_INDEX_ID = [
+  slugEmbedIndexPart(EMBED_PROVIDER),
+  slugEmbedIndexPart(EMBED_ENDPOINT_ID),
+  slugEmbedIndexPart(EMBED_MODEL),
+  EMBED_DIMENSIONS,
+].join('__');
 
 // ─── Batching ─────────────────────────────────────────────────
 // OpenAI direct allows up to 2048 inputs per request and 8191 tokens per input.
 // We use comfortable defaults that work for both OpenAI direct AND GitHub Models
 // free tier (which has tighter 64K-tokens-per-request and 15-req/min limits).
 // Override via env var if you want to push harder on OpenAI direct.
-const EMBED_BATCH_MAX_CHUNKS = parseInt(process.env.EMBED_BATCH_MAX_CHUNKS || '100', 10);
-const EMBED_BATCH_MAX_TOKENS = parseInt(process.env.EMBED_BATCH_MAX_TOKENS || '200000', 10);
+const DEFAULT_EMBED_BATCH_MAX_CHUNKS = EMBED_PROVIDER === 'ollama' ? 1 : 100;
+const DEFAULT_EMBED_BATCH_MAX_TOKENS = EMBED_PROVIDER === 'ollama' ? 2000 : 200000;
+const EMBED_BATCH_MAX_CHUNKS = parseInt(
+  process.env.EMBED_BATCH_MAX_CHUNKS || String(DEFAULT_EMBED_BATCH_MAX_CHUNKS),
+  10
+);
+const EMBED_BATCH_MAX_TOKENS = parseInt(
+  process.env.EMBED_BATCH_MAX_TOKENS || String(DEFAULT_EMBED_BATCH_MAX_TOKENS),
+  10
+);
+const EMBED_FAIL_ON_BATCH_ERROR = (process.env.EMBED_FAIL_ON_BATCH_ERROR || 'true').toLowerCase() !== 'false';
 // Min ms between requests. OpenAI direct: 0 (no pacing needed). GitHub Models
 // free tier: set to 4500 to stay under 15 req/min.
 const EMBED_MIN_INTERVAL_MS = parseInt(process.env.EMBED_MIN_INTERVAL_MS || '0', 10);
 
-// ─── Ollama (deprecated, kept for fallback only) ─────────────
-// No longer used by default. Kept here so the fallback path stays documented.
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
+// ─── Ollama local embedder metadata ──────────────────────────
+const OLLAMA_URL = LOCAL_OLLAMA_EMBED_URL;
 
 // ─── Chunking ─────────────────────────────────────────────────
-const CHUNK_WINDOW_SIZE = parseInt(process.env.CHUNK_WINDOW_SIZE || '1500', 10);
-const CHUNK_WINDOW_OVERLAP = parseInt(process.env.CHUNK_WINDOW_OVERLAP || '150', 10);
+const DEFAULT_CHUNK_WINDOW_SIZE = EMBED_PROVIDER === 'ollama' ? 1000 : 1500;
+const DEFAULT_CHUNK_WINDOW_OVERLAP = EMBED_PROVIDER === 'ollama' ? 100 : 150;
+const DEFAULT_MAX_CHUNK_CHARS = EMBED_PROVIDER === 'ollama' ? 1500 : 6000;
+const CHUNK_WINDOW_SIZE = parseInt(process.env.CHUNK_WINDOW_SIZE || String(DEFAULT_CHUNK_WINDOW_SIZE), 10);
+const CHUNK_WINDOW_OVERLAP = parseInt(process.env.CHUNK_WINDOW_OVERLAP || String(DEFAULT_CHUNK_WINDOW_OVERLAP), 10);
 const MAX_FILE_BYTES = parseInt(process.env.MAX_FILE_BYTES || '500000', 10);  // 500KB
-const MAX_CHUNK_CHARS = parseInt(process.env.MAX_CHUNK_CHARS || '6000', 10);  // guard
+const MAX_CHUNK_CHARS = parseInt(process.env.MAX_CHUNK_CHARS || String(DEFAULT_MAX_CHUNK_CHARS), 10);
 
 // ─── Retrieval ────────────────────────────────────────────────
 const RETRIEVE_TOP_K = parseInt(process.env.RETRIEVE_TOP_K || '8', 10);
@@ -96,7 +195,9 @@ const CONTENT_TYPE_BOOST_WEAK = parseFloat(process.env.CONTENT_TYPE_BOOST_WEAK |
 const HYBRID_ENABLED = (process.env.HYBRID_ENABLED || 'true').toLowerCase() !== 'false';
 
 // ─── Investigation trace memory ──────────────────────────────
-const TRACE_MEMORY_ENABLED = process.env.TRACE_MEMORY_ENABLED !== 'false';
+const TRACE_MEMORY_ENABLED = process.env.TRACE_MEMORY_ENABLED != null
+  ? process.env.TRACE_MEMORY_ENABLED !== 'false'
+  : EMBED_PROVIDER === 'openai-compatible';
 const TRACE_INJECT_THRESHOLD = parseFloat(process.env.TRACE_INJECT_THRESHOLD || '0.75');
 const TRACE_DEDUP_THRESHOLD = parseFloat(process.env.TRACE_DEDUP_THRESHOLD || '0.92');
 const TRACE_STALE_DAYS = parseInt(process.env.TRACE_STALE_DAYS || '30', 10);
@@ -195,11 +296,16 @@ module.exports = {
   MONGO_DB_NAME,
   MONGO_COLLECTION_CHUNKS,
   MONGO_COLLECTION_STATS,
+  EMBED_PROVIDER,
   EMBED_ENDPOINT,
+  EMBED_ENDPOINT_ID,
   EMBED_MODEL,
+  EMBED_DIMENSIONS,
+  EMBED_INDEX_ID,
   EMBED_API_KEY,
   EMBED_BATCH_MAX_CHUNKS,
   EMBED_BATCH_MAX_TOKENS,
+  EMBED_FAIL_ON_BATCH_ERROR,
   EMBED_MIN_INTERVAL_MS,
   OLLAMA_URL,
   OLLAMA_EMBED_MODEL,

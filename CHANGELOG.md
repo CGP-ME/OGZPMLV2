@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Embedding Index Identity (2026-06-09)
+
+- Stamped Mercury chunks and index stats with source-aware embedding lane identity, scoped Mongo reads/writes/clears/stats to provider, endpoint, model, dimension, and index id, rejected ambiguous endpoint URLs, and rebuilt the local Nomic lane so OpenAI-compatible and Ollama vectors can share a corpus without mixing retrieval vectors.
+
 ### Backtest Asset Mode Contract (2026-06-09)
 
 - Made backtest worker env construction reject stock/crypto asset-mode mismatches by comparing stock mode, data-file-derived instrument metadata, and caller-supplied instrument metadata before workers can run with the wrong fee/broker posture.
