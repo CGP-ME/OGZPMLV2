@@ -1,3 +1,7 @@
+'use strict';
+
+const { ASSET_REGISTRY, getAssetConfig, normalizeAssetSymbol } = require('./AssetRegistry');
+
 /**
  * ============================================================================
  * MultiAssetManager — Asset Switching for OGZPrime
@@ -26,50 +30,12 @@ class MultiAssetManager {
   constructor(bot) {
     this.bot = bot;
 
-    // ══════════════════════════════════════════════════════════════════
-    // ASSET REGISTRY — map of standard symbol to broker + metadata.
-    // Initialized FIRST so the broker-aware default (below) can look it up.
-    // ══════════════════════════════════════════════════════════════════
-    this.assetRegistry = {
-      // ── CRYPTO (Kraken) ─────────────────────────────────────────────
-      'BTC-USD':   { broker: 'kraken', krakenRest: 'XXBTZUSD',   krakenWs: 'XBT/USD',   base: 'BTC',  decimals: 1, minOrder: 0.0001,  label: 'Bitcoin',    assetClass: 'crypto' },
-      'ETH-USD':   { broker: 'kraken', krakenRest: 'XETHZUSD',   krakenWs: 'ETH/USD',   base: 'ETH',  decimals: 2, minOrder: 0.001,   label: 'Ethereum',   assetClass: 'crypto' },
-      'SOL-USD':   { broker: 'kraken', krakenRest: 'SOLUSD',     krakenWs: 'SOL/USD',   base: 'SOL',  decimals: 2, minOrder: 0.01,    label: 'Solana',     assetClass: 'crypto' },
-      'XRP-USD':   { broker: 'kraken', krakenRest: 'XXRPZUSD',   krakenWs: 'XRP/USD',   base: 'XRP',  decimals: 4, minOrder: 1,       label: 'Ripple',     assetClass: 'crypto' },
-      'ADA-USD':   { broker: 'kraken', krakenRest: 'ADAUSD',     krakenWs: 'ADA/USD',   base: 'ADA',  decimals: 4, minOrder: 1,       label: 'Cardano',    assetClass: 'crypto' },
-      'DOT-USD':   { broker: 'kraken', krakenRest: 'DOTUSD',     krakenWs: 'DOT/USD',   base: 'DOT',  decimals: 3, minOrder: 0.1,     label: 'Polkadot',   assetClass: 'crypto' },
-      'AVAX-USD':  { broker: 'kraken', krakenRest: 'AVAXUSD',    krakenWs: 'AVAX/USD',  base: 'AVAX', decimals: 2, minOrder: 0.01,    label: 'Avalanche',  assetClass: 'crypto' },
-      'LINK-USD':  { broker: 'kraken', krakenRest: 'LINKUSD',    krakenWs: 'LINK/USD',  base: 'LINK', decimals: 3, minOrder: 0.1,     label: 'Chainlink',  assetClass: 'crypto' },
-      'MATIC-USD': { broker: 'kraken', krakenRest: 'MATICUSD',   krakenWs: 'MATIC/USD', base: 'MATIC',decimals: 4, minOrder: 1,       label: 'Polygon',    assetClass: 'crypto' },
-      'UNI-USD':   { broker: 'kraken', krakenRest: 'UNIUSD',     krakenWs: 'UNI/USD',   base: 'UNI',  decimals: 3, minOrder: 0.1,     label: 'Uniswap',    assetClass: 'crypto' },
-      'ATOM-USD':  { broker: 'kraken', krakenRest: 'ATOMUSD',    krakenWs: 'ATOM/USD',  base: 'ATOM', decimals: 3, minOrder: 0.1,     label: 'Cosmos',     assetClass: 'crypto' },
-      'LTC-USD':   { broker: 'kraken', krakenRest: 'XLTCZUSD',   krakenWs: 'LTC/USD',   base: 'LTC',  decimals: 2, minOrder: 0.01,    label: 'Litecoin',   assetClass: 'crypto' },
-      'DOGE-USD':  { broker: 'kraken', krakenRest: 'XDGUSD',     krakenWs: 'DOGE/USD',  base: 'DOGE', decimals: 5, minOrder: 10,      label: 'Dogecoin',   assetClass: 'crypto' },
-      'SHIB-USD':  { broker: 'kraken', krakenRest: 'SHIBUSD',    krakenWs: 'SHIB/USD',  base: 'SHIB', decimals: 8, minOrder: 100000,  label: 'Shiba Inu',  assetClass: 'crypto' },
-      'APT-USD':   { broker: 'kraken', krakenRest: 'APTUSD',     krakenWs: 'APT/USD',   base: 'APT',  decimals: 3, minOrder: 0.1,     label: 'Aptos',      assetClass: 'crypto' },
-
-      // ── STOCKS (Alpaca) ─────────────────────────────────────────────
-      'TSLA':      { broker: 'alpaca', base: 'TSLA',  decimals: 2, minOrder: 1, label: 'Tesla',          assetClass: 'stocks' },
-      'AAPL':      { broker: 'alpaca', base: 'AAPL',  decimals: 2, minOrder: 1, label: 'Apple',          assetClass: 'stocks' },
-      'NVDA':      { broker: 'alpaca', base: 'NVDA',  decimals: 2, minOrder: 1, label: 'NVIDIA',         assetClass: 'stocks' },
-      'SPY':       { broker: 'alpaca', base: 'SPY',   decimals: 2, minOrder: 1, label: 'S&P 500 ETF',    assetClass: 'stocks' },
-      'QQQ':       { broker: 'alpaca', base: 'QQQ',   decimals: 2, minOrder: 1, label: 'Nasdaq 100 ETF', assetClass: 'stocks' },
-      'AMD':       { broker: 'alpaca', base: 'AMD',   decimals: 2, minOrder: 1, label: 'AMD',            assetClass: 'stocks' },
-      'AMZN':      { broker: 'alpaca', base: 'AMZN',  decimals: 2, minOrder: 1, label: 'Amazon',         assetClass: 'stocks' },
-      'MSFT':      { broker: 'alpaca', base: 'MSFT',  decimals: 2, minOrder: 1, label: 'Microsoft',      assetClass: 'stocks' },
-      'GOOG':      { broker: 'alpaca', base: 'GOOG',  decimals: 2, minOrder: 1, label: 'Google',         assetClass: 'stocks' },
-      'META':      { broker: 'alpaca', base: 'META',  decimals: 2, minOrder: 1, label: 'Meta',           assetClass: 'stocks' },
-      'NFLX':      { broker: 'alpaca', base: 'NFLX',  decimals: 2, minOrder: 1, label: 'Netflix',        assetClass: 'stocks' },
-      'COIN':      { broker: 'alpaca', base: 'COIN',  decimals: 2, minOrder: 1, label: 'Coinbase',       assetClass: 'stocks' },
-      'RIOT':      { broker: 'alpaca', base: 'RIOT',  decimals: 2, minOrder: 1, label: 'Riot Platforms', assetClass: 'stocks' },
-      'MARA':      { broker: 'alpaca', base: 'MARA',  decimals: 2, minOrder: 1, label: 'Marathon Digital',assetClass: 'stocks' },
-      'PLTR':      { broker: 'alpaca', base: 'PLTR',  decimals: 2, minOrder: 1, label: 'Palantir',       assetClass: 'stocks' },
-    };
+    this.assetRegistry = ASSET_REGISTRY;
 
     // Broker-aware default asset — prevents crypto/stock mismatch when BROKER
     // is changed without also updating TRADING_PAIR. Mercury 2026-04-22 catch:
     // the prior hardcoded 'BTC-USD' default fired even on Alpaca broker runs.
-    // When TRADING_PAIR is explicitly set, that always wins.
+    // Explicit TRADING_PAIR still has to match the explicitly selected broker.
     let defaultAsset = 'BTC-USD';
     const activeBroker = (process.env.BROKER || 'kraken').toLowerCase();
     if (activeBroker !== 'kraken') {
@@ -78,7 +44,17 @@ class MultiAssetManager {
       );
       if (match) defaultAsset = match[0];
     }
-    this.activeAsset = process.env.TRADING_PAIR || defaultAsset;
+    const configuredAsset = process.env.TRADING_PAIR || defaultAsset;
+    const normalizedAsset = this._normalize(configuredAsset);
+    if (!normalizedAsset) {
+      throw new Error(`[MultiAsset] Unknown startup asset ${configuredAsset}; refusing runtime initialization`);
+    }
+    const configuredBroker = process.env.BROKER ? process.env.BROKER.toLowerCase() : null;
+    const normalizedConfig = this.assetRegistry[normalizedAsset];
+    if (configuredBroker && normalizedConfig?.broker !== configuredBroker) {
+      throw new Error(`[MultiAsset] Startup asset ${normalizedAsset} belongs to broker ${normalizedConfig?.broker}; BROKER=${configuredBroker}`);
+    }
+    this.activeAsset = normalizedAsset;
 
     // Per-asset candle history cache (so switching back doesn't lose data)
     this.candleCache = {};
@@ -96,8 +72,7 @@ class MultiAssetManager {
    * @param {string} symbol - e.g. 'BTC-USD', 'ETH-USD', 'ETH/USD'
    */
   getConfig(symbol) {
-    const normalized = this._normalize(symbol);
-    return this.assetRegistry[normalized] || null;
+    return getAssetConfig(symbol);
   }
 
   /**
@@ -106,8 +81,16 @@ class MultiAssetManager {
    */
   toKrakenRest(symbol) {
     const cfg = this.getConfig(symbol);
-    if (cfg?.broker === 'alpaca') return null; // Stock symbols don't have Kraken mapping
-    return cfg?.krakenRest || symbol.replace('-', '').replace('/', '');
+    if (!cfg) {
+      throw new Error(`[MultiAsset] Unknown asset ${symbol}; refusing Kraken REST mapping`);
+    }
+    if (cfg.broker !== 'kraken') {
+      throw new Error(`[MultiAsset] Asset ${symbol} belongs to broker ${cfg.broker}; refusing Kraken REST mapping`);
+    }
+    if (!cfg.krakenRest) {
+      throw new Error(`[MultiAsset] Asset ${symbol} has no Kraken REST mapping`);
+    }
+    return cfg.krakenRest;
   }
 
   /**
@@ -116,8 +99,16 @@ class MultiAssetManager {
    */
   toKrakenWs(symbol) {
     const cfg = this.getConfig(symbol);
-    if (cfg?.broker === 'alpaca') return null; // Stock symbols don't have Kraken mapping
-    return cfg?.krakenWs || symbol.replace('-', '/');
+    if (!cfg) {
+      throw new Error(`[MultiAsset] Unknown asset ${symbol}; refusing Kraken WS mapping`);
+    }
+    if (cfg.broker !== 'kraken') {
+      throw new Error(`[MultiAsset] Asset ${symbol} belongs to broker ${cfg.broker}; refusing Kraken WS mapping`);
+    }
+    if (!cfg.krakenWs) {
+      throw new Error(`[MultiAsset] Asset ${symbol} has no Kraken WS mapping`);
+    }
+    return cfg.krakenWs;
   }
 
   /**
@@ -125,7 +116,11 @@ class MultiAssetManager {
    * 'BTC-USD' → 'BTC/USD'
    */
   toSlashFormat(symbol) {
-    return this._normalize(symbol).replace('-', '/');
+    const normalized = this._normalize(symbol);
+    if (!normalized || !this.assetRegistry[normalized]) {
+      throw new Error(`[MultiAsset] Unknown asset ${symbol}; refusing slash-format mapping`);
+    }
+    return normalized.replace('-', '/');
   }
 
   /**
@@ -133,26 +128,19 @@ class MultiAssetManager {
    * 'XBT/USD' → 'BTC-USD'
    */
   fromKrakenWs(krakenPair) {
+    if (typeof krakenPair !== 'string' || !krakenPair.trim()) return null;
+    const raw = krakenPair.trim().toUpperCase();
     for (const [standard, cfg] of Object.entries(this.assetRegistry)) {
-      if (cfg.krakenWs === krakenPair) return standard;
+      const ws = cfg.krakenWs ? cfg.krakenWs.toUpperCase() : null;
+      const rest = cfg.krakenRest ? cfg.krakenRest.toUpperCase() : null;
+      if (ws === raw || rest === raw) return standard;
     }
-    return krakenPair.replace('/', '-');
+    return null;
   }
 
   /** Normalize any format to 'BTC-USD' style */
   _normalize(symbol) {
-    if (!symbol) return this.activeAsset;
-    // Handle 'BTC/USD' → 'BTC-USD'
-    let s = symbol.toUpperCase().replace('/', '-');
-    // Handle 'BTCUSD' → 'BTC-USD' (known pairs)
-    for (const key of Object.keys(this.assetRegistry)) {
-      if (s === key) return key;
-      const cfg = this.assetRegistry[key];
-      if (s === cfg.krakenRest || s === cfg.krakenWs?.replace('/', '-') || s === cfg.base + 'USD' || s === cfg.base + '-USD') {
-        return key;
-      }
-    }
-    return s;
+    return normalizeAssetSymbol(symbol);
   }
 
 
@@ -175,7 +163,7 @@ class MultiAssetManager {
     const config = this.getConfig(normalized);
 
     if (!config) {
-      console.warn(`⚠️ MultiAsset: Unknown asset ${newAsset}`);
+      console.warn(`[MultiAsset] Unknown asset ${newAsset}`);
       this._notifyDashboard('asset_change_error', { error: `Unknown asset: ${newAsset}` });
       return false;
     }
@@ -201,7 +189,7 @@ class MultiAssetManager {
     // Access the underlying simple adapter's WebSocket
     const ws = kraken.simple?.ws || kraken.ws;
     if (!ws || ws.readyState !== 1) {
-      console.warn('   ⚠️ Kraken WS not connected, will subscribe on reconnect');
+      console.warn('[MultiAsset] Kraken WS not connected, will subscribe on reconnect');
       return;
     }
 
@@ -243,7 +231,7 @@ class MultiAssetManager {
     }
 
     this.bot._previousAsset = this.activeAsset;
-    console.log(`   📡 Resubscribed: ${oldWsPair} → ${wsPair} (ticker + ${ohlcIntervals.length} OHLC)`);
+    console.log(`[MultiAsset] Resubscribed: ${oldWsPair} -> ${wsPair} (ticker + ${ohlcIntervals.length} OHLC)`);
   }
 
 

@@ -37,6 +37,7 @@ const axios = require('axios');
 const querystring = require('querystring');
 const WebSocket = require('ws');
 const KrakenDepth = require('./server/kraken-depth-adapter');
+const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
 
 class KrakenAdapterSimple {
   constructor(config = {}) {
@@ -400,123 +401,73 @@ class KrakenAdapterSimple {
   }
 
   convertToKrakenSymbol(symbol) {
-    // CHANGE 2026-02-10: Full Kraken symbol mapping for all supported assets
-    const map = {
-      'BTC-USD':   'XXBTZUSD',  'BTC/USD':   'XXBTZUSD',
-      'ETH-USD':   'XETHZUSD',  'ETH/USD':   'XETHZUSD',
-      'SOL-USD':   'SOLUSD',    'SOL/USD':   'SOLUSD',
-      'XRP-USD':   'XXRPZUSD',  'XRP/USD':   'XXRPZUSD',
-      'ADA-USD':   'ADAUSD',    'ADA/USD':   'ADAUSD',
-      'DOT-USD':   'DOTUSD',    'DOT/USD':   'DOTUSD',
-      'AVAX-USD':  'AVAXUSD',   'AVAX/USD':  'AVAXUSD',
-      'LINK-USD':  'LINKUSD',   'LINK/USD':  'LINKUSD',
-      'MATIC-USD': 'MATICUSD',  'MATIC/USD': 'MATICUSD',
-      'UNI-USD':   'UNIUSD',    'UNI/USD':   'UNIUSD',
-      'ATOM-USD':  'ATOMUSD',   'ATOM/USD':  'ATOMUSD',
-      'LTC-USD':   'XLTCZUSD',  'LTC/USD':   'XLTCZUSD',
-      'DOGE-USD':  'XDGUSD',    'DOGE/USD':  'XDGUSD',
-      'SHIB-USD':  'SHIBUSD',   'SHIB/USD':  'SHIBUSD',
-      'APT-USD':   'APTUSD',    'APT/USD':   'APTUSD',
-    };
-    return map[symbol] || symbol.replace('-', '').replace('/', '');
+    const canonical = normalizeAssetSymbol(symbol);
+    const metadata = canonical ? ASSET_REGISTRY[canonical] : null;
+    if (!metadata || metadata.broker !== 'kraken' || !metadata.krakenRest) {
+      throw new Error(`[Kraken] Invalid Kraken REST symbol: ${symbol}`);
+    }
+    return metadata.krakenRest;
   }
 
   normalizeKrakenWsPair(pair) {
     const raw = String(pair || '').trim().toUpperCase();
     if (!raw) return null;
+    return normalizeAssetSymbol(raw);
+  }
 
-    const map = {
-      'XBT/USD': 'BTC-USD',
-      'XXBTZUSD': 'BTC-USD',
-      'ETH/USD': 'ETH-USD',
-      'XETHZUSD': 'ETH-USD',
-      'SOL/USD': 'SOL-USD',
-      'SOLUSD': 'SOL-USD',
-      'XRP/USD': 'XRP-USD',
-      'XXRPZUSD': 'XRP-USD',
-      'ADA/USD': 'ADA-USD',
-      'ADAUSD': 'ADA-USD',
-      'DOT/USD': 'DOT-USD',
-      'DOTUSD': 'DOT-USD',
-      'AVAX/USD': 'AVAX-USD',
-      'AVAXUSD': 'AVAX-USD',
-      'LINK/USD': 'LINK-USD',
-      'LINKUSD': 'LINK-USD',
-      'MATIC/USD': 'MATIC-USD',
-      'MATICUSD': 'MATIC-USD',
-      'UNI/USD': 'UNI-USD',
-      'UNIUSD': 'UNI-USD',
-      'ATOM/USD': 'ATOM-USD',
-      'ATOMUSD': 'ATOM-USD',
-      'LTC/USD': 'LTC-USD',
-      'XLTCZUSD': 'LTC-USD',
-      'DOGE/USD': 'DOGE-USD',
-      'XDG/USD': 'DOGE-USD',
-      'XDGUSD': 'DOGE-USD',
-      'SHIB/USD': 'SHIB-USD',
-      'SHIBUSD': 'SHIB-USD',
-      'APT/USD': 'APT-USD',
-      'APTUSD': 'APT-USD',
-      'ARB/USD': 'ARB-USD',
-      'ARBUSD': 'ARB-USD',
-      'OP/USD': 'OP-USD',
-      'OPUSD': 'OP-USD'
-    };
-    if (map[raw]) return map[raw];
-
-    if (/^[A-Z0-9]+-[A-Z0-9]+$/.test(raw)) {
-      const [base, quote] = raw.split('-');
-      return `${base === 'XBT' ? 'BTC' : base}-${quote}`;
+  extractKrakenBookPair(msg) {
+    if (!this.isKrakenBookMessage(msg)) return null;
+    for (let i = msg.length - 1; i >= 0; i--) {
+      const part = msg[i];
+      const pair = typeof part === 'string'
+        ? part
+        : (part && typeof part === 'object' && typeof part.pair === 'string' ? part.pair : null);
+      if (pair && this.normalizeKrakenWsPair(pair)) return pair;
     }
-
-    if (raw.includes('-')) return null;
-
-    if (raw.includes('/')) {
-      const parts = raw.split('/');
-      if (parts.length !== 2) return null;
-      const [base, quote] = parts;
-      if (!base || !quote) return null;
-      const normalizedBase = base === 'XBT' ? 'BTC' : base;
-      return `${normalizedBase}-${quote}`;
-    }
-
-    if (raw.endsWith('USD') && raw.length > 3) {
-      const base = raw.slice(0, -3);
-      if (!base) return null;
-      return `${base === 'XBT' ? 'BTC' : base}-USD`;
-    }
-
     return null;
+  }
+
+  isKrakenBookMessage(msg) {
+    if (!Array.isArray(msg) || msg.length < 4) return false;
+    const channelName = msg[msg.length - 2];
+    return typeof channelName === 'string' && /^book-\d+$/.test(channelName);
+  }
+
+  extractKrakenBookLevels(msg) {
+    const result = {
+      bids: [],
+      asks: [],
+      hasBookPayload: false
+    };
+
+    if (!this.isKrakenBookMessage(msg)) return result;
+
+    for (let i = 1; i < msg.length - 2; i++) {
+      const part = msg[i];
+      if (!part || typeof part !== 'object' || Array.isArray(part)) continue;
+
+      const bidLevels = [];
+      const askLevels = [];
+      if (Array.isArray(part.bs)) bidLevels.push(...part.bs);
+      if (Array.isArray(part.b)) bidLevels.push(...part.b);
+      if (Array.isArray(part.as)) askLevels.push(...part.as);
+      if (Array.isArray(part.a)) askLevels.push(...part.a);
+
+      if (bidLevels.length > 0 || askLevels.length > 0) {
+        result.hasBookPayload = true;
+      }
+      result.bids.push(...bidLevels);
+      result.asks.push(...askLevels);
+    }
+
+    return result;
   }
 
   toKrakenWsPair(symbol) {
     const normalized = this.normalizeKrakenWsPair(symbol);
     if (!normalized || !this.isCanonicalDashboardSymbol(normalized)) return null;
 
-    const map = {
-      'BTC-USD': 'XBT/USD',
-      'ETH-USD': 'ETH/USD',
-      'SOL-USD': 'SOL/USD',
-      'XRP-USD': 'XRP/USD',
-      'ADA-USD': 'ADA/USD',
-      'DOT-USD': 'DOT/USD',
-      'AVAX-USD': 'AVAX/USD',
-      'LINK-USD': 'LINK/USD',
-      'MATIC-USD': 'MATIC/USD',
-      'UNI-USD': 'UNI/USD',
-      'ATOM-USD': 'ATOM/USD',
-      'LTC-USD': 'LTC/USD',
-      'DOGE-USD': 'XDG/USD',
-      'SHIB-USD': 'SHIB/USD',
-      'APT-USD': 'APT/USD',
-      'ARB-USD': 'ARB/USD',
-      'OP-USD': 'OP/USD'
-    };
-    if (map[normalized]) return map[normalized];
-
-    const parts = normalized.split('-');
-    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-    return `${parts[0]}/${parts[1]}`;
+    return ASSET_REGISTRY[normalized]?.krakenWs || null;
   }
 
   _collectConfiguredSymbols(value, out) {
@@ -563,28 +514,36 @@ class KrakenAdapterSimple {
     return pairs;
   }
 
+  resolveKrakenDashboardSymbol(symbol) {
+    const canonical = normalizeAssetSymbol(symbol);
+    const metadata = canonical ? ASSET_REGISTRY[canonical] : null;
+    return metadata?.broker === 'kraken' ? canonical : null;
+  }
+
   isCanonicalDashboardSymbol(symbol) {
-    return /^[A-Z0-9]+-[A-Z0-9]+$/.test(String(symbol || ''));
+    const raw = String(symbol || '').trim().toUpperCase();
+    return this.resolveKrakenDashboardSymbol(raw) === raw;
   }
 
   buildPriceCallbackFrame(symbol, price, volume, timestamp) {
-    if (!this.isCanonicalDashboardSymbol(symbol)) {
+    const canonicalSymbol = this.resolveKrakenDashboardSymbol(symbol);
+    if (!canonicalSymbol) {
       console.error(`[Kraken] BUILD_PRICE_INVALID_SYMBOL: ${symbol || 'missing'}`);
       return null;
     }
 
     return {
       type: 'price',
-      symbol,
-      asset: symbol,
+      symbol: canonicalSymbol,
+      asset: canonicalSymbol,
       price,
       close: price,
       volume,
       timestamp,
       source: 'kraken',
       data: {
-        symbol,
-        asset: symbol,
+        symbol: canonicalSymbol,
+        asset: canonicalSymbol,
         price,
         close: price,
         volume,
@@ -595,7 +554,8 @@ class KrakenAdapterSimple {
   }
 
   buildDepthCallbackFrame(symbol, bids, asks, timestamp = Date.now()) {
-    if (!this.isCanonicalDashboardSymbol(symbol)) {
+    const canonicalSymbol = this.resolveKrakenDashboardSymbol(symbol);
+    if (!canonicalSymbol) {
       console.error(`[Kraken] BUILD_DEPTH_INVALID_SYMBOL: ${String(symbol)}`);
       return null;
     }
@@ -604,13 +564,13 @@ class KrakenAdapterSimple {
       || (Array.isArray(asks) && asks.length > 10);
     const depthTimestamp = Number(timestamp);
     const now = Number.isFinite(depthTimestamp) ? depthTimestamp : Date.now();
-    const previousLiveAt = this.depthLiveSymbolTimestamps.get(symbol);
+    const previousLiveAt = this.depthLiveSymbolTimestamps.get(canonicalSymbol);
     const stillFresh = Number.isFinite(previousLiveAt) && (now - previousLiveAt) <= this.dataTimeout;
     const isLive = hasDepthSnapshot || stillFresh;
     if (isLive) {
-      this.depthLiveSymbolTimestamps.set(symbol, now);
+      this.depthLiveSymbolTimestamps.set(canonicalSymbol, now);
     } else {
-      this.depthLiveSymbolTimestamps.delete(symbol);
+      this.depthLiveSymbolTimestamps.delete(canonicalSymbol);
     }
 
     const frame = KrakenDepth.process({
@@ -620,13 +580,13 @@ class KrakenAdapterSimple {
       source: 'kraken',
       isLive
     }, {
-      symbol,
+      symbol: canonicalSymbol,
       timestamp,
       source: 'kraken',
       isLive
     });
     if (!frame) {
-      console.warn(`[Kraken] WS_BOOK_INVALID_LEVELS: no usable bid/ask levels for ${symbol}`);
+      console.warn(`[Kraken] WS_BOOK_INVALID_LEVELS: no usable bid/ask levels for ${canonicalSymbol}`);
     }
     return frame;
   }
@@ -859,8 +819,12 @@ class KrakenAdapterSimple {
   }
 
   supportsSymbol(symbol) {
-    const krakenSymbol = this.convertToKrakenSymbol(symbol);
-    return this.assetPairs.has(krakenSymbol);
+    try {
+      const krakenSymbol = this.convertToKrakenSymbol(symbol);
+      return this.assetPairs.has(krakenSymbol);
+    } catch {
+      return false;
+    }
   }
 
   isCryptoSymbol(symbol) {
@@ -1010,7 +974,7 @@ class KrakenAdapterSimple {
 
             const symbol = this.normalizeKrakenWsPair(msg[3]);
             if (!symbol) {
-              console.error(`[Kraken] WS_PRICE_UNATTRIBUTED: missing/unknown ticker pair (${msg[3] || 'missing'})`);
+              console.error(`[Kraken] WS_PRICE_UNATTRIBUTED: missing/unmapped ticker pair (${msg[3] || 'missing'})`);
               return;
             }
             if (!this.isCanonicalDashboardSymbol(symbol)) {
@@ -1049,7 +1013,7 @@ class KrakenAdapterSimple {
             const pair = msg[3];
             const symbol = this.normalizeKrakenWsPair(pair);
             if (!symbol) {
-              console.error(`[Kraken] WS_OHLC_UNATTRIBUTED: missing/unknown OHLC pair (${pair || 'missing'})`);
+              console.error(`[Kraken] WS_OHLC_UNATTRIBUTED: missing/unmapped OHLC pair (${pair || 'missing'})`);
               return;
             }
             if (!this.isCanonicalDashboardSymbol(symbol)) {
@@ -1082,13 +1046,15 @@ class KrakenAdapterSimple {
           }
 
           // Handle order book data for depth/whale wall detection
-          if (Array.isArray(msg) && typeof msg[1] === 'object' && (msg[1].bs || msg[1].as || msg[1].b || msg[1].a)) {
-            const bookData = msg[1];
-            const bids = bookData.bs || bookData.b || [];
-            const asks = bookData.as || bookData.a || [];
-            const symbol = this.normalizeKrakenWsPair(msg[3]);
+          if (this.isKrakenBookMessage(msg)) {
+            const bookLevels = this.extractKrakenBookLevels(msg);
+            if (!bookLevels.hasBookPayload) return;
+            const bids = bookLevels.bids;
+            const asks = bookLevels.asks;
+            const pair = this.extractKrakenBookPair(msg);
+            const symbol = this.normalizeKrakenWsPair(pair);
             if (!symbol) {
-              console.error(`[Kraken] WS_BOOK_UNATTRIBUTED: missing/unknown book pair (${String(msg[3])})`);
+              console.error(`[Kraken] WS_BOOK_UNATTRIBUTED: missing/unmapped book pair (${String(pair)})`);
               return;
             }
             if (!this.isCanonicalDashboardSymbol(symbol)) {

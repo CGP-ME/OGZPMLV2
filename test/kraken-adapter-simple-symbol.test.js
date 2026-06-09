@@ -17,6 +17,10 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     expect(adapter.normalizeKrakenWsPair('XETHZUSD')).toBe('ETH-USD');
     expect(adapter.normalizeKrakenWsPair('SOL/USD')).toBe('SOL-USD');
     expect(adapter.normalizeKrakenWsPair('SOLUSD')).toBe('SOL-USD');
+    expect(adapter.normalizeKrakenWsPair('XDG/USD')).toBe('DOGE-USD');
+    expect(adapter.toKrakenWsPair('DOGE-USD')).toBe('XDG/USD');
+    expect(adapter.normalizeKrakenWsPair('FAKE/USD')).toBeNull();
+    expect(adapter.toKrakenWsPair('FAKE-USD')).toBeNull();
   });
 
   test('rejects missing pairs instead of inventing a default symbol', () => {
@@ -30,6 +34,7 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
   test('builds price callback frames with top-level and nested symbol metadata', () => {
     const adapter = new KrakenAdapterSimple();
     const frame = adapter.buildPriceCallbackFrame('BTC-USD', 75000, 12.5, 1770000000000);
+    const aliasedFrame = adapter.buildPriceCallbackFrame(' XBT/USD ', 75000, 12.5, 1770000000000);
 
     expect(frame).toMatchObject({
       type: 'price',
@@ -50,6 +55,8 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
         source: 'kraken'
       }
     });
+    expect(aliasedFrame.symbol).toBe('BTC-USD');
+    expect(aliasedFrame.data.symbol).toBe('BTC-USD');
     expect(frame.data.asset).not.toBe('BTC--USD');
   });
 
@@ -58,7 +65,9 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(adapter.buildPriceCallbackFrame('BTC--USD', 75000, 12.5, 1770000000000)).toBeNull();
+    expect(adapter.buildPriceCallbackFrame('FAKE-USD', 75000, 12.5, 1770000000000)).toBeNull();
     expect(errorSpy).toHaveBeenCalledWith('[Kraken] BUILD_PRICE_INVALID_SYMBOL: BTC--USD');
+    expect(errorSpy).toHaveBeenCalledWith('[Kraken] BUILD_PRICE_INVALID_SYMBOL: FAKE-USD');
     errorSpy.mockRestore();
   });
 
@@ -90,6 +99,7 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     const asks = Array.from({ length: 12 }, (_, index) => [75100 + index, 28]);
 
     const frame = adapter.buildDepthCallbackFrame('BTC-USD', bids, asks, 1770000000000);
+    const aliasedFrame = adapter.buildDepthCallbackFrame(' XBT/USD ', bids, asks, 1770000000000);
 
     expect(frame).toMatchObject({
       type: 'depth_update',
@@ -101,6 +111,99 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     expect(frame.walls[0]).toMatchObject({ side: 'BID', price: 75000, size: 2250000 });
     expect(frame.depth.bids).toHaveLength(12);
     expect(frame.depth.asks).toHaveLength(12);
+    expect(aliasedFrame.symbol).toBe('BTC-USD');
+  });
+
+  test('refuses depth_update frames for registry-unknown dashboard symbols', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(adapter.buildDepthCallbackFrame('FAKE-USD', [[75000, 30]], [], 1770000000000)).toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith('[Kraken] BUILD_DEPTH_INVALID_SYMBOL: FAKE-USD');
+
+    errorSpy.mockRestore();
+  });
+
+  test('extracts Kraken order-book pair from snapshot and update message shapes', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+
+    expect(adapter.extractKrakenBookPair([42, { bs: [['75000', '1']] }, 'book-25', 'XBT/USD']))
+      .toBe('XBT/USD');
+    expect(adapter.extractKrakenBookPair([42, { a: [['75100', '1']] }, { b: [['75000', '1']] }, 'book-25', 'XBT/USD']))
+      .toBe('XBT/USD');
+    expect(adapter.normalizeKrakenWsPair(adapter.extractKrakenBookPair([
+      42,
+      { a: [['75100', '1']] },
+      { b: [['75000', '1']] },
+      'book-25',
+      'XBT/USD'
+    ]))).toBe('BTC-USD');
+  });
+
+  test('merges split Kraken book update payload objects before building depth frames', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const levels = adapter.extractKrakenBookLevels([
+      42,
+      { a: [['75100', '2']] },
+      { b: [['75000', '3']] },
+      'book-25',
+      'XBT/USD'
+    ]);
+
+    expect(levels).toEqual({
+      asks: [['75100', '2']],
+      bids: [['75000', '3']],
+      hasBookPayload: true
+    });
+
+    const frame = adapter.buildDepthCallbackFrame('BTC-USD', levels.bids, levels.asks, 1770000000000);
+    expect(frame.depth.bids).toEqual([[75000, 3]]);
+    expect(frame.depth.asks).toEqual([[75100, 2]]);
+  });
+
+  test('treats empty Kraken book deltas as no payload instead of invalid levels', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+
+    expect(adapter.extractKrakenBookLevels([
+      42,
+      { a: [] },
+      { b: [] },
+      'book-25',
+      'XBT/USD'
+    ])).toEqual({
+      asks: [],
+      bids: [],
+      hasBookPayload: false
+    });
+  });
+
+  test('does not classify ticker bid/ask arrays as order-book depth', () => {
+    const adapter = new KrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    const tickerMessage = [
+      42,
+      {
+        a: ['73673.10000', 0, '0.00110451'],
+        b: ['73673.00000', 0, '0.35689989']
+      },
+      'ticker',
+      'XBT/USD'
+    ];
+
+    expect(adapter.isKrakenBookMessage(tickerMessage)).toBe(false);
+    expect(adapter.extractKrakenBookPair(tickerMessage)).toBeNull();
+    expect(adapter.extractKrakenBookLevels(tickerMessage)).toEqual({
+      asks: [],
+      bids: [],
+      hasBookPayload: false
+    });
+
+    const malformedTickerChannel = [
+      42,
+      { c: ['73673.00000'] },
+      'book-ticker',
+      'XBT/USD'
+    ];
+    expect(adapter.isKrakenBookMessage(malformedTickerChannel)).toBe(false);
   });
 
   test('depth liveness is adapter-local and clears across websocket lifecycle', () => {

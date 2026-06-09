@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pinned the canonical P0 `current-eval` profile to `ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, mapped both keys into `TradingConfig` profile ownership, and covered profile/env application so the P0 anchor cannot silently run ATR-off while asserting ATR-on results.
 
+### Kraken Asset Registry Symbol Truth (2026-06-09)
+
+- Centralized runtime asset symbol metadata in `AssetRegistry`, routed Kraken REST/WebSocket conversion through explicit registry mappings, rejected stock/unknown symbols before Kraken calls, and prevented ticker frames from entering the order-book depth path.
+
 ### Candle History Runtime Timeframe Ownership (2026-06-09)
 
 - Changed live candle-history load/save persistence to use the resolved runtime candle timeframe instead of hardcoded `1m`, and fail closed when the runtime timeframe is missing.

@@ -1,33 +1,25 @@
 'use strict';
 
+const { normalizeAssetSymbol: normalizeRegistryAssetSymbol } = require('../core/AssetRegistry');
+
 function normalizeSymbol(value) {
   const symbol = String(value || '').trim().toUpperCase();
   return symbol || null;
 }
 
 function normalizeTickerMatchSymbol(value) {
-  const symbol = normalizeSymbol(value);
-  if (!symbol) return null;
-  const dashed = symbol.replace(/^XBT/, 'BTC').replace(/\//g, '-');
-  const crypto = dashed.match(/^(BTC|ETH|SOL)-USD$/);
-  if (crypto) return crypto[1];
-  const compactCrypto = dashed.match(/^(BTC|XBT|ETH|SOL)USD$/);
-  if (compactCrypto) return compactCrypto[1] === 'XBT' ? 'BTC' : compactCrypto[1];
-  return dashed;
+  return normalizeRegistryAssetSymbol(value) || normalizeSymbol(value);
 }
 
-function normalizeAssetSymbol(value) {
+function normalizeAssetSymbol(value, allowedSymbols = []) {
+  const registrySymbol = normalizeRegistryAssetSymbol(value);
+  if (registrySymbol) return registrySymbol;
+
   const symbol = normalizeSymbol(value);
   if (!symbol) return null;
-  const dashed = symbol.replace(/^XBT/, 'BTC').replace(/\//g, '-');
-  const crypto = dashed.match(/^(BTC|ETH|SOL)-USD$/);
-  if (crypto) return `${crypto[1]}-USD`;
-  const compactCrypto = dashed.match(/^(BTC|XBT|ETH|SOL)USD$/);
-  if (compactCrypto) {
-    const base = compactCrypto[1] === 'XBT' ? 'BTC' : compactCrypto[1];
-    return `${base}-USD`;
-  }
-  return dashed;
+
+  const allowed = new Set(allowedSymbols.map(normalizeSymbol).filter(Boolean));
+  return allowed.has(symbol) ? symbol : null;
 }
 
 function finiteNumber(value) {
@@ -75,10 +67,10 @@ function parseTickerSymbolList(rawValue, fallbackValue) {
 function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
   const source = { ...overrides, ...ticker };
   const symbol = normalizeSymbol(source.symbol);
-  const asset = normalizeAssetSymbol(source.asset || source.symbol);
+  const allowedSymbols = Array.isArray(options.allowedSymbols) ? options.allowedSymbols : [];
+  const asset = normalizeAssetSymbol(source.asset || source.symbol, allowedSymbols);
   const price = positiveNumber(source.price ?? source.close);
   const timestamp = positiveNumber(source.timestamp);
-  const allowedSymbols = Array.isArray(options.allowedSymbols) ? options.allowedSymbols : [];
 
   if (!symbol || !asset || price === null || timestamp === null) return null;
   if (

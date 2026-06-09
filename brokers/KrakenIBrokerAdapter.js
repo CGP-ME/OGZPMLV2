@@ -16,6 +16,7 @@
 const IBrokerAdapter = require('./IBrokerAdapter');
 const KrakenAdapterSimple = require('../kraken_adapter_simple');
 const WebSocket = require('ws');
+const { ASSET_REGISTRY, normalizeAssetSymbol } = require('../core/AssetRegistry');
 
 class KrakenIBrokerAdapter extends IBrokerAdapter {
   constructor(options = {}) {
@@ -276,8 +277,15 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // =========================================================================
 
   async getTicker(symbol) {
-    const marketData = await this.kraken.getMarketData(symbol);
+    const canonicalSymbol = normalizeAssetSymbol(symbol);
+    const cfg = canonicalSymbol ? ASSET_REGISTRY[canonicalSymbol] : null;
+    if (!cfg || cfg.broker !== 'kraken') {
+      throw new Error(`[KrakenIBroker] getTicker received invalid Kraken symbol: ${symbol}`);
+    }
+
+    const marketData = await this.kraken.getMarketData(canonicalSymbol);
     return {
+      symbol: canonicalSymbol,
       bid: marketData.bid,
       ask: marketData.ask,
       last: marketData.last || marketData.price,
@@ -288,8 +296,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
 
   async getCandles(symbol, timeframe = '1m', limit = 100) {
     // CHANGE 2026-01-30: Implement proper historical candle fetching via REST API
-    // Convert symbol to Kraken format (BTC/USD -> XBTUSD)
-    const krakenPair = this.toBrokerSymbol(symbol).replace('/', '');
+    const krakenPair = this.toKrakenRestPair(symbol);
 
     // Convert timeframe to Kraken interval (minutes)
     const timeframeToInterval = {
@@ -312,11 +319,17 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // =========================================================================
 
   subscribeToTicker(symbol, callback) {
+    const canonicalSymbol = normalizeAssetSymbol(symbol);
+    if (!canonicalSymbol || !ASSET_REGISTRY[canonicalSymbol] || ASSET_REGISTRY[canonicalSymbol].broker !== 'kraken') {
+      throw new Error(`[KrakenIBroker] subscribeToTicker received invalid Kraken symbol: ${symbol}`);
+    }
+
     // Use the existing connectWebSocketStream for price updates
     this.kraken.connectWebSocketStream((data) => {
-      if (data.symbol === symbol || data.asset === symbol) {
+      const dataSymbol = normalizeAssetSymbol(data?.symbol || data?.asset);
+      if (dataSymbol === canonicalSymbol) {
         callback({
-          symbol: symbol,
+          symbol: canonicalSymbol,
           bid: data.bid,
           ask: data.ask,
           last: data.price,
@@ -405,8 +418,9 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
     }
 
     const handler = (data) => {
-      if (!data || data.symbol !== canonicalSymbol) return;
-      if (typeof callback === 'function') callback(data);
+      const dataSymbol = this.kraken.normalizeKrakenWsPair(data?.symbol || data?.asset || data?.pair);
+      if (dataSymbol !== canonicalSymbol) return;
+      if (typeof callback === 'function') callback({ ...data, symbol: dataSymbol });
     };
 
     this.on('depth_update', handler);
@@ -494,13 +508,50 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   // =========================================================================
 
   toBrokerSymbol(symbol) {
-    // Convert universal canonical (BTC-USD) to Kraken format (XBT/USD)
-    return symbol.replace('BTC', 'XBT').replace('-', '/');
+    const canonical = normalizeAssetSymbol(symbol);
+    const cfg = canonical ? ASSET_REGISTRY[canonical] : null;
+    if (!cfg || cfg.broker !== 'kraken' || !cfg.krakenWs) {
+      throw new Error(`[KrakenIBroker] no Kraken WebSocket mapping for ${symbol}`);
+    }
+    return cfg.krakenWs;
+  }
+
+  toKrakenRestPair(symbol) {
+    if (typeof symbol !== 'string' || !symbol.trim()) {
+      throw new Error('[KrakenIBroker] getCandles requires symbol for Kraken REST pair resolution');
+    }
+
+    const raw = symbol.trim().toUpperCase();
+    const directRestMatch = Object.values(ASSET_REGISTRY).find(cfg => cfg.krakenRest === raw);
+    if (directRestMatch) return raw;
+
+    const wsMatch = Object.values(ASSET_REGISTRY).find(cfg => {
+      const ws = cfg.krakenWs ? cfg.krakenWs.toUpperCase() : null;
+      return ws && (ws === raw || ws.replace('/', '') === raw);
+    });
+    if (wsMatch?.krakenRest) return wsMatch.krakenRest;
+
+    const canonical = normalizeAssetSymbol(raw);
+
+    const cfg = ASSET_REGISTRY[canonical];
+    if (!cfg) {
+      throw new Error(`[KrakenIBroker] no asset registry entry for ${symbol}; refusing Kraken REST OHLC request`);
+    }
+    if (cfg.broker !== 'kraken' || !cfg.krakenRest) {
+      throw new Error(`[KrakenIBroker] ${canonical} has no Kraken REST OHLC pair; broker=${cfg.broker || 'missing'}`);
+    }
+    return cfg.krakenRest;
   }
 
   fromBrokerSymbol(brokerSymbol) {
-    // Convert Kraken format (XBT/USD) to universal canonical (BTC-USD)
-    return brokerSymbol.replace('XBT', 'BTC').replace('/', '-');
+    if (typeof brokerSymbol !== 'string' || !brokerSymbol.trim()) return null;
+    const raw = brokerSymbol.trim().toUpperCase();
+    const match = Object.entries(ASSET_REGISTRY).find(([, cfg]) => {
+      const ws = cfg.krakenWs ? cfg.krakenWs.toUpperCase() : null;
+      const rest = cfg.krakenRest ? cfg.krakenRest.toUpperCase() : null;
+      return ws === raw || rest === raw;
+    });
+    return match ? match[0] : null;
   }
 }
 

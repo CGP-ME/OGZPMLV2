@@ -10,15 +10,14 @@
 // candle[]>>); this class never holds its own copy. Eliminates sync risk.
 //
 // Trey 2026-05-08 directive #2: ASSET_REGISTRY absorbed from MultiAssetManager
-// (core/MultiAssetManager.js:34-72) so this file becomes the single source of
-// symbol metadata going forward. MultiAssetManager keeps its own copy until
-// commit 6 of this refactor deletes the file entirely; during commits 1-5 the
-// two copies are duplicated by design (transitional state, MultiAssetManager
-// still serves legacy callers).
+// into the runtime source of truth. It now lives in core/AssetRegistry.js so
+// broker adapters can resolve broker-specific symbols without loading indicator
+// and strategy modules through SymbolTradingContext.
 //
 // This file is INERT until commit 2 wires `symbolContexts` into run-empire-v2.
 // Phase 0 single-symbol path is unaffected.
 
+const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./AssetRegistry');
 const IndicatorEngine = require('./indicators/IndicatorEngine');
 const EMASMACrossoverSignal = require('../modules/EMASMACrossoverSignal');
 const MADynamicSR = require('../modules/MADynamicSR');
@@ -30,42 +29,6 @@ const FibonacciDetector = require('./FibonacciDetector');
 // consumers caching `const ph = symCtx.priceHistory` then failing reference
 // equality on subsequent reads during the cold-start window.
 const EMPTY_PRICE_HISTORY = Object.freeze([]);
-
-const ASSET_REGISTRY = {
-    // CRYPTO (Kraken)
-    'BTC-USD':   { broker: 'kraken', krakenRest: 'XXBTZUSD',   krakenWs: 'XBT/USD',   base: 'BTC',  decimals: 1, minOrder: 0.0001,  label: 'Bitcoin',    assetClass: 'crypto' },
-    'ETH-USD':   { broker: 'kraken', krakenRest: 'XETHZUSD',   krakenWs: 'ETH/USD',   base: 'ETH',  decimals: 2, minOrder: 0.001,   label: 'Ethereum',   assetClass: 'crypto' },
-    'SOL-USD':   { broker: 'kraken', krakenRest: 'SOLUSD',     krakenWs: 'SOL/USD',   base: 'SOL',  decimals: 2, minOrder: 0.01,    label: 'Solana',     assetClass: 'crypto' },
-    'XRP-USD':   { broker: 'kraken', krakenRest: 'XXRPZUSD',   krakenWs: 'XRP/USD',   base: 'XRP',  decimals: 4, minOrder: 1,       label: 'Ripple',     assetClass: 'crypto' },
-    'ADA-USD':   { broker: 'kraken', krakenRest: 'ADAUSD',     krakenWs: 'ADA/USD',   base: 'ADA',  decimals: 4, minOrder: 1,       label: 'Cardano',    assetClass: 'crypto' },
-    'DOT-USD':   { broker: 'kraken', krakenRest: 'DOTUSD',     krakenWs: 'DOT/USD',   base: 'DOT',  decimals: 3, minOrder: 0.1,     label: 'Polkadot',   assetClass: 'crypto' },
-    'AVAX-USD':  { broker: 'kraken', krakenRest: 'AVAXUSD',    krakenWs: 'AVAX/USD',  base: 'AVAX', decimals: 2, minOrder: 0.01,    label: 'Avalanche',  assetClass: 'crypto' },
-    'LINK-USD':  { broker: 'kraken', krakenRest: 'LINKUSD',    krakenWs: 'LINK/USD',  base: 'LINK', decimals: 3, minOrder: 0.1,     label: 'Chainlink',  assetClass: 'crypto' },
-    'MATIC-USD': { broker: 'kraken', krakenRest: 'MATICUSD',   krakenWs: 'MATIC/USD', base: 'MATIC',decimals: 4, minOrder: 1,       label: 'Polygon',    assetClass: 'crypto' },
-    'UNI-USD':   { broker: 'kraken', krakenRest: 'UNIUSD',     krakenWs: 'UNI/USD',   base: 'UNI',  decimals: 3, minOrder: 0.1,     label: 'Uniswap',    assetClass: 'crypto' },
-    'ATOM-USD':  { broker: 'kraken', krakenRest: 'ATOMUSD',    krakenWs: 'ATOM/USD',  base: 'ATOM', decimals: 3, minOrder: 0.1,     label: 'Cosmos',     assetClass: 'crypto' },
-    'LTC-USD':   { broker: 'kraken', krakenRest: 'XLTCZUSD',   krakenWs: 'LTC/USD',   base: 'LTC',  decimals: 2, minOrder: 0.01,    label: 'Litecoin',   assetClass: 'crypto' },
-    'DOGE-USD':  { broker: 'kraken', krakenRest: 'XDGUSD',     krakenWs: 'DOGE/USD',  base: 'DOGE', decimals: 5, minOrder: 10,      label: 'Dogecoin',   assetClass: 'crypto' },
-    'SHIB-USD':  { broker: 'kraken', krakenRest: 'SHIBUSD',    krakenWs: 'SHIB/USD',  base: 'SHIB', decimals: 8, minOrder: 100000,  label: 'Shiba Inu',  assetClass: 'crypto' },
-    'APT-USD':   { broker: 'kraken', krakenRest: 'APTUSD',     krakenWs: 'APT/USD',   base: 'APT',  decimals: 3, minOrder: 0.1,     label: 'Aptos',      assetClass: 'crypto' },
-
-    // STOCKS (Alpaca)
-    'TSLA': { broker: 'alpaca', base: 'TSLA', decimals: 2, minOrder: 1, label: 'Tesla',           assetClass: 'stocks' },
-    'AAPL': { broker: 'alpaca', base: 'AAPL', decimals: 2, minOrder: 1, label: 'Apple',           assetClass: 'stocks' },
-    'NVDA': { broker: 'alpaca', base: 'NVDA', decimals: 2, minOrder: 1, label: 'NVIDIA',          assetClass: 'stocks' },
-    'SPY':  { broker: 'alpaca', base: 'SPY',  decimals: 2, minOrder: 1, label: 'S&P 500 ETF',     assetClass: 'stocks' },
-    'QQQ':  { broker: 'alpaca', base: 'QQQ',  decimals: 2, minOrder: 1, label: 'Nasdaq 100 ETF',  assetClass: 'stocks' },
-    'AMD':  { broker: 'alpaca', base: 'AMD',  decimals: 2, minOrder: 1, label: 'AMD',             assetClass: 'stocks' },
-    'AMZN': { broker: 'alpaca', base: 'AMZN', decimals: 2, minOrder: 1, label: 'Amazon',          assetClass: 'stocks' },
-    'MSFT': { broker: 'alpaca', base: 'MSFT', decimals: 2, minOrder: 1, label: 'Microsoft',       assetClass: 'stocks' },
-    'GOOG': { broker: 'alpaca', base: 'GOOG', decimals: 2, minOrder: 1, label: 'Google',          assetClass: 'stocks' },
-    'META': { broker: 'alpaca', base: 'META', decimals: 2, minOrder: 1, label: 'Meta',            assetClass: 'stocks' },
-    'NFLX': { broker: 'alpaca', base: 'NFLX', decimals: 2, minOrder: 1, label: 'Netflix',         assetClass: 'stocks' },
-    'COIN': { broker: 'alpaca', base: 'COIN', decimals: 2, minOrder: 1, label: 'Coinbase',        assetClass: 'stocks' },
-    'RIOT': { broker: 'alpaca', base: 'RIOT', decimals: 2, minOrder: 1, label: 'Riot Platforms',  assetClass: 'stocks' },
-    'MARA': { broker: 'alpaca', base: 'MARA', decimals: 2, minOrder: 1, label: 'Marathon Digital',assetClass: 'stocks' },
-    'PLTR': { broker: 'alpaca', base: 'PLTR', decimals: 2, minOrder: 1, label: 'Palantir',        assetClass: 'stocks' },
-};
 
 class SymbolTradingContext {
     /**
@@ -87,17 +50,19 @@ class SymbolTradingContext {
             throw new Error('SymbolTradingContext: config.timeframe required (no default — pass broker.candleTimeframe explicitly)');
         }
 
-        this.symbol = symbol;
+        const canonicalSymbol = normalizeAssetSymbol(symbol);
+        if (!canonicalSymbol) {
+            throw new Error(`SymbolTradingContext: unregistered symbol '${symbol}' - add it to core/AssetRegistry.js or fix the typo.`);
+        }
+
+        this.symbol = canonicalSymbol;
         this.timeframe = config.timeframe;
         this.candleStore = candleStore;
-        // Mercury fix #2: throw on unknown symbol. Previously warned and fell
+        // Mercury fix #2: throw on unregistered symbol. Previously warned and fell
         // through to formatPrice/getMinOrderSize generic defaults — a typo
         // (e.g., 'NDVA' instead of 'NVDA') silently traded a phantom symbol.
         // Hard fail at construction so operator sees the error immediately.
-        this.metadata = ASSET_REGISTRY[symbol];
-        if (!this.metadata) {
-            throw new Error(`SymbolTradingContext: unknown symbol '${symbol}' — not in ASSET_REGISTRY. Add it to ASSET_REGISTRY in core/SymbolTradingContext.js or fix the typo.`);
-        }
+        this.metadata = ASSET_REGISTRY[canonicalSymbol];
 
         // Per-symbol indicator + signal modules. Each context instances its
         // own — no cross-symbol state leakage. Wolf's spec lists this set;
@@ -111,7 +76,7 @@ class SymbolTradingContext {
         // run-empire-v2.js:799). Fix 10's constructor throw exposed this —
         // before Fix 10 the missing symbol silently defaulted to BTC-USD
         // inside what was supposed to be a per-symbol context for TSLA.
-        this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol });
+        this.indicatorEngine = new IndicatorEngine({ ...config.indicatorConfig, symbol: canonicalSymbol });
         this.emaCrossover = new EMASMACrossoverSignal();
         this.maDynamicSR = new MADynamicSR();
         this.volumeProfile = new VolumeProfile();

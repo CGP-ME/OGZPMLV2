@@ -54,7 +54,7 @@ const fetchFn = global.fetch || require('node-fetch');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
 const { resolveDashboardStockConfig } = require('./server/dashboard-stock-stream-config');
-const { ASSET_REGISTRY } = require('./core/SymbolTradingContext');
+const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
 
 const apiPort = process.env.API_PORT || 3010;
 const app = express();
@@ -1501,10 +1501,15 @@ async function broadcastDashboardStockPrices() {
 }
 
 function krakenRestPairForSymbol(symbol) {
-  const canonical = String(symbol || '').trim().toUpperCase();
-  const metadata = ASSET_REGISTRY[canonical];
-  if (metadata?.krakenRest) return metadata.krakenRest;
-  return canonical.replace('-', '');
+  const canonical = normalizeAssetSymbol(symbol);
+  const metadata = canonical ? ASSET_REGISTRY[canonical] : null;
+  if (!metadata) {
+    throw new Error(`[KrakenRest] Unknown dashboard crypto symbol: ${symbol}`);
+  }
+  if (metadata.broker !== 'kraken' || !metadata.krakenRest) {
+    throw new Error(`[KrakenRest] ${canonical} is not a Kraken REST ticker symbol`);
+  }
+  return metadata.krakenRest;
 }
 
 function cryptoTickerToPriceFrame(ticker) {
@@ -1997,9 +2002,11 @@ krakenSocket.on('message', (data) => {
       // tickerData.c = [price, lot volume]
       const price = parseFloat(tickerData.c[0]);
       
-      // Convert Kraken pair format to our format
-      // XBT/USD -> BTC-USD, ETH/USD -> ETH-USD, etc.
-      let asset = pair.replace('XBT/', 'BTC-').replace('/', '-');
+      const asset = normalizeAssetSymbol(pair);
+      if (!asset) {
+        console.error(`[KrakenTicker] Unmapped Kraken ticker pair: ${pair || 'missing'}`);
+        return;
+      }
       
       // Store price
       assetPrices[asset] = price;
