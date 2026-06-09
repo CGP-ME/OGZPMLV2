@@ -118,6 +118,14 @@ cleanup-*/
 *.zip
 codebase-export.txt
 
+# Claude bridge runtime session state (per-session ephemeral read ledger)
+.claude/session-state/
+
+# Claude persistent memory store (lives in repo for boundary reasons; per-machine
+# session state, not commit history). Harness reads via $HOME symlink which
+# dereferences to .claude/memory/ — see trai_brain/claude-bridge/policy.js.
+.claude/memory/
+
 # Archived broken code
 .archive/
 trai_brain/experimental/*.json
