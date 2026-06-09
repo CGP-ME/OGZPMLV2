@@ -1549,8 +1549,12 @@ class OGZPrimeV14Bot {
     // once in a process lifetime (e.g. venue swap reload). Belt-and-suspenders
     // alongside the v2 symbol-keyed file format.
     this.priceHistory = [];
-    this._candleStore.loadFromDisk(candleFile, symbol, '1m');
-    this.priceHistory = this._candleStore.getCandles(symbol, '1m');
+    const timeframe = this.candleTimeframe;
+    if (typeof timeframe !== 'string' || !timeframe.trim()) {
+      throw new Error('loadCandleHistory: candleTimeframe missing — refusing to load candles under implicit timeframe');
+    }
+    this._candleStore.loadFromDisk(candleFile, symbol, timeframe);
+    this.priceHistory = this._candleStore.getCandles(symbol, timeframe);
   }
 
   /**
@@ -1568,9 +1572,13 @@ class OGZPrimeV14Bot {
     const symbol = this.tradingPair || (() => {
       throw new Error('saveCandleHistory: resolvedConfig.config.broker.tradingPair missing — refusing to persist candles under BTC-USD default');
     })();
+    const timeframe = this.candleTimeframe;
+    if (typeof timeframe !== 'string' || !timeframe.trim()) {
+      throw new Error('saveCandleHistory: candleTimeframe missing — refusing to persist candles under implicit timeframe');
+    }
     // Sync priceHistory to CandleStore before saving
-    this._candleStore.addCandles(symbol, '1m', this.priceHistory);
-    this._candleStore.saveToDisk(candleFile, symbol, '1m', 200);
+    this._candleStore.addCandles(symbol, timeframe, this.priceHistory);
+    this._candleStore.saveToDisk(candleFile, symbol, timeframe, 200);
   }
 
   _getBootHydrationSymbols() {

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pinned the canonical P0 `current-eval` profile to `ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, mapped both keys into `TradingConfig` profile ownership, and covered profile/env application so the P0 anchor cannot silently run ATR-off while asserting ATR-on results.
 
+### Candle History Runtime Timeframe Ownership (2026-06-09)
+
+- Changed live candle-history load/save persistence to use the resolved runtime candle timeframe instead of hardcoded `1m`, and fail closed when the runtime timeframe is missing.
+
 ### SessionRouter Symbol Fallback Removal (2026-06-08)
 
 - Removed hardcoded SessionRouter stock-symbol fallback usage from Alpaca adapter setup, symbol-context registration, and CandleProcessor gap-recovery stock guards; SessionRouter now requires explicit stock and crypto symbols when enabled instead of fabricating default symbol universes.
