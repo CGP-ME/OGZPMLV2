@@ -12,10 +12,10 @@
  *   node trai_brain/mercury-bridge/ask.js --agentic "Find the partial-close contract bug"
  *
  * Flags:
- *   --agentic              Enable ReAct loop (default: off)
- *   --top-k=N              Retrieve N starter-context chunks (default 8)
- *   --max-iterations=N     Agentic mode only: max tool-call iterations (default 10)
- *   --max-tokens=N         Mercury max tokens per turn (default 2000)
+ *   --agentic              Enable ReAct loop
+ *   --top-k=N              Retrieve N starter-context chunks
+ *   --max-iterations=N     Agentic mode only: max tool-call iterations
+ *   --max-tokens=N         Mercury max tokens per turn
  *   --quiet                Suppress progress logs
  *   --show-chunks          Print retrieved chunk text (not just filenames)
  *   --show-history         Agentic mode only: print the full tool-call trace
@@ -25,7 +25,7 @@
 
 const path = require('path');
 
-// Load .env from repo root so OPENAI_API_KEY / INCEPTION_API_KEY are available
+// Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const config = require('./config');
@@ -33,6 +33,7 @@ const { ask } = require('./searcher');
 const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
+const { createMercuryLlmClient } = require('./llm-client');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
@@ -95,6 +96,31 @@ function parseArgs(argv) {
   return args;
 }
 
+function optionalPositiveInteger(value, name) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
+function optionalNonNegativeInteger(value, name) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+  return value;
+}
+
+function configExactInteger(value, configuredValue, name) {
+  if (value == null) return configuredValue;
+  const parsed = optionalPositiveInteger(value, name);
+  if (parsed !== configuredValue) {
+    throw new Error(`${name} must match mercury.config.json value ${configuredValue}`);
+  }
+  return configuredValue;
+}
+
 function usage() {
   console.log('');
   console.log('Mercury Bridge — Ask a question about the OGZPrime codebase');
@@ -108,9 +134,9 @@ function usage() {
   console.log('  --agentic   ReAct loop — Mercury can grep/open files iteratively (more accurate)');
   console.log('');
   console.log('Flags:');
-  console.log('  --top-k=N              Starter-context chunk count (default 8)');
-  console.log('  --max-iterations=N     Agentic only: max tool-call loops (default 10)');
-  console.log('  --max-tokens=N         Mercury max tokens per turn (default 2000)');
+  console.log(`  --top-k=N              Starter-context chunk count (configured ${config.RETRIEVE_TOP_K})`);
+  console.log(`  --max-iterations=N     Agentic only: max tool-call loops (configured ${config.AGENTIC_MAX_ITERATIONS})`);
+  console.log(`  --max-tokens=N         Mercury max tokens per turn (agentic ${config.AGENTIC_MAX_TOKENS}, single-shot ${config.SINGLE_SHOT_MAX_TOKENS})`);
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
@@ -127,18 +153,19 @@ function usage() {
 
 async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
-  const maxIterations = opts.maxIterations || parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10);
-  const maxTokens = opts.maxTokens || 2000;
+  const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
+  const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
   const mode = opts.retrievalMode || route.mode;
   const boostType = opts.boostType != null ? opts.boostType : route.boostType;
+  const explicitTopK = optionalNonNegativeInteger(opts.topK, '--top-k');
 
   // Starter context policy: respect --top-k if caller set it, otherwise route decides
   let topK;
-  if (opts.topK != null) {
-    topK = opts.topK;
+  if (explicitTopK != null) {
+    topK = explicitTopK;
   } else if (route.starterContextPolicy === 'skip') {
     topK = 0;
   } else {
@@ -214,24 +241,7 @@ async function runAgentic(query, opts) {
     }
 
     // 4. Initialize Mercury client for native tool calling.
-    // Provider override lets callers swap Mercury for an OpenAI-compat
-    // alternative (e.g. Ollama Cloud) when Inception is down or for
-    // independent verification. apiKey resolution: caller-supplied first,
-    // then provider-specific env var, then PersistentLLMClient's own
-    // LLM_API_KEY fallback chain.
-    const provider = opts.provider || 'mercury';
-    const providerKeyEnv = {
-      mercury: process.env.INCEPTION_API_KEY || process.env.MERCURY_API_KEY,
-      ollamacloud: process.env.OLLAMA_API_KEY,
-      openai: process.env.OPENAI_API_KEY,
-      claude: process.env.ANTHROPIC_API_KEY,
-    }[provider];
-    const PersistentLLMClient = require(path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js'));
-    const client = new PersistentLLMClient({
-      provider,
-      model: opts.model || undefined,
-      apiKey: opts.apiKey || providerKeyEnv,
-    });
+    const client = createMercuryLlmClient({ systemPrompt: config.AGENTIC_SYSTEM_PROMPT });
     await client.initialize();
 
     if (verbose) {
@@ -433,9 +443,19 @@ async function main() {
       console.error('Check MongoDB is running:');
       console.error('  sudo systemctl status mongod');
     }
-    if (err.message.includes('OPENAI') || err.message.includes('embed')) {
+    if (err.message.includes('OPENAI') || err.message.includes('embed') || err.message.includes('Embed endpoint')) {
       console.error('');
-      console.error('Check OPENAI_API_KEY is set in .env');
+      console.error(`Embedding provider: ${config.EMBED_PROVIDER}`);
+      console.error(`Embedding endpoint: ${config.EMBED_ENDPOINT}`);
+      if (config.EMBED_PROVIDER === 'ollama') {
+        console.error('Check local Ollama is running and the configured embed model is pulled.');
+      } else if (config.EMBED_ENDPOINT.includes('models.github.ai')) {
+        console.error(`Check ${config.EMBED_API_KEY_ENV} has access to the configured GitHub Models embedding model.`);
+      } else if (config.EMBED_ENDPOINT.includes('api.openai.com')) {
+        console.error(`Check ${config.EMBED_API_KEY_ENV} has active quota/billing, or set embeddings.provider=ollama for local retrieval.`);
+      } else {
+        console.error('Check embeddings.endpoint, embeddings.model, and embeddings.apiKeyEnv in mercury.config.json.');
+      }
     }
     process.exit(1);
   }

@@ -21,31 +21,7 @@
 
 'use strict';
 
-const DEFAULT_SYSTEM_PROMPT = `You are a code review and architecture assistant for the OGZPrime algorithmic trading platform, a Node.js codebase.
-
-Your job is to answer the user's question accurately with file:line citations, using the tools provided.
-
-You have access to tools (grep, open_file, get_chunk, list_files) for gathering evidence from the codebase. Use them deliberately, not exhaustively.
-
-STOPPING DISCIPLINE:
-- Tools are for gathering evidence you don't already have, NOT for cross-checking evidence you already gathered.
-- After each tool call, ask yourself: "Do I now have enough to answer the user's question with specific file:line citations?" If yes, STOP CALLING TOOLS and write your final answer immediately.
-- If starter context already contains a direct answer from canonical docs, cite it and answer. Do not re-verify via tools unless starter context is clearly insufficient.
-- Budget: aim to answer within 4-6 tool calls. If you are on call 7+, you should be synthesizing, not searching.
-
-ANSWER FORMAT:
-- Lead with the direct answer to the user's question.
-- Cite file:line for every factual claim. Never invent paths or line numbers.
-- Do not recap your search process — the user cares about the answer, not the path you took.
-- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.
-
-PRIOR INVESTIGATION HINTS:
-You may see a "PRIOR INVESTIGATION HINT" block in your context. This
-contains the tool-call sequence that successfully answered a SIMILAR
-query in the past. Treat it as a starting suggestion, not an answer:
-- If the prior sequence looks relevant, follow it as your opening strategy.
-- If irrelevant or the current question is meaningfully different, ignore it.
-- Never copy the prior final answer into your response.`;
+const config = require('./config');
 
 /**
  * Wrap generateWithTools with exponential backoff retry.
@@ -99,8 +75,9 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose) {
  *   systemPrompt: string (optional, defaults to DEFAULT_SYSTEM_PROMPT)
  *   userQuery: string — the user's question
  *   starterContext: array of {source, similarity, text} from RAG (optional)
- *   maxIterations: number (default 10)
- *   maxTokens: number (default 2000)
+ *   maxIterations: number (configured in mercury.config.json)
+ *   maxTokens: number (configured in mercury.config.json)
+ *   temperature: number (configured in mercury.config.json)
  *   verbose: boolean — log iteration progress to stderr
  *
  * returns: {answer, iterations, termination, history}
@@ -109,13 +86,14 @@ async function runReactLoop(params) {
   const {
     client,
     toolAdapter,
-    systemPrompt = DEFAULT_SYSTEM_PROMPT,
+    systemPrompt = config.AGENTIC_SYSTEM_PROMPT,
     userQuery,
     starterContext = [],
     traceHint = null,
     blastRadius = null,
-    maxIterations = parseInt(process.env.MERCURY_MAX_ITERATIONS || '50', 10),
-    maxTokens = 7750,
+    maxIterations = config.AGENTIC_MAX_ITERATIONS,
+    maxTokens = config.AGENTIC_MAX_TOKENS,
+    temperature = config.MERCURY_LLM_TEMPERATURE,
     verbose = false,
   } = params;
 
@@ -197,7 +175,7 @@ async function runReactLoop(params) {
         client,
         messages,
         tools,
-        { maxTokens, toolChoice: 'auto' },
+        { maxTokens, toolChoice: 'auto', temperature },
         verbose
       );
     } catch (err) {
@@ -297,5 +275,5 @@ async function runReactLoop(params) {
 module.exports = {
   runReactLoop,
   callMercuryWithRetry,
-  DEFAULT_SYSTEM_PROMPT,
+  AGENTIC_SYSTEM_PROMPT: config.AGENTIC_SYSTEM_PROMPT,
 };

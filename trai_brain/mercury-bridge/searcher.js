@@ -7,22 +7,34 @@
  *   3. Reciprocal Rank Fusion merge (RRF — new)
  *   4. Content-type-aware boost multipliers (new)
  *
- * Fallback: set HYBRID_ENABLED=false to revert to pure semantic search.
+ * Retrieval behavior is owned by mercury.config.json.
  *
  * Rewritten 2026-04-08 for Layer 2 hybrid retrieval.
  */
 
 'use strict';
 
-const path = require('path');
-
 const config = require('./config');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
+const { createMercuryLlmClient } = require('./llm-client');
 
-const PersistentLLMClient = require(
-  path.join(config.REPO_ROOT, 'core', 'persistent_llm_client.js')
-);
+function optionalPositiveInteger(value, name) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
+function configExactInteger(value, configuredValue, name) {
+  if (value == null) return configuredValue;
+  const parsed = optionalPositiveInteger(value, name);
+  if (parsed !== configuredValue) {
+    throw new Error(`${name} must match mercury.config.json value ${configuredValue}`);
+  }
+  return configuredValue;
+}
 
 // ─────────────────────────────────────────────────────────────
 // COSINE SIMILARITY
@@ -372,8 +384,8 @@ function buildPrompt(userQuery, retrievedChunks) {
 // ─────────────────────────────────────────────────────────────
 
 async function ask(query, opts = {}) {
-  const topK = opts.topK || config.RETRIEVE_TOP_K;
-  const maxTokens = opts.maxTokens || 2000;
+  const topK = optionalPositiveInteger(opts.topK, 'topK') ?? config.RETRIEVE_TOP_K;
+  const maxTokens = configExactInteger(opts.maxTokens, config.SINGLE_SHOT_MAX_TOKENS, 'maxTokens');
   const verbose = opts.verbose !== false;
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -417,10 +429,10 @@ async function ask(query, opts = {}) {
 
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Prompt length: ${prompt.length} chars`);
-      console.log('[MERCURY-BRIDGE] Calling Mercury-2...');
+      console.log(`[MERCURY-BRIDGE] Calling ${config.MERCURY_LLM_PROVIDER}/${config.MERCURY_LLM_MODEL}...`);
     }
 
-    const client = new PersistentLLMClient({ provider: 'mercury' });
+    const client = createMercuryLlmClient({ systemPrompt: config.MERCURY_SYSTEM_PROMPT });
     await client.initialize();
     const answer = await client.generateResponse(prompt, maxTokens);
 

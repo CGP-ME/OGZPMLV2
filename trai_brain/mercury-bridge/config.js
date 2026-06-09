@@ -73,6 +73,18 @@ function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGA
   return value;
 }
 
+function requiredText(config, dottedPath) {
+  const value = getConfigValue(config, dottedPath);
+  if (typeof value === 'string' && value.trim() !== '') {
+    return value.trim();
+  }
+  if (Array.isArray(value) && value.every((line) => typeof line === 'string')) {
+    const joined = value.join('\n').trim();
+    if (joined !== '') return joined;
+  }
+  throw new Error(`Missing mercury.config.json text value: ${dottedPath}`);
+}
+
 function loadMercuryIgnore(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing Mercury ignore contract: ${filePath}`);
@@ -226,6 +238,39 @@ const TRACE_STALE_DAYS = requiredNumber(MERCURY_CONFIG, 'traceMemory.staleDays',
 const TRACE_MAX_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.maxCount', { integer: true, min: 1 });
 const TRACE_PROTECTED_USAGE_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.protectedUsageCount', { integer: true, min: 0 });
 
+// ─── Mercury LLM client ───────────────────────────────────────
+const MERCURY_LLM_PROVIDER = requiredString(MERCURY_CONFIG, 'llm.provider').toLowerCase();
+const MERCURY_LLM_BASE_URL = requiredString(MERCURY_CONFIG, 'llm.baseUrl');
+const MERCURY_LLM_MODEL = requiredString(MERCURY_CONFIG, 'llm.model');
+const MERCURY_LLM_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'llm.apiKeyEnv');
+const MERCURY_LLM_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMaxTokens', { integer: true, min: 1 });
+const MERCURY_LLM_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'llm.temperature', { min: 0 });
+const AGENTIC_MAX_ITERATIONS = requiredNumber(MERCURY_CONFIG, 'agentic.maxIterations', { integer: true, min: 1 });
+const AGENTIC_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'agentic.maxTokens', { integer: true, min: 1 });
+const SINGLE_SHOT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'singleShot.maxTokens', { integer: true, min: 1 });
+const AGENTIC_SYSTEM_PROMPT = requiredText(MERCURY_CONFIG, 'agentic.systemPrompt');
+const MERCURY_SYSTEM_PROMPT = requiredText(MERCURY_CONFIG, 'singleShot.systemPrompt');
+
+const supportedLlmProviders = new Set(['mercury', 'ollamacloud', 'openai', 'claude', 'ollama']);
+if (!supportedLlmProviders.has(MERCURY_LLM_PROVIDER)) {
+  throw new Error(`Unsupported llm.provider=${MERCURY_LLM_PROVIDER}. Use ${Array.from(supportedLlmProviders).join(', ')}.`);
+}
+try {
+  const llmBaseUrl = new URL(MERCURY_LLM_BASE_URL);
+  if (llmBaseUrl.username || llmBaseUrl.password || llmBaseUrl.search || llmBaseUrl.hash) {
+    throw new Error('llm.baseUrl must not contain credentials, query parameters, or fragments');
+  }
+} catch (err) {
+  throw new Error(`Invalid mercury.config.json value: llm.baseUrl: ${err.message}`);
+}
+if (MERCURY_LLM_PROVIDER === 'ollama') {
+  if (MERCURY_LLM_API_KEY_ENV) {
+    throw new Error('llm.apiKeyEnv must be empty when llm.provider=ollama');
+  }
+} else if (!MERCURY_LLM_API_KEY_ENV) {
+  throw new Error('llm.apiKeyEnv is required for non-local Mercury LLM providers');
+}
+
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
 // visible and shared by the indexer, Mercury grep, and legacy repo search.
@@ -269,17 +314,6 @@ const INDEX_FILE_EXTENSIONS = new Set([
   '.jsonl',   // structured records (fixes.jsonl, etc.)
 ]);
 
-// ─── Mercury prompt guidance ──────────────────────────────────
-// System prompt appended to retrieved context before Mercury call
-const MERCURY_SYSTEM_PROMPT = `You are a code review and architecture assistant for the OGZPrime trading platform. You have access to the retrieved code chunks provided below as your ONLY source of ground truth. Rules:
-
-1. Answer using ONLY the retrieved chunks. If the answer is not in the retrieved chunks, say "not in retrieved context" rather than guessing.
-2. Cite file:line for every factual claim in the format \`path/to/file.js:start-end\`.
-3. If chunks contradict each other, surface the contradiction explicitly.
-4. Be terse. Prefer structure over prose. Lead with the answer, then evidence.
-5. Do not invent functions, variables, or file paths that are not in the retrieved context.
-6. If the user asks you to modify code, respond with what you would change and why — do not output code unless explicitly asked for code.`;
-
 module.exports = {
   REPO_ROOT,
   MONGO_URI,
@@ -321,6 +355,16 @@ module.exports = {
   TRACE_STALE_DAYS,
   TRACE_MAX_COUNT,
   TRACE_PROTECTED_USAGE_COUNT,
+  MERCURY_LLM_PROVIDER,
+  MERCURY_LLM_BASE_URL,
+  MERCURY_LLM_MODEL,
+  MERCURY_LLM_API_KEY_ENV,
+  MERCURY_LLM_CLIENT_MAX_TOKENS,
+  MERCURY_LLM_TEMPERATURE,
+  AGENTIC_MAX_ITERATIONS,
+  AGENTIC_MAX_TOKENS,
+  SINGLE_SHOT_MAX_TOKENS,
+  AGENTIC_SYSTEM_PROMPT,
   SKIP_DIRS,
   SKIP_FILE_EXTENSIONS,
   SKIP_FILE_PATTERNS,

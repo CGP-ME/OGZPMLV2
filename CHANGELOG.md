@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury LLM Runtime Contract (2026-06-09)
+
+- Moved Mercury bridge LLM identity, API-key env ownership, loop budgets, token budgets, temperature, and system prompts into `mercury.config.json`; added a dedicated client helper that rejects missing configured keys/prompts and verifies `PersistentLLMClient` did not fall back to env/default values.
+- Kept the standard `--max-iterations=60 --max-tokens=7750` Mercury command compatible while rejecting mismatched CLI token/iteration overrides, and added focused tests for LLM config ownership and invalid numeric override failures.
+
 ### Mercury Config Contract (2026-06-09)
 
 - Moved Mercury embedder, Mongo lane, batching, chunking, retrieval, and trace-memory tunables into repo-root `mercury.config.json`, removed env/default fallback chains from Mercury bridge config loading, and kept provider API-key lookup explicit through the configured `embeddings.apiKeyEnv`.
