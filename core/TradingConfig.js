@@ -844,7 +844,6 @@ const BASE_CONFIG = {
   // only — slash form is a path-traversal hazard at filename interpolation.
   sessions: {
     routerEnabled: envBool('SESSION_ROUTER_ENABLED', false),
-    stockSymbols: ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'],
     cryptoSymbols: ['BTC-USD','ETH-USD','SOL-USD'],
     checkIntervalMs: 60000,
     forceCloseOnSessionEnd: true,

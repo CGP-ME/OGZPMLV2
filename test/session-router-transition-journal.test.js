@@ -5,12 +5,14 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter transition journal', () => {
   const now = new Date('2026-05-26T14:30:00.000Z');
   let tempDir;
   let consoleLogSpy;
   let consoleErrorSpy;
+  let restoreRuntimeEnv;
 
   function makeRouter(overrides = {}) {
     const router = new SessionRouter({
@@ -85,6 +87,7 @@ describe('SessionRouter transition journal', () => {
   }
 
   beforeEach(() => {
+    restoreRuntimeEnv = applyExplicitRuntimeTestEnv();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-journal-'));
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -94,6 +97,7 @@ describe('SessionRouter transition journal', () => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
+    restoreRuntimeEnv();
   });
 
   test('successful transition appends ordered durable phase events', async () => {

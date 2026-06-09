@@ -146,24 +146,26 @@ function buildRuntimeAuditContext(runtimeScope, extra = {}) {
 
 function resolveAlpacaSymbols(brokerConfig = {}, options = {}) {
   const explicitSymbols = splitSymbols(brokerConfig.alpacaSymbols);
-  const fallbackSymbols = splitSymbols(options.fallbackSymbols);
-  const tradingPairSymbols = splitSymbols(brokerConfig.tradingPair);
+  const allowTradingPairFallback = options.allowTradingPairFallback !== false;
+  const tradingPairSymbols = allowTradingPairFallback ? splitSymbols(brokerConfig.tradingPair) : [];
   const symbols = explicitSymbols.length > 0
     ? explicitSymbols
-    : (fallbackSymbols.length > 0 ? fallbackSymbols : tradingPairSymbols);
+    : tradingPairSymbols;
   if (symbols.length === 0) {
-    throw new Error('[Alpaca] ALPACA_SYMBOLS or TRADING_PAIR must provide at least one symbol');
+    const source = allowTradingPairFallback ? 'ALPACA_SYMBOLS or TRADING_PAIR' : 'ALPACA_SYMBOLS';
+    throw new Error(`[Alpaca] ${source} must provide at least one symbol`);
   }
   return symbols;
 }
 
 function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
+  const symbols = resolveAlpacaSymbols(brokerConfig, options);
   return {
     apiKey: brokerConfig.alpacaApiKey,
     apiSecret: brokerConfig.alpacaApiSecret,
     mode: brokerConfig.alpacaMode,
-    tradingPair: brokerConfig.tradingPair,
-    symbols: resolveAlpacaSymbols(brokerConfig, options),
+    tradingPair: symbols[0],
+    symbols,
     accountId: brokerConfig.accountId,
   };
 }
@@ -479,7 +481,7 @@ function looksLikeEquityTicker(symbol) {
 function splitSymbols(raw) {
   if (!raw) return [];
   const values = Array.isArray(raw) ? raw : String(raw).split(',');
-  return values.map(s => String(s).trim()).filter(Boolean);
+  return values.map(s => String(s).trim().toUpperCase()).filter(Boolean);
 }
 
 function describeSymbolContexts(map) {
@@ -798,7 +800,7 @@ class OGZPrimeV14Bot {
         symbols: [primaryCryptoSymbol],
       });
       const alpacaAdapterOptions = buildAlpacaAdapterOptions(resolvedConfig.config.broker, {
-        fallbackSymbols: sessionsCfg.stockSymbols,
+        allowTradingPairFallback: false,
       });
       const alpacaAdapter = createBrokerAdapter('alpaca', alpacaAdapterOptions);
 
@@ -1086,7 +1088,7 @@ class OGZPrimeV14Bot {
       const sessionRouterEnabled = process.env.SESSION_ROUTER_ENABLED === 'true';
       const sessionsCfg = (TradingConfig.get && TradingConfig.get('sessions')) || {};
       const alpacaSymbols = resolveAlpacaSymbols(resolvedConfig.config.broker, {
-        fallbackSymbols: sessionsCfg.stockSymbols,
+        allowTradingPairFallback: !sessionRouterEnabled,
       });
       const rawSymbols = sessionRouterEnabled
         ? [

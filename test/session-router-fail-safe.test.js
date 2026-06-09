@@ -5,12 +5,14 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter failed-safe transition behavior', () => {
   const now = new Date('2026-05-26T14:30:00.000Z');
   let consoleLogSpy;
   let consoleErrorSpy;
   let tempDir;
+  let restoreRuntimeEnv;
 
   function makeRouter(overrides = {}) {
     const router = new SessionRouter({
@@ -85,6 +87,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
   }
 
   beforeEach(() => {
+    restoreRuntimeEnv = applyExplicitRuntimeTestEnv();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-fail-safe-'));
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -94,6 +97,7 @@ describe('SessionRouter failed-safe transition behavior', () => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
+    restoreRuntimeEnv();
   });
 
   test('transition to stocks failure enters failed-safe mode without resuming trading', async () => {

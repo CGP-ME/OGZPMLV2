@@ -5,10 +5,12 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter TransitionStore status projection', () => {
   let tempDir;
   let consoleLogSpy;
+  let restoreRuntimeEnv;
 
   function makeRouter(options = {}) {
     return new SessionRouter({
@@ -20,6 +22,7 @@ describe('SessionRouter TransitionStore status projection', () => {
   }
 
   beforeEach(() => {
+    restoreRuntimeEnv = applyExplicitRuntimeTestEnv();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-store-status-'));
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   });
@@ -27,6 +30,7 @@ describe('SessionRouter TransitionStore status projection', () => {
   afterEach(() => {
     consoleLogSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
+    restoreRuntimeEnv();
   });
 
   test('disabled router exposes idle transition store status when files are missing', () => {

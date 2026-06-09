@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const SessionRouter = require('../core/SessionRouter');
+const { applyExplicitRuntimeTestEnv } = require('./fixtures/explicit-runtime-env');
 
 describe('SessionRouter OHLC epoch fencing', () => {
   const now = new Date('2026-05-29T14:30:00.000Z');
@@ -12,6 +13,7 @@ describe('SessionRouter OHLC epoch fencing', () => {
   let consoleLogSpy;
   let consoleWarnSpy;
   let consoleErrorSpy;
+  let restoreRuntimeEnv;
 
   function makeAdapter(id, balance) {
     const handlers = [];
@@ -87,6 +89,7 @@ describe('SessionRouter OHLC epoch fencing', () => {
   }
 
   beforeEach(() => {
+    restoreRuntimeEnv = applyExplicitRuntimeTestEnv();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-router-epoch-'));
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -98,6 +101,7 @@ describe('SessionRouter OHLC epoch fencing', () => {
     consoleWarnSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     fs.rmSync(tempDir, { recursive: true, force: true });
+    restoreRuntimeEnv();
   });
 
   test('rejects stale source OHLC callback after session transition', async () => {

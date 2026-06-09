@@ -60,13 +60,6 @@ function addConfiguredStockSymbols(symbols, raw) {
 function configuredStockSymbols() {
   const symbols = new Set();
   try {
-    const sessionSymbols = getConfigValue('sessions.stockSymbols');
-    if (Array.isArray(sessionSymbols)) {
-      sessionSymbols.forEach(symbol => {
-        if (typeof symbol === 'string' && symbol.trim()) symbols.add(symbol.trim().toUpperCase());
-      });
-    }
-
     addConfiguredStockSymbols(symbols, getConfigValue('broker.alpacaSymbols'));
     const brokerId = getConfigValue('broker.id');
     const assetClass = getConfigValue('broker.assetClass');

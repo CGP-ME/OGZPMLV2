@@ -55,8 +55,6 @@ class SessionRouter extends EventEmitter {
     this.krakenAdapter = null;
     this.alpacaAdapter = null;
     this.orderRouter = null;
-    this.stateManager = getStateManager();
-    this.transitionStore = config.transitionStore || new TransitionStore(config.transitionStoreOptions || {});
 
     this.activeSession = null;     // 'crypto' | 'stocks' | null
     this.activeBroker = null;
@@ -86,8 +84,25 @@ class SessionRouter extends EventEmitter {
     // Dash-form symbols only — slash form is a path-traversal hazard
     // (path.join('data', 'BTC/USD.json') creates BTC/ subdir). Kraken's
     // native slash form is translated at the adapter boundary.
-    this.stockSymbols = config.stockSymbols || ['TSLA','SPY','QQQ','NVDA','COIN','MARA','RIOT'];
-    this.cryptoSymbols = config.cryptoSymbols || ['BTC-USD','ETH-USD','SOL-USD'];
+    this.stockSymbols = Array.isArray(config.stockSymbols)
+      ? config.stockSymbols
+        .filter(symbol => typeof symbol === 'string' && symbol.trim())
+        .map(symbol => symbol.trim().toUpperCase())
+      : [];
+    if (this.enabled && this.stockSymbols.length === 0) {
+      throw new Error('[SessionRouter] stockSymbols must be explicitly provided when SessionRouter is enabled');
+    }
+    this.cryptoSymbols = Array.isArray(config.cryptoSymbols)
+      ? config.cryptoSymbols
+        .filter(symbol => typeof symbol === 'string' && symbol.trim())
+        .map(symbol => symbol.trim().toUpperCase().replace(/\//g, '-').replace(/^XBT/, 'BTC'))
+      : [];
+    if (this.enabled && this.cryptoSymbols.length === 0) {
+      throw new Error('[SessionRouter] cryptoSymbols must be explicitly provided when SessionRouter is enabled');
+    }
+
+    this.stateManager = getStateManager();
+    this.transitionStore = config.transitionStore || new TransitionStore(config.transitionStoreOptions || {});
 
     this.onOhlcCallback = null;
     this.ctx = null;
