@@ -1,13 +1,13 @@
 /**
  * Mercury Bridge — Indexer
  * ══════════════════════════════════════════════════════════════
- * Walks the OGZPrime repo, chunks source files, embeds each chunk via
- * Ollama (nomic-embed-text), and stores everything in MongoDB.
+ * Walks the OGZPrime repo, chunks source files, embeds each chunk via the
+ * provider configured in mercury.config.json, and stores everything in MongoDB.
  *
  * Run:
  *   node trai_brain/mercury-bridge/indexer.js
  *
- * Environment overrides: see config.js
+ * Runtime tunables: mercury.config.json
  *
  * MVP behavior: full reindex every run (clears all chunks first).
  * v2 will add incremental reindex via git diff.
@@ -21,7 +21,7 @@ const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
 
-// Load .env from repo root so OPENAI_API_KEY is available for embeddings
+// Load .env from repo root so configured provider API keys are available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const config = require('./config');
@@ -450,7 +450,7 @@ function chunkJsonl(text, filePath) {
 }
 
 /**
- * Sliding window chunker. Generic fallback.
+ * Sliding window chunker for files without a structural chunker.
  */
 function slidingWindow(text, windowSize, overlap) {
   const chunks = [];
@@ -466,7 +466,7 @@ function slidingWindow(text, windowSize, overlap) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EMBEDDER (OpenAI-compatible default, local Ollama opt-in)
+// EMBEDDER (provider, endpoint, model, and dimensions are owned by mercury.config.json)
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -842,7 +842,7 @@ async function main() {
 
   const embedded = allChunks.filter((c) => c.embedding !== null);
   if (embedded.length === 0) {
-    console.error('[MERCURY-BRIDGE] FATAL: no chunks successfully embedded. Check Ollama is running and nomic-embed-text is pulled.');
+    console.error(`[MERCURY-BRIDGE] FATAL: no chunks successfully embedded. Check embed provider=${config.EMBED_PROVIDER} model=${config.EMBED_MODEL}.`);
     await store.disconnect();
     process.exit(1);
   }

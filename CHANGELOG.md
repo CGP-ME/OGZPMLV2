@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Config Contract (2026-06-09)
+
+- Moved Mercury embedder, Mongo lane, batching, chunking, retrieval, and trace-memory tunables into repo-root `mercury.config.json`, removed env/default fallback chains from Mercury bridge config loading, and kept provider API-key lookup explicit through the configured `embeddings.apiKeyEnv`.
+
 ### Mercury Ignore Contract (2026-06-09)
 
 - Moved Mercury retrieval/index directory exclusions into repo-root `mercury.ignore`, made the bridge fail loud when the ignore contract is missing or malformed, and kept indexer, Mercury grep, and legacy repo search on the same intake/history exclusion list.

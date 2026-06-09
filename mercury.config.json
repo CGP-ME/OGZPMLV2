@@ -1,0 +1,45 @@
+{
+  "mongo": {
+    "uri": "mongodb://localhost:27017",
+    "dbName": "ogz_knowledge",
+    "chunksCollection": "chunks_local_nomic",
+    "statsCollection": "index_stats_local_nomic"
+  },
+  "embeddings": {
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434/api/embed",
+    "model": "nomic-embed-text",
+    "dimensions": 768,
+    "apiKeyEnv": null
+  },
+  "batching": {
+    "maxChunks": 1,
+    "maxTokens": 2000,
+    "failOnBatchError": true,
+    "minIntervalMs": 0
+  },
+  "chunking": {
+    "windowSize": 1000,
+    "windowOverlap": 100,
+    "maxFileBytes": 500000,
+    "maxChunkChars": 1500
+  },
+  "retrieval": {
+    "topK": 8,
+    "bm25K1": 1.2,
+    "bm25B": 0.75,
+    "rrfK": 60,
+    "hybridCandidatePool": 50,
+    "contentTypeBoostStrong": 1.5,
+    "contentTypeBoostWeak": 1.2,
+    "hybridEnabled": true
+  },
+  "traceMemory": {
+    "enabled": false,
+    "injectThreshold": 0.75,
+    "dedupThreshold": 0.92,
+    "staleDays": 30,
+    "maxCount": 10000,
+    "protectedUsageCount": 3
+  }
+}

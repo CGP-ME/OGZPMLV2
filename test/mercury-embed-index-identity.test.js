@@ -1,5 +1,11 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const baseMercuryConfig = require('../mercury.config.json');
+
 async function withEnv(env, fn) {
   const previous = {};
   for (const key of Object.keys(env)) {
@@ -20,15 +26,59 @@ async function withEnv(env, fn) {
   }
 }
 
+function mergeConfig(base, overrides = {}) {
+  const result = { ...base };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (
+      value
+      && typeof value === 'object'
+      && !Array.isArray(value)
+      && base[key]
+      && typeof base[key] === 'object'
+      && !Array.isArray(base[key])
+    ) {
+      result[key] = mergeConfig(base[key], value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+async function withMercuryConfig(overrides, fn, env = {}) {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-mercury-config-'));
+  const configPath = path.join(tmpRoot, 'mercury.config.json');
+  const config = mergeConfig(baseMercuryConfig, overrides);
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+  try {
+    return await withEnv({
+      MERCURY_CONFIG_FILE: configPath,
+      MERCURY_TEST_EMBED_API_KEY: 'test-key',
+      ...env,
+    }, fn);
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+}
+
+const openAiSmallConfig = {
+  mongo: {
+    chunksCollection: 'chunks',
+    statsCollection: 'index_stats',
+  },
+  embeddings: {
+    provider: 'openai-compatible',
+    endpoint: 'https://api.openai.com/v1/embeddings',
+    model: 'text-embedding-3-small',
+    dimensions: 1536,
+    apiKeyEnv: 'MERCURY_TEST_EMBED_API_KEY',
+  },
+};
+
 describe('Mercury embedding index identity', () => {
   test('local Nomic index has a distinct provider/model/dimension identity', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      MONGO_COLLECTION_CHUNKS: undefined,
-      MONGO_COLLECTION_STATS: undefined,
-      EMBED_DIMENSIONS: undefined,
-    }, () => {
+    await withMercuryConfig({}, () => {
       const config = require('../trai_brain/mercury-bridge/config');
 
       expect(config.EMBED_PROVIDER).toBe('ollama');
@@ -39,11 +89,7 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('OpenAI-compatible small embedding index has its own identity', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'openai-compatible',
-      EMBED_MODEL: 'text-embedding-3-small',
-      EMBED_DIMENSIONS: undefined,
-    }, () => {
+    await withMercuryConfig(openAiSmallConfig, () => {
       const config = require('../trai_brain/mercury-bridge/config');
 
       expect(config.EMBED_PROVIDER).toBe('openai-compatible');
@@ -53,22 +99,48 @@ describe('Mercury embedding index identity', () => {
     });
   });
 
-  test('same model and dimensions get different index identities for different endpoints', async () => {
-    const first = await withEnv({
+  test('environment embedding values do not override mercury.config.json lane identity', async () => {
+    await withMercuryConfig({}, () => {
+      const config = require('../trai_brain/mercury-bridge/config');
+
+      expect(config.EMBED_PROVIDER).toBe('ollama');
+      expect(config.EMBED_MODEL).toBe('nomic-embed-text');
+      expect(config.EMBED_DIMENSIONS).toBe(768);
+    }, {
       EMBED_PROVIDER: 'openai-compatible',
-      EMBED_MODEL: 'text-embedding-3-small',
       EMBED_ENDPOINT: 'https://api.openai.com/v1/embeddings',
-      EMBED_DIMENSIONS: undefined,
-    }, () => {
+      EMBED_MODEL: 'text-embedding-3-small',
+      EMBED_DIMENSIONS: '1536',
+      EMBED_API_KEY: 'env-key-must-not-be-read',
+      OPENAI_API_KEY: 'openai-fallback-must-not-be-read',
+      GITHUB_TOKEN: 'github-fallback-must-not-be-read',
+    });
+  });
+
+  test('OpenAI-compatible config requires its explicit apiKeyEnv value', async () => {
+    await withMercuryConfig(openAiSmallConfig, () => {
+      expect(() => require('../trai_brain/mercury-bridge/config'))
+        .toThrow(/Configured embedding API key env is missing: MERCURY_TEST_EMBED_API_KEY/);
+    }, {
+      MERCURY_TEST_EMBED_API_KEY: undefined,
+      EMBED_API_KEY: 'env-key-must-not-be-read',
+      OPENAI_API_KEY: 'openai-fallback-must-not-be-read',
+      GITHUB_TOKEN: 'github-fallback-must-not-be-read',
+    });
+  });
+
+  test('same model and dimensions get different index identities for different endpoints', async () => {
+    const first = await withMercuryConfig(openAiSmallConfig, () => {
       const config = require('../trai_brain/mercury-bridge/config');
       return config.EMBED_INDEX_ID;
     });
 
-    const second = await withEnv({
-      EMBED_PROVIDER: 'openai-compatible',
-      EMBED_MODEL: 'text-embedding-3-small',
-      EMBED_ENDPOINT: 'https://models.github.ai/inference/embeddings',
-      EMBED_DIMENSIONS: undefined,
+    const second = await withMercuryConfig({
+      ...openAiSmallConfig,
+      embeddings: {
+        ...openAiSmallConfig.embeddings,
+        endpoint: 'https://models.github.ai/inference/embeddings',
+      },
     }, () => {
       const config = require('../trai_brain/mercury-bridge/config');
       return config.EMBED_INDEX_ID;
@@ -85,11 +157,12 @@ describe('Mercury embedding index identity', () => {
       'https://api.openai.com/v1/embeddings#proxy',
       'https://user:pass@api.openai.com/v1/embeddings',
     ]) {
-      await withEnv({
-        EMBED_PROVIDER: 'openai-compatible',
-        EMBED_MODEL: 'text-embedding-3-small',
-        EMBED_ENDPOINT: endpoint,
-        EMBED_DIMENSIONS: undefined,
+      await withMercuryConfig({
+        ...openAiSmallConfig,
+        embeddings: {
+          ...openAiSmallConfig.embeddings,
+          endpoint,
+        },
       }, () => {
         expect(() => require('../trai_brain/mercury-bridge/config'))
           .toThrow(/must not contain credentials, query parameters, or fragments/);
@@ -98,22 +171,21 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('unknown embedding models require explicit dimensions', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'openai-compatible',
-      EMBED_MODEL: 'custom-embedding-model',
-      EMBED_DIMENSIONS: undefined,
+    await withMercuryConfig({
+      ...openAiSmallConfig,
+      embeddings: {
+        ...openAiSmallConfig.embeddings,
+        model: 'custom-embedding-model',
+        dimensions: undefined,
+      },
     }, () => {
       expect(() => require('../trai_brain/mercury-bridge/config'))
-        .toThrow(/EMBED_DIMENSIONS is required/);
+        .toThrow(/embeddings\.dimensions/);
     });
   });
 
   test('MongoStore filters reads and clears by active embedding index', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      EMBED_DIMENSIONS: undefined,
-    }, async () => {
+    await withMercuryConfig({}, async () => {
       const config = require('../trai_brain/mercury-bridge/config');
       const MongoStore = require('../trai_brain/mercury-bridge/mongo-store');
       const store = new MongoStore();
@@ -153,12 +225,11 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('MongoStore collection override still filters by active embedding lane', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      EMBED_DIMENSIONS: undefined,
-      MONGO_COLLECTION_CHUNKS: 'shared_chunks',
-      MONGO_COLLECTION_STATS: 'shared_index_stats',
+    await withMercuryConfig({
+      mongo: {
+        chunksCollection: 'shared_chunks',
+        statsCollection: 'shared_index_stats',
+      },
     }, async () => {
       const config = require('../trai_brain/mercury-bridge/config');
       const MongoStore = require('../trai_brain/mercury-bridge/mongo-store');
@@ -184,11 +255,7 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('MongoStore rejects chunks from another embedding index', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      EMBED_DIMENSIONS: undefined,
-    }, () => {
+    await withMercuryConfig({}, () => {
       const MongoStore = require('../trai_brain/mercury-bridge/mongo-store');
       const store = new MongoStore();
 
@@ -201,11 +268,7 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('MongoStore rejects chunks with spoofed index identity metadata', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      EMBED_DIMENSIONS: undefined,
-    }, () => {
+    await withMercuryConfig({}, () => {
       const config = require('../trai_brain/mercury-bridge/config');
       const MongoStore = require('../trai_brain/mercury-bridge/mongo-store');
       const store = new MongoStore();
@@ -236,11 +299,7 @@ describe('Mercury embedding index identity', () => {
   });
 
   test('MongoStore rejects contaminated chunks returned by active-lane reads', async () => {
-    await withEnv({
-      EMBED_PROVIDER: 'ollama',
-      EMBED_MODEL: 'nomic-embed-text',
-      EMBED_DIMENSIONS: undefined,
-    }, async () => {
+    await withMercuryConfig({}, async () => {
       const config = require('../trai_brain/mercury-bridge/config');
       const MongoStore = require('../trai_brain/mercury-bridge/mongo-store');
       const store = new MongoStore();

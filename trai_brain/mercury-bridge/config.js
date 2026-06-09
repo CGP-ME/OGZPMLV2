@@ -1,8 +1,8 @@
 /**
  * Mercury Bridge — Configuration
  * ══════════════════════════════════════════════════════════════
- * All env-driven. No hardcoded paths or keys.
- * Override any value via .env or environment.
+ * Runtime tunables live in mercury.config.json.
+ * Secrets are read only through explicitly configured env key names.
  */
 
 'use strict';
@@ -11,11 +11,67 @@ const fs = require('fs');
 const path = require('path');
 
 // ─── Repo root ────────────────────────────────────────────────
-// Default assumes this file lives at trai_brain/mercury-bridge/
-// Going up 2 levels lands at the repo root.
-const REPO_ROOT = process.env.OGZ_REPO_ROOT
-  || path.resolve(__dirname, '..', '..');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const MERCURY_CONFIG_FILE = process.env.NODE_ENV === 'test' && process.env.MERCURY_CONFIG_FILE
+  ? path.resolve(process.env.MERCURY_CONFIG_FILE)
+  : path.join(REPO_ROOT, 'mercury.config.json');
 const MERCURY_IGNORE_FILE = path.join(REPO_ROOT, 'mercury.ignore');
+
+function getConfigValue(config, dottedPath) {
+  return dottedPath.split('.').reduce((current, key) => (
+    current && Object.prototype.hasOwnProperty.call(current, key) ? current[key] : undefined
+  ), config);
+}
+
+function readMercuryConfig(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing Mercury config contract: ${filePath}`);
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    throw new Error(`Invalid Mercury config JSON at ${filePath}: ${err.message}`);
+  }
+}
+
+function requiredString(config, dottedPath) {
+  const value = getConfigValue(config, dottedPath);
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Missing mercury.config.json value: ${dottedPath}`);
+  }
+  return value.trim();
+}
+
+function optionalString(config, dottedPath) {
+  const value = getConfigValue(config, dottedPath);
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be a string`);
+  }
+  return value.trim();
+}
+
+function requiredBoolean(config, dottedPath) {
+  const value = getConfigValue(config, dottedPath);
+  if (typeof value !== 'boolean') {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be a boolean`);
+  }
+  return value;
+}
+
+function requiredNumber(config, dottedPath, { integer = false, min = Number.NEGATIVE_INFINITY } = {}) {
+  const value = getConfigValue(config, dottedPath);
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be a finite number`);
+  }
+  if (integer && !Number.isInteger(value)) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be an integer`);
+  }
+  if (value < min) {
+    throw new Error(`Invalid mercury.config.json value: ${dottedPath} must be >= ${min}`);
+  }
+  return value;
+}
 
 function loadMercuryIgnore(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -49,85 +105,48 @@ function loadMercuryIgnore(filePath) {
   return { skipDirs };
 }
 
+const MERCURY_CONFIG = readMercuryConfig(MERCURY_CONFIG_FILE);
+
 // ─── Embeddings ───────────────────────────────────────────────
-// Default Mercury retrieval is local. OpenAI-compatible embeddings remain
-// available only by explicit env override:
-//   EMBED_PROVIDER=openai-compatible
-const EMBED_PROVIDER = (process.env.EMBED_PROVIDER || 'ollama').toLowerCase();
+const EMBED_PROVIDER = requiredString(MERCURY_CONFIG, 'embeddings.provider').toLowerCase();
 
 // ─── MongoDB ──────────────────────────────────────────────────
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
-const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'ogz_knowledge';
-const DEFAULT_MONGO_COLLECTION_CHUNKS = EMBED_PROVIDER === 'ollama'
-  ? 'chunks_local_nomic'
-  : 'chunks';
-const DEFAULT_MONGO_COLLECTION_STATS = EMBED_PROVIDER === 'ollama'
-  ? 'index_stats_local_nomic'
-  : 'index_stats';
-const MONGO_COLLECTION_CHUNKS = process.env.MONGO_COLLECTION_CHUNKS || DEFAULT_MONGO_COLLECTION_CHUNKS;
-const MONGO_COLLECTION_STATS = process.env.MONGO_COLLECTION_STATS || DEFAULT_MONGO_COLLECTION_STATS;
+const MONGO_URI = requiredString(MERCURY_CONFIG, 'mongo.uri');
+const MONGO_DB_NAME = requiredString(MERCURY_CONFIG, 'mongo.dbName');
+const MONGO_COLLECTION_CHUNKS = requiredString(MERCURY_CONFIG, 'mongo.chunksCollection');
+const MONGO_COLLECTION_STATS = requiredString(MERCURY_CONFIG, 'mongo.statsCollection');
 
-// ─── Embeddings: OpenAI-compatible endpoint ──────────────────
-// Optional explicit path: OpenAI direct API with text-embedding-3-small
-//
-// Why OpenAI direct over GitHub Models:
-//   - No rate limits (Tier 1: 3000 RPM, 1M TPM — effectively unlimited for us)
-//   - ~$0.02 per 1M tokens (full repo reindex = ~1-2 cents)
-//   - Same model exactly (text-embedding-3-small, 1536 dims)
-//   - Can reindex as often as we want during development
-//
-// Override any of these via .env to swap to GitHub Models, Azure OpenAI,
-// or another OpenAI-compatible provider without code changes.
-//
-// To use GitHub Models instead (free tier, 150 req/day):
-//   EMBED_ENDPOINT=https://models.github.ai/inference/embeddings
-//   EMBED_MODEL=openai/text-embedding-3-small
-//   EMBED_API_KEY=<github_pat>
-//
-// To use OpenAI direct (default — paid, but pennies/month):
-//   EMBED_ENDPOINT=https://api.openai.com/v1/embeddings
-//   EMBED_MODEL=text-embedding-3-small
-//   EMBED_API_KEY=<openai_api_key>  (or set OPENAI_API_KEY)
-// ─── Embeddings: local Ollama opt-in ─────────────────────────
-// Do not read global OLLAMA_URL here; this bridge path is for local memory
-// retrieval, and the global OLLAMA_URL may point at remote inference tunnels.
-const LOCAL_OLLAMA_EMBED_URL = process.env.MERCURY_LOCAL_OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
-
-const EMBED_ENDPOINT = process.env.EMBED_ENDPOINT
-  || (EMBED_PROVIDER === 'ollama'
-    ? `${LOCAL_OLLAMA_EMBED_URL.replace(/\/+$/, '')}/api/embed`
-    : 'https://api.openai.com/v1/embeddings');
-const EMBED_ENDPOINT_HOST = (() => {
-  try {
-    return new URL(EMBED_ENDPOINT).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-})();
-const EMBED_MODEL = process.env.EMBED_MODEL
-  || (EMBED_PROVIDER === 'ollama' ? OLLAMA_EMBED_MODEL : 'text-embedding-3-small');
-const EMBED_API_KEY = EMBED_PROVIDER === 'openai-compatible'
-  ? (process.env.EMBED_API_KEY
-    || (EMBED_ENDPOINT_HOST.endsWith('github.ai') ? process.env.GITHUB_TOKEN : process.env.OPENAI_API_KEY)
-    || process.env.GITHUB_TOKEN
-    || '')
-  : '';
+const EMBED_ENDPOINT = requiredString(MERCURY_CONFIG, 'embeddings.endpoint');
+const EMBED_MODEL = requiredString(MERCURY_CONFIG, 'embeddings.model');
+const EMBED_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'embeddings.apiKeyEnv');
+let EMBED_API_KEY = '';
 
 if (!['openai-compatible', 'ollama'].includes(EMBED_PROVIDER)) {
   throw new Error(`Unsupported EMBED_PROVIDER=${EMBED_PROVIDER}. Use openai-compatible or ollama.`);
+}
+
+if (EMBED_PROVIDER === 'openai-compatible') {
+  if (!EMBED_API_KEY_ENV) {
+    throw new Error('embeddings.apiKeyEnv is required when EMBED_PROVIDER=openai-compatible');
+  }
+  EMBED_API_KEY = process.env[EMBED_API_KEY_ENV];
+  if (!EMBED_API_KEY) {
+    throw new Error(`Configured embedding API key env is missing: ${EMBED_API_KEY_ENV}`);
+  }
+} else if (EMBED_API_KEY_ENV) {
+  throw new Error('embeddings.apiKeyEnv must be empty when EMBED_PROVIDER=ollama');
 }
 
 if (EMBED_PROVIDER === 'ollama') {
   const endpointUrl = new URL(EMBED_ENDPOINT);
   const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
   if (!localHosts.has(endpointUrl.hostname)) {
-    throw new Error(`EMBED_PROVIDER=ollama requires a local endpoint, got ${EMBED_ENDPOINT}. Use MERCURY_LOCAL_OLLAMA_URL=http://localhost:11434.`);
+    throw new Error(`EMBED_PROVIDER=ollama requires a local endpoint, got ${EMBED_ENDPOINT}. Set embeddings.endpoint in mercury.config.json.`);
   }
 }
 
 function slugEmbedIndexPart(value) {
-  return String(value || '')
+  return String(value == null ? '' : value)
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
@@ -144,28 +163,12 @@ function normalizeEmbedEndpointIdentity(endpoint) {
   if (parsed.username || parsed.password || parsed.search || parsed.hash) {
     throw new Error('EMBED_ENDPOINT must not contain credentials, query parameters, or fragments');
   }
-  const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+  const trimmedPathname = parsed.pathname.replace(/\/+$/, '');
+  const pathname = trimmedPathname === '' ? '/' : trimmedPathname;
   return `${parsed.protocol}//${parsed.host.toLowerCase()}${pathname}`;
 }
 
-function resolveEmbedDimensions(provider, model) {
-  if (process.env.EMBED_DIMENSIONS) {
-    const dimensions = parseInt(process.env.EMBED_DIMENSIONS, 10);
-    if (!Number.isFinite(dimensions) || dimensions <= 0) {
-      throw new Error(`Invalid EMBED_DIMENSIONS=${process.env.EMBED_DIMENSIONS}`);
-    }
-    return dimensions;
-  }
-
-  const normalizedProvider = String(provider).toLowerCase();
-  const normalizedModel = String(model).toLowerCase();
-  if (normalizedProvider === 'ollama' && normalizedModel === 'nomic-embed-text') return 768;
-  if (normalizedProvider === 'openai-compatible' && normalizedModel.endsWith('text-embedding-3-small')) return 1536;
-
-  throw new Error(`EMBED_DIMENSIONS is required for ${provider}/${model}`);
-}
-
-const EMBED_DIMENSIONS = resolveEmbedDimensions(EMBED_PROVIDER, EMBED_MODEL);
+const EMBED_DIMENSIONS = requiredNumber(MERCURY_CONFIG, 'embeddings.dimensions', { integer: true, min: 1 });
 const EMBED_ENDPOINT_ID = normalizeEmbedEndpointIdentity(EMBED_ENDPOINT);
 const EMBED_INDEX_ID = [
   slugEmbedIndexPart(EMBED_PROVIDER),
@@ -175,68 +178,53 @@ const EMBED_INDEX_ID = [
 ].join('__');
 
 // ─── Batching ─────────────────────────────────────────────────
-// OpenAI direct allows up to 2048 inputs per request and 8191 tokens per input.
-// We use comfortable defaults that work for both OpenAI direct AND GitHub Models
-// free tier (which has tighter 64K-tokens-per-request and 15-req/min limits).
-// Override via env var if you want to push harder on OpenAI direct.
-const DEFAULT_EMBED_BATCH_MAX_CHUNKS = EMBED_PROVIDER === 'ollama' ? 1 : 100;
-const DEFAULT_EMBED_BATCH_MAX_TOKENS = EMBED_PROVIDER === 'ollama' ? 2000 : 200000;
-const EMBED_BATCH_MAX_CHUNKS = parseInt(
-  process.env.EMBED_BATCH_MAX_CHUNKS || String(DEFAULT_EMBED_BATCH_MAX_CHUNKS),
-  10
-);
-const EMBED_BATCH_MAX_TOKENS = parseInt(
-  process.env.EMBED_BATCH_MAX_TOKENS || String(DEFAULT_EMBED_BATCH_MAX_TOKENS),
-  10
-);
-const EMBED_FAIL_ON_BATCH_ERROR = (process.env.EMBED_FAIL_ON_BATCH_ERROR || 'true').toLowerCase() !== 'false';
-// Min ms between requests. OpenAI direct: 0 (no pacing needed). GitHub Models
-// free tier: set to 4500 to stay under 15 req/min.
-const EMBED_MIN_INTERVAL_MS = parseInt(process.env.EMBED_MIN_INTERVAL_MS || '0', 10);
+const EMBED_BATCH_MAX_CHUNKS = requiredNumber(MERCURY_CONFIG, 'batching.maxChunks', { integer: true, min: 1 });
+const EMBED_BATCH_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'batching.maxTokens', { integer: true, min: 1 });
+const EMBED_FAIL_ON_BATCH_ERROR = requiredBoolean(MERCURY_CONFIG, 'batching.failOnBatchError');
+const EMBED_MIN_INTERVAL_MS = requiredNumber(MERCURY_CONFIG, 'batching.minIntervalMs', { integer: true, min: 0 });
 
 // ─── Ollama local embedder metadata ──────────────────────────
-const OLLAMA_URL = LOCAL_OLLAMA_EMBED_URL;
+const OLLAMA_URL = EMBED_PROVIDER === 'ollama'
+  ? new URL(EMBED_ENDPOINT).origin
+  : null;
+const OLLAMA_EMBED_MODEL = EMBED_PROVIDER === 'ollama'
+  ? EMBED_MODEL
+  : null;
 
 // ─── Chunking ─────────────────────────────────────────────────
-const DEFAULT_CHUNK_WINDOW_SIZE = EMBED_PROVIDER === 'ollama' ? 1000 : 1500;
-const DEFAULT_CHUNK_WINDOW_OVERLAP = EMBED_PROVIDER === 'ollama' ? 100 : 150;
-const DEFAULT_MAX_CHUNK_CHARS = EMBED_PROVIDER === 'ollama' ? 1500 : 6000;
-const CHUNK_WINDOW_SIZE = parseInt(process.env.CHUNK_WINDOW_SIZE || String(DEFAULT_CHUNK_WINDOW_SIZE), 10);
-const CHUNK_WINDOW_OVERLAP = parseInt(process.env.CHUNK_WINDOW_OVERLAP || String(DEFAULT_CHUNK_WINDOW_OVERLAP), 10);
-const MAX_FILE_BYTES = parseInt(process.env.MAX_FILE_BYTES || '500000', 10);  // 500KB
-const MAX_CHUNK_CHARS = parseInt(process.env.MAX_CHUNK_CHARS || String(DEFAULT_MAX_CHUNK_CHARS), 10);
+const CHUNK_WINDOW_SIZE = requiredNumber(MERCURY_CONFIG, 'chunking.windowSize', { integer: true, min: 1 });
+const CHUNK_WINDOW_OVERLAP = requiredNumber(MERCURY_CONFIG, 'chunking.windowOverlap', { integer: true, min: 0 });
+const MAX_FILE_BYTES = requiredNumber(MERCURY_CONFIG, 'chunking.maxFileBytes', { integer: true, min: 1 });
+const MAX_CHUNK_CHARS = requiredNumber(MERCURY_CONFIG, 'chunking.maxChunkChars', { integer: true, min: 1 });
 
 // ─── Retrieval ────────────────────────────────────────────────
-const RETRIEVE_TOP_K = parseInt(process.env.RETRIEVE_TOP_K || '8', 10);
+const RETRIEVE_TOP_K = requiredNumber(MERCURY_CONFIG, 'retrieval.topK', { integer: true, min: 1 });
 
 // ─── Layer 2: Hybrid retrieval ────────────────────────────────
 // BM25 parameters (Robertson 1995 standard values)
-const BM25_K1 = parseFloat(process.env.BM25_K1 || '1.2');
-const BM25_B = parseFloat(process.env.BM25_B || '0.75');
+const BM25_K1 = requiredNumber(MERCURY_CONFIG, 'retrieval.bm25K1', { min: 0 });
+const BM25_B = requiredNumber(MERCURY_CONFIG, 'retrieval.bm25B', { min: 0 });
 
 // Reciprocal Rank Fusion constant — controls how aggressively low-ranked
 // results are discounted. Standard value from Cormack et al. 2009.
-const RRF_K = parseInt(process.env.RRF_K || '60', 10);
+const RRF_K = requiredNumber(MERCURY_CONFIG, 'retrieval.rrfK', { integer: true, min: 1 });
 
 // How many candidates each scorer returns before RRF merge
-const HYBRID_CANDIDATE_POOL = parseInt(process.env.HYBRID_CANDIDATE_POOL || '50', 10);
+const HYBRID_CANDIDATE_POOL = requiredNumber(MERCURY_CONFIG, 'retrieval.hybridCandidatePool', { integer: true, min: 1 });
 
 // Content-type boost multipliers applied to RRF score.
-const CONTENT_TYPE_BOOST_STRONG = parseFloat(process.env.CONTENT_TYPE_BOOST_STRONG || '1.5');
-const CONTENT_TYPE_BOOST_WEAK = parseFloat(process.env.CONTENT_TYPE_BOOST_WEAK || '1.2');
+const CONTENT_TYPE_BOOST_STRONG = requiredNumber(MERCURY_CONFIG, 'retrieval.contentTypeBoostStrong', { min: 0 });
+const CONTENT_TYPE_BOOST_WEAK = requiredNumber(MERCURY_CONFIG, 'retrieval.contentTypeBoostWeak', { min: 0 });
 
-// Feature flag — set to false to fall back to pure semantic search
-const HYBRID_ENABLED = (process.env.HYBRID_ENABLED || 'true').toLowerCase() !== 'false';
+const HYBRID_ENABLED = requiredBoolean(MERCURY_CONFIG, 'retrieval.hybridEnabled');
 
 // ─── Investigation trace memory ──────────────────────────────
-const TRACE_MEMORY_ENABLED = process.env.TRACE_MEMORY_ENABLED != null
-  ? process.env.TRACE_MEMORY_ENABLED !== 'false'
-  : EMBED_PROVIDER === 'openai-compatible';
-const TRACE_INJECT_THRESHOLD = parseFloat(process.env.TRACE_INJECT_THRESHOLD || '0.75');
-const TRACE_DEDUP_THRESHOLD = parseFloat(process.env.TRACE_DEDUP_THRESHOLD || '0.92');
-const TRACE_STALE_DAYS = parseInt(process.env.TRACE_STALE_DAYS || '30', 10);
-const TRACE_MAX_COUNT = parseInt(process.env.TRACE_MAX_COUNT || '10000', 10);
-const TRACE_PROTECTED_USAGE_COUNT = parseInt(process.env.TRACE_PROTECTED_USAGE_COUNT || '3', 10);
+const TRACE_MEMORY_ENABLED = requiredBoolean(MERCURY_CONFIG, 'traceMemory.enabled');
+const TRACE_INJECT_THRESHOLD = requiredNumber(MERCURY_CONFIG, 'traceMemory.injectThreshold', { min: 0 });
+const TRACE_DEDUP_THRESHOLD = requiredNumber(MERCURY_CONFIG, 'traceMemory.dedupThreshold', { min: 0 });
+const TRACE_STALE_DAYS = requiredNumber(MERCURY_CONFIG, 'traceMemory.staleDays', { integer: true, min: 0 });
+const TRACE_MAX_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.maxCount', { integer: true, min: 1 });
+const TRACE_PROTECTED_USAGE_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.protectedUsageCount', { integer: true, min: 0 });
 
 // ─── Skip patterns ────────────────────────────────────────────
 // Directory exclusions live in mercury.ignore so intake/history boundaries are
@@ -298,6 +286,8 @@ module.exports = {
   MONGO_DB_NAME,
   MONGO_COLLECTION_CHUNKS,
   MONGO_COLLECTION_STATS,
+  MERCURY_CONFIG_FILE,
+  readMercuryConfig,
   MERCURY_IGNORE_FILE,
   loadMercuryIgnore,
   EMBED_PROVIDER,
