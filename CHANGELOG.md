@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Ignore Enforcement (2026-06-09)
+
+- Made Mercury starter-context retrieval, chunk hydration, direct file reads, directory listing, historical git reads, and legacy read-only file opens enforce `mercury.ignore`; contaminated active index chunks now fail closed with a reindex-required error instead of reaching Mercury context.
+
 ### Mercury LLM Runtime Contract (2026-06-09)
 
 - Moved Mercury bridge LLM identity, API-key env ownership, loop budgets, token budgets, temperature, and system prompts into `mercury.config.json`; added a dedicated client helper that rejects missing configured keys/prompts and verifies `PersistentLLMClient` did not fall back to env/default values.

@@ -36,6 +36,16 @@ function configExactInteger(value, configuredValue, name) {
   return configuredValue;
 }
 
+function assertRetrievableChunkPath(chunk, source) {
+  const id = chunk && chunk._id ? String(chunk._id) : 'unknown';
+  if (!chunk || !chunk.file_path) {
+    throw new Error(`Mercury retrieval ${source} chunk ${id} is missing file_path; cannot enforce mercury.ignore`);
+  }
+  if (config.isPathIgnoredByMercury(chunk.file_path)) {
+    throw new Error(`Mercury retrieval ${source} contains ignored path ${chunk.file_path}; reindex required`);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // COSINE SIMILARITY
 // ─────────────────────────────────────────────────────────────
@@ -258,6 +268,7 @@ function rrfMerge(semanticRanked, bm25Ranked, boosts, k) {
  */
 async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
   const allChunks = await store.fetchAllForScoring();
+  allChunks.forEach((chunk) => assertRetrievableChunkPath(chunk, 'scoring'));
   if (allChunks.length === 0) return [];
 
   const pool = config.HYBRID_CANDIDATE_POOL;
@@ -281,6 +292,7 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
     const topK = semanticTop.slice(0, k);
     const topIds = topK.map(s => allChunks[s.idx]._id);
     const fullDocs = await store.fetchByIds(topIds);
+    fullDocs.forEach((chunk) => assertRetrievableChunkPath(chunk, 'hydration'));
     const fullById = new Map(fullDocs.map(d => [String(d._id), d]));
 
     return topK.map(s => ({
@@ -333,6 +345,7 @@ async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {
   // Hydrate winners with full text
   const topIds = topK.map(s => allChunks[s.idx]._id);
   const fullDocs = await store.fetchByIds(topIds);
+  fullDocs.forEach((chunk) => assertRetrievableChunkPath(chunk, 'hydration'));
   const fullById = new Map(fullDocs.map(d => [String(d._id), d]));
 
   return topK.map(s => {

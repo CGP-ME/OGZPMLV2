@@ -28,6 +28,13 @@ class ReadOnlyToolbox {
         return resolved;
     }
 
+    ensureNotIgnored(targetPath, toolName) {
+        const relPath = path.relative(this.repoRoot, targetPath).replace(/\\/g, '/');
+        if (mercuryConfig.isPathIgnoredByMercury(relPath)) {
+            throw new Error(`${toolName} blocked by mercury.ignore: ${relPath}`);
+        }
+    }
+
     searchRepo(query, options = {}) {
         if (!query || typeof query !== 'string') {
             return { error: 'Query string required' };
@@ -61,6 +68,7 @@ class ReadOnlyToolbox {
     openFile(relativePath, options = {}) {
         try {
             const target = this.ensureWithinRepo(path.join(this.repoRoot, relativePath));
+            this.ensureNotIgnored(target, 'file_open');
             const maxBytes = options.maxBytes || 4000;
             const content = fs.readFileSync(target, 'utf8').slice(0, maxBytes);
             return { path: path.relative(this.repoRoot, target), content };

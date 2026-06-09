@@ -117,6 +117,12 @@ function loadMercuryIgnore(filePath) {
   return { skipDirs };
 }
 
+function isPathIgnoredByMercury(pathLike, skipDirs = SKIP_DIRS) {
+  if (!pathLike || typeof pathLike !== 'string') return false;
+  const parts = pathLike.replace(/\\/g, '/').split('/').filter(Boolean);
+  return parts.some(part => skipDirs.has(part));
+}
+
 const MERCURY_CONFIG = readMercuryConfig(MERCURY_CONFIG_FILE);
 
 // ─── Embeddings ───────────────────────────────────────────────
@@ -370,4 +376,5 @@ module.exports = {
   SKIP_FILE_PATTERNS,
   INDEX_FILE_EXTENSIONS,
   MERCURY_SYSTEM_PROMPT,
+  isPathIgnoredByMercury,
 };
