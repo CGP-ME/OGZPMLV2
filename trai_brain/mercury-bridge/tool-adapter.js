@@ -41,9 +41,8 @@ if (_rgCheck.status !== 0) {
 }
 
 function buildSkipDirGlobArgs() {
-  const skipDirs = config.SKIP_DIRS || new Set();
   const args = [];
-  for (const dir of skipDirs) {
+  for (const dir of config.SKIP_DIRS) {
     args.push('--glob', `!**/${dir}/**`);
   }
   return args;

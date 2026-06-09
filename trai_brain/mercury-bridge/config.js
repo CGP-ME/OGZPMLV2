@@ -7,6 +7,7 @@
 
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 
 // ─── Repo root ────────────────────────────────────────────────
@@ -14,6 +15,39 @@ const path = require('path');
 // Going up 2 levels lands at the repo root.
 const REPO_ROOT = process.env.OGZ_REPO_ROOT
   || path.resolve(__dirname, '..', '..');
+const MERCURY_IGNORE_FILE = path.join(REPO_ROOT, 'mercury.ignore');
+
+function loadMercuryIgnore(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing Mercury ignore contract: ${filePath}`);
+  }
+
+  const skipDirs = new Set();
+  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+  for (const [idx, rawLine] of lines.entries()) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    if (!line.endsWith('/')) {
+      throw new Error(`Invalid mercury.ignore line ${idx + 1}: directory entries must end with /`);
+    }
+    if (line.includes('*')) {
+      throw new Error(`Invalid mercury.ignore line ${idx + 1}: glob entries are not supported`);
+    }
+    const normalized = line.replace(/\\/g, '/').replace(/\/+$/, '');
+    const segments = normalized.split('/').filter(Boolean);
+    const dirName = segments[segments.length - 1];
+    if (!dirName || dirName === '.' || dirName === '..') {
+      throw new Error(`Invalid mercury.ignore line ${idx + 1}: ${rawLine}`);
+    }
+    skipDirs.add(dirName);
+  }
+
+  if (skipDirs.size === 0) {
+    throw new Error(`Mercury ignore contract is empty: ${filePath}`);
+  }
+
+  return { skipDirs };
+}
 
 // ─── Embeddings ───────────────────────────────────────────────
 // Default Mercury retrieval is local. OpenAI-compatible embeddings remain
@@ -205,41 +239,9 @@ const TRACE_MAX_COUNT = parseInt(process.env.TRACE_MAX_COUNT || '10000', 10);
 const TRACE_PROTECTED_USAGE_COUNT = parseInt(process.env.TRACE_PROTECTED_USAGE_COUNT || '3', 10);
 
 // ─── Skip patterns ────────────────────────────────────────────
-// Directories and files excluded from indexing
-const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'data',
-  'backtest-results',
-  'logs',
-  'dist',
-  'build',
-  '.ai-specs',
-  'trees',
-  'backtest',
-  'pinescript',
-  '.claude',
-  // Mercury index hygiene: exclude intake/history artifacts from starter RAG.
-  'proposals',
-  'manifests',
-  'ledger',
-  'cognition-history',
-  'health-reports',
-  'sessions',
-  'replacements',
-  'reports',
-  'ogz-ledger',
-  'cold-traces',
-  'audits',
-  'backups',
-  'prodlock-portable',
-  'test-fixtures',
-  'performance',
-  'restore-reference',
-  'support-missions',
-  'quarantine',
-  'review-artifacts',
-]);
+// Directory exclusions live in mercury.ignore so intake/history boundaries are
+// visible and shared by the indexer, Mercury grep, and legacy repo search.
+const { skipDirs: SKIP_DIRS } = loadMercuryIgnore(MERCURY_IGNORE_FILE);
 
 const SKIP_FILE_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico',
@@ -296,6 +298,8 @@ module.exports = {
   MONGO_DB_NAME,
   MONGO_COLLECTION_CHUNKS,
   MONGO_COLLECTION_STATS,
+  MERCURY_IGNORE_FILE,
+  loadMercuryIgnore,
   EMBED_PROVIDER,
   EMBED_ENDPOINT,
   EMBED_ENDPOINT_ID,

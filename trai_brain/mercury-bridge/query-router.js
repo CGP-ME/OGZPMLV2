@@ -112,9 +112,9 @@ function routeQuery(query) {
     return {
       queryType: 'historical',
       mode: 'hybrid-classified',
-      boostType: 'fix_history',
+      boostType: null,
       starterContextPolicy: 'prefer',
-      rationale: 'historical/bug-retrospective pattern detected; boost fix_history and prefer starter context',
+      rationale: 'historical/bug-retrospective pattern detected; prefer starter context from canonical docs',
     };
   }
 

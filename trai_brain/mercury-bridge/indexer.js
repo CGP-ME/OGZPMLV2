@@ -39,7 +39,6 @@ const MongoStore = require('./mongo-store');
 function resolveContentType(relPath) {
   const p = relPath.replace(/\\/g, '/');
 
-  if (p === 'ogz-meta/ledger/fixes.jsonl') return 'fix_history';
   if (p === 'CHANGELOG.md') return 'changelog';
   if (p === 'ogz-meta/claudito_context.md') return 'project_context';
   if (p === 'ogz-meta/05_landmines-and-gotchas.md') return 'landmine';

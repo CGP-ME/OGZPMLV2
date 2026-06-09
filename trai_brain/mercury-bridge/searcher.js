@@ -159,10 +159,9 @@ function classifyQuery(query) {
   const q = query.toLowerCase();
   const boosts = {};
 
-  // Historical / debugging questions → boost fix_history + landmine
+  // Historical / debugging questions → boost canonical landmine/recent-change docs
   if (/\b(bug|fix|broke|crash|error|fail|issue|landmine|gotcha)\b/.test(q) ||
       /\b(have we|has there|ever been|previously|before|history|historical)\b/.test(q)) {
-    boosts['fix_history'] = config.CONTENT_TYPE_BOOST_STRONG;
     boosts['landmine'] = config.CONTENT_TYPE_BOOST_WEAK;
     boosts['recent_changes'] = config.CONTENT_TYPE_BOOST_WEAK;
   }
@@ -242,7 +241,7 @@ function rrfMerge(semanticRanked, bm25Ranked, boosts, k) {
  *   'hybrid-classified'  — full Layer 2: BM25 + semantic + RRF + classifyQuery boost
  *   null/undefined       — uses config.HYBRID_ENABLED to pick hybrid-classified or semantic
  *
- * opts.boostType: manual content_type to boost (e.g. 'fix_history'). Takes
+ * opts.boostType: manual content_type to boost (e.g. 'recent_changes'). Takes
  * priority over classifyQuery auto-detection.
  */
 async function retrieveTopK(store, queryEmbedding, k, query, opts = {}) {

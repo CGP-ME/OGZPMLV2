@@ -1,0 +1,33 @@
+# Mercury retrieval and repo-tool ignore contract.
+# Directory entries must end with / and apply by directory name anywhere under the repo root.
+node_modules/
+.git/
+data/
+backtest-results/
+logs/
+dist/
+build/
+.ai-specs/
+trees/
+backtest/
+pinescript/
+.claude/
+proposals/
+manifests/
+ledger/
+cognition-history/
+health-reports/
+sessions/
+replacements/
+reports/
+ogz-ledger/
+cold-traces/
+audits/
+backups/
+prodlock-portable/
+test-fixtures/
+performance/
+restore-reference/
+support-missions/
+quarantine/
+review-artifacts/

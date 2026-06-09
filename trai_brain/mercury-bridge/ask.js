@@ -49,7 +49,7 @@ function parseArgs(argv) {
     showHistory: false,
     agentic: false,
     retrievalMode: null,   // semantic | hybrid | hybrid-classified
-    boostType: null,       // manual content_type boost (e.g. fix_history)
+    boostType: null,       // manual content_type boost (e.g. recent_changes)
     explainRoute: false,   // print routing decision and exit
     explainTrace: false,   // print trace hint and exit
     traceStats: false,     // dump trace stats and exit

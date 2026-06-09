@@ -6,6 +6,7 @@ const path = require('path');
 
 const config = require('../trai_brain/mercury-bridge/config');
 const { walkRepo } = require('../trai_brain/mercury-bridge/indexer');
+const { routeQuery } = require('../trai_brain/mercury-bridge/query-router');
 const { createToolAdapter, buildSkipDirGlobArgs } = require('../trai_brain/mercury-bridge/tool-adapter');
 const ReadOnlyToolbox = require('../trai_brain/read_only_tools');
 const TRAICore = require('../core/trai_core');
@@ -50,9 +51,20 @@ describe('Mercury index scope hygiene', () => {
   });
 
   test('skip configuration excludes non-canonical intake and history directories', () => {
+    const mercuryIgnore = fs.readFileSync(config.MERCURY_IGNORE_FILE, 'utf8');
+
     for (const dir of NON_CANONICAL_INDEX_DIRS) {
+      expect(mercuryIgnore).toContain(`${dir}/`);
       expect(config.SKIP_DIRS.has(dir)).toBe(true);
     }
+  });
+
+  test('mercury.ignore rejects ambiguous non-directory entries', () => {
+    const badIgnore = path.join(tmpRoot, 'mercury.ignore');
+    fs.writeFileSync(badIgnore, 'ledger\n');
+
+    expect(() => config.loadMercuryIgnore(badIgnore))
+      .toThrow(/directory entries must end with \//);
   });
 
   test('walkRepo indexes source and canonical specs, not stale intake/history artifacts', () => {
@@ -211,5 +223,13 @@ describe('Mercury index scope hygiene', () => {
     expect(skipArgs).toContain('!**/ledger/**');
     expect(skipArgs).toContain('!**/cognition-history/**');
     expect(skipArgs).toContain('!**/proposals/**');
+  });
+
+  test('historical Mercury routing does not boost ignored ledger fix history', () => {
+    const route = routeQuery('have we seen this bug before');
+
+    expect(route.queryType).toBe('historical');
+    expect(route.boostType).toBeNull();
+    expect(route.rationale).not.toContain('fix_history');
   });
 });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Ignore Contract (2026-06-09)
+
+- Moved Mercury retrieval/index directory exclusions into repo-root `mercury.ignore`, made the bridge fail loud when the ignore contract is missing or malformed, and kept indexer, Mercury grep, and legacy repo search on the same intake/history exclusion list.
+
 ### Mercury Embedding Index Identity (2026-06-09)
 
 - Stamped Mercury chunks and index stats with source-aware embedding lane identity, scoped Mongo reads/writes/clears/stats to provider, endpoint, model, dimension, and index id, rejected ambiguous endpoint URLs, and rebuilt the local Nomic lane so OpenAI-compatible and Ollama vectors can share a corpus without mixing retrieval vectors.
