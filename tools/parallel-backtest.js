@@ -57,10 +57,14 @@ const RUNNER = path.join(PROJECT_ROOT, 'run-empire-v2.js');
 const PARALLEL_BACKTEST_CONFIG = TradingConfig.getParallelBacktestConfig();
 const DEFAULT_DATA = PARALLEL_BACKTEST_CONFIG.defaultData;
 const DATA_SHORTCUTS = Object.freeze({ ...PARALLEL_BACKTEST_CONFIG.dataShortcuts });
-const STOCK_DATA_SHORTCUTS = new Set(PARALLEL_BACKTEST_CONFIG.stockDataShortcutKeys);
+const STOCK_DATA_SHORTCUTS = Object.freeze([...PARALLEL_BACKTEST_CONFIG.stockDataShortcutKeys]);
 const RESULTS_DIR = path.join(PROJECT_ROOT, 'backtest-results');
 const WORKER_LOG_DIR = path.join(RESULTS_DIR, 'worker-logs');
 const TIMEOUT_MS = 0; // No timeout - let it finish
+
+function isStockDataShortcut(key) {
+  return STOCK_DATA_SHORTCUTS.includes(key);
+}
 
 function prepareResultsDir() {
   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
@@ -684,12 +688,12 @@ async function main() {
     else if (args[i] === '--data' && args[i+1]) {
       const val = args[++i].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i];
-      if (STOCK_DATA_SHORTCUTS.has(val)) stockMode = true;
+      if (isStockDataShortcut(val)) stockMode = true;
     }
     else if (args[i].startsWith('--data=')) {
       const val = args[i].split('=')[1].toLowerCase();
       dataFile = DATA_SHORTCUTS[val] || args[i].split('=')[1];
-      if (STOCK_DATA_SHORTCUTS.has(val)) stockMode = true;
+      if (isStockDataShortcut(val)) stockMode = true;
     }
     else if (args[i] === '--profile' && args[i+1]) {
       profileName = args[++i];
@@ -723,7 +727,7 @@ async function main() {
       const key = args[i].toLowerCase();
       dataFile = DATA_SHORTCUTS[key];
       // Auto-enable stock mode for stock tickers
-      if (STOCK_DATA_SHORTCUTS.has(key)) stockMode = true;
+      if (isStockDataShortcut(key)) stockMode = true;
     }
     else if (args[i] === '--help') {
       console.log(`
@@ -803,6 +807,7 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_DATA,
   DATA_SHORTCUTS,
+  STOCK_DATA_SHORTCUTS,
   STRATEGIES,
   SWEEP_PRESETS,
   parseSoloStrategies,

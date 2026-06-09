@@ -6,6 +6,7 @@ const path = require('path');
 const {
   DEFAULT_DATA,
   DATA_SHORTCUTS,
+  STOCK_DATA_SHORTCUTS,
   STRATEGIES,
   SWEEP_PRESETS,
   parseSoloStrategies,
@@ -52,6 +53,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
 
     expect(DEFAULT_DATA).toBe(parallelConfig.defaultData);
     expect(DATA_SHORTCUTS).toEqual(parallelConfig.dataShortcuts);
+    expect(STOCK_DATA_SHORTCUTS).toEqual(parallelConfig.stockDataShortcutKeys);
     expect(DATA_SHORTCUTS.tsla).toBe(parallelConfig.defaultData);
   });
 
@@ -63,6 +65,7 @@ describe('parallel-backtest solo strategy env wiring', () => {
     expect(SWEEP_PRESETS.atr).toEqual(parallelConfig.sweepPresets.atr);
     expect(SWEEP_PRESETS['strategy-sweep']).toEqual(parallelConfig.sweepPresets.strategySweep);
     expect(Object.isFrozen(DATA_SHORTCUTS)).toBe(true);
+    expect(Object.isFrozen(STOCK_DATA_SHORTCUTS)).toBe(true);
     expect(Object.isFrozen(STRATEGIES)).toBe(true);
     expect(Object.isFrozen(SWEEP_PRESETS)).toBe(true);
     expect(Object.isFrozen(SWEEP_PRESETS.real)).toBe(true);

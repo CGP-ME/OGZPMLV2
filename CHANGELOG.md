@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Asset Mode Contract (2026-06-09)
+
+- Made backtest worker env construction reject stock/crypto asset-mode mismatches by comparing stock mode, data-file-derived instrument metadata, and caller-supplied instrument metadata before workers can run with the wrong fee/broker posture.
+
 ### Pipeline Snapshot Telemetry Truth (2026-06-09)
 
 - Made PipelineSnapshot report explicit regime ready/not-ready/error states, prevent ambiguous regime strings from masquerading as current telemetry, and avoid falling back to stale bot-local position/balance values when StateManager is present.

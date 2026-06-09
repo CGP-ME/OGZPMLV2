@@ -2,6 +2,7 @@
 
 const path = require('path');
 const TradingConfig = require('../core/TradingConfig');
+const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   DEFAULT_TUNING_PROFILE,
   resolveTuningProfile,
@@ -180,6 +181,33 @@ function resolveDirectionFilter(sourceEnv = {}, configEnv = {}) {
     || CANONICAL_BACKTEST_ENV.DIRECTION_FILTER;
 }
 
+function assertStockModeMatchesInstrument(stockMode, instrumentEnv = {}) {
+  const assetClass = instrumentEnv.ASSET_CLASS;
+  if (!assetClass) {
+    throw new Error('Backtest worker instrumentEnv requires ASSET_CLASS');
+  }
+  if (stockMode && assetClass !== 'stocks') {
+    throw new Error(`Backtest stockMode=true requires ASSET_CLASS=stocks, got ${assetClass}`);
+  }
+  if (!stockMode && assetClass === 'stocks') {
+    throw new Error('Backtest stock data requires stockMode=true');
+  }
+}
+
+function assertInstrumentEnvMatchesDataFile(dataFile, instrumentEnv = {}) {
+  const resolved = resolveInstrumentFromDataFile(dataFile);
+  const requiredKeys = ['TRADING_PAIR', 'BROKER', 'ASSET_CLASS'];
+  if (resolved.CANDLE_TIMEFRAME !== undefined) requiredKeys.push('CANDLE_TIMEFRAME');
+
+  for (const key of requiredKeys) {
+    if (instrumentEnv[key] !== resolved[key]) {
+      throw new Error(
+        `Backtest worker instrumentEnv.${key}=${instrumentEnv[key]} conflicts with dataFile-derived ${key}=${resolved[key]}`
+      );
+    }
+  }
+}
+
 function buildBacktestWorkerEnv(options) {
   const {
     sourceEnv = process.env,
@@ -204,6 +232,8 @@ function buildBacktestWorkerEnv(options) {
   const profile = resolveTuningProfile(profileName);
   assertEnvKeysAllowed(configEnv, CONFIG_ENV_OVERRIDE_ALLOWLIST, 'configEnv');
   assertEnvKeysAllowed(instrumentEnv, INSTRUMENT_ENV_ALLOWLIST, 'instrumentEnv');
+  assertStockModeMatchesInstrument(stockMode, instrumentEnv);
+  assertInstrumentEnvMatchesDataFile(dataFile, instrumentEnv);
   const directionFilter = resolveDirectionFilter(sourceEnv, configEnv);
   const normalizedConfigEnv = { ...configEnv };
   if (normalizedConfigEnv.DIRECTION_FILTER !== undefined) {

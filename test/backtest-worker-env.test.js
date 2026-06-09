@@ -52,6 +52,7 @@ describe('backtest worker env contract', () => {
       stateFile: '/repo/data/state-test.json',
       dataDir: '/repo/data/backtest',
       reportTag: 'test-worker',
+      stockMode: true,
       instrumentEnv: {
         TRADING_PAIR: 'TSLA',
         BROKER: 'alpaca',
@@ -101,7 +102,7 @@ describe('backtest worker env contract', () => {
   });
 
   test('canonical stock worker env preserves explicit direction while blocking other trading drift', () => {
-    const env = buildEnv({ stockMode: true });
+    const env = buildEnv();
 
     expect(env.EXECUTION_MODE).toBe('backtest');
     expect(env.CANDLE_SOURCE).toBe('file');
@@ -130,6 +131,65 @@ describe('backtest worker env contract', () => {
     expectLockedExitProfileKeysAbsent(env);
     expect(env.SOLO_STRATEGY).toBeUndefined();
     expect(env.ENABLE_NOWICK).toBeUndefined();
+  });
+
+  test('stock mode cannot be applied to crypto instrument data', () => {
+    expect(() => buildEnv({
+      instrumentEnv: {
+        TRADING_PAIR: 'BTC-USD',
+        BROKER: 'kraken',
+        ASSET_CLASS: 'crypto',
+        CANDLE_TIMEFRAME: '1m',
+      },
+    })).toThrow(/stockMode=true requires ASSET_CLASS=stocks/);
+  });
+
+  test('stock mode cannot be applied to crypto data files', () => {
+    expect(() => buildEnv({
+      dataFile: 'data/polygon-btc-1y.json',
+      instrumentEnv: {
+        TRADING_PAIR: 'BTC-USD',
+        BROKER: 'kraken',
+        ASSET_CLASS: 'crypto',
+      },
+    })).toThrow(/stockMode=true requires ASSET_CLASS=stocks/);
+  });
+
+  test('stock instrument data cannot run without stock mode', () => {
+    expect(() => buildEnv({ stockMode: false }))
+      .toThrow(/stock data requires stockMode=true/);
+  });
+
+  test('instrument env requires explicit asset class', () => {
+    expect(() => buildEnv({
+      instrumentEnv: {
+        TRADING_PAIR: 'TSLA',
+        BROKER: 'alpaca',
+        CANDLE_TIMEFRAME: '15m',
+      },
+    })).toThrow(/instrumentEnv requires ASSET_CLASS/);
+  });
+
+  test('instrument env cannot spoof stock metadata for crypto data file', () => {
+    expect(() => buildEnv({
+      dataFile: 'data/polygon-btc-1y.json',
+      instrumentEnv: {
+        TRADING_PAIR: 'TSLA',
+        BROKER: 'alpaca',
+        ASSET_CLASS: 'stocks',
+      },
+    })).toThrow(/instrumentEnv\.TRADING_PAIR=TSLA conflicts with dataFile-derived TRADING_PAIR=BTC-USD/);
+  });
+
+  test('instrument env timeframe must match the selected data file', () => {
+    expect(() => buildEnv({
+      instrumentEnv: {
+        TRADING_PAIR: 'TSLA',
+        BROKER: 'alpaca',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '1m',
+      },
+    })).toThrow(/instrumentEnv\.CANDLE_TIMEFRAME=1m conflicts with dataFile-derived CANDLE_TIMEFRAME=15m/);
   });
 
   test('tuning profiles cannot own runtime mode or pattern-write protection keys', () => {

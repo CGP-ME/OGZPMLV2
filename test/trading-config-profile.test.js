@@ -78,6 +78,13 @@ describe('TradingConfig runtime profile contract', () => {
       dataDir: 'data/backtest',
       reportTag: 'unit-risk-profile',
       profileName: 'current-eval',
+      stockMode: true,
+      instrumentEnv: {
+        BROKER: 'alpaca',
+        TRADING_PAIR: 'TSLA',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+      },
     });
 
     expect(workerEnv.MAX_DRAWDOWN).toBe('5');

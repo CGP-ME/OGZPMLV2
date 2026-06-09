@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const TradingConfig = require('../core/TradingConfig');
 
 const PROVIDER_PREFIXES = new Set(['polygon', 'alpaca', 'kraken', 'coinbase', 'binance', 'real']);
 const TIMEFRAME_TOKENS = new Set(['5sec', '1m', '5m', '15m', '30m', '1h', '4h', '1d']);
@@ -12,6 +13,18 @@ const QUOTE_TOKENS = new Set(['usd', 'usdt', 'usdc', 'btc', 'eth']);
 function configuredCryptoBases() {
   const raw = process.env.OGZ_CRYPTO_BASES || 'btc,eth,sol,doge,xrp,ada,ltc,bch,link,avax,matic,dot,shib';
   return new Set(raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
+}
+
+function configuredStockTickers() {
+  const parallelConfig = TradingConfig.getParallelBacktestConfig();
+  const matrixConfig = TradingConfig.getMatrixSweepConfig();
+  const stockKeys = [
+    ...(parallelConfig.stockDataShortcutKeys || []),
+    ...(matrixConfig.stockTickers || []),
+  ];
+  return new Set(stockKeys
+    .map(key => String(key).toLowerCase().split(/[-_]/)[0])
+    .filter(Boolean));
 }
 
 function isPeriodToken(token) {
@@ -68,6 +81,13 @@ function resolveInstrumentFromDataFile(dataFile) {
   const cryptoBySource = lowerPath.includes('kraken') || lowerPath.includes('coinbase') || lowerPath.includes('binance');
   const cryptoByBase = configuredCryptoBases().has(baseTicker);
   const isCrypto = hasQuoteToken || cryptoBySource || cryptoByBase;
+  const isKnownStock = configuredStockTickers().has(baseTicker);
+
+  if (!isCrypto && !isKnownStock) {
+    throw new Error(
+      `[SYMBOL-MISLABEL-FIX] Cannot derive asset class for data file '${dataFile}'. Add an explicit stock ticker config or crypto marker.`
+    );
+  }
 
   const env = isCrypto ? {
     TRADING_PAIR: hasQuoteToken ? normalizedPair : `${baseTicker.toUpperCase()}-USD`,
