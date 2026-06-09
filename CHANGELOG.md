@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pipeline Snapshot Telemetry Truth (2026-06-09)
+
+- Made PipelineSnapshot report explicit regime ready/not-ready/error states, prevent ambiguous regime strings from masquerading as current telemetry, and avoid falling back to stale bot-local position/balance values when StateManager is present.
+
 ### P0 ATR Profile Ownership (2026-06-08)
 
 - Pinned the canonical P0 `current-eval` profile to `ATR_FILTER_ENABLED=true` and `ATR_MIN_PERCENT=0.15`, mapped both keys into `TradingConfig` profile ownership, and covered profile/env application so the P0 anchor cannot silently run ATR-off while asserting ATR-on results.

@@ -26,6 +26,17 @@ const fs = require('fs');
 const path = require('path');
 const { c } = require('./CandleHelper');
 
+const AMBIGUOUS_TELEMETRY_VALUES = new Set([
+  '',
+  'unknown',
+  'undefined',
+  'unclassified',
+  'null',
+  'none',
+  'n/a',
+  'na'
+]);
+
 class PipelineSnapshot {
   constructor(bot, options = {}) {
     this.bot = bot;
@@ -61,17 +72,23 @@ class PipelineSnapshot {
       this.snapshotCount++;
       
       // Console summary (compact)
-      const price = snap.price?.toFixed(2) || 'N/A';
-      const regime = snap.regime?.current || 'unknown';
+      const numericPrice = Number(snap.price);
+      const price = Number.isFinite(numericPrice) && numericPrice > 0
+        ? `$${numericPrice.toFixed(2)}`
+        : 'PRICE_NOT_READY';
+      const regime = snap.regime?.status === 'ready'
+        ? (this._cleanTelemetryText(snap.regime?.current) || 'REGIME_NOT_RECORDED')
+        : (this._cleanTelemetryText(snap.regime?.unavailableReason) || 'REGIME_NOT_RECORDED');
       const conf = snap.lastConfidence?.toFixed(1) || '0';
       const position = snap.position || 0;
       const candles = snap.candleCount || 0;
       const trades = snap.tradeStats?.total || 0;
       
-      console.log(`[Snapshot #${this.snapshotCount}] $${price} | ${regime} | Conf: ${conf}% | Pos: ${position} | Candles: ${candles} | Trades: ${trades}`);
+      console.log(`[Snapshot #${this.snapshotCount}] ${price} | ${regime} | Conf: ${conf}% | Pos: ${position} | Candles: ${candles} | Trades: ${trades}`);
       
     } catch (e) {
-      console.error(`[PipelineSnapshot] Error: ${e.message}`);
+      const message = this._cleanTelemetryText(e?.message) || 'SNAPSHOT_ERROR_WITHOUT_MESSAGE';
+      console.error(`[PipelineSnapshot] Error: ${message}`);
     }
   }
 
@@ -159,13 +176,54 @@ class PipelineSnapshot {
 
   _getRegime(bot) {
     try {
+      const marketRegime = this._cleanTelemetryText(bot.marketRegime?.currentRegime);
+      if (marketRegime) {
+        return {
+          current: marketRegime,
+          confidence: this._toFiniteNumber(bot.marketRegime?.confidence, 0),
+          parameters: bot.marketRegime?.parameters || {},
+          source: 'marketRegime.currentRegime',
+          status: 'ready'
+        };
+      }
+
+      const detectorRegime = this._cleanTelemetryText(bot.regimeDetector?.currentRegime);
+      if (detectorRegime) {
+        return {
+          current: detectorRegime,
+          confidence: 0,
+          parameters: {},
+          source: 'regimeDetector.currentRegime',
+          status: 'ready'
+        };
+      }
+
+      const source = bot.marketRegime
+        ? 'marketRegime.currentRegime'
+        : bot.regimeDetector
+          ? 'regimeDetector.currentRegime'
+          : null;
+      const unavailableReason = source ? 'REGIME_NOT_READY' : 'REGIME_SOURCE_NOT_ATTACHED';
+
       return {
-        current: bot.marketRegime?.currentRegime || 
-                 bot.regimeDetector?.currentRegime || 'unknown',
-        confidence: bot.marketRegime?.confidence || 0,
-        parameters: bot.marketRegime?.parameters || {}
+        current: unavailableReason,
+        confidence: 0,
+        parameters: bot.marketRegime?.parameters || {},
+        source,
+        status: 'not_ready',
+        unavailableReason
       };
-    } catch(e) { return { current: 'error', confidence: 0 }; }
+    } catch(e) {
+      return {
+        current: null,
+        confidence: 0,
+        parameters: {},
+        source: null,
+        status: 'error',
+        unavailableReason: 'REGIME_READ_FAILED',
+        errorMessage: this._cleanTelemetryText(e?.message) || 'REGIME_ERROR_WITHOUT_MESSAGE'
+      };
+    }
   }
 
   _getSignals(bot) {
@@ -318,6 +376,18 @@ class PipelineSnapshot {
     try { return fn(); } catch(e) { return null; }
   }
 
+  _cleanTelemetryText(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (AMBIGUOUS_TELEMETRY_VALUES.has(trimmed.toLowerCase())) return null;
+    return trimmed;
+  }
+
+  _toFiniteNumber(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
   _resolveStateManager(bot) {
     if (bot?.stateManager && typeof bot.stateManager.get === 'function') {
       return bot.stateManager;
@@ -339,8 +409,9 @@ class PipelineSnapshot {
   }
 
   _getStateValue(stateManager, key, fallback) {
-    const value = stateManager?.get?.(key);
-    return value ?? fallback;
+    if (!stateManager || typeof stateManager.get !== 'function') return fallback;
+    const value = stateManager.get(key);
+    return value === undefined ? null : value;
   }
 
   _getTrades(stateManager) {

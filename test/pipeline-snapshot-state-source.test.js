@@ -15,6 +15,13 @@ describe('PipelineSnapshot state source', () => {
     return snapshot;
   }
 
+  function emptyStateManager() {
+    return {
+      get: jest.fn(() => undefined),
+      getAllTrades: jest.fn(() => []),
+    };
+  }
+
   test('uses the StateManager singleton when bot.stateManager is not attached', () => {
     jest.resetModules();
 
@@ -83,5 +90,111 @@ describe('PipelineSnapshot state source', () => {
     expect(snapshot.position).toBe(42);
     expect(snapshot.balance).toBe(12000);
     expect(moduleGetInstance).not.toHaveBeenCalled();
+  });
+
+  test('does not fall back to stale bot-local state when StateManager has no value', () => {
+    jest.resetModules();
+
+    const botStateManager = {
+      get: jest.fn(() => undefined),
+      getAllTrades: jest.fn(() => []),
+    };
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot, {
+      stateManager: botStateManager,
+      position: 999,
+      balance: 99999,
+    })._buildSnapshot();
+
+    expect(snapshot.position).toBeNull();
+    expect(snapshot.balance).toBeNull();
+  });
+
+  test('records explicit regime absence when no regime source is attached', () => {
+    jest.resetModules();
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot, {
+      stateManager: emptyStateManager(),
+    })._buildSnapshot();
+
+    expect(snapshot.regime).toMatchObject({
+      current: 'REGIME_SOURCE_NOT_ATTACHED',
+      status: 'not_ready',
+      unavailableReason: 'REGIME_SOURCE_NOT_ATTACHED',
+      source: null
+    });
+    expect(JSON.stringify(snapshot.regime)).not.toMatch(/unknown|undefined|unclassified/i);
+  });
+
+  test('records explicit regime not-ready state instead of propagating ambiguous source values', () => {
+    jest.resetModules();
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot, {
+      marketRegime: {
+        currentRegime: 'unknown',
+        confidence: 88,
+        parameters: { sampleWindow: 250 }
+      },
+      stateManager: emptyStateManager(),
+    })._buildSnapshot();
+
+    expect(snapshot.regime).toMatchObject({
+      current: 'REGIME_NOT_READY',
+      confidence: 0,
+      status: 'not_ready',
+      unavailableReason: 'REGIME_NOT_READY',
+      source: 'marketRegime.currentRegime',
+      parameters: { sampleWindow: 250 }
+    });
+    expect(JSON.stringify(snapshot.regime)).not.toMatch(/unknown|undefined|unclassified/i);
+  });
+
+  test('keeps real regime values and source attribution', () => {
+    jest.resetModules();
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot, {
+      marketRegime: {
+        currentRegime: 'ranging',
+        confidence: '67.5',
+        parameters: { source: 'test' }
+      },
+      stateManager: emptyStateManager(),
+    })._buildSnapshot();
+
+    expect(snapshot.regime).toMatchObject({
+      current: 'ranging',
+      confidence: 67.5,
+      source: 'marketRegime.currentRegime',
+      status: 'ready',
+      parameters: { source: 'test' }
+    });
+  });
+
+  test('records regime read failures as error metadata, not current regime telemetry', () => {
+    jest.resetModules();
+
+    const bot = {
+      stateManager: emptyStateManager(),
+      marketRegime: {},
+    };
+    Object.defineProperty(bot.marketRegime, 'currentRegime', {
+      get() {
+        throw new Error('regime source exploded');
+      }
+    });
+
+    const PipelineSnapshot = require('../core/PipelineSnapshot');
+    const snapshot = buildSnapshotInstance(PipelineSnapshot, bot)._buildSnapshot();
+
+    expect(snapshot.regime).toMatchObject({
+      current: null,
+      status: 'error',
+      unavailableReason: 'REGIME_READ_FAILED',
+      errorMessage: 'regime source exploded'
+    });
   });
 });
