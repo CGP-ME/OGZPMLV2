@@ -28,6 +28,17 @@ const PACKAGE_MUTATION = /(^|\s|\||;|&&|\|\||\(|`|\$\()(npm|pnpm|yarn)\s+(instal
 const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|ruby|php)\s+(-e|-p|-c)\b/;
 const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
 const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|perl|ruby)\s+[^|;&`]*\s-i\b/;
+const MERCURY_ASK_SCRIPT = /(^|\s)(node\s+)?(\.\/)?trai_brain[\/\\]mercury-bridge[\/\\]ask\.js\b/;
+const MERCURY_REQUIRED_FRAME = /\bbreak\s+my\s+fix\b/i;
+const MERCURY_VERIFICATION_FRAMES = [
+  { reason: 'verify', pattern: /\bverify\b/i },
+  { reason: 'confirm', pattern: /\bconfirm\b/i },
+  { reason: 'what_changed', pattern: /\bwhat\s+changed\b/i },
+  { reason: 'is_closed', pattern: /\bis\b[^"'`;&|]{0,80}\bclosed\b/i },
+  { reason: 'is_correct', pattern: /\bis\s+(this|it|that|the\s+fix|the\s+change)\s+(correct|right|fixed|resolved|closed)\b/i },
+  { reason: 'does_this_look', pattern: /\bdoes\s+(this|it|that)\s+look\b/i },
+  { reason: 'beam_me_up', pattern: /\bbeam\s+me\s+up\b/i },
+];
 
 function shellTokens(cmd) {
   const tokens = [];
@@ -121,6 +132,17 @@ function mutationReason(cmd) {
   return null;
 }
 
+function mercuryFramingReason(cmd) {
+  if (!MERCURY_ASK_SCRIPT.test(cmd)) return null;
+  if (!MERCURY_REQUIRED_FRAME.test(cmd)) return 'missing_break_my_fix';
+
+  for (const frame of MERCURY_VERIFICATION_FRAMES) {
+    if (frame.pattern.test(cmd)) return `verification_framing:${frame.reason}`;
+  }
+
+  return null;
+}
+
 function assertWardenAllowsGitMutation() {
   const result = finishGate.evaluateFinishGate();
   if (!result.allowed) {
@@ -147,6 +169,15 @@ function run() {
     emit(
       `BLOCKED (claude task-contract): Bash command violates active task ${bashCheck.taskId}. ` +
       `${bashCheck.reason}${bashCheck.matched ? ` (${bashCheck.matched})` : ''}.`,
+      2
+    );
+  }
+
+  const mercuryFraming = mercuryFramingReason(cmd);
+  if (mercuryFraming) {
+    emit(
+      `BLOCKED (claude Mercury framing): ${mercuryFraming}. ` +
+      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, or declare a fix closed.`,
       2
     );
   }
@@ -191,4 +222,4 @@ function run() {
 }
 
 if (require.main === module) run();
-module.exports = { run, extractPaths, mutationReason, assertWardenAllowsGitMutation };
+module.exports = { run, extractPaths, mutationReason, mercuryFramingReason, assertWardenAllowsGitMutation };
