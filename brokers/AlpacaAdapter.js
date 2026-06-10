@@ -17,6 +17,7 @@
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');
 const axios = require('axios');
 const WebSocket = require('ws');
+const authFailureGuard = require('../core/AuthFailureGuard');
 
 class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
@@ -86,6 +87,52 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.accountId = accountId;
         this.accountIdSource = id ? 'broker:id' : 'broker:account_number';
         return this.getAccountIdentity();
+    }
+
+    // Centralized auth-failure detection. Records into the shared
+    // AuthFailureGuard when the axios error indicates an Alpaca auth failure
+    // so repeated dead-credential calls escalate the KillSwitch instead of
+    // being logged-and-retried forever. Non-auth errors are ignored so
+    // caller-side error handling stays unchanged.
+    //
+    // Detection scope:
+    //   - HTTP 401 (Unauthorized) and 403 (Forbidden): canonical auth status.
+    //   - HTTP 400 with a body message matching the Alpaca-specific
+    //     auth-error vocabulary (e.g. "Invalid API key", "credential").
+    //     Alpaca returns 400 for malformed-credential cases that other
+    //     brokers would have returned 401 for; the body string distinguishes
+    //     auth-related 400 from generic validation 400.
+    //
+    // Out of scope:
+    //   - Network-level errors (ECONNRESET, ETIMEDOUT, TLS): not auth signals.
+    //   - 422/423: not auth signals on Alpaca.
+    _authFailureText(error) {
+        const data = error && error.response && error.response.data;
+        const parts = [];
+        if (typeof data?.message === 'string') parts.push(data.message);
+        if (typeof data?.error === 'string') parts.push(data.error);
+        if (Array.isArray(data?.error)) parts.push(...data.error.filter((item) => typeof item === 'string'));
+        if (Array.isArray(data?.errors)) parts.push(...data.errors.filter((item) => typeof item === 'string'));
+        if (typeof data?.code === 'string') parts.push(data.code);
+        return parts.join(' | ');
+    }
+
+    _recordAuthFailureIfRelevant(error, kind) {
+        const status = error && error.response && error.response.status;
+        if (!status) return;
+        const message = this._authFailureText(error);
+        const isAuthStatus = status === 401 || status === 403;
+        const isAuthBody400 = status === 400
+            && typeof message === 'string'
+            && /(invalid api( |-)?key|unauthorized|authentication failed|api key not authorized|forbidden|invalid credentials)/i.test(message);
+        if (isAuthStatus || isAuthBody400) {
+            authFailureGuard.recordFailure('alpaca', kind, {
+                status,
+                message,
+                authFailure: true,
+                evidence: isAuthStatus ? 'alpaca-http-auth-status' : 'alpaca-auth-body',
+            });
+        }
     }
 
     // =========================================================================
@@ -192,6 +239,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 accountIdSource: identity?.accountIdSource || null,
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-balance');
             throw new Error(`[Alpaca] Failed to get balance: ${error.message}`);
         }
     }
@@ -211,6 +259,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 pnlPercent: parseFloat(pos.unrealized_plpc) * 100
             }));
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-positions');
             throw new Error(`[Alpaca] Failed to get positions: ${error.message}`);
         }
     }
@@ -231,6 +280,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 status: order.status
             }));
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-open-orders');
             throw new Error(`[Alpaca] Failed to get open orders: ${error.message}`);
         }
     }
@@ -284,6 +334,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 amount: parseFloat(response.data.qty)
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-place-order');
             throw new Error(`[Alpaca] Failed to place ${side} order: ${error.response?.data?.message || error.message}`);
         }
     }
@@ -295,6 +346,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             });
             return true;
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-cancel-order');
             console.error(`[Alpaca] Failed to cancel order: ${error.message}`);
             return false;
         }
@@ -318,6 +370,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 status: response.data.status
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-modify-order');
             throw new Error(`[Alpaca] Failed to modify order: ${error.message}`);
         }
     }
@@ -334,6 +387,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 remainingAmount: parseFloat(response.data.qty) - parseFloat(response.data.filled_qty || 0)
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-order-status');
             throw new Error(`[Alpaca] Failed to get order status: ${error.message}`);
         }
     }
@@ -356,6 +410,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 console.log('[Alpaca] No positions to liquidate - already flat');
                 return [];
             }
+            this._recordAuthFailureIfRelevant(error, 'rest-liquidate');
             throw new Error(`[Alpaca] Failed to liquidate positions: ${error.message}`);
         }
     }
@@ -379,6 +434,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 volume: parseFloat(snap.dailyBar?.v || snap.minuteBar?.v || 0)
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-ticker');
             throw new Error(`[Alpaca] Failed to get ticker for ${symbol}: ${error.message}`);
         }
     }
@@ -415,6 +471,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 v: parseFloat(bar.v)
             })).sort((a, b) => a.t - b.t);
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-candles');
             throw new Error(`[Alpaca] Failed to get candles for ${symbol}: ${error.message}`);
         }
     }
@@ -428,6 +485,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 asks: [[ticker.ask, 0]]
             };
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-orderbook');
             throw new Error(`[Alpaca] Failed to get order book for ${symbol}: ${error.message}`);
         }
     }
@@ -504,6 +562,11 @@ class AlpacaAdapter extends IBrokerAdapter {
                 }
                 if (msg.stream === 'authorization' && msg.data?.status !== 'authorized') {
                     console.error('[Alpaca] Account stream auth failed:', msg.data);
+                    authFailureGuard.recordFailure('alpaca', 'ws-auth', {
+                        authFailure: true,
+                        evidence: 'alpaca-ws-authorization-status',
+                        payload: msg.data,
+                    });
                     return;
                 }
                 if (msg.stream === 'account_updates' && msg.data) {
@@ -586,6 +649,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                 .filter(a => a.tradable)
                 .map(a => a.symbol);
         } catch (error) {
+            this._recordAuthFailureIfRelevant(error, 'rest-supported-symbols');
             console.error('[Alpaca] Failed to get supported symbols:', error.message);
             return [];
         }

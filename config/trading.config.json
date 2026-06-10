@@ -17,6 +17,10 @@
     "lowConfidenceReduction": 0.25,
     "highConfidenceBoost": 1.3
   },
+  "authFailureGuard": {
+    "thresholdCount": 3,
+    "windowMs": 300000
+  },
   "positionSizing": {
     "basePositionSize": 0.01,
     "maxPositionSize": 0.05,

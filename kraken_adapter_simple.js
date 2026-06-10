@@ -38,6 +38,34 @@ const querystring = require('querystring');
 const WebSocket = require('ws');
 const KrakenDepth = require('./server/kraken-depth-adapter');
 const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
+const authFailureGuard = require('./core/AuthFailureGuard');
+
+function krakenAuthFailureText(error) {
+  const responseErrors = error?.response?.data?.error;
+  const parts = [];
+  if (Array.isArray(responseErrors)) parts.push(...responseErrors);
+  if (typeof responseErrors === 'string') parts.push(responseErrors);
+  if (error?.message) parts.push(error.message);
+  return parts.join(' | ');
+}
+
+function isKrakenAuthFailure(error) {
+  const status = error?.response?.status;
+  if (status === 401 || status === 403) return true;
+
+  const text = krakenAuthFailureText(error);
+  return /\bEAPI:(Invalid key|Invalid signature|Invalid nonce)\b|\bEGeneral:Permission denied\b|\bEOrder:Permission denied\b/i.test(text);
+}
+
+function recordKrakenAuthFailureIfRelevant(error, kind) {
+  if (!isKrakenAuthFailure(error)) return false;
+  authFailureGuard.recordFailure('kraken', kind, {
+    message: krakenAuthFailureText(error) || error?.message,
+    authFailure: true,
+    evidence: 'kraken-auth-classifier',
+  });
+  return true;
+}
 
 class KrakenAdapterSimple {
   constructor(config = {}) {
@@ -94,8 +122,14 @@ class KrakenAdapterSimple {
 
   async connect() {
     try {
-      // Test API credentials first
-      await this.testCredentials();
+      // Test API credentials first and route credential failures into the
+      // shared guard before preserving the existing false-return contract.
+      try {
+        await this.testCredentials();
+      } catch (error) {
+        recordKrakenAuthFailureIfRelevant(error, 'rest-credentials');
+        throw error;
+      }
 
       // Load asset pairs
       await this.loadAssetPairs();
@@ -148,6 +182,7 @@ class KrakenAdapterSimple {
       this.authToken = response.result.token;
       console.log('[Kraken] WebSocket auth token obtained');
     } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-token');
       throw new Error(`Failed to get auth token: ${error.message}`);
     }
   }
@@ -1191,3 +1226,5 @@ class KrakenAdapterSimple {
 }
 
 module.exports = KrakenAdapterSimple;
+module.exports.isKrakenAuthFailure = isKrakenAuthFailure;
+module.exports.krakenAuthFailureText = krakenAuthFailureText;

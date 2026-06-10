@@ -8,6 +8,7 @@
   "required": [
     "confidence",
     "risk",
+    "authFailureGuard",
     "positionSizing",
     "regimeBoosts",
     "volumeProfileBoosts",
@@ -26,6 +27,7 @@
     "regimeMultipliers",
     "profiles",
     "scalper",
+    "sessions",
     "features",
     "trai",
     "pipeline",
@@ -63,6 +65,16 @@
         "counterTrendReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "lowConfidenceReduction": { "type": "number", "minimum": 0, "maximum": 1 },
         "highConfidenceBoost": { "type": "number", "minimum": 1 }
+      }
+    },
+    "authFailureGuard": {
+      "type": "object",
+      "description": "Broker auth-failure escalation thresholds. Missing or invalid values must fail startup rather than silently disabling the KillSwitch guard.",
+      "additionalProperties": false,
+      "required": ["thresholdCount", "windowMs"],
+      "properties": {
+        "thresholdCount": { "type": "integer", "minimum": 1 },
+        "windowMs": { "type": "integer", "minimum": 1000 }
       }
     },
     "positionSizing": {
@@ -256,6 +268,31 @@
         "momentumShiftExit": { "type": "boolean" },
         "stopMultiplier": { "type": "number" },
         "maxHoldTime": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "sessions": {
+      "type": "object",
+      "description": "Session router runtime ownership. Values are explicit config, never inferred from environment defaults.",
+      "additionalProperties": false,
+      "required": [
+        "routerEnabled",
+        "stockSymbols",
+        "cryptoSymbols",
+        "checkIntervalMs",
+        "forceCloseOnSessionEnd"
+      ],
+      "properties": {
+        "routerEnabled": { "type": "boolean" },
+        "stockSymbols": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cryptoSymbols": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "checkIntervalMs": { "type": "integer", "minimum": 1000 },
+        "forceCloseOnSessionEnd": { "type": "boolean" }
       }
     },
     "features": {
