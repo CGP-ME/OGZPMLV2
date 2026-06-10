@@ -20,6 +20,10 @@ describe('StateManager load validation', () => {
     process.env.EXECUTION_MODE = 'paper';
     process.env.CANDLE_SOURCE = 'live';
     process.env.FRESH_START = 'false';
+    process.env.BROKER = 'alpaca';
+    process.env.ALPACA_MODE = 'paper';
+    process.env.MAX_WEEKLY_LOSS = '10';
+    process.env.MAX_MONTHLY_LOSS = '20';
   });
 
   afterEach(() => {
@@ -194,6 +198,123 @@ describe('StateManager load validation', () => {
     const trade = manager.get('activeTrades').get('SHORT_1');
     expect(trade.sizeUsd).toBeCloseTo(900);
     expect(trade.remainingOrderQuantity).toBeCloseTo(2.25);
+  });
+
+  test('failed open does not add active trade before locked state update succeeds', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    manager.validateUpdates = jest.fn(() => {
+      throw new Error('forced open validation failure');
+    });
+
+    const opened = await manager.openPosition(1200, 400, {
+      orderId: 'OPEN_ATOMIC_1',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 3,
+      remainingOrderQuantityUnit: 'shares',
+    });
+
+    expect(opened.success).toBe(false);
+    expect(opened.error).toContain('forced open validation failure');
+    expect(manager.get('activeTrades').has('OPEN_ATOMIC_1')).toBe(false);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('tradeCount')).toBe(0);
+    expect(manager.get('dailyTradeCount')).toBe(0);
+  });
+
+  test('failed full close does not delete active trade before locked state update succeeds', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(1200, 400, {
+      orderId: 'CLOSE_ATOMIC_1',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 3,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+
+    manager.validateUpdates = jest.fn(() => {
+      throw new Error('forced close validation failure');
+    });
+
+    const closed = await manager.closePosition(410, false, null, {
+      tradeId: 'CLOSE_ATOMIC_1',
+      orderId: 'CLOSE_ATOMIC_1',
+      exitReason: 'forced_failure',
+    });
+
+    expect(closed.success).toBe(false);
+    expect(closed.error).toContain('forced close validation failure');
+    expect(manager.get('activeTrades').has('CLOSE_ATOMIC_1')).toBe(true);
+    expect(manager.get('activeTrades').size).toBe(1);
+    expect(manager.get('position')).toBeCloseTo(1200);
+    expect(manager.get('inPosition')).toBeCloseTo(1200);
+    expect(manager.get('closedTrades')).toHaveLength(0);
+  });
+
+  test('failed partial reduce does not shrink active trade before locked state update succeeds', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(1000, 100, {
+      orderId: 'REDUCE_ATOMIC_1',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 10,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 10,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+
+    manager.validateUpdates = jest.fn(() => {
+      throw new Error('forced reduce validation failure');
+    });
+
+    const reduced = await manager.reducePosition('REDUCE_ATOMIC_1', 0.4, 110, {
+      orderId: 'REDUCE_ATOMIC_1',
+      exitReason: 'forced_failure',
+      orderQuantity: 4,
+      quantityUnit: 'shares',
+    });
+
+    expect(reduced.success).toBe(false);
+    expect(reduced.error).toContain('forced reduce validation failure');
+    const trade = manager.get('activeTrades').get('REDUCE_ATOMIC_1');
+    expect(trade.sizeUsd).toBeCloseTo(1000);
+    expect(trade.size).toBeCloseTo(1000);
+    expect(trade.remainingOrderQuantity).toBeCloseTo(10);
+    expect(trade.decisionLedger?.exits || []).toHaveLength(0);
+    expect(manager.get('position')).toBeCloseTo(1000);
+    expect(manager.get('inPosition')).toBeCloseTo(1000);
   });
 
   test('full close clears stale locked USD exposure when no active trades remain', async () => {

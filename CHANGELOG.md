@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### StateManager Active Trade Atomicity (2026-06-10)
+
+- Made `StateManager` open, full-close, and partial-reduce paths mutate cloned active-trade maps through the locked state update path only, with rollback regressions covering failed entry, close, and reduce validation.
+
 ### Mercury Ignore Enforcement (2026-06-09)
 
 - Made Mercury starter-context retrieval, chunk hydration, direct file reads, directory listing, historical git reads, and legacy read-only file opens enforce `mercury.ignore`; contaminated active index chunks now fail closed with a reindex-required error instead of reaching Mercury context.

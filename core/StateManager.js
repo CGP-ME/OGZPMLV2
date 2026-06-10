@@ -483,19 +483,7 @@ class StateManager {
       return this._rejectOpenPositionScope(err, context);
     }
 
-    if (this.state.position > 0) {
-      console.warn('[StateManager] Already in position, adding to it');
-    }
-
-    // DEBUG: Log what we're doing
-    // FIX 2026-03-28: size is already USD, no multiplication needed
     const usdCost = size;
-    console.log(`[StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
-    console.log(`   Size: $${size.toFixed(2)} USD`);
-    console.log(`   Price: $${price}`);
-    console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
-    console.log(`   Direction: ${tradeDirection}`);
-    console.log(`   Current Balance: $${this.state.balance}`);
 
     // FIX 2026-03-28: Per-trade equity accounting
     // Entry fee calculated upfront
@@ -571,43 +559,60 @@ class StateManager {
       return this._rejectOpenPositionQuantity(quantityIssues, context);
     }
 
-    // Add to activeTrades Map
-    if (!this.state.activeTrades) {
-      this.state.activeTrades = new Map();
+    let result;
+    await this.acquireLock();
+    try {
+      if (this.state.position > 0) {
+        console.warn('[StateManager] Already in position, adding to it');
+      }
+
+      // DEBUG: Log what we're doing
+      // FIX 2026-03-28: size is already USD, no multiplication needed
+      console.log(`[StateManager] Opening ${tradeDirection.toUpperCase()} position:`);
+      console.log(`   Size: $${size.toFixed(2)} USD`);
+      console.log(`   Price: $${price}`);
+      console.log(`   USD Cost: $${usdCost.toFixed(2)}`);
+      console.log(`   Direction: ${tradeDirection}`);
+      console.log(`   Current Balance: $${this.state.balance}`);
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      nextActiveTrades.set(tradeId, trade);
+      console.log(`[StateManager] Added trade ${tradeId} to activeTrades (now ${nextActiveTrades.size} trades)`);
+
+      // For position scalar (kept for compatibility)
+      const positionDelta = tradeDirection === 'short' ? -size : size;
+      const newPosition = this.state.position + positionDelta;
+
+      // FIX 2026-03-28: Per-trade equity accounting
+      // Only entryFee affects realizedPnL on open - NO principal movement
+      console.log('[EQUITY-DEBUG] OPEN direction=' + tradeDirection + ' entryFee=' + entryFee.toFixed(4) + ' realizedPnL=' + this.state.realizedPnL);
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: newPosition,  // Positive for long, negative for short (kept for compatibility)
+        positionCount: this.state.positionCount + 1,
+        entryPrice: Math.abs(this.state.position) > 0
+          ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
+          : price,
+        entryTime: this.state.entryTime || Date.now(),
+        // FIX 2026-03-28: No balance principal movement - only fee deducted from realizedPnL
+        realizedPnL: this.state.realizedPnL - entryFee,
+        inPosition: this.state.inPosition + usdCost,  // Track USD exposure
+        lastTradeTime: Date.now(),
+        tradeCount: this.state.tradeCount + 1,
+        dailyTradeCount: this.state.dailyTradeCount + 1
+      };
+
+      result = this._applyStateUpdatesLocked(updates, { action: 'OPEN_POSITION', price, size, ...context });
+    } finally {
+      this.releaseLock();
     }
-    this.state.activeTrades.set(tradeId, trade);
-    console.log(`[StateManager] Added trade ${tradeId} to activeTrades (now ${this.state.activeTrades.size} trades)`);
-
-    // For position scalar (kept for compatibility)
-    const positionDelta = tradeDirection === 'short' ? -size : size;
-    const newPosition = this.state.position + positionDelta;
-
-    // FIX 2026-03-28: Per-trade equity accounting
-    // Only entryFee affects realizedPnL on open - NO principal movement
-    console.log('[EQUITY-DEBUG] OPEN direction=' + tradeDirection + ' entryFee=' + entryFee.toFixed(4) + ' realizedPnL=' + this.state.realizedPnL);
-
-    const updates = {
-      position: newPosition,  // Positive for long, negative for short (kept for compatibility)
-      positionCount: this.state.positionCount + 1,
-      entryPrice: Math.abs(this.state.position) > 0
-        ? (this.state.entryPrice * Math.abs(this.state.position) + price * size) / (Math.abs(this.state.position) + size)
-        : price,
-      entryTime: this.state.entryTime || Date.now(),
-      // FIX 2026-03-28: No balance principal movement - only fee deducted from realizedPnL
-      realizedPnL: this.state.realizedPnL - entryFee,
-      inPosition: this.state.inPosition + usdCost,  // Track USD exposure
-      lastTradeTime: Date.now(),
-      tradeCount: this.state.tradeCount + 1,
-      dailyTradeCount: this.state.dailyTradeCount + 1
-    };
-
-    const result = this.updateState(updates, { action: 'OPEN_POSITION', price, size, ...context });
 
     // Narrator: entered event. Uses module-cached singleton.
     // Disabled path: property-access + branch-taken, zero allocation.
     // Try frame only entered when enabled so a formatter throw can never
     // break an open path.
-    if (narrator.enabled) {
+    if (result?.success && narrator.enabled) {
       try {
         narrator.entered({
           tradeId,
@@ -722,166 +727,178 @@ class StateManager {
       console.error('[StateManager] closePosition does not support partial closes; use reducePosition.');
       return { success: false, error: 'closePosition does not support partial closes; use reducePosition' };
     }
-    // Allow closing both long (positive) and short (negative) positions
-    // FIX 2026-03-29: Allow close when position=0 but activeTrades exist (hedged positions)
-    if (this.state.position === 0 && !(this.state.activeTrades && this.state.activeTrades.size > 0)) {
-      console.error('[StateManager] No position to close!');
-      return { success: false, error: 'No position to close' };
-    }
+    let result;
+    let ledgerToWrite = null;
+    let narratorPayload = null;
 
-    // FIX 2026-03-28: Per-trade equity accounting - look up trade FIRST
-    // CRITICAL: No fallback to global state - require valid tradeId
-    const tradeId = context.tradeId || context.orderId;
-    if (!tradeId) {
-      console.error('[StateManager] closePosition called without tradeId!');
-      return { success: false, error: 'tradeId required for closePosition' };
-    }
+    await this.acquireLock();
+    try {
+      // Allow closing both long (positive) and short (negative) positions
+      // FIX 2026-03-29: Allow close when position=0 but activeTrades exist (hedged positions)
+      if (this.state.position === 0 && !(this.state.activeTrades && this.state.activeTrades.size > 0)) {
+        console.error('[StateManager] No position to close!');
+        return { success: false, error: 'No position to close' };
+      }
 
-    const trade = this.state.activeTrades?.get(tradeId);
-    if (!trade) {
-      console.error(`[StateManager] Trade ${tradeId} not found in activeTrades!`);
-      return { success: false, error: `Trade ${tradeId} not found` };
-    }
+      // FIX 2026-03-28: Per-trade equity accounting - look up trade FIRST
+      // CRITICAL: No fallback to global state - require valid tradeId
+      const tradeId = context.tradeId || context.orderId;
+      if (!tradeId) {
+        console.error('[StateManager] closePosition called without tradeId!');
+        return { success: false, error: 'tradeId required for closePosition' };
+      }
 
-    // Use trade's values - NO fallback to global state
-    const tradeEntryPrice = trade.entryPrice;
-    const tradeSizeUsd = trade.sizeUsd || trade.size;
-    const tradeDirection = trade.direction;
-    const isShort = tradeDirection === 'short';
-    const closeSize = Math.abs(tradeSizeUsd);
+      const trade = this.state.activeTrades?.get(tradeId);
+      if (!trade) {
+        console.error(`[StateManager] Trade ${tradeId} not found in activeTrades!`);
+        return { success: false, error: `Trade ${tradeId} not found` };
+      }
 
-    // CRITICAL: PnL depends on direction, using TRADE's entryPrice
-    // LONG: profit when price goes UP (exit - entry)
-    // SHORT: profit when price goes DOWN (entry - exit)
-    let priceChangePercent;
-    if (isShort) {
-      priceChangePercent = tradeEntryPrice > 0
-        ? ((tradeEntryPrice - price) / tradeEntryPrice)
-        : 0;
-    } else {
-      priceChangePercent = tradeEntryPrice > 0
-        ? ((price - tradeEntryPrice) / tradeEntryPrice)
-        : 0;
-    }
-    const pnl = closeSize * priceChangePercent;  // USD P&L
-    const pnlPercent = priceChangePercent * 100;
+      // Use trade's values - NO fallback to global state
+      const tradeEntryPrice = trade.entryPrice;
+      const tradeSizeUsd = trade.sizeUsd || trade.size;
+      const tradeDirection = trade.direction;
+      const isShort = tradeDirection === 'short';
+      const closeSize = Math.abs(tradeSizeUsd);
 
-    // Calculate exit fee
-    const usdValueAtClose = closeSize + pnl;
-    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+      // CRITICAL: PnL depends on direction, using TRADE's entryPrice
+      // LONG: profit when price goes UP (exit - entry)
+      // SHORT: profit when price goes DOWN (entry - exit)
+      let priceChangePercent;
+      if (isShort) {
+        priceChangePercent = tradeEntryPrice > 0
+          ? ((tradeEntryPrice - price) / tradeEntryPrice)
+          : 0;
+      } else {
+        priceChangePercent = tradeEntryPrice > 0
+          ? ((price - tradeEntryPrice) / tradeEntryPrice)
+          : 0;
+      }
+      const pnl = closeSize * priceChangePercent;  // USD P&L
+      const pnlPercent = priceChangePercent * 100;
 
-    // Remove trade from activeTrades
-    if (this.state.activeTrades && this.state.activeTrades.size > 0) {
-      if (tradeId && this.state.activeTrades.has(tradeId)) {
-        this.state.activeTrades.delete(tradeId);
+      // Calculate exit fee
+      const usdValueAtClose = closeSize + pnl;
+      const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      if (nextActiveTrades.has(tradeId)) {
+        nextActiveTrades.delete(tradeId);
         console.log(`[StateManager] Removed trade ${tradeId} (${trade?.action || trade?.type}) from activeTrades`);
-        console.log(`[StateManager] ${this.state.activeTrades.size} active trades remaining`);
-      } else if (!partial && (this.state.position - closeSize) <= 0) {
+        console.log(`[StateManager] ${nextActiveTrades.size} active trades remaining`);
+      } else if ((this.state.position - closeSize) <= 0) {
         // Full close with no position remaining - clear all trades
-        const tradeCount = this.state.activeTrades.size;
-        for (const [id, t] of this.state.activeTrades.entries()) {
-          this.state.activeTrades.delete(id);
+        const tradeCount = nextActiveTrades.size;
+        for (const [id, t] of nextActiveTrades.entries()) {
+          nextActiveTrades.delete(id);
           console.log(`[StateManager] Removed trade ${id} (${t.action || t.type}) from activeTrades`);
         }
         console.log(`[StateManager] Cleared ${tradeCount} active trades (position fully closed)`);
       }
+
+      // FIX 2026-03-28: Per-trade equity accounting
+      // Net realized result = pnl - exitFee (added to realizedPnL)
+      // NO balance principal movement
+      const netRealizedResult = pnl - exitFee;
+
+      // L8: Persist decision ledger to JSONL on full close (after netRealizedResult computed)
+      if (trade.decisionLedger) {
+        ledgerToWrite = {
+          ...trade.decisionLedger,
+          outcome: {
+            exitPrice: price,
+            exitTime: Date.now(),
+            pnlDollars: pnl,
+            pnlPercent,
+            exitFee,
+            netPnlDollars: netRealizedResult,
+            exitReason: context.exitReason || 'unknown',
+            holdTimeMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
+          },
+        };
+      }
+
+      // Position scalar update (kept for compatibility)
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const calculatedPosition = isShort
+        ? Math.min(0, this.state.position + closeSize)
+        : Math.max(0, this.state.position - closeSize);
+      const finalPosition = noActiveTradesRemaining ? 0 : calculatedPosition;
+
+      console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
+
+      // 2026-05-04: closedTrades append for win-rate math (CandleProcessor:406-408 reads this).
+      // Pure additive — fields mirror the session-doc record shape so downstream consumers
+      // beyond the win-rate path can read direction/strategy/holdMs without further changes.
+      const closedTradeRecord = {
+        tradeId,
+        symbol: trade.symbol || null,  // FIX S10-BUG-1: carry symbol for per-ticker analytics
+        pnl,
+        pnlPercent,
+        direction: tradeDirection,
+        entryPrice: tradeEntryPrice,
+        exitPrice: price,
+        strategy: trade.entryStrategy || trade.strategy || 'unknown',
+        holdMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
+        closedAt: Date.now()
+      };
+
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: finalPosition,
+        positionCount: noActiveTradesRemaining ? 0 : nextActiveTrades.size,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        // FIX 2026-03-28: No balance principal movement - only realizedPnL changes
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
+        lastTradeTime: Date.now()
+      };
+
+      console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+
+      result = this._applyStateUpdatesLocked(updates, {
+        action: 'CLOSE_POSITION',
+        price,
+        size: closeSize,
+        pnl,
+        partial,
+        ...context
+      });
+
+      narratorPayload = {
+        tradeId,
+        strategy: trade.entryStrategy || trade.strategy || 'default',
+        direction: tradeDirection,
+        entryPrice: tradeEntryPrice,
+        exitPrice: price,
+        pnl,
+        pnlPercent,
+        reason: context.exitReason || context.reason || 'closed',
+        holdMs: trade.entryTime
+          ? Date.now() - trade.entryTime
+          : (trade.timestamp ? Date.now() - trade.timestamp : 0),
+      };
+    } finally {
+      this.releaseLock();
     }
 
-    // FIX 2026-03-28: Per-trade equity accounting
-    // Net realized result = pnl - exitFee (added to realizedPnL)
-    // NO balance principal movement
-    const netRealizedResult = pnl - exitFee;
-
-    // L8: Persist decision ledger to JSONL on full close (after netRealizedResult computed)
-    if (trade.decisionLedger) {
+    if (result?.success && ledgerToWrite) {
       try {
         const ledgerLogger = require('./DecisionLedgerLogger');
-        trade.decisionLedger.outcome = {
-          exitPrice: price,
-          exitTime: Date.now(),
-          pnlDollars: pnl,
-          pnlPercent,
-          exitFee,
-          netPnlDollars: netRealizedResult,
-          exitReason: context.exitReason || 'unknown',
-          holdTimeMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
-        };
-        ledgerLogger.writeOnClose(trade.decisionLedger);
+        ledgerLogger.writeOnClose(ledgerToWrite);
       } catch (e) {
         console.warn('[LEDGER] Failed to persist decision ledger:', e.message);
       }
     }
 
-    // Position scalar update (kept for compatibility)
-    const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
-    const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd();
-    const calculatedPosition = isShort
-      ? Math.min(0, this.state.position + closeSize)
-      : Math.max(0, this.state.position - closeSize);
-    const finalPosition = noActiveTradesRemaining ? 0 : calculatedPosition;
-
-    console.log('[EQUITY-DEBUG] CLOSE isShort=' + isShort + ' pnl=' + pnl.toFixed(2) + ' exitFee=' + exitFee.toFixed(4) + ' netResult=' + netRealizedResult.toFixed(2));
-
-    // 2026-05-04: closedTrades append for win-rate math (CandleProcessor:406-408 reads this).
-    // Pure additive — fields mirror the session-doc record shape so downstream consumers
-    // beyond the win-rate path can read direction/strategy/holdMs without further changes.
-    const closedTradeRecord = {
-      tradeId,
-      symbol: trade.symbol || null,  // FIX S10-BUG-1: carry symbol for per-ticker analytics
-      pnl,
-      pnlPercent,
-      direction: tradeDirection,
-      entryPrice: tradeEntryPrice,
-      exitPrice: price,
-      strategy: trade.entryStrategy || trade.strategy || 'unknown',
-      holdMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
-      closedAt: Date.now()
-    };
-
-    const updates = {
-      position: finalPosition,
-      positionCount: noActiveTradesRemaining ? 0 : this.state.activeTrades.size,
-      entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
-      entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
-      // FIX 2026-03-28: No balance principal movement - only realizedPnL changes
-      inPosition: remainingExposureUsd,
-      realizedPnL: this.state.realizedPnL + netRealizedResult,
-      totalPnL: this.state.totalPnL + pnl,
-      closedTrades: [...(this.state.closedTrades || []), closedTradeRecord],
-      lastTradeTime: Date.now()
-    };
-
-    console.log(`Position closed: PnL ${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
-
-    const result = this.updateState(updates, {
-      action: 'CLOSE_POSITION',
-      price,
-      size: closeSize,
-      pnl,
-      partial,
-      ...context
-    });
-
-    // Narrator: closed event. Uses module-cached singleton. Disabled path:
-    // property-access + branch-taken, zero allocation. Uses the trade
-    // record captured BEFORE delete() above so we always have a
-    // consistent snapshot of entryStrategy / entryTime / direction.
-    if (narrator.enabled) {
+    // Narrator: closed event. Uses module-cached singleton.
+    if (result?.success && narrator.enabled && narratorPayload) {
       try {
-        const heldMs = trade.entryTime
-          ? Date.now() - trade.entryTime
-          : (trade.timestamp ? Date.now() - trade.timestamp : 0);
-        narrator.closed({
-          tradeId,
-          strategy: trade.entryStrategy || trade.strategy || 'default',
-          direction: tradeDirection,
-          entryPrice: tradeEntryPrice,
-          exitPrice: price,
-          pnl,
-          pnlPercent,
-          reason: context.exitReason || context.reason || 'closed',
-          holdMs: heldMs,
-        });
+        narrator.closed(narratorPayload);
       } catch (_) { /* narrator must never break trading */ }
     }
 
@@ -900,84 +917,104 @@ class StateManager {
       console.error('[StateManager] reducePosition called with invalid fraction:', fraction);
       return { success: false, error: 'Invalid fraction for reducePosition' };
     }
-    const trade = this.state.activeTrades?.get(tradeId);
-    if (!trade) {
-      console.error(`[StateManager] Trade ${tradeId} not found for reducePosition`);
-      return { success: false, error: `Trade ${tradeId} not found` };
-    }
 
-    const tradeSizeUsd = trade.sizeUsd || trade.size;
-    const closeSize = tradeSizeUsd * fraction;
-    const tradeEntryPrice = trade.entryPrice;
-    const isShort = trade.direction === 'short';
-    const priceChangePercent = isShort
-      ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
-      : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
-    const pnl = closeSize * priceChangePercent;
-    const usdValueAtClose = closeSize + pnl;
-    const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
-    const netRealizedResult = pnl - exitFee;
-
-    // Update trade size (and possibly delete)
-    const remainingSize = tradeSizeUsd - closeSize;
-    const priorOrderQuantity = Number(trade.remainingOrderQuantity);
-    const closedOrderQuantity = Number(context.orderQuantity);
-    const hasBrokerQuantity = Number.isFinite(priorOrderQuantity) && priorOrderQuantity > 0;
-    const hasClosedBrokerQuantity = Number.isFinite(closedOrderQuantity) && closedOrderQuantity > 0;
-    const remainingOrderQuantity = hasBrokerQuantity
-      ? Math.max(0, priorOrderQuantity - (hasClosedBrokerQuantity ? closedOrderQuantity : priorOrderQuantity * fraction))
-      : null;
-    if (remainingSize <= 0) {
-      this.state.activeTrades.delete(tradeId);
-    } else {
-      trade.sizeUsd = remainingSize;
-      trade.size = remainingSize;  // FIX P1-A: keep both fields in sync — OrderExecutor reads trade.size for P&L computation, fees, console logs
-      if (hasBrokerQuantity) {
-        trade.remainingOrderQuantity = remainingOrderQuantity;
-        trade.remainingOrderQuantityUnit = context.quantityUnit || trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || null;
+    await this.acquireLock();
+    try {
+      const trade = this.state.activeTrades?.get(tradeId);
+      if (!trade) {
+        console.error(`[StateManager] Trade ${tradeId} not found for reducePosition`);
+        return { success: false, error: `Trade ${tradeId} not found` };
       }
-    }
 
-    // Append exit info to decision ledger
-    if (trade.decisionLedger) {
-      const exitEntry = {
-        exitSize: closeSize,
-        exitFraction: fraction,
-        remainingSize: Math.max(0, remainingSize),
-        exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
-        remainingOrderQuantity,
-        exitPrice: price,
-        exitReason: context.exitReason || 'partial',
-        netPnlDollars: netRealizedResult,
-        timestamp: Date.now()
+      const tradeSizeUsd = trade.sizeUsd || trade.size;
+      const closeSize = tradeSizeUsd * fraction;
+      const tradeEntryPrice = trade.entryPrice;
+      const isShort = trade.direction === 'short';
+      const priceChangePercent = isShort
+        ? (tradeEntryPrice > 0 ? (tradeEntryPrice - price) / tradeEntryPrice : 0)
+        : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
+      const pnl = closeSize * priceChangePercent;
+      const usdValueAtClose = closeSize + pnl;
+      const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+      const netRealizedResult = pnl - exitFee;
+
+      const nextActiveTrades = new Map(this.state.activeTrades || []);
+      const nextTrade = {
+        ...trade,
+        decisionLedger: trade.decisionLedger
+          ? {
+              ...trade.decisionLedger,
+              exits: Array.isArray(trade.decisionLedger.exits)
+                ? [...trade.decisionLedger.exits]
+                : [],
+            }
+          : trade.decisionLedger,
       };
-      trade.decisionLedger.exits = trade.decisionLedger.exits || [];
-      trade.decisionLedger.exits.push(exitEntry);
-    }
 
-    // Update global state metrics
-    const positionDelta = isShort ? closeSize : -closeSize;
-    const noActiveTradesRemaining = !this.state.activeTrades || this.state.activeTrades.size === 0;
-    const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd();
-    const updates = {
-      position: noActiveTradesRemaining ? 0 : this.state.position + positionDelta,
-      positionCount: noActiveTradesRemaining ? 0 : this.state.positionCount,
-      entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
-      entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
-      inPosition: remainingExposureUsd,
-      realizedPnL: this.state.realizedPnL + netRealizedResult,
-      totalPnL: this.state.totalPnL + pnl,
-      lastTradeTime: Date.now()
-    };
-    return this.updateState(updates, {
-      action: 'REDUCE_POSITION',
-      tradeId,
-      fraction,
-      price,
-      pnl,
-      netRealizedResult,
-      ...context
-    });
+      // Update trade size (and possibly delete)
+      const remainingSize = tradeSizeUsd - closeSize;
+      const priorOrderQuantity = Number(trade.remainingOrderQuantity);
+      const closedOrderQuantity = Number(context.orderQuantity);
+      const hasBrokerQuantity = Number.isFinite(priorOrderQuantity) && priorOrderQuantity > 0;
+      const hasClosedBrokerQuantity = Number.isFinite(closedOrderQuantity) && closedOrderQuantity > 0;
+      const remainingOrderQuantity = hasBrokerQuantity
+        ? Math.max(0, priorOrderQuantity - (hasClosedBrokerQuantity ? closedOrderQuantity : priorOrderQuantity * fraction))
+        : null;
+      if (remainingSize <= 0) {
+        nextActiveTrades.delete(tradeId);
+      } else {
+        nextTrade.sizeUsd = remainingSize;
+        nextTrade.size = remainingSize;  // FIX P1-A: keep both fields in sync - OrderExecutor reads trade.size for P&L computation, fees, console logs
+        if (hasBrokerQuantity) {
+          nextTrade.remainingOrderQuantity = remainingOrderQuantity;
+          nextTrade.remainingOrderQuantityUnit = context.quantityUnit || trade.remainingOrderQuantityUnit || trade.entryOrderQuantityUnit || null;
+        }
+        nextActiveTrades.set(tradeId, nextTrade);
+      }
+
+      // Append exit info to decision ledger
+      if (nextTrade.decisionLedger) {
+        const exitEntry = {
+          exitSize: closeSize,
+          exitFraction: fraction,
+          remainingSize: Math.max(0, remainingSize),
+          exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
+          remainingOrderQuantity,
+          exitPrice: price,
+          exitReason: context.exitReason || 'partial',
+          netPnlDollars: netRealizedResult,
+          timestamp: Date.now()
+        };
+        nextTrade.decisionLedger.exits.push(exitEntry);
+      }
+
+      // Update global state metrics
+      const positionDelta = isShort ? closeSize : -closeSize;
+      const noActiveTradesRemaining = nextActiveTrades.size === 0;
+      const remainingExposureUsd = noActiveTradesRemaining ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: noActiveTradesRemaining ? 0 : this.state.position + positionDelta,
+        positionCount: noActiveTradesRemaining ? 0 : this.state.positionCount,
+        entryPrice: noActiveTradesRemaining ? 0 : this.state.entryPrice,
+        entryTime: noActiveTradesRemaining ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        lastTradeTime: Date.now()
+      };
+      return this._applyStateUpdatesLocked(updates, {
+        action: 'REDUCE_POSITION',
+        tradeId,
+        fraction,
+        price,
+        pnl,
+        netRealizedResult,
+        ...context
+      });
+    } finally {
+      this.releaseLock();
+    }
   }
 
   /**
