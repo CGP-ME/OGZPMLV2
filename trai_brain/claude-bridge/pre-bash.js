@@ -1,7 +1,10 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const policy = require('./policy');
 const finishGate = require('./finish-gate');
+const taskContract = require('./task-contract');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -85,7 +88,8 @@ function shellTokens(cmd) {
 
 function isPathLike(token) {
   if (!token || token.startsWith('-')) return false;
-  return token.includes('/') || token.startsWith('.') || /\.[A-Za-z0-9]+$/.test(token);
+  if (token.includes('/') || token.startsWith('.') || /\.[A-Za-z0-9]+$/.test(token)) return true;
+  return fs.existsSync(path.resolve(policy.REPO_ROOT, token));
 }
 
 function extractPaths(cmd) {
@@ -138,6 +142,15 @@ function run() {
 
   if (!cmd) process.exit(0);
 
+  const bashCheck = taskContract.checkBashAllowed(cmd);
+  if (!bashCheck.allowed) {
+    emit(
+      `BLOCKED (claude task-contract): Bash command violates active task ${bashCheck.taskId}. ` +
+      `${bashCheck.reason}${bashCheck.matched ? ` (${bashCheck.matched})` : ''}.`,
+      2
+    );
+  }
+
   const mutation = mutationReason(cmd);
   if (mutation) {
     if (mutation === 'warden_gated_git_mutation') {
@@ -161,6 +174,16 @@ function run() {
         `If the file is genuinely needed, surface the policy decision to Trey.`,
         2
       );
+    }
+    if (check.allowed) {
+      const taskCheck = taskContract.checkPathAllowed('read', check.path);
+      if (!taskCheck.allowed) {
+        emit(
+          `BLOCKED (claude task-contract): Bash read ${taskCheck.path || check.path} violates active task ${taskCheck.taskId}. ` +
+          `${taskCheck.reason}${taskCheck.matched ? ` (${taskCheck.matched})` : ''}.`,
+          2
+        );
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 'use strict';
 
 const policy = require('./policy');
+const taskContract = require('./task-contract');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -36,6 +37,15 @@ function run() {
       emit(`BLOCKED (claude-bridge): ${target} is outside the repo boundary`, 2);
     }
     emit(`BLOCKED (claude-bridge): ${check.reason}`, 2);
+  }
+
+  const taskCheck = taskContract.checkPathAllowed('read', check.path);
+  if (!taskCheck.allowed) {
+    emit(
+      `BLOCKED (claude task-contract): read ${taskCheck.path || target} violates active task ${taskCheck.taskId}. ` +
+      `${taskCheck.reason}${taskCheck.matched ? ` (${taskCheck.matched})` : ''}.`,
+      2
+    );
   }
 
   process.exit(0);

@@ -26,5 +26,6 @@ describe('claude bridge Bash gate', () => {
   test('still detects ignored read paths for allowed read commands', () => {
     expect(extractPaths('cat data/state.json')).toEqual(['data/state.json']);
     expect(extractPaths('nl -ba core/TRAIDecisionModule.js')).toEqual(['core/TRAIDecisionModule.js']);
+    expect(extractPaths('rg -n "needle" core test')).toEqual(['core', 'test']);
   });
 });

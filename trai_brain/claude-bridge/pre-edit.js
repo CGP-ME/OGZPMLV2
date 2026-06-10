@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const policy = require('./policy');
 const ledger = require('./read-ledger');
+const taskContract = require('./task-contract');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -40,6 +41,15 @@ function run() {
   }
 
   const rel = check.path;
+  const taskCheck = taskContract.checkPathAllowed('write', rel);
+  if (!taskCheck.allowed) {
+    emit(
+      `BLOCKED (claude task-contract): write ${taskCheck.path || rel} violates active task ${taskCheck.taskId}. ` +
+      `${taskCheck.reason}${taskCheck.matched ? ` (${taskCheck.matched})` : ''}.`,
+      2
+    );
+  }
+
   const absPath = path.isAbsolute(target) ? target : path.resolve(policy.REPO_ROOT, target);
   const fileExists = fs.existsSync(absPath);
 

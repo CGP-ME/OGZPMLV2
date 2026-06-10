@@ -12,6 +12,7 @@ const HANDLERS = {
   'post-edit': './post-edit',
   'finish-gate': './finish-gate',
   'warden': './finish-gate',
+  'task-contract': './task-contract',
   'ignore-check': './pre-read',
 };
 
@@ -28,6 +29,7 @@ Subcommands:
   post-edit       PostToolUse(Edit|Write|NotebookEdit) — records successful edits
   finish-gate     Stop handler — requires hot-path Mercury/P0 proof
   warden          Alias for finish-gate
+  task-contract   Validates active task-contract JSON when called directly
   ignore-check    Standalone ignore policy check (alias for pre-read)
 `);
 }

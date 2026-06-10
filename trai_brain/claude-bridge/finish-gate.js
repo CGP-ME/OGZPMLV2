@@ -5,6 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { REPO_ROOT } = require('./policy');
 const editLedger = require('./edit-ledger');
+const taskContract = require('./task-contract');
 
 const PROOF_PATH = path.join(REPO_ROOT, '.claude', 'session-state', 'hot-path-proof.json');
 const HOT_PATH_PREFIXES = [
@@ -147,6 +148,19 @@ function hasFallbackProof(proof, suspiciousLines) {
 }
 
 function evaluateFinishGate() {
+  const allFiles = changedFiles();
+  const claudeChangedFiles = editedChangedFiles(allFiles);
+  const taskViolations = taskContract.changedFilesOutsideContract(claudeChangedFiles);
+  if (taskViolations.length > 0) {
+    return {
+      allowed: false,
+      reason: 'task_contract_diff_outside_write_scope',
+      failures: ['task_contract_diff_outside_write_scope'],
+      hotFiles: [],
+      taskViolations,
+    };
+  }
+
   const hotFiles = hotPathEditedChanges();
   if (hotFiles.length === 0) {
     return { allowed: true, reason: 'no_claude_touched_hot_path_changes', hotFiles };
@@ -189,6 +203,11 @@ function run() {
       `Failures:\n${(result.failures || [result.reason]).map((failure) => `  - ${failure}`).join('\n')}\n` +
       `Required proof file: .claude/session-state/hot-path-proof.json\n`
     );
+    if (result.taskViolations?.length) {
+      process.stderr.write(
+        `Task-contract diff violations:\n${result.taskViolations.map((file) => `  - ${file}`).join('\n')}\n`
+      );
+    }
     if (result.suspiciousLines?.length) {
       process.stderr.write(
         `Suspicious added fallback/default lines:\n${result.suspiciousLines.map((line) => `  + ${line}`).join('\n')}\n`
