@@ -54,6 +54,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
+const TradingConfig = require('./TradingConfig');
 
 // Ensure logs directory exists (fire-and-forget at module load)
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
@@ -67,14 +68,6 @@ const STATUS = {
   QUARANTINED: 'QUARANTINED',
   DEAD: 'DEAD'
 };
-
-// Thresholds
-const MIN_SAMPLES_PROMOTE = 30;
-const MIN_SAMPLES_QUAR = 15;
-const MIN_WINRATE_PROMOTE = 0.55;
-const MIN_AVG_R_PROMOTE = 0.15;
-const MAX_WINRATE_QUAR = 0.45;
-const MAX_PATTERNS = 10000;
 
 function assertJsonPathInsideRoot(candidatePath, rootDir, label) {
     if (typeof candidatePath !== 'string' || candidatePath.trim() === '') {
@@ -92,6 +85,75 @@ function assertJsonPathInsideRoot(candidatePath, rootDir, label) {
     }
 
     return resolved;
+}
+
+const PATTERN_BANK_NUMERIC_FIELDS = Object.freeze({
+    minTradesSample: { integer: true, min: 1 },
+    successThreshold: { min: 0, max: 1 },
+    failureThreshold: { min: 0, max: 1 },
+    maxPatternAgeMs: { integer: true, min: 1 },
+    promoteMinSamples: { integer: true, min: 1 },
+    quarantineMinSamples: { integer: true, min: 1 },
+    promoteMinWinRate: { min: 0, max: 1 },
+    promoteMinAvgR: { min: 0 },
+    quarantineMaxWinRate: { min: 0, max: 1 },
+    maxPatterns: { integer: true, min: 1 },
+});
+
+function assertPatternBankNumber(config, key, rule) {
+    const value = config[key];
+    if (!Number.isFinite(value)) {
+        throw new Error(`[PatternMemoryBank] patternMemory.bank.${key} must be a finite number`);
+    }
+    if (rule.integer && !Number.isInteger(value)) {
+        throw new Error(`[PatternMemoryBank] patternMemory.bank.${key} must be an integer`);
+    }
+    if (Number.isFinite(rule.min) && value < rule.min) {
+        throw new Error(`[PatternMemoryBank] patternMemory.bank.${key} must be >= ${rule.min}`);
+    }
+    if (Number.isFinite(rule.max) && value > rule.max) {
+        throw new Error(`[PatternMemoryBank] patternMemory.bank.${key} must be <= ${rule.max}`);
+    }
+}
+
+function copyDefinedConfigValue(source, sourceKey, target, targetKey = sourceKey) {
+    if (Object.prototype.hasOwnProperty.call(source, sourceKey)) {
+        target[targetKey] = source[sourceKey];
+    }
+}
+
+function resolvePatternBankConfig(config) {
+    const patternMemoryConfig = TradingConfig.getSection('patternMemory');
+    if (!patternMemoryConfig || typeof patternMemoryConfig !== 'object') {
+        throw new Error('[PatternMemoryBank] TradingConfig.patternMemory is required');
+    }
+    if (!patternMemoryConfig.bank || typeof patternMemoryConfig.bank !== 'object') {
+        throw new Error('[PatternMemoryBank] TradingConfig.patternMemory.bank is required');
+    }
+
+    const overrides = {};
+    copyDefinedConfigValue(config, 'minTradesSample', overrides);
+    copyDefinedConfigValue(config, 'successThreshold', overrides);
+    copyDefinedConfigValue(config, 'failureThreshold', overrides);
+    copyDefinedConfigValue(config, 'maxPatternAgeMs', overrides);
+    copyDefinedConfigValue(config, 'maxPatternAge', overrides, 'maxPatternAgeMs');
+    copyDefinedConfigValue(config, 'promoteMinSamples', overrides);
+    copyDefinedConfigValue(config, 'quarantineMinSamples', overrides);
+    copyDefinedConfigValue(config, 'promoteMinWinRate', overrides);
+    copyDefinedConfigValue(config, 'promoteMinAvgR', overrides);
+    copyDefinedConfigValue(config, 'quarantineMaxWinRate', overrides);
+    copyDefinedConfigValue(config, 'maxPatterns', overrides);
+
+    const resolved = {
+        ...patternMemoryConfig.bank,
+        ...overrides,
+    };
+
+    for (const [key, rule] of Object.entries(PATTERN_BANK_NUMERIC_FIELDS)) {
+        assertPatternBankNumber(resolved, key, rule);
+    }
+
+    return Object.freeze({ ...resolved });
 }
 
 class PatternMemoryBank {
@@ -152,11 +214,12 @@ class PatternMemoryBank {
 
         console.log(`[TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
 
-        // Statistical thresholds
-        this.minTradesSample = config.minTradesSample || 10;  // Need 10+ occurrences
-        this.successThreshold = config.successThreshold || 0.65;  // 65%+ win rate = success
-        this.failureThreshold = config.failureThreshold || 0.35;  // <35% win rate = avoid
-        this.maxPatternAge = config.maxPatternAge || 90 * 24 * 60 * 60 * 1000;  // 90 days in ms
+        const patternBankConfig = resolvePatternBankConfig(config);
+        this.patternBankConfig = patternBankConfig;
+        this.minTradesSample = patternBankConfig.minTradesSample;
+        this.successThreshold = patternBankConfig.successThreshold;
+        this.failureThreshold = patternBankConfig.failureThreshold;
+        this.maxPatternAge = patternBankConfig.maxPatternAgeMs;
 
         // Load existing memory or create new
         this.#memory = this.loadMemory();
@@ -521,8 +584,8 @@ class PatternMemoryBank {
         const variancePenalty = stdDev > 2 ? (stdDev - 2) * 0.1 : 0;
 
         // Win rate penalty if below floor after enough samples
-        const winRatePenalty = (record.sampleCount >= MIN_SAMPLES_QUAR && winRate < MAX_WINRATE_QUAR)
-            ? (MAX_WINRATE_QUAR - winRate) * 2
+        const winRatePenalty = (record.sampleCount >= this.patternBankConfig.quarantineMinSamples && winRate < this.patternBankConfig.quarantineMaxWinRate)
+            ? (this.patternBankConfig.quarantineMaxWinRate - winRate) * 2
             : 0;
 
         const score = (winRate * avgR) * confidenceMultiplier * recencyMultiplier - variancePenalty - winRatePenalty;
@@ -537,16 +600,16 @@ class PatternMemoryBank {
         const avgR = record.avgPnLPercent;
 
         // PROMOTED: meets all criteria
-        if (record.sampleCount >= MIN_SAMPLES_PROMOTE &&
-            winRate >= MIN_WINRATE_PROMOTE &&
-            avgR >= MIN_AVG_R_PROMOTE) {
+        if (record.sampleCount >= this.patternBankConfig.promoteMinSamples &&
+            winRate >= this.patternBankConfig.promoteMinWinRate &&
+            avgR >= this.patternBankConfig.promoteMinAvgR) {
             record.status = STATUS.PROMOTED;
             return;
         }
 
         // QUARANTINED: enough samples but failing
-        if (record.sampleCount >= MIN_SAMPLES_QUAR &&
-            (winRate <= MAX_WINRATE_QUAR || avgR <= 0)) {
+        if (record.sampleCount >= this.patternBankConfig.quarantineMinSamples &&
+            (winRate <= this.patternBankConfig.quarantineMaxWinRate || avgR <= 0)) {
             record.status = STATUS.QUARANTINED;
             return;
         }
@@ -786,7 +849,7 @@ class PatternMemoryBank {
      * Prune old, dead, and excess patterns
      * - Removes DEAD patterns
      * - Removes patterns older than maxPatternAge
-     * - If over MAX_PATTERNS cap, drops lowest score oldest first
+     * - If over configured cap, drops lowest score oldest first
      */
     pruneOldPatterns() {
         let pruned = 0;
@@ -812,8 +875,8 @@ class PatternMemoryBank {
 
         // Second pass: If still over cap, drop lowest score oldest first
         const patternCount = Object.keys(this.#memory.patterns).length;
-        if (patternCount > MAX_PATTERNS) {
-            const toRemove = patternCount - MAX_PATTERNS;
+        if (patternCount > this.patternBankConfig.maxPatterns) {
+            const toRemove = patternCount - this.patternBankConfig.maxPatterns;
             const sorted = Object.entries(this.#memory.patterns)
                 .map(([hash, record]) => ({ hash, score: record.score, lastSeenTs: record.lastSeenTs }))
                 .sort((a, b) => {

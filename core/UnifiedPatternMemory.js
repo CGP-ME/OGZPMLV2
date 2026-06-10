@@ -47,14 +47,9 @@
  *   6. DECAY:    Old patterns lose weight over time
  *   7. PRUNE:    Patterns with <3 trades older than 90 days get deleted
  * 
- * ENV VARS:
- *   PATTERN_MIN_SAMPLES      - Min trades before trusting (default: 10)
- *   PATTERN_SUCCESS_THRESHOLD - Win rate for promotion (default: 0.65)
- *   PATTERN_FAILURE_THRESHOLD - Win rate for quarantine (default: 0.35)
- *   PATTERN_MAX_AGE_DAYS     - Max pattern age before prune (default: 90)
- *   PATTERN_DECAY_HALFLIFE   - Days until pattern weight halves (default: 30)
- *   PATTERN_MAX_STORED       - Max patterns in memory (default: 10000)
- *   PATTERN_DTW_THRESHOLD    - DTW similarity threshold (default: 0.62)
+ * CONFIG:
+ *   Runtime tunables are owned by TradingConfig.patternMemory.
+ *   This module must not read PATTERN_* env vars or invent local fallback values.
  * 
  * @module core/UnifiedPatternMemory
  * @author Claude (Opus) for Trey / OGZPrime
@@ -67,6 +62,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
+const TradingConfig = require('./TradingConfig');
 
 // ═══════════════════════════════════════════════════════════════
 // DTW (Dynamic Time Warping) — fuzzy pattern matching
@@ -109,22 +105,6 @@ function computeSignature(features) {
   return crypto.createHash('md5').update(quantized).digest('hex').substring(0, 12);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// FEATURE WEIGHTS — importance of each feature dimension
-// ═══════════════════════════════════════════════════════════════
-
-const DEFAULT_FEATURE_WEIGHTS = [
-  0.25,  // [0] RSI normalized (0-1)
-  0.15,  // [1] MACD delta
-  0.15,  // [2] Trend direction (-1/0/1)
-  0.10,  // [3] Bollinger bandwidth
-  0.05,  // [4] Volatility (ATR-based)
-  0.05,  // [5] Wick ratio
-  0.15,  // [6] Price momentum
-  0.05,  // [7] Volume change
-  0.05,  // [8] Position context
-];
-
 function buildDefaultStats() {
   return {
     observations: 0,
@@ -135,6 +115,67 @@ function buildDefaultStats() {
     exactMatches: 0,
     lastPruneTime: 0,
   };
+}
+
+const PATTERN_MEMORY_NUMERIC_FIELDS = Object.freeze({
+  minSamples: { integer: true, min: 1 },
+  successThreshold: { min: 0, max: 1 },
+  failureThreshold: { min: 0, max: 1 },
+  maxAgeDays: { integer: true, min: 1 },
+  decayHalflifeDays: { min: 0 },
+  maxPatterns: { integer: true, min: 1 },
+  dtwThreshold: { min: 0, max: 1 },
+  saveIntervalMs: { integer: true, min: 1 },
+});
+
+function assertPatternMemoryNumber(config, key, rule) {
+  const value = config[key];
+  if (!Number.isFinite(value)) {
+    throw new Error(`[UnifiedPatternMemory] patternMemory.${key} must be a finite number`);
+  }
+  if (rule.integer && !Number.isInteger(value)) {
+    throw new Error(`[UnifiedPatternMemory] patternMemory.${key} must be an integer`);
+  }
+  if (Number.isFinite(rule.min) && value < rule.min) {
+    throw new Error(`[UnifiedPatternMemory] patternMemory.${key} must be >= ${rule.min}`);
+  }
+  if (Number.isFinite(rule.max) && value > rule.max) {
+    throw new Error(`[UnifiedPatternMemory] patternMemory.${key} must be <= ${rule.max}`);
+  }
+}
+
+function resolvePatternMemoryConfig(overrides) {
+  const ownedConfig = TradingConfig.getSection('patternMemory');
+  if (!ownedConfig || typeof ownedConfig !== 'object') {
+    throw new Error('[UnifiedPatternMemory] TradingConfig.patternMemory is required');
+  }
+
+  const resolved = {
+    ...ownedConfig,
+    ...(overrides || {}),
+  };
+
+  for (const [key, rule] of Object.entries(PATTERN_MEMORY_NUMERIC_FIELDS)) {
+    assertPatternMemoryNumber(resolved, key, rule);
+  }
+
+  if (typeof resolved.persistToDisk !== 'boolean') {
+    throw new Error('[UnifiedPatternMemory] patternMemory.persistToDisk must be boolean');
+  }
+
+  if (!Array.isArray(resolved.featureWeights) || resolved.featureWeights.length === 0) {
+    throw new Error('[UnifiedPatternMemory] patternMemory.featureWeights must be a non-empty number array');
+  }
+  resolved.featureWeights.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      throw new Error(`[UnifiedPatternMemory] patternMemory.featureWeights[${index}] must be finite`);
+    }
+  });
+
+  return Object.freeze({
+    ...resolved,
+    featureWeights: Object.freeze([...resolved.featureWeights]),
+  });
 }
 
 function resolveInitialMode() {
@@ -179,19 +220,11 @@ class UnifiedPatternMemory {
   #patterns = {};
 
   constructor(config = {}) {
-    // Config with env var overrides
-    this.config = {
-      minSamples: parseInt(process.env.PATTERN_MIN_SAMPLES) || config.minSamples || 10,
-      successThreshold: parseFloat(process.env.PATTERN_SUCCESS_THRESHOLD) || config.successThreshold || 0.65,
-      failureThreshold: parseFloat(process.env.PATTERN_FAILURE_THRESHOLD) || config.failureThreshold || 0.35,
-      maxAgeDays: parseInt(process.env.PATTERN_MAX_AGE_DAYS) || config.maxAgeDays || 90,
-      decayHalflifeDays: parseInt(process.env.PATTERN_DECAY_HALFLIFE) || config.decayHalflifeDays || 30,
-      maxPatterns: parseInt(process.env.PATTERN_MAX_STORED) || config.maxPatterns || 10000,
-      dtwThreshold: parseFloat(process.env.PATTERN_DTW_THRESHOLD) || config.dtwThreshold || 0.62,
-      featureWeights: config.featureWeights || DEFAULT_FEATURE_WEIGHTS,
-      persistToDisk: config.persistToDisk !== false && process.env.BACKTEST_NO_PATTERN_SAVE !== 'true',
-      saveIntervalMs: config.saveIntervalMs || 5 * 60 * 1000, // 5 minutes
-    };
+    const patternMemoryConfig = resolvePatternMemoryConfig(config);
+    this.config = Object.freeze({
+      ...patternMemoryConfig,
+      persistToDisk: patternMemoryConfig.persistToDisk && process.env.BACKTEST_NO_PATTERN_SAVE !== 'true',
+    });
 
     // Storage path is keyed by mode and an asset bucket. Rules:
     //   Live/paper: asset CLASS (stocks vs crypto) — stocks share one bank across

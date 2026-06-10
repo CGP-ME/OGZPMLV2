@@ -198,6 +198,44 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // PATTERN MEMORY
+  // =========================================================================
+  patternMemory: {
+    minSamples: 10,
+    successThreshold: 0.65,
+    failureThreshold: 0.35,
+    maxAgeDays: 90,
+    decayHalflifeDays: 30,
+    maxPatterns: 10000,
+    dtwThreshold: 0.62,
+    featureWeights: Object.freeze([
+      0.25,
+      0.15,
+      0.15,
+      0.10,
+      0.05,
+      0.05,
+      0.15,
+      0.05,
+      0.05,
+    ]),
+    persistToDisk: true,
+    saveIntervalMs: 300000,
+    bank: Object.freeze({
+      minTradesSample: 10,
+      successThreshold: 0.65,
+      failureThreshold: 0.35,
+      maxPatternAgeMs: 7776000000,
+      promoteMinSamples: 30,
+      quarantineMinSamples: 15,
+      promoteMinWinRate: 0.55,
+      promoteMinAvgR: 0.15,
+      quarantineMaxWinRate: 0.45,
+      maxPatterns: 10000,
+    }),
+  },
+
+  // =========================================================================
   // POSITION SIZING
   // =========================================================================
   positionSizing: {

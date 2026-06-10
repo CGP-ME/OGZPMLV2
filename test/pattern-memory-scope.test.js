@@ -130,6 +130,45 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(0);
   });
 
+  test('UnifiedPatternMemory ignores PATTERN env vars and uses TradingConfig-owned tunables', () => {
+    process.env.PATTERN_MIN_SAMPLES = '1';
+    process.env.PATTERN_SUCCESS_THRESHOLD = '0.01';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({ persistToDisk: false });
+
+    expect(memory.config.minSamples).toBe(10);
+    expect(memory.config.successThreshold).toBe(0.65);
+    expect(memory.recordOutcome(features, {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(true);
+    expect(memory.getConfidence(features, scope())).toEqual(expect.objectContaining({
+      source: 'insufficient_data',
+      confidence: 0.5,
+    }));
+  });
+
+  test('UnifiedPatternMemory refuses invalid local overrides instead of falling back to config', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+
+    expect(() => new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 0,
+    })).toThrow(/patternMemory\.minSamples must be >= 1/);
+    expect(() => new UnifiedPatternMemory({
+      persistToDisk: 'false',
+    })).toThrow(/patternMemory\.persistToDisk must be boolean/);
+    expect(() => new UnifiedPatternMemory({
+      persistToDisk: false,
+      featureWeights: [0.2, Number.NaN],
+    })).toThrow(/patternMemory\.featureWeights\[1\] must be finite/);
+  });
+
   test('UnifiedPatternMemory switches paper asset banks without carrying patterns across assets', async () => {
     delete process.env.BACKTEST_MODE;
     delete process.env.BACKTEST_NO_PATTERN_SAVE;
@@ -308,6 +347,34 @@ describe('Pattern memory scope isolation', () => {
 
     expect(bank.recordTradeOutcome(bankTrade({ indicators: null }))).toBe(false);
     expect(Object.values(bank.exportMemory().patterns)).toHaveLength(1);
+  });
+
+  test('PatternMemoryBank uses TradingConfig-owned bank tunables and rejects invalid overrides', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const TradingConfig = require('../core/TradingConfig');
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-config-${Date.now()}.json`);
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    });
+
+    expect(bank.minTradesSample).toBe(TradingConfig.get('patternMemory.bank.minTradesSample'));
+    expect(bank.patternBankConfig.maxPatterns).toBe(TradingConfig.get('patternMemory.bank.maxPatterns'));
+    expect(() => new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      minTradesSample: 0,
+    })).toThrow(/patternMemory\.bank\.minTradesSample must be >= 1/);
+    expect(() => new PatternMemoryBank({
+      ...scope(),
+      dbPath,
+      maxPatterns: '10000',
+    })).toThrow(/patternMemory\.bank\.maxPatterns must be a finite number/);
   });
 
   test('PatternMemoryBank exposes read-only memory snapshots', () => {

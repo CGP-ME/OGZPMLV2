@@ -138,13 +138,9 @@ describe('Pattern memory eviction boundary', () => {
     }
   });
 
-  test('Invariant 2: PatternMemoryBank.pruneOldPatterns enforces the 10000 cap by removing lowest-score then oldest records first', () => {
-    // The MAX_PATTERNS constant lives at core/PatternMemoryBank.js:77 and is not exported.
-    // If that constant changes, the source-code grep below must change with it.
-    const SOURCE = fs.readFileSync(path.join(__dirname, '..', 'core', 'PatternMemoryBank.js'), 'utf8');
-    const capMatch = SOURCE.match(/const\s+MAX_PATTERNS\s*=\s*(\d+);/);
-    expect(capMatch).not.toBeNull();
-    const MAX_PATTERNS = parseInt(capMatch[1], 10);
+  test('Invariant 2: PatternMemoryBank.pruneOldPatterns enforces the TradingConfig-owned cap by removing lowest-score then oldest records first', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    const MAX_PATTERNS = TradingConfig.get('patternMemory.bank.maxPatterns');
     expect(MAX_PATTERNS).toBe(10000);
 
     const bank = makeBackestBank();
@@ -185,11 +181,10 @@ describe('Pattern memory eviction boundary', () => {
     const features = (base) => [base, 0.02, 1, 0.03, 0.01, 0.5, 0.01, 0.02, 0];
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
 
-    // maxPatterns=3 is supplied explicitly via config so the env/default fallback chain at
-    // core/UnifiedPatternMemory.js:189 (parseInt(env) || config.maxPatterns || 10000) does
-    // not silently substitute 10000. maxAgeDays is set very high so the age-based pruning
-    // pass at lines 551-561 cannot remove anything; only the cap path at lines 564-578
-    // produces the eviction.
+    // maxPatterns=3 is supplied explicitly via local override on top of
+    // TradingConfig.patternMemory so the owned production cap is not used here.
+    // maxAgeDays is set very high so the age-based pruning pass cannot remove
+    // anything; only the cap path produces the eviction.
     const memory = new UnifiedPatternMemory({
       persistToDisk: false,
       minSamples: 1,

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Memory Config Ownership (2026-06-10)
+
+- Moved `UnifiedPatternMemory` and `PatternMemoryBank` runtime tunables behind `TradingConfig.patternMemory`, mirrored the section into `config/trading.config.json` and schema validation, and added regressions proving `PATTERN_*` env vars no longer override pattern thresholds or hide invalid local overrides.
+
 ### StateManager Active Trade Atomicity (2026-06-10)
 
 - Made `StateManager` open, full-close, and partial-reduce paths mutate cloned active-trade maps through the locked state update path only, with rollback regressions covering failed entry, close, and reduce validation.

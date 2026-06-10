@@ -9,6 +9,7 @@
     "confidence",
     "risk",
     "authFailureGuard",
+    "patternMemory",
     "positionSizing",
     "regimeBoosts",
     "volumeProfileBoosts",
@@ -75,6 +76,69 @@
       "properties": {
         "thresholdCount": { "type": "integer", "minimum": 1 },
         "windowMs": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "patternMemory": {
+      "type": "object",
+      "description": "Canonical UnifiedPatternMemory tunables. Runtime code must read these values through TradingConfig and must not read PATTERN_* env vars or local defaults.",
+      "additionalProperties": false,
+      "required": [
+        "minSamples",
+        "successThreshold",
+        "failureThreshold",
+        "maxAgeDays",
+        "decayHalflifeDays",
+        "maxPatterns",
+        "dtwThreshold",
+        "featureWeights",
+        "persistToDisk",
+        "saveIntervalMs",
+        "bank"
+      ],
+      "properties": {
+        "minSamples": { "type": "integer", "minimum": 1 },
+        "successThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "failureThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxAgeDays": { "type": "integer", "minimum": 1 },
+        "decayHalflifeDays": { "type": "number", "minimum": 0 },
+        "maxPatterns": { "type": "integer", "minimum": 1 },
+        "dtwThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "featureWeights": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "number" }
+        },
+        "persistToDisk": { "type": "boolean" },
+        "saveIntervalMs": { "type": "integer", "minimum": 1 },
+        "bank": {
+          "type": "object",
+          "description": "PatternMemoryBank-specific statistical thresholds and retention cap.",
+          "additionalProperties": false,
+          "required": [
+            "minTradesSample",
+            "successThreshold",
+            "failureThreshold",
+            "maxPatternAgeMs",
+            "promoteMinSamples",
+            "quarantineMinSamples",
+            "promoteMinWinRate",
+            "promoteMinAvgR",
+            "quarantineMaxWinRate",
+            "maxPatterns"
+          ],
+          "properties": {
+            "minTradesSample": { "type": "integer", "minimum": 1 },
+            "successThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "failureThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "maxPatternAgeMs": { "type": "integer", "minimum": 1 },
+            "promoteMinSamples": { "type": "integer", "minimum": 1 },
+            "quarantineMinSamples": { "type": "integer", "minimum": 1 },
+            "promoteMinWinRate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "promoteMinAvgR": { "type": "number", "minimum": 0 },
+            "quarantineMaxWinRate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "maxPatterns": { "type": "integer", "minimum": 1 }
+          }
+        }
       }
     },
     "positionSizing": {
