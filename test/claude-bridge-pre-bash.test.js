@@ -12,8 +12,15 @@ describe('claude bridge Bash gate', () => {
       .toBe('mutating_command:mv');
     expect(mutationReason('cat x > .claude/hookify.no-emojis.local.md')).toBe('output_redirection');
     expect(mutationReason('git restore -- .claude/hookify.no-emojis.local.md')).toBe('git_mutation');
+    expect(mutationReason('git reset --hard HEAD')).toBe('git_mutation');
     expect(mutationReason('npm audit fix --force')).toBe('package_mutation');
     expect(mutationReason('node -e "require(\'fs\').writeFileSync(\'x\', \'y\')"')).toBe('inline_runtime');
+  });
+
+  test('routes git publish commands through Warden instead of blocking forever', () => {
+    expect(mutationReason('git add core/OrderExecutor.js')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git commit -m "Fixed thing"')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git push origin claude/new_beginnings')).toBe('warden_gated_git_mutation');
   });
 
   test('still detects ignored read paths for allowed read commands', () => {

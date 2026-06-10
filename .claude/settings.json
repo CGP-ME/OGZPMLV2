@@ -46,6 +46,15 @@
             "command": "node trai_brain/claude-bridge/cli.js pre-bash"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node trai_brain/claude-bridge/cli.js post-edit"
+          }
+        ]
       }
     ],
     "PostToolUse": [

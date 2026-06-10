@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const policy = require('./policy');
 const ledger = require('./read-ledger');
-const editLedger = require('./edit-ledger');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -45,7 +44,6 @@ function run() {
   const fileExists = fs.existsSync(absPath);
 
   if (!fileExists) {
-    editLedger.recordEdit(rel);
     process.stdout.write(JSON.stringify({ ok: true, reason: 'new_file' }));
     process.exit(0);
   }
@@ -62,7 +60,6 @@ function run() {
     );
   }
 
-  editLedger.recordEdit(rel);
   process.stdout.write(JSON.stringify({ ok: true, reason: 'read_verified', rel }));
   process.exit(0);
 }

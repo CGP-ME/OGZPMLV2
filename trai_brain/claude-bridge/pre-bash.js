@@ -1,6 +1,7 @@
 'use strict';
 
 const policy = require('./policy');
+const finishGate = require('./finish-gate');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -18,7 +19,8 @@ const READ_COMMANDS = new Set([
 ]);
 const COMMAND_SEPARATORS = new Set(['|', ';', '&&', '||', '(', ')']);
 const MUTATING_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()(rm|rmdir|mv|cp|touch|mkdir|chmod|chown|ln|truncate|tee|dd|install)\b/;
-const MUTATING_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(add|commit|push|reset|checkout|restore|clean|revert|cherry-pick|merge|rebase|stash|rm|mv|tag)\b/;
+const WARDEN_GATED_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(add|commit|push)\b/;
+const MUTATING_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(reset|checkout|restore|clean|revert|cherry-pick|merge|rebase|stash|rm|mv|tag)\b/;
 const PACKAGE_MUTATION = /(^|\s|\||;|&&|\|\||\(|`|\$\()(npm|pnpm|yarn)\s+(install|i|update|upgrade|remove|uninstall|audit\s+fix)\b/;
 const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|ruby|php)\s+(-e|-p|-c)\b/;
 const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
@@ -106,12 +108,25 @@ function extractPaths(cmd) {
 function mutationReason(cmd) {
   if (OUTPUT_REDIRECT.test(cmd)) return 'output_redirection';
   if (IN_PLACE_EDIT.test(cmd)) return 'in_place_edit';
+  if (WARDEN_GATED_GIT_COMMAND.test(cmd)) return 'warden_gated_git_mutation';
   if (MUTATING_GIT_COMMAND.test(cmd)) return 'git_mutation';
   if (PACKAGE_MUTATION.test(cmd)) return 'package_mutation';
   if (INLINE_RUNTIME.test(cmd)) return 'inline_runtime';
   const mutationMatch = cmd.match(MUTATING_COMMAND);
   if (mutationMatch) return `mutating_command:${mutationMatch[2]}`;
   return null;
+}
+
+function assertWardenAllowsGitMutation() {
+  const result = finishGate.evaluateFinishGate();
+  if (!result.allowed) {
+    emit(
+      `BLOCKED (claude-bridge Warden): git mutation requires completed Warden proof first. ` +
+      `${result.reason}. ` +
+      `Run adversarial Mercury, P0 when required, and record .claude/session-state/hot-path-proof.json before git add/commit/push.`,
+      2
+    );
+  }
 }
 
 function run() {
@@ -125,6 +140,10 @@ function run() {
 
   const mutation = mutationReason(cmd);
   if (mutation) {
+    if (mutation === 'warden_gated_git_mutation') {
+      assertWardenAllowsGitMutation();
+      process.exit(0);
+    }
     emit(
       `BLOCKED (claude-bridge Bash mutation): ${mutation}. ` +
       `Bash is for inspection and verification only. Use Edit/Write so read, scope, and pipeline gates can enforce the change.`,
@@ -149,4 +168,4 @@ function run() {
 }
 
 if (require.main === module) run();
-module.exports = { run, extractPaths, mutationReason };
+module.exports = { run, extractPaths, mutationReason, assertWardenAllowsGitMutation };
