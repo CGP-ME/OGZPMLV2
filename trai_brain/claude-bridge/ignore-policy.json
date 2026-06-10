@@ -1,0 +1,41 @@
+{
+  "snapshotSource": "mercury.ignore",
+  "snapshotReason": "Claude bridge must use its own cloned ignore state and must not import Mercury runtime modules.",
+  "allowedPrefixes": [
+    ".claude/",
+    "ogz-meta/ledger/"
+  ],
+  "ignoredDirectories": [
+    "node_modules/",
+    ".git/",
+    "data/",
+    "backtest-results/",
+    "logs/",
+    "dist/",
+    "build/",
+    ".ai-specs/",
+    "trees/",
+    "backtest/",
+    "pinescript/",
+    ".claude/",
+    "proposals/",
+    "manifests/",
+    "ledger/",
+    "cognition-history/",
+    "health-reports/",
+    "sessions/",
+    "replacements/",
+    "reports/",
+    "ogz-ledger/",
+    "cold-traces/",
+    "audits/",
+    "backups/",
+    "prodlock-portable/",
+    "test-fixtures/",
+    "performance/",
+    "restore-reference/",
+    "support-missions/",
+    "quarantine/",
+    "review-artifacts/"
+  ]
+}

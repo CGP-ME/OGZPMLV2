@@ -11,18 +11,107 @@ function emit(msg, code) {
   process.exit(code);
 }
 
-const READ_VERBS = /(^|\s|\||;|&&|\(|`|\$\()(cat|head|tail|less|more|sed|awk|grep|egrep|fgrep|rg|ripgrep|find|file|stat|wc|nl|tac|od|xxd|hexdump|tar|unzip)\s+([^\s|;&)`]+)/g;
+const READ_COMMANDS = new Set([
+  'cat', 'head', 'tail', 'less', 'more', 'sed', 'awk', 'grep', 'egrep',
+  'fgrep', 'rg', 'ripgrep', 'find', 'file', 'stat', 'wc', 'nl', 'tac',
+  'od', 'xxd', 'hexdump', 'tar', 'unzip',
+]);
+const COMMAND_SEPARATORS = new Set(['|', ';', '&&', '||', '(', ')']);
+const MUTATING_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()(rm|rmdir|mv|cp|touch|mkdir|chmod|chown|ln|truncate|tee|dd|install)\b/;
+const MUTATING_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(add|commit|push|reset|checkout|restore|clean|revert|cherry-pick|merge|rebase|stash|rm|mv|tag)\b/;
+const PACKAGE_MUTATION = /(^|\s|\||;|&&|\|\||\(|`|\$\()(npm|pnpm|yarn)\s+(install|i|update|upgrade|remove|uninstall|audit\s+fix)\b/;
+const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|ruby|php)\s+(-e|-p|-c)\b/;
+const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
+const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|perl|ruby)\s+[^|;&`]*\s-i\b/;
+
+function shellTokens(cmd) {
+  const tokens = [];
+  let current = '';
+  let quote = null;
+
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    const next = cmd[i + 1] || '';
+
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+
+    if ((ch === '&' && next === '&') || (ch === '|' && next === '|')) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      tokens.push(ch + next);
+      i += 1;
+      continue;
+    }
+
+    if (ch === '|' || ch === ';' || ch === '(' || ch === ')') {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      tokens.push(ch);
+      continue;
+    }
+
+    current += ch;
+  }
+
+  if (current) tokens.push(current);
+  return tokens;
+}
+
+function isPathLike(token) {
+  if (!token || token.startsWith('-')) return false;
+  return token.includes('/') || token.startsWith('.') || /\.[A-Za-z0-9]+$/.test(token);
+}
 
 function extractPaths(cmd) {
   const paths = [];
-  let m;
-  while ((m = READ_VERBS.exec(cmd)) !== null) {
-    const candidate = m[3].replace(/^["']|["']$/g, '');
-    if (candidate.startsWith('-')) continue;
-    if (!/[\/\.]/.test(candidate)) continue;
-    paths.push(candidate);
+  const tokens = shellTokens(cmd);
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (!READ_COMMANDS.has(tokens[i])) continue;
+
+    for (let j = i + 1; j < tokens.length; j++) {
+      const candidate = tokens[j];
+      if (COMMAND_SEPARATORS.has(candidate)) break;
+      if (isPathLike(candidate)) paths.push(candidate);
+    }
   }
-  return paths;
+
+  return [...new Set(paths)];
+}
+
+function mutationReason(cmd) {
+  if (OUTPUT_REDIRECT.test(cmd)) return 'output_redirection';
+  if (IN_PLACE_EDIT.test(cmd)) return 'in_place_edit';
+  if (MUTATING_GIT_COMMAND.test(cmd)) return 'git_mutation';
+  if (PACKAGE_MUTATION.test(cmd)) return 'package_mutation';
+  if (INLINE_RUNTIME.test(cmd)) return 'inline_runtime';
+  const mutationMatch = cmd.match(MUTATING_COMMAND);
+  if (mutationMatch) return `mutating_command:${mutationMatch[2]}`;
+  return null;
 }
 
 function run() {
@@ -34,12 +123,21 @@ function run() {
 
   if (!cmd) process.exit(0);
 
+  const mutation = mutationReason(cmd);
+  if (mutation) {
+    emit(
+      `BLOCKED (claude-bridge Bash mutation): ${mutation}. ` +
+      `Bash is for inspection and verification only. Use Edit/Write so read, scope, and pipeline gates can enforce the change.`,
+      2
+    );
+  }
+
   const paths = extractPaths(cmd);
   for (const p of paths) {
     const check = policy.checkPath(p);
-    if (!check.allowed && check.reason === 'mercury_ignored') {
+    if (!check.allowed && check.reason === 'claude_bridge_ignored') {
       emit(
-        `BLOCKED (claude-bridge ignore via Bash): ${check.path} is mercury.ignore-protected. ` +
+        `BLOCKED (claude-bridge ignore via Bash): ${check.path} is claude-bridge ignore-policy protected. ` +
         `Bash read commands cannot bypass the ignore policy. ` +
         `If the file is genuinely needed, surface the policy decision to Trey.`,
         2
@@ -51,4 +149,4 @@ function run() {
 }
 
 if (require.main === module) run();
-module.exports = { run, extractPaths };
+module.exports = { run, extractPaths, mutationReason };

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const policy = require('./policy');
 const ledger = require('./read-ledger');
+const editLedger = require('./edit-ledger');
 
 function readStdinSync() {
   try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
@@ -25,10 +26,10 @@ function run() {
 
   const check = policy.checkPath(target);
   if (!check.allowed) {
-    if (check.reason === 'mercury_ignored') {
+    if (check.reason === 'claude_bridge_ignored') {
       emit(
-        `BLOCKED (claude-bridge ignore): ${check.path} is mercury.ignore-protected. ` +
-        `Mercury cannot read this path; neither can you. ` +
+        `BLOCKED (claude-bridge ignore): ${check.path} is claude-bridge ignore-policy protected. ` +
+        `Claude cannot read this path through bridge hooks. ` +
         `If this path must be edited, surface the policy decision to Trey before proceeding.`,
         2
       );
@@ -44,6 +45,7 @@ function run() {
   const fileExists = fs.existsSync(absPath);
 
   if (!fileExists) {
+    editLedger.recordEdit(rel);
     process.stdout.write(JSON.stringify({ ok: true, reason: 'new_file' }));
     process.exit(0);
   }
@@ -60,6 +62,7 @@ function run() {
     );
   }
 
+  editLedger.recordEdit(rel);
   process.stdout.write(JSON.stringify({ ok: true, reason: 'read_verified', rel }));
   process.exit(0);
 }

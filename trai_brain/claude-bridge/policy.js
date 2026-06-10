@@ -2,15 +2,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const mercuryConfig = require('../mercury-bridge/config');
+const ignorePolicy = require('./ignore-policy.json');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-// Paths Mercury intentionally ignores, but that I (claude-bridge) need to read.
-// Mercury must keep its RAG memory uncontaminated by drafts/audits/proposals —
-// so mercury.ignore correctly excludes these. But I'm the implementer + curator:
-// I ingest raw material from ledger/, curate it into clean specs/, and Mercury
-// indexes the specs. Reading is fine here because I'm not the verifier.
+// Claude bridge uses a cloned ignore-policy snapshot. It must not import or
+// mutate Mercury runtime modules; Mercury owns Mercury state.
 //
 // .claude/memory/ is the canonical Claude persistent memory store. It is a
 // real directory inside the repo (allowed via .claude/ prefix). The harness
@@ -18,10 +15,20 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 // resolveRealPath() call below dereferences that symlink before policy check
 // so paths that look outside-repo but actually resolve inside-repo are allowed
 // while genuinely outside-repo paths stay blocked.
-const CLAUDE_ALLOW_PREFIXES = [
-  '.claude/',
-  'ogz-meta/ledger/',
-];
+const CLAUDE_ALLOW_PREFIXES = normalizePolicyList(ignorePolicy.allowedPrefixes, 'allowedPrefixes');
+const IGNORED_DIRECTORIES = normalizePolicyList(ignorePolicy.ignoredDirectories, 'ignoredDirectories');
+
+function normalizePolicyList(values, fieldName) {
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error(`claude-bridge ignore policy ${fieldName} must be a non-empty array`);
+  }
+  return values.map((value) => {
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new Error(`claude-bridge ignore policy ${fieldName} contains a non-string entry`);
+    }
+    return value.replace(/\\/g, '/');
+  });
+}
 
 function resolveRealPath(targetPath) {
   // Resolve symlinks if the target exists. If it doesn't (e.g. a new file
@@ -51,6 +58,14 @@ function isClaudeAllowed(rel) {
   return CLAUDE_ALLOW_PREFIXES.some((p) => rel === p.replace(/\/$/, '') || rel.startsWith(p));
 }
 
+function isIgnoredByClaudeBridge(rel) {
+  const segments = rel.split('/').filter(Boolean);
+  return IGNORED_DIRECTORIES.some((entry) => {
+    const dir = entry.replace(/\/$/, '');
+    return segments.includes(dir);
+  });
+}
+
 function checkPath(targetPath) {
   const r = relToRepo(targetPath);
   if (!r) {
@@ -62,10 +77,10 @@ function checkPath(targetPath) {
   if (isClaudeAllowed(r.rel)) {
     return { allowed: true, reason: 'claude_owned', path: r.rel };
   }
-  if (mercuryConfig.isPathIgnoredByMercury(r.rel)) {
-    return { allowed: false, reason: 'mercury_ignored', path: r.rel };
+  if (isIgnoredByClaudeBridge(r.rel)) {
+    return { allowed: false, reason: 'claude_bridge_ignored', path: r.rel };
   }
   return { allowed: true, reason: 'ok', path: r.rel };
 }
 
-module.exports = { checkPath, relToRepo, REPO_ROOT };
+module.exports = { checkPath, relToRepo, isIgnoredByClaudeBridge, REPO_ROOT };

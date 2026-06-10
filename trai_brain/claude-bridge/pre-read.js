@@ -24,11 +24,11 @@ function run() {
 
   const check = policy.checkPath(target);
   if (!check.allowed) {
-    if (check.reason === 'mercury_ignored') {
+    if (check.reason === 'claude_bridge_ignored') {
       emit(
-        `BLOCKED (claude-bridge ignore): ${check.path} is mercury.ignore-protected. ` +
-        `Mercury cannot read this; neither can you. ` +
-        `See mercury.ignore for the policy.`,
+        `BLOCKED (claude-bridge ignore): ${check.path} is claude-bridge ignore-policy protected. ` +
+        `Claude cannot read this through bridge hooks. ` +
+        `See trai_brain/claude-bridge/ignore-policy.json for the policy.`,
         2
       );
     }

@@ -31,7 +31,7 @@ else
   printf "  FAIL  prior-fixes lookup. exit=%d output=%s\n" "$EX" "$(echo $OUT | head -c 200)"; FAIL=$((FAIL+1))
 fi
 
-note "2/8  pre-read on data/state.json — must BLOCK (mercury.ignore)"
+note "2/8  pre-read on data/state.json — must BLOCK (claude-bridge ignore policy)"
 echo '{"tool_input":{"file_path":"data/state.json"}}' | $CLI pre-read 2>/dev/null
 expect_exit "pre-read blocks ignored path" 2 $?
 
@@ -39,7 +39,7 @@ note "3/8  pre-read on core/TRAIDecisionModule.js — must ALLOW"
 echo '{"tool_input":{"file_path":"core/TRAIDecisionModule.js"}}' | $CLI pre-read 2>/dev/null
 expect_exit "pre-read allows non-ignored path" 0 $?
 
-note "4/8  pre-edit on data/state.json — must BLOCK (mercury.ignore)"
+note "4/8  pre-edit on data/state.json — must BLOCK (claude-bridge ignore policy)"
 echo '{"tool_input":{"file_path":"data/state.json","old_string":"x","new_string":"y"}}' | $CLI pre-edit 2>/dev/null
 expect_exit "pre-edit blocks ignored path" 2 $?
 

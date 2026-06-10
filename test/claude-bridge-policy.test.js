@@ -1,0 +1,45 @@
+const fs = require('fs');
+const path = require('path');
+
+const policyPath = path.join(__dirname, '..', 'trai_brain', 'claude-bridge', 'policy.js');
+const ignorePolicyPath = path.join(__dirname, '..', 'trai_brain', 'claude-bridge', 'ignore-policy.json');
+
+describe('claude bridge policy ownership', () => {
+  test('does not import Mercury runtime modules', () => {
+    const source = fs.readFileSync(policyPath, 'utf8');
+    expect(source).not.toMatch(/mercury-bridge/);
+    expect(source).not.toMatch(/mercury\.config/);
+  });
+
+  test('uses Claude-owned cloned ignore policy', () => {
+    const ignorePolicy = require(ignorePolicyPath);
+    const policy = require('../trai_brain/claude-bridge/policy');
+
+    expect(ignorePolicy.snapshotSource).toBe('mercury.ignore');
+    expect(ignorePolicy.ignoredDirectories).toContain('data/');
+    expect(policy.checkPath('data/state.json')).toEqual({
+      allowed: false,
+      reason: 'claude_bridge_ignored',
+      path: 'data/state.json',
+    });
+  });
+
+  test('allows Claude-owned intake without allowing broader ignored session history', () => {
+    const policy = require('../trai_brain/claude-bridge/policy');
+
+    expect(policy.checkPath('.claude/memory/MEMORY.md').allowed).toBe(true);
+    expect(policy.checkPath('ogz-meta/ledger/intake.md').allowed).toBe(true);
+    expect(policy.checkPath('ogz-meta/ledger/uncommitted-deepsearch-drop.md').allowed).toBe(true);
+    expect(policy.checkPath('ogz-meta/specs/curated-spec.md').allowed).toBe(true);
+    expect(policy.checkPath('ogz-meta/cognition-history/mercury/old-response.md')).toEqual({
+      allowed: false,
+      reason: 'claude_bridge_ignored',
+      path: 'ogz-meta/cognition-history/mercury/old-response.md',
+    });
+    expect(policy.checkPath('ogz-meta/sessions/session.md')).toEqual({
+      allowed: false,
+      reason: 'claude_bridge_ignored',
+      path: 'ogz-meta/sessions/session.md',
+    });
+  });
+});

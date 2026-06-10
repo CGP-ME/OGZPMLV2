@@ -9,6 +9,8 @@ const HANDLERS = {
   'pre-read': './pre-read',
   'pre-bash': './pre-bash',
   'post-read': './post-read',
+  'finish-gate': './finish-gate',
+  'warden': './finish-gate',
   'ignore-check': './pre-read',
 };
 
@@ -22,6 +24,8 @@ Subcommands:
   pre-read        PreToolUse(Read) — ignore gate
   pre-bash        PreToolUse(Bash) — ignore gate on read-style commands
   post-read       PostToolUse(Read) — appends to session read-ledger
+  finish-gate     Stop handler — requires hot-path Mercury/P0 proof
+  warden          Alias for finish-gate
   ignore-check    Standalone ignore policy check (alias for pre-read)
 `);
 }
