@@ -27,6 +27,7 @@
     "profiles",
     "scalper",
     "features",
+    "trai",
     "pipeline",
     "fundTarget",
     "startingBalance"
@@ -268,6 +269,42 @@
         "enableArbitrage": { "type": "boolean" },
         "enableHedging": { "type": "boolean" },
         "enableShorts": { "type": "boolean" }
+      }
+    },
+    "trai": {
+      "type": "object",
+      "description": "TRAI runtime configuration. Secrets are referenced by env-var name, not stored in this file.",
+      "additionalProperties": false,
+      "required": ["llm"],
+      "properties": {
+        "llm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "baseUrl",
+            "model",
+            "apiKeyEnv",
+            "authRequired",
+            "maxTokens",
+            "minimumTokens",
+            "temperature",
+            "requestTimeoutMs",
+            "systemPrompt"
+          ],
+          "properties": {
+            "provider": { "type": "string", "enum": ["mercury", "claude", "openai", "ollama", "ollamacloud"] },
+            "baseUrl": { "type": "string", "minLength": 1 },
+            "model": { "type": "string", "minLength": 1 },
+            "apiKeyEnv": { "type": "string", "minLength": 1 },
+            "authRequired": { "type": "boolean" },
+            "maxTokens": { "type": "integer", "minimum": 1 },
+            "minimumTokens": { "type": "integer", "minimum": 0 },
+            "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+            "requestTimeoutMs": { "type": "integer", "minimum": 1000 },
+            "systemPrompt": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     },
     "pipeline": {

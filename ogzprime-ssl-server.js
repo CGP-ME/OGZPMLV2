@@ -169,11 +169,12 @@ app.post('/api/ollama/chat', async (req, res) => {
 
 // CHANGE 2026-03-30: TRAI analyze endpoint with Mercury-2 support
 const PersistentLLMClient = require('./core/persistent_llm_client');
+const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
 let traiClient = null;
 
 async function getTraiClient() {
   if (!traiClient) {
-    traiClient = new PersistentLLMClient();
+    traiClient = new PersistentLLMClient(resolveTraiLlmConfig());
     await traiClient.initialize();
   }
   return traiClient;

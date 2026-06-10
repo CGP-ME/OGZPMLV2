@@ -76,6 +76,8 @@ describe('Mercury LLM config contract', () => {
       expect(config.MERCURY_LLM_MODEL).toBe('mercury-2');
       expect(config.MERCURY_LLM_API_KEY_ENV).toBe('INCEPTION_API_KEY');
       expect(config.MERCURY_LLM_CLIENT_MAX_TOKENS).toBe(7750);
+      expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
+      expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);
       expect(config.MERCURY_LLM_TEMPERATURE).toBe(0.6);
       expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
       expect(config.AGENTIC_MAX_TOKENS).toBe(7750);
@@ -124,8 +126,11 @@ describe('Mercury LLM config contract', () => {
         baseUrl: 'https://api.inceptionlabs.ai/v1',
         model: 'mercury-2',
         apiKey: 'configured-key',
+        authRequired: true,
         maxTokens: 7750,
+        minimumTokens: 400,
         temperature: 0.6,
+        requestTimeoutMs: 300000,
         systemPrompt: 'configured prompt',
       });
     }, {

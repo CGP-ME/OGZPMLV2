@@ -15,7 +15,7 @@
  *
  * LLM INTEGRATION:
  *   Provider-agnostic via PersistentLLMClient (Mercury, Claude, OpenAI, Ollama).
- *   Graceful degradation: if no LLM is available, pattern-only mode is active.
+ *   LLM config must be injected explicitly; missing config fails initialization.
  *
  * PATTERN MEMORY:
  *   Uses UnifiedPatternMemory singleton — one store for pipeline writes + TRAI reads.
@@ -98,6 +98,10 @@ class TRAICore extends EventEmitter {
     this.conversationHistory = [];
     this.learningQueue = [];
 
+    if (!this.config.llmConfig) {
+      throw new Error('TRAI Core requires explicit llmConfig for PersistentLLMClient');
+    }
+
     // Semantic memory (journal-based, keyword+recency, no embeddings)
     this.memoryStore = TRAIMemoryStore
       ? new TRAIMemoryStore({
@@ -123,7 +127,7 @@ class TRAICore extends EventEmitter {
     this.modelLoaded = false;
 
     // Persistent LLM client (provider-agnostic: Mercury, Claude, OpenAI, Ollama)
-    this.persistentLLM = new PersistentLLMClient();
+    this.persistentLLM = new PersistentLLMClient(this.config.llmConfig);
     this.llmReady = false;
 
     // Stats (legacy pool structure kept for monitoring compatibility)
@@ -163,11 +167,11 @@ class TRAICore extends EventEmitter {
       try {
         await this.persistentLLM.initialize();
         this.llmReady = true;
-        console.log('TRAI LLM Ready!');
+        console.log('TRAI LLM ready');
       } catch (error) {
         console.error('Failed to start LLM client:', error.message);
-        console.warn('TRAI will use pattern-only mode (no LLM analysis)');
         this.llmReady = false;
+        throw error;
       }
 
       this.initialized = true;
@@ -422,8 +426,7 @@ class TRAICore extends EventEmitter {
     const { primaryCategory, context: analysisContext } = analysis;
 
     if (!this.llmReady) {
-      console.warn('TRAI LLM not ready, using fallback');
-      return this.getFallbackResponse(primaryCategory);
+      throw new Error('TRAI LLM response requested before successful initialization');
     }
 
     try {
@@ -498,7 +501,7 @@ class TRAICore extends EventEmitter {
     } catch (error) {
       console.error('TRAI persistent LLM error:', error.message);
       this.processPool.totalTimedOut++;
-      return this.getFallbackResponse(primaryCategory);
+      throw error;
     }
   }
 
@@ -568,14 +571,14 @@ BOT STATUS:
     if (primaryCategory === 'trading_strategy' || primaryCategory === 'trading_decision') {
       return 'TRAI pattern engine is active but LLM analysis is offline. Confidence multipliers from pattern data are still applied to your signals.';
     }
-    return 'TRAI LLM is currently offline. Pattern-based confidence multipliers are still active. Set LLM_PROVIDER and LLM_API_KEY to enable full analysis.';
+    return 'TRAI LLM is currently offline. Pattern-based confidence multipliers are still active. Configure trai.llm in config/trading.config.json to enable full analysis.';
   }
 
   getOfflineResponse() {
     return JSON.stringify({
       schema: 'offline',
       status: 'TRAI_OFFLINE',
-      message: 'LLM server is not running. Set LLM_PROVIDER and LLM_API_KEY to enable TRAI.',
+      message: 'LLM server is not running. Configure trai.llm in config/trading.config.json to enable TRAI.',
       timestamp: new Date().toISOString(),
     });
   }

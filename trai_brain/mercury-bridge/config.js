@@ -250,6 +250,8 @@ const MERCURY_LLM_BASE_URL = requiredString(MERCURY_CONFIG, 'llm.baseUrl');
 const MERCURY_LLM_MODEL = requiredString(MERCURY_CONFIG, 'llm.model');
 const MERCURY_LLM_API_KEY_ENV = optionalString(MERCURY_CONFIG, 'llm.apiKeyEnv');
 const MERCURY_LLM_CLIENT_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMaxTokens', { integer: true, min: 1 });
+const MERCURY_LLM_CLIENT_MIN_TOKENS = requiredNumber(MERCURY_CONFIG, 'llm.clientMinTokens', { integer: true, min: 0 });
+const MERCURY_LLM_REQUEST_TIMEOUT_MS = requiredNumber(MERCURY_CONFIG, 'llm.requestTimeoutMs', { integer: true, min: 1000 });
 const MERCURY_LLM_TEMPERATURE = requiredNumber(MERCURY_CONFIG, 'llm.temperature', { min: 0 });
 const AGENTIC_MAX_ITERATIONS = requiredNumber(MERCURY_CONFIG, 'agentic.maxIterations', { integer: true, min: 1 });
 const AGENTIC_MAX_TOKENS = requiredNumber(MERCURY_CONFIG, 'agentic.maxTokens', { integer: true, min: 1 });
@@ -366,6 +368,8 @@ module.exports = {
   MERCURY_LLM_MODEL,
   MERCURY_LLM_API_KEY_ENV,
   MERCURY_LLM_CLIENT_MAX_TOKENS,
+  MERCURY_LLM_CLIENT_MIN_TOKENS,
+  MERCURY_LLM_REQUEST_TIMEOUT_MS,
   MERCURY_LLM_TEMPERATURE,
   AGENTIC_MAX_ITERATIONS,
   AGENTIC_MAX_TOKENS,

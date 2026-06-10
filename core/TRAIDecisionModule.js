@@ -105,10 +105,10 @@ class TRAIDecisionModule extends EventEmitter {
    */
   async initialize() {
     try {
-      console.log('🤖 [TRAI] Initializing Decision Module...');
+      console.log('[TRAI] Initializing Decision Module...');
       
-      // Initialize TRAI Core if available and LLM is enabled
-      const enableLLM = process.env.TRAI_ENABLE_LLM !== 'false';
+      // Initialize TRAI Core only when the caller explicitly enables LLM mode.
+      const enableLLM = this.config.enableLLM === true;
 
       if (enableLLM) {
         try {
@@ -116,21 +116,18 @@ class TRAIDecisionModule extends EventEmitter {
           this.traiCore = new TRAICore({
             staticBrainPath: './trai_brain',
             enableLLM: true,
-            llmConfig: {
-              modelPath: './trai_brain/models',
-              temperature: 0.3,  // Lower temperature for trading decisions
-              maxTokens: 150     // Concise responses
-            }
+            llmConfig: this.config.llmConfig,
           });
 
           await this.traiCore.initialize();
           console.log('[TRAI] Core AI initialized with process pool (max 4 concurrent)');
         } catch (error) {
-          console.log('[TRAI] LLM initialization failed, falling back to rule-based mode');
+          console.error('[TRAI] LLM initialization failed:', error.message);
           this.traiCore = null;
+          throw error;
         }
       } else {
-        console.log('[TRAI] Running in rule-based mode (LLM disabled via TRAI_ENABLE_LLM=false)');
+        console.log('[TRAI] Running in rule-based mode (LLM disabled by runtime config)');
         this.traiCore = null;
       }
       
@@ -138,7 +135,7 @@ class TRAIDecisionModule extends EventEmitter {
       this.emit('initialized');
       
     } catch (error) {
-      console.error('❌ [TRAI] Initialization failed:', error.message);
+      console.error('[TRAI] Initialization failed:', error.message);
       throw error;
     }
   }
@@ -242,13 +239,18 @@ class TRAIDecisionModule extends EventEmitter {
         if (useLLM) {
           try {
             const llmReasoning = await this.generateReasoning(signal, context, decision);
-            // If LLM returns valid response, use it; otherwise fallback
+            // If LLM returns valid response, use it; otherwise record the LLM miss and use rule-based reasoning.
             if (llmReasoning && !llmReasoning.includes("I'm TRAI, your AI co-founder")) {
               decision.reasoning = llmReasoning;
             } else {
+              decision.llmReasoningUnavailable = true;
+              decision.llmReasoningError = 'TRAI LLM returned an unusable reasoning response';
               decision.reasoning = this.generateRuleBasedReasoning(decision, context);
             }
           } catch (error) {
+            console.error('[TRAI] LLM reasoning failed:', error.message);
+            decision.llmReasoningUnavailable = true;
+            decision.llmReasoningError = error.message;
             decision.reasoning = this.generateRuleBasedReasoning(decision, context);
           }
         } else {
@@ -268,7 +270,7 @@ class TRAIDecisionModule extends EventEmitter {
       this.storeDecision(decision, signal, context);
 
     } catch (error) {
-      console.error('❌ [TRAI] Error processing decision:', error.message);
+      console.error('[TRAI] Error processing decision:', error.message);
       // Fail gracefully - return original signal
       decision.finalConfidence = signal.confidence;
       // CHANGE 614: Fix case-sensitivity bug - normalize to uppercase for consistency
@@ -1008,7 +1010,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    console.log(`🤖 [TRAI] Configuration updated:`, newConfig);
+    console.log('[TRAI] Configuration updated:', newConfig);
   }
 
   /**
@@ -1043,9 +1045,9 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
 
     try {
       this.traiCore.recordTradeResult(tradeData);
-      console.log(`📚 [TRAI] Recorded trade outcome: ${tradeData.profitLoss > 0 ? 'WIN' : 'LOSS'} (${tradeData.profitLossPercent.toFixed(2)}%)`);
+      console.log(`[TRAI] Recorded trade outcome: ${tradeData.profitLoss > 0 ? 'WIN' : 'LOSS'} (${tradeData.profitLossPercent.toFixed(2)}%)`);
     } catch (error) {
-      console.error('❌ [TRAI] Error recording trade outcome:', error.message);
+      console.error('[TRAI] Error recording trade outcome:', error.message);
     }
   }
 

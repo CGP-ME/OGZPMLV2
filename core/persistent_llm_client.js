@@ -5,16 +5,11 @@
  * Drop-in replacement for persistent_llm_client.js
  * Supports: Mercury-2, Claude API, OpenAI-compatible, Ollama
  * 
- * Config via env vars:
- *   LLM_PROVIDER=mercury|claude|openai|ollama  (default: mercury)
- *   LLM_API_KEY=your-api-key
- *   LLM_MODEL=model-name
- *   LLM_BASE_URL=custom-endpoint  (for OpenAI-compatible)
- *   LLM_MAX_TOKENS=1000
- *   LLM_TEMPERATURE=0.6
+ * Config is constructor-owned. Callers must pass an explicit provider/model/
+ * endpoint/token config resolved by the runtime config layer.
  * 
  * Usage (same interface as old client):
- *   const client = new PersistentLLMClient();
+ *   const client = new PersistentLLMClient(resolvedLlmConfig);
  *   await client.initialize();
  *   const response = await client.generateResponse("Your prompt here");
  */
@@ -28,65 +23,84 @@ const http = require('http');
 const PROVIDERS = {
   mercury: {
     name: 'Mercury-2 (Inception Labs)',
-    baseUrl: 'https://api.inceptionlabs.ai/v1',
-    defaultModel: 'mercury-2',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     requestFormat: 'openai',  // Mercury uses OpenAI-compatible format
   },
   claude: {
     name: 'Claude (Anthropic)',
-    baseUrl: 'https://api.anthropic.com/v1',
-    defaultModel: 'claude-sonnet-4-20250514',
     authHeader: 'x-api-key',
     authPrefix: '',
     requestFormat: 'anthropic',
   },
   openai: {
     name: 'OpenAI-Compatible',
-    baseUrl: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o-mini',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     requestFormat: 'openai',
   },
   ollama: {
     name: 'Ollama (Local)',
-    baseUrl: 'http://localhost:11434',
-    defaultModel: 'trai',
     authHeader: null,
     authPrefix: '',
     requestFormat: 'ollama',
   },
   ollamacloud: {
     name: 'Ollama Cloud',
-    baseUrl: 'https://ollama.com/v1',
-    defaultModel: 'qwen3-coder:480b-cloud',
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     requestFormat: 'openai',
   },
 };
 
+function requireConfigObject(config) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throw new Error('PersistentLLMClient requires explicit LLM config');
+  }
+  return config;
+}
+
+function requireString(config, key) {
+  if (typeof config[key] !== 'string' || config[key].trim() === '') {
+    throw new Error(`PersistentLLMClient config.${key} must be a non-empty string`);
+  }
+  return config[key].trim();
+}
+
+function requireNumber(config, key, { min = -Infinity, max = Infinity } = {}) {
+  if (!Number.isFinite(config[key]) || config[key] < min || config[key] > max) {
+    throw new Error(`PersistentLLMClient config.${key} must be a finite number between ${min} and ${max}`);
+  }
+  return config[key];
+}
+
+function requireInteger(config, key, { min = -Infinity, max = Infinity } = {}) {
+  if (!Number.isInteger(config[key]) || config[key] < min || config[key] > max) {
+    throw new Error(`PersistentLLMClient config.${key} must be an integer between ${min} and ${max}`);
+  }
+  return config[key];
+}
+
 class PersistentLLMClient {
-  constructor(config = {}) {
-    // Provider selection
-    this.providerName = (config.provider || process.env.LLM_PROVIDER || 'mercury').toLowerCase();
+  constructor(config) {
+    const resolvedConfig = requireConfigObject(config);
+
+    this.providerName = requireString(resolvedConfig, 'provider').toLowerCase();
     const providerConfig = PROVIDERS[this.providerName];
-    
+
     if (!providerConfig) {
       throw new Error(`Unknown LLM provider: ${this.providerName}. Valid: ${Object.keys(PROVIDERS).join(', ')}`);
     }
 
     this.provider = providerConfig;
-    this.baseUrl = config.baseUrl || process.env.LLM_BASE_URL || providerConfig.baseUrl;
-    this.model = config.model || process.env.LLM_MODEL || providerConfig.defaultModel;
-    this.apiKey = config.apiKey || process.env.LLM_API_KEY || process.env.INCEPTION_API_KEY || process.env.MERCURY_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || '';
-    this.maxTokens = config.maxTokens || Number(process.env.LLM_MAX_TOKENS || 1000);
-    this.temperature = config.temperature || Number(process.env.LLM_TEMPERATURE || 0.6);
-    
-    // TRAI system prompt
-    this.systemPrompt = config.systemPrompt || `You are TRAI, the AI trading advisor for OGZPrime. You analyze market conditions, evaluate trade setups, explain trading decisions, and provide actionable insights. You have access to technical indicators, volume profile data, pattern recognition, and market regime analysis. Be direct, data-driven, and specific. When analyzing trades, reference the actual numbers — entry price, stop loss, take profit, confidence score, and the conditions that triggered the signal.`;
+    this.baseUrl = requireString(resolvedConfig, 'baseUrl').replace(/\/+$/, '');
+    this.model = requireString(resolvedConfig, 'model');
+    this.apiKey = resolvedConfig.authRequired === false ? '' : requireString(resolvedConfig, 'apiKey');
+    this.maxTokens = requireInteger(resolvedConfig, 'maxTokens', { min: 1, max: 200000 });
+    this.minimumTokens = requireInteger(resolvedConfig, 'minimumTokens', { min: 0, max: 200000 });
+    this.temperature = requireNumber(resolvedConfig, 'temperature', { min: 0, max: 2 });
+    this.requestTimeoutMs = requireInteger(resolvedConfig, 'requestTimeoutMs', { min: 1000, max: 300000 });
+    this.systemPrompt = requireString(resolvedConfig, 'systemPrompt');
 
     // Stats
     this.isReady = false;
@@ -104,32 +118,27 @@ class PersistentLLMClient {
     console.log(`   Model:    ${this.model}`);
     console.log(`   Endpoint: ${this.baseUrl}`);
 
-    // Validate API key for cloud providers
-    if (this.providerName !== 'ollama' && !this.apiKey) {
-      console.warn(`[TRAI] No API key set for ${this.provider.name}. Set LLM_API_KEY env var.`);
-      console.warn(`   TRAI will operate in degraded mode (pattern-only, no LLM analysis).`);
-      this.isReady = false;
-      return;
-    }
-
     try {
+      this.isReady = true;
       // Quick health check
       if (this.providerName === 'ollama') {
         await this._ollamaHealthCheck();
       } else {
         // For cloud providers, do a minimal test call
         const warmupStart = Date.now();
-        await this.generateResponse('Respond with OK.', 10);
+        const warmupResponse = await this.generateRawResponse('Respond with READY.', 10);
+        if (!String(warmupResponse || '').trim()) {
+          throw new Error('TRAI LLM warm-up returned an empty response');
+        }
         const warmupTime = Date.now() - warmupStart;
         console.log(`[TRAI] LLM warm-up complete (${warmupTime}ms)`);
       }
 
-      this.isReady = true;
       console.log(`[TRAI] LLM client ready. Provider: ${this.provider.name} | Model: ${this.model}`);
     } catch (error) {
       console.error('[TRAI] LLM initialization failed:', error.message);
-      console.log('[TRAI] Operating in degraded mode (pattern-only, no LLM analysis).');
       this.isReady = false;
+      throw error;
     }
   }
 
@@ -140,15 +149,14 @@ class PersistentLLMClient {
    * @returns {Promise<string>} - The generated response text
    */
   async generateResponse(prompt, maxTokens = null) {
-    let tokens = maxTokens || this.maxTokens;
+    let tokens = maxTokens == null ? this.maxTokens : maxTokens;
 
-    // Mercury-2 uses internal reasoning tokens (~50-100), so enforce higher minimum
-    if (this.providerName === 'mercury' && tokens < 400) {
-      tokens = 400;
+    if (this.minimumTokens > 0 && tokens < this.minimumTokens) {
+      tokens = this.minimumTokens;
     }
 
-    if (!this.isReady && this.requestCount > 0) {
-      return this._fallbackResponse(prompt);
+    if (!this.isReady) {
+      throw new Error('PersistentLLMClient.generateResponse called before successful initialize');
     }
 
     const startTime = Date.now();
@@ -182,8 +190,7 @@ class PersistentLLMClient {
       responseText = this._cleanResponse(responseText);
 
       if (!responseText || responseText.length < 5) {
-        console.warn('[TRAI] Response empty after cleaning');
-        return this._fallbackResponse(prompt);
+        throw new Error('TRAI LLM response empty after cleaning');
       }
 
       return responseText;
@@ -192,32 +199,7 @@ class PersistentLLMClient {
       this.errors++;
       console.error(`[TRAI] Inference error (${this.provider.name}):`, error.message);
 
-      // Check for content filter error - provide educational guidance instead
-      if (error.message && error.message.includes('content_filter')) {
-        return `I can't give direct buy/sell recommendations, but here are the factors you should consider:
-
-**Technical Factors:**
-• Trend direction (EMA crossovers, higher highs/lows)
-• RSI position (overbought >70, oversold <30, divergences)
-• Volume confirmation (is volume supporting the move?)
-• Key support/resistance levels nearby
-
-**Risk Factors:**
-• Position sizing relative to account
-• Stop loss placement (ATR-based or structure-based)
-• Risk/reward ratio (aim for 2:1 minimum)
-• Correlation with existing positions
-
-**Market Context:**
-• Overall market regime (bull, bear, chop)
-• Sector rotation and relative strength
-• Upcoming catalysts (earnings, FOMC, etc.)
-
-Ask me about any of these specifically and I'll give you the data!`;
-      }
-
-      // Don't throw — return degraded response
-      return this._fallbackResponse(prompt);
+      throw error;
     }
   }
 
@@ -230,11 +212,10 @@ Ask me about any of these specifically and I'll give you the data!`;
    * The default generateResponse() remains unchanged for TRAI chat mode.
    */
   async generateRawResponse(prompt, maxTokens = null) {
-    let tokens = maxTokens || this.maxTokens;
+    let tokens = maxTokens == null ? this.maxTokens : maxTokens;
 
-    // Mercury-2 uses internal reasoning tokens (~50-100), so enforce higher minimum
-    if (this.providerName === 'mercury' && tokens < 400) {
-      tokens = 400;
+    if (this.minimumTokens > 0 && tokens < this.minimumTokens) {
+      tokens = this.minimumTokens;
     }
 
     const startTime = Date.now();
@@ -279,9 +260,9 @@ Ask me about any of these specifically and I'll give you the data!`;
       throw new Error(`generateWithTools requires OpenAI-format provider, got: ${this.provider.requestFormat}`);
     }
 
-    let tokens = options.maxTokens || this.maxTokens;
-    if (this.providerName === 'mercury' && tokens < 400) {
-      tokens = 400;
+    let tokens = options.maxTokens == null ? this.maxTokens : options.maxTokens;
+    if (this.minimumTokens > 0 && tokens < this.minimumTokens) {
+      tokens = this.minimumTokens;
     }
 
     const body = {
@@ -433,14 +414,7 @@ Ask me about any of these specifically and I'll give you the data!`;
       
       if (!hasModel) {
         const available = models.map(m => m.name).join(', ');
-        console.warn(`[TRAI] Ollama model '${this.model}' not found. Available: ${available}`);
-        const hasDeepseek = models.some(m => m.name.includes('deepseek'));
-        if (hasDeepseek) {
-          this.model = models.find(m => m.name.includes('deepseek')).name;
-          console.log(`[TRAI] Falling back to: ${this.model}`);
-        } else {
-          throw new Error(`No model found. Run: ollama pull ${this.model}`);
-        }
+        throw new Error(`Configured Ollama model '${this.model}' not found. Available: ${available}`);
       }
       
       // Warmup
@@ -485,21 +459,6 @@ Ask me about any of these specifically and I'll give you the data!`;
     return text.trim();
   }
 
-  // ─── Fallback (No LLM Available) ───────────────────────────────
-
-  _fallbackResponse(prompt) {
-    const lower = prompt.toLowerCase();
-    
-    if (lower.includes('bitcoin') || lower.includes('btc') || lower.includes('crypto')) {
-      return 'TRAI is operating in pattern-only mode. LLM analysis unavailable. Check your LLM_API_KEY configuration.';
-    }
-    if (lower.includes('should i') || lower.includes('trade')) {
-      return 'TRAI pattern engine is active but LLM analysis is offline. Confidence multipliers from pattern data are still applied to your signals.';
-    }
-    
-    return 'TRAI LLM is currently offline. Pattern-based confidence multipliers are still active. Set LLM_PROVIDER and LLM_API_KEY to enable full analysis.';
-  }
-
   // ─── HTTP Helper ───────────────────────────────────────────────
 
   _httpRequest(url, method, body, headers) {
@@ -514,7 +473,7 @@ Ask me about any of these specifically and I'll give you the data!`;
         path: parsed.pathname + parsed.search,
         method,
         headers: headers || {},
-        timeout: 60000,
+        timeout: this.requestTimeoutMs,
       };
 
       const req = lib.request(options, (res) => {

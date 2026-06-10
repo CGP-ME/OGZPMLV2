@@ -3,6 +3,7 @@
 // CRITICAL: ConfigLoader MUST be first - loads .env, normalizes BACKTEST_MODE, isolates state
 const { load: loadConfig } = require('./foundation/ConfigLoader');
 const resolvedConfig = loadConfig({ silent: true }); // Silent here, verbose logging comes later
+const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
 
 // BACKTEST_FAST: Skip notifications, file I/O during backtest (explicit opt-in)
 const BACKTEST_FAST = resolvedConfig.config.backtest.fast;
@@ -750,7 +751,7 @@ class OGZPrimeV14Bot {
 
     // TRAI DECISION MODULE (Change 574 - Opus Architecture + Codex Fix)
     // OPTIMIZECEPTION FIX: Skip TRAI initialization when disabled (4x faster backtests)
-    // PIPELINE: Check both legacy env var AND new pipeline toggle
+    // PIPELINE: Check resolved pipeline toggle; LLM config is injected explicitly.
     if (this.pipeline.enableTRAI !== false && resolvedConfig.config.trai.enabled !== false) {
       this.trai = new TRAIDecisionModule({
         mode: resolvedConfig.config.trai.mode,  // Start conservative
@@ -759,7 +760,8 @@ class OGZPrimeV14Bot {
         maxRiskTolerance: resolvedConfig.config.trai.maxRisk,
         minConfidenceOverride: resolvedConfig.config.trai.minConf,
         maxConfidenceOverride: resolvedConfig.config.trai.maxConf,
-        enableLLM: true  // Full AI reasoning enabled
+        enableLLM: true,
+        llmConfig: resolveTraiLlmConfig(),
       });
     } else {
       this.trai = null;  // TRAI disabled for fast optimization runs

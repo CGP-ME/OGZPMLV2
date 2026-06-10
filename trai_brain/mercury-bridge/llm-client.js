@@ -21,8 +21,11 @@ function resolveMercuryLlmClientOptions({ systemPrompt } = {}) {
     baseUrl: config.MERCURY_LLM_BASE_URL,
     model: config.MERCURY_LLM_MODEL,
     apiKey,
+    authRequired: config.MERCURY_LLM_PROVIDER !== 'ollama',
     maxTokens: config.MERCURY_LLM_CLIENT_MAX_TOKENS,
+    minimumTokens: config.MERCURY_LLM_CLIENT_MIN_TOKENS,
     temperature: config.MERCURY_LLM_TEMPERATURE,
+    requestTimeoutMs: config.MERCURY_LLM_REQUEST_TIMEOUT_MS,
     systemPrompt,
   };
 }
@@ -44,8 +47,14 @@ function createMercuryLlmClient({ systemPrompt } = {}) {
   if (client.maxTokens !== clientOptions.maxTokens) {
     throw new Error(`Mercury LLM maxTokens mismatch: expected ${clientOptions.maxTokens}, got ${client.maxTokens}`);
   }
+  if (client.minimumTokens !== clientOptions.minimumTokens) {
+    throw new Error(`Mercury LLM minimumTokens mismatch: expected ${clientOptions.minimumTokens}, got ${client.minimumTokens}`);
+  }
   if (client.temperature !== clientOptions.temperature) {
     throw new Error(`Mercury LLM temperature mismatch: expected ${clientOptions.temperature}, got ${client.temperature}`);
+  }
+  if (client.requestTimeoutMs !== clientOptions.requestTimeoutMs) {
+    throw new Error(`Mercury LLM requestTimeoutMs mismatch: expected ${clientOptions.requestTimeoutMs}, got ${client.requestTimeoutMs}`);
   }
   if (client.systemPrompt !== clientOptions.systemPrompt) {
     throw new Error('Mercury LLM system prompt was not sourced from mercury.config.json');
