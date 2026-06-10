@@ -244,17 +244,56 @@ class PatternMemoryBank {
      * Load memory from disk or initialize new memory structure
      */
     loadMemory() {
-        try {
-            if (fs.existsSync(this.dbPath)) {
-                const data = JSON.parse(fs.readFileSync(this.dbPath, 'utf8'));
-                console.log('💾 [TRAI Memory] Loaded from disk:', this.dbPath);
-                return this.validateMemoryStructure(data);
+        if (fs.existsSync(this.dbPath)) {
+            try {
+                return this.loadMemoryFile(this.dbPath, 'primary');
+            } catch (primaryError) {
+                console.error(`[TRAI Memory] Primary pattern bank load failed: ${primaryError.message}`);
+                return this.loadBackupAfterPrimaryFailure(primaryError);
             }
-        } catch (error) {
-            console.warn('⚠️ [TRAI Memory] Failed to load, creating new:', error.message);
         }
 
+        if (fs.existsSync(this.backupPath)) {
+            try {
+                const recovered = this.loadMemoryFile(this.backupPath, 'backup');
+                fs.copyFileSync(this.backupPath, this.dbPath);
+                console.warn(`[TRAI Memory] Primary pattern bank missing; restored from backup: ${this.backupPath}`);
+                return recovered;
+            } catch (backupError) {
+                throw new Error(`[TRAI Memory] Primary pattern bank missing and backup failed: ${backupError.message}`);
+            }
+        }
+
+        if (this.persistenceEnabled) {
+            console.warn(`[TRAI Memory] No primary or backup pattern bank found; initializing empty bank at ${this.dbPath}`);
+        }
         return this.createEmptyMemory();
+    }
+
+    loadMemoryFile(filePath, label) {
+        const memory = this.readMemoryFile(filePath);
+        console.log(`[TRAI Memory] Loaded ${label} pattern bank from disk: ${filePath}`);
+        return memory;
+    }
+
+    readMemoryFile(filePath) {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return this.validateMemoryStructure(data);
+    }
+
+    loadBackupAfterPrimaryFailure(primaryError) {
+        if (!fs.existsSync(this.backupPath)) {
+            throw new Error(`[TRAI Memory] Primary pattern bank failed and no backup exists at ${this.backupPath}: ${primaryError.message}`);
+        }
+
+        try {
+            const recovered = this.loadMemoryFile(this.backupPath, 'backup');
+            fs.copyFileSync(this.backupPath, this.dbPath);
+            console.warn(`[TRAI Memory] Recovered pattern bank from backup: ${this.backupPath}`);
+            return recovered;
+        } catch (backupError) {
+            throw new Error(`[TRAI Memory] Primary and backup pattern banks both failed. primary=${primaryError.message}; backup=${backupError.message}`);
+        }
     }
 
     /**
@@ -963,9 +1002,7 @@ class PatternMemoryBank {
 
         try {
             // Create backup of existing file
-            if (fs.existsSync(this.dbPath)) {
-                fs.copyFileSync(this.dbPath, this.backupPath);
-            }
+            this.snapshotPrimaryToBackup();
 
             // Write new memory atomically (Mercury Vector 6 — crash-safe brain persistence)
             const { writeJsonAtomic } = require('./AtomicWrite');
@@ -978,6 +1015,21 @@ class PatternMemoryBank {
         } catch (error) {
             console.error('❌ [TRAI Memory] Failed to save:', error.message);
             return false;
+        }
+    }
+
+    snapshotPrimaryToBackup() {
+        if (!fs.existsSync(this.dbPath)) {
+            return null;
+        }
+
+        try {
+            this.readMemoryFile(this.dbPath);
+            fs.copyFileSync(this.dbPath, this.backupPath);
+            return this.backupPath;
+        } catch (error) {
+            console.warn(`[TRAI Memory] Skipped backup snapshot because primary pattern bank is invalid; preserving existing backup: ${error.message}`);
+            return null;
         }
     }
 

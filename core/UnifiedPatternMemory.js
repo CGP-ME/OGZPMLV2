@@ -212,6 +212,12 @@ function storagePathForBucket(dataDir, mode, assetBucket) {
   return path.join(dataDir, `unified-patterns.${mode}.${assetBucket}.json`);
 }
 
+function backupPathForStoragePath(storagePath) {
+  return storagePath.endsWith('.json')
+    ? storagePath.replace(/\.json$/, '.backup.json')
+    : `${storagePath}.backup.json`;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // UNIFIED PATTERN MEMORY
 // ═══════════════════════════════════════════════════════════════
@@ -639,12 +645,14 @@ class UnifiedPatternMemory {
   }
 
   _writeSnapshotOrThrow(storagePath) {
-    const dir = path.dirname(storagePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    const data = this._buildSnapshotData();
+    this._snapshotPrimaryOrThrow(storagePath);
+    this._writeSnapshotDataOrThrow(storagePath, data);
+    return storagePath;
+  }
 
-    const data = {
+  _buildSnapshotData() {
+    return {
       version: 2,
       savedAt: new Date().toISOString(),
       stats: this.stats,
@@ -656,6 +664,29 @@ class UnifiedPatternMemory {
       patternCount: Object.keys(this.#patterns).length,
       patterns: this.#patterns,
     };
+  }
+
+  _snapshotPrimaryOrThrow(storagePath) {
+    if (!fs.existsSync(storagePath)) {
+      return null;
+    }
+
+    const backupPath = backupPathForStoragePath(storagePath);
+    try {
+      this._readSnapshotDataOrThrow(storagePath);
+      fs.copyFileSync(storagePath, backupPath);
+      return backupPath;
+    } catch (error) {
+      console.warn(`[UnifiedPatternMemory] Skipped backup snapshot because primary pattern bank is invalid; preserving existing backup: ${error.message}`);
+      return null;
+    }
+  }
+
+  _writeSnapshotDataOrThrow(storagePath, data) {
+    const dir = path.dirname(storagePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
     const tmpPath = storagePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(data));
@@ -667,9 +698,56 @@ class UnifiedPatternMemory {
     if (!this.config.persistToDisk) return;
 
     try {
-      this._loadFromPathOrThrow(this.storagePath);
+      this._loadWithRollbackOrThrow(this.storagePath);
     } catch (err) {
       console.error(`[UnifiedPatternMemory] Load failed: ${err.message}`);
+      throw err;
+    }
+  }
+
+  _loadWithRollbackOrThrow(storagePath) {
+    if (!fs.existsSync(storagePath)) {
+      const backupPath = backupPathForStoragePath(storagePath);
+      if (fs.existsSync(backupPath)) {
+        return this._loadBackupForMissingPrimary(storagePath, backupPath);
+      }
+      this.#patterns = {};
+      this.stats = buildDefaultStats();
+      console.warn(`[UnifiedPatternMemory] No primary or backup pattern bank found; initializing empty bank at ${storagePath}`);
+      return { loaded: false, exists: false, patternCount: 0 };
+    }
+
+    try {
+      return this._loadFromPathOrThrow(storagePath);
+    } catch (primaryError) {
+      return this._loadBackupAfterPrimaryFailure(storagePath, primaryError);
+    }
+  }
+
+  _loadBackupForMissingPrimary(storagePath, backupPath) {
+    try {
+      const result = this._loadFromPathOrThrow(backupPath);
+      this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
+      console.warn(`[UnifiedPatternMemory] Primary pattern bank missing; restored from backup: ${backupPath}`);
+      return { ...result, recoveredFromBackup: true, backupPath };
+    } catch (backupError) {
+      throw new Error(`UnifiedPatternMemory primary pattern bank missing and backup failed: ${backupError.message}`);
+    }
+  }
+
+  _loadBackupAfterPrimaryFailure(storagePath, primaryError) {
+    const backupPath = backupPathForStoragePath(storagePath);
+    if (!fs.existsSync(backupPath)) {
+      throw new Error(`UnifiedPatternMemory primary load failed and no backup exists at ${backupPath}: ${primaryError.message}`);
+    }
+
+    try {
+      const result = this._loadFromPathOrThrow(backupPath);
+      this._writeSnapshotDataOrThrow(storagePath, this._buildSnapshotData());
+      console.warn(`[UnifiedPatternMemory] Recovered pattern bank from backup: ${backupPath}`);
+      return { ...result, recoveredFromBackup: true, backupPath };
+    } catch (backupError) {
+      throw new Error(`UnifiedPatternMemory primary and backup pattern banks both failed. primary=${primaryError.message}; backup=${backupError.message}`);
     }
   }
 
@@ -683,16 +761,21 @@ class UnifiedPatternMemory {
       return { loaded: false, exists: false, patternCount: 0 };
     }
 
-    const raw = fs.readFileSync(storagePath, 'utf8');
-    const data = JSON.parse(raw);
-    if (!data || data.version !== 2 || !data.patterns || typeof data.patterns !== 'object' || Array.isArray(data.patterns)) {
-      throw new Error(`UnifiedPatternMemory incompatible pattern bank at ${storagePath}`);
-    }
+    const data = this._readSnapshotDataOrThrow(storagePath);
 
     this.#patterns = data.patterns;
     this.stats = { ...buildDefaultStats(), ...(data.stats || {}) };
     console.log(`[UnifiedPatternMemory] Loaded ${Object.keys(this.#patterns).length} patterns from disk`);
     return { loaded: true, exists: true, patternCount: Object.keys(this.#patterns).length };
+  }
+
+  _readSnapshotDataOrThrow(storagePath) {
+    const raw = fs.readFileSync(storagePath, 'utf8');
+    const data = JSON.parse(raw);
+    if (!data || data.version !== 2 || !data.patterns || typeof data.patterns !== 'object' || Array.isArray(data.patterns)) {
+      throw new Error(`UnifiedPatternMemory incompatible pattern bank at ${storagePath}`);
+    }
+    return data;
   }
 
   _resolveStoragePathForScope(scope) {
@@ -736,7 +819,7 @@ class UnifiedPatternMemory {
       this.assetBucket = target.assetBucket;
       this.#patterns = {};
       this.stats = buildDefaultStats();
-      const loadResult = this._loadFromPathOrThrow(target.storagePath);
+      const loadResult = this._loadWithRollbackOrThrow(target.storagePath);
       return {
         switched: true,
         reason: details.reason || 'session_scope_switch',

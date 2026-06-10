@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Memory Bank Recovery (2026-06-10)
+
+- Added last-good JSON backups for pattern-memory primary writes and load-time recovery so corrupt primary pattern banks restore from backup or fail loud when both primary and backup are unusable.
+
 ### Pattern Memory Config Ownership (2026-06-10)
 
 - Moved `UnifiedPatternMemory` and `PatternMemoryBank` runtime tunables behind `TradingConfig.patternMemory`, mirrored the section into `config/trading.config.json` and schema validation, and added regressions proving `PATTERN_*` env vars no longer override pattern thresholds or hide invalid local overrides.

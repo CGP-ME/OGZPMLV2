@@ -310,6 +310,159 @@ describe('Pattern memory scope isolation', () => {
     }
   });
 
+  test('UnifiedPatternMemory recovers a corrupt primary bank from the last-good backup', async () => {
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+
+    expect(memory.recordOutcome(features, {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(true);
+    memory.saveOrThrow();
+    await memory.cleanup();
+
+    const backupPath = memory.storagePath.replace(/\.json$/, '.backup.json');
+    fs.copyFileSync(memory.storagePath, backupPath);
+    fs.writeFileSync(memory.storagePath, '{not-json', 'utf8');
+
+    const recovered = new UnifiedPatternMemory({
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+    try {
+      expect(recovered.getConfidence(features, scope())).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+      expect(JSON.parse(fs.readFileSync(recovered.storagePath, 'utf8')).version).toBe(2);
+    } finally {
+      await recovered.cleanup();
+    }
+  });
+
+  test('UnifiedPatternMemory restores a missing primary bank from backup', async () => {
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+
+    expect(memory.recordOutcome(features, {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(true);
+    memory.saveOrThrow();
+    await memory.cleanup();
+
+    const backupPath = memory.storagePath.replace(/\.json$/, '.backup.json');
+    fs.copyFileSync(memory.storagePath, backupPath);
+    fs.unlinkSync(memory.storagePath);
+
+    const recovered = new UnifiedPatternMemory({
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+    try {
+      expect(recovered.getConfidence(features, scope())).toEqual(expect.objectContaining({
+        source: 'learned_success',
+      }));
+      expect(JSON.parse(fs.readFileSync(recovered.storagePath, 'utf8')).version).toBe(2);
+    } finally {
+      await recovered.cleanup();
+    }
+  });
+
+  test('UnifiedPatternMemory preserves last-good backup when primary is corrupt before save', async () => {
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      minSamples: 1,
+      successThreshold: 0.6,
+      saveIntervalMs: 60000,
+    });
+
+    try {
+      expect(memory.recordOutcome(features, {
+        ...scope(),
+        pnl: 12,
+        pnlPercent: 2.4,
+        holdTimeMs: 900000,
+        exitReason: 'take_profit',
+        strategy: 'GateStrategy',
+      })).toBe(true);
+      memory.saveOrThrow();
+
+      const backupPath = memory.storagePath.replace(/\.json$/, '.backup.json');
+      fs.copyFileSync(memory.storagePath, backupPath);
+      const backupBefore = fs.readFileSync(backupPath, 'utf8');
+      fs.writeFileSync(memory.storagePath, '{not-json', 'utf8');
+
+      expect(memory.recordOutcome(features, {
+        ...scope(),
+        pnl: 9,
+        pnlPercent: 1.8,
+        holdTimeMs: 600000,
+        exitReason: 'take_profit',
+        strategy: 'GateStrategy',
+      })).toBe(true);
+      memory.saveOrThrow();
+
+      expect(fs.readFileSync(backupPath, 'utf8')).toBe(backupBefore);
+      expect(JSON.parse(fs.readFileSync(memory.storagePath, 'utf8')).version).toBe(2);
+    } finally {
+      await memory.cleanup();
+    }
+  });
+
+  test('UnifiedPatternMemory fails loud when primary and backup banks are both corrupt', async () => {
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({ saveIntervalMs: 60000 });
+    const storagePath = memory.storagePath;
+    const backupPath = storagePath.replace(/\.json$/, '.backup.json');
+    await memory.cleanup();
+
+    fs.mkdirSync(path.dirname(storagePath), { recursive: true });
+    fs.writeFileSync(storagePath, '{not-json', 'utf8');
+    fs.writeFileSync(backupPath, '{also-not-json', 'utf8');
+
+    expect(() => new UnifiedPatternMemory({ saveIntervalMs: 60000 }))
+      .toThrow(/primary and backup pattern banks both failed/);
+  });
+
+  test('UnifiedPatternMemory logs explicit empty initialization when no primary or backup exists', async () => {
+    delete process.env.BACKTEST_NO_PATTERN_SAVE;
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({ saveIntervalMs: 60000 });
+    try {
+      expect(Object.keys(memory.patterns)).toHaveLength(0);
+      expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('No primary or backup pattern bank found; initializing empty bank'));
+    } finally {
+      await memory.cleanup();
+    }
+  });
+
   test('PatternMemoryBank hashes and records by immutable scope', () => {
     const PatternMemoryBank = require('../core/PatternMemoryBank');
     const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-scope-${Date.now()}.json`);
@@ -375,6 +528,111 @@ describe('Pattern memory scope isolation', () => {
       dbPath,
       maxPatterns: '10000',
     })).toThrow(/patternMemory\.bank\.maxPatterns must be a finite number/);
+  });
+
+  test('PatternMemoryBank recovers a corrupt primary bank from the last-good backup', () => {
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const paperScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bankConfig = {
+      ...paperScope,
+      dbPath: path.join(process.env.DATA_DIR, `pattern-bank-recover-${Date.now()}.json`),
+      minTradesSample: 1,
+    };
+    const bank = new PatternMemoryBank(bankConfig);
+    fs.mkdirSync(path.dirname(bank.dbPath), { recursive: true });
+
+    expect(bank.recordTradeOutcome(bankTrade({
+      ...paperScope,
+      id: 'paper-trade-1',
+    }))).toBe(true);
+    fs.copyFileSync(bank.dbPath, bank.backupPath);
+    fs.writeFileSync(bank.dbPath, '{not-json', 'utf8');
+
+    const recovered = new PatternMemoryBank(bankConfig);
+    expect(Object.keys(recovered.exportMemory().patterns)).toHaveLength(1);
+    expect(JSON.parse(fs.readFileSync(recovered.dbPath, 'utf8')).metadata.version).toBe('2.0.0');
+  });
+
+  test('PatternMemoryBank logs explicit empty initialization when no primary or backup exists', () => {
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const paperScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bank = new PatternMemoryBank({
+      ...paperScope,
+      dbPath: path.join(process.env.DATA_DIR, `pattern-bank-empty-${Date.now()}.json`),
+      minTradesSample: 1,
+    });
+
+    expect(Object.keys(bank.exportMemory().patterns)).toHaveLength(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('No primary or backup pattern bank found; initializing empty bank'));
+  });
+
+  test('PatternMemoryBank preserves last-good backup when primary is corrupt before save', () => {
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const paperScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bankConfig = {
+      ...paperScope,
+      dbPath: path.join(process.env.DATA_DIR, `pattern-bank-preserve-${Date.now()}.json`),
+      minTradesSample: 1,
+    };
+    const bank = new PatternMemoryBank(bankConfig);
+    fs.mkdirSync(path.dirname(bank.dbPath), { recursive: true });
+
+    expect(bank.recordTradeOutcome(bankTrade({
+      ...paperScope,
+      id: 'paper-trade-1',
+    }))).toBe(true);
+    fs.copyFileSync(bank.dbPath, bank.backupPath);
+    const backupBefore = fs.readFileSync(bank.backupPath, 'utf8');
+    fs.writeFileSync(bank.dbPath, '{not-json', 'utf8');
+
+    expect(bank.recordTradeOutcome(bankTrade({
+      ...paperScope,
+      id: 'paper-trade-2',
+    }))).toBe(true);
+
+    expect(fs.readFileSync(bank.backupPath, 'utf8')).toBe(backupBefore);
+    expect(JSON.parse(fs.readFileSync(bank.dbPath, 'utf8')).metadata.version).toBe('2.0.0');
+  });
+
+  test('PatternMemoryBank fails loud when primary and backup banks are both corrupt', () => {
+    delete process.env.BACKTEST_MODE;
+    process.env.PAPER_TRADING = 'true';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const paperScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bankConfig = {
+      ...paperScope,
+      dbPath: path.join(process.env.DATA_DIR, `pattern-bank-corrupt-${Date.now()}.json`),
+      minTradesSample: 1,
+    };
+    const bank = new PatternMemoryBank(bankConfig);
+    fs.mkdirSync(path.dirname(bank.dbPath), { recursive: true });
+    fs.writeFileSync(bank.dbPath, '{not-json', 'utf8');
+    fs.writeFileSync(bank.backupPath, '{also-not-json', 'utf8');
+
+    expect(() => new PatternMemoryBank(bankConfig))
+      .toThrow(/Primary and backup pattern banks both failed/);
   });
 
   test('PatternMemoryBank exposes read-only memory snapshots', () => {
