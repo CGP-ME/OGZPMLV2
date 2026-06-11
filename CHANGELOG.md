@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Pattern Memory Runtime Pruning (2026-06-11)
+
+- Wired pattern-memory pruning into long-running runtime mutation paths: `PatternMemoryBank.recordTradeOutcome()` now prunes before saving when the configured cap/staleness rules require it, and `UnifiedPatternMemory` enforces the configured cap on new patterns while its save timer prunes before persistence instead of saving unbounded state.
+
 ### Secret Scanner Template Coverage (2026-06-11)
 
 - Extended `scripts/scan-secrets.js` beyond dashboard WebSocket tokens to reject credential assignments with non-placeholder values, private-key blocks, JWT-shaped literals, vendor-prefixed tokens, URL-embedded credentials, and hash-listed burned env-template values; added focused scanner regressions.

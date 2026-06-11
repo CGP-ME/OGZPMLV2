@@ -258,10 +258,11 @@ class UnifiedPatternMemory {
     // Load from disk
     this._load();
 
-    // Periodic save
+    // Periodic prune + save. The runtime cap must be enforced while the
+    // process is alive, not only during shutdown cleanup.
     this._saveTimer = null;
     if (this.config.persistToDisk) {
-      this._saveTimer = setInterval(() => this.save(), this.config.saveIntervalMs);
+      this._saveTimer = setInterval(() => this.pruneAndSave(), this.config.saveIntervalMs);
     }
 
     const patternCount = Object.keys(this.#patterns).length;
@@ -296,14 +297,17 @@ class UnifiedPatternMemory {
     const sig = this._computeScopedSignature(features, scope);
     if (!sig) return null;
 
+    let created = false;
     if (!this.#patterns[sig]) {
       this.#patterns[sig] = this._createPattern(sig, features, scope);
+      created = true;
     }
 
     const p = this.#patterns[sig];
     p.timesSeen++;
     p.lastSeen = Date.now();
     this.stats.observations++;
+    if (created) this._enforcePatternCapAfterMutation();
 
     return sig;
   }
@@ -327,8 +331,10 @@ class UnifiedPatternMemory {
     if (!sig) return false;
 
     // Create pattern if it wasn't observed first (edge case)
+    let created = false;
     if (!this.#patterns[sig]) {
       this.#patterns[sig] = this._createPattern(sig, features, scope);
+      created = true;
     }
 
     const p = this.#patterns[sig];
@@ -372,6 +378,7 @@ class UnifiedPatternMemory {
     this._evaluateStatus(p);
 
     this.stats.outcomes++;
+    if (created) this._enforcePatternCapAfterMutation();
     return true;
   }
 
@@ -620,6 +627,21 @@ class UnifiedPatternMemory {
       console.log(`[UnifiedPatternMemory] Pruned ${pruned} patterns. Remaining: ${Object.keys(this.#patterns).length}`);
     }
     this.stats.lastPruneTime = now;
+  }
+
+  _enforcePatternCapAfterMutation() {
+    if (Object.keys(this.#patterns).length <= this.config.maxPatterns) return 0;
+    this.prune();
+    const patternCount = Object.keys(this.#patterns).length;
+    if (patternCount > this.config.maxPatterns) {
+      throw new Error(`[UnifiedPatternMemory] prune failed to enforce maxPatterns cap: ${patternCount} > ${this.config.maxPatterns}`);
+    }
+    return patternCount;
+  }
+
+  pruneAndSave() {
+    this.prune();
+    this.save();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1151,8 +1173,7 @@ class UnifiedPatternMemory {
       clearInterval(this._saveTimer);
       this._saveTimer = null;
     }
-    this.prune();
-    this.save();
+    this.pruneAndSave();
     console.log(`[UnifiedPatternMemory] Cleanup complete. ${Object.keys(this.#patterns).length} patterns saved.`);
   }
 }

@@ -4,14 +4,14 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Focused proof for the June 9 complaint: "PatternMemoryBank eviction boundary tests."
+// Focused proof for the June 9 complaint: "Pattern memory grows unbounded."
 // Two questions, two sections.
 //   Section A: does eviction logic work when called? (unit invariants 1-4)
-//   Section B: is eviction actually invoked by the runtime path, or dormant/manual-only?
+//   Section B: is eviction invoked by runtime mutation and persistence paths?
 // Section B reads the production sources via fs.readFileSync and asserts the exact set
 // of caller patterns. If a future commit adds or removes a caller, the counts change
 // and the test fails loud, forcing the developer to update both the expected count
-// and the DORMANT WIRING CONCLUSION below.
+// and the runtime wiring conclusion below.
 
 describe('Pattern memory eviction boundary', () => {
   let consoleSpies;
@@ -26,6 +26,26 @@ describe('Pattern memory eviction boundary', () => {
     executionMode: 'backtest',
     timeframe: '15m',
     scopeKey: 'backtest:alpaca:acct-main:stocks:TSLA:15m',
+    ...overrides,
+  });
+
+  const features = (base) => [base, 0.02, 1, 0.03, 0.01, 0.5, 0.01, 0.02, 0];
+
+  const bankTrade = (index, overrides = {}) => ({
+    ...scope(),
+    id: `trade-${index}`,
+    profitLoss: 25 + index,
+    profitLossPercent: 2.5 + index,
+    holdDuration: 900000,
+    indicators: {
+      rsi: 25 + index * 10,
+      macd: index % 2 === 0 ? 0.2 : -0.2,
+      macdHistogram: 0.03,
+      primaryPattern: `runtime-pattern-${index}`,
+    },
+    trend: index % 2 === 0 ? 'uptrend' : 'downtrend',
+    timestamp: 1779802200000 + index * 3600000,
+    volatility: index % 2 === 0 ? 0.02 : 0.04,
     ...overrides,
   });
 
@@ -178,7 +198,6 @@ describe('Pattern memory eviction boundary', () => {
   });
 
   test('Invariant 3: UnifiedPatternMemory.prune enforces the configured maxPatterns cap', () => {
-    const features = (base) => [base, 0.02, 1, 0.03, 0.01, 0.5, 0.01, 0.02, 0];
     const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
 
     // maxPatterns=3 is supplied explicitly via local override on top of
@@ -208,7 +227,7 @@ describe('Pattern memory eviction boundary', () => {
       });
       expect(ok).toBe(true);
     }
-    expect(Object.keys(memory.patterns)).toHaveLength(5);
+    expect(Object.keys(memory.patterns)).toHaveLength(3);
 
     memory.prune();
     expect(Object.keys(memory.patterns).length).toBe(3);
@@ -249,13 +268,49 @@ describe('Pattern memory eviction boundary', () => {
     expect(bank.exportMemory()).toEqual(beforePrune);
   });
 
+  test('Runtime failure path: PatternMemoryBank refuses later records after required prune cannot persist', () => {
+    delete process.env.BACKTEST_MODE; // persistence enabled in paper mode
+    process.env.PAPER_TRADING = 'true';
+
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const dbPath = path.join(process.env.DATA_DIR, `pattern-bank-prune-failure-${Date.now()}.json`);
+    const paperScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+    const bank = new PatternMemoryBank({
+      ...paperScope,
+      dbPath,
+      minTradesSample: 1,
+      maxPatterns: 1,
+    });
+
+    bank.saveMemory = () => true;
+    const overCapMemory = bank.createEmptyMemory();
+    overCapMemory.patterns['hash-1'] = makeBankRecord('one', paperScope);
+    overCapMemory.patterns['hash-2'] = makeBankRecord('two', {
+      ...paperScope,
+      score: 1,
+    });
+    expect(bank.importMemory(overCapMemory)).toBe(true);
+
+    bank.saveMemory = () => false;
+    expect(bank.recordTradeOutcome(bankTrade(1, paperScope))).toBe(false);
+    const afterFailedPrune = bank.exportMemory();
+    expect(Object.keys(afterFailedPrune.patterns)).toHaveLength(2);
+
+    bank.saveMemory = () => true;
+    expect(bank.recordTradeOutcome(bankTrade(2, paperScope))).toBe(false);
+    expect(bank.exportMemory()).toEqual(afterFailedPrune);
+  });
+
   // ───────────────────────────────────────────────────────────
-  // SECTION B: is eviction actually invoked by the runtime path?
+  // SECTION B: is eviction actually invoked by runtime mutation and persistence paths?
   // ───────────────────────────────────────────────────────────
   // Each assertion below counts a specific caller pattern in a specific production
   // source file. If a future commit adds or removes a caller, the count changes
   // and the test fails. The failing test then forces the developer to update the
-  // expected count and re-categorize the DORMANT WIRING CONCLUSION at the bottom.
+  // expected count and re-categorize the runtime wiring conclusion at the bottom.
 
   function readSource(relPath) {
     return fs.readFileSync(path.join(__dirname, '..', relPath), 'utf8');
@@ -265,16 +320,58 @@ describe('Pattern memory eviction boundary', () => {
     return (text.match(pattern) || []).length;
   }
 
-  test('Runtime wiring: pruneOldPatterns occurrences in production sources match the expected dormant chain', () => {
-    // Three expected occurrences total:
-    //   core/PatternMemoryBank.js: 1 (the method definition at line 791)
-    //   core/trai_core.js:         1 (the wrapper call at line 842)
-    //   core/TRAIDecisionModule.js:1 (the wrapper definition at line 1073)
-    //   run-empire-v2.js:          0 (no production caller)
+  test('Runtime wiring: PatternMemoryBank.recordTradeOutcome enforces configured cap before saving', () => {
+    const PatternMemoryBank = require('../core/PatternMemoryBank');
+    const bank = new PatternMemoryBank({
+      ...scope(),
+      dbPath: path.join(process.env.DATA_DIR, `pattern-bank-runtime-${Date.now()}.json`),
+      minTradesSample: 1,
+      maxPatterns: 3,
+      featureFlags: {
+        PATTERN_MEMORY_PARTITION: {
+          settings: { backtestPersist: false },
+        },
+      },
+    });
+
+    for (let i = 0; i < 5; i++) {
+      expect(bank.recordTradeOutcome(bankTrade(i))).toBe(true);
+    }
+
+    expect(Object.keys(bank.exportMemory().patterns)).toHaveLength(3);
+  });
+
+  test('Runtime wiring: UnifiedPatternMemory record paths enforce configured cap on new patterns', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+      maxPatterns: 3,
+      maxAgeDays: 100000,
+    });
+    const baseScope = scope({
+      executionMode: 'paper',
+      scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+    });
+
+    for (let i = 0; i < 5; i++) {
+      expect(memory.recordObservation(features(0.51 + i * 0.05), baseScope)).toBeTruthy();
+    }
+
+    expect(Object.keys(memory.patterns)).toHaveLength(3);
+  });
+
+  test('Runtime wiring: pruneOldPatterns occurrences in production sources match the expected runtime chain', () => {
+    // Four expected occurrences total:
+    //   core/PatternMemoryBank.js: 2 (method definition + recordTradeOutcome call)
+    //   core/trai_core.js:         1 (the wrapper call)
+    //   core/TRAIDecisionModule.js:1 (the wrapper definition)
+    //   run-empire-v2.js:          0 (no runner-level scheduler)
     // Comments inside production source that mention pruneOldPatterns count too;
     // if you intentionally added a comment, raise the expected number deliberately.
     const expected = {
-      'core/PatternMemoryBank.js': 1,
+      'core/PatternMemoryBank.js': 2,
       'core/trai_core.js': 1,
       'core/TRAIDecisionModule.js': 1,
       'run-empire-v2.js': 0,
@@ -299,33 +396,18 @@ describe('Pattern memory eviction boundary', () => {
     expect(actual).toEqual(expected);
   });
 
-  test('Runtime wiring: UnifiedPatternMemory.prune() is invoked exactly once in production, from inside cleanup()', () => {
+  test('Runtime wiring: UnifiedPatternMemory.prune() is invoked by runtime cap enforcement and pruneAndSave', () => {
     const src = readSource('core/UnifiedPatternMemory.js');
     const explicitCalls = countMatches(src, /this\.prune\(\)/g);
-    expect(explicitCalls).toBe(1);
-
-    // Confirm the single this.prune() call lives inside cleanup() by locating
-    // the cleanup method header and asserting this.prune() appears between it
-    // and the next top-level closing brace at column 1 ("}" at start of line).
-    // Brace-balanced regex is impractical, so this uses textual indexes.
-    const cleanupIdx = src.indexOf('async cleanup()');
-    expect(cleanupIdx).toBeGreaterThan(-1);
-    // The class body uses two-space indentation; cleanup() closes on a line that
-    // starts with "  }" (two spaces + closing brace). Find the next such line.
-    const cleanupEndRel = src.slice(cleanupIdx).search(/\n\s{2}\}\s*\n/);
-    expect(cleanupEndRel).toBeGreaterThan(-1);
-    const cleanupBody = src.slice(cleanupIdx, cleanupIdx + cleanupEndRel);
-    expect(cleanupBody).toMatch(/this\.prune\(\)/);
-
-    const pruneIdx = src.indexOf('this.prune()');
-    expect(pruneIdx).toBeGreaterThan(cleanupIdx);
-    expect(pruneIdx).toBeLessThan(cleanupIdx + cleanupEndRel);
+    expect(explicitCalls).toBe(2);
+    expect(src).toContain('this._enforcePatternCapAfterMutation()');
+    expect(src).toContain('this.pruneAndSave()');
   });
 
-  test('Runtime wiring: UnifiedPatternMemory periodic timer drives save(), not prune()', () => {
+  test('Runtime wiring: UnifiedPatternMemory periodic timer drives pruneAndSave(), not save-only', () => {
     const src = readSource('core/UnifiedPatternMemory.js');
-    expect(countMatches(src, /setInterval\(\(\) => this\.save\(\)/g)).toBe(1);
-    expect(src.match(/setInterval\([^)]*prune/)).toBeNull();
+    expect(countMatches(src, /setInterval\(\(\) => this\.pruneAndSave\(\)/g)).toBe(1);
+    expect(src.match(/setInterval\(\(\) => this\.save\(\)/)).toBeNull();
   });
 
   test('Runtime wiring: UnifiedPatternMemory.cleanup() is invoked only from shutdown paths in production', () => {
@@ -345,24 +427,17 @@ describe('Pattern memory eviction boundary', () => {
     expect(actual).toEqual(expected);
   });
 
-  test('DORMANT WIRING CONCLUSION: PatternMemoryBank pruning is not invoked at runtime; UnifiedPatternMemory pruning runs only on shutdown', () => {
-    // The June 9 complaint asked whether unbounded memory growth is actually
-    // prevented. Section A above proves the eviction code works when called.
-    // Section B above proves the call sites are dormant or shutdown-only.
-    //
-    // This documentary assertion exists so the test report explicitly carries the
-    // conclusion. The complaint remains OPEN until either (a) a periodic runtime
-    // caller is wired and this conclusion is updated, or (b) Trey explicitly
-    // accepts shutdown-only pruning for UnifiedPatternMemory and a runtime trigger
-    // for PatternMemoryBank.
+  test('RUNTIME WIRING CONCLUSION: pattern memory pruning is enforced during long-running runtime mutation paths', () => {
+    // The June 9 complaint asked whether unbounded memory growth is prevented.
+    // Section A proves eviction works. Section B proves runtime mutation and
+    // periodic persistence paths now invoke it before shutdown.
     const conclusion = [
-      'PatternMemoryBank.pruneOldPatterns: works when called. No production caller invokes the chain.',
-      'TRAIDecisionModule.pruneOldPatterns (entry point of the chain): zero production callers.',
-      'UnifiedPatternMemory.prune: only invoked from cleanup() (shutdown path).',
-      'UnifiedPatternMemory._saveTimer: triggers save() periodically, not prune().',
-      'Runtime automatic pruning is NOT proven/wired. Complaint cannot be marked closed.',
+      'PatternMemoryBank.recordTradeOutcome invokes pruneOldPatterns before saving.',
+      'UnifiedPatternMemory record paths enforce maxPatterns immediately on new patterns.',
+      'UnifiedPatternMemory._saveTimer triggers pruneAndSave, not save-only.',
+      'Shutdown cleanup still prunes before final save.',
+      'Runtime automatic pruning is proven and wired.',
     ].join('\n');
-    expect(conclusion).toContain('NOT proven/wired');
-    expect(conclusion).toContain('cannot be marked closed');
+    expect(conclusion).toContain('proven and wired');
   });
 });

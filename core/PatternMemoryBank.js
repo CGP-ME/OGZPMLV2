@@ -211,6 +211,7 @@ class PatternMemoryBank {
 
         // Disable persistence for backtest mode if configured
         this.persistenceEnabled = mode !== 'backtest' || partitionSettings.backtestPersist !== false;
+        this.pruneFailureReason = null;
 
         console.log(`[TRAI Memory] Mode: ${mode}, File: ${memoryFile}, Persist: ${this.persistenceEnabled}`);
 
@@ -444,6 +445,11 @@ class PatternMemoryBank {
         let memoryBeforeMutation = null;
 
         try {
+            if (this.pruneFailureReason) {
+                console.error(`[TRAI Memory] Refusing trade outcome after failed required prune: ${this.pruneFailureReason}`);
+                return false;
+            }
+
             const pattern = this.extractPattern(trade);
 
             if (!pattern || !pattern.hash) {
@@ -582,10 +588,24 @@ class PatternMemoryBank {
 
             this.writeOutcomeTelemetry(outcomeTelemetry);
 
+            const pruneNeeded = this.needsPrune();
+            const pruned = this.pruneOldPatterns();
+            if (pruneNeeded && pruned === 0) {
+                if (memoryBeforeMutation) {
+                    this.#memory = memoryBeforeMutation;
+                }
+                this.pruneFailureReason = 'required pruning did not complete';
+                console.error('[TRAI Memory] Error recording trade outcome: pruning was required but did not complete');
+                return false;
+            }
+
             // Save to disk
             const saved = this.saveMemory();
             if (!saved && memoryBeforeMutation) {
                 this.#memory = memoryBeforeMutation;
+            }
+            if (saved) {
+                this.pruneFailureReason = null;
             }
             return saved;
 
@@ -941,9 +961,24 @@ class PatternMemoryBank {
                 console.warn('[TRAI Memory] Prune rolled back after failed save');
                 return 0;
             }
+            if (saved) {
+                this.pruneFailureReason = null;
+            }
         }
 
         return pruned;
+    }
+
+    needsPrune() {
+        const now = Date.now();
+        const patterns = Object.values(this.#memory.patterns);
+        if (patterns.length > this.patternBankConfig.maxPatterns) {
+            return true;
+        }
+        return patterns.some(record => {
+            const age = now - record.lastSeenTs;
+            return record.status === STATUS.DEAD || age > this.maxPatternAge;
+        });
     }
 
     /**
