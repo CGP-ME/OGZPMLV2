@@ -20,12 +20,23 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const dotenv = require('dotenv');
 const ConfigLoader = require('../foundation/ConfigLoader');
 const TradingConfig = require('../core/TradingConfig');
 
 const REDACTED_VALUE = '[REDACTED]';
 const SECRET_PATH_PATTERN = /(^|[._-])(apiKey|apiSecret|secret|token|dsn|webhookUrl|password|privateKey)($|[._-])/i;
 const SECRET_ENV_PATTERN = /(^|_)(API_KEY|API_SECRET|SECRET|TOKEN|DSN|WEBHOOK_URL|PASSWORD|PRIVATE_KEY)($|_)/i;
+
+const AUDIT_REQUIRED_ENV_FIXTURE = Object.freeze({
+  ALPACA_MODE: 'paper',
+  RISK_MANAGER_BYPASS: 'true',
+  ACCOUNT_DRAWDOWN_BYPASS: 'true',
+  MAX_DRAWDOWN: '5',
+  MAX_DAILY_LOSS: '1',
+  MAX_WEEKLY_LOSS: '5',
+  MAX_MONTHLY_LOSS: '5',
+});
 
 const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   EXECUTION_MODE: 'mode.execution',
@@ -67,12 +78,43 @@ const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   TRAIL_MIN_ACTIVATION: 'trail.minActivation',
   TRAIL_TREND_WIDEN: 'trail.trendWiden',
   TRAIL_STRUCTURE_TIGHTEN: 'trail.structureTighten',
+  ALPACA_MODE: 'broker.alpacaMode',
 });
 
-function createAuditContext() {
-  const envPath = process.env.DOTENV_CONFIG_PATH || '.env';
-  const configSnapshot = ConfigLoader.load({ force: true, silent: true });
-  return { envPath, configSnapshot };
+function readDotenvValues(envPath) {
+  const resolvedPath = path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+  try {
+    return dotenv.parse(fs.readFileSync(resolvedPath));
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return {};
+    throw error;
+  }
+}
+
+function createAuditContext(options = {}) {
+  const {
+    sourceEnv = process.env,
+    useAuditFixture = true,
+  } = options;
+  const envPath = sourceEnv.DOTENV_CONFIG_PATH || '.env';
+  const dotenvValues = readDotenvValues(envPath);
+  const auditEnv = { ...sourceEnv };
+  const auditFixtureKeys = [];
+  const auditFixtureSourceByPath = {};
+
+  if (useAuditFixture) {
+    for (const [key, value] of Object.entries(AUDIT_REQUIRED_ENV_FIXTURE)) {
+      if (auditEnv[key] !== undefined && auditEnv[key] !== '') continue;
+      if (dotenvValues[key] !== undefined && dotenvValues[key] !== '') continue;
+      auditEnv[key] = value;
+      auditFixtureKeys.push(key);
+      const loaderPath = CONFIG_LOADER_ENV_PATHS[key];
+      if (loaderPath) auditFixtureSourceByPath[loaderPath] = `audit-fixture:${key}`;
+    }
+  }
+
+  const configSnapshot = ConfigLoader.snapshot(auditEnv, { silent: true });
+  return { envPath, configSnapshot, auditFixtureKeys, auditFixtureSourceByPath };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -130,7 +172,7 @@ function getSourceFromContext(context, envKey, configPath, hardcodedDefault) {
   if (loaderPath && loaderVal !== undefined && loaderVal !== '') {
     return auditEntry(loaderPath, {
       value: loaderVal,
-      source: context.configSnapshot.sources[loaderPath] || `ConfigLoader:${loaderPath}`,
+      source: context.auditFixtureSourceByPath?.[loaderPath] || context.configSnapshot.sources[loaderPath] || `ConfigLoader:${loaderPath}`,
       raw: false,
     });
   }
@@ -153,7 +195,7 @@ function addConfigLoaderLeaves(resolved, context) {
     if (Object.prototype.hasOwnProperty.call(resolved, configPath)) continue;
     resolved[configPath] = auditEntry(configPath, {
       value,
-      source: context.configSnapshot.sources[configPath] || `ConfigLoader:${configPath}`,
+      source: context.auditFixtureSourceByPath?.[configPath] || context.configSnapshot.sources[configPath] || `ConfigLoader:${configPath}`,
       raw: false,
     });
   }
@@ -334,6 +376,7 @@ function buildFingerprint(resolved) {
 }
 
 function sourceLabelFor(source) {
+  if (source.startsWith('audit-fixture:')) return 'AUD';
   if (source.startsWith('env:') || source.startsWith('dotenv:')) return 'ENV';
   if (source.startsWith('derived:')) return 'DER';
   if (source.startsWith('ConfigLoader:')) return 'CFG';
@@ -357,6 +400,9 @@ function run(context = createAuditContext()) {
 
   console.log(`\n  Config Fingerprint: ${fingerprint}`);
   console.log(`  Env File: ${context.envPath}`);
+  if (context.auditFixtureKeys && context.auditFixtureKeys.length > 0) {
+    console.log(`  Audit Fixture Keys: ${context.auditFixtureKeys.join(', ')}`);
+  }
   console.log(`  Timestamp: ${new Date().toISOString()}\n`);
 
   // Print grouped
@@ -417,6 +463,7 @@ function run(context = createAuditContext()) {
     fingerprint,
     timestamp: new Date().toISOString(),
     envFile: context.envPath,
+    auditFixtureKeys: context.auditFixtureKeys || [],
     resolved,
     riskConfigViolations,
     envReads: envReads.map(r => ({ file: r.file, line: r.line, envVar: r.envVar })),

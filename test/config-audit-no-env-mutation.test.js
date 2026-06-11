@@ -33,8 +33,6 @@ describe('config-audit env boundary', () => {
         ACCOUNT_DRAWDOWN_BYPASS: 'true',
         MAX_DRAWDOWN: '5',
         MAX_DAILY_LOSS: '1',
-        MAX_WEEKLY_LOSS: '5',
-        MAX_MONTHLY_LOSS: '5',
         KRAKEN_API_KEY: 'audit-test-api-key',
         KRAKEN_API_SECRET: 'audit-test-api-secret',
         SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/audit-secret',
@@ -45,6 +43,8 @@ describe('config-audit env boundary', () => {
       delete process.env.BASE_POSITION_SIZE;
       delete process.env.STOP_LOSS_PERCENT;
       delete process.env.TIER1_TARGET;
+      delete process.env.MAX_WEEKLY_LOSS;
+      delete process.env.MAX_MONTHLY_LOSS;
 
       const audit = require('../tools/config-audit');
       const context = audit.createAuditContext();
@@ -55,7 +55,21 @@ describe('config-audit env boundary', () => {
         .filter(configPath => !Object.prototype.hasOwnProperty.call(resolved, configPath));
 
       expect(Object.keys(resolved).length).toBeGreaterThan(82);
+      expect(context.auditFixtureKeys).toEqual(expect.arrayContaining([
+        'ALPACA_MODE',
+        'MAX_WEEKLY_LOSS',
+        'MAX_MONTHLY_LOSS',
+      ]));
+      expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining(['RISK_MANAGER_BYPASS']));
       expect(missingConfigLoaderLeaves).toEqual([]);
+      expect(resolved['broker.alpacaMode']).toMatchObject({
+        value: 'paper',
+        source: 'audit-fixture:ALPACA_MODE',
+      });
+      expect(resolved['risk.maxWeeklyLoss']).toMatchObject({
+        value: 5,
+        source: 'audit-fixture:MAX_WEEKLY_LOSS',
+      });
       expect(resolved['mode.liveTading']).toBeUndefined();
       expect(resolved['mode.liveTrading']).toMatchObject({
         value: false,
@@ -119,9 +133,79 @@ describe('config-audit env boundary', () => {
       expect(process.env.BASE_POSITION_SIZE).toBeUndefined();
       expect(process.env.STOP_LOSS_PERCENT).toBeUndefined();
       expect(process.env.TIER1_TARGET).toBeUndefined();
+      expect(process.env.ALPACA_MODE).toBeUndefined();
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  test('audit fixture does not override dotenv-backed required values', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-audit-fixture-'));
+    const envPath = path.join(tempDir, '.env');
+    fs.writeFileSync(envPath, [
+      'ALPACA_MODE=live',
+      'ALPACA_API_KEY=audit-alpaca-key',
+      'ALPACA_API_SECRET=audit-alpaca-secret',
+      'ALPACA_SYMBOLS=TSLA',
+      'RISK_MANAGER_BYPASS=false',
+      'ACCOUNT_DRAWDOWN_BYPASS=false',
+      'MAX_DRAWDOWN=9',
+      'MAX_DAILY_LOSS=2',
+      'MAX_WEEKLY_LOSS=6',
+      'MAX_MONTHLY_LOSS=12',
+      '',
+    ].join('\n'));
+
+    try {
+      process.env = {
+        DOTENV_CONFIG_PATH: envPath,
+        BROKER: 'alpaca',
+      };
+
+      const audit = require('../tools/config-audit');
+      const context = audit.createAuditContext();
+
+      expect(context.auditFixtureKeys).toEqual([]);
+      expect(context.configSnapshot.config.broker.alpacaMode).toBe('live');
+      expect(context.configSnapshot.sources['broker.alpacaMode']).toBe('dotenv:ALPACA_MODE');
+      expect(audit.buildResolvedConfig(context)['broker.alpacaMode']).toMatchObject({
+        value: 'live',
+        source: 'dotenv:ALPACA_MODE',
+      });
+      expect(context.configSnapshot.config.risk.maxDrawdown).toBe(9);
+      expect(context.configSnapshot.sources['risk.maxDrawdown']).toBe('dotenv:MAX_DRAWDOWN');
+      expect(process.env.ALPACA_MODE).toBeUndefined();
+      expect(process.env.MAX_DRAWDOWN).toBeUndefined();
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('audit fixture does not override sourceEnv-backed required values', () => {
+    const audit = require('../tools/config-audit');
+    const context = audit.createAuditContext({
+      sourceEnv: {
+        BACKTEST_MODE: 'true',
+        ALPACA_MODE: 'live',
+        MAX_WEEKLY_LOSS: '6',
+        MAX_MONTHLY_LOSS: '12',
+      },
+    });
+    const resolved = audit.buildResolvedConfig(context);
+
+    expect(context.auditFixtureKeys).not.toEqual(expect.arrayContaining([
+      'ALPACA_MODE',
+      'MAX_WEEKLY_LOSS',
+      'MAX_MONTHLY_LOSS',
+    ]));
+    expect(resolved['broker.alpacaMode']).toMatchObject({
+      value: 'live',
+      source: 'env:ALPACA_MODE',
+    });
+    expect(resolved['risk.maxWeeklyLoss']).toMatchObject({
+      value: 6,
+      source: 'env:MAX_WEEKLY_LOSS',
+    });
   });
 
   test('keeps every audited env key mapped to ConfigLoader and labels loader fallbacks', () => {
@@ -132,6 +216,7 @@ describe('config-audit env boundary', () => {
     const missing = calls.filter(envKey => !audit.CONFIG_LOADER_ENV_PATHS[envKey]);
 
     expect(missing).toEqual([]);
+    expect(audit.sourceLabelFor('audit-fixture:MAX_WEEKLY_LOSS')).toBe('AUD');
     expect(audit.sourceLabelFor('ConfigLoader:mode.liveTrading')).toBe('CFG');
     expect(audit.sourceLabelFor('TradingConfig:pipeline.enableRSI')).toBe('TC');
   });
@@ -148,7 +233,7 @@ describe('config-audit env boundary', () => {
       };
 
       const audit = require('../tools/config-audit');
-      const context = audit.createAuditContext();
+      const context = audit.createAuditContext({ useAuditFixture: false });
 
       expect(audit.getRiskConfigViolations(context)).toEqual([
         'risk.riskManagerBypass requires explicit env/profile source',
