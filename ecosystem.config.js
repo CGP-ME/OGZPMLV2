@@ -12,6 +12,7 @@ const evalOperatorEnv = Object.freeze({
   TTP_EARNINGS_STATUS_JSON: process.env.TTP_EARNINGS_STATUS_JSON,
   TTP_PROFIT_TARGET_DOLLARS: process.env.TTP_PROFIT_TARGET_DOLLARS,
   INITIAL_BALANCE: process.env.INITIAL_BALANCE,
+  STARTING_BALANCE: process.env.STARTING_BALANCE,
 });
 
 const alpacaCredentialEnv = Object.freeze({

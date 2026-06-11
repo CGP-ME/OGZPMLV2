@@ -16,6 +16,7 @@ const OPERATOR_ENV_KEYS = Object.freeze([
   'TTP_EARNINGS_STATUS_JSON',
   'TTP_PROFIT_TARGET_DOLLARS',
   'INITIAL_BALANCE',
+  'STARTING_BALANCE',
 ]);
 
 const OPERATOR_ENV_VALUES = Object.freeze({
@@ -30,6 +31,7 @@ const OPERATOR_ENV_VALUES = Object.freeze({
   TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false}}',
   TTP_PROFIT_TARGET_DOLLARS: '3000',
   INITIAL_BALANCE: '50000',
+  STARTING_BALANCE: '50000',
 });
 
 function loadAppWithEnv(appName, envValues) {
