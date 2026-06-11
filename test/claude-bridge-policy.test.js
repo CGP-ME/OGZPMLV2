@@ -42,4 +42,31 @@ describe('claude bridge policy ownership', () => {
       path: 'ogz-meta/sessions/session.md',
     });
   });
+
+  test('blocks writes to the Claude bridge enforcement surface', () => {
+    const policy = require('../trai_brain/claude-bridge/policy');
+
+    for (const protectedPath of [
+      '.claude/settings.json',
+      '.claude/settings.local.json',
+      '.claude/hooks/enforce-pipeline.sh',
+      '.claude/hookify.no-emojis.local.md',
+      '.claude/commands/recorder.md',
+      'trai_brain/claude-bridge/pre-bash.js',
+      'trai_brain/claude-bridge/policy.js',
+    ]) {
+      expect(policy.checkPath(protectedPath, { operation: 'write' })).toEqual({
+        allowed: false,
+        reason: 'claude_bridge_protected_write',
+        path: protectedPath,
+      });
+    }
+  });
+
+  test('keeps enforcement surface readable for audit', () => {
+    const policy = require('../trai_brain/claude-bridge/policy');
+
+    expect(policy.checkPath('.claude/settings.json', { operation: 'read' }).allowed).toBe(true);
+    expect(policy.checkPath('trai_brain/claude-bridge/pre-bash.js', { operation: 'read' }).allowed).toBe(true);
+  });
 });

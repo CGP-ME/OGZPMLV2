@@ -24,8 +24,15 @@ function run() {
 
   if (!target) emit('BLOCKED (claude-bridge): tool_input.file_path missing', 2);
 
-  const check = policy.checkPath(target);
+  const check = policy.checkPath(target, { operation: 'write' });
   if (!check.allowed) {
+    if (check.reason === 'claude_bridge_protected_write') {
+      emit(
+        `BLOCKED (claude-bridge protected write): ${check.path} is part of the enforcement surface. ` +
+        `Bridge hooks cannot edit their own policy, hooks, or command definitions.`,
+        2
+      );
+    }
     if (check.reason === 'claude_bridge_ignored') {
       emit(
         `BLOCKED (claude-bridge ignore): ${check.path} is claude-bridge ignore-policy protected. ` +

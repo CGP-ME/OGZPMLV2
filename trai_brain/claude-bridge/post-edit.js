@@ -16,7 +16,7 @@ function run() {
 
   if (!target) process.exit(0);
 
-  const check = policy.checkPath(target);
+  const check = policy.checkPath(target, { operation: 'write' });
   if (check.allowed) {
     editLedger.recordEdit(check.path);
   }

@@ -50,4 +50,12 @@ describe('claude bridge edit ledger', () => {
 
     expect(editLedger.listEditedFiles()).toEqual(['test/claude-bridge-edit-ledger.test.js']);
   });
+
+  test('post-edit does not record protected enforcement surface targets', () => {
+    runHookWithInput(postEdit, {
+      tool_input: { file_path: 'trai_brain/claude-bridge/pre-bash.js' },
+    });
+
+    expect(editLedger.listEditedFiles()).toEqual([]);
+  });
 });

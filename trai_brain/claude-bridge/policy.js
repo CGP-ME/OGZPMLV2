@@ -17,6 +17,14 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 // while genuinely outside-repo paths stay blocked.
 const CLAUDE_ALLOW_PREFIXES = normalizePolicyList(ignorePolicy.allowedPrefixes, 'allowedPrefixes');
 const IGNORED_DIRECTORIES = normalizePolicyList(ignorePolicy.ignoredDirectories, 'ignoredDirectories');
+const PROTECTED_WRITE_PATHS = Object.freeze([
+  '.claude/settings.json',
+  '.claude/settings.local.json',
+  '.claude/hooks/',
+  '.claude/hookify.',
+  '.claude/commands/',
+  'trai_brain/claude-bridge/',
+]);
 
 function normalizePolicyList(values, fieldName) {
   if (!Array.isArray(values) || values.length === 0) {
@@ -66,13 +74,34 @@ function isIgnoredByClaudeBridge(rel) {
   });
 }
 
-function checkPath(targetPath) {
+function isProtectedWritePath(rel) {
+  return PROTECTED_WRITE_PATHS.some((entry) => {
+    if (entry.endsWith('/')) {
+      return rel === entry.replace(/\/$/, '') || rel.startsWith(entry);
+    }
+    return rel === entry || rel.startsWith(entry);
+  });
+}
+
+function normalizeOperation(operation) {
+  if (operation == null || operation === '') return 'read';
+  if (operation !== 'read' && operation !== 'write') {
+    throw new Error(`Unsupported claude-bridge policy operation: ${operation}`);
+  }
+  return operation;
+}
+
+function checkPath(targetPath, options = {}) {
+  const operation = normalizeOperation(options.operation);
   const r = relToRepo(targetPath);
   if (!r) {
     return { allowed: false, reason: 'no_path' };
   }
   if (r.outsideRepo) {
     return { allowed: false, reason: 'outside_repo', path: targetPath };
+  }
+  if (operation === 'write' && isProtectedWritePath(r.rel)) {
+    return { allowed: false, reason: 'claude_bridge_protected_write', path: r.rel };
   }
   if (isClaudeAllowed(r.rel)) {
     return { allowed: true, reason: 'claude_owned', path: r.rel };
@@ -83,4 +112,10 @@ function checkPath(targetPath) {
   return { allowed: true, reason: 'ok', path: r.rel };
 }
 
-module.exports = { checkPath, relToRepo, isIgnoredByClaudeBridge, REPO_ROOT };
+module.exports = {
+  checkPath,
+  relToRepo,
+  isIgnoredByClaudeBridge,
+  isProtectedWritePath,
+  REPO_ROOT,
+};
