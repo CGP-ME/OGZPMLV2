@@ -26,6 +26,21 @@ describe('WebhookOrderAdapter live posture guard', () => {
     }));
   });
 
+  test('does not treat executionMode as an unvalidated live trading trigger', () => {
+    const adapter = new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: true,
+      liveTrading: false,
+      executionMode: 'live',
+      webhookUrl: 'https://signalstack.example/webhook',
+    });
+
+    expect(adapter.getStats()).toEqual(expect.objectContaining({
+      enabled: true,
+      dryRun: true,
+    }));
+  });
+
   test('allows direct live broker mode when webhook orders are disabled', () => {
     const adapter = new WebhookOrderAdapter({
       enabled: false,

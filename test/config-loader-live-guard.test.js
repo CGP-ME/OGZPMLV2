@@ -94,9 +94,20 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/RISK_MANAGER_BYPASS=true/);
   });
 
+  test('throws during live startup without explicit live confirmation', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'false';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+
+    expect(() => loadConfig()).toThrow(/CONFIRM_LIVE_TRADING=true/);
+  });
+
   test('allows live trading when both bypasses are disabled', () => {
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
 
     const loaded = loadConfig();
 
@@ -104,6 +115,82 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.mode.liveTrading).toBe(true);
     expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
+  });
+
+  test('throws during live startup when EVAL_RULES_ENABLED is false or unset', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'true';
+
+    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
+
+    jest.resetModules();
+    delete process.env.EVAL_RULES_ENABLED;
+
+    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
+  });
+
+  test('derives live posture from execution-mode aliases before eval guard validation', () => {
+    process.env.LIVE_TRADING = 'false';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EXECUTION_MODE = 'live';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'true';
+
+    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
+
+    jest.resetModules();
+    process.env.EXECUTION_MODE = 'paper';
+    process.env.TRADING_MODE = 'live';
+
+    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
+
+    jest.resetModules();
+    process.env.TRADING_MODE = 'paper';
+    process.env.ENABLE_LIVE_TRADING = 'true';
+
+    expect(() => loadConfig()).toThrow(/EVAL_RULES_ENABLED unset or false/);
+  });
+
+  test('throws during live startup when TTP_RULES_ENABLED is false or unset while eval rules are enabled', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'false';
+
+    expect(() => loadConfig()).toThrow(/TTP_RULES_ENABLED unset or false/);
+
+    jest.resetModules();
+    delete process.env.TTP_RULES_ENABLED;
+
+    expect(() => loadConfig()).toThrow(/TTP_RULES_ENABLED unset or false/);
+  });
+
+  test('keeps eval rule flags non-blocking for paper and backtest posture', () => {
+    process.env.LIVE_TRADING = 'false';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'false';
+
+    const paperLoaded = loadConfig();
+
+    expect(paperLoaded.errors).toEqual([]);
+    expect(paperLoaded.config.mode.liveTrading).toBe(false);
+    expect(paperLoaded.config.evalRules.enabled).toBe(false);
+
+    jest.resetModules();
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.BACKTEST_MODE = 'true';
+    process.env.CANDLE_SOURCE = 'file';
+    process.env.LIVE_TRADING = 'false';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'false';
+
+    const backtestLoaded = loadConfig();
+
+    expect(backtestLoaded.errors).toEqual([]);
+    expect(backtestLoaded.config.mode.backtest).toBe(true);
+    expect(backtestLoaded.config.evalRules.enabled).toBe(false);
   });
 
   test('throws during live startup when enabled webhook route is still dry-run', () => {
@@ -145,6 +232,8 @@ describe('ConfigLoader live trading safety guard', () => {
   test('allows direct live broker route when webhook orders are disabled', () => {
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
     process.env.WEBHOOK_ORDERS_ENABLED = 'false';
     process.env.WEBHOOK_DRY_RUN = 'true';
     process.env.SIGNALSTACK_WEBHOOK_URL = '';

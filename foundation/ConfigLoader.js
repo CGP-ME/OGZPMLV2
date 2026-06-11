@@ -132,6 +132,15 @@ function buildDotenvSources(dotenvValues, sourceEnv) {
 function buildEffectiveEnv(sourceEnv, sourceOverrides = {}) {
   const effectiveEnv = { ...sourceEnv };
   const sources = { ...sourceOverrides };
+  const liveExecutionRequested = effectiveEnv.EXECUTION_MODE === 'live' ||
+    effectiveEnv.TRADING_MODE === 'live' ||
+    effectiveEnv.ENABLE_LIVE_TRADING === 'true';
+  if (liveExecutionRequested) {
+    effectiveEnv.LIVE_TRADING = 'true';
+    if (sourceEnv.LIVE_TRADING !== 'true' && sourceEnv.LIVE_TRADING !== '1') {
+      sources.LIVE_TRADING = 'derived:live-execution-mode';
+    }
+  }
   if (effectiveEnv.EXECUTION_MODE === 'backtest' || effectiveEnv.CANDLE_SOURCE === 'file') {
     effectiveEnv.BACKTEST_MODE = 'true';
     if (sourceEnv.BACKTEST_MODE !== 'true' && sourceEnv.BACKTEST_MODE !== '1') {
@@ -463,6 +472,9 @@ function validate(config, sources = {}) {
   if (config.mode.liveTrading && config.mode.backtest) {
     errors.push('Cannot enable both live trading and backtest mode');
   }
+  if (config.mode.liveTrading && config.mode.confirmLiveTrading !== true) {
+    errors.push('LIVE_TRADING=true cannot run unless CONFIRM_LIVE_TRADING=true');
+  }
   if (config.mode.liveTrading && config.risk.accountDrawdownBypass) {
     errors.push('LIVE_TRADING=true cannot run with ACCOUNT_DRAWDOWN_BYPASS=true');
   }
@@ -471,6 +483,12 @@ function validate(config, sources = {}) {
   }
   if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');
+  }
+  if (config.mode.liveTrading && config.evalRules.enabled !== true) {
+    errors.push('LIVE_TRADING=true cannot run with EVAL_RULES_ENABLED unset or false because EvalRuleEngine fails open when disabled');
+  }
+  if (config.mode.liveTrading && config.evalRules.enabled === true && config.evalRules.ttp.enabled !== true) {
+    errors.push('LIVE_TRADING=true cannot run with TTP_RULES_ENABLED unset or false while EVAL_RULES_ENABLED=true because TTP rules fail open when disabled');
   }
   if (config.mode.liveTrading && config.webhookOrders.enabled && !config.webhookOrders.webhookUrl) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and missing SIGNALSTACK_WEBHOOK_URL');

@@ -11,7 +11,7 @@ class WebhookOrderAdapter {
         this.webhookUrl = config.webhookUrl || '';
         this.enabled = config.enabled === true;
         this.dryRun = config.dryRun !== false;
-        this.liveTrading = config.liveTrading === true || config.executionMode === 'live';
+        this.liveTrading = config.liveTrading === true;
         this.timeout = config.timeout || 5000;
         this.orderLog = [];
         this.orderLogCap = config.orderLogCap || 500;

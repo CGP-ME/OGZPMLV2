@@ -1240,11 +1240,9 @@ class OGZPrimeV14Bot {
     // MODE DETECTION: Paper, Live, or Backtest (MUTUAL EXCLUSION)
     // PIPELINE: Use this.pipeline set earlier in constructor
 
-    // Support both ConfigLoader values AND new pipeline toggles
-    const enableLiveTrading = resolvedConfig.config.mode.liveTrading || this.pipeline.executionMode === 'live';
-    const enableBacktestMode = resolvedConfig.config.mode.backtest ||
-                               this.pipeline.candleSource === 'file' ||
-                               this.pipeline.executionMode === 'backtest';
+    // ConfigLoader owns execution mode normalization and validation.
+    const enableLiveTrading = resolvedConfig.config.mode.liveTrading;
+    const enableBacktestMode = resolvedConfig.config.mode.backtest;
     const enableTestMode = resolvedConfig.config.mode.testMode;  // Signal testing without pattern corruption
 
     // Enforce mutual exclusion: Only ONE mode can be active
