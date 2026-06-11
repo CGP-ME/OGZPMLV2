@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Webhook Placeholder URL Guard (2026-06-11)
+
+- Blocked non-dry-run webhook order routing when `SIGNALSTACK_WEBHOOK_URL` still contains placeholder hook identifiers, including encoded, double-encoded, and userinfo-hidden variants, so live/paper broker-ack capture cannot silently dispatch to the template SignalStack URL.
+
 ### Trading Profile Config Ownership (2026-06-11)
 
 - Moved runtime and tuning profile definitions into `config/trading.config.json`, retired the stale `TradingProfileManager` profile bank, and tightened profile replacement tracking so stale profile-owned overrides are cleared without deleting manual overrides.

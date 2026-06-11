@@ -62,6 +62,56 @@ describe('WebhookOrderAdapter live posture guard', () => {
     })).toThrow(/missing SIGNALSTACK_WEBHOOK_URL/);
   });
 
+  test('rejects live trading with enabled webhook route and placeholder URL', () => {
+    expect(() => new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: true,
+      webhookUrl: 'https://app.signalstack.com/hook/YOUR_UNIQUE_ID',
+    })).toThrow(/placeholder URL/);
+  });
+
+  test('rejects live trading with enabled webhook route and encoded placeholder URL', () => {
+    expect(() => new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: true,
+      webhookUrl: 'https://app.signalstack.com/hook/YOUR%5FUNIQUE%5FID',
+    })).toThrow(/placeholder URL/);
+  });
+
+  test('rejects live trading with enabled webhook route and double-encoded placeholder URL', () => {
+    expect(() => new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: true,
+      webhookUrl: 'https://app.signalstack.com/hook/YOUR%255FUNIQUE%255FID',
+    })).toThrow(/placeholder URL/);
+  });
+
+  test('rejects live trading with enabled webhook route and userinfo placeholder URL', () => {
+    expect(() => new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: true,
+      webhookUrl: 'https://YOUR_UNIQUE_ID@app.signalstack.com/hook/real',
+    })).toThrow(/placeholder URL/);
+  });
+
+  test('disables non-live webhook sends when URL is placeholder and dry-run is false', () => {
+    const adapter = new WebhookOrderAdapter({
+      enabled: true,
+      dryRun: false,
+      liveTrading: false,
+      webhookUrl: 'https://app.signalstack.com/hook/YOUR_UNIQUE_ID',
+    });
+
+    expect(adapter.getStats()).toEqual(expect.objectContaining({
+      enabled: false,
+      dryRun: false,
+    }));
+  });
+
   test('rejects live trading with enabled webhook route and non-https URL', () => {
     expect(() => new WebhookOrderAdapter({
       enabled: true,

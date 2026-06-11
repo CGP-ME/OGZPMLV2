@@ -434,6 +434,37 @@ function buildConfig() {
 // VALIDATION
 // ═══════════════════════════════════════════════════════════════
 
+function isPlaceholderWebhookUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || rawUrl.trim() === '') return false;
+  try {
+    const url = new URL(rawUrl);
+    let candidate = [
+      url.username,
+      url.password,
+      url.hostname,
+      url.pathname,
+      url.search,
+    ].join('').toLowerCase();
+
+    for (let i = 0; i < 5; i += 1) {
+      const compact = candidate.replace(/[^a-z0-9]/g, '');
+      if (candidate.includes('placeholder') || compact.includes('youruniqueid')) {
+        return true;
+      }
+      try {
+        const decoded = decodeURIComponent(candidate);
+        if (decoded === candidate) break;
+        candidate = decoded;
+      } catch (_) {
+        break;
+      }
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 function validate(config, sources = {}) {
   const errors = [];
   const warnings = [];
@@ -498,6 +529,9 @@ function validate(config, sources = {}) {
       const webhookUrl = new URL(config.webhookOrders.webhookUrl);
       if (webhookUrl.protocol !== 'https:') {
         errors.push(`SIGNALSTACK_WEBHOOK_URL must use https:// when WEBHOOK_ORDERS_ENABLED=true, got ${webhookUrl.protocol}`);
+      }
+      if (config.webhookOrders.dryRun === false && isPlaceholderWebhookUrl(config.webhookOrders.webhookUrl)) {
+        errors.push('WEBHOOK_DRY_RUN=false cannot run with WEBHOOK_ORDERS_ENABLED=true and placeholder SIGNALSTACK_WEBHOOK_URL');
       }
     } catch (error) {
       errors.push(`SIGNALSTACK_WEBHOOK_URL is invalid when WEBHOOK_ORDERS_ENABLED=true: ${error.message}`);

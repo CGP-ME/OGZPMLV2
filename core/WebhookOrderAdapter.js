@@ -6,6 +6,37 @@
 
 const https = require('https');
 
+function isPlaceholderWebhookUrl(rawUrl) {
+    if (typeof rawUrl !== 'string' || rawUrl.trim() === '') return false;
+    try {
+        const url = new URL(rawUrl);
+        let candidate = [
+            url.username,
+            url.password,
+            url.hostname,
+            url.pathname,
+            url.search,
+        ].join('').toLowerCase();
+
+        for (let i = 0; i < 5; i += 1) {
+            const compact = candidate.replace(/[^a-z0-9]/g, '');
+            if (candidate.includes('placeholder') || compact.includes('youruniqueid')) {
+                return true;
+            }
+            try {
+                const decoded = decodeURIComponent(candidate);
+                if (decoded === candidate) break;
+                candidate = decoded;
+            } catch (_) {
+                break;
+            }
+        }
+        return false;
+    } catch (_) {
+        return false;
+    }
+}
+
 class WebhookOrderAdapter {
     constructor(config = {}) {
         this.webhookUrl = config.webhookUrl || '';
@@ -43,6 +74,13 @@ class WebhookOrderAdapter {
                         throw new Error(`LIVE_TRADING=true requires SIGNALSTACK_WEBHOOK_URL to use https:// (got ${url.protocol})`);
                     }
                     console.error(`[WebhookOrder] SIGNALSTACK_WEBHOOK_URL must use https:// (got ${url.protocol}) — disabling`);
+                    this.enabled = false;
+                }
+                if (!this.dryRun && isPlaceholderWebhookUrl(this.webhookUrl)) {
+                    if (this.liveTrading) {
+                        throw new Error('LIVE_TRADING=true requires real SIGNALSTACK_WEBHOOK_URL, got placeholder URL');
+                    }
+                    console.error('[WebhookOrder] SIGNALSTACK_WEBHOOK_URL is a placeholder and WEBHOOK_DRY_RUN=false - disabling');
                     this.enabled = false;
                 }
             } catch (e) {

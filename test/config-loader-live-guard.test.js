@@ -213,6 +213,54 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/missing SIGNALSTACK_WEBHOOK_URL/);
   });
 
+  test('throws during live startup when enabled webhook route uses placeholder URL', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'https://app.signalstack.com/hook/YOUR_UNIQUE_ID';
+
+    expect(() => loadConfig()).toThrow(/WEBHOOK_DRY_RUN=false.*placeholder SIGNALSTACK_WEBHOOK_URL/);
+  });
+
+  test('throws during live startup when enabled webhook route encodes placeholder URL', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'https://app.signalstack.com/hook/YOUR%5FUNIQUE%5FID';
+
+    expect(() => loadConfig()).toThrow(/WEBHOOK_DRY_RUN=false.*placeholder SIGNALSTACK_WEBHOOK_URL/);
+  });
+
+  test('throws during live startup when enabled webhook route double-encodes placeholder URL', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'https://app.signalstack.com/hook/YOUR%255FUNIQUE%255FID';
+
+    expect(() => loadConfig()).toThrow(/WEBHOOK_DRY_RUN=false.*placeholder SIGNALSTACK_WEBHOOK_URL/);
+  });
+
+  test('throws during live startup when enabled webhook route hides placeholder in userinfo', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.WEBHOOK_ORDERS_ENABLED = 'true';
+    process.env.WEBHOOK_DRY_RUN = 'false';
+    process.env.SIGNALSTACK_WEBHOOK_URL = 'https://YOUR_UNIQUE_ID@app.signalstack.com/hook/real';
+
+    expect(() => loadConfig()).toThrow(/WEBHOOK_DRY_RUN=false.*placeholder SIGNALSTACK_WEBHOOK_URL/);
+  });
+
   test('throws when enabled webhook route uses non-https URL', () => {
     process.env.WEBHOOK_ORDERS_ENABLED = 'true';
     process.env.WEBHOOK_DRY_RUN = 'false';
