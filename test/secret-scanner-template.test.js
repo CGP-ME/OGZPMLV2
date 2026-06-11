@@ -148,6 +148,25 @@ describe('secret scanner template coverage', () => {
     expect(findings).toContain('known-burned secret literal re-committed');
   });
 
+  test('rejects known burned token literals in markdown evidence', () => {
+    const burnedToken = ['39cc', 'deadbeefaa', '0123456789abcdef0123456789abcdef0123456789abcdef'].join('');
+    const findings = reasonsFor('CHANGELOG.md', `Removed leaked token ${burnedToken} from public files`);
+
+    expect(findings).toContain('known-burned dashboard token literal');
+  });
+
+  test('rejects known burned token literals embedded in longer strings', () => {
+    const burnedToken = ['x39cc', 'deadbeefaa', '0123456789abcdef0123456789abcdef0123456789abcdefY'].join('');
+    const findings = reasonsFor('docs/example.md', `const authKey = "${burnedToken}";`);
+
+    expect(findings).toContain('known-burned dashboard token literal');
+  });
+
+  test('allows redacted burned-token prefix evidence', () => {
+    expect(reasonsFor('CHANGELOG.md', 'Removed leaked token 39cc...[ROTATED]... from public files')).toEqual([]);
+    expect(reasonsFor('CHANGELOG.md', 'Removed leaked token 39ccdeadbeefaa... from public files')).toEqual([]);
+  });
+
   test('rejects copied burned hash fingerprints outside the security denylist', () => {
     const burnedHash = crypto.createHash('sha256').update('burned-template-value', 'utf8').digest('hex');
 

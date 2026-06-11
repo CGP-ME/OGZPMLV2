@@ -31,6 +31,7 @@ const CREDENTIAL_ASSIGNMENT = /^\s*(?:export\s+|let\s+|const\s+|var\s+)?([A-Za-z
 const JSON_CREDENTIAL_PROPERTY = /["']([A-Za-z][A-Za-z0-9_-]*)["']\s*:\s*["']([^"']+)["']/g;
 const OBJECT_CREDENTIAL_PROPERTY = /\b([A-Za-z][A-Za-z0-9_-]*)\s*:\s*["']([^"']+)["']/g;
 const ANY_ENV_ASSIGNMENT = /^\s*[A-Z0-9_]+\s*=\s*["']?([^"'#\s]+)/i;
+const BURNED_DASHBOARD_TOKEN_PREFIX = /39cc[A-Za-z0-9_-]{10,}/g;
 const CREDENTIAL_KEY_QUALIFIERS = new Set([
   'ACCESS',
   'ALPACA',
@@ -213,6 +214,7 @@ function inspectLine(filePath, lineNumber, line, burnedTokenHashes) {
     : line;
 
   const hexCandidates = inspectLine.match(/[a-f0-9]{64}/gi) || [];
+  let burnedDashboardLiteralFound = false;
   for (const candidate of hexCandidates) {
     const normalizedCandidate = candidate.toLowerCase();
     if (!isBurnedHashFile(filePath) && burnedTokenHashes.has(normalizedCandidate)) {
@@ -223,6 +225,19 @@ function inspectLine(filePath, lineNumber, line, burnedTokenHashes) {
       });
     }
     if (burnedTokenHashes.has(hashTokenLiteral(normalizedCandidate))) {
+      findings.push({
+        filePath,
+        lineNumber,
+        reason: 'known-burned dashboard token literal'
+      });
+      burnedDashboardLiteralFound = true;
+    }
+  }
+
+  if (!burnedDashboardLiteralFound) {
+    for (const match of inspectLine.matchAll(BURNED_DASHBOARD_TOKEN_PREFIX)) {
+      const afterMatch = inspectLine.slice(match.index + match[0].length, match.index + match[0].length + 3);
+      if (afterMatch === '...') continue;
       findings.push({
         filePath,
         lineNumber,

@@ -98,7 +98,7 @@ The session opened mid-Mercury-cycle on Commit 1 (gap detector layered on aggreg
 
 ### 9. Commit 7 — Hardcoded Dashboard Token Removal (`712d772`)
 
-**Root cause (security):** `39ccfbc54660e6...` hardcoded in 2 active JS files (`public/js/websocket.js:20`, `public/trai-widget.js:386`) and 1 active legacy HTML file (`public/unified-dashboard-legacy.html:3782`). Any clone of the repo exposed the dashboard's WS auth secret in plaintext.
+**Root cause (security):** `39cc...[ROTATED]...` hardcoded in 2 active JS files (`public/js/websocket.js:20`, `public/trai-widget.js:386`) and 1 active legacy HTML file (`public/unified-dashboard-legacy.html:3782`). Any clone of the repo exposed the dashboard's WS auth secret in plaintext.
 
 **Fix:** 3-priority chain in JS readers — `<meta name="ws-token">` content (server-injectable, future-compatible with Wolf's EJS-style spec) → `window.OGZ_DASHBOARD_TOKEN` global (manual injection) → empty + console.warn (server rejects auth, dashboard surfaces clear failure).
 
@@ -180,7 +180,7 @@ ab0c860 fix(broker): replace browser-global WebSocket.OPEN with literal 1 in Kra
 |---|---|---|
 | ExchangeReconciler adapter-agnostic refactor | OPEN | Required BEFORE live. Rename `krakenAdapter → broker`, generalize BTC drift to per-asset, wire SessionRouter to update reconciler.broker on swap. Wolf's spec note + `core/ExchangeReconciler.js:175` TODO + Mercury Round 1 attacks F + tonight's Commit 9 message all flag this. |
 | 3× `unified-dashboard.html.bak-*` deletion | OPEN | Stale committed-by-accident backups containing leaked dashboard token. `git rm` + add `*.bak-*` to `.gitignore`. Awaiting approval per CLAUDE.md no-destructive-without-approval. |
-| Dashboard token rotation + git-history scrub | OPEN | Token `39ccfbc54660e6...` is in git history regardless of Commit 7's source removal. Operator must rotate, set new value via `<meta name="ws-token">` server injection or `window.OGZ_DASHBOARD_TOKEN`. BFG repo-cleaner pass to scrub history is destructive + needs team coordination. |
+| Dashboard token rotation + git-history scrub | OPEN | Token `39cc...[ROTATED]...` is in git history regardless of Commit 7's source removal. Operator must rotate, set new value via `<meta name="ws-token">` server injection or `window.OGZ_DASHBOARD_TOKEN`. BFG repo-cleaner pass to scrub history is destructive + needs team coordination. |
 | `ExchangeReconciler.start()` double-start guard | OPEN | One-line fix at `core/ExchangeReconciler.js`: `if (this.reconcileTimer) return;` at top of start(). Mercury Round 1 attack G. |
 | `ExchangeReconciler` pause-reason overwrite | OPEN | Reconciler's `pauseTrading('Initial reconciliation failed')` clobbers prior pauseReason. Mercury Round 1 attack E. ExchangeReconciler-internal cleanup. |
 | Server-side `<meta name="ws-token">` injection | OPEN | Wolf's spec mentions EJS-style `<%= process.env.DASHBOARD_TOKEN %>`; SSL server uses `express.static` (no template engine). Custom route handler that reads target HTML, string-replaces meta content, sends. Pending until operator wires the new token. |

@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Made Mercury starter-context retrieval, chunk hydration, direct file reads, directory listing, historical git reads, and legacy read-only file opens enforce `mercury.ignore`; contaminated active index chunks now fail closed with a reindex-required error instead of reaching Mercury context.
 
+### TRAI LLM Runtime Contract (2026-06-09)
+
+- Moved active TRAI `PersistentLLMClient` construction behind explicit runtime config, added `trai.llm` ownership to `config/trading.config.json`, removed ambient `LLM_*`/provider-key fallback reads from the shared client, and made missing/unavailable LLM state fail loud instead of returning synthetic pattern-only text.
+
 ### Mercury LLM Runtime Contract (2026-06-09)
 
 - Moved Mercury bridge LLM identity, API-key env ownership, loop budgets, token budgets, temperature, and system prompts into `mercury.config.json`; added a dedicated client helper that rejects missing configured keys/prompts and verifies `PersistentLLMClient` did not fall back to env/default values.
@@ -166,6 +170,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rebaselined the TSLA stock P0 anchor after correcting partial-exit over-crediting and added a P0 gate invariant that rejects tiered exit fills above their configured 30/30/20/20 caps.
 - Added focused P0 accounting tests for over-credited tier exits, normalized tier reason labels, missing exit reasons, unrecognized tier labels, and runtime-scope split attempts.
 
+### Stock Backtest Sweep Surface Repair (2026-06-02)
+
+- Changed TSLA sweep shortcuts/defaults to the current `tuning/tsla-15m-18mo.json` stock eval baseline and removed deprecated `MarketRegime` from matrix and parallel strategy rosters.
+- Preserved structural-exit NoWick decision-ledger contracts with explicit null trailing fields while keeping stop-loss/take-profit numeric, so trade birth is not blocked by schema mismatch.
+- Fixed MaxProfitManager exits so hold-signal confidence does not block real exits, and made whole-share stock partial exits route the minimum executable share while full-closing one-share remainders through the full-close path.
+- Blocked matrix exit/full/quick phases for structural-exit strategies whose module `overrideLevels` make SL/tier geometry sweeps false data, while keeping confidence sweeps available.
+
+### Trade Visibility Failure Ledger (2026-06-02)
+
+- Made TradeJournal append-only ledger writes critical for entry/exit records so journal state cannot advance in memory when `trade-ledger.jsonl` did not persist the event.
+- Added scoped `trade-visibility-failures.jsonl` records plus `trade_visibility_error` dashboard frames when TradeJournalBridge cannot record an entry, close, or replay, preserving evidence without fabricating journal/replay data.
+- Removed dead replay URLs from `trade_closed_replay` frames when no replay file was saved.
+
 ### Dashboard Stock Snapshot Status Contract (2026-06-02)
 
 - Converted expected stale Alpaca stock snapshot rejections into structured adapter results so after-hours stock snapshot suppression remains truthful without flooding PM2 error logs.
@@ -184,6 +201,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dashboard Runtime Scope Contract (2026-06-02)
 
 - Added explicit `state_update` runtime scope status for flat dashboard heartbeats, including complete, incomplete, and unset states, while preventing runtime scope from overwriting open-position scope.
+
+### Eval Runtime Noise Truth Contract (2026-06-01)
+
+- Routed Kraken REST OHLC pair resolution through the shared asset registry so crypto symbols use explicit Kraken REST pairs and Alpaca stock symbols cannot be guessed into Kraken requests.
+- Split the asset registry into a lightweight runtime source for broker adapters and symbol contexts, avoiding strategy/indicator module loading for broker symbol metadata.
+- Guarded Kraken order-book parsing by `book-*` channel name so ticker bid/ask arrays cannot enter depth processing or produce fake depth errors.
+- Replaced snapshot `unknown` regime output with explicit `REGIME_*` not-ready/error states and source/reason metadata.
 
 ### Eval Signal Path Trace Contract (2026-05-31)
 
@@ -895,7 +919,7 @@ Session opened mid-Mercury-cycle on Commit 1 (gap detector). A live production-d
 - `a07516a` — Broker-first liquidation in `SessionRouter._brokerFirstLiquidation`. Replaces `stateManager.closePosition`-only force-close with: cancelAllOrders → broker getPositions → close orders → poll for flat (10s) → StateManager close. Strict side validation with case-normalization (default-to-buy on null `pos.side` would have DOUBLED a long), null-position skip, order-rejection status inspection. 6 rounds = 15 bugs.
 - `ef43815` — FAULTED state on transition failure. Replaces silent auto-resume catch (which let the bot re-enter the new venue while half-swapped) with `this.faulted = true` + emit('faulted') + `_checkTransition` short-circuit. Source-session captured at method entry (mutates on success path). Emit wrapped in own try/catch (synchronous EventEmitter; listener throw would bypass FAULTED entry).
 - `f97434d` — `NoWickImbalance` added to matrix-sweep's `ALL_STRATEGIES`. (Bundled an unrelated SYMBOL_MAP refactor from working tree — internally coherent, hygiene note for next time: `git diff --staged` before commit.)
-- `712d772` — Hardcoded `39ccfbc54660e6...` dashboard token removed from 3 active source files. 3-priority chain (`<meta name="ws-token">` → `window.OGZ_DASHBOARD_TOKEN` → empty+warn). 3× `.bak` files with same leaked token flagged for `git rm` (not deleted, awaiting approval per CLAUDE.md no-destructive rule). **Token IS in git history regardless** — operator must rotate.
+- `712d772` — Hardcoded `39cc...[ROTATED]...` dashboard token removed from 3 active source files. 3-priority chain (`<meta name="ws-token">` → `window.OGZ_DASHBOARD_TOKEN` → empty+warn). 3× `.bak` files with same leaked token flagged for `git rm` (not deleted, awaiting approval per CLAUDE.md no-destructive rule). **Token IS in git history regardless** — operator must rotate.
 - `93f7f79` — `package.json` `"private": false` → `true`. One line. Prevents `npm publish` leak.
 - `175e59a` — `ExchangeReconciler` re-wired in `run-empire-v2.js` after `kraken.connect()` with `paperMode: this.paperTrading`. `start(true)` blocks until first reconciliation passes (paper no-op). Post-swap `reconcileNow()` in both SessionRouter transitions; rethrows on failure to route to FAULTED. Caught a destructure-require regression in smoke (module exports `{ ExchangeReconciler, getInstance }`, not the class directly).
 
