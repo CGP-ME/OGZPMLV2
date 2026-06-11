@@ -110,6 +110,25 @@ describe('Mercury index scope hygiene', () => {
     expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
   });
 
+  test('grep file_pattern cannot re-include ignored intake/history artifacts', async () => {
+    writeFixture(tmpRoot, 'core/live-path.md', 'MERCURY_PATTERN_BOUNDARY_MARKER');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'MERCURY_PATTERN_BOUNDARY_MARKER');
+    writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.md', 'MERCURY_PATTERN_BOUNDARY_MARKER');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('grep', {
+      query: 'MERCURY_PATTERN_BOUNDARY_MARKER',
+      file_pattern: '**/*.md',
+      limit: 20,
+    });
+    const files = result.matches.map((match) => match.file);
+
+    expect(files).toContain('core/live-path.md');
+    expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
+    expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
+    expect(result.filtered_ignored).toBeGreaterThan(0);
+  });
+
   test.each([
     '[^\\x00-\\x7F]',
     '\\p{Extended_Pictographic}',
@@ -131,13 +150,18 @@ describe('Mercury index scope hygiene', () => {
     writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.md', 'é');
 
     const adapter = createToolAdapter({ repoRoot: tmpRoot });
-    const result = await adapter.execute('regex_grep', { query: '[^\\x00-\\x7F]', limit: 20 });
+    const result = await adapter.execute('regex_grep', {
+      query: '[^\\x00-\\x7F]',
+      file_pattern: '**/*',
+      limit: 20,
+    });
     const files = result.matches.map((match) => match.file);
 
     expect(result.source).toBe('direct_ripgrep_regex');
     expect(files).toContain('core/live-path.js');
     expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
     expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
+    expect(result.filtered_ignored).toBeGreaterThan(0);
   });
 
   test('grep tool does not delegate around the shared skip policy', async () => {
@@ -253,6 +277,43 @@ describe('Mercury index scope hygiene', () => {
     expect(results.some((line) => line.includes('core/live-path.js'))).toBe(true);
     expect(results.some((line) => line.includes('ogz-meta/ledger/stale-audit.md'))).toBe(false);
     expect(results.some((line) => line.includes('ogz-meta/cognition-history/mercury/old-response.md'))).toBe(false);
+  });
+
+  test('legacy ReadOnlyToolbox repo search post-filters ignored search output', () => {
+    jest.resetModules();
+    jest.doMock('child_process', () => ({
+      spawnSync: jest.fn((command) => {
+        if (command === 'rg') {
+          return {
+            status: 0,
+            stdout: [
+              `${tmpRoot}/core/live-path.js:1:MERCURY_LEGACY_FILTER_MARKER`,
+              `${tmpRoot}/ogz-meta/ledger/stale-audit.md:1:MERCURY_LEGACY_FILTER_MARKER`,
+            ].join('\n'),
+            stderr: '',
+          };
+        }
+        return { status: 0, stdout: '', stderr: '' };
+      }),
+    }));
+
+    try {
+      let IsolatedReadOnlyToolbox;
+      jest.isolateModules(() => {
+        IsolatedReadOnlyToolbox = require('../trai_brain/read_only_tools');
+      });
+
+      const toolbox = new IsolatedReadOnlyToolbox({ repoRoot: tmpRoot });
+      const result = toolbox.searchRepo('MERCURY_LEGACY_FILTER_MARKER', { limit: 20 });
+      const results = result.results || [];
+
+      expect(results.some((line) => line.includes('core/live-path.js'))).toBe(true);
+      expect(results.some((line) => line.includes('ogz-meta/ledger/stale-audit.md'))).toBe(false);
+      expect(result.filteredIgnored).toBe(1);
+    } finally {
+      jest.dontMock('child_process');
+      jest.resetModules();
+    }
   });
 
   test('legacy ReadOnlyToolbox file open rejects ignored intake/history artifacts', () => {

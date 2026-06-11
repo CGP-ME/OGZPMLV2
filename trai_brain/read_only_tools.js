@@ -62,7 +62,22 @@ class ReadOnlyToolbox {
             return { error: result.stderr.trim() };
         }
 
-        return { results: result.stdout.trim().split('\n').filter(Boolean) };
+        const filtered = [];
+        let filteredIgnored = 0;
+        for (const line of result.stdout.trim().split('\n').filter(Boolean)) {
+            const firstColon = line.indexOf(':');
+            if (firstColon === -1) continue;
+            const filePath = line.slice(0, firstColon);
+            try {
+                this.ensureNotIgnored(filePath, 'repo_search');
+            } catch (error) {
+                filteredIgnored += 1;
+                continue;
+            }
+            filtered.push(line);
+        }
+
+        return { results: filtered, filteredIgnored };
     }
 
     openFile(relativePath, options = {}) {

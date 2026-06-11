@@ -161,6 +161,7 @@ function createToolAdapter(opts = {}) {
 
     // Parse matches: format is path:line:text
     const matches = [];
+    let filteredIgnored = 0;
     const lines = stdout.split('\n').filter(Boolean);
     for (const line of lines) {
       // ripgrep output can contain colons in the text portion, so we only
@@ -175,7 +176,12 @@ function createToolAdapter(opts = {}) {
       const text = line.slice(secondColon + 1).trim();
 
       // Make path relative to repo root for cleaner output
-      const relPath = path.relative(repoRoot, filePath);
+      const absPath = ensureWithinRepo(filePath);
+      if (isIgnoredByMercuryPolicy(absPath)) {
+        filteredIgnored += 1;
+        continue;
+      }
+      const relPath = path.relative(repoRoot, absPath).split(path.sep).join('/');
 
       matches.push({
         file: relPath,
@@ -189,6 +195,7 @@ function createToolAdapter(opts = {}) {
       matches: matches.slice(0, limit),
       total: matches.length,
       truncated: matches.length > limit,
+      filtered_ignored: filteredIgnored,
     };
   }
 
