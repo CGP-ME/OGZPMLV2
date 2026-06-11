@@ -527,6 +527,98 @@ describe('eval live posture gate', () => {
     })).toBe(runtimeEnv);
   });
 
+  test('PM2 env extraction prefers actual process env over stale PM2 metadata when pid is available', () => {
+    const actualEnv = extractPm2RuntimeEnv({
+      name: 'ogz-prime-v2',
+      pm_id: 4,
+      pid: 12345,
+      pm2_env: {
+        pm_exec_path: '/opt/ogzprime/OGZPMLV2/run-empire-v2.js',
+        env: {
+          EXECUTION_MODE: 'metadata-value',
+          WEBHOOK_DRY_RUN: 'true',
+        },
+      },
+    }, {
+      fs: {
+        readFileSync: (filePath, encoding) => {
+          expect(encoding).toBe('utf8');
+          if (filePath === '/proc/12345/environ') {
+            return 'pm_id=4\0name=ogz-prime-v2\0pm_exec_path=/opt/ogzprime/OGZPMLV2/run-empire-v2.js\0EXECUTION_MODE=live\0WEBHOOK_DRY_RUN=false\0SIGNALSTACK_WEBHOOK_URL=https://signalstack.example/webhook\0';
+          }
+          if (filePath === '/proc/12345/cmdline') {
+            return 'node /opt/ogzprime/OGZPMLV2/run-empire-v2.js\0';
+          }
+          throw new Error(`unexpected path ${filePath}`);
+        },
+      },
+    });
+
+    expect(actualEnv).toEqual(expect.objectContaining({
+      pm_id: '4',
+      name: 'ogz-prime-v2',
+      pm_exec_path: '/opt/ogzprime/OGZPMLV2/run-empire-v2.js',
+      EXECUTION_MODE: 'live',
+      WEBHOOK_DRY_RUN: 'false',
+      SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
+    }));
+  });
+
+  test('PM2 env extraction rejects actual process env when pid belongs to a different process', () => {
+    expect(() => extractPm2RuntimeEnv({
+      name: 'ogz-prime-v2',
+      pm_id: 4,
+      pid: 12345,
+      pm2_env: {
+        pm_exec_path: '/opt/ogzprime/OGZPMLV2/run-empire-v2.js',
+        env: { EXECUTION_MODE: 'metadata-value' },
+      },
+    }, {
+      fs: {
+        readFileSync: (filePath) => {
+          if (filePath === '/proc/12345/environ') {
+            return 'pm_id=7\0name=wrong-process\0pm_exec_path=/tmp/not-ogz.js\0EXECUTION_MODE=live\0';
+          }
+          if (filePath === '/proc/12345/cmdline') {
+            return 'node /tmp/not-ogz.js\0';
+          }
+          throw new Error(`unexpected path ${filePath}`);
+        },
+      },
+    })).toThrow(/pm_id mismatch/);
+  });
+
+  test('PM2 runtime-source report does not leak unrelated proc env secrets and still fails missing webhook URL', () => {
+    const runtimeEnv = validEvalLiveEnv({
+      WEBSOCKET_AUTH_TOKEN: 'secret-runtime-token',
+      OLLAMA_API_KEY: 'secret-ollama-key',
+    });
+    delete runtimeEnv.SIGNALSTACK_WEBHOOK_URL;
+
+    const report = validateEvalLivePosture(runtimeEnv, { loadDotenv: false });
+
+    expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/missing SIGNALSTACK_WEBHOOK_URL/);
+    expect(JSON.stringify(report)).not.toContain('secret-runtime-token');
+    expect(JSON.stringify(report)).not.toContain('secret-ollama-key');
+  });
+
+  test('PM2 env extraction fails loud when actual process env is unavailable', () => {
+    expect(() => extractPm2RuntimeEnv({
+      name: 'ogz-prime-v2',
+      pid: 12345,
+      pm2_env: { env: { EXECUTION_MODE: 'metadata-value' } },
+    }, {
+      fs: {
+        readFileSync: () => {
+          const error = new Error('permission denied');
+          error.code = 'EACCES';
+          throw error;
+        },
+      },
+    })).toThrow(/actual runtime env unavailable.*permission denied/);
+  });
+
   test('runtime-source posture report does not emit unrelated PM2 secret env values', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
       WEBSOCKET_AUTH_TOKEN: 'secret-runtime-token',

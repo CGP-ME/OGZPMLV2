@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval PM2 Runtime Env Gate (2026-06-11)
+
+- Made eval-live PM2 posture checks read the actual `/proc/<pid>/environ` runtime environment instead of stale `pm2 jlist` metadata when a PM2 PID is available, so go/no-go checks inspect the process that is actually running.
+
 ### Webhook Placeholder URL Guard (2026-06-11)
 
 - Blocked non-dry-run webhook order routing when `SIGNALSTACK_WEBHOOK_URL` still contains placeholder hook identifiers, including encoded, double-encoded, and userinfo-hidden variants, so live/paper broker-ack capture cannot silently dispatch to the template SignalStack URL.

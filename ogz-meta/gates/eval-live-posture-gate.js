@@ -663,7 +663,69 @@ async function assertEvalLiveReadiness(sourceEnv = process.env, options = {}) {
   return report;
 }
 
-function extractPm2RuntimeEnv(process) {
+function parseProcEnviron(rawEnv) {
+  return String(rawEnv || '')
+    .split('\0')
+    .filter(Boolean)
+    .reduce((env, entry) => {
+      const separatorIndex = entry.indexOf('=');
+      if (separatorIndex > 0) {
+        env[entry.slice(0, separatorIndex)] = entry.slice(separatorIndex + 1);
+      }
+      return env;
+    }, {});
+}
+
+function readProcRuntimeEnv(pid, fsModule = fs) {
+  if (!pid) {
+    throw new Error('runtime pid is required');
+  }
+  const env = parseProcEnviron(fsModule.readFileSync(`/proc/${pid}/environ`, 'utf8'));
+  if (Object.keys(env).length === 0) {
+    throw new Error(`runtime env was empty for pid ${pid}`);
+  }
+  return env;
+}
+
+function readProcCmdline(pid, fsModule = fs) {
+  return String(fsModule.readFileSync(`/proc/${pid}/cmdline`, 'utf8') || '')
+    .split('\0')
+    .filter(Boolean);
+}
+
+function verifyProcRuntimeIdentity(process, runtimeEnv, fsModule = fs) {
+  const processLabel = process.name || process.pm_id || process.pid;
+  if (process.pm_id !== undefined && String(runtimeEnv.pm_id || '') !== String(process.pm_id)) {
+    throw new Error(`PM2 process ${processLabel} pid ${process.pid} env pm_id mismatch: expected ${process.pm_id}, got ${runtimeEnv.pm_id || '(missing)'}`);
+  }
+  if (process.name && String(runtimeEnv.name || '') !== String(process.name)) {
+    throw new Error(`PM2 process ${processLabel} pid ${process.pid} env name mismatch: expected ${process.name}, got ${runtimeEnv.name || '(missing)'}`);
+  }
+
+  const expectedExecPath = process.pm2_env && process.pm2_env.pm_exec_path;
+  if (expectedExecPath) {
+    if (String(runtimeEnv.pm_exec_path || '') !== String(expectedExecPath)) {
+      throw new Error(`PM2 process ${processLabel} pid ${process.pid} env pm_exec_path mismatch: expected ${expectedExecPath}, got ${runtimeEnv.pm_exec_path || '(missing)'}`);
+    }
+    const cmdline = readProcCmdline(process.pid, fsModule).join(' ');
+    if (!cmdline.includes(expectedExecPath)) {
+      throw new Error(`PM2 process ${processLabel} pid ${process.pid} cmdline does not include expected script ${expectedExecPath}`);
+    }
+  }
+}
+
+function extractPm2RuntimeEnv(process, options = {}) {
+  if (process && process.pid) {
+    try {
+      const fsModule = options.fs || fs;
+      const runtimeEnv = readProcRuntimeEnv(process.pid, fsModule);
+      verifyProcRuntimeIdentity(process, runtimeEnv, fsModule);
+      return runtimeEnv;
+    } catch (error) {
+      throw new Error(`PM2 process ${process.name || process.pm_id || process.pid} actual runtime env unavailable at /proc/${process.pid}/environ: ${error.message}`);
+    }
+  }
+
   if (!process.pm2_env || !process.pm2_env.env || typeof process.pm2_env.env !== 'object') {
     throw new Error(`PM2 process ${process.name || process.pm_id || '(unknown)'} did not expose nested runtime env`);
   }
