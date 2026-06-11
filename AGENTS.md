@@ -56,6 +56,12 @@ does not match current doctrine.
   local-only or no-push. This does not authorize staging, committing, or pushing
   without approval. Source:
   `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:13`.
+- SessionRouter finalization commits and focused tests do not authorize runtime
+  activation. Keep `SESSION_ROUTER_ENABLED=false` until a controlled paper
+  rehearsal proves transition-store status, broker REST snapshots, pattern
+  handoff target, OHLC fence behavior, trace events, active scope, and
+  dashboard/live-report scope, with explicit PM2 env-change approval. Source:
+  `ogz-meta/sessions/session-2026-05-31-sessionrouter-finalization-gap-reconciliation.md:161-186`.
 
 ## Trading-Path Gates
 

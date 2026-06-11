@@ -248,6 +248,7 @@ Pipeline order:
 - Asset-aware audit terms: `storagePath`, `saveToDisk`, `persistPath`, `logFilePath`, `ledgerPath`, `BACKTEST_MODE`, `PAPER_TRADING`, and `EXECUTION_MODE`.
 - Backups are mandatory for gitignored learned-state files. Gitignore prevents leaks; it does not protect data.
 - Single-symbol guardrails can be deliberate safety, not defaults. Do not flip `SESSION_ROUTER_ENABLED` or expand `ALPACA_SYMBOLS` until current candle-pipeline and symbol-aware persistence specs are verified landed.
+- SessionRouter code finalization is not runtime activation proof. Even when durable transition locks, broker REST reconciliation, OHLC epoch fencing, broker intent idempotency, pattern memory handoff, runtime scope stamping, focused tests, and P0 are green, keep `SESSION_ROUTER_ENABLED=false` until a controlled paper rehearsal proves transition-store status, broker REST snapshots, pattern handoff target, OHLC fence accept/reject behavior, trace events, active broker/symbol scope, and dashboard/live-report scope. PM2 env changes still require explicit operator approval. Source: `ogz-meta/sessions/session-2026-05-31-sessionrouter-finalization-gap-reconciliation.md:161-186`.
 
 ## WebSocket And Dashboard Rules
 - All dashboard WebSocket URLs must use `/ws`.
