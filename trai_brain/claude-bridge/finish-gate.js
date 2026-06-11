@@ -147,9 +147,9 @@ function hasFallbackProof(proof, suspiciousLines) {
     && scan.noUnapprovedFallbacksOrDefaults === true;
 }
 
-function evaluateFinishGate() {
-  const allFiles = changedFiles();
-  const claudeChangedFiles = editedChangedFiles(allFiles);
+function evaluateFinishGate(files = changedFiles(), editedFiles = editLedger.listEditedFiles()) {
+  const allFiles = files;
+  const claudeChangedFiles = editedChangedFiles(allFiles, editedFiles);
   const taskViolations = taskContract.changedFilesOutsideContract(claudeChangedFiles);
   if (taskViolations.length > 0) {
     return {
@@ -161,9 +161,9 @@ function evaluateFinishGate() {
     };
   }
 
-  const hotFiles = hotPathEditedChanges();
+  const hotFiles = hotPathChanges(allFiles);
   if (hotFiles.length === 0) {
-    return { allowed: true, reason: 'no_claude_touched_hot_path_changes', hotFiles };
+    return { allowed: true, reason: 'no_hot_path_changes', hotFiles };
   }
 
   const proof = loadProof();

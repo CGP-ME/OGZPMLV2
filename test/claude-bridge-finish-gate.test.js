@@ -8,6 +8,7 @@ const {
   hasFallbackProof,
   isHotPath,
   hotPathEditedChanges,
+  evaluateFinishGate,
 } = require('../trai_brain/claude-bridge/finish-gate');
 
 describe('claude bridge finish gate', () => {
@@ -69,7 +70,7 @@ describe('claude bridge finish gate', () => {
     }, ['const x = value || defaultValue;'])).toBe(true);
   });
 
-  test('gates only Claude-touched hot-path dirty files, not ambient dirty files', () => {
+  test('tracks legacy Claude-touched hot-path helper separately from final gate', () => {
     const dirtyFiles = [
       'core/OrderExecutor.js',
       'brokers/AlpacaAdapter.js',
@@ -78,5 +79,20 @@ describe('claude bridge finish gate', () => {
 
     expect(hotPathEditedChanges(dirtyFiles, ['ogz-meta/specs/intake-curation.md'])).toEqual([]);
     expect(hotPathEditedChanges(dirtyFiles, ['brokers/AlpacaAdapter.js'])).toEqual(['brokers/AlpacaAdapter.js']);
+  });
+
+  test('requires proof for hot-path git diff even when edit ledger did not record it', () => {
+    const result = evaluateFinishGate([
+      'core/OrderExecutor.js',
+      'ogz-meta/specs/intake-curation.md',
+    ], [
+      'ogz-meta/specs/intake-curation.md',
+    ]);
+
+    expect(result).toMatchObject({
+      allowed: false,
+      reason: 'missing_hot_path_proof',
+      hotFiles: ['core/OrderExecutor.js'],
+    });
   });
 });
