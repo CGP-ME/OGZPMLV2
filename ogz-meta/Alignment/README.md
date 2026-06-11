@@ -46,13 +46,18 @@ rg --files ogz-meta | rg '(^|/)(SESSION-|session-|CODEX-WORKLOG-|session-form).*
 
 Inspect those candidates newest-first by file mtime. Treat ledger handoffs and ledger session forms as leads only unless current session docs, alignment docs, live code, or explicit operator direction corroborate them.
 
-6. Read the current P0 anchor spec.
+6. Read the current executable P0 gate.
 
 ```bash
-ls -t ogz-meta/specs/baseline-phase0-*.md | head -1
+rg -n "EXPECTED_P0|assertP0Summary|runP0\\('full'" ogz-meta/gates/multi-runtime-gate-runner.js
+cat ogz-meta/gates/runs/multi-runtime-latest.json
 ```
 
-Then open the file it prints. Do not quote P0 numbers from memory.
+Then open `ogz-meta/gates/multi-runtime-gate-runner.js` for `EXPECTED_P0`
+and `ogz-meta/gates/runs/multi-runtime-latest.json` for the latest result.
+For trading-path changes, run `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`
+before claiming the anchor holds. Do not quote P0 numbers from memory, dated
+digests, or old baseline specs.
 
 7. Read the active fix queue.
 
@@ -85,7 +90,7 @@ No doc, digest, session form, or chat transcript outranks the live file.
 - `OGZ-DIGEST-YYYY-MM-DD-VERIFIED.md` = verified transcript digest.
 - `OGZ-DIGEST-YYYY-MM-DD.md` without `VERIFIED` = non-canonical starter material unless re-verified.
 - `ogz-meta/sessions/` = current-state chain.
-- `ogz-meta/specs/baseline-phase0-*.md` = P0 anchor source.
+- `ogz-meta/gates/multi-runtime-gate-runner.js` + latest gate report = P0 anchor source.
 - `ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md` = fix queue source.
 
 ## Maintenance Automation
