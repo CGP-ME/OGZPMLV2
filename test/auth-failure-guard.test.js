@@ -188,6 +188,88 @@ describe('AuthFailureGuard', () => {
     recordSpy.mockRestore();
   });
 
+  test('Alpaca data-stream auth error codes record auth failures but ignore non-auth stream errors', () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const AlpacaAdapter = require('../brokers/AlpacaAdapter');
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 402, msg: 'auth failed' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 403, msg: 'Forbidden' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 400, msg: 'Invalid API key' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 405, msg: 'symbol limit exceeded' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 400, msg: 'invalid symbol' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'success', code: 402, msg: 'authenticated' });
+
+    expect(recordSpy).toHaveBeenCalledTimes(3);
+    expect(recordSpy).toHaveBeenNthCalledWith(1, 'alpaca', 'ws-data-stream-auth', {
+      code: 402,
+      message: 'auth failed',
+      authFailure: true,
+      evidence: 'alpaca-ws-data-error-code',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(2, 'alpaca', 'ws-data-stream-auth', {
+      code: 403,
+      message: 'Forbidden',
+      authFailure: true,
+      evidence: 'alpaca-ws-data-error-code',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(3, 'alpaca', 'ws-data-stream-auth', {
+      code: 400,
+      message: 'Invalid API key',
+      authFailure: true,
+      evidence: 'alpaca-ws-data-auth-body',
+    });
+
+    recordSpy.mockRestore();
+  });
+
+  test('Alpaca websocket transport auth errors record failures but ignore ordinary transport errors', () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const AlpacaAdapter = require('../brokers/AlpacaAdapter');
+    const adapter = new AlpacaAdapter({ apiKey: 'key', apiSecret: 'secret', mode: 'paper' });
+
+    adapter._recordWsTransportAuthFailureIfRelevant(
+      new Error('Unexpected server response: 401'),
+      'ws-account-upgrade-auth',
+      'alpaca-ws-upgrade-error'
+    );
+    adapter._recordWsTransportAuthFailureIfRelevant(
+      new Error('socket hang up ECONNRESET'),
+      'ws-account-upgrade-auth',
+      'alpaca-ws-upgrade-error'
+    );
+    adapter._recordWsTransportAuthFailureIfRelevant(
+      new Error('forbidden by firewall policy'),
+      'ws-data-upgrade-auth',
+      'alpaca-ws-upgrade-error'
+    );
+    adapter._recordWsTransportAuthFailureIfRelevant(
+      new Error('Unexpected server response: 403'),
+      'ws-data-upgrade-auth',
+      'alpaca-ws-upgrade-error'
+    );
+
+    expect(recordSpy).toHaveBeenCalledTimes(2);
+    expect(recordSpy).toHaveBeenNthCalledWith(1, 'alpaca', 'ws-account-upgrade-auth', {
+      message: 'Unexpected server response: 401',
+      authFailure: true,
+      evidence: 'alpaca-ws-upgrade-error',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(2, 'alpaca', 'ws-data-upgrade-auth', {
+      message: 'Unexpected server response: 403',
+      authFailure: true,
+      evidence: 'alpaca-ws-upgrade-error',
+    });
+
+    recordSpy.mockRestore();
+  });
+
   test('Alpaca connect records account auth failures through getBalance before returning false', async () => {
     jest.resetModules();
     cleanFlag();

@@ -19,6 +19,10 @@ const axios = require('axios');
 const WebSocket = require('ws');
 const authFailureGuard = require('../core/AuthFailureGuard');
 
+const ALPACA_WS_AUTH_ERROR_CODES = new Set([401, 402, 403, 404, 406, 409]);
+const ALPACA_AUTH_MESSAGE_RE = /(invalid api( |-)?key|unauthorized|authentication failed|api key not authorized|forbidden|invalid credentials|not authorized)/i;
+const ALPACA_WS_TRANSPORT_AUTH_RE = /(^|\D)(401|403)($|\D)|unauthorized|authentication failed|invalid api key|not authorized/i;
+
 class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
         super();
@@ -124,7 +128,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         const isAuthStatus = status === 401 || status === 403;
         const isAuthBody400 = status === 400
             && typeof message === 'string'
-            && /(invalid api( |-)?key|unauthorized|authentication failed|api key not authorized|forbidden|invalid credentials)/i.test(message);
+            && ALPACA_AUTH_MESSAGE_RE.test(message);
         if (isAuthStatus || isAuthBody400) {
             authFailureGuard.recordFailure('alpaca', kind, {
                 status,
@@ -133,6 +137,31 @@ class AlpacaAdapter extends IBrokerAdapter {
                 evidence: isAuthStatus ? 'alpaca-http-auth-status' : 'alpaca-auth-body',
             });
         }
+    }
+
+    _recordDataStreamAuthErrorIfRelevant(msg) {
+        if (!msg || msg.T !== 'error') return;
+        const code = Number(msg.code);
+        const message = typeof msg.msg === 'string' ? msg.msg : '';
+        const isAuthCode = ALPACA_WS_AUTH_ERROR_CODES.has(code);
+        const isAuthBody400 = code === 400 && ALPACA_AUTH_MESSAGE_RE.test(message);
+        if (!isAuthCode && !isAuthBody400) return;
+        authFailureGuard.recordFailure('alpaca', 'ws-data-stream-auth', {
+            code,
+            message,
+            authFailure: true,
+            evidence: isAuthCode ? 'alpaca-ws-data-error-code' : 'alpaca-ws-data-auth-body',
+        });
+    }
+
+    _recordWsTransportAuthFailureIfRelevant(error, kind, evidence) {
+        const message = error && typeof error.message === 'string' ? error.message : '';
+        if (!ALPACA_WS_TRANSPORT_AUTH_RE.test(message)) return;
+        authFailureGuard.recordFailure('alpaca', kind, {
+            message,
+            authFailure: true,
+            evidence,
+        });
     }
 
     // =========================================================================
@@ -589,6 +618,7 @@ class AlpacaAdapter extends IBrokerAdapter {
 
         this.accountWs.on('error', (err) => {
             console.error('[Alpaca] Account stream error:', err.message);
+            this._recordWsTransportAuthFailureIfRelevant(err, 'ws-account-upgrade-auth', 'alpaca-ws-upgrade-error');
         });
 
         this.accountWs.on('close', () => {
@@ -771,6 +801,7 @@ class AlpacaAdapter extends IBrokerAdapter {
                     // Auth failure
                     if (msg.T === 'error') {
                         console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
+                        this._recordDataStreamAuthErrorIfRelevant(msg);
                         continue;
                     }
                     // Trade updates
@@ -816,6 +847,7 @@ class AlpacaAdapter extends IBrokerAdapter {
 
         this.ws.on('error', (err) => {
             console.error('[Alpaca] Data stream error:', err.message);
+            this._recordWsTransportAuthFailureIfRelevant(err, 'ws-data-upgrade-auth', 'alpaca-ws-upgrade-error');
         });
     }
 }
