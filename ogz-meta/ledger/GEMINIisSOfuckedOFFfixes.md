@@ -126,7 +126,7 @@ JavaScript
 
             ws.onopen = () => {
                 reconnectAttempts = 0;
-                this.send({ type: 'auth', token: 'OGZ_PROD_TOKEN' });
+                this.send({ type: 'auth', token: '<required-websocket-auth-token>' });
             };
 
             ws.onmessage = (e) => {

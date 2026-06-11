@@ -16,8 +16,8 @@ describe('fetch-stock-data script config consumption', () => {
     const { fetchBars } = require('../scripts/fetch-stock-data');
 
     await expect(fetchBars('TSLA', '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z', {
-      apiKey: 'test-key',
-      apiSecret: 'test-secret',
+      apiKey: 'placeholder-api-key',
+      apiSecret: 'placeholder-api-secret',
       dataUrl: 'https://data.alpaca.markets/v2/stocks',
       feed: 'iex',
       adjustment: 'split',
@@ -39,8 +39,8 @@ describe('fetch-stock-data script config consumption', () => {
     expect(url).toContain('adjustment=split');
     expect(url).toContain('feed=iex');
     expect(request.headers).toEqual({
-      'APCA-API-KEY-ID': 'test-key',
-      'APCA-API-SECRET-KEY': 'test-secret',
+      'APCA-API-KEY-ID': 'placeholder-api-key',
+      'APCA-API-SECRET-KEY': 'placeholder-api-secret',
     });
   });
 

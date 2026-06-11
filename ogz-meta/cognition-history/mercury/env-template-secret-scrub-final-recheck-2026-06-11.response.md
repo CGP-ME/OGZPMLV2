@@ -26,7 +26,7 @@
 
 - **`config/.env.example` – line 102**
   ```text
-  DATABASE_URL=[REDACTED_VALUE][REDACTED_DB_PASSWORD]@localhost/ogzprime_prod
+  DATABASE_URL=<required-database-url>
   ```
   The password `[REDACTED_VALUE]` is embedded directly in the connection string instead of a placeholder such as `<required‑db‑password>` or `[REDACTED]`.
 

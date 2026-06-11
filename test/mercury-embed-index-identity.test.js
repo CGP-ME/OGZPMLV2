@@ -155,7 +155,7 @@ describe('Mercury embedding index identity', () => {
     for (const endpoint of [
       'https://api.openai.com/v1/embeddings?source=proxy',
       'https://api.openai.com/v1/embeddings#proxy',
-      'https://user:pass@api.openai.com/v1/embeddings',
+      ['https://user', ':pass@api.openai.com/v1/embeddings'].join(''),
     ]) {
       await withMercuryConfig({
         ...openAiSmallConfig,

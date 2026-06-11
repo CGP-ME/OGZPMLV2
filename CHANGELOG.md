@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Secret Scanner Template Coverage (2026-06-11)
+
+- Extended `scripts/scan-secrets.js` beyond dashboard WebSocket tokens to reject credential assignments with non-placeholder values, private-key blocks, JWT-shaped literals, vendor-prefixed tokens, URL-embedded credentials, and hash-listed burned env-template values; added focused scanner regressions.
+
 ### Public Env Template Exposure Scrub (2026-06-11)
 
 - Replaced non-placeholder credential values and account-specific environment identifiers in `config/.env.example` with explicit required-value placeholders and removed the committed Coinbase private-key spillover line from the public template.

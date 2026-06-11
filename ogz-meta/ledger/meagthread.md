@@ -9681,7 +9681,7 @@ const response = await fetch('https://api.inceptionlabs.ai/v1/chat/completions',
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer INCEPTION_API_KEY'
+    'Authorization': 'Bearer <required-inception-api-key>'
   },
   body: JSON.stringify({
     model: 'mercury-2',
@@ -9701,7 +9701,7 @@ Copy
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="INCEPTION_API_KEY",
+    api_key="<required-inception-api-key>",
     base_url="https://api.inceptionlabs.ai/v1"
 )
 
@@ -9987,7 +9987,7 @@ For the architecture review use case, GitHub Models is probably fine. If you fin
 
 EMBED_ENDPOINT=https://api.openai.com/v1/embeddings
 EMBED_MODEL=text-embedding-3-small
-EMBED_API_KEY=sk-yourOpenAIkey
+EMBED_API_KEY=<required-openai-api-key>
 Same indexer code works against either. The bridge was built to be portable for exactly this reason.
 
 i already have the openai api account

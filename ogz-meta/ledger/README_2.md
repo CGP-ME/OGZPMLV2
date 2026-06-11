@@ -43,7 +43,7 @@ an OpenAI API account at `platform.openai.com` (separate from ChatGPT).
 
 Add to `.env`:
 ```
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=<required-openai-api-key>
 ```
 
 Cost: ~1-2 cents per full repo reindex. Query embeddings are fractions
@@ -54,7 +54,7 @@ If you'd rather not use OpenAI direct, swap to GitHub Models free tier:
 ```
 EMBED_ENDPOINT=https://models.github.ai/inference/embeddings
 EMBED_MODEL=openai/text-embedding-3-small
-EMBED_API_KEY=github_pat_xxxxxxxxxxxxxx
+EMBED_API_KEY=<required-github-models-token>
 EMBED_MIN_INTERVAL_MS=4500
 EMBED_BATCH_MAX_CHUNKS=30
 EMBED_BATCH_MAX_TOKENS=50000
