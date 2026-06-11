@@ -2199,6 +2199,28 @@ class OGZPrimeV14Bot {
     }
 
     const activeCandle = completed[completed.length - 1];
+    const sourceCompleteness = this.candleAggregator.checkSourceCompleteness(
+      sourceHistory,
+      sourceTimeframe,
+      activeCandle.t,
+      activeTimeframe
+    );
+    if (!sourceCompleteness.complete) {
+      console.error(`[VIS][OHLC][Aggregate] refusing incomplete ${sourceTimeframe}->${activeTimeframe} aggregate for ${symbol} periodStart=${new Date(activeCandle.t).toISOString()} expected=${sourceCompleteness.expectedCount} actual=${sourceCompleteness.actualCount} missing=${sourceCompleteness.missingPeriods.map(ts => new Date(ts).toISOString()).join(',')}`);
+      emitTrace(this, 'ACTIVE_CANDLE_AGGREGATE_REJECTED', {
+        traceId,
+        source: sourceLabel,
+        symbol,
+        sourceTimeframe,
+        activeTimeframe,
+        periodStart: activeCandle.t,
+        reason: sourceCompleteness.reason,
+        expectedCount: sourceCompleteness.expectedCount,
+        actualCount: sourceCompleteness.actualCount,
+        missingPeriods: sourceCompleteness.missingPeriods,
+      });
+      return null;
+    }
     const dedupeKey = `${symbol}:${activeTimeframe}:${activeCandle.t}`;
     if (this._emittedAggregatedActiveCandles.has(dedupeKey)) {
       return null;

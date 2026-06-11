@@ -67,6 +67,66 @@ class CandleAggregator {
     return aggregated;
   }
 
+  checkSourceCompleteness(sourceCandles, sourceTimeframe, targetTimestamp, targetTimeframe) {
+    const sourceMs = this.TIMEFRAME_MS[sourceTimeframe];
+    const targetMs = this.TIMEFRAME_MS[targetTimeframe];
+    if (!sourceMs || !targetMs || sourceMs >= targetMs || targetMs % sourceMs !== 0) {
+      return {
+        complete: false,
+        expectedCount: 0,
+        actualCount: 0,
+        missingPeriods: [],
+        reason: 'invalid_timeframe_ratio'
+      };
+    }
+
+    if (!Array.isArray(sourceCandles)) {
+      return {
+        complete: false,
+        expectedCount: targetMs / sourceMs,
+        actualCount: 0,
+        missingPeriods: [],
+        reason: 'missing_source_candles'
+      };
+    }
+
+    const periodStart = Math.floor(targetTimestamp / targetMs) * targetMs;
+    const periodEnd = periodStart + targetMs;
+    const observedPeriods = new Set();
+
+    for (const candle of sourceCandles) {
+      const timestamp = _t(candle);
+      if (Number.isFinite(timestamp) && timestamp > 0 && timestamp < 1_000_000_000_000) {
+        return {
+          complete: false,
+          expectedCount: targetMs / sourceMs,
+          actualCount: observedPeriods.size,
+          missingPeriods: [],
+          reason: 'invalid_source_timestamp_unit'
+        };
+      }
+      if (!Number.isFinite(timestamp) || timestamp < periodStart || timestamp >= periodEnd) {
+        continue;
+      }
+      observedPeriods.add(Math.floor(timestamp / sourceMs) * sourceMs);
+    }
+
+    const missingPeriods = [];
+    for (let ts = periodStart; ts < periodEnd; ts += sourceMs) {
+      if (!observedPeriods.has(ts)) {
+        missingPeriods.push(ts);
+      }
+    }
+
+    return {
+      complete: missingPeriods.length === 0,
+      expectedCount: targetMs / sourceMs,
+      actualCount: observedPeriods.size,
+      missingPeriods,
+      reason: missingPeriods.length === 0 ? null : 'missing_source_periods'
+    };
+  }
+
   /**
    * Build a single candle from array of candles
    *
