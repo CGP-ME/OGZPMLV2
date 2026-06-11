@@ -442,7 +442,7 @@ describe('OrderExecutor pause gate', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BLOCKED SELL_SHORT TSLA before execution/state side effects: webhook_dry_run'));
   });
 
-  test('enabled webhook route rejects fractional stock quantity before state mutation', async () => {
+  test('enabled stock webhook route rejects sub-one-share entry before state mutation', async () => {
     TradingConfig.setOverrides({
       features: { enableDynamicSizing: false },
       positionSizing: { maxPositionSize: 0.01 },
@@ -468,15 +468,60 @@ describe('OrderExecutor pause gate', () => {
 
     expect(result).toEqual(expect.objectContaining({
       success: false,
-      reason: 'webhook_fractional_share_quantity',
-      route: 'webhook',
-      orderAccepted: false,
-      stateMutationSucceeded: false,
-      orderQuantity: 0.1,
+      reason: 'non_positive_order_quantity',
+      orderQuantity: 0,
       quantityUnit: 'shares',
+      sizeUsd: 0,
     }));
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('enabled stock webhook route plans whole shares before eval gate and emit', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_WHOLE_SHARE_1"}' },
+      }),
+    };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true, passedRules: ['test'] });
+    const executor = makeExecutor({}, { webhookAdapter, preOrderEntryGate });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 1 }),
+      'TSLA'
+    );
+
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+      sizeUsd: 200,
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'sell',
+      symbol: 'TSLA',
+      quantity: 2,
+      quantityUnit: 'shares',
+      orderType: 'market',
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'WEBHOOK_WHOLE_SHARE_1',
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    }));
   });
 
   test('enabled webhook route opens state only after sent response supplies order identity', async () => {
@@ -2068,6 +2113,8 @@ describe('OrderExecutor pause gate', () => {
     const cryptoExecutor = makeExecutor({ assetClass: 'crypto', brokerId: 'kraken' });
 
     expect(stockExecutor._webhookQuantityBlockReason(0.5, 'shares')).toBe('fractional_share_quantity');
+    expect(stockExecutor._webhookQuantityBlockReason(1.3984412299830962, 'shares')).toBe('fractional_share_quantity');
+    expect(stockExecutor._webhookQuantityBlockReason(1, 'shares')).toBeNull();
     expect(stockExecutor._webhookQuantityBlockReason(0, 'shares')).toBe('non_positive_quantity');
     expect(cryptoExecutor._webhookQuantityBlockReason(0.016588545429287938, 'base')).toBeNull();
   });

@@ -156,7 +156,8 @@ class OrderExecutor {
   }
 
   _normalizeOrderQuantity(rawQuantity, scope = null, options = {}) {
-    if (this._orderQuantityUnit(scope) !== 'shares' || this._supportsFractionalOrderQuantity(scope)) {
+    const forceWholeShares = options.forceWholeShares === true;
+    if (this._orderQuantityUnit(scope) !== 'shares' || (!forceWholeShares && this._supportsFractionalOrderQuantity(scope))) {
       return rawQuantity;
     }
 
@@ -172,7 +173,7 @@ class OrderExecutor {
     return orderQuantity;
   }
 
-  _orderQuantityFromSizeUsd(sizeUsd, price, scope = null) {
+  _orderQuantityFromSizeUsd(sizeUsd, price, scope = null, options = {}) {
     if (!Number.isFinite(sizeUsd) || sizeUsd <= 0) {
       throw new Error(`[ORDER-PLAN] invalid sizeUsd ${sizeUsd}`);
     }
@@ -181,7 +182,7 @@ class OrderExecutor {
     }
 
     const rawQuantity = sizeUsd / price;
-    return this._normalizeOrderQuantity(rawQuantity, scope);
+    return this._normalizeOrderQuantity(rawQuantity, scope, options);
   }
 
   _acceptedOrderQuantity(orderResult, plannedQuantity) {
@@ -231,7 +232,7 @@ class OrderExecutor {
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return 'non_positive_quantity';
     }
-    if (quantityUnit === 'shares' && quantity < 1) {
+    if (quantityUnit === 'shares' && !Number.isInteger(quantity)) {
       return 'fractional_share_quantity';
     }
     return null;
@@ -544,7 +545,7 @@ class OrderExecutor {
     return absoluteCap;
   }
 
-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent }) {
+  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent, forceWholeShares = false }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
@@ -559,8 +560,11 @@ class OrderExecutor {
     if (cappedByAbsoluteCap) {
       console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
     }
-    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope);
+    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
     const quantityUnit = this._orderQuantityUnit(scope);
+    const plannedSizeUsd = forceWholeShares && quantityUnit === 'shares'
+      ? orderQuantity * price
+      : sizeUsd;
 
     return {
       traceId: decision.traceId || null,
@@ -581,7 +585,7 @@ class OrderExecutor {
       currentEquity,
       baseSizeUsd: positionSize,
       requestedSizeUsd,
-      sizeUsd,
+      sizeUsd: plannedSizeUsd,
       absoluteCapPercent: capPercent,
       absoluteCapSizeUsd,
       cappedByAbsoluteCap,
@@ -1024,6 +1028,7 @@ class OrderExecutor {
       MaxProfitManager.resolveContractStopPercent(orchResult.exitContract);
     }
 
+    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
     const entryPlan = this._buildEntryPlan({
       decision,
       symbol,
@@ -1034,7 +1039,8 @@ class OrderExecutor {
       tradeConfidence,
       confidenceMultiplier,
       orchResult,
-      absoluteCapPercent: absoluteCap
+      absoluteCapPercent: absoluteCap,
+      forceWholeShares: isWebhookExecutionRoute
     });
     if (entryPlan && entryPlan.orderQuantity <= 0) {
       console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)}`);
@@ -1087,7 +1093,6 @@ class OrderExecutor {
         return blockedReturn('eval_rule_gate', { failedRules: failed });
       }
     }
-    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
     const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading && !isWebhookExecutionRoute;
     const shouldPlanWebhookExit = !this.ctx.backtestMode
       && this.ctx.webhookAdapter?.enabled === true
