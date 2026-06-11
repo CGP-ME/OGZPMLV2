@@ -5,20 +5,10 @@ const path = require('path');
 const policy = require('./policy');
 const ledger = require('./read-ledger');
 const taskContract = require('./task-contract');
-
-function readStdinSync() {
-  try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
-}
-
-function emit(msg, code) {
-  process.stderr.write(msg + '\n');
-  process.exit(code);
-}
+const { emit, readHookInput } = require('./hook-input');
 
 function run() {
-  const raw = readStdinSync();
-  let input = {};
-  try { input = JSON.parse(raw); } catch (_) {}
+  const input = readHookInput('claude-bridge edit');
   const ti = input.tool_input || {};
   const target = ti.file_path || ti.path || ti.notebook_path || '';
 

@@ -1,19 +1,10 @@
 'use strict';
 
 const priorFixes = require('./prior-fixes');
-
-function readStdinSync() {
-  try {
-    return require('fs').readFileSync(0, 'utf8');
-  } catch (_) {
-    return '';
-  }
-}
+const { readHookInput } = require('./hook-input');
 
 function run() {
-  const raw = readStdinSync();
-  let input = {};
-  try { input = JSON.parse(raw); } catch (_) {}
+  const input = readHookInput('claude-bridge prepare');
   const prompt = input.prompt || input.user_prompt || '';
   if (!prompt) {
     process.exit(0);

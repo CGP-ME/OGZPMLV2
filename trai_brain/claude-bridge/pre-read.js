@@ -2,25 +2,15 @@
 
 const policy = require('./policy');
 const taskContract = require('./task-contract');
-
-function readStdinSync() {
-  try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
-}
-
-function emit(msg, code) {
-  process.stderr.write(msg + '\n');
-  process.exit(code);
-}
+const { emit, readHookInput } = require('./hook-input');
 
 function run() {
-  const raw = readStdinSync();
-  let input = {};
-  try { input = JSON.parse(raw); } catch (_) {}
+  const input = readHookInput('claude-bridge read');
   const ti = input.tool_input || {};
   const target = ti.file_path || ti.path || ti.notebook_path || '';
 
   if (!target) {
-    process.exit(0);
+    emit('BLOCKED (claude-bridge read): tool_input.file_path missing', 2);
   }
 
   const check = policy.checkPath(target);

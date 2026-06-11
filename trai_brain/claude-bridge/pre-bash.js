@@ -5,15 +5,7 @@ const path = require('path');
 const policy = require('./policy');
 const finishGate = require('./finish-gate');
 const taskContract = require('./task-contract');
-
-function readStdinSync() {
-  try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
-}
-
-function emit(msg, code) {
-  process.stderr.write(msg + '\n');
-  process.exit(code);
-}
+const { emit, readHookInput } = require('./hook-input');
 
 const READ_COMMANDS = new Set([
   'cat', 'head', 'tail', 'less', 'more', 'sed', 'awk', 'grep', 'egrep',
@@ -21,13 +13,19 @@ const READ_COMMANDS = new Set([
   'od', 'xxd', 'hexdump', 'tar', 'unzip',
 ]);
 const COMMAND_SEPARATORS = new Set(['|', ';', '&&', '||', '(', ')']);
+const SHELL_RUNTIMES = new Set(['bash', 'sh', 'zsh', 'fish', 'dash']);
+const SCRIPT_RUNTIMES = new Set(['node', 'python', 'python3', 'perl', 'ruby', 'php']);
+const SHELL_EVAL_COMMANDS = new Set(['eval', 'source']);
+const PRIVILEGED_WRAPPERS = new Set(['sudo', 'doas']);
+const COMMAND_WRAPPERS = new Set(['env', 'command', 'nohup', 'time']);
+const ALLOWED_NODE_FLAGS = new Set(['--check', '-v', '--version']);
 const MUTATING_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()(rm|rmdir|mv|cp|touch|mkdir|chmod|chown|ln|truncate|tee|dd|install)\b/;
 const WARDEN_GATED_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(add|commit|push)\b/;
 const MUTATING_GIT_COMMAND = /(^|\s|\||;|&&|\|\||\(|`|\$\()git\s+(reset|checkout|restore|clean|revert|cherry-pick|merge|rebase|stash|rm|mv|tag)\b/;
 const PACKAGE_MUTATION = /(^|\s|\||;|&&|\|\||\(|`|\$\()(npm|pnpm|yarn)\s+(install|i|update|upgrade|remove|uninstall|audit\s+fix)\b/;
 const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|ruby|php)\s+(-e|-p|-c)\b/;
 const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
-const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|perl|ruby)\s+[^|;&`]*\s-i\b/;
+const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|awk|perl|ruby)\s+[^|;&`]*\s-i\b/;
 const MERCURY_ASK_SCRIPT = /(^|\s)(node\s+)?(\.\/)?trai_brain[\/\\]mercury-bridge[\/\\]ask\.js\b/;
 const MERCURY_REQUIRED_FRAME = /\bbreak\s+my\s+fix\b/i;
 const MERCURY_VERIFICATION_FRAMES = [
@@ -103,6 +101,161 @@ function isPathLike(token) {
   return fs.existsSync(path.resolve(policy.REPO_ROOT, token));
 }
 
+function commandName(token) {
+  return path.basename(token || '');
+}
+
+function isCommandPosition(tokens, index) {
+  return index === 0 || COMMAND_SEPARATORS.has(tokens[index - 1]);
+}
+
+function segmentUntilSeparator(tokens, start) {
+  const segment = [];
+  for (let i = start; i < tokens.length; i++) {
+    if (COMMAND_SEPARATORS.has(tokens[i])) break;
+    segment.push(tokens[i]);
+  }
+  return segment;
+}
+
+function isAllowedNodeRuntime(tokens, index) {
+  const segment = segmentUntilSeparator(tokens, index);
+  const firstArg = segment[1] || '';
+  if (ALLOWED_NODE_FLAGS.has(firstArg)) return true;
+  if (firstArg === 'trai_brain/mercury-bridge/ask.js' || firstArg === './trai_brain/mercury-bridge/ask.js') {
+    return true;
+  }
+  return false;
+}
+
+function tokenIsMutatingCommand(token) {
+  return ['rm', 'rmdir', 'mv', 'cp', 'touch', 'mkdir', 'chmod', 'chown', 'ln', 'truncate', 'tee', 'dd', 'install'].includes(commandName(token));
+}
+
+function gitMutationReasonFromSegment(segment) {
+  for (let i = 1; i < segment.length; i++) {
+    const part = segment[i];
+    if (['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(part)) {
+      i += 1;
+      continue;
+    }
+    if (
+      part.startsWith('--git-dir=') ||
+      part.startsWith('--work-tree=') ||
+      part.startsWith('--namespace=') ||
+      part.startsWith('-')
+    ) {
+      continue;
+    }
+
+    const subcommand = commandName(part);
+    if (['add', 'commit', 'push'].includes(subcommand)) return 'warden_gated_git_mutation';
+    if (['reset', 'checkout', 'restore', 'clean', 'revert', 'cherry-pick', 'merge', 'rebase', 'stash', 'rm', 'mv', 'tag'].includes(subcommand)) {
+      return 'git_mutation';
+    }
+    return null;
+  }
+
+  return null;
+}
+
+function wrappedCommandReason(segment) {
+  for (let i = 0; i < segment.length; i++) {
+    const part = segment[i];
+    if (!part || part.startsWith('-') || /^[A-Za-z_][A-Za-z0-9_]*=.*/.test(part)) continue;
+    const wrapped = commandName(part);
+    if (PRIVILEGED_WRAPPERS.has(wrapped)) return `privileged_wrapper:${wrapped}`;
+    if (tokenIsMutatingCommand(wrapped)) return `mutating_command:${wrapped}`;
+    if (wrapped === 'git') return gitMutationReasonFromSegment(segment.slice(i));
+    if (COMMAND_WRAPPERS.has(wrapped)) return wrappedCommandReason(segment.slice(i + 1));
+    if (SHELL_RUNTIMES.has(wrapped)) return `shell_runtime:${wrapped}`;
+    if (SCRIPT_RUNTIMES.has(wrapped)) return `script_runtime:${wrapped}`;
+    return null;
+  }
+  return null;
+}
+
+function archiveMutationReason(name, segment) {
+  if (name === 'tar') {
+    for (const token of segment) {
+      if (token === '--extract') return 'archive_extract:tar';
+      if (/^-[A-Za-z]*x[A-Za-z]*$/.test(token)) return 'archive_extract:tar';
+    }
+  }
+
+  if (name === 'unzip') {
+    const readOnly = segment.some((token) => token === '-l' || token === '-t' || token === '-v' || token === '-Z');
+    if (!readOnly) return 'archive_extract:unzip';
+  }
+
+  return null;
+}
+
+function inPlaceEditReason(name, segment) {
+  if (!['sed', 'awk', 'perl', 'ruby'].includes(name)) return null;
+  const hasInPlaceFlag = segment.some((token) => token === '-i' || /^-i[A-Za-z0-9._-]+$/.test(token) || token === '--in-place' || token.startsWith('--in-place='));
+  return hasInPlaceFlag ? 'in_place_edit' : null;
+}
+
+function interpreterBypassReason(cmd) {
+  const tokens = shellTokens(cmd);
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (!isCommandPosition(tokens, i)) continue;
+    const name = commandName(tokens[i]);
+
+    if (tokenIsMutatingCommand(name)) return `mutating_command:${name}`;
+    if (name === 'git') {
+      const gitMutation = gitMutationReasonFromSegment(segmentUntilSeparator(tokens, i));
+      if (gitMutation) return gitMutation;
+    }
+    if (PRIVILEGED_WRAPPERS.has(name)) return `privileged_wrapper:${name}`;
+    if (SHELL_RUNTIMES.has(name)) return `shell_runtime:${name}`;
+    if (SHELL_EVAL_COMMANDS.has(name)) return `shell_eval:${name}`;
+    if (tokens[i] === '.') return 'shell_eval:.';
+
+    if (COMMAND_WRAPPERS.has(name)) {
+      const wrappedReason = wrappedCommandReason(segmentUntilSeparator(tokens, i + 1));
+      if (wrappedReason) return wrappedReason;
+    }
+
+    if (SCRIPT_RUNTIMES.has(name)) {
+      if (name === 'node' && isAllowedNodeRuntime(tokens, i)) continue;
+      return `script_runtime:${name}`;
+    }
+
+    const inPlaceEdit = inPlaceEditReason(name, segmentUntilSeparator(tokens, i + 1));
+    if (inPlaceEdit) return inPlaceEdit;
+
+    const archiveMutation = archiveMutationReason(name, segmentUntilSeparator(tokens, i + 1));
+    if (archiveMutation) return archiveMutation;
+
+    if (name === 'find') {
+      const segment = segmentUntilSeparator(tokens, i + 1);
+      if (segment.includes('-delete')) return 'find_delete';
+      const execIndex = segment.indexOf('-exec');
+      if (execIndex !== -1) {
+        const execName = commandName(segment[execIndex + 1]);
+        if (tokenIsMutatingCommand(execName) || SHELL_RUNTIMES.has(execName) || SCRIPT_RUNTIMES.has(execName)) {
+          return 'find_exec_mutation';
+        }
+      }
+    }
+
+    if (name === 'xargs') {
+      const segment = segmentUntilSeparator(tokens, i + 1);
+      for (const token of segment) {
+        const target = commandName(token);
+        if (tokenIsMutatingCommand(target) || SHELL_RUNTIMES.has(target) || SCRIPT_RUNTIMES.has(target)) {
+          return 'xargs_mutation';
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 function extractPaths(cmd) {
   const paths = [];
   const tokens = shellTokens(cmd);
@@ -127,6 +280,8 @@ function mutationReason(cmd) {
   if (MUTATING_GIT_COMMAND.test(cmd)) return 'git_mutation';
   if (PACKAGE_MUTATION.test(cmd)) return 'package_mutation';
   if (INLINE_RUNTIME.test(cmd)) return 'inline_runtime';
+  const interpreterBypass = interpreterBypassReason(cmd);
+  if (interpreterBypass) return interpreterBypass;
   const mutationMatch = cmd.match(MUTATING_COMMAND);
   if (mutationMatch) return `mutating_command:${mutationMatch[2]}`;
   return null;
@@ -156,13 +311,13 @@ function assertWardenAllowsGitMutation() {
 }
 
 function run() {
-  const raw = readStdinSync();
-  let input = {};
-  try { input = JSON.parse(raw); } catch (_) {}
+  const input = readHookInput('claude-bridge Bash');
   const ti = input.tool_input || {};
   const cmd = ti.command || '';
 
-  if (!cmd) process.exit(0);
+  if (typeof cmd !== 'string' || !cmd.trim()) {
+    emit('BLOCKED (claude-bridge Bash): missing Bash command. Bash policy fails closed.', 2);
+  }
 
   const bashCheck = taskContract.checkBashAllowed(cmd);
   if (!bashCheck.allowed) {

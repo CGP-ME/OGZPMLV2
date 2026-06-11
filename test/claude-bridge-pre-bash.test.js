@@ -1,10 +1,23 @@
 const { extractPaths, mutationReason, mercuryFramingReason } = require('../trai_brain/claude-bridge/pre-bash');
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+const PRE_BASH = path.join(__dirname, '../trai_brain/claude-bridge/pre-bash.js');
+
+function runPreBash(input) {
+  return spawnSync(process.execPath, [PRE_BASH], {
+    cwd: path.join(__dirname, '..'),
+    input,
+    encoding: 'utf8',
+  });
+}
 
 describe('claude bridge Bash gate', () => {
   test('allows read-only inspection commands without ignored paths', () => {
     expect(mutationReason('git status --short --branch')).toBeNull();
     expect(mutationReason('rg -n "needle" core test')).toBeNull();
     expect(mutationReason('npx jest test/claude-bridge-policy.test.js --runInBand')).toBeNull();
+    expect(mutationReason('node --check trai_brain/claude-bridge/pre-bash.js')).toBeNull();
   });
 
   test('blocks shell mutation bypasses that avoid Edit and Write hooks', () => {
@@ -15,12 +28,54 @@ describe('claude bridge Bash gate', () => {
     expect(mutationReason('git reset --hard HEAD')).toBe('git_mutation');
     expect(mutationReason('npm audit fix --force')).toBe('package_mutation');
     expect(mutationReason('node -e "require(\'fs\').writeFileSync(\'x\', \'y\')"')).toBe('inline_runtime');
+    expect(mutationReason('awk -i inplace "{ print $0 }" file.txt')).toBe('in_place_edit');
+    expect(mutationReason('./rm data/state.json')).toBe('mutating_command:rm');
+    expect(mutationReason('/bin/rm data/state.json')).toBe('mutating_command:rm');
+    expect(mutationReason('/usr/bin/rm data/state.json')).toBe('mutating_command:rm');
+    expect(mutationReason('../cp source target')).toBe('mutating_command:cp');
+  });
+
+  test('blocks interpreter and shell escape hatches that can mutate outside edit gates', () => {
+    expect(mutationReason('bash -c "cat package.json"')).toBe('shell_runtime:bash');
+    expect(mutationReason('sh scripts/audit.sh')).toBe('shell_runtime:sh');
+    expect(mutationReason('eval "cat package.json"')).toBe('shell_eval:eval');
+    expect(mutationReason('. ./scripts/env.sh')).toBe('shell_eval:.');
+    expect(mutationReason('node scripts/audit.js')).toBe('script_runtime:node');
+    expect(mutationReason('python3 scripts/audit.py')).toBe('script_runtime:python3');
+    expect(mutationReason('env NODE_ENV=test node scripts/audit.js')).toBe('script_runtime:node');
+    expect(mutationReason('command rm data/state.json')).toBe('mutating_command:rm');
+    expect(mutationReason('sudo cat data/state.json')).toBe('privileged_wrapper:sudo');
+    expect(mutationReason('doas cat data/state.json')).toBe('privileged_wrapper:doas');
+    expect(mutationReason('sudo env rm data/state.json')).toBe('privileged_wrapper:sudo');
+    expect(mutationReason('nohup env command rm data/state.json')).toBe('mutating_command:rm');
+  });
+
+  test('blocks read-command mutation escapes in find and xargs', () => {
+    expect(mutationReason('find . -name "*.bak" -delete')).toBe('find_delete');
+    expect(mutationReason('find . -name "*.bak" -exec rm {} ;')).toBe('find_exec_mutation');
+    expect(mutationReason('rg -l "needle" core | xargs rm')).toBe('xargs_mutation');
+    expect(mutationReason('find core -type f -exec grep -n needle {} ;')).toBeNull();
+  });
+
+  test('blocks archive extraction while keeping archive inspection available', () => {
+    expect(mutationReason('tar -tf archive.tar')).toBeNull();
+    expect(mutationReason('tar -xf archive.tar')).toBe('archive_extract:tar');
+    expect(mutationReason('tar --extract --file archive.tar')).toBe('archive_extract:tar');
+    expect(mutationReason('unzip -l archive.zip')).toBeNull();
+    expect(mutationReason('unzip archive.zip')).toBe('archive_extract:unzip');
   });
 
   test('routes git publish commands through Warden instead of blocking forever', () => {
     expect(mutationReason('git add core/OrderExecutor.js')).toBe('warden_gated_git_mutation');
     expect(mutationReason('git commit -m "Fixed thing"')).toBe('warden_gated_git_mutation');
     expect(mutationReason('git push origin claude/new_beginnings')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git -C repo add .')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git -c core.editor=vim commit -m "Fixed thing"')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git --git-dir=.git commit -m "Fixed thing"')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('env GIT_DIR=.git git -c core.editor=vim commit -m "Fixed thing"')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('command git -C repo push origin main')).toBe('warden_gated_git_mutation');
+    expect(mutationReason('git -C repo restore -- file.js')).toBe('git_mutation');
+    expect(mutationReason('git -C repo status --short')).toBeNull();
   });
 
   test('still detects ignored read paths for allowed read commands', () => {
@@ -33,6 +88,12 @@ describe('claude bridge Bash gate', () => {
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies or creates a silent failure."'
     )).toBeNull();
+    expect(mutationReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies or creates a silent failure."'
+    )).toBeNull();
+    expect(mutationReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies." && rm data/state.json'
+    )).toBe('mutating_command:rm');
   });
 
   test('blocks verification-framed Mercury ask dispatches', () => {
@@ -58,5 +119,19 @@ describe('claude bridge Bash gate', () => {
 
   test('does not apply Mercury ask framing rules to other Mercury tools', () => {
     expect(mercuryFramingReason('node trai_brain/mercury-bridge/indexer.js')).toBeNull();
+  });
+
+  test('fails closed when hook input is missing or malformed', () => {
+    const missing = runPreBash('');
+    expect(missing.status).toBe(2);
+    expect(missing.stderr).toContain('missing hook input');
+
+    const malformed = runPreBash('{not-json');
+    expect(malformed.status).toBe(2);
+    expect(malformed.stderr).toContain('malformed hook input');
+
+    const missingCommand = runPreBash(JSON.stringify({ tool_input: {} }));
+    expect(missingCommand.status).toBe(2);
+    expect(missingCommand.stderr).toContain('missing Bash command');
   });
 });

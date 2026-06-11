@@ -2,15 +2,10 @@
 
 const policy = require('./policy');
 const editLedger = require('./edit-ledger');
-
-function readStdinSync() {
-  try { return require('fs').readFileSync(0, 'utf8'); } catch (_) { return ''; }
-}
+const { readHookInput } = require('./hook-input');
 
 function run() {
-  const raw = readStdinSync();
-  let input = {};
-  try { input = JSON.parse(raw); } catch (_) {}
+  const input = readHookInput('claude-bridge post-edit');
   const ti = input.tool_input || {};
   const target = ti.file_path || ti.path || ti.notebook_path || '';
 
