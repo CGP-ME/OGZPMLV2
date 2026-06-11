@@ -143,6 +143,9 @@ describe('AuthFailureGuard', () => {
       response: { data: { error: ['EGeneral:Permission denied'] } },
       message: 'Token error',
     })).toBe(true);
+    expect(KrakenAdapterSimple.isKrakenAuthFailure({
+      message: 'Unauthorized - token expired',
+    })).toBe(true);
 
     expect(KrakenAdapterSimple.isKrakenAuthFailure({
       code: 'ECONNRESET',
@@ -155,6 +158,133 @@ describe('AuthFailureGuard', () => {
     expect(KrakenAdapterSimple.isKrakenAuthFailure({
       message: 'Order error: EOrder:Insufficient funds',
     })).toBe(false);
+  });
+
+  test('Kraken private REST auth failures record in credentials, balance, and open-orders paths', async () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const KrakenAdapter = require('../kraken_adapter_simple');
+    const adapter = new KrakenAdapter();
+    adapter.makePrivateRequest = jest
+      .fn()
+      .mockResolvedValueOnce({ error: ['Unauthorized - token expired'] })
+      .mockResolvedValueOnce({ error: ['EAPI:Invalid signature'] })
+      .mockResolvedValueOnce({ error: ['EGeneral:Permission denied'] })
+      .mockResolvedValueOnce({ error: ['EAPI:Rate limit exceeded'] });
+
+    await expect(adapter.testCredentials()).rejects.toThrow('API Error: Unauthorized - token expired');
+    await expect(adapter.getAccountBalance()).rejects.toThrow('Balance error: EAPI:Invalid signature');
+    await expect(adapter.getOpenOrders()).rejects.toThrow('OpenOrders error: EGeneral:Permission denied');
+    await expect(adapter.getOpenOrders()).rejects.toThrow('OpenOrders error: EAPI:Rate limit exceeded');
+
+    expect(recordSpy).toHaveBeenCalledTimes(3);
+    expect(recordSpy).toHaveBeenNthCalledWith(1, 'kraken', 'rest-credentials', {
+      message: 'API Error: Unauthorized - token expired',
+      authFailure: true,
+      evidence: 'kraken-auth-classifier',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(2, 'kraken', 'rest-balance', {
+      message: 'Balance error: EAPI:Invalid signature',
+      authFailure: true,
+      evidence: 'kraken-auth-classifier',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(3, 'kraken', 'rest-open-orders', {
+      message: 'OpenOrders error: EGeneral:Permission denied',
+      authFailure: true,
+      evidence: 'kraken-auth-classifier',
+    });
+
+    recordSpy.mockRestore();
+  });
+
+  test('Kraken private order auth failures record before preserving placeOrder failure', async () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+    const KrakenAdapter = require('../kraken_adapter_simple');
+    const adapter = new KrakenAdapter();
+    adapter.assetPairs.set('XXBTZUSD', { ordermin: '0.0001', lot_decimals: 8 });
+    adapter.makePrivateRequest = jest
+      .fn()
+      .mockResolvedValueOnce({ error: ['EAPI:Invalid key'] })
+      .mockResolvedValueOnce({ error: ['EOrder:Insufficient funds'] });
+
+    await expect(adapter.placeOrder({
+      symbol: 'BTC-USD',
+      side: 'buy',
+      type: 'market',
+      quantity: 0.002,
+    })).rejects.toThrow('Failed to place order: Order error: EAPI:Invalid key');
+
+    await expect(adapter.placeOrder({
+      symbol: 'BTC-USD',
+      side: 'buy',
+      type: 'market',
+      quantity: 0.002,
+    })).rejects.toThrow('Failed to place order: Order error: EOrder:Insufficient funds');
+
+    expect(recordSpy).toHaveBeenCalledTimes(1);
+    expect(recordSpy).toHaveBeenCalledWith('kraken', 'rest-place-order', {
+      message: 'Order error: EAPI:Invalid key',
+      authFailure: true,
+      evidence: 'kraken-auth-classifier',
+    });
+
+    recordSpy.mockRestore();
+  });
+
+  test('Kraken websocket setup auth failures record before returning false', async () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+
+    jest.doMock('ws', () => {
+      return jest.fn(() => {
+        throw new Error('EGeneral:Permission denied');
+      });
+    });
+
+    const KrakenAdapter = require('../kraken_adapter_simple');
+    const adapter = new KrakenAdapter({ tradingPair: 'BTC-USD' });
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(false);
+
+    expect(recordSpy).toHaveBeenCalledTimes(1);
+    expect(recordSpy).toHaveBeenCalledWith('kraken', 'ws-auth-connect', {
+      message: 'EGeneral:Permission denied',
+      authFailure: true,
+      evidence: 'kraken-auth-classifier',
+    });
+
+    recordSpy.mockRestore();
+    jest.dontMock('ws');
+  });
+
+  test('Kraken websocket setup non-auth failures do not record auth failures', async () => {
+    jest.resetModules();
+    cleanFlag();
+    const authFailureGuard = require('../core/AuthFailureGuard');
+    const recordSpy = jest.spyOn(authFailureGuard, 'recordFailure').mockImplementation(() => {});
+
+    jest.doMock('ws', () => {
+      return jest.fn(() => {
+        throw new Error('ECONNRESET socket hang up');
+      });
+    });
+
+    const KrakenAdapter = require('../kraken_adapter_simple');
+    const adapter = new KrakenAdapter({ tradingPair: 'BTC-USD' });
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(false);
+
+    expect(recordSpy).not.toHaveBeenCalled();
+
+    recordSpy.mockRestore();
+    jest.dontMock('ws');
   });
 
   test('Alpaca detector records auth failures but ignores non-auth HTTP errors', () => {

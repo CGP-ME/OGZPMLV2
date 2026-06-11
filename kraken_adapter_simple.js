@@ -54,7 +54,7 @@ function isKrakenAuthFailure(error) {
   if (status === 401 || status === 403) return true;
 
   const text = krakenAuthFailureText(error);
-  return /\bEAPI:(Invalid key|Invalid signature|Invalid nonce)\b|\bEGeneral:Permission denied\b|\bEOrder:Permission denied\b/i.test(text);
+  return /\bEAPI:(Invalid key|Invalid signature|Invalid nonce)\b|\bEGeneral:Permission denied\b|\bEOrder:Permission denied\b|\b(Unauthorized|Authentication failed|Invalid token|Token expired)\b/i.test(text);
 }
 
 function recordKrakenAuthFailureIfRelevant(error, kind) {
@@ -122,14 +122,9 @@ class KrakenAdapterSimple {
 
   async connect() {
     try {
-      // Test API credentials first and route credential failures into the
-      // shared guard before preserving the existing false-return contract.
-      try {
-        await this.testCredentials();
-      } catch (error) {
-        recordKrakenAuthFailureIfRelevant(error, 'rest-credentials');
-        throw error;
-      }
+      // Test API credentials first. testCredentials owns auth-failure
+      // classification so direct calls and connect() share one guard path.
+      await this.testCredentials();
 
       // Load asset pairs
       await this.loadAssetPairs();
@@ -147,11 +142,16 @@ class KrakenAdapterSimple {
   }
 
   async testCredentials() {
-    const response = await this.makePrivateRequest('/0/private/Balance');
-    if (response.error && response.error.length > 0) {
-      throw new Error(`API Error: ${response.error.join(', ')}`);
+    try {
+      const response = await this.makePrivateRequest('/0/private/Balance');
+      if (response.error && response.error.length > 0) {
+        throw new Error(`API Error: ${response.error.join(', ')}`);
+      }
+      return response.result;
+    } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-credentials');
+      throw error;
     }
-    return response.result;
   }
 
   async loadAssetPairs() {
@@ -358,11 +358,16 @@ class KrakenAdapterSimple {
   }
 
   async getAccountBalance() {
-    const response = await this.makePrivateRequest('/0/private/Balance');
-    if (response.error && response.error.length > 0) {
-      throw new Error(`Balance error: ${response.error.join(', ')}`);
+    try {
+      const response = await this.makePrivateRequest('/0/private/Balance');
+      if (response.error && response.error.length > 0) {
+        throw new Error(`Balance error: ${response.error.join(', ')}`);
+      }
+      return response.result;
+    } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-balance');
+      throw error;
     }
-    return response.result;
   }
 
   async getPositions() {
@@ -413,26 +418,31 @@ class KrakenAdapterSimple {
   // Get open orders through Kraken private REST. SessionRouter reconciliation
   // treats this as broker truth before switching sessions.
   async getOpenOrders() {
-    const response = await this.makePrivateRequest('/0/private/OpenOrders');
-    if (response.error && response.error.length > 0) {
-      throw new Error(`OpenOrders error: ${response.error.join(', ')}`);
-    }
+    try {
+      const response = await this.makePrivateRequest('/0/private/OpenOrders');
+      if (response.error && response.error.length > 0) {
+        throw new Error(`OpenOrders error: ${response.error.join(', ')}`);
+      }
 
-    const open = response.result && response.result.open ? response.result.open : {};
-    return Object.entries(open).map(([orderId, order]) => {
-      const descr = order.descr || {};
-      const pair = descr.pair || order.pair || '';
-      return {
-        orderId,
-        symbol: this.normalizeKrakenWsPair(pair) || pair || '(missing)',
-        type: descr.ordertype || order.ordertype || '(missing)',
-        side: descr.type || order.type || '(missing)',
-        price: parseFloat(descr.price || order.price || 0),
-        amount: parseFloat(order.vol || order.volume || 0),
-        filledAmount: parseFloat(order.vol_exec || 0),
-        status: order.status || 'open'
-      };
-    });
+      const open = response.result && response.result.open ? response.result.open : {};
+      return Object.entries(open).map(([orderId, order]) => {
+        const descr = order.descr || {};
+        const pair = descr.pair || order.pair || '';
+        return {
+          orderId,
+          symbol: this.normalizeKrakenWsPair(pair) || pair || '(missing)',
+          type: descr.ordertype || order.ordertype || '(missing)',
+          side: descr.type || order.type || '(missing)',
+          price: parseFloat(descr.price || order.price || 0),
+          amount: parseFloat(order.vol || order.volume || 0),
+          filledAmount: parseFloat(order.vol_exec || 0),
+          status: order.status || 'open'
+        };
+      });
+    } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-open-orders');
+      throw error;
+    }
   }
 
   convertToKrakenSymbol(symbol) {
@@ -741,6 +751,7 @@ class KrakenAdapterSimple {
         price: order.price
       };
     } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-place-order');
       throw new Error(`Failed to place order: ${error.message}`);
     }
   }
@@ -1179,6 +1190,7 @@ class KrakenAdapterSimple {
 
       return true;
     } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'ws-auth-connect');
       console.error('[Kraken] Failed to connect Kraken WebSocket:', error.message);
       return false;
     }
