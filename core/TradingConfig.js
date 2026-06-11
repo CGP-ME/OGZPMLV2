@@ -13,6 +13,8 @@
  * Purpose: Eliminate scattered hardcoded values across 15+ files
  */
 
+const tradingConfigFile = require('../config/trading.config.json');
+
 // Helper to parse env vars with fallback
 const env = (key, fallback) => {
   const val = process.env[key];
@@ -138,6 +140,40 @@ function freezeTuningProfile(profile) {
   });
 }
 
+function buildTuningProfilesConfig() {
+  const tuningProfiles = tradingConfigFile.tuningProfiles;
+  if (!tuningProfiles || typeof tuningProfiles !== 'object' || Array.isArray(tuningProfiles)) {
+    throw new Error('[TradingConfig] config/trading.config.json must define tuningProfiles');
+  }
+
+  const { defaultProfile, definitions } = tuningProfiles;
+  if (typeof defaultProfile !== 'string' || defaultProfile.trim() === '') {
+    throw new Error('[TradingConfig] tuningProfiles.defaultProfile must be a non-empty string');
+  }
+  if (!definitions || typeof definitions !== 'object' || Array.isArray(definitions)) {
+    throw new Error('[TradingConfig] tuningProfiles.definitions must be an object');
+  }
+  if (!Object.prototype.hasOwnProperty.call(definitions, defaultProfile)) {
+    throw new Error(`[TradingConfig] tuningProfiles.defaultProfile '${defaultProfile}' is missing from definitions`);
+  }
+
+  const frozenDefinitions = {};
+  for (const [profileName, profile] of Object.entries(definitions)) {
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+      throw new Error(`[TradingConfig] tuningProfiles.definitions.${profileName} must be an object`);
+    }
+    if (profile.name !== profileName) {
+      throw new Error(`[TradingConfig] tuning profile key '${profileName}' must match profile.name '${profile.name}'`);
+    }
+    frozenDefinitions[profileName] = freezeTuningProfile(profile);
+  }
+
+  return Object.freeze({
+    defaultProfile,
+    definitions: Object.freeze(frozenDefinitions),
+  });
+}
+
 function freezeStringMap(values) {
   return Object.freeze({ ...values });
 }
@@ -153,6 +189,27 @@ function deepFreezePlain(value) {
     deepFreezePlain(child);
   }
   return value;
+}
+
+function buildRuntimeProfilesConfig() {
+  const profiles = tradingConfigFile.profiles;
+  if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) {
+    throw new Error('[TradingConfig] config/trading.config.json must define profiles');
+  }
+
+  for (const [profileName, profile] of Object.entries(profiles)) {
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+      throw new Error(`[TradingConfig] profiles.${profileName} must be an object`);
+    }
+
+    const requiredKeys = ['minConfidence', 'maxPositionSize', 'riskPercent', 'maxHoldMinutes'];
+    const missing = requiredKeys.filter(key => !Number.isFinite(Number(profile[key])));
+    if (missing.length > 0) {
+      throw new Error(`[TradingConfig] profiles.${profileName} has invalid numeric key(s): ${missing.join(', ')}`);
+    }
+  }
+
+  return deepFreezePlain(clonePlain(profiles));
 }
 
 function sameConfigValue(left, right) {
@@ -916,44 +973,7 @@ const BASE_CONFIG = {
   // =========================================================================
   // TRADING PROFILES (for profile-based trading)
   // =========================================================================
-  profiles: {
-    scalper: {
-      minConfidence: 0.40,
-      maxPositionSize: 0.10,
-      riskPercent: 0.005,
-      maxHoldMinutes: 30,
-    },
-    day_trader: {
-      minConfidence: 0.50,
-      maxPositionSize: 0.15,
-      riskPercent: 0.010,
-      maxHoldMinutes: 480,
-    },
-    swing: {
-      minConfidence: 0.60,
-      maxPositionSize: 0.25,
-      riskPercent: 0.020,
-      maxHoldMinutes: 4320,
-    },
-    conservative: {
-      minConfidence: 0.70,
-      maxPositionSize: 0.10,
-      riskPercent: 0.010,
-      maxHoldMinutes: 1440,
-    },
-    balanced: {
-      minConfidence: 0.55,
-      maxPositionSize: 0.20,
-      riskPercent: 0.015,
-      maxHoldMinutes: 720,
-    },
-    quantum: {
-      minConfidence: 0.50,
-      maxPositionSize: 0.15,
-      riskPercent: 0.010,
-      maxHoldMinutes: 480,
-    },
-  },
+  profiles: buildRuntimeProfilesConfig(),
 
   // =========================================================================
   // SCALPER-SPECIFIC CONFIG
@@ -1196,78 +1216,7 @@ const BASE_CONFIG = {
   // =========================================================================
   // TUNING PROFILES (single source for backtest/runtime profile tunables)
   // =========================================================================
-  tuningProfiles: {
-    defaultProfile: 'current-eval',
-    definitions: Object.freeze({
-      'current-eval': freezeTuningProfile({
-        name: 'current-eval',
-        description: 'Current explicit TSLA stock-eval posture; freezes the repo .env values that workers previously inherited implicitly.',
-        evidence: [
-          '.env:236-269',
-          '.env:328-329',
-          'core/TradingConfig.js tuningProfiles.current-eval',
-          'core/TradingConfig.js backtestWorkerEnv.canonical',
-        ],
-        env: {
-          ENABLE_DYNAMIC_SIZING: 'true',
-          BASE_POSITION_SIZE: '0.01',
-          MAX_POSITION_SIZE_PCT: '0.05',
-          BASE_POSITION_PCT: '0.01',
-          MAX_POSITION_PCT: '0.05',
-          ABSOLUTE_POSITION_CAP: '0.15',
-          TIER1_TARGET: '0.007',
-          TIER2_TARGET: '0.010',
-          TIER3_TARGET: '0.015',
-          FINAL_TARGET: '0.025',
-          TIER1_EXIT_FRACTION: '0.30',
-          TIER2_EXIT_FRACTION: '0.30',
-          TIER3_EXIT_FRACTION: '0.20',
-          MAX_DRAWDOWN: '5',
-          MAX_DAILY_LOSS: '1',
-          MAX_WEEKLY_LOSS: '5',
-          MAX_MONTHLY_LOSS: '5',
-          ACCOUNT_DRAWDOWN_BYPASS: 'true',
-          RISK_MANAGER_BYPASS: 'true',
-          ATR_FILTER_ENABLED: 'true',
-          ATR_MIN_PERCENT: '0.15',
-          EXIT_SYSTEM: 'legacy',
-          FEE_SLIPPAGE: '0.0005',
-        },
-      }),
-
-      'legacy-wide': freezeTuningProfile({
-        name: 'legacy-wide',
-        description: 'Wide-target historical posture from .env.gates; useful for testing whether tight MPM tiers are choking winners.',
-        evidence: [
-          '.env.gates:69-72',
-          '.env.gates:239-272',
-        ],
-        env: {
-          ENABLE_DYNAMIC_SIZING: 'true',
-          BASE_POSITION_SIZE: '0.01',
-          MAX_POSITION_SIZE_PCT: '0.05',
-          BASE_POSITION_PCT: '0.01',
-          MAX_POSITION_PCT: '0.05',
-          ABSOLUTE_POSITION_CAP: '0.15',
-          TIER1_TARGET: '0.020',
-          TIER2_TARGET: '0.040',
-          TIER3_TARGET: '0.060',
-          FINAL_TARGET: '0.100',
-          TIER1_EXIT_FRACTION: '0.30',
-          TIER2_EXIT_FRACTION: '0.30',
-          TIER3_EXIT_FRACTION: '0.20',
-          MAX_DRAWDOWN: '5',
-          MAX_DAILY_LOSS: '1',
-          MAX_WEEKLY_LOSS: '5',
-          MAX_MONTHLY_LOSS: '5',
-          ACCOUNT_DRAWDOWN_BYPASS: 'true',
-          RISK_MANAGER_BYPASS: 'true',
-          EXIT_SYSTEM: 'legacy',
-          FEE_SLIPPAGE: '0.0005',
-        },
-      }),
-    }),
-  },
+  tuningProfiles: buildTuningProfilesConfig(),
 
   // =========================================================================
   // FEATURE FLAGS
@@ -1335,6 +1284,7 @@ let configFrozen = false;
 let activeTuningProfile = null;
 let activeTuningProfileAppliedAt = null;
 let activeTuningProfileSource = null;
+let activeTuningProfileOverridePaths = new Set();
 
 function normalizeTuningProfileName(profileName) {
   const fallback = BASE_CONFIG.tuningProfiles.defaultProfile;
@@ -1589,9 +1539,7 @@ class TradingConfig {
       activeProfileAppliedAt: activeTuningProfileAppliedAt,
       activeProfileSource: activeTuningProfileSource,
       profiles: this.listTuningProfileNames(),
-      profileOverrideCount: activeTuningProfile
-        ? this.getTuningProfileConfigPaths(activeTuningProfile).length
-        : 0,
+      profileOverrideCount: activeTuningProfileOverridePaths.size,
     };
   }
 
@@ -1615,6 +1563,12 @@ class TradingConfig {
     }
 
     const profile = this.resolveTuningProfile(profileName);
+    if (activeTuningProfile && activeTuningProfile !== profile.name && !replaceActiveProfile) {
+      throw new Error(
+        `[TradingConfig] Tuning profile '${profile.name}' cannot replace active profile '${activeTuningProfile}' without replaceActiveProfile=true and flat-state proof`
+      );
+    }
+
     const runtimeSnapshotKeys = this.getTuningProfileRuntimeSnapshotKeys(profile.name);
     if (phase !== 'startup' && runtimeSnapshotKeys.length > 0) {
       throw new Error(
@@ -1625,7 +1579,13 @@ class TradingConfig {
 
     const overrides = this.buildTuningProfileOverrides(profile.name);
     const paths = Object.keys(overrides);
-    const snapshot = captureOverrideSnapshot(paths);
+    const previousProfilePaths = replaceActiveProfile
+      ? Array.from(activeTuningProfileOverridePaths)
+      : [];
+    const replaceSnapshotPaths = [
+      ...new Set([...previousProfilePaths, ...paths]),
+    ];
+    const snapshot = captureOverrideSnapshot(replaceSnapshotPaths);
     const conflicts = [];
 
     for (const path of paths) {
@@ -1652,13 +1612,25 @@ class TradingConfig {
       assertFlatProfileState(flatState);
     }
 
+    const nextOverrides = { ...activeOverrides };
+    if (replaceActiveProfile) {
+      for (const path of previousProfilePaths) {
+        delete nextOverrides[path];
+      }
+    }
+    const previousProfile = activeTuningProfile;
+    const previousAppliedAt = activeTuningProfileAppliedAt;
+    const previousSource = activeTuningProfileSource;
+    const previousOverridePaths = new Set(activeTuningProfileOverridePaths);
+
     activeOverrides = {
-      ...activeOverrides,
+      ...nextOverrides,
       ...overrides,
     };
     activeTuningProfile = profile.name;
     activeTuningProfileAppliedAt = new Date().toISOString();
     activeTuningProfileSource = source;
+    activeTuningProfileOverridePaths = new Set(paths);
 
     try {
       for (const [path, expected] of Object.entries(overrides)) {
@@ -1671,6 +1643,10 @@ class TradingConfig {
       }
     } catch (err) {
       restoreOverrideSnapshot(snapshot);
+      activeTuningProfile = previousProfile;
+      activeTuningProfileAppliedAt = previousAppliedAt;
+      activeTuningProfileSource = previousSource;
+      activeTuningProfileOverridePaths = previousOverridePaths;
       throw err;
     }
 
@@ -1693,10 +1669,13 @@ class TradingConfig {
     const profile = this.resolveTuningProfile(profileName);
     const overrides = this.buildTuningProfileOverrides(profile.name);
     const paths = Object.keys(overrides);
-    const snapshot = captureOverrideSnapshot(paths);
+    const snapshot = captureOverrideSnapshot([
+      ...new Set([...Array.from(activeTuningProfileOverridePaths), ...paths]),
+    ]);
     const previousProfile = activeTuningProfile;
     const previousAppliedAt = activeTuningProfileAppliedAt;
     const previousSource = activeTuningProfileSource;
+    const previousOverridePaths = new Set(activeTuningProfileOverridePaths);
 
     this.applyTuningProfile(profile.name, {
       ...options,
@@ -1710,6 +1689,7 @@ class TradingConfig {
       activeTuningProfile = previousProfile;
       activeTuningProfileAppliedAt = previousAppliedAt;
       activeTuningProfileSource = previousSource;
+      activeTuningProfileOverridePaths = previousOverridePaths;
     }
   }
 
@@ -1739,6 +1719,9 @@ class TradingConfig {
 
     const flatOverrides = flatten(overrides);
     activeOverrides = { ...activeOverrides, ...flatOverrides };
+    for (const path of Object.keys(flatOverrides)) {
+      activeTuningProfileOverridePaths.delete(path);
+    }
 
     console.log(`[TradingConfig] Overrides set: ${Object.keys(flatOverrides).join(', ')}`);
   }
@@ -1751,6 +1734,7 @@ class TradingConfig {
     activeTuningProfile = null;
     activeTuningProfileAppliedAt = null;
     activeTuningProfileSource = null;
+    activeTuningProfileOverridePaths = new Set();
     console.log('[TradingConfig] Overrides cleared');
   }
 

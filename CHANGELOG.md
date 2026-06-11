@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trading Profile Config Ownership (2026-06-11)
+
+- Moved runtime and tuning profile definitions into `config/trading.config.json`, retired the stale `TradingProfileManager` profile bank, and tightened profile replacement tracking so stale profile-owned overrides are cleared without deleting manual overrides.
+
 ### Pattern Memory Runtime Pruning (2026-06-11)
 
 - Wired pattern-memory pruning into long-running runtime mutation paths: `PatternMemoryBank.recordTradeOutcome()` now prunes before saving when the configured cap/staleness rules require it, and `UnifiedPatternMemory` enforces the configured cap on new patterns while its save timer prunes before persistence instead of saving unbounded state.

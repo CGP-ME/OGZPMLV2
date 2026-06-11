@@ -21,6 +21,77 @@
     "thresholdCount": 3,
     "windowMs": 300000
   },
+  "tuningProfiles": {
+    "defaultProfile": "current-eval",
+    "definitions": {
+      "current-eval": {
+        "name": "current-eval",
+        "description": "Current explicit TSLA stock-eval posture; freezes the repo .env values that workers previously inherited implicitly.",
+        "evidence": [
+          ".env:236-269",
+          ".env:328-329",
+          "config/trading.config.json:tuningProfiles.definitions.current-eval",
+          "core/TradingConfig.js backtestWorkerEnv.canonical"
+        ],
+        "env": {
+          "ENABLE_DYNAMIC_SIZING": "true",
+          "BASE_POSITION_SIZE": "0.01",
+          "MAX_POSITION_SIZE_PCT": "0.05",
+          "BASE_POSITION_PCT": "0.01",
+          "MAX_POSITION_PCT": "0.05",
+          "ABSOLUTE_POSITION_CAP": "0.15",
+          "TIER1_TARGET": "0.007",
+          "TIER2_TARGET": "0.010",
+          "TIER3_TARGET": "0.015",
+          "FINAL_TARGET": "0.025",
+          "TIER1_EXIT_FRACTION": "0.30",
+          "TIER2_EXIT_FRACTION": "0.30",
+          "TIER3_EXIT_FRACTION": "0.20",
+          "MAX_DRAWDOWN": "5",
+          "MAX_DAILY_LOSS": "1",
+          "MAX_WEEKLY_LOSS": "5",
+          "MAX_MONTHLY_LOSS": "5",
+          "ACCOUNT_DRAWDOWN_BYPASS": "true",
+          "RISK_MANAGER_BYPASS": "true",
+          "ATR_FILTER_ENABLED": "true",
+          "ATR_MIN_PERCENT": "0.15",
+          "EXIT_SYSTEM": "legacy",
+          "FEE_SLIPPAGE": "0.0005"
+        }
+      },
+      "legacy-wide": {
+        "name": "legacy-wide",
+        "description": "Wide-target historical posture from .env.gates; useful for testing whether tight MPM tiers are choking winners.",
+        "evidence": [
+          ".env.gates:69-72",
+          ".env.gates:239-272"
+        ],
+        "env": {
+          "ENABLE_DYNAMIC_SIZING": "true",
+          "BASE_POSITION_SIZE": "0.01",
+          "MAX_POSITION_SIZE_PCT": "0.05",
+          "BASE_POSITION_PCT": "0.01",
+          "MAX_POSITION_PCT": "0.05",
+          "ABSOLUTE_POSITION_CAP": "0.15",
+          "TIER1_TARGET": "0.020",
+          "TIER2_TARGET": "0.040",
+          "TIER3_TARGET": "0.060",
+          "FINAL_TARGET": "0.100",
+          "TIER1_EXIT_FRACTION": "0.30",
+          "TIER2_EXIT_FRACTION": "0.30",
+          "TIER3_EXIT_FRACTION": "0.20",
+          "MAX_DRAWDOWN": "5",
+          "MAX_DAILY_LOSS": "1",
+          "MAX_WEEKLY_LOSS": "5",
+          "MAX_MONTHLY_LOSS": "5",
+          "ACCOUNT_DRAWDOWN_BYPASS": "true",
+          "RISK_MANAGER_BYPASS": "true",
+          "EXIT_SYSTEM": "legacy",
+          "FEE_SLIPPAGE": "0.0005"
+        }
+      }
+    }
+  },
   "patternMemory": {
     "minSamples": 10,
     "successThreshold": 0.65,

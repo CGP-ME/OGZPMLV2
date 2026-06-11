@@ -2,6 +2,8 @@
 
 const path = require('path');
 const TradingConfig = require('../core/TradingConfig');
+const tradingConfigJson = require('../config/trading.config.json');
+const TradingProfileManager = require('../TradingProfileManager');
 const {
   PROFILE_DEFINITIONS,
 } = require('../tools/tuning-profiles');
@@ -23,6 +25,7 @@ describe('TradingConfig runtime profile contract', () => {
         riskPercent: expect.any(Number),
       })
     );
+    expect(TradingConfig.getProfile('balanced')).toEqual(tradingConfigJson.profiles.balanced);
   });
 
   test('unknown runtime profiles fail loudly instead of falling back to balanced', () => {
@@ -32,8 +35,14 @@ describe('TradingConfig runtime profile contract', () => {
       .toThrow(/Unknown trading profile 'undefined'/);
   });
 
+  test('retired TradingProfileManager cannot own a parallel profile bank', () => {
+    expect(() => new TradingProfileManager()).toThrow(/TradingProfileManager is retired/);
+    expect(TradingProfileManager.disabledReason).toBe('runtime_profile_switch_not_wired');
+  });
+
   test('tuning profiles resolve from TradingConfig as the single config owner', () => {
     expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide']);
+    expect(TradingConfig.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
     expect(TradingConfig.resolveTuningProfile('legacy-wide')).toEqual(
       expect.objectContaining({
         name: 'legacy-wide',
@@ -188,6 +197,7 @@ describe('TradingConfig runtime profile contract', () => {
     expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('current-eval');
     expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(0.007);
     expect(TradingConfig.get('exits.profitTiers.final')).toBe(0.025);
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
 
     const envAfter = {};
     for (const key of profileKeys) envAfter[key] = process.env[key];
@@ -244,6 +254,56 @@ describe('TradingConfig runtime profile contract', () => {
     })).toThrow(/requires an explicit flatState probe result/);
   });
 
+  test('different active profile cannot be applied without explicit replacement', () => {
+    TradingConfig.applyTuningProfile('current-eval', {
+      phase: 'startup',
+      source: 'unit-test',
+    });
+
+    expect(() => TradingConfig.applyTuningProfile('legacy-wide', {
+      phase: 'startup',
+      source: 'unit-test',
+    })).toThrow(/cannot replace active profile 'current-eval' without replaceActiveProfile=true/);
+  });
+
+  test('profile replacement removes old profile-owned paths not present in the new profile', () => {
+    TradingConfig.applyTuningProfile('current-eval', {
+      phase: 'startup',
+      source: 'unit-test',
+    });
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+
+    TradingConfig.applyTuningProfile('legacy-wide', {
+      phase: 'startup',
+      replaceActiveProfile: true,
+      flatState: { flat: true, source: 'unit-test' },
+      source: 'unit-test',
+    });
+
+    expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
+  });
+
+  test('profile replacement does not delete manual overrides removed from active profile ownership', () => {
+    TradingConfig.applyTuningProfile('current-eval', {
+      phase: 'startup',
+      source: 'unit-test',
+    });
+    TradingConfig.setOverrides({
+      'filters.atrEnabled': false,
+    });
+
+    TradingConfig.applyTuningProfile('legacy-wide', {
+      phase: 'startup',
+      replaceActiveProfile: true,
+      flatState: { flat: true, source: 'unit-test' },
+      source: 'unit-test',
+    });
+
+    expect(TradingConfig.getTuningProfileStatus().activeProfile).toBe('legacy-wide');
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
+  });
+
   test('runWithTuningProfile restores paths that were missing before the temporary profile', async () => {
     const beforeTier1 = TradingConfig.get('exits.profitTiers.tier1');
     const beforeStatus = TradingConfig.getTuningProfileStatus();
@@ -263,5 +323,25 @@ describe('TradingConfig runtime profile contract', () => {
 
     expect(TradingConfig.get('exits.profitTiers.tier1')).toBe(beforeTier1);
     expect(TradingConfig.getTuningProfileStatus()).toEqual(beforeStatus);
+  });
+
+  test('runWithTuningProfile restores manual overrides on paths changed by the temporary profile', async () => {
+    TradingConfig.setOverrides({
+      'filters.atrEnabled': false,
+    });
+
+    await TradingConfig.runWithTuningProfile(
+      'current-eval',
+      async () => {
+        expect(TradingConfig.get('filters.atrEnabled')).toBe(true);
+      },
+      {
+        phase: 'startup',
+        flatState: { flat: true, source: 'unit-test' },
+        source: 'unit-test',
+      }
+    );
+
+    expect(TradingConfig.get('filters.atrEnabled')).toBe(false);
   });
 });
