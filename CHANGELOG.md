@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Equity Source Contract (2026-06-12)
+
+- Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.
+- Updated the equity-curve panel to sample `equity` from `state_update` and `balance_update` events instead of treating `balance` as equity.
+- Removed balance fallbacks from `risk-gauge`, `size-preview`, `header-strip`, `goal-tracker`, and milestone celebration payloads, so sibling dashboard panels cannot treat free cash as account equity when an equity field is absent.
+
 ### Kraken Cancel Order Support (2026-06-12)
 
 - Implemented Kraken `CancelOrder` support in the simple adapter and wired `KrakenIBrokerAdapter.cancelOrder()` through it, so `OrderRouter.cancelAllOpenOrders()` no longer hits a throwing Kraken cancel method.

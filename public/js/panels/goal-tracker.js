@@ -1,13 +1,13 @@
 /**
- * goal-tracker.js — GoalTracker: Houston progress bar + session goal display
+ * goal-tracker.js - GoalTracker: Houston progress bar + session goal display
  *
  * Renders a slim always-visible band at the top-left of the viewport showing:
- *   - Account balance vs Houston Fund target ($10,000)
+ *   - Account equity vs Houston Fund target ($10,000)
  *   - Houston progress bar with % readout
  *   - Session P&L vs daily target ($250 default)
  *   - Trade count + win rate for the session
  *
- * Subscribes to OGZ.bus 'celebration:milestone' (balance heartbeat) and the
+ * Subscribes to OGZ.bus 'celebration:milestone' (equity heartbeat) and the
  * raw socket 'trade' + 'state_update' events for session stats.
  *
  * Persistence: long-term saved fund + total earned + start date to
@@ -60,7 +60,7 @@
         targets: { ...DEFAULTS },
         session: { pnl: 0, trades: 0, wins: 0 },
         longTerm: { currentSaved: 0, totalEarned: 0, startDate: null },
-        balance: 0,
+        equity: 0,
         domRefs: {}
     };
 
@@ -199,8 +199,8 @@
         container.innerHTML = `
             <div class="ogz-goal-tracker ${floating ? 'floating' : ''}">
                 <div class="ogz-gt-block">
-                    <div class="ogz-gt-key">Balance</div>
-                    <div class="ogz-gt-val" data-k="balance">$--</div>
+                    <div class="ogz-gt-key">Equity</div>
+                    <div class="ogz-gt-val" data-k="equity">$--</div>
                 </div>
                 <div class="ogz-gt-block">
                     <div class="ogz-gt-key">Session P&L</div>
@@ -222,7 +222,7 @@
             </div>
         `;
 
-        state.domRefs.balance      = container.querySelector('[data-k="balance"]');
+        state.domRefs.equity       = container.querySelector('[data-k="equity"]');
         state.domRefs.sessionPnl   = container.querySelector('[data-k="sessionPnl"]');
         state.domRefs.tradeMeta    = container.querySelector('[data-k="tradeMeta"]');
         state.domRefs.houstonPct   = container.querySelector('[data-k="houstonPct"]');
@@ -234,12 +234,12 @@
     function updateDisplay() {
         if (!state.mounted) return;
 
-        // Balance
-        if (state.domRefs.balance) {
-            if (state.balance > 0) {
-                state.domRefs.balance.textContent = '$' + state.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Equity
+        if (state.domRefs.equity) {
+            if (state.equity > 0) {
+                state.domRefs.equity.textContent = '$' + state.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             } else {
-                state.domRefs.balance.textContent = '$--';
+                state.domRefs.equity.textContent = '$--';
             }
         }
 
@@ -269,7 +269,7 @@
         // Houston bar
         if (state.domRefs.houstonBar && state.domRefs.houstonPct) {
             const target = state.targets.houstonTarget || DEFAULTS.houstonTarget;
-            const tracked = state.longTerm.currentSaved || state.balance || 0;
+            const tracked = state.longTerm.currentSaved || state.equity || 0;
             const pct = Math.max(0, Math.min(100, (tracked / target) * 100));
             state.domRefs.houstonBar.style.width = pct.toFixed(2) + '%';
             state.domRefs.houstonPct.textContent = pct.toFixed(1) + '%';
@@ -301,15 +301,15 @@
         try {
             const s = (d && d.state) ? d.state : null;
             if (!s) return;
-            const b = Number(s.balance) || 0;
-            if (b > 0) state.balance = b;
+            const equity = Number(s.equity) || 0;
+            if (equity > 0) state.equity = equity;
             updateDisplay();
         } catch (_) { /* swallow */ }
     }
 
-    function onMilestoneBalance(payload) {
-        if (!payload || typeof payload.balance !== 'number') return;
-        state.balance = payload.balance;
+    function onMilestoneEquity(payload) {
+        if (!payload || typeof payload.equity !== 'number') return;
+        state.equity = payload.equity;
         updateDisplay();
     }
 
@@ -334,7 +334,7 @@
 
                 (function bindBus() {
                     if (!OGZ.bus) { setTimeout(bindBus, 100); return; }
-                    OGZ.bus.on('celebration:milestone', onMilestoneBalance);
+                    OGZ.bus.on('celebration:milestone', onMilestoneEquity);
                 })();
             } catch (_) { /* swallow */ }
         },
@@ -363,7 +363,7 @@
                 targets: { ...state.targets },
                 session: { ...state.session },
                 longTerm: { ...state.longTerm },
-                balance: state.balance
+                equity: state.equity
             };
         }
     };

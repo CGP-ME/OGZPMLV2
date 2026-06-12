@@ -1,31 +1,31 @@
 /**
- * milestone-effects.js — MilestoneEffects: Houston ladder + visual celebrations
+ * milestone-effects.js - MilestoneEffects: Houston ladder + visual celebrations
  *
- * Listens to OGZ.bus 'celebration:milestone' (balance heartbeat from
- * CustomAlerts → from StateManager state_update.state.balance), and fires
+ * Listens to OGZ.bus 'celebration:milestone' (equity heartbeat from
+ * CustomAlerts -> from StateManager state_update.state.equity), and fires
  * tiered celebrations as the user crosses thresholds en route to the Houston
  * moving fund.
  *
- * Tiers (firstTrade and firstWin tiers fire on win events not balance):
- *   firstTrade        — any close (banner only)
- *   firstWin          — first profitable close (banner + confetti)
- *   first100          — balance crosses $100 profit (banner + confetti + flash)
- *   first1000         — balance crosses $1,000 profit (banner + confetti + flash)
- *   houstonQuarter    — balance reaches $2,500 (rocket animation)
- *   houstonHalf       — balance reaches $5,000 (rocket animation + brand flash)
- *   houstonReady      — balance reaches $10,000 (full-screen takeover overlay)
+ * Tiers (firstTrade and firstWin tiers fire on win events, not equity):
+ *   firstTrade        - any close (banner only)
+ *   firstWin          - first profitable close (banner + confetti)
+ *   first100          - equity crosses $100 profit (banner + confetti + flash)
+ *   first1000         - equity crosses $1,000 profit (banner + confetti + flash)
+ *   houstonQuarter    - equity reaches $2,500 (rocket animation)
+ *   houstonHalf       - equity reaches $5,000 (rocket animation + brand flash)
+ *   houstonReady      - equity reaches $10,000 (full-screen takeover overlay)
  *
  * Persists fired milestones to localStorage so they don't re-fire on reload.
- * Emits 'celebration:milestone-hit' { tier, balance } so VictoryAnimations
+ * Emits 'celebration:milestone-hit' { tier, label } so VictoryAnimations
  * plays the milestone fanfare on tier crossings.
  *
  * Self-registers as OGZ.MilestoneEffects.
  *
  * Public API:
- *   init() — wire bus listeners, inject styles, load persisted state
- *   check(balance) — manual trigger
- *   resetProgress() — clear all fired tiers (debugging / fresh test)
- *   setTargets(overrides) — adjust threshold values
+ *   init() - wire bus listeners, inject styles, load persisted state
+ *   check(equity) - manual trigger
+ *   resetProgress() - clear all fired tiers (debugging / fresh test)
+ *   setTargets(overrides) - adjust threshold values
  *   teardown()
  *   _compute()
  *
@@ -37,8 +37,8 @@
     const STORAGE_KEY = 'ogz.milestones.fired';
     const STYLE_ID = 'ogz-milestone-effects-styles';
 
-    // Default tiers — keys must be stable (used as localStorage flags).
-    // Balance values represent ACCOUNT TOTAL (not P&L delta). Adjust via
+    // Default tiers - keys must be stable (used as localStorage flags).
+    // Equity values represent ACCOUNT TOTAL (not P&L delta). Adjust via
     // setTargets() if the bot's starting equity is different.
     const DEFAULT_TIERS = {
         first100:      { value: 100,   label: '🎯 First $100',           kind: 'profit'   },
@@ -48,7 +48,7 @@
         houstonReady:  { value: 10000, label: 'HOUSTON FUND COMPLETE',    kind: 'endgame'  }
     };
 
-    // Win-event tiers (triggered by 'celebration:win', not balance)
+    // Win-event tiers (triggered by 'celebration:win', not equity)
     const WIN_EVENT_TIERS = {
         firstWin: { label: '💰 First Win!', sub: 'Taste of victory!' }
     };
@@ -58,7 +58,7 @@
         tiers: { ...DEFAULT_TIERS },
         fired: {},                 // { tierKey: true }
         firedWinEvents: {},
-        peakBalance: 0,
+        peakEquity: 0,
         tradeCount: 0
     };
 
@@ -70,7 +70,7 @@
                 const data = JSON.parse(raw);
                 state.fired = data.fired || {};
                 state.firedWinEvents = data.firedWinEvents || {};
-                state.peakBalance = data.peakBalance || 0;
+                state.peakEquity = data.peakEquity || 0;
             }
         } catch (_) { /* swallow */ }
     }
@@ -79,7 +79,7 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 fired: state.fired,
                 firedWinEvents: state.firedWinEvents,
-                peakBalance: state.peakBalance
+                peakEquity: state.peakEquity
             }));
         } catch (_) { /* swallow */ }
     }
@@ -349,13 +349,13 @@
         }
     }
 
-    function check(balance) {
-        const b = Number(balance) || 0;
-        if (b > state.peakBalance) {
-            state.peakBalance = b;
+    function check(equity) {
+        const b = Number(equity) || 0;
+        if (b > state.peakEquity) {
+            state.peakEquity = b;
             savePersisted();
         }
-        // Fire any unfired tier whose threshold the balance has crossed.
+        // Fire any unfired tier whose threshold the equity has crossed.
         // Iterate in ascending threshold order so banners come in sequence
         // if multiple cross in one update.
         const sorted = Object.entries(state.tiers).sort((a, b2) => a[1].value - b2[1].value);
@@ -366,9 +366,9 @@
         }
     }
 
-    function onMilestoneBalance(payload) {
-        if (!payload || typeof payload.balance !== 'number') return;
-        check(payload.balance);
+    function onMilestoneEquity(payload) {
+        if (!payload || typeof payload.equity !== 'number') return;
+        check(payload.equity);
     }
 
     // Win-event tiers (firstWin)
@@ -391,7 +391,7 @@
                 loadPersisted();
                 (function bindBus() {
                     if (!OGZ.bus) { setTimeout(bindBus, 100); return; }
-                    OGZ.bus.on('celebration:milestone', onMilestoneBalance);
+                    OGZ.bus.on('celebration:milestone', onMilestoneEquity);
                     OGZ.bus.on('celebration:win', onWin);
                 })();
             } catch (_) { /* swallow */ }
@@ -400,7 +400,7 @@
         resetProgress() {
             state.fired = {};
             state.firedWinEvents = {};
-            state.peakBalance = 0;
+            state.peakEquity = 0;
             try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
         },
         setTargets(overrides) {
@@ -420,7 +420,7 @@
                 tiers: state.tiers,
                 fired: { ...state.fired },
                 firedWinEvents: { ...state.firedWinEvents },
-                peakBalance: state.peakBalance,
+                peakEquity: state.peakEquity,
                 tradeCount: state.tradeCount
             };
         }

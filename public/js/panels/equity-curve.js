@@ -29,13 +29,13 @@
  * Mounts into <div id="equityCurve"></div>.
  *
  * Subscribes to WS events:
- *   - state_update (⚠ TODO verify; most likely source for balance/equity)
- *   - balance_update (⚠ TODO verify; alternative balance sync)
- *   - trade (✓ verified) — emitted when trade closes, provides symbol/side/pnl
- *   - price (✓ verified) — live tick; if data.equity field present (verified in size-preview.js)
+ *   - state_update (TODO verify; most likely source for balance/equity)
+ *   - balance_update (TODO verify; alternative balance sync)
+ *   - trade (verified) - emitted when trade closes, provides symbol/side/pnl
+ *   - price (verified) - live tick; if data.equity field present (verified in size-preview.js)
  *                          it may drive live equity recalc. Fallback: sample every ~10s.
  * Listens to OGZ.bus:
- *   - account:change — to swap the curve when operator changes account
+ *   - account:change - to swap the curve when operator changes account
  *
  * Internal state:
  *   - Holds in-memory rolling buffer of EquitySample objects (default 1000 samples)
@@ -57,7 +57,7 @@
  *
  * NO synthetic data. NO demo mode. NO Math.random. The curve only renders
  * samples that arrive from real WS events (price w/ data.equity, balance_update,
- * state_update with state.balance) and real closed trades. Empty state until
+ * state_update with state.equity) and real closed trades. Empty state until
  * the first sample arrives.
  *
  * @typedef {Object} EquitySample
@@ -711,7 +711,14 @@
         }
 
         const tradeId = `${ticker}-${ts}-${++_tradeIdCounter}`;
-        const equityAtVal = equityAt || (state.samples.length > 0 ? state.samples[state.samples.length - 1].equity : 50000);
+        let equityAtVal = Number.isFinite(equityAt) ? equityAt : null;
+        if (equityAtVal === null && state.samples.length > 0) {
+            equityAtVal = state.samples[state.samples.length - 1].equity;
+        }
+        if (equityAtVal === null) {
+            console.warn('[EquityCurve] Trade marker skipped; no equity sample available');
+            return;
+        }
 
         state.trades.set(tradeId, {
             ts,
@@ -738,8 +745,8 @@
 
     function handleTrade(data) {
         try {
-            if (data && data.type === 'close' && data.symbol && data.side && typeof data.pnl === 'number') {
-                addTradeMarker(data.ts || Date.now(), data.symbol, data.side, data.pnl, data.balance);
+            if (data && data.type === 'close' && data.symbol && data.side && typeof data.pnl === 'number' && typeof data.equity === 'number') {
+                addTradeMarker(data.ts || Date.now(), data.symbol, data.side, data.pnl, data.equity);
             }
         } catch (e) {
             // Silently ignore malformed trade events
@@ -748,8 +755,8 @@
 
     function handleBalanceUpdate(data) {
         try {
-            if (data && typeof data.balance === 'number') {
-                addEquitySample(data.ts || Date.now(), data.balance);
+            if (data && typeof data.equity === 'number') {
+                addEquitySample(data.ts || Date.now(), data.equity);
             }
         } catch (e) {
             // Silently ignore malformed balance events
@@ -758,8 +765,8 @@
 
     function handleStateUpdate(data) {
         try {
-            if (data && typeof data.balance === 'number') {
-                addEquitySample(data.ts || Date.now(), data.balance);
+            if (data && typeof data.equity === 'number') {
+                addEquitySample(data.ts || Date.now(), data.equity);
             }
         } catch (e) {
             // Silently ignore malformed state updates

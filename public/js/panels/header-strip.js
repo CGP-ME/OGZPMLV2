@@ -1,68 +1,68 @@
 /**
- * header-strip.js — HeaderStrip: Dashboard Header Panel
+ * header-strip.js - HeaderStrip: Dashboard Header Panel
  *
  * The topmost persistent UI element containing brand identity, live system state,
  * and account/session context.
  *
  * What it renders:
- *   [LEFT]   OGZPrime logo + tagline ("Neural Ensemble — Real-Time Data")
+ *   [LEFT]   OGZPrime logo + tagline ("Neural Ensemble - Real-Time Data")
  *   [CENTER] Hero: total account equity, session P&L, session trade count + win rate
  *   [RIGHT]  Status cluster: DATA/BOT/TRAI lights, Risk Budget meter, Account selector
  *
  * State tracking:
- *   - Account equity: balance + unrealizedPnL (live, derived from state_update)
+ *   - Account equity: explicit state_update.equity
  *   - Session P&L: totalPnL since session open
  *   - Session trade count + win rate (from state_update.tradeCount + tradePNL ledger)
- *   - Risk budget: drawdown from session-open as percentage of session-open balance
+ *   - Risk budget: drawdown from session-open as percentage of session-open equity
  *   - Three status lights: DATA (price ticks), BOT (bot_thinking), TRAI (narrator_event)
  *
  * Self-registers as OGZ.HeaderStrip via OGZ.register().
  * Mounts into <header id="dashHeader">.
  *
  * Verified WS subscriptions (real bot emitter shapes):
- *   - 'price'          → CandleProcessor.broadcastPrice; DATA-light heartbeat only.
+ *   - 'price'          -> CandleProcessor.broadcastPrice; DATA-light heartbeat only.
  *                        Shape: { type:'price', data:{ price, candle, indicators,
- *                        overlays, balance, position, ... } }
- *   - 'state_update'   → StateManager.broadcastToDashboard; equity hero + risk meter.
- *                        Shape: { type:'state_update', state:{ position, balance,
- *                        totalBalance, realizedPnL, unrealizedPnL, totalPnL,
+ *                        overlays, equity, position, ... } }
+ *   - 'state_update'   -> StateManager.broadcastToDashboard; equity hero + risk meter.
+ *                        Shape: { type:'state_update', state:{ position, equity,
+ *                        balance, totalBalance, realizedPnL, unrealizedPnL, totalPnL,
  *                        tradeCount, dailyTradeCount, recoveryMode }, timestamp }
- *   - 'balance_update' → fallback: { type:'balance_update', balance } (read defensively)
- *   - 'bot_thinking'   → TradingLoop.processCycle / TRAIDecisionModule. BOT-light heartbeat.
+ *   - 'balance_update' -> equity fallback: { type:'balance_update', equity }
+ *   - 'bot_thinking'   -> TradingLoop.processCycle / TRAIDecisionModule. BOT-light heartbeat.
  *                        Shape: { type:'bot_thinking', timestamp, message, confidence,
  *                        data:{ reasoning, price, regime, module }, strategy_stack }
- *   - 'narrator_event' → TradeNarrator.broadcast. TRAI-light heartbeat.
+ *   - 'narrator_event' -> TradeNarrator.broadcast. TRAI-light heartbeat.
  *                        Shape: { type:'narrator_event', subtype, text, timestamp }
- *   - 'trade'          → OrderExecutor; session win/loss tally.
+ *   - 'trade'          -> OrderExecutor; session win/loss tally.
  *                        Shape: { type:'trade', action, direction, price, pnl,
  *                        timestamp, confidence }
  *
  * Listens to OGZ.bus events:
- *   - account:change — when dropdown selects a new account
- *   - risk:update    — when an external RiskGauge module reports new budget
+ *   - account:change - when dropdown selects a new account
+ *   - risk:update    - when an external RiskGauge module reports new budget
  *                      (overrides the auto-derived value)
  *
  * Graceful fallback: displays "--" placeholders if no events arrive.
  * No console.log in production code.
  *
  * Public API:
- *   init() — mount to DOM, inject styles, subscribe to WS + bus events
- *   setAccount(accountName) — update the account selector display
- *   getAccount() — return current account name
- *   getEquity() — return {price, delta, deltaPercent, priceOpen}
- *   setStatusLight(name, active, error) — update DATA/BOT/TRAI state
- *   setRiskBudget(percent, level) — update risk gauge (SAFE/WARN/DANGER)
- *   teardown() — remove DOM, listeners, styles
- *   _compute() — debug helper: return internal state snapshot
+ *   init() - mount to DOM, inject styles, subscribe to WS + bus events
+ *   setAccount(accountName) - update the account selector display
+ *   getAccount() - return current account name
+ *   getEquity() - return the current equity snapshot
+ *   setStatusLight(name, active, error) - update DATA/BOT/TRAI state
+ *   setRiskBudget(percent, level) - update risk gauge (SAFE/WARN/DANGER)
+ *   teardown() - remove DOM, listeners, styles
+ *   _compute() - debug helper: return internal state snapshot
  *
  * @typedef {Object} HeaderState
- * @property {number} equity — current price
- * @property {number} equityDelta — session P&L in dollars
- * @property {number} equityDeltaPercent — session P&L in percent
- * @property {number} riskBudget — 0..100 percentage
- * @property {string} riskLevel — 'SAFE' | 'WARN' | 'DANGER'
- * @property {Object} statusLights — {data, bot, trai} — each {active: bool, error: bool}
- * @property {string} currentAccount — account display name or 'default'
+ * @property {number} equity - current account equity
+ * @property {number} equityDelta - session P&L in dollars
+ * @property {number} equityDeltaPercent - session P&L in percent
+ * @property {number} riskBudget - 0..100 percentage
+ * @property {string} riskLevel - 'SAFE' | 'WARN' | 'DANGER'
+ * @property {Object} statusLights - {data, bot, trai}; each {active: bool, error: bool}
+ * @property {string} currentAccount - account display name or 'default'
  *
  * @module public/js/panels/header-strip
  */
@@ -77,7 +77,7 @@
     const DEFAULT_ACCOUNT = 'default';
     const PRICE_HISTORY_SIZE = 100;          // Track recent prices for delta calc
 
-    // Brand colors — must match CSS variables
+    // Brand colors - must match CSS variables
     const COLORS = {
         statusGreen: '#00ff88',
         statusYellow: '#ffcc00',
@@ -92,19 +92,18 @@
         mounted: false,
 
         // Account equity hero (real account dollars, NOT asset price)
-        equity: 0,                 // balance + unrealizedPnL (live)
-        balance: 0,                // bot's "balance" field
+        equity: 0,                 // explicit account equity
         unrealizedPnL: 0,
         sessionTotalPnL: 0,        // totalPnL since session open
-        sessionOpenBalance: 0,     // captured on first state_update — for risk %
+        sessionOpenEquity: 0,      // captured on first state_update - for risk %
         sessionTradeCount: 0,
         sessionWins: 0,
         sessionLosses: 0,
         priceHistory: [],          // for DATA-light idle detection
         externalRiskOverride: null,// non-null = use external RiskGauge value
 
-        // Risk budget — auto-derived unless external override fires
-        riskBudget: 0,             // 0..100 (% of session-open balance burned)
+        // Risk budget - auto-derived unless external override fires
+        riskBudget: 0,             // 0..100 (% of session-open equity burned)
         riskLevel: 'SAFE',         // 'SAFE' | 'WARN' | 'DANGER'
 
         // Status lights
@@ -503,7 +502,7 @@
                     </div>
                 </div>
 
-                <div class="hs-risk-budget" title="Risk budget — how much of your session-opening balance has been drawn down. The percentage is current drawdown; the label escalates SAFE → WARN → DANGER as it grows.">
+                <div class="hs-risk-budget" title="Risk budget - how much of your session-opening equity has been drawn down. The percentage is current drawdown; the label escalates SAFE -> WARN -> DANGER as it grows.">
                     <div class="hs-risk-budget-percent" id="hsRiskPercent">0%</div>
                     <div class="hs-risk-budget-level" id="hsRiskLevel">SAFE</div>
                 </div>
@@ -540,25 +539,25 @@
     }
 
     function updateDisplay() {
-        // Hero: account equity (NOT asset price — that's on the chart panel).
+        // Hero: account equity (NOT asset price - that's on the chart panel).
         // Show '$--.--' until first state_update arrives so we never lie about
         // a zero balance from cold-boot.
         if (state.domRefs.heroPriceMain) {
-            if (state.sessionOpenBalance > 0 || state.equity > 0) {
+            if (state.sessionOpenEquity > 0 || state.equity > 0) {
                 state.domRefs.heroPriceMain.textContent = `$${Number(state.equity).toLocaleString(undefined, {
                     minimumFractionDigits: 2, maximumFractionDigits: 2
                 })}`;
             } else {
                 state.domRefs.heroPriceMain.textContent = '$--.--';
             }
-            state.domRefs.heroPriceMain.classList.toggle('neg', state.equity < state.sessionOpenBalance);
+            state.domRefs.heroPriceMain.classList.toggle('neg', state.equity < state.sessionOpenEquity);
         }
 
-        // Delta: session P&L vs session-open balance
+        // Delta: session P&L vs session-open equity
         if (state.domRefs.heroPriceDelta) {
-            if (state.sessionOpenBalance > 0) {
-                const delta = state.equity - state.sessionOpenBalance;
-                const deltaPct = (delta / state.sessionOpenBalance) * 100;
+            if (state.sessionOpenEquity > 0) {
+                const delta = state.equity - state.sessionOpenEquity;
+                const deltaPct = (delta / state.sessionOpenEquity) * 100;
                 const sign = delta >= 0 ? '+' : '';
                 state.domRefs.heroPriceDelta.textContent =
                     `${sign}$${delta.toFixed(2)} (${sign}${deltaPct.toFixed(2)}%) session`;
@@ -615,16 +614,16 @@
     }
 
     // Auto-derive risk meter from session drawdown (if no external override).
-    // Risk = % of session-open balance currently burned (cap at 100).
+    // Risk = % of session-open equity currently burned (cap at 100).
     function recomputeRiskBudget() {
         if (state.externalRiskOverride != null) return; // external module wins
-        if (state.sessionOpenBalance <= 0) {
+        if (state.sessionOpenEquity <= 0) {
             state.riskBudget = 0;
             state.riskLevel = 'SAFE';
             return;
         }
-        const drawdown = Math.max(0, state.sessionOpenBalance - state.equity);
-        const pct = Math.min(100, (drawdown / state.sessionOpenBalance) * 100);
+        const drawdown = Math.max(0, state.sessionOpenEquity - state.equity);
+        const pct = Math.min(100, (drawdown / state.sessionOpenEquity) * 100);
         state.riskBudget = pct;
         if (pct >= 50) state.riskLevel = 'DANGER';
         else if (pct >= 20) state.riskLevel = 'WARN';
@@ -662,7 +661,7 @@
 
     // ─── WS Event Handlers (real bot emitter shapes) ────────────────────
 
-    // 'price' tick — DATA light heartbeat only. The asset price itself lives
+    // 'price' tick - DATA light heartbeat only. The asset price itself lives
     // on the chart panel; we don't want to misuse the equity hero for it.
     function handlePrice(d) {
         try {
@@ -676,34 +675,34 @@
         } catch (_) { /* swallow */ }
     }
 
-    // 'state_update' — StateManager's authoritative account snapshot.
+    // 'state_update' - StateManager's authoritative account snapshot.
     // Drives equity hero, session P&L delta, win-rate, risk meter.
     function handleStateUpdate(d) {
         try {
             const s = d && d.state ? d.state : (d && d.data && d.data.state) ? d.data.state : null;
             if (!s) return;
 
-            const balance = Number(s.balance != null ? s.balance : s.totalBalance) || 0;
+            const equity  = Number(s.equity);
+            if (!isFinite(equity) || equity <= 0) return;
             const unr     = Number(s.unrealizedPnL || 0);
             const totPnL  = Number(s.totalPnL || 0);
             const trades  = Number(s.tradeCount || 0);
 
             const prevEquity = state.equity;
-            state.balance = balance;
             state.unrealizedPnL = unr;
-            state.equity = balance + unr;
+            state.equity = equity;
             state.sessionTotalPnL = totPnL;
             state.sessionTradeCount = trades;
 
-            // Capture session-open balance on first real state_update.
+            // Capture session-open equity on first real state_update.
             // Walk back to the pre-PnL principal so the % delta is correct
             // regardless of when the dashboard joined the session.
-            if (state.sessionOpenBalance === 0 && balance > 0) {
-                state.sessionOpenBalance = balance - totPnL;
-                if (state.sessionOpenBalance <= 0) state.sessionOpenBalance = balance;
+            if (state.sessionOpenEquity === 0) {
+                state.sessionOpenEquity = equity - totPnL;
+                if (state.sessionOpenEquity <= 0) state.sessionOpenEquity = equity;
             }
 
-            // Recovery mode = bot self-flagged drawdown trigger → DANGER lock
+            // Recovery mode = bot self-flagged drawdown trigger -> DANGER lock
             if (s.recoveryMode && state.externalRiskOverride == null) {
                 state.riskLevel = 'DANGER';
                 state.riskBudget = Math.max(state.riskBudget, 50);
@@ -726,22 +725,21 @@
         } catch (_) { /* swallow */ }
     }
 
-    // 'balance_update' — fallback for dashboards that arrive after StateManager.
-    // Shape: { type:'balance_update', balance } (verified in core.js routing)
+    // 'balance_update' - equity fallback for dashboards that arrive after StateManager.
+    // Shape: { type:'balance_update', equity }
     function handleBalanceUpdate(d) {
         try {
             const data = (d && d.data) ? d.data : d;
-            const balance = Number(data && data.balance);
-            if (!isFinite(balance) || balance <= 0) return;
-            state.balance = balance;
-            state.equity = balance + (state.unrealizedPnL || 0);
-            if (state.sessionOpenBalance === 0) state.sessionOpenBalance = balance;
+            const equity = Number(data && data.equity);
+            if (!isFinite(equity) || equity <= 0) return;
+            state.equity = equity;
+            if (state.sessionOpenEquity === 0) state.sessionOpenEquity = equity;
             recomputeRiskBudget();
             updateDisplay();
         } catch (_) { /* swallow */ }
     }
 
-    // 'bot_thinking' — BOT light heartbeat. We don't render the reasoning
+    // 'bot_thinking' - BOT light heartbeat. We don't render the reasoning
     // here (Intelligence/HUD modules own that); we only use this as proof
     // of life for the BOT pill.
     function handleBotThinking(_d) {
@@ -749,13 +747,13 @@
         updateDisplay();
     }
 
-    // 'narrator_event' — TRAI heartbeat. Also drives a light pulse only.
+    // 'narrator_event' - TRAI heartbeat. Also drives a light pulse only.
     function handleNarratorEvent(_d) {
         pulseLight('trai');
         updateDisplay();
     }
 
-    // 'trade' — session win/loss tally. Bot shape:
+    // 'trade' - session win/loss tally. Bot shape:
     //   { type:'trade', action:'BUY'|'SELL', direction, price, pnl, timestamp, confidence }
     // Only SELL events carry final pnl (BUY pnl is 0). Count both as a trade
     // increment; classify win/loss strictly by SELL.pnl sign.
@@ -767,7 +765,7 @@
                 if (pnl > 0) state.sessionWins++;
                 else if (pnl < 0) state.sessionLosses++;
             }
-            // Don't increment sessionTradeCount here — state_update.tradeCount
+            // Do not increment sessionTradeCount here - state_update.tradeCount
             // is authoritative and arrives right after each trade. Avoids
             // double-counting if both fire.
             updateDisplay();
@@ -854,13 +852,12 @@
         getEquity() {
             return {
                 equity: state.equity,
-                balance: state.balance,
                 unrealizedPnL: state.unrealizedPnL,
-                sessionPnL: state.equity - state.sessionOpenBalance,
-                sessionPnLPercent: state.sessionOpenBalance > 0
-                    ? ((state.equity - state.sessionOpenBalance) / state.sessionOpenBalance) * 100
+                sessionPnL: state.equity - state.sessionOpenEquity,
+                sessionPnLPercent: state.sessionOpenEquity > 0
+                    ? ((state.equity - state.sessionOpenEquity) / state.sessionOpenEquity) * 100
                     : 0,
-                sessionOpenBalance: state.sessionOpenBalance,
+                sessionOpenEquity: state.sessionOpenEquity,
                 trades: state.sessionTradeCount,
                 wins: state.sessionWins,
                 losses: state.sessionLosses,
@@ -920,10 +917,9 @@
             return {
                 mounted: state.mounted,
                 equity: state.equity,
-                balance: state.balance,
                 unrealizedPnL: state.unrealizedPnL,
                 sessionTotalPnL: state.sessionTotalPnL,
-                sessionOpenBalance: state.sessionOpenBalance,
+                sessionOpenEquity: state.sessionOpenEquity,
                 sessionTradeCount: state.sessionTradeCount,
                 sessionWins: state.sessionWins,
                 sessionLosses: state.sessionLosses,

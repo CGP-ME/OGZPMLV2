@@ -1,5 +1,5 @@
 /**
- * custom-alerts.js — CustomAlerts: 5-priority alert dispatcher + UI
+ * custom-alerts.js - CustomAlerts: 5-priority alert dispatcher + UI
  *
  * The spine of the celebration / emotional layer. Subscribes to bot trade
  * events and StateManager updates, classifies each event into one of five
@@ -16,27 +16,27 @@
  * Verified WS subscriptions (real bot emitter shapes):
  *   - 'trade' (OrderExecutor): { type, action, direction, price, pnl,
  *     timestamp, confidence, duration? }
- *     · BUY / SELL_SHORT     → info  (entry)
- *     · SELL  with pnl > 0   → victory (long win)
- *     · SELL  with pnl < 0   → roast / critical depending on streak
- *     · COVER with pnl > 0   → victory (short win)
- *     · COVER with pnl < 0   → roast / critical
+ *     - BUY / SELL_SHORT     -> info  (entry)
+ *     - SELL  with pnl > 0   -> victory (long win)
+ *     - SELL  with pnl < 0   -> roast / critical depending on streak
+ *     - COVER with pnl > 0   -> victory (short win)
+ *     - COVER with pnl < 0   -> roast / critical
  *   - 'state_update' (StateManager): tracks tradeCount for win/loss streak
- *     and recoveryMode → warning
+ *     and recoveryMode -> warning
  *
  * Emits OGZ.bus events (downstream celebration modules subscribe to these):
  *   - 'celebration:win'  { pnl, direction, price, timestamp, streakWin }
  *   - 'celebration:loss' { pnl, direction, price, timestamp, streakLoss }
- *   - 'celebration:milestone' { tier, balance }   (from state_update)
+ *   - 'celebration:milestone' { equity }          (from state_update)
  *   - 'celebration:alert' { type, message, ts }   (every alert fires this)
  *
  * Public API:
- *   init() — mount, inject styles, wire socket
- *   createAlert(message, type, options) — manually create an alert
- *   getAlerts() — Array of recent alerts
- *   clearAll() — empty the toast stack
- *   teardown() — full cleanup
- *   _compute() — debug snapshot
+ *   init() - mount, inject styles, wire socket
+ *   createAlert(message, type, options) - manually create an alert
+ *   getAlerts() - Array of recent alerts
+ *   clearAll() - empty the toast stack
+ *   teardown() - full cleanup
+ *   _compute() - debug snapshot
  *
  * NO synthetic alerts. NO Math.random. Every alert is driven by a real
  * bot-side broadcast. If nothing fires, nothing shows.
@@ -68,7 +68,7 @@
         roast:    { icon: '🔥', color: '#ff6b6b', label: 'L'    }
     };
 
-    // Streak thresholds — switch from roast to encouragement at 3+
+    // Streak thresholds - switch from roast to encouragement at 3+
     const STREAK_ROAST_LIMIT = 2;
 
     // ─── Module State ───────────────────────────────────────────────────
@@ -79,7 +79,7 @@
         streakWin: 0,
         streakLoss: 0,
         lastTradeCount: 0,
-        lastBalance: 0,
+        lastEquity: 0,
         lastRecoveryMode: false
     };
 
@@ -393,28 +393,28 @@
         } catch (_) { /* swallow */ }
     }
 
-    // ─── State Update — recoveryMode warnings + balance for milestones ──
+    // ─── State Update - recoveryMode warnings + equity for milestones ──
     function handleStateUpdate(d) {
         try {
             const s = (d && d.state) ? d.state : null;
             if (!s) return;
-            const balance = Number(s.balance) || 0;
+            const equity = Number(s.equity) || 0;
             const recovery = !!s.recoveryMode;
 
             // Recovery-mode entry warning (fires once on edge)
             if (recovery && !state.lastRecoveryMode) {
                 createAlert(
-                    'Recovery mode active — bot self-throttled after drawdown',
+                    'Recovery mode active - bot self-throttled after drawdown',
                     'warning',
                     { metadata: { reason: 'recoveryMode' } }
                 );
             }
             state.lastRecoveryMode = recovery;
-            state.lastBalance = balance;
+            state.lastEquity = equity;
 
             // Forward to milestone module (it owns tier decisions)
-            if (OGZ.bus && balance > 0) {
-                OGZ.bus.emit('celebration:milestone', { balance });
+            if (OGZ.bus && equity > 0) {
+                OGZ.bus.emit('celebration:milestone', { equity });
             }
         } catch (_) { /* swallow */ }
     }
@@ -461,7 +461,7 @@
                 alertsInMemory: state.alerts.length,
                 streakWin: state.streakWin,
                 streakLoss: state.streakLoss,
-                lastBalance: state.lastBalance,
+                lastEquity: state.lastEquity,
                 lastRecoveryMode: state.lastRecoveryMode
             };
         }

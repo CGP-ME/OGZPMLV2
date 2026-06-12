@@ -1,27 +1,27 @@
 /**
- * risk-gauge.js — Daily Risk Budget Gauge (Phase E)
+ * risk-gauge.js - Daily Risk Budget Gauge (Phase E)
  *
  * Compact radial SVG ring showing what percentage of the daily loss-limit
  * budget has been consumed.
  *
- *   < 50% used  → state-ok     (green)
- *   50-80%      → state-watch  (amber)
- *   ≥ 80%       → state-danger (red, pulsing)
+ *   < 50% used  -> state-ok     (green)
+ *   50-80%      -> state-watch  (amber)
+ *   >= 80%      -> state-danger (red, pulsing)
  *
- * Session start balance, peak, date, and loss-limit % persist in
+ * Session start equity, peak, date, and loss-limit % persist in
  * localStorage. Session resets at the next UTC midnight boundary.
  *
  * Data sources (priority):
- *   1. price.data.balance     — authoritative (CandleProcessor per-tick)
- *   2. balance_update.balance  — bot heartbeat
- *   3. state_update.state.balance — fallback
- *   4. trade.pnl               — only if price stream is NOT active
- *                                (balanceFromPriceStream flag prevents double-count)
+ *   1. price.data.equity      - authoritative account value (CandleProcessor per-tick)
+ *   2. balance_update.equity - explicit equity heartbeat
+ *   3. state_update.state.equity - equity fallback
+ *   trade.pnl is not used to derive equity; the gauge waits for authoritative
+ *   account equity instead of reconstructing it from events.
  *
  * Self-injects its own scoped CSS; self-registers as OGZ.RiskGauge.
  * Also exposes window.OGZRiskGauge for debug console access.
  *
- * Mount priority: #botStatusRow → .bot-status-row → .header
+ * Mount priority: #botStatusRow -> .bot-status-row -> .header
  *
  * @module public/js/panels/risk-gauge
  */
@@ -32,9 +32,9 @@
     const ROOT_ID = 'riskGauge';
 
     // ─── Storage keys ──────────────────────────────────────────────────
-    const LS_KEY_START = 'ogz.risk.sessionStartBalance';
+    const LS_KEY_START = 'ogz.risk.sessionStartEquity';
     const LS_KEY_DATE = 'ogz.risk.sessionDate';
-    const LS_KEY_PEAK = 'ogz.risk.sessionPeak';
+    const LS_KEY_PEAK = 'ogz.risk.sessionPeakEquity';
     const LS_KEY_LIMIT = 'ogz.riskLimit.pct';
 
     // Ring geometry (compact, 56×56)
@@ -45,12 +45,11 @@
     // ─── State ─────────────────────────────────────────────────────────
     const state = {
         mounted: false,
-        currentBalance: null,
-        sessionStart: null,          // balance at session open
-        sessionPeak: null,           // highest balance seen this session
+        currentEquity: null,
+        sessionStart: null,          // equity at session open
+        sessionPeak: null,           // highest equity seen this session
         sessionDate: null,           // UTC yyyy-mm-dd
         lossLimitPct: 0.05,          // 5% default
-        balanceFromPriceStream: false,
     };
 
     // ─── localStorage helpers ──────────────────────────────────────────
@@ -101,13 +100,13 @@
         state.sessionDate = savedDate;
     }
 
-    function initSessionStart(balance) {
+    function initSessionStart(equity) {
         if (state.sessionStart != null) return;
-        if (!isFinite(balance) || balance <= 0) return;
-        state.sessionStart = balance;
-        state.sessionPeak = balance;
-        lsSet(LS_KEY_START, balance);
-        lsSet(LS_KEY_PEAK, balance);
+        if (!isFinite(equity) || equity <= 0) return;
+        state.sessionStart = equity;
+        state.sessionPeak = equity;
+        lsSet(LS_KEY_START, equity);
+        lsSet(LS_KEY_PEAK, equity);
     }
 
     function loadLimit() {
@@ -117,9 +116,9 @@
 
     // ─── Compute metrics ───────────────────────────────────────────────
     function compute() {
-        const bal = state.currentBalance;
+        const equity = state.currentEquity;
         const start = state.sessionStart;
-        if (!isFinite(bal) || !isFinite(start) || start <= 0) {
+        if (!isFinite(equity) || !isFinite(start) || start <= 0) {
             return {
                 ready: false,
                 pnl: 0,
@@ -129,10 +128,10 @@
                 drawdownFromPeak: 0,
                 peak: null,
                 start: start,
-                balance: bal,
+                equity,
             };
         }
-        const pnl = bal - start;
+        const pnl = equity - start;
         const pnlPct = (pnl / start) * 100;
         const lossLimit = start * state.lossLimitPct;   // dollar loss budget
         // Used % = how deep in the red we are relative to the budget.
@@ -142,7 +141,7 @@
             usedPct = Math.min(100, (Math.abs(pnl) / lossLimit) * 100);
         }
         const peak = state.sessionPeak != null ? state.sessionPeak : start;
-        const drawdownFromPeak = peak > 0 ? ((peak - bal) / peak) * 100 : 0;
+        const drawdownFromPeak = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
         return {
             ready: true,
             pnl,
@@ -152,7 +151,7 @@
             drawdownFromPeak: Math.max(0, drawdownFromPeak),
             peak,
             start,
-            balance: bal,
+            equity,
         };
     }
 
@@ -365,7 +364,7 @@
             const offset = RING_CIRC * (1 - used / 100);
             ringFill.setAttribute('stroke-dashoffset', offset.toFixed(3));
         }
-        // When the gauge hasn't received authoritative balance data yet,
+        // When the gauge hasn't received authoritative equity data yet,
         // show "—" / "WAIT" instead of the default "0% SAFE" — that was
         // indistinguishable from a working gauge with no drawdown, so
         // a broken pipeline looked identical to a healthy "no losses today."
@@ -401,46 +400,21 @@
     }
 
     // ─── Balance update paths ──────────────────────────────────────────
-    function updateBalance(balance) {
-        if (!isFinite(balance) || balance <= 0) return;
+    function updateEquity(equity) {
+        if (!isFinite(equity) || equity <= 0) return;
         // Session rollover check on every update
         if (todayET() !== state.sessionDate) loadSession();
-        initSessionStart(balance);
-        state.currentBalance = balance;
-        if (state.sessionPeak == null || balance > state.sessionPeak) {
-            state.sessionPeak = balance;
-            lsSet(LS_KEY_PEAK, balance);
+        initSessionStart(equity);
+        state.currentEquity = equity;
+        if (state.sessionPeak == null || equity > state.sessionPeak) {
+            state.sessionPeak = equity;
+            lsSet(LS_KEY_PEAK, equity);
         }
         render();
     }
 
-    function onPriceBalance(balance) {
-        state.balanceFromPriceStream = true;
-        updateBalance(balance);
-    }
-
-    function onTradePnl(pnl) {
-        // Only accumulate on trades if price stream ISN'T authoritative.
-        // When price delivers data.balance every tick, accumulating trade.pnl
-        // on top would double-count.
-        if (state.balanceFromPriceStream) return;
-        if (!isFinite(pnl)) return;
-        // Race guard: skip trade pnl accumulation until the price stream
-        // has at least once confirmed it does NOT carry authoritative
-        // balance data. Without this, a trade event arriving before the
-        // first price event (page-load race window) would accumulate
-        // into currentBalance; the first price event then overwrites
-        // with the broker-authoritative value, which may or may not
-        // include that trade's pnl depending on broker sync timing.
-        // Drop the trade-pnl path entirely during the pre-first-price
-        // window — any trade that happens then will be reflected in the
-        // very next price update anyway. Sessions that never receive a
-        // price event are degenerate (bot offline) and the gauge
-        // correctly shows "awaiting balance…" in that case.
-        if (state.currentBalance == null && state.sessionStart == null) return;
-        const cur = state.currentBalance != null ? state.currentBalance : state.sessionStart;
-        if (!isFinite(cur)) return;
-        updateBalance(cur + pnl);
+    function onPriceEquity(equity) {
+        updateEquity(equity);
     }
 
     // ─── Public API ────────────────────────────────────────────────────
@@ -455,44 +429,34 @@
                 const socket = OGZ.get && OGZ.get('Socket');
                 if (!socket || !socket.registerHandler) return;
 
-                // 1. price — authoritative per-tick balance
+                // 1. price - authoritative per-tick equity
                 socket.registerHandler('price', (d) => {
                     try {
-                        // BUG FIX 2026-04-27: backend renamed 'balance' → 'equity'
-                        // (CandleProcessor:430). Read equity first, fall back to
-                        // balance so older bot versions still work.
                         const data = d && d.data;
-                        const b = data && (data.equity != null ? data.equity : data.balance);
-                        if (isFinite(b) && b > 0) onPriceBalance(Number(b));
+                        const eq = data && data.equity;
+                        if (isFinite(eq) && eq > 0) onPriceEquity(Number(eq));
                     } catch (_) { /* swallow */ }
                 });
 
-                // 2. balance_update — explicit balance push
+                // 2. balance_update - explicit equity push
                 socket.registerHandler('balance_update', (d) => {
                     try {
-                        const b = d && (d.balance != null ? d.balance : (d.data && d.data.balance));
-                        if (isFinite(b) && b > 0) {
-                            // Not the price stream path — do not flip the flag.
-                            updateBalance(Number(b));
+                        const eq = d && (d.equity != null ? d.equity : (d.data && d.data.equity));
+                        if (isFinite(eq) && eq > 0) {
+                            // Not the price stream path - do not flip the flag.
+                            updateEquity(Number(eq));
                         }
                     } catch (_) { /* swallow */ }
                 });
 
-                // 3. state_update — fallback
+                // 3. state_update - fallback
                 socket.registerHandler('state_update', (d) => {
                     try {
-                        const b = d && d.state && d.state.balance;
-                        if (isFinite(b) && b > 0) updateBalance(Number(b));
+                        const eq = d && (d.equity != null ? d.equity : (d.state && d.state.equity));
+                        if (isFinite(eq) && eq > 0) updateEquity(Number(eq));
                     } catch (_) { /* swallow */ }
                 });
 
-                // 4. trade — pnl accumulation IFF price stream hasn't claimed authority
-                socket.registerHandler('trade', (d) => {
-                    try {
-                        const pnl = d && (d.pnl != null ? d.pnl : (d.data && d.data.pnl));
-                        if (isFinite(pnl)) onTradePnl(Number(pnl));
-                    } catch (_) { /* swallow */ }
-                });
             } catch (_) { /* init must never throw */ }
         },
 
@@ -512,13 +476,12 @@
             // ReferenceError silently inside the OGZ.RiskGauge.resetSession
             // public method, which broke the daily session-rollover path.
             state.sessionDate = todayET();
-            state.balanceFromPriceStream = false;
             try {
                 localStorage.removeItem(LS_KEY_START);
                 localStorage.removeItem(LS_KEY_PEAK);
             } catch (_) { /* swallow */ }
-            if (isFinite(state.currentBalance) && state.currentBalance > 0) {
-                initSessionStart(state.currentBalance);
+            if (isFinite(state.currentEquity) && state.currentEquity > 0) {
+                initSessionStart(state.currentEquity);
             }
             render();
         },

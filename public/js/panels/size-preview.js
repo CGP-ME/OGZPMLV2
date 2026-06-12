@@ -239,9 +239,7 @@
         try {
             const data = d && d.data;
             if (!data) return;
-            // BUG FIX 2026-04-27: backend renamed 'balance' → 'equity' on price
-            // payload (CandleProcessor:430). Prefer equity, fall back to balance.
-            const eq = data.equity != null ? data.equity : data.balance;
+            const eq = data.equity;
             if (isFinite(eq) && eq > 0) state.equity = Number(eq);
             const p = data.price != null ? data.price
                    : data.close != null ? data.close
@@ -284,14 +282,14 @@
                 });
                 socket.registerHandler('balance_update', (d) => {
                     try {
-                        const b = d && (d.balance != null ? d.balance : (d.data && d.data.balance));
-                        if (isFinite(b) && b > 0) { state.equity = Number(b); render(); }
+                        const eq = d && (d.equity != null ? d.equity : (d.data && d.data.equity));
+                        if (isFinite(eq) && eq > 0) { state.equity = Number(eq); render(); }
                     } catch (_) { /* swallow */ }
                 });
                 socket.registerHandler('state_update', (d) => {
                     try {
-                        const b = d && d.state && d.state.balance;
-                        if (isFinite(b) && b > 0) { state.equity = Number(b); render(); }
+                        const eq = d && (d.equity != null ? d.equity : (d.state && d.state.equity));
+                        if (isFinite(eq) && eq > 0) { state.equity = Number(eq); render(); }
                     } catch (_) { /* swallow */ }
                 });
             } catch (_) { /* swallow */ }

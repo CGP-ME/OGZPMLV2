@@ -1212,10 +1212,9 @@ class CandleProcessor {
 
         // CHANGE 2026-01-23: Calculate performance stats for dashboard
         // BUGFIX 2026-01-23: Include position value in P&L calculation!
-        const currentBalance = stateManager.get('balance');
+        const currentEquity = stateManager.getEquity(price);
         const currentPosition = stateManager.get('position') || 0;
-        const positionValue = currentPosition * price;  // Current market value of position
-        const totalAccountValue = currentBalance + positionValue;
+        const totalAccountValue = currentEquity;
         // CRIT-08-followup-D: refuse $10K phantom default in dashboard
         // P&L broadcast. Original `|| 10000` would silently broadcast a lie
         // about totalPnL (totalAccountValue - phantomInitialBalance) to the
@@ -1261,7 +1260,7 @@ class CandleProcessor {
           indicators: dashboardIndicators,
           candles: dashboardCandles,
           overlays: renderPacket.overlays,
-          balance: currentBalance,
+          equity: currentEquity,
           position: stateManager.get('position'),
           totalTrades: stateManager.get('totalTrades') || closedTrades.length,
           totalPnL,
@@ -1279,7 +1278,7 @@ class CandleProcessor {
             candles: dashboardCandles,
             timeframe: dashboardTimeframe,  // Tell dashboard what timeframe this is
             overlays: renderPacket.overlays,  // FIX: Should be 'overlays' not 'series'!
-            balance: currentBalance,
+            equity: currentEquity,
             position: stateManager.get('position'),
             totalTrades: stateManager.get('totalTrades') || closedTrades.length,
             // CHANGE 2026-01-23: Include performance stats
