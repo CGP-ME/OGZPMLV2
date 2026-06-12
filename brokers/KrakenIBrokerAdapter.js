@@ -258,8 +258,7 @@ class KrakenIBrokerAdapter extends IBrokerAdapter {
   }
 
   async cancelOrder(orderId) {
-    // kraken_adapter_simple doesn't have cancelOrder, would need to add
-    throw new Error('[KrakenIBroker] cancelOrder not implemented in kraken_adapter_simple');
+    return await this.kraken.cancelOrder(orderId);
   }
 
   async modifyOrder(orderId, modifications) {

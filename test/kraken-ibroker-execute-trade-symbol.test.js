@@ -110,6 +110,15 @@ describe('KrakenIBrokerAdapter executeTrade symbol contract', () => {
     expect(result.symbol).toBe('BTC-USD');
   });
 
+  test('cancelOrder delegates to the validated Kraken cancel boundary', async () => {
+    const adapter = new KrakenIBrokerAdapter();
+    adapter.kraken.cancelOrder = jest.fn(async () => true);
+
+    await expect(adapter.cancelOrder('ORDER-123')).resolves.toBe(true);
+
+    expect(adapter.kraken.cancelOrder).toHaveBeenCalledWith('ORDER-123');
+  });
+
   test('historical candles use asset-registry Kraken REST pair for BTC', async () => {
     const adapter = new KrakenIBrokerAdapter();
     adapter.kraken.getHistoricalOHLC = jest.fn(async () => []);

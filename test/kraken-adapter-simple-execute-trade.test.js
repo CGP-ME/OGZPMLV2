@@ -224,4 +224,65 @@ describe('KrakenAdapterSimple executeTrade symbol contract', () => {
 
     expect(adapter.makePrivateRequest).not.toHaveBeenCalled();
   });
+
+  test('direct cancelOrder calls Kraken CancelOrder with txid and returns true on count', async () => {
+    const adapter = new KrakenAdapterSimple();
+    adapter.makePrivateRequest = jest.fn(async () => ({
+      error: [],
+      result: { count: 1 }
+    }));
+
+    await expect(adapter.cancelOrder(' ORDER-123 ')).resolves.toBe(true);
+
+    expect(adapter.makePrivateRequest).toHaveBeenCalledWith('/0/private/CancelOrder', {
+      txid: 'ORDER-123'
+    });
+  });
+
+  test('direct cancelOrder fails loud before Kraken when orderId is empty', async () => {
+    const adapter = new KrakenAdapterSimple();
+    adapter.makePrivateRequest = jest.fn();
+
+    await expect(adapter.cancelOrder('   ')).rejects.toThrow('Kraken cancelOrder requires a non-empty orderId');
+
+    expect(adapter.makePrivateRequest).not.toHaveBeenCalled();
+  });
+
+  test('direct cancelOrder returns false for Kraken error arrays and malformed responses', async () => {
+    const adapter = new KrakenAdapterSimple();
+    adapter.makePrivateRequest = jest
+      .fn()
+      .mockResolvedValueOnce({ error: ['EOrder:Unknown order'] })
+      .mockResolvedValueOnce(['EAPI:Invalid signature']);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(adapter.cancelOrder('ORDER-ERR')).resolves.toBe(false);
+    await expect(adapter.cancelOrder('ORDER-BAD')).resolves.toBe(false);
+
+    expect(adapter.makePrivateRequest).toHaveBeenNthCalledWith(1, '/0/private/CancelOrder', {
+      txid: 'ORDER-ERR'
+    });
+    expect(adapter.makePrivateRequest).toHaveBeenNthCalledWith(2, '/0/private/CancelOrder', {
+      txid: 'ORDER-BAD'
+    });
+
+    errorSpy.mockRestore();
+  });
+
+  test('direct cancelOrder does not report pending-only responses as cancelled', async () => {
+    const adapter = new KrakenAdapterSimple();
+    adapter.makePrivateRequest = jest.fn(async () => ({
+      error: [],
+      result: { count: 0, pending: true }
+    }));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(adapter.cancelOrder('ORDER-PENDING')).resolves.toBe(false);
+
+    expect(adapter.makePrivateRequest).toHaveBeenCalledWith('/0/private/CancelOrder', {
+      txid: 'ORDER-PENDING'
+    });
+
+    errorSpy.mockRestore();
+  });
 });

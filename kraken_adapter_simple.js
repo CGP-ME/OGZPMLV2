@@ -445,6 +445,41 @@ class KrakenAdapterSimple {
     }
   }
 
+  async cancelOrder(orderId) {
+    const txid = String(orderId || '').trim();
+    if (!txid) {
+      throw new Error('Kraken cancelOrder requires a non-empty orderId');
+    }
+
+    try {
+      const response = await this.makePrivateRequest('/0/private/CancelOrder', { txid });
+      if (!response || typeof response !== 'object' || Array.isArray(response)) {
+        throw new Error(`CancelOrder malformed response: ${JSON.stringify(response)}`);
+      }
+
+      const errors = Array.isArray(response.error)
+        ? response.error
+        : (response.error ? [String(response.error)] : []);
+      if (errors.length > 0) {
+        throw new Error(`CancelOrder error: ${errors.join(', ')}`);
+      }
+
+      const result = response.result && typeof response.result === 'object' ? response.result : {};
+      const count = Number(result.count ?? response.count);
+      const pending = result.pending === true || response.pending === true;
+      if (Number.isFinite(count) && count > 0) {
+        return true;
+      }
+
+      console.error(`[Kraken] CancelOrder did not cancel order ${txid}: count=${Number.isFinite(count) ? count : 'missing'}, pending=${pending}`);
+      return false;
+    } catch (error) {
+      recordKrakenAuthFailureIfRelevant(error, 'rest-cancel-order');
+      console.error(`[Kraken] Failed to cancel order ${txid}: ${error.message}`);
+      return false;
+    }
+  }
+
   convertToKrakenSymbol(symbol) {
     const canonical = normalizeAssetSymbol(symbol);
     const metadata = canonical ? ASSET_REGISTRY[canonical] : null;

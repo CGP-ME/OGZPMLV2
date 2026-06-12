@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Kraken Cancel Order Support (2026-06-12)
+
+- Implemented Kraken `CancelOrder` support in the simple adapter and wired `KrakenIBrokerAdapter.cancelOrder()` through it, so `OrderRouter.cancelAllOpenOrders()` no longer hits a throwing Kraken cancel method.
+- Tightened router cancellation accounting so only literal `true` counts as a cancelled order and any non-true adapter return becomes a failed cancellation result.
+- Made `OrderRouter.cancelAllOpenOrders()` fail when no adapter is registered or the requested scope matches no cancellable adapter, preventing empty cancellation attempts from reporting success.
+- Added focused regressions for Kraken cancel request shape, empty order IDs, Kraken error-array handling, pending-only responses, wrapper delegation, alias-scoped router filtering, empty adapter sets, unmatched symbol scopes, and router-level partial cancellation reporting.
+
 ### Kraken WebSocket Subscription Deferral (2026-06-12)
 
 - Deferred Kraken market-data subscription sends out of the WebSocket `open` callback with a ready-state guard and send failure logging, preventing async-hooks readyState races from crashing the process during boot.

@@ -243,18 +243,29 @@ class OrderRouter extends EventEmitter {
             results.push({ broker: name, success: false, reason: 'missing_order_id', order });
             continue;
           }
-          const success = await adapter.cancelOrder(orderId);
-          results.push({ broker: name, orderId, success });
+          const cancelResult = await adapter.cancelOrder(orderId);
+          if (cancelResult === true) {
+            results.push({ broker: name, orderId, success: true });
+          } else {
+            results.push({
+              broker: name,
+              orderId,
+              success: false,
+              reason: cancelResult === false ? 'cancel_returned_false' : 'cancel_returned_non_true',
+            });
+          }
         }
       } catch (error) {
         results.push({ broker: name, success: false, reason: error.message });
       }
     }
-    if (brokerNameSet && matchedAdapters === 0) {
+    if (matchedAdapters === 0) {
       results.push({
-        broker: Array.from(brokerNameSet).join(','),
+        broker: brokerNameSet ? Array.from(brokerNameSet).join(',') : 'none',
         success: false,
-        reason: 'broker_scope_matched_no_adapters',
+        reason: brokerNameSet
+          ? 'broker_scope_matched_no_adapters'
+          : (symbolSet ? 'symbol_scope_matched_no_adapters' : 'no_adapters_registered'),
       });
     }
 

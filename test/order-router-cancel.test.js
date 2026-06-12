@@ -109,6 +109,42 @@ describe('OrderRouter cancelAllOpenOrders', () => {
     ]));
   });
 
+  test('fails when no adapters are registered for cancellation', async () => {
+    const router = new OrderRouter();
+
+    const result = await router.cancelAllOpenOrders();
+
+    expect(result).toEqual({
+      success: false,
+      results: [{ broker: 'none', success: false, reason: 'no_adapters_registered' }],
+      cancelled: 0,
+      failed: 1,
+    });
+  });
+
+  test('fails when symbol scope matches no registered cancel adapter', async () => {
+    const router = new OrderRouter();
+    const adapter = {
+      getBrokerName: () => 'kraken',
+      getOpenOrders: jest.fn(),
+      cancelOrder: jest.fn(),
+    };
+    router.registerBroker(adapter, ['BTC-USD']);
+
+    const result = await router.cancelAllOpenOrders({ symbols: ['TSLA'] });
+
+    expect(adapter.getOpenOrders).not.toHaveBeenCalled();
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      cancelled: 0,
+      failed: 1,
+    }));
+    expect(result.results).toEqual(expect.arrayContaining([
+      { broker: 'kraken', skipped: true, reason: 'no_matching_symbols' },
+      { broker: 'none', success: false, reason: 'symbol_scope_matched_no_adapters' },
+    ]));
+  });
+
   test('cancels stock orders when the supplied scope includes broker and generic aliases', async () => {
     const router = new OrderRouter();
     const adapter = {
@@ -126,6 +162,88 @@ describe('OrderRouter cancelAllOpenOrders', () => {
     expect(result.success).toBe(true);
     expect(adapter.cancelOrder).toHaveBeenCalledWith('ORDER_1');
     expect(adapter.cancelOrder).toHaveBeenCalledWith('ORDER_2');
+  });
+
+  test('cancels Kraken orders through the IBroker cancelOrder contract', async () => {
+    const router = new OrderRouter();
+    const adapter = {
+      getBrokerName: () => 'kraken',
+      getOpenOrders: jest.fn(async () => [
+        { orderId: 'KRAKEN_ORDER_1', symbol: 'BTC-USD' },
+        { orderId: 'KRAKEN_ORDER_2', symbol: 'XBT/USD' },
+      ]),
+      cancelOrder: jest.fn(async orderId => orderId === 'KRAKEN_ORDER_1'),
+    };
+    router.registerBroker(adapter, ['BTC-USD']);
+
+    const result = await router.cancelAllOpenOrders({ symbols: ['BTC-USD'] });
+
+    expect(adapter.cancelOrder).toHaveBeenCalledWith('KRAKEN_ORDER_1');
+    expect(adapter.cancelOrder).toHaveBeenCalledWith('KRAKEN_ORDER_2');
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      cancelled: 1,
+      failed: 1,
+    }));
+    expect(result.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ broker: 'kraken', orderId: 'KRAKEN_ORDER_1', success: true }),
+      expect.objectContaining({ broker: 'kraken', orderId: 'KRAKEN_ORDER_2', success: false, reason: 'cancel_returned_false' }),
+    ]));
+  });
+
+  test('treats non-literal-true cancel returns as failed cancellation results', async () => {
+    const router = new OrderRouter();
+    const adapter = {
+      getBrokerName: () => 'kraken',
+      getOpenOrders: jest.fn(async () => [
+        { orderId: 'KRAKEN_OBJECT_RESULT', symbol: 'BTC-USD' },
+        { orderId: 'KRAKEN_UNDEFINED_RESULT', symbol: 'BTC-USD' },
+      ]),
+      cancelOrder: jest
+        .fn()
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce(undefined),
+    };
+    router.registerBroker(adapter, ['BTC-USD']);
+
+    const result = await router.cancelAllOpenOrders({ symbols: ['BTC-USD'] });
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      cancelled: 0,
+      failed: 2,
+    }));
+    expect(result.results).toEqual([
+      {
+        broker: 'kraken',
+        orderId: 'KRAKEN_OBJECT_RESULT',
+        success: false,
+        reason: 'cancel_returned_non_true',
+      },
+      {
+        broker: 'kraken',
+        orderId: 'KRAKEN_UNDEFINED_RESULT',
+        success: false,
+        reason: 'cancel_returned_non_true',
+      },
+    ]);
+  });
+
+  test('normalizes Kraken aliases in the requested symbol scope before filtering open orders', async () => {
+    const router = new OrderRouter();
+    const adapter = {
+      getBrokerName: () => 'kraken',
+      getOpenOrders: jest.fn(async () => [
+        { orderId: 'KRAKEN_XBT_ORDER', symbol: 'XBT/USD' },
+      ]),
+      cancelOrder: jest.fn(async () => true),
+    };
+    router.registerBroker(adapter, ['BTC-USD']);
+
+    const result = await router.cancelAllOpenOrders({ symbols: ['XBT/USD'] });
+
+    expect(result.success).toBe(true);
+    expect(adapter.cancelOrder).toHaveBeenCalledWith('KRAKEN_XBT_ORDER');
   });
 });
 
