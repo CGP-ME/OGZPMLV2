@@ -63,6 +63,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { normalizePatternScope } = require('./PatternScope');
 const TradingConfig = require('./TradingConfig');
+const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');
 
 // ═══════════════════════════════════════════════════════════════
 // DTW (Dynamic Time Warping) — fuzzy pattern matching
@@ -192,9 +193,7 @@ function resolveInitialAssetBucket(mode) {
   if (mode === 'backtest') {
     let ticker = sanitizePatternBucket(process.env.TRADING_PAIR || '');
     if (!ticker && process.env.CANDLE_DATA_FILE) {
-      const base = path.basename(process.env.CANDLE_DATA_FILE, '.json')
-        .replace(/^polygon-/, '');
-      ticker = base.split('-')[0].toUpperCase();
+      ticker = sanitizePatternBucket(deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE));
     }
     return ticker || 'default';
   }

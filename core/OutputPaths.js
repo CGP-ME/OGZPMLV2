@@ -26,11 +26,13 @@ function ensureDir(dirPath) {
 
 /**
  * Get the directory for per-backtest-run output (CSV + JSON report).
- * Creates a timestamped subdirectory under runs/.
+ * Creates a per-run subdirectory under runs/.
  */
-function getRunDir(timestamp) {
+function getRunDir(runId) {
   const root = getOutputRoot();
-  const runId = timestamp || Date.now();
+  if (!runId) {
+    throw new Error('[OutputPaths] getRunDir requires explicit runId');
+  }
   const envRoot = process.env.BACKTEST_OUTPUT_DIR;
   const dir = envRoot
     ? path.join(root, 'runs', String(runId))

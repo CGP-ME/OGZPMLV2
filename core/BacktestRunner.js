@@ -14,7 +14,9 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const { randomUUID } = require('crypto');
 const BacktestRecorder = require('./BacktestRecorder');
+const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');
 const stateManager = getStateManager();
 
 class BacktestRunner {
@@ -219,7 +221,8 @@ class BacktestRunner {
       // FIX 2026-04-16: Route to unified output directory
       const { getRunDir } = require('./OutputPaths');
       const runTimestamp = Date.now();
-      const runDir = getRunDir(runTimestamp);
+      const runId = `${runTimestamp}-${process.pid}-${randomUUID()}`;
+      const runDir = getRunDir(runId);
       const envRoot = process.env.BACKTEST_OUTPUT_DIR;
       // FIX 2026-04-22: append BACKTEST_REPORT_TAG (uid) to filename when set.
       // Matrix-sweep sets it per worker — prevents tryReadReport from grabbing another
@@ -227,16 +230,21 @@ class BacktestRunner {
       // FIX 2026-04-22 (2nd pass): tagged workers write to backtest-results/worker-reports/
       // instead of project root. Keeps repo root clean; standalone backtests keep legacy path.
       const reportTag = process.env.BACKTEST_REPORT_TAG || '';
+      let reportAssetSuffix = '';
+      if (process.env.CANDLE_DATA_FILE) {
+        const reportAssetSlug = deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE);
+        reportAssetSuffix = `-${reportAssetSlug}`;
+      }
       let reportPath;
       if (envRoot) {
-        reportPath = path.join(runDir, 'report.json');
+        reportPath = path.join(runDir, `report${reportAssetSuffix}.json`);
       } else if (reportTag) {
         const fs = require('fs');
         const workerDir = path.join(this.ctx.__dirname, 'backtest-results', 'worker-reports');
         if (!fs.existsSync(workerDir)) fs.mkdirSync(workerDir, { recursive: true });
-        reportPath = path.join(workerDir, `backtest-report-${runTimestamp}-${reportTag}.json`);
+        reportPath = path.join(workerDir, `backtest-report-${runId}-${reportTag}${reportAssetSuffix}.json`);
       } else {
-        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runTimestamp}.json`);
+        reportPath = path.join(this.ctx.__dirname, `backtest-report-v14MERGED-${runId}${reportAssetSuffix}.json`);
       }
 
       // FIX 2026-04-21: report.summary now pulls from BacktestRecorder.getSummary() (23 fields)

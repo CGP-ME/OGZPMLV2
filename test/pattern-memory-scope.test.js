@@ -69,6 +69,8 @@ describe('Pattern memory scope isolation', () => {
       successThreshold: 0.6,
     });
 
+    expect(memory.storagePath).toBe(path.join(process.env.DATA_DIR, 'unified-patterns.backtest.TSLA.json'));
+
     expect(memory.recordOutcome(features, {
       ...scope(),
       pnl: 12,
@@ -115,6 +117,17 @@ describe('Pattern memory scope isolation', () => {
     expect(protectedScope.stats.scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
     expect(protectedScope.stats.wins).not.toBe(999);
     expect(Object.keys(memory.patterns)).toHaveLength(1);
+  });
+
+  test('UnifiedPatternMemory rejects unknown backtest candle files instead of guessing an asset bucket', () => {
+    process.env.CANDLE_DATA_FILE = 'tuning/full-45k.json';
+
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    expect(() => new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    })).toThrow(/Cannot derive asset class/);
   });
 
   test('UnifiedPatternMemory missing scope rejects before mutation', () => {

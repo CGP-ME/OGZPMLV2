@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  deriveReportAssetSlugFromDataFile,
   resolveInstrumentFromDataFile,
 } = require('../tools/instrument-env');
 
@@ -24,6 +25,15 @@ describe('instrument env resolution', () => {
 
   test('rejects unknown symbols instead of assuming stock asset class', () => {
     expect(() => resolveInstrumentFromDataFile('data/custom/xyz-1y.json'))
+      .toThrow(/Cannot derive asset class/);
+  });
+
+  test('derives report asset slugs from validated data-file instruments', () => {
+    expect(deriveReportAssetSlugFromDataFile('tuning/tsla-15m-2y.json')).toBe('TSLA');
+    expect(deriveReportAssetSlugFromDataFile('data/polygon-btc-1y.json')).toBe('BTC-USD');
+    expect(() => deriveReportAssetSlugFromDataFile('tuning/full-45k.json'))
+      .toThrow(/Cannot derive asset class/);
+    expect(() => deriveReportAssetSlugFromDataFile('data/weird-name-123.json'))
       .toThrow(/Cannot derive asset class/);
   });
 });

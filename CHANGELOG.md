@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blocked casual words, substring matches, and arbitrary uppercase fallback tokens from becoming tickers, including the prior `SON` casual-chat path and short known tickers embedded inside normal words.
 - Changed the TRAI widget to offer snapshot links only for the server-resolved symbol, removing the browser-side ticker parser from the analysis link path.
 
+### Backtest Report Asset Slugs (2026-06-12)
+
+- Moved data-file instrument derivation into `core/DataFileInstrument.js` and reused it from `tools/instrument-env.js`.
+- Added UUID-backed run ids and validated asset slugs to `BacktestRunner` report paths when `CANDLE_DATA_FILE` is set, including custom `BACKTEST_OUTPUT_DIR` report files, preventing same-millisecond cross-asset report overwrites without guessing from unknown data-file names.
+
 ### Dashboard Equity Source Contract (2026-06-12)
 
 - Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.
