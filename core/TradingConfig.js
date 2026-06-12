@@ -488,6 +488,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['ema_cross_reversal'],
       _validated: '2026-03-20',
@@ -504,6 +505,7 @@ const BASE_CONFIG = {
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
       useStructuralExits: true,       // LOCKED - uses sweep-specific exit logic
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['liquidity_absorbed'],
       _validated: '2026-03-20',
@@ -537,6 +539,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sr_break'],
       _validated: '2026-03-20',
@@ -548,6 +551,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 150,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['pattern_invalidated'],
     },
@@ -558,6 +562,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 360,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['regime_change'],
     },
@@ -567,6 +572,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },
@@ -576,6 +582,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },
@@ -585,6 +592,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 180,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['fvg_filled', 'or_break_reversal'],
     },
@@ -595,6 +603,7 @@ const BASE_CONFIG = {
       trailingActivation: 0.5,
       maxHoldTimeMinutes: 900,        // 60 candles x 15 min
       useStructuralExits: true,       // Strategy provides SL/TP via overrideLevels
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
     },
@@ -620,6 +629,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
     },

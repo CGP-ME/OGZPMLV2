@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Strategy Contract Confidence Gate (2026-06-12)
+
+- Enforced effective `exitContracts.*.minConfidence` in `StrategyOrchestrator` before ATR/regime/volume-profile boosts and winner selection, with loud failure on malformed contract gate values.
+- Moved per-strategy ATR contract reads onto the same effective runtime contract path so `TradingConfig.setOverrides()` cannot leave confidence or ATR gates reading stale base contracts.
+- Normalized current strategy contracts to explicitly declare `minConfidence: null` when no locked per-strategy gate exists, and made missing contract keys fail loud instead of acting as silent no-gate state.
+- Added focused orchestrator regressions proving below-contract signals are dropped, runtime overrides are honored, at-threshold signals pass, and `minConfidence: null` remains an explicit no-gate contract.
+
 ### Alpaca Data Stream Resilience (2026-06-12)
 
 - Migrated Alpaca market-data WebSocket lifecycle to `ResilientWebSocket`, preserving symbol-scoped trade, quote, bar callbacks and `ohlc` event emission while adding reconnect/backoff, stale-data watchdog ownership, subscription replay, and stable health reporting.

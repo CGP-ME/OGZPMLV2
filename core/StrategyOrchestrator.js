@@ -38,6 +38,7 @@ const narrator = getNarrator();
 const MAExtensionFilter = require('./MAExtensionFilter');
 const TradingConfig = require('./TradingConfig');
 const OpeningRangeBreakout = require('../modules/OpeningRangeBreakout');
+const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
 
 // FIX 2026-03-19: Self-contained strategies — each computes its own signals
 // No more ctx.extras handoff — each strategy owns its signal computation
@@ -78,6 +79,39 @@ function publicResult(result) {
     ...publicFields,
     confidence: publicConfidence01(result.confidenceScore, `${result.strategyName}.publicConfidenceScore`),
   };
+}
+
+function getEffectiveExitContractValue(strategyName, key) {
+  const strategyValue = TradingConfig.get(`exitContracts.${strategyName}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+  if (strategyValue !== MISSING_EXIT_CONTRACT_VALUE) {
+    return { value: strategyValue, source: 'strategy' };
+  }
+  const strategyContract = TradingConfig.get(`exitContracts.${strategyName}`, MISSING_EXIT_CONTRACT_VALUE);
+  if (strategyContract !== MISSING_EXIT_CONTRACT_VALUE) {
+    throw new Error(`[EXIT-CONTRACT] ${strategyName}.${key} must be explicit null or a finite number; key is missing from strategy contract`);
+  }
+  return {
+    value: TradingConfig.get(`exitContracts.default.${key}`, null),
+    source: 'default',
+  };
+}
+
+function getContractMinConfidence(strategyName) {
+  const { value: minConfidence } = getEffectiveExitContractValue(strategyName, 'minConfidence');
+  if (minConfidence == null) return null;
+  if (!Number.isFinite(minConfidence) || minConfidence < 0 || minConfidence > 1) {
+    throw new Error(`[EXIT-CONTRACT] ${strategyName}.minConfidence must be null or a finite 0..1 number (got ${minConfidence})`);
+  }
+  return minConfidence;
+}
+
+function getContractAtrMinPercent(strategyName) {
+  const contractAtrMin = getEffectiveExitContractValue(strategyName, 'atrMinPercent');
+  if (contractAtrMin.value == null) return contractAtrMin;
+  if (!Number.isFinite(contractAtrMin.value) || contractAtrMin.value < 0) {
+    throw new Error(`[EXIT-CONTRACT] ${strategyName}.atrMinPercent must be null or a finite non-negative number (got ${contractAtrMin.value})`);
+  }
+  return contractAtrMin;
 }
 
 function normalizeExitContractHint(hint, strategyName) {
@@ -871,6 +905,7 @@ class StrategyOrchestrator {
     const results = [];
     const noSignalStrategies = [];
     const thrownStrategies = [];
+    const contractConfidenceDropped = [];
     for (const strategy of this.strategies) {
       // DISABLED 2026-03-09: VP chop filter removed — strategies handle own filtering
       // if (skipTrendStrategies && TREND_STRATEGIES.includes(strategy.name)) {
@@ -889,6 +924,14 @@ class StrategyOrchestrator {
             noSignalStrategies.push(`${strategy.name}:conf<=0`);
             continue;
           }
+          const contractMinConfidence = getContractMinConfidence(strategy.name);
+          if (contractMinConfidence != null && confidence < contractMinConfidence) {
+            contractConfidenceDropped.push(`${strategy.name}:${result.direction}:${(confidence * 100).toFixed(1)}%<min${(contractMinConfidence * 100).toFixed(1)}%`);
+            if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {
+              console.log(`[FILTER:contract-confidence] Skipped ${strategy.name} — confidence ${(confidence * 100).toFixed(1)}% below exit contract min ${(contractMinConfidence * 100).toFixed(1)}%`);
+            }
+            continue;
+          }
           results.push({
             ...result,
             confidence,
@@ -897,6 +940,9 @@ class StrategyOrchestrator {
           });
         }
       } catch (err) {
+        if (err.message && err.message.startsWith('[EXIT-CONTRACT]')) {
+          throw err;
+        }
         thrownStrategies.push(`${strategy.name}:${err.message}`);
         console.warn(`⚠️ [StrategyOrchestrator] ${strategy.name} threw: ${err.message}`);
       }
@@ -914,6 +960,9 @@ class StrategyOrchestrator {
         .map(r => `${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%`)
         .join(',');
       console.log(`[ORCH][RAW_CANDIDATES] eval=${this.evalCount} count=${rawStrategyResults.length} ${rawList}`);
+    }
+    if (process.env.STRATEGY_DIAG === 'true' && contractConfidenceDropped.length > 0) {
+      console.log(`[ORCH][FILTER_DROP] eval=${this.evalCount} filter=contract-confidence dropped=${contractConfidenceDropped.join(',')}`);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -945,21 +994,20 @@ class StrategyOrchestrator {
     }
     const filterATRpct = (filterATR && filterPrice > 0) ? (filterATR / filterPrice) * 100 : 0;
 
-    // ATR filter: Per-strategy threshold via exitContracts.{strategy}.atrMinPercent
+    // ATR filter: Per-strategy threshold via effective exitContracts.{strategy}.atrMinPercent
     // null = fall back to global filters.atrMinPercent (zero behavior change default)
     const atrFilterEnabled = TradingConfig.get('filters.atrEnabled');
     const globalAtrMin = TradingConfig.get('filters.atrMinPercent');
     const atrDropped = [];
     if (atrFilterEnabled && filterATRpct > 0 && results.length > 0) {
-      const contracts = TradingConfig.BASE_CONFIG.exitContracts;
       for (let i = results.length - 1; i >= 0; i--) {
         const r = results[i];
-        const contract = contracts[r.strategyName] || contracts.default || {};
-        const threshold = contract.atrMinPercent != null ? contract.atrMinPercent : globalAtrMin;
+        const contractAtrMin = getContractAtrMinPercent(r.strategyName);
+        const threshold = contractAtrMin.value != null ? contractAtrMin.value : globalAtrMin;
         if (filterATRpct < threshold) {
           atrDropped.push(`${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%<atr${threshold}%`);
           if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {
-            console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below ${threshold}% (${contract.atrMinPercent != null ? 'per-strategy' : 'global'})`);
+            console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below ${threshold}% (${contractAtrMin.value != null ? contractAtrMin.source : 'global'})`);
           }
           results.splice(i, 1);
         }
