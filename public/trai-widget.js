@@ -505,10 +505,9 @@
 
       if (data.response) {
         addMessage(data.response, 'bot');
-        // Detect stock symbols in the query and offer snapshot link
-        const symbols = extractSymbols(query);
-        if (symbols.length > 0) {
-          const symbol = symbols[0];
+        // Offer snapshot links only for the server-resolved symbol.
+        if (data.symbol) {
+          const symbol = data.symbol;
           addMessage(`View full chart and analysis for ${symbol}`, 'link', `/snapshot?symbol=${symbol}&analyze=true`);
         }
         // Show provider info subtly
@@ -581,13 +580,6 @@
     if (window.statusTimestamps) {
       window.statusTimestamps.trai = Date.now();
     }
-  }
-
-  // Extract stock symbols from text (uppercase 1-5 letter words)
-  function extractSymbols(text) {
-    const commonWords = ['I', 'A', 'THE', 'AND', 'OR', 'FOR', 'TO', 'IN', 'ON', 'AT', 'IS', 'IT', 'BE', 'AS', 'ARE', 'WAS', 'IF', 'MY', 'SO', 'DO', 'OF', 'BY', 'UP', 'AN', 'NO', 'US', 'AM', 'GO', 'OK', 'HI', 'VS', 'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'AI'];
-    const matches = text.match(/\b[A-Z]{1,5}\b/g) || [];
-    return matches.filter(m => !commonWords.includes(m) && m.length >= 2);
   }
 
   // Simple markdown to HTML converter

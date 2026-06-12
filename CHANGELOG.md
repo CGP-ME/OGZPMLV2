@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TRAI Symbol Extraction Intent Gate (2026-06-12)
+
+- Moved TRAI analysis ticker extraction into a shared helper that requires explicit cashtags or standalone known tickers before fetching Polygon market data.
+- Blocked casual words, substring matches, and arbitrary uppercase fallback tokens from becoming tickers, including the prior `SON` casual-chat path and short known tickers embedded inside normal words.
+- Changed the TRAI widget to offer snapshot links only for the server-resolved symbol, removing the browser-side ticker parser from the analysis link path.
+
 ### Dashboard Equity Source Contract (2026-06-12)
 
 - Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.

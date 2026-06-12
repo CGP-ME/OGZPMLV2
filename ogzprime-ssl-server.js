@@ -170,6 +170,7 @@ app.post('/api/ollama/chat', async (req, res) => {
 // CHANGE 2026-03-30: TRAI analyze endpoint with Mercury-2 support
 const PersistentLLMClient = require('./core/persistent_llm_client');
 const { resolveTraiLlmConfig } = require('./core/trai_llm_config');
+const { extractSymbol, hasTickerIntent } = require('./core/trai_symbol_extractor');
 let traiClient = null;
 
 async function getTraiClient() {
@@ -333,45 +334,6 @@ async function fetchMarketData(symbol) {
   }
 }
 
-// Extract stock symbols from prompt
-function extractSymbol(prompt) {
-  // Known stock tickers to look for first (high priority)
-  const knownTickers = ['AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'INTC', 'NFLX', 'DIS', 'PYPL', 'COIN', 'SQ', 'SHOP', 'ROKU', 'PLTR', 'SNOW', 'CRM', 'ORCL', 'IBM', 'CSCO', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC', 'ASML', 'TSM', 'BABA', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'RIVN', 'LCID', 'F', 'GM', 'TM', 'BA', 'LMT', 'RTX', 'GE', 'CAT', 'DE', 'UNH', 'JNJ', 'PFE', 'MRK', 'ABBV', 'LLY', 'BMY', 'AMGN', 'GILD', 'BIIB', 'MRNA', 'BNTX', 'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'BLK', 'SCHW', 'V', 'MA', 'AXP', 'WMT', 'TGT', 'COST', 'HD', 'LOW', 'NKE', 'SBUX', 'MCD', 'CMG', 'DPZ', 'YUM', 'KO', 'PEP', 'MNST', 'BTC', 'ETH', 'SOL', 'SPY', 'QQQ', 'IWM', 'DIA', 'VTI', 'VOO'];
-
-  const upperPrompt = prompt.toUpperCase();
-
-  // Check for known tickers first
-  for (const ticker of knownTickers) {
-    if (upperPrompt.includes(ticker)) {
-      return ticker;
-    }
-  }
-
-  // Fallback: Look for uppercase words that look like tickers
-  const match = upperPrompt.match(/\b([A-Z]{2,5})\b/g);
-  if (!match) return null;
-
-  // Filter out ALL common English words
-  const stopWords = new Set([
-    // 2-letter
-    'IF', 'IS', 'IT', 'IN', 'ON', 'AT', 'TO', 'BY', 'OF', 'OR', 'AS', 'AN', 'SO', 'DO', 'GO', 'NO', 'UP', 'WE', 'BE', 'HE', 'ME', 'MY', 'US',
-    // 3-letter
-    'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HAD', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'LET', 'MAY', 'OLD', 'SEE', 'TWO', 'WAY', 'WHO', 'DID', 'GET', 'SAY', 'SHE', 'TOO', 'USE', 'HIM', 'NOW', 'NEW', 'ANY', 'DAY', 'GOT', 'WHY', 'OWN', 'SAW', 'PUT', 'YET', 'ASK', 'TRY', 'RUN', 'BIG', 'FEW', 'END', 'BAD', 'OFF', 'TOP', 'SET', 'KEY',
-    // 4-letter
-    'JUST', 'KNOW', 'TAKE', 'COME', 'MAKE', 'LIKE', 'BACK', 'ONLY', 'OVER', 'SUCH', 'YEAR', 'INTO', 'MOST', 'ALSO', 'MADE', 'WELL', 'BEEN', 'MANY', 'SOME', 'TIME', 'VERY', 'WHEN', 'WILL', 'MORE', 'WANT', 'WHAT', 'WITH', 'YOUR', 'THAT', 'THIS', 'FROM', 'THEY', 'HAVE', 'SAID', 'EACH', 'THAN', 'THEM', 'THEN', 'BEEN', 'CALL', 'FIND', 'GIVE', 'GOOD', 'HELP', 'HERE', 'KEEP', 'LAST', 'LONG', 'LOOK', 'MUCH', 'NEED', 'NEXT', 'PART', 'SAME', 'TELL', 'TURN', 'WORK', 'HIGH', 'REAL', 'SHOW', 'EVEN', 'DOES', 'GOES',
-    // 5-letter
-    'WOULD', 'THEIR', 'COULD', 'OTHER', 'ABOUT', 'WHICH', 'THESE', 'AFTER', 'THERE', 'FIRST', 'BEING', 'WHERE', 'THOSE', 'STILL', 'EVERY', 'GOING', 'NEVER', 'THINK', 'AGAIN', 'MIGHT', 'UNDER', 'THING', 'SINCE', 'RIGHT', 'POINT', 'WORLD', 'PLACE', 'WHILE', 'GREAT', 'SMALL', 'THREE', 'FOUND', 'BEING', 'NIGHT', 'DOING', 'TODAY', 'PRICE', 'TRADE', 'STOCK', 'SHARE', 'SHORT',
-    // Trading terms that aren't tickers
-    'RSI', 'EMA', 'ATR', 'SMA', 'MACD', 'VOL', 'BUY', 'SELL', 'USD', 'ETF', 'IPO', 'CEO', 'CFO', 'SEC', 'FDA', 'GDP', 'CPI', 'FED', 'API', 'STOP', 'LIMIT', 'ALERT'
-  ]);
-
-  // Find the first non-stopword symbol (prefer 3-4 letter words as more likely tickers)
-  const candidates = match.filter(w => !stopWords.has(w));
-  // Prefer 3-4 letter symbols
-  const preferred = candidates.find(w => w.length >= 3 && w.length <= 4);
-  return preferred || candidates[0] || null;
-}
-
 app.post('/api/trai/analyze', async (req, res) => {
   try {
     const { prompt, context, maxTokens, enableSearch } = req.body;
@@ -385,8 +347,9 @@ app.post('/api/trai/analyze', async (req, res) => {
     let searchUsed = false;
     let marketDataUsed = false;
 
-    // CHANGE 2026-03-30: Fetch REAL market data for stock symbols
-    const symbol = extractSymbol(prompt.toUpperCase());
+    // Fetch real market data only when the prompt names a ticker or has market intent.
+    // Casual chat must not be parsed into a ticker.
+    const symbol = extractSymbol(prompt, { allowAmbiguousKnownTicker: hasTickerIntent(prompt) });
     if (symbol) {
       console.log(`[TRAI Analyze] Fetching real market data for: ${symbol}`);
       const marketData = await fetchMarketData(symbol);
