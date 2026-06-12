@@ -114,14 +114,8 @@ describe('TRAI widget dashboard auth token', () => {
     const harness = createHarness({ token: '' });
 
     harness.api.connectWebSocket();
-    const socket = harness.instances[0];
-    socket.open();
 
-    expect(socket.sent).toEqual([]);
-    expect(socket.closeArgs).toEqual({
-      code: 1008,
-      reason: 'Dashboard token missing'
-    });
+    expect(harness.instances).toEqual([]);
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
   });
 });

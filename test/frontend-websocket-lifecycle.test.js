@@ -190,30 +190,18 @@ describe('frontend websocket lifecycle', () => {
   test('closes without sending auth when no operator token is configured', () => {
     const harness = createHarness({ token: '' });
 
-    harness.Socket.connect();
-    const socket = harness.instances[0];
-    socket.open();
+    expect(harness.Socket.connect()).toBe(false);
 
-    expect(socket.sent).toEqual([]);
-    expect(socket.closeArgs).toEqual({
-      code: 1008,
-      reason: 'Dashboard token missing'
-    });
+    expect(harness.instances).toEqual([]);
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
   });
 
   test('closes without sending auth when public meta token is only whitespace', () => {
     const harness = createHarness({ token: '   ' });
 
-    harness.Socket.connect();
-    const socket = harness.instances[0];
-    socket.open();
+    expect(harness.Socket.connect()).toBe(false);
 
-    expect(socket.sent).toEqual([]);
-    expect(socket.closeArgs).toEqual({
-      code: 1008,
-      reason: 'Dashboard token missing'
-    });
+    expect(harness.instances).toEqual([]);
   });
 
   test('stores operator token and reconnects with the new value', () => {

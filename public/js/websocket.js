@@ -176,6 +176,12 @@
             stopHealthChecks();
             authenticated = false;
 
+            const token = dashboardAuthToken();
+            if (!token) {
+                console.warn('[Socket] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+                return false;
+            }
+
             const url = socketUrl();
             console.log(`[Socket] Connecting to ${url}...`);
             const currentSocket = new WebSocket(url);
@@ -187,16 +193,6 @@
                 // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Until the
                 // gated session/ticket flow lands, an empty token fails closed
                 // at the server instead of silently using a leaked literal.
-                const token = dashboardAuthToken();
-                if (!token) {
-                    console.warn('[Socket] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
-                    try {
-                        currentSocket.close(1008, 'Dashboard token missing');
-                    } catch (err) {
-                        console.error('[Socket] Failed to close unauthenticated socket:', err);
-                    }
-                    return;
-                }
                 this.send({ type: 'auth', token });
             };
 

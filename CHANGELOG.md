@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a private browser-side operator token path for dashboard WebSocket auth via `localStorage` or `window.OGZ_DASHBOARD_TOKEN`, while keeping public dashboard HTML `ws-token` metadata empty.
 - Made both dashboard WebSocket clients trim token sources and close without sending auth when no non-empty token is configured, then bumped dashboard script cache keys for `websocket.js` and `trai-widget.js`.
+- Corrected missing-token browser handling so dashboard clients do not open a WebSocket until a non-empty operator token is configured.
 
 ### Eval PM2 Runtime Env Gate (2026-06-11)
 

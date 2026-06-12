@@ -395,6 +395,12 @@
   // Connect to WebSocket
   function connectWebSocket() {
     try {
+      const authToken = dashboardAuthToken();
+      if (!authToken) {
+        console.warn('[TRAI Widget] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+        return;
+      }
+
       ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
@@ -404,16 +410,6 @@
         // injection. See public/js/websocket.js for the matching pattern.
         // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Empty token fails
         // closed at the server until gated session/ticket auth lands.
-        const authToken = dashboardAuthToken();
-        if (!authToken) {
-          console.warn('[TRAI Widget] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
-          try {
-            ws.close(1008, 'Dashboard token missing');
-          } catch (err) {
-            console.error('[TRAI Widget] Failed to close unauthenticated socket:', err);
-          }
-          return;
-        }
         ws.send(JSON.stringify({
           type: 'auth',
           token: authToken
