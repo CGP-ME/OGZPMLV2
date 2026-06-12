@@ -250,3 +250,156 @@ describe('KrakenAdapterSimple WebSocket symbol attribution', () => {
     });
   });
 });
+
+describe('KrakenAdapterSimple WebSocket subscription deferral', () => {
+  let MockWebSocket;
+  let wsInstances;
+  let DeferredKrakenAdapterSimple;
+  let errorSpy;
+
+  beforeEach(() => {
+    jest.resetModules();
+    wsInstances = [];
+
+    MockWebSocket = class {
+      constructor() {
+        this.readyState = MockWebSocket.CONNECTING;
+        this.handlers = new Map();
+        this.send = jest.fn((payload) => {
+          if (this.readyState !== MockWebSocket.OPEN) {
+            throw new Error(`WebSocket is not open: readyState ${this.readyState}`);
+          }
+          return payload.length;
+        });
+        this.close = jest.fn();
+        this.terminate = jest.fn();
+        this.ping = jest.fn();
+        this.pong = jest.fn();
+        this.removeAllListeners = jest.fn();
+        wsInstances.push(this);
+      }
+
+      on(event, handler) {
+        this.handlers.set(event, handler);
+        return this;
+      }
+
+      emit(event, ...args) {
+        const handler = this.handlers.get(event);
+        if (handler) handler(...args);
+      }
+    };
+    MockWebSocket.CONNECTING = 0;
+    MockWebSocket.OPEN = 1;
+
+    jest.doMock('ws', () => MockWebSocket);
+    DeferredKrakenAdapterSimple = require('../kraken_adapter_simple');
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    for (const ws of wsInstances) {
+      ws.handlers.clear();
+    }
+    jest.restoreAllMocks();
+    jest.dontMock('ws');
+  });
+
+  function stopIntervals(adapter) {
+    if (adapter.pingInterval) clearInterval(adapter.pingInterval);
+    if (adapter.dataWatchdogInterval) clearInterval(adapter.dataWatchdogInterval);
+  }
+
+  test('does not send Kraken subscriptions synchronously when open fires before readyState OPEN', async () => {
+    const adapter = new DeferredKrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(true);
+    const ws = wsInstances[0];
+
+    ws.emit('open');
+    expect(ws.send).not.toHaveBeenCalled();
+
+    ws.readyState = MockWebSocket.OPEN;
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(ws.send).toHaveBeenCalledTimes(9);
+    expect(JSON.parse(ws.send.mock.calls[0][0])).toMatchObject({
+      event: 'subscribe',
+      pair: ['XBT/USD'],
+      subscription: { name: 'ticker' }
+    });
+    expect(JSON.parse(ws.send.mock.calls[8][0])).toMatchObject({
+      event: 'subscribe',
+      pair: ['XBT/USD'],
+      subscription: { name: 'book', depth: 25 }
+    });
+    expect(adapter.bookSubscriptions.has('XBT/USD')).toBe(true);
+    stopIntervals(adapter);
+  });
+
+  test('bails without bookkeeping when deferred subscription still finds non-open socket', async () => {
+    const adapter = new DeferredKrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(true);
+    const ws = wsInstances[0];
+
+    ws.emit('open');
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(ws.send).not.toHaveBeenCalled();
+    expect(adapter.bookSubscriptions.size).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith('[Kraken] WS open handler deferred subscriptions because readyState=0');
+    stopIntervals(adapter);
+  });
+
+  test('does not send stale deferred subscriptions on a replacement socket', async () => {
+    const adapter = new DeferredKrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(true);
+    const originalWs = wsInstances[0];
+
+    originalWs.emit('open');
+    const replacementWs = new MockWebSocket();
+    replacementWs.readyState = MockWebSocket.OPEN;
+    adapter.ws = replacementWs;
+
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(originalWs.send).not.toHaveBeenCalled();
+    expect(replacementWs.send).not.toHaveBeenCalled();
+    expect(adapter.bookSubscriptions.size).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith('[Kraken] WS open handler skipped stale subscription socket');
+    stopIntervals(adapter);
+  });
+
+  test('preserves existing bookkeeping when deferred subscription send fails before bookkeeping update', async () => {
+    const adapter = new DeferredKrakenAdapterSimple({ tradingPair: 'BTC-USD' });
+    adapter.bookSubscriptions.add('ETH/USD');
+    adapter.depthLiveSymbolTimestamps.set('ETH-USD', 1770000000000);
+
+    await expect(adapter.connectWebSocketStream(() => {})).resolves.toBe(true);
+    const ws = wsInstances[0];
+    ws.send.mockImplementation((payload) => {
+      if (ws.readyState !== MockWebSocket.OPEN) {
+        throw new Error(`WebSocket is not open: readyState ${ws.readyState}`);
+      }
+      const frame = JSON.parse(payload);
+      if (frame.subscription?.name === 'book') {
+        throw new Error('book subscribe failed');
+      }
+      return payload.length;
+    });
+
+    ws.emit('open');
+    ws.readyState = MockWebSocket.OPEN;
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(ws.send).toHaveBeenCalledTimes(9);
+    expect(adapter.bookSubscriptions.has('ETH/USD')).toBe(true);
+    expect(adapter.bookSubscriptions.has('XBT/USD')).toBe(false);
+    expect(adapter.depthLiveSymbolTimestamps.get('ETH-USD')).toBe(1770000000000);
+    expect(errorSpy).toHaveBeenCalledWith('[Kraken] WebSocket subscription send failed: book subscribe failed');
+    stopIntervals(adapter);
+  });
+});

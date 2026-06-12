@@ -936,30 +936,46 @@ class KrakenAdapterSimple {
         // Kraken intervals: 1=1m, 5=5m, 15=15m, 30=30m, 60=1h, 240=4h, 1440=1d
         const ohlcIntervals = [1, 5, 15, 30, 60, 240, 1440];
 
-        this.ws.send(JSON.stringify(tickerSub));
-
-        for (const interval of ohlcIntervals) {
-          const ohlcSub = {
-            event: 'subscribe',
-            pair: wsPairs,
-            subscription: {
-              name: 'ohlc',
-              interval: interval
-            }
-          };
-          this.ws.send(JSON.stringify(ohlcSub));
-        }
-        // Subscribe to order book for depth/whale wall detection
         const bookSub = {
           event: 'subscribe',
           pair: wsPairs,
           subscription: { name: 'book', depth: 25 }
         };
-        this.ws.send(JSON.stringify(bookSub));
-        this.bookSubscriptions.clear();
-        this.depthLiveSymbolTimestamps.clear();
-        for (const pair of wsPairs) this.bookSubscriptions.add(pair);
-        console.log(`[Kraken] Multi-timeframe subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25) for ${wsPairs.join(',')}`);
+
+        const subscriptionWs = this.ws;
+        setImmediate(() => {
+          if (this.ws !== subscriptionWs) {
+            console.error('[Kraken] WS open handler skipped stale subscription socket');
+            return;
+          }
+          if (!subscriptionWs || subscriptionWs.readyState !== WebSocket.OPEN) {
+            console.error(`[Kraken] WS open handler deferred subscriptions because readyState=${subscriptionWs?.readyState}`);
+            return;
+          }
+
+          try {
+            subscriptionWs.send(JSON.stringify(tickerSub));
+            for (const interval of ohlcIntervals) {
+              const ohlcSub = {
+                event: 'subscribe',
+                pair: wsPairs,
+                subscription: {
+                  name: 'ohlc',
+                  interval: interval
+                }
+              };
+              subscriptionWs.send(JSON.stringify(ohlcSub));
+            }
+            // Subscribe to order book for depth/whale wall detection
+            subscriptionWs.send(JSON.stringify(bookSub));
+            this.bookSubscriptions.clear();
+            this.depthLiveSymbolTimestamps.clear();
+            for (const pair of wsPairs) this.bookSubscriptions.add(pair);
+            console.log(`[Kraken] Multi-timeframe subscribed to ticker + OHLC (1m, 5m, 15m, 30m, 1h, 4h, 1d) + book (depth 25) for ${wsPairs.join(',')}`);
+          } catch (sendError) {
+            console.error(`[Kraken] WebSocket subscription send failed: ${sendError.message}`);
+          }
+        });
 
         // CHANGE 2026-01-21: Start heartbeat ping interval to keep connection alive
         // Kraken closes idle connections - this prevents that

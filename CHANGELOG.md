@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Kraken WebSocket Subscription Deferral (2026-06-12)
+
+- Deferred Kraken market-data subscription sends out of the WebSocket `open` callback with a ready-state guard and send failure logging, preventing async-hooks readyState races from crashing the process during boot.
+- Added focused Kraken WebSocket regressions proving subscriptions are not sent synchronously while the socket is still CONNECTING and that order-book bookkeeping only updates after successful deferred sends.
+
 ### Strategy Contract Confidence Gate (2026-06-12)
 
 - Enforced effective `exitContracts.*.minConfidence` in `StrategyOrchestrator` before ATR/regime/volume-profile boosts and winner selection, with loud failure on malformed contract gate values.
