@@ -583,6 +583,28 @@ describe('TradingLoop trace spine', () => {
     }));
   });
 
+  test('renders minimum confidence in percent on HOLD thinking frames', () => {
+    const ctx = baseEntryContext();
+    const loop = new TradingLoop(ctx);
+
+    loop._broadcastDecision(
+      'TSLA',
+      100,
+      { rsi: 55, atr: 1, volume: 1000 },
+      [],
+      { currentRegime: 'trend', confidence: 0.75 },
+      { confidence: 40, direction: 'buy', winnerStrategy: 'RSI', reasons: ['below_min_confidence'] },
+      { action: 'HOLD', confidence: 40 },
+      { totalConfidence: 40 },
+      0.5
+    );
+
+    expect(sentFrames(ctx).find(frame => frame.type === 'bot_thinking')).toEqual(expect.objectContaining({
+      message: 'Waiting: Confidence 40.0% < 50% minimum',
+      asset: 'TSLA',
+    }));
+  });
+
   test('does not emit entry gate_event frames for exit decisions', async () => {
     const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_CONSISTENCY_GATE_1' });
     mockStateManager.getTradesBySymbol.mockReturnValue([{

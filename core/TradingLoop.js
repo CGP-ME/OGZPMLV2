@@ -1499,7 +1499,7 @@ class TradingLoop {
     const reasoning = decision.action === 'HOLD'
       ? (decision.blockReason
         ? `Blocked: ${decision.blockReason}`
-        : `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${minConfidence}% minimum`)
+        : `Waiting: Confidence ${decision.confidence?.toFixed(1) || 0}% < ${(minConfidence * 100).toFixed(0)}% minimum`)
       : `${decision.action}: Confidence ${decision.confidence?.toFixed(1)}% | ${orchResult.winnerStrategy || 'signal'}`;
     this._sendDashboardFrame({
       type: 'bot_thinking',

@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rejected placeholder immutable scope fields such as `unknown`, `undefined`, `null`, `none`, `n/a`, `na`, and `unclassified` in `StateManager.buildTradeScope()` before they can enter dashboard scope, open trades, snapshots, or audit rows.
 - Guarded the P0 gate helper `addTrades()` with `StateManager.buildTradeScope()` so validation tooling cannot inject active trades that bypass immutable scope checks.
 
+### TradingLoop Minimum Confidence Display (2026-06-12)
+
+- Fixed HOLD thinking frames to render `minTradeConfidence` as a percent, so a `0.5` gate displays as `50% minimum` instead of `0.5% minimum`.
+
 ### Dashboard Equity Source Contract (2026-06-12)
 
 - Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.
