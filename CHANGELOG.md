@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed HOLD thinking frames to render `minTradeConfidence` as a percent, so a `0.5` gate displays as `50% minimum` instead of `0.5% minimum`.
 
+### TTP Cutoff Webhook Reconciliation Boundary (2026-06-12)
+
+- Changed `TtpCutoffEnforcer` so live SignalStack/webhook execution does not reconcile against unrelated Alpaca paper broker positions during the 15:50 cutoff. Webhook-routed cutoff now closes tracked state through the same execution path and reports `brokerFlatVerified=false` instead of treating the wrong broker as flat truth.
+- Hardened cutoff active-trade reads to accept runtime `Map` and persisted-entry array shapes while failing loud on unsupported containers, so serialized open trades cannot be silently treated as flat.
+
 ### Dashboard Equity Source Contract (2026-06-12)
 
 - Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.

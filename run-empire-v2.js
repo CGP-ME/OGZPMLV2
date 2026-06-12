@@ -333,6 +333,8 @@ const exitContractManager = getExitContractManager();
 
 // CHANGE 2026-02-28: TradingConfig - Centralized trading parameters
 const TradingConfig = require('./core/TradingConfig');
+const { logRuntimeConfigProof } = require('./core/RuntimeConfigProof');
+logRuntimeConfigProof(resolvedConfig, TradingConfig);
 const EvalRuleEngine = require('./core/EvalRuleEngine');
 const TtpCutoffEnforcer = require('./core/TtpCutoffEnforcer');
 
@@ -1351,8 +1353,10 @@ class OGZPrimeV14Bot {
     const stockBrokerNames = this.orderRouter?.getBrokerNamesByAssetType
       ? this.orderRouter.getBrokerNamesByAssetType(['stocks', 'stock', 'equities', 'equity', 'etfs', 'etf'])
       : [];
+    const webhookExecutionRoute = resolvedConfig.config.webhookOrders.enabled === true
+      && resolvedConfig.config.webhookOrders.dryRun === false;
     const ttpCutoffBrokerNames = isTtpStockAssetClass
-      ? (this.sessionRouter ? ['alpaca'] : stockBrokerNames)
+      ? (webhookExecutionRoute ? [] : (this.sessionRouter ? ['alpaca'] : stockBrokerNames))
       : [];
     this.ttpCutoffEnforcer = new TtpCutoffEnforcer({
       evalRuleEngine: this.evalRuleEngine,
@@ -1367,6 +1371,7 @@ class OGZPrimeV14Bot {
         ...(Array.isArray(this.sessionRouter?.stockSymbols) ? this.sessionRouter.stockSymbols : []),
       ],
       brokerNames: ttpCutoffBrokerNames,
+      brokerReconciliationEnabled: !webhookExecutionRoute,
     });
 
     // REFACTOR Phase 15: TradingLoop - context with all dependencies

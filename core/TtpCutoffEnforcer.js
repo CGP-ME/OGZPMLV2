@@ -11,6 +11,7 @@ class TtpCutoffEnforcer {
     symbols = [],
     getSymbols,
     brokerNames = [],
+    brokerReconciliationEnabled = true,
     now = () => Date.now(),
     logger = console,
   } = {}) {
@@ -23,6 +24,7 @@ class TtpCutoffEnforcer {
     this.baseSymbols = Array.isArray(symbols) ? symbols.slice() : [];
     this.getSymbols = typeof getSymbols === 'function' ? getSymbols : null;
     this.brokerNames = this._normalizeBrokerNames(brokerNames);
+    this.brokerReconciliationEnabled = brokerReconciliationEnabled === true;
     this.symbols = this._buildSymbolScope(this.baseSymbols);
     this.now = now;
     this.logger = logger;
@@ -50,7 +52,8 @@ class TtpCutoffEnforcer {
     }
 
     const symbolScope = this._currentSymbolScope();
-    const targetAllBrokerStocks = this.brokerNames.length > 0;
+    const brokerPositionReadAvailable = this._brokerPositionReadAvailable();
+    const targetAllBrokerStocks = brokerPositionReadAvailable && this.brokerNames.length > 0;
 
     this.inFlight = true;
     try {
@@ -59,7 +62,9 @@ class TtpCutoffEnforcer {
         throw new Error(`[TTP_MARKET_TIME] pending-order cancellation failed: ${JSON.stringify(cancelResult.results)}`);
       }
 
-      const brokerPositions = await this._getBrokerPositions(symbolScope);
+      const brokerPositions = brokerPositionReadAvailable
+        ? await this._getBrokerPositions(symbolScope)
+        : [];
       const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions, symbolScope, targetAllBrokerStocks);
       const activeTrades = this._activeTrades();
       const failures = [];
@@ -78,7 +83,7 @@ class TtpCutoffEnforcer {
         }
 
         const brokerPosition = this._findBrokerPosition(targetBrokerPositions, normalizedSymbol);
-        if (!brokerPosition) {
+        if (brokerPositionReadAvailable && !brokerPosition) {
           failures.push({ tradeId, symbol, reason: 'state_trade_open_without_broker_position' });
           continue;
         }
@@ -109,9 +114,13 @@ class TtpCutoffEnforcer {
         }
       }
 
-      const refreshedPositions = await this._getBrokerPositions(symbolScope);
-      const brokerOrphans = this._ttpBrokerPositions(refreshedPositions, symbolScope, targetAllBrokerStocks)
-        .filter(position => !activeTradeSymbols.has(this._normalizeSymbol(position.symbol)));
+      const refreshedPositions = brokerPositionReadAvailable
+        ? await this._getBrokerPositions(symbolScope)
+        : [];
+      const brokerOrphans = brokerPositionReadAvailable
+        ? this._ttpBrokerPositions(refreshedPositions, symbolScope, targetAllBrokerStocks)
+          .filter(position => !activeTradeSymbols.has(this._normalizeSymbol(position.symbol)))
+        : [];
       const orphanClosed = [];
       for (const position of brokerOrphans) {
         try {
@@ -127,7 +136,9 @@ class TtpCutoffEnforcer {
         }
       }
 
-      const finalPositions = this._ttpBrokerPositions(await this._getBrokerPositions(symbolScope), symbolScope, targetAllBrokerStocks);
+      const finalPositions = brokerPositionReadAvailable
+        ? this._ttpBrokerPositions(await this._getBrokerPositions(symbolScope), symbolScope, targetAllBrokerStocks)
+        : [];
       if (finalPositions.length > 0) {
         failures.push({
           reason: 'broker_positions_still_open_after_cutoff',
@@ -145,8 +156,9 @@ class TtpCutoffEnforcer {
       }
 
       this.completedKeys.add(key);
-      this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0}`);
-      return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed };
+      const brokerFlatVerified = brokerPositionReadAvailable;
+      this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0} brokerFlatVerified=${brokerFlatVerified}`);
+      return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed, brokerFlatVerified };
     } finally {
       this.inFlight = false;
     }
@@ -154,12 +166,15 @@ class TtpCutoffEnforcer {
 
   _activeTradeMap() {
     const trades = this.stateManager?.get?.('activeTrades');
-    return trades instanceof Map ? trades : null;
+    if (!trades) return new Map();
+    if (trades instanceof Map) return trades;
+    if (Array.isArray(trades)) return new Map(trades);
+    throw new Error(`[TTP_MARKET_TIME] activeTrades container invariant failed: expected Map/array, got ${Object.prototype.toString.call(trades)}`);
   }
 
   _activeTrades() {
     const trades = this._activeTradeMap();
-    return trades ? Array.from(trades.values()) : [];
+    return Array.from(trades.values());
   }
 
   _isTtpStockTrade(trade) {
@@ -168,10 +183,19 @@ class TtpCutoffEnforcer {
   }
 
   async _cancelOpenOrders(symbolScope) {
+    if (!this.brokerReconciliationEnabled) {
+      return { success: true, skipped: true, reason: 'broker_reconciliation_disabled', cancelled: 0, failed: 0, results: [] };
+    }
     if (!this.orderRouter || typeof this.orderRouter.cancelAllOpenOrders !== 'function') {
       return { success: true, skipped: true, reason: 'missing_cancel_api', cancelled: 0, failed: 0, results: [] };
     }
     return this.orderRouter.cancelAllOpenOrders(this._routerScope(symbolScope));
+  }
+
+  _brokerPositionReadAvailable() {
+    return this.brokerReconciliationEnabled
+      && this.orderRouter
+      && typeof this.orderRouter.getAllPositions === 'function';
   }
 
   async _getBrokerPositions(symbolScope) {
