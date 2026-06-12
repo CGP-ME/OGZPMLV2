@@ -279,6 +279,18 @@ describe('StateManager dashboard state_update frame', () => {
     })).toThrow(/missing immutable trade scope field\(s\): timeframe/);
   });
 
+  test('rejects placeholder runtime scope fields instead of publishing fake identity', () => {
+    expect(() => manager.setDashboardRuntimeScope({
+      symbol: 'unknown',
+      brokerId: 'alpaca',
+      accountId: 'paper-1',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+    })).toThrow(/invalid immutable trade scope placeholder field\(s\): symbol/);
+  });
+
   test('emits authoritative state_update heartbeat while dashboard socket stays open', () => {
     jest.useFakeTimers();
     const sent = [];

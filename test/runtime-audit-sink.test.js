@@ -114,6 +114,70 @@ describe('RuntimeAuditSink', () => {
     expect(record.context.self).toBe('[circular]');
   });
 
+  test('preserves missing runtime scope as null instead of inventing unknown', () => {
+    const sink = new RuntimeAuditSink({
+      dir: tempDir,
+      allowOutsideRepo: true,
+      clock: () => new Date('2026-05-27T12:02:00.000Z'),
+    });
+
+    const result = sink.capture('mainFatal', new Error('scope missing'), {
+      executionMode: 'paper',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      symbol: 'TSLA',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:acct-1:stocks:TSLA:15m',
+    });
+
+    expect(result.success).toBe(true);
+
+    const [record] = readJsonl(path.join(tempDir, 'fatal-events.jsonl'));
+    expect(record.runtimeScope).toBeNull();
+    expect(record.scope).toEqual(expect.objectContaining({
+      executionMode: 'paper',
+      brokerId: 'alpaca',
+      accountId: null,
+      assetClass: 'stocks',
+      symbol: 'TSLA',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:acct-1:stocks:TSLA:15m',
+    }));
+  });
+
+  test('normalizes placeholder scope strings to null in fatal audit records', () => {
+    const sink = new RuntimeAuditSink({
+      dir: tempDir,
+      allowOutsideRepo: true,
+      clock: () => new Date('2026-05-27T12:03:00.000Z'),
+    });
+
+    const result = sink.capture('mainFatal', new Error('placeholder scope'), {
+      runtimeScope: 'unknown',
+      executionMode: 'paper',
+      brokerId: 'undefined',
+      accountId: 'none',
+      assetClass: 'stocks',
+      symbol: 'n/a',
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:acct-1:stocks:TSLA:15m',
+    });
+
+    expect(result.success).toBe(true);
+
+    const [record] = readJsonl(path.join(tempDir, 'fatal-events.jsonl'));
+    expect(record.runtimeScope).toBeNull();
+    expect(record.scope).toEqual({
+      executionMode: 'paper',
+      brokerId: null,
+      accountId: null,
+      assetClass: 'stocks',
+      symbol: null,
+      timeframe: '15m',
+      scopeKey: 'paper:alpaca:acct-1:stocks:TSLA:15m',
+    });
+  });
+
   test('capture returns failure instead of throwing when append fails', () => {
     const writeSyncSpy = jest.spyOn(fs, 'writeSync').mockImplementation(() => {});
     const sink = new RuntimeAuditSink({ filePath: tempDir, allowOutsideRepo: true });

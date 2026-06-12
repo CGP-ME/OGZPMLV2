@@ -74,6 +74,10 @@ describe('StateManager openPosition scope contract', () => {
     process.env.BACKTEST_MODE = 'false';
     process.env.EXECUTION_MODE = 'paper';
     process.env.CANDLE_SOURCE = 'live';
+    process.env.BROKER = 'alpaca';
+    process.env.ALPACA_MODE = 'paper';
+    process.env.MAX_WEEKLY_LOSS = '5';
+    process.env.MAX_MONTHLY_LOSS = '5';
     process.env.FRESH_START = 'false';
 
     consoleSpies = [
@@ -112,6 +116,26 @@ describe('StateManager openPosition scope contract', () => {
     expect(result.scopeRejected).toBe(true);
     expect(result.code).toBe('SCOPE_REJECTED');
     expect(result.missingFields).toContain(field);
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+    expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
+  });
+
+  test.each([
+    ['symbol', { symbol: 'unknown' }],
+    ['brokerId', { brokerId: 'undefined' }],
+    ['assetClass', { assetClass: 'n/a' }],
+    ['executionMode', { executionMode: 'none' }],
+    ['timeframe', { timeframe: 'null' }],
+  ])('rejects placeholder immutable trade scope field %s before mutating active trades', async (field, override) => {
+    const beforePositions = manager._buildScopedDashboardPositions(manager.state);
+
+    const result = await manager.openPosition(500, 100, fullScope(override));
+
+    expect(result.success).toBe(false);
+    expect(result.scopeRejected).toBe(true);
+    expect(result.code).toBe('SCOPE_REJECTED');
+    expect(result.invalidFields).toContain(field);
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);

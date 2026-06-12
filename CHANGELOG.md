@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved data-file instrument derivation into `core/DataFileInstrument.js` and reused it from `tools/instrument-env.js`.
 - Added UUID-backed run ids and validated asset slugs to `BacktestRunner` report paths when `CANDLE_DATA_FILE` is set, including custom `BACKTEST_OUTPUT_DIR` report files, preventing same-millisecond cross-asset report overwrites without guessing from unknown data-file names.
 
+### Pipeline Snapshot Runtime Scope (2026-06-12)
+
+- Added runtime scope metadata to `PipelineSnapshot` rows from `StateManager.getDashboardRuntimeScope()`, including `symbol`, `scopeKey`, `scopeKeyVersion`, `runtimeScopeStatus`, and missing-field details without inventing an `unknown` symbol.
+- Preserved missing `RuntimeAuditSink` runtime scope as `null` and normalized placeholder audit scope strings to `null` instead of writing fake fatal-audit metadata.
+- Rejected placeholder immutable scope fields such as `unknown`, `undefined`, `null`, `none`, `n/a`, `na`, and `unclassified` in `StateManager.buildTradeScope()` before they can enter dashboard scope, open trades, snapshots, or audit rows.
+- Guarded the P0 gate helper `addTrades()` with `StateManager.buildTradeScope()` so validation tooling cannot inject active trades that bypass immutable scope checks.
+
 ### Dashboard Equity Source Contract (2026-06-12)
 
 - Changed `CandleProcessor` dashboard price payloads to publish `equity` from `StateManager.getEquity(price)` instead of free-cash `balance`, so dashboard equity samples track account value with realized and unrealized P&L.

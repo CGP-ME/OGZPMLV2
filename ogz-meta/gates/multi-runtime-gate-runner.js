@@ -239,6 +239,7 @@ function patternBankTrade(overrides = {}) {
 function addTrades(...trades) {
   const sm = stateManager();
   for (const trade of trades) {
+    sm.buildTradeScope(trade, trade?.symbol, 'multi-runtime-gate addTrades');
     sm.state.activeTrades.set(trade.orderId, trade);
   }
 }

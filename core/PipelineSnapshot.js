@@ -99,6 +99,13 @@ class PipelineSnapshot {
     // Get references safely
     const stateManager = this._resolveStateManager(bot);
     const indicatorEngine = bot.indicatorEngine || bot.engine;
+    const runtimeScope = this._getRuntimeScope(stateManager);
+    const runtimeScopeStatus = runtimeScope
+      ? (runtimeScope.scopeComplete ? 'complete' : 'incomplete')
+      : 'unset';
+    const runtimeScopeMissing = runtimeScope
+      ? [...(runtimeScope.missingFields || [])]
+      : ['runtimeScope'];
     
     const snap = {
       // Meta
@@ -106,6 +113,12 @@ class PipelineSnapshot {
       iso: new Date(now).toISOString(),
       uptimeMinutes: Math.round((now - this.startTime) / 60000),
       snapshotNumber: this.snapshotCount + 1,
+      symbol: runtimeScope?.symbol || null,
+      runtimeScope,
+      runtimeScopeStatus,
+      runtimeScopeMissing,
+      scopeKey: runtimeScope?.scopeKey || null,
+      scopeKeyVersion: runtimeScope?.scopeKeyVersion || null,
 
       // Price
       price: this._getPrice(bot),
@@ -144,6 +157,11 @@ class PipelineSnapshot {
     };
 
     return snap;
+  }
+
+  _getRuntimeScope(stateManager) {
+    const scope = this._safeGet(() => stateManager?.getDashboardRuntimeScope?.());
+    return scope && typeof scope === 'object' ? scope : null;
   }
 
   _getPrice(bot) {
@@ -389,7 +407,13 @@ class PipelineSnapshot {
   }
 
   _resolveStateManager(bot) {
-    if (bot?.stateManager && typeof bot.stateManager.get === 'function') {
+    if (
+      bot?.stateManager
+      && (
+        typeof bot.stateManager.get === 'function'
+        || typeof bot.stateManager.getDashboardRuntimeScope === 'function'
+      )
+    ) {
       return bot.stateManager;
     }
 

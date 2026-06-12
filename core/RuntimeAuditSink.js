@@ -4,6 +4,15 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_FILE_NAME = 'fatal-events.jsonl';
+const AUDIT_SCOPE_PLACEHOLDER_VALUES = new Set([
+  'unknown',
+  'undefined',
+  'unclassified',
+  'null',
+  'none',
+  'n/a',
+  'na'
+]);
 
 function defaultAuditFilePath(cwd = process.cwd()) {
   return path.resolve(cwd, 'data', 'runtime-audit', DEFAULT_FILE_NAME);
@@ -66,6 +75,15 @@ function sanitizeValue(value, depth = 0, seen = new WeakSet()) {
   return out;
 }
 
+function cleanAuditScopeValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string') return value;
+  const cleaned = value.trim();
+  if (!cleaned) return null;
+  if (AUDIT_SCOPE_PLACEHOLDER_VALUES.has(cleaned.toLowerCase())) return null;
+  return cleaned;
+}
+
 function normalizeThrowable(input) {
   if (input instanceof Error) {
     return {
@@ -126,16 +144,16 @@ class RuntimeAuditSink {
       name: throwable.name,
       stack: throwable.stack,
       raw: throwable.raw,
-      runtimeScope: context.runtimeScope || 'unknown',
+      runtimeScope: cleanAuditScopeValue(context.runtimeScope),
       configFingerprint: context.configFingerprint || null,
       scope: {
-        executionMode: context.executionMode || null,
-        brokerId: context.brokerId || null,
-        accountId: context.accountId || null,
-        assetClass: context.assetClass || null,
-        symbol: context.symbol || null,
-        timeframe: context.timeframe || null,
-        scopeKey: context.scopeKey || null,
+        executionMode: cleanAuditScopeValue(context.executionMode),
+        brokerId: cleanAuditScopeValue(context.brokerId),
+        accountId: cleanAuditScopeValue(context.accountId),
+        assetClass: cleanAuditScopeValue(context.assetClass),
+        symbol: cleanAuditScopeValue(context.symbol),
+        timeframe: cleanAuditScopeValue(context.timeframe),
+        scopeKey: cleanAuditScopeValue(context.scopeKey),
       },
       env: {
         pid: this.pid,

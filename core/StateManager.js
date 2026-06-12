@@ -83,6 +83,16 @@ const { getNarrator } = require('./TradeNarrator');
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
 const narrator = getNarrator();
 
+const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
+  'unknown',
+  'undefined',
+  'unclassified',
+  'null',
+  'none',
+  'n/a',
+  'na'
+]);
+
 class StateManager {
   /**
    * Creates a new StateManager instance.
@@ -635,12 +645,14 @@ class StateManager {
 
   _rejectOpenPositionScope(err, context = {}) {
     const missingFields = Array.isArray(err.missingFields) ? err.missingFields : [];
+    const invalidFields = Array.isArray(err.invalidFields) ? err.invalidFields : [];
     const result = {
       success: false,
       error: err.message,
       code: err.code || 'SCOPE_REJECTED',
       scopeRejected: true,
       missingFields,
+      invalidFields,
     };
 
     if (err.suppliedScopeKey !== undefined) {
@@ -1505,6 +1517,7 @@ class StateManager {
     const executionMode = context.executionMode || context.ledgerData?.executionMode || null;
     const timeframe = context.timeframe || context.ledgerData?.timeframe || null;
     const missing = [];
+    const invalid = [];
     const cleanText = (value, name) => {
       if (value === null || value === undefined) {
         missing.push(name);
@@ -1513,6 +1526,10 @@ class StateManager {
       const cleaned = String(value).trim();
       if (!cleaned) {
         missing.push(name);
+        return null;
+      }
+      if (INVALID_SCOPE_PLACEHOLDER_VALUES.has(cleaned.toLowerCase())) {
+        invalid.push(name);
         return null;
       }
       return cleaned;
@@ -1527,6 +1544,12 @@ class StateManager {
       const error = new Error(`${caller} missing immutable trade scope field(s): ${missing.join(', ')}`);
       error.code = 'SCOPE_REJECTED';
       error.missingFields = missing;
+      throw error;
+    }
+    if (invalid.length > 0) {
+      const error = new Error(`${caller} invalid immutable trade scope placeholder field(s): ${invalid.join(', ')}`);
+      error.code = 'SCOPE_REJECTED';
+      error.invalidFields = invalid;
       throw error;
     }
 
