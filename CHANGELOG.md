@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Operator WebSocket Token (2026-06-12)
+
+- Added a private browser-side operator token path for dashboard WebSocket auth via `localStorage` or `window.OGZ_DASHBOARD_TOKEN`, while keeping public dashboard HTML `ws-token` metadata empty.
+- Made both dashboard WebSocket clients trim token sources and close without sending auth when no non-empty token is configured, then bumped dashboard script cache keys for `websocket.js` and `trai-widget.js`.
+
 ### Eval PM2 Runtime Env Gate (2026-06-11)
 
 - Made eval-live PM2 posture checks read the actual `/proc/<pid>/environ` runtime environment instead of stale `pm2 jlist` metadata when a PM2 PID is available, so go/no-go checks inspect the process that is actually running.

@@ -81,6 +81,24 @@
         return DASHBOARD_DATA_FRAME_TYPES.has(type);
     }
 
+    function storedDashboardToken() {
+        try {
+            const token = window.localStorage && window.localStorage.getItem('ogz.dashboard.wsToken');
+            return typeof token === 'string' ? token.trim() : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function dashboardAuthToken() {
+        const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
+        if (typeof metaToken === 'string' && metaToken.trim() !== '') return metaToken.trim();
+        if (typeof window.OGZ_DASHBOARD_TOKEN === 'string' && window.OGZ_DASHBOARD_TOKEN.trim() !== '') {
+            return window.OGZ_DASHBOARD_TOKEN.trim();
+        }
+        return storedDashboardToken();
+    }
+
     function sendRaw(data) {
         if (ws && ws.readyState === OPEN) {
             ws.send(JSON.stringify(data));
@@ -169,11 +187,15 @@
                 // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Until the
                 // gated session/ticket flow lands, an empty token fails closed
                 // at the server instead of silently using a leaked literal.
-                const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
-                const token = (metaToken && metaToken !== '') ? metaToken
-                    : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
+                const token = dashboardAuthToken();
                 if (!token) {
-                    console.warn('[Socket] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+                    console.warn('[Socket] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+                    try {
+                        currentSocket.close(1008, 'Dashboard token missing');
+                    } catch (err) {
+                        console.error('[Socket] Failed to close unauthenticated socket:', err);
+                    }
+                    return;
                 }
                 this.send({ type: 'auth', token });
             };
@@ -265,6 +287,32 @@
 
         send: (data) => {
             return sendRaw(data);
+        },
+
+        setAuthToken: (token) => {
+            if (typeof token !== 'string' || token.trim() === '') {
+                console.warn('[Socket] Refusing empty dashboard token');
+                return false;
+            }
+            try {
+                window.localStorage.setItem('ogz.dashboard.wsToken', token.trim());
+            } catch (err) {
+                console.error('[Socket] Failed to store dashboard token:', err);
+                return false;
+            }
+            forceReconnect('dashboard token updated');
+            return true;
+        },
+
+        clearAuthToken: () => {
+            try {
+                window.localStorage.removeItem('ogz.dashboard.wsToken');
+            } catch (err) {
+                console.error('[Socket] Failed to clear dashboard token:', err);
+                return false;
+            }
+            forceReconnect('dashboard token cleared');
+            return true;
         },
 
         isConnected: () => Boolean(ws && ws.readyState === OPEN && authenticated)

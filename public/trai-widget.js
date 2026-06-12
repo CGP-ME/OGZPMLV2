@@ -21,6 +21,24 @@
   let isOpen = false;
   let isConnected = false;
 
+  function storedDashboardToken() {
+    try {
+      const token = window.localStorage && window.localStorage.getItem('ogz.dashboard.wsToken');
+      return typeof token === 'string' ? token.trim() : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function dashboardAuthToken() {
+    const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
+    if (typeof metaToken === 'string' && metaToken.trim() !== '') return metaToken.trim();
+    if (typeof window.OGZ_DASHBOARD_TOKEN === 'string' && window.OGZ_DASHBOARD_TOKEN.trim() !== '') {
+      return window.OGZ_DASHBOARD_TOKEN.trim();
+    }
+    return storedDashboardToken();
+  }
+
   // Create widget HTML
   function createWidget() {
     const container = document.createElement('div');
@@ -386,11 +404,15 @@
         // injection. See public/js/websocket.js for the matching pattern.
         // Public HTML must not carry WEBSOCKET_AUTH_TOKEN. Empty token fails
         // closed at the server until gated session/ticket auth lands.
-        const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
-        const authToken = (metaToken && metaToken !== '') ? metaToken
-            : (typeof window.OGZ_DASHBOARD_TOKEN === 'string' ? window.OGZ_DASHBOARD_TOKEN : '');
+        const authToken = dashboardAuthToken();
         if (!authToken) {
-          console.warn('[TRAI Widget] No dashboard token configured — set <meta name="ws-token"> or window.OGZ_DASHBOARD_TOKEN');
+          console.warn('[TRAI Widget] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+          try {
+            ws.close(1008, 'Dashboard token missing');
+          } catch (err) {
+            console.error('[TRAI Widget] Failed to close unauthenticated socket:', err);
+          }
+          return;
         }
         ws.send(JSON.stringify({
           type: 'auth',

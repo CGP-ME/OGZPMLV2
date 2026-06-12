@@ -7,9 +7,17 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-function createHarness({ protocol = 'https:', host = 'dashboard.test', token = 'test-token' } = {}) {
+function createHarness({
+  protocol = 'https:',
+  host = 'dashboard.test',
+  token = 'placeholder-dashboard-token',
+  windowToken = '',
+  storedToken = '',
+} = {}) {
   const instances = [];
   const registered = {};
+  const storage = new Map();
+  if (storedToken) storage.set('ogz.dashboard.wsToken', storedToken);
 
   class FakeWebSocket {
     constructor(url) {
@@ -68,7 +76,17 @@ function createHarness({ protocol = 'https:', host = 'dashboard.test', token = '
   const context = {
     window: {
       location: { protocol, host },
-      OGZ
+      OGZ,
+      OGZ_DASHBOARD_TOKEN: windowToken,
+      localStorage: {
+        getItem: jest.fn(key => storage.get(key) || null),
+        setItem: jest.fn((key, value) => {
+          storage.set(key, String(value));
+        }),
+        removeItem: jest.fn((key) => {
+          storage.delete(key);
+        })
+      }
     },
     document,
     WebSocket: FakeWebSocket,
@@ -91,7 +109,9 @@ function createHarness({ protocol = 'https:', host = 'dashboard.test', token = '
   return {
     Socket: registered.Socket,
     instances,
-    console: context.console
+    console: context.console,
+    storage,
+    localStorage: context.window.localStorage
   };
 }
 
@@ -122,7 +142,7 @@ describe('frontend websocket lifecycle', () => {
     expect(socket.url).toBe('wss://dashboard.test/ws');
     socket.open();
 
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'test-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-dashboard-token' });
     expect(harness.Socket.isConnected()).toBe(false);
 
     socket.receive({ type: 'auth_success' });
@@ -144,6 +164,75 @@ describe('frontend websocket lifecycle', () => {
     jest.advanceTimersByTime(15000);
     expect(socket.sent[socket.sent.length - 1].type).toBe('ping');
     socket.receive({ type: 'pong' });
+  });
+
+  test('uses stored operator token when public meta token is empty', () => {
+    const harness = createHarness({ token: '', storedToken: 'placeholder-stored-token' });
+
+    harness.Socket.connect();
+    const socket = harness.instances[0];
+    socket.open();
+
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+    expect(harness.console.warn).not.toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+  });
+
+  test('treats whitespace meta token as missing and uses stored operator token', () => {
+    const harness = createHarness({ token: '   ', storedToken: 'placeholder-stored-token' });
+
+    harness.Socket.connect();
+    const socket = harness.instances[0];
+    socket.open();
+
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+  });
+
+  test('closes without sending auth when no operator token is configured', () => {
+    const harness = createHarness({ token: '' });
+
+    harness.Socket.connect();
+    const socket = harness.instances[0];
+    socket.open();
+
+    expect(socket.sent).toEqual([]);
+    expect(socket.closeArgs).toEqual({
+      code: 1008,
+      reason: 'Dashboard token missing'
+    });
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+  });
+
+  test('closes without sending auth when public meta token is only whitespace', () => {
+    const harness = createHarness({ token: '   ' });
+
+    harness.Socket.connect();
+    const socket = harness.instances[0];
+    socket.open();
+
+    expect(socket.sent).toEqual([]);
+    expect(socket.closeArgs).toEqual({
+      code: 1008,
+      reason: 'Dashboard token missing'
+    });
+  });
+
+  test('stores operator token and reconnects with the new value', () => {
+    const harness = createHarness({ token: '', storedToken: 'placeholder-old-token' });
+    const firstSocket = openAndAuthenticate(harness);
+
+    expect(harness.Socket.setAuthToken(' placeholder-operator-token ')).toBe(true);
+
+    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-operator-token');
+    expect(firstSocket.closeArgs).toEqual({
+      code: 4000,
+      reason: 'dashboard token updated'
+    });
+
+    jest.advanceTimersByTime(1000);
+    const secondSocket = harness.instances[1];
+    secondSocket.open();
+
+    expect(secondSocket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-operator-token' });
   });
 
   test('reconnects when pong heartbeat stops', () => {
