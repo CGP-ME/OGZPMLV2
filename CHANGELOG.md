@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Data Stream Resilience (2026-06-12)
+
+- Migrated Alpaca market-data WebSocket lifecycle to `ResilientWebSocket`, preserving symbol-scoped trade, quote, bar callbacks and `ohlc` event emission while adding reconnect/backoff, stale-data watchdog ownership, subscription replay, and stable health reporting.
+- Added keyed pending-subscription handling so initial auth failures, reconnect-time subscriptions, same-key repeats, and pre-auth `unsubscribeAll()` cannot silently lose, duplicate, or resurrect data-stream subscriptions.
+- Extended Alpaca data-stream auth-error detection to close auth-failed sockets into the RWS reconnect path while leaving non-auth stream errors as non-reconnect errors.
+
 ### Dashboard Operator WebSocket Token (2026-06-12)
 
 - Added a private browser-side operator token path for dashboard WebSocket auth via `localStorage` or `window.OGZ_DASHBOARD_TOKEN`, while keeping public dashboard HTML `ws-token` metadata empty.

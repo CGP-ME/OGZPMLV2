@@ -329,11 +329,12 @@ describe('AuthFailureGuard', () => {
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 402, msg: 'auth failed' });
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 403, msg: 'Forbidden' });
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 400, msg: 'Invalid API key' });
+    adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 'auth_failed', msg: 'authentication failed' });
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 405, msg: 'symbol limit exceeded' });
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'error', code: 400, msg: 'invalid symbol' });
     adapter._recordDataStreamAuthErrorIfRelevant({ T: 'success', code: 402, msg: 'authenticated' });
 
-    expect(recordSpy).toHaveBeenCalledTimes(3);
+    expect(recordSpy).toHaveBeenCalledTimes(4);
     expect(recordSpy).toHaveBeenNthCalledWith(1, 'alpaca', 'ws-data-stream-auth', {
       code: 402,
       message: 'auth failed',
@@ -349,6 +350,12 @@ describe('AuthFailureGuard', () => {
     expect(recordSpy).toHaveBeenNthCalledWith(3, 'alpaca', 'ws-data-stream-auth', {
       code: 400,
       message: 'Invalid API key',
+      authFailure: true,
+      evidence: 'alpaca-ws-data-auth-body',
+    });
+    expect(recordSpy).toHaveBeenNthCalledWith(4, 'alpaca', 'ws-data-stream-auth', {
+      code: 'auth_failed',
+      message: 'authentication failed',
       authFailure: true,
       evidence: 'alpaca-ws-data-auth-body',
     });

@@ -17,6 +17,7 @@
 const IBrokerAdapter = require('../foundation/IBrokerAdapter');
 const axios = require('axios');
 const WebSocket = require('ws');
+const ResilientWebSocket = require('../foundation/ResilientWebSocket');
 const authFailureGuard = require('../core/AuthFailureGuard');
 
 const ALPACA_WS_AUTH_ERROR_CODES = new Set([401, 402, 403, 404, 406, 409]);
@@ -55,11 +56,17 @@ class AlpacaAdapter extends IBrokerAdapter {
         }
 
         this.connected = false;
-        this.ws = null;
+        this.rws = null;
         this.accountWs = null;
         this.subscriptions = new Map();
+        this.intentionalDisconnect = false;
+        this._pendingSubscribeCallbacks = [];
         this.accountId = this._cleanAccountId(config.accountId);
         this.accountIdSource = this.accountId ? 'config' : null;
+    }
+
+    get ws() {
+        return this.rws ? this.rws.ws : null;
     }
 
     // =========================================================================
@@ -140,18 +147,20 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     _recordDataStreamAuthErrorIfRelevant(msg) {
-        if (!msg || msg.T !== 'error') return;
-        const code = Number(msg.code);
+        if (!msg || msg.T !== 'error') return false;
+        const numericCode = Number(msg.code);
+        const code = Number.isFinite(numericCode) ? numericCode : msg.code;
         const message = typeof msg.msg === 'string' ? msg.msg : '';
-        const isAuthCode = ALPACA_WS_AUTH_ERROR_CODES.has(code);
-        const isAuthBody400 = code === 400 && ALPACA_AUTH_MESSAGE_RE.test(message);
-        if (!isAuthCode && !isAuthBody400) return;
+        const isAuthCode = Number.isFinite(numericCode) && ALPACA_WS_AUTH_ERROR_CODES.has(numericCode);
+        const isAuthMessage = ALPACA_AUTH_MESSAGE_RE.test(message);
+        if (!isAuthCode && !isAuthMessage) return false;
         authFailureGuard.recordFailure('alpaca', 'ws-data-stream-auth', {
             code,
             message,
             authFailure: true,
             evidence: isAuthCode ? 'alpaca-ws-data-error-code' : 'alpaca-ws-data-auth-body',
         });
+        return true;
     }
 
     _recordWsTransportAuthFailureIfRelevant(error, kind, evidence) {
@@ -186,9 +195,10 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     async disconnect() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        this.intentionalDisconnect = true;
+        if (this.rws) {
+            this.rws.stop();
+            this.rws = null;
         }
         this.connected = false;
         console.log('[Alpaca] Disconnected');
@@ -203,46 +213,59 @@ class AlpacaAdapter extends IBrokerAdapter {
      *   { status, timestamp, details, lastSuccessAt, failureReason }
      *
      * Status reflects BOTH the REST account-API connection (this.connected,
-     * set by connect()) and the data-stream WS connection (this.ws state +
-     * reconnect counters). DEGRADED if the REST is OK but the WS is mid-
-     * reconnect; UNHEALTHY if neither is up.
+     * set by connect()) and the ResilientWebSocket-owned data stream health.
+     * DEGRADED if REST is OK but the data stream has not started or is in a
+     * controlled teardown; UNHEALTHY if REST is not verified or RWS says the
+     * active stream is unhealthy.
      *
      * Spec: ogz-meta/specs/resilience-and-supervision.md (Layer 1.5)
      */
     getHealth() {
         const now = Date.now();
-        const wsOpen = this.ws && this.ws.readyState === 1; /* WebSocket.OPEN */
-        const wsReconnecting = this.reconnectAttempts > 0;
+        const wsHealth = this.rws ? this.rws.getHealth() : null;
 
         let status;
         let failureReason = null;
         if (this.intentionalDisconnect) {
-            status = 'DEAD';
-            failureReason = 'intentional disconnect';
+            if (wsHealth && wsHealth.status === 'HEALTHY') {
+                status = 'DEGRADED';
+                failureReason = 'disconnect in progress (WS not yet torn down)';
+            } else {
+                status = 'DEAD';
+                failureReason = 'intentional disconnect';
+            }
         } else if (!this.connected) {
             status = 'UNHEALTHY';
             failureReason = 'REST account-API not verified (connect() not yet succeeded)';
-        } else if (!wsOpen) {
-            status = 'UNHEALTHY';
-            failureReason = `WS not OPEN (readyState=${this.ws ? this.ws.readyState : 'null'}, reconnectAttempts=${this.reconnectAttempts})`;
-        } else if (wsReconnecting) {
+        } else if (!wsHealth) {
             status = 'DEGRADED';
-            failureReason = `WS recently reconnected (attempts=${this.reconnectAttempts})`;
-        } else {
+            failureReason = 'WS not yet started (subscribe a symbol to bring it up)';
+        } else if (wsHealth.status === 'HEALTHY') {
             status = 'HEALTHY';
+        } else {
+            status = wsHealth.status;
+            failureReason = wsHealth.failureReason;
         }
+
+        const wsDetails = wsHealth ? wsHealth.details : {
+            url: this.wsUrl,
+            readyState: -1,
+            isAuthenticated: false,
+            reconnectAttempts: 0,
+            msSinceMessage: null,
+            msSincePong: null,
+        };
 
         return {
             status,
             timestamp: now,
             details: {
                 broker: 'alpaca',
-                wsReadyState: this.ws ? this.ws.readyState : -1,
                 restConnected: this.connected,
-                reconnectAttempts: this.reconnectAttempts,
+                ws: wsDetails,
                 subscriptionCount: this.subscriptions.size,
             },
-            lastSuccessAt: this.connected ? now : 0,
+            lastSuccessAt: wsHealth ? wsHealth.lastSuccessAt : (this.connected ? now : 0),
             failureReason,
         };
     }
@@ -524,35 +547,32 @@ class AlpacaAdapter extends IBrokerAdapter {
     // =========================================================================
 
     subscribeToTicker(symbol, callback) {
+        const sym = this.toBrokerSymbol(symbol);
+        const key = `trades-${sym}`;
         this._ensureDataStream(() => {
-            const sym = this.toBrokerSymbol(symbol);
-            this.subscriptions.set(`trades-${sym}`, callback);
-            this.ws.send(JSON.stringify({
-                action: 'subscribe',
-                trades: [sym]
-            }));
-        });
+            this.subscriptions.set(key, callback);
+            this.rws.send({ action: 'subscribe', trades: [sym] });
+        }, key);
     }
 
     subscribeToCandles(symbol, timeframe, callback) {
+        const sym = this.toBrokerSymbol(symbol);
+        const key = `bars-${sym}`;
         this._ensureDataStream(() => {
-            const sym = this.toBrokerSymbol(symbol);
-            this.subscriptions.set(`bars-${sym}`, callback);
+            this.subscriptions.set(key, callback);
             const payload = { action: 'subscribe', bars: [sym] };
             console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
-            this.ws.send(JSON.stringify(payload));
-        });
+            this.rws.send(payload);
+        }, key);
     }
 
     subscribeToOrderBook(symbol, callback) {
+        const sym = this.toBrokerSymbol(symbol);
+        const key = `quotes-${sym}`;
         this._ensureDataStream(() => {
-            const sym = this.toBrokerSymbol(symbol);
-            this.subscriptions.set(`quotes-${sym}`, callback);
-            this.ws.send(JSON.stringify({
-                action: 'subscribe',
-                quotes: [sym]
-            }));
-        });
+            this.subscriptions.set(key, callback);
+            this.rws.send({ action: 'subscribe', quotes: [sym] });
+        }, key);
     }
 
     subscribeToAccount(callback) {
@@ -628,23 +648,18 @@ class AlpacaAdapter extends IBrokerAdapter {
     }
 
     unsubscribeAll() {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            // Collect all subscribed symbols
-            const trades = [], quotes = [], bars = [];
-            for (const [key] of this.subscriptions) {
-                const [type, sym] = key.split('-');
-                if (type === 'trades' && sym) trades.push(sym);
-                if (type === 'quotes' && sym) quotes.push(sym);
-                if (type === 'bars' && sym) bars.push(sym);
-            }
-            if (trades.length || quotes.length || bars.length) {
-                this.ws.send(JSON.stringify({
-                    action: 'unsubscribe',
-                    trades, quotes, bars
-                }));
-            }
-            this.subscriptions.clear();
+        const trades = [], quotes = [], bars = [];
+        for (const [key] of this.subscriptions) {
+            const [type, sym] = key.split('-');
+            if (type === 'trades' && sym) trades.push(sym);
+            if (type === 'quotes' && sym) quotes.push(sym);
+            if (type === 'bars' && sym) bars.push(sym);
         }
+        this._pendingSubscribeCallbacks = [];
+        if (this.rws && this.rws.isReady() && (trades.length || quotes.length || bars.length)) {
+            this.rws.send({ action: 'unsubscribe', trades, quotes, bars });
+        }
+        this.subscriptions.clear();
     }
 
     // =========================================================================
@@ -759,96 +774,147 @@ class AlpacaAdapter extends IBrokerAdapter {
             : Math.max(requestedWindowMs, minimumIntradayWindowMs);
     }
 
-    _ensureDataStream(callback) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    _ensureDataStream(callback, subscriptionKey = null) {
+        if (typeof callback !== 'function') {
+            throw new Error('[Alpaca] _ensureDataStream requires a subscribe callback');
+        }
+        if (!subscriptionKey) {
+            throw new Error('[Alpaca] _ensureDataStream requires a stable subscription key');
+        }
+        if (this.rws && this.rws.isReady()) {
             callback();
             return;
         }
 
-        this.ws = new WebSocket(this.wsUrl);
+        this._pendingSubscribeCallbacks = this._pendingSubscribeCallbacks
+            .filter((pending) => pending.key !== subscriptionKey);
+        this._pendingSubscribeCallbacks.push({ key: subscriptionKey, callback });
+        if (!this.rws) {
+            this._buildResilientWS();
+            this.rws.start();
+        }
+    }
 
-        this.ws.on('open', () => {
-            // Alpaca requires auth message first
-            this.ws.send(JSON.stringify({
+    _buildResilientWS() {
+        this._firstBarLogged = this._firstBarLogged || new Set();
+        this.intentionalDisconnect = false;
+
+        this.rws = new ResilientWebSocket({
+            url: this.wsUrl,
+            authMessage: {
                 action: 'auth',
                 key: this.apiKey,
-                secret: this.apiSecret
-            }));
-        });
-
-        // Diagnostic: per-symbol first-bar flag so we log the first bar
-        // of each subscribed symbol once (reveals whether bars arrive at
-        // all and at what cadence).
-        this._firstBarLogged = this._firstBarLogged || new Set();
-
-        this.ws.on('message', (data) => {
-            try {
-                const messages = JSON.parse(data.toString());
-                for (const msg of Array.isArray(messages) ? messages : [messages]) {
-                    // Diagnostic: dump every non-bar/non-trade/non-quote
-                    // message so we see subscribe confirmations and any
-                    // errors verbatim. Bars/trades/quotes would spam the
-                    // log, so only the control-plane messages land here.
-                    if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
-                        console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
-                    }
-                    // Auth success
-                    if (msg.T === 'success' && msg.msg === 'authenticated') {
-                        console.log('[Alpaca] Data stream authenticated');
-                        callback();
-                        continue;
-                    }
-                    // Auth failure
-                    if (msg.T === 'error') {
-                        console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
-                        this._recordDataStreamAuthErrorIfRelevant(msg);
-                        continue;
-                    }
-                    // Trade updates
-                    if (msg.T === 't') {
-                        const cb = this.subscriptions.get(`trades-${msg.S}`);
-                        if (cb) cb({ price: msg.p, size: msg.s, timestamp: msg.t, symbol: msg.S });
-                    }
-                    // Quote updates
-                    if (msg.T === 'q') {
-                        const cb = this.subscriptions.get(`quotes-${msg.S}`);
-                        if (cb) cb({ bid: msg.bp, ask: msg.ap, bidSize: msg.bs, askSize: msg.as, symbol: msg.S });
-                    }
-                    // Bar updates
-                    if (msg.T === 'b') {
-                        const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
-                        // Diagnostic: log the first bar per symbol so we
-                        // can confirm bars are flowing. Subsequent bars
-                        // are silent to avoid log spam.
-                        if (!this._firstBarLogged.has(msg.S)) {
-                            this._firstBarLogged.add(msg.S);
-                            console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
-                        }
-                        // Emit on the EventEmitter surface so run-empire-v2's
-                        // `this.kraken.on('ohlc', ...)` listener (registered
-                        // regardless of broker id; var name preserved) actually
-                        // receives Alpaca bars. Without this the bars arrive
-                        // and die in the adapter — no callback was registered,
-                        // no event was emitted. Matches Kraken's payload shape
-                        // and carries explicit symbol for SessionRouter routing.
-                        this.emit('ohlc', { timeframe: '1m', data: bar, symbol: bar.symbol });
-                        const cb = this.subscriptions.get(`bars-${msg.S}`);
-                        if (cb) cb(bar);
+                secret: this.apiSecret,
+            },
+            authSuccessPredicate: (msg) => {
+                const isAuth = (m) => m && m.T === 'success' && m.msg === 'authenticated';
+                return Array.isArray(msg) ? msg.some(isAuth) : isAuth(msg);
+            },
+            onMessage: (msg) => this._handleStreamMessage(msg),
+            onAuthenticated: ({ isReconnect }) => {
+                console.log(`[Alpaca] Data stream authenticated (isReconnect=${isReconnect})`);
+                const pending = this._pendingSubscribeCallbacks.splice(0);
+                const pendingKeys = new Set(pending.map((item) => item.key).filter(Boolean));
+                const replayKeys = isReconnect
+                    ? new Set([...this.subscriptions.keys()].filter((key) => !pendingKeys.has(key)))
+                    : null;
+                if (pending.length) {
+                    console.log(`[Alpaca] Draining ${pending.length} pending subscribe callback(s)`);
+                    for (const { callback: cb } of pending) {
+                        try { cb(); }
+                        catch (err) { console.error('[Alpaca] initial subscribe callback threw:', err.message); }
                     }
                 }
-            } catch (e) {
-                // Non-JSON messages or parse errors — ignore
-            }
+                if (isReconnect && replayKeys.size > 0) {
+                    if (this._firstBarLogged) this._firstBarLogged.clear();
+                    console.log(`[Alpaca] Replaying ${replayKeys.size} pre-existing subscription(s)`);
+                    this._replaySubscriptions(replayKeys);
+                }
+            },
+            options: {
+                maxBackoffMs: 30000,
+                heartbeatPingMs: 0,
+                pongTimeoutMs: 0,
+                dataWatchdogMs: 60000,
+            },
+            label: '[Alpaca]',
         });
 
-        this.ws.on('close', () => {
-            console.log('[Alpaca] Data stream closed');
-        });
-
-        this.ws.on('error', (err) => {
-            console.error('[Alpaca] Data stream error:', err.message);
+        this.rws.on('error', (err) => {
+            console.error('[Alpaca] WS error:', err.message);
             this._recordWsTransportAuthFailureIfRelevant(err, 'ws-data-upgrade-auth', 'alpaca-ws-upgrade-error');
         });
+        this.rws.on('reconnecting', ({ attempt, delayMs }) => {
+            console.log(`[Alpaca] Reconnecting in ${delayMs}ms (attempt #${attempt}, infinite, capped 30s)`);
+        });
+        this.rws.on('data-stale', ({ silentForMs }) => {
+            console.warn(`[Alpaca] Data stream went silent for ${silentForMs}ms - forcing reconnect`);
+        });
+    }
+
+    _handleStreamMessage(msg) {
+        if (Array.isArray(msg)) {
+            for (const item of msg) this._handleOneStreamMessage(item);
+            return;
+        }
+        this._handleOneStreamMessage(msg);
+    }
+
+    _handleOneStreamMessage(msg) {
+        if (!msg || !msg.T) return;
+        if (msg.T !== 't' && msg.T !== 'q' && msg.T !== 'b') {
+            console.log('[Alpaca] RX ctrl:', msg.T, JSON.stringify(msg).slice(0, 240));
+        }
+        if (msg.T === 'success' && msg.msg === 'authenticated') return;
+        if (msg.T === 'error') {
+            console.error('[Alpaca] Stream error:', msg.msg, '| code:', msg.code);
+            const authError = this._recordDataStreamAuthErrorIfRelevant(msg);
+            if (authError && this.rws && this.rws.ws && typeof this.rws.ws.close === 'function') {
+                try { this.rws.ws.close(); }
+                catch (err) { console.error('[Alpaca] Failed to close auth-failed data stream:', err.message); }
+            }
+            return;
+        }
+        if (msg.T === 't') {
+            const cb = this.subscriptions.get(`trades-${msg.S}`);
+            if (cb) cb({ price: msg.p, size: msg.s, timestamp: msg.t, symbol: msg.S });
+            return;
+        }
+        if (msg.T === 'q') {
+            const cb = this.subscriptions.get(`quotes-${msg.S}`);
+            if (cb) cb({ bid: msg.bp, ask: msg.ap, bidSize: msg.bs, askSize: msg.as, symbol: msg.S });
+            return;
+        }
+        if (msg.T === 'b') {
+            const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
+            if (!this._firstBarLogged.has(msg.S)) {
+                this._firstBarLogged.add(msg.S);
+                console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
+            }
+            this.emit('ohlc', { timeframe: '1m', data: bar, symbol: bar.symbol });
+            const cb = this.subscriptions.get(`bars-${msg.S}`);
+            if (cb) cb(bar);
+        }
+    }
+
+    _replaySubscriptions(subscriptionKeys = null) {
+        if (!this.rws || !this.rws.isReady()) return;
+        const trades = [], quotes = [], bars = [];
+        const keys = subscriptionKeys || this.subscriptions.keys();
+        for (const key of keys) {
+            const [type, sym] = key.split('-');
+            if (!sym) continue;
+            if (type === 'trades') trades.push(sym);
+            if (type === 'quotes') quotes.push(sym);
+            if (type === 'bars') bars.push(sym);
+        }
+        if (!trades.length && !quotes.length && !bars.length) {
+            console.log('[Alpaca] _replaySubscriptions: nothing to replay');
+            return;
+        }
+        const payload = { action: 'subscribe', trades, quotes, bars };
+        console.log('[Alpaca] TX replay-subscribe:', JSON.stringify(payload));
+        this.rws.send(payload);
     }
 }
 
