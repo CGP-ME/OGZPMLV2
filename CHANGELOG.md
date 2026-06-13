@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Runtime Config Proof Startup Import (2026-06-13)
+
+- Added the missing `RuntimeConfigProof` module already imported by `run-empire-v2.js`, so startup can emit a redacted ConfigLoader vs TradingConfig proof line instead of depending on an untracked file.
+- Added focused coverage that the proof preserves source ownership, serializes as one parseable startup log line, and does not print broker secrets or raw webhook URLs.
+
 ### TRAI Pattern Learning Fabrication Guard (2026-06-13)
 
 - Changed OrderExecutor TRAI close payloads to thread real entry `macdSignal`, `bbWidth`, trend, volatility, strategy, and exit reason into learning records instead of fabricating zero, neutral, or unknown fields.
