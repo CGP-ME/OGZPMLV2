@@ -944,6 +944,7 @@ class OGZPrimeV14Bot {
       this.kraken = alpacaAdapter;
       this.sessionRouter.on('transition', (ev) => {
         this.kraken = this.sessionRouter.activeBroker;
+        this.strategyOrchestrator.resetNoWickState();
         const brokerIdentity = this.promoteBrokerAccountIdentity(this.kraken, {
           source: 'session_transition',
           brokerId: this.sessionRouter?.activeBroker?.id || null,

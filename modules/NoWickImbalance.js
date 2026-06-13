@@ -32,12 +32,9 @@ class NoWickImbalance {
     this.swingLookback = config.swingLookback || 20;     // Candles to look back for swing points
     this.minBodyPercent = config.minBodyPercent || 0.3;   // Min body size as % of total range (filter dojis)
 
-    // Active NoWick levels waiting for retrace tap
-    // Each entry: { type, level, candle, formationIndex, timeframe, confidence }
-    this.pendingLevels = [];
-
-    // Candle counter for aging out pending levels
-    this.candleCount = 0;
+    // Active NoWick levels waiting for retrace tap, isolated by symbol+timeframe.
+    // Each scope entry: { pendingLevels, candleCount }.
+    this.scopedState = new Map();
 
     this.DEBUG = config.debug || process.env.NOWICK_DEBUG === 'true';
   }
@@ -200,10 +197,12 @@ class NoWickImbalance {
     if (!candles || candles.length < this.swingLookback) return null;
 
     const currentCandle = candles[candles.length - 1];
+    const scopeKey = this._resolveScopeKey(ctx, currentCandle);
+    const state = this._getScopeState(scopeKey);
     const currentPrice = currentCandle.c;
     const atr = indicators?.atr;
 
-    this.candleCount++;
+    state.candleCount++;
 
     // ─── Phase 1: Detect new NoWick candle formations ───
     const nowick = this._detectNoWick(currentCandle);
@@ -218,13 +217,13 @@ class NoWickImbalance {
         (nowick.type === 'bearish' && trend === 'downtrend');
 
       if (aligned) {
-        this.pendingLevels.push({
+        state.pendingLevels.push({
           type: nowick.type,
           level: nowick.level,
           candleHigh: nowick.candleHigh,
           candleLow: nowick.candleLow,
           body: nowick.body,
-          formationCount: this.candleCount,
+          formationCount: state.candleCount,
           trend: trend,
           timestamp: nowick.timestamp
         });
@@ -236,8 +235,8 @@ class NoWickImbalance {
     }
 
     // ─── Age out expired levels (> 9 candles old) ───
-    this.pendingLevels = this.pendingLevels.filter(level => {
-      const age = this.candleCount - level.formationCount;
+    state.pendingLevels = state.pendingLevels.filter(level => {
+      const age = state.candleCount - level.formationCount;
       if (age > this.maxCandleAge) {
         if (this.DEBUG) {
           console.log(`[NoWick] EXPIRED ${level.type} @ ${level.level.toFixed(2)} after ${age} candles`);
@@ -248,9 +247,9 @@ class NoWickImbalance {
     });
 
     // ─── Phase 2: Check if current price taps any pending level ───
-    for (let i = this.pendingLevels.length - 1; i >= 0; i--) {
-      const level = this.pendingLevels[i];
-      const age = this.candleCount - level.formationCount;
+    for (let i = state.pendingLevels.length - 1; i >= 0; i--) {
+      const level = state.pendingLevels[i];
+      const age = state.candleCount - level.formationCount;
 
       let tapped = false;
 
@@ -272,12 +271,12 @@ class NoWickImbalance {
       const currentTrend = this._detectTrend(candles);
       if (level.type === 'bullish' && currentTrend !== 'uptrend') {
         // Trend changed — invalidate this level
-        this.pendingLevels.splice(i, 1);
+        state.pendingLevels.splice(i, 1);
         if (this.DEBUG) console.log(`[NoWick] INVALIDATED bullish @ ${level.level.toFixed(2)} — trend shifted to ${currentTrend}`);
         continue;
       }
       if (level.type === 'bearish' && currentTrend !== 'downtrend') {
-        this.pendingLevels.splice(i, 1);
+        state.pendingLevels.splice(i, 1);
         if (this.DEBUG) console.log(`[NoWick] INVALIDATED bearish @ ${level.level.toFixed(2)} — trend shifted to ${currentTrend}`);
         continue;
       }
@@ -308,7 +307,7 @@ class NoWickImbalance {
       if (Math.abs(level.level - stopLoss) <= 0) continue;
 
       // Remove the tapped level — one shot only
-      this.pendingLevels.splice(i, 1);
+      state.pendingLevels.splice(i, 1);
 
       const confidence = 0.70;  // Fixed — no discretion in confidence
 
@@ -341,9 +340,40 @@ class NoWickImbalance {
   /**
    * Reset state — called by SessionRouter on asset swap.
    */
-  reset() {
-    this.pendingLevels = [];
-    this.candleCount = 0;
+  reset(scope = null) {
+    if (scope && typeof scope === 'object') {
+      const symbol = this._normalizeScopePart(scope.symbol, 'symbol');
+      const timeframe = this._normalizeScopePart(scope.timeframe, 'timeframe');
+      this.scopedState.delete(`${symbol}:${timeframe}`);
+      return;
+    }
+    this.scopedState.clear();
+  }
+
+  _getScopeState(scopeKey) {
+    if (!this.scopedState.has(scopeKey)) {
+      this.scopedState.set(scopeKey, { pendingLevels: [], candleCount: 0 });
+    }
+    return this.scopedState.get(scopeKey);
+  }
+
+  _resolveScopeKey(ctx, currentCandle) {
+    const symbol = this._normalizeScopePart(
+      ctx?.extras?.symbol || currentCandle?.symbol,
+      'symbol'
+    );
+    const timeframe = this._normalizeScopePart(
+      ctx?.extras?.timeframe || currentCandle?.timeframe,
+      'timeframe'
+    );
+    return `${symbol}:${timeframe}`;
+  }
+
+  _normalizeScopePart(value, field) {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`[STRATEGY-SCOPE] NoWickImbalance ${field} is required for scoped pending levels`);
+    }
+    return value.trim().toUpperCase();
   }
 }
 

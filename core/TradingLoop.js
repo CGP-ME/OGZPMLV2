@@ -664,6 +664,7 @@ class TradingLoop {
         fibLevels,
         nearestFibLevel,
         volumeProfile: symCtx?.volumeProfile ?? this.ctx.runner?.volumeProfile ?? this.ctx.volumeProfile,
+        symbol,
         // HIGH-16: pass timeframe so orchestrator can validate + scale SL/TP
         // per timeframe instead of falling back to '15m' silently.
         timeframe: this.ctx.candleTimeframe,

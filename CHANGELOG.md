@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### NoWick Scoped Pending Levels (2026-06-13)
+
+- Changed `NoWickImbalance` pending imbalance levels and candle age tracking from module-global state to symbol/timeframe-scoped state, preventing one instrument or timeframe from consuming another scope's setup.
+- Made missing NoWick symbol/timeframe scope fail loud through `StrategyOrchestrator` instead of becoming a silent HOLD, and cleared NoWick state on SessionRouter transitions.
+- Added focused coverage for symbol isolation, timeframe isolation, scope-normalized reset, orchestrator rethrow behavior, and the SessionRouter reset owner hook.
+
 ### Track Record Proof Config Guard (2026-06-13)
 
 - Changed the track-record proof publisher to require explicit account identity, starting balance, target, drawdown, and minimum-day config instead of writing public proof JSON with default account identity or zero target/drawdown values.

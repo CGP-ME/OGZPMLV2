@@ -810,6 +810,9 @@ class StrategyOrchestrator {
         try {
           return noWickModule.evaluate(ctx);
         } catch (e) {
+          if (e.message && e.message.startsWith('[STRATEGY-SCOPE]')) {
+            throw e;
+          }
           if (process.env.STRATEGY_DIAG === 'true') {
             console.warn('[NoWickImbalance] evaluate threw:', e.message);
           }
@@ -940,11 +943,14 @@ class StrategyOrchestrator {
           });
         }
       } catch (err) {
-        if (err.message && err.message.startsWith('[EXIT-CONTRACT]')) {
+        if (err.message && (
+          err.message.startsWith('[EXIT-CONTRACT]') ||
+          err.message.startsWith('[STRATEGY-SCOPE]')
+        )) {
           throw err;
         }
         thrownStrategies.push(`${strategy.name}:${err.message}`);
-        console.warn(`⚠️ [StrategyOrchestrator] ${strategy.name} threw: ${err.message}`);
+        console.warn(`[StrategyOrchestrator] ${strategy.name} threw: ${err.message}`);
       }
     }
 
@@ -1354,6 +1360,13 @@ class StrategyOrchestrator {
     }
 
     return output;
+  }
+
+  resetNoWickState(scope = null) {
+    if (!this.noWickModule || typeof this.noWickModule.reset !== 'function') {
+      throw new Error('[STRATEGY-SCOPE] NoWickImbalance reset hook unavailable');
+    }
+    this.noWickModule.reset(scope);
   }
 
   /**
