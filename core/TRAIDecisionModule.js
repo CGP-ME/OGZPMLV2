@@ -156,7 +156,7 @@ class TRAIDecisionModule extends EventEmitter {
 
     const startTime = Date.now();
     const decision = {
-      id: Date.now(), // 🔥 CODEX FIX: Add ID for learning feedback loop
+      id: Date.now(), // CODEX FIX: Add ID for learning feedback loop
       originalSignal: signal,
       originalConfidence: signal.confidence || 0,
       traiConfidence: 0,
@@ -198,7 +198,7 @@ class TRAIDecisionModule extends EventEmitter {
       // Step 2.5: Apply pattern pack multiplier to TRAI confidence
       if (patternEval.confidenceMultiplier !== 1.0) {
         const adjustedConf = decision.traiConfidence * patternEval.confidenceMultiplier;
-        console.log(`[TRAI] Pattern multiplier ${patternEval.confidenceMultiplier.toFixed(2)}x: ${(decision.traiConfidence * 100).toFixed(1)}% → ${(adjustedConf * 100).toFixed(1)}%`);
+        console.log(`[TRAI] Pattern multiplier ${patternEval.confidenceMultiplier.toFixed(2)}x: ${(decision.traiConfidence * 100).toFixed(1)}% -> ${(adjustedConf * 100).toFixed(1)}%`);
         decision.traiConfidence = Math.max(0, Math.min(1, adjustedConf));
       }
       
@@ -376,20 +376,25 @@ class TRAIDecisionModule extends EventEmitter {
    * Analyze market conditions for context
    */
   async analyzeMarketConditions(context) {
+    const volatility = Number.isFinite(context.volatility) ? context.volatility : null;
     const analysis = {
-      volatility: context.volatility || 0.02,
-      trend: context.trend || 'neutral',
-      volume: context.volume || 'normal',
-      regime: context.regime || 'unknown',
-      sentiment: 'neutral',
-      risk: 'medium'
+      volatility,
+      trend: context.trend ?? null,
+      volume: context.volume ?? null,
+      regime: context.regime ?? null,
+      sentiment: 'unknown',
+      risk: 'unknown'
     };
     
     // Classify volatility
-    if (analysis.volatility < 0.015) {
+    if (volatility == null) {
+      analysis.risk = 'unknown';
+    } else if (analysis.volatility < 0.015) {
       analysis.risk = 'low';
     } else if (analysis.volatility > 0.035) {
       analysis.risk = 'high';
+    } else {
+      analysis.risk = 'medium';
     }
     
     // Analyze trend strength
@@ -402,6 +407,44 @@ class TRAIDecisionModule extends EventEmitter {
     }
     
     return analysis;
+  }
+
+  _firstFiniteNumber(...values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  _extractPatternMemoryFeatures(context = {}) {
+    const ind = context.indicators || {};
+    const rsi = this._firstFiniteNumber(ind.rsi);
+    const macd = this._firstFiniteNumber(
+      ind.macd?.macd,
+      ind.macd?.value,
+      typeof ind.macd === 'number' ? ind.macd : null
+    );
+    const macdSignal = this._firstFiniteNumber(
+      ind.macd?.signal,
+      ind.macd?.signalLine,
+      ind.macdSignal,
+      ind.signal
+    );
+    const bbWidth = this._firstFiniteNumber(
+      ind.bbWidth,
+      ind.bb?.bandwidth,
+      ind.bb?.width,
+      ind.bollinger?.bandwidth
+    );
+    const volatility = this._firstFiniteNumber(context.volatility);
+    if (!Number.isFinite(rsi) || !Number.isFinite(macd) || !Number.isFinite(macdSignal) ||
+        !Number.isFinite(bbWidth) || !Number.isFinite(volatility) || context.trend == null) {
+      return null;
+    }
+    const trendNum = context.trend === 'uptrend' ? 1 : context.trend === 'downtrend' ? -1 : 0;
+    return [rsi / 100, macd - macdSignal, trendNum, bbWidth, volatility, 0.5, 0, 0, 0];
   }
   
   /**
@@ -418,35 +461,26 @@ class TRAIDecisionModule extends EventEmitter {
     // CHANGE 2026-03-18: Direct call to UnifiedPatternMemory instead of traiCore
     console.log('[TRAI-CALC-3] Checking UnifiedPatternMemory');
     try {
-      // Extract features from context.indicators
-      const ind = context.indicators || {};
-      const features = [
-        (ind.rsi || 50) / 100,  // RSI normalized to 0-1
-        (ind.macd || 0) - (ind.macdSignal || ind.signal || 0),  // MACD delta
-        context.trend === 'uptrend' ? 1 : context.trend === 'downtrend' ? -1 : 0,  // Trend encoded
-        ind.bbWidth || 0.02,  // Bollinger width
-        context.volatility || 0.01,  // Volatility
-        0.5,  // Wick ratio (default - not available in indicators)
-        0,    // Price change (default)
-        0,    // Volume change (default)
-        0     // Last direction (default)
-      ];
+      const features = this._extractPatternMemoryFeatures(context);
+      if (!features) {
+        console.warn('[TRAI-CALC-4] Pattern memory lookup skipped: incomplete indicator context');
+      } else {
+        console.log('[TRAI-CALC-4] Extracted features, calling getConfidence');
+        const learnedPattern = getUnifiedPatternMemory().getConfidence(features, context);
+        console.log(`[TRAI-CALC-5] learnedPattern result: ${learnedPattern ? JSON.stringify(learnedPattern) : 'null'}`);
 
-      console.log('[TRAI-CALC-4] Extracted features, calling getConfidence');
-      const learnedPattern = getUnifiedPatternMemory().getConfidence(features, context);
-      console.log(`[TRAI-CALC-5] learnedPattern result: ${learnedPattern ? JSON.stringify(learnedPattern) : 'null'}`);
-
-      if (learnedPattern) {
-        if (learnedPattern.source === 'learned_success' || learnedPattern.source === 'dtw_success') {
-          // Pattern memory confirms this pattern works!
-          console.log(`[TRAI-CALC-6] LEARNED SUCCESS - confidence: ${learnedPattern.confidence}`);
-          console.log(`[Pattern Memory] Using learned pattern confidence: ${(learnedPattern.confidence * 100).toFixed(1)}%`);
-          return learnedPattern.confidence;
-        } else if (learnedPattern.source === 'learned_failure' || learnedPattern.source === 'dtw_failure') {
-          // Pattern memory says avoid this pattern
-          console.log('[TRAI-CALC-6] LEARNED FAILURE - returning 0');
-          console.log('[Pattern Memory] Avoiding failed pattern');
-          return 0.0;
+        if (learnedPattern) {
+          if (learnedPattern.source === 'learned_success' || learnedPattern.source === 'dtw_success') {
+            // Pattern memory confirms this pattern works.
+            console.log(`[TRAI-CALC-6] LEARNED SUCCESS - confidence: ${learnedPattern.confidence}`);
+            console.log(`[Pattern Memory] Using learned pattern confidence: ${(learnedPattern.confidence * 100).toFixed(1)}%`);
+            return learnedPattern.confidence;
+          } else if (learnedPattern.source === 'learned_failure' || learnedPattern.source === 'dtw_failure') {
+            // Pattern memory says avoid this pattern.
+            console.log('[TRAI-CALC-6] LEARNED FAILURE - returning 0');
+            console.log('[Pattern Memory] Avoiding failed pattern');
+            return 0.0;
+          }
         }
       }
     } catch (error) {
@@ -514,7 +548,7 @@ class TRAIDecisionModule extends EventEmitter {
 
       // Legacy historical pattern success rate (old Map-based memory)
       const patternKey = this.generatePatternKey(signal, context);
-      if (this.patternMemory.has(patternKey)) {
+      if (patternKey && this.patternMemory.has(patternKey)) {
         const history = this.patternMemory.get(patternKey);
         if (history.samples >= this.config.minSampleSize) {
           const successRate = history.successes / history.samples;
@@ -634,8 +668,14 @@ class TRAIDecisionModule extends EventEmitter {
     let riskScore = 0;
     
     // Volatility risk
-    const volatility = context.volatility || 0.02;
-    riskScore += volatility * 10; // Scale volatility to 0-0.5 range
+    const volatility = Number.isFinite(context.volatility) ? context.volatility : null;
+    if (volatility == null) {
+      assessment.approved = false;
+      assessment.vetoReason = 'Missing finite volatility for TRAI risk assessment';
+      assessment.factors.push('missing_volatility');
+    } else {
+      riskScore += volatility * 10; // Scale volatility to 0-0.5 range
+    }
     
     // Low confidence risk
     if (confidence < 0.5) {
@@ -657,9 +697,21 @@ class TRAIDecisionModule extends EventEmitter {
     }
     
     // Calculate max loss based on position size and stop loss
-    const positionSize = context.positionSize || 0.01;
-    const stopLoss = signal.stopLossPercent || this.config.emergencyStopLoss;
-    assessment.maxLoss = positionSize * stopLoss;
+    const positionSize = Number.isFinite(context.positionSize) ? context.positionSize : null;
+    const stopLoss = Number.isFinite(signal.stopLossPercent)
+      ? signal.stopLossPercent
+      : (Number.isFinite(this.config.emergencyStopLoss) ? this.config.emergencyStopLoss : null);
+    if (positionSize == null) {
+      assessment.approved = false;
+      assessment.vetoReason = 'Missing finite positionSize for TRAI risk assessment';
+      assessment.factors.push('missing_position_size');
+    } else if (stopLoss == null) {
+      assessment.approved = false;
+      assessment.vetoReason = 'Missing finite stopLoss for TRAI risk assessment';
+      assessment.factors.push('missing_stop_loss');
+    } else {
+      assessment.maxLoss = positionSize * stopLoss;
+    }
     
     // Check if risk exceeds tolerance
     if (assessment.maxLoss > this.config.maxRiskTolerance) {
@@ -682,7 +734,7 @@ class TRAIDecisionModule extends EventEmitter {
       return 'HOLD';
     }
 
-    // Change 598→2026-02-28: Honor minConfidenceOverride from config
+    // Change 598->2026-02-28: Honor minConfidenceOverride from config
     // Determine minimum confidence threshold:
     // 1) prefer explicit override from config (TRAI_MIN_CONF)
     // 2) fall back to TradingConfig centralized config
@@ -781,21 +833,21 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
     let contextStr = '';
     if (context.indicators) {
       const rsi = context.indicators.rsi?.toFixed(1) || '?';
-      const trend = context.trend || 'unknown';
+      const trend = context.trend ?? 'missing';
       const vol = context.volatility?.toFixed(3) || '?';
       contextStr = ` Market: RSI ${rsi}, ${trend} trend, ${vol} volatility.`;
     }
 
     if (decision.traiRecommendation === 'STRONG_BUY') {
-      return `Strong buy signal: ${original}% base → ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Excellent pattern alignment.${contextStr}`;
+      return `Strong buy signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Excellent pattern alignment.${contextStr}`;
     }
 
     if (decision.traiRecommendation === 'BUY') {
-      return `Buy signal: ${original}% base → ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Favorable conditions detected.${contextStr}`;
+      return `Buy signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Favorable conditions detected.${contextStr}`;
     }
 
     if (decision.traiRecommendation === 'SELL') {
-      return `Sell signal: ${original}% base → ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Bearish conditions detected.${contextStr}`;
+      return `Sell signal: ${original}% base -> ${confidence}% final (TRAI +${traiBoost}%). Risk: ${risk}%. Bearish conditions detected.${contextStr}`;
     }
 
     return `Holding: ${confidence}% confidence (base ${original}%, TRAI ${traiBoost}%), ${risk}% risk. Waiting for clearer setup.${contextStr}`;
@@ -847,9 +899,12 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    * Generate pattern key for memory
    */
   generatePatternKey(signal, context) {
-    const patterns = (signal.patterns || []).map(p => p.name || p).sort().join(',');
-    const regime = context.regime || 'unknown';
-    const trend = context.trend || 'neutral';
+    const patterns = (signal.patterns || []).map(p => p.name || p).filter(Boolean).sort().join(',');
+    const regime = context.regime ?? null;
+    const trend = context.trend ?? null;
+    if (!patterns || !regime || !trend) {
+      return null;
+    }
     return `${patterns}_${regime}_${trend}`;
   }
   
@@ -935,7 +990,7 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
         // TradingProofLogger calls but missed this site.
         symbol: (() => {
           if (!signal?.symbol) {
-            console.warn('[TRAI] signal.symbol missing — record will be skipped');
+            console.warn('[TRAI] signal.symbol missing - record will be skipped');
             return null;
           }
           return signal.symbol;
@@ -1039,15 +1094,29 @@ Why ${decision.traiRecommendation}? Answer in ONE sentence (max 15 words). State
    */
   recordTradeOutcome(tradeData) {
     if (!this.traiCore) {
-      console.log('[TRAI] Cannot record trade - TRAI Core not initialized');
-      return;
+      console.warn('[TRAI] Cannot record trade - TRAI Core not initialized');
+      return false;
     }
 
     try {
-      this.traiCore.recordTradeResult(tradeData);
-      console.log(`[TRAI] Recorded trade outcome: ${tradeData.profitLoss > 0 ? 'WIN' : 'LOSS'} (${tradeData.profitLossPercent.toFixed(2)}%)`);
+      const recorded = this.traiCore.recordTradeResult(tradeData);
+      if (recorded) {
+        const pnl = tradeData.profitLoss != null
+          ? tradeData.profitLoss
+          : (tradeData.pnl != null ? tradeData.pnl : tradeData.pnlDollars);
+        const pnlPercent = tradeData.profitLossPercent != null
+          ? tradeData.profitLossPercent
+          : tradeData.pnlPercent;
+        const resultLabel = Number.isFinite(pnl) ? (pnl > 0 ? 'WIN' : 'LOSS') : 'UNKNOWN';
+        const resultPercent = Number.isFinite(pnlPercent) ? `${pnlPercent.toFixed(2)}%` : 'pnl percent unavailable';
+        console.log(`[TRAI] Recorded trade outcome: ${resultLabel} (${resultPercent})`);
+      } else {
+        console.warn(`[TRAI] Skipped trade outcome learning: ${tradeData.tradeId || 'unknown trade'} did not produce a valid pattern outcome`);
+      }
+      return recorded;
     } catch (error) {
       console.error('[TRAI] Error recording trade outcome:', error.message);
+      return false;
     }
   }
 

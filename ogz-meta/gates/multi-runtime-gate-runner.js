@@ -223,6 +223,7 @@ function patternBankTrade(overrides = {}) {
     profitLoss: 25,
     profitLossPercent: 2.5,
     holdDuration: 900000,
+    exitReason: 'take_profit',
     indicators: {
       rsi: 55,
       macd: 0.2,

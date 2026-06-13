@@ -274,6 +274,45 @@ describe('StateManager load validation', () => {
     expect(manager.get('closedTrades')).toHaveLength(0);
   });
 
+  test('full close preserves missing exit metadata as null instead of fabricated labels', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(500, 100, {
+      orderId: 'CLOSE_NULL_META',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+
+    const trade = manager.get('activeTrades').get('CLOSE_NULL_META');
+    delete trade.entryStrategy;
+    delete trade.strategy;
+    trade.entryTime = 0;
+    delete trade.timestamp;
+    trade.decisionLedger = { tradeId: 'CLOSE_NULL_META', exits: [] };
+
+    const closed = await manager.closePosition(110, false, null, {
+      tradeId: 'CLOSE_NULL_META',
+      orderId: 'CLOSE_NULL_META',
+    });
+
+    expect(closed.success).toBe(true);
+    const [closedTrade] = manager.get('closedTrades');
+    expect(closedTrade.strategy).toBeNull();
+    expect(closedTrade.holdMs).toBeNull();
+  });
+
   test('failed partial reduce does not shrink active trade before locked state update succeeds', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();
@@ -315,6 +354,42 @@ describe('StateManager load validation', () => {
     expect(trade.decisionLedger?.exits || []).toHaveLength(0);
     expect(manager.get('position')).toBeCloseTo(1000);
     expect(manager.get('inPosition')).toBeCloseTo(1000);
+  });
+
+  test('partial reduce preserves missing exit reason as null in decision ledger', async () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    const opened = await manager.openPosition(500, 100, {
+      orderId: 'REDUCE_NULL_REASON',
+      action: 'BUY',
+      direction: 'long',
+      entryStrategy: 'LoadTestStrategy',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+      timeframe: '15m',
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantity: 5,
+      remainingOrderQuantityUnit: 'shares',
+    });
+    expect(opened.success).toBe(true);
+
+    const trade = manager.get('activeTrades').get('REDUCE_NULL_REASON');
+    trade.decisionLedger = { tradeId: 'REDUCE_NULL_REASON', exits: [] };
+
+    const reduced = await manager.reducePosition('REDUCE_NULL_REASON', 0.4, 110, {
+      orderId: 'REDUCE_NULL_REASON',
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    });
+
+    expect(reduced.success).toBe(true);
+    const reducedTrade = manager.get('activeTrades').get('REDUCE_NULL_REASON');
+    expect(reducedTrade.decisionLedger.exits).toHaveLength(1);
+    expect(reducedTrade.decisionLedger.exits[0].exitReason).toBeNull();
   });
 
   test('full close clears stale locked USD exposure when no active trades remain', async () => {

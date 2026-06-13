@@ -93,6 +93,22 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
   'na'
 ]);
 
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function holdTimeMsOrNull(trade, now = Date.now()) {
+  const startedAt = Number.isFinite(trade?.entryTime) && trade.entryTime > 0
+    ? trade.entryTime
+    : (Number.isFinite(trade?.timestamp) && trade.timestamp > 0 ? trade.timestamp : null);
+  return startedAt === null ? null : now - startedAt;
+}
+
 class StateManager {
   /**
    * Creates a new StateManager instance.
@@ -814,18 +830,22 @@ class StateManager {
       const netRealizedResult = pnl - exitFee;
 
       // L8: Persist decision ledger to JSONL on full close (after netRealizedResult computed)
+      const closedAt = Date.now();
+      const exitReason = firstNonEmptyString(context.exitReason, context.reason);
+      const tradeStrategy = firstNonEmptyString(trade.entryStrategy, trade.strategy);
+      const holdTimeMs = holdTimeMsOrNull(trade, closedAt);
       if (trade.decisionLedger) {
         ledgerToWrite = {
           ...trade.decisionLedger,
           outcome: {
             exitPrice: price,
-            exitTime: Date.now(),
+            exitTime: closedAt,
             pnlDollars: pnl,
             pnlPercent,
             exitFee,
             netPnlDollars: netRealizedResult,
-            exitReason: context.exitReason || 'unknown',
-            holdTimeMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
+            exitReason,
+            holdTimeMs,
           },
         };
       }
@@ -851,9 +871,9 @@ class StateManager {
         direction: tradeDirection,
         entryPrice: tradeEntryPrice,
         exitPrice: price,
-        strategy: trade.entryStrategy || trade.strategy || 'unknown',
-        holdMs: Date.now() - (trade.entryTime || trade.timestamp || 0),
-        closedAt: Date.now()
+        strategy: tradeStrategy,
+        holdMs: holdTimeMs,
+        closedAt
       };
 
       const updates = {
@@ -883,16 +903,14 @@ class StateManager {
 
       narratorPayload = {
         tradeId,
-        strategy: trade.entryStrategy || trade.strategy || 'default',
+        strategy: tradeStrategy,
         direction: tradeDirection,
         entryPrice: tradeEntryPrice,
         exitPrice: price,
         pnl,
         pnlPercent,
-        reason: context.exitReason || context.reason || 'closed',
-        holdMs: trade.entryTime
-          ? Date.now() - trade.entryTime
-          : (trade.timestamp ? Date.now() - trade.timestamp : 0),
+        reason: exitReason,
+        holdMs: holdTimeMs,
       };
     } finally {
       this.releaseLock();
@@ -993,7 +1011,7 @@ class StateManager {
           exitOrderQuantity: hasClosedBrokerQuantity ? closedOrderQuantity : null,
           remainingOrderQuantity,
           exitPrice: price,
-          exitReason: context.exitReason || 'partial',
+          exitReason: firstNonEmptyString(context.exitReason, context.reason),
           netPnlDollars: netRealizedResult,
           timestamp: Date.now()
         };

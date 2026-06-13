@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TRAI Pattern Learning Fabrication Guard (2026-06-13)
+
+- Changed OrderExecutor TRAI close payloads to thread real entry `macdSignal`, `bbWidth`, trend, volatility, strategy, and exit reason into learning records instead of fabricating zero, neutral, or unknown fields.
+- Made TRAI confidence pattern-memory lookups and risk assessment fail closed on incomplete indicator, volatility, or position-size context rather than querying or scoring with phantom values.
+- Hardened UnifiedPatternMemory and PatternMemoryBank outcome writers to reject missing or non-finite outcome metadata before mutation, and updated the P0 pattern-memory gate fixture for the stricter contract.
+- Made TradeLogger preserve missing audit/proof fields as `null` while preserving real zero values, so close-path proof logs cannot turn absent indicators or reasons into fabricated zeros or labels.
+
 ### Claude Bridge Session Ledger Attribution (2026-06-13)
 
 - Made Claude bridge read/edit ledgers session-scoped, with hook reads, edits, and Stop/Warden checks failing closed when hook session identity is missing.

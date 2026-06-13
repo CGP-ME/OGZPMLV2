@@ -461,8 +461,15 @@ class PatternMemoryBank {
                 ? this.cloneMemory()
                 : null;
             const now = Date.now();
-            const pnlPercent = trade.profitLossPercent || 0;
-            const holdMs = trade.holdDuration || 0;
+            const pnlAbs = trade.profitLoss;
+            const pnlPercent = trade.profitLossPercent;
+            const holdMs = trade.holdDuration;
+            const exitReason = trade.exit?.reason || trade.exitReason;
+            if (!Number.isFinite(pnlAbs) || !Number.isFinite(pnlPercent) ||
+                !Number.isFinite(holdMs) || !exitReason) {
+                console.warn('[TRAI Memory] Incomplete trade outcome metadata, skipping');
+                return false;
+            }
             const isWin = trade.profitLoss > 0;
 
             // Initialize pattern record if it doesn't exist
@@ -561,17 +568,17 @@ class PatternMemoryBank {
                 scopeKey: pattern.scope.scopeKey,
                 side: trade.entry?.side || trade.side || (pnlPercent > 0 ? 'long' : 'short'),
                 entry: {
-                    price: trade.entry?.price || trade.entryPrice || 0,
+                    price: trade.entry?.price ?? trade.entryPrice ?? null,
                     ts: trade.entry?.timestamp || trade.entryTimestamp || null
                 },
                 exit: {
-                    price: trade.exit?.price || trade.exitPrice || 0,
+                    price: trade.exit?.price ?? trade.exitPrice ?? null,
                     ts: trade.exit?.timestamp || trade.exitTimestamp || null,
-                    reason: trade.exit?.reason || trade.exitReason || 'unknown'
+                    reason: exitReason
                 },
-                pnlAbs: trade.profitLoss || 0,
+                pnlAbs,
                 pnlPct: pnlPercent,
-                fees: trade.fees || 0,
+                fees: Number.isFinite(trade.fees) ? trade.fees : null,
                 holdMs: holdMs,
                 outcomeLabel: outcomeLabel,
                 patternHash: pattern.hash,

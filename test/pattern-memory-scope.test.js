@@ -28,6 +28,7 @@ describe('Pattern memory scope isolation', () => {
     profitLoss: 25,
     profitLossPercent: 2.5,
     holdDuration: 900000,
+    exitReason: 'take_profit',
     indicators: {
       rsi: 55,
       macd: 0.2,
@@ -119,6 +120,51 @@ describe('Pattern memory scope isolation', () => {
     expect(Object.keys(memory.patterns)).toHaveLength(1);
   });
 
+  test('UnifiedPatternMemory compatibility recordPattern requires canonical live close outcome fields', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    expect(memory.recordPattern(features, {
+      ...scope(),
+      pnl: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+      timestamp: 1779802200000,
+    })).toBe(true);
+
+    const learned = memory.getConfidence(features, scope());
+    expect(learned).toBeTruthy();
+    expect(learned.source).toBe('learned_success');
+    expect(learned.stats.totalTrades).toBe(1);
+    expect(learned.stats.scopeKey).toBe('backtest:alpaca:acct-main:stocks:TSLA:15m');
+  });
+
+  test('UnifiedPatternMemory compatibility recordPattern rejects legacy duration alias before mutation', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({
+      persistToDisk: false,
+      minSamples: 1,
+      successThreshold: 0.6,
+    });
+
+    expect(memory.recordPattern(features, {
+      ...scope(),
+      pnl: 2.4,
+      holdDurationMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+      timestamp: 1779802200000,
+    })).toBe(false);
+
+    expect(Object.keys(memory.patterns)).toHaveLength(0);
+    expect(memory.getConfidence(features, scope())).toBeNull();
+  });
+
   test('UnifiedPatternMemory rejects unknown backtest candle files instead of guessing an asset bucket', () => {
     process.env.CANDLE_DATA_FILE = 'tuning/full-45k.json';
 
@@ -140,6 +186,30 @@ describe('Pattern memory scope isolation', () => {
     })).toBe(false);
     expect(Object.keys(memory.patterns)).toHaveLength(0);
     expect(memory.recordObservation(features, scope({ timeframe: null }))).toBeNull();
+    expect(Object.keys(memory.patterns)).toHaveLength(0);
+  });
+
+  test('UnifiedPatternMemory rejects incomplete outcome metadata before mutation', () => {
+    const { UnifiedPatternMemory } = require('../core/UnifiedPatternMemory');
+    const memory = new UnifiedPatternMemory({ persistToDisk: false });
+
+    expect(memory.recordOutcome(features, {
+      ...scope(),
+      pnl: 12,
+      pnlPercent: 2.4,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
+    expect(Object.keys(memory.patterns)).toHaveLength(0);
+
+    expect(memory.recordOutcome(features, {
+      ...scope(),
+      pnl: Number.NaN,
+      pnlPercent: 2.4,
+      holdTimeMs: 900000,
+      exitReason: 'take_profit',
+      strategy: 'GateStrategy',
+    })).toBe(false);
     expect(Object.keys(memory.patterns)).toHaveLength(0);
   });
 
@@ -223,6 +293,7 @@ describe('Pattern memory scope isolation', () => {
         ...cryptoScope,
         pnl: 8,
         pnlPercent: 1.1,
+        holdTimeMs: 600000,
         exitReason: 'take_profit',
         strategy: 'CryptoStrategy',
       })).toBe(true);
@@ -247,6 +318,7 @@ describe('Pattern memory scope isolation', () => {
         ...stockScope,
         pnl: 11,
         pnlPercent: 1.4,
+        holdTimeMs: 600000,
         exitReason: 'take_profit',
         strategy: 'StockStrategy',
       })).toBe(true);
@@ -305,6 +377,7 @@ describe('Pattern memory scope isolation', () => {
         ...cryptoScope,
         pnl: 8,
         pnlPercent: 1.1,
+        holdTimeMs: 600000,
         exitReason: 'take_profit',
         strategy: 'CryptoStrategy',
       })).toBe(true);

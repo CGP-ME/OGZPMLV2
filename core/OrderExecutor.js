@@ -49,6 +49,79 @@ class OrderExecutor {
     return action === 'SELL' || action === 'COVER';
   }
 
+  _firstFiniteNumber(...values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  _firstNonEmptyString(...values) {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  _resolveStoredSizeUsd(trade, label) {
+    const storedSizeUsd = this._firstFiniteNumber(trade?.sizeUsd, trade?.size);
+    if (storedSizeUsd !== null && storedSizeUsd > 0) {
+      return Math.abs(storedSizeUsd);
+    }
+
+    throw new Error(`[ORDER-PLAN] ${label} active trade ${trade?.orderId || trade?.id || 'missing-id'} missing positive sizeUsd/size; refusing to plan or record a zero-dollar exit`);
+  }
+
+  _buildTraiLearningIndicators(trade) {
+    const entryIndicators = trade?.entryIndicators || {};
+    const entryMacd = entryIndicators.macd;
+    const storedIndicators = trade?.indicators || {};
+
+    return {
+      rsi: this._firstFiniteNumber(entryIndicators.rsi, storedIndicators.rsi),
+      macd: this._firstFiniteNumber(
+        entryMacd?.macd,
+        entryMacd?.value,
+        typeof entryMacd === 'number' ? entryMacd : null,
+        storedIndicators.macd?.macd,
+        storedIndicators.macd?.value,
+        storedIndicators.macd
+      ),
+      macdSignal: this._firstFiniteNumber(
+        entryMacd?.signal,
+        entryMacd?.signalLine,
+        entryIndicators.macdSignal,
+        storedIndicators.macd?.signal,
+        storedIndicators.macd?.signalLine,
+        storedIndicators.macdSignal,
+        storedIndicators.signal
+      ),
+      macdHistogram: this._firstFiniteNumber(
+        entryMacd?.histogram,
+        entryMacd?.hist,
+        entryIndicators.macdHistogram,
+        storedIndicators.macd?.histogram,
+        storedIndicators.macd?.hist,
+        storedIndicators.macdHistogram
+      ),
+      bbWidth: this._firstFiniteNumber(
+        entryIndicators.bbWidth,
+        entryIndicators.bb?.bandwidth,
+        entryIndicators.bb?.width,
+        entryIndicators.bollinger?.bandwidth,
+        storedIndicators.bb?.bandwidth,
+        storedIndicators.bb?.width,
+        storedIndicators.bollinger?.bandwidth,
+        storedIndicators.bbWidth
+      ),
+      primaryPattern: trade?.patterns?.[0]?.name ?? null
+    };
+  }
+
   _entrySide(action) {
     if (action === 'BUY') return 'buy';
     if (action === 'SELL_SHORT') return 'sell';
@@ -406,10 +479,10 @@ class OrderExecutor {
 
   _recordClosedTradePatternOutcome(trade, completeTradeResult, pnl, holdDuration) {
     const pattern = this._firstPatternWithOutcomeFeatures(trade);
-    const patternName = pattern?.name || trade?.entryStrategy || 'unknown';
+    const patternName = this._firstNonEmptyString(pattern?.name, trade?.entryStrategy, trade?.strategy);
 
     if (!pattern) {
-      console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}% (skipped: no entry features)`);
+      console.log(`Pattern learning skipped: ${patternName || 'missing-pattern-name'} -> ${pnl.toFixed(2)}% (no entry features)`);
       return false;
     }
 
@@ -418,10 +491,27 @@ class OrderExecutor {
       return false;
     }
 
+    const outcomePnl = this._firstFiniteNumber(pnl);
+    const outcomeHoldTimeMs = this._firstFiniteNumber(holdDuration);
+    const outcomeExitReason = this._firstNonEmptyString(completeTradeResult.exitReason);
+    const outcomeStrategy = this._firstNonEmptyString(trade.entryStrategy, trade.strategy);
+    const missing = [];
+    if (outcomePnl === null) missing.push('pnl');
+    if (outcomeHoldTimeMs === null || outcomeHoldTimeMs <= 0) missing.push('holdTimeMs');
+    if (!outcomeExitReason) missing.push('exitReason');
+    if (!outcomeStrategy) missing.push('strategy');
+
+    if (missing.length > 0) {
+      this.patternOutcomeRejectedSinceHealth = (this.patternOutcomeRejectedSinceHealth || 0) + 1;
+      console.warn(`[PATTERN][OUTCOME] skipped pattern=${patternName || 'missing-pattern-name'} tradeId=${trade.orderId || trade.id} missing=${missing.join(',')}`);
+      return false;
+    }
+
     const recorded = this.ctx.patternChecker.recordPatternResult(pattern.features, {
-      pnl,
-      holdDurationMs: holdDuration,
-      exitReason: completeTradeResult.exitReason || 'signal',
+      pnl: outcomePnl,
+      holdTimeMs: outcomeHoldTimeMs,
+      exitReason: outcomeExitReason,
+      strategy: outcomeStrategy,
       timestamp: Date.now(),
       symbol: trade.symbol,
       brokerId: trade.brokerId,
@@ -434,15 +524,18 @@ class OrderExecutor {
     });
 
     if (!recorded) {
-      console.error(`[PATTERN][OUTCOME] recordPatternResult rejected pattern=${patternName} tradeId=${trade.orderId || trade.id} scopeKey=${trade.scopeKey}`);
+      this.patternOutcomeRejectedSinceHealth = (this.patternOutcomeRejectedSinceHealth || 0) + 1;
+      console.error(`[PATTERN][OUTCOME] recordPatternResult rejected pattern=${patternName || 'missing-pattern-name'} tradeId=${trade.orderId || trade.id} scopeKey=${trade.scopeKey}`);
+      return false;
     }
-    console.log(`Pattern learning: ${patternName} -> ${pnl.toFixed(2)}%`);
-    return recorded;
+    console.log(`Pattern learning: ${patternName || 'missing-pattern-name'} -> ${outcomePnl.toFixed(2)}%`);
+    return true;
   }
 
   _checkPatternOutcomeHealth() {
     this.tradeExitCount = (this.tradeExitCount || 0) + 1;
-    if (this.tradeExitCount % 10 !== 0 || this._patternOutcomeRecordingDisabled()) {
+    const rejectedSinceHealth = this.patternOutcomeRejectedSinceHealth || 0;
+    if ((this.tradeExitCount % 10 !== 0 && rejectedSinceHealth === 0) || this._patternOutcomeRecordingDisabled()) {
       return null;
     }
 
@@ -454,14 +547,24 @@ class OrderExecutor {
       };
     }
 
+    this.patternOutcomeRejectedSinceHealth = 0;
     const health = this.ctx.patternChecker.memory.healthCheck();
-    if (!health.healthy) {
-      const issues = Array.isArray(health.issues) && health.issues.length > 0
-        ? ` issues=${health.issues.join('; ')}`
-        : '';
-      console.error(`PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!${issues}`);
+    const issues = Array.isArray(health.issues) ? [...health.issues] : [];
+    if (rejectedSinceHealth > 0) {
+      issues.push(`${rejectedSinceHealth} pattern outcome recording rejection(s) since last health check`);
     }
-    return health;
+    const combinedHealth = {
+      ...health,
+      healthy: health.healthy && rejectedSinceHealth === 0,
+      issues
+    };
+    if (!combinedHealth.healthy) {
+      const issueText = issues.length > 0
+        ? ` issues=${issues.join('; ')}`
+        : '';
+      console.error(`PATTERN SYSTEM UNHEALTHY - outcomes not recording correctly!${issueText}`);
+    }
+    return combinedHealth;
   }
 
   _broadcastDashboardTrade(payload, trade = {}) {
@@ -638,7 +741,7 @@ class OrderExecutor {
     if (missingStoredScope.length > 0) {
       throw new Error(`[ORDER-PLAN] active trade ${trade.orderId || trade.id || 'unknown'} missing immutable scope field(s): ${missingStoredScope.join(', ')} - refusing to plan exit against current SessionRouter scope`);
     }
-    const fullSizeUsd = Math.abs(trade.sizeUsd || trade.size || 0);
+    const fullSizeUsd = this._resolveStoredSizeUsd(trade, 'exit');
     const exitFraction = typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1
       ? decision.exitFraction
       : 1;
@@ -1890,7 +1993,7 @@ class OrderExecutor {
             pnl = ((price - buyTrade.entryPrice) / buyTrade.entryPrice) * 100;
             const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
             const holdDuration = exitTimestamp - buyTrade.entryTime;
-            const longExitSizeUsd = executedExitPlan?.sizeUsd ?? Math.abs(buyTrade.sizeUsd || buyTrade.size || 0);
+            const longExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(buyTrade, 'BUY exit');
 
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
@@ -1917,7 +2020,7 @@ class OrderExecutor {
                 return longExitSizeUsd * ((price - buyTrade.entryPrice) / buyTrade.entryPrice);
               })(),
               holdDuration: holdDuration,
-              exitReason: decision.exitReason || 'signal'
+              exitReason: this._firstNonEmptyString(decision.exitReason)
             };
 
             // CHANGE 2026-02-23: Record trade in BacktestRecorder (with fees, running balance)
@@ -1928,18 +2031,18 @@ class OrderExecutor {
                 direction: 'long',
                 entryPrice: buyTrade.entryPrice,
                 exitPrice: price,
-                stopLoss: buyTrade.exitContract?.stopLossPercent || 0,
-                takeProfit: buyTrade.exitContract?.takeProfitPercent || 0,
-                size: longExitSizeUsd || 1,
+                stopLoss: this._firstFiniteNumber(buyTrade.exitContract?.stopLossPercent),
+                takeProfit: this._firstFiniteNumber(buyTrade.exitContract?.takeProfitPercent),
+                size: longExitSizeUsd,
                 // MED-03: throw when buyTrade.entryStrategy missing at exit time.
                 // Set at trade open from orchResult.winnerStrategy (HIGH-08 covers
                 // missing-at-open). Missing AT EXIT means the trade record lost
                 // entryStrategy between open and close — state-corruption signal.
                 ...(buyTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] BUY exit: trade record missing entryStrategy (orderId=${buyTrade.orderId}) — state corruption between open and close`); })()),
                 strategyName: buyTrade.entryStrategy,
-                confidence: buyTrade.confidence || 0,
-                exitReason: completeTradeResult.exitReason || 'signal',
-                reason: buyTrade.reason || '',
+                confidence: this._firstFiniteNumber(buyTrade.confidence),
+                exitReason: completeTradeResult.exitReason,
+                reason: this._firstNonEmptyString(buyTrade.reason),
                 holdTimeMinutes: holdDuration / 60000,
                 exitContract: buyTrade.exitContract,
                 // CC-A Change 2: passthrough indicator state stamped on trade at entry
@@ -1966,7 +2069,10 @@ class OrderExecutor {
                 signalId,
                 decisionId
               });
-              console.log(`[TRADE-LOG] Strategy: ${buyTrade.entryStrategy || 'unknown'} | Conf: ${(buyTrade.confidence || 0).toFixed(1)}% | Size: ${longExitSizeUsd || 0} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
+              const loggedStrategy = this._firstNonEmptyString(buyTrade.entryStrategy, buyTrade.strategy) ?? 'missing';
+              const loggedConfidence = this._firstFiniteNumber(buyTrade.confidence);
+              const loggedExitReason = this._firstNonEmptyString(completeTradeResult.exitReason) ?? 'missing';
+              console.log(`[TRADE-LOG] Strategy: ${loggedStrategy} | Conf: ${loggedConfidence === null ? 'missing' : `${loggedConfidence.toFixed(1)}%`} | Size: ${longExitSizeUsd} | Exit: ${loggedExitReason}`);
             }
 
             console.log(`Trade closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
@@ -1990,7 +2096,7 @@ class OrderExecutor {
             if (statePartialClose) {
               closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
                 orderId: buyTrade.orderId,
-                exitReason: decision.exitReason || 'signal',
+                exitReason: completeTradeResult.exitReason,
                 orderQuantity: stateExitOrderQuantity,
                 quantityUnit: stateExitQuantityUnit,
                 traceId,
@@ -2000,7 +2106,7 @@ class OrderExecutor {
             } else {
               closeResult = await stateManager.closePosition(price, false, null, {
                 orderId: buyTrade.orderId,
-                exitReason: decision.exitReason || 'signal',
+                exitReason: completeTradeResult.exitReason,
                 traceId,
                 signalId,
                 decisionId
@@ -2103,7 +2209,7 @@ class OrderExecutor {
               size: usdAmount,
               value_usd: sellValue,
               fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),
-              reason: completeTradeResult.exitReason || 'Signal exit',
+              reason: completeTradeResult.exitReason,
               confidence: decision.confidence,
               traceId,
               signalId,
@@ -2117,7 +2223,7 @@ class OrderExecutor {
               pnlPercent: pnl,
               isPartialClose: statePartialClose,
               partialFraction: statePartialClose ? stateExitFraction : null,
-              exitReason: completeTradeResult.exitReason || 'signal'
+              exitReason: completeTradeResult.exitReason
             });
 
             // Log P&L explanation for transparency
@@ -2150,39 +2256,66 @@ class OrderExecutor {
 
             // 3.5 CHANGE 2026-02-14: Wire RiskManager trade tracking (was NEVER CALLED)
             // Updates daily/weekly/monthly loss limits, drawdown, streaks, recovery mode
-            if (this.ctx.riskManager) {
+            const longResultPnlDollars = this._firstFiniteNumber(completeTradeResult.pnlDollars);
+            const longResultPnlPercent = this._firstFiniteNumber(completeTradeResult.pnl);
+            const longResultHoldDuration = this._firstFiniteNumber(completeTradeResult.holdDuration);
+            const longResultExitReason = this._firstNonEmptyString(completeTradeResult.exitReason);
+            const longResultStrategy = this._firstNonEmptyString(buyTrade.entryStrategy, buyTrade.strategy);
+
+            if (this.ctx.riskManager && longResultPnlDollars !== null) {
               this.ctx.riskManager.recordTradeResult({
                 success: pnl >= 0,
-                pnl: completeTradeResult.pnlDollars || 0
+                pnl: longResultPnlDollars
               });
+            } else if (this.ctx.riskManager) {
+              console.warn('[RISK] Skipped trade result update: missing finite P&L dollars');
             }
 
             // 3.6 FIX 2026-03-29: Wire SMS daily loss tracking (was NEVER CALLED)
             // Updates dailyLosses counter so 3-loss-per-day limit works
-            if (this.ctx.strategyOrchestrator && buyTrade.entryStrategy) {
+            if (this.ctx.strategyOrchestrator && longResultStrategy && longResultPnlDollars !== null) {
               this.ctx.strategyOrchestrator.recordTradeResult(
-                buyTrade.entryStrategy,
-                completeTradeResult.pnlDollars || 0
+                longResultStrategy,
+                longResultPnlDollars
               );
+            } else if (this.ctx.strategyOrchestrator) {
+              console.warn('[STRATEGY] Skipped trade result update: missing strategy or finite P&L dollars');
             }
 
             // 3.7 FIX 2026-04-05: Wire PID Controller for adaptive parameter optimization
             // Updates position sizing, regime boosts, trailing stops based on performance
             try {
-              const pidController = getPIDController();
-              pidController.onTradeClose({
-                strategyName: buyTrade.entryStrategy || buyTrade.strategy || 'unknown',
-                netPnlDollars: completeTradeResult.pnlDollars || 0,
-                netPnlPercent: completeTradeResult.pnl || 0,
-                exitReason: completeTradeResult.exitReason || 'signal',
-                maxProfitPercent: buyTrade.maxProfitPercent || 0,
-                maxFavorableExcursion: buyTrade.maxFavorableExcursion || 0,
-                holdDuration: completeTradeResult.holdDuration || 0,
-              });
+              if (
+                longResultStrategy &&
+                longResultPnlDollars !== null &&
+                longResultPnlPercent !== null &&
+                longResultExitReason &&
+                longResultHoldDuration !== null
+              ) {
+                const pidController = getPIDController();
+                pidController.onTradeClose({
+                  strategyName: longResultStrategy,
+                  netPnlDollars: longResultPnlDollars,
+                  netPnlPercent: longResultPnlPercent,
+                  exitReason: longResultExitReason,
+                  maxProfitPercent: this._firstFiniteNumber(buyTrade.maxProfitPercent),
+                  maxFavorableExcursion: this._firstFiniteNumber(buyTrade.maxFavorableExcursion),
+                  holdDuration: longResultHoldDuration,
+                });
+              } else {
+                console.warn('[PID] Skipped onTradeClose: missing strategy, P&L, exit reason, or hold duration');
+              }
             } catch (err) {
               // PID is optional - don't break trade flow if it fails
               console.warn(`[PID] onTradeClose failed: ${err.message}`);
             }
+
+            const traiLearningIndicators = this._buildTraiLearningIndicators(buyTrade);
+            const traiLearningTrend = buyTrade.entryIndicators?.trend ?? buyTrade.indicators?.trend ?? null;
+            const traiLearningVolatility = this._firstFiniteNumber(
+              buyTrade.entryIndicators?.volatility,
+              buyTrade.indicators?.volatility
+            );
 
             // 4. CHANGE 2026-02-13: Re-enable TradeLogger with comprehensive breakdown
             try {
@@ -2211,22 +2344,22 @@ class OrderExecutor {
                 holdTime: holdDuration,
 
                 // Account
-                balanceBefore: stateManager.get('balance') - (completeTradeResult.pnlDollars || 0),
+                balanceBefore: longResultPnlDollars === null ? null : stateManager.get('balance') - longResultPnlDollars,
                 balanceAfter: stateManager.get('balance'),
 
                 // Technical indicators at entry
-                rsi: buyTrade.entryIndicators?.rsi || buyTrade.indicators?.rsi || 0,
-                macd: buyTrade.entryIndicators?.macd?.macd || buyTrade.indicators?.macd || 0,
-                macdSignal: buyTrade.entryIndicators?.macd?.signal || buyTrade.indicators?.macdSignal || 0,
-                trend: buyTrade.entryIndicators?.trend || buyTrade.indicators?.trend || 'unknown',
-                volatility: buyTrade.entryIndicators?.volatility || buyTrade.indicators?.volatility || 0,
+                rsi: traiLearningIndicators.rsi,
+                macd: traiLearningIndicators.macd,
+                macdSignal: traiLearningIndicators.macdSignal,
+                trend: traiLearningTrend,
+                volatility: traiLearningVolatility,
 
                 // CHANGE 2026-02-13: Decision reasoning breakdown
-                confidence: buyTrade.confidence || 0,
+                confidence: this._firstFiniteNumber(buyTrade.confidence),
                 signalBreakdown: buyTrade.signalBreakdown ?? null,
-                bullishScore: buyTrade.bullishScore ?? 0,
-                bearishScore: buyTrade.bearishScore || 0,
-                entryReason: buyTrade.reasoning || 'no reason stored',
+                bullishScore: this._firstFiniteNumber(buyTrade.bullishScore),
+                bearishScore: this._firstFiniteNumber(buyTrade.bearishScore),
+                entryReason: this._firstNonEmptyString(buyTrade.reasoning, buyTrade.reason),
 
                 // Exit analysis
                 exitReason: completeTradeResult.exitReason,
@@ -2241,7 +2374,7 @@ class OrderExecutor {
 
                 // Pattern data
                 patternType: buyTrade.patterns?.[0]?.name || null,
-                patternConfidence: buyTrade.patterns?.[0]?.confidence || 0,
+                patternConfidence: this._firstFiniteNumber(buyTrade.patterns?.[0]?.confidence),
 
                 // Risk management
                 positionSize: longExitSizeUsd,
@@ -2265,7 +2398,7 @@ class OrderExecutor {
             // recordTradeOutcome() takes ONE arg. extractPattern() needs .indicators and .trend
             if (this.ctx.trai && this.pendingTraiDecisions?.has(buyTrade.orderId)) {
               const traiDecisionData = this.pendingTraiDecisions.get(buyTrade.orderId);
-              this.ctx.trai.recordTradeOutcome({
+              const traiRecorded = this.ctx.trai.recordTradeOutcome({
                 tradeId: buyTrade.orderId,
                 decisionId: traiDecisionData.decisionId,
                 symbol,
@@ -2276,20 +2409,17 @@ class OrderExecutor {
                 executionMode: buyTrade.executionMode,
                 timeframe: buyTrade.timeframe,
                 scopeKey: buyTrade.scopeKey,
+                strategy: buyTrade.entryStrategy,
+                exitReason: completeTradeResult.exitReason,
                 profitLoss: profitLoss,
                 profitLossPercent: pnl,
                 holdDuration: holdDuration,
                 entry: {
                   price: buyTrade.entryPrice || buyTrade.price,
                   timestamp: buyTrade.entryTime,
-                  indicators: {
-                    rsi: buyTrade.entryIndicators?.rsi,
-                    macd: buyTrade.entryIndicators?.macd?.macd || buyTrade.entryIndicators?.macd || 0,
-                    macdHistogram: buyTrade.entryIndicators?.macd?.histogram || 0,
-                    primaryPattern: buyTrade.patterns?.[0]?.name || 'none'
-                  },
-                  trend: buyTrade.entryIndicators?.trend || 'neutral',
-                  volatility: buyTrade.entryIndicators?.volatility || 0
+                  indicators: traiLearningIndicators,
+                  trend: traiLearningTrend,
+                  volatility: traiLearningVolatility
                 },
                 exit: {
                   price: price,
@@ -2299,21 +2429,21 @@ class OrderExecutor {
                     macd: indicators.macd?.macd ?? null,
                     macdHistogram: indicators.macd?.histogram ?? null
                   },
-                  trend: indicators.trend || 'neutral'
+                  trend: indicators.trend ?? null,
+                  reason: completeTradeResult.exitReason
                 },
-                indicators: {
-                  rsi: buyTrade.entryIndicators?.rsi,
-                  macd: buyTrade.entryIndicators?.macd?.macd || buyTrade.entryIndicators?.macd || 0,
-                  macdHistogram: buyTrade.entryIndicators?.macd?.histogram || 0,
-                  primaryPattern: buyTrade.patterns?.[0]?.name || 'none'
-                },
-                trend: buyTrade.entryIndicators?.trend || 'neutral',
-                volatility: buyTrade.entryIndicators?.volatility || 0,
+                indicators: traiLearningIndicators,
+                trend: traiLearningTrend,
+                volatility: traiLearningVolatility,
                 traiConfidence: traiDecisionData.traiConfidence,
                 originalConfidence: traiDecisionData.originalConfidence
               });
               this.pendingTraiDecisions.delete(buyTrade.orderId);
-              console.log(`[TRAI] Learning from ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+              if (traiRecorded) {
+                console.log(`[TRAI] Learning from ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+              } else {
+                console.warn(`[TRAI] Learning skipped for ${buyTrade.orderId}: pattern outcome was not recorded`);
+              }
             }
             // Clean up active trade
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
@@ -2384,7 +2514,7 @@ class OrderExecutor {
           const pnl = ((shortTrade.entryPrice - price) / shortTrade.entryPrice) * 100;
           const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
           const holdDuration = exitTimestamp - shortTrade.entryTime;
-          const coverExitSizeUsd = executedExitPlan?.sizeUsd ?? Math.abs(shortTrade.sizeUsd || shortTrade.size || 0);
+          const coverExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(shortTrade, 'SHORT exit');
 
           const completeTradeResult = {
             ...shortTrade,
@@ -2405,8 +2535,13 @@ class OrderExecutor {
               return coverExitSizeUsd * ((shortTrade.entryPrice - price) / shortTrade.entryPrice);
             })(),
             holdDuration: holdDuration,
-            exitReason: decision.exitReason || 'signal'
+            exitReason: this._firstNonEmptyString(decision.exitReason)
           };
+          const shortResultPnlDollars = this._firstFiniteNumber(completeTradeResult.pnlDollars);
+          const shortResultPnlPercent = this._firstFiniteNumber(completeTradeResult.pnl);
+          const shortResultHoldDuration = this._firstFiniteNumber(completeTradeResult.holdDuration);
+          const shortResultExitReason = this._firstNonEmptyString(completeTradeResult.exitReason);
+          const shortResultStrategy = this._firstNonEmptyString(shortTrade.entryStrategy, shortTrade.strategy);
 
           // Record trade
           if (this.ctx.backtestRecorder) {
@@ -2416,16 +2551,16 @@ class OrderExecutor {
               direction: 'short',
               entryPrice: shortTrade.entryPrice,
               exitPrice: price,
-              stopLoss: shortTrade.exitContract?.stopLossPercent || 0,
-              takeProfit: shortTrade.exitContract?.takeProfitPercent || 0,
+              stopLoss: this._firstFiniteNumber(shortTrade.exitContract?.stopLossPercent),
+              takeProfit: this._firstFiniteNumber(shortTrade.exitContract?.takeProfitPercent),
               size: coverExitSizeUsd,
               // MED-03: SHORT exit symmetric warn — same state-persistence
               // concern as BUY exit at :669-675.
               ...(shortTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — state corruption between open and close`); })()),
               strategyName: shortTrade.entryStrategy,
-              confidence: shortTrade.confidence || 0,
-              exitReason: completeTradeResult.exitReason || 'signal',
-              reason: shortTrade.reason || '',
+              confidence: this._firstFiniteNumber(shortTrade.confidence),
+              exitReason: completeTradeResult.exitReason,
+              reason: this._firstNonEmptyString(shortTrade.reason),
               holdTimeMinutes: holdDuration / 60000,
               exitContract: shortTrade.exitContract,
               // CC-A Change 2: passthrough indicator state stamped on trade at entry
@@ -2448,7 +2583,9 @@ class OrderExecutor {
               signalId,
               decisionId
             });
-            console.log(`[TRADE-LOG] SHORT Strategy: ${shortTrade.entryStrategy || 'unknown'} | Exit: ${completeTradeResult.exitReason || 'unknown'}`);
+            const loggedStrategy = this._firstNonEmptyString(shortTrade.entryStrategy, shortTrade.strategy) ?? 'missing';
+            const loggedExitReason = this._firstNonEmptyString(completeTradeResult.exitReason) ?? 'missing';
+            console.log(`[TRADE-LOG] SHORT Strategy: ${loggedStrategy} | Exit: ${loggedExitReason}`);
           }
 
           console.log(`SHORT closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
@@ -2464,7 +2601,7 @@ class OrderExecutor {
           if (coverStatePartialClose) {
             closeResult = await stateManager.reducePosition(shortTrade.orderId, coverStateExitFraction, price, {
               orderId: shortTrade.orderId,
-              exitReason: decision.exitReason || 'signal',
+              exitReason: completeTradeResult.exitReason,
               direction: 'short',
               orderQuantity: coverStateOrderQuantity,
               quantityUnit: coverStateQuantityUnit,
@@ -2475,7 +2612,7 @@ class OrderExecutor {
           } else {
             closeResult = await stateManager.closePosition(price, false, null, {
               orderId: shortTrade.orderId,
-              exitReason: decision.exitReason || 'signal',
+              exitReason: completeTradeResult.exitReason,
               direction: 'short',
               traceId,
               signalId,
@@ -2569,10 +2706,10 @@ class OrderExecutor {
               entryTime: new Date(shortTrade.entryTime).toISOString(),
               exitTime: new Date().toISOString(),
               holdTime: holdDuration,
-              balanceBefore: stateManager.get('balance') - completeTradeResult.pnlDollars,
+              balanceBefore: shortResultPnlDollars === null ? null : stateManager.get('balance') - shortResultPnlDollars,
               balanceAfter: stateManager.get('balance'),
-              confidence: shortTrade.confidence,
-              entryReason: shortTrade.reasoning || null,
+              confidence: this._firstFiniteNumber(shortTrade.confidence),
+              entryReason: this._firstNonEmptyString(shortTrade.reasoning, shortTrade.reason),
               exitReason: completeTradeResult.exitReason,
               reason: completeTradeResult.exitReason,
               exitIndicators: {
@@ -2611,7 +2748,7 @@ class OrderExecutor {
             // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: shortSize is already USD.
             value_usd: shortSize,
             fees: shortSize * TradingConfig.get('fees.takerFee', 0.004),
-            reason: completeTradeResult.exitReason || 'Short cover',
+            reason: completeTradeResult.exitReason,
             confidence: decision.confidence,
             traceId,
             signalId,
@@ -2625,40 +2762,54 @@ class OrderExecutor {
             pnlPercent: pnl,
             isPartialClose: false,
             partialFraction: null,
-            exitReason: completeTradeResult.exitReason || 'signal'
+            exitReason: completeTradeResult.exitReason
           });
 
           // Risk manager update
           this._recordClosedTradePatternOutcome(shortTrade, completeTradeResult, pnl, holdDuration);
           this._checkPatternOutcomeHealth();
 
-          if (this.ctx.riskManager) {
+          if (this.ctx.riskManager && shortResultPnlDollars !== null) {
             this.ctx.riskManager.recordTradeResult({
               success: pnl >= 0,
-              pnl: completeTradeResult.pnlDollars || 0
+              pnl: shortResultPnlDollars
             });
+          } else if (this.ctx.riskManager) {
+            console.warn('[RISK] Skipped short trade result update: missing finite P&L dollars');
           }
 
           // FIX 2026-03-29: Wire SMS daily loss tracking for shorts
-          if (this.ctx.strategyOrchestrator && shortTrade.entryStrategy) {
+          if (this.ctx.strategyOrchestrator && shortResultStrategy && shortResultPnlDollars !== null) {
             this.ctx.strategyOrchestrator.recordTradeResult(
-              shortTrade.entryStrategy,
-              completeTradeResult.pnlDollars || 0
+              shortResultStrategy,
+              shortResultPnlDollars
             );
+          } else if (this.ctx.strategyOrchestrator) {
+            console.warn('[STRATEGY] Skipped short trade result update: missing strategy or finite P&L dollars');
           }
 
           // FIX 2026-04-05: Wire PID Controller for short exits
           try {
-            const pidController = getPIDController();
-            pidController.onTradeClose({
-              strategyName: shortTrade.entryStrategy || shortTrade.strategy || 'unknown',
-              netPnlDollars: completeTradeResult.pnlDollars || 0,
-              netPnlPercent: completeTradeResult.pnl || 0,
-              exitReason: completeTradeResult.exitReason || 'signal',
-              maxProfitPercent: shortTrade.maxProfitPercent || 0,
-              maxFavorableExcursion: shortTrade.maxFavorableExcursion || 0,
-              holdDuration: completeTradeResult.holdDuration || 0,
-            });
+            if (
+              shortResultStrategy &&
+              shortResultPnlDollars !== null &&
+              shortResultPnlPercent !== null &&
+              shortResultExitReason &&
+              shortResultHoldDuration !== null
+            ) {
+              const pidController = getPIDController();
+              pidController.onTradeClose({
+                strategyName: shortResultStrategy,
+                netPnlDollars: shortResultPnlDollars,
+                netPnlPercent: shortResultPnlPercent,
+                exitReason: shortResultExitReason,
+                maxProfitPercent: this._firstFiniteNumber(shortTrade.maxProfitPercent),
+                maxFavorableExcursion: this._firstFiniteNumber(shortTrade.maxFavorableExcursion),
+                holdDuration: shortResultHoldDuration,
+              });
+            } else {
+              console.warn('[PID] Skipped short onTradeClose: missing strategy, P&L, exit reason, or hold duration');
+            }
           } catch (err) {
             console.warn(`[PID] onTradeClose (short) failed: ${err.message}`);
           }
@@ -2666,7 +2817,13 @@ class OrderExecutor {
           // TRAI learning — mirror SELL path for short trade outcomes
           if (this.ctx.trai && this.pendingTraiDecisions?.has(shortTrade.orderId)) {
             const traiDecisionData = this.pendingTraiDecisions.get(shortTrade.orderId);
-            this.ctx.trai.recordTradeOutcome({
+            const traiLearningIndicators = this._buildTraiLearningIndicators(shortTrade);
+            const traiLearningTrend = shortTrade.entryIndicators?.trend ?? shortTrade.indicators?.trend ?? null;
+            const traiLearningVolatility = this._firstFiniteNumber(
+              shortTrade.entryIndicators?.volatility,
+              shortTrade.indicators?.volatility
+            );
+            const traiRecorded = this.ctx.trai.recordTradeOutcome({
               tradeId: shortTrade.orderId,
               decisionId: traiDecisionData.decisionId,
               symbol,
@@ -2677,20 +2834,17 @@ class OrderExecutor {
               executionMode: shortTrade.executionMode,
               timeframe: shortTrade.timeframe,
               scopeKey: shortTrade.scopeKey,
+              strategy: shortTrade.entryStrategy,
+              exitReason: completeTradeResult.exitReason,
               profitLoss: profitLoss,
               profitLossPercent: pnl,
               holdDuration: holdDuration,
               entry: {
                 price: shortTrade.entryPrice || shortTrade.price,
                 timestamp: shortTrade.entryTime,
-                indicators: {
-                  rsi: shortTrade.entryIndicators?.rsi,
-                  macd: shortTrade.entryIndicators?.macd?.macd || shortTrade.entryIndicators?.macd || 0,
-                  macdHistogram: shortTrade.entryIndicators?.macd?.histogram || 0,
-                  primaryPattern: shortTrade.patterns?.[0]?.name || 'none'
-                },
-                trend: shortTrade.entryIndicators?.trend || 'neutral',
-                volatility: shortTrade.entryIndicators?.volatility || 0
+                indicators: traiLearningIndicators,
+                trend: traiLearningTrend,
+                volatility: traiLearningVolatility
               },
               exit: {
                 price: price,
@@ -2700,21 +2854,21 @@ class OrderExecutor {
                   macd: indicators.macd?.macd ?? null,
                   macdHistogram: indicators.macd?.histogram ?? null
                 },
-                trend: indicators.trend || 'neutral'
+                trend: indicators.trend ?? null,
+                reason: completeTradeResult.exitReason
               },
-              indicators: {
-                rsi: shortTrade.entryIndicators?.rsi,
-                macd: shortTrade.entryIndicators?.macd?.macd || shortTrade.entryIndicators?.macd || 0,
-                macdHistogram: shortTrade.entryIndicators?.macd?.histogram || 0,
-                primaryPattern: shortTrade.patterns?.[0]?.name || 'none'
-              },
-              trend: shortTrade.entryIndicators?.trend || 'neutral',
-              volatility: shortTrade.entryIndicators?.volatility || 0,
+              indicators: traiLearningIndicators,
+              trend: traiLearningTrend,
+              volatility: traiLearningVolatility,
               traiConfidence: traiDecisionData.traiConfidence,
               originalConfidence: traiDecisionData.originalConfidence
             });
             this.pendingTraiDecisions.delete(shortTrade.orderId);
-            console.log(`[TRAI] Learning from SHORT ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+            if (traiRecorded) {
+              console.log(`[TRAI] Learning from SHORT ${pnl >= 0 ? 'WIN' : 'LOSS'}: ${pnl.toFixed(2)}% ($${profitLoss.toFixed(2)})`);
+            } else {
+              console.warn(`[TRAI] Learning skipped for SHORT ${shortTrade.orderId}: pattern outcome was not recorded`);
+            }
           }
 
           // Pattern exit model

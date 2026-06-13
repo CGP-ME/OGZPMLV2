@@ -321,7 +321,10 @@ class UnifiedPatternMemory {
    */
   recordOutcome(features, outcome) {
     if (!this._validateFeatures(features)) return false;
-    if (!outcome || typeof outcome.pnl !== 'number') return false;
+    if (!outcome || !Number.isFinite(outcome.pnl) || !Number.isFinite(outcome.pnlPercent) ||
+        !Number.isFinite(outcome.holdTimeMs) || !outcome.exitReason || !outcome.strategy) {
+      return false;
+    }
 
     const scope = this._normalizeScope(outcome, 'UnifiedPatternMemory.recordOutcome');
     if (!scope) return false;
@@ -356,10 +359,10 @@ class UnifiedPatternMemory {
     p.outcomes.push({
       timestamp: Date.now(),
       pnl: outcome.pnl,
-      pnlPercent: outcome.pnlPercent || 0,
-      holdTimeMs: outcome.holdTimeMs || 0,
-      exitReason: outcome.exitReason || 'unknown',
-      strategy: outcome.strategy || 'unknown',
+      pnlPercent: outcome.pnlPercent,
+      holdTimeMs: outcome.holdTimeMs,
+      exitReason: outcome.exitReason,
+      strategy: outcome.strategy,
       scopeKey: scope.scopeKey,
       symbol: scope.symbol,
       brokerId: scope.brokerId,
@@ -1034,11 +1037,18 @@ class UnifiedPatternMemory {
 
     // If pnl is provided, this is an outcome; otherwise it's an observation
     if (typeof result.pnl === 'number') {
+      const exitReason = typeof result.exitReason === 'string' ? result.exitReason.trim() : '';
+      const strategy = typeof result.strategy === 'string' ? result.strategy.trim() : '';
+      if (!Number.isFinite(result.pnl) || !Number.isFinite(result.holdTimeMs) ||
+          result.holdTimeMs <= 0 || !exitReason || !strategy) {
+        return false;
+      }
       return this.recordOutcome(features, {
         pnl: result.pnl,
         pnlPercent: result.pnl, // Old API uses pnl as percentage
-        exitReason: result.reason || 'unknown',
-        strategy: result.strategy || 'unknown',
+        holdTimeMs: result.holdTimeMs,
+        exitReason,
+        strategy,
         symbol: result.symbol,
         brokerId: result.brokerId,
         accountId: result.accountId,

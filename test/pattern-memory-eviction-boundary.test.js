@@ -37,6 +37,7 @@ describe('Pattern memory eviction boundary', () => {
     profitLoss: 25 + index,
     profitLossPercent: 2.5 + index,
     holdDuration: 900000,
+    exitReason: 'take_profit',
     indicators: {
       rsi: 25 + index * 10,
       macd: index % 2 === 0 ? 0.2 : -0.2,

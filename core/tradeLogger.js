@@ -16,9 +16,9 @@
  * FILE STRUCTURE:
  * ```
  * logs/trades/
- * ├── trades_2026-02-01.json
- * ├── trades_2026-02-02.json
- * └── ...
+ * |-- trades_2026-02-01.json
+ * |-- trades_2026-02-02.json
+ * `-- ...
  * ```
  *
  * TRADE RECORD FORMAT:
@@ -61,6 +61,38 @@ class TradeLogger {
         this.ensureDirectoryExists();
     }
 
+    finiteOrNull(value) {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    valueOrNull(value) {
+        return value ?? null;
+    }
+
+    formatNullableNumber(value, decimals = 2) {
+        return Number.isFinite(value) ? value.toFixed(decimals) : 'n/a';
+    }
+
+    finiteValues(values) {
+        return values.filter(value => Number.isFinite(value));
+    }
+
+    averageFinite(values) {
+        const finite = this.finiteValues(values);
+        if (finite.length === 0) return null;
+        return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+    }
+
+    minFinite(values) {
+        const finite = this.finiteValues(values);
+        return finite.length === 0 ? null : Math.min(...finite);
+    }
+
+    maxFinite(values) {
+        const finite = this.finiteValues(values);
+        return finite.length === 0 ? null : Math.max(...finite);
+    }
+
     /**
      * Ensure the logs directory exists
      */
@@ -68,10 +100,10 @@ class TradeLogger {
         try {
             if (!fs.existsSync(this.logDir)) {
                 fs.mkdirSync(this.logDir, { recursive: true });
-                console.log(`✅ Created logs directory: ${this.logDir}`);
+                console.log(`Created logs directory: ${this.logDir}`);
             }
         } catch (error) {
-            console.error(`❌ Failed to create logs directory: ${error.message}`);
+            console.error(`Failed to create logs directory: ${error.message}`);
         }
     }
 
@@ -97,7 +129,7 @@ class TradeLogger {
                 return JSON.parse(data);
             }
         } catch (error) {
-            console.warn(`⚠️ Could not load existing trades: ${error.message}`);
+            console.warn(`Could not load existing trades: ${error.message}`);
         }
         
         return [];
@@ -116,7 +148,7 @@ class TradeLogger {
             require('./AtomicWrite').writeJsonAtomic(filePath, trades);
             return true;
         } catch (error) {
-            console.error(`❌ Failed to save trades: ${error.message}`);
+            console.error(`Failed to save trades: ${error.message}`);
             return false;
         }
     }
@@ -128,7 +160,8 @@ class TradeLogger {
      */
     formatHoldTime(holdTimeMs) {
         // Type-safe conversion
-        const ms = parseInt(holdTimeMs, 10) || 0;
+        const ms = parseInt(holdTimeMs, 10);
+        if (!Number.isFinite(ms)) return null;
 
         if (ms === 0) return '0s';
 
@@ -179,109 +212,114 @@ class TradeLogger {
         try {
             // Comprehensive trade record with all indicators and analysis
             const trade = {
+                // Include caller fields first; normalized audit fields below win.
+                ...tradeData,
+
                 // Basic trade info
                 timestamp: new Date().toISOString(),
                 tradeId: `trade_${Date.now()}`,
-                type: tradeData.type || 'unknown',
+                type: this.valueOrNull(tradeData.type),
                 
                 // Price data
-                entryPrice: tradeData.entryPrice || 0,
-                exitPrice: tradeData.exitPrice || 0,
-                currentPrice: tradeData.currentPrice || 0,
-                size: tradeData.size || 0,
+                entryPrice: this.finiteOrNull(tradeData.entryPrice),
+                exitPrice: this.finiteOrNull(tradeData.exitPrice),
+                currentPrice: this.finiteOrNull(tradeData.currentPrice),
+                size: this.finiteOrNull(tradeData.size),
                 
                 // Performance metrics
-                pnl: tradeData.pnl || 0,
-                pnlPercent: tradeData.pnlPercent || 0,
-                fees: tradeData.fees || 0,
-                netPnl: (tradeData.pnl || 0) - (tradeData.fees || 0),
+                pnl: this.finiteOrNull(tradeData.pnl),
+                pnlPercent: this.finiteOrNull(tradeData.pnlPercent),
+                fees: this.finiteOrNull(tradeData.fees),
+                netPnl: Number.isFinite(tradeData.pnl) && Number.isFinite(tradeData.fees)
+                    ? tradeData.pnl - tradeData.fees
+                    : null,
                 
                 // Timing
                 entryTime: tradeData.entryTime || new Date().toISOString(),
                 exitTime: tradeData.exitTime || new Date().toISOString(),
-                holdTime: tradeData.holdTime || 0,
-                holdTimeFormatted: this.formatHoldTime(tradeData.holdTime || 0),
+                holdTime: this.finiteOrNull(tradeData.holdTime),
+                holdTimeFormatted: Number.isFinite(tradeData.holdTime) ? this.formatHoldTime(tradeData.holdTime) : null,
                 
                 // Account data
-                balanceBefore: tradeData.balanceBefore || 0,
-                balanceAfter: tradeData.balanceAfter || 0,
+                balanceBefore: this.finiteOrNull(tradeData.balanceBefore),
+                balanceAfter: this.finiteOrNull(tradeData.balanceAfter),
                 
                 // Technical indicators at entry
                 indicators: {
-                    rsi: tradeData.rsi || 0,
+                    rsi: this.finiteOrNull(tradeData.rsi),
                     rsiSignal: this.getRsiSignal(tradeData.rsi),
-                    macd: tradeData.macd || 0,
-                    macdSignal: tradeData.macdSignal || 0,
-                    macdHistogram: tradeData.macdHistogram || 0,
+                    macd: this.finiteOrNull(tradeData.macd),
+                    macdSignal: this.finiteOrNull(tradeData.macdSignal),
+                    macdHistogram: this.finiteOrNull(tradeData.macdHistogram),
                     macdCrossover: tradeData.macdCrossover || false,
-                    ema20: tradeData.ema20 || 0,
-                    ema50: tradeData.ema50 || 0,
-                    ema200: tradeData.ema200 || 0,
-                    sma20: tradeData.sma20 || 0,
-                    sma50: tradeData.sma50 || 0,
-                    bollingerUpper: tradeData.bollingerUpper || 0,
-                    bollingerLower: tradeData.bollingerLower || 0,
-                    bollingerMiddle: tradeData.bollingerMiddle || 0,
-                    stochastic: tradeData.stochastic || 0,
-                    volume: tradeData.volume || 0,
-                    atr: tradeData.atr || 0,
-                    adx: tradeData.adx || 0
+                    ema20: this.finiteOrNull(tradeData.ema20),
+                    ema50: this.finiteOrNull(tradeData.ema50),
+                    ema200: this.finiteOrNull(tradeData.ema200),
+                    sma20: this.finiteOrNull(tradeData.sma20),
+                    sma50: this.finiteOrNull(tradeData.sma50),
+                    bollingerUpper: this.finiteOrNull(tradeData.bollingerUpper),
+                    bollingerLower: this.finiteOrNull(tradeData.bollingerLower),
+                    bollingerMiddle: this.finiteOrNull(tradeData.bollingerMiddle),
+                    stochastic: this.finiteOrNull(tradeData.stochastic),
+                    volume: this.finiteOrNull(tradeData.volume),
+                    atr: this.finiteOrNull(tradeData.atr),
+                    adx: this.finiteOrNull(tradeData.adx)
                 },
                 
                 // Market analysis
                 analysis: {
-                    trend: tradeData.trend || 'unknown',
-                    trendStrength: tradeData.trendStrength || 0,
-                    confidence: tradeData.confidence || 0,
-                    volatility: tradeData.volatility || 0,
-                    marketRegime: tradeData.marketRegime || 'normal',
-                    support: tradeData.support || 0,
-                    resistance: tradeData.resistance || 0,
+                    trend: this.valueOrNull(tradeData.trend),
+                    trendStrength: this.finiteOrNull(tradeData.trendStrength),
+                    confidence: this.finiteOrNull(tradeData.confidence),
+                    volatility: this.finiteOrNull(tradeData.volatility),
+                    marketRegime: this.valueOrNull(tradeData.marketRegime),
+                    support: this.finiteOrNull(tradeData.support),
+                    resistance: this.finiteOrNull(tradeData.resistance),
                     fibLevels: tradeData.fibLevels || [],
                     keyLevel: tradeData.keyLevel || null,
-                    levelDistance: tradeData.levelDistance || 0
+                    levelDistance: this.finiteOrNull(tradeData.levelDistance)
                 },
                 
                 // Entry reasoning
                 entrySignal: {
-                    primaryReason: tradeData.entryReason || 'no reason provided',
+                    primaryReason: this.valueOrNull(tradeData.entryReason),
                     secondaryReasons: tradeData.secondaryReasons || [],
-                    signalStrength: tradeData.signalStrength || 0,
+                    signalStrength: this.finiteOrNull(tradeData.signalStrength),
                     conflictingSignals: tradeData.conflictingSignals || [],
                     patternMatch: tradeData.patternMatch || null,
-                    patternConfidence: tradeData.patternConfidence || 0,
+                    patternConfidence: this.finiteOrNull(tradeData.patternConfidence),
                     timeframeConcurrence: tradeData.timeframeConcurrence || false
                 },
                 
                 // Exit reasoning
                 exitSignal: {
-                    exitReason: tradeData.exitReason || tradeData.reason || 'unknown',
-                    exitType: tradeData.exitType || 'manual', // stop_loss, take_profit, trailing_stop, signal, manual
+                    exitReason: tradeData.exitReason ?? tradeData.reason ?? null,
+                    exitType: tradeData.exitType ?? null,
                     profitTier: tradeData.profitTier || null,
-                    stopLossPrice: tradeData.stopLossPrice || 0,
-                    takeProfitPrice: tradeData.takeProfitPrice || 0,
-                    trailingStopPrice: tradeData.trailingStopPrice || 0,
-                    maxProfitReached: tradeData.maxProfitReached || 0,
-                    maxDrawdown: tradeData.maxDrawdown || 0
+                    stopLossPrice: this.finiteOrNull(tradeData.stopLossPrice),
+                    takeProfitPrice: this.finiteOrNull(tradeData.takeProfitPrice),
+                    trailingStopPrice: this.finiteOrNull(tradeData.trailingStopPrice),
+                    maxProfitReached: this.finiteOrNull(tradeData.maxProfitReached),
+                    maxDrawdown: this.finiteOrNull(tradeData.maxDrawdown)
                 },
                 
                 // Risk management
                 riskManagement: {
-                    positionSize: tradeData.positionSize || 0,
-                    riskPercent: tradeData.riskPercent || 0,
-                    riskAmount: tradeData.riskAmount || 0,
-                    rewardRiskRatio: tradeData.rewardRiskRatio || 0,
-                    maxRisk: tradeData.maxRisk || 0,
-                    actualRisk: tradeData.actualRisk || 0
+                    positionSize: this.finiteOrNull(tradeData.positionSize),
+                    riskPercent: this.finiteOrNull(tradeData.riskPercent),
+                    riskAmount: this.finiteOrNull(tradeData.riskAmount),
+                    rewardRiskRatio: this.finiteOrNull(tradeData.rewardRiskRatio),
+                    maxRisk: this.finiteOrNull(tradeData.maxRisk),
+                    actualRisk: this.finiteOrNull(tradeData.actualRisk)
                 },
                 
                 // Pattern recognition data
                 patternData: {
                     patternType: tradeData.patternType || null,
                     patternId: tradeData.patternId || null,
-                    similarPatterns: tradeData.similarPatterns || 0,
-                    patternWinRate: tradeData.patternWinRate || 0,
-                    patternAvgReturn: tradeData.patternAvgReturn || 0,
+                    similarPatterns: this.finiteOrNull(tradeData.similarPatterns),
+                    patternWinRate: this.finiteOrNull(tradeData.patternWinRate),
+                    patternAvgReturn: this.finiteOrNull(tradeData.patternAvgReturn),
                     isNewPattern: tradeData.isNewPattern || false
                 },
                 
@@ -292,28 +330,28 @@ class TradeLogger {
                     marketSession: this.getMarketSession(),
                     newsEvents: tradeData.newsEvents || [],
                     economicEvents: tradeData.economicEvents || [],
-                    marketSentiment: tradeData.marketSentiment || 'neutral'
+                    marketSentiment: this.valueOrNull(tradeData.marketSentiment)
                 },
                 
                 // Performance tracking
                 performance: {
-                    winStreak: tradeData.winStreak || 0,
-                    lossStreak: tradeData.lossStreak || 0,
-                    dailyPnL: tradeData.dailyPnL || 0,
-                    weeklyPnL: tradeData.weeklyPnL || 0,
-                    monthlyPnL: tradeData.monthlyPnL || 0,
-                    totalTrades: tradeData.totalTrades || 0,
-                    winRate: tradeData.winRate || 0
+                    winStreak: this.finiteOrNull(tradeData.winStreak),
+                    lossStreak: this.finiteOrNull(tradeData.lossStreak),
+                    dailyPnL: this.finiteOrNull(tradeData.dailyPnL),
+                    weeklyPnL: this.finiteOrNull(tradeData.weeklyPnL),
+                    monthlyPnL: this.finiteOrNull(tradeData.monthlyPnL),
+                    totalTrades: this.finiteOrNull(tradeData.totalTrades),
+                    winRate: this.finiteOrNull(tradeData.winRate)
                 },
                 
                 // Houston fund tracking
                 houstonFund: {
                     target: 25000,
-                    current: tradeData.balanceAfter || 0,
-                    progress: ((tradeData.balanceAfter || 0) / 25000) * 100,
-                    remaining: 25000 - (tradeData.balanceAfter || 0),
-                    daysTrading: tradeData.daysTrading || 0,
-                    avgDailyGain: tradeData.avgDailyGain || 0
+                    current: this.finiteOrNull(tradeData.balanceAfter),
+                    progress: Number.isFinite(tradeData.balanceAfter) ? (tradeData.balanceAfter / 25000) * 100 : null,
+                    remaining: Number.isFinite(tradeData.balanceAfter) ? 25000 - tradeData.balanceAfter : null,
+                    daysTrading: this.finiteOrNull(tradeData.daysTrading),
+                    avgDailyGain: this.finiteOrNull(tradeData.avgDailyGain)
                 },
                 
                 // Raw data for debugging
@@ -322,9 +360,6 @@ class TradeLogger {
                     features: tradeData.features || [],
                     originalAnalysis: tradeData.originalAnalysis || null
                 },
-                
-                // Include any additional fields
-                ...tradeData
             };
 
             // Load existing trades
@@ -337,18 +372,18 @@ class TradeLogger {
             const saved = this.saveTrades(trades);
             
             if (saved) {
-                console.log(`📝 COMPREHENSIVE TRADE LOG:`);
+                console.log('COMPREHENSIVE TRADE LOG:');
                 console.log(`   ${trade.type} | Entry: ${trade.entryPrice} | Exit: ${trade.exitPrice}`);
-                console.log(`   P&L: ${trade.pnl.toFixed(2)} (${trade.pnlPercent.toFixed(2)}%) | Hold: ${trade.holdTimeFormatted}`);
-                console.log(`   RSI: ${trade.indicators.rsi.toFixed(1)} (${trade.indicators.rsiSignal}) | Trend: ${trade.analysis.trend} | Confidence: ${trade.analysis.confidence.toFixed(2)}`);
-                console.log(`   Reason: ${trade.entrySignal.primaryReason} → ${trade.exitSignal.exitReason}`);
-                console.log(`   Houston Fund: ${trade.houstonFund.current.toFixed(2)} (${trade.houstonFund.progress.toFixed(1)}% to goal)`);
+                console.log(`   P&L: ${this.formatNullableNumber(trade.pnl)} (${this.formatNullableNumber(trade.pnlPercent)}%) | Hold: ${trade.holdTimeFormatted}`);
+                console.log(`   RSI: ${this.formatNullableNumber(trade.indicators.rsi, 1)} (${trade.indicators.rsiSignal}) | Trend: ${trade.analysis.trend} | Confidence: ${this.formatNullableNumber(trade.analysis.confidence)}`);
+                console.log(`   Reason: ${trade.entrySignal.primaryReason} -> ${trade.exitSignal.exitReason}`);
+                console.log(`   Houston Fund: ${this.formatNullableNumber(trade.houstonFund.current)} (${this.formatNullableNumber(trade.houstonFund.progress, 1)}% to goal)`);
             }
             
             return saved;
             
         } catch (error) {
-            console.error(`❌ Error logging trade: ${error.message}`);
+            console.error(`Error logging trade: ${error.message}`);
             return false;
         }
     }
@@ -383,20 +418,20 @@ class TradeLogger {
         const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
         const bestTrade = Math.max(...trades.map(t => t.pnl));
         const worstTrade = Math.min(...trades.map(t => t.pnl));
-        const avgHoldTime = trades.reduce((sum, t) => sum + (t.holdTime || 0), 0) / trades.length;
-        const avgRSI = trades.reduce((sum, t) => sum + (t.indicators?.rsi || 0), 0) / trades.length;
+        const avgHoldTime = this.averageFinite(trades.map(t => t.holdTime));
+        const avgRSI = this.averageFinite(trades.map(t => t.indicators?.rsi));
 
         // Trend breakdown
         const trendBreakdown = {};
         trades.forEach(t => {
-            const trend = t.analysis?.trend || 'unknown';
+            const trend = t.analysis?.trend ?? 'missing';
             trendBreakdown[trend] = (trendBreakdown[trend] || 0) + 1;
         });
 
         // Exit reason breakdown
         const exitReasonBreakdown = {};
         trades.forEach(t => {
-            const reason = t.exitSignal?.exitReason || 'unknown';
+            const reason = t.exitSignal?.exitReason ?? t.exitReason ?? 'missing';
             exitReasonBreakdown[reason] = (exitReasonBreakdown[reason] || 0) + 1;
         });
 
@@ -416,8 +451,8 @@ class TradeLogger {
         });
 
         // Risk management stats
-        const avgRiskPercent = trades.reduce((sum, t) => sum + (t.riskManagement?.riskPercent || 0), 0) / trades.length;
-        const avgRewardRisk = trades.reduce((sum, t) => sum + (t.riskManagement?.rewardRiskRatio || 0), 0) / trades.length;
+        const avgRiskPercent = this.averageFinite(trades.map(t => t.riskManagement?.riskPercent));
+        const avgRewardRisk = this.averageFinite(trades.map(t => t.riskManagement?.rewardRiskRatio));
 
         return {
             // Basic stats
@@ -437,13 +472,13 @@ class TradeLogger {
             // Timing
             avgHoldTime: avgHoldTime,
             avgHoldTimeFormatted: this.formatHoldTime(avgHoldTime),
-            shortestTrade: Math.min(...trades.map(t => t.holdTime || 0)),
-            longestTrade: Math.max(...trades.map(t => t.holdTime || 0)),
+            shortestTrade: this.minFinite(trades.map(t => t.holdTime)),
+            longestTrade: this.maxFinite(trades.map(t => t.holdTime)),
             
             // Technical analysis
             avgRSI: avgRSI,
-            avgConfidence: trades.reduce((sum, t) => sum + (t.analysis?.confidence || 0), 0) / trades.length,
-            avgVolatility: trades.reduce((sum, t) => sum + (t.analysis?.volatility || 0), 0) / trades.length,
+            avgConfidence: this.averageFinite(trades.map(t => t.analysis?.confidence)),
+            avgVolatility: this.averageFinite(trades.map(t => t.analysis?.volatility)),
             
             // Breakdowns
             trendBreakdown,
@@ -453,7 +488,7 @@ class TradeLogger {
             // Risk management
             avgRiskPercent,
             avgRewardRisk,
-            maxDrawdown: Math.min(...trades.map(t => t.exitSignal?.maxDrawdown || 0)),
+            maxDrawdown: this.minFinite(trades.map(t => t.exitSignal?.maxDrawdown)),
             
             // Houston fund
             houstonProgress: trades.length > 0 ? trades[trades.length - 1].houstonFund?.progress || 0 : 0,
@@ -475,7 +510,7 @@ class TradeLogger {
                 .filter(file => file.startsWith('trades_') && file.endsWith('.json'))
                 .map(file => path.join(this.logDir, file));
         } catch (error) {
-            console.error(`❌ Error reading trade files: ${error.message}`);
+            console.error(`Error reading trade files: ${error.message}`);
             return [];
         }
     }
@@ -497,12 +532,12 @@ class TradeLogger {
                     const fileDate = new Date(dateMatch[1]);
                     if (fileDate < thirtyDaysAgo) {
                         fs.unlinkSync(filePath);
-                        console.log(`🗑️ Cleaned old log file: ${fileName}`);
+                        console.log(`Cleaned old log file: ${fileName}`);
                     }
                 }
             });
         } catch (error) {
-            console.error(`❌ Error cleaning old logs: ${error.message}`);
+            console.error(`Error cleaning old logs: ${error.message}`);
         }
     }
 }

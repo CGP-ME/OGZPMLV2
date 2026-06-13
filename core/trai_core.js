@@ -789,23 +789,32 @@ BOT STATUS:
   }
 
   recordTradeResult(trade) {
-    if (!this.patternMemory) return;
+    if (!this.patternMemory) return false;
     try {
       const features = this._extractFeatures(
         trade.entry?.indicators || trade.indicators,
         trade.entry?.trend || trade.trend,
         trade.entry?.volatility != null ? trade.entry.volatility : trade.volatility
       );
-      if (!features) return;
+      if (!features) return false;
+      const pnl = trade.pnl != null ? trade.pnl : (trade.pnlDollars != null ? trade.pnlDollars : trade.profitLoss);
+      const pnlPercent = trade.pnlPercent != null ? trade.pnlPercent : trade.profitLossPercent;
+      const holdTimeMs = trade.holdTimeMs != null ? trade.holdTimeMs : (trade.holdTime != null ? trade.holdTime : trade.holdDuration);
+      const exitReason = trade.exitReason || trade.reason || trade.exit?.reason;
+      const strategy = trade.strategy || trade.strategyName || trade.entryStrategy;
+      if (!Number.isFinite(pnl) || !Number.isFinite(pnlPercent) || !Number.isFinite(holdTimeMs) ||
+          !exitReason || !strategy) {
+        return false;
+      }
       // pnl/pnlPercent/holdTimeMs/exitReason/strategy are kept as the reporter
       // of trade outcome, not as feature inputs. The features array is what gets
       // hashed into PatternMemoryBank — those upstream fields don't pollute it.
-      this.patternMemory.recordOutcome(features, {
-        pnl: trade.pnl != null ? trade.pnl : trade.pnlDollars,
-        pnlPercent: trade.pnlPercent,
-        holdTimeMs: trade.holdTimeMs != null ? trade.holdTimeMs : trade.holdTime,
-        exitReason: trade.exitReason || trade.reason,
-        strategy: trade.strategy,
+      return this.patternMemory.recordOutcome(features, {
+        pnl,
+        pnlPercent,
+        holdTimeMs,
+        exitReason,
+        strategy,
         symbol: trade.symbol,
         brokerId: trade.brokerId,
         accountId: trade.accountId,
@@ -817,6 +826,7 @@ BOT STATUS:
       });
     } catch (error) {
       console.error('[TRAI-HIGH-01] recordTradeResult failed:', error.message);
+      return false;
     }
   }
 
