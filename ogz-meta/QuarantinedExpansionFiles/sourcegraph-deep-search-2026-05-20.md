@@ -92,87 +92,87 @@ https://github.com/CGP-ME/OGZPMLV2
 branch=rebuild/clean-from-baseline
 
 # OGZPMLV2 Deep Search — Bug Investigation 2026-05-20
-Two confirmed bugs in the latest P0 backtest report need root cause 
-traced across the full codebase. Both are reproducible: P0 anchor 
-$13,213.042341608163 holds, but the report shows symbol mislabeling 
+Two confirmed bugs in the latest P0 backtest report need root cause
+traced across the full codebase. Both are reproducible: P0 anchor
+$13,213.042341608163 holds, but the report shows symbol mislabeling
 and short trades that should not exist.
 ## Bug 1 — Symbol mislabeling
-Backtest fed TSLA 15m candle data. Report records trades as BTC-USD. 
-Price moves match TSLA (so the math executed against TSLA candles), 
+Backtest fed TSLA 15m candle data. Report records trades as BTC-USD.
+Price moves match TSLA (so the math executed against TSLA candles),
 but the symbol metadata on each trade record says BTC-USD.
 ## Bug 2 — Shorts in long_only mode
-Runtime config has ENABLE_SHORTS=false (verified). Report contains 7 
-short trades. Either the flag is being ignored on a code path that 
-opens shorts, or the report builder is mislabeling something else as 
+Runtime config has ENABLE_SHORTS=false (verified). Report contains 7
+short trades. Either the flag is being ignored on a code path that
+opens shorts, or the report builder is mislabeling something else as
 a short.
 ## Search Plan
 Run these searches in order. Report findings for each before moving on.
 ### Phase A — Where trade.symbol gets assigned
-Trace EVERY code path that sets a symbol value on a trade record 
+Trace EVERY code path that sets a symbol value on a trade record
 during entry, exit, or recording.
 Searches:
-1. `repo:^github\.com/CGP-ME/OGZPMLV2$ symbol\s*:\s*` — every JSON-style 
+1. `repo:^github\.com/CGP-ME/OGZPMLV2$ symbol\s*:\s*` — every JSON-style
    symbol assignment in trade objects
-2. `repo:^github\.com/CGP-ME/OGZPMLV2$ \.symbol\s*=` — every property 
+2. `repo:^github\.com/CGP-ME/OGZPMLV2$ \.symbol\s*=` — every property
    assignment of .symbol
-3. `repo:^github\.com/CGP-ME/OGZPMLV2$ tradingPair` — every reference 
+3. `repo:^github\.com/CGP-ME/OGZPMLV2$ tradingPair` — every reference
    to tradingPair (legacy single-symbol variable)
-4. `repo:^github\.com/CGP-ME/OGZPMLV2$ activeSymbol\|currentSymbol\|defaultSymbol` 
+4. `repo:^github\.com/CGP-ME/OGZPMLV2$ activeSymbol\|currentSymbol\|defaultSymbol`
    — any default-symbol fallback variable
-5. `repo:^github\.com/CGP-ME/OGZPMLV2$ 'BTC-USD'\|"BTC-USD"\|BTC_USD\|BTCUSD` 
+5. `repo:^github\.com/CGP-ME/OGZPMLV2$ 'BTC-USD'\|"BTC-USD"\|BTC_USD\|BTCUSD`
    — every literal BTC-USD reference in source
 For each hit:
 - File and line
 - Caller context (what function, what trigger)
 - Whether it's a default fallback, hardcoded value, or context-threaded value
-- If hardcoded "BTC-USD" or similar — flag as potential default that leaks 
+- If hardcoded "BTC-USD" or similar — flag as potential default that leaks
   when caller doesn't supply the real symbol
 ### Phase B — Where "short" records originate
 Trace EVERY code path that creates a trade with direction sell/short.
 Searches:
-1. `repo:^github\.com/CGP-ME/OGZPMLV2$ direction:\s*['"]sell['"]` 
+1. `repo:^github\.com/CGP-ME/OGZPMLV2$ direction:\s*['"]sell['"]`
 2. `repo:^github\.com/CGP-ME/OGZPMLV2$ direction:\s*['"]short['"]`
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ side:\s*['"]sell['"]`
-4. `repo:^github\.com/CGP-ME/OGZPMLV2$ action:\s*['"]SELL['"]` 
+4. `repo:^github\.com/CGP-ME/OGZPMLV2$ action:\s*['"]SELL['"]`
 5. `repo:^github\.com/CGP-ME/OGZPMLV2$ executeShort\|openShort\|createShort\|shortEntry`
 6. `repo:^github\.com/CGP-ME/OGZPMLV2$ ENABLE_SHORTS\|enableShorts\|allowShorts\|long_only\|longOnly`
 For each hit:
 - File and line
 - Is it inside a conditional that checks ENABLE_SHORTS?
-- If no check — is it a real short entry path (creates new position) 
+- If no check — is it a real short entry path (creates new position)
   or a long-exit/closing path (closes existing long position)?
-- Trace the full call chain from the orchestrator decision down to 
+- Trace the full call chain from the orchestrator decision down to
   StateManager.openPosition / addTrade
 ### Phase C — Where backtest reports aggregate trades by direction
-If Phase B finds the short entry path is properly gated by 
-ENABLE_SHORTS, then the bug is in the REPORT layer not the EXECUTION 
+If Phase B finds the short entry path is properly gated by
+ENABLE_SHORTS, then the bug is in the REPORT layer not the EXECUTION
 layer. Trace the backtest report builder.
 Searches:
 1. `repo:^github\.com/CGP-ME/OGZPMLV2$ generateReport\|buildReport\|reportTrades\|backtestReport`
 2. `repo:^github\.com/CGP-ME/OGZPMLV2$ shorts:\s*\|longs:\s*\|shortCount\|longCount`
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ filter.*direction\|groupBy.*direction\|partition.*long`
 For each hit:
-- Does the report aggregation match on direction string ("sell" vs 
+- Does the report aggregation match on direction string ("sell" vs
   "SELL" vs "short" vs "SHORT")?
-- Could a close-of-long be miscategorized as a short entry by the 
+- Could a close-of-long be miscategorized as a short entry by the
   aggregation logic?
-- Where does the report builder pull trades from — StateManager 
+- Where does the report builder pull trades from — StateManager
   activeTrades, TradeJournal, closed-trades log, or computed in-memory?
 ### Phase D — Trade recording path
-Map the full chain: orchestrator decision → executor → state mutation 
-→ report record. Confirm symbol and direction are threaded correctly 
+Map the full chain: orchestrator decision → executor → state mutation
+→ report record. Confirm symbol and direction are threaded correctly
 end to end.
 Searches:
-1. `repo:^github\.com/CGP-ME/OGZPMLV2$ activeTrades\.set` — every 
+1. `repo:^github\.com/CGP-ME/OGZPMLV2$ activeTrades\.set` — every
    write to activeTrades Map
 2. `repo:^github\.com/CGP-ME/OGZPMLV2$ addTrade\|recordTrade\|saveTrade\|persistTrade`
-3. `repo:^github\.com/CGP-ME/OGZPMLV2$ trade\s*=\s*{` — every trade 
+3. `repo:^github\.com/CGP-ME/OGZPMLV2$ trade\s*=\s*{` — every trade
    object literal construction
 For each hit:
 - What fields does the trade object include?
 - Where does symbol come from (parameter, this.tradingPair, default fallback)?
 - Where does direction come from (parameter, decision.action, default)?
-- Is there a guard that ENABLE_SHORTS gates direction='sell' before 
+- Is there a guard that ENABLE_SHORTS gates direction='sell' before
   the write?
 ## Output Format
 For each phase, produce:
@@ -193,23 +193,23 @@ UNRESOLVED QUESTIONS
 - Do NOT propose fixes. Diagnose only.
 - Do NOT modify any files.
 - Cite file:line for every claim.
-- If a search returns >50 hits, narrow with additional context and 
+- If a search returns >50 hits, narrow with additional context and
   rerun before listing.
-- If a code path looks intentional (e.g., closing a long position 
+- If a code path looks intentional (e.g., closing a long position
   emits direction='sell' as expected), flag it as safe and move on.
-- Surface anything unexpected even if not directly related to the 
-  two bugs — orphan default-symbol fallbacks, hardcoded test data, 
+- Surface anything unexpected even if not directly related to the
+  two bugs — orphan default-symbol fallbacks, hardcoded test data,
   dead conditional branches, etc.
 
 ## P0 Anchor
 
-Current P0 anchor for any verification: $13,396.84 [or whatever the 
-current TSLA-actually-recorded-as-TSLA number is — this needs 
-operator confirmation since the existing $13,213.042341608163 anchor 
+Current P0 anchor for any verification: $13,396.84 [or whatever the
+current TSLA-actually-recorded-as-TSLA number is — this needs
+operator confirmation since the existing $13,213.042341608163 anchor
 was generated under the same buggy code path].
 
-NOTE: If symbol mislabeling has been happening since before P0 was 
-locked, the P0 anchor may need re-establishing on the corrected code. 
+NOTE: If symbol mislabeling has been happening since before P0 was
+locked, the P0 anchor may need re-establishing on the corrected code.
 Flag this in findings.
 
 
@@ -219,7 +219,7 @@ That's the draft. A few things worth your call before you send it:
 3. Phase ordering. A → B → C → D is logical (symbol assignment, short origination, report aggregation, full chain confirmation). If you want it different, change it.
 4. Constraint "Do NOT propose fixes." This locks deep search to diagnosis-only. Sourcegraph's strength is mapping the code. Implementation decisions stay with you / Codex / Wolf based on the map. If you want deep search to also propose fixes, remove that line — but I'd keep it for the same reason we don't let Mercury implement.
 
- do each of these asks and break between them so you do not blow the context window and literallyerase everything and waste an ask ready i need line numbers not speculations i need proof not hallucinations were so close with being able to get going and we just need to button it all up now 
+ do each of these asks and break between them so you do not blow the context window and literallyerase everything and waste an ask ready i need line numbers not speculations i need proof not hallucinations were so close with being able to get going and we just need to button it all up now
 Show more
 Confirmed: TradingConfig.js is purely env-driven. It does not load config/trading.config.json. The directionFilter value it reads at runtime is process.env.DIRECTION_FILTER with fallback 'both'.
 
@@ -391,13 +391,13 @@ REWRITE-SPEC-FINAL.md:188-232 spec-vs-implementation divergence: The spec docume
 
 tuning/full-45k.json candle format: Whether the TSLA candle file has a .symbol field on each candle record is not confirmed by code search alone. If it does, CandleProcessor.js:68 would resolve TSLA correctly, meaning Bug 1 manifests only via ledgerData.symbol at TradingLoop.js:390 (not CandleProcessor routing). File inspection of tuning/full-45k.json first few records would confirm.
 
-okay since i didnt read the prompt thats on my who wrote that prompt asked you about the wrong path here is the correct prompt + some bonus asks this time since we only filled up half of the context window this one is a fucking banger 
+okay since i didnt read the prompt thats on my who wrote that prompt asked you about the wrong path here is the correct prompt + some bonus asks this time since we only filled up half of the context window this one is a fucking banger
 
 https://github.com/CGP-ME/OGZPMLV2
 branch=sourcegraph-quarantine-expansion
-before i know its about to tell you to search all 5 repos but only do that if something isnt present in the ogz-meta/Quarantine folder and its nested dirs im pretty sure that I got everything here thats being referenced into that folder okay also lastly  
-MAKE SURE BETWEEN PHASES YOU BREAK OR PUT A STOPPING POINT IN BETWEEN AND DONT RUN THIS ON ONE PROCESS BECAUSE IT WILL FOR SURE RATE LIMIT AND ERASE SO WHEN YOU COME TO A NATURAL BREAK POINT STOP SO THAT I CAN FORK IF NEED BE AND WE CAN SLAP THIS IN ONE GO 
-I NEED LINE NUMBERS NOT HALLUCINATIONS I NEED FACTS NOT THEORETICALS CHECK EVERYTHING AGAINST THE MODULES THERE THAT IS BEING ASKED OF YOU THANK YOU COME AGAIN 
+before i know its about to tell you to search all 5 repos but only do that if something isnt present in the ogz-meta/Quarantine folder and its nested dirs im pretty sure that I got everything here thats being referenced into that folder okay also lastly
+MAKE SURE BETWEEN PHASES YOU BREAK OR PUT A STOPPING POINT IN BETWEEN AND DONT RUN THIS ON ONE PROCESS BECAUSE IT WILL FOR SURE RATE LIMIT AND ERASE SO WHEN YOU COME TO A NATURAL BREAK POINT STOP SO THAT I CAN FORK IF NEED BE AND WE CAN SLAP THIS IN ONE GO
+I NEED LINE NUMBERS NOT HALLUCINATIONS I NEED FACTS NOT THEORETICALS CHECK EVERYTHING AGAINST THE MODULES THERE THAT IS BEING ASKED OF YOU THANK YOU COME AGAIN
 
 # OGZPMLV2 Full-Stack TRAI Integration Audit — Sourcegraph Deep Search
 
@@ -412,51 +412,51 @@ Legacy sources (where the modules to be integrated live):
   repo:^github\.com/CGP-ME/OGZFV-FINALCHANGES$@master
   repo:^github\.com/CGP-ME/OGZFV$@valhalla
 
-For every search below, run across ALL FIVE repos unless explicitly 
-scoped. Tag every finding with which repo it came from so the 
+For every search below, run across ALL FIVE repos unless explicitly
+scoped. Tag every finding with which repo it came from so the
 integration plan knows where to pull source from.
 
 ## What this audit produces
 
 A complete integration map covering:
-1. All 9 TRAI responsibilities — which are built where, where they 
-   plug into the current OGZPMLV2 trading pipeline, what contracts 
+1. All 9 TRAI responsibilities — which are built where, where they
+   plug into the current OGZPMLV2 trading pipeline, what contracts
    need to exist for non-destructive integration
-2. Position sizer gap analysis — what's in legacy QuantumPositionSizer 
-   that's NOT in current OGZPMLV2 DynamicPositionSizer, so the gap 
+2. Position sizer gap analysis — what's in legacy QuantumPositionSizer
+   that's NOT in current OGZPMLV2 DynamicPositionSizer, so the gap
    can be ported into the existing file
-3. Regime detector wiring decision — current OGZPMLV2 has two 
-   detectors (RegimeDetector wired, MarketRegimeDetector not wired). 
-   Plus legacy repos may have a more developed version. Map consumers, 
+3. Regime detector wiring decision — current OGZPMLV2 has two
+   detectors (RegimeDetector wired, MarketRegimeDetector not wired).
+   Plus legacy repos may have a more developed version. Map consumers,
    identify contract drift, recommend a wiring path.
-4. Confidence pipeline architecture — where modulators slot in 
+4. Confidence pipeline architecture — where modulators slot in
    between signal generation and trade execution
-5. Contamination risk sweep — what could break or fight existing 
+5. Contamination risk sweep — what could break or fight existing
    code during TRAI buildout
 
-Diagnose only. NO fix proposals. NO file modifications. File:line 
-citations for every claim. If you find AI-generated code the 
+Diagnose only. NO fix proposals. NO file modifications. File:line
+citations for every claim. If you find AI-generated code the
 operator may not remember, flag it.
 
-The answer to this prompt will be archived and not consulted again 
-until post-Apex prop firm evaluation. Make it complete the first 
+The answer to this prompt will be archived and not consulted again
+until post-Apex prop firm evaluation. Make it complete the first
 time.
 
 ---
 
 ## Project context (read this before searching)
 
-OGZPMLV2 is a Node.js algorithmic trading bot. The vision document 
-at `github.com/CGP-ME/OGZPMLV2` path `ogz-meta/GRAND-SCHEME.md` 
+OGZPMLV2 is a Node.js algorithmic trading bot. The vision document
+at `github.com/CGP-ME/OGZPMLV2` path `ogz-meta/GRAND-SCHEME.md`
 defines three integrated layers:
 
-1. Multi-broker / multi-asset / multi-direction / multi-timeframe 
+1. Multi-broker / multi-asset / multi-direction / multi-timeframe
    trading engine
 2. Cross-broker arbitrage engine (Phase 2, deferred)
 3. TRAI — the autonomous AI brain layer with 9 responsibilities
 
-Current production OGZPMLV2 has TRAI #3 (pattern modulator) only. 
-The other 8 are scattered across the 4 legacy repos as built modules 
+Current production OGZPMLV2 has TRAI #3 (pattern modulator) only.
+The other 8 are scattered across the 4 legacy repos as built modules
 that have never been integrated into the production codebase.
 
 The 9 TRAI responsibilities, in operator-defined priority order:
@@ -471,34 +471,34 @@ The 9 TRAI responsibilities, in operator-defined priority order:
 9. Operations manager / priority routing
 
 Known legacy modules per operator's 2026-05-14 audit:
-- NewsIntegration.js — NewsAPI.org + Alpha Vantage, 5 sentiment 
+- NewsIntegration.js — NewsAPI.org + Alpha Vantage, 5 sentiment
   bands, major-event auto-pause, 24hr history
 - nlp_sentiment_analyzer.js — standalone sentiment scoring
 - mover-whale-tracker.js — Congress trades (Pelosi/Crenshaw/
   Tuberville baselines), ARK, Legends, Convergence pools
-- PerformanceAnalyzer.js — TRAI #4, edge-decay (may also exist in 
+- PerformanceAnalyzer.js — TRAI #4, edge-decay (may also exist in
   current OGZPMLV2 production, version mismatch likely)
 - mover-tech-support.js — TRAI #5
 - mover-content-creator.js — TRAI #7 templates
 - MoverIntegrationHub.js with handleUserQuery — TRAI #8 + #9
-- HitchNLP.js + HitchModuleLoader.js — plain-English NLP control 
+- HitchNLP.js + HitchModuleLoader.js — plain-English NLP control
   for the bot itself
-- HitchQuickFire.js, NLPTuningUI.js, OGZProfileExporter.js, 
+- HitchQuickFire.js, NLPTuningUI.js, OGZProfileExporter.js,
   TopHitchCommands.js — Hitch React panels
-- VoiceManager.js + VoiceFXSystem.js — Web Audio API, 5 emotion 
+- VoiceManager.js + VoiceFXSystem.js — Web Audio API, 5 emotion
   presets
-- VictoryAnimations + MilestoneEffects + LossRecoveryMessage — 
+- VictoryAnimations + MilestoneEffects + LossRecoveryMessage —
   theater layer
-- MarketRegimeDetector.js — 7 regimes, indicatorWeights table, 
-  getRegimeVotes emission (current OGZPMLV2 has a file with this 
+- MarketRegimeDetector.js — 7 regimes, indicatorWeights table,
+  getRegimeVotes emission (current OGZPMLV2 has a file with this
   name that may differ from legacy)
-- AdaptiveRiskManagementSystem.js (ARMS) — 10 regimes, ATR stops, 
+- AdaptiveRiskManagementSystem.js (ARMS) — 10 regimes, ATR stops,
   Kelly 35%, circuit breakers
 - CorrelationAnalyzer.js — 10 assets, Pearson, correlation regime
-- QuantumPositionSizer.js — Kelly w/ drawdown adjustment + 
-  win-prob blending + safety factor (file comments say "NO QUANTUM 
+- QuantumPositionSizer.js — Kelly w/ drawdown adjustment +
+  win-prob blending + safety factor (file comments say "NO QUANTUM
   BS, JUST MATH THAT WORKS")
-- MultiDirectionalTrader.js — long+short pipelines, needs 
+- MultiDirectionalTrader.js — long+short pipelines, needs
   no-same-ticker-hedge refactor before integration
 
 Current production OGZPMLV2 known state (verified by operator):
@@ -506,30 +506,30 @@ Current production OGZPMLV2 known state (verified by operator):
 - `core/TRAIPatternIntegration.js` — pattern pack consumer
 - `core/TRAIWebContext.js` — TRAI web context
 - `core/trai_core.js` — TRAI core
-- `core/MarketRegimeDetector.js` — exists but NOT wired to 
-  orchestrator (verified via grep, no callers of analyzeMarket or 
+- `core/MarketRegimeDetector.js` — exists but NOT wired to
+  orchestrator (verified via grep, no callers of analyzeMarket or
   getRegimeVotes)
 - `core/RegimeDetector.js` — wired at `core/TradingLoop.js:571`
-- `core/DynamicPositionSizer.js` — has `_halfKelly` and 
-  `useHalfKelly` flag with `kellyMinSamples=20`; per RUNNING-TODO 
+- `core/DynamicPositionSizer.js` — has `_halfKelly` and
+  `useHalfKelly` flag with `kellyMinSamples=20`; per RUNNING-TODO
   it's "unwired due to curve tuning issues"
 - `core/PerformanceAnalyzer.js` — exists, wiring status unverified
-- No news/sentiment/whale code in production except 
-  `public/js/panels/news-ticker.js` and matching CSS (UI ticker, 
+- No news/sentiment/whale code in production except
+  `public/js/panels/news-ticker.js` and matching CSS (UI ticker,
   cosmetic only — NOT the orchestrator pipeline)
 
 ---
 
 ## Phase 0 — Repo manifest
 
-Before any phase, produce a manifest of which TRAI/NLP-relevant 
+Before any phase, produce a manifest of which TRAI/NLP-relevant
 files exist in each legacy repo. This anchors every later finding.
 
 For each module listed in "Known legacy modules" above:
 - Which repo(s) contain it
 - Which path within each repo
 - File size and last-modified date if visible
-- Whether multiple versions exist across repos (and which appears 
+- Whether multiple versions exist across repos (and which appears
   most recent)
 
 Output:
@@ -549,7 +549,7 @@ Legacy module searches (find the source):
 1. `repo:^github\.com/(OGZaddy/Alpha|CGP-ME/OGZFV.*)$ file:NewsIntegration\.js`
 2. `repo:^github\.com/(OGZaddy/Alpha|CGP-ME/OGZFV.*)$ file:nlp_sentiment_analyzer\.js`
 
-For each found copy: full file content summary + identify which 
+For each found copy: full file content summary + identify which
 version is most complete.
 
 Current production integration-seam searches:
@@ -563,7 +563,7 @@ Current production integration-seam searches:
 For each hit:
 - File:line + 3-5 line context
 - Verdict: integration seam | unrelated | safe to ignore
-- If seam: what's the consumer contract (what input shape does the 
+- If seam: what's the consumer contract (what input shape does the
   existing code expect)
 
 Required output block:
@@ -583,7 +583,7 @@ Current production seam searches:
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:unusualOptions OR content:optionsFlow OR content:darkPool`
 4. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:whaleTracker OR content:institutional`
 
-Required output: TRAI #2 INTEGRATION PLAN block (same shape as 
+Required output: TRAI #2 INTEGRATION PLAN block (same shape as
 Phase A).
 
 ---
@@ -598,10 +598,10 @@ Searches in OGZPMLV2 only:
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ file:TRAIDecisionModule\.js content:features`
 4. `repo:^github\.com/CGP-ME/OGZPMLV2$ file:TRAIDecisionModule\.js content:fabricat`
 
-Specifically look at `core/TRAIDecisionModule.js` around line 386 
-where operator memory says fabricated default features are used 
-(rsi || 50, bbWidth || 0.02, volatility || 0.01, hardcoded 0.5 for 
-wick ratio, etc.). Confirm whether this is a read-side issue 
+Specifically look at `core/TRAIDecisionModule.js` around line 386
+where operator memory says fabricated default features are used
+(rsi || 50, bbWidth || 0.02, volatility || 0.01, hardcoded 0.5 for
+wick ratio, etc.). Confirm whether this is a read-side issue
 (passive lookup) or write-side (pattern bank poisoning).
 
 Required output:
@@ -611,7 +611,7 @@ TRAI #3 PRODUCTION HEALTH CHECK Pattern pack loading: <healthy | broken> Confide
 
 ## Phase D — TRAI #4: Trade Analyst / Pattern Sculptor
 
-Goal: Resolve whether `core/PerformanceAnalyzer.js` in current 
+Goal: Resolve whether `core/PerformanceAnalyzer.js` in current
 OGZPMLV2 is the same as the legacy module or a different version.
 
 Searches:
@@ -620,8 +620,8 @@ Searches:
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:PerformanceAnalyzer` (consumers)
 4. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:processTrade OR content:onTradeClose OR content:recordTradeOutcome OR content:edgeDecay`
 
-For each PerformanceAnalyzer copy found: structural diff against 
-the OGZPMLV2 copy. Identify which version has edge-decay detection 
+For each PerformanceAnalyzer copy found: structural diff against
+the OGZPMLV2 copy. Identify which version has edge-decay detection
 logic.
 
 Required output:
@@ -631,7 +631,7 @@ TRAI #4 INTEGRATION PLAN — Trade Analyst Production OGZPMLV2 PerformanceAnalyz
 
 ## Phase E — TRAI #5/#6/#7/#8/#9: Mover stack + Hitch
 
-Goal: Map the full Mover + Hitch surface across legacy repos and 
+Goal: Map the full Mover + Hitch surface across legacy repos and
 identify integration seams in current OGZPMLV2.
 
 Legacy searches:
@@ -663,8 +663,8 @@ THEATER LAYER (Voice + Animations) INTEGRATION PLAN Source: <repo:path for each>
 
 ## Phase F — Position Sizer (port, not replace)
 
-Goal: Complete the gap analysis so the operator can port specific 
-Kelly logic from legacy QuantumPositionSizer into current 
+Goal: Complete the gap analysis so the operator can port specific
+Kelly logic from legacy QuantumPositionSizer into current
 OGZPMLV2 DynamicPositionSizer without replacing the file.
 
 Legacy searches:
@@ -673,7 +673,7 @@ Legacy searches:
 
 For each found copy: read end-to-end. Extract:
 - Full Kelly formula used
-- Win-probability estimation method (historical blend ratio, 
+- Win-probability estimation method (historical blend ratio,
   sample size requirements)
 - Drawdown adjustment formula
 - Safety factor (half-Kelly, quarter-Kelly, fractional)
@@ -685,7 +685,7 @@ Current production analysis:
 3. `repo:^github\.com/CGP-ME/OGZPMLV2$ file:DynamicPositionSizer\.js`
    Read FULL FILE. Extract every Kelly-related concept present.
 
-4. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:DynamicPositionSizer` 
+4. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:DynamicPositionSizer`
    (consumers — verify "unwired" status)
 
 5. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:kellyFraction OR content:halfKelly OR content:quarterKelly OR content:kellyMultiplier OR content:kellyCriterion`
@@ -710,13 +710,13 @@ PORT-NOT-REPLACE PLAN: Step 1: <specific modification to DynamicPositionSizer.js
 
 ## Phase G — Regime Detector Wiring (cross-cutting decision)
 
-Goal: Map every consumer of regime data across all 5 repos, 
-identify contract drift between detector versions, recommend a 
+Goal: Map every consumer of regime data across all 5 repos,
+identify contract drift between detector versions, recommend a
 wiring path.
 
 Current production OGZPMLV2 has BOTH detectors:
 - core/RegimeDetector.js — wired at core/TradingLoop.js:571
-- core/MarketRegimeDetector.js — NOT wired (zero callers of 
+- core/MarketRegimeDetector.js — NOT wired (zero callers of
   analyzeMarket or getRegimeVotes)
 
 Legacy repos may have a more developed MarketRegimeDetector.
@@ -724,22 +724,22 @@ Legacy repos may have a more developed MarketRegimeDetector.
 Searches:
 1. `repo:^github\.com/(OGZaddy/Alpha|CGP-ME/OGZFV.*)$ file:MarketRegimeDetector\.js`
 2. `repo:^github\.com/(OGZaddy/Alpha|CGP-ME/OGZFV.*)$ file:RegimeDetector\.js`
-3. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:RegimeDetector` (all 
+3. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:RegimeDetector` (all
    consumers regardless of which detector)
 4. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:MarketRegimeDetector`
 5. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:currentRegime OR content:marketRegime OR content:regime\.confidence`
 6. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:analyzeMarket OR content:detectRegime OR content:getRegimeVotes OR content:getAdjustedParameters`
 7. `repo:^github\.com/CGP-ME/OGZPMLV2$ content:indicatorWeights OR content:regimeWeights`
 
-For each MarketRegimeDetector copy found (across all 5 repos): 
+For each MarketRegimeDetector copy found (across all 5 repos):
 identify which has the most complete:
-- 7-regime detection (TRENDING_UP, TRENDING_DOWN, RANGING, 
+- 7-regime detection (TRENDING_UP, TRENDING_DOWN, RANGING,
   VOLATILE, QUIET, BREAKOUT, BREAKDOWN)
 - indicatorWeights table per regime
 - getRegimeVotes() emission contract
 - getAdjustedParameters() scaling by regimeStrength
 - Real ADX (Wilder) vs placeholder streak-counter
-- Correlation/macro analysis hooks (operator audit said these are 
+- Correlation/macro analysis hooks (operator audit said these are
   declared but unwired)
 
 Required output:
@@ -762,7 +762,7 @@ RECOMMENDATION: <A | B | C> because <rationale anchored in findings>
 
 ## Phase H — Confidence Pipeline Architecture
 
-Goal: Map the exact sequence of confidence modulators in current 
+Goal: Map the exact sequence of confidence modulators in current
 production OGZPMLV2, identify where new TRAI inputs slot in.
 
 Searches:
@@ -793,7 +793,7 @@ COMPOUNDING RISK: If all proposed modifiers multiply, ceiling/floor analysis: Ma
 
 ## Phase I — Pattern Bank Integration With Expanded TRAI
 
-Goal: Confirm pattern bank can absorb writes from expanded TRAI 
+Goal: Confirm pattern bank can absorb writes from expanded TRAI
 inputs without contamination.
 
 Searches:
@@ -821,20 +821,20 @@ Verdict: pattern bank ready | needs key restructuring | needs new isolation laye
 
 ## Phase J — Contamination & Architectural Sweep
 
-Goal: Surface anything that would block, fight, or contaminate 
+Goal: Surface anything that would block, fight, or contaminate
 full TRAI buildout.
 
 Open-ended searches plus targeted ones:
 1. Async race conditions where TRAI decisions arrive out of order
 2. Memory leaks from 24-hour news history retention
-3. WebSocket connection management if Mover/Hitch share connections 
+3. WebSocket connection management if Mover/Hitch share connections
    with dashboard
 4. Confidence modifier compounding (multiplicative blow-ups)
-5. AI-debt: code that looks like it was AI-generated without 
-   operator awareness (similar to the ADX-in-IndicatorEngine 
+5. AI-debt: code that looks like it was AI-generated without
+   operator awareness (similar to the ADX-in-IndicatorEngine
    finding from operator's 2026-05-14 audit)
-6. Dead config flags (declared, never read — operator hit this 
-   recently with ENABLE_SHORTS being unread while DIRECTION_FILTER 
+6. Dead config flags (declared, never read — operator hit this
+   recently with ENABLE_SHORTS being unread while DIRECTION_FILTER
    was the actual gate)
 
 Specific searches:
@@ -863,7 +863,7 @@ ARCHITECTURAL CONCERNS BEYOND THE TRAI SCOPE:
 
 ## Phase K — Master Integration Sequence
 
-Goal: After all phases complete, synthesize ONE master integration 
+Goal: After all phases complete, synthesize ONE master integration
 sequence the operator can execute post-Apex.
 
 Required output:
@@ -907,57 +907,57 @@ PARALLELIZABLE WORK:
 
 ## Hard constraints
 
-1. **Diagnose only.** No fix proposals. No file modifications. No 
+1. **Diagnose only.** No fix proposals. No file modifications. No
    "here's how I'd refactor this" — just maps and gaps.
 
-2. **Cite every claim.** File:line for code findings. Repo name 
+2. **Cite every claim.** File:line for code findings. Repo name
    for cross-repo findings. If you can't cite it, don't claim it.
 
-3. **Cross-repo accuracy.** If a module exists in multiple legacy 
-   repos with different content, identify the most complete version 
+3. **Cross-repo accuracy.** If a module exists in multiple legacy
+   repos with different content, identify the most complete version
    and flag the divergence. Don't pick one silently.
 
-4. **No hedging.** If something is broken, say so. If something is 
-   ready, say so. If you don't know, say "unknown — operator must 
+4. **No hedging.** If something is broken, say so. If something is
+   ready, say so. If you don't know, say "unknown — operator must
    verify" with what specifically needs verification.
 
 5. **Operator's two priors to respect:**
-   - The 2026-05-14 audit found that ADX in IndicatorEngine was 
-     AI-generated and operator didn't remember it. Surface similar 
+   - The 2026-05-14 audit found that ADX in IndicatorEngine was
+     AI-generated and operator didn't remember it. Surface similar
      AI-debt aggressively.
-   - The recent ENABLE_SHORTS finding: dead config flag declared, 
-     logged, never read while a different flag (DIRECTION_FILTER) 
+   - The recent ENABLE_SHORTS finding: dead config flag declared,
+     logged, never read while a different flag (DIRECTION_FILTER)
      was the actual gate. Sweep for similar dead-config patterns.
 
-6. **Effort estimates must be honest.** Operator works a 75-hour 
-   day job + solo dev. "Effort estimate" means real calendar time, 
-   not engineering hours. If something is "8 weeks of solo evening 
+6. **Effort estimates must be honest.** Operator works a 75-hour
+   day job + solo dev. "Effort estimate" means real calendar time,
+   not engineering hours. If something is "8 weeks of solo evening
    work" say that, not "40 hours."
 
-7. **If a module isn't found anywhere across all 5 repos, say so 
-   explicitly.** Don't assume it must exist. The operator may have 
-   misremembered a file. List "NOT FOUND" entries as their own 
+7. **If a module isn't found anywhere across all 5 repos, say so
+   explicitly.** Don't assume it must exist. The operator may have
+   misremembered a file. List "NOT FOUND" entries as their own
    block.
 
-8. **Don't propose architecture changes outside the TRAI/NLP scope 
-   unless they directly block TRAI integration.** This audit is 
+8. **Don't propose architecture changes outside the TRAI/NLP scope
+   unless they directly block TRAI integration.** This audit is
    not a general code review.
 
 ---
 
 ## Why this matters (context for prioritization)
 
-OGZPrime is the operator's path to relocating to Houston to be 
+OGZPrime is the operator's path to relocating to Houston to be
 closer to his daughter, after 6 years of distance and a 75-hour-a-
-week day job that doesn't generate moving money. The trading engine 
-clears the prop firm evaluation and starts the revenue mechanism. 
-TRAI is the moat — the layer that turns a working bot into an 
+week day job that doesn't generate moving money. The trading engine
+clears the prop firm evaluation and starts the revenue mechanism.
+TRAI is the moat — the layer that turns a working bot into an
 autonomous fintech product.
 
-This audit is the integration map that makes the post-Apex TRAI 
-buildout tractable instead of a months-long rewrite. The answer to 
-this prompt will be archived in `ogz-meta/QuarantinedExpansionFiles/` 
-and not consulted again until post-evaluation. The operator will 
+This audit is the integration map that makes the post-Apex TRAI
+buildout tractable instead of a months-long rewrite. The answer to
+this prompt will be archived in `ogz-meta/QuarantinedExpansionFiles/`
+and not consulted again until post-evaluation. The operator will
 not have an opportunity to send follow-up questions.
 
 Be complete. Be specific. Be honest. Cite everything.
@@ -1012,7 +1012,7 @@ PerformanceAnalyzer.js
     to quarantine copy. Same class name, same constructor signature.
   Verdict: quarantine copy IS the production copy. No divergence detectable at header level.
   Alignment doc L166: "PARTIAL — exists, not wired to processTrade for edge-decay"
-  CONFLICT: OrderExecutor.js:973 calls this.ctx.performanceAnalyzer.processTrade() — 
+  CONFLICT: OrderExecutor.js:973 calls this.ctx.performanceAnalyzer.processTrade() —
     this contradicts the alignment doc. Full resolution at Phase D.
 
 mover-whale-tracker.js
@@ -1254,13 +1254,13 @@ Integration seam #1 (confidence modulation — same slot as News):
   File: core/TradingLoop.js:135 (same seam as TRAI #1)
   Wiring: WhaleWatcher confidence influence would be ADDITIVE to news multiplier
     (operator must decide: multiply together, take minimum, average, or cap combined adjustment)
-  Compounding risk: if News × Whale × Regime all multiply = potential blow-up. 
+  Compounding risk: if News × Whale × Regime all multiply = potential blow-up.
     See Phase H for full analysis.
 
 Integration seam #2 (trade signal):
   WhaleWatcher emits 'whale-trade' events which carry {action, symbol, shares, price}.
   Current bot has no listener for EventEmitter events from external modules.
-  A dedicated whale-signal path through StrategyOrchestrator (as a new "strategy") 
+  A dedicated whale-signal path through StrategyOrchestrator (as a new "strategy")
   is the cleanest seam — but that's architecture work, not just wiring.
 
 Blockers:
@@ -1470,7 +1470,7 @@ TRAI #5 (Tech Support) INTEGRATION PLAN
 Source: github.com/CGP-ME/OGZPMLV2
   ogz-meta/QuarantinedExpansionFiles/MoverStack(TRAI#5,7,,9)/mover-tech-support.js
 
-Surface area: Static knowledge base (3 issue types) + symptom keyword matching + 
+Surface area: Static knowledge base (3 issue types) + symptom keyword matching +
   system health check stub. No external ticket system. No persistent storage of issues.
   KnowledgeBase at lines 10-51 is hardcoded — not editable at runtime.
 
@@ -1928,7 +1928,7 @@ getExistingExposure() is a stub in the legacy file (always returns 0) — this g
 
 Next phase when you're ready: Phase G — Regime Detector Wiring.
 
-I think you can hit G how far does this thing actually go   to K so yeah get G here then we will do HIJ on the next and K and closing on the last                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+I think you can hit G how far does this thing actually go   to K so yeah get G here then we will do HIJ on the next and K and closing on the last
 All data in hand. The quarantine MRD is older than the production one — note the lowVolThreshold: 0.5 (quarantine) vs 0.05 (production, calibrated from 321k candles). The production file is the authoritative version. Writing the full Phase G report.
 
 PHASE G — Regime Detector Wiring Analysis
