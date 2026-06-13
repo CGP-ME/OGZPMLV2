@@ -193,6 +193,218 @@ const PUBLIC_TRACK_RECORD_DATA_DIR = path.join(__dirname, '..', 'public', 'proof
 const PUBLIC_TRACK_RECORD_ACCOUNTS_DIR = path.join(PUBLIC_TRACK_RECORD_DATA_DIR, 'accounts');
 const { writeJsonAtomic } = require('../core/AtomicWrite');
 
+function _readRequiredString(env, key) {
+  const value = env[key];
+  if (value === undefined || value === null || String(value).trim() === '') {
+    throw new Error(`Track record proof requires ${key}`);
+  }
+  return String(value).trim();
+}
+
+function _readPositiveNumber(env, key) {
+  const raw = _readRequiredString(env, key);
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Track record proof requires positive numeric ${key}, got ${raw}`);
+  }
+  return value;
+}
+
+function _readPositiveInteger(env, key) {
+  const raw = _readRequiredString(env, key);
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Track record proof requires positive integer ${key}, got ${raw}`);
+  }
+  return value;
+}
+
+function _readFirstPositiveNumber(env, keys) {
+  for (const key of keys) {
+    const raw = env[key];
+    if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`Track record proof requires positive numeric ${key}, got ${raw}`);
+    }
+    return value;
+  }
+  throw new Error(`Track record proof requires one of ${keys.join(', ')}`);
+}
+
+function _resolveTrackRecordMaxDrawdown(env, startingBalance) {
+  const explicit = env.OGZ_MAX_DRAWDOWN ?? env.TTP_MAX_LOSS_DOLLARS;
+  if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '') {
+    const value = Number(explicit);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`Track record proof requires positive numeric max drawdown, got ${explicit}`);
+    }
+    return value;
+  }
+
+  const thresholdRaw = env.TTP_MAX_LOSS_THRESHOLD_EQUITY;
+  if (thresholdRaw === undefined || thresholdRaw === null || String(thresholdRaw).trim() === '') {
+    throw new Error('Track record proof requires OGZ_MAX_DRAWDOWN, TTP_MAX_LOSS_DOLLARS, or TTP_MAX_LOSS_THRESHOLD_EQUITY');
+  }
+
+  const threshold = Number(thresholdRaw);
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    throw new Error(`Track record proof requires positive numeric TTP_MAX_LOSS_THRESHOLD_EQUITY, got ${thresholdRaw}`);
+  }
+
+  const derived = startingBalance - threshold;
+  if (!Number.isFinite(derived) || derived <= 0) {
+    throw new Error(`Track record proof cannot derive positive max drawdown from STARTING_BALANCE=${startingBalance} and TTP_MAX_LOSS_THRESHOLD_EQUITY=${threshold}`);
+  }
+  return derived;
+}
+
+function _resolveTrackRecordAccountConfig(env = process.env) {
+  const startingBalance = _readPositiveNumber(env, 'STARTING_BALANCE');
+  return {
+    accountId: _readRequiredString(env, 'OGZ_ACCOUNT_ID'),
+    accountLabel: _readRequiredString(env, 'OGZ_ACCOUNT_LABEL'),
+    accountStage: _readRequiredString(env, 'OGZ_ACCOUNT_STAGE'),
+    accountStatus: _readRequiredString(env, 'OGZ_ACCOUNT_STATUS'),
+    broker: _readRequiredString(env, 'BROKER'),
+    startingBalance,
+    profitTarget: _readFirstPositiveNumber(env, ['OGZ_PROFIT_TARGET', 'TTP_PROFIT_TARGET_DOLLARS']),
+    maxDrawdown: _resolveTrackRecordMaxDrawdown(env, startingBalance),
+    minDaysRequired: _readPositiveInteger(env, 'OGZ_MIN_DAYS_REQUIRED'),
+  };
+}
+
+function _writeTrackRecordNow() {
+  if (!fs.existsSync(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR)) {
+    fs.mkdirSync(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, { recursive: true });
+  }
+
+  const {
+    accountId,
+    accountLabel,
+    accountStage,
+    accountStatus,
+    broker,
+    startingBalance,
+    profitTarget,
+    maxDrawdown,
+    minDaysRequired,
+  } = _resolveTrackRecordAccountConfig(process.env);
+
+  const entries = _trackRecordBuffer.filter(e => e.type === 'TRADE');
+  const byTradeId = new Map();
+  for (const e of entries) {
+    if (!e.tradeId) continue;
+    if (!byTradeId.has(e.tradeId)) byTradeId.set(e.tradeId, []);
+    byTradeId.get(e.tradeId).push(e);
+  }
+
+  const recent_trades = [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    const isExit = (e.action === 'SELL' || e.action === 'COVER');
+    if (!isExit) continue;
+
+    const legs = byTradeId.get(e.tradeId) || [];
+    const entryLeg = legs.find(x => x.action === 'BUY' || x.action === 'SELL_SHORT');
+
+    recent_trades.push({
+      t: e.timestamp,
+      symbol: e.symbol,
+      side: _buildSideLabel(e.action, e.isPartialClose, e.exitReason),
+      entry: e.entryPrice ?? entryLeg?.price ?? null,
+      exit: e.price,
+      pnl: e.pnl ?? null,
+      pct: e.pnlPercent ?? null,
+      trade_id: e.tradeId,
+      order_id: e.orderId,
+      leg_type: e.isPartialClose ? 'partial_close' : 'full_close',
+      partial_fraction: e.partialFraction,
+      exit_reason: e.exitReason,
+      confidence: e.confidence
+    });
+
+    if (recent_trades.length >= 50) break;
+  }
+
+  const exits = entries.filter(e => e.action === 'SELL' || e.action === 'COVER');
+  const dailyMap = new Map();
+  for (const e of exits) {
+    const date = new Date(e.timestamp).toISOString().split('T')[0];
+    const bucket = dailyMap.get(date) || { date, pnl: 0, trades: 0 };
+    bucket.pnl += (e.pnl ?? 0);
+    bucket.trades += 1;
+    dailyMap.set(date, bucket);
+  }
+  const daily_pnl = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const days_traded = dailyMap.size;
+
+  const equity_series = [];
+  let runningBalance = startingBalance;
+  const exitsByTime = [...exits].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  for (const e of exitsByTime) {
+    runningBalance += (e.pnl ?? 0);
+    equity_series.push({ t: e.timestamp, balance: runningBalance });
+  }
+  if (equity_series.length === 0) {
+    equity_series.push({ t: new Date().toISOString(), balance: startingBalance });
+  }
+
+  const accountJson = {
+    id: accountId,
+    label: accountLabel,
+    stage: accountStage,
+    status: accountStatus,
+    broker: broker,
+    starting_balance: startingBalance,
+    current_balance: runningBalance,
+    profit_target: profitTarget,
+    max_drawdown: maxDrawdown,
+    days_traded: days_traded,
+    min_days_required: minDaysRequired,
+    equity_series: equity_series,
+    daily_pnl: daily_pnl,
+    recent_trades: recent_trades,
+    _meta: {
+      last_updated: new Date().toISOString(),
+      total_recorded_exits: exits.length,
+      execution_mode: process.env.PAPER_TRADING === 'true' ? 'paper'
+                    : process.env.EXECUTION_MODE === 'live' ? 'live'
+                    : 'backtest',
+      spec: 'CC-SPEC-EVAL-CAPTURE'
+    }
+  };
+  writeJsonAtomic(path.join(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, `${accountId}.json`), accountJson);
+
+  const indexPath = path.join(PUBLIC_TRACK_RECORD_DATA_DIR, 'index.json');
+  let existingAccounts = [];
+  let existingMode = 'preview';
+  try {
+    if (fs.existsSync(indexPath)) {
+      const raw = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+      existingAccounts = raw.accounts || [];
+      existingMode = raw.mode || 'preview';
+    }
+  } catch {
+    existingAccounts = [];
+  }
+  const others = existingAccounts.filter(a => a.id !== accountId);
+  others.push({
+    id: accountId,
+    label: accountLabel,
+    stage: accountStage,
+    status: accountStatus
+  });
+  const mode = (accountJson._meta.execution_mode === 'live' || accountJson._meta.execution_mode === 'paper')
+    ? 'live'
+    : existingMode;
+  writeJsonAtomic(indexPath, {
+    updated: new Date().toISOString(),
+    mode: mode,
+    accounts: others
+  });
+}
+
 const TradingProofLogger = {
   /**
    * Log trade execution
@@ -337,162 +549,11 @@ const TradingProofLogger = {
     _trackRecordWriteTimer = setTimeout(() => {
       _trackRecordWriteTimer = null;
       try {
-        this._writeTrackRecordNow();
+        _writeTrackRecordNow();
       } catch (err) {
         console.error(`[ProofLogger] Failed to publish track record: ${err.message}`);
       }
     }, _TRACK_RECORD_DEBOUNCE_MS);
-  },
-
-  /**
-   * Internal: do the actual write. Separated from publishTrackRecord
-   * so process-shutdown can call it directly to flush pending writes.
-   */
-  _writeTrackRecordNow() {
-    // Ensure target directories exist
-    if (!fs.existsSync(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR)) {
-      fs.mkdirSync(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, { recursive: true });
-    }
-
-    // Resolve account identity from env (with documented defaults)
-    const accountId = process.env.OGZ_ACCOUNT_ID || 'default';
-    const accountLabel = process.env.OGZ_ACCOUNT_LABEL || 'Default Account';
-    const accountStage = process.env.OGZ_ACCOUNT_STAGE || 'EVAL';
-    const accountStatus = process.env.OGZ_ACCOUNT_STATUS || 'active';
-    const broker = process.env.BROKER || 'unknown';
-    const startingBalance = parseFloat(process.env.STARTING_BALANCE || '10000');
-    const profitTarget = parseFloat(process.env.OGZ_PROFIT_TARGET || '0');
-    const maxDrawdown = parseFloat(process.env.OGZ_MAX_DRAWDOWN || '0');
-    const minDaysRequired = parseInt(process.env.OGZ_MIN_DAYS_REQUIRED || '5', 10);
-
-    // Build recent_trades from buffer.
-    // For each EXIT (SELL or COVER), find its paired ENTRY (BUY or SELL_SHORT)
-    // by tradeId, emit a single row carrying both prices. For unpaired entries
-    // (open positions or pre-pairing legacy data), emit an entry-only row.
-    const entries = _trackRecordBuffer.filter(e => e.type === 'TRADE');
-    const byTradeId = new Map();
-    for (const e of entries) {
-      if (!e.tradeId) continue;
-      if (!byTradeId.has(e.tradeId)) byTradeId.set(e.tradeId, []);
-      byTradeId.get(e.tradeId).push(e);
-    }
-
-    const recent_trades = [];
-    // Iterate newest-first
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const e = entries[i];
-      const isExit = (e.action === 'SELL' || e.action === 'COVER');
-      if (!isExit) continue;
-
-      // Found an exit — try to pair with its entry
-      const legs = byTradeId.get(e.tradeId) || [];
-      const entryLeg = legs.find(x => x.action === 'BUY' || x.action === 'SELL_SHORT');
-
-      recent_trades.push({
-        t: e.timestamp,
-        symbol: e.symbol,
-        side: _buildSideLabel(e.action, e.isPartialClose, e.exitReason),
-        entry: e.entryPrice ?? entryLeg?.price ?? null,
-        exit: e.price,
-        pnl: e.pnl ?? null,
-        pct: e.pnlPercent ?? null,
-        // forensic fields (ignored by current frontend, available for readers)
-        trade_id: e.tradeId,
-        order_id: e.orderId,
-        leg_type: e.isPartialClose ? 'partial_close' : 'full_close',
-        partial_fraction: e.partialFraction,
-        exit_reason: e.exitReason,
-        confidence: e.confidence
-      });
-
-      if (recent_trades.length >= 50) break;
-    }
-
-    // Build daily_pnl from exits. Date in UTC.
-    const exits = entries.filter(e => e.action === 'SELL' || e.action === 'COVER');
-    const dailyMap = new Map();
-    for (const e of exits) {
-      const date = new Date(e.timestamp).toISOString().split('T')[0];
-      const bucket = dailyMap.get(date) || { date, pnl: 0, trades: 0 };
-      bucket.pnl += (e.pnl ?? 0);
-      bucket.trades += 1;
-      dailyMap.set(date, bucket);
-    }
-    const daily_pnl = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-    const days_traded = dailyMap.size;
-
-    // Build equity_series from running balance. Start at startingBalance,
-    // add each exit's pnl in chronological order.
-    const equity_series = [];
-    let runningBalance = startingBalance;
-    const exitsByTime = [...exits].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    for (const e of exitsByTime) {
-      runningBalance += (e.pnl ?? 0);
-      equity_series.push({ t: e.timestamp, balance: runningBalance });
-    }
-    // Seed with starting point if no trades yet
-    if (equity_series.length === 0) {
-      equity_series.push({ t: new Date().toISOString(), balance: startingBalance });
-    }
-
-    const currentBalance = runningBalance;
-
-    // Write per-account JSON
-    const accountJson = {
-      id: accountId,
-      label: accountLabel,
-      stage: accountStage,
-      status: accountStatus,
-      broker: broker,
-      starting_balance: startingBalance,
-      current_balance: currentBalance,
-      profit_target: profitTarget,
-      max_drawdown: maxDrawdown,
-      days_traded: days_traded,
-      min_days_required: minDaysRequired,
-      equity_series: equity_series,
-      daily_pnl: daily_pnl,
-      recent_trades: recent_trades,
-      _meta: {
-        last_updated: new Date().toISOString(),
-        total_recorded_exits: exits.length,
-        execution_mode: process.env.PAPER_TRADING === 'true' ? 'paper'
-                      : process.env.EXECUTION_MODE === 'live' ? 'live'
-                      : 'backtest',
-        spec: 'CC-SPEC-EVAL-CAPTURE'
-      }
-    };
-    writeJsonAtomic(path.join(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, `${accountId}.json`), accountJson);
-
-    // Upsert into index.json (preserve other accounts)
-    const indexPath = path.join(PUBLIC_TRACK_RECORD_DATA_DIR, 'index.json');
-    let existingAccounts = [];
-    let existingMode = 'preview';
-    try {
-      if (fs.existsSync(indexPath)) {
-        const raw = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-        existingAccounts = raw.accounts || [];
-        existingMode = raw.mode || 'preview';
-      }
-    } catch {
-      // Corrupt index — rebuild from this account only
-      existingAccounts = [];
-    }
-    const others = existingAccounts.filter(a => a.id !== accountId);
-    others.push({
-      id: accountId,
-      label: accountLabel,
-      stage: accountStage,
-      status: accountStatus
-    });
-    const mode = (accountJson._meta.execution_mode === 'live' || accountJson._meta.execution_mode === 'paper')
-      ? 'live'
-      : existingMode;
-    writeJsonAtomic(indexPath, {
-      updated: new Date().toISOString(),
-      mode: mode,
-      accounts: others
-    });
   },
 
   /**
@@ -598,7 +659,7 @@ const _flushTrackRecordOnShutdown = () => {
     clearTimeout(_trackRecordWriteTimer);
     _trackRecordWriteTimer = null;
     try {
-      TradingProofLogger._writeTrackRecordNow();
+      _writeTrackRecordNow();
     } catch (err) {
       console.error(`[ProofLogger] Failed to flush track record on shutdown: ${err.message}`);
     }

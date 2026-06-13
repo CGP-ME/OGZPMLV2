@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Track Record Proof Config Guard (2026-06-13)
+
+- Changed the track-record proof publisher to require explicit account identity, starting balance, target, drawdown, and minimum-day config instead of writing public proof JSON with default account identity or zero target/drawdown values.
+- Added focused coverage for Trade The Pool eval values, explicit proof overrides, and fail-loud missing or invalid proof config.
+
 ### Runtime Config Proof Startup Import (2026-06-13)
 
 - Added the missing `RuntimeConfigProof` module already imported by `run-empire-v2.js`, so startup can emit a redacted ConfigLoader vs TradingConfig proof line instead of depending on an untracked file.
