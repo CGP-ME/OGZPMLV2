@@ -16,6 +16,7 @@ const REQUIRED_ENV_EXACT = Object.freeze({
   SESSION_ROUTER_ENABLED: 'false',
   WEBHOOK_ORDERS_ENABLED: 'true',
   WEBHOOK_DRY_RUN: 'false',
+  MIN_TRADE_CONFIDENCE: '0.90',
   EVAL_RULES_ENABLED: 'true',
   TTP_RULES_ENABLED: 'true',
   TTP_VOLUME_CAP_ENABLED: 'true',
@@ -32,6 +33,10 @@ const REQUIRED_ENV_EXACT = Object.freeze({
   TTP_CONSISTENCY_ENABLED: 'true',
 });
 
+const REQUIRED_ENV_PROCESS_SOURCE = Object.freeze([
+  'MIN_TRADE_CONFIDENCE',
+]);
+
 const REQUIRED_CONFIG_EXACT = Object.freeze({
   'mode.execution': 'live',
   'mode.backtest': false,
@@ -44,6 +49,7 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'risk.accountDrawdownBypass': false,
   'webhookOrders.enabled': true,
   'webhookOrders.dryRun': false,
+  'confidence.minTradeConfidence': 0.90,
   'trai.enabled': false,
   'evalRules.enabled': true,
   'evalRules.ttp.enabled': true,
@@ -337,6 +343,19 @@ function expectEnvExact(report, key, expected) {
   }
 }
 
+function expectEnvProcessSource(report, key) {
+  const source = report.effectiveEnv.sources[key] || 'missing';
+  const existing = report.checked.env[key] || {
+    value: report.effectiveEnv.values[key] === undefined ? null : String(report.effectiveEnv.values[key]),
+    source,
+  };
+  report.checked.env[key] = { ...existing, source };
+
+  if (source !== `env:${key}`) {
+    addError(report.errors, `${key} must come from process env for eval-live posture, got ${source}`);
+  }
+}
+
 function expectConfigExact(report, configPath, expected) {
   const actual = getPath(report.configSnapshot.config, configPath);
   const source = report.configSnapshot.sources[configPath] || 'missing';
@@ -525,6 +544,9 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
 
   for (const [key, expected] of Object.entries(REQUIRED_ENV_EXACT)) {
     expectEnvExact(report, key, expected);
+  }
+  for (const key of REQUIRED_ENV_PROCESS_SOURCE) {
+    expectEnvProcessSource(report, key);
   }
 
   try {

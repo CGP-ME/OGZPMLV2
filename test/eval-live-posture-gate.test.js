@@ -46,6 +46,7 @@ function validEvalLiveEnv(overrides = {}) {
     SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
     WEBHOOK_TIMEOUT_MS: '5000',
     WEBHOOK_ORDER_LOG_CAP: '500',
+    MIN_TRADE_CONFIDENCE: '0.90',
     EVAL_RULES_ENABLED: 'true',
     TTP_RULES_ENABLED: 'true',
     TTP_VOLUME_CAP_ENABLED: 'true',
@@ -367,6 +368,28 @@ describe('eval live posture gate', () => {
     }
   });
 
+  test('fails eval-live posture when MIN_TRADE_CONFIDENCE only comes from dotenv', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-confidence-source-'));
+    const envPath = path.join(tempDir, '.env');
+    fs.writeFileSync(envPath, 'MIN_TRADE_CONFIDENCE=0.90\n', 'utf8');
+
+    try {
+      const sourceEnv = validEvalLiveEnv({ DOTENV_CONFIG_PATH: envPath });
+      delete sourceEnv.MIN_TRADE_CONFIDENCE;
+
+      const report = validateEvalLivePosture(sourceEnv);
+
+      expect(report.status).toBe('FAIL');
+      expect(report.checked.env.MIN_TRADE_CONFIDENCE).toEqual({
+        value: '0.90',
+        source: 'dotenv:MIN_TRADE_CONFIDENCE',
+      });
+      expect(report.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must come from process env/);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test('does not replace the ConfigLoader cached runtime config while validating supplied env', () => {
     const originalEnv = process.env;
     process.env = validEvalLiveEnv({
@@ -423,6 +446,25 @@ describe('eval live posture gate', () => {
     expect(report.errors.join('\n')).toMatch(/mode\.liveTrading must be true/);
     expect(report.errors.join('\n')).toMatch(/WEBHOOK_DRY_RUN must be false/);
     expect(report.errors.join('\n')).toMatch(/EVAL_RULES_ENABLED must be true/);
+  });
+
+  test('fails eval-live posture when confidence gate is missing or below eval floor', () => {
+    const missingEnv = validEvalLiveEnv();
+    delete missingEnv.MIN_TRADE_CONFIDENCE;
+
+    const missingReport = validateEvalLivePosture(missingEnv);
+
+    expect(missingReport.status).toBe('FAIL');
+    expect(missingReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must be explicitly set to 0\.90/);
+    expect(missingReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE from process env/);
+
+    const lowReport = validateEvalLivePosture(validEvalLiveEnv({
+      MIN_TRADE_CONFIDENCE: '0.50',
+    }));
+
+    expect(lowReport.status).toBe('FAIL');
+    expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE must be 0\.90, got 0\.50/);
+    expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE >= 0\.90/);
   });
 
   test('fails if a critical live flag only passes by ConfigLoader default', () => {

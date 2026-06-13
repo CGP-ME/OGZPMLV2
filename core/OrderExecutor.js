@@ -962,6 +962,31 @@ class OrderExecutor {
     }
     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
     const tradeConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
+    if (this._isEntryAction(decision.action)) {
+      const configuredMinConfidence = TradingConfig.get('confidence.minTradeConfidence');
+      const minTradeConfidence = configuredMinConfidence > 1
+        ? configuredMinConfidence / 100
+        : configuredMinConfidence;
+      if (!Number.isFinite(minTradeConfidence) || minTradeConfidence < 0 || minTradeConfidence > 1) {
+        throw new Error(`[ENTRY-CONFIDENCE] Invalid minTradeConfidence ${configuredMinConfidence} for ${decision.action} ${symbol}`);
+      }
+      if (tradeConfidence < minTradeConfidence) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: confidence ${(tradeConfidence * 100).toFixed(1)}% below minimum ${(minTradeConfidence * 100).toFixed(1)}%`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: decision.action,
+          reason: 'low_confidence',
+          confidencePct: rawConfidence,
+          minConfidencePct: minTradeConfidence * 100,
+        });
+        return blockedReturn('low_confidence', {
+          confidencePct: rawConfidence,
+          minConfidencePct: minTradeConfidence * 100,
+        });
+      }
+    }
     const dynamicSizingEnabled = TradingConfig.get('features.enableDynamicSizing', true) !== false;
     let confidenceMultiplier = 1.0;
     if (dynamicSizingEnabled) {

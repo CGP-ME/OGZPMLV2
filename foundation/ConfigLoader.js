@@ -515,6 +515,15 @@ function validate(config, sources = {}) {
   if (config.mode.liveTrading && config.webhookOrders.enabled && config.webhookOrders.dryRun) {
     errors.push('LIVE_TRADING=true cannot run with WEBHOOK_ORDERS_ENABLED=true and WEBHOOK_DRY_RUN=true');
   }
+  if (config.mode.liveTrading) {
+    const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
+    if (minTradeConfidenceSource !== 'env:MIN_TRADE_CONFIDENCE') {
+      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env, got ${minTradeConfidenceSource || 'missing'} because TradingConfig otherwise falls back to 0.35`);
+    }
+    if (!Number.isFinite(config.confidence.minTradeConfidence) || config.confidence.minTradeConfidence < 0.90) {
+      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE >= 0.90, got ${config.confidence.minTradeConfidence}`);
+    }
+  }
   if (config.mode.liveTrading && config.evalRules.enabled !== true) {
     errors.push('LIVE_TRADING=true cannot run with EVAL_RULES_ENABLED unset or false because EvalRuleEngine fails open when disabled');
   }
@@ -776,7 +785,7 @@ function buildSnapshot(sourceEnv = process.env, opts = {}) {
     }
   }
 
-  if (errors.length > 0 && !config.mode.backtest) {
+  if (errors.length > 0 && (!config.mode.backtest || config.mode.liveTrading)) {
     throw new Error(`ConfigLoader: ${errors.length} validation errors: ${errors.join('; ')}`);
   }
 

@@ -80,6 +80,7 @@ module.exports = {
         MAX_WEEKLY_LOSS: '5',
         MAX_MONTHLY_LOSS: '5',
         ENABLE_DYNAMIC_SIZING: 'true',
+        MIN_TRADE_CONFIDENCE: '0.90',
         BASE_POSITION_SIZE: '0.01',
         MAX_POSITION_SIZE_PCT: '0.05',
         BASE_POSITION_PCT: '0.01',

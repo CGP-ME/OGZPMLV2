@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Live Confidence Gate (2026-06-13)
+
+- Pinned eval-live PM2 posture to `MIN_TRADE_CONFIDENCE=0.90` and made both ConfigLoader startup validation and the eval-live posture gate require that value from the live process env, not dotenv-only backfill.
+- Added an OrderExecutor entry guard so direct `BUY` and `SELL_SHORT` calls cannot route below the configured final trade-confidence floor, while leaving close actions unblocked.
+- Added focused regressions for missing, low, dotenv-only, live-plus-backtest, and direct low-confidence entry cases.
+
 ### TRAI Symbol Extraction Intent Gate (2026-06-12)
 
 - Moved TRAI analysis ticker extraction into a shared helper that requires explicit cashtags or standalone known tickers before fetching Polygon market data.

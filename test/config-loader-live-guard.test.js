@@ -59,7 +59,7 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
       TTP_PROFIT_TARGET_DOLLARS: '3000',
       TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.10',
-      MIN_TRADE_CONFIDENCE: '0.50',
+      MIN_TRADE_CONFIDENCE: '0.90',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
       STOP_LOSS_PERCENT: '1.5',
@@ -115,6 +115,32 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.mode.liveTrading).toBe(true);
     expect(loaded.config.risk.accountDrawdownBypass).toBe(false);
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
+  });
+
+  test('throws during live startup when MIN_TRADE_CONFIDENCE is missing or below eval floor', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.MIN_TRADE_CONFIDENCE = '0.50';
+
+    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE >= 0\.90/);
+
+    jest.resetModules();
+    delete process.env.MIN_TRADE_CONFIDENCE;
+
+    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env/);
+  });
+
+  test('throws during live startup when MIN_TRADE_CONFIDENCE only comes from dotenv', () => {
+    process.env.DOTENV_CONFIG_PATH = path.join(__dirname, 'fixtures', 'live-confidence-dotenv.env');
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    delete process.env.MIN_TRADE_CONFIDENCE;
+
+    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE from process env, got dotenv:MIN_TRADE_CONFIDENCE/);
   });
 
   test('throws during live startup when EVAL_RULES_ENABLED is false or unset', () => {
@@ -620,18 +646,15 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO out of range/);
   });
 
-  test('keeps backtest bypass combinations non-blocking', () => {
+  test('throws when live trading is combined with backtest bypass posture', () => {
     process.env.EXECUTION_MODE = 'backtest';
     process.env.CANDLE_SOURCE = 'file';
     process.env.LIVE_TRADING = 'true';
     process.env.RISK_MANAGER_BYPASS = 'true';
     process.env.ACCOUNT_DRAWDOWN_BYPASS = 'true';
 
-    const loaded = loadConfig();
-
-    expect(loaded.config.mode.backtest).toBe(true);
-    expect(loaded.errors).toContain('Cannot enable both live trading and backtest mode');
-    expect(loaded.errors).toContain('LIVE_TRADING=true cannot run with ACCOUNT_DRAWDOWN_BYPASS=true');
-    expect(loaded.errors).toContain('LIVE_TRADING=true cannot run with RISK_MANAGER_BYPASS=true');
+    expect(() => loadConfig()).toThrow(/Cannot enable both live trading and backtest mode/);
+    expect(() => loadConfig()).toThrow(/ACCOUNT_DRAWDOWN_BYPASS=true/);
+    expect(() => loadConfig()).toThrow(/RISK_MANAGER_BYPASS=true/);
   });
 });

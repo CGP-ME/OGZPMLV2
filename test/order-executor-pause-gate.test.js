@@ -188,6 +188,40 @@ describe('OrderExecutor pause gate', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('trading paused (manual pause)'));
   });
 
+  test('blocks direct entries below configured minTradeConfidence before routing', async () => {
+    clearTradingConfigOverrides = true;
+    TradingConfig.setOverrides({ confidence: { minTradeConfidence: 0.9 } });
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      if (key === 'balance') return 10000;
+      if (key === 'position') return 0;
+      return null;
+    });
+    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 85 },
+      {},
+      425,
+      {},
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'low_confidence',
+      confidencePct: 85,
+      minConfidencePct: 90,
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('confidence 85.0% below minimum 90.0%'));
+  });
+
   test('does not apply runtime pause gate to backtest entries', async () => {
     const executor = makeExecutor(
       { enableBacktestMode: true, executionMode: 'backtest' },
