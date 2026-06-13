@@ -35,6 +35,24 @@ describe('claude bridge hook input reader', () => {
     expect(result.result).toEqual({ tool_input: { file_path: 'test/file.js' } });
   });
 
+  test('session identity only comes from hook input fields', () => {
+    const originalEnvSession = process.env.CLAUDE_SESSION_ID;
+    process.env.CLAUDE_SESSION_ID = 'env-session';
+
+    try {
+      expect(hookInput.sessionIdFromHookInput({ session_id: ' session-a ' })).toBe('session-a');
+      expect(hookInput.sessionIdFromHookInput({ sessionId: 'session-b' })).toBe('session-b');
+      expect(hookInput.sessionIdFromHookInput({ session: { id: 'session-c' } })).toBe('session-c');
+      expect(hookInput.sessionIdFromHookInput({ tool_input: {} })).toBe(null);
+    } finally {
+      if (originalEnvSession === undefined) {
+        delete process.env.CLAUDE_SESSION_ID;
+      } else {
+        process.env.CLAUDE_SESSION_ID = originalEnvSession;
+      }
+    }
+  });
+
   test('fails closed on missing, malformed, or non-object hook input', () => {
     const missing = runWithRawInput('');
     expect(missing.code).toBe(2);

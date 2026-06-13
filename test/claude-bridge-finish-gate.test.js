@@ -95,4 +95,43 @@ describe('claude bridge finish gate', () => {
       hotFiles: ['core/OrderExecutor.js'],
     });
   });
+
+  test('fails closed when finish gate is evaluated without an explicit edit scope', () => {
+    const result = evaluateFinishGate(['core/OrderExecutor.js']);
+
+    expect(result).toMatchObject({
+      allowed: false,
+      reason: 'missing_explicit_edit_scope',
+      failures: ['missing_explicit_edit_scope'],
+    });
+  });
+
+  test('can scope Stop hot-path proof to this session without weakening git mutation scope', () => {
+    const dirtyFiles = [
+      'core/OrderExecutor.js',
+      'run-empire-v2.js',
+      'ogz-meta/specs/intake-curation.md',
+    ];
+
+    const stopResult = evaluateFinishGate(
+      dirtyFiles,
+      ['ogz-meta/specs/intake-curation.md'],
+      { hotPathScope: 'edited' }
+    );
+    expect(stopResult).toMatchObject({
+      allowed: true,
+      reason: 'no_hot_path_changes',
+      hotFiles: [],
+    });
+
+    const gitMutationResult = evaluateFinishGate(
+      dirtyFiles,
+      ['ogz-meta/specs/intake-curation.md']
+    );
+    expect(gitMutationResult).toMatchObject({
+      allowed: false,
+      reason: 'missing_hot_path_proof',
+      hotFiles: ['core/OrderExecutor.js', 'run-empire-v2.js'],
+    });
+  });
 });

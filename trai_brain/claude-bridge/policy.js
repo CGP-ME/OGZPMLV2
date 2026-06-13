@@ -23,7 +23,11 @@ const PROTECTED_WRITE_PATHS = Object.freeze([
   '.claude/hooks/',
   '.claude/hookify.',
   '.claude/commands/',
+  '.claude/session-state/',
   'trai_brain/claude-bridge/',
+]);
+const PROTECTED_READ_PATHS = Object.freeze([
+  '.claude/session-state/',
 ]);
 
 function normalizePolicyList(values, fieldName) {
@@ -83,6 +87,15 @@ function isProtectedWritePath(rel) {
   });
 }
 
+function isProtectedReadPath(rel) {
+  return PROTECTED_READ_PATHS.some((entry) => {
+    if (entry.endsWith('/')) {
+      return rel === entry.replace(/\/$/, '') || rel.startsWith(entry);
+    }
+    return rel === entry || rel.startsWith(entry);
+  });
+}
+
 function normalizeOperation(operation) {
   if (operation == null || operation === '') return 'read';
   if (operation !== 'read' && operation !== 'write') {
@@ -100,6 +113,9 @@ function checkPath(targetPath, options = {}) {
   if (r.outsideRepo) {
     return { allowed: false, reason: 'outside_repo', path: targetPath };
   }
+  if (operation === 'read' && isProtectedReadPath(r.rel)) {
+    return { allowed: false, reason: 'claude_bridge_protected_state', path: r.rel };
+  }
   if (operation === 'write' && isProtectedWritePath(r.rel)) {
     return { allowed: false, reason: 'claude_bridge_protected_write', path: r.rel };
   }
@@ -116,6 +132,7 @@ module.exports = {
   checkPath,
   relToRepo,
   isIgnoredByClaudeBridge,
+  isProtectedReadPath,
   isProtectedWritePath,
   REPO_ROOT,
 };

@@ -84,6 +84,25 @@ describe('claude bridge Bash gate', () => {
     expect(extractPaths('rg -n "needle" core test')).toEqual(['core', 'test']);
   });
 
+  test('blocks protected bridge session-state reads through Bash', () => {
+    const result = runPreBash(JSON.stringify({
+      session_id: 'session-a',
+      tool_input: { command: 'cat .claude/session-state/read-ledger.json' },
+    }));
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('claude_bridge_protected_state');
+  });
+
+  test('Warden git mutation gate requires hook session identity', () => {
+    const result = runPreBash(JSON.stringify({
+      tool_input: { command: 'git add AGENTS.md' },
+    }));
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('missing session identity');
+  });
+
   test('allows only adversarial Mercury ask dispatch framing', () => {
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies or creates a silent failure."'

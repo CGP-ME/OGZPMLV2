@@ -6,6 +6,7 @@ set -u
 cd "$(dirname "$0")/../.."
 
 CLI="node trai_brain/claude-bridge/cli.js"
+SESSION_ID="claude-bridge-smoke"
 PASS=0
 FAIL=0
 
@@ -44,17 +45,17 @@ echo '{"tool_input":{"file_path":"data/state.json","old_string":"x","new_string"
 expect_exit "pre-edit blocks ignored path" 2 $?
 
 note "5/8  pre-edit on core/TRAIDecisionModule.js with NO prior Read — must BLOCK (forced-read)"
-echo '{"tool_input":{"file_path":"core/TRAIDecisionModule.js","old_string":"x","new_string":"y"}}' | $CLI pre-edit 2>/dev/null
+printf '{"session_id":"%s","tool_input":{"file_path":"core/TRAIDecisionModule.js","old_string":"x","new_string":"y"}}\n' "$SESSION_ID" | $CLI pre-edit 2>/dev/null
 expect_exit "pre-edit blocks edit without prior Read" 2 $?
 
 note "6/8  post-read records core/TRAIDecisionModule.js to ledger, then pre-edit ALLOWS"
-echo '{"tool_input":{"file_path":"core/TRAIDecisionModule.js","offset":1,"limit":2000}}' | $CLI post-read
+printf '{"session_id":"%s","tool_input":{"file_path":"core/TRAIDecisionModule.js","offset":1,"limit":2000}}\n' "$SESSION_ID" | $CLI post-read
 if [ -f .claude/session-state/read-ledger.json ] && grep -q 'TRAIDecisionModule' .claude/session-state/read-ledger.json; then
   printf "  PASS  ledger recorded the read\n"; PASS=$((PASS+1))
 else
   printf "  FAIL  ledger did not record\n"; FAIL=$((FAIL+1))
 fi
-echo '{"tool_input":{"file_path":"core/TRAIDecisionModule.js","old_string":"x","new_string":"y"}}' | $CLI pre-edit 2>/dev/null
+printf '{"session_id":"%s","tool_input":{"file_path":"core/TRAIDecisionModule.js","old_string":"x","new_string":"y"}}\n' "$SESSION_ID" | $CLI pre-edit 2>/dev/null
 expect_exit "pre-edit allows after ledger entry" 0 $?
 
 note "7/8  pre-bash on 'cat data/state.json' — must BLOCK (Bash bypass guard)"

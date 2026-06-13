@@ -33,4 +33,21 @@ function readHookInput(hookName) {
   return input;
 }
 
-module.exports = { emit, readHookInput };
+function normalizeSessionId(value) {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  return cleaned || null;
+}
+
+function sessionIdFromHookInput(input = {}) {
+  return normalizeSessionId(input.session_id)
+    || normalizeSessionId(input.sessionId)
+    || normalizeSessionId(input.session?.id);
+}
+
+module.exports = {
+  emit,
+  readHookInput,
+  normalizeSessionId,
+  sessionIdFromHookInput,
+};

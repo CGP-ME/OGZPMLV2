@@ -52,6 +52,13 @@ does not match current doctrine.
   requires `npm run scan:secrets`, `npm run test:dashboard-token`, focused tests,
   and Mercury. Source:
   `ogz-meta/sessions/session-2026-06-06-dashboard-ws-token-containment.md`.
+- Structural enforcement boxes for Claude, Mercury, and harness policy must fail
+  closed, not warn. Forced-read, ignore, task-contract, Warden, and Mercury
+  framing gates exist because agents hallucinate or bypass soft rules when not
+  boxed. Before applying any policy or hook change that loosens those boxes,
+  flag the loophole even if Trey authorized the change. Sources:
+  `ogz-meta/sessions/session-2026-06-09-mercury-contracts-and-claude-bridge-RECONSTRUCTED.md:83-89`,
+  `ogz-meta/sessions/session-2026-06-10-claude-warden-and-trade-path-hardening-RECONSTRUCTED.md:26-53,177-182`.
 - When Trey approves a commit, treat commit and push as paired unless he says
   local-only or no-push. This does not authorize staging, committing, or pushing
   without approval. Source:

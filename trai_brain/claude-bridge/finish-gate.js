@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { REPO_ROOT } = require('./policy');
+const { readHookInput } = require('./hook-input');
 const editLedger = require('./edit-ledger');
 const taskContract = require('./task-contract');
 
@@ -71,12 +72,12 @@ function hotPathChanges(files = changedFiles()) {
   return files.filter(isHotPath);
 }
 
-function editedChangedFiles(files = changedFiles(), editedFiles = editLedger.listEditedFiles()) {
+function editedChangedFiles(files = changedFiles(), editedFiles = []) {
   const edited = new Set(editedFiles);
   return files.filter((file) => edited.has(file));
 }
 
-function hotPathEditedChanges(files = changedFiles(), editedFiles = editLedger.listEditedFiles()) {
+function hotPathEditedChanges(files = changedFiles(), editedFiles = []) {
   return editedChangedFiles(files, editedFiles).filter(isHotPath);
 }
 
@@ -147,7 +148,16 @@ function hasFallbackProof(proof, suspiciousLines) {
     && scan.noUnapprovedFallbacksOrDefaults === true;
 }
 
-function evaluateFinishGate(files = changedFiles(), editedFiles = editLedger.listEditedFiles()) {
+function evaluateFinishGate(files = changedFiles(), editedFiles, options = {}) {
+  if (!Array.isArray(editedFiles)) {
+    return {
+      allowed: false,
+      reason: 'missing_explicit_edit_scope',
+      failures: ['missing_explicit_edit_scope'],
+      hotFiles: [],
+    };
+  }
+
   const allFiles = files;
   const claudeChangedFiles = editedChangedFiles(allFiles, editedFiles);
   const taskViolations = taskContract.changedFilesOutsideContract(claudeChangedFiles);
@@ -161,7 +171,9 @@ function evaluateFinishGate(files = changedFiles(), editedFiles = editLedger.lis
     };
   }
 
-  const hotFiles = hotPathChanges(allFiles);
+  const hotFiles = options.hotPathScope === 'edited'
+    ? hotPathEditedChanges(allFiles, editedFiles)
+    : hotPathChanges(allFiles);
   if (hotFiles.length === 0) {
     return { allowed: true, reason: 'no_hot_path_changes', hotFiles };
   }
@@ -190,7 +202,16 @@ function evaluateFinishGate(files = changedFiles(), editedFiles = editLedger.lis
 function run() {
   let result;
   try {
-    result = evaluateFinishGate();
+    const input = readHookInput('claude-bridge finish gate');
+    const sessionId = editLedger.sessionIdFromHookInput(input);
+    if (!sessionId) {
+      throw new Error('missing session identity. Finish gate policy fails closed.');
+    }
+    result = evaluateFinishGate(
+      changedFiles(),
+      editLedger.listEditedFiles({ sessionId }),
+      { hotPathScope: 'edited' }
+    );
   } catch (error) {
     process.stderr.write(`BLOCKED (claude-bridge finish gate): ${error.message}\n`);
     process.exit(2);

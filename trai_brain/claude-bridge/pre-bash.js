@@ -5,7 +5,8 @@ const path = require('path');
 const policy = require('./policy');
 const finishGate = require('./finish-gate');
 const taskContract = require('./task-contract');
-const { emit, readHookInput } = require('./hook-input');
+const editLedger = require('./edit-ledger');
+const { emit, readHookInput, sessionIdFromHookInput } = require('./hook-input');
 
 const READ_COMMANDS = new Set([
   'cat', 'head', 'tail', 'less', 'more', 'sed', 'awk', 'grep', 'egrep',
@@ -298,8 +299,16 @@ function mercuryFramingReason(cmd) {
   return null;
 }
 
-function assertWardenAllowsGitMutation() {
-  const result = finishGate.evaluateFinishGate();
+function assertWardenAllowsGitMutation(input) {
+  const sessionId = sessionIdFromHookInput(input);
+  if (!sessionId) {
+    emit('BLOCKED (claude-bridge Warden): missing session identity. Warden policy fails closed.', 2);
+  }
+
+  const result = finishGate.evaluateFinishGate(
+    finishGate.changedFiles(),
+    editLedger.listEditedFiles()
+  );
   if (!result.allowed) {
     emit(
       `BLOCKED (claude-bridge Warden): git mutation requires completed Warden proof first. ` +
@@ -340,7 +349,7 @@ function run() {
   const mutation = mutationReason(cmd);
   if (mutation) {
     if (mutation === 'warden_gated_git_mutation') {
-      assertWardenAllowsGitMutation();
+      assertWardenAllowsGitMutation(input);
       process.exit(0);
     }
     emit(
@@ -358,6 +367,13 @@ function run() {
         `BLOCKED (claude-bridge ignore via Bash): ${check.path} is claude-bridge ignore-policy protected. ` +
         `Bash read commands cannot bypass the ignore policy. ` +
         `If the file is genuinely needed, surface the policy decision to Trey.`,
+        2
+      );
+    }
+    if (!check.allowed) {
+      emit(
+        `BLOCKED (claude-bridge policy via Bash): ${check.path || p} is blocked by ${check.reason}. ` +
+        `Bash read commands cannot bypass bridge policy.`,
         2
       );
     }

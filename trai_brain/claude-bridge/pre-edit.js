@@ -5,7 +5,7 @@ const path = require('path');
 const policy = require('./policy');
 const ledger = require('./read-ledger');
 const taskContract = require('./task-contract');
-const { emit, readHookInput } = require('./hook-input');
+const { emit, readHookInput, sessionIdFromHookInput } = require('./hook-input');
 
 function run() {
   const input = readHookInput('claude-bridge edit');
@@ -55,8 +55,13 @@ function run() {
     process.exit(0);
   }
 
-  if (!ledger.hasReadFile(rel)) {
-    const reads = ledger.listReads();
+  const sessionId = sessionIdFromHookInput(input);
+  if (!sessionId) {
+    emit('BLOCKED (claude-bridge forced-read): missing session identity. Read ledger policy fails closed.', 2);
+  }
+
+  if (!ledger.hasReadFile(rel, { sessionId })) {
+    const reads = ledger.listReads({ sessionId });
     const recent = reads.slice(-5).map((r) => `  - ${r.file}:${r.start}-${r.end === Number.MAX_SAFE_INTEGER ? 'EOF' : r.end}`).join('\n');
     emit(
       `BLOCKED (claude-bridge forced-read): ${rel} has not been Read in this session. ` +

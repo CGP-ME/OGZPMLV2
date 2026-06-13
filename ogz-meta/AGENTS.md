@@ -108,6 +108,7 @@ Doc priority:
 - Do not self-review your own plan as if it is independent validation.
 - If the pipeline cannot do what the task requires, build the missing pipeline stage instead of writing a one-off driver script. Driver scripts are a smell unless Trey explicitly asked for one.
 - One task, one module, one pipeline mission at a time unless Trey explicitly widens scope.
+- Structural enforcement must fail closed. Hooks, bridge policy, Mercury ignore/config contracts, forced-read gates, task contracts, Warden gates, and Mercury framing gates should block violations with a non-zero failure instead of printing advisory warnings. Before loosening any Claude/Mercury/harness box, surface the bypass risk in plain language even when Trey authorized the change. Sources: `ogz-meta/sessions/session-2026-06-09-mercury-contracts-and-claude-bridge-RECONSTRUCTED.md:83-89`; `ogz-meta/sessions/session-2026-06-10-claude-warden-and-trade-path-hardening-RECONSTRUCTED.md:26-53,177-182`; `/home/linuxuser/.claude/projects/-opt-ogzprime-OGZPMLV2/memory/feedback-hooks-must-fail-closed.md:7-16`; `/home/linuxuser/.claude/projects/-opt-ogzprime-OGZPMLV2/memory/feedback-flag-box-loosening-even-when-authorized.md:7-20`.
 
 Pipeline order:
 1. Warden: scope check, duplicate prevention, prior lessons.

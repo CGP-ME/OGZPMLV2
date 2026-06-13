@@ -28,6 +28,11 @@ describe('claude bridge policy ownership', () => {
     const policy = require('../trai_brain/claude-bridge/policy');
 
     expect(policy.checkPath('.claude/memory/MEMORY.md').allowed).toBe(true);
+    expect(policy.checkPath('.claude/session-state/read-ledger.json')).toEqual({
+      allowed: false,
+      reason: 'claude_bridge_protected_state',
+      path: '.claude/session-state/read-ledger.json',
+    });
     expect(policy.checkPath('ogz-meta/ledger/intake.md').allowed).toBe(true);
     expect(policy.checkPath('ogz-meta/ledger/uncommitted-deepsearch-drop.md').allowed).toBe(true);
     expect(policy.checkPath('ogz-meta/specs/curated-spec.md').allowed).toBe(true);
@@ -52,6 +57,7 @@ describe('claude bridge policy ownership', () => {
       '.claude/hooks/enforce-pipeline.sh',
       '.claude/hookify.no-emojis.local.md',
       '.claude/commands/recorder.md',
+      '.claude/session-state/read-ledger.json',
       'trai_brain/claude-bridge/pre-bash.js',
       'trai_brain/claude-bridge/policy.js',
     ]) {

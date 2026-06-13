@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Claude Bridge Session Ledger Attribution (2026-06-13)
+
+- Made Claude bridge read/edit ledgers session-scoped, with hook reads, edits, and Stop/Warden checks failing closed when hook session identity is missing.
+- Removed the `CLAUDE_SESSION_ID` fallback so process-wide env cannot silently impersonate another hook session.
+- Blocked bridge Read/Edit/Bash policy access to `.claude/session-state/` while preserving internal hook-owned state access, and required explicit edit scope for finish-gate evaluation.
+
 ### Eval Live Confidence Gate (2026-06-13)
 
 - Pinned eval-live PM2 posture to `MIN_TRADE_CONFIDENCE=0.90` and made both ConfigLoader startup validation and the eval-live posture gate require that value from the live process env, not dotenv-only backfill.
