@@ -10,6 +10,18 @@ function readRepoFile(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
+function walkFiles(directory, files = []) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      walkFiles(fullPath, files);
+    } else {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
 describe('dashboard websocket token containment', () => {
   test('dashboard server does not inject WEBSOCKET_AUTH_TOKEN into public HTML', () => {
     const serverSource = readRepoFile('ogzprime-ssl-server.js');
@@ -19,6 +31,41 @@ describe('dashboard websocket token containment', () => {
     expect(serverSource).not.toMatch(/WEBSOCKET_AUTH_TOKEN\s*\|\|/);
     expect(serverSource).not.toMatch(/CHANGE_ME_IN_PRODUCTION/);
     expect(serverSource).toMatch(/scrubDashboardToken/);
+  });
+
+  test('dashboard server and ignore rules block public backup filename variants', () => {
+    const serverSource = readRepoFile('ogzprime-ssl-server.js');
+    const gitignore = readRepoFile('.gitignore');
+
+    expect(serverSource).toContain('app.use(/^\\/.*(?:\\.bak.*|bak(?:$|[._-]|\\d).*|backup.*|\\.(?:old|orig)$|~$)$/i, denyStaticBackup);');
+    expect(serverSource).toContain('app.use(/^\\/index-.*\\.html$/i, denyStaticBackup);');
+    expect(gitignore).toMatch(/^public\/\*bak\*$/m);
+    expect(gitignore).toMatch(/^public\/\*\*\/\*bak\*$/m);
+    expect(gitignore).toMatch(/^public\/\*backup\*$/m);
+    expect(gitignore).toMatch(/^public\/\*\*\/\*backup\*$/m);
+    expect(gitignore).toMatch(/^public\/\*\.old$/m);
+    expect(gitignore).toMatch(/^public\/\*\*\/\*\.orig$/m);
+    expect(gitignore).toMatch(/^public\/\*~$/m);
+    expect(gitignore).toMatch(/^public\/index-\*\.html$/m);
+  });
+
+  test('served public tree excludes backup-derived root artifacts', () => {
+    const publicRoot = path.join(repoRoot, 'public');
+    const relativeFiles = walkFiles(publicRoot)
+      .map(filePath => path.relative(publicRoot, filePath).split(path.sep).join('/'));
+    const blockedRootArtifacts = relativeFiles.filter(relativePath => {
+      const basename = path.posix.basename(relativePath);
+      return !relativePath.includes('/')
+        && (
+          /bak/i.test(basename)
+          || /backup/i.test(basename)
+          || /\.(old|orig)$/i.test(basename)
+          || /~$/i.test(basename)
+          || /^index-.*\.html$/i.test(basename)
+        );
+    });
+
+    expect(blockedRootArtifacts).toEqual([]);
   });
 
   test('bot websocket client fails closed when the auth token is absent', () => {
@@ -41,20 +88,8 @@ describe('dashboard websocket token containment', () => {
 
   test('public HTML files do not contain non-empty ws-token meta values', () => {
     const publicRoot = path.join(repoRoot, 'public');
-    const htmlFiles = [];
-
-    function walk(directory) {
-      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-        const fullPath = path.join(directory, entry.name);
-        if (entry.isDirectory()) {
-          walk(fullPath);
-        } else if (/\.html(?:\.|$)/i.test(entry.name) || entry.name.endsWith('.html')) {
-          htmlFiles.push(fullPath);
-        }
-      }
-    }
-
-    walk(publicRoot);
+    const htmlFiles = walkFiles(publicRoot)
+      .filter(filePath => /\.html(?:\.|$)/i.test(path.basename(filePath)) || filePath.endsWith('.html'));
 
     for (const filePath of htmlFiles) {
       const html = fs.readFileSync(filePath, 'utf8');

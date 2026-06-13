@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Public Dashboard Backup Cleanup (2026-06-13)
+
+- Removed tracked `public/unified-dashboard.html.bak-*` and `public/index-RECOVERED.html` dashboard backups from the served `public/` tree and preserved local copies outside the repo quarantine area.
+- Added backup-derivative ignore rules and broadened the method-agnostic server backup deny middleware so future `.bak-*`, `.bak.*`, `.bak2026`, `htmlbak`, `backup`, `.old`, `.orig`, editor `~`, or `public/index-*.html` variants do not re-enter source control or fall through static serving as dashboard assets.
+
 ### NoWick Scoped Pending Levels (2026-06-13)
 
 - Changed `NoWickImbalance` pending imbalance levels and candle age tracking from module-global state to symbol/timeframe-scoped state, preventing one instrument or timeframe from consuming another scope's setup.

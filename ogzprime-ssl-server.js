@@ -134,8 +134,8 @@ function denyStaticBackup(req, res) {
   res.status(404).type('text').send('Not found');
 }
 
-app.get(/^\/.*\.bak(?:[./-].*)?$/i, denyStaticBackup);
-app.get(/^\/index-.*\.html$/i, denyStaticBackup);
+app.use(/^\/.*(?:\.bak.*|bak(?:$|[._-]|\d).*|backup.*|\.(?:old|orig)$|~$)$/i, denyStaticBackup);
+app.use(/^\/index-.*\.html$/i, denyStaticBackup);
 
 app.use(express.static(path.join(__dirname, 'public')));
 

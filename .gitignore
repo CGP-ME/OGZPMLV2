@@ -95,6 +95,19 @@ config/secrets/
 *.bak
 *.swp
 
+# Public dashboard/static backups must not live in the served tree
+public/*bak*
+public/**/*bak*
+public/*backup*
+public/**/*backup*
+public/*.old
+public/**/*.old
+public/*.orig
+public/**/*.orig
+public/*~
+public/**/*~
+public/index-*.html
+
 # Dump files and large exports
 *dump*.txt
 *dump*.json
