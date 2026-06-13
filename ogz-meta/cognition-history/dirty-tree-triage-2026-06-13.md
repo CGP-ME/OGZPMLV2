@@ -26,6 +26,10 @@ Moved these untracked files to `/opt/ogzprime/quarantine/dirty-tree-triage-2026-
 - `ogz-meta/specs/OGZPrime_Raw_Chat_Transcript.md` because it is a raw transcript intake file, not curated source doctrine.
 - `scripts/download-tsla-unseen.js` because it is a stale one-off clone of the tracked TSLA downloader flow and its output `tuning/tsla-15m-unseen.json` is already tracked.
 - `tuning/tsla-15m-750.json` because it was an empty generated tuning artifact.
+- `ogz-meta/quarantine/state-json-corrupted-active-trade-2026-06-05T13-00-45-892Z.json` because it is a runtime state snapshot, not source.
+- `ogz-meta/quarantine/state/state-2026-05-22T00-39-18Z-pre-flatten-restart.json` because it is a runtime state snapshot, not source.
+- `ogz-meta/quarantine/state/state-2026-05-22T18-41-52-405Z-pre-alpaca-switch.json` because it is a runtime state snapshot, not source.
+- `ogz-meta/quarantine/trade-ledger-paper-alpaca-tsla-15m-pre-reconcile-2026-06-05T19-40-00Z.jsonl` because it is a runtime trade-ledger snapshot, not source.
 
 ## Verification
 
