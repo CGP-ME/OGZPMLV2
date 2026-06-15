@@ -171,6 +171,26 @@ function buildAlpacaAdapterOptions(brokerConfig = {}, options = {}) {
   };
 }
 
+function resolveSingleBrokerSubscriptionSymbols(brokerConfig = {}) {
+  if (brokerConfig.id === 'alpaca') {
+    const symbols = [...new Set(
+      splitSymbols(brokerConfig.alpacaSymbols)
+        .map(normalizeRuntimeSymbol)
+        .filter(Boolean)
+    )];
+    if (symbols.length === 0) {
+      throw new Error('[Alpaca] ALPACA_SYMBOLS must provide at least one symbol for single-broker subscriptions');
+    }
+    return symbols;
+  }
+
+  const symbol = normalizeRuntimeSymbol(brokerConfig.tradingPair);
+  if (!symbol) {
+    throw new Error(`[${brokerConfig.id || 'BrokerFactory'}] TRADING_PAIR must provide one symbol for single-broker subscriptions`);
+  }
+  return [symbol];
+}
+
 function captureRuntimeFatal(eventType, input, runtimeScope, extra = {}) {
   const result = runtimeAuditSink.capture(
     eventType,
@@ -1984,27 +2004,31 @@ class OGZPrimeV14Bot {
     console.log('V2 ARCHITECTURE: Subscribing to market data from BrokerFactory...');
 
     if (this.kraken) {
-      // Start market data subscription immediately
-      const symbol = resolvedConfig.config.broker.tradingPair;
+      const subscriptionSymbols = resolveSingleBrokerSubscriptionSymbols(resolvedConfig.config.broker);
       const timeframe = resolvedConfig.config.broker.candleTimeframe;
 
       // Subscribe to candles if method exists
       if (this.kraken.subscribeToCandles) {
-        console.log(`Starting ${symbol} ${timeframe} subscription...`);
-        this.kraken.subscribeToCandles(symbol, timeframe);
+        for (const subscriptionSymbol of subscriptionSymbols) {
+          console.log(`Starting ${subscriptionSymbol} ${timeframe} subscription...`);
+          this.kraken.subscribeToCandles(subscriptionSymbol, timeframe);
+        }
       }
 
       // Subscribe to OHLC events from the broker
       if (this.kraken.on) {
-        const trackedSymbol = normalizeRuntimeSymbol(symbol);  // closure capture for updateLastPrice
+        const singleSubscriptionSymbol = subscriptionSymbols.length === 1 ? subscriptionSymbols[0] : null;
         this.kraken.on('ohlc', (eventData) => {
           // CHANGE 2026-01-29: Handle multi-timeframe OHLC data
           const timeframe = eventData.timeframe || '1m';
           const raw = eventData.data || eventData;  // Support old format too
           const traceId = eventData.traceId || raw?.traceId || createTraceId('candle');
           const eventSymbol = eventData && eventData.symbol;
-          const symbolSource = eventSymbol ? 'event.symbol' : 'subscription';
-          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || trackedSymbol);
+          const rawSymbol = raw && typeof raw === 'object' && (raw.symbol || raw.S);
+          const symbolSource = eventSymbol
+            ? 'event.symbol'
+            : (rawSymbol ? (raw.symbol ? 'raw.symbol' : 'raw.S') : (singleSubscriptionSymbol ? 'single-subscription' : 'missing'));
+          const ohlcSymbol = normalizeRuntimeSymbol(eventSymbol || rawSymbol || singleSubscriptionSymbol);
           emitTrace(this, 'CANDLE_INGRESS', {
             traceId,
             source: `single:${resolvedConfig.config.broker.id}`,
@@ -2012,7 +2036,7 @@ class OGZPrimeV14Bot {
             symbol: ohlcSymbol,
             symbolSource,
             timeframe,
-            payloadSymbol: eventData.symbol || raw?.symbol || raw?.S || null,
+            payloadSymbol: eventSymbol || rawSymbol || null,
           });
 
           // CHANGE 2026-04-24: Broker-agnostic OHLC normalizer. Every
@@ -3558,5 +3582,9 @@ if (require.main === module) {
     process.exit(1);
   });
 }
+
+OGZPrimeV14Bot._test = {
+  resolveSingleBrokerSubscriptionSymbols,
+};
 
 module.exports = OGZPrimeV14Bot;

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Single-Broker Symbol Fanout (2026-06-15)
+
+- Changed the disabled-SessionRouter Alpaca market-data path to subscribe every explicit `ALPACA_SYMBOLS` entry instead of only `TRADING_PAIR`.
+- Made multi-symbol Alpaca OHLC ingress fail closed on missing symbol data while accepting `eventData.symbol`, `raw.symbol`, and Alpaca `raw.S`, preventing valid stock bars from being dropped and preventing symbol-less bars from being assigned to the first symbol.
+- Added focused coverage for explicit Alpaca fanout, no `TRADING_PAIR` subscription invention, non-Alpaca single-symbol behavior, symbol-less OHLC drops, and valid Alpaca `raw.S` routing.
+
 ### Public Dashboard Backup Cleanup (2026-06-13)
 
 - Removed tracked `public/unified-dashboard.html.bak-*` and `public/index-RECOVERED.html` dashboard backups from the served `public/` tree and preserved local copies outside the repo quarantine area.
