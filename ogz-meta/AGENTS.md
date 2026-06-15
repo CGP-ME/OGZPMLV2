@@ -294,7 +294,7 @@ Pipeline order:
 - Do not claim edge, alpha, expectancy, or profitability unless the setup is apples-to-apples: asset class, fees, strategy wiring, signal behavior, and baseline all match the claim.
 
 ## Commands
-Run from `OGZPMLV2-rebuild-clean-from-baseline/`.
+Run from the actual application root: `/opt/ogzprime/OGZPMLV2` on the VPS, or the nested `OGZPMLV2-rebuild-clean-from-baseline/` app directory in the Windows workspace.
 
 Core:
 ```bash
