@@ -122,8 +122,11 @@ function buildRuntimeConfigProof(snapshot, TradingConfig, options = {}) {
         exitSystem: withSource(snapshot, 'exits.exitSystem'),
       },
       fees: {
+        model: withSource(snapshot, 'fees.model'),
         makerFee: withSource(snapshot, 'fees.makerFee'),
         takerFee: withSource(snapshot, 'fees.takerFee'),
+        perShare: withSource(snapshot, 'fees.perShare'),
+        minOrderFee: withSource(snapshot, 'fees.minOrderFee'),
       },
     },
     tradingConfig: {
@@ -152,10 +155,13 @@ function buildRuntimeConfigProof(snapshot, TradingConfig, options = {}) {
         finalTarget: tradingConfigValue(TradingConfig, 'exits.profitTiers.final'),
       },
       fees: {
+        model: tradingConfigValue(TradingConfig, 'fees.model'),
         makerFee: tradingConfigValue(TradingConfig, 'fees.makerFee'),
         takerFee: tradingConfigValue(TradingConfig, 'fees.takerFee'),
         slippage: tradingConfigValue(TradingConfig, 'fees.slippage'),
         totalRoundTrip: tradingConfigValue(TradingConfig, 'fees.totalRoundTrip'),
+        perShare: tradingConfigValue(TradingConfig, 'fees.perShare'),
+        minOrderFee: tradingConfigValue(TradingConfig, 'fees.minOrderFee'),
       },
       features: {
         enableDynamicSizing: tradingConfigValue(TradingConfig, 'features.enableDynamicSizing'),

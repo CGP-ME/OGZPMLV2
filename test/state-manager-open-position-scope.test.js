@@ -94,6 +94,9 @@ describe('StateManager openPosition scope contract', () => {
   });
 
   afterEach(() => {
+    try {
+      require('../core/TradingConfig').clearOverrides();
+    } catch (_) {}
     for (const spy of consoleSpies) {
       spy.mockRestore();
     }
@@ -302,6 +305,40 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.executionMode).toBe('paper');
     expect(trade.decisionLedger.positionSizing.finalSizeUsd).toBe(500);
     expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
+  });
+
+  test('uses per-share minimum fee model for entry and exit accounting', async () => {
+    const TradingConfig = require('../core/TradingConfig');
+    TradingConfig.setOverrides({
+      'fees.model': 'per_share_minimum',
+      'fees.perShare': 0.005,
+      'fees.minOrderFee': 0.75,
+      'fees.makerFee': 0,
+      'fees.takerFee': 0,
+      'fees.totalRoundTrip': 0,
+    });
+
+    const opened = await manager.openPosition(100, 100, fullScope({
+      orderId: 'FEE_MODEL_1',
+      entryOrderQuantity: 1,
+      remainingOrderQuantity: 1,
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+    expect(manager.get('activeTrades').get('FEE_MODEL_1').entryFee).toBeCloseTo(0.75);
+    expect(manager.get('realizedPnL')).toBeCloseTo(-0.75);
+
+    const closed = await manager.closePosition(101, false, null, {
+      orderId: 'FEE_MODEL_1',
+      orderQuantity: 1,
+      quantityUnit: 'shares',
+      exitReason: 'fee_model_probe',
+    });
+
+    expect(closed.success).toBe(true);
+    expect(manager.get('realizedPnL')).toBeCloseTo(-0.5);
+    expect(manager.get('closedTrades')[0].pnl).toBeCloseTo(1);
   });
 
   test('opens a scoped structural-exit trade with explicit null trailing fields', async () => {

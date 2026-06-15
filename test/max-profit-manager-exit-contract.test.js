@@ -1,6 +1,7 @@
 'use strict';
 
 const MaxProfitManager = require('../core/MaxProfitManager');
+const TradingConfig = require('../core/TradingConfig');
 
 describe('MaxProfitManager exit contract stop basis', () => {
   let logSpy;
@@ -14,6 +15,9 @@ describe('MaxProfitManager exit contract stop basis', () => {
   afterEach(() => {
     logSpy.mockRestore();
     warnSpy.mockRestore();
+    if (typeof TradingConfig.clearOverrides === 'function') {
+      TradingConfig.clearOverrides();
+    }
   });
 
   function startManager(direction, exitContract, config = {}) {
@@ -90,5 +94,36 @@ describe('MaxProfitManager exit contract stop basis', () => {
     })).toThrow(/must be negative risk distance/);
     expect(manager.state).toBe(previousState);
     expect(manager.state.initialStopPercent).toBeCloseTo(0.005, 10);
+  });
+
+  test('break-even stop uses per-share minimum fee model instead of taker percent', () => {
+    TradingConfig.setOverrides({
+      'fees.model': 'per_share_minimum',
+      'fees.perShare': 0.005,
+      'fees.minOrderFee': 0.75,
+      'fees.makerFee': 0,
+      'fees.takerFee': 0,
+      'fees.totalRoundTrip': 0,
+    });
+    const manager = new MaxProfitManager({
+      initialStopLossPercent: 0.008,
+      enableTieredExit: false,
+      enableTrailingStop: false,
+      breakevenThreshold: 0.05,
+    });
+
+    const result = manager.start(100, 'buy', 100, {
+      volatility: 0.01,
+      confidence: 0.7,
+      entryOrderQuantity: 1,
+      entryOrderQuantityUnit: 'shares',
+      exitContract: { stopLossPercent: -0.5 },
+    });
+    expect(result.success).toBe(true);
+
+    manager.updateBreakevenStop(0.1);
+
+    expect(manager.state.currentStop).toBeCloseTo(101.5);
+    expect(manager.state.breakevenActive).toBe(true);
   });
 });

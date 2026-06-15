@@ -22,6 +22,7 @@ const { getInstance: getUnifiedPatternMemory } = require('./UnifiedPatternMemory
 const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Adaptive parameter optimization
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const { getNarrator } = require('./TradeNarrator');
+const FeeModel = require('./FeeModel');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
@@ -646,6 +647,27 @@ class OrderExecutor {
       throw new Error(`[ABSOLUTE_POSITION_CAP] entryLogic.sizing.absoluteCapPercent must be a finite positive decimal; got ${absoluteCap}`);
     }
     return absoluteCap;
+  }
+
+  _feeModel() {
+    return FeeModel.fromTradingConfig();
+  }
+
+  _calculateOrderFee({ notionalUsd, orderQuantity, side }) {
+    return this._feeModel().calculateOrderFee({
+      notionalUsd,
+      quantity: orderQuantity,
+      side,
+    });
+  }
+
+  _calculateRoundTripFees({ entryNotionalUsd, exitNotionalUsd, entryQuantity, exitQuantity }) {
+    return this._feeModel().calculateRoundTripFees({
+      entryNotionalUsd,
+      exitNotionalUsd,
+      entryQuantity,
+      exitQuantity,
+    });
   }
 
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent, forceWholeShares = false }) {
@@ -1664,6 +1686,8 @@ class OrderExecutor {
             volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways',
+            entryOrderQuantity,
+            entryOrderQuantityUnit,
             exitContract
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmInstance);
@@ -1735,7 +1759,11 @@ class OrderExecutor {
             // as $117M). Internal P&L was correct because StateManager uses the proper
             // formula independently; this was a display-layer bug.
             value_usd: adjustedPositionSize,
-            fees: adjustedPositionSize * TradingConfig.get('fees.makerFee', 0.0025),
+            fees: this._calculateOrderFee({
+              notionalUsd: adjustedPositionSize,
+              orderQuantity: entryOrderQuantity,
+              side: 'entry',
+            }),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based entry',
             confidence: decision.confidence,
             traceId,
@@ -1858,6 +1886,8 @@ class OrderExecutor {
             volatility: indicators.volatility ?? null,
             confidence: decision.confidence / 100,
             trend: indicators.trend || 'sideways',
+            entryOrderQuantity,
+            entryOrderQuantityUnit,
             exitContract
           });
           this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmShortInstance);
@@ -1925,7 +1955,11 @@ class OrderExecutor {
             // as $117M). Internal P&L was correct because StateManager uses the proper
             // formula independently; this was a display-layer bug.
             value_usd: adjustedPositionSize,
-            fees: adjustedPositionSize * TradingConfig.get('fees.makerFee', 0.0025),
+            fees: this._calculateOrderFee({
+              notionalUsd: adjustedPositionSize,
+              orderQuantity: entryOrderQuantity,
+              side: 'entry',
+            }),
             reason: unifiedResult.patterns?.map(p => p.name).join(' + ') || 'Signal-based short entry',
             confidence: decision.confidence,
             traceId,
@@ -2092,6 +2126,11 @@ class OrderExecutor {
             const stateExitFraction = executedExitPlan?.stateExitFraction ?? fraction;
             const stateExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
             const stateExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
+            const longEntryFeeQuantity = stateExitOrderQuantity
+              ?? buyTrade.entryOrderQuantity
+              ?? (buyTrade.entryPrice > 0 ? longExitSizeUsd / buyTrade.entryPrice : null);
+            const longExitFeeQuantity = stateExitOrderQuantity
+              ?? (price > 0 ? longExitSizeUsd / price : null);
             const statePartialClose = executedExitPlan ? stateExitFraction < 1 : isPartialClose;
             if (statePartialClose) {
               closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
@@ -2208,7 +2247,11 @@ class OrderExecutor {
               price: price,
               size: usdAmount,
               value_usd: sellValue,
-              fees: sellValue * TradingConfig.get('fees.takerFee', 0.004),
+              fees: this._calculateOrderFee({
+                notionalUsd: sellValue,
+                orderQuantity: longExitFeeQuantity,
+                side: 'exit',
+              }),
               reason: completeTradeResult.exitReason,
               confidence: decision.confidence,
               traceId,
@@ -2336,7 +2379,12 @@ class OrderExecutor {
                 // Financial results
                 pnl: completeTradeResult.pnlDollars,
                 pnlPercent: pnl,
-                fees: longExitSizeUsd * TradingConfig.get('fees.totalRoundTrip'),
+                fees: this._calculateRoundTripFees({
+                  entryNotionalUsd: longExitSizeUsd,
+                  exitNotionalUsd: sellValue,
+                  entryQuantity: longEntryFeeQuantity,
+                  exitQuantity: longExitFeeQuantity,
+                }),
 
                 // Timing
                 entryTime: new Date(buyTrade.entryTime).toISOString(),
@@ -2597,6 +2645,11 @@ class OrderExecutor {
           const coverStateOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
           const coverStateQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
           const shortSize = coverExitSizeUsd;
+          const shortEntryFeeQuantity = coverStateOrderQuantity
+            ?? shortTrade.entryOrderQuantity
+            ?? (shortTrade.entryPrice > 0 ? shortSize / shortTrade.entryPrice : null);
+          const shortExitFeeQuantity = coverStateOrderQuantity
+            ?? (price > 0 ? shortSize / price : null);
           let closeResult;
           if (coverStatePartialClose) {
             closeResult = await stateManager.reducePosition(shortTrade.orderId, coverStateExitFraction, price, {
@@ -2702,7 +2755,12 @@ class OrderExecutor {
               size: shortSize,
               pnl: completeTradeResult.pnlDollars,
               pnlPercent: pnl,
-              fees: shortSize * TradingConfig.get('fees.totalRoundTrip'),
+              fees: this._calculateRoundTripFees({
+                entryNotionalUsd: shortSize,
+                exitNotionalUsd: shortSize,
+                entryQuantity: shortEntryFeeQuantity,
+                exitQuantity: shortExitFeeQuantity,
+              }),
               entryTime: new Date(shortTrade.entryTime).toISOString(),
               exitTime: new Date().toISOString(),
               holdTime: holdDuration,
@@ -2747,7 +2805,11 @@ class OrderExecutor {
             size: shortSize,
             // FIX VALUE-USD-DOUBLE-MULT 2026-05-13: shortSize is already USD.
             value_usd: shortSize,
-            fees: shortSize * TradingConfig.get('fees.takerFee', 0.004),
+            fees: this._calculateOrderFee({
+              notionalUsd: shortSize,
+              orderQuantity: shortExitFeeQuantity,
+              side: 'exit',
+            }),
             reason: completeTradeResult.exitReason,
             confidence: decision.confidence,
             traceId,

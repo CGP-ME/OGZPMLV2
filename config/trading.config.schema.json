@@ -282,13 +282,16 @@
     "fees": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["makerFee", "takerFee"],
+      "required": ["model", "makerFee", "takerFee"],
       "properties": {
+        "model": { "type": "string", "enum": ["percent", "per_share_minimum"] },
         "makerFee": { "type": "number", "minimum": 0 },
         "takerFee": { "type": "number", "minimum": 0 },
         "slippage": { "type": "number", "minimum": 0 },
         "totalRoundTrip": { "type": "number", "minimum": 0 },
         "safetyBuffer": { "type": "number", "minimum": 0 },
+        "perShare": { "type": "number", "minimum": 0 },
+        "minOrderFee": { "type": "number", "minimum": 0 },
         "minProfitAfterFees": { "type": "number" }
       }
     },

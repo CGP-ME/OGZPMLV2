@@ -20,7 +20,7 @@
  *   4. ExitContractManager adjusts SL/TP based on the timeframe's typical range
  * 
  * USAGE:
- *   const selector = new AdaptiveTimeframeSelector({ mtfAdapter, feePercent: 0.26 });
+ *   const selector = new AdaptiveTimeframeSelector({ mtfAdapter, feeModel, feeContext });
  *   const best = selector.evaluate();
  *   // best = { timeframe: '15m', score: 0.82, reason: '...', exitParams: { ... } }
  * 
@@ -29,15 +29,14 @@
 
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const FeeModel = require('./FeeModel');
 
 class AdaptiveTimeframeSelector {
   constructor(config = {}) {
     this.mtfAdapter = config.mtfAdapter || null;
 
-    // Kraken spot fees from TradingConfig (maker 0.25%, taker 0.40%, round-trip 0.50%)
-    this.feePerSide = config.feePercent || (TradingConfig.get('fees.makerFee', 0.0025) * 100);  // As percent
-    this.roundTripFee = TradingConfig.get('fees.totalRoundTrip', 0.005) * 100;  // 0.50%
+    this.feeModel = config.feeModel || FeeModel.fromTradingConfig();
+    this.feeContext = config.feeContext || null;
 
     // Minimum R:R after fees for a timeframe to be tradable
     // If average move on a timeframe can't give at least 2:1 reward:risk after fees, skip it
@@ -166,10 +165,11 @@ class AdaptiveTimeframeSelector {
       ? (indicators.atr / indicators.price) * 100
       : profile.typicalMovePct;
 
-    const netMoveAfterFees = atrPct - this.roundTripFee;
+    const roundTripFee = this.roundTripFeePercent();
+    const netMoveAfterFees = atrPct - roundTripFee;
     if (netMoveAfterFees <= 0) {
       // This timeframe can't even clear fees — disqualified
-      return { score: 0, reason: `${tf}: ATR ${atrPct.toFixed(2)}% < fees ${this.roundTripFee}%` };
+      return { score: 0, reason: `${tf}: ATR ${atrPct.toFixed(2)}% < fees ${roundTripFee}%` };
     }
 
     const feeViability = Math.min(0.25, (netMoveAfterFees / atrPct) * 0.25);
@@ -251,6 +251,18 @@ class AdaptiveTimeframeSelector {
         atrPct,
       },
     };
+  }
+
+  roundTripFeePercent() {
+    if (this.feeModel.model === 'per_share_minimum' && !this.feeContext) {
+      throw new Error('[AdaptiveTimeframeSelector] fees.model=per_share_minimum requires feeContext with notional and quantity for fee viability scoring');
+    }
+    return this.feeModel.calculateRoundTripFeePercent(
+      this.feeContext || {
+        entryNotionalUsd: 1,
+        exitNotionalUsd: 1,
+      }
+    );
   }
 
   /**

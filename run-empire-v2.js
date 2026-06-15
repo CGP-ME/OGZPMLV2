@@ -688,7 +688,6 @@ class OGZPrimeV14Bot {
     // and CandleStore support active multi-timeframe context swaps.
     this.timeframeSelector = new AdaptiveTimeframeSelector({
       mtfAdapter: this.mtfAdapter,
-      feePercent: 0.26,                            // Kraken maker/taker fee per side
       allowedTimeframes: [this.candleTimeframe],
       defaultTimeframe: this.candleTimeframe,
       minSwitchIntervalMs: 5 * 60 * 1000,          // 5 min minimum between switches

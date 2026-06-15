@@ -176,6 +176,12 @@ function buildConfig() {
 
   const dataDirConfig = envStr('DATA_DIR', '');
   const journalDataDirConfig = envStr('JOURNAL_DATA_DIR', defaultJournalDataDir(dataDirConfig.value));
+  const feeMakerConfig = envFloat('FEE_MAKER', 0.0025);
+  const feeTakerConfig = envFloat('FEE_TAKER', 0.004);
+  const feeTotalRoundTripConfig = envFloat(
+    'FEE_TOTAL_ROUNDTRIP',
+    feeMakerConfig.value + feeTakerConfig.value
+  );
 
   const config = {
     // ─── EXECUTION MODE ───
@@ -276,9 +282,12 @@ function buildConfig() {
 
     // ─── FEES ───
     fees: {
-      makerFee: track('fees.makerFee', envFloat('FEE_MAKER', 0.0025)),
-      takerFee: track('fees.takerFee', envFloat('FEE_TAKER', 0.004)),
-      get totalRoundTrip() { return this.makerFee + this.takerFee; },
+      model: track('fees.model', envStr('FEE_MODEL', 'percent')),
+      makerFee: track('fees.makerFee', feeMakerConfig),
+      takerFee: track('fees.takerFee', feeTakerConfig),
+      totalRoundTrip: track('fees.totalRoundTrip', feeTotalRoundTripConfig),
+      perShare: track('fees.perShare', envFloat('FEE_PER_SHARE', 0)),
+      minOrderFee: track('fees.minOrderFee', envFloat('FEE_MIN_ORDER', 0)),
     },
 
     // ─── RISK MANAGEMENT ───
@@ -493,10 +502,36 @@ function validate(config, sources = {}) {
     errors.push(`takeProfitPercent must be positive: ${config.exits.takeProfitPercent}`);
   }
 
-  // Tiers must be above fees
-  const feeThreshold = config.fees.totalRoundTrip;
-  if (config.tiers.tier1 < feeThreshold) {
-    warnings.push(`tier1 (${config.tiers.tier1}) below round-trip fees (${feeThreshold}) — tier 1 exits are net losses`);
+  const feeModel = String(config.fees.model || '').trim().toLowerCase();
+  // Tiers must be above fees. Percent fees can be checked statically; per-share
+  // minimum fees require order quantity/notional and are enforced by FeeModel at runtime.
+  if (feeModel === 'percent') {
+    const feeThreshold = config.fees.totalRoundTrip;
+    if (config.tiers.tier1 < feeThreshold) {
+      warnings.push(`tier1 (${config.tiers.tier1}) below round-trip fees (${feeThreshold}) — tier 1 exits are net losses`);
+    }
+  } else if (feeModel === 'per_share_minimum') {
+    warnings.push('tier fee threshold cannot be statically validated for FEE_MODEL=per_share_minimum; runtime fee checks require order quantity/notional');
+  }
+  if (feeModel !== 'percent' && feeModel !== 'per_share_minimum') {
+    errors.push(`FEE_MODEL must be percent or per_share_minimum, got ${config.fees.model}`);
+  }
+  if (!Number.isFinite(config.fees.makerFee) || config.fees.makerFee < 0) {
+    errors.push(`FEE_MAKER out of range: ${config.fees.makerFee}`);
+  }
+  if (!Number.isFinite(config.fees.takerFee) || config.fees.takerFee < 0) {
+    errors.push(`FEE_TAKER out of range: ${config.fees.takerFee}`);
+  }
+  if (feeModel === 'per_share_minimum') {
+    if (!Number.isFinite(config.fees.perShare) || config.fees.perShare < 0) {
+      errors.push(`FEE_PER_SHARE out of range: ${config.fees.perShare}`);
+    }
+    if (!Number.isFinite(config.fees.minOrderFee) || config.fees.minOrderFee < 0) {
+      errors.push(`FEE_MIN_ORDER out of range: ${config.fees.minOrderFee}`);
+    }
+    if (config.fees.perShare === 0 && config.fees.minOrderFee === 0) {
+      errors.push('FEE_MODEL=per_share_minimum requires FEE_PER_SHARE or FEE_MIN_ORDER to be positive');
+    }
   }
 
   // Mode conflicts

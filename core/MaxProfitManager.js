@@ -62,6 +62,7 @@
  */
 
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
+const FeeModel = require('./FeeModel');
 const { getNarrator } = require('./TradeNarrator');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Hot-path hook below checks cached narrator.enabled first; try frame only
@@ -184,6 +185,9 @@ class MaxProfitManager {
       direction: null,            // Position direction ('buy' or 'sell')
       originalSize: 0,            // Original position size
       remainingSize: 0,           // Remaining position size after partial exits
+      entryOrderQuantity: null,   // Broker/base quantity accepted at entry
+      remainingOrderQuantity: null, // Broker/base quantity still open
+      quantityUnit: null,
       
       // PRICE TRACKING
       currentPrice: 0,            // Latest price update
@@ -285,6 +289,7 @@ class MaxProfitManager {
     }
 
     const initialStopPercent = this.resolveInitialStopPercent(options);
+    const entryOrderQuantity = this.resolveEntryOrderQuantity(entryPrice, size, options);
 
     // ====================================================================
     // STATE INITIALIZATION
@@ -295,6 +300,9 @@ class MaxProfitManager {
       direction: direction,
       originalSize: size,
       remainingSize: size,
+      entryOrderQuantity,
+      remainingOrderQuantity: entryOrderQuantity,
+      quantityUnit: options.quantityUnit || options.entryOrderQuantityUnit || null,
       currentPrice: entryPrice,
       highestPrice: direction === 'buy' ? entryPrice : 0,
       lowestPrice: direction === 'sell' ? entryPrice : Infinity,
@@ -403,6 +411,25 @@ class MaxProfitManager {
     return MaxProfitManager.resolveContractStopPercent(options.exitContract);
   }
 
+  resolveEntryOrderQuantity(entryPrice, size, options = {}) {
+    const explicit = this._positiveFiniteNumber(
+      options.entryOrderQuantity
+        ?? options.orderQuantity
+        ?? options.quantity
+        ?? options.positionQuantity
+    );
+    if (explicit !== null) {
+      return explicit;
+    }
+
+    const derived = Number(size) / Number(entryPrice);
+    if (Number.isFinite(derived) && derived > 0) {
+      return derived;
+    }
+
+    throw new Error(`MaxProfitManager.start: entry order quantity missing/invalid (got ${options.entryOrderQuantity ?? options.orderQuantity ?? options.quantity ?? options.positionQuantity}) — fee-aware stops require broker quantity`);
+  }
+
   static resolveContractStopPercent(exitContract) {
     if (typeof exitContract !== 'object') {
       throw new Error(`MaxProfitManager.start: options.exitContract invalid (got ${typeof exitContract}) — refusing to use global stop for a malformed trade contract`);
@@ -506,11 +533,20 @@ class MaxProfitManager {
         this.state.beScaleOutFired = true;
         const scaleOutFraction = this.beScaleOutConfig.scaleOutFraction || 0.5;
         const scaleOutSize = this.state.remainingSize * scaleOutFraction;
+        const scaleOutQuantity = this.state.remainingOrderQuantity !== null
+          ? this.state.remainingOrderQuantity * scaleOutFraction
+          : null;
         this.state.remainingSize -= scaleOutSize;
+        if (scaleOutQuantity !== null) {
+          this.state.remainingOrderQuantity -= scaleOutQuantity;
+        }
         this.state.realizedPnL += scaleOutSize * this.state.entryPrice * profitPercent;
 
         // Move stop to break-even + fee buffer
-        const feeBuffer = this.beScaleOutConfig.feeBufferPercent || 0.05;
+        const configuredFeeBuffer = this._finiteNumber(this.beScaleOutConfig.feeBufferPercent);
+        const feeBuffer = configuredFeeBuffer !== null
+          ? configuredFeeBuffer
+          : this.roundTripFeeBufferPercent();
         if (this.state.direction === 'buy') {
           this.state.currentStop = this.state.entryPrice * (1 + feeBuffer / 100);
         } else {
@@ -523,8 +559,10 @@ class MaxProfitManager {
           action: 'exit_partial',
           price: currentPrice,
           exitSize: scaleOutSize,
+          exitOrderQuantity: scaleOutQuantity,
           exitFraction: scaleOutFraction,
           remainingSize: this.state.remainingSize,
+          remainingOrderQuantity: this.state.remainingOrderQuantity,
           reason: 'be_scaleout',
           profitPercent: profitPercent,
           newStopPrice: this.state.currentStop
@@ -963,6 +1001,15 @@ class MaxProfitManager {
     const parsed = this._finiteNumber(value);
     return parsed !== null && parsed > 0 ? parsed : null;
   }
+
+  roundTripFeeBufferPercent() {
+    return FeeModel.fromTradingConfig().calculateRoundTripFeePercent({
+      entryNotionalUsd: this.state.remainingSize,
+      exitNotionalUsd: this.state.remainingSize,
+      entryQuantity: this.state.remainingOrderQuantity,
+      exitQuantity: this.state.remainingOrderQuantity,
+    });
+  }
   
   /**
    * Update Breakeven Stop - Breakeven Protection
@@ -977,9 +1024,7 @@ class MaxProfitManager {
       return;
     }
     
-    // Move stop to breakeven (plus buffer for round-trip fees)
-    // FIX 2026-02-05: Was 0.001 (0.1%) but Kraken round-trip is 0.52% (0.26% × 2 sides)
-    const feeBuffer = TradingConfig.get('fees.takerFee'); // From TradingConfig - covers fees + slippage
+    const feeBuffer = this.roundTripFeeBufferPercent() / 100;
     let breakevenStop;
     
     if (this.state.direction === 'buy') {

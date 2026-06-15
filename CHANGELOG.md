@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fee Model Per-Share Minimum (2026-06-15)
+
+- Added a config-owned `FeeModel` with percent and per-share minimum modes so TTP stock eval fees can charge the per-order minimum instead of approximating with stale percentage math.
+- Routed fee accounting through the model in live state accounting, order proof logs, backtest recording, PnL helpers, MaxProfitManager break-even buffers, exit helper thresholds, and adaptive timeframe fee viability.
+- Added config loader/schema/audit/proof coverage for `FEE_MODEL`, `FEE_PER_SHARE`, `FEE_MIN_ORDER`, and `FEE_TOTAL_ROUNDTRIP`, with per-share tier warnings handled as runtime quantity-dependent checks.
+
 ### Alpaca Single-Broker Symbol Fanout (2026-06-15)
 
 - Changed the disabled-SessionRouter Alpaca market-data path to subscribe every explicit `ALPACA_SYMBOLS` entry instead of only `TRADING_PAIR`.

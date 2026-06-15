@@ -78,6 +78,7 @@
 const TradingConfig = require('./TradingConfig');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { getNarrator } = require('./TradeNarrator');
+const FeeModel = require('./FeeModel');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Both hook sites (openPosition / closePosition) check cached narrator.enabled
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
@@ -511,9 +512,13 @@ class StateManager {
 
     const usdCost = size;
 
-    // FIX 2026-03-28: Per-trade equity accounting
-    // Entry fee calculated upfront
-    const entryFee = usdCost * TradingConfig.get('fees.makerFee');
+    // FIX 2026-03-28: Per-trade equity accounting.
+    // Entry fee calculated upfront through the config-owned fee model.
+    const entryFee = FeeModel.fromTradingConfig().calculateOrderFee({
+      notionalUsd: usdCost,
+      quantity: context.entryOrderQuantity,
+      side: 'entry',
+    });
 
     // Store trade in activeTrades with all required fields.
     // FIX 2026-05-05: promote `symbol` to a top-level trade field (was only
@@ -807,7 +812,11 @@ class StateManager {
 
       // Calculate exit fee
       const usdValueAtClose = closeSize + pnl;
-      const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+      const exitFee = FeeModel.fromTradingConfig().calculateOrderFee({
+        notionalUsd: usdValueAtClose,
+        quantity: context.orderQuantity || trade.remainingOrderQuantity || trade.entryOrderQuantity,
+        side: 'exit',
+      });
 
       const nextActiveTrades = new Map(this.state.activeTrades || []);
       if (nextActiveTrades.has(tradeId)) {
@@ -965,7 +974,11 @@ class StateManager {
         : (tradeEntryPrice > 0 ? (price - tradeEntryPrice) / tradeEntryPrice : 0);
       const pnl = closeSize * priceChangePercent;
       const usdValueAtClose = closeSize + pnl;
-      const exitFee = usdValueAtClose * TradingConfig.get('fees.takerFee');
+      const exitFee = FeeModel.fromTradingConfig().calculateOrderFee({
+        notionalUsd: usdValueAtClose,
+        quantity: context.orderQuantity || (Number(trade.remainingOrderQuantity) * fraction) || trade.entryOrderQuantity,
+        side: 'exit',
+      });
       const netRealizedResult = pnl - exitFee;
 
       const nextActiveTrades = new Map(this.state.activeTrades || []);

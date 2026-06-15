@@ -86,7 +86,14 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   ATR_FILTER_ENABLED: Object.freeze(['filters.atrEnabled']),
   ATR_MIN_PERCENT: Object.freeze(['filters.atrMinPercent']),
   EXIT_SYSTEM: Object.freeze(['exits.exitSystem']),
+  FEE_MODEL: Object.freeze(['fees.model']),
+  FEE_MAKER: Object.freeze(['fees.makerFee']),
+  FEE_TAKER: Object.freeze(['fees.takerFee']),
+  FEE_TOTAL_ROUNDTRIP: Object.freeze(['fees.totalRoundTrip']),
+  FEE_SAFETY_BUFFER: Object.freeze(['fees.safetyBuffer']),
   FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
+  FEE_PER_SHARE: Object.freeze(['fees.perShare']),
+  FEE_MIN_ORDER: Object.freeze(['fees.minOrderFee']),
 });
 
 const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
@@ -922,11 +929,14 @@ const BASE_CONFIG = {
   // FEE CONFIGURATION
   // =========================================================================
   fees: {
+    model: env('FEE_MODEL', 'percent'),
     makerFee: env('FEE_MAKER', 0.0025),                          // 0.25% maker (Kraken actual)
     takerFee: env('FEE_TAKER', 0.0040),                          // 0.40% taker (Kraken actual)
     slippage: env('FEE_SLIPPAGE', 0.0005),                       // 0.05% slippage
     totalRoundTrip: env('FEE_TOTAL_ROUNDTRIP', 0.0065),          // 0.65% total (maker 0.25% + taker 0.40%)
     safetyBuffer: env('FEE_SAFETY_BUFFER', 0.001),               // 0.10% buffer
+    perShare: env('FEE_PER_SHARE', 0),
+    minOrderFee: env('FEE_MIN_ORDER', 0),
 
     // Computed: minimum profit to be a "winner" after fees
     get minProfitAfterFees() {

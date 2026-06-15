@@ -14,29 +14,28 @@
 
 'use strict';
 
-const TradingConfig = require('./TradingConfig');
+const FeeModel = require('./FeeModel');
 
 class PnLCalculator {
   constructor(options = {}) {
-    // Round-trip fee from TradingConfig (maker + taker).
-    // PNLC-HIGH-01: ?? preserves intentional 0 (paper mode with FEE_MAKER=0
-    // FEE_TAKER=0). || coerced 0 to TradingConfig default, hiding paper-mode
-    // misconfiguration. Warn when zero so paper-mode is operator-visible.
-    this.feePercent = options.feePercent ?? TradingConfig.get('fees.totalRoundTrip');
-    if (!Number.isFinite(this.feePercent)) {
-      throw new Error(`[PNLC-HIGH-01] PnLCalculator.feePercent non-finite (got ${this.feePercent}) — refusing to compute P&L with phantom fees`);
-    }
-    if (this.feePercent === 0) {
-      console.warn('[PNLC-HIGH-01] PnLCalculator.feePercent is zero — paper-mode/zero-fee active; backtest P&L will not reflect production trading costs');
-    }
-    // PNLC-MED-01: pull feeBuffer from TradingConfig (single fee source-of-truth)
-    // instead of hardcoding 0.35. exits.trailing.feeBufferPercent maps to
-    // TRAIL_FEE_BUFFER env (TradingConfig.js:449, default 0.65).
-    this.feeBuffer = options.feeBuffer
-      ?? TradingConfig.get('exits.trailing.feeBufferPercent')
-      ?? TradingConfig.get('fees.totalRoundTrip');
+    this.feeModel = options.feeModel || (
+      options.feePercent !== undefined
+        ? FeeModel.percent({ totalRoundTrip: options.feePercent })
+        : FeeModel.fromTradingConfig()
+    );
+    this.feeBuffer = options.feeBuffer ?? null;
 
     console.log('[PnLCalculator] Initialized (Phase 13)');
+  }
+
+  _staticPercentFeeBuffer() {
+    if (this.feeModel.model !== 'percent') {
+      throw new Error('[PnLCalculator] fee context required for per_share_minimum fee buffer calculations');
+    }
+    return this.feeModel.calculateRoundTripFeePercent({
+      entryNotionalUsd: 1,
+      exitNotionalUsd: 1,
+    });
   }
 
   /**
@@ -94,10 +93,13 @@ class PnLCalculator {
     const grossPnL = this.calculatePnLDollars(entryPrice, currentPrice, size, side);
     const entryValue = size * entryPrice;
     const exitValue = size * currentPrice;
-    const totalValue = entryValue + exitValue;
-
     // Fees on both entry and exit
-    const fees = totalValue * (this.feePercent / 2); // Split fee across both legs
+    const fees = this.feeModel.calculateRoundTripFees({
+      entryNotionalUsd: entryValue,
+      exitNotionalUsd: exitValue,
+      entryQuantity: size,
+      exitQuantity: size,
+    });
 
     const netPnL = grossPnL - fees;
     const netPnLPercent = entryValue > 0 ? (netPnL / entryValue) * 100 : 0;
@@ -117,8 +119,15 @@ class PnLCalculator {
    * @param {number} pnlPercent - Gross P&L percentage
    * @returns {boolean} True if profit covers fees
    */
-  isProfitableAfterFees(pnlPercent) {
-    return pnlPercent > this.feeBuffer;
+  feeBufferPercent(context = null) {
+    if (context) {
+      return this.feeModel.calculateRoundTripFeePercent(context);
+    }
+    return this.feeBuffer ?? this._staticPercentFeeBuffer();
+  }
+
+  isProfitableAfterFees(pnlPercent, context = null) {
+    return pnlPercent > this.feeBufferPercent(context);
   }
 
   /**
@@ -128,8 +137,11 @@ class PnLCalculator {
    * @param {string} side - 'long' or 'short'
    * @returns {number} Break-even price
    */
-  calculateBreakEven(entryPrice, side = 'long') {
-    const feeMultiplier = 1 + (this.feePercent / 100);
+  calculateBreakEven(entryPrice, side = 'long', context = null) {
+    const feePercent = context
+      ? this.feeModel.calculateRoundTripFeePercent(context)
+      : this._staticPercentFeeBuffer();
+    const feeMultiplier = 1 + (feePercent / 100);
 
     if (side === 'short') {
       // Shorts need price to go DOWN to break even
@@ -145,9 +157,11 @@ class PnLCalculator {
    */
   getFeeConfig() {
     return {
-      feePercent: this.feePercent,
+      feeModel: this.feeModel.model,
       feeBuffer: this.feeBuffer,
-      roundTripFee: this.feePercent * 100 + '%'
+      roundTripFeePercent: this.feeModel.model === 'percent' ? this._staticPercentFeeBuffer() : null,
+      perShare: this.feeModel.perShare,
+      minOrderFee: this.feeModel.minOrderFee,
     };
   }
 }

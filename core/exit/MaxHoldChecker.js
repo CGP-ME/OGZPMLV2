@@ -11,11 +11,10 @@
 
 'use strict';
 
-const TradingConfig = require('../TradingConfig');
+const FeeModel = require('../FeeModel');
 
-// FIX 2026-03-26: Read fee from TradingConfig instead of hardcoding
-function getRoundTripFee() {
-  return TradingConfig.get('fees.totalRoundTrip') * 100; // Convert decimal to percentage
+function getRoundTripFee(trade) {
+  return FeeModel.roundTripFeePercentForTrade(trade);
 }
 
 class MaxHoldChecker {
@@ -49,7 +48,7 @@ class MaxHoldChecker {
     // === STRATEGY-SPECIFIC MAX HOLD ===
     if (contract.maxHoldTimeMinutes && holdTimeMinutes >= contract.maxHoldTimeMinutes) {
       // Tag as winner only if P&L exceeds round-trip fees
-      const roundTripFee = getRoundTripFee();
+      const roundTripFee = getRoundTripFee(trade);
       const holdExitType = pnlPercent > roundTripFee ? 'max_hold_winner' : 'max_hold_loser';
       return {
         shouldExit: true,

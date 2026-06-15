@@ -66,8 +66,11 @@ function snapshotFixture() {
         exitSystem: 'maxprofit',
       },
       fees: {
+        model: 'per_share_minimum',
         makerFee: 0,
         takerFee: 0,
+        perShare: 0.005,
+        minOrderFee: 0.75,
       },
       webhookOrders: {
         webhookUrl: 'https://webhook.example.invalid/hook/fixture-path',
@@ -115,6 +118,9 @@ function snapshotFixture() {
       'exits.exitSystem': 'env:EXIT_SYSTEM',
       'fees.makerFee': 'env:FEE_MAKER',
       'fees.takerFee': 'env:FEE_TAKER',
+      'fees.model': 'env:FEE_MODEL',
+      'fees.perShare': 'env:FEE_PER_SHARE',
+      'fees.minOrderFee': 'env:FEE_MIN_ORDER',
     },
   };
 }
@@ -140,6 +146,9 @@ function tradingConfigFixture() {
     'fees.takerFee': 0,
     'fees.slippage': 0.0005,
     'fees.totalRoundTrip': 0,
+    'fees.model': 'per_share_minimum',
+    'fees.perShare': 0.005,
+    'fees.minOrderFee': 0.75,
     'features.enableDynamicSizing': true,
     'features.enableShorts': true,
   };

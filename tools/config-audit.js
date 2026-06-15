@@ -58,8 +58,12 @@ const CONFIG_LOADER_ENV_PATHS = Object.freeze({
   TIER2_TARGET: 'tiers.tier2',
   TIER3_TARGET: 'tiers.tier3',
   FINAL_TARGET: 'tiers.final',
+  FEE_MODEL: 'fees.model',
   FEE_MAKER: 'fees.makerFee',
   FEE_TAKER: 'fees.takerFee',
+  FEE_TOTAL_ROUNDTRIP: 'fees.totalRoundTrip',
+  FEE_PER_SHARE: 'fees.perShare',
+  FEE_MIN_ORDER: 'fees.minOrderFee',
   RISK_MANAGER_BYPASS: 'risk.riskManagerBypass',
   ACCOUNT_DRAWDOWN_BYPASS: 'risk.accountDrawdownBypass',
   MAX_DRAWDOWN: 'risk.maxDrawdown',
@@ -238,9 +242,12 @@ function buildResolvedConfig(context = createAuditContext()) {
   resolved['tiers.final'] = getSource('FINAL_TARGET', 'exits.profitTiers.final', 0.050);
 
   // === FEES ===
+  resolved['fees.model'] = getSource('FEE_MODEL', 'fees.model', 'percent');
   resolved['fees.makerFee'] = getSource('FEE_MAKER', 'fees.makerFee', 0.0025);
   resolved['fees.takerFee'] = getSource('FEE_TAKER', 'fees.takerFee', 0.004);
-  resolved['fees.totalRoundTrip'] = { value: TradingConfig.get('fees.totalRoundTrip'), source: 'TradingConfig:fees.totalRoundTrip' };
+  resolved['fees.totalRoundTrip'] = getSource('FEE_TOTAL_ROUNDTRIP', 'fees.totalRoundTrip', TradingConfig.get('fees.totalRoundTrip'));
+  resolved['fees.perShare'] = getSource('FEE_PER_SHARE', 'fees.perShare', 0);
+  resolved['fees.minOrderFee'] = getSource('FEE_MIN_ORDER', 'fees.minOrderFee', 0);
 
   // === RISK MANAGEMENT ===
   resolved['risk.riskManagerBypass'] = getSource('RISK_MANAGER_BYPASS', null, 'true (BYPASSED)');

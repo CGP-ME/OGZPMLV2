@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const TradingConfig = require('./TradingConfig');
+const FeeModel = require('./FeeModel');
 
 class BacktestRecorder {
     static validateTradeScope(trade, caller = 'BacktestRecorder.validateTradeScope') {
@@ -92,8 +93,13 @@ class BacktestRecorder {
           throw new Error(`[MIRROR-RECORDER-BALANCE] BacktestRecorder requires positive finite startingBalance (got ${rawBalance}) — refusing $10K phantom`);
         }
         this.startingBalance = numericBalance;
-        this.feePerSide = config.feePerSide || TradingConfig.get('fees.makerFee');  // From TradingConfig
-        this.roundTripFee = this.feePerSide * 2;        // 0.52%
+        this.feeModel = config.feeModel || (
+            config.feePerSide !== undefined
+                ? FeeModel.percent({ makerFee: config.feePerSide, takerFee: config.feePerSide })
+                : FeeModel.fromTradingConfig()
+        );
+        this.feePerSide = config.feePerSide ?? TradingConfig.get('fees.makerFee');
+        this.roundTripFee = this.feePerSide * 2;
 
         this.balance = this.startingBalance;
         this.trades = [];
@@ -113,11 +119,6 @@ class BacktestRecorder {
         const entryPrice = trade.entryPrice || 0;
         const exitPrice = trade.exitPrice || 0;
 
-        // Calculate fees based on USD position size
-        const entryFee = positionSizeUsd * this.feePerSide;
-        const exitFee = positionSizeUsd * this.feePerSide;
-        const totalFees = entryFee + exitFee;
-
         // Calculate raw P&L using percentage-based math
         // MED-14: throw on non-positive entryPrice instead of logging \$0 P&L.
         // Same halt-class as MED-02 in OrderExecutor. Refuses to record a
@@ -133,6 +134,18 @@ class BacktestRecorder {
             // Short: profit when price goes DOWN
             rawPnlDollars = positionSizeUsd * ((entryPrice - exitPrice) / entryPrice);
         }
+
+        const entryQuantity = trade.entryOrderQuantity || trade.orderQuantity || (positionSizeUsd / entryPrice);
+        const exitQuantity = trade.exitOrderQuantity || trade.orderQuantity || (positionSizeUsd / exitPrice);
+        const exitNotionalUsd = Number.isFinite(Number(trade.exitSizeUsd))
+            ? Number(trade.exitSizeUsd)
+            : positionSizeUsd * (exitPrice / entryPrice);
+        const totalFees = this.feeModel.calculateRoundTripFees({
+            entryNotionalUsd: positionSizeUsd,
+            exitNotionalUsd,
+            entryQuantity,
+            exitQuantity,
+        });
 
         // Net P&L after fees
         const netPnlDollars = rawPnlDollars - totalFees;

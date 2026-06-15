@@ -17,8 +17,7 @@
 
 'use strict';
 
-// Fee buffer: stop moves to entry minus this, so a BE exit still covers fees
-const BE_FEE_BUFFER_PERCENT = 0.05; // -0.05% below entry
+const FeeModel = require('../FeeModel');
 
 class BreakEvenManager {
   /**
@@ -63,7 +62,7 @@ class BreakEvenManager {
     if (maxProfit >= riskAmount) {
       return {
         isBreakEven: true,
-        effectiveStopPercent: -BE_FEE_BUFFER_PERCENT,
+        effectiveStopPercent: -this.getFeeBufferPercent(trade),
         reason: `BE active: peak ${maxProfit.toFixed(2)}% >= risk ${riskAmount.toFixed(2)}%`
       };
     }
@@ -102,10 +101,15 @@ class BreakEvenManager {
    * @param {number} [feeBufferPercent=0.05] - Buffer above entry for fees
    * @returns {number|null} Break-even price or null if not applicable
    */
-  getBreakEvenPrice(trade, feeBufferPercent = BE_FEE_BUFFER_PERCENT) {
+  getFeeBufferPercent(trade) {
+    return FeeModel.roundTripFeePercentForTrade(trade);
+  }
+
+  getBreakEvenPrice(trade, feeBufferPercent = null) {
     if (!trade || !trade.entryPrice) return null;
+    const bufferPercent = feeBufferPercent ?? this.getFeeBufferPercent(trade);
     // BE price = entry price minus tiny buffer (long position)
-    return trade.entryPrice * (1 - feeBufferPercent / 100);
+    return trade.entryPrice * (1 - bufferPercent / 100);
   }
 }
 

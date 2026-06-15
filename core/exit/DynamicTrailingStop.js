@@ -30,8 +30,11 @@
 
 'use strict';
 
+const FeeModel = require('../FeeModel');
+
 class DynamicTrailingStop {
   constructor(config = {}) {
+    const hasExplicitFeeBuffer = Object.prototype.hasOwnProperty.call(config, 'feeBuffer');
     // Base configuration — all overridable via env vars
     this.config = {
       // ATR-based trail distance: trail = ATR * multiplier
@@ -56,13 +59,9 @@ class DynamicTrailingStop {
       // Round number proximity threshold (% of price)
       roundNumberProximity: config.roundNumberProximity || 0.5,
 
-      // Fee buffer — trail stop price must be at least this above entry after fees.
-      // EXIT-HIGH-02: was reading process.env.FEE_TOTAL_ROUNDTRIP directly,
-      // splitting fee source-of-truth from TradingConfig. Now pull from
-      // TradingConfig.get('fees.totalRoundTrip') (TradingConfig.js:691) which
-      // already mirrors the env var. Single source of truth.
-      feeBuffer: config.feeBuffer ?? require('../TradingConfig').get('fees.totalRoundTrip'),
+      feeBuffer: hasExplicitFeeBuffer ? config.feeBuffer : null,
     };
+    this.hasExplicitFeeBuffer = hasExplicitFeeBuffer;
 
     // State tracking per trade (keyed by trade ID)
     this.tradeState = new Map();
@@ -163,6 +162,13 @@ class DynamicTrailingStop {
     return trailPercent;
   }
 
+  feeThresholdPercent(trade) {
+    if (this.hasExplicitFeeBuffer) {
+      return this.config.feeBuffer * 100;
+    }
+    return FeeModel.roundTripFeePercentForTrade(trade);
+  }
+
   /**
    * Check if trailing stop should trigger
    *
@@ -190,7 +196,7 @@ class DynamicTrailingStop {
     const trailStopLevel = trade.maxProfitPercent - trailDistance;
 
     // Safety: trail stop must leave at least enough profit to cover fees
-    const feeThreshold = this.config.feeBuffer * 100; // Convert to percent
+    const feeThreshold = this.feeThresholdPercent(trade);
     const effectiveTrailStop = Math.max(trailStopLevel, feeThreshold);
 
     // Check if current P&L has dropped below the trail stop
@@ -233,7 +239,7 @@ class DynamicTrailingStop {
       ...context,
       maxProfitPercent: trade.maxProfitPercent,
     });
-    const feeThreshold = this.config.feeBuffer * 100;
+    const feeThreshold = this.feeThresholdPercent(trade);
     const trailStopLevel = Math.max(trade.maxProfitPercent - trailDistance, feeThreshold);
 
     return {
