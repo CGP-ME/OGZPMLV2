@@ -1622,8 +1622,7 @@ class OGZPrimeV14Bot {
       throw new Error(`[BOOT][REST-HYDRATE] SessionRouter active but activeSession missing (${this.sessionRouter.activeSession})`);
     }
 
-    const symbol = normalizeRuntimeSymbol(this.tradingPair);
-    return symbol ? [symbol] : [];
+    return resolveSingleBrokerSubscriptionSymbols(resolvedConfig.config.broker);
   }
 
   _normalizeHydrationCandle(raw, symbol, timeframe, timeframeMs) {

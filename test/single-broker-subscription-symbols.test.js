@@ -147,6 +147,31 @@ describe('single-broker market-data subscription symbols', () => {
     expect(on).toHaveBeenCalledWith('ohlc', expect.any(Function));
   });
 
+  test('hydrates every configured Alpaca symbol in the single-broker runtime path', () => {
+    restoreEnv = applyExplicitRuntimeTestEnv({
+      DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'live',
+      BACKTEST_MODE: 'false',
+      PAPER_TRADING: 'true',
+      LIVE_TRADING: 'false',
+      CONFIRM_LIVE_TRADING: 'false',
+      ALPACA_SYMBOLS: 'TSLA,NVDA',
+      TRADING_PAIR: 'TSLA',
+      CANDLE_TIMEFRAME: '15m',
+      WEBHOOK_ORDERS_ENABLED: 'false',
+      WEBHOOK_DRY_RUN: 'true',
+    });
+
+    const OGZPrimeV14Bot = loadBot();
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      sessionRouter: null,
+      tradingPair: 'TSLA',
+    });
+
+    expect(bot._getBootHydrationSymbols()).toEqual(['TSLA', 'NVDA']);
+  });
+
   test('drops symbol-less OHLC events instead of assigning them to the first Alpaca symbol', () => {
     restoreEnv = applyExplicitRuntimeTestEnv({
       DOTENV_CONFIG_PATH: '/tmp/ogzprime-test-missing.env',

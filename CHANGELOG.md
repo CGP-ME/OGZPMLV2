@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Alpaca Single-Broker Symbol Fanout (2026-06-15)
 
 - Changed the disabled-SessionRouter Alpaca market-data path to subscribe every explicit `ALPACA_SYMBOLS` entry instead of only `TRADING_PAIR`.
+- Changed disabled-SessionRouter boot REST hydration to use the same explicit Alpaca symbol list, so newly subscribed symbols do not start without historical context.
 - Made multi-symbol Alpaca OHLC ingress fail closed on missing symbol data while accepting `eventData.symbol`, `raw.symbol`, and Alpaca `raw.S`, preventing valid stock bars from being dropped and preventing symbol-less bars from being assigned to the first symbol.
 - Added focused coverage for explicit Alpaca fanout, no `TRADING_PAIR` subscription invention, non-Alpaca single-symbol behavior, symbol-less OHLC drops, and valid Alpaca `raw.S` routing.
 
