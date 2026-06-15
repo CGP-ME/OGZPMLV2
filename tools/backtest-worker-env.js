@@ -62,6 +62,14 @@ const CONFIG_ENV_OVERRIDE_ALLOWLIST = Object.freeze(new Set([
   'ENABLE_SMS',
   'ENABLE_SHORTS',
   'ENABLE_TRAI',
+  'FEE_MAKER',
+  'FEE_MODEL',
+  'FEE_MIN_ORDER',
+  'FEE_PER_SHARE',
+  'FEE_SAFETY_BUFFER',
+  'FEE_SLIPPAGE',
+  'FEE_TAKER',
+  'FEE_TOTAL_ROUNDTRIP',
   'MAX_POSITION_SIZE_PCT',
   'MAX_DRAWDOWN',
   'MAX_DAILY_LOSS',
@@ -110,11 +118,14 @@ const SUMMARY_KEYS = [
   'BASE_POSITION_PCT',
   'MAX_POSITION_PCT',
   'ABSOLUTE_POSITION_CAP',
+  'FEE_MODEL',
   'FEE_MAKER',
   'FEE_TAKER',
   'FEE_TOTAL_ROUNDTRIP',
   'FEE_SAFETY_BUFFER',
   'FEE_SLIPPAGE',
+  'FEE_PER_SHARE',
+  'FEE_MIN_ORDER',
   'ALPACA_MODE',
   'ALPACA_SYMBOLS',
   'TRADING_PAIR',
@@ -140,6 +151,17 @@ const SUMMARY_KEYS = [
   'TIER2_EXIT_FRACTION',
   'TIER3_EXIT_FRACTION',
 ];
+
+const FEE_ENV_KEYS = Object.freeze([
+  'FEE_MODEL',
+  'FEE_MAKER',
+  'FEE_TAKER',
+  'FEE_TOTAL_ROUNDTRIP',
+  'FEE_SAFETY_BUFFER',
+  'FEE_SLIPPAGE',
+  'FEE_PER_SHARE',
+  'FEE_MIN_ORDER',
+]);
 
 function buildWorkerBaseEnv(sourceEnv = process.env) {
   const workerBaseEnv = {};
@@ -179,6 +201,19 @@ function resolveDirectionFilter(sourceEnv = {}, configEnv = {}) {
   return normalizeDirectionFilter(configEnv.DIRECTION_FILTER, 'configEnv')
     || normalizeDirectionFilter(sourceEnv.DIRECTION_FILTER, 'sourceEnv')
     || CANONICAL_BACKTEST_ENV.DIRECTION_FILTER;
+}
+
+function resolveFeeEnv(sourceEnv = {}, configEnv = {}) {
+  const feeEnv = {};
+  const sourceFeeModelExplicit = sourceEnv.FEE_MODEL !== undefined;
+  for (const key of FEE_ENV_KEYS) {
+    if (configEnv[key] !== undefined) {
+      feeEnv[key] = configEnv[key];
+    } else if (sourceFeeModelExplicit && sourceEnv[key] !== undefined) {
+      feeEnv[key] = sourceEnv[key];
+    }
+  }
+  return feeEnv;
 }
 
 function assertStockModeMatchesInstrument(stockMode, instrumentEnv = {}) {
@@ -239,6 +274,7 @@ function buildBacktestWorkerEnv(options) {
   if (normalizedConfigEnv.DIRECTION_FILTER !== undefined) {
     normalizedConfigEnv.DIRECTION_FILTER = directionFilter;
   }
+  const feeEnv = resolveFeeEnv(sourceEnv, normalizedConfigEnv);
 
   return {
     ...buildWorkerBaseEnv(sourceEnv),
@@ -251,6 +287,7 @@ function buildBacktestWorkerEnv(options) {
     STRATEGY_DIAG: strategyDiag,
     ...(stockMode ? STOCK_ZERO_FEE_ENV : {}),
     ...(stockMode ? STOCK_BACKTEST_ALPACA_ENV : {}),
+    ...feeEnv,
     DIRECTION_FILTER: directionFilter,
     ...normalizedConfigEnv,
     ...instrumentEnv,
@@ -281,6 +318,7 @@ module.exports = {
   assertEnvKeysAllowed,
   normalizeDirectionFilter,
   resolveDirectionFilter,
+  resolveFeeEnv,
   buildBacktestWorkerEnv,
   summarizeWorkerEnv,
 };

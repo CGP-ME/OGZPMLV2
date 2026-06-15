@@ -120,6 +120,9 @@ describe('backtest worker env contract', () => {
     expect(env.FEE_MAKER).toBe('0');
     expect(env.FEE_TAKER).toBe('0');
     expect(env.FEE_TOTAL_ROUNDTRIP).toBe('0');
+    expect(env.FEE_MODEL).toBeUndefined();
+    expect(env.FEE_PER_SHARE).toBeUndefined();
+    expect(env.FEE_MIN_ORDER).toBeUndefined();
     expect(env.FEE_SAFETY_BUFFER).toBe('0');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
     expect(env.TUNING_PROFILE).toBe('current-eval');
@@ -250,6 +253,51 @@ describe('backtest worker env contract', () => {
     expect(env.MAX_MONTHLY_LOSS).toBe('5');
     expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.FEE_SLIPPAGE).toBe('0.0005');
+  });
+
+  test('explicit source fee model overrides stock zero-fee worker defaults', () => {
+    const env = buildEnv({
+      sourceEnv: {
+        PATH: '/usr/bin',
+        FEE_MODEL: 'per_share_minimum',
+        FEE_PER_SHARE: '0.005',
+        FEE_MIN_ORDER: '0.75',
+      },
+    });
+
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
+    expect(env.FEE_PER_SHARE).toBe('0.005');
+    expect(env.FEE_MIN_ORDER).toBe('0.75');
+    expect(env.FEE_MAKER).toBe('0');
+    expect(env.FEE_TAKER).toBe('0');
+    expect(env.FEE_TOTAL_ROUNDTRIP).toBe('0');
+
+    const summary = summarizeWorkerEnv(env);
+    expect(summary).toMatchObject({
+      FEE_MODEL: 'per_share_minimum',
+      FEE_PER_SHARE: '0.005',
+      FEE_MIN_ORDER: '0.75',
+    });
+  });
+
+  test('explicit config fee model overrides source fee model', () => {
+    const env = buildEnv({
+      sourceEnv: {
+        PATH: '/usr/bin',
+        FEE_MODEL: 'percent',
+        FEE_PER_SHARE: '0.001',
+        FEE_MIN_ORDER: '0.25',
+      },
+      configEnv: {
+        FEE_MODEL: 'per_share_minimum',
+        FEE_PER_SHARE: '0.005',
+        FEE_MIN_ORDER: '0.75',
+      },
+    });
+
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
+    expect(env.FEE_PER_SHARE).toBe('0.005');
+    expect(env.FEE_MIN_ORDER).toBe('0.75');
   });
 
   test('explicit sweep direction wins over source env and legacy alias normalizes', () => {

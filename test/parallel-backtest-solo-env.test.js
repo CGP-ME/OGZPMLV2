@@ -15,6 +15,7 @@ const {
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
   parseBacktestOutput,
+  describeFeePosture,
   tryReadReport,
   isCleanParsedResult,
   getWorkerFailureReason,
@@ -205,6 +206,57 @@ describe('parallel-backtest solo strategy env wiring', () => {
     }
 
     expect([...keys].sort()).toEqual([...keys].filter(key => CONFIG_ENV_OVERRIDE_ALLOWLIST.has(key)).sort());
+  });
+
+  test('stock fee posture reports explicit source fee model', () => {
+    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
+      FEE_MODEL: 'per_share_minimum',
+      FEE_PER_SHARE: '0.005',
+      FEE_MIN_ORDER: '0.75',
+    })).toBe('per-share minimum model (perShare=0.005, minOrder=0.75)');
+  });
+
+  test('stock fee posture gives config fee overrides precedence over source env', () => {
+    expect(describeFeePosture([{
+      name: 'baseline',
+      env: {
+        FEE_MODEL: 'per_share_minimum',
+        FEE_PER_SHARE: '0.005',
+        FEE_MIN_ORDER: '0.75',
+      },
+    }], true, {
+      FEE_MODEL: 'percent',
+      FEE_MAKER: '0.99',
+    })).toBe('per-share minimum model (perShare=0.005, minOrder=0.75)');
+  });
+
+  test('stock fee posture reports mixed per-config fee overrides without pretending one model applies', () => {
+    expect(describeFeePosture([
+      { name: 'zero', env: {} },
+      {
+        name: 'ttp',
+        env: {
+          FEE_MODEL: 'per_share_minimum',
+          FEE_PER_SHARE: '0.005',
+          FEE_MIN_ORDER: '0.75',
+        },
+      },
+    ], true, {})).toBe('config-specific fee overrides');
+  });
+
+  test('stock fee posture reports stock default when no explicit fee model reaches workers', () => {
+    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
+      FEE_MAKER: '0.99',
+      FEE_TAKER: '0.99',
+    })).toBe('$0 stock default');
+  });
+
+  test('stock fee posture does not confuse real fee model text with the default marker', () => {
+    expect(describeFeePosture([{ name: 'baseline', env: {} }], true, {
+      FEE_MODEL: 'stock_zero_default',
+      FEE_PER_SHARE: '0.001',
+      FEE_MIN_ORDER: '0.01',
+    })).toBe('stock_zero_default model');
   });
 
   test('parallel sweep presets never generate locked-exit env overrides', () => {

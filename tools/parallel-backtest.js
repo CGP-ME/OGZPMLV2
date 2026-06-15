@@ -32,6 +32,7 @@ const { resolveInstrumentFromDataFile } = require('./instrument-env');
 const {
   buildWorkerBaseEnv,
   buildBacktestWorkerEnv,
+  resolveFeeEnv,
   summarizeWorkerEnv,
 } = require('./backtest-worker-env');
 const {
@@ -564,21 +565,52 @@ function parseBacktestOutput(output, name) {
   return result;
 }
 
+function describeFeePosture(configs, stockMode, sourceEnv = process.env) {
+  if (!stockMode) return null;
+
+  const sweepConfigs = configs && configs.length > 0 ? configs : [{ env: {} }];
+  const resolvedFeeEnvs = sweepConfigs
+    .map(config => resolveFeeEnv(sourceEnv, (config && config.env) || {}))
+    .map(env => (Object.keys(env).length > 0 ? env : { __stockZeroDefault: true }));
+
+  const uniqueFeePostures = new Set(resolvedFeeEnvs.map(env => JSON.stringify(env)));
+  if (uniqueFeePostures.size > 1) {
+    return 'config-specific fee overrides';
+  }
+
+  const feeEnv = resolvedFeeEnvs[0];
+  if (feeEnv.__stockZeroDefault === true) {
+    return '$0 stock default';
+  }
+
+  if (feeEnv.FEE_MODEL === 'per_share_minimum') {
+    return `per-share minimum model (perShare=${feeEnv.FEE_PER_SHARE || 'unset'}, minOrder=${feeEnv.FEE_MIN_ORDER || 'unset'})`;
+  }
+  if (feeEnv.FEE_MODEL) {
+    return `${feeEnv.FEE_MODEL} model`;
+  }
+  if (Object.keys(feeEnv).length > 0) {
+    return 'config-specific fee overrides';
+  }
+  return '$0 stock default';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // PARALLEL RUNNER
 // ═══════════════════════════════════════════════════════════════
 
 async function runParallelSweep(configs, dataFile, stockMode = false, profileName = DEFAULT_TUNING_PROFILE) {
   const tuningProfile = resolveTuningProfile(profileName);
+  const feePosture = describeFeePosture(configs, stockMode);
 
   console.log(`\n${'═'.repeat(70)}`);
-  console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE - Zero Fees]' : ''}`);
+  console.log(`  OGZPrime PARALLEL BACKTESTER v2${stockMode ? ' [STOCK MODE]' : ''}`);
   console.log(`  ${cpuModel} | ${threadCount} threads | ${MAX_WORKERS} workers`);
   console.log(`  ${configs.length} configurations to test`);
   console.log(`  Data: ${dataFile}`);
   console.log(`  Profile: ${tuningProfile.name}`);
   console.log(`  Timeout: None (runs until complete)`);
-  if (stockMode) console.log(`  Fees: $0 (zero commission stocks)`);
+  if (feePosture) console.log(`  Fees: ${feePosture}`);
   console.log(`${'═'.repeat(70)}\n`);
 
   const results = [];
@@ -816,6 +848,7 @@ module.exports = {
   buildWorkerBaseEnv,
   applySoloStrategyToConfigs,
   parseBacktestOutput,
+  describeFeePosture,
   tryReadReport,
   isCleanParsedResult,
   getWorkerFailureReason,
