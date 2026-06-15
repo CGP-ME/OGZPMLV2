@@ -127,6 +127,15 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.ENABLE_NOWICK === 'true')).toBe(true);
   });
 
+  test('DonchianBreakout solo matrix configs carry the explicit dormant enable flag', () => {
+    const configs = generateMatrix(['DonchianBreakout'], GRID.conf, 'conf');
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length);
+    expect(configs.every(config => config.strategy === 'DonchianBreakout')).toBe(true);
+    expect(configs.every(config => config.env.SOLO_STRATEGY === 'DonchianBreakout')).toBe(true);
+    expect(configs.every(config => config.env.ENABLE_DONCHIAN === 'true')).toBe(true);
+  });
+
   test('structural-exit strategies generate no false full or exit matrices', () => {
     expect(generateMatrix(['NoWickImbalance'], GRID.exits, 'exits')).toHaveLength(0);
     expect(generateMatrix(['LiquiditySweep'], GRID.full, 'full')).toHaveLength(0);

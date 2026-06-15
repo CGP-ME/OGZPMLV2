@@ -48,6 +48,7 @@ const LiquiditySweepDetector = require('../modules/LiquiditySweepDetector');
 const MultiTimeframeAdapter = require('../modules/MultiTimeframeAdapter');
 const OgzTpoIntegration = require('./OgzTpoIntegration');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
+const DonchianBreakout = require('../modules/DonchianBreakout');
 
 function assertBaseConfidence01(confidence, label) {
   if (!Number.isFinite(confidence)) {
@@ -224,6 +225,9 @@ class StrategyOrchestrator {
     this.tpoIntegration = new OgzTpoIntegration();
     this.smartMoneySweepModule = new SmartMoneySweep(
       TradingConfig.get('strategies.SmartMoneySweep') || {}
+    );
+    this.donchianBreakoutModule = new DonchianBreakout(
+      TradingConfig.get('strategies.DonchianBreakout') || {}
     );
 
     // SOLO_STRATEGY mode: only enable specified strategies for isolated testing
@@ -827,6 +831,12 @@ class StrategyOrchestrator {
       }
     });
 
+    const donchianBreakoutModule = this.donchianBreakoutModule;
+    if (shouldRegister('DonchianBreakout')) this.strategies.push({
+      name: 'DonchianBreakout',
+      evaluate: (ctx) => donchianBreakoutModule.evaluate(ctx)
+    });
+
     // Apply pipeline toggles - filter strategies based on env vars
     this._applyPipelineToggles();
   }
@@ -850,6 +860,14 @@ class StrategyOrchestrator {
       'OpeningRangeBreakout': pipeline.enableOpeningRangeBreakout,
       'SmartMoneySweep': pipeline.enableSmartMoneySweep,
       'NoWickImbalance': pipeline.enableNoWickImbalance,
+      'DonchianBreakout': pipeline.enableDonchianBreakout,
+    };
+    const enableEnvMap = {
+      'BreakRetest': 'ENABLE_BREAKRETEST',
+      'OpeningRangeBreakout': 'ENABLE_ORB',
+      'SmartMoneySweep': 'ENABLE_SMS',
+      'NoWickImbalance': 'ENABLE_NOWICK',
+      'DonchianBreakout': 'ENABLE_DONCHIAN',
     };
 
     const before = this.strategies.length;
@@ -858,6 +876,10 @@ class StrategyOrchestrator {
     this.strategies = this.strategies.filter(s => {
       const toggle = toggleMap[s.name];
       if (toggle === false) {
+        if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
+          const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
+          throw new Error(`[SOLO_STRATEGY] ${s.name} was requested but its pipeline toggle is disabled; set ${envName}=true or remove SOLO_STRATEGY`);
+        }
         disabled.push(s.name);
         return false;
       }

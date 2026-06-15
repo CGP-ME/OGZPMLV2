@@ -614,6 +614,17 @@ const BASE_CONFIG = {
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sweep_absorbed'],
     },
+    DonchianBreakout: {
+      stopLossPercent: -2.5,
+      takeProfitPercent: 12.0,
+      trailingStopPercent: 1.5,
+      trailingActivation: 1.0,
+      maxHoldTimeMinutes: 10080,
+      minConfidence: null,
+      atrMinPercent: null,
+      invalidationConditions: ['regime_change'],
+      _validated: null,
+    },
     // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
     // module's overrideLevels (1:1 RR computed from swing structure).
     // Fallbacks below are safety nets only — strategy's overrideLevels win.
@@ -854,6 +865,18 @@ const BASE_CONFIG = {
       sweepMaxOffset: env('SMS_SWEEP_MAX_OFFSET', 3),
       enabled: true,
     },
+    DonchianBreakout: {
+      entryPeriod: env('DONCHIAN_ENTRY_PERIOD', 20),
+      atrPeriod: env('DONCHIAN_ATR_PERIOD', 20),
+      atrStopMult: env('DONCHIAN_ATR_STOP_MULT', 2.5),
+      allowShorts: envBool('DONCHIAN_ALLOW_SHORTS', false),
+      takeProfitPercent: env('DONCHIAN_TAKE_PROFIT_PERCENT', 12.0),
+      trailingStopPercent: env('DONCHIAN_TRAILING_STOP_PERCENT', 1.5),
+      trailingActivation: env('DONCHIAN_TRAILING_ACTIVATION', 1.0),
+      maxHoldTimeMinutes: env('DONCHIAN_MAX_HOLD_MINUTES', 10080),
+      invalidationConditions: ['regime_change'],
+      enabled: true,
+    },
     OpeningRangeBreakout: {
       // ICT-style Opening Range + FVG entry (Trey's approach)
       sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // legacy crypto path: 9am EST = 14:00 UTC
@@ -1089,6 +1112,7 @@ const BASE_CONFIG = {
       'CandlePattern',
       'NoWickImbalance',
       'BreakRetest',
+      'DonchianBreakout',
     ],
     sweepPresets: {
       real: [
@@ -1147,6 +1171,7 @@ const BASE_CONFIG = {
         { name: 'Candle-only', env: { SOLO_STRATEGY: 'CandlePattern' } },
         { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
         { name: 'BreakRetest-only', env: { SOLO_STRATEGY: 'BreakRetest' } },
+        { name: 'Donchian-only', env: { SOLO_STRATEGY: 'DonchianBreakout' } },
       ],
     },
     rsiSweep: {
@@ -1203,6 +1228,7 @@ const BASE_CONFIG = {
       'CandlePattern',
       'NoWickImbalance',
       'BreakRetest',
+      'DonchianBreakout',
     ],
     grid: {
       full: {
@@ -1266,6 +1292,7 @@ const BASE_CONFIG = {
     enableOpeningRangeBreakout: envBool('ENABLE_ORB', false), // NEW: Disabled by default until tuned
     enableSmartMoneySweep: envBool('ENABLE_SMS', false),     // NEW: Disabled by default until validated
     enableNoWickImbalance: envBool('ENABLE_NOWICK', false),  // 2026-04-28: Disabled by default until sweep + walk-forward
+    enableDonchianBreakout: envBool('ENABLE_DONCHIAN', false),
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),

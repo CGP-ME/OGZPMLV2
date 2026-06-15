@@ -119,6 +119,12 @@ describe('parallel-backtest solo strategy env wiring', () => {
     });
   });
 
+  test('solo DonchianBreakout enables its dormant toggle for the child worker', () => {
+    expect(buildDormantStrategyEnableEnv('DonchianBreakout')).toEqual({
+      ENABLE_DONCHIAN: 'true',
+    });
+  });
+
   test('solo SmartMoneySweep explicitly enables SMS for the child worker', () => {
     expect(buildDormantStrategyEnableEnv('SmartMoneySweep')).toEqual({
       ENABLE_SMS: 'true',

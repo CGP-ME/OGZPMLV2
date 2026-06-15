@@ -351,6 +351,19 @@
         "sweep_absorbed"
       ]
     },
+    "DonchianBreakout": {
+      "stopLossPercent": -2.5,
+      "takeProfitPercent": 12,
+      "trailingStopPercent": 1.5,
+      "trailingActivation": 1,
+      "maxHoldTimeMinutes": 10080,
+      "minConfidence": null,
+      "atrMinPercent": null,
+      "invalidationConditions": [
+        "regime_change"
+      ],
+      "_validated": null
+    },
     "default": {
       "stopLossPercent": -2,
       "takeProfitPercent": 2.5,
@@ -607,6 +620,20 @@
       "stopBufferPct": 0.05,
       "targetRR": 2,
       "enabled": true
+    },
+    "DonchianBreakout": {
+      "entryPeriod": 20,
+      "atrPeriod": 20,
+      "atrStopMult": 2.5,
+      "allowShorts": false,
+      "takeProfitPercent": 12,
+      "trailingStopPercent": 1.5,
+      "trailingActivation": 1,
+      "maxHoldTimeMinutes": 10080,
+      "invalidationConditions": [
+        "regime_change"
+      ],
+      "enabled": true
     }
   },
   "orchestrator": {
@@ -828,6 +855,7 @@
     "enableOGZTPO": true,
     "enableOpeningRangeBreakout": false,
     "enableSmartMoneySweep": false,
+    "enableDonchianBreakout": false,
     "enableRiskManager": true,
     "enableTRAI": false,
     "traiEnableBacktest": true,

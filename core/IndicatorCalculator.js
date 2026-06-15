@@ -251,6 +251,64 @@ class IndicatorCalculator {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // DONCHIAN CHANNELS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static calculateHighestHigh(candles, period) {
+    if (!Number.isInteger(period) || period <= 0) {
+      throw new Error(`[IndicatorCalculator] calculateHighestHigh period must be a positive integer (got ${period})`);
+    }
+    if (!Array.isArray(candles) || candles.length < period) {
+      return null;
+    }
+
+    const slice = candles.slice(-period);
+    let highest = -Infinity;
+    for (const candle of slice) {
+      const high = _h(candle);
+      if (!Number.isFinite(high)) {
+        throw new Error('[IndicatorCalculator] calculateHighestHigh received a candle with non-finite high');
+      }
+      highest = Math.max(highest, high);
+    }
+    return highest;
+  }
+
+  static calculateLowestLow(candles, period) {
+    if (!Number.isInteger(period) || period <= 0) {
+      throw new Error(`[IndicatorCalculator] calculateLowestLow period must be a positive integer (got ${period})`);
+    }
+    if (!Array.isArray(candles) || candles.length < period) {
+      return null;
+    }
+
+    const slice = candles.slice(-period);
+    let lowest = Infinity;
+    for (const candle of slice) {
+      const low = _l(candle);
+      if (!Number.isFinite(low)) {
+        throw new Error('[IndicatorCalculator] calculateLowestLow received a candle with non-finite low');
+      }
+      lowest = Math.min(lowest, low);
+    }
+    return lowest;
+  }
+
+  static calculateDonchian(candles, period = 20) {
+    const upper = this.calculateHighestHigh(candles, period);
+    const lower = this.calculateLowestLow(candles, period);
+    if (upper == null || lower == null) {
+      return null;
+    }
+
+    return {
+      upper,
+      lower,
+      mid: (upper + lower) / 2,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // VWAP
   // ═══════════════════════════════════════════════════════════════════════════
 

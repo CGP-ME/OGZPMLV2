@@ -360,6 +360,11 @@ function generateMatrix(strategies, grid, phase) {
           env.ENABLE_ORB = 'true';
         }
 
+        // DonchianBreakout needs explicit enable (off by default; sweep uses opt-in env)
+        if (strat === 'DonchianBreakout') {
+          env.ENABLE_DONCHIAN = 'true';
+        }
+
         configs.push({
           name,
           strategy: strat,

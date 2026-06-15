@@ -376,7 +376,7 @@ describe('backtest worker env contract', () => {
   test('summary includes audit-relevant contract fields without full process env', () => {
     const summary = summarizeWorkerEnv(buildEnv({
       stockMode: true,
-      configEnv: { SOLO_STRATEGY: 'SmartMoneySweep', ENABLE_SMS: 'true' },
+      configEnv: { SOLO_STRATEGY: 'DonchianBreakout', ENABLE_DONCHIAN: 'true' },
     }));
 
     expect(summary).toMatchObject({
@@ -393,8 +393,8 @@ describe('backtest worker env contract', () => {
       FEE_MAKER: '0',
       FEE_SLIPPAGE: '0.0005',
       TRADING_PAIR: 'TSLA',
-      SOLO_STRATEGY: 'SmartMoneySweep',
-      ENABLE_SMS: 'true',
+      SOLO_STRATEGY: 'DonchianBreakout',
+      ENABLE_DONCHIAN: 'true',
     });
     expect(summary.PATH).toBeUndefined();
     expect(summary.HOME).toBeUndefined();
