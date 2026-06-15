@@ -346,6 +346,12 @@ class StrategyOrchestrator {
           console.log(`[DIAG] EMACrossover computed: dir=${sig.direction} conf=${(sig.confidence||0).toFixed(2)}`);
         }
         if (!sig || sig.direction === 'neutral' || !sig.direction) return null;
+        const crossoverCount = Array.isArray(sig.crossovers) ? sig.crossovers.length : 0;
+        const signalBasis = crossoverCount > 0 ? 'fresh_crossover' : 'ma_alignment';
+        const basisLabel = signalBasis === 'fresh_crossover' ? 'Crossover' : 'Alignment';
+        const triggerDetail = signalBasis === 'fresh_crossover'
+          ? `${crossoverCount} fresh cross${crossoverCount === 1 ? '' : 'es'}`
+          : 'no fresh crosses';
         diagEMA.nonNeutral++;
         let conf = sig.confidence || 0;
         if (conf < this.minStrategyConfidence) return null;
@@ -364,8 +370,8 @@ class StrategyOrchestrator {
         return {
           direction: sig.direction,
           confidence: conf,
-          reason: `EMA/SMA Crossover ${sig.direction} (${sig.crossovers?.length || 0} crosses)${fibBoost}`,
-          signalData: sig
+          reason: `EMA/SMA ${basisLabel} ${sig.direction} (${triggerDetail})${fibBoost}`,
+          signalData: { ...sig, signalBasis, crossoverCount }
         };
       }
     });
@@ -1347,6 +1353,8 @@ class StrategyOrchestrator {
           direction: r.direction,
           confidence: r.confidence,
           reason: r.reason,
+          signalBasis: r.signalData?.signalBasis || null,
+          crossoverCount: Number.isFinite(r.signalData?.crossoverCount) ? r.signalData.crossoverCount : null,
         })),
       },
     };

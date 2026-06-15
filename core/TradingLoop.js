@@ -98,6 +98,24 @@ class TradingLoop {
     return this._ledgerText(result?.strategyName || result?.name, `allResults[${index}].strategyName`);
   }
 
+  _ledgerSignalMetadata(result, index) {
+    const signalData = result?.signalData;
+    if (!signalData || typeof signalData !== 'object') return {};
+
+    const metadata = {};
+    if (Object.prototype.hasOwnProperty.call(signalData, 'signalBasis')) {
+      metadata.signalBasis = this._ledgerText(signalData.signalBasis, `allResults[${index}].signalData.signalBasis`);
+    }
+    if (Object.prototype.hasOwnProperty.call(signalData, 'crossoverCount')) {
+      const crossoverCount = Number(signalData.crossoverCount);
+      if (!Number.isInteger(crossoverCount) || crossoverCount < 0) {
+        throw new Error(`[LEDGER] allResults[${index}].signalData.crossoverCount must be a non-negative integer (got ${signalData.crossoverCount})`);
+      }
+      metadata.crossoverCount = crossoverCount;
+    }
+    return metadata;
+  }
+
   _ledgerAllResults(orchResult) {
     if (!Array.isArray(orchResult?.allResults)) {
       throw new Error('[LEDGER] orchResult.allResults missing or not an array');
@@ -118,6 +136,7 @@ class TradingLoop {
       direction: this._ledgerDirection(result?.direction, `allResults[${index}].direction`),
       baseConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
       reason: this._ledgerText(result?.reason || result?.reasons?.join('; '), `allResults[${index}].reason`),
+      ...this._ledgerSignalMetadata(result, index),
       indicatorValues: {
         rsi: indicators.rsi,
         ema20: indicators.ema20,
@@ -135,6 +154,7 @@ class TradingLoop {
       adjustedConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
       rejected: name !== winnerName,
       rejectReason: name !== winnerName ? 'Lower confidence than winner' : null,
+      ...this._ledgerSignalMetadata(result, index),
     };
   }
 
@@ -1079,6 +1099,8 @@ class TradingLoop {
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
         const allResults = this._ledgerAllResults(orchResult);
         const winnerName = this._ledgerWinnerName(orchResult);
+        const winnerIndex = allResults.findIndex((result, index) => this._ledgerStrategyName(result, index) === winnerName);
+        const winnerSignalMetadata = winnerIndex >= 0 ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
         const ledgerScope = this._patternScope(symbol);
         decision.ledgerData = {
           candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
@@ -1097,6 +1119,7 @@ class TradingLoop {
           orchestratorDecision: {
             winnerStrategy: winnerName,
             finalConfidence: confidence,
+            ...winnerSignalMetadata,
             reason: allResults.length > 1
               ? `${winnerName} (${orchResult.confidence.toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
               : `${winnerName} selected at ${orchResult.confidence.toFixed(1)}%`,
@@ -1128,6 +1151,9 @@ class TradingLoop {
         action: decision.action,
         direction: decision.direction || null,
         confidencePct: decision.confidence,
+        winner: orchResult.winnerStrategy || null,
+        signalBasis: orchResult.allResults?.find(r => r.strategyName === orchResult.winnerStrategy)?.signalData?.signalBasis || null,
+        crossoverCount: orchResult.allResults?.find(r => r.strategyName === orchResult.winnerStrategy)?.signalData?.crossoverCount ?? null,
         riskGateCount: riskGates.length,
       });
       if (isEntryAction) {
@@ -1475,6 +1501,10 @@ class TradingLoop {
   _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
     const scope = this._dashboardScope(symbol);
     const dashboardIndicators = this._dashboardIndicatorsPayload(indicators);
+    const winnerResult = Array.isArray(orchResult?.allResults)
+      ? orchResult.allResults.find(r => r.strategyName === orchResult.winnerStrategy)
+      : null;
+    const winnerSignalData = winnerResult?.signalData || {};
 
     // Signal analysis broadcast
     const signals = orchResult?.signalBreakdown?.signals || [];
@@ -1491,7 +1521,15 @@ class TradingLoop {
         signals
       },
       modules: {
-        orchestrator: orchResult ? { winner: orchResult.winnerStrategy, direction: orchResult.direction, confidence: orchResult.confidence, confluence: orchResult.confluence, sizingMultiplier: orchResult.sizingMultiplier } : null,
+        orchestrator: orchResult ? {
+          winner: orchResult.winnerStrategy,
+          direction: orchResult.direction,
+          confidence: orchResult.confidence,
+          confluence: orchResult.confluence,
+          sizingMultiplier: orchResult.sizingMultiplier,
+          signalBasis: winnerSignalData.signalBasis || null,
+          crossoverCount: winnerSignalData.crossoverCount ?? null,
+        } : null,
         regime: { regime: regime?.currentRegime || 'unknown', confidence: regime?.confidence || 0 }
       }
     });
@@ -1538,7 +1576,9 @@ class TradingLoop {
               realName: s.name,
               name: labelOf(s.name),
               confidence: fired ? fired.confidence : 0,
-              direction: fired ? (fired.direction || 'hold') : 'hold'
+              direction: fired ? (fired.direction || 'hold') : 'hold',
+              signalBasis: fired?.signalData?.signalBasis || null,
+              crossoverCount: fired?.signalData?.crossoverCount ?? null
             };
           })
           .sort((a, b) => b.confidence - a.confidence);
