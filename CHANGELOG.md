@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### P0 Latest Report Pointer (2026-06-16)
+
+- Changed `multi-runtime-gate-runner` to write `ogz-meta/gates/runs/multi-runtime-latest.json` after every actual gate run, so `--p0` cannot leave the latest pointer stale unless no gate ran.
+- Added focused coverage proving P0 gate selection writes the latest report without requiring `--write-report`, while list/no-gate paths remain non-mutating.
+
 ### Trade Journal Partial Exit Lifecycle (2026-06-16)
 
 - Changed `TradeJournal.recordExit()` to require explicit exit notional and record each partial-exit leg without deleting the open journal entry until the remaining exposure reaches zero.

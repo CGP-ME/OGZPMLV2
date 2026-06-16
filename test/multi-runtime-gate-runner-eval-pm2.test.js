@@ -2,6 +2,8 @@
 
 const {
   buildGateContext,
+  maybeWriteReport,
+  P0_GATE_ID,
   pm2ProcessName,
   runGate,
   selectedGates,
@@ -71,5 +73,43 @@ describe('multi-runtime gate runner eval PM2 context', () => {
 
     expect(evalResult.detail).toEqual({ env: 'paper', source: 'pm2:ogz-prime-v2' });
     expect(scopeResult.detail).toEqual({ ok: true });
+  });
+
+  test('writes latest report for actual gate runs without requiring --write-report', () => {
+    const gates = selectedGates(['--p0']);
+    expect(gates.map((gate) => gate.id)).toEqual([P0_GATE_ID]);
+    const report = {
+      generatedAt: '2026-06-16T00:00:00.000Z',
+      branch: null,
+      gates: [{
+        id: gates[0].id,
+        layer: gates[0].layer,
+        status: 'PASS',
+      }],
+    };
+    const writtenReports = [];
+    const logLines = [];
+
+    const wrote = maybeWriteReport(report, {
+      writeReport: (candidate) => writtenReports.push(candidate),
+      logger: (line) => logLines.push(line),
+    });
+
+    expect(wrote).toBe(true);
+    expect(writtenReports).toEqual([report]);
+    expect(logLines).toHaveLength(1);
+    expect(logLines[0]).toMatch(/multi-runtime-latest\.json/);
+  });
+
+  test('does not write a latest report when no gate ran', () => {
+    const writtenReports = [];
+
+    const wrote = maybeWriteReport({ generatedAt: '2026-06-16T00:00:00.000Z', gates: [] }, {
+      writeReport: (candidate) => writtenReports.push(candidate),
+      logger: () => {},
+    });
+
+    expect(wrote).toBe(false);
+    expect(writtenReports).toEqual([]);
   });
 });

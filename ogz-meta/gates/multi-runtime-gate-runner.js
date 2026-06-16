@@ -20,6 +20,8 @@ const EXPECTED_P0 = Object.freeze({
   profitFactor: 1.15
 });
 
+const P0_GATE_ID = 'p0.single_lane.tsla_ema_anchor';
+
 const P0_TIER_FRACTION_CAPS = Object.freeze({
   profit_tier_1: 0.30,
   profit_tier_2: 0.30,
@@ -392,7 +394,7 @@ const GATES = [
     )
   },
   {
-    id: 'p0.single_lane.tsla_ema_anchor',
+    id: P0_GATE_ID,
     layer: 'p0',
     description: 'Canonical TSLA 2-year EMASMACrossover single-lane regression anchor.',
     run: async () => {
@@ -1424,7 +1426,7 @@ function selectedGates(argv) {
   if (runScope) {
     for (const gate of GATES.filter((g) => g.layer === 'scope')) selected.add(gate.id);
   }
-  if (runP0Gate) selected.add('p0.single_lane.tsla_ema_anchor');
+  if (runP0Gate) selected.add(P0_GATE_ID);
 
   if (selected.size === 0) return [];
 
@@ -1500,6 +1502,18 @@ function writeReport(report) {
   fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
+function maybeWriteReport(report, deps = {}) {
+  if (!report || !Array.isArray(report.gates) || report.gates.length === 0) {
+    return false;
+  }
+
+  const writer = deps.writeReport || writeReport;
+  const logger = deps.logger || console.log;
+  writer(report);
+  logger(`Report written: ${REPORT_PATH}`);
+  return true;
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.includes('--list') || argv.length === 0) {
@@ -1535,10 +1549,7 @@ async function main() {
     gates: results
   };
 
-  if (argv.includes('--write-report')) {
-    writeReport(report);
-    console.log(`Report written: ${REPORT_PATH}`);
-  }
+  maybeWriteReport(report);
 
   if (results.some((result) => result.status !== 'PASS')) {
     process.exitCode = 1;
@@ -1556,6 +1567,8 @@ module.exports = {
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts,
   buildGateContext,
+  maybeWriteReport,
+  P0_GATE_ID,
   pm2ProcessName,
   runGate,
   selectedGates,
