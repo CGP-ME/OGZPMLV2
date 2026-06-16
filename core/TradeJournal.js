@@ -122,6 +122,39 @@ function usdValueTolerance(sizeUsd) {
   return Math.max(0.01, sizeUsd * 0.000001);
 }
 
+function remainingLifecycleTolerance(sizeUsd) {
+  const n = positiveNumberOrNull(sizeUsd) ?? 1;
+  return Math.max(Number.EPSILON * Math.max(1, n), n * 1e-12);
+}
+
+function exitNotionalOrNull(exit) {
+  return positiveNumberOrNull(
+    exit?.size ?? exit?.sizeUsd ?? exit?.usdValue ?? exit?.exitSize
+  );
+}
+
+function ledgerExitNotionalOrNull(exit) {
+  return positiveNumberOrNull(
+    exit?.usdValue ?? exit?.sizeUsd ?? exit?.exitSize ?? exit?.size
+  );
+}
+
+function exitNotionalConflictOrNull(exit, expectedNotional, options = {}) {
+  const expected = positiveNumberOrNull(expectedNotional);
+  if (expected === null) return null;
+  const tolerance = usdValueTolerance(expected);
+  const fields = options.includeLegacySize === false
+    ? ['usdValue', 'sizeUsd', 'exitSize']
+    : ['size', 'sizeUsd', 'usdValue', 'exitSize'];
+  for (const field of fields) {
+    const value = positiveNumberOrNull(exit?.[field]);
+    if (value !== null && Math.abs(value - expected) > tolerance) {
+      return { field, value, expected };
+    }
+  }
+  return null;
+}
+
 class TradeJournal {
   constructor(config = {}) {
     // ── Storage paths ──────────────────────────────────────────────────
@@ -301,19 +334,21 @@ class TradeJournal {
     const side = tradeSideOrNull(direction);
     const entryPrice = positiveNumberOrNull(entry.entryPrice);
     const exitPrice = positiveNumberOrNull(exit?.exitPrice);
-    const size = positiveNumberOrNull(entry.size);
-    const usdValue = positiveNumberOrNull(entry.usdValue);
+    const openSize = positiveNumberOrNull(entry.size);
+    const openUsdValue = positiveNumberOrNull(entry.usdValue);
     const grossPnl = finiteNumberOrNull(exit?.pnl);
     const entryFees = nonNegativeNumberOrNull(entry.fees);
     const exitFees = nonNegativeNumberOrNull(exit?.fees);
     const exitReason = nonEmptyStringOrNull(exit?.reason);
     const holdTime = nonNegativeNumberOrNull(now - entry.timestamp);
+    const exitUsdValue = exitNotionalOrNull(exit);
 
     if (!direction || !side) missing.push('direction');
     if (entryPrice === null) missing.push('entryPrice');
     if (exitPrice === null) missing.push('exitPrice');
-    if (size === null) missing.push('size');
-    if (usdValue === null) missing.push('usdValue');
+    if (openSize === null) missing.push('size');
+    if (openUsdValue === null) missing.push('usdValue');
+    if (exitUsdValue === null) missing.push('exitSize');
     if (grossPnl === null) missing.push('pnl');
     if (entryFees === null) missing.push('entryFees');
     if (exitFees === null) missing.push('fees');
@@ -325,16 +360,34 @@ class TradeJournal {
       return null;
     }
 
-    const expectedGross = expectedGrossPnl(entryPrice, exitPrice, usdValue, side);
-    const tolerance = pnlTolerance(expectedGross, usdValue);
+    const notionalTolerance = usdValueTolerance(openUsdValue);
+    const notionalConflict = exitNotionalConflictOrNull(exit, exitUsdValue);
+    if (notionalConflict) {
+      console.warn(`[TradeJournal] Refusing exit for ${orderId}; exit notional field ${notionalConflict.field}=${notionalConflict.value.toFixed(6)} conflicts with selected exit size ${notionalConflict.expected.toFixed(6)}`);
+      return null;
+    }
+    if (exitUsdValue - openUsdValue > notionalTolerance) {
+      console.warn(`[TradeJournal] Refusing exit for ${orderId}; exit size ${exitUsdValue.toFixed(6)} exceeds open journal size ${openUsdValue.toFixed(6)}`);
+      return null;
+    }
+
+    const effectiveExitUsdValue = Math.min(exitUsdValue, openUsdValue);
+    const remainingUsdValue = Math.max(0, openUsdValue - effectiveExitUsdValue);
+    const exitFraction = effectiveExitUsdValue / openUsdValue;
+    const isPartialExit = remainingUsdValue > remainingLifecycleTolerance(openUsdValue);
+    const entryFeesForExit = entryFees * exitFraction;
+    const remainingEntryFees = isPartialExit ? Math.max(0, entryFees - entryFeesForExit) : 0;
+
+    const expectedGross = expectedGrossPnl(entryPrice, exitPrice, effectiveExitUsdValue, side);
+    const tolerance = pnlTolerance(expectedGross, effectiveExitUsdValue);
     if (Math.abs(grossPnl - expectedGross) > tolerance) {
       console.warn(`[TradeJournal] Refusing exit for ${orderId}; supplied pnl ${grossPnl.toFixed(6)} does not match ${side} price movement ${expectedGross.toFixed(6)}`);
       return null;
     }
 
-    const totalFees = entryFees + exitFees;
+    const totalFees = entryFeesForExit + exitFees;
     const netPnl = grossPnl - totalFees;
-    const pnlPercent = netPnl / usdValue * 100;
+    const pnlPercent = netPnl / effectiveExitUsdValue * 100;
     const balanceAfter = this.stats.currentBalance + netPnl;
 
     const completedTrade = {
@@ -344,8 +397,16 @@ class TradeJournal {
       direction,
       entryPrice,
       exitPrice,
-      size,
-      usdValue,
+      size: effectiveExitUsdValue,
+      usdValue: effectiveExitUsdValue,
+      originalOpenSize: openSize,
+      originalOpenUsdValue: openUsdValue,
+      exitFraction,
+      partialExit: isPartialExit,
+      remainingSize: isPartialExit ? remainingUsdValue : 0,
+      remainingUsdValue: isPartialExit ? remainingUsdValue : 0,
+      entryFeesAllocated: entryFeesForExit,
+      remainingEntryFees,
       grossPnl,
       fees: totalFees,
       netPnl,
@@ -373,8 +434,19 @@ class TradeJournal {
       this.trades = this.trades.slice(-this.config.maxInMemoryTrades);
     }
 
-    // ── Remove from open trades ───────────────────────────────────────
-    this.openTrades.delete(exit.orderId);
+    // ── Update open trade lifecycle ───────────────────────────────────
+    if (isPartialExit) {
+      this.openTrades.set(orderId, {
+        ...entry,
+        size: remainingUsdValue,
+        usdValue: remainingUsdValue,
+        fees: remainingEntryFees,
+        partialExitCount: (nonNegativeIntegerOrNull(entry.partialExitCount) ?? 0) + 1,
+        lastPartialExitAt: now,
+      });
+    } else {
+      this.openTrades.delete(orderId);
+    }
 
     // ── Update equity curve ───────────────────────────────────────────
     this._recordEquityPoint(completedTrade);
@@ -1195,9 +1267,55 @@ class TradeJournal {
           if (!entries.has(orderId)) {
             throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT has no matching open ENTRY for orderId ${orderId}`);
           }
-          this.trades.push(record);
-          this.openTrades.delete(record.orderId);
-          entries.delete(record.orderId);
+          const entry = entries.get(orderId);
+          const exitUsdValue = ledgerExitNotionalOrNull(record);
+          const entryUsdValue = positiveNumberOrNull(entry?.usdValue);
+          if (exitUsdValue === null || entryUsdValue === null) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT missing positive notional`);
+          }
+          const notionalConflict = exitNotionalConflictOrNull(record, exitUsdValue, { includeLegacySize: false });
+          if (notionalConflict) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT notional field ${notionalConflict.field} conflicts with selected exit size`);
+          }
+          const canonicalExitRecord = {
+            ...record,
+            size: positiveNumberOrNull(record.size) ?? exitUsdValue,
+            usdValue: positiveNumberOrNull(record.usdValue) ?? exitUsdValue,
+          };
+          this.trades.push(canonicalExitRecord);
+          const remainingFromRecord = finiteNumberOrNull(record.remainingUsdValue ?? record.remainingSize);
+          const tolerance = usdValueTolerance(entryUsdValue);
+          const lifecycleTolerance = remainingLifecycleTolerance(entryUsdValue);
+          if (remainingFromRecord !== null) {
+            const expectedRemaining = Math.max(0, entryUsdValue - exitUsdValue);
+            if (remainingFromRecord < -tolerance || Math.abs(Math.max(0, remainingFromRecord) - expectedRemaining) > tolerance) {
+              throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT remaining notional does not match open entry`);
+            }
+            if (remainingFromRecord > lifecycleTolerance) {
+              const remainingEntry = {
+                ...entry,
+                size: remainingFromRecord,
+                usdValue: remainingFromRecord,
+                fees: nonNegativeNumberOrNull(record.remainingEntryFees) ?? (
+                  nonNegativeNumberOrNull(entry.fees) !== null
+                    ? entry.fees * (remainingFromRecord / entryUsdValue)
+                    : entry.fees
+                ),
+                partialExitCount: (nonNegativeIntegerOrNull(entry.partialExitCount) ?? 0) + 1,
+                lastPartialExitAt: nonNegativeNumberOrNull(canonicalExitRecord.timestamp) ?? entry.lastPartialExitAt,
+              };
+              entries.set(orderId, remainingEntry);
+              this.openTrades.set(orderId, remainingEntry);
+            } else {
+              this.openTrades.delete(orderId);
+              entries.delete(orderId);
+            }
+          } else if (entryUsdValue - exitUsdValue > tolerance) {
+            throw new Error(`[TRADE-JOURNAL-SCOPE] TradeJournal ledger line ${index + 1} EXIT is partial-sized but missing remaining journal state`);
+          } else {
+            this.openTrades.delete(orderId);
+            entries.delete(orderId);
+          }
         } else if (record.event === 'OPEN_TRADE_RECONCILED') {
           this._assertLedgerRecordScope(record, index + 1);
           const orderId = nonEmptyStringOrNull(record.orderId);

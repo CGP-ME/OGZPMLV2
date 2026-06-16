@@ -225,6 +225,7 @@ function normalizeClosedTradeRecord(exitRecord) {
   if (pnl == null) missing.push('pnl');
   if (holdTime == null) missing.push('holdTime');
   if (!reason) missing.push('reason');
+  if (size == null) missing.push('size');
 
   return {
     ok: missing.length === 0,
@@ -253,6 +254,7 @@ function closedTradeLogKey(data) {
     data.exitPrice,
     data.pnl,
     data.holdTime,
+    data.size,
   ].join('|');
 }
 

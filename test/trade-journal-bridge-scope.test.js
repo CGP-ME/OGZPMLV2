@@ -998,6 +998,59 @@ describe('TradeJournalBridge scoped storage', () => {
     }
   });
 
+  test('does not dedupe distinct partial close legs that differ by size', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const bridge = {
+      bot: {
+        stateManager: {
+          get: jest.fn((key) => key === 'balance' ? 10050 : null),
+        },
+        priceHistory: [],
+      },
+      journal: {
+        recordExit: jest.fn(() => ({ orderId: 'ORDER-PARTIAL-KEY' })),
+      },
+      replay: {
+        captureExit: jest.fn(() => '/tmp/replay.json'),
+      },
+      _pushTradeClosedNotification: jest.fn(),
+      _closedTradeLogKeySet: new Set(),
+      _closedTradeLogKeys: [],
+    };
+    const baseRecord = {
+      type: 'SELL',
+      orderId: 'ORDER-PARTIAL-KEY',
+      direction: 'long',
+      entryPrice: 100,
+      exitPrice: 105,
+      pnl: 5,
+      pnlPercent: 5,
+      reason: 'tier_exit',
+      holdTime: 60000,
+    };
+
+    expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+      ...baseRecord,
+      size: 100,
+    }, 'bot.logTrade')).toBe(true);
+    expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+      ...baseRecord,
+      size: 50,
+    }, 'bot.logTrade')).toBe(true);
+
+    expect(bridge.journal.recordExit).toHaveBeenCalledTimes(2);
+    expect(bridge.journal.recordExit).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      orderId: 'ORDER-PARTIAL-KEY',
+      size: 100,
+    }));
+    expect(bridge.journal.recordExit).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      orderId: 'ORDER-PARTIAL-KEY',
+      size: 50,
+    }));
+    expect(bridge.replay.captureExit).toHaveBeenCalledTimes(2);
+    expect(bridge._pushTradeClosedNotification).toHaveBeenCalledTimes(2);
+  });
+
   test('records durable visibility failure when entry journal refuses a trade', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const visibilityFailurePath = tempVisibilityFailurePath();
@@ -1102,12 +1155,59 @@ describe('TradeJournalBridge scoped storage', () => {
         source: 'test.logTrade',
         orderId: 'ORDER-VIS-2',
         action: 'SELL',
-        missing: ['exitPrice'],
+        missing: ['exitPrice', 'size'],
         visibilityLedgerPersisted: true,
       });
       expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
         type: 'trade_visibility_error',
         data: expect.objectContaining({ eventType: 'closed_trade_record_incomplete', orderId: 'ORDER-VIS-2' }),
+      }));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('records durable visibility failure when close record omits explicit size', () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const visibilityFailurePath = tempVisibilityFailurePath();
+    const bridge = {
+      journal: {
+        scope: { executionMode: 'paper', brokerId: 'kraken', accountId: 'default', assetClass: 'crypto', symbol: 'BTC-USD', timeframe: '1m' },
+      },
+      visibilityFailurePath,
+      _send: jest.fn(),
+    };
+
+    try {
+      expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
+        type: 'SELL',
+        orderId: 'ORDER-VIS-MISSING-SIZE',
+        direction: 'long',
+        entryPrice: 100,
+        exitPrice: 105,
+        pnl: 5,
+        reason: 'tier_exit',
+        holdTime: 60000,
+      }, 'test.logTrade')).toBe(false);
+
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        type: 'trade_visibility_failure',
+        eventType: 'closed_trade_record_incomplete',
+        phase: 'exit',
+        source: 'test.logTrade',
+        orderId: 'ORDER-VIS-MISSING-SIZE',
+        action: 'SELL',
+        missing: ['size'],
+        visibilityLedgerPersisted: true,
+      });
+      expect(bridge._send).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'trade_visibility_error',
+        data: expect.objectContaining({
+          eventType: 'closed_trade_record_incomplete',
+          orderId: 'ORDER-VIS-MISSING-SIZE',
+        }),
       }));
     } finally {
       warnSpy.mockRestore();

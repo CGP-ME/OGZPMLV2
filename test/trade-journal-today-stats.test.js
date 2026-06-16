@@ -341,6 +341,71 @@ describe('TradeJournal today stats', () => {
     journal.destroy();
   });
 
+  test('refuses direct exits without explicit exit size instead of assuming full close', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.recordEntry(validEntry({
+      orderId: 'ORDER-MISSING-EXIT-SIZE',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 500,
+      usdValue: 500,
+      fees: 0,
+    }));
+
+    const result = journal.recordExit({
+      orderId: 'ORDER-MISSING-EXIT-SIZE',
+      exitPrice: 110,
+      pnl: 20,
+      fees: 0,
+      reason: 'tier_1',
+    });
+
+    expect(result).toBeNull();
+    expect(journal.openTrades.get('ORDER-MISSING-EXIT-SIZE')).toEqual(expect.objectContaining({
+      size: 500,
+      usdValue: 500,
+    }));
+    expect(journal.trades).toHaveLength(0);
+    expect(journal.getStats().totalTrades).toBe(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('missing field(s): exitSize'));
+
+    journal.destroy();
+  });
+
+  test('refuses direct exits with conflicting notional aliases', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+    journal.recordEntry(validEntry({
+      orderId: 'ORDER-CONFLICTING-EXIT-SIZE',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 500,
+      usdValue: 500,
+      fees: 0,
+    }));
+
+    const result = journal.recordExit({
+      orderId: 'ORDER-CONFLICTING-EXIT-SIZE',
+      exitPrice: 110,
+      sizeUsd: 200,
+      usdValue: 210,
+      pnl: 20,
+      fees: 0,
+      reason: 'tier_1',
+    });
+
+    expect(result).toBeNull();
+    expect(journal.openTrades.get('ORDER-CONFLICTING-EXIT-SIZE')).toEqual(expect.objectContaining({
+      size: 500,
+      usdValue: 500,
+    }));
+    expect(journal.trades).toHaveLength(0);
+    expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('exit notional field usdValue=210.000000 conflicts'));
+
+    journal.destroy();
+  });
+
   test('throws on exit ledger append failure before mutating closed state', () => {
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());
@@ -359,6 +424,7 @@ describe('TradeJournal today stats', () => {
       expect(() => journal.recordExit({
         orderId: 'EXIT-APPEND-FAIL',
         exitPrice: 110,
+        size: 100,
         pnl: 10,
         fees: 0,
         reason: 'manual',
@@ -423,6 +489,7 @@ describe('TradeJournal today stats', () => {
     const closed = journal.recordExit({
       orderId: 'DUP-ENTRY',
       exitPrice: 110,
+      size: 100,
       pnl: 10,
       fees: 0,
       reason: 'manual',
@@ -460,6 +527,7 @@ describe('TradeJournal today stats', () => {
     const result = journal.recordExit({
       orderId: 'BAD-PNL',
       exitPrice: 100,
+      size: 100,
       pnl: 1000,
       fees: 0,
       reason: 'manual',
@@ -471,6 +539,247 @@ describe('TradeJournal today stats', () => {
     expect(consoleSpies[1]).toHaveBeenCalledWith(expect.stringContaining('does not match long price movement'));
 
     journal.destroy();
+  });
+
+  test('records partial exit legs without deleting the open journal entry before final close', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    journal.recordEntry(validEntry({
+      orderId: 'PARTIAL-LONG',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 500,
+      usdValue: 500,
+      fees: 0,
+    }));
+
+    const firstLeg = journal.recordExit({
+      orderId: 'PARTIAL-LONG',
+      exitPrice: 110,
+      size: 200,
+      pnl: 20,
+      fees: 0,
+      reason: 'tier_1',
+    });
+    const secondLeg = journal.recordExit({
+      orderId: 'PARTIAL-LONG',
+      exitPrice: 90,
+      size: 150,
+      pnl: -15,
+      fees: 0,
+      reason: 'tier_2',
+    });
+    const finalLeg = journal.recordExit({
+      orderId: 'PARTIAL-LONG',
+      exitPrice: 120,
+      size: 150,
+      pnl: 30,
+      fees: 0,
+      reason: 'final_exit',
+    });
+
+    expect(firstLeg).toEqual(expect.objectContaining({
+      orderId: 'PARTIAL-LONG',
+      size: 200,
+      usdValue: 200,
+      exitFraction: 0.4,
+      partialExit: true,
+      remainingUsdValue: 300,
+      netPnl: 20,
+    }));
+    expect(secondLeg).toEqual(expect.objectContaining({
+      size: 150,
+      usdValue: 150,
+      exitFraction: 0.5,
+      partialExit: true,
+      remainingUsdValue: 150,
+      netPnl: -15,
+    }));
+    expect(finalLeg).toEqual(expect.objectContaining({
+      size: 150,
+      usdValue: 150,
+      exitFraction: 1,
+      partialExit: false,
+      remainingUsdValue: 0,
+      netPnl: 30,
+    }));
+    expect(journal.openTrades.has('PARTIAL-LONG')).toBe(false);
+    expect(journal.trades).toHaveLength(3);
+    expect(journal.getSnapshot()).toEqual(expect.objectContaining({
+      totalTrades: 3,
+      openPositions: 0,
+      netPnl: 35,
+      currentBalance: 1035,
+    }));
+
+    journal.destroy();
+  });
+
+  test('rebuilds partial exit journal state from ledger without flattening remaining exposure', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    journal.recordEntry(validEntry({
+      orderId: 'PARTIAL-REBUILD',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 500,
+      usdValue: 500,
+      fees: 0,
+    }));
+    const leg = journal.recordExit({
+      orderId: 'PARTIAL-REBUILD',
+      exitPrice: 110,
+      size: 200,
+      pnl: 20,
+      fees: 0,
+      reason: 'tier_1',
+    });
+    expect(leg).toEqual(expect.objectContaining({
+      partialExit: true,
+      remainingUsdValue: 300,
+    }));
+    expect(journal.openTrades.get('PARTIAL-REBUILD')).toEqual(expect.objectContaining({
+      size: 300,
+      usdValue: 300,
+    }));
+    journal.destroy();
+
+    const rebuilt = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    expect(rebuilt.trades).toHaveLength(1);
+    expect(rebuilt.openTrades.get('PARTIAL-REBUILD')).toEqual(expect.objectContaining({
+      size: 300,
+      usdValue: 300,
+    }));
+    expect(rebuilt.getSnapshot()).toEqual(expect.objectContaining({
+      totalTrades: 1,
+      openPositions: 1,
+      netPnl: 20,
+      currentBalance: 1020,
+    }));
+
+    rebuilt.destroy();
+  });
+
+  test('keeps explicit sizeUsd-only sub-cent remaining notional instead of treating it as fully closed', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    journal.recordEntry(validEntry({
+      orderId: 'TINY-REMAINDER',
+      direction: 'BUY',
+      entryPrice: 100,
+      size: 0.5,
+      usdValue: 0.5,
+      fees: 0,
+    }));
+
+    const leg = journal.recordExit({
+      orderId: 'TINY-REMAINDER',
+      exitPrice: 110,
+      sizeUsd: 0.491,
+      pnl: 0.0491,
+      fees: 0,
+      reason: 'tiny_partial',
+    });
+
+    expect(leg).toEqual(expect.objectContaining({
+      partialExit: true,
+    }));
+    expect(leg.remainingUsdValue).toBeCloseTo(0.009);
+    expect(journal.openTrades.get('TINY-REMAINDER').size).toBeCloseTo(0.009);
+    expect(journal.openTrades.get('TINY-REMAINDER').usdValue).toBeCloseTo(0.009);
+
+    journal.destroy();
+
+    const rebuilt = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+    expect(rebuilt.openTrades.get('TINY-REMAINDER').size).toBeCloseTo(0.009);
+    expect(rebuilt.openTrades.get('TINY-REMAINDER').usdValue).toBeCloseTo(0.009);
+
+    rebuilt.destroy();
+  });
+
+  test('rebuilds sizeUsd-only partial exit ledger records into canonical size and remaining exposure', () => {
+    writeLedger([
+      oldEntry({
+        orderId: 'PARTIAL-SIZEUSD-REBUILD',
+        direction: 'BUY',
+        entryPrice: 100,
+        size: 500,
+        usdValue: 500,
+        fees: 0,
+        timestamp: Date.parse('2026-05-27T11:58:00.000Z'),
+      }),
+      oldExit({
+        orderId: 'PARTIAL-SIZEUSD-REBUILD',
+        entryPrice: 100,
+        exitPrice: 110,
+        size: undefined,
+        usdValue: undefined,
+        sizeUsd: 200,
+        grossPnl: 20,
+        netPnl: 20,
+        pnlPercent: 10,
+        remainingUsdValue: 300,
+        remainingSize: 300,
+        remainingEntryFees: 0,
+        balanceAfter: 1020,
+        timestamp: Date.parse('2026-05-27T11:59:00.000Z'),
+        entryTime: Date.parse('2026-05-27T11:58:00.000Z'),
+      }),
+    ]);
+
+    const TradeJournal = require('../core/TradeJournal');
+    const rebuilt = new TradeJournal(journalConfig({ startingBalance: 1000 }));
+
+    expect(rebuilt.trades).toHaveLength(1);
+    expect(rebuilt.trades[0]).toEqual(expect.objectContaining({
+      orderId: 'PARTIAL-SIZEUSD-REBUILD',
+      size: 200,
+      usdValue: 200,
+      sizeUsd: 200,
+    }));
+    expect(rebuilt.openTrades.get('PARTIAL-SIZEUSD-REBUILD')).toEqual(expect.objectContaining({
+      size: 300,
+      usdValue: 300,
+    }));
+    expect(rebuilt.getSnapshot()).toEqual(expect.objectContaining({
+      totalTrades: 1,
+      openPositions: 1,
+      netPnl: 20,
+      currentBalance: 1020,
+    }));
+
+    rebuilt.destroy();
+  });
+
+  test('refuses to rebuild ledger exits with conflicting notional aliases', () => {
+    writeLedger([
+      oldEntry({
+        orderId: 'PARTIAL-CONFLICT-REBUILD',
+        direction: 'BUY',
+        entryPrice: 100,
+        size: 500,
+        usdValue: 500,
+        fees: 0,
+      }),
+      oldExit({
+        orderId: 'PARTIAL-CONFLICT-REBUILD',
+        entryPrice: 100,
+        exitPrice: 110,
+        sizeUsd: 200,
+        usdValue: 210,
+        grossPnl: 20,
+        netPnl: 20,
+        pnlPercent: 10,
+        remainingUsdValue: 300,
+        remainingSize: 300,
+        remainingEntryFees: 0,
+      }),
+    ]);
+
+    const TradeJournal = require('../core/TradeJournal');
+
+    expect(() => new TradeJournal(journalConfig({ startingBalance: 1000 })))
+      .toThrow(/EXIT notional field sizeUsd conflicts with selected exit size/);
   });
 
   test('refuses duplicate ledger entries and exit-only ledger records on rebuild', () => {
@@ -503,6 +812,7 @@ describe('TradeJournal today stats', () => {
     const accepted = journal.recordExit({
       orderId: 'FLAT-DIRECT',
       exitPrice: 100,
+      size: 25,
       pnl: 0,
       fees: 0,
       reason: 'manual',
@@ -544,6 +854,7 @@ describe('TradeJournal today stats', () => {
     const accepted = journal.recordExit({
       orderId: 'ZERO-BALANCE',
       exitPrice: 1,
+      size: 100,
       pnl: -99,
       fees: 1,
       reason: 'manual',
@@ -578,6 +889,7 @@ describe('TradeJournal today stats', () => {
     const accepted = journal.recordExit({
       orderId: 'BALANCE-INJECTION',
       exitPrice: 100,
+      size: 100,
       pnl: 0,
       fees: 0,
       reason: 'manual',

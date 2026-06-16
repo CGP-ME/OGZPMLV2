@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Partial Exit Lifecycle (2026-06-16)
+
+- Changed `TradeJournal.recordExit()` to require explicit exit notional and record each partial-exit leg without deleting the open journal entry until the remaining exposure reaches zero.
+- Added restart-safe ledger rebuild handling for partial exits, including canonical rebuild of `sizeUsd`/`exitSize` notional aliases and fail-loud rejection of contradictory notional fields.
+- Changed `TradeJournalBridge` close replay dedupe keys to include exit leg size so distinct partial legs are not collapsed as duplicate close records.
+- Added focused coverage for live partial leg sequencing, rebuild after partial exit, missing exit-size rejection, alias conflict rejection, sizeUsd-only rebuild, sub-cent remaining exposure, and bridge partial-leg dedupe.
+
 ### Fee Model Per-Share Minimum (2026-06-15)
 
 - Added a config-owned `FeeModel` with percent and per-share minimum modes so TTP stock eval fees can charge the per-order minimum instead of approximating with stale percentage math.
