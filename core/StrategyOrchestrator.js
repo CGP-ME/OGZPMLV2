@@ -209,7 +209,10 @@ class StrategyOrchestrator {
     // Each strategy owns its signal computation — no ctx.extras handoff
     this.emaCrossoverModule = new EMASMACrossoverSignal();
     this.maDynamicSRModule = new MADynamicSR();
-    this.liquiditySweepModule = new LiquiditySweepDetector({ disableSessionCheck: true });
+    this.liquiditySweepModule = new LiquiditySweepDetector({
+      ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
+      disableSessionCheck: true,
+    });
     const BreakAndRetest = require('../modules/BreakAndRetest');
     this.breakAndRetestModule = new BreakAndRetest();
     const NoWickImbalance = require('../modules/NoWickImbalance');

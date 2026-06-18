@@ -20,10 +20,32 @@
 
 const { c, o, h, l, v, t } = require('../core/CandleHelper');
 
+function positiveConfigNumber(config, key, defaultValue) {
+  if (!Object.prototype.hasOwnProperty.call(config, key) || config[key] == null) {
+    return defaultValue;
+  }
+
+  const value = Number(config[key]);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`[LiquiditySweep] ${key} must be a finite positive number; got ${config[key]}`);
+  }
+  return value;
+}
+
 class LiquiditySweepDetector {
+  #dailyATR = null;
+
   constructor(config = {}) {
-    this.config = {
-      atrMultiplier: config.atrMultiplier || 0.25,
+    const weights = Object.freeze({
+      manipCandle:   config.weights?.manipCandle   || 0.20,
+      wickSweep:     config.weights?.wickSweep     || 0.15,
+      sweepReject:   config.weights?.sweepReject   || 0.15,
+      hammerPattern: config.weights?.hammerPattern  || 0.25,
+      engulfPattern: config.weights?.engulfPattern  || 0.25,
+    });
+
+    this.config = Object.freeze({
+      atrMultiplier: positiveConfigNumber(config, 'atrMultiplier', 0.25),
       atrPeriod: config.atrPeriod || 14,
       entryWindowMinutes: config.entryWindowMinutes || 90,
       openingRangeMinutes: config.openingRangeMinutes || 15,
@@ -33,17 +55,11 @@ class LiquiditySweepDetector {
       stopBufferPct: config.stopBufferPct || 0.05,
       sweepMinExtensionPct: config.sweepMinExtensionPct || 0.05,
       sweepLookbackBars: config.sweepLookbackBars || 20,
-      weights: {
-        manipCandle:   config.weights?.manipCandle   || 0.20,
-        wickSweep:     config.weights?.wickSweep     || 0.15,
-        sweepReject:   config.weights?.sweepReject   || 0.15,
-        hammerPattern: config.weights?.hammerPattern  || 0.25,
-        engulfPattern: config.weights?.engulfPattern  || 0.25,
-      },
+      weights,
       sessionOpenHour: config.sessionOpenHour ?? 14,
       sessionOpenMinute: config.sessionOpenMinute ?? 30,
       disableSessionCheck: config.disableSessionCheck || false,
-    };
+    });
 
     this._candleIntervalMs = null;
     this._candleIntervalMin = null;
@@ -75,7 +91,6 @@ class LiquiditySweepDetector {
       phase: initialPhase,
       sessionDate: null,
       dailyCandles: this.state?.dailyCandles || [],
-      dailyATR: this.state?.dailyATR || null,
       manipThreshold: this.state?.manipThreshold || null,
       box: null,
       priorHighs: this.state?.priorHighs || [],
@@ -86,8 +101,36 @@ class LiquiditySweepDetector {
       prevBar: null,
       signal: null,
     };
+    this._installStateAccessors();
     this._openingCandleFed = false;
     this._openingBuffer = [];
+  }
+
+  _installStateAccessors() {
+    Object.defineProperty(this.state, 'dailyATR', {
+      enumerable: true,
+      configurable: false,
+      get: () => this.#dailyATR,
+      set: () => {
+        throw new Error('[LiquiditySweep] state.dailyATR is read-only; ATR must come from detector candle history');
+      },
+    });
+  }
+
+  #setDailyATR(value) {
+    if (value == null) {
+      this.#dailyATR = null;
+      this.state.manipThreshold = null;
+      return;
+    }
+
+    const atr = Number(value);
+    if (!Number.isFinite(atr) || atr <= 0) {
+      throw new Error(`[LiquiditySweep] computed dailyATR must be a finite positive number; got ${value}`);
+    }
+
+    this.#dailyATR = atr;
+    this.state.manipThreshold = this.config.atrMultiplier * atr;
   }
 
   _detectInterval(candle) {
@@ -232,22 +275,25 @@ class LiquiditySweepDetector {
     // CRIT-09/CRIT-10 carry the only volatility gate. Now: when dailyATR is
     // missing (warmup), skip detection by ending the phase. When present,
     // require range >= atrMultiplier * dailyATR to qualify as a manip candle.
-    if (!Number.isFinite(this.state.dailyATR) || this.state.dailyATR <= 0) {
+    const dailyATR = this.#dailyATR;
+    if (!Number.isFinite(dailyATR) || dailyATR <= 0) {
       this.state.phase = 'done';
       return;
     }
-    const threshold = this.config.atrMultiplier * this.state.dailyATR;
+    const threshold = this.config.atrMultiplier * dailyATR;
     const isManipCandle = range >= threshold;
     this.stats.totalSessionsAnalyzed++;
     this.state.box = {
       high: candleHigh, low: candleLow, range, open: candleOpen, close: candleClose,
       isManipCandle, atrThreshold: threshold,
-      atrPct: this.state.dailyATR ? (range / this.state.dailyATR * 100).toFixed(1) : 'warmup',
+      atrPct: dailyATR ? (range / dailyATR * 100).toFixed(1) : 'warmup',
       validations: { passesATR: isManipCandle, sweepsHighs: false, sweepsLows: false, closesInsideRange: false },
       timestamp: t(openingCandle),
     };
-    // COMMENTED: ATR gate that killed signals
-    // if (!isManipCandle) { this.state.phase = 'done'; return; }
+    if (!isManipCandle) {
+      this.state.phase = 'done';
+      return;
+    }
     this.stats.manipCandlesDetected++;
     const upperWick = candleHigh - Math.max(candleOpen, candleClose);
     const lowerWick = Math.min(candleOpen, candleClose) - candleLow;
@@ -385,7 +431,7 @@ class LiquiditySweepDetector {
 
   _computeDailyATR() {
     const candles = this.state.dailyCandles;
-    if (candles.length < this.config.atrPeriod + 1) { this.state.dailyATR = null; return; }
+    if (candles.length < this.config.atrPeriod + 1) { this.#setDailyATR(null); return; }
     const trs = [];
     for (let i = 1; i < candles.length; i++) {
       const curr = candles[i];
@@ -393,8 +439,7 @@ class LiquiditySweepDetector {
       trs.push(Math.max(curr.high - curr.low, Math.abs(curr.high - prevClose), Math.abs(curr.low - prevClose)));
     }
     const recent = trs.slice(-this.config.atrPeriod);
-    this.state.dailyATR = recent.reduce((s, tr) => s + tr, 0) / recent.length;
-    this.state.manipThreshold = this.config.atrMultiplier * this.state.dailyATR;
+    this.#setDailyATR(recent.reduce((s, tr) => s + tr, 0) / recent.length);
   }
 
   getSignal() {
@@ -431,7 +476,7 @@ class LiquiditySweepDetector {
     };
   }
 
-  destroy() { this.state = {}; this._dailyCandle = null; this._openingBuffer = []; }
+  destroy() { this.state = {}; this.#dailyATR = null; this._dailyCandle = null; this._openingBuffer = []; }
 }
 
 module.exports = LiquiditySweepDetector;
