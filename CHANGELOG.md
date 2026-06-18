@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MaxProfitManager PnL Analytics Units (2026-06-16)
+
+- Fixed MaxProfitManager analytics and narrator PnL math to treat position sizes as USD notional, removing erroneous entry-price multiplication from unrealized PnL, break-even scale-out realized PnL, tier partial PnL, tier realized PnL, and final close remaining PnL.
+- Fixed `MaxProfitManager.getState()` to report `currentStop` and trailing state from manager state instead of undefined instance fields.
+- Added focused coverage for USD-notional unrealized PnL, break-even scale-out realized PnL, tier partial realized PnL, close summary PnL, and `getState()` output.
+
 ### P0 Latest Report Pointer (2026-06-16)
 
 - Changed `multi-runtime-gate-runner` to write `ogz-meta/gates/runs/multi-runtime-latest.json` after every actual gate run, so `--p0` cannot leave the latest pointer stale unless no gate ran.

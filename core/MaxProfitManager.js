@@ -511,7 +511,7 @@ class MaxProfitManager {
     // PROFIT/LOSS CALCULATION
     // ====================================================================
     const profitPercent = this.calculateProfitPercent(currentPrice);
-    this.state.unrealizedPnL = profitPercent * this.state.originalSize * this.state.entryPrice;
+    this.state.unrealizedPnL = profitPercent * this.state.originalSize;
     
     // Track maximum profit reached
     if (this.state.unrealizedPnL > this.state.maxUnrealizedPnL) {
@@ -540,7 +540,7 @@ class MaxProfitManager {
         if (scaleOutQuantity !== null) {
           this.state.remainingOrderQuantity -= scaleOutQuantity;
         }
-        this.state.realizedPnL += scaleOutSize * this.state.entryPrice * profitPercent;
+        this.state.realizedPnL += scaleOutSize * profitPercent;
 
         // Move stop to break-even + fee buffer
         const configuredFeeBuffer = this._finiteNumber(this.beScaleOutConfig.feeBufferPercent);
@@ -606,7 +606,7 @@ class MaxProfitManager {
       // Execute partial exit (mutates remainingSize)
       this.executePartialExit(tierExit);
 
-      // Narrator: tier-exit event. Partial P&L = exitSize × entryPrice × profitPercent.
+      // Narrator: tier-exit event. Position sizes are USD notional, so P&L is size times return.
       // Uses module-cached singleton. Disabled path: property-access +
       // branch-taken, zero allocation. Try frame only entered when
       // enabled so a formatter throw can't break the post-partial-exit
@@ -614,7 +614,7 @@ class MaxProfitManager {
       // so we MUST return the exit receipt regardless of narrator outcome.
       if (narrator.enabled) {
         try {
-          const partialPnl = (tierExit.exitSize || 0) * (this.state.entryPrice || 0) * (profitPercent || 0);
+          const partialPnl = (tierExit.exitSize || 0) * (profitPercent || 0);
           narrator.tierExit({
             tradeId: this.state.tradeId,
             tier: tierExit.tier,
@@ -833,7 +833,7 @@ class MaxProfitManager {
     this.state.remainingSize -= tierExit.exitSize;
     
     // Calculate realized P&L from this exit
-    const realizedProfit = tierExit.exitSize * this.state.entryPrice * tierExit.profitPercent;
+    const realizedProfit = tierExit.exitSize * tierExit.profitPercent;
     this.state.realizedPnL += realizedProfit;
     
     // Update analytics
@@ -1215,7 +1215,7 @@ class MaxProfitManager {
     const finalProfitPercent = this.calculateProfitPercent(exitPrice);
     
     // Calculate final P&L
-    const remainingPnL = this.state.remainingSize * this.state.entryPrice * finalProfitPercent;
+    const remainingPnL = this.state.remainingSize * finalProfitPercent;
     const totalPnL = this.state.realizedPnL + remainingPnL;
     
     // Update analytics
@@ -1398,12 +1398,12 @@ class MaxProfitManager {
   }
   
   getState() {
-  return {
-    currentStop: this.currentStop || null,
-    lastProfitTrigger: this.lastProfitTrigger || null,
-    isTrailing: this.isTrailing || false
-  };
-}
+    return {
+      currentStop: this.state?.currentStop ?? null,
+      lastProfitTrigger: null,
+      isTrailing: this.state?.trailingActive ?? false
+    };
+  }
 
   /**
    * Logging Function - Enhanced Logging

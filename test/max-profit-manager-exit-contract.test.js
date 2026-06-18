@@ -126,4 +126,156 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(manager.state.currentStop).toBeCloseTo(101.5);
     expect(manager.state.breakevenActive).toBe(true);
   });
+
+  test('unrealized PnL uses USD notional return without multiplying by entry price', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: false,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      initialStopLossPercent: 0.05,
+      minHoldTimeMinutes: 0,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.7,
+      exitContract: { stopLossPercent: -5 },
+    });
+    expect(result.success).toBe(true);
+
+    manager.update(101.5, { volatility: 0.01 });
+
+    expect(manager.state.unrealizedPnL).toBeCloseTo(15, 10);
+    expect(manager.getPositionState().totalPnL).toBeCloseTo(15, 10);
+  });
+
+  test('break-even scale-out realized PnL uses scale-out notional return', () => {
+    const manager = startManager('buy', { stopLossPercent: -0.5 }, {
+      minHoldTimeMinutes: 0,
+    });
+    manager.beScaleOutConfig = {
+      enabled: true,
+      triggerType: 'fixed_percent',
+      fixedPercentTrigger: 0.015,
+      scaleOutFraction: 0.5,
+      feeBufferPercent: 0,
+    };
+
+    const update = manager.update(101.5, { volatility: 0.01 });
+
+    expect(update.action).toBe('exit_partial');
+    expect(update.reason).toBe('be_scaleout');
+    expect(update.exitSize).toBeCloseTo(5, 10);
+    expect(manager.state.realizedPnL).toBeCloseTo(0.075, 10);
+  });
+
+  test('tier partial exit realized and narrator PnL use exit notional return', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: true,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      initialStopLossPercent: 0.05,
+      minHoldTimeMinutes: 0,
+      firstTierTarget: 0.015,
+      firstTierExit: 0.25,
+      secondTierTarget: 0.05,
+      secondTierExit: 0.25,
+      thirdTierTarget: 0.10,
+      thirdTierExit: 0.25,
+      finalTarget: 0.15,
+      enableMarketAdaptation: false,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.7,
+      exitContract: { stopLossPercent: -5 },
+    });
+    expect(result.success).toBe(true);
+
+    const update = manager.update(101.5, { volatility: 0.01 });
+
+    expect(update.action).toBe('exit_partial');
+    expect(update.reason).toBe('profit_tier_1');
+    expect(update.exitSize).toBeCloseTo(250, 10);
+    expect(manager.state.realizedPnL).toBeCloseTo(3.75, 10);
+    expect(manager.getPositionState().realizedPnL).toBeCloseTo(3.75, 10);
+  });
+
+  test('close summary uses remaining USD notional return without multiplying by entry price', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: false,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      initialStopLossPercent: 0.05,
+      minHoldTimeMinutes: 0,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.7,
+      exitContract: { stopLossPercent: -5 },
+    });
+    expect(result.success).toBe(true);
+
+    manager.state.realizedPnL = 3.75;
+    manager.state.remainingSize = 750;
+
+    const summary = manager.close(102, 'manual');
+
+    expect(summary.success).toBe(true);
+    expect(summary.remainingPnL).toBeCloseTo(15, 10);
+    expect(summary.totalPnL).toBeCloseTo(18.75, 10);
+  });
+
+  test('scale-out then final close totals realized leg plus remaining notional PnL', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: false,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      initialStopLossPercent: 0.05,
+      minHoldTimeMinutes: 0,
+    });
+    manager.beScaleOutConfig = {
+      enabled: true,
+      triggerType: 'fixed_percent',
+      fixedPercentTrigger: 0.10,
+      scaleOutFraction: 0.5,
+      feeBufferPercent: 0,
+    };
+
+    const result = manager.start(100, 'buy', 10000, {
+      volatility: 0.01,
+      confidence: 0.7,
+      exitContract: { stopLossPercent: -5 },
+    });
+    expect(result.success).toBe(true);
+
+    const scaleOut = manager.update(110, { volatility: 0.01 });
+    expect(scaleOut.action).toBe('exit_partial');
+    expect(scaleOut.exitSize).toBeCloseTo(5000, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(5000, 10);
+    expect(manager.state.realizedPnL).toBeCloseTo(500, 10);
+
+    const summary = manager.close(115, 'manual');
+
+    expect(summary.remainingPnL).toBeCloseTo(750, 10);
+    expect(summary.totalPnL).toBeCloseTo(1250, 10);
+    expect(summary.totalPnL).not.toBeCloseTo(1500, 10);
+  });
+
+  test('getState reports active stop and trailing state from manager state', () => {
+    const manager = startManager('buy', { stopLossPercent: -0.5 }, {
+      minHoldTimeMinutes: 0,
+    });
+
+    manager.state.trailingActive = true;
+    manager.state.currentStop = 101.25;
+
+    expect(manager.getState()).toEqual({
+      currentStop: 101.25,
+      lastProfitTrigger: null,
+      isTrailing: true,
+    });
+  });
 });
