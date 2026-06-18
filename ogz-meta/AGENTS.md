@@ -192,6 +192,7 @@ Pipeline order:
 - If Mercury terminates at `max_iterations`, raise iterations up to the current rule, normally 60. If it hits `HTTP 429 input_token_limit`, split the prompt. If it returns `CANNOT VERIFY`, do direct mechanical enumeration with shell/tools and cite file:line evidence.
 - Mercury attack is blocking for hot-path production code: `core/`, `brokers/`, `modules/`, `run-empire-v2.js`, dashboard runtime, and runtime-driving schemas/config. It is not required for markdown/rule files unless those files execute.
 - Always include the architecture question for fixes: did this close the underlying mechanism, or only the symptom, and what new failure modes did it introduce?
+- After an approved push, do not claim Mercury has fresh repo context until `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code. Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
 
 ## Git Rules
 - Check status before staging.

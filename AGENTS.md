@@ -78,6 +78,9 @@ For changes on the trading/backtest execution path:
 - Use one focused Mercury question at a time.
 - Use attack framing, not confirmation framing.
 - Use `--max-tokens=7750` and `--max-iterations=60`.
+- After an approved push, do not claim Mercury has fresh repo context until
+  `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code.
+  Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
 - Current full-anchor expectation: `10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
