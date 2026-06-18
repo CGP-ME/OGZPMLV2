@@ -59,6 +59,52 @@
           "FEE_SLIPPAGE": "0.0005"
         }
       },
+      "ttp-5k-max": {
+        "name": "ttp-5k-max",
+        "description": "Trade The Pool MAX 5k backtest economics profile: $5,000 account, $50 daily loss, $150 max loss, $300 target, per-share minimum commissions. Historical date-dependent TTP rules require a separate backtest-clock/calendar proof before full rule-engine enforcement.",
+        "evidence": [
+          "operator-provided Trade The Pool MAX58356 5k account support transcript",
+          "config/trading.config.json:tuningProfiles.definitions.ttp-5k-max",
+          "core/TradingConfig.js PROFILE_ENV_CONFIG_PATHS",
+          "tools/backtest-worker-env.js profile fee precedence"
+        ],
+        "env": {
+          "INITIAL_BALANCE": "5000",
+          "MIN_TRADE_CONFIDENCE": "0.90",
+          "ENABLE_DYNAMIC_SIZING": "true",
+          "BASE_POSITION_SIZE": "0.01",
+          "MAX_POSITION_SIZE_PCT": "0.05",
+          "BASE_POSITION_PCT": "0.01",
+          "MAX_POSITION_PCT": "0.05",
+          "ABSOLUTE_POSITION_CAP": "0.15",
+          "TIER1_TARGET": "0.007",
+          "TIER2_TARGET": "0.010",
+          "TIER3_TARGET": "0.015",
+          "FINAL_TARGET": "0.025",
+          "TIER1_EXIT_FRACTION": "0.30",
+          "TIER2_EXIT_FRACTION": "0.30",
+          "TIER3_EXIT_FRACTION": "0.20",
+          "MAX_DRAWDOWN": "3",
+          "MAX_DAILY_LOSS": "1",
+          "MAX_WEEKLY_LOSS": "3",
+          "MAX_MONTHLY_LOSS": "3",
+          "ACCOUNT_DRAWDOWN_BYPASS": "false",
+          "ACCOUNT_DRAWDOWN_PCT": "-3.0",
+          "RISK_MANAGER_BYPASS": "false",
+          "ATR_FILTER_ENABLED": "true",
+          "ATR_MIN_PERCENT": "0.40",
+          "EXIT_SYSTEM": "legacy",
+          "FEE_MODEL": "per_share_minimum",
+          "FEE_PER_SHARE": "0.005",
+          "FEE_MIN_ORDER": "0.75",
+          "FEE_SLIPPAGE": "0.0005",
+          "TTP_DAILY_LOSS_LIMIT_DOLLARS": "50",
+          "TTP_MAX_LOSS_THRESHOLD_EQUITY": "4850",
+          "TTP_PROFIT_TARGET_DOLLARS": "300",
+          "TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO": "0.30",
+          "TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO": "0.06"
+        }
+      },
       "legacy-wide": {
         "name": "legacy-wide",
         "description": "Wide-target historical posture from .env.gates; useful for testing whether tight MPM tiers are choking winners.",

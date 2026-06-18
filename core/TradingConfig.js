@@ -60,6 +60,8 @@ const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
 ]);
 
 const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
+  INITIAL_BALANCE: Object.freeze(['startingBalance']),
+  MIN_TRADE_CONFIDENCE: Object.freeze(['confidence.minTradeConfidence']),
   ENABLE_DYNAMIC_SIZING: Object.freeze(['features.enableDynamicSizing']),
   BASE_POSITION_SIZE: Object.freeze(['positionSizing.basePositionSize']),
   MAX_POSITION_SIZE_PCT: Object.freeze(['positionSizing.maxPositionSize']),
@@ -82,6 +84,10 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
     'exitLogic.safety.accountDrawdownBypass',
     'universalLimits.accountDrawdownBypass',
   ]),
+  ACCOUNT_DRAWDOWN_PCT: Object.freeze([
+    'exitLogic.safety.accountDrawdownPercent',
+    'universalLimits.accountDrawdownPercent',
+  ]),
   RISK_MANAGER_BYPASS: Object.freeze(['risk.riskManagerBypass']),
   ATR_FILTER_ENABLED: Object.freeze(['filters.atrEnabled']),
   ATR_MIN_PERCENT: Object.freeze(['filters.atrMinPercent']),
@@ -94,6 +100,11 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   FEE_SLIPPAGE: Object.freeze(['fees.slippage']),
   FEE_PER_SHARE: Object.freeze(['fees.perShare']),
   FEE_MIN_ORDER: Object.freeze(['fees.minOrderFee']),
+  TTP_DAILY_LOSS_LIMIT_DOLLARS: Object.freeze(['evalRules.ttp.accountLimits.dailyLossDollars']),
+  TTP_MAX_LOSS_THRESHOLD_EQUITY: Object.freeze(['evalRules.ttp.accountLimits.maxLossThresholdEquity']),
+  TTP_PROFIT_TARGET_DOLLARS: Object.freeze(['evalRules.ttp.consistency.profitTargetDollars']),
+  TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: Object.freeze(['evalRules.ttp.consistency.maxPositionProfitRatio']),
+  TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: Object.freeze(['evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio']),
 });
 
 const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
@@ -105,15 +116,24 @@ const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
 
 const PROFILE_STRING_ENV_KEYS = Object.freeze(new Set([
   'EXIT_SYSTEM',
+  'FEE_MODEL',
 ]));
 
 const PROFILE_RUNTIME_SNAPSHOT_ENV_KEYS = Object.freeze(new Set([
+  'INITIAL_BALANCE',
+  'MIN_TRADE_CONFIDENCE',
   'RISK_MANAGER_BYPASS',
+  'ACCOUNT_DRAWDOWN_PCT',
   'MAX_DRAWDOWN',
   'MAX_DAILY_LOSS',
   'MAX_WEEKLY_LOSS',
   'MAX_MONTHLY_LOSS',
   'EXIT_SYSTEM',
+  'TTP_DAILY_LOSS_LIMIT_DOLLARS',
+  'TTP_MAX_LOSS_THRESHOLD_EQUITY',
+  'TTP_PROFIT_TARGET_DOLLARS',
+  'TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO',
+  'TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO',
 ]));
 
 const PROFILE_SNAPSHOT_MISSING = Symbol('profile_snapshot_missing');

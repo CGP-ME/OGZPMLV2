@@ -41,7 +41,7 @@ describe('TradingConfig runtime profile contract', () => {
   });
 
   test('tuning profiles resolve from TradingConfig as the single config owner', () => {
-    expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide']);
+    expect(TradingConfig.listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'ttp-5k-max']);
     expect(TradingConfig.getTuningProfileDefinitions()).toEqual(tradingConfigJson.tuningProfiles.definitions);
     expect(TradingConfig.resolveTuningProfile('legacy-wide')).toEqual(
       expect.objectContaining({
@@ -58,6 +58,22 @@ describe('TradingConfig runtime profile contract', () => {
       expect.objectContaining({
         ATR_FILTER_ENABLED: 'true',
         ATR_MIN_PERCENT: '0.15',
+      })
+    );
+    expect(TradingConfig.resolveTuningProfile('ttp-5k-max').env).toEqual(
+      expect.objectContaining({
+        INITIAL_BALANCE: '5000',
+        MAX_DRAWDOWN: '3',
+        MAX_DAILY_LOSS: '1',
+        RISK_MANAGER_BYPASS: 'false',
+        ACCOUNT_DRAWDOWN_BYPASS: 'false',
+        ACCOUNT_DRAWDOWN_PCT: '-3.0',
+        FEE_MODEL: 'per_share_minimum',
+        FEE_PER_SHARE: '0.005',
+        FEE_MIN_ORDER: '0.75',
+        TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
+        TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
+        TTP_PROFIT_TARGET_DOLLARS: '300',
       })
     );
     const resolved = TradingConfig.resolveTuningProfile('legacy-wide');
@@ -105,6 +121,46 @@ describe('TradingConfig runtime profile contract', () => {
     expect(workerEnv.ATR_MIN_PERCENT).toBe('0.15');
     expect(workerEnv.TUNING_PROFILE).toBe('current-eval');
     expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('current-eval');
+  });
+
+  test('TTP 5k MAX tuning profile exports prop-eval economics to stock backtest workers', () => {
+    const workerEnv = buildBacktestWorkerEnv({
+      sourceEnv: {},
+      projectRoot: path.join(__dirname, '..'),
+      dataFile: 'tuning/tsla-15m-750.json',
+      stateFile: 'data/state-unit-ttp-5k-profile.json',
+      dataDir: 'data/backtest',
+      reportTag: 'unit-ttp-5k-profile',
+      profileName: 'ttp-5k-max',
+      stockMode: true,
+      instrumentEnv: {
+        BROKER: 'alpaca',
+        TRADING_PAIR: 'TSLA',
+        ASSET_CLASS: 'stocks',
+        CANDLE_TIMEFRAME: '15m',
+      },
+    });
+
+    expect(workerEnv.INITIAL_BALANCE).toBe('5000');
+    expect(workerEnv.MIN_TRADE_CONFIDENCE).toBe('0.90');
+    expect(workerEnv.MAX_DRAWDOWN).toBe('3');
+    expect(workerEnv.MAX_DAILY_LOSS).toBe('1');
+    expect(workerEnv.MAX_WEEKLY_LOSS).toBe('3');
+    expect(workerEnv.MAX_MONTHLY_LOSS).toBe('3');
+    expect(workerEnv.RISK_MANAGER_BYPASS).toBe('false');
+    expect(workerEnv.ACCOUNT_DRAWDOWN_BYPASS).toBe('false');
+    expect(workerEnv.ACCOUNT_DRAWDOWN_PCT).toBe('-3.0');
+    expect(workerEnv.ATR_MIN_PERCENT).toBe('0.40');
+    expect(workerEnv.FEE_MODEL).toBe('per_share_minimum');
+    expect(workerEnv.FEE_PER_SHARE).toBe('0.005');
+    expect(workerEnv.FEE_MIN_ORDER).toBe('0.75');
+    expect(workerEnv.FEE_MAKER).toBe('0');
+    expect(workerEnv.FEE_TAKER).toBe('0');
+    expect(workerEnv.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBe('50');
+    expect(workerEnv.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBe('4850');
+    expect(workerEnv.TTP_PROFIT_TARGET_DOLLARS).toBe('300');
+    expect(workerEnv.TUNING_PROFILE).toBe('ttp-5k-max');
+    expect(workerEnv.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
   });
 
   test('stock backtest workers carry explicit Alpaca adapter config without leaking credentials in summaries', () => {

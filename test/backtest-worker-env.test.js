@@ -223,6 +223,72 @@ describe('backtest worker env contract', () => {
     expectLockedExitProfileKeysAbsent(env);
   });
 
+  test('explicit TTP 5k MAX profile keeps prop-fee settings in stock mode', () => {
+    const env = buildEnv({
+      stockMode: true,
+      profileName: 'ttp-5k-max',
+    });
+
+    expect(env.TUNING_PROFILE).toBe('ttp-5k-max');
+    expect(env.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
+    expect(env.INITIAL_BALANCE).toBe('5000');
+    expect(env.MIN_TRADE_CONFIDENCE).toBe('0.90');
+    expect(env.MAX_DRAWDOWN).toBe('3');
+    expect(env.MAX_DAILY_LOSS).toBe('1');
+    expect(env.MAX_WEEKLY_LOSS).toBe('3');
+    expect(env.MAX_MONTHLY_LOSS).toBe('3');
+    expect(env.RISK_MANAGER_BYPASS).toBe('false');
+    expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('false');
+    expect(env.ACCOUNT_DRAWDOWN_PCT).toBe('-3.0');
+    expect(env.ATR_MIN_PERCENT).toBe('0.40');
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
+    expect(env.FEE_PER_SHARE).toBe('0.005');
+    expect(env.FEE_MIN_ORDER).toBe('0.75');
+    expect(env.FEE_MAKER).toBe('0');
+    expect(env.FEE_TAKER).toBe('0');
+    expect(env.TTP_DAILY_LOSS_LIMIT_DOLLARS).toBe('50');
+    expect(env.TTP_MAX_LOSS_THRESHOLD_EQUITY).toBe('4850');
+    expect(env.TTP_PROFIT_TARGET_DOLLARS).toBe('300');
+    expectLockedExitProfileKeysAbsent(env);
+  });
+
+  test('TTP 5k MAX profile fees beat ambient source env fee leftovers', () => {
+    const env = buildEnv({
+      stockMode: true,
+      profileName: 'ttp-5k-max',
+      sourceEnv: {
+        FEE_MODEL: 'percent',
+        FEE_PER_SHARE: '0.010',
+        FEE_MIN_ORDER: '1.00',
+      },
+    });
+
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
+    expect(env.FEE_PER_SHARE).toBe('0.005');
+    expect(env.FEE_MIN_ORDER).toBe('0.75');
+  });
+
+  test('explicit config fee model can still override TTP 5k MAX profile fees', () => {
+    const env = buildEnv({
+      stockMode: true,
+      profileName: 'ttp-5k-max',
+      sourceEnv: {
+        FEE_MODEL: 'percent',
+        FEE_PER_SHARE: '0.010',
+        FEE_MIN_ORDER: '1.00',
+      },
+      configEnv: {
+        FEE_MODEL: 'per_share_minimum',
+        FEE_PER_SHARE: '0.006',
+        FEE_MIN_ORDER: '0.80',
+      },
+    });
+
+    expect(env.FEE_MODEL).toBe('per_share_minimum');
+    expect(env.FEE_PER_SHARE).toBe('0.006');
+    expect(env.FEE_MIN_ORDER).toBe('0.80');
+  });
+
   test('unknown tuning profile fails loudly instead of falling back to eval sizing', () => {
     expect(() => buildEnv({ profileName: 'missing-profile' }))
       .toThrow(/Unknown tuning profile 'missing-profile'/);
@@ -412,7 +478,7 @@ describe('backtest worker env contract', () => {
   });
 
   test('runnable tuning profiles exclude reconstructed config guesses', () => {
-    expect(listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide']);
+    expect(listTuningProfileNames().sort()).toEqual(['current-eval', 'legacy-wide', 'ttp-5k-max']);
   });
 
   test('grid-search confidence runner uses the same env contract', () => {
