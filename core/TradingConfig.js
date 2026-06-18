@@ -645,6 +645,28 @@ const BASE_CONFIG = {
       invalidationConditions: ['regime_change'],
       _validated: null,
     },
+    PropSafeEMAPullback: {
+      stopLossPercent: -1.1,
+      takeProfitPercent: 3.3,
+      trailingStopPercent: 1.1,
+      trailingActivation: 1.65,
+      maxHoldTimeMinutes: 240,
+      minConfidence: 0.68,
+      atrMinPercent: null,
+      invalidationConditions: ['ema_pullback_invalidated'],
+      _validated: null,
+    },
+    EMATrendRetest: {
+      stopLossPercent: -1.0,
+      takeProfitPercent: 3.0,
+      trailingStopPercent: 1.0,
+      trailingActivation: 1.5,
+      maxHoldTimeMinutes: 240,
+      minConfidence: 0.70,
+      atrMinPercent: null,
+      invalidationConditions: ['ema_retest_failed'],
+      _validated: null,
+    },
     // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
     // module's overrideLevels (1:1 RR computed from swing structure).
     // Fallbacks below are safety nets only — strategy's overrideLevels win.
@@ -897,6 +919,59 @@ const BASE_CONFIG = {
       invalidationConditions: ['regime_change'],
       enabled: true,
     },
+    PropSafeEMAPullback: {
+      fastEmaPeriod: env('PROPSAFE_EMA_FAST_PERIOD', 9),
+      pullbackEmaPeriod: env('PROPSAFE_EMA_PULLBACK_PERIOD', 21),
+      trendEmaPeriod: env('PROPSAFE_EMA_TREND_PERIOD', 50),
+      atrPeriod: env('PROPSAFE_EMA_ATR_PERIOD', 14),
+      crossLookbackBars: env('PROPSAFE_EMA_CROSS_LOOKBACK', 3),
+      pullbackLookbackBars: env('PROPSAFE_EMA_PULLBACK_LOOKBACK', 4),
+      pullbackMinAtr: env('PROPSAFE_EMA_PULLBACK_MIN_ATR', 0.4),
+      pullbackMaxAtr: env('PROPSAFE_EMA_PULLBACK_MAX_ATR', 1.0),
+      atrStopMult: env('PROPSAFE_EMA_ATR_STOP_MULT', 1.1),
+      targetRR: env('PROPSAFE_EMA_TARGET_RR', 3.0),
+      trailActivationR: env('PROPSAFE_EMA_TRAIL_ACTIVATION_R', 1.5),
+      trailDistanceR: env('PROPSAFE_EMA_TRAIL_DISTANCE_R', 1.0),
+      maxHoldTimeMinutes: env('PROPSAFE_EMA_MAX_HOLD_MINUTES', 240),
+      confidenceBase: env('PROPSAFE_EMA_CONFIDENCE_BASE', 0.62),
+      confidenceTrendBonus: env('PROPSAFE_EMA_CONFIDENCE_TREND_BONUS', 0.06),
+      confidencePullbackBonus: env('PROPSAFE_EMA_CONFIDENCE_PULLBACK_BONUS', 0.08),
+      confidenceConfirmationBonus: env('PROPSAFE_EMA_CONFIDENCE_CONFIRMATION_BONUS', 0.08),
+      confidenceFreshCrossBonus: env('PROPSAFE_EMA_CONFIDENCE_FRESH_CROSS_BONUS', 0.06),
+      maxConfidence: env('PROPSAFE_EMA_MAX_CONFIDENCE', 0.90),
+      requireRth: envBool('PROPSAFE_EMA_REQUIRE_RTH', true),
+      rthStartET: env('PROPSAFE_EMA_RTH_START_ET', '09:30'),
+      rthEndET: env('PROPSAFE_EMA_RTH_END_ET', '16:00'),
+      sessionTimeZone: env('PROPSAFE_EMA_SESSION_TIMEZONE', 'America/New_York'),
+      allowShorts: envBool('PROPSAFE_EMA_ALLOW_SHORTS', false),
+      enabled: true,
+    },
+    EMATrendRetest: {
+      emaPeriods: env('EMA_TREND_RETEST_PERIODS', '9,20,21,50,100,200'),
+      atrPeriod: env('EMA_TREND_RETEST_ATR_PERIOD', 14),
+      slopeLookbackBars: env('EMA_TREND_RETEST_SLOPE_LOOKBACK', 5),
+      minSlopePct: env('EMA_TREND_RETEST_MIN_SLOPE_PCT', 0.03),
+      retestLookbackBars: env('EMA_TREND_RETEST_LOOKBACK', 4),
+      touchZoneAtr: env('EMA_TREND_RETEST_TOUCH_ZONE_ATR', 0.35),
+      closeAwayAtr: env('EMA_TREND_RETEST_CLOSE_AWAY_ATR', 0.12),
+      maxExtensionAtr: env('EMA_TREND_RETEST_MAX_EXTENSION_ATR', 2.5),
+      confidenceBase: env('EMA_TREND_RETEST_CONFIDENCE_BASE', 0.58),
+      confidenceSlopeBonus: env('EMA_TREND_RETEST_CONFIDENCE_SLOPE_BONUS', 0.08),
+      confidenceRetestBonus: env('EMA_TREND_RETEST_CONFIDENCE_RETEST_BONUS', 0.12),
+      confidenceConfirmationBonus: env('EMA_TREND_RETEST_CONFIDENCE_CONFIRMATION_BONUS', 0.08),
+      maxConfidence: env('EMA_TREND_RETEST_MAX_CONFIDENCE', 0.88),
+      atrStopMult: env('EMA_TREND_RETEST_ATR_STOP_MULT', 1.0),
+      targetRR: env('EMA_TREND_RETEST_TARGET_RR', 3.0),
+      trailActivationR: env('EMA_TREND_RETEST_TRAIL_ACTIVATION_R', 1.5),
+      trailDistanceR: env('EMA_TREND_RETEST_TRAIL_DISTANCE_R', 1.0),
+      maxHoldTimeMinutes: env('EMA_TREND_RETEST_MAX_HOLD_MINUTES', 240),
+      requireRth: envBool('EMA_TREND_RETEST_REQUIRE_RTH', true),
+      rthStartET: env('EMA_TREND_RETEST_RTH_START_ET', '09:30'),
+      rthEndET: env('EMA_TREND_RETEST_RTH_END_ET', '16:00'),
+      sessionTimeZone: env('EMA_TREND_RETEST_SESSION_TIMEZONE', 'America/New_York'),
+      allowShorts: envBool('EMA_TREND_RETEST_ALLOW_SHORTS', false),
+      enabled: true,
+    },
     OpeningRangeBreakout: {
       // ICT-style Opening Range + FVG entry (Trey's approach)
       sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // legacy crypto path: 9am EST = 14:00 UTC
@@ -1133,6 +1208,8 @@ const BASE_CONFIG = {
       'NoWickImbalance',
       'BreakRetest',
       'DonchianBreakout',
+      'PropSafeEMAPullback',
+      'EMATrendRetest',
     ],
     sweepPresets: {
       real: [
@@ -1192,6 +1269,8 @@ const BASE_CONFIG = {
         { name: 'NoWick-only', env: { SOLO_STRATEGY: 'NoWickImbalance' } },
         { name: 'BreakRetest-only', env: { SOLO_STRATEGY: 'BreakRetest' } },
         { name: 'Donchian-only', env: { SOLO_STRATEGY: 'DonchianBreakout' } },
+        { name: 'PropEMA-only', env: { SOLO_STRATEGY: 'PropSafeEMAPullback' } },
+        { name: 'EMARetest-only', env: { SOLO_STRATEGY: 'EMATrendRetest' } },
       ],
     },
     rsiSweep: {
@@ -1249,6 +1328,8 @@ const BASE_CONFIG = {
       'NoWickImbalance',
       'BreakRetest',
       'DonchianBreakout',
+      'PropSafeEMAPullback',
+      'EMATrendRetest',
     ],
     grid: {
       full: {
@@ -1313,6 +1394,8 @@ const BASE_CONFIG = {
     enableSmartMoneySweep: envBool('ENABLE_SMS', false),     // NEW: Disabled by default until validated
     enableNoWickImbalance: envBool('ENABLE_NOWICK', false),  // 2026-04-28: Disabled by default until sweep + walk-forward
     enableDonchianBreakout: envBool('ENABLE_DONCHIAN', false),
+    enablePropSafeEMAPullback: envBool('ENABLE_PROPSAFE_EMA', false),
+    enableEMATrendRetest: envBool('ENABLE_EMA_TREND_RETEST', false),
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),

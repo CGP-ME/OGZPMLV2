@@ -365,6 +365,14 @@ function generateMatrix(strategies, grid, phase) {
           env.ENABLE_DONCHIAN = 'true';
         }
 
+        if (strat === 'PropSafeEMAPullback') {
+          env.ENABLE_PROPSAFE_EMA = 'true';
+        }
+
+        if (strat === 'EMATrendRetest') {
+          env.ENABLE_EMA_TREND_RETEST = 'true';
+        }
+
         configs.push({
           name,
           strategy: strat,

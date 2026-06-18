@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dormant EMA Strategy Candidates (2026-06-18)
+
+- Added dormant/off-by-default `PropSafeEMAPullback` and `EMATrendRetest` strategy modules with config validation, sealed runtime config, RTH filtering, signal metadata, and exit contract hints.
+- Wired both candidates through `StrategyOrchestrator`, tuning config, matrix sweep, parallel backtest, and worker env allowlists so solo runs can explicitly enable them while default runs remain unchanged.
+- Added focused coverage for signal requirements, no-trade filters, config mutation guards, solo enable flags, missing-toggle fail-loud behavior, and disabled dormant strategy isolation.
+
 ### Explicit Fresh State Initial Balance (2026-06-18)
 
 - Changed `StateManager` backtest and `FRESH_START` resets to require an explicit `INITIAL_BALANCE` source instead of silently retaining or rebuilding from the constructor's `$10000` bootstrap.

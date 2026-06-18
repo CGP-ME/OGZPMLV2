@@ -194,6 +194,8 @@ function buildDormantStrategyEnableEnv(soloStrategy) {
   if (soloStrategies.has('openingrangebreakout')) env.ENABLE_ORB = 'true';
   if (soloStrategies.has('breakretest')) env.ENABLE_BREAKRETEST = 'true';
   if (soloStrategies.has('donchianbreakout')) env.ENABLE_DONCHIAN = 'true';
+  if (soloStrategies.has('propsafeemapullback')) env.ENABLE_PROPSAFE_EMA = 'true';
+  if (soloStrategies.has('ematrendretest')) env.ENABLE_EMA_TREND_RETEST = 'true';
   if (soloStrategies.has('smartmoneysweep')) {
     env.ENABLE_SMS = 'true';
     env.SMS_VP_RTH_ONLY = 'true';

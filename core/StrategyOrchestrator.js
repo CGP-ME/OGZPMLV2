@@ -49,6 +49,8 @@ const MultiTimeframeAdapter = require('../modules/MultiTimeframeAdapter');
 const OgzTpoIntegration = require('./OgzTpoIntegration');
 const SmartMoneySweep = require('../modules/SmartMoneySweep');
 const DonchianBreakout = require('../modules/DonchianBreakout');
+const PropSafeEMAPullback = require('../modules/PropSafeEMAPullback');
+const EMATrendRetest = require('../modules/EMATrendRetest');
 
 function assertBaseConfidence01(confidence, label) {
   if (!Number.isFinite(confidence)) {
@@ -232,7 +234,6 @@ class StrategyOrchestrator {
     this.donchianBreakoutModule = new DonchianBreakout(
       TradingConfig.get('strategies.DonchianBreakout') || {}
     );
-
     // SOLO_STRATEGY mode: only enable specified strategies for isolated testing
     // Usage: SOLO_STRATEGY=RSI node tools/parallel-backtest.js ...
     // Supports comma-separated: SOLO_STRATEGY=RSI,EMASMACrossover
@@ -326,6 +327,21 @@ class StrategyOrchestrator {
     const shouldRegister = (name) => {
       if (!this.soloStrategies) return true;  // No filter — register all
       return this.soloStrategies.includes(name.toLowerCase());
+    };
+    const shouldInstantiateDormantStrategy = (name, toggleKey, envName) => {
+      if (!shouldRegister(name)) return false;
+      const pipeline = TradingConfig.get('pipeline') || {};
+      const toggle = pipeline[toggleKey];
+      if (typeof toggle !== 'boolean') {
+        throw new Error(`[PIPELINE] ${name} pipeline toggle must be boolean; got ${toggle}. Check TradingConfig.pipeline and ${envName}`);
+      }
+      if (toggle === false) {
+        if (this.soloStrategies && this.soloStrategies.includes(name.toLowerCase())) {
+          throw new Error(`[SOLO_STRATEGY] ${name} was requested but its pipeline toggle is disabled; set ${envName}=true or remove SOLO_STRATEGY`);
+        }
+        return false;
+      }
+      return true;
     };
 
     // ─── 1. EMA/SMA Crossover Strategy ───
@@ -840,6 +856,26 @@ class StrategyOrchestrator {
       evaluate: (ctx) => donchianBreakoutModule.evaluate(ctx)
     });
 
+    if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback', 'ENABLE_PROPSAFE_EMA')) {
+      const propSafeEmaPullbackModule = new PropSafeEMAPullback(
+        TradingConfig.get('strategies.PropSafeEMAPullback') || {}
+      );
+      this.strategies.push({
+        name: 'PropSafeEMAPullback',
+        evaluate: (ctx) => propSafeEmaPullbackModule.evaluate(ctx)
+      });
+    }
+
+    if (shouldInstantiateDormantStrategy('EMATrendRetest', 'enableEMATrendRetest', 'ENABLE_EMA_TREND_RETEST')) {
+      const emaTrendRetestModule = new EMATrendRetest(
+        TradingConfig.get('strategies.EMATrendRetest') || {}
+      );
+      this.strategies.push({
+        name: 'EMATrendRetest',
+        evaluate: (ctx) => emaTrendRetestModule.evaluate(ctx)
+      });
+    }
+
     // Apply pipeline toggles - filter strategies based on env vars
     this._applyPipelineToggles();
   }
@@ -864,6 +900,8 @@ class StrategyOrchestrator {
       'SmartMoneySweep': pipeline.enableSmartMoneySweep,
       'NoWickImbalance': pipeline.enableNoWickImbalance,
       'DonchianBreakout': pipeline.enableDonchianBreakout,
+      'PropSafeEMAPullback': pipeline.enablePropSafeEMAPullback,
+      'EMATrendRetest': pipeline.enableEMATrendRetest,
     };
     const enableEnvMap = {
       'BreakRetest': 'ENABLE_BREAKRETEST',
@@ -871,6 +909,8 @@ class StrategyOrchestrator {
       'SmartMoneySweep': 'ENABLE_SMS',
       'NoWickImbalance': 'ENABLE_NOWICK',
       'DonchianBreakout': 'ENABLE_DONCHIAN',
+      'PropSafeEMAPullback': 'ENABLE_PROPSAFE_EMA',
+      'EMATrendRetest': 'ENABLE_EMA_TREND_RETEST',
     };
 
     const before = this.strategies.length;
@@ -878,6 +918,10 @@ class StrategyOrchestrator {
 
     this.strategies = this.strategies.filter(s => {
       const toggle = toggleMap[s.name];
+      if (typeof toggle !== 'boolean') {
+        const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
+        throw new Error(`[PIPELINE] ${s.name} pipeline toggle must be boolean; got ${toggle}. Check TradingConfig.pipeline and ${envName}`);
+      }
       if (toggle === false) {
         if (this.soloStrategies && this.soloStrategies.includes(s.name.toLowerCase())) {
           const envName = enableEnvMap[s.name] || `ENABLE_${s.name.toUpperCase()}`;
