@@ -1226,6 +1226,55 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
   });
 
+  test('eval market-time failure blocks webhook entries before SignalStack dispatch', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const webhookAdapter = { enabled: true, emit: jest.fn() };
+    const evalRuleEngine = {
+      check: jest.fn().mockResolvedValue({
+        allowed: false,
+        failedRules: [{ ruleId: 'TTP_MARKET_TIME', reason: 'outside_regular_session_no_openings' }],
+      }),
+    };
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        webhookAdapter,
+        evalRuleEngine,
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+      failedRules: 'TTP_MARKET_TIME',
+      symbol: 'TSLA',
+      action: 'BUY',
+    }));
+    expect(evalRuleEngine.check).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'BUY',
+      symbol: 'TSLA',
+      orderQuantity: 5,
+      quantityUnit: 'shares',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
   test('live entry throughput preserves one broker route and one state open per allowed candidate', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

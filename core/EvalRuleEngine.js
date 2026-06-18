@@ -120,6 +120,9 @@ class EvalRuleEngine {
     const inLiquidationWindow = phase.isRTH === true
       && et.minuteOfDay >= cutoffMinute
       && et.minuteOfDay < phase.rthCloseMinute;
+    const blocksNewEntries = cfg.blockEntriesAfterCutoff !== false && (
+      phase.isRTH !== true || et.minuteOfDay >= cutoffMinute
+    );
 
     return {
       enabled: true,
@@ -132,6 +135,7 @@ class EvalRuleEngine {
       phase: phase.phase,
       isRTH: phase.isRTH,
       inLiquidationWindow,
+      blocksNewEntries,
       blockEntriesAfterCutoff: cfg.blockEntriesAfterCutoff !== false,
       liquidationEnabled: cfg.liquidationEnabled !== false,
     };
@@ -146,6 +150,16 @@ class EvalRuleEngine {
     const state = this.getTtpMarketTimeState(new Date(this.now()));
     if (state.inLiquidationWindow) {
       return this._fail('TTP_MARKET_TIME', 'liquidation_window_no_openings', {
+        symbol: entryPlan.symbol,
+        currentDateET: state.currentDateET,
+        currentMinuteET: state.currentMinuteET,
+        cutoffMinute: state.cutoffMinute,
+        rthCloseMinute: state.rthCloseMinute,
+        phase: state.phase,
+      });
+    }
+    if (state.blocksNewEntries) {
+      return this._fail('TTP_MARKET_TIME', state.isRTH ? 'after_cutoff_no_openings' : 'outside_regular_session_no_openings', {
         symbol: entryPlan.symbol,
         currentDateET: state.currentDateET,
         currentMinuteET: state.currentMinuteET,

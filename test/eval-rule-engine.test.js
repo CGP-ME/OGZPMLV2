@@ -2,7 +2,7 @@
 
 const EvalRuleEngine = require('../core/EvalRuleEngine');
 
-const BASE_TIME = 1700000000000;
+const BASE_TIME = Date.parse('2023-11-14T15:00:00.000Z');
 
 function config(overrides = {}) {
   return {
@@ -497,6 +497,46 @@ describe('EvalRuleEngine TTP volume cap', () => {
       reason: 'liquidation_window_no_openings',
       cutoffMinute: 950,
       rthCloseMinute: 960,
+      action: 'BLOCK_ORDER',
+    }));
+  });
+
+  test('blocks new openings after regular market close when TTP cutoff blocking is enabled', async () => {
+    const afterClose = new Date('2026-05-22T20:00:00.000Z');
+    const engine = makeEngine({
+      candles: [candleFor(afterClose.getTime(), -60000, 100000)],
+      now: () => afterClose.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules[0]).toEqual(expect.objectContaining({
+      ruleId: 'TTP_MARKET_TIME',
+      reason: 'outside_regular_session_no_openings',
+      cutoffMinute: 950,
+      rthCloseMinute: 960,
+      phase: 'ah',
+      action: 'BLOCK_ORDER',
+    }));
+  });
+
+  test('blocks new openings before regular market open when TTP cutoff blocking is enabled', async () => {
+    const premarket = new Date('2026-05-22T13:29:00.000Z');
+    const engine = makeEngine({
+      candles: [candleFor(premarket.getTime(), -60000, 100000)],
+      now: () => premarket.getTime(),
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(false);
+    expect(result.failedRules[0]).toEqual(expect.objectContaining({
+      ruleId: 'TTP_MARKET_TIME',
+      reason: 'outside_regular_session_no_openings',
+      cutoffMinute: 950,
+      rthCloseMinute: 960,
+      phase: 'pre',
       action: 'BLOCK_ORDER',
     }));
   });
