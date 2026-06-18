@@ -59,7 +59,7 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
       TTP_PROFIT_TARGET_DOLLARS: '3000',
       TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.10',
-      MIN_TRADE_CONFIDENCE: '0.90',
+      MIN_TRADE_CONFIDENCE: '0.5',
       MIN_STRATEGY_CONFIDENCE: '0.35',
       MAX_POSITION_SIZE_PCT: '0.05',
       STOP_LOSS_PERCENT: '1.5',
@@ -117,14 +117,27 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(loaded.config.risk.riskManagerBypass).toBe(false);
   });
 
+  test('allows live startup at configured MIN_TRADE_CONFIDENCE eval floor', () => {
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.MIN_TRADE_CONFIDENCE = '0.5';
+
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.confidence.minTradeConfidence).toBe(0.5);
+  });
+
   test('throws during live startup when MIN_TRADE_CONFIDENCE is missing or below eval floor', () => {
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
-    process.env.MIN_TRADE_CONFIDENCE = '0.50';
+    process.env.MIN_TRADE_CONFIDENCE = '0.49';
 
-    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE >= 0\.90/);
+    expect(() => loadConfig()).toThrow(/MIN_TRADE_CONFIDENCE >= 0\.5/);
 
     jest.resetModules();
     delete process.env.MIN_TRADE_CONFIDENCE;

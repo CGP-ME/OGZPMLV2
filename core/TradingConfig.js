@@ -45,6 +45,16 @@ const envBool = (key, fallback) => {
   return val === 'true' || val === '1';
 };
 
+function requiredConfigNumber(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[TradingConfig] config/trading.config.json ${configPath} must be a finite number`);
+  }
+  return value;
+}
+
 const PROFILE_FORBIDDEN_ENV_KEYS = Object.freeze([
   'EXECUTION_MODE',
   'CANDLE_SOURCE',
@@ -252,17 +262,13 @@ const BASE_CONFIG = {
   // CONFIDENCE THRESHOLDS
   // =========================================================================
   confidence: {
-    // FIX 2026-03-19: Raised from 0.01 to 0.35 - was letting everything through at 1%
-    minTradeConfidence: env('MIN_TRADE_CONFIDENCE', 0.35),      // 35% default - minimum total confidence to enter trade
-    maxConfidence: env('MAX_CONFIDENCE', 0.95),                  // 95% - cap (nothing is 100%)
-    minStrategyConfidence: env('MIN_STRATEGY_CONFIDENCE', 0.35), // 35% - per individual strategy
-    // FIX 2026-03-19: Filter weak candle patterns (hammer, engulfing, etc.)
-    // Requires trend OR RSI confirmation to pass (base 0.55 + bonuses)
-    candlePatternMinConfidence: env('CANDLE_PATTERN_MIN_CONFIDENCE', 0.70), // 70% - filters marginal patterns
-    // FIX 2026-03-19: Extracted from hardcoded values in StrategyOrchestrator
-    regimeMinConfidence: env('REGIME_MIN_CONFIDENCE', 0.30),     // 30% - regime filter threshold
-    confluenceMinScore: env('CONFLUENCE_MIN_SCORE', 0.30),       // 30% - minimum confluence score
-    tpoStrengthMin: env('TPO_STRENGTH_MIN', 0.03),               // 3% - TPO/MTF strength minimum
+    minTradeConfidence: env('MIN_TRADE_CONFIDENCE', requiredConfigNumber('confidence.minTradeConfidence')),
+    maxConfidence: env('MAX_CONFIDENCE', requiredConfigNumber('confidence.maxConfidence')),
+    minStrategyConfidence: env('MIN_STRATEGY_CONFIDENCE', requiredConfigNumber('confidence.minStrategyConfidence')),
+    candlePatternMinConfidence: env('CANDLE_PATTERN_MIN_CONFIDENCE', requiredConfigNumber('confidence.candlePatternMinConfidence')),
+    regimeMinConfidence: env('REGIME_MIN_CONFIDENCE', requiredConfigNumber('confidence.regimeMinConfidence')),
+    confluenceMinScore: env('CONFLUENCE_MIN_SCORE', requiredConfigNumber('confidence.confluenceMinScore')),
+    tpoStrengthMin: env('TPO_STRENGTH_MIN', requiredConfigNumber('confidence.tpoStrengthMin')),
   },
 
   // =========================================================================
@@ -1437,6 +1443,28 @@ let activeTuningProfileAppliedAt = null;
 let activeTuningProfileSource = null;
 let activeTuningProfileOverridePaths = new Set();
 
+function isLiveRuntimeEnv() {
+  return process.env.LIVE_TRADING === 'true' ||
+    process.env.LIVE_TRADING === '1' ||
+    process.env.EXECUTION_MODE === 'live' ||
+    process.env.TRADING_MODE === 'live' ||
+    process.env.ENABLE_LIVE_TRADING === 'true';
+}
+
+function assertLiveConfidenceOverrideAllowed(flatOverrides, source) {
+  if (!isLiveRuntimeEnv()) return;
+  if (!Object.prototype.hasOwnProperty.call(flatOverrides, 'confidence.minTradeConfidence')) return;
+
+  const expected = requiredConfigNumber('confidence.minTradeConfidence');
+  const actual = flatOverrides['confidence.minTradeConfidence'];
+  if (!Number.isFinite(actual) || actual !== expected) {
+    throw new Error(
+      `[TradingConfig] Live runtime refuses ${source} override for confidence.minTradeConfidence: ` +
+      `expected configured floor ${expected}, got ${actual}`
+    );
+  }
+}
+
 function normalizeTuningProfileName(profileName) {
   const fallback = BASE_CONFIG.tuningProfiles.defaultProfile;
   return String(profileName || fallback).trim();
@@ -1730,6 +1758,7 @@ class TradingConfig {
 
     const overrides = this.buildTuningProfileOverrides(profile.name);
     const paths = Object.keys(overrides);
+    assertLiveConfidenceOverrideAllowed(overrides, `tuning profile '${profile.name}'`);
     const previousProfilePaths = replaceActiveProfile
       ? Array.from(activeTuningProfileOverridePaths)
       : [];
@@ -1869,6 +1898,7 @@ class TradingConfig {
     };
 
     const flatOverrides = flatten(overrides);
+    assertLiveConfidenceOverrideAllowed(flatOverrides, 'setOverrides');
     activeOverrides = { ...activeOverrides, ...flatOverrides };
     for (const path of Object.keys(flatOverrides)) {
       activeTuningProfileOverridePaths.delete(path);

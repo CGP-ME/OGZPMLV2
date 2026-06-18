@@ -738,11 +738,13 @@ class TRAIDecisionModule extends EventEmitter {
     // Determine minimum confidence threshold:
     // 1) prefer explicit override from config (TRAI_MIN_CONF)
     // 2) fall back to TradingConfig centralized config
-    // 3) default to 0.35 if nothing set
     const minConfidence =
       (this.config && typeof this.config.minConfidenceOverride === 'number'
         ? this.config.minConfidenceOverride
-        : TradingConfig.get('confidence.minTradeConfidence', 0.50)) || 0.35;
+        : TradingConfig.get('confidence.minTradeConfidence'));
+    if (!Number.isFinite(minConfidence)) {
+      throw new Error('[TRAI] minConfidence must resolve to a finite configured number');
+    }
 
     // Change 595: Simplified logic - trust the confidence threshold
     // If confidence exceeds threshold, approve the trade (unless vetoed by risk)

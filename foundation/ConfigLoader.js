@@ -25,6 +25,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const path = require('path');
+const tradingConfigFile = require('../config/trading.config.json');
 
 const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
   'risk.riskManagerBypass',
@@ -33,6 +34,18 @@ const REQUIRED_RISK_SOURCE_PATHS = Object.freeze([
   'risk.maxWeeklyLoss',
   'risk.maxMonthlyLoss',
 ]);
+
+function requiredConfiguredNumber(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be a finite number`);
+  }
+  return value;
+}
+
+const LIVE_MIN_TRADE_CONFIDENCE_FLOOR = requiredConfiguredNumber('confidence.minTradeConfidence');
 
 // ═══════════════════════════════════════════════════════════════
 // ENV READER HELPERS (private — only used inside this file)
@@ -250,7 +263,7 @@ function buildConfig() {
 
     // ─── CONFIDENCE GATES ───
     confidence: {
-      minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', 0.50)),
+      minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', LIVE_MIN_TRADE_CONFIDENCE_FLOOR)),
       minStrategyConfidence: track('confidence.minStrategyConfidence', envFloat('MIN_STRATEGY_CONFIDENCE', 0.35)),
       maxConfidence: track('confidence.maxConfidence', envFloat('MAX_CONFIDENCE', 0.95)),
     },
@@ -553,10 +566,10 @@ function validate(config, sources = {}) {
   if (config.mode.liveTrading) {
     const minTradeConfidenceSource = sources['confidence.minTradeConfidence'];
     if (minTradeConfidenceSource !== 'env:MIN_TRADE_CONFIDENCE') {
-      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env, got ${minTradeConfidenceSource || 'missing'} because TradingConfig otherwise falls back to 0.35`);
+      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE from process env, got ${minTradeConfidenceSource || 'missing'} because live confidence must be process-explicit`);
     }
-    if (!Number.isFinite(config.confidence.minTradeConfidence) || config.confidence.minTradeConfidence < 0.90) {
-      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE >= 0.90, got ${config.confidence.minTradeConfidence}`);
+    if (!Number.isFinite(config.confidence.minTradeConfidence) || config.confidence.minTradeConfidence < LIVE_MIN_TRADE_CONFIDENCE_FLOOR) {
+      errors.push(`LIVE_TRADING=true requires MIN_TRADE_CONFIDENCE >= ${LIVE_MIN_TRADE_CONFIDENCE_FLOOR}, got ${config.confidence.minTradeConfidence}`);
     }
   }
   if (config.mode.liveTrading && config.evalRules.enabled !== true) {

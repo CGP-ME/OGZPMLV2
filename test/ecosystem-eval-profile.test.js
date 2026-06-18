@@ -116,7 +116,7 @@ describe('ecosystem eval live profile', () => {
       ENABLE_TRAI: 'false',
       WEBHOOK_ORDERS_ENABLED: 'true',
       WEBHOOK_DRY_RUN: 'false',
-      MIN_TRADE_CONFIDENCE: '0.90',
+      MIN_TRADE_CONFIDENCE: '0.5',
       EVAL_RULES_ENABLED: 'true',
       TTP_RULES_ENABLED: 'true',
       RISK_MANAGER_BYPASS: 'false',

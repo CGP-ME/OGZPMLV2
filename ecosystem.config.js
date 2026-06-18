@@ -83,7 +83,7 @@ module.exports = {
         MAX_MONTHLY_LOSS: '3',
         ACCOUNT_DRAWDOWN_PCT: '-3.0',
         ENABLE_DYNAMIC_SIZING: 'true',
-        MIN_TRADE_CONFIDENCE: '0.90',
+        MIN_TRADE_CONFIDENCE: '0.5',
         ATR_FILTER_ENABLED: 'true',
         ATR_MIN_PERCENT: '0.40',
         BASE_POSITION_SIZE: '0.01',

@@ -232,7 +232,7 @@ describe('backtest worker env contract', () => {
     expect(env.TUNING_PROFILE).toBe('ttp-5k-max');
     expect(env.BACKTEST_TUNING_PROFILE).toBe('ttp-5k-max');
     expect(env.INITIAL_BALANCE).toBe('5000');
-    expect(env.MIN_TRADE_CONFIDENCE).toBe('0.90');
+    expect(env.MIN_TRADE_CONFIDENCE).toBe('0.5');
     expect(env.MAX_DRAWDOWN).toBe('3');
     expect(env.MAX_DAILY_LOSS).toBe('1');
     expect(env.MAX_WEEKLY_LOSS).toBe('3');

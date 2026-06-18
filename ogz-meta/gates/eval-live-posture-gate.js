@@ -9,14 +9,19 @@ const dotenv = require('dotenv');
 
 const ConfigLoader = require('../../foundation/ConfigLoader');
 const TradingConfig = require('../../core/TradingConfig');
+const tradingConfigFile = require('../../config/trading.config.json');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const EVAL_MIN_TRADE_CONFIDENCE = tradingConfigFile.confidence.minTradeConfidence;
+if (!Number.isFinite(EVAL_MIN_TRADE_CONFIDENCE)) {
+  throw new Error('config/trading.config.json confidence.minTradeConfidence must be a finite number');
+}
 
 const REQUIRED_ENV_EXACT = Object.freeze({
   SESSION_ROUTER_ENABLED: 'false',
   WEBHOOK_ORDERS_ENABLED: 'true',
   WEBHOOK_DRY_RUN: 'false',
-  MIN_TRADE_CONFIDENCE: '0.90',
+  MIN_TRADE_CONFIDENCE: String(EVAL_MIN_TRADE_CONFIDENCE),
   EVAL_RULES_ENABLED: 'true',
   TTP_RULES_ENABLED: 'true',
   TTP_VOLUME_CAP_ENABLED: 'true',
@@ -49,7 +54,7 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'risk.accountDrawdownBypass': false,
   'webhookOrders.enabled': true,
   'webhookOrders.dryRun': false,
-  'confidence.minTradeConfidence': 0.90,
+  'confidence.minTradeConfidence': EVAL_MIN_TRADE_CONFIDENCE,
   'trai.enabled': false,
   'evalRules.enabled': true,
   'evalRules.ttp.enabled': true,

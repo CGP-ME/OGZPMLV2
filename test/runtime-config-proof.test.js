@@ -127,7 +127,7 @@ function snapshotFixture() {
 
 function tradingConfigFixture() {
   const values = {
-    'confidence.minTradeConfidence': 0.35,
+    'confidence.minTradeConfidence': 0.5,
     'confidence.minStrategyConfidence': 0.35,
     'filters.atrEnabled': false,
     'filters.atrMinPercent': 0.15,
@@ -185,7 +185,7 @@ describe('RuntimeConfigProof', () => {
       source: 'env:SIGNALSTACK_WEBHOOK_URL',
     });
     expect(proof.tradingConfig.tuningProfile.activeProfile).toBeNull();
-    expect(proof.tradingConfig.confidence.minTradeConfidence).toBe(0.35);
+    expect(proof.tradingConfig.confidence.minTradeConfidence).toBe(0.5);
     expect(proof.tradingConfig.exits.stopLossPercent).toBe(0.5);
     expect(proof.tradingConfig.fees.slippage).toBe(0.0005);
   });

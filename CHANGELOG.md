@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval Confidence Floor Ownership (2026-06-18)
+
+- Changed the live eval confidence floor to be owned by `config/trading.config.json` instead of duplicated literals in `ConfigLoader`, the eval posture gate, `TradingConfig`, and the PM2 eval profile.
+- Set the TTP 5k MAX/runtime eval confidence floor to `0.5` for capture mode while keeping live startup fail-closed on missing process-env `MIN_TRADE_CONFIDENCE` or values below the configured floor.
+- Blocked live-mode `TradingConfig.setOverrides()` and tuning-profile apply paths from lowering `confidence.minTradeConfidence` below the configured floor after startup validation.
+
 ### Dormant EMA Strategy Candidates (2026-06-18)
 
 - Added dormant/off-by-default `PropSafeEMAPullback` and `EMATrendRetest` strategy modules with config validation, sealed runtime config, RTH filtering, signal metadata, and exit contract hints.

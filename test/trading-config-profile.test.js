@@ -17,6 +17,29 @@ describe('TradingConfig runtime profile contract', () => {
     TradingConfig.clearOverrides();
   });
 
+  function withLiveRuntimeEnv(callback) {
+    const previous = {
+      LIVE_TRADING: process.env.LIVE_TRADING,
+      EXECUTION_MODE: process.env.EXECUTION_MODE,
+    };
+    process.env.LIVE_TRADING = 'true';
+    process.env.EXECUTION_MODE = 'live';
+    try {
+      return callback();
+    } finally {
+      if (previous.LIVE_TRADING === undefined) {
+        delete process.env.LIVE_TRADING;
+      } else {
+        process.env.LIVE_TRADING = previous.LIVE_TRADING;
+      }
+      if (previous.EXECUTION_MODE === undefined) {
+        delete process.env.EXECUTION_MODE;
+      } else {
+        process.env.EXECUTION_MODE = previous.EXECUTION_MODE;
+      }
+    }
+  }
+
   test('known runtime profiles resolve explicitly', () => {
     expect(TradingConfig.getProfile('balanced')).toEqual(
       expect.objectContaining({
@@ -142,7 +165,7 @@ describe('TradingConfig runtime profile contract', () => {
     });
 
     expect(workerEnv.INITIAL_BALANCE).toBe('5000');
-    expect(workerEnv.MIN_TRADE_CONFIDENCE).toBe('0.90');
+    expect(workerEnv.MIN_TRADE_CONFIDENCE).toBe('0.5');
     expect(workerEnv.MAX_DRAWDOWN).toBe('3');
     expect(workerEnv.MAX_DAILY_LOSS).toBe('1');
     expect(workerEnv.MAX_WEEKLY_LOSS).toBe('3');
@@ -273,6 +296,36 @@ describe('TradingConfig runtime profile contract', () => {
       requireFlat: true,
       flatState: { flat: true, source: 'unit-test' },
     })).toThrow(/includes startup-snapshot key\(s\) EXIT_SYSTEM, MAX_DAILY_LOSS, MAX_DRAWDOWN, MAX_MONTHLY_LOSS, MAX_WEEKLY_LOSS, RISK_MANAGER_BYPASS/);
+  });
+
+  test('live runtime refuses manual minTradeConfidence overrides below the configured floor', () => {
+    withLiveRuntimeEnv(() => {
+      expect(() => TradingConfig.setOverrides({
+        confidence: { minTradeConfidence: 0.49 },
+      })).toThrow(/Live runtime refuses setOverrides override for confidence\.minTradeConfidence/);
+    });
+
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
+  });
+
+  test('live runtime refuses tuning profile minTradeConfidence overrides below the configured floor', () => {
+    const originalBuildTuningProfileOverrides = TradingConfig.buildTuningProfileOverrides;
+    TradingConfig.buildTuningProfileOverrides = () => ({
+      'confidence.minTradeConfidence': 0.49,
+    });
+
+    try {
+      withLiveRuntimeEnv(() => {
+        expect(() => TradingConfig.applyTuningProfile('current-eval', {
+          phase: 'startup',
+          source: 'unit-test',
+        })).toThrow(/Live runtime refuses tuning profile 'current-eval' override for confidence\.minTradeConfidence/);
+      });
+    } finally {
+      TradingConfig.buildTuningProfileOverrides = originalBuildTuningProfileOverrides;
+    }
+
+    expect(TradingConfig.get('confidence.minTradeConfidence')).toBe(0.5);
   });
 
   test('profile apply refuses active override collisions unless profile replacement is explicit', () => {
