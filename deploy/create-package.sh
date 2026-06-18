@@ -2,7 +2,7 @@
 # OGZ Prime V2 - Deployment Package Creator
 # Creates a ready-to-run package for users
 
-echo "🚀 Creating OGZ Prime V2 Deployment Package..."
+echo "Creating OGZ Prime V2 Deployment Package..."
 
 # Package name with timestamp
 PACKAGE_NAME="ogzprime-v2-$(date +%Y%m%d-%H%M%S)"
@@ -26,7 +26,7 @@ rsync -av --progress \
   --exclude='profiles/trading/last_profile.json' \
   /opt/ogzprime/OGZPMLV2/ $PACKAGE_DIR/
 
-echo "📝 Creating default configuration..."
+echo "Creating default configuration..."
 
 # Create .env.template with user-configurable settings
 cat > $PACKAGE_DIR/.env.template << 'EOF'
@@ -75,7 +75,7 @@ echo "================================"
 
 # Check Node.js
 if ! command -v node &> /dev/null; then
-    echo "❌ Node.js not found. Please install Node.js 18+ first."
+    echo "Node.js not found. Please install Node.js 18+ first."
     exit 1
 fi
 
@@ -92,7 +92,7 @@ npm install
 # Copy .env template if not exists
 if [ ! -f .env ]; then
     cp .env.template .env
-    echo "✅ Created .env file - PLEASE CONFIGURE YOUR API KEYS!"
+    echo "Created .env file - PLEASE CONFIGURE YOUR API KEYS!"
 fi
 
 # Create required directories
@@ -101,57 +101,58 @@ mkdir -p logs
 mkdir -p profiles/trading
 
 echo ""
-echo "✅ Setup complete!"
+echo "Setup complete!"
 echo ""
-echo "⚠️  IMPORTANT NEXT STEPS:"
+echo "IMPORTANT NEXT STEPS:"
 echo "1. Edit .env and add your exchange API keys"
 echo "2. Set your risk parameters in .env"
 echo "3. Run: ./start.sh to launch the bot"
 echo ""
 EOF
 
-echo "🚀 Creating start script..."
+echo "Creating start script..."
 
 # Create start script
 cat > $PACKAGE_DIR/start.sh << 'EOF'
 #!/bin/bash
-echo "🚀 Starting OGZ Prime V2..."
+echo "Starting OGZ Prime V2..."
 
 # Check if .env exists
 if [ ! -f .env ]; then
-    echo "❌ .env file not found! Run ./setup.sh first"
+    echo ".env file not found! Run ./setup.sh first"
     exit 1
 fi
 
 # Check if API keys are configured
 if grep -q "YOUR_API_KEY_HERE" .env; then
-    echo "❌ API keys not configured! Edit .env first"
+    echo "API keys not configured! Edit .env first"
     exit 1
 fi
 
 # Start the bot
-pm2 start ecosystem.config.js
+pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
+pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
 
 # Show status
 pm2 status
 
 echo ""
-echo "✅ Bot started!"
-echo "📊 Dashboard: https://localhost:3010"
-echo "📝 Logs: pm2 logs ogz-prime-v2"
-echo "🛑 Stop: pm2 stop all"
+echo "Bot started!"
+echo "Dashboard: https://localhost:3010"
+echo "Logs: pm2 logs ogz-prime-v2"
+echo "Stop: pm2 stop all"
 echo ""
 EOF
 
-echo "🛑 Creating stop script..."
+echo "Creating stop script..."
 
 # Create stop script
 cat > $PACKAGE_DIR/stop.sh << 'EOF'
 #!/bin/bash
-echo "🛑 Stopping OGZ Prime V2..."
+echo "Stopping OGZ Prime V2..."
 pm2 stop all
 pm2 kill
-echo "✅ Bot stopped"
+echo "Bot stopped"
 EOF
 
 # Create ecosystem.config.js for PM2
@@ -248,7 +249,7 @@ cd /tmp
 tar -czf $PACKAGE_NAME.tar.gz $PACKAGE_NAME/
 
 echo ""
-echo "✅ Package created successfully!"
+echo "Package created successfully!"
 echo "📦 Location: /tmp/$PACKAGE_NAME.tar.gz"
 echo "📏 Size: $(du -h /tmp/$PACKAGE_NAME.tar.gz | cut -f1)"
 echo ""

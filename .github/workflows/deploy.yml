@@ -39,16 +39,16 @@ jobs:
             # Save pattern memory before restart
             cp pattern_memory.json pattern_memory.backup.$(date +%s).json 2>/dev/null || true
 
-            # Restart with PM2
-            pm2 stop ogzprime 2>/dev/null || true
-            pm2 delete ogzprime 2>/dev/null || true
-            pm2 start run-empire-v2.js --name ogzprime --log logs/empire.log
+            # Restart with the checked-in PM2 runtime profile so operator-owned
+            # live credentials and dashboard auth are preserved through restart.
+            pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
+            pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
             pm2 save
 
-            echo "✅ Empire V2 deployed and restarted"
+            echo "Empire V2 deployed and restarted"
           EOF
 
       - name: Verify deployment
         run: |
           sleep 10
-          ssh user@${{ secrets.VPS_IP }} "pm2 status ogzprime"
+          ssh user@${{ secrets.VPS_IP }} "pm2 status ogz-websocket ogz-prime-v2"

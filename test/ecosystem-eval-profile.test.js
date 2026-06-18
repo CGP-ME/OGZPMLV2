@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 const {
   validateEvalLivePosture,
 } = require('../ogz-meta/gates/eval-live-posture-gate');
@@ -9,6 +12,7 @@ const OPERATOR_ENV_KEYS = Object.freeze([
   'ALPACA_API_KEY',
   'ALPACA_API_SECRET',
   'SIGNALSTACK_WEBHOOK_URL',
+  'WEBSOCKET_AUTH_TOKEN',
   'TTP_ACCOUNT_START_OF_DAY_DATE',
   'TTP_ACCOUNT_START_OF_DAY_EQUITY',
   'TTP_DAILY_LOSS_LIMIT_DOLLARS',
@@ -24,6 +28,7 @@ const OPERATOR_ENV_VALUES = Object.freeze({
   ALPACA_API_KEY: 'test-alpaca-key',
   ALPACA_API_SECRET: 'test-alpaca-secret',
   SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
+  WEBSOCKET_AUTH_TOKEN: 'test-dashboard-runtime-token',
   TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-08',
   TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
   TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
@@ -123,6 +128,7 @@ describe('ecosystem eval live profile', () => {
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_KEY);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_SECRET);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.SIGNALSTACK_WEBHOOK_URL);
+    expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
   });
 
   test('locked 5k MAX profile values beat ambient shell env leftovers', () => {
@@ -181,5 +187,46 @@ describe('ecosystem eval live profile', () => {
       ALPACA_API_KEY: OPERATOR_ENV_VALUES.ALPACA_API_KEY,
       ALPACA_API_SECRET: OPERATOR_ENV_VALUES.ALPACA_API_SECRET,
     }));
+  });
+
+  test('dashboard websocket token is operator-owned and passed only to runtime processes', () => {
+    const websocket = loadAppWithEnv('ogz-websocket', OPERATOR_ENV_VALUES);
+    const prime = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+
+    expect(websocket.env.WEBSOCKET_AUTH_TOKEN).toBe(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
+    expect(prime.env.WEBSOCKET_AUTH_TOKEN).toBe(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
+
+    const defaultWebsocket = loadAppWithEnv('ogz-websocket', {});
+    const defaultPrime = loadPrimeAppWithEnv({});
+    expect(defaultWebsocket.env.WEBSOCKET_AUTH_TOKEN).toBeUndefined();
+    expect(defaultPrime.env.WEBSOCKET_AUTH_TOKEN).toBeUndefined();
+  });
+
+  test('production start surfaces use the PM2 ecosystem profile for live processes', () => {
+    const packageJson = require('../package.json');
+    const deployWorkflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'deploy.yml'), 'utf8');
+    const startScript = fs.readFileSync(path.join(__dirname, '..', 'start-ogzprime.sh'), 'utf8');
+    const cpuSetupScript = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'cpu-vps-setup.sh'), 'utf8');
+    const packageScript = fs.readFileSync(path.join(__dirname, '..', 'deploy', 'create-package.sh'), 'utf8');
+    const websocketServer = fs.readFileSync(path.join(__dirname, '..', 'ogzprime-ssl-server.js'), 'utf8');
+
+    expect(packageJson.scripts['start:prod']).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(packageJson.scripts['start:prod']).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(packageJson.scripts['start:prod']).not.toMatch(/pm2\s+start\s+run-empire-v2\.js/);
+    expect(deployWorkflow).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(deployWorkflow).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(deployWorkflow).not.toMatch(/pm2\s+start\s+run-empire-v2\.js/);
+    expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-stripe --update-env');
+    expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(startScript).not.toMatch(/pm2\s+(start|restart)\s+(public\/stripe-checkout\.js|ogz-(websocket|prime-v2|stripe)\b)/);
+    expect(cpuSetupScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(cpuSetupScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(cpuSetupScript).not.toMatch(/pm2\s+start\s+(ogzprime-ssl-server\.js|run-empire-v2\.js)/);
+    expect(packageScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(packageScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(packageScript).not.toMatch(/pm2\s+start\s+ecosystem\.config\.js\b/);
+    expect(websocketServer).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
+    expect(websocketServer).not.toMatch(/pm2\s+start\s+ogzprime-ssl-server\.js/);
   });
 });

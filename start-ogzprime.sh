@@ -66,17 +66,17 @@ wait_for_port() {
 
 start() {
     echo -e "\n${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}                 🚀 STARTING OGZ PRIME                          ${NC}"
+    echo -e "${GREEN}                 STARTING OGZ PRIME                            ${NC}"
     echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}\n"
 
     setup
 
     echo -e "\n${YELLOW}[Start] WebSocket server...${NC}"
-    pm2 start ogz-websocket --update-env 2>/dev/null || pm2 restart ogz-websocket --update-env
+    pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
     wait_for_port 3010
 
     echo -e "\n${YELLOW}[Start] Stripe checkout server...${NC}"
-    pm2 start public/stripe-checkout.js --name ogz-stripe --update-env 2>/dev/null || pm2 restart ogz-stripe --update-env
+    pm2 startOrReload ecosystem.config.js --only ogz-stripe --update-env
     wait_for_port 3001
 
     # Reload nginx to clear stale upstream connections
@@ -86,7 +86,7 @@ start() {
     # NOTE: Dashboard served via ogz-websocket (port 3010) - no separate dashboard server needed
 
     echo -e "${YELLOW}[Start] Trading bot + TRAI...${NC}"
-    pm2 start ogz-prime-v2 --update-env 2>/dev/null || pm2 restart ogz-prime-v2 --update-env
+    pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
 
     pm2 save
     sleep 3
@@ -110,7 +110,7 @@ status() {
     if pm2 logs ogz-prime-v2 --lines 30 --nostream 2>/dev/null | grep -q "TRAI LLM Ready\|TRAI Server Ready"; then
         echo -e "  ${GREEN}✓ TRAI LLM loaded and ready${NC}"
     else
-        echo -e "  ${YELLOW}⚠ TRAI status unknown (check logs)${NC}"
+        echo -e "  ${YELLOW}TRAI status unknown (check logs)${NC}"
     fi
 
     echo -e "\n${YELLOW}URLs:${NC}"

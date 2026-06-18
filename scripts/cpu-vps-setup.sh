@@ -4,23 +4,23 @@
 
 set -e
 
-echo "🚀 OGZ Prime CPU VPS Setup"
+echo "OGZ Prime CPU VPS Setup"
 echo "=========================="
 
 # 1. Check Node.js
 if ! command -v node &> /dev/null; then
-    echo "❌ Node.js not found. Installing..."
+    echo "Node.js not found. Installing..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
 fi
-echo "✅ Node.js $(node -v)"
+echo "Node.js $(node -v)"
 
 # 2. Check PM2
 if ! command -v pm2 &> /dev/null; then
     echo "📦 Installing PM2..."
     sudo npm install -g pm2
 fi
-echo "✅ PM2 installed"
+echo "PM2 installed"
 
 # 3. Install dependencies
 echo "📦 Installing npm dependencies..."
@@ -31,41 +31,41 @@ echo ""
 echo "🔑 Checking required environment variables..."
 
 if [ -z "$INCEPTION_API_KEY" ]; then
-    echo "❌ INCEPTION_API_KEY not set"
+    echo "INCEPTION_API_KEY not set"
     echo "   Add to .env: INCEPTION_API_KEY=sk_xxx"
     exit 1
 fi
-echo "✅ INCEPTION_API_KEY set"
+echo "INCEPTION_API_KEY set"
 
 if [ -z "$TAVILY_API_KEY" ]; then
-    echo "⚠️  TAVILY_API_KEY not set (web search disabled)"
+    echo "TAVILY_API_KEY not set (web search disabled)"
     echo "   Optional: Get free key at https://tavily.com"
 fi
 
 # 5. Set LLM provider
 if [ -z "$LLM_PROVIDER" ]; then
-    echo "ℹ️  Setting LLM_PROVIDER=mercury"
+    echo "Setting LLM_PROVIDER=mercury"
     echo "LLM_PROVIDER=mercury" >> .env
 fi
 
 # 6. Start services
 echo ""
-echo "🚀 Starting PM2 processes..."
+echo "Starting PM2 processes..."
 
 # WebSocket/Dashboard server
 pm2 delete ogz-websocket 2>/dev/null || true
-INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 start ogzprime-ssl-server.js --name ogz-websocket
+INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
 
 # Trading bot (paper mode by default)
 pm2 delete ogz-bot 2>/dev/null || true
-INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 start run-empire-v2.js --name ogz-bot
+INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
 
 pm2 save
 
 echo ""
-echo "✅ OGZ Prime is running!"
+echo "OGZ Prime is running!"
 echo "   Dashboard: http://localhost:3010"
 echo "   Bot logs:  pm2 logs ogz-bot"
 echo ""
-echo "📊 Status:"
+echo "Status:"
 pm2 list

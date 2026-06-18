@@ -5,6 +5,7 @@ const evalOperatorEnv = Object.freeze({
   ALPACA_API_KEY: process.env.ALPACA_API_KEY,
   ALPACA_API_SECRET: process.env.ALPACA_API_SECRET,
   SIGNALSTACK_WEBHOOK_URL: process.env.SIGNALSTACK_WEBHOOK_URL,
+  WEBSOCKET_AUTH_TOKEN: process.env.WEBSOCKET_AUTH_TOKEN,
   TTP_ACCOUNT_START_OF_DAY_DATE: process.env.TTP_ACCOUNT_START_OF_DAY_DATE,
   TTP_ACCOUNT_START_OF_DAY_EQUITY: process.env.TTP_ACCOUNT_START_OF_DAY_EQUITY,
   TTP_DAILY_LOSS_LIMIT_DOLLARS: process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS,
@@ -40,6 +41,7 @@ module.exports = {
       watch: false,
       env: {
         ...alpacaCredentialEnv,
+        WEBSOCKET_AUTH_TOKEN: process.env.WEBSOCKET_AUTH_TOKEN,
         ...dashboardStockRuntimeEnv,
         NODE_ENV: 'production',
         PORT: 3010
@@ -169,7 +171,7 @@ module.exports = {
       // workloads). See ogz-meta/specs/resilience-and-supervision.md.
       //
       // Manual start (after the bot is happy):
-      //   pm2 start ecosystem.config.js --only ogz-supervisor
+      //   pm2 startOrReload ecosystem.config.js --only ogz-supervisor --update-env
       //
       // Watch its work:
       //   pm2 logs ogz-supervisor

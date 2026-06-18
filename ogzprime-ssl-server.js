@@ -39,8 +39,8 @@
  * // Start the dashboard server
  * node ogzprime-ssl-server.js
  *
- * // Or via PM2
- * pm2 start ogzprime-ssl-server.js --name ogz-dashboard
+ * // Or via PM2 production profile
+ * pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
  */
 
 require('dotenv').config();
