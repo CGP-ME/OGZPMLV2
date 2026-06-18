@@ -237,7 +237,36 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "sizing": { "type": "object", "additionalProperties": true }
+        "sizing": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "basePositionPercent": { "type": "number", "minimum": 0, "maximum": 1 },
+            "maxPositionPercent": { "type": "number", "minimum": 0, "maximum": 1 },
+            "absoluteCapPercent": { "type": "number", "minimum": 0, "maximum": 1 },
+            "stockShareRange": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled",
+                "minShares",
+                "maxShares",
+                "maxNotionalUsd",
+                "consistencyCapBuffer",
+                "dailyLossRiskFraction"
+              ],
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "minShares": { "type": "number", "minimum": 0 },
+                "maxShares": { "type": "number", "minimum": 0 },
+                "maxNotionalUsd": { "type": "number", "minimum": 0 },
+                "consistencyCapBuffer": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+                "dailyLossRiskFraction": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
       }
     },
     "strategies": {

@@ -744,6 +744,199 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
+  test('stock share range raises fee-floor entries to configured minimum shares before eval gate', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.10 },
+      entryLogic: {
+        sizing: {
+          absoluteCapPercent: 1.0,
+          stockShareRange: {
+            enabled: true,
+            minShares: 2,
+            maxShares: 8,
+            maxNotionalUsd: 5000,
+            consistencyCapBuffer: 0.98,
+            dailyLossRiskFraction: 1.0,
+          },
+        },
+      },
+      exits: { profitTiers: { final: 0.025 } },
+      evalRules: {
+        ttp: {
+          accountLimits: { dailyLossDollars: 50 },
+          consistency: { profitTargetDollars: 300, maxPositionProfitRatio: 0.30 },
+        },
+      },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.getAvailableCapital.mockReturnValue(5000);
+    mockStateManager.getEquity.mockReturnValue(5000);
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: false,
+      failedRules: [{ ruleId: 'SIZE_PROBE' }],
+    });
+    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false, preOrderEntryGate });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      400,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 1 }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+    }));
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      baseSizeUsd: 250,
+      requestedSizeUsd: 250,
+      sizeUsd: 800,
+      orderQuantity: 2,
+      stockShareRange: expect.objectContaining({
+        minShares: 2,
+        maxShares: 8,
+        reasons: expect.arrayContaining(['ttp_consistency_profit_cap', 'ttp_daily_loss_risk']),
+      }),
+    }));
+  });
+
+  test('stock share range caps high-confidence entries below the TTP best-trade profit limit', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.20 },
+      entryLogic: {
+        sizing: {
+          absoluteCapPercent: 1.0,
+          stockShareRange: {
+            enabled: true,
+            minShares: 2,
+            maxShares: 20,
+            maxNotionalUsd: 5000,
+            consistencyCapBuffer: 0.98,
+            dailyLossRiskFraction: 1.0,
+          },
+        },
+      },
+      exits: { profitTiers: { final: 0.025 } },
+      evalRules: {
+        ttp: {
+          accountLimits: { dailyLossDollars: 50 },
+          consistency: { profitTargetDollars: 300, maxPositionProfitRatio: 0.30 },
+        },
+      },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.getAvailableCapital.mockReturnValue(10000);
+    mockStateManager.getEquity.mockReturnValue(10000);
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: false,
+      failedRules: [{ ruleId: 'SIZE_PROBE' }],
+    });
+    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false, preOrderEntryGate });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 100 },
+      {},
+      400,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 2.5 }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+    }));
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      requestedSizeUsd: 12500,
+      sizeUsd: 3200,
+      orderQuantity: 8,
+      stockShareRange: expect.objectContaining({
+        minShares: 2,
+        maxShares: 8,
+        reasons: expect.arrayContaining(['ttp_consistency_profit_cap']),
+      }),
+    }));
+  });
+
+  test('stock share range blocks when configured minimum shares would violate consistency cap', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.10 },
+      entryLogic: {
+        sizing: {
+          absoluteCapPercent: 1.0,
+          stockShareRange: {
+            enabled: true,
+            minShares: 2,
+            maxShares: 8,
+            maxNotionalUsd: 5000,
+            consistencyCapBuffer: 0.98,
+            dailyLossRiskFraction: 1.0,
+          },
+        },
+      },
+      exits: { profitTiers: { final: 0.025 } },
+      evalRules: {
+        ttp: {
+          accountLimits: { dailyLossDollars: 50 },
+          consistency: { profitTargetDollars: 300, maxPositionProfitRatio: 0.30 },
+        },
+      },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.getAvailableCapital.mockReturnValue(5000);
+    mockStateManager.getEquity.mockReturnValue(5000);
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false, preOrderEntryGate });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 100 },
+      {},
+      400,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({
+        sizingMultiplier: 1,
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 12 },
+      }),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'stock_share_range_impossible:min=2:max=1',
+      orderQuantity: 0,
+      stockShareRange: expect.objectContaining({
+        minShares: 2,
+        maxShares: 1,
+        reasons: expect.arrayContaining(['ttp_consistency_profit_cap']),
+      }),
+    }));
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+  });
+
   test('malformed entry exit contract fails before broker, gate, webhook, or state side effects', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
@@ -2050,6 +2243,85 @@ describe('OrderExecutor pause gate', () => {
         entryOrderQuantityUnit: 'shares',
         remainingOrderQuantityUnit: 'shares',
       })
+    );
+  });
+
+  test('live stock entry partial fill below configured share minimum records broker truth and halts symbol', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.05 },
+      entryLogic: {
+        sizing: {
+          absoluteCapPercent: 1.0,
+          stockShareRange: {
+            enabled: true,
+            minShares: 2,
+            maxShares: 8,
+            maxNotionalUsd: 5000,
+            consistencyCapBuffer: 0.98,
+            dailyLossRiskFraction: 1.0,
+          },
+        },
+      },
+      exits: { profitTiers: { final: 0.025 } },
+      evalRules: {
+        ttp: {
+          accountLimits: { dailyLossDollars: 50 },
+          consistency: { profitTargetDollars: 300, maxPositionProfitRatio: 0.30 },
+        },
+      },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_BUY_BELOW_MIN_FILL', price: 100, qty: 1 });
+    const executor = makeExecutor(
+      { executionMode: 'live', assetClass: 'stocks' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 1 }),
+      'TSLA'
+    );
+
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 2,
+      options: expect.objectContaining({ sizeUsd: 200, quantityUnit: 'shares' }),
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      amount: 100,
+      orderQuantity: 1,
+      quantityUnit: 'shares',
+      stockShareRangeFillViolation: '[RISK-ENTRY-SHARE-RANGE] stock_share_range_fill_below_min:min=2:accepted=1',
+    }));
+    expect(mockStateManager.openPosition).toHaveBeenCalledWith(
+      100,
+      100,
+      expect.objectContaining({
+        action: 'BUY',
+        direction: 'long',
+        entryOrderQuantity: 1,
+        remainingOrderQuantity: 1,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantityUnit: 'shares',
+      })
+    );
+    expect(mockStateManager.haltSymbol).toHaveBeenCalledWith(
+      'TSLA',
+      '[RISK-ENTRY-SHARE-RANGE] stock_share_range_fill_below_min:min=2:accepted=1'
     );
   });
 

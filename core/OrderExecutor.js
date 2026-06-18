@@ -670,6 +670,177 @@ class OrderExecutor {
     });
   }
 
+  _percentDistanceDecimal(value, label) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric === 0) {
+      throw new Error(`[ENTRY-SHARE-RANGE] ${label} must be a finite non-zero percent-form distance; got ${value}`);
+    }
+    return Math.abs(numeric) / 100;
+  }
+
+  _positiveConfigNumber(path) {
+    const value = Number(TradingConfig.get(path));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  _entryProfitDistanceDecimal(exitContract) {
+    const distances = [];
+    const finalTier = this._positiveConfigNumber('exits.profitTiers.final');
+    if (finalTier !== null) {
+      distances.push(finalTier > 1 ? finalTier / 100 : finalTier);
+    }
+    if (exitContract && exitContract.takeProfitPercent !== undefined) {
+      distances.push(this._percentDistanceDecimal(exitContract.takeProfitPercent, 'exitContract.takeProfitPercent'));
+    }
+    const positiveDistances = distances.filter(value => Number.isFinite(value) && value > 0);
+    if (positiveDistances.length === 0) {
+      throw new Error('[ENTRY-SHARE-RANGE] no positive profit distance configured for consistency cap');
+    }
+    return Math.max(...positiveDistances);
+  }
+
+  _entryStopDistanceDecimal(exitContract) {
+    if (!exitContract || exitContract.stopLossPercent === undefined) {
+      return null;
+    }
+    return this._percentDistanceDecimal(exitContract.stopLossPercent, 'exitContract.stopLossPercent');
+  }
+
+  _applyStockShareRange({ orderQuantity, price, exitContract }) {
+    const range = {
+      enabled: TradingConfig.get('entryLogic.sizing.stockShareRange.enabled'),
+      minShares: TradingConfig.get('entryLogic.sizing.stockShareRange.minShares'),
+      maxShares: TradingConfig.get('entryLogic.sizing.stockShareRange.maxShares'),
+      maxNotionalUsd: TradingConfig.get('entryLogic.sizing.stockShareRange.maxNotionalUsd'),
+      consistencyCapBuffer: TradingConfig.get('entryLogic.sizing.stockShareRange.consistencyCapBuffer'),
+      dailyLossRiskFraction: TradingConfig.get('entryLogic.sizing.stockShareRange.dailyLossRiskFraction'),
+    };
+    if (!range || range.enabled !== true) {
+      return {
+        orderQuantity,
+        adjusted: false,
+        bounds: null,
+        blockReason: null,
+      };
+    }
+
+    const configuredMinShares = Number(range.minShares);
+    if (!Number.isFinite(configuredMinShares) || configuredMinShares < 0) {
+      throw new Error(`[ENTRY-SHARE-RANGE] minShares must be a finite non-negative number; got ${range.minShares}`);
+    }
+
+    const minShares = Math.ceil(configuredMinShares);
+    const caps = [];
+    const reasons = [];
+
+    const configuredMaxShares = Number(range.maxShares);
+    if (Number.isFinite(configuredMaxShares) && configuredMaxShares > 0) {
+      caps.push(Math.floor(configuredMaxShares));
+      reasons.push('config_max_shares');
+    }
+
+    const maxNotionalUsd = Number(range.maxNotionalUsd);
+    if (Number.isFinite(maxNotionalUsd) && maxNotionalUsd > 0) {
+      caps.push(Math.floor(maxNotionalUsd / price));
+      reasons.push('config_max_notional');
+    }
+
+    const profitTargetDollars = this._positiveConfigNumber('evalRules.ttp.consistency.profitTargetDollars');
+    const maxPositionProfitRatio = this._positiveConfigNumber('evalRules.ttp.consistency.maxPositionProfitRatio');
+    const consistencyCapBuffer = Number(range.consistencyCapBuffer);
+    if (profitTargetDollars !== null || maxPositionProfitRatio !== null) {
+      if (profitTargetDollars === null || maxPositionProfitRatio === null) {
+        throw new Error('[ENTRY-SHARE-RANGE] TTP consistency cap requires both profitTargetDollars and maxPositionProfitRatio');
+      }
+      if (!Number.isFinite(consistencyCapBuffer) || consistencyCapBuffer <= 0 || consistencyCapBuffer > 1) {
+        throw new Error(`[ENTRY-SHARE-RANGE] consistencyCapBuffer must be > 0 and <= 1; got ${range.consistencyCapBuffer}`);
+      }
+      const profitDistance = this._entryProfitDistanceDecimal(exitContract);
+      const maxProfitDollars = profitTargetDollars * maxPositionProfitRatio * consistencyCapBuffer;
+      caps.push(Math.floor(maxProfitDollars / (price * profitDistance)));
+      reasons.push('ttp_consistency_profit_cap');
+    }
+
+    const dailyLossDollars = this._positiveConfigNumber('evalRules.ttp.accountLimits.dailyLossDollars');
+    const dailyLossRiskFraction = Number(range.dailyLossRiskFraction);
+    const stopDistance = this._entryStopDistanceDecimal(exitContract);
+    if (dailyLossDollars !== null && stopDistance !== null) {
+      if (!Number.isFinite(dailyLossRiskFraction) || dailyLossRiskFraction <= 0 || dailyLossRiskFraction > 1) {
+        throw new Error(`[ENTRY-SHARE-RANGE] dailyLossRiskFraction must be > 0 and <= 1; got ${range.dailyLossRiskFraction}`);
+      }
+      caps.push(Math.floor((dailyLossDollars * dailyLossRiskFraction) / (price * stopDistance)));
+      reasons.push('ttp_daily_loss_risk');
+    }
+
+    const finiteCaps = caps.filter(value => Number.isFinite(value));
+    const maxShares = finiteCaps.length > 0 ? Math.min(...finiteCaps) : Infinity;
+    if (Number.isFinite(maxShares) && maxShares < minShares) {
+      return {
+        orderQuantity: 0,
+        adjusted: true,
+        bounds: { minShares, maxShares, reasons },
+        blockReason: `stock_share_range_impossible:min=${minShares}:max=${maxShares}`,
+      };
+    }
+
+    const wholeShareQuantity = Math.floor(Number(orderQuantity));
+    let boundedQuantity = wholeShareQuantity;
+    if (minShares > 0 && boundedQuantity < minShares) {
+      boundedQuantity = minShares;
+    }
+    if (Number.isFinite(maxShares) && boundedQuantity > maxShares) {
+      boundedQuantity = maxShares;
+    }
+
+    return {
+      orderQuantity: boundedQuantity,
+      adjusted: boundedQuantity !== orderQuantity,
+      bounds: { minShares, maxShares, reasons },
+      blockReason: boundedQuantity > 0 ? null : 'stock_share_range_zero_quantity',
+    };
+  }
+
+  _stockShareRangeFillViolation(entryPlan, executedEntryPlan) {
+    if (!entryPlan?.stockShareRange || entryPlan.quantityUnit !== 'shares') {
+      return null;
+    }
+    const orderQuantity = Number(executedEntryPlan?.orderQuantity);
+    if (!Number.isFinite(orderQuantity) || orderQuantity <= 0) {
+      return null;
+    }
+
+    const { minShares, maxShares } = entryPlan.stockShareRange;
+    if (Number.isFinite(minShares) && minShares > 0 && orderQuantity < minShares) {
+      return `stock_share_range_fill_below_min:min=${minShares}:accepted=${orderQuantity}`;
+    }
+    if (Number.isFinite(maxShares) && orderQuantity > maxShares) {
+      return `stock_share_range_fill_above_max:max=${maxShares}:accepted=${orderQuantity}`;
+    }
+    return null;
+  }
+
+  async _handleStockShareRangeFillViolation({ stateManager, entryPlan, executedEntryPlan, traceId, signalId, symbol, action }) {
+    const violation = this._stockShareRangeFillViolation(entryPlan, executedEntryPlan);
+    if (!violation) return null;
+
+    const haltReason = `[RISK-ENTRY-SHARE-RANGE] ${violation}`;
+    console.error(`[ENTRY-SHARE-RANGE] Broker accepted ${executedEntryPlan.orderQuantity} shares for ${symbol} outside configured bounds after order acceptance; recording broker truth and halting new entries for symbol`);
+    emitTrace(this.ctx, 'ORDER_ACCEPTED_OUTSIDE_SHARE_RANGE', {
+      traceId,
+      signalId,
+      symbol,
+      action,
+      reason: haltReason,
+      plannedOrderQuantity: entryPlan.orderQuantity,
+      acceptedOrderQuantity: executedEntryPlan.orderQuantity,
+      quantityUnit: executedEntryPlan.quantityUnit,
+      stockShareRange: entryPlan.stockShareRange,
+      stateMutationSucceeded: true,
+    });
+    await stateManager.haltSymbol(symbol, haltReason);
+    return haltReason;
+  }
+
   _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent, forceWholeShares = false }) {
     if (!this._isEntryAction(decision.action)) return null;
 
@@ -685,11 +856,21 @@ class OrderExecutor {
     if (cappedByAbsoluteCap) {
       console.log(`Position absolute-capped final size: $${requestedSizeUsd.toFixed(2)} -> $${sizeUsd.toFixed(2)} (${(capPercent * 100).toFixed(2)}% ABSOLUTE_POSITION_CAP)`);
     }
-    const orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
     const quantityUnit = this._orderQuantityUnit(scope);
-    const plannedSizeUsd = forceWholeShares && quantityUnit === 'shares'
-      ? orderQuantity * price
-      : sizeUsd;
+    let orderQuantity = this._orderQuantityFromSizeUsd(sizeUsd, price, scope, { forceWholeShares });
+    let shareRange = null;
+    if (quantityUnit === 'shares') {
+      shareRange = this._applyStockShareRange({
+        orderQuantity,
+        price,
+        exitContract,
+      });
+      orderQuantity = shareRange.orderQuantity;
+    }
+    let plannedSizeUsd = sizeUsd;
+    if (quantityUnit === 'shares' && (forceWholeShares || shareRange?.adjusted)) {
+      plannedSizeUsd = orderQuantity * price;
+    }
 
     return {
       traceId: decision.traceId || null,
@@ -714,6 +895,8 @@ class OrderExecutor {
       absoluteCapPercent: capPercent,
       absoluteCapSizeUsd,
       cappedByAbsoluteCap,
+      stockShareRange: shareRange?.bounds || null,
+      stockShareRangeBlockReason: shareRange?.blockReason || null,
       confidence: decision.confidence,
       tradeConfidence,
       confidenceMultiplier,
@@ -1193,21 +1376,24 @@ class OrderExecutor {
       forceWholeShares: isWebhookExecutionRoute
     });
     if (entryPlan && entryPlan.orderQuantity <= 0) {
-      console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)}`);
+      const blockReason = entryPlan.stockShareRangeBlockReason || 'non_positive_order_quantity';
+      console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)} (${blockReason})`);
       emitTrace(this.ctx, 'ORDER_BLOCKED', {
         traceId,
         signalId,
         symbol,
         action: decision.action,
-        reason: 'non_positive_order_quantity',
+        reason: blockReason,
         quantityUnit: entryPlan.quantityUnit,
         orderQuantity: entryPlan.orderQuantity,
         sizeUsd: entryPlan.sizeUsd,
+        stockShareRange: entryPlan.stockShareRange,
       });
-      return blockedReturn('non_positive_order_quantity', {
+      return blockedReturn(blockReason, {
         quantityUnit: entryPlan.quantityUnit,
         orderQuantity: entryPlan.orderQuantity,
         sizeUsd: entryPlan.sizeUsd,
+        stockShareRange: entryPlan.stockShareRange,
       });
     }
     if (entryPlan) {
@@ -1220,6 +1406,7 @@ class OrderExecutor {
         sizeUsd: entryPlan.sizeUsd,
         orderQuantity: entryPlan.orderQuantity,
         quantityUnit: entryPlan.quantityUnit,
+        stockShareRange: entryPlan.stockShareRange,
         entryStrategy: entryPlan.entryStrategy,
       });
       const gateResult = await this._runPreOrderEntryGate(entryPlan);
@@ -1644,11 +1831,11 @@ class OrderExecutor {
             console.error('StateManager.openPosition failed:', positionResult.error);
             // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
             stateManager.removeActiveTrade(unifiedResult.orderId);
-            emitTrace(this.ctx, 'STATE_MUTATION', {
-              traceId,
-              signalId,
-              symbol,
-              action: decision.action,
+	          emitTrace(this.ctx, 'STATE_MUTATION', {
+	            traceId,
+	            signalId,
+	            symbol,
+	            action: decision.action,
               success: false,
               operation: 'openPosition',
               error: positionResult.error,
@@ -1675,11 +1862,20 @@ class OrderExecutor {
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
-            position: stateAfter.position,
-            balance: stateAfter.balance,
-          });
+	            position: stateAfter.position,
+	            balance: stateAfter.balance,
+	          });
+	          tradeResult.stockShareRangeFillViolation = await this._handleStockShareRangeFillViolation({
+	            stateManager,
+	            entryPlan,
+	            executedEntryPlan,
+	            traceId,
+	            signalId,
+	            symbol,
+	            action: decision.action,
+	          });
 
-          // Change 605: Start MaxProfitManager on BUY to track profit targets
+	          // Change 605: Start MaxProfitManager on BUY to track profit targets
           // Phase 4 REWRITE: Access maxProfitManager directly (was inside deleted tradingBrain)
           const mpmInstance = new MaxProfitManager();
           mpmInstance.start(price, 'buy', adjustedPositionSize, {
@@ -1848,11 +2044,11 @@ class OrderExecutor {
           if (!positionResult.success) {
             console.error('StateManager.openPosition (SHORT) failed:', positionResult.error);
             stateManager.removeActiveTrade(unifiedResult.orderId);
-            emitTrace(this.ctx, 'STATE_MUTATION', {
-              traceId,
-              signalId,
-              symbol,
-              action: decision.action,
+	          emitTrace(this.ctx, 'STATE_MUTATION', {
+	            traceId,
+	            signalId,
+	            symbol,
+	            action: decision.action,
               success: false,
               operation: 'openPosition',
               error: positionResult.error,
@@ -1876,11 +2072,20 @@ class OrderExecutor {
             success: true,
             operation: 'openPosition',
             orderId: unifiedResult.orderId,
-            position: stateAfter.position,
-            balance: stateAfter.balance,
-          });
+	            position: stateAfter.position,
+	            balance: stateAfter.balance,
+	          });
+	          tradeResult.stockShareRangeFillViolation = await this._handleStockShareRangeFillViolation({
+	            stateManager,
+	            entryPlan,
+	            executedEntryPlan,
+	            traceId,
+	            signalId,
+	            symbol,
+	            action: decision.action,
+	          });
 
-          // MaxProfitManager for short direction
+	          // MaxProfitManager for short direction
           const mpmShortInstance = new MaxProfitManager();
           mpmShortInstance.start(price, 'sell', adjustedPositionSize, {
             volatility: indicators.volatility ?? null,
@@ -2963,10 +3168,11 @@ class OrderExecutor {
           orderAccepted: true,
           stateMutationSucceeded: true,
           price: tradeResult.price ?? price,
-          amount: tradeResult.amount ?? positionSize,
-          orderQuantity: tradeResult.orderQuantity ?? null,
-          quantityUnit: tradeResult.quantityUnit || null,
-        });
+	          amount: tradeResult.amount ?? positionSize,
+	          orderQuantity: tradeResult.orderQuantity ?? null,
+	          quantityUnit: tradeResult.quantityUnit || null,
+	          stockShareRangeFillViolation: tradeResult.stockShareRangeFillViolation || null,
+	        });
       } else {
         const blockReason = tradeResult?.reason || 'trade_result_not_successful_without_reason';
         console.log(`Trade blocked: ${blockReason}\n`);

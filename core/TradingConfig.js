@@ -78,6 +78,12 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
   BASE_POSITION_PCT: Object.freeze(['entryLogic.sizing.basePositionPercent']),
   MAX_POSITION_PCT: Object.freeze(['entryLogic.sizing.maxPositionPercent']),
   ABSOLUTE_POSITION_CAP: Object.freeze(['entryLogic.sizing.absoluteCapPercent']),
+  ENTRY_STOCK_SHARE_RANGE_ENABLED: Object.freeze(['entryLogic.sizing.stockShareRange.enabled']),
+  ENTRY_MIN_STOCK_SHARES: Object.freeze(['entryLogic.sizing.stockShareRange.minShares']),
+  ENTRY_MAX_STOCK_SHARES: Object.freeze(['entryLogic.sizing.stockShareRange.maxShares']),
+  ENTRY_MAX_STOCK_NOTIONAL: Object.freeze(['entryLogic.sizing.stockShareRange.maxNotionalUsd']),
+  ENTRY_CONSISTENCY_CAP_BUFFER: Object.freeze(['entryLogic.sizing.stockShareRange.consistencyCapBuffer']),
+  ENTRY_DAILY_LOSS_RISK_FRACTION: Object.freeze(['entryLogic.sizing.stockShareRange.dailyLossRiskFraction']),
   TIER1_TARGET: Object.freeze(['exits.profitTiers.tier1']),
   TIER2_TARGET: Object.freeze(['exits.profitTiers.tier2']),
   TIER3_TARGET: Object.freeze(['exits.profitTiers.tier3']),
@@ -119,6 +125,7 @@ const PROFILE_ENV_CONFIG_PATHS = Object.freeze({
 
 const PROFILE_BOOLEAN_ENV_KEYS = Object.freeze(new Set([
   'ENABLE_DYNAMIC_SIZING',
+  'ENTRY_STOCK_SHARE_RANGE_ENABLED',
   'ACCOUNT_DRAWDOWN_BYPASS',
   'RISK_MANAGER_BYPASS',
   'ATR_FILTER_ENABLED',
@@ -798,6 +805,14 @@ const BASE_CONFIG = {
       basePositionPercent: parseFloat(env('BASE_POSITION_PCT', 0.01)),
       maxPositionPercent: parseFloat(env('MAX_POSITION_PCT', 0.05)),
       absoluteCapPercent: parseFloat(env('ABSOLUTE_POSITION_CAP', 0.15)),  // hard ceiling even with all multipliers
+      stockShareRange: {
+        enabled: envBool('ENTRY_STOCK_SHARE_RANGE_ENABLED', false),
+        minShares: env('ENTRY_MIN_STOCK_SHARES', 0),
+        maxShares: env('ENTRY_MAX_STOCK_SHARES', 0),
+        maxNotionalUsd: env('ENTRY_MAX_STOCK_NOTIONAL', 0),
+        consistencyCapBuffer: env('ENTRY_CONSISTENCY_CAP_BUFFER', 0.98),
+        dailyLossRiskFraction: env('ENTRY_DAILY_LOSS_RISK_FRACTION', 1.0),
+      },
       confidenceCurve: [
         { confidence: 0.00, multiplier: 0.25 },
         { confidence: 0.50, multiplier: 0.50 },

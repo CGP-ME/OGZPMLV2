@@ -129,6 +129,9 @@ describe('backtest worker env contract', () => {
     expect(env.BACKTEST_TUNING_PROFILE).toBe('current-eval');
     expect(env.ENABLE_DYNAMIC_SIZING).toBe('true');
     expect(env.MAX_POSITION_SIZE_PCT).toBe('0.05');
+    expect(env.ENTRY_STOCK_SHARE_RANGE_ENABLED).toBeUndefined();
+    expect(env.ENTRY_MIN_STOCK_SHARES).toBeUndefined();
+    expect(env.ENTRY_MAX_STOCK_SHARES).toBeUndefined();
     expect(env.TIER1_TARGET).toBe('0.007');
     expect(env.FINAL_TARGET).toBe('0.025');
     expectLockedExitProfileKeysAbsent(env);
@@ -241,6 +244,12 @@ describe('backtest worker env contract', () => {
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('false');
     expect(env.ACCOUNT_DRAWDOWN_PCT).toBe('-3.0');
     expect(env.ATR_MIN_PERCENT).toBe('0.40');
+    expect(env.MAX_POSITION_SIZE_PCT).toBe('0.10');
+    expect(env.ABSOLUTE_POSITION_CAP).toBe('1.00');
+    expect(env.ENTRY_STOCK_SHARE_RANGE_ENABLED).toBe('true');
+    expect(env.ENTRY_MIN_STOCK_SHARES).toBe('2');
+    expect(env.ENTRY_MAX_STOCK_SHARES).toBe('8');
+    expect(env.ENTRY_MAX_STOCK_NOTIONAL).toBe('5000');
     expect(env.FEE_MODEL).toBe('per_share_minimum');
     expect(env.FEE_PER_SHARE).toBe('0.005');
     expect(env.FEE_MIN_ORDER).toBe('0.75');
