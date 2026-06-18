@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Explicit Fresh State Initial Balance (2026-06-18)
+
+- Changed `StateManager` backtest and `FRESH_START` resets to require an explicit `INITIAL_BALANCE` source instead of silently retaining or rebuilding from the constructor's `$10000` bootstrap.
+- Added a shared `initializeFreshState()` reset path that clears stale exposure, active trades, PnL, halt, pause, and recovery state while applying the configured starting balance.
+- Added focused coverage for explicit `$5000` fresh-state resets, missing/default balance rejection, stale exposure clearing, persistence, and `BACKTEST_MODE` initialization.
+
 ### MaxProfitManager PnL Analytics Units (2026-06-16)
 
 - Fixed MaxProfitManager analytics and narrator PnL math to treat position sizes as USD notional, removing erroneous entry-price multiplication from unrealized PnL, break-even scale-out realized PnL, tier partial PnL, tier realized PnL, and final close remaining PnL.

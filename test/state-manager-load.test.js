@@ -53,6 +53,110 @@ describe('StateManager load validation', () => {
     expect(saved.pauseReason).toContain('invalid persisted isTrading');
   });
 
+  test('fresh state initializer applies explicit starting balance and clears exposure', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    manager.set('balance', 10000);
+    manager.set('totalBalance', 10000);
+    manager.set('initialBalance', 10000);
+    manager.set('position', 500);
+    manager.set('inPosition', 500);
+    manager.set('activeTrades', new Map([[
+      'OPEN_1',
+      {
+        id: 'OPEN_1',
+        orderId: 'OPEN_1',
+        symbol: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-main',
+        assetClass: 'stocks',
+        executionMode: 'backtest',
+        timeframe: '15m',
+        sizeUsd: 500,
+        size: 500,
+        entryOrderQuantity: 1,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantity: 1,
+        remainingOrderQuantityUnit: 'shares',
+      },
+    ]]));
+
+    const result = manager.initializeFreshState(5000, { source: 'test' });
+
+    expect(result.success).toBe(true);
+    expect(manager.get('balance')).toBe(5000);
+    expect(manager.get('totalBalance')).toBe(5000);
+    expect(manager.get('initialBalance')).toBe(5000);
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('activeTrades')).toBeInstanceOf(Map);
+    expect(manager.get('activeTrades').size).toBe(0);
+  });
+
+  test('fresh state initializer refuses missing or invalid starting balance', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(() => manager.initializeFreshState(0)).toThrow(/positive finite initialBalance/);
+    expect(() => manager.initializeFreshState(Number.NaN)).toThrow(/positive finite initialBalance/);
+  });
+
+  test('FRESH_START uses explicit INITIAL_BALANCE instead of hardcoded 10000', () => {
+    jest.resetModules();
+    process.env.FRESH_START = 'true';
+    process.env.INITIAL_BALANCE = '5000';
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('balance')).toBe(5000);
+    expect(manager.get('totalBalance')).toBe(5000);
+    expect(manager.get('initialBalance')).toBe(5000);
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.balance).toBe(5000);
+    expect(saved.totalBalance).toBe(5000);
+    expect(saved.initialBalance).toBe(5000);
+  });
+
+  test('FRESH_START refuses default initial balance', () => {
+    jest.resetModules();
+    process.env.FRESH_START = 'true';
+    delete process.env.INITIAL_BALANCE;
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow(/FRESH_START=true requires explicit INITIAL_BALANCE/);
+  });
+
+  test('BACKTEST_MODE uses explicit INITIAL_BALANCE instead of constructor bootstrap', () => {
+    jest.resetModules();
+    process.env.BACKTEST_MODE = 'true';
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.INITIAL_BALANCE = '5000';
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('balance')).toBe(5000);
+    expect(manager.get('totalBalance')).toBe(5000);
+    expect(manager.get('initialBalance')).toBe(5000);
+    expect(manager.get('activeTrades')).toBeInstanceOf(Map);
+    expect(manager.get('activeTrades').size).toBe(0);
+  });
+
+  test('BACKTEST_MODE refuses default initial balance', () => {
+    jest.resetModules();
+    process.env.BACKTEST_MODE = 'true';
+    process.env.EXECUTION_MODE = 'backtest';
+    delete process.env.INITIAL_BALANCE;
+
+    const { StateManager } = require('../core/StateManager');
+
+    expect(() => new StateManager()).toThrow(/BACKTEST_MODE=true requires explicit INITIAL_BALANCE/);
+  });
+
   test('refuses persisted active trades with positive USD exposure but zero broker quantity', () => {
     fs.writeFileSync(stateFile, JSON.stringify({
       balance: 10000,

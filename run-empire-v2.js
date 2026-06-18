@@ -1212,10 +1212,19 @@ class OGZPrimeV14Bot {
       currentBalance: initialBalance
     };
 
-    // Initialize StateManager with starting balance ONLY if not already loaded
-    // CRITICAL FIX: Don't overwrite saved state on startup!
+    // Backtests do not load persisted state, so replace StateManager's
+    // constructor bootstrap balance with the configured INITIAL_BALANCE.
     const currentState = stateManager.getState();
-    if (!currentState.balance || currentState.balance === 0) {
+    if (resolvedConfig.config.mode.backtest) {
+      if (resolvedConfig.config.backtest.freshStart) {
+        const initialBalanceSource = resolvedConfig.sources?.['backtest.initialBalance'];
+        if (!initialBalanceSource || initialBalanceSource === 'default') {
+          throw new Error('Backtest FRESH_START=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
+        }
+      }
+      console.log('Backtest mode: initializing fresh state with balance:', initialBalance);
+      stateManager.initializeFreshState(initialBalance, { source: 'OGZPrimeV14Bot.backtestInit' });
+    } else if (!currentState.balance || currentState.balance === 0) {
       console.log('Initializing fresh state with balance:', initialBalance);
       stateManager.updateState({
         balance: initialBalance,

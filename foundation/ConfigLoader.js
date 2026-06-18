@@ -860,4 +860,9 @@ function get(path) {
   return val;
 }
 
-module.exports = { load, get, fingerprint, snapshot, validate };
+function getSource(path) {
+  if (!_cached) load();
+  return _cached.sources ? _cached.sources[path] : undefined;
+}
+
+module.exports = { load, get, getSource, fingerprint, snapshot, validate };

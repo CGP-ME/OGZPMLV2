@@ -76,7 +76,7 @@
  */
 
 const TradingConfig = require('./TradingConfig');
-const { get: getConfigValue } = require('../foundation/ConfigLoader');
+const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
@@ -215,6 +215,45 @@ class StateManager {
    */
   get(key) {
     return this.state[key];
+  }
+
+  /**
+   * Reset in-memory state to an explicit starting balance.
+   * Used by backtests so execution sizing and recorder math share the same
+   * configured INITIAL_BALANCE instead of the constructor's $10K bootstrap.
+   */
+  initializeFreshState(initialBalance, context = {}) {
+    if (!Number.isFinite(initialBalance) || initialBalance <= 0) {
+      throw new Error(`[StateManager] initializeFreshState requires positive finite initialBalance (got ${initialBalance})`);
+    }
+
+    return this._applyStateUpdatesLocked({
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      balance: initialBalance,
+      totalBalance: initialBalance,
+      initialBalance,
+      inPosition: 0,
+      activeTrades: new Map(),
+      symbolEntryHalts: {},
+      lastPrices: new Map(),
+      lastTradeTime: null,
+      tradeCount: 0,
+      dailyTradeCount: 0,
+      realizedPnL: 0,
+      unrealizedPnL: 0,
+      totalPnL: 0,
+      closedTrades: [],
+      isTrading: false,
+      recoveryMode: false,
+      lastError: null,
+      pauseReason: null,
+      pauseSource: null,
+      pauseRecoverable: false,
+      pauseScope: null,
+    }, { action: 'INITIALIZE_FRESH_STATE', ...context });
   }
 
   /**
@@ -1806,30 +1845,32 @@ class StateManager {
    */
   load() {
     try {
-      // Skip state loading in backtest mode - start fresh
+      // Skip persisted state in backtest mode, but still honor explicit
+      // INITIAL_BALANCE so sizing, recorder math, and state agree.
       if (getConfigValue('mode.backtest')) {
-        console.log('[StateManager] BACKTEST_MODE: Starting with clean state');
+        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        if (!initialBalanceSource || initialBalanceSource === 'default') {
+          throw new Error('[StateManager] BACKTEST_MODE=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
+        }
+        const initialBalance = getConfigValue('backtest.initialBalance');
+        console.log(`[StateManager] BACKTEST_MODE: Starting with clean $${initialBalance} state`);
+        this.initializeFreshState(initialBalance, { source: 'StateManager.backtestMode' });
         return;
       }
 
       // CHANGE 2026-01-23: Option to start fresh in paper mode
       // Set FRESH_START=true to reset paper trading state on boot
       if (getConfigValue('backtest.freshStart')) {
-        console.log('[StateManager] FRESH_START: Resetting to clean $10k state');
-        this.state.balance = 10000;
-        this.state.totalBalance = 10000;
-        this.state.position = 0;
-        this.state.positionCount = 0;
-        this.state.entryPrice = 0;
-        this.state.entryTime = null;
-        this.state.inPosition = 0;
-        this.state.activeTrades = new Map();
-        this.state.tradeCount = 0;
-        this.state.dailyTradeCount = 0;
-        this.state.realizedPnL = 0;
-        this.state.unrealizedPnL = 0;
-        this.state.totalPnL = 0;
-        this.save(); // Persist the clean state
+        if (getConfigValue('mode.liveTrading')) {
+          throw new Error('[StateManager] FRESH_START=true is not allowed when LIVE_TRADING=true');
+        }
+        const initialBalanceSource = getConfigSource('backtest.initialBalance');
+        if (!initialBalanceSource || initialBalanceSource === 'default') {
+          throw new Error('[StateManager] FRESH_START=true requires explicit INITIAL_BALANCE; refusing default $10000 reset');
+        }
+        const initialBalance = getConfigValue('backtest.initialBalance');
+        console.log(`[StateManager] FRESH_START: Resetting to clean $${initialBalance} state`);
+        this.initializeFreshState(initialBalance, { source: 'StateManager.freshStart' });
         return;
       }
 
