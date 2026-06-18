@@ -25,13 +25,28 @@ const OPERATOR_ENV_VALUES = Object.freeze({
   ALPACA_API_SECRET: 'test-alpaca-secret',
   SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
   TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-08',
-  TTP_ACCOUNT_START_OF_DAY_EQUITY: '50000',
-  TTP_DAILY_LOSS_LIMIT_DOLLARS: '500',
-  TTP_MAX_LOSS_THRESHOLD_EQUITY: '47500',
+  TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
+  TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
+  TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
   TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false}}',
-  TTP_PROFIT_TARGET_DOLLARS: '3000',
-  INITIAL_BALANCE: '50000',
-  STARTING_BALANCE: '50000',
+  TTP_PROFIT_TARGET_DOLLARS: '300',
+  INITIAL_BALANCE: '5000',
+  STARTING_BALANCE: '5000',
+});
+
+const LOCKED_PROFILE_ENV_VALUES = Object.freeze({
+  MAX_DRAWDOWN: '3',
+  MAX_DAILY_LOSS: '1',
+  MAX_WEEKLY_LOSS: '3',
+  MAX_MONTHLY_LOSS: '3',
+  ACCOUNT_DRAWDOWN_PCT: '-3.0',
+  ATR_FILTER_ENABLED: 'true',
+  ATR_MIN_PERCENT: '0.40',
+  FEE_MODEL: 'per_share_minimum',
+  FEE_PER_SHARE: '0.005',
+  FEE_MIN_ORDER: '0.75',
+  TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
+  TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.06',
 });
 
 function loadAppWithEnv(appName, envValues) {
@@ -101,12 +116,49 @@ describe('ecosystem eval live profile', () => {
       TTP_RULES_ENABLED: 'true',
       RISK_MANAGER_BYPASS: 'false',
       ACCOUNT_DRAWDOWN_BYPASS: 'false',
+      ...LOCKED_PROFILE_ENV_VALUES,
     }));
     expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'env:EXECUTION_MODE' });
     expect(report.checked.config['broker.id']).toEqual({ value: 'alpaca', source: 'env:BROKER' });
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_KEY);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_SECRET);
     expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.SIGNALSTACK_WEBHOOK_URL);
+  });
+
+  test('locked 5k MAX profile values beat ambient shell env leftovers', () => {
+    const ambientProfileValues = {
+      MAX_DRAWDOWN: '9',
+      MAX_DAILY_LOSS: '9',
+      MAX_WEEKLY_LOSS: '9',
+      MAX_MONTHLY_LOSS: '9',
+      ACCOUNT_DRAWDOWN_PCT: '-9.0',
+      ATR_FILTER_ENABLED: 'false',
+      ATR_MIN_PERCENT: '0.01',
+      FEE_MODEL: 'percent',
+      FEE_PER_SHARE: '0',
+      FEE_MIN_ORDER: '0',
+      TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.99',
+      TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.50',
+    };
+    const originalValues = {};
+    for (const [key, value] of Object.entries(ambientProfileValues)) {
+      originalValues[key] = process.env[key];
+      process.env[key] = value;
+    }
+
+    try {
+      const app = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+
+      expect(app.env).toEqual(expect.objectContaining(LOCKED_PROFILE_ENV_VALUES));
+    } finally {
+      for (const key of Object.keys(ambientProfileValues)) {
+        if (originalValues[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = originalValues[key];
+        }
+      }
+    }
   });
 
   test('dashboard stock data config is explicit on websocket and bot PM2 processes', () => {
