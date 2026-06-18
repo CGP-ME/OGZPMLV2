@@ -76,6 +76,10 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose) {
  *   userQuery: string — the user's question
  *   starterContext: array of {source, similarity, text} from RAG (optional)
  *   additionalSystemContext: string — extra system context supplied by caller (optional)
+ *   requireToolUseBeforeAnswer: boolean — fail closed if Mercury answers before
+ *     using repo tools (used for break-my-fix acceptance gates)
+ *   reviewFiles: repo-relative files in the dirty diff under review. This does
+ *     not restrict tools; it only rejects off-target final answers.
  *   maxIterations: number (configured in mercury.config.json)
  *   maxTokens: number (configured in mercury.config.json)
  *   temperature: number (configured in mercury.config.json)
@@ -92,6 +96,8 @@ async function runReactLoop(params) {
     starterContext = [],
     traceHint = null,
     additionalSystemContext = null,
+    requireToolUseBeforeAnswer = false,
+    reviewFiles = [],
     maxIterations = config.AGENTIC_MAX_ITERATIONS,
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
@@ -142,6 +148,23 @@ async function runReactLoop(params) {
   messages.push({ role: 'user', content: userQuery });
 
   const history = [];
+  let requiredToolUseReprompted = false;
+  let offTargetReprompted = false;
+
+  const normalizedReviewFiles = Array.isArray(reviewFiles)
+    ? reviewFiles.map((file) => String(file).trim()).filter(Boolean)
+    : [];
+
+  function answerMentionsReviewFile(answer) {
+    if (normalizedReviewFiles.length === 0) return true;
+    const text = String(answer || '');
+    return normalizedReviewFiles.some((file) => text.includes(file));
+  }
+
+  function isMetaBreakMyFixAnswer(answer) {
+    return /how to invoke break-my-fix|how to invoke break my fix|prepend the exact phrase|routing is triggered|describe routing behavior|routed as|queryType|starter-context policy|starter context policy|boostType|system will treat it as/i
+      .test(String(answer || ''));
+  }
 
   // Loop detection: track recent tool calls to catch Mercury repeating itself
   const RECENT_WINDOW = 8;
@@ -252,9 +275,66 @@ async function runReactLoop(params) {
     }
 
     // No tool calls — this is the final answer
+    const finalAnswer = assistantMsg.content || '(empty content)';
+    if (requireToolUseBeforeAnswer && history.length === 0) {
+      if (!requiredToolUseReprompted) {
+        requiredToolUseReprompted = true;
+        if (verbose) console.error('[REACT] Refusing zero-tool break-my-fix answer; requiring repo-tool evidence');
+        messages.push({
+          role: 'user',
+          content: [
+            'This is a break-my-fix gate. You must use the available repo tools before answering.',
+            'You are running the attack now; do not explain how to invoke break-my-fix or describe routing behavior as the answer.',
+            'The fix under review is the supplied dirty diff context; use full repo tools to inspect sibling failures, bypass paths, and existing mitigations connected to that diff.',
+            'Do not ask the user to paste code that the bridge already supplied or that repo tools can inspect.',
+            'Final answer must be concrete breakage with evidence, or no concrete breakage found after tool inspection.',
+          ].join(' '),
+        });
+        continue;
+      }
+
+      if (verbose) console.error('[REACT] Break-my-fix refused to use repo tools; failing closed');
+      return {
+        answer: 'Break-my-fix failed closed: Mercury answered without using repo tools, so no adversarial evidence was produced.',
+        iterations: iteration,
+        termination: 'no_tool_evidence',
+        history,
+      };
+    }
+
+    if (
+      requireToolUseBeforeAnswer
+      && (!answerMentionsReviewFile(finalAnswer) || isMetaBreakMyFixAnswer(finalAnswer))
+    ) {
+      if (!offTargetReprompted) {
+        offTargetReprompted = true;
+        if (verbose) console.error('[REACT] Refusing off-target break-my-fix answer; requiring dirty-diff verdict');
+        messages.push({
+          role: 'user',
+          content: [
+            'That answer is off target for this break-my-fix gate.',
+            normalizedReviewFiles.length > 0
+              ? `The dirty diff under review includes: ${normalizedReviewFiles.join(', ')}.`
+              : 'The dirty diff context supplied by the bridge is the review target.',
+            'Use full repo tools as needed, but the final verdict must break or clear the current dirty diff and cite the relevant reviewed file path.',
+            'Do not answer with instructions about how to invoke break-my-fix or unrelated repository findings.',
+          ].join(' '),
+        });
+        continue;
+      }
+
+      if (verbose) console.error('[REACT] Break-my-fix stayed off target; failing closed');
+      return {
+        answer: 'Break-my-fix failed closed: Mercury final answer did not address the dirty diff under review.',
+        iterations: iteration,
+        termination: 'off_target_answer',
+        history,
+      };
+    }
+
     if (verbose) console.error(`[REACT] Final answer on iteration ${iteration}`);
     return {
-      answer: assistantMsg.content || '(empty content)',
+      answer: finalAnswer,
       iterations: iteration,
       termination: 'answer_given',
       history,

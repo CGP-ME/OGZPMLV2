@@ -79,9 +79,6 @@ function looksLikeRegexQuery(query) {
 function createToolAdapter(opts = {}) {
   const repoRoot = opts.repoRoot || config.REPO_ROOT;
   const mongoStore = opts.mongoStore || null;
-  const allowedFiles = Array.isArray(opts.allowedFiles) && opts.allowedFiles.length > 0
-    ? new Set(opts.allowedFiles.map((file) => file.split(path.sep).join('/')))
-    : null;
 
   // ─────────────────────────────────────────────────────────
   // Path safety — all file operations must stay within repo
@@ -100,17 +97,6 @@ function createToolAdapter(opts = {}) {
 
   function relativePathForPolicy(absPath) {
     return path.relative(repoRoot, absPath).split(path.sep).join('/');
-  }
-
-  function isAllowedByReviewScope(absPath) {
-    if (!allowedFiles) return true;
-    return allowedFiles.has(relativePathForPolicy(absPath));
-  }
-
-  function ensureAllowedByReviewScope(absPath, toolName) {
-    if (!isAllowedByReviewScope(absPath)) {
-      throw new Error(`${toolName} blocked by break-my-fix review scope: ${relativePathForPolicy(absPath)}`);
-    }
   }
 
   function isIgnoredByMercuryPolicy(absPath) {
@@ -195,9 +181,6 @@ function createToolAdapter(opts = {}) {
         filteredIgnored += 1;
         continue;
       }
-      if (!isAllowedByReviewScope(absPath)) {
-        continue;
-      }
       const relPath = path.relative(repoRoot, absPath).split(path.sep).join('/');
 
       matches.push({
@@ -273,7 +256,6 @@ function createToolAdapter(opts = {}) {
     try {
       absPath = ensureWithinRepo(filePath);
       ensureNotIgnored(absPath, 'open_file');
-      ensureAllowedByReviewScope(absPath, 'open_file');
     } catch (err) {
       return { error: err.message };
     }
@@ -336,7 +318,6 @@ function createToolAdapter(opts = {}) {
       }
       const absChunkPath = ensureWithinRepo(doc.file_path);
       ensureNotIgnored(absChunkPath, 'get_chunk');
-      ensureAllowedByReviewScope(absChunkPath, 'get_chunk');
       return {
         id: String(doc._id),
         file: doc.file_path,
@@ -364,32 +345,6 @@ function createToolAdapter(opts = {}) {
       ensureNotIgnored(absDir, 'list_files');
     } catch (err) {
       return { error: err.message };
-    }
-
-    if (allowedFiles) {
-      const relDir = relativePathForPolicy(absDir);
-      const prefix = relDir === '' ? '' : `${relDir}/`;
-      const files = new Set();
-      const dirs = new Set();
-      for (const file of allowedFiles) {
-        if (prefix && !file.startsWith(prefix)) continue;
-        const rest = prefix ? file.slice(prefix.length) : file;
-        if (!rest || rest.startsWith('..')) continue;
-        const slash = rest.indexOf('/');
-        if (slash === -1) {
-          if (!pattern || rest.includes(pattern)) files.add(rest);
-        } else {
-          const dirName = `${rest.slice(0, slash)}/`;
-          if (!pattern || dirName.includes(pattern)) dirs.add(dirName);
-        }
-      }
-      return {
-        dir: path.relative(repoRoot, absDir) || '.',
-        directories: Array.from(dirs).sort(),
-        files: Array.from(files).sort(),
-        total: dirs.size + files.size,
-        scoped: true,
-      };
     }
 
     let entries;

@@ -129,31 +129,6 @@ describe('Mercury index scope hygiene', () => {
     expect(result.filtered_ignored).toBeGreaterThan(0);
   });
 
-  test('break-my-fix review scope blocks tool access outside changed files', async () => {
-    writeFixture(tmpRoot, 'core/changed.js', 'const marker = "MERCURY_REVIEW_SCOPE_MARKER";');
-    writeFixture(tmpRoot, 'core/unrelated.js', 'const marker = "MERCURY_REVIEW_SCOPE_MARKER";');
-
-    const adapter = createToolAdapter({
-      repoRoot: tmpRoot,
-      allowedFiles: ['core/changed.js'],
-    });
-
-    const allowedRead = await adapter.execute('open_file', { path: 'core/changed.js', start_line: 1, end_line: 1 });
-    const blockedRead = await adapter.execute('open_file', { path: 'core/unrelated.js', start_line: 1, end_line: 1 });
-    const grepResult = await adapter.execute('grep', { query: 'MERCURY_REVIEW_SCOPE_MARKER', limit: 20 });
-    const rootList = await adapter.execute('list_files', { path: '.' });
-
-    expect(allowedRead.file).toBe('core/changed.js');
-    expect(blockedRead.error).toContain('blocked by break-my-fix review scope');
-    expect(grepResult.matches.map((match) => match.file)).toEqual(['core/changed.js']);
-    expect(rootList).toEqual(expect.objectContaining({
-      directories: ['core/'],
-      files: [],
-      scoped: true,
-      total: 1,
-    }));
-  });
-
   test.each([
     '[^\\x00-\\x7F]',
     '\\p{Extended_Pictographic}',
@@ -467,6 +442,27 @@ describe('Mercury index scope hygiene', () => {
     expect(skipArgs).toContain('!**/ledger/**');
     expect(skipArgs).toContain('!**/cognition-history/**');
     expect(skipArgs).toContain('!**/proposals/**');
+  });
+
+  test('Mercury tool access remains repo-wide inside mercury.ignore', async () => {
+    writeFixture(tmpRoot, 'core/changed.js', 'const marker = "MERCURY_FULL_SCOPE_MARKER";');
+    writeFixture(tmpRoot, 'core/sibling.js', 'const marker = "MERCURY_FULL_SCOPE_MARKER";');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale.md', 'const marker = "MERCURY_FULL_SCOPE_MARKER";');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+
+    const siblingRead = await adapter.execute('open_file', { path: 'core/sibling.js', start_line: 1, end_line: 1 });
+    const ignoredRead = await adapter.execute('open_file', { path: 'ogz-meta/ledger/stale.md', start_line: 1, end_line: 1 });
+    const grepResult = await adapter.execute('grep', { query: 'MERCURY_FULL_SCOPE_MARKER', limit: 20 });
+    const rootList = await adapter.execute('list_files', { path: '.' });
+
+    expect(siblingRead.file).toBe('core/sibling.js');
+    expect(ignoredRead.error).toContain('blocked by mercury.ignore');
+    expect(grepResult.matches.map((match) => match.file).sort()).toEqual([
+      'core/changed.js',
+      'core/sibling.js',
+    ]);
+    expect(rootList.scoped).toBeUndefined();
   });
 
   test('historical Mercury routing does not boost ignored ledger fix history', () => {

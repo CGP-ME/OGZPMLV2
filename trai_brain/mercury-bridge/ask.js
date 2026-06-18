@@ -160,6 +160,11 @@ function buildBreakMyFixDiffContext(query, gitOutput = readGitOutput) {
     'Neutral break-my-fix context supplied by mercury-bridge, not by the agent prompt.',
     'Agents must not hand-pick files or line ranges in the Mercury prompt.',
     'If staged changes exist, only the staged tracked diff is supplied so one-change review stays isolated.',
+    'The fix under review is the dirty diff below.',
+    'You are running the break-my-fix attack now; do not explain how to invoke break-my-fix or describe routing behavior as the answer.',
+    'Use full repo tools inside mercury.ignore to find sibling failures, bypass paths, and existing mitigations connected to this diff.',
+    'Do not switch to unrelated TODO/FIX comments, stale history, or random repo issues unless you can tie them to the same bug class as this diff.',
+    'Final answer must be an adversarial verdict about this dirty diff: either concrete breakage with evidence, or no concrete breakage found after tool inspection.',
     '',
     'git status --short --untracked-files=no:',
     '```',
@@ -173,7 +178,7 @@ function buildBreakMyFixDiffContext(query, gitOutput = readGitOutput) {
   ].join('\n');
 }
 
-function listBreakMyFixChangedFiles(gitOutput = readGitOutput) {
+function listBreakMyFixReviewFiles(gitOutput = readGitOutput) {
   const stagedFiles = gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRT', '--'])
     .split('\n')
     .map((line) => line.trim())
@@ -295,12 +300,13 @@ async function runAgentic(query, opts) {
       }
     }
 
-    // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
-    const breakMyFixAllowedFiles = isBreakMyFixQuery ? listBreakMyFixChangedFiles() : null;
+    // 3. Build the tool adapter with both repo access and mongo (for get_chunk).
+    // Break-my-fix prompts get neutral dirty-diff context, but tool reads remain
+    // repo-wide inside mercury.ignore so Mercury can find sibling failures and
+    // existing mitigations without agent-selected file targeting.
     const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
-      allowedFiles: breakMyFixAllowedFiles,
     });
 
     if (verbose) {
@@ -316,6 +322,7 @@ async function runAgentic(query, opts) {
     }
 
     const breakMyFixDiffContext = buildBreakMyFixDiffContext(query);
+    const breakMyFixReviewFiles = isBreakMyFixQuery ? listBreakMyFixReviewFiles() : [];
     const neutralContext = [
       breakMyFixDiffContext,
     ].filter(Boolean).join('\n\n');
@@ -329,6 +336,8 @@ async function runAgentic(query, opts) {
       starterContext,
       traceHint: traceHintText,
       additionalSystemContext: neutralContext || null,
+      requireToolUseBeforeAnswer: isBreakMyFixQuery,
+      reviewFiles: breakMyFixReviewFiles,
       maxIterations,
       maxTokens,
       verbose,
@@ -541,4 +550,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic, buildBreakMyFixDiffContext, listBreakMyFixChangedFiles, truncateForContext };
+module.exports = { runAgentic, buildBreakMyFixDiffContext, listBreakMyFixReviewFiles, truncateForContext };
