@@ -127,7 +127,7 @@ describe('TRAI LLM config contract', () => {
           authRequired: true,
           maxTokens: 1000,
           minimumTokens: 400,
-          temperature: 0.6,
+          temperature: 0.8,
           requestTimeoutMs: 60000,
           systemPrompt: 'configured prompt',
         },
@@ -159,7 +159,7 @@ describe('TRAI LLM config contract', () => {
       apiKeyEnv: 'TRAI_TEST_LLM_KEY',
       maxTokens: 1000,
       minimumTokens: 400,
-      temperature: 0.6,
+      temperature: 0.8,
       requestTimeoutMs: 60000,
       systemPrompt: 'configured prompt',
     });
@@ -174,7 +174,7 @@ describe('TRAI LLM config contract', () => {
       authRequired: true,
       maxTokens: 1000,
       minimumTokens: 400,
-      temperature: 0.6,
+      temperature: 0.8,
       requestTimeoutMs: 60000,
     });
     expect(typeof tradingConfig.trai.llm.systemPrompt).toBe('string');
