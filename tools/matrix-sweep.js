@@ -468,6 +468,7 @@ function parseOutput(output, config) {
   //   - "Avg Winner:" / "Avg Loser:" (not "Win" / "Loss") → match Winner/Loser
   //   - "Expectancy:" is now emitted by BacktestRecorder (was missing entirely before)
   var bal = output.match(/Final Balance:\s*\$?([\d,.]+)/);
+  var startingBal = output.match(/Starting Balance:\s*\$?([\d,.]+)/);
   var trades = output.match(/Total Trades:\s*(\d+)/);
   var wr = output.match(/Win Rate:\s*([\d.]+)%/);
   var pnl = output.match(/Net P&L:\s*\+?\$?([-\d,.]+)/);
@@ -480,6 +481,7 @@ function parseOutput(output, config) {
   var errorMatches = Array.from(output.matchAll(/Errors:\s*(\d+)/g));
 
   r.finalBalance = bal ? parseFloat(bal[1].replace(',', '')) : null;
+  r.startingBalance = startingBal ? parseFloat(startingBal[1].replace(',', '')) : null;
   r.trades = trades ? parseInt(trades[1]) : null;
   r.winRate = wr ? parseFloat(wr[1]) : null;
   r.netPnl = pnl ? parseFloat(pnl[1].replace(',', '')) : null;
@@ -493,11 +495,20 @@ function parseOutput(output, config) {
     ? normalizeWorkerErrors(errorMatches[errorMatches.length - 1][1])
     : 0;
 
-  if (r.finalBalance && r.netPnl == null) {
-    r.netPnl = r.finalBalance - 10000;
+  if (
+    Number.isFinite(r.finalBalance) &&
+    Number.isFinite(r.startingBalance) &&
+    r.netPnl == null
+  ) {
+    r.netPnl = r.finalBalance - r.startingBalance;
   }
 
   return r;
+}
+
+function finiteNumber(value) {
+  var number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function tryReadReport(projectRoot, tag) {
@@ -527,12 +538,22 @@ function tryReadReport(projectRoot, tag) {
 
     var tradeList = data.trades || [];
     var summary = data.summary || {};
-    if (tradeList.length === 0 && !summary.finalBalance) return null;
+    var finalBalance = finiteNumber(summary.finalBalance);
+    var startingBalance = finiteNumber(summary.startingBalance);
+    if (startingBalance == null) startingBalance = finiteNumber(summary.initialBalance);
+    if (startingBalance == null && data.config) startingBalance = finiteNumber(data.config.initialBalance);
+    if (tradeList.length === 0 && finalBalance == null) return null;
 
     var winners = tradeList.filter(function(t) { return (t.netPnlDollars || t.pnl || 0) > 0; });
     var totalFees = tradeList.reduce(function(s, t) { return s + (t.feesDollars || 0); }, 0);
-    var netPnl = summary.finalBalance ? summary.finalBalance - 10000 :
-                 tradeList.reduce(function(s, t) { return s + (t.netPnlDollars || 0); }, 0);
+    var netPnl = finiteNumber(summary.netPnlDollars);
+    if (netPnl == null) netPnl = finiteNumber(summary.totalPnL);
+    if (netPnl == null && finalBalance != null && startingBalance != null) {
+      netPnl = finalBalance - startingBalance;
+    }
+    if (netPnl == null) {
+      netPnl = tradeList.reduce(function(s, t) { return s + (t.netPnlDollars || 0); }, 0);
+    }
 
     // CC-A Change 3 (Option B): aggregate pattern dimensions per (strategy,
     // dayOfWeek, session, holdBucket, confidenceTier, exitType) instead of
@@ -571,7 +592,8 @@ function tryReadReport(projectRoot, tag) {
     // into report.summary, so these fields are available on JSON read (fallback path still returns null
     // for absent values). Matches parseOutput() return shape for downstream consumers.
     return {
-      finalBalance: summary.finalBalance || null,
+      finalBalance: finalBalance,
+      startingBalance: startingBalance,
       trades: tradeList.length || (summary.totalTrades || null),
       winRate: tradeList.length > 0 ? (winners.length / tradeList.length) * 100 :
                (summary.winRate != null ? parseFloat(summary.winRate) : null),

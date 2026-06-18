@@ -213,6 +213,56 @@ describe('matrix-sweep runnable surface', () => {
     });
   });
 
+  test('report fallback uses worker starting balance instead of a 10k phantom baseline', () => {
+    withProjectRoot((projectRoot) => {
+      writeWorkerReport(projectRoot, 'matrix-5k', {
+        summary: {
+          startingBalance: 5000,
+          finalBalance: 4646.028301641066,
+          totalFeesPaid: 300,
+          errors: 0,
+          totalTrades: 200,
+        },
+        trades: [
+          { strategyName: 'SmartMoneySweep', netPnlDollars: -1, feesDollars: 0 },
+        ],
+      });
+
+      const result = tryReadReport(projectRoot, 'matrix-5k');
+
+      expect(result.startingBalance).toBe(5000);
+      expect(result.finalBalance).toBe(4646.028301641066);
+      expect(result.netPnl).toBeCloseTo(-353.97169835893436, 10);
+      expect(result.fees).toBe(300);
+    });
+  });
+
+  test('report fallback keeps zero-trade 5k reports parseable when final balance is present', () => {
+    withProjectRoot((projectRoot) => {
+      writeWorkerReport(projectRoot, 'matrix-zero', {
+        summary: {
+          totalTrades: 0,
+          message: 'No trades recorded',
+          initialBalance: 5000,
+          finalBalance: 5000,
+          totalPnL: 0,
+          errors: 0,
+        },
+        trades: [],
+        config: {
+          initialBalance: 5000,
+        },
+      });
+
+      const result = tryReadReport(projectRoot, 'matrix-zero');
+
+      expect(result.startingBalance).toBe(5000);
+      expect(result.finalBalance).toBe(5000);
+      expect(result.netPnl).toBe(0);
+      expect(result.trades).toBeNull();
+    });
+  });
+
   test('stdout parser uses the final worker error count', () => {
     const parsed = parseOutput([
       'Progress: 5000/10000 candles | Errors: 0',
@@ -225,6 +275,20 @@ describe('matrix-sweep runnable surface', () => {
 
     expect(parsed.workerErrors).toBe(3);
     expect(isCleanParsedResult({ ...parsed, exitCode: 0 })).toBe(false);
+  });
+
+  test('stdout parser uses printed starting balance for final-balance pnl fallback', () => {
+    const parsed = parseOutput([
+      'Starting Balance:  $5,000',
+      'Final Balance:     $4,646.03',
+      'Total Trades: 200',
+      'Win Rate: 11.5%',
+      'Errors: 0',
+    ].join('\n'), { name: 'sms-conf', strategy: 'SmartMoneySweep' });
+
+    expect(parsed.startingBalance).toBe(5000);
+    expect(parsed.finalBalance).toBe(4646.03);
+    expect(parsed.netPnl).toBeCloseTo(-353.97, 10);
   });
 
   test('nonzero worker exit remains an explicit failed result even with parsed pnl', () => {
