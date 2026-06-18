@@ -892,6 +892,7 @@ class StrategyOrchestrator {
       'MADynamicSR': pipeline.enableMADynamicSR,
       'EMASMACrossover': pipeline.enableEMACrossover,
       'LiquiditySweep': pipeline.enableLiquiditySweep,
+      'CandlePattern': pipeline.enableCandlePattern,
       'BreakRetest': pipeline.enableBreakRetest,
       'MarketRegime': pipeline.enableMarketRegime,
       'MultiTimeframe': pipeline.enableMultiTimeframe,

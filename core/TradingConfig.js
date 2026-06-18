@@ -1386,6 +1386,7 @@ const BASE_CONFIG = {
     enableMADynamicSR: envBool('ENABLE_MASR', true),
     enableEMACrossover: envBool('ENABLE_EMA', true),
     enableLiquiditySweep: envBool('ENABLE_LIQSWEEP', true),
+    enableCandlePattern: envBool('ENABLE_CANDLEPATTERN', true),
     enableBreakRetest: envBool('ENABLE_BREAKRETEST', false),
     enableMarketRegime: envBool('ENABLE_REGIME', false),  // DEPRECATED: now orchestrator pre-filter
     enableMultiTimeframe: envBool('ENABLE_MTF', true),
