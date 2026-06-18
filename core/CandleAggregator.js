@@ -105,6 +105,15 @@ class CandleAggregator {
           reason: 'invalid_source_timestamp_unit'
         };
       }
+      if (Number.isFinite(timestamp) && timestamp % sourceMs !== 0) {
+        return {
+          complete: false,
+          expectedCount: targetMs / sourceMs,
+          actualCount: observedPeriods.size,
+          missingPeriods: [],
+          reason: 'unaligned_source_timestamp'
+        };
+      }
       if (!Number.isFinite(timestamp) || timestamp < periodStart || timestamp >= periodEnd) {
         continue;
       }

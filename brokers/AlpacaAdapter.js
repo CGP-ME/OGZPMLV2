@@ -23,6 +23,7 @@ const authFailureGuard = require('../core/AuthFailureGuard');
 const ALPACA_WS_AUTH_ERROR_CODES = new Set([401, 402, 403, 404, 406, 409]);
 const ALPACA_AUTH_MESSAGE_RE = /(invalid api( |-)?key|unauthorized|authentication failed|api key not authorized|forbidden|invalid credentials|not authorized)/i;
 const ALPACA_WS_TRANSPORT_AUTH_RE = /(^|\D)(401|403)($|\D)|unauthorized|authentication failed|invalid api key|not authorized/i;
+const STREAM_BAR_TIMEFRAME = '1m';
 
 class AlpacaAdapter extends IBrokerAdapter {
     constructor(config = {}) {
@@ -59,6 +60,7 @@ class AlpacaAdapter extends IBrokerAdapter {
         this.rws = null;
         this.accountWs = null;
         this.subscriptions = new Map();
+        this.barSubscriptions = new Map();
         this.intentionalDisconnect = false;
         this._pendingSubscribeCallbacks = [];
         this.accountId = this._cleanAccountId(config.accountId);
@@ -558,8 +560,14 @@ class AlpacaAdapter extends IBrokerAdapter {
     subscribeToCandles(symbol, timeframe, callback) {
         const sym = this.toBrokerSymbol(symbol);
         const key = `bars-${sym}`;
+        const intervalMs = this._timeframeIntervalMs(STREAM_BAR_TIMEFRAME);
         this._ensureDataStream(() => {
             this.subscriptions.set(key, callback);
+            this.barSubscriptions.set(sym, {
+                requestedTimeframe: timeframe,
+                streamTimeframe: STREAM_BAR_TIMEFRAME,
+                intervalMs,
+            });
             const payload = { action: 'subscribe', bars: [sym] };
             console.log('[Alpaca] TX subscribe(bars):', JSON.stringify(payload), '| url:', this.wsUrl);
             this.rws.send(payload);
@@ -660,6 +668,7 @@ class AlpacaAdapter extends IBrokerAdapter {
             this.rws.send({ action: 'unsubscribe', trades, quotes, bars });
         }
         this.subscriptions.clear();
+        this.barSubscriptions.clear();
     }
 
     // =========================================================================
@@ -753,6 +762,23 @@ class AlpacaAdapter extends IBrokerAdapter {
             '30m': '30Min', '1h': '1Hour', '4h': '4Hour', '1d': '1Day'
         };
         return map[tf] || '1Min';
+    }
+
+    _timeframeIntervalMs(timeframe) {
+        const map = {
+            '1m': 60 * 1000,
+            '5m': 5 * 60 * 1000,
+            '15m': 15 * 60 * 1000,
+            '30m': 30 * 60 * 1000,
+            '1h': 60 * 60 * 1000,
+            '4h': 4 * 60 * 60 * 1000,
+            '1d': 24 * 60 * 60 * 1000,
+        };
+        const intervalMs = map[timeframe];
+        if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+            throw new Error(`[Alpaca] unsupported candle timeframe ${timeframe}`);
+        }
+        return intervalMs;
     }
 
     _historicalLookbackMs(timeframe, limit) {
@@ -886,12 +912,35 @@ class AlpacaAdapter extends IBrokerAdapter {
             return;
         }
         if (msg.T === 'b') {
-            const bar = { o: msg.o, h: msg.h, l: msg.l, c: msg.c, v: msg.v, t: msg.t, symbol: msg.S };
+            const barSubscription = this.barSubscriptions.get(msg.S);
+            if (!barSubscription) {
+                console.error(`[Alpaca] Received bar for unsubscribed symbol ${msg.S || '(missing)'}`);
+                return;
+            }
+            const barStartMs = Date.parse(msg.t);
+            if (!Number.isFinite(barStartMs)) {
+                console.error(`[Alpaca] Received bar with invalid timestamp for ${msg.S}: ${msg.t}`);
+                return;
+            }
+            if (barStartMs % barSubscription.intervalMs !== 0) {
+                console.error(`[Alpaca] Received unaligned ${barSubscription.streamTimeframe} bar timestamp for ${msg.S}: ${msg.t}`);
+                return;
+            }
+            const bar = {
+                o: msg.o,
+                h: msg.h,
+                l: msg.l,
+                c: msg.c,
+                v: msg.v,
+                t: msg.t,
+                etime: barStartMs + barSubscription.intervalMs,
+                symbol: msg.S
+            };
             if (!this._firstBarLogged.has(msg.S)) {
                 this._firstBarLogged.add(msg.S);
                 console.log('[Alpaca] First bar RX for', msg.S, '@', msg.t, 'OHLCV:', msg.o, msg.h, msg.l, msg.c, msg.v);
             }
-            this.emit('ohlc', { timeframe: '1m', data: bar, symbol: bar.symbol });
+            this.emit('ohlc', { timeframe: barSubscription.streamTimeframe, data: bar, symbol: bar.symbol });
             const cb = this.subscriptions.get(`bars-${msg.S}`);
             if (cb) cb(bar);
         }

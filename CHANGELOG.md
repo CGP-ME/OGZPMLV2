@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Alpaca Aggregate Source Recovery (2026-06-18)
+
+- Fixed Alpaca stream bar ingestion to emit explicit `etime` values for 1m bars so live stream candles match the REST hydration candle boundary contract.
+- Changed active-timeframe aggregation to settle incomplete 1m-to-15m windows fail-closed, request source-timeframe REST repair, and keep stale repaired windows from firing delayed trading cycles.
+- Added source timestamp alignment validation in `CandleAggregator`, Alpaca stream ingress, and aggregate source backfill so unaligned 1m candles cannot be counted into a 15m source slot.
+
 ### Eval Confidence Floor Ownership (2026-06-18)
 
 - Changed the live eval confidence floor to be owned by `config/trading.config.json` instead of duplicated literals in `ConfigLoader`, the eval posture gate, `TradingConfig`, and the PM2 eval profile.

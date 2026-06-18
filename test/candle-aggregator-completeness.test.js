@@ -103,4 +103,21 @@ describe('CandleAggregator source completeness', () => {
       reason: 'invalid_source_timestamp_unit'
     });
   });
+
+  test('rejects unaligned millisecond source timestamps instead of flooring into a valid source slot', () => {
+    const aggregator = new CandleAggregator();
+    const start = Date.UTC(2026, 5, 11, 14, 30, 0);
+    const source = Array.from({ length: 15 }, (_, index) => candleAt(start + index * 60_000));
+    source[3] = candleAt(start + 3 * 60_000 + 45_000);
+
+    const result = aggregator.checkSourceCompleteness(source, '1m', start, '15m');
+
+    expect(result).toEqual({
+      complete: false,
+      expectedCount: 15,
+      actualCount: 3,
+      missingPeriods: [],
+      reason: 'unaligned_source_timestamp'
+    });
+  });
 });

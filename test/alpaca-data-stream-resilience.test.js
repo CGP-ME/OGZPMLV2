@@ -123,9 +123,47 @@ describe('AlpacaAdapter data stream resilience', () => {
 
     rws.config.onMessage([{ T: 'b', S: 'TSLA', o: 397, h: 398, l: 396, c: 397.5, v: 1000, t: '2026-06-12T14:30:00Z' }]);
 
-    const expectedBar = { o: 397, h: 398, l: 396, c: 397.5, v: 1000, t: '2026-06-12T14:30:00Z', symbol: 'TSLA' };
+    const expectedBar = {
+      o: 397,
+      h: 398,
+      l: 396,
+      c: 397.5,
+      v: 1000,
+      t: '2026-06-12T14:30:00Z',
+      etime: Date.parse('2026-06-12T14:31:00Z'),
+      symbol: 'TSLA',
+    };
     expect(barCb).toHaveBeenCalledWith(expectedBar);
     expect(ohlcCb).toHaveBeenCalledWith({ timeframe: '1m', data: expectedBar, symbol: 'TSLA' });
+  });
+
+  test('rejects stream bars for symbols without an active bar subscription contract', () => {
+    const adapter = buildAdapter();
+    const ohlcCb = jest.fn();
+    adapter.on('ohlc', ohlcCb);
+
+    adapter._handleOneStreamMessage({ T: 'b', S: 'TSLA', o: 397, h: 398, l: 396, c: 397.5, v: 1000, t: '2026-06-12T14:30:00Z' });
+
+    expect(ohlcCb).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[Alpaca] Received bar for unsubscribed symbol TSLA');
+  });
+
+  test('rejects unaligned stream bar timestamps before emitting OHLC', () => {
+    const adapter = buildAdapter();
+    const barCb = jest.fn();
+    const ohlcCb = jest.fn();
+
+    adapter.subscribeToCandles('TSLA', '1m', barCb);
+    const rws = mockRwsInstances[0];
+    rws.ready = true;
+    rws.config.onAuthenticated({ isReconnect: false });
+    adapter.on('ohlc', ohlcCb);
+
+    rws.config.onMessage([{ T: 'b', S: 'TSLA', o: 397, h: 398, l: 396, c: 397.5, v: 1000, t: '2026-06-12T14:30:45Z' }]);
+
+    expect(barCb).not.toHaveBeenCalled();
+    expect(ohlcCb).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith('[Alpaca] Received unaligned 1m bar timestamp for TSLA: 2026-06-12T14:30:45Z');
   });
 
   test('closes unauthenticated stream on auth-class error so resilient owner can reconnect', () => {
@@ -204,6 +242,7 @@ describe('AlpacaAdapter data stream resilience', () => {
 
     expect(rws.send).not.toHaveBeenCalled();
     expect(adapter.subscriptions.size).toBe(0);
+    expect(adapter.barSubscriptions.size).toBe(0);
     expect(adapter._pendingSubscribeCallbacks).toEqual([]);
   });
 
@@ -269,5 +308,6 @@ describe('AlpacaAdapter data stream resilience', () => {
       bars: ['TSLA'],
     });
     expect(adapter.subscriptions.size).toBe(0);
+    expect(adapter.barSubscriptions.size).toBe(0);
   });
 });
