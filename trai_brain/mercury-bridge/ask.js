@@ -24,6 +24,7 @@
 'use strict';
 
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -34,10 +35,13 @@ const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
+const { isBreakMyFixFrame } = require('../shared/break-my-fix-frame');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
+
+const BREAK_MY_FIX_DIFF_CHAR_CAP = 120000;
 
 function parseArgs(argv) {
   const args = {
@@ -121,6 +125,66 @@ function configExactInteger(value, configuredValue, name) {
   return configuredValue;
 }
 
+function readGitOutput(args) {
+  try {
+    return execFileSync('git', args, {
+      cwd: config.REPO_ROOT,
+      encoding: 'utf8',
+      maxBuffer: BREAK_MY_FIX_DIFF_CHAR_CAP * 2,
+    });
+  } catch (err) {
+    if (err && (err.code === 'ENOBUFS' || /maxBuffer/i.test(err.message || ''))) {
+      const partial = Buffer.isBuffer(err.stdout) ? err.stdout.toString('utf8') : String(err.stdout || '');
+      return `${partial}\n\n[bridge git output exceeded buffer before full read; split the fix before Mercury if the omitted diff matters]`;
+    }
+    throw err;
+  }
+}
+
+function truncateForContext(text, cap = BREAK_MY_FIX_DIFF_CHAR_CAP) {
+  if (!text || text.length <= cap) return text || '';
+  return `${text.slice(0, cap)}\n\n[bridge truncated dirty diff context at ${cap} characters; split the fix before Mercury if the omitted diff matters]`;
+}
+
+function buildBreakMyFixDiffContext(query, gitOutput = readGitOutput) {
+  if (!isBreakMyFixFrame(query)) return null;
+
+  const status = gitOutput(['status', '--short', '--untracked-files=no']).trim();
+  const stagedDiff = gitOutput(['diff', '--cached', '--no-ext-diff', '--']);
+  const hasStagedDiff = stagedDiff.trim().length > 0;
+  const unstagedDiff = hasStagedDiff ? '' : gitOutput(['diff', '--no-ext-diff', '--']);
+  const diff = hasStagedDiff ? stagedDiff : unstagedDiff;
+  const diffSource = hasStagedDiff ? 'staged tracked diff' : 'unstaged tracked diff';
+
+  return [
+    'Neutral break-my-fix context supplied by mercury-bridge, not by the agent prompt.',
+    'Agents must not hand-pick files or line ranges in the Mercury prompt.',
+    'If staged changes exist, only the staged tracked diff is supplied so one-change review stays isolated.',
+    '',
+    'git status --short --untracked-files=no:',
+    '```',
+    status || '(clean tracked worktree)',
+    '```',
+    '',
+    `Diff source: ${diffSource}`,
+    '```diff',
+    truncateForContext(diff) || '(no tracked dirty diff)',
+    '```',
+  ].join('\n');
+}
+
+function listBreakMyFixChangedFiles(gitOutput = readGitOutput) {
+  const stagedFiles = gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRT', '--'])
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (stagedFiles.length > 0) return stagedFiles;
+  return gitOutput(['diff', '--name-only', '--diff-filter=ACMRT', '--'])
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function usage() {
   console.log('');
   console.log('Mercury Bridge — Ask a question about the OGZPrime codebase');
@@ -155,6 +219,7 @@ async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
   const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
+  const isBreakMyFixQuery = isBreakMyFixFrame(query);
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
@@ -214,7 +279,7 @@ async function runAgentic(query, opts) {
     // 2. Investigation trace memory — retrieve prior hint if available
     let traceHintText = null;
     let traceUsed = null;
-    if (config.TRACE_MEMORY_ENABLED) {
+    if (config.TRACE_MEMORY_ENABLED && !isBreakMyFixQuery) {
       await ensureTraceIndexes(store);
       await evictStaleTraces({ store, verbose });
 
@@ -231,9 +296,11 @@ async function runAgentic(query, opts) {
     }
 
     // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
+    const breakMyFixAllowedFiles = isBreakMyFixQuery ? listBreakMyFixChangedFiles() : null;
     const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
+      allowedFiles: breakMyFixAllowedFiles,
     });
 
     if (verbose) {
@@ -248,6 +315,11 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
     }
 
+    const breakMyFixDiffContext = buildBreakMyFixDiffContext(query);
+    const neutralContext = [
+      breakMyFixDiffContext,
+    ].filter(Boolean).join('\n\n');
+
     // 5. Run the loop with native tool calling
     const t0 = Date.now();
     const result = await runReactLoop({
@@ -256,7 +328,7 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
-      blastRadius: opts.blastRadius || null,
+      additionalSystemContext: neutralContext || null,
       maxIterations,
       maxTokens,
       verbose,
@@ -377,6 +449,10 @@ async function main() {
       return;
     }
 
+    if (isBreakMyFixFrame(args.query) && !args.agentic) {
+      throw new Error('break-my-fix prompts require --agentic so Mercury can use neutral dirty-diff context instead of single-shot RAG retrieval');
+    }
+
     if (args.agentic) {
       // Agentic mode — ReAct loop with tool access
       const result = await runAgentic(args.query, args);
@@ -465,4 +541,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic };
+module.exports = { runAgentic, buildBreakMyFixDiffContext, listBreakMyFixChangedFiles, truncateForContext };

@@ -129,6 +129,31 @@ describe('Mercury index scope hygiene', () => {
     expect(result.filtered_ignored).toBeGreaterThan(0);
   });
 
+  test('break-my-fix review scope blocks tool access outside changed files', async () => {
+    writeFixture(tmpRoot, 'core/changed.js', 'const marker = "MERCURY_REVIEW_SCOPE_MARKER";');
+    writeFixture(tmpRoot, 'core/unrelated.js', 'const marker = "MERCURY_REVIEW_SCOPE_MARKER";');
+
+    const adapter = createToolAdapter({
+      repoRoot: tmpRoot,
+      allowedFiles: ['core/changed.js'],
+    });
+
+    const allowedRead = await adapter.execute('open_file', { path: 'core/changed.js', start_line: 1, end_line: 1 });
+    const blockedRead = await adapter.execute('open_file', { path: 'core/unrelated.js', start_line: 1, end_line: 1 });
+    const grepResult = await adapter.execute('grep', { query: 'MERCURY_REVIEW_SCOPE_MARKER', limit: 20 });
+    const rootList = await adapter.execute('list_files', { path: '.' });
+
+    expect(allowedRead.file).toBe('core/changed.js');
+    expect(blockedRead.error).toContain('blocked by break-my-fix review scope');
+    expect(grepResult.matches.map((match) => match.file)).toEqual(['core/changed.js']);
+    expect(rootList).toEqual(expect.objectContaining({
+      directories: ['core/'],
+      files: [],
+      scoped: true,
+      total: 1,
+    }));
+  });
+
   test.each([
     '[^\\x00-\\x7F]',
     '\\p{Extended_Pictographic}',
@@ -450,5 +475,20 @@ describe('Mercury index scope hygiene', () => {
     expect(route.queryType).toBe('historical');
     expect(route.boostType).toBeNull();
     expect(route.rationale).not.toContain('fix_history');
+  });
+
+  test('break-my-fix Mercury routing skips indexed starter context even when prompt mentions rules', () => {
+    const route = routeQuery('Mercury, break my fix. Find any way this fails, skips a required rule, or creates a new failure mode.');
+
+    expect(route.queryType).toBe('break_my_fix');
+    expect(route.starterContextPolicy).toBe('skip');
+    expect(route.boostType).toBeNull();
+  });
+
+  test('break-my-fix Mercury routing does not hijack mid-sentence phrase mentions', () => {
+    const route = routeQuery('have we seen a bug where a change had to break my fix before');
+
+    expect(route.queryType).toBe('historical');
+    expect(route.starterContextPolicy).toBe('prefer');
   });
 });

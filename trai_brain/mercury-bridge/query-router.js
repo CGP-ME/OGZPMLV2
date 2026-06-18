@@ -17,6 +17,8 @@
 
 'use strict';
 
+const { BREAK_MY_FIX_FRAME } = require('../shared/break-my-fix-frame');
+
 // ─── Pattern definitions ──────────────────────────────────────
 
 const HISTORICAL_PATTERNS = [
@@ -60,6 +62,10 @@ const PROPOSAL_PATTERNS = [
   /\b(should we|ought to|supposed to) (build|add|implement)\b/i,
 ];
 
+const BREAK_MY_FIX_PATTERNS = [
+  BREAK_MY_FIX_FRAME,
+];
+
 function hasIdentifiers(query) {
   if (!query || typeof query !== 'string') return false;
   if (/[a-z][A-Z]/.test(query)) return true;
@@ -95,6 +101,16 @@ function routeQuery(query) {
       boostType: null,
       starterContextPolicy: 'mixed',
       rationale: 'empty or invalid query, fallback to hybrid/mixed',
+    };
+  }
+
+  if (matchesAny(query, BREAK_MY_FIX_PATTERNS)) {
+    return {
+      queryType: 'break_my_fix',
+      mode: 'hybrid',
+      boostType: null,
+      starterContextPolicy: 'skip',
+      rationale: 'break-my-fix prompt detected; skip indexed starter context so dirty diff context is not diluted by stale retrieval',
     };
   }
 

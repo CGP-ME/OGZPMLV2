@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { BREAK_MY_FIX_FRAME } = require('../shared/break-my-fix-frame');
 const policy = require('./policy');
 const finishGate = require('./finish-gate');
 const taskContract = require('./task-contract');
@@ -28,7 +29,7 @@ const INLINE_RUNTIME = /(^|\s|\||;|&&|\|\||\(|`|\$\()(node|python|python3|perl|r
 const OUTPUT_REDIRECT = /(^|[^<>])>{1,2}(?![>&])/;
 const IN_PLACE_EDIT = /(^|\s|\||;|&&|\|\||\(|`|\$\()(sed|awk|perl|ruby)\s+[^|;&`]*\s-i\b/;
 const MERCURY_ASK_SCRIPT = /(^|\s)(node\s+)?(\.\/)?trai_brain[\/\\]mercury-bridge[\/\\]ask\.js\b/;
-const MERCURY_REQUIRED_FRAME = /\bbreak\s+my\s+fix\b/i;
+const MERCURY_REQUIRED_FRAME = BREAK_MY_FIX_FRAME;
 const MERCURY_VERIFICATION_FRAMES = [
   { reason: 'verify', pattern: /\bverify\b/i },
   { reason: 'confirm', pattern: /\bconfirm\b/i },
@@ -37,6 +38,12 @@ const MERCURY_VERIFICATION_FRAMES = [
   { reason: 'is_correct', pattern: /\bis\s+(this|it|that|the\s+fix|the\s+change)\s+(correct|right|fixed|resolved|closed)\b/i },
   { reason: 'does_this_look', pattern: /\bdoes\s+(this|it|that)\s+look\b/i },
   { reason: 'beam_me_up', pattern: /\bbeam\s+me\s+up\b/i },
+];
+const MERCURY_SCOPING_FRAMES = [
+  { reason: 'prompt_substitution', pattern: /(\$\(|`)/ },
+  { reason: 'scope_label', pattern: /\b(scope|patch target|changed code|changed files?|target files?|file ranges?|line ranges?)\s*:/i },
+  { reason: 'file_pointer', pattern: /(^|[\s"'`(])(?:\.{0,2}\/)?(?:[\w.-]+\/)+[\w.-]+\.(js|mjs|cjs|ts|json|md|css|html|yml|yaml)(?::\d+(?:-\d+)?)?/i },
+  { reason: 'line_pointer', pattern: /\blines?\s+\d+(?:-\d+)?\b/i },
 ];
 
 function shellTokens(cmd) {
@@ -290,13 +297,26 @@ function mutationReason(cmd) {
 
 function mercuryFramingReason(cmd) {
   if (!MERCURY_ASK_SCRIPT.test(cmd)) return null;
-  if (!MERCURY_REQUIRED_FRAME.test(cmd)) return 'missing_break_my_fix';
+  const promptSegment = mercuryPromptSegment(cmd);
+  if (!MERCURY_REQUIRED_FRAME.test(promptSegment)) return 'missing_break_my_fix';
 
   for (const frame of MERCURY_VERIFICATION_FRAMES) {
     if (frame.pattern.test(cmd)) return `verification_framing:${frame.reason}`;
   }
 
+  for (const frame of MERCURY_SCOPING_FRAMES) {
+    if (frame.pattern.test(promptSegment)) return `scoped_framing:${frame.reason}`;
+  }
+
   return null;
+}
+
+function mercuryPromptSegment(cmd) {
+  const tokens = shellTokens(cmd);
+  const scriptIndex = tokens.findIndex((token) => /(^|[\/\\])?ask\.js$/.test(token));
+  if (scriptIndex < 0) return '';
+  const promptTokens = tokens.slice(scriptIndex + 1).filter((token) => !token.startsWith('--'));
+  return promptTokens.join(' ').trim();
 }
 
 function assertWardenAllowsGitMutation(input) {
@@ -341,7 +361,7 @@ function run() {
   if (mercuryFraming) {
     emit(
       `BLOCKED (claude Mercury framing): ${mercuryFraming}. ` +
-      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, or declare a fix closed.`,
+      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, declare a fix closed, point at agent-selected files or line ranges, or hide prompt payloads behind shell substitution.`,
       2
     );
   }

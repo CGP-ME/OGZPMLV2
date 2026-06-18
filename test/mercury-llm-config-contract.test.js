@@ -3,6 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const baseMercuryConfig = require('../mercury.config.json');
 
@@ -78,7 +79,7 @@ describe('Mercury LLM config contract', () => {
       expect(config.MERCURY_LLM_CLIENT_MAX_TOKENS).toBe(7750);
       expect(config.MERCURY_LLM_CLIENT_MIN_TOKENS).toBe(400);
       expect(config.MERCURY_LLM_REQUEST_TIMEOUT_MS).toBe(300000);
-      expect(config.MERCURY_LLM_TEMPERATURE).toBe(0.6);
+      expect(config.MERCURY_LLM_TEMPERATURE).toBe(baseMercuryConfig.llm.temperature);
       expect(config.AGENTIC_MAX_ITERATIONS).toBe(60);
       expect(config.AGENTIC_MAX_TOKENS).toBe(7750);
       expect(config.SINGLE_SHOT_MAX_TOKENS).toBe(2000);
@@ -129,7 +130,7 @@ describe('Mercury LLM config contract', () => {
         authRequired: true,
         maxTokens: 7750,
         minimumTokens: 400,
-        temperature: 0.6,
+        temperature: baseMercuryConfig.llm.temperature,
         requestTimeoutMs: 300000,
         systemPrompt: 'configured prompt',
       });
@@ -169,6 +170,101 @@ describe('Mercury LLM config contract', () => {
       await expect(runAgentic('break this', { quiet: true, topK: Number.NaN }))
         .rejects.toThrow(/--top-k must be a non-negative integer/);
     });
+  });
+
+  test('break-my-fix context is injected by the bridge only for break-my-fix prompts', async () => {
+    await withMercuryConfig({}, () => {
+      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
+      const gitOutput = jest.fn(() => {
+        throw new Error('git must not be read for non-break prompts');
+      });
+
+      expect(buildBreakMyFixDiffContext('Find bugs in this change', gitOutput)).toBeNull();
+      expect(gitOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  test('break-my-fix context prefers staged tracked diff to isolate one-change reviews', async () => {
+    await withMercuryConfig({}, () => {
+      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
+      const gitOutput = jest.fn((args) => {
+        if (args[0] === 'status') return 'M  trai_brain/mercury-bridge/ask.js\n M core/EvalRuleEngine.js\n';
+        if (args[0] === 'diff' && args[1] === '--cached') return 'diff --git a/trai_brain/mercury-bridge/ask.js b/trai_brain/mercury-bridge/ask.js\n+staged bridge change\n';
+        throw new Error(`unexpected git args: ${args.join(' ')}`);
+      });
+
+      const context = buildBreakMyFixDiffContext('Mercury, break my fix. Use the current dirty git diff.', gitOutput);
+
+      expect(context).toContain('Neutral break-my-fix context supplied by mercury-bridge');
+      expect(context).toContain('git status --short --untracked-files=no');
+      expect(context).toContain('Diff source: staged tracked diff');
+      expect(context).toContain('+staged bridge change');
+      expect(gitOutput).toHaveBeenCalledWith(['status', '--short', '--untracked-files=no']);
+      expect(gitOutput).toHaveBeenCalledWith(['diff', '--cached', '--no-ext-diff', '--']);
+      expect(gitOutput).not.toHaveBeenCalledWith(['diff', '--no-ext-diff', '--']);
+    });
+  });
+
+  test('break-my-fix context falls back to unstaged tracked diff when nothing is staged', async () => {
+    await withMercuryConfig({}, () => {
+      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
+      const gitOutput = jest.fn((args) => {
+        if (args[0] === 'status') return ' M core/EvalRuleEngine.js\n';
+        if (args[0] === 'diff' && args[1] === '--cached') return '';
+        if (args[0] === 'diff') return 'diff --git a/core/EvalRuleEngine.js b/core/EvalRuleEngine.js\n+unstaged market-time change\n';
+        throw new Error(`unexpected git args: ${args.join(' ')}`);
+      });
+
+      const context = buildBreakMyFixDiffContext('Mercury, break my fix.', gitOutput);
+
+      expect(context).toContain('Diff source: unstaged tracked diff');
+      expect(context).toContain('+unstaged market-time change');
+      expect(gitOutput).toHaveBeenCalledWith(['diff', '--no-ext-diff', '--']);
+    });
+  });
+
+  test('break-my-fix changed-file scope prefers staged files and falls back to unstaged files', async () => {
+    await withMercuryConfig({}, () => {
+      const { listBreakMyFixChangedFiles } = require('../trai_brain/mercury-bridge/ask');
+      const stagedGitOutput = jest.fn((args) => {
+        if (args.includes('--cached')) return 'trai_brain/mercury-bridge/ask.js\n';
+        throw new Error(`unstaged diff should not be read when staged files exist: ${args.join(' ')}`);
+      });
+      const unstagedGitOutput = jest.fn((args) => {
+        if (args.includes('--cached')) return '';
+        return 'core/EvalRuleEngine.js\ntest/eval-rule-engine.test.js\n';
+      });
+
+      expect(listBreakMyFixChangedFiles(stagedGitOutput)).toEqual(['trai_brain/mercury-bridge/ask.js']);
+      expect(listBreakMyFixChangedFiles(unstagedGitOutput)).toEqual([
+        'core/EvalRuleEngine.js',
+        'test/eval-rule-engine.test.js',
+      ]);
+    });
+  });
+
+  test('break-my-fix context truncates oversized diffs loudly', async () => {
+    await withMercuryConfig({}, () => {
+      const { truncateForContext } = require('../trai_brain/mercury-bridge/ask');
+
+      expect(truncateForContext('abcdef', 3)).toBe(
+        'abc\n\n[bridge truncated dirty diff context at 3 characters; split the fix before Mercury if the omitted diff matters]'
+      );
+    });
+  });
+
+  test('single-shot CLI refuses break-my-fix prompts before RAG retrieval', () => {
+    const result = spawnSync(process.execPath, [
+      'trai_brain/mercury-bridge/ask.js',
+      'Mercury, break my fix.',
+    ], {
+      cwd: path.resolve(__dirname, '..'),
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('break-my-fix prompts require --agentic');
+    expect(result.stdout).not.toContain('Embedding query');
   });
 
   test('single-shot numeric overrides fail loud before runtime work', async () => {

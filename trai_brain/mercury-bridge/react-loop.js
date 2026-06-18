@@ -75,6 +75,7 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose) {
  *   systemPrompt: string (optional, defaults to DEFAULT_SYSTEM_PROMPT)
  *   userQuery: string — the user's question
  *   starterContext: array of {source, similarity, text} from RAG (optional)
+ *   additionalSystemContext: string — extra system context supplied by caller (optional)
  *   maxIterations: number (configured in mercury.config.json)
  *   maxTokens: number (configured in mercury.config.json)
  *   temperature: number (configured in mercury.config.json)
@@ -90,7 +91,7 @@ async function runReactLoop(params) {
     userQuery,
     starterContext = [],
     traceHint = null,
-    blastRadius = null,
+    additionalSystemContext = null,
     maxIterations = config.AGENTIC_MAX_ITERATIONS,
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
@@ -131,14 +132,10 @@ async function runReactLoop(params) {
     });
   }
 
-  // Blast radius: who imports the file under attack. Caller list comes from
-  // tools/serena-bridge.js (dep-scanner inverse map). Mercury sees this as a
-  // separate system message so it can reason about which callers a proposed
-  // change affects without re-discovering the call graph.
-  if (blastRadius) {
+  if (additionalSystemContext) {
     messages.push({
       role: 'system',
-      content: blastRadius,
+      content: additionalSystemContext,
     });
   }
 

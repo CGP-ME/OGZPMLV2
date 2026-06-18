@@ -107,6 +107,9 @@ describe('claude bridge Bash gate', () => {
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies or creates a silent failure."'
     )).toBeNull();
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Use the current dirty git diff and current repo state. Find any way this fails."'
+    )).toBeNull();
     expect(mutationReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Find a concrete state where this lies or creates a silent failure."'
     )).toBeNull();
@@ -127,12 +130,30 @@ describe('claude bridge Bash gate', () => {
     )).toBe('verification_framing:is_closed');
   });
 
+  test('blocks scoped Mercury ask dispatches that point Mercury at agent-selected files or prompt payloads', () => {
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Patch target: core/EvalRuleEngine.js:109-173. Find a failure."'
+    )).toBe('scoped_framing:scope_label');
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Look at core/EvalRuleEngine.js:109-173 and test/eval-rule-engine.test.js."'
+    )).toBe('scoped_framing:file_pointer');
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Attack lines 109-173."'
+    )).toBe('scoped_framing:line_pointer');
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. $(cat prompt.md)"'
+    )).toBe('scoped_framing:prompt_substitution');
+  });
+
   test('blocks Mercury ask dispatches without a visible break-my-fix frame', () => {
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Find bugs in this fix."'
     )).toBe('missing_break_my_fix');
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "$(cat prompt.md)"'
+    )).toBe('missing_break_my_fix');
+    expect(mercuryFramingReason(
+      'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Can you explain why this had to break my fix before?"'
     )).toBe('missing_break_my_fix');
   });
 
