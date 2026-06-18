@@ -59,6 +59,12 @@ For trading-path changes, run `node ogz-meta/gates/multi-runtime-gate-runner.js 
 before claiming the anchor holds. Do not quote P0 numbers from memory, dated
 digests, or old baseline specs.
 
+Maintenance caveat 2026-06-16: `multi-runtime-latest.json` once lagged a fresh
+P0 PASS. The gate is now expected to update that pointer after each run. If it
+ever predates the current terminal PASS, treat that as a gate bug; use the
+direct worker report path printed by the gate command as proof and open the
+report summary (`ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:135-139`).
+
 7. Read the active fix queue.
 
 ```bash
@@ -90,7 +96,7 @@ No doc, digest, session form, or chat transcript outranks the live file.
 - `OGZ-DIGEST-YYYY-MM-DD-VERIFIED.md` = verified transcript digest.
 - `OGZ-DIGEST-YYYY-MM-DD.md` without `VERIFIED` = non-canonical starter material unless re-verified.
 - `ogz-meta/sessions/` = current-state chain.
-- `ogz-meta/gates/multi-runtime-gate-runner.js` + latest gate report = P0 anchor source.
+- `ogz-meta/gates/multi-runtime-gate-runner.js` + latest gate report from the current command = P0 anchor source.
 - `ogz-meta/ledger/OGZPMLV2-FIX-SPEC-BY-MODULE.md` = fix queue source.
 
 ## Maintenance Automation

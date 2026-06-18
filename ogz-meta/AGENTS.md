@@ -365,6 +365,7 @@ tail -f /var/log/nginx/error.log
 - Ledger trap: historical files in `ogz-meta/ledger/` may describe pre-fix state. Verify current code before citing them.
 - Branch-memory trap: Claude memory may name old production branches. Always run branch/status checks before commit/push decisions.
 - Baseline-memory trap: old P0 numbers can be superseded. Use the current canonical backtest doc/session record, then reproduce exactly.
+- P0 latest-pointer trap: `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after each `node ogz-meta/gates/multi-runtime-gate-runner.js --p0` run. If it ever predates the current terminal PASS, treat that as a gate bug; use the direct worker report path printed by the gate command as proof and open the report summary. Historical stale-pointer incident source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:135-139`.
 - TRAI GPU: ctransformers needs `gpu_layers=50` or higher; verify with `nvidia-smi`.
 - TRAI path mismatch: `start-ogzprime.sh` creates inference symlinks into `core/`.
 - Web file permissions: public JS/CSS on VPS need readable permissions, typically `644`.
