@@ -130,19 +130,19 @@ describe('claude bridge Bash gate', () => {
     )).toBe('verification_framing:is_closed');
   });
 
-  test('blocks scoped Mercury ask dispatches that point Mercury at agent-selected files or prompt payloads', () => {
+  test('does not block scoped Mercury ask dispatches after the required frame', () => {
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Patch target: core/EvalRuleEngine.js:109-173. Find a failure."'
-    )).toBe('scoped_framing:scope_label');
+    )).toBeNull();
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Look at core/EvalRuleEngine.js:109-173 and test/eval-rule-engine.test.js."'
-    )).toBe('scoped_framing:file_pointer');
+    )).toBeNull();
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. Attack lines 109-173."'
-    )).toBe('scoped_framing:line_pointer');
+    )).toBeNull();
     expect(mercuryFramingReason(
       'node trai_brain/mercury-bridge/ask.js --agentic --max-iterations=60 --max-tokens=7750 "Mercury, break my fix. $(cat prompt.md)"'
-    )).toBe('scoped_framing:prompt_substitution');
+    )).toBeNull();
   });
 
   test('blocks Mercury ask dispatches without a visible break-my-fix frame', () => {

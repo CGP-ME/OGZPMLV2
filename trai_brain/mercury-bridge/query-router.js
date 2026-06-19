@@ -110,7 +110,7 @@ function routeQuery(query) {
       mode: 'hybrid',
       boostType: null,
       starterContextPolicy: 'skip',
-      rationale: 'break-my-fix prompt detected; skip indexed starter context so dirty diff context is not diluted by stale retrieval',
+      rationale: 'break-my-fix prompt detected; skip indexed starter context and require repo-tool evidence',
     };
   }
 

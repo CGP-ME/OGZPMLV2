@@ -172,91 +172,6 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('break-my-fix context is injected by the bridge only for break-my-fix prompts', async () => {
-    await withMercuryConfig({}, () => {
-      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
-      const gitOutput = jest.fn(() => {
-        throw new Error('git must not be read for non-break prompts');
-      });
-
-      expect(buildBreakMyFixDiffContext('Find bugs in this change', gitOutput)).toBeNull();
-      expect(gitOutput).not.toHaveBeenCalled();
-    });
-  });
-
-  test('break-my-fix context prefers staged tracked diff to isolate one-change reviews', async () => {
-    await withMercuryConfig({}, () => {
-      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
-      const gitOutput = jest.fn((args) => {
-        if (args[0] === 'status') return 'M  trai_brain/mercury-bridge/ask.js\n M core/EvalRuleEngine.js\n';
-        if (args[0] === 'diff' && args[1] === '--cached') return 'diff --git a/trai_brain/mercury-bridge/ask.js b/trai_brain/mercury-bridge/ask.js\n+staged bridge change\n';
-        throw new Error(`unexpected git args: ${args.join(' ')}`);
-      });
-
-      const context = buildBreakMyFixDiffContext('Mercury, break my fix. Use the current dirty git diff.', gitOutput);
-
-      expect(context).toContain('Neutral break-my-fix context supplied by mercury-bridge');
-      expect(context).toContain('The fix under review is the dirty diff below.');
-      expect(context).toContain('You are running the break-my-fix attack now');
-      expect(context).toContain('Use full repo tools inside mercury.ignore');
-      expect(context).toContain('Final answer must be an adversarial verdict about this dirty diff');
-      expect(context).toContain('git status --short --untracked-files=no');
-      expect(context).toContain('Diff source: staged tracked diff');
-      expect(context).toContain('+staged bridge change');
-      expect(gitOutput).toHaveBeenCalledWith(['status', '--short', '--untracked-files=no']);
-      expect(gitOutput).toHaveBeenCalledWith(['diff', '--cached', '--no-ext-diff', '--']);
-      expect(gitOutput).not.toHaveBeenCalledWith(['diff', '--no-ext-diff', '--']);
-    });
-  });
-
-  test('break-my-fix context falls back to unstaged tracked diff when nothing is staged', async () => {
-    await withMercuryConfig({}, () => {
-      const { buildBreakMyFixDiffContext } = require('../trai_brain/mercury-bridge/ask');
-      const gitOutput = jest.fn((args) => {
-        if (args[0] === 'status') return ' M core/EvalRuleEngine.js\n';
-        if (args[0] === 'diff' && args[1] === '--cached') return '';
-        if (args[0] === 'diff') return 'diff --git a/core/EvalRuleEngine.js b/core/EvalRuleEngine.js\n+unstaged market-time change\n';
-        throw new Error(`unexpected git args: ${args.join(' ')}`);
-      });
-
-      const context = buildBreakMyFixDiffContext('Mercury, break my fix.', gitOutput);
-
-      expect(context).toContain('Diff source: unstaged tracked diff');
-      expect(context).toContain('+unstaged market-time change');
-      expect(gitOutput).toHaveBeenCalledWith(['diff', '--no-ext-diff', '--']);
-    });
-  });
-
-  test('break-my-fix review file list is used for answer quality, not tool restriction', async () => {
-    await withMercuryConfig({}, () => {
-      const { listBreakMyFixReviewFiles } = require('../trai_brain/mercury-bridge/ask');
-      const stagedGitOutput = jest.fn((args) => {
-        if (args.includes('--cached')) return 'trai_brain/mercury-bridge/ask.js\n';
-        throw new Error(`unstaged diff should not be read when staged files exist: ${args.join(' ')}`);
-      });
-      const unstagedGitOutput = jest.fn((args) => {
-        if (args.includes('--cached')) return '';
-        return 'trai_brain/mercury-bridge/react-loop.js\ntest/mercury-llm-config-contract.test.js\n';
-      });
-
-      expect(listBreakMyFixReviewFiles(stagedGitOutput)).toEqual(['trai_brain/mercury-bridge/ask.js']);
-      expect(listBreakMyFixReviewFiles(unstagedGitOutput)).toEqual([
-        'trai_brain/mercury-bridge/react-loop.js',
-        'test/mercury-llm-config-contract.test.js',
-      ]);
-    });
-  });
-
-  test('break-my-fix context truncates oversized diffs loudly', async () => {
-    await withMercuryConfig({}, () => {
-      const { truncateForContext } = require('../trai_brain/mercury-bridge/ask');
-
-      expect(truncateForContext('abcdef', 3)).toBe(
-        'abc\n\n[bridge truncated dirty diff context at 3 characters; split the fix before Mercury if the omitted diff matters]'
-      );
-    });
-  });
-
   test('single-shot CLI refuses break-my-fix prompts before RAG retrieval', () => {
     const result = spawnSync(process.execPath, [
       'trai_brain/mercury-bridge/ask.js',
@@ -301,9 +216,7 @@ describe('Mercury LLM config contract', () => {
         client,
         toolAdapter,
         userQuery: 'Mercury, break my fix.',
-        additionalSystemContext: 'Neutral break-my-fix context with dirty diff. The fix under review is the supplied dirty diff context.',
         requireToolUseBeforeAnswer: true,
-        reviewFiles: ['trai_brain/mercury-bridge/react-loop.js'],
         maxIterations: 5,
         verbose: false,
       });
@@ -330,9 +243,7 @@ describe('Mercury LLM config contract', () => {
         client,
         toolAdapter,
         userQuery: 'Mercury, break my fix.',
-        additionalSystemContext: 'Neutral break-my-fix context with dirty diff. The fix under review is the supplied dirty diff context.',
         requireToolUseBeforeAnswer: true,
-        reviewFiles: ['trai_brain/mercury-bridge/react-loop.js'],
         maxIterations: 5,
         verbose: false,
       });
@@ -345,7 +256,7 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
-  test('break-my-fix ReAct gate fails closed on off-target final answers', async () => {
+  test('break-my-fix ReAct gate allows full-scope final answers after repo-tool use', async () => {
     await withMercuryConfig({}, async () => {
       const { runReactLoop } = require('../trai_brain/mercury-bridge/react-loop');
       const calls = [
@@ -361,7 +272,6 @@ describe('Mercury LLM config contract', () => {
           }],
         },
         { role: 'assistant', content: 'Found unrelated breakage in core/CandleAggregator.js.' },
-        { role: 'assistant', content: 'Still unrelated.' },
       ];
       const client = {
         generateWithTools: jest.fn(async () => calls.shift()),
@@ -375,21 +285,19 @@ describe('Mercury LLM config contract', () => {
         client,
         toolAdapter,
         userQuery: 'Mercury, break my fix.',
-        additionalSystemContext: 'Neutral break-my-fix context with dirty diff.',
         requireToolUseBeforeAnswer: true,
-        reviewFiles: ['trai_brain/mercury-bridge/react-loop.js'],
         maxIterations: 5,
         verbose: false,
       });
 
-      expect(result.termination).toBe('off_target_answer');
-      expect(result.answer).toContain('dirty diff under review');
+      expect(result.termination).toBe('answer_given');
+      expect(result.answer).toContain('core/CandleAggregator.js');
       expect(toolAdapter.execute).toHaveBeenCalledWith('grep', { query: 'anything' });
-      expect(client.generateWithTools).toHaveBeenCalledTimes(3);
+      expect(client.generateWithTools).toHaveBeenCalledTimes(2);
     });
   });
 
-  test('break-my-fix ReAct gate fails closed on routing meta-answers even when they cite a reviewed file', async () => {
+  test('break-my-fix ReAct gate fails closed on routing meta-answers after repo-tool use', async () => {
     await withMercuryConfig({}, async () => {
       const { runReactLoop } = require('../trai_brain/mercury-bridge/react-loop');
       const calls = [
@@ -419,16 +327,14 @@ describe('Mercury LLM config contract', () => {
         client,
         toolAdapter,
         userQuery: 'Mercury, break my fix.',
-        additionalSystemContext: 'Neutral break-my-fix context with dirty diff.',
         requireToolUseBeforeAnswer: true,
-        reviewFiles: ['test/mercury-index-scope.test.js'],
         maxIterations: 5,
         verbose: false,
       });
 
-      expect(result.termination).toBe('off_target_answer');
-      expect(result.answer).toContain('dirty diff under review');
-      expect(client.generateWithTools).toHaveBeenCalledTimes(3);
+      expect(result.termination).toBe('meta_answer');
+      expect(result.answer).toContain('routing instructions');
+      expect(client.generateWithTools).toHaveBeenCalledTimes(2);
     });
   });
 

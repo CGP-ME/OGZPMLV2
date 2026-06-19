@@ -39,12 +39,6 @@ const MERCURY_VERIFICATION_FRAMES = [
   { reason: 'does_this_look', pattern: /\bdoes\s+(this|it|that)\s+look\b/i },
   { reason: 'beam_me_up', pattern: /\bbeam\s+me\s+up\b/i },
 ];
-const MERCURY_SCOPING_FRAMES = [
-  { reason: 'prompt_substitution', pattern: /(\$\(|`)/ },
-  { reason: 'scope_label', pattern: /\b(scope|patch target|changed code|changed files?|target files?|file ranges?|line ranges?)\s*:/i },
-  { reason: 'file_pointer', pattern: /(^|[\s"'`(])(?:\.{0,2}\/)?(?:[\w.-]+\/)+[\w.-]+\.(js|mjs|cjs|ts|json|md|css|html|yml|yaml)(?::\d+(?:-\d+)?)?/i },
-  { reason: 'line_pointer', pattern: /\blines?\s+\d+(?:-\d+)?\b/i },
-];
 
 function shellTokens(cmd) {
   const tokens = [];
@@ -304,10 +298,6 @@ function mercuryFramingReason(cmd) {
     if (frame.pattern.test(cmd)) return `verification_framing:${frame.reason}`;
   }
 
-  for (const frame of MERCURY_SCOPING_FRAMES) {
-    if (frame.pattern.test(promptSegment)) return `scoped_framing:${frame.reason}`;
-  }
-
   return null;
 }
 
@@ -361,7 +351,7 @@ function run() {
   if (mercuryFraming) {
     emit(
       `BLOCKED (claude Mercury framing): ${mercuryFraming}. ` +
-      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, declare a fix closed, point at agent-selected files or line ranges, or hide prompt payloads behind shell substitution.`,
+      `Mercury dispatch must visibly include "break my fix" adversarial framing and must not ask Mercury to verify, confirm, compare what changed, or declare a fix closed.`,
       2
     );
   }

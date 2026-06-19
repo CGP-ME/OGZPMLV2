@@ -24,7 +24,6 @@
 'use strict';
 
 const path = require('path');
-const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -40,8 +39,6 @@ const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, ev
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
-
-const BREAK_MY_FIX_DIFF_CHAR_CAP = 120000;
 
 function parseArgs(argv) {
   const args = {
@@ -123,71 +120,6 @@ function configExactInteger(value, configuredValue, name) {
     throw new Error(`${name} must match mercury.config.json value ${configuredValue}`);
   }
   return configuredValue;
-}
-
-function readGitOutput(args) {
-  try {
-    return execFileSync('git', args, {
-      cwd: config.REPO_ROOT,
-      encoding: 'utf8',
-      maxBuffer: BREAK_MY_FIX_DIFF_CHAR_CAP * 2,
-    });
-  } catch (err) {
-    if (err && (err.code === 'ENOBUFS' || /maxBuffer/i.test(err.message || ''))) {
-      const partial = Buffer.isBuffer(err.stdout) ? err.stdout.toString('utf8') : String(err.stdout || '');
-      return `${partial}\n\n[bridge git output exceeded buffer before full read; split the fix before Mercury if the omitted diff matters]`;
-    }
-    throw err;
-  }
-}
-
-function truncateForContext(text, cap = BREAK_MY_FIX_DIFF_CHAR_CAP) {
-  if (!text || text.length <= cap) return text || '';
-  return `${text.slice(0, cap)}\n\n[bridge truncated dirty diff context at ${cap} characters; split the fix before Mercury if the omitted diff matters]`;
-}
-
-function buildBreakMyFixDiffContext(query, gitOutput = readGitOutput) {
-  if (!isBreakMyFixFrame(query)) return null;
-
-  const status = gitOutput(['status', '--short', '--untracked-files=no']).trim();
-  const stagedDiff = gitOutput(['diff', '--cached', '--no-ext-diff', '--']);
-  const hasStagedDiff = stagedDiff.trim().length > 0;
-  const unstagedDiff = hasStagedDiff ? '' : gitOutput(['diff', '--no-ext-diff', '--']);
-  const diff = hasStagedDiff ? stagedDiff : unstagedDiff;
-  const diffSource = hasStagedDiff ? 'staged tracked diff' : 'unstaged tracked diff';
-
-  return [
-    'Neutral break-my-fix context supplied by mercury-bridge, not by the agent prompt.',
-    'Agents must not hand-pick files or line ranges in the Mercury prompt.',
-    'If staged changes exist, only the staged tracked diff is supplied so one-change review stays isolated.',
-    'The fix under review is the dirty diff below.',
-    'You are running the break-my-fix attack now; do not explain how to invoke break-my-fix or describe routing behavior as the answer.',
-    'Use full repo tools inside mercury.ignore to find sibling failures, bypass paths, and existing mitigations connected to this diff.',
-    'Do not switch to unrelated TODO/FIX comments, stale history, or random repo issues unless you can tie them to the same bug class as this diff.',
-    'Final answer must be an adversarial verdict about this dirty diff: either concrete breakage with evidence, or no concrete breakage found after tool inspection.',
-    '',
-    'git status --short --untracked-files=no:',
-    '```',
-    status || '(clean tracked worktree)',
-    '```',
-    '',
-    `Diff source: ${diffSource}`,
-    '```diff',
-    truncateForContext(diff) || '(no tracked dirty diff)',
-    '```',
-  ].join('\n');
-}
-
-function listBreakMyFixReviewFiles(gitOutput = readGitOutput) {
-  const stagedFiles = gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRT', '--'])
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (stagedFiles.length > 0) return stagedFiles;
-  return gitOutput(['diff', '--name-only', '--diff-filter=ACMRT', '--'])
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 function usage() {
@@ -301,9 +233,6 @@ async function runAgentic(query, opts) {
     }
 
     // 3. Build the tool adapter with both repo access and mongo (for get_chunk).
-    // Break-my-fix prompts get neutral dirty-diff context, but tool reads remain
-    // repo-wide inside mercury.ignore so Mercury can find sibling failures and
-    // existing mitigations without agent-selected file targeting.
     const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
@@ -321,12 +250,6 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
     }
 
-    const breakMyFixDiffContext = buildBreakMyFixDiffContext(query);
-    const breakMyFixReviewFiles = isBreakMyFixQuery ? listBreakMyFixReviewFiles() : [];
-    const neutralContext = [
-      breakMyFixDiffContext,
-    ].filter(Boolean).join('\n\n');
-
     // 5. Run the loop with native tool calling
     const t0 = Date.now();
     const result = await runReactLoop({
@@ -335,9 +258,7 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
-      additionalSystemContext: neutralContext || null,
       requireToolUseBeforeAnswer: isBreakMyFixQuery,
-      reviewFiles: breakMyFixReviewFiles,
       maxIterations,
       maxTokens,
       verbose,
@@ -550,4 +471,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic, buildBreakMyFixDiffContext, listBreakMyFixReviewFiles, truncateForContext };
+module.exports = { runAgentic };
