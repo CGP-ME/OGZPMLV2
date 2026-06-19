@@ -512,14 +512,26 @@ class CandleProcessor {
       throw new Error(message);
     }
 
-    // Check if this is an update to existing candle or a new candle
-    const existingIndex = this.ctx.priceHistory.findIndex(c => c.etime === candle.etime);
+    const candleStoreSymbol = candle.symbol;
+    const symCtx = this._resolveSymCtx(candle);
+    const hasSymbolContexts = this.ctx.symbolContexts instanceof Map && this.ctx.symbolContexts.size > 0;
+    const primarySymbol = normalizeCandleSymbol(this.ctx.tradingPair);
+    const candleSymbol = normalizeCandleSymbol(candleStoreSymbol);
+    const shouldUpdateLegacyRoot = !hasSymbolContexts || !primarySymbol || candleSymbol === primarySymbol;
+    const updateHistory = shouldUpdateLegacyRoot ? this.ctx.priceHistory : (symCtx?.priceHistory || []);
+
+    // Check if this is an update to existing candle or a new candle.
+    // In multi-symbol mode, the legacy root history is the primary-symbol mirror
+    // only. Non-primary symbols update CandleStore/SymbolTradingContext without
+    // overwriting the primary root snapshot.
+    const existingIndex = updateHistory.findIndex(c => c.etime === candle.etime);
     const isUpdate = existingIndex !== -1;
 
     if (isUpdate) {
       // UPDATE existing candle (same etime, new OHLCV values as candle forms)
-      this.ctx.priceHistory[existingIndex] = candle;
-      const candleStoreSymbol = candle.symbol;
+      if (shouldUpdateLegacyRoot) {
+        this.ctx.priceHistory[existingIndex] = candle;
+      }
       this.ctx._candleStore.addCandle(
         candleStoreSymbol,
         candleTimeframe,
@@ -527,7 +539,7 @@ class CandleProcessor {
       );
 
       // Feed IndicatorEngine for real-time updates
-      if (this.ctx.indicatorEngine) {
+      if (shouldUpdateLegacyRoot && this.ctx.indicatorEngine) {
         this.ctx.indicatorEngine.updateCandle({
           t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
         });
@@ -537,13 +549,10 @@ class CandleProcessor {
       // Mirrors the global indicatorEngine.updateCandle above against the symbol's
       // own context. Global path stays alive as fallback for not-yet-migrated
       // consumers (commits 4-6 phase it out).
-      {
-        const symCtx = this._resolveSymCtx(candle);
-        if (symCtx) {
-          symCtx.indicatorEngine.updateCandle({
-            t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
-          });
-        }
+      if (symCtx) {
+        symCtx.indicatorEngine.updateCandle({
+          t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
+        });
       }
       if (traceId) {
         emitTrace(this.ctx, 'CANDLE_ACCEPTED', {
@@ -551,7 +560,7 @@ class CandleProcessor {
           symbol: candleStoreSymbol,
           timeframe: candleTimeframe,
           update: true,
-          priceHistory: this.ctx.priceHistory.length,
+          priceHistory: updateHistory.length,
           close: candle.c,
           etime: candle.etime,
           brokerId: candle.brokerId,
@@ -565,22 +574,23 @@ class CandleProcessor {
     }
 
     // NEW candle - smart insert: push if latest, splice if backfill
-    const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
-    if (!lastCandle || candle.etime > lastCandle.etime) {
-      this.ctx.priceHistory.push(candle);
-    } else {
-      // Backfill case: insert in timestamp order
-      let insertIndex = 0;
-      for (let i = this.ctx.priceHistory.length - 1; i >= 0; i--) {
-        if (this.ctx.priceHistory[i].etime < candle.etime) {
-          insertIndex = i + 1;
-          break;
+    if (shouldUpdateLegacyRoot) {
+      const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+      if (!lastCandle || candle.etime > lastCandle.etime) {
+        this.ctx.priceHistory.push(candle);
+      } else {
+        // Backfill case: insert in timestamp order
+        let insertIndex = 0;
+        for (let i = this.ctx.priceHistory.length - 1; i >= 0; i--) {
+          if (this.ctx.priceHistory[i].etime < candle.etime) {
+            insertIndex = i + 1;
+            break;
+          }
         }
+        this.ctx.priceHistory.splice(insertIndex, 0, candle);
       }
-      this.ctx.priceHistory.splice(insertIndex, 0, candle);
     }
 
-    const candleStoreSymbol = candle.symbol;
     this.ctx._candleStore.addCandle(
       candleStoreSymbol,
       candleTimeframe,
@@ -588,20 +598,20 @@ class CandleProcessor {
     );
 
     // Feed IndicatorEngine
-    if (this.ctx.indicatorEngine) {
+    if (shouldUpdateLegacyRoot && this.ctx.indicatorEngine) {
       this.ctx.indicatorEngine.updateCandle({
         t: candle.t, o: candle.o, h: candle.h, l: candle.l, c: candle.c, v: candle.v
       });
     }
 
     // Feed modular entry systems (only on NEW candles, not updates)
-    if (this.ctx.mtfAdapter) this.ctx.mtfAdapter.ingestCandle(candle);
-    if (this.ctx.emaCrossover) this.ctx.emaCrossoverSignal = this.ctx.emaCrossover.update(candle, this.ctx.priceHistory);
-    if (this.ctx.maDynamicSR) this.ctx.maDynamicSRSignal = this.ctx.maDynamicSR.update(candle, this.ctx.priceHistory);
+    if (shouldUpdateLegacyRoot && this.ctx.mtfAdapter) this.ctx.mtfAdapter.ingestCandle(candle);
+    if (shouldUpdateLegacyRoot && this.ctx.emaCrossover) this.ctx.emaCrossoverSignal = this.ctx.emaCrossover.update(candle, this.ctx.priceHistory);
+    if (shouldUpdateLegacyRoot && this.ctx.maDynamicSR) this.ctx.maDynamicSRSignal = this.ctx.maDynamicSR.update(candle, this.ctx.priceHistory);
     // 2026-05-04: BreakAndRetest moved to self-contained pattern (owned by StrategyOrchestrator).
-    if (this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
+    if (shouldUpdateLegacyRoot && this.ctx.liquiditySweep) this.ctx.liquiditySweepSignal = this.ctx.liquiditySweep.feedCandle(candle);
 
-    if (this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
+    if (shouldUpdateLegacyRoot && this.ctx.volumeProfile) this.ctx.volumeProfile.update(candle, this.ctx.priceHistory);
 
     // CC-C Multi-Symbol Commit 3/6: per-symbol routing for NEW-candle path.
     // Routes the new candle to its SymbolTradingContext's signal modules and
@@ -612,7 +622,6 @@ class CandleProcessor {
     // First-time-seen-per-symbol log uses [BOOT] tag so silent backtest shows
     // the routing actually fired without spamming every candle.
     {
-      const symCtx = this._resolveSymCtx(candle);
       if (symCtx) {
         this._firstCandleSeenSymbols ??= new Set();
         const sym = symCtx.symbol;
@@ -1094,7 +1103,9 @@ class CandleProcessor {
 
     // Phase 5 REWRITE: ONE CANONICAL PATH - always call processNewCandle
     // processNewCandle now handles both updates (same etime) and new candles
-    const lastCandle = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
+    const gapSymCtx = this._resolveSymCtx(candle);
+    const gapHistory = gapSymCtx?.priceHistory || this.ctx.priceHistory;
+    const lastCandle = gapHistory[gapHistory.length - 1];
     const isNewCandle = !lastCandle || lastCandle.etime !== candle.etime;
 
     // GAP DETECTION: Check for gaps only on new candles, not in backtest

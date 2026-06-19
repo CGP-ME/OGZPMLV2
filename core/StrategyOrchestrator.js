@@ -199,6 +199,7 @@ class StrategyOrchestrator {
     // Strategy definitions — each has an evaluate function
     // These are pluggable: add/remove strategies by editing this array
     this.strategies = [];
+    this.symbolStrategyModules = new Map();
 
     // Opening Range Breakout stateful strategy instance
     // MUST be initialized BEFORE _registerBuiltinStrategies() so closure captures it
@@ -273,6 +274,23 @@ class StrategyOrchestrator {
 
     // Register built-in strategies (uses diagFunnel, so must come after)
     this._registerBuiltinStrategies();
+  }
+
+  _getSymbolStrategyModule(strategyName, symbol, fallbackModule, factory) {
+    if (typeof symbol !== 'string' || !symbol) return fallbackModule;
+    if (typeof factory !== 'function') {
+      throw new Error(`[STRATEGY-SCOPE] ${strategyName} requires a module factory for symbol-scoped state`);
+    }
+
+    const canonicalSymbol = symbol.toUpperCase();
+    if (!this.symbolStrategyModules.has(strategyName)) {
+      this.symbolStrategyModules.set(strategyName, new Map());
+    }
+    const bySymbol = this.symbolStrategyModules.get(strategyName);
+    if (!bySymbol.has(canonicalSymbol)) {
+      bySymbol.set(canonicalSymbol, factory());
+    }
+    return bySymbol.get(canonicalSymbol);
   }
 
   /**
@@ -361,7 +379,13 @@ class StrategyOrchestrator {
         if (!candles || candles.length < minCandlesEMA) return null;
 
         const latestCandle = candles[candles.length - 1];
-        const sig = emaCrossoverModule.update(latestCandle, candles);
+        const scopedEmaCrossover = this._getSymbolStrategyModule(
+          'EMASMACrossover',
+          ctx.extras?.symbol,
+          emaCrossoverModule,
+          () => new EMASMACrossoverSignal()
+        );
+        const sig = scopedEmaCrossover.update(latestCandle, candles);
         if (sig) diagEMA.moduleNonNull++;
 
         // DIAGNOSTIC: Log signal computation
@@ -414,7 +438,13 @@ class StrategyOrchestrator {
         if (!candles || candles.length < minCandlesMASR) return null;
 
         const latestCandle = candles[candles.length - 1];
-        const sig = maDynamicSRModule.update(latestCandle, candles);
+        const scopedMaDynamicSR = this._getSymbolStrategyModule(
+          'MADynamicSR',
+          ctx.extras?.symbol,
+          maDynamicSRModule,
+          () => new MADynamicSR()
+        );
+        const sig = scopedMaDynamicSR.update(latestCandle, candles);
         if (sig && sig.direction) diagMASR.moduleNonNull++;
 
         // DIAGNOSTIC: Log signal computation
@@ -467,7 +497,16 @@ class StrategyOrchestrator {
         }
 
         const latestCandle = candles[candles.length - 1];
-        const sig = liquiditySweepModule.feedCandle(latestCandle);
+        const scopedLiquiditySweep = this._getSymbolStrategyModule(
+          'LiquiditySweep',
+          ctx.extras?.symbol,
+          liquiditySweepModule,
+          () => new LiquiditySweepDetector({
+            ...(TradingConfig.get('strategies.LiquiditySweep') || {}),
+            disableSessionCheck: true,
+          })
+        );
+        const sig = scopedLiquiditySweep.feedCandle(latestCandle);
 
         // DIAGNOSTIC: Log every call to see why no signals
         if (process.env.STRATEGY_DIAG === 'true') {
@@ -512,7 +551,13 @@ class StrategyOrchestrator {
           const candles = ctx.priceHistory;
           if (!candles || candles.length === 0) return null;
           const latestCandle = candles[candles.length - 1];
-          const sig = breakAndRetestModule.update(latestCandle, candles);
+          const scopedBreakAndRetest = this._getSymbolStrategyModule(
+            'BreakRetest',
+            ctx.extras?.symbol,
+            breakAndRetestModule,
+            () => new BreakAndRetest()
+          );
+          const sig = scopedBreakAndRetest.update(latestCandle, candles);
           if (!sig || !sig.direction || sig.direction === 'neutral') return null;
           let conf = sig.confidence || 0;
           if (conf < this.minStrategyConfidence) return null;
@@ -665,8 +710,16 @@ class StrategyOrchestrator {
 
         // Feed latest candle to MTF adapter
         const latestCandle = candles[candles.length - 1];
+        const scopedMtfAdapter = this._getSymbolStrategyModule(
+          'MultiTimeframe',
+          ctx.extras?.symbol,
+          mtfAdapterModule,
+          () => new MultiTimeframeAdapter({
+            activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
+          })
+        );
         try {
-          mtfAdapterModule.ingestCandle(latestCandle);
+          scopedMtfAdapter.ingestCandle(latestCandle);
         } catch (e) {
           if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
           return null;
@@ -674,7 +727,7 @@ class StrategyOrchestrator {
 
         let confluence;
         try {
-          confluence = mtfAdapterModule.getConfluence ? mtfAdapterModule.getConfluence() : mtfAdapterModule.getConfluenceScore();
+          confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
         } catch (e) {
           if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
           return null;
@@ -712,7 +765,13 @@ class StrategyOrchestrator {
         const latestCandle = candles[candles.length - 1];
         let tpo;
         try {
-          tpo = tpoIntegrationModule.update(latestCandle);
+          const scopedTpoIntegration = this._getSymbolStrategyModule(
+            'OGZTPO',
+            ctx.extras?.symbol,
+            tpoIntegrationModule,
+            () => new OgzTpoIntegration()
+          );
+          tpo = scopedTpoIntegration.update(latestCandle);
         } catch (e) {
           return null;
         }
@@ -757,7 +816,13 @@ class StrategyOrchestrator {
         if (!candles || candles.length === 0) return null;
 
         const latestCandle = candles[candles.length - 1];
-        const signal = orbInstance.update(latestCandle);
+        const scopedOrb = this._getSymbolStrategyModule(
+          'OpeningRangeBreakout',
+          ctx.extras?.symbol,
+          orbInstance,
+          () => new OpeningRangeBreakout()
+        );
+        const signal = scopedOrb.update(latestCandle);
 
         // DIAGNOSTIC: Log every call
         if (process.env.STRATEGY_DIAG === 'true') {
@@ -767,7 +832,7 @@ class StrategyOrchestrator {
         if (!signal) return null;
 
         // Consume the signal so it doesn't fire again
-        orbInstance.consumeSignal();
+        scopedOrb.consumeSignal();
 
         return {
           direction: signal.direction,
@@ -799,7 +864,15 @@ class StrategyOrchestrator {
         if (!candles || candles.length < 50) return null;
 
         const latestCandle = candles[candles.length - 1];
-        const sig = smartMoneySweepModule.update(latestCandle, candles);
+        const scopedSmartMoneySweep = this._getSymbolStrategyModule(
+          'SmartMoneySweep',
+          ctx.extras?.symbol,
+          smartMoneySweepModule,
+          () => new SmartMoneySweep(
+            TradingConfig.get('strategies.SmartMoneySweep') || {}
+          )
+        );
+        const sig = scopedSmartMoneySweep.update(latestCandle, candles);
 
         if (sig) diagSMS.moduleNonNull++;
 
@@ -853,7 +926,14 @@ class StrategyOrchestrator {
     const donchianBreakoutModule = this.donchianBreakoutModule;
     if (shouldRegister('DonchianBreakout')) this.strategies.push({
       name: 'DonchianBreakout',
-      evaluate: (ctx) => donchianBreakoutModule.evaluate(ctx)
+      evaluate: (ctx) => this._getSymbolStrategyModule(
+        'DonchianBreakout',
+        ctx.extras?.symbol,
+        donchianBreakoutModule,
+        () => new DonchianBreakout(
+          TradingConfig.get('strategies.DonchianBreakout') || {}
+        )
+      ).evaluate(ctx)
     });
 
     if (shouldInstantiateDormantStrategy('PropSafeEMAPullback', 'enablePropSafeEMAPullback', 'ENABLE_PROPSAFE_EMA')) {
@@ -862,7 +942,14 @@ class StrategyOrchestrator {
       );
       this.strategies.push({
         name: 'PropSafeEMAPullback',
-        evaluate: (ctx) => propSafeEmaPullbackModule.evaluate(ctx)
+        evaluate: (ctx) => this._getSymbolStrategyModule(
+          'PropSafeEMAPullback',
+          ctx.extras?.symbol,
+          propSafeEmaPullbackModule,
+          () => new PropSafeEMAPullback(
+            TradingConfig.get('strategies.PropSafeEMAPullback') || {}
+          )
+        ).evaluate(ctx)
       });
     }
 
@@ -872,7 +959,14 @@ class StrategyOrchestrator {
       );
       this.strategies.push({
         name: 'EMATrendRetest',
-        evaluate: (ctx) => emaTrendRetestModule.evaluate(ctx)
+        evaluate: (ctx) => this._getSymbolStrategyModule(
+          'EMATrendRetest',
+          ctx.extras?.symbol,
+          emaTrendRetestModule,
+          () => new EMATrendRetest(
+            TradingConfig.get('strategies.EMATrendRetest') || {}
+          )
+        ).evaluate(ctx)
       });
     }
 
@@ -1480,10 +1574,18 @@ class StrategyOrchestrator {
    * @param {string} strategyName - The strategy that made the trade
    * @param {number} pnl - The P&L of the closed trade (positive = win, negative = loss)
    */
-  recordTradeResult(strategyName, pnl) {
+  recordTradeResult(strategyName, pnl, symbol = null) {
     if (strategyName === 'SmartMoneySweep' && this.smartMoneySweepModule) {
-      this.smartMoneySweepModule.recordTradeResult(pnl);
-      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} → dailyLosses=${this.smartMoneySweepModule.dailyLosses}`);
+      const smsModule = this._getSymbolStrategyModule(
+        'SmartMoneySweep',
+        symbol,
+        this.smartMoneySweepModule,
+        () => new SmartMoneySweep(
+          TradingConfig.get('strategies.SmartMoneySweep') || {}
+        )
+      );
+      smsModule.recordTradeResult(pnl);
+      console.log(`[SMS-DAILY] Recorded trade result: $${pnl.toFixed(2)} symbol=${symbol || 'legacy'} dailyLosses=${smsModule.dailyLosses}`);
     }
   }
 

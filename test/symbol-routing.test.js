@@ -68,6 +68,20 @@ function makeSymCtx(symbol) {
   };
 }
 
+function seedSymCtxCandle(symCtx, etime, symbol = symCtx.symbol) {
+  symCtx.priceHistory.push({
+    symbol,
+    timeframe: '1m',
+    t: etime - 60000,
+    etime,
+    o: 1,
+    h: 1,
+    l: 1,
+    c: 1,
+    v: 1,
+  });
+}
+
 function makeCtx(symbolContexts, tradingPair = 'BTC-USD', candleTimeframe = '1m') {
   return {
     symbolContexts,
@@ -180,6 +194,78 @@ describe('symbol-aware candle routing', () => {
     expect(tsla.indicatorEngine.updateCandle).not.toHaveBeenCalled();
     expect(ctx.marketData.symbol).toBe('BTC-USD');
     expect(btc.marketData.symbol).toBe('BTC-USD');
+  });
+
+  test('keeps non-primary Alpaca candles out of the legacy root price history mirror', () => {
+    const tsla = makeSymCtx('TSLA');
+    const nvda = makeSymCtx('NVDA');
+    const ctx = makeCtx(new Map([
+      ['TSLA', tsla],
+      ['NVDA', nvda],
+    ]), 'TSLA', '15m');
+    const processor = new CandleProcessor(ctx);
+
+    processor.processNewCandle(candleObject({
+      symbol: 'TSLA',
+      timeframe: '15m',
+      c: 400,
+    }));
+    processor.processNewCandle(candleObject({
+      symbol: 'NVDA',
+      timeframe: '15m',
+      c: 900,
+    }));
+
+    expect(ctx.priceHistory).toHaveLength(1);
+    expect(ctx.priceHistory[0]).toEqual(expect.objectContaining({ symbol: 'TSLA', c: 400 }));
+    expect(ctx._candleStore.addCandle).toHaveBeenCalledWith(
+      'NVDA',
+      '15m',
+      expect.objectContaining({ symbol: 'NVDA', c: 900 })
+    );
+    expect(tsla.indicatorEngine.updateCandle).toHaveBeenCalledTimes(1);
+    expect(nvda.indicatorEngine.updateCandle).toHaveBeenCalledTimes(1);
+    expect(ctx.indicatorEngine.updateCandle).toHaveBeenCalledTimes(1);
+  });
+
+  test('gap detection compares non-primary candles against their own symbol history', () => {
+    primeConfigForSymbolRouting({
+      BACKTEST_MODE: 'false',
+      EXECUTION_MODE: 'paper',
+      CANDLE_SOURCE: 'live',
+      PAPER_TRADING: 'true',
+      LIVE_TRADING: 'false',
+      ALPACA_SYMBOLS: 'TSLA,NVDA',
+    });
+    const tsla = makeSymCtx('TSLA');
+    const nvda = makeSymCtx('NVDA');
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const startSeconds = nowSeconds - 60;
+    const endMs = nowSeconds * 1000;
+    seedSymCtxCandle(tsla, endMs - (10 * 60 * 1000), 'TSLA');
+    seedSymCtxCandle(nvda, endMs, 'NVDA');
+    const ctx = makeCtx(new Map([
+      ['TSLA', tsla],
+      ['NVDA', nvda],
+    ]), 'TSLA', '1m');
+    ctx.config.enableBacktestMode = false;
+    ctx.config.assetClass = 'stocks';
+    ctx.config.brokerId = 'alpaca';
+    ctx.priceHistory = tsla.priceHistory;
+    const processor = new CandleProcessor(ctx);
+    processor.attemptBackfill = jest.fn();
+
+    processor.handleMarketData({
+      data: [startSeconds, nowSeconds, 899, 901, 898, 900, 900, 1000, 1],
+      symbol: 'NVDA',
+      timeframe: '1m',
+      brokerId: 'alpaca',
+      accountId: 'acct-1',
+      assetClass: 'stocks',
+      executionMode: 'paper',
+    });
+
+    expect(processor.attemptBackfill).not.toHaveBeenCalled();
   });
 
   test('stores raw seconds-array candle timestamps as integer milliseconds', () => {

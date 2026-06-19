@@ -66,7 +66,7 @@ module.exports = {
         ASSET_CLASS: 'stocks',
         PRIMARY_ASSET: 'TSLA',
         TRADING_PAIR: 'TSLA',
-        ALPACA_SYMBOLS: 'TSLA',
+        ALPACA_SYMBOLS: 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT',
         CANDLE_TIMEFRAME: '15m',
         STATE_FILE: 'data/state.json',
         JOURNAL_DATA_DIR: '/opt/ogzprime/OGZPMLV2/data/journal',

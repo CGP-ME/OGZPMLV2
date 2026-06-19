@@ -407,9 +407,11 @@ function validateSymbolConsistency(report) {
   const tradingPair = getPath(report.configSnapshot.config, 'broker.tradingPair');
   const alpacaSymbols = getPath(report.configSnapshot.config, 'broker.alpacaSymbols');
   const alpacaSymbolsSource = report.configSnapshot.sources['broker.alpacaSymbols'] || 'missing';
-  const symbols = typeof alpacaSymbols === 'string'
+  const rawSymbols = typeof alpacaSymbols === 'string'
     ? alpacaSymbols.split(',').map((symbol) => symbol.trim()).filter(Boolean)
     : [];
+  const symbols = rawSymbols.map((symbol) => symbol.toUpperCase());
+  const duplicateSymbols = symbols.filter((symbol, index) => symbols.indexOf(symbol) !== index);
 
   report.checked.symbol = {
     tradingPair,
@@ -421,19 +423,27 @@ function validateSymbolConsistency(report) {
     addError(report.errors, `broker.alpacaSymbols must be explicitly sourced for eval-live posture, got ${alpacaSymbolsSource}`);
     return;
   }
-  if (symbols.length !== 1) {
-    addError(report.errors, `ALPACA_SYMBOLS must contain exactly one symbol for eval-live posture, got ${symbols.join(', ') || '(none)'}`);
+  if (symbols.length === 0) {
+    addError(report.errors, 'ALPACA_SYMBOLS must contain at least one explicit symbol for eval-live posture');
     return;
   }
+  if (duplicateSymbols.length > 0) {
+    addError(report.errors, `ALPACA_SYMBOLS must not contain duplicate symbols for eval-live posture, got ${[...new Set(duplicateSymbols)].join(', ')}`);
+  }
+  if (!symbols.includes(tradingPair)) {
+    addError(report.errors, `ALPACA_SYMBOLS must include broker.tradingPair ${tradingPair}, got ${symbols.join(', ')}`);
+  }
   if (symbols[0] !== tradingPair) {
-    addError(report.errors, `ALPACA_SYMBOLS must match broker.tradingPair ${tradingPair}, got ${symbols[0]}`);
+    addError(report.errors, `ALPACA_SYMBOLS must list broker.tradingPair ${tradingPair} first so primary routing remains deterministic, got ${symbols[0]}`);
   }
 }
 
 function validateTtpCrossChecks(report) {
   const manualStatus = getPath(report.configSnapshot.config, 'evalRules.ttp.earningsRestriction.manualStatus');
   const accountStartDate = getPath(report.configSnapshot.config, 'evalRules.ttp.accountLimits.accountStartOfDayDate');
-  const tradingPair = getPath(report.configSnapshot.config, 'broker.tradingPair');
+  const configuredSymbols = report.checked.symbol && Array.isArray(report.checked.symbol.alpacaSymbols)
+    ? report.checked.symbol.alpacaSymbols
+    : [getPath(report.configSnapshot.config, 'broker.tradingPair')].filter(Boolean);
   const symbols = manualStatus && typeof manualStatus === 'object' && !Array.isArray(manualStatus)
     ? manualStatus.symbols
     : null;
@@ -457,8 +467,10 @@ function validateTtpCrossChecks(report) {
     addError(report.errors, 'TTP earnings status symbols must be an object');
     return;
   }
-  if (typeof symbols[tradingPair] !== 'boolean') {
-    addError(report.errors, `TTP earnings status must include ${tradingPair} boolean, got ${typeof symbols[tradingPair]}`);
+  for (const symbol of configuredSymbols) {
+    if (typeof symbols[symbol] !== 'boolean') {
+      addError(report.errors, `TTP earnings status symbols.${symbol} must be boolean, got ${typeof symbols[symbol]}`);
+    }
   }
 
   const initialBalance = getPath(report.configSnapshot.config, 'backtest.initialBalance');

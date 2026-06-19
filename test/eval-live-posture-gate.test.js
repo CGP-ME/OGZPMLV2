@@ -15,6 +15,8 @@ const {
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 const MISSING_ENV_FILE = path.join(__dirname, 'fixtures', 'missing-eval-live-posture.env');
+const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
+const EVAL_EARNINGS_STATUS_JSON = '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":false,"SPY":false,"QQQ":false,"COIN":false,"MARA":false,"RIOT":false}}';
 
 function validEvalLiveEnv(overrides = {}) {
   return {
@@ -30,7 +32,7 @@ function validEvalLiveEnv(overrides = {}) {
     ALPACA_API_SECRET: 'test-alpaca-secret',
     ASSET_CLASS: 'stocks',
     TRADING_PAIR: 'TSLA',
-    ALPACA_SYMBOLS: 'TSLA',
+    ALPACA_SYMBOLS: EVAL_ALPACA_SYMBOLS,
     CANDLE_TIMEFRAME: '15m',
     STATE_FILE: 'data/state.json',
     SESSION_ROUTER_ENABLED: 'false',
@@ -68,7 +70,7 @@ function validEvalLiveEnv(overrides = {}) {
     TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
     TTP_EARNINGS_BLOCK_ENTRIES: 'true',
     TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
-    TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false}}',
+    TTP_EARNINGS_STATUS_JSON: EVAL_EARNINGS_STATUS_JSON,
     TTP_CONSISTENCY_ENABLED: 'true',
     TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
     TTP_PROFIT_TARGET_DOLLARS: '3000',
@@ -91,7 +93,7 @@ function writeStateFile(filePath, overrides = {}) {
 }
 
 describe('eval live posture gate', () => {
-  test('passes only with explicit Alpaca TSLA live posture and redacts webhook URL', () => {
+  test('passes only with explicit Alpaca multi-symbol live posture and redacts webhook URL', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv());
 
     expect(report.status).toBe('PASS');
@@ -103,6 +105,7 @@ describe('eval live posture gate', () => {
       protocol: 'https:',
       source: 'env:SIGNALSTACK_WEBHOOK_URL',
     });
+    expect(report.checked.symbol.alpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA', 'RIOT']);
     expect(JSON.stringify(report)).not.toContain('signalstack.example');
   });
 
@@ -115,6 +118,20 @@ describe('eval live posture gate', () => {
     expect(report.status).toBe('FAIL');
     expect(report.errors.join('\n')).toMatch(/broker\.alpacaSymbols must be explicitly sourced/);
     expect(report.checked.symbol.alpacaSymbolsSource).toBe('default');
+  });
+
+  test('requires Alpaca symbols to include TSLA as deterministic primary symbol', () => {
+    const missingPrimaryReport = validateEvalLivePosture(validEvalLiveEnv({
+      ALPACA_SYMBOLS: 'NVDA,SPY',
+    }));
+    expect(missingPrimaryReport.status).toBe('FAIL');
+    expect(missingPrimaryReport.errors.join('\n')).toMatch(/must include broker\.tradingPair TSLA/);
+
+    const wrongOrderReport = validateEvalLivePosture(validEvalLiveEnv({
+      ALPACA_SYMBOLS: 'NVDA,TSLA,SPY',
+    }));
+    expect(wrongOrderReport.status).toBe('FAIL');
+    expect(wrongOrderReport.errors.join('\n')).toMatch(/must list broker\.tradingPair TSLA first/);
   });
 
   test('readiness passes with explicit flat state and flat Alpaca positions', async () => {
@@ -493,7 +510,7 @@ describe('eval live posture gate', () => {
     expect(runtimeProfileReport.errors.join('\n')).toMatch(/ACCOUNT_DRAWDOWN_BYPASS=true/);
   });
 
-  test('requires current TSLA earnings status to match the start-of-day date', () => {
+  test('requires current eval earnings status to match the start-of-day date', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
       TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-07","symbols":{"TSLA":false}}',
     }));
@@ -502,13 +519,22 @@ describe('eval live posture gate', () => {
     expect(report.errors.join('\n')).toMatch(/earnings status date must match account start date 2026-06-08/);
   });
 
-  test('requires TSLA earnings status to be an explicit boolean', () => {
+  test('requires every configured Alpaca symbol earnings status to be an explicit boolean', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
-      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":"false"}}',
+      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":"false","SPY":false,"QQQ":false,"COIN":false,"MARA":false,"RIOT":false}}',
     }));
 
     expect(report.status).toBe('FAIL');
-    expect(report.errors.join('\n')).toMatch(/symbols\.TSLA must be boolean/);
+    expect(report.errors.join('\n')).toMatch(/symbols\.NVDA must be boolean/);
+  });
+
+  test('rejects missing earnings status for any configured Alpaca symbol', () => {
+    const report = validateEvalLivePosture(validEvalLiveEnv({
+      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":false,"SPY":false,"QQQ":false,"COIN":false,"MARA":false}}',
+    }));
+
+    expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/symbols\.RIOT must be boolean/);
   });
 
   test('assert helper throws with a useful gate error', () => {
