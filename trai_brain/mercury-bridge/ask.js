@@ -258,7 +258,6 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
-      requireToolUseBeforeAnswer: isBreakMyFixQuery,
       maxIterations,
       maxTokens,
       verbose,

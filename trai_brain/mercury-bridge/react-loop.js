@@ -75,8 +75,6 @@ async function callMercuryWithRetry(client, messages, tools, options, verbose) {
  *   systemPrompt: string (optional, defaults to DEFAULT_SYSTEM_PROMPT)
  *   userQuery: string — the user's question
  *   starterContext: array of {source, similarity, text} from RAG (optional)
- *   requireToolUseBeforeAnswer: boolean — fail closed if Mercury answers before
- *     using repo tools (used for break-my-fix acceptance gates)
  *   maxIterations: number (configured in mercury.config.json)
  *   maxTokens: number (configured in mercury.config.json)
  *   temperature: number (configured in mercury.config.json)
@@ -92,7 +90,6 @@ async function runReactLoop(params) {
     userQuery,
     starterContext = [],
     traceHint = null,
-    requireToolUseBeforeAnswer = false,
     maxIterations = config.AGENTIC_MAX_ITERATIONS,
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
@@ -136,12 +133,6 @@ async function runReactLoop(params) {
   messages.push({ role: 'user', content: userQuery });
 
   const history = [];
-  let requiredToolUseReprompted = false;
-
-  function isMetaBreakMyFixAnswer(answer) {
-    return /how to invoke break-my-fix|how to invoke break my fix|prepend the exact phrase|routing is triggered|describe routing behavior|routed as|queryType|starter-context policy|starter context policy|boostType|system will treat it as/i
-      .test(String(answer || ''));
-  }
 
   // Loop detection: track recent tool calls to catch Mercury repeating itself
   const RECENT_WINDOW = 8;
@@ -252,46 +243,9 @@ async function runReactLoop(params) {
     }
 
     // No tool calls — this is the final answer
-    const finalAnswer = assistantMsg.content || '(empty content)';
-    if (requireToolUseBeforeAnswer && history.length === 0) {
-      if (!requiredToolUseReprompted) {
-        requiredToolUseReprompted = true;
-        if (verbose) console.error('[REACT] Refusing zero-tool break-my-fix answer; requiring repo-tool evidence');
-        messages.push({
-          role: 'user',
-          content: [
-            'This is a break-my-fix gate. You must use the available repo tools before answering.',
-            'You are running the attack now; do not explain how to invoke break-my-fix or describe routing behavior as the answer.',
-            'Use full repo tools inside mercury.ignore to identify the current change, sibling failures, bypass paths, and existing mitigations.',
-            'Do not ask the user to paste code that repo tools can inspect.',
-            'Final answer must be concrete breakage with evidence, or no concrete breakage found after repo-tool inspection.',
-          ].join(' '),
-        });
-        continue;
-      }
-
-      if (verbose) console.error('[REACT] Break-my-fix refused to use repo tools; failing closed');
-      return {
-        answer: 'Break-my-fix failed closed: Mercury answered without using repo tools, so no adversarial evidence was produced.',
-        iterations: iteration,
-        termination: 'no_tool_evidence',
-        history,
-      };
-    }
-
-    if (requireToolUseBeforeAnswer && isMetaBreakMyFixAnswer(finalAnswer)) {
-      if (verbose) console.error('[REACT] Break-my-fix produced routing meta-answer after tool use; failing closed');
-      return {
-        answer: 'Break-my-fix failed closed: Mercury answered with routing instructions instead of adversarial repo evidence.',
-        iterations: iteration,
-        termination: 'meta_answer',
-        history,
-      };
-    }
-
     if (verbose) console.error(`[REACT] Final answer on iteration ${iteration}`);
     return {
-      answer: finalAnswer,
+      answer: assistantMsg.content || '(empty content)',
       iterations: iteration,
       termination: 'answer_given',
       history,
