@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Cutoff Missed-Window Recovery (2026-06-19)
+
+- Fixed `TtpCutoffEnforcer` so missed cutoff windows, closed sessions, and holiday phases still run liquidation/reconciliation when tracked TTP stock trades or broker positions exist.
+- Split cutoff state into broker-verified `completedKeys` and broker-unverified `unverifiedKeys`, so webhook-routed cutoffs pause entries for manual reconciliation instead of being labeled complete without broker-flat proof.
+- Added focused coverage for missed-window tracked-state closes, broker-orphan closes after the window, late broker exposure after completed keys, serialized active-trade state, and unverified webhook reconciliation.
+
 ### Alpaca Aggregate Source Recovery (2026-06-18)
 
 - Fixed Alpaca stream bar ingestion to emit explicit `etime` values for 1m bars so live stream candles match the REST hydration candle boundary contract.

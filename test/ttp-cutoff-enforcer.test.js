@@ -118,10 +118,14 @@ describe('TtpCutoffEnforcer', () => {
       getAllPositions: jest.fn(),
       sendOrder: jest.fn(),
     };
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      pauseTrading: jest.fn(async () => ({ success: true })),
+    };
     const logger = { log: jest.fn() };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager,
       orderRouter,
       executeTrade,
       getExitPrice: jest.fn(() => 126),
@@ -156,7 +160,99 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.closed).toEqual([
       { tradeId: 'BUY_1', symbol: 'TSLA', action: 'SELL', price: 126 },
     ]);
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('brokerFlatVerified=false'));
+    expect(result.requiresManualReconciliation).toBe(true);
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(stateManager.pauseTrading).toHaveBeenCalledWith(
+      expect.stringContaining('broker flatness unverified'),
+      expect.objectContaining({
+        source: 'ttp_cutoff_unverified_broker_flatness',
+        recoverable: false,
+      })
+    );
+    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('pending manual reconciliation'));
+  });
+
+  test('webhook-routed cutoff still closes tracked state after the liquidation window is missed', async () => {
+    const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
+    const executeTrade = jest.fn(async () => {
+      activeTrades.delete('BUY_1');
+    });
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(),
+      getAllPositions: jest.fn(),
+      sendOrder: jest.fn(),
+    };
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      pauseTrading: jest.fn(async () => ({ success: true })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter,
+      executeTrade,
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.state.inLiquidationWindow).toBe(false);
+    expect(result.state.blocksNewEntries).toBe(true);
+    expect(executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'ttp_1550_liquidation' },
+      { totalConfidence: 100 },
+      126,
+      {},
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+    expect(result.closed).toEqual([
+      { tradeId: 'BUY_1', symbol: 'TSLA', action: 'SELL', price: 126 },
+    ]);
+    expect(result.requiresManualReconciliation).toBe(true);
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(stateManager.pauseTrading).toHaveBeenCalledWith(
+      expect.stringContaining('manual account reconciliation required'),
+      expect.objectContaining({ source: 'ttp_cutoff_unverified_broker_flatness' })
+    );
+  });
+
+  test('webhook-routed cutoff fails loud when broker flatness is unverified and entries cannot be paused', async () => {
+    const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
+    const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
+    const executeTrade = jest.fn(async () => {
+      activeTrades.delete('BUY_1');
+    });
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => activeTrades) },
+      orderRouter: {
+        cancelAllOpenOrders: jest.fn(),
+        getAllPositions: jest.fn(),
+        sendOrder: jest.fn(),
+      },
+      executeTrade,
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    await expect(enforcer.enforce()).rejects.toThrow(/StateManager\.pauseTrading unavailable/);
+    expect(enforcer.completedKeys.size).toBe(0);
   });
 
   test('webhook-routed cutoff fails loud when tracked state remains open after close attempt', async () => {
@@ -189,9 +285,13 @@ describe('TtpCutoffEnforcer', () => {
     const executeTrade = jest.fn(async () => {
       activeTrades.length = 0;
     });
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      pauseTrading: jest.fn(async () => ({ success: true })),
+    };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager,
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
         getAllPositions: jest.fn(),
@@ -212,6 +312,48 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.closed).toEqual([
       { tradeId: 'BUY_1', symbol: 'TSLA', action: 'SELL', price: 126 },
     ]);
+    expect(result.requiresManualReconciliation).toBe(true);
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(stateManager.pauseTrading).toHaveBeenCalled();
+  });
+
+  test('does not relabel unverified webhook cutoff as complete on repeated empty checks', async () => {
+    const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
+    const activeTrades = new Map();
+    const stateManager = {
+      get: jest.fn(() => activeTrades),
+      pauseTrading: jest.fn(async () => ({ success: true })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager,
+      orderRouter: {
+        cancelAllOpenOrders: jest.fn(),
+        getAllPositions: jest.fn(),
+        sendOrder: jest.fn(),
+      },
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(() => 126),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+    enforcer.unverifiedKeys.add('2026-05-22:950');
+
+    const result = await enforcer.enforce();
+
+    expect(result).toEqual(expect.objectContaining({
+      enforced: false,
+      alreadyUnverified: true,
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+    }));
+    expect(enforcer.completedKeys.size).toBe(0);
+    expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
+    expect(stateManager.pauseTrading).not.toHaveBeenCalled();
   });
 
   test('fails loud on unsupported activeTrades container instead of marking cutoff complete', async () => {
@@ -362,6 +504,92 @@ describe('TtpCutoffEnforcer', () => {
     });
     expect(result.orphanClosed).toEqual([
       { broker: 'alpaca', symbol: 'TSLA', side: 'sell', amount: 3, orderId: 'CLOSE_1' },
+    ]);
+  });
+
+  test('directly closes broker positions after the liquidation window is missed', async () => {
+    const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 0, failed: 0, results: [] })),
+      getAllPositions: jest.fn()
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'TSLA', size: 3, side: 'long', currentPrice: 125 }])
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'TSLA', size: 3, side: 'long', currentPrice: 125 }])
+        .mockResolvedValueOnce([]),
+      sendOrder: jest.fn(async () => ({ orderId: 'CLOSE_1' })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => new Map()) },
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerNames: ['alpaca'],
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.state.inLiquidationWindow).toBe(false);
+    expect(orderRouter.cancelAllOpenOrders).toHaveBeenCalledWith({ brokerNames: ['alpaca'] });
+    expect(orderRouter.sendOrder).toHaveBeenCalledWith({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 3,
+      type: 'market',
+      options: {
+        quantityUnit: 'shares',
+        exitReason: 'ttp_1550_broker_reconciliation',
+      },
+    });
+    expect(result.orphanClosed).toEqual([
+      { broker: 'alpaca', symbol: 'TSLA', side: 'sell', amount: 3, orderId: 'CLOSE_1' },
+    ]);
+  });
+
+  test('rechecks broker positions after a completed cutoff key when exposure appears late', async () => {
+    const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(async () => ({ success: true, cancelled: 0, failed: 0, results: [] })),
+      getAllPositions: jest.fn()
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'TSLA', size: 2, side: 'long', currentPrice: 125 }])
+        .mockResolvedValueOnce([{ broker: 'alpaca', symbol: 'TSLA', size: 2, side: 'long', currentPrice: 125 }])
+        .mockResolvedValueOnce([]),
+      sendOrder: jest.fn(async () => ({ orderId: 'CLOSE_LATE' })),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => new Map()) },
+      orderRouter,
+      executeTrade: jest.fn(),
+      getExitPrice: jest.fn(),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerNames: ['alpaca'],
+      now,
+      logger: { log: jest.fn() },
+    });
+    enforcer.completedKeys.add('2026-05-22:950');
+
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.alreadyCompleted).toBe(true);
+    expect(orderRouter.sendOrder).toHaveBeenCalledWith({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 2,
+      type: 'market',
+      options: {
+        quantityUnit: 'shares',
+        exitReason: 'ttp_1550_broker_reconciliation',
+      },
+    });
+    expect(result.orphanClosed).toEqual([
+      { broker: 'alpaca', symbol: 'TSLA', side: 'sell', amount: 2, orderId: 'CLOSE_LATE' },
     ]);
   });
 

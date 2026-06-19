@@ -29,6 +29,7 @@ class TtpCutoffEnforcer {
     this.now = now;
     this.logger = logger;
     this.completedKeys = new Set();
+    this.unverifiedKeys = new Set();
     this.inFlight = false;
   }
 
@@ -38,7 +39,7 @@ class TtpCutoffEnforcer {
     }
 
     const state = this.evalRuleEngine.getTtpMarketTimeState(new Date(this.now()));
-    if (state.enabled !== true || state.liquidationEnabled !== true || state.inLiquidationWindow !== true) {
+    if (state.enabled !== true || state.liquidationEnabled !== true) {
       return { enforced: false, state };
     }
     if (!this._isTtpStockAssetClass(this.assetClass)) {
@@ -47,13 +48,46 @@ class TtpCutoffEnforcer {
 
     const key = `${state.currentDateET}:${state.cutoffMinute}`;
     const alreadyCompleted = this.completedKeys.has(key);
-    if (this.inFlight) {
-      return { enforced: true, alreadyInFlight: true, state };
-    }
-
+    const alreadyUnverified = this.unverifiedKeys.has(key);
     const symbolScope = this._currentSymbolScope();
     const brokerPositionReadAvailable = this._brokerPositionReadAvailable();
     const targetAllBrokerStocks = brokerPositionReadAvailable && this.brokerNames.length > 0;
+    const activeTrades = this._activeTrades();
+    const hasTrackedTtpStockTrades = activeTrades.some(trade => this._isTtpStockTrade(trade));
+    let initialBrokerPositions = [];
+    if (brokerPositionReadAvailable && state.blocksNewEntries === true) {
+      initialBrokerPositions = await this._getBrokerPositions(symbolScope);
+    }
+    const targetBrokerPositionsForDecision = brokerPositionReadAvailable
+      ? this._ttpBrokerPositions(initialBrokerPositions, symbolScope, targetAllBrokerStocks)
+      : [];
+    const pastCutoffClock = Number.isFinite(state.currentMinuteET)
+      && Number.isFinite(state.cutoffMinute)
+      && state.currentMinuteET >= state.cutoffMinute;
+    const closedSessionRecovery = ['ah', 'closed', 'holiday'].includes(String(state.phase || '').toLowerCase());
+    const missedCutoffRecovery = state.inLiquidationWindow !== true
+      && state.blocksNewEntries === true
+      && (
+        hasTrackedTtpStockTrades
+        || targetBrokerPositionsForDecision.length > 0
+        || ((pastCutoffClock || closedSessionRecovery) && !alreadyCompleted && !alreadyUnverified)
+      );
+
+    if (alreadyUnverified && !hasTrackedTtpStockTrades && targetBrokerPositionsForDecision.length === 0) {
+      return {
+        enforced: false,
+        alreadyUnverified: true,
+        requiresManualReconciliation: true,
+        brokerFlatVerified: false,
+        state,
+      };
+    }
+    if (state.inLiquidationWindow !== true && missedCutoffRecovery !== true) {
+      return { enforced: false, state };
+    }
+    if (this.inFlight) {
+      return { enforced: true, alreadyInFlight: true, state };
+    }
 
     this.inFlight = true;
     try {
@@ -63,10 +97,9 @@ class TtpCutoffEnforcer {
       }
 
       const brokerPositions = brokerPositionReadAvailable
-        ? await this._getBrokerPositions(symbolScope)
+        ? (initialBrokerPositions.length > 0 ? initialBrokerPositions : await this._getBrokerPositions(symbolScope))
         : [];
       const targetBrokerPositions = this._ttpBrokerPositions(brokerPositions, symbolScope, targetAllBrokerStocks);
-      const activeTrades = this._activeTrades();
       const failures = [];
       const closed = [];
       const activeTradeSymbols = new Set();
@@ -155,8 +188,27 @@ class TtpCutoffEnforcer {
         throw new Error(`[TTP_MARKET_TIME] liquidation incomplete: ${JSON.stringify(failures)}`);
       }
 
-      this.completedKeys.add(key);
       const brokerFlatVerified = brokerPositionReadAvailable;
+      if (!brokerFlatVerified) {
+        await this._pauseForUnverifiedBrokerFlatness(state, closed, orphanClosed);
+        this.unverifiedKeys.add(key);
+        this.completedKeys.delete(key);
+        const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
+        warn(`[TTP_MARKET_TIME] cutoff enforcement pending manual reconciliation date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} brokerFlatVerified=false`);
+        return {
+          enforced: true,
+          alreadyCompleted,
+          state,
+          cancelResult,
+          closed,
+          orphanClosed,
+          brokerFlatVerified,
+          requiresManualReconciliation: true,
+        };
+      }
+
+      this.unverifiedKeys.delete(key);
+      this.completedKeys.add(key);
       this.logger.log(`[TTP_MARKET_TIME] cutoff enforcement complete date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} cancelled=${cancelResult?.cancelled || 0} brokerFlatVerified=${brokerFlatVerified}`);
       return { enforced: true, alreadyCompleted, state, cancelResult, closed, orphanClosed, brokerFlatVerified };
     } finally {
@@ -234,6 +286,35 @@ class TtpCutoffEnforcer {
       amount: size,
       orderId: result?.orderId || result?.id || null,
     };
+  }
+
+  async _pauseForUnverifiedBrokerFlatness(state, closed, orphanClosed) {
+    if (!this.stateManager || typeof this.stateManager.pauseTrading !== 'function') {
+      throw new Error('[TTP_MARKET_TIME] broker flatness unverified and StateManager.pauseTrading unavailable');
+    }
+
+    const reason = `[TTP_MARKET_TIME] broker flatness unverified after cutoff date=${state.currentDateET}; manual account reconciliation required before entries resume`;
+    await this.stateManager.pauseTrading(reason, {
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      recoverable: false,
+      scope: {
+        symbol: null,
+        timeframe: null,
+        brokerId: null,
+        accountId: null,
+        assetClass: this.assetClass || null,
+        executionMode: null,
+      },
+      closed,
+      orphanClosed,
+    });
+
+    if (typeof this.stateManager.getState === 'function') {
+      const stateSnapshot = this.stateManager.getState();
+      if (stateSnapshot?.isTrading !== false) {
+        throw new Error('[TTP_MARKET_TIME] broker flatness unverified and pauseTrading did not confirm entries paused');
+      }
+    }
   }
 
   _ttpBrokerPositions(positions, symbolScope = this._currentSymbolScope(), targetAllBrokerStocks = this.brokerNames.length > 0) {
