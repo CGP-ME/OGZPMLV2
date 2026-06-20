@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Parallel Sweep Profile Balance Reporting (2026-06-20)
+
+- Fixed `parallel-backtest` report parsing so non-`$10000` profiles, including `ttp-5k-max`, derive PnL from explicit report PnL or explicit starting balance instead of subtracting from a hardcoded `$10000` baseline.
+- Changed parallel sweep stdout/report fallback parsing to fail unranked when starting balance is missing instead of fabricating profile economics.
+- Added focused regression coverage for `$5000` report fallback and stdout parsing, plus sibling `matrix-sweep` surface verification.
+
 ### Backtest Runtime Path Parity (2026-06-20)
 
 - Changed file backtests to feed scoped runtime-shaped candles through `storeTimeframeCandle()` and `handleMarketData()` before triggering `run15mTradingCycle()`, so backtest and production use the same runtime path with execution mode/source flags selecting data and side-effect boundaries.

@@ -496,18 +496,31 @@ function tryReadReport(projectRoot, tag) {
     const trades = data.trades || [];
     const summary = data.summary || {};
 
-    if (trades.length === 0 && !summary.finalBalance) return null;
+    const finalBalance = finiteNumber(summary.finalBalance);
+    const startingBalance = firstFiniteNumber(
+      summary.startingBalance,
+      summary.initialBalance,
+      data.config && data.config.initialBalance
+    );
+
+    if (trades.length === 0 && finalBalance == null) return null;
 
     const winners = trades.filter(t => (t.netPnlDollars || t.pnl || 0) > 0);
     const totalFees = trades.reduce((s, t) => s + (t.feesDollars || 0), 0);
-    const netPnl = summary.finalBalance ? summary.finalBalance - 10000 :
-                   trades.reduce((s, t) => s + (t.netPnlDollars || 0), 0);
+    let netPnl = firstFiniteNumber(summary.netPnlDollars, summary.totalPnL);
+    if (netPnl == null && finalBalance != null && startingBalance != null) {
+      netPnl = finalBalance - startingBalance;
+    }
+    if (netPnl == null && trades.length > 0) {
+      netPnl = trades.reduce((s, t) => s + (t.netPnlDollars || 0), 0);
+    }
 
     // FIX 2026-04-22: expanded return shape — BacktestRunner now spreads the full
     // BacktestRecorder.getSummary() into report.summary, so these extra fields are
     // available and downstream leaderboard can render Trades/WR/DD/PF columns.
     return {
-      finalBalance: summary.finalBalance || null,
+      finalBalance,
+      startingBalance,
       trades: trades.length > 0 ? trades.length : (summary.totalTrades || null),
       winRate: trades.length > 0 ? (winners.length / trades.length) * 100 :
                (summary.winRate != null ? parseFloat(summary.winRate) : null),
@@ -531,11 +544,25 @@ function tryReadLatestReport(projectRoot) {
   return tryReadReport(projectRoot, null);
 }
 
+function finiteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    const number = finiteNumber(value);
+    if (number != null) return number;
+  }
+  return null;
+}
+
 function parseBacktestOutput(output, name) {
   const result = { name };
 
   // Parse BacktestRecorder summary block
   const balanceMatch = output.match(/Final Balance:\s*\$?([\d,.]+)/);
+  const startingBalanceMatch = output.match(/Starting Balance:\s*\$?([\d,.]+)/);
   const tradesMatch = output.match(/Total Trades:\s*(\d+)/);
   const winRateMatch = output.match(/Win Rate:\s*([\d.]+)%/);
   const pnlMatch = output.match(/Net P&L:\s*\$?([-\d,.]+)/);
@@ -549,6 +576,7 @@ function parseBacktestOutput(output, name) {
   const consoleBalMatch = output.match(/Final Balance:\s*\$?([\d,.]+)/);
 
   result.finalBalance = balanceMatch ? parseFloat(balanceMatch[1].replace(',', '')) : null;
+  result.startingBalance = startingBalanceMatch ? parseFloat(startingBalanceMatch[1].replace(',', '')) : null;
   result.trades = tradesMatch ? parseInt(tradesMatch[1]) : null;
   result.winRate = winRateMatch ? parseFloat(winRateMatch[1]) : null;
   result.netPnl = pnlMatch ? parseFloat(pnlMatch[1].replace(',', '')) : 
@@ -560,9 +588,8 @@ function parseBacktestOutput(output, name) {
     ? normalizeWorkerErrors(errorMatches[errorMatches.length - 1][1])
     : 0;
 
-  // If we got balance but no PnL, calculate it
-  if (result.finalBalance && result.netPnl == null) {
-    result.netPnl = result.finalBalance - 10000;
+  if (result.finalBalance != null && result.startingBalance != null && result.netPnl == null) {
+    result.netPnl = result.finalBalance - result.startingBalance;
   }
 
   return result;

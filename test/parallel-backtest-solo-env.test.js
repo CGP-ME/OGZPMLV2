@@ -302,6 +302,48 @@ describe('parallel-backtest solo strategy env wiring', () => {
     });
   });
 
+  test('report fallback derives pnl from explicit non-10k starting balance', () => {
+    withProjectRoot((projectRoot) => {
+      writeWorkerReport(projectRoot, 'parallel-5k', {
+        summary: {
+          finalBalance: 4979.57,
+          startingBalance: 5000,
+          totalTrades: 6,
+          winRate: '0.0',
+          errors: 0,
+        },
+        trades: [],
+      });
+
+      const result = tryReadReport(projectRoot, 'parallel-5k');
+
+      expect(result.finalBalance).toBe(4979.57);
+      expect(result.startingBalance).toBe(5000);
+      expect(result.netPnl).toBeCloseTo(-20.43, 10);
+    });
+  });
+
+  test('report fallback does not invent pnl when starting balance is missing', () => {
+    withProjectRoot((projectRoot) => {
+      writeWorkerReport(projectRoot, 'parallel-no-start', {
+        summary: {
+          finalBalance: 4979.57,
+          totalTrades: 6,
+          winRate: '0.0',
+          errors: 0,
+        },
+        trades: [],
+      });
+
+      const result = tryReadReport(projectRoot, 'parallel-no-start');
+
+      expect(result.finalBalance).toBe(4979.57);
+      expect(result.startingBalance).toBeNull();
+      expect(result.netPnl).toBeNull();
+      expect(isCleanParsedResult({ ...result, exitCode: 0 })).toBe(false);
+    });
+  });
+
   test('stdout parser uses the final worker error count', () => {
     const parsed = parseBacktestOutput([
       'Progress: 5000/10000 candles | Errors: 0',
@@ -314,6 +356,19 @@ describe('parallel-backtest solo strategy env wiring', () => {
 
     expect(parsed.workerErrors).toBe(3);
     expect(isCleanParsedResult({ ...parsed, exitCode: 0 })).toBe(false);
+  });
+
+  test('stdout parser derives pnl from explicit non-10k starting balance', () => {
+    const parsed = parseBacktestOutput([
+      'Starting Balance: $5000.00',
+      'Final Balance: $4979.57',
+      'Total Trades: 6',
+      'Win Rate: 0.0%',
+      'Errors: 0',
+    ].join('\n'), 'ttp-5k');
+
+    expect(parsed.startingBalance).toBe(5000);
+    expect(parsed.netPnl).toBeCloseTo(-20.43, 10);
   });
 
   test('nonzero worker exit remains an explicit failed result even with parsed pnl', () => {
