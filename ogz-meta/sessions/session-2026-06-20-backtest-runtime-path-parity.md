@@ -2,7 +2,9 @@
 
 ## Scope
 
-Reconciled direct file backtests with the production runtime candle path. The issue was that `BacktestRunner` used a backtest-only candle array, synthesized `etime` as one minute after `t`, and called `analyzeAndTrade()` after a local warmup gate instead of using the runtime candle boundary and trading-cycle trigger.
+Reconciled direct file backtests with the production runtime candle path. The invariant is: production and backtest share the same runtime code path; explicit execution mode/source flags only select the candle source, broker side-effect boundary, persistence, and reporting behavior.
+
+The issue was that `BacktestRunner` used a backtest-only candle array, synthesized `etime` as one minute after `t`, and called `analyzeAndTrade()` after a local warmup gate instead of using the runtime candle boundary and trading-cycle trigger.
 
 ## Changes
 

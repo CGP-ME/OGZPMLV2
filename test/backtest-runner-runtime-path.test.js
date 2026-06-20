@@ -143,4 +143,12 @@ describe('BacktestRunner runtime path parity', () => {
     expect(() => runner._assertDataFileMatchesRuntimeScope(dataFile, 'TSLA', '1m'))
       .toThrow(/resolves to timeframe 15m, but runtime timeframe is 1m/);
   });
+
+  test('does not reintroduce a backtest-local strategy trigger', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'core', 'BacktestRunner.js'), 'utf8');
+
+    expect(source).not.toContain('analyzeAndTrade(');
+    expect(source).not.toContain('priceHistory.length >= 15');
+    expect(source).toContain('runTradingCycle(symbol, traceId)');
+  });
 });

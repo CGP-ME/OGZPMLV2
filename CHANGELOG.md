@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backtest Runtime Path Parity (2026-06-20)
 
-- Changed file backtests to feed scoped runtime-shaped candles through `storeTimeframeCandle()` and `handleMarketData()` before triggering `run15mTradingCycle()`, removing the backtest-only one-minute `etime` and warmup `analyzeAndTrade()` path.
+- Changed file backtests to feed scoped runtime-shaped candles through `storeTimeframeCandle()` and `handleMarketData()` before triggering `run15mTradingCycle()`, so backtest and production use the same runtime path with execution mode/source flags selecting data and side-effect boundaries.
 - Added fail-loud validation that `CANDLE_DATA_FILE` symbol and timeframe match the runtime `TRADING_PAIR`/`CANDLE_TIMEFRAME`, so direct backtest runs cannot silently test TSLA logic on the wrong dataset.
 - Added focused runtime-path parity coverage and kept the P0 TSLA EMA anchor unchanged at `10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
 
