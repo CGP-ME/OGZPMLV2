@@ -64,6 +64,50 @@ LiquiditySweep, SmartMoneySweep, NoWickImbalance
 
 Those need separate `--conf` or ATR-compatible runs if they are being evaluated.
 
+## Structural-Exit Follow-Up Run
+
+Command shape tested:
+
+```bash
+node tools/matrix-sweep.js --data tsla --solo=<strategy> --conf --profile=ttp-5k-max
+```
+
+Completed logs and reports:
+
+```text
+LiquiditySweep log: ogz-meta/cognition-history/strategy-research/2026-06-20-ttp-5k-max-multi-asset-scout/matrix-tsla-conf-liquiditysweep-ttp-5k-max.log
+LiquiditySweep JSON: backtest-results/matrix-tsla-2y-LiquiditySweep-conf-2026-06-20-1781969916938.json
+
+SmartMoneySweep log: ogz-meta/cognition-history/strategy-research/2026-06-20-ttp-5k-max-multi-asset-scout/matrix-tsla-conf-smartmoneysweep-ttp-5k-max.log
+SmartMoneySweep JSON: backtest-results/matrix-tsla-2y-SmartMoneySweep-conf-2026-06-20-1781970532335.json
+
+NoWickImbalance log: ogz-meta/cognition-history/strategy-research/2026-06-20-ttp-5k-max-multi-asset-scout/matrix-tsla-conf-nowickimbalance-ttp-5k-max.log
+NoWickImbalance JSON: backtest-results/matrix-tsla-2y-NoWickImbalance-conf-2026-06-20-1781971090972.json
+```
+
+| Strategy | Parsed / Total | Errored | Best Net PnL | Trades | WR | PF | Max DD | Best Config | Notes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| LiquiditySweep | 12 / 12 | 0 | -$2.62 | 1 | 0.0% | 0.00 | 0.05% | `Liqu_lockedsl2_def_c25` | Effectively inactive; only one trade in 2y TSLA under this profile. |
+| SmartMoneySweep | 12 / 12 | 0 | -$164.72 | 72 | 43.1% | 0.25 | 3.29% | `Smar_lockedsl0.3_def_c80` | Actual trading result is materially negative under TTP fee/profile economics. |
+| NoWickImbalance | 2 / 12 | 10 | $0.00 | 0 | n/a | n/a | n/a | `NoWi_lockedsl1.5_def_c75` | The `$0` best is no-trade. Ten lower-confidence configs produced trades but were classified failed because workers reported candle-processing errors. |
+
+NoWickImbalance failure detail from worker log `backtest-results/worker-logs/matrix-1781970532379-xeee.log`:
+
+```text
+[StateManager.updateState] active trade quantity invariant failed: invalid open sizeUsd=2.842170943040401e-14
+MaxProfitManager.start: exitContract.stopLossPercent must be negative risk distance (got 0.09882884967611491)
+[StateManager.updateState] active trade quantity invariant failed: invalid open sizeUsd=1.4210854715202004e-14
+MaxProfitManager.start: exitContract.stopLossPercent must be negative risk distance (got 17.343530716856257)
+```
+
+The failed NoWick worker reports still contain usable performance data. Example `NoWi_lockedsl1.5_def_c25` wrote a report with:
+
+```text
+64 trades, 32.8% WR, -$165.20 net PnL, $96.00 fees, PF 0.31, max DD 3.51%, errors=2
+```
+
+Interpretation: NoWick is not merely losing in this pass; it is also violating the MPM exit-contract sign contract in some entry paths and hitting near-zero residual active-trade size invariants. That is a separate fix/audit item before treating its matrix results as clean.
+
 ## TSLA Result, Trade-Count Filtered
 
 The raw matrix selected `$0.00` no-trade configs as the overall best for some strategies. Those are not edge. Filtering out null/zero-trade results, every actual trading config was negative under `ttp-5k-max`.
@@ -91,10 +135,10 @@ State: no usable report
 
 ## Interpretation
 
-This scout does not prove that every strategy has no edge. It proves the current `--quick` matrix shape on TSLA 15m 2y, under the `ttp-5k-max` economics profile, found no profitable actual-trading config among the non-structural-exit strategies.
+This scout does not prove that every strategy has no edge. It proves the current matrix shapes on TSLA 15m 2y, under the `ttp-5k-max` economics profile, found no profitable clean actual-trading config among the tested strategies.
 
 Next evidence step should not be another blind seven-ticker all-strategy loop on the one-worker VPS. Use targeted passes:
 
-1. Run `--conf` for `LiquiditySweep`, `SmartMoneySweep`, and `NoWickImbalance` on TSLA so the skipped structural-exit strategies are represented.
-2. Run ticker-by-ticker solo sweeps only for the nearest-to-flat candidates: `OGZTPO`, `PropSafeEMAPullback`, `RSI`, `OpeningRangeBreakout`.
+1. Investigate NoWickImbalance's positive `exitContract.stopLossPercent` path and near-zero residual active-trade size invariant.
+2. Run ticker-by-ticker solo sweeps only for the nearest-to-flat clean candidates: `OGZTPO`, `LiquiditySweep`, `PropSafeEMAPullback`, `RSI`, `OpeningRangeBreakout`.
 3. Separately compare `ttp-5k-max` vs `current-eval` vs one-share on the same strategy/ticker command shape so fee-floor and dynamic sizing effects are isolated.
