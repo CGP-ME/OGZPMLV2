@@ -51,6 +51,8 @@ const SmartMoneySweep = require('../modules/SmartMoneySweep');
 const DonchianBreakout = require('../modules/DonchianBreakout');
 const PropSafeEMAPullback = require('../modules/PropSafeEMAPullback');
 const EMATrendRetest = require('../modules/EMATrendRetest');
+const RSI2MeanReversion = require('../modules/RSI2MeanReversion');
+const TimeSeriesMomentum = require('../modules/TimeSeriesMomentum');
 
 function assertBaseConfidence01(confidence, label) {
   if (!Number.isFinite(confidence)) {
@@ -970,6 +972,40 @@ class StrategyOrchestrator {
       });
     }
 
+    if (shouldInstantiateDormantStrategy('RSI2MeanReversion', 'enableRSI2MeanReversion', 'ENABLE_RSI2_MR')) {
+      const rsi2MeanReversionModule = new RSI2MeanReversion(
+        TradingConfig.get('strategies.RSI2MeanReversion') || {}
+      );
+      this.strategies.push({
+        name: 'RSI2MeanReversion',
+        evaluate: (ctx) => this._getSymbolStrategyModule(
+          'RSI2MeanReversion',
+          ctx.extras?.symbol,
+          rsi2MeanReversionModule,
+          () => new RSI2MeanReversion(
+            TradingConfig.get('strategies.RSI2MeanReversion') || {}
+          )
+        ).evaluate(ctx)
+      });
+    }
+
+    if (shouldInstantiateDormantStrategy('TimeSeriesMomentum', 'enableTimeSeriesMomentum', 'ENABLE_TSMOM')) {
+      const timeSeriesMomentumModule = new TimeSeriesMomentum(
+        TradingConfig.get('strategies.TimeSeriesMomentum') || {}
+      );
+      this.strategies.push({
+        name: 'TimeSeriesMomentum',
+        evaluate: (ctx) => this._getSymbolStrategyModule(
+          'TimeSeriesMomentum',
+          ctx.extras?.symbol,
+          timeSeriesMomentumModule,
+          () => new TimeSeriesMomentum(
+            TradingConfig.get('strategies.TimeSeriesMomentum') || {}
+          )
+        ).evaluate(ctx)
+      });
+    }
+
     // Apply pipeline toggles - filter strategies based on env vars
     this._applyPipelineToggles();
   }
@@ -997,6 +1033,8 @@ class StrategyOrchestrator {
       'DonchianBreakout': pipeline.enableDonchianBreakout,
       'PropSafeEMAPullback': pipeline.enablePropSafeEMAPullback,
       'EMATrendRetest': pipeline.enableEMATrendRetest,
+      'RSI2MeanReversion': pipeline.enableRSI2MeanReversion,
+      'TimeSeriesMomentum': pipeline.enableTimeSeriesMomentum,
     };
     const enableEnvMap = {
       'BreakRetest': 'ENABLE_BREAKRETEST',
@@ -1006,6 +1044,8 @@ class StrategyOrchestrator {
       'DonchianBreakout': 'ENABLE_DONCHIAN',
       'PropSafeEMAPullback': 'ENABLE_PROPSAFE_EMA',
       'EMATrendRetest': 'ENABLE_EMA_TREND_RETEST',
+      'RSI2MeanReversion': 'ENABLE_RSI2_MR',
+      'TimeSeriesMomentum': 'ENABLE_TSMOM',
     };
 
     const before = this.strategies.length;

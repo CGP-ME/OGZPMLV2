@@ -373,6 +373,14 @@ function generateMatrix(strategies, grid, phase) {
           env.ENABLE_EMA_TREND_RETEST = 'true';
         }
 
+        if (strat === 'RSI2MeanReversion') {
+          env.ENABLE_RSI2_MR = 'true';
+        }
+
+        if (strat === 'TimeSeriesMomentum') {
+          env.ENABLE_TSMOM = 'true';
+        }
+
         configs.push({
           name,
           strategy: strat,

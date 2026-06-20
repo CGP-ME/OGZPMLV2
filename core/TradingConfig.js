@@ -680,6 +680,28 @@ const BASE_CONFIG = {
       invalidationConditions: ['ema_retest_failed'],
       _validated: null,
     },
+    RSI2MeanReversion: {
+      stopLossPercent: -1.0,
+      takeProfitPercent: 1.5,
+      trailingStopPercent: 0.6,
+      trailingActivation: 0.8,
+      maxHoldTimeMinutes: 240,
+      minConfidence: 0.62,
+      atrMinPercent: null,
+      invalidationConditions: ['regime_change'],
+      _validated: null,
+    },
+    TimeSeriesMomentum: {
+      stopLossPercent: -2.0,
+      takeProfitPercent: 4.0,
+      trailingStopPercent: 1.0,
+      trailingActivation: 1.5,
+      maxHoldTimeMinutes: 240,
+      minConfidence: 0.60,
+      atrMinPercent: null,
+      invalidationConditions: ['regime_change'],
+      _validated: null,
+    },
     // 2026-04-28 — NoWickImbalance (Wolf spec). Structural exits via
     // module's overrideLevels (1:1 RR computed from swing structure).
     // Fallbacks below are safety nets only — strategy's overrideLevels win.
@@ -993,6 +1015,39 @@ const BASE_CONFIG = {
       allowShorts: envBool('EMA_TREND_RETEST_ALLOW_SHORTS', false),
       enabled: true,
     },
+    RSI2MeanReversion: {
+      rsiPeriod: env('RSI2_MR_RSI_PERIOD', 2),
+      rsiEntry: env('RSI2_MR_ENTRY', 5),
+      rsiEntryOB: env('RSI2_MR_ENTRY_OB', 95),
+      trendPeriod: env('RSI2_MR_TREND_PERIOD', 200),
+      allowShorts: envBool('RSI2_MR_ALLOW_SHORTS', false),
+      stopLossPercent: env('RSI2_MR_STOP_LOSS_PERCENT', -1.0),
+      takeProfitPercent: env('RSI2_MR_TAKE_PROFIT_PERCENT', 1.5),
+      trailingStopPercent: env('RSI2_MR_TRAILING_STOP_PERCENT', 0.6),
+      trailingActivation: env('RSI2_MR_TRAILING_ACTIVATION', 0.8),
+      maxHoldTimeMinutes: env('RSI2_MR_MAX_HOLD_MINUTES', 240),
+      confidenceBase: env('RSI2_MR_CONFIDENCE_BASE', 0.50),
+      confidenceDepthMultiplier: env('RSI2_MR_CONFIDENCE_DEPTH_MULT', 0.40),
+      maxConfidence: env('RSI2_MR_MAX_CONFIDENCE', 0.90),
+      invalidationConditions: ['regime_change'],
+      enabled: true,
+    },
+    TimeSeriesMomentum: {
+      lookback: env('TSMOM_LOOKBACK', 100),
+      trendPeriod: env('TSMOM_TREND_PERIOD', 200),
+      minReturn: env('TSMOM_MIN_RETURN', 0),
+      allowShorts: envBool('TSMOM_ALLOW_SHORTS', false),
+      stopLossPercent: env('TSMOM_STOP_LOSS_PERCENT', -2.0),
+      takeProfitPercent: env('TSMOM_TAKE_PROFIT_PERCENT', 4.0),
+      trailingStopPercent: env('TSMOM_TRAILING_STOP_PERCENT', 1.0),
+      trailingActivation: env('TSMOM_TRAILING_ACTIVATION', 1.5),
+      maxHoldTimeMinutes: env('TSMOM_MAX_HOLD_MINUTES', 240),
+      confidenceBase: env('TSMOM_CONFIDENCE_BASE', 0.50),
+      confidenceReturnMultiplier: env('TSMOM_CONFIDENCE_RETURN_MULT', 4.0),
+      maxConfidence: env('TSMOM_MAX_CONFIDENCE', 0.85),
+      invalidationConditions: ['regime_change'],
+      enabled: true,
+    },
     OpeningRangeBreakout: {
       // ICT-style Opening Range + FVG entry (Trey's approach)
       sessionOpenHourUTC: env('ORB_SESSION_OPEN_HOUR', 14),  // legacy crypto path: 9am EST = 14:00 UTC
@@ -1231,6 +1286,8 @@ const BASE_CONFIG = {
       'DonchianBreakout',
       'PropSafeEMAPullback',
       'EMATrendRetest',
+      'RSI2MeanReversion',
+      'TimeSeriesMomentum',
     ],
     sweepPresets: {
       real: [
@@ -1292,6 +1349,8 @@ const BASE_CONFIG = {
         { name: 'Donchian-only', env: { SOLO_STRATEGY: 'DonchianBreakout' } },
         { name: 'PropEMA-only', env: { SOLO_STRATEGY: 'PropSafeEMAPullback' } },
         { name: 'EMARetest-only', env: { SOLO_STRATEGY: 'EMATrendRetest' } },
+        { name: 'RSI2MR-only', env: { SOLO_STRATEGY: 'RSI2MeanReversion' } },
+        { name: 'TSMOM-only', env: { SOLO_STRATEGY: 'TimeSeriesMomentum' } },
       ],
     },
     rsiSweep: {
@@ -1351,6 +1410,8 @@ const BASE_CONFIG = {
       'DonchianBreakout',
       'PropSafeEMAPullback',
       'EMATrendRetest',
+      'RSI2MeanReversion',
+      'TimeSeriesMomentum',
     ],
     grid: {
       full: {
@@ -1418,6 +1479,8 @@ const BASE_CONFIG = {
     enableDonchianBreakout: envBool('ENABLE_DONCHIAN', false),
     enablePropSafeEMAPullback: envBool('ENABLE_PROPSAFE_EMA', false),
     enableEMATrendRetest: envBool('ENABLE_EMA_TREND_RETEST', false),
+    enableRSI2MeanReversion: envBool('ENABLE_RSI2_MR', false),
+    enableTimeSeriesMomentum: envBool('ENABLE_TSMOM', false),
 
     // Component toggles
     enableRiskManager: envBool('ENABLE_RISK', true),

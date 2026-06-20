@@ -125,6 +125,13 @@ describe('parallel-backtest solo strategy env wiring', () => {
     });
   });
 
+  test('solo RSI2MeanReversion and TimeSeriesMomentum enable dormant toggles for child workers', () => {
+    expect(buildDormantStrategyEnableEnv('RSI2MeanReversion,TimeSeriesMomentum')).toEqual({
+      ENABLE_RSI2_MR: 'true',
+      ENABLE_TSMOM: 'true',
+    });
+  });
+
   test('solo SmartMoneySweep explicitly enables SMS for the child worker', () => {
     expect(buildDormantStrategyEnableEnv('SmartMoneySweep')).toEqual({
       ENABLE_SMS: 'true',

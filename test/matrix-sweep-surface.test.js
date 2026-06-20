@@ -136,6 +136,16 @@ describe('matrix-sweep runnable surface', () => {
     expect(configs.every(config => config.env.ENABLE_DONCHIAN === 'true')).toBe(true);
   });
 
+  test('new dormant research strategies carry explicit solo matrix enable flags', () => {
+    const configs = generateMatrix(['RSI2MeanReversion', 'TimeSeriesMomentum'], GRID.conf, 'conf');
+
+    expect(configs).toHaveLength(GRID.conf.confidence.length * 2);
+    expect(configs.filter(config => config.strategy === 'RSI2MeanReversion')
+      .every(config => config.env.ENABLE_RSI2_MR === 'true')).toBe(true);
+    expect(configs.filter(config => config.strategy === 'TimeSeriesMomentum')
+      .every(config => config.env.ENABLE_TSMOM === 'true')).toBe(true);
+  });
+
   test('structural-exit strategies generate no false full or exit matrices', () => {
     expect(generateMatrix(['NoWickImbalance'], GRID.exits, 'exits')).toHaveLength(0);
     expect(generateMatrix(['LiquiditySweep'], GRID.full, 'full')).toHaveLength(0);

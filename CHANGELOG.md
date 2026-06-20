@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dormant Momentum Strategy Candidates (2026-06-20)
+
+- Added dormant/off-by-default `RSI2MeanReversion` and `TimeSeriesMomentum` strategy modules with explicit config validation, sealed runtime config, symbol-isolated orchestration, and exit contract hints.
+- Wired both candidates through `StrategyOrchestrator`, `TradingConfig`, matrix sweep, parallel backtest, and worker env allowlists so solo runs can explicitly enable them while default runs remain unchanged.
+- Added focused coverage for signal requirements, config mutation guards, solo enable flags, missing-toggle fail-loud behavior, multi-symbol module isolation, and sweep env generation.
+
 ### Parallel Sweep Profile Balance Reporting (2026-06-20)
 
 - Fixed `parallel-backtest` report parsing so non-`$10000` profiles, including `ttp-5k-max`, derive PnL from explicit report PnL or explicit starting balance instead of subtracting from a hardcoded `$10000` baseline.
