@@ -1192,7 +1192,7 @@ class CandleProcessor {
     }
 
     // ONE CANONICAL PATH - all candles (new and updates) go through processNewCandle
-    this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
+    const acceptedAsNew = this.processNewCandle(candle, { traceId, source: 'handleMarketData' });
 
     // Store latest market data
     // MED-07: propagate null for unparseable volume instead of phantom 0.
@@ -1330,6 +1330,8 @@ class CandleProcessor {
         });
       }
     }
+
+    return { acceptedAsNew, candle, marketData };
   }
 
   /**

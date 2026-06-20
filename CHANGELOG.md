@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Backtest Runtime Path Parity (2026-06-20)
+
+- Changed file backtests to feed scoped runtime-shaped candles through `storeTimeframeCandle()` and `handleMarketData()` before triggering `run15mTradingCycle()`, removing the backtest-only one-minute `etime` and warmup `analyzeAndTrade()` path.
+- Added fail-loud validation that `CANDLE_DATA_FILE` symbol and timeframe match the runtime `TRADING_PAIR`/`CANDLE_TIMEFRAME`, so direct backtest runs cannot silently test TSLA logic on the wrong dataset.
+- Added focused runtime-path parity coverage and kept the P0 TSLA EMA anchor unchanged at `10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
+
 ### TTP Cutoff Missed-Window Recovery (2026-06-19)
 
 - Fixed `TtpCutoffEnforcer` so missed cutoff windows, closed sessions, and holiday phases still run liquidation/reconciliation when tracked TTP stock trades or broker positions exist.

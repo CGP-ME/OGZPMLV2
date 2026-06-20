@@ -14,9 +14,14 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const { get: getConfigValue } = require('../foundation/ConfigLoader');
 const { createTraceId, emitTrace } = require('./TraceSpine');
+const { toTimestampMs } = require('../foundation/ohlc-normalize');
 const { randomUUID } = require('crypto');
 const BacktestRecorder = require('./BacktestRecorder');
-const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');
+const {
+  deriveReportAssetSlugFromDataFile,
+  resolveInstrumentFromDataFile,
+} = require('./DataFileInstrument');
+const { normalizeAssetSymbol } = require('./AssetRegistry');
 const stateManager = getStateManager();
 
 class BacktestRunner {
@@ -28,6 +33,63 @@ class BacktestRunner {
   assertScopedReportTrades(trades) {
     for (let i = 0; i < trades.length; i++) {
       BacktestRecorder.validateTradeScope(trades[i], `BacktestRunner.report trades[${i}]`);
+    }
+  }
+
+  _getTimeframeMs(timeframe) {
+    const fromRuntime = this.ctx.candleAggregator?.getIntervalMs?.(timeframe);
+    if (Number.isFinite(fromRuntime) && fromRuntime > 0) return fromRuntime;
+
+    const match = String(timeframe || '').trim().match(/^(\d+)(sec|s|m|h|d)$/i);
+    if (!match) {
+      throw new Error(`BacktestRunner: cannot derive candle interval for timeframe '${timeframe || '(missing)'}'`);
+    }
+    const value = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    const multiplier = unit === 'sec' || unit === 's'
+      ? 1000
+      : unit === 'm'
+        ? 60 * 1000
+        : unit === 'h'
+          ? 60 * 60 * 1000
+          : 24 * 60 * 60 * 1000;
+    return value * multiplier;
+  }
+
+  _normalizeBacktestCandle(rawCandle, timeframeMs) {
+    const t = toTimestampMs(rawCandle.timestamp ?? rawCandle.t ?? rawCandle.time);
+    if (!Number.isFinite(t)) {
+      throw new Error('BacktestRunner: candle missing valid timestamp');
+    }
+    const etime = toTimestampMs(rawCandle.etime ?? rawCandle.endTime ?? rawCandle.end)
+      ?? (t + timeframeMs);
+
+    return {
+      o: rawCandle.open ?? rawCandle.o,
+      h: rawCandle.high ?? rawCandle.h,
+      l: rawCandle.low ?? rawCandle.l,
+      c: rawCandle.close ?? rawCandle.c,
+      v: rawCandle.volume ?? rawCandle.v ?? 0,
+      t,
+      etime,
+    };
+  }
+
+  _assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe) {
+    const instrument = resolveInstrumentFromDataFile(dataPath);
+    const dataSymbol = normalizeAssetSymbol(instrument.TRADING_PAIR);
+    const runtimeSymbol = normalizeAssetSymbol(symbol);
+    if (!dataSymbol || !runtimeSymbol || dataSymbol !== runtimeSymbol) {
+      throw new Error(
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to ${instrument.TRADING_PAIR}, ` +
+        `but runtime symbol is ${symbol}; refusing mislabeled backtest`
+      );
+    }
+    if (instrument.CANDLE_TIMEFRAME && instrument.CANDLE_TIMEFRAME !== timeframe) {
+      throw new Error(
+        `BacktestRunner: CANDLE_DATA_FILE '${dataPath}' resolves to timeframe ${instrument.CANDLE_TIMEFRAME}, ` +
+        `but runtime timeframe is ${timeframe}; refusing mismatched backtest`
+      );
     }
   }
 
@@ -75,20 +137,26 @@ class BacktestRunner {
       let processedCount = 0;
       let errorCount = 0;
       const startTime = Date.now();
+      const symbol = this.ctx.symbol;
+      const timeframe = this.ctx.timeframe;
+      if (!symbol) throw new Error('BacktestRunner: ctx.symbol required to mirror runtime candle scope');
+      if (!timeframe) throw new Error('BacktestRunner: ctx.timeframe required to mirror runtime candle scope');
+      if (typeof this.ctx.storeTimeframeCandle !== 'function') {
+        throw new Error('BacktestRunner: ctx.storeTimeframeCandle required to mirror runtime candle boundary checks');
+      }
+      if (typeof this.ctx.handleMarketData !== 'function') {
+        throw new Error('BacktestRunner: ctx.handleMarketData required to mirror runtime candle ingestion');
+      }
+      if (typeof this.ctx.runTradingCycle !== 'function') {
+        throw new Error('BacktestRunner: ctx.runTradingCycle required to mirror runtime trading-cycle trigger');
+      }
+      this._assertDataFileMatchesRuntimeScope(dataPath, symbol, timeframe);
+      const timeframeMs = this._getTimeframeMs(timeframe);
 
       // Process each candle through the trading logic
       for (const polygonCandle of historicalCandles) {
         try {
-          // Convert to OHLCV format - handle both Polygon format and shorthand
-          // FIX 2026-03-12: Use ?? instead of || to handle 0 values correctly (volume is often 0)
-          const ohlcvCandle = {
-            o: polygonCandle.open ?? polygonCandle.o,
-            h: polygonCandle.high ?? polygonCandle.h,
-            l: polygonCandle.low ?? polygonCandle.l,
-            c: polygonCandle.close ?? polygonCandle.c,
-            v: polygonCandle.volume ?? polygonCandle.v ?? 0,
-            t: polygonCandle.timestamp ?? polygonCandle.t
-          };
+          const ohlcvCandle = this._normalizeBacktestCandle(polygonCandle, timeframeMs);
 
           const traceId = createTraceId('candle');
           const traceContext = {
@@ -99,29 +167,34 @@ class BacktestRunner {
           emitTrace(this.ctx, 'CANDLE_INGRESS', {
             traceId,
             source: traceContext.source,
-            symbol: this.ctx.symbol || null,
-            timeframe: this.ctx.timeframe || null,
+            symbol,
+            timeframe,
             candleIndex: traceContext.candleIndex,
             close: ohlcvCandle.c,
             time: ohlcvCandle.t,
           });
 
-          // Feed through handleMarketData (same as live mode)
-          this.ctx.handleMarketData([
-            ohlcvCandle.t / 1000,  // time (in seconds for Kraken compatibility)
-            (ohlcvCandle.t / 1000) + 60,  // etime (end time)
+          const processorOhlcData = [
+            ohlcvCandle.t / 1000,
+            ohlcvCandle.etime / 1000,
             ohlcvCandle.o,
             ohlcvCandle.h,
             ohlcvCandle.l,
             ohlcvCandle.c,
-            0,  // vwap (not used)
+            null,
             ohlcvCandle.v,
-            1   // count
-          ], traceContext);
+            null
+          ];
+          const storedCandle = this.ctx.storeTimeframeCandle(timeframe, processorOhlcData, symbol);
+          const candleResult = this.ctx.handleMarketData({
+            data: processorOhlcData,
+            symbol,
+            timeframe,
+            traceId,
+          }, traceContext);
 
-          // Run trading analysis after warmup (WITH TRAI!)
-          if (this.ctx.priceHistory.length >= 15) {  // RSI backtest: was 200
-            await this.ctx.analyzeAndTrade(traceId);
+          if (storedCandle?.isNewCandle && candleResult?.acceptedAsNew) {
+            await this.ctx.runTradingCycle(symbol, traceId);
           }
 
           processedCount++;

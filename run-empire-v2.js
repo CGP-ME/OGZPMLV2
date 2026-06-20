@@ -2538,7 +2538,7 @@ class OGZPrimeV14Bot {
    * REFACTOR Phase 19: Thin dispatcher to CandleProcessor
    */
   handleMarketData(ohlcData, traceContext = null) {
-    this.candleProcessor.handleMarketData(ohlcData, traceContext);
+    return this.candleProcessor.handleMarketData(ohlcData, traceContext);
   }
 
   /**
@@ -3408,6 +3408,7 @@ class OGZPrimeV14Bot {
   async loadHistoricalDataAndBacktest() {
     // Update context with current instance state before delegating
     this.backtestRunner.ctx.priceHistory = this.priceHistory;
+    this.backtestRunner.ctx.storeTimeframeCandle = this.storeTimeframeCandle.bind(this);
     this.backtestRunner.ctx.handleMarketData = this.handleMarketData.bind(this);
     // CC-C Commit 5/6: bind the single-symbol tradingPair into the closure
     // so BacktestRunner stays symbol-agnostic (it's a candle-pump loop, owns
@@ -3419,7 +3420,7 @@ class OGZPrimeV14Bot {
     this.backtestRunner.ctx.timeframe = this.candleTimeframe;
     this.backtestRunner.ctx.config = this.config;
     this.backtestRunner.ctx.backtestMode = resolvedConfig.config.mode.backtest;
-    this.backtestRunner.ctx.analyzeAndTrade = (traceId) => this.analyzeAndTrade(tradingPair, traceId);
+    this.backtestRunner.ctx.runTradingCycle = (symbol, traceId) => this.run15mTradingCycle(symbol, traceId);
     return this.backtestRunner.loadHistoricalDataAndBacktest();
   }
 

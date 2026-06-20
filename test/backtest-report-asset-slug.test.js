@@ -6,7 +6,8 @@ const path = require('path');
 describe('BacktestRunner standalone report asset slug', () => {
   test('uses validated data-file instrument slug for standalone report filenames', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'core', 'BacktestRunner.js'), 'utf8');
-    expect(source).toContain("const { deriveReportAssetSlugFromDataFile } = require('./DataFileInstrument');");
+    expect(source).toContain('deriveReportAssetSlugFromDataFile');
+    expect(source).toContain("require('./DataFileInstrument')");
     expect(source).toContain("const runId = `${runTimestamp}-${process.pid}-${randomUUID()}`;");
     expect(source).toContain('const runDir = getRunDir(runId);');
     expect(source).toContain('deriveReportAssetSlugFromDataFile(process.env.CANDLE_DATA_FILE)');
