@@ -35,6 +35,7 @@ const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const { isBreakMyFixFrame } = require('../shared/break-my-fix-frame');
+const { assertBreakMyFixAnswerAccepted } = require('./break-my-fix-answer-contract');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
@@ -385,6 +386,9 @@ async function main() {
     if (args.agentic) {
       // Agentic mode — ReAct loop with tool access
       const result = await runAgentic(args.query, args);
+      if (isBreakMyFixFrame(args.query)) {
+        assertBreakMyFixAnswerAccepted(result.answer, result.history || []);
+      }
 
       console.log('');
       console.log('═══ ANSWER ═══');

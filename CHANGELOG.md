@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Break-My-Fix Answer Contract (2026-06-22)
+
+- Removed the generic early-answer tool-call budget from Mercury agentic review so adversarial prompts are no longer pressured to synthesize before a concrete failure is proven.
+- Added a fail-closed break-my-fix answer contract requiring `CONCRETE_BREAK_FOUND` or `NO_CONCRETE_BREAK_FOUND` markers before the bridge accepts an answer.
+- Rejected unsupported concrete-break answers that cite unopened repo lines, contain same-file line-order contradictions, or claim test/runtime failures without tool-backed execution evidence.
+
 ### Dormant Momentum Strategy Candidates (2026-06-20)
 
 - Added dormant/off-by-default `RSI2MeanReversion` and `TimeSeriesMomentum` strategy modules with explicit config validation, sealed runtime config, symbol-isolated orchestration, and exit contract hints.
