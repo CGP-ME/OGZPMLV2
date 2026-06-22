@@ -92,6 +92,111 @@ describe('TradeJournalBridge scoped storage', () => {
       .toThrow(/requires configured journalDataDir root/);
   });
 
+  test('routes multi-asset active trades into their own symbol-scoped journal', async () => {
+    const { TradeJournalBridge } = require('../core/TradeJournalBridge');
+    const journalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'trade-journal-multi-symbol-'));
+    const activeTrades = new Map();
+    const maraTrade = {
+      orderId: 'MARA-1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'MARA',
+      size: 500,
+      sizeUsd: 500,
+      entryPrice: 14.9,
+      confidence: 87,
+      entryFee: 0.75,
+      timestamp: Date.parse('2026-06-22T17:45:00.000Z'),
+      regimeAtEntry: 'ranging',
+      entryIndicators: { rsi: 46, macd: { macd: 0.11 }, trend: 'up', volatility: 0.22 },
+      patterns: [{ name: 'wedge', confidence: 0.7 }],
+    };
+    const bot = {
+      tradingPair: 'TSLA',
+      candleTimeframe: '15m',
+      config: {
+        tradingPair: 'TSLA',
+        brokerId: 'alpaca',
+        accountId: 'acct-1',
+        assetClass: 'stocks',
+        executionMode: 'live',
+        timeframe: '15m',
+        journalDataDir: journalRoot,
+      },
+      executeTrade: jest.fn(async () => ({
+        success: true,
+        orderId: 'MARA-1',
+        orderAccepted: true,
+        stateMutationSucceeded: true,
+      })),
+      stateManager: {
+        get: jest.fn((key) => key === 'activeTrades' ? activeTrades : null),
+      },
+      priceHistory: [],
+    };
+
+    const bridge = new TradeJournalBridge(bot, {
+      dataDir: journalRoot,
+      startingBalance: 5000,
+      autoSaveInterval: 600000,
+    });
+
+    try {
+      activeTrades.set('MARA-1', maraTrade);
+      await bot.executeTrade({ action: 'BUY', confidence: 87 }, {}, 14.9, {}, []);
+
+      const maraLedger = path.join(journalRoot, '4-live__6-alpaca__6-acct-1__6-stocks__4-MARA__3-15m', 'trade-ledger.jsonl');
+      const tslaLedger = path.join(journalRoot, '4-live__6-alpaca__6-acct-1__6-stocks__4-TSLA__3-15m', 'trade-ledger.jsonl');
+      const maraRows = readJsonl(maraLedger);
+
+      expect(maraRows).toHaveLength(1);
+      expect(maraRows[0]).toMatchObject({
+        event: 'ENTRY',
+        orderId: 'MARA-1',
+        symbol: 'MARA',
+        scopeKey: 'live:alpaca:acct-1:stocks:MARA:15m',
+      });
+      if (fs.existsSync(tslaLedger)) {
+        expect(readJsonl(tslaLedger).some(row => row.orderId === 'MARA-1')).toBe(false);
+      }
+
+      const grossPnl = 500 * ((15.05 - 14.9) / 14.9);
+      expect(bridge._recordTradeLogClose({
+        type: 'EXIT',
+        id: 'MARA-1',
+        direction: 'BUY',
+        entryPrice: 14.9,
+        exitPrice: 15.05,
+        pnl: grossPnl,
+        holdTime: 900000,
+        reason: 'test_exit',
+        size: 500,
+      }, 'test')).toBe(true);
+
+      const snapshot = bridge._combinedJournalSnapshot();
+      expect(snapshot.scopeMode).toBe('multi-symbol-aggregate');
+      expect(snapshot.symbols).toEqual(expect.arrayContaining(['TSLA', 'MARA']));
+      expect(snapshot.recentTrades[0]).toMatchObject({
+        orderId: 'MARA-1',
+        symbol: 'MARA',
+        exitReason: 'test_exit',
+      });
+
+      const symbolBreakdown = bridge._combinedPerformanceBreakdown('symbol');
+      expect(symbolBreakdown.MARA).toMatchObject({
+        trades: 1,
+        wins: 1,
+        losses: 0,
+      });
+      expect(symbolBreakdown.MARA.netPnl).toBeGreaterThan(0);
+      expect(symbolBreakdown.TSLA).toBeUndefined();
+      expect(symbolBreakdown.all).toBeUndefined();
+    } finally {
+      bridge.destroy();
+      fs.rmSync(journalRoot, { recursive: true, force: true });
+    }
+  });
+
   test('does not mark flat or malformed replay notifications as wins', () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const sent = [];

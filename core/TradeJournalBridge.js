@@ -188,6 +188,7 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
     missing,
     data: {
       orderId: expected || orderId,
+      symbol: nonEmptyStringOrNull(activeTrade?.symbol),
       direction: action,
       entryPrice,
       size: sizeUsd,
@@ -316,6 +317,17 @@ function resolveJournalScope(bot) {
   }, 'TradeJournalBridge.dataDir');
 }
 
+function resolveJournalScopeForSymbol(bot, symbol) {
+  return requirePatternScope({
+    symbol,
+    brokerId: bot?.config?.brokerId,
+    accountId: bot?.config?.accountId,
+    assetClass: bot?.config?.assetClass,
+    executionMode: bot?.config?.executionMode,
+    timeframe: bot?.config?.timeframe || bot?.candleTimeframe,
+  }, 'TradeJournalBridge.symbolDataDir');
+}
+
 function resolveJournalDataDir(bot, config = {}, scope = resolveJournalScope(bot)) {
   const journalRoot = config.dataDir || bot?.config?.journalDataDir;
   if (!journalRoot) {
@@ -349,22 +361,14 @@ class TradeJournalBridge {
     // caused the spread to silently overwrite the coerced value with raw config input —
     // re-introducing the exact bug Fix 27 was meant to fix.
     const _rawStartingBalance = config.startingBalance ?? TradingConfig.get('startingBalance');
+    this._journalBridgeConfig = { ...config };
+    this._journalStartingBalance = Number(_rawStartingBalance);
+    this._journalBundles = new Map();
     const journalScope = resolveJournalScope(this.bot);
-    const journalDataDir = resolveJournalDataDir(this.bot, config, journalScope);
-    this.journal = new TradeJournal({
-      ...config,
-      dataDir: journalDataDir,
-      scope: journalScope,
-      startingBalance: Number(_rawStartingBalance),
-    });
-
-    // ── Initialize replay capture ───────────────────────────────────
-    this.replay = new TradeReplayCapture({
-      replayDir: resolveReplayDir(journalDataDir, config),
-      candlesBefore: 60,
-      candlesAfter: 30
-    });
-    this.visibilityFailurePath = path.join(journalDataDir, 'trade-visibility-failures.jsonl');
+    const primaryBundle = this._createJournalBundle(journalScope);
+    this.journal = primaryBundle.journal;
+    this.replay = primaryBundle.replay;
+    this.visibilityFailurePath = primaryBundle.visibilityFailurePath;
     this.visibilityFailureFallbackPath = path.join(process.cwd(), 'data', 'runtime-audit', 'trade-visibility-failures-fallback.jsonl');
     this._pendingVisibilityErrors = [];
     this._maxPendingVisibilityErrors = 50;
@@ -380,6 +384,63 @@ class TradeJournalBridge {
     console.log('TradeJournalBridge v2: Journal + Replay wired into bot');
   }
 
+  _createJournalBundle(scope) {
+    const journalDataDir = resolveJournalDataDir(this.bot, this._journalBridgeConfig, scope);
+    const journal = new TradeJournal({
+      ...this._journalBridgeConfig,
+      dataDir: journalDataDir,
+      scope,
+      startingBalance: this._journalStartingBalance,
+    });
+    const replay = new TradeReplayCapture({
+      replayDir: resolveReplayDir(journalDataDir, this._journalBridgeConfig),
+      candlesBefore: 60,
+      candlesAfter: 30
+    });
+    const bundle = {
+      scope,
+      journal,
+      replay,
+      visibilityFailurePath: path.join(journalDataDir, 'trade-visibility-failures.jsonl'),
+    };
+    this._journalBundles.set(scope.scopeKey, bundle);
+    return bundle;
+  }
+
+  _getJournalBundleForEntry(entryData) {
+    if (!this._journalBundles) {
+      return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
+    }
+
+    const symbol = nonEmptyStringOrNull(entryData?.symbol);
+    if (!symbol) {
+      throw new Error(`Entry ${entryData?.orderId || 'unknown'} missing activeTrade.symbol; refusing boot-scope journal attribution`);
+    }
+
+    const scope = resolveJournalScopeForSymbol(this.bot, symbol);
+    const existing = this._journalBundles.get(scope.scopeKey);
+    return existing || this._createJournalBundle(scope);
+  }
+
+  _getJournalBundleForOrderId(orderId) {
+    const target = nonEmptyStringOrNull(orderId);
+    if (!target || !this._journalBundles) {
+      return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
+    }
+
+    for (const bundle of this._journalBundles.values()) {
+      if (bundle.journal?.openTrades?.has?.(target)) return bundle;
+      if (Array.isArray(bundle.journal?.trades) && bundle.journal.trades.some(trade => trade.orderId === target)) {
+        return bundle;
+      }
+    }
+    return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
+  }
+
+  _allJournalBundles() {
+    return this._journalBundles ? Array.from(this._journalBundles.values()) : [{ journal: this.journal, replay: this.replay, scope: this.journal?.scope || null }];
+  }
+
 
   // ════════════════════════════════════════════════════════════════════════
   // TRADE EVENT WIRING
@@ -387,8 +448,6 @@ class TradeJournalBridge {
 
   _wireTradeEvents() {
     const bot = this.bot;
-    const journal = this.journal;
-    const replay = this.replay;
     const bridge = this;
 
     // ── Intercept trade ENTRIES ─────────────────────────────────────
@@ -446,8 +505,10 @@ class TradeJournalBridge {
           }
           const entryData = normalizedEntry.data;
 
-          // Record in journal
-          const journalEntry = journal.recordEntry(entryData);
+          const bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(bridge, entryData);
+
+          // Record in the symbol-scoped journal.
+          const journalEntry = bundle.journal.recordEntry(entryData);
           if (!journalEntry) {
             TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_journal_refused', {
               ...failureContext,
@@ -458,7 +519,7 @@ class TradeJournalBridge {
           }
 
           // Capture candle context for replay
-          const replayEntry = replay.captureEntry(entryData.orderId, {
+          const replayEntry = bundle.replay.captureEntry(entryData.orderId, {
             price: entryData.entryPrice,
             direction: entryData.direction,
             confidence: entryData.confidence,
@@ -531,14 +592,6 @@ class TradeJournalBridge {
         continue;
       }
 
-      if (
-        this.journal.entryOrderIds?.has?.(expectedOrderId)
-        || this.journal.openTrades?.has?.(expectedOrderId)
-        || (Array.isArray(this.journal.trades) && this.journal.trades.some(closed => closed.orderId === expectedOrderId))
-      ) {
-        continue;
-      }
-
       const normalizedEntry = sourceBackedEntryFromActiveTrade(trade, expectedOrderId);
       if (!normalizedEntry.ok) {
         TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_entry_state_reconciliation_refused', {
@@ -553,7 +606,16 @@ class TradeJournalBridge {
         continue;
       }
 
-      const journalEntry = this.journal.recordEntry({
+      const bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(this, normalizedEntry.data);
+      if (
+        bundle.journal.entryOrderIds?.has?.(expectedOrderId)
+        || bundle.journal.openTrades?.has?.(expectedOrderId)
+        || (Array.isArray(bundle.journal.trades) && bundle.journal.trades.some(closed => closed.orderId === expectedOrderId))
+      ) {
+        continue;
+      }
+
+      const journalEntry = bundle.journal.recordEntry({
         ...normalizedEntry.data,
         source: 'StateManager.activeTrades',
       });
@@ -600,7 +662,8 @@ class TradeJournalBridge {
     }
 
     try {
-      const journalExit = this.journal.recordExit({
+      const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
+      const journalExit = bundle.journal.recordExit({
         orderId: data.orderId,
         exitPrice: data.exitPrice,
         reason: data.reason,
@@ -624,7 +687,7 @@ class TradeJournalBridge {
         });
       }
 
-      const replayPath = this.replay.captureExit(data.orderId, {
+      const replayPath = bundle.replay.captureExit(data.orderId, {
         price: data.exitPrice,
         exitPrice: data.exitPrice,
         entryPrice: data.entryPrice,
@@ -1070,7 +1133,7 @@ class TradeJournalBridge {
   _wireBroadcastCycle() {
     this._broadcastTimer = setInterval(() => {
       TradeJournalBridge.prototype._flushPendingVisibilityErrors.call(this);
-      if (this.journal.trades.length > 0) this._sendJournalSnapshot();
+      if (TradeJournalBridge.prototype._combinedClosedTrades.call(this).length > 0) this._sendJournalSnapshot();
     }, 30000);
   }
 
@@ -1094,8 +1157,228 @@ class TradeJournalBridge {
     return false;
   }
 
+  _combinedClosedTrades() {
+    return TradeJournalBridge.prototype._allJournalBundles.call(this)
+      .flatMap(bundle => Array.isArray(bundle.journal?.trades) ? bundle.journal.trades : [])
+      .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+  }
+
+  _combinedOpenTradeCount() {
+    return TradeJournalBridge.prototype._allJournalBundles.call(this)
+      .reduce((sum, bundle) => sum + (bundle.journal?.openTrades?.size || 0), 0);
+  }
+
+  _combinedJournalSnapshot() {
+    const bundles = TradeJournalBridge.prototype._allJournalBundles.call(this);
+    if (bundles.length === 1) return bundles[0].journal.getSnapshot();
+
+    const trades = this._combinedClosedTrades();
+    const netPnl = trades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
+    const wins = trades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) > 0);
+    const losses = trades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) < 0);
+    const grossWins = wins.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
+    const grossLosses = losses.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
+    const todayKey = new Date().toISOString().split('T')[0];
+    const todayTrades = trades.filter(trade => new Date(Number(trade.timestamp || 0)).toISOString().split('T')[0] === todayKey);
+    const todayPnl = todayTrades.reduce((sum, trade) => sum + (finiteNumberOrNull(trade.netPnl) || 0), 0);
+    const todayWins = todayTrades.filter(trade => (finiteNumberOrNull(trade.netPnl) || 0) > 0).length;
+    const recentTrades = trades.slice(-10).reverse();
+    const startingBalance = finiteNumberOrNull(this._journalStartingBalance) || 0;
+    const totalTrades = trades.length;
+    const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
+    const avgWin = wins.length > 0 ? grossWins / wins.length : 0;
+    const avgLoss = losses.length > 0 ? grossLosses / losses.length : 0;
+    const profitFactor = grossLosses !== 0 ? Math.abs(grossWins / grossLosses) : (grossWins > 0 ? Infinity : 0);
+    const expectancy = totalTrades > 0 ? netPnl / totalTrades : 0;
+    const sortedByPnl = trades.slice().sort((a, b) => (finiteNumberOrNull(a.netPnl) || 0) - (finiteNumberOrNull(b.netPnl) || 0));
+
+    let currentStreak = 0;
+    let currentStreakType = 'none';
+    let longestWinStreak = 0;
+    let longestLossStreak = 0;
+    let runningWin = 0;
+    let runningLoss = 0;
+    const recentWL = [];
+    for (const trade of trades) {
+      const pnl = finiteNumberOrNull(trade.netPnl) || 0;
+      if (pnl > 0) {
+        recentWL.push('W');
+        runningWin += 1;
+        runningLoss = 0;
+        longestWinStreak = Math.max(longestWinStreak, runningWin);
+        currentStreak = runningWin;
+        currentStreakType = 'win';
+      } else if (pnl < 0) {
+        recentWL.push('L');
+        runningLoss += 1;
+        runningWin = 0;
+        longestLossStreak = Math.max(longestLossStreak, runningLoss);
+        currentStreak = runningLoss;
+        currentStreakType = 'loss';
+      } else {
+        recentWL.push('F');
+        runningWin = 0;
+        runningLoss = 0;
+        currentStreak = 0;
+        currentStreakType = 'flat';
+      }
+    }
+
+    return {
+      module: 'TradeJournal',
+      scopeMode: 'multi-symbol-aggregate',
+      symbols: bundles.map(bundle => bundle.scope?.symbol).filter(Boolean),
+      totalTrades,
+      winRate: Number(winRate.toFixed(1)),
+      netPnl: Number(netPnl.toFixed(2)),
+      netPnlPercent: startingBalance > 0 ? Number((netPnl / startingBalance * 100).toFixed(2)) : 0,
+      currentBalance: Number((startingBalance + netPnl).toFixed(2)),
+      profitFactor: Number.isFinite(profitFactor) ? Number(profitFactor.toFixed(2)) : profitFactor,
+      sharpeRatio: 0,
+      maxDrawdown: 0,
+      currentDrawdown: 0,
+      expectancy: Number(expectancy.toFixed(2)),
+      avgWin: Number(avgWin.toFixed(2)),
+      avgLoss: Number(avgLoss.toFixed(2)),
+      avgHoldTime: '0s',
+      avgHoldTimeWinners: '0s',
+      avgHoldTimeLosers: '0s',
+      currentStreak,
+      currentStreakType,
+      longestWinStreak,
+      longestLossStreak,
+      recentWL: recentWL.slice(-30),
+      bestTrade: sortedByPnl.length ? sortedByPnl[sortedByPnl.length - 1] : null,
+      worstTrade: sortedByPnl.length ? sortedByPnl[0] : null,
+      todayTrades: todayTrades.length,
+      todayPnl: Number(todayPnl.toFixed(2)),
+      todayWinRate: todayTrades.length > 0 ? Number((todayWins / todayTrades.length * 100).toFixed(1)) : 0,
+      openPositions: this._combinedOpenTradeCount(),
+      recentTrades: recentTrades.map(t => ({
+        orderId: t.orderId,
+        symbol: t.symbol,
+        direction: t.direction,
+        entryPrice: t.entryPrice,
+        exitPrice: t.exitPrice,
+        netPnl: roundedNumberOrNull(t.netPnl),
+        pnlPercent: roundedNumberOrNull(t.pnlPercent),
+        outcome: classifyReplayOutcome(t.netPnl, t.pnlPercent),
+        holdTime: t.holdTimeFormatted,
+        exitReason: t.exitReason,
+        confidence: t.confidence,
+        regime: t.regime,
+        timestamp: t.timestamp
+      }))
+    };
+  }
+
+  _combinedReplayList(limit = 50) {
+    return TradeJournalBridge.prototype._allJournalBundles.call(this)
+      .flatMap(bundle => bundle.replay?.listReplays?.(limit) || [])
+      .sort((a, b) => Number(b.savedAt || b.timestamp || 0) - Number(a.savedAt || a.timestamp || 0))
+      .slice(0, limit);
+  }
+
+  _addBreakdownTrade(buckets, key, trade) {
+    if (!key) return;
+    if (!buckets[key]) {
+      buckets[key] = {
+        trades: 0,
+        wins: 0,
+        losses: 0,
+        netPnl: 0,
+        grossWins: 0,
+        grossLosses: 0,
+        totalHoldTime: 0,
+      };
+    }
+    const bucket = buckets[key];
+    const pnl = finiteNumberOrNull(trade.netPnl) || 0;
+    bucket.trades += 1;
+    bucket.netPnl += pnl;
+    bucket.totalHoldTime += finiteNumberOrNull(trade.holdTimeMs) || 0;
+    if (pnl > 0) {
+      bucket.wins += 1;
+      bucket.grossWins += pnl;
+    } else if (pnl < 0) {
+      bucket.losses += 1;
+      bucket.grossLosses += pnl;
+    }
+  }
+
+  _combinedPerformanceBreakdown(dimension) {
+    const bundles = TradeJournalBridge.prototype._allJournalBundles.call(this);
+    if (bundles.length === 1) return bundles[0].journal.getPerformanceBreakdown(dimension);
+
+    const buckets = {};
+    for (const trade of this._combinedClosedTrades()) {
+      switch (dimension) {
+        case 'symbol':
+          this._addBreakdownTrade(buckets, trade.symbol, trade);
+          break;
+        case 'regime':
+          this._addBreakdownTrade(buckets, trade.regime, trade);
+          break;
+        case 'pattern':
+          if (!Array.isArray(trade.patterns) || trade.patterns.length === 0) {
+            this._addBreakdownTrade(buckets, 'no_pattern', trade);
+          } else {
+            for (const pattern of trade.patterns) {
+              this._addBreakdownTrade(buckets, nonEmptyStringOrNull(pattern?.name), trade);
+            }
+          }
+          break;
+        case 'hourOfDay':
+          this._addBreakdownTrade(buckets, new Date(trade.entryTime || trade.timestamp).getUTCHours().toString().padStart(2, '0') + ':00', trade);
+          break;
+        case 'dayOfWeek':
+          this._addBreakdownTrade(buckets, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(trade.entryTime || trade.timestamp).getUTCDay()], trade);
+          break;
+        case 'confidenceBand': {
+          const conf = finiteNumberOrNull(trade.confidence);
+          if (conf === null) break;
+          const key = conf < 55 ? '< 55%' : conf < 65 ? '55-65%' : conf < 75 ? '65-75%' : conf < 85 ? '75-85%' : '85%+';
+          this._addBreakdownTrade(buckets, key, trade);
+          break;
+        }
+        case 'exitReason':
+          this._addBreakdownTrade(buckets, trade.exitReason, trade);
+          break;
+        case 'month': {
+          const date = new Date(trade.timestamp);
+          this._addBreakdownTrade(buckets, `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`, trade);
+          break;
+        }
+        default:
+          this._addBreakdownTrade(buckets, 'all', trade);
+      }
+    }
+
+    for (const bucket of Object.values(buckets)) {
+      bucket.winRate = bucket.trades > 0 ? (bucket.wins / bucket.trades * 100) : 0;
+      bucket.avgPnl = bucket.trades > 0 ? (bucket.netPnl / bucket.trades) : 0;
+      bucket.avgWin = bucket.wins > 0 ? (bucket.grossWins / bucket.wins) : 0;
+      bucket.avgLoss = bucket.losses > 0 ? (bucket.grossLosses / bucket.losses) : 0;
+      bucket.profitFactor = bucket.grossLosses !== 0 ? Math.abs(bucket.grossWins / bucket.grossLosses) : (bucket.grossWins > 0 ? Infinity : 0);
+      bucket.avgHoldTime = '0s';
+      bucket.expectancy = bucket.trades > 0 ? bucket.netPnl / bucket.trades : 0;
+    }
+
+    return buckets;
+  }
+
+  _loadReplay(orderId) {
+    const target = nonEmptyStringOrNull(orderId);
+    if (!target) return null;
+    for (const bundle of TradeJournalBridge.prototype._allJournalBundles.call(this)) {
+      const data = bundle.replay?.loadReplay?.(target);
+      if (data) return data;
+    }
+    return null;
+  }
+
   _sendJournalSnapshot() {
-    this._send({ type: 'journal_snapshot', data: this.journal.getSnapshot() });
+    this._send({ type: 'journal_snapshot', data: this._combinedJournalSnapshot() });
   }
 
   _sendEquityCurve() {
@@ -1103,7 +1386,7 @@ class TradeJournalBridge {
   }
 
   _sendBreakdown(dimension) {
-    this._send({ type: 'journal_breakdown', data: this.journal.getPerformanceBreakdown(dimension), dimension });
+    this._send({ type: 'journal_breakdown', data: this._combinedPerformanceBreakdown(dimension), dimension });
   }
 
   _sendCalendar() {
@@ -1112,12 +1395,12 @@ class TradeJournalBridge {
 
   _sendReplay(orderId) {
     if (!orderId) return;
-    const data = this.replay.loadReplay(orderId);
+    const data = this._loadReplay(orderId);
     this._send(data ? { type: 'replay_data', data } : { type: 'replay_not_found', orderId });
   }
 
   _sendReplayList(limit = 50) {
-    this._send({ type: 'replay_list', data: this.replay.listReplays(limit) });
+    this._send({ type: 'replay_list', data: this._combinedReplayList(limit) });
   }
 
   _exportCSV() {
@@ -1145,28 +1428,27 @@ class TradeJournalBridge {
   // ════════════════════════════════════════════════════════════════════════
 
   registerRoutes(app) {
-    const replay = this.replay;
-    const journal = this.journal;
+    const bridge = this;
 
     app.get('/replay', (req, res) => res.sendFile(path.join(process.cwd(), 'public', 'trade-replay.html')));
     app.get('/journal', (req, res) => res.sendFile(path.join(process.cwd(), 'public', 'trade-journal.html')));
 
     app.get('/api/replay/adjacent', (req, res) => {
-      const all = replay.listReplays(1000);
+      const all = bridge._combinedReplayList(1000);
       const idx = all.findIndex(r => r.orderId === req.query.id);
       const target = idx + (parseInt(req.query.direction) || 1);
       res.json({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
     });
 
     app.get('/api/replay/:id', (req, res) => {
-      const data = replay.loadReplay(req.params.id);
+      const data = bridge._loadReplay(req.params.id);
       data ? res.json(data) : res.status(404).json({ error: 'Replay not found' });
     });
 
-    app.get('/api/replays', (req, res) => res.json(replay.listReplays(parseInt(req.query.limit) || 50)));
-    app.get('/api/journal/stats', (req, res) => res.json(journal.getStats()));
-    app.get('/api/journal/equity', (req, res) => res.json(journal.getEquityCurve(parseInt(req.query.limit) || 500)));
-    app.get('/api/journal/breakdown/:dim', (req, res) => res.json(journal.getPerformanceBreakdown(req.params.dim)));
+    app.get('/api/replays', (req, res) => res.json(bridge._combinedReplayList(parseInt(req.query.limit) || 50)));
+    app.get('/api/journal/stats', (req, res) => res.json(bridge._combinedJournalSnapshot()));
+    app.get('/api/journal/equity', (req, res) => res.json(bridge.journal.getEquityCurve(parseInt(req.query.limit) || 500)));
+    app.get('/api/journal/breakdown/:dim', (req, res) => res.json(bridge._combinedPerformanceBreakdown(req.params.dim)));
 
     console.log('[TradeJournalBridge] HTTP routes registered (/journal, /replay, /api/*)');
   }
@@ -1192,22 +1474,22 @@ class TradeJournalBridge {
     if (url.pathname === '/replay') return sendFile(path.join(process.cwd(), 'public', 'trade-replay.html'));
 
     if (url.pathname.startsWith('/api/replay/adjacent')) {
-      const all = this.replay.listReplays(1000);
+      const all = this._combinedReplayList(1000);
       const idx = all.findIndex(r => r.orderId === url.searchParams.get('id'));
       const target = idx + (parseInt(url.searchParams.get('direction')) || 1);
       return sendJSON({ orderId: (target >= 0 && target < all.length) ? all[target].orderId : null });
     }
     if (url.pathname.startsWith('/api/replay/')) {
       const id = url.pathname.split('/').pop();
-      const data = this.replay.loadReplay(id);
+      const data = this._loadReplay(id);
       return data ? sendJSON(data) : sendJSON({ error: 'Not found' }, 404);
     }
-    if (url.pathname === '/api/replays') return sendJSON(this.replay.listReplays(parseInt(url.searchParams.get('limit')) || 50));
-    if (url.pathname === '/api/journal/stats') return sendJSON(this.journal.getStats());
+    if (url.pathname === '/api/replays') return sendJSON(this._combinedReplayList(parseInt(url.searchParams.get('limit')) || 50));
+    if (url.pathname === '/api/journal/stats') return sendJSON(this._combinedJournalSnapshot());
     if (url.pathname === '/api/journal/equity') return sendJSON(this.journal.getEquityCurve(500));
     if (url.pathname.startsWith('/api/journal/breakdown/')) {
       const dim = url.pathname.split('/').pop();
-      return sendJSON(this.journal.getPerformanceBreakdown(dim));
+      return sendJSON(this._combinedPerformanceBreakdown(dim));
     }
 
     return false;
@@ -1221,7 +1503,9 @@ class TradeJournalBridge {
   destroy() {
     if (this._broadcastTimer) clearInterval(this._broadcastTimer);
     if (this._dashboardHookTimer) clearInterval(this._dashboardHookTimer);
-    this.journal.destroy();
+    for (const bundle of this._allJournalBundles()) {
+      bundle.journal?.destroy?.();
+    }
     console.log('[TradeJournalBridge] Destroyed');
   }
 }

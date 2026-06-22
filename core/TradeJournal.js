@@ -625,7 +625,7 @@ class TradeJournal {
 
   /**
    * Performance breakdown by a given dimension
-   * @param {'regime'|'pattern'|'hourOfDay'|'dayOfWeek'|'confidenceBand'|'exitReason'|'month'} dimension
+   * @param {'symbol'|'regime'|'pattern'|'hourOfDay'|'dayOfWeek'|'confidenceBand'|'exitReason'|'month'} dimension
    * @returns {Object} { [key]: { trades, wins, losses, netPnl, winRate, avgPnl, avgWin, avgLoss, profitFactor } }
    */
   getPerformanceBreakdown(dimension) {
@@ -634,6 +634,10 @@ class TradeJournal {
     for (const trade of this.trades) {
       let key;
       switch (dimension) {
+        case 'symbol':
+          key = nonEmptyStringOrNull(trade.symbol);
+          if (!key) continue;
+          break;
         case 'regime':
           key = nonEmptyStringOrNull(trade.regime);
           if (!key) continue;
@@ -837,6 +841,7 @@ class TradeJournal {
       // ── Recent trades ──
       recentTrades: recentTrades.map(t => ({
         orderId: t.orderId,
+        symbol: t.symbol,
         direction: t.direction,
         entryPrice: t.entryPrice,
         exitPrice: t.exitPrice,
