@@ -3,6 +3,7 @@
 describe('Backtest report scope contract', () => {
   let consoleSpies;
   let BacktestRecorder;
+  let originalEnv;
 
   const scopedTrade = (overrides = {}) => ({
     entryTime: '2026-05-26T13:30:00.000Z',
@@ -29,6 +30,10 @@ describe('Backtest report scope contract', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    originalEnv = { ...process.env };
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.BACKTEST_MODE = 'true';
+    process.env.INITIAL_BALANCE = '10000';
     consoleSpies = [
       jest.spyOn(console, 'log').mockImplementation(() => {}),
       jest.spyOn(console, 'warn').mockImplementation(() => {}),
@@ -41,6 +46,7 @@ describe('Backtest report scope contract', () => {
     for (const spy of consoleSpies) {
       spy.mockRestore();
     }
+    process.env = originalEnv;
   });
 
   test('records immutable scope on every backtest trade row', () => {
@@ -59,6 +65,34 @@ describe('Backtest report scope contract', () => {
     expect(record.scopeKeyVersion).toBe(2);
     expect(record.scopeComplete).toBe(true);
     expect(recorder.trades).toHaveLength(1);
+  });
+
+  test('records broker quantity fields on every backtest trade row', () => {
+    const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+
+    const record = recorder.recordTrade(scopedTrade({
+      entryOrderQuantity: 7,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: 4,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: 2,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity: 2,
+      quantityUnit: 'shares',
+      entryFeeQuantity: 2,
+      exitFeeQuantity: 2,
+    }));
+
+    expect(record.entryOrderQuantity).toBe(7);
+    expect(record.entryOrderQuantityUnit).toBe('shares');
+    expect(record.remainingOrderQuantityBeforeExit).toBe(4);
+    expect(record.remainingOrderQuantityUnit).toBe('shares');
+    expect(record.exitOrderQuantity).toBe(2);
+    expect(record.exitOrderQuantityUnit).toBe('shares');
+    expect(record.closedOrderQuantity).toBe(2);
+    expect(record.quantityUnit).toBe('shares');
+    expect(record.entryFeeQuantity).toBe(2);
+    expect(record.exitFeeQuantity).toBe(2);
   });
 
   test('rejects missing scope before mutating backtest balance or rows', () => {

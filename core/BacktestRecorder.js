@@ -18,6 +18,17 @@ const TradingConfig = require('./TradingConfig');
 const FeeModel = require('./FeeModel');
 
 class BacktestRecorder {
+    static finiteNumberOrNull(value) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+    }
+
+    static cleanTextOrNull(value) {
+        if (value === null || value === undefined) return null;
+        const cleaned = String(value).trim();
+        return cleaned || null;
+    }
+
     static validateTradeScope(trade, caller = 'BacktestRecorder.validateTradeScope') {
         const missing = [];
         const cleanText = (value, name) => {
@@ -135,16 +146,27 @@ class BacktestRecorder {
             rawPnlDollars = positionSizeUsd * ((entryPrice - exitPrice) / entryPrice);
         }
 
-        const entryQuantity = trade.entryOrderQuantity || trade.orderQuantity || (positionSizeUsd / entryPrice);
-        const exitQuantity = trade.exitOrderQuantity || trade.orderQuantity || (positionSizeUsd / exitPrice);
+        const entryFeeQuantity = BacktestRecorder.finiteNumberOrNull(
+            trade.entryFeeQuantity
+            ?? trade.closedOrderQuantity
+            ?? trade.exitOrderQuantity
+            ?? trade.orderQuantity
+            ?? trade.entryOrderQuantity
+        ) ?? (positionSizeUsd / entryPrice);
+        const exitFeeQuantity = BacktestRecorder.finiteNumberOrNull(
+            trade.exitFeeQuantity
+            ?? trade.closedOrderQuantity
+            ?? trade.exitOrderQuantity
+            ?? trade.orderQuantity
+        ) ?? (positionSizeUsd / exitPrice);
         const exitNotionalUsd = Number.isFinite(Number(trade.exitSizeUsd))
             ? Number(trade.exitSizeUsd)
             : positionSizeUsd * (exitPrice / entryPrice);
         const totalFees = this.feeModel.calculateRoundTripFees({
             entryNotionalUsd: positionSizeUsd,
             exitNotionalUsd,
-            entryQuantity,
-            exitQuantity,
+            entryQuantity: entryFeeQuantity,
+            exitQuantity: exitFeeQuantity,
         });
 
         // Net P&L after fees
@@ -177,6 +199,22 @@ class BacktestRecorder {
             stopLoss: trade.stopLoss || trade.exitContract?.stopLoss || 0,
             takeProfit: trade.takeProfit || trade.exitContract?.takeProfit || 0,
             size: trade.size || 1,
+            entryOrderQuantity: BacktestRecorder.finiteNumberOrNull(trade.entryOrderQuantity),
+            entryOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.entryOrderQuantityUnit),
+            remainingOrderQuantityBeforeExit: BacktestRecorder.finiteNumberOrNull(
+                trade.remainingOrderQuantityBeforeExit ?? trade.remainingOrderQuantity
+            ),
+            remainingOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.remainingOrderQuantityUnit),
+            exitOrderQuantity: BacktestRecorder.finiteNumberOrNull(trade.exitOrderQuantity),
+            exitOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.exitOrderQuantityUnit ?? trade.quantityUnit),
+            closedOrderQuantity: BacktestRecorder.finiteNumberOrNull(
+                trade.closedOrderQuantity ?? trade.exitOrderQuantity ?? trade.orderQuantity
+            ),
+            quantityUnit: BacktestRecorder.cleanTextOrNull(
+                trade.quantityUnit ?? trade.exitOrderQuantityUnit ?? trade.entryOrderQuantityUnit
+            ),
+            entryFeeQuantity,
+            exitFeeQuantity,
 
             // P&L
             rawPnlDollars,
@@ -316,6 +354,17 @@ class BacktestRecorder {
             'exit_price',
             'stop_loss',
             'take_profit',
+            'size_usd',
+            'entry_order_quantity',
+            'entry_order_quantity_unit',
+            'remaining_order_quantity_before_exit',
+            'remaining_order_quantity_unit',
+            'exit_order_quantity',
+            'exit_order_quantity_unit',
+            'closed_order_quantity',
+            'quantity_unit',
+            'entry_fee_quantity',
+            'exit_fee_quantity',
             'raw_pnl_dollars',
             'fees_dollars',
             'net_pnl_dollars',
@@ -357,6 +406,17 @@ class BacktestRecorder {
             t.exitPrice.toFixed(2),
             t.stopLoss,
             t.takeProfit,
+            t.size,
+            t.entryOrderQuantity ?? '',
+            t.entryOrderQuantityUnit ?? '',
+            t.remainingOrderQuantityBeforeExit ?? '',
+            t.remainingOrderQuantityUnit ?? '',
+            t.exitOrderQuantity ?? '',
+            t.exitOrderQuantityUnit ?? '',
+            t.closedOrderQuantity ?? '',
+            t.quantityUnit ?? '',
+            t.entryFeeQuantity ?? '',
+            t.exitFeeQuantity ?? '',
             t.rawPnlDollars.toFixed(2),
             t.feesDollars.toFixed(2),
             t.netPnlDollars.toFixed(2),

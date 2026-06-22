@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a fail-closed break-my-fix answer contract requiring `CONCRETE_BREAK_FOUND` or `NO_CONCRETE_BREAK_FOUND` markers before the bridge accepts an answer.
 - Rejected unsupported concrete-break answers that cite unopened repo lines, contain same-file line-order contradictions, or claim test/runtime failures without tool-backed execution evidence.
 
+### Backtest Broker Quantity Reporting (2026-06-22)
+
+- Added explicit broker quantity fields to backtest trade records and CSV exports so stock eval runs show entry, remaining, exit, closed, and fee-charge quantities with units instead of requiring `size_usd / price` inference.
+- Routed long and short exit order quantities from `OrderExecutor` into `BacktestRecorder` so dynamic stock sizing and partial-exit quantity behavior can be audited directly in worker reports.
+- Added focused recorder coverage for persisted share quantity fields.
+
 ### Dormant Momentum Strategy Candidates (2026-06-20)
 
 - Added dormant/off-by-default `RSI2MeanReversion` and `TimeSeriesMomentum` strategy modules with explicit config validation, sealed runtime config, symbol-isolated orchestration, and exit contract hints.

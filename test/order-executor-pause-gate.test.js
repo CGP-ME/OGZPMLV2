@@ -1619,6 +1619,16 @@ describe('OrderExecutor pause gate', () => {
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 250,
       exitReason: 'tier_exit',
+      entryOrderQuantity: 5,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: 5,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: 2.5,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity: 2.5,
+      quantityUnit: 'shares',
+      entryFeeQuantity: 2.5,
+      exitFeeQuantity: 2.5,
     }));
     expect(logTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 250,
@@ -1832,6 +1842,16 @@ describe('OrderExecutor pause gate', () => {
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 90,
       exitReason: 'tier_exit',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: 3,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: 0.8999999999999999,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity: 0.8999999999999999,
+      quantityUnit: 'shares',
+      entryFeeQuantity: 0.8999999999999999,
+      exitFeeQuantity: 0.8999999999999999,
     }));
   });
 
@@ -2042,6 +2062,16 @@ describe('OrderExecutor pause gate', () => {
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 100,
       exitReason: 'tier_exit',
+      entryOrderQuantity: 3,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: 3,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: 1,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity: 1,
+      quantityUnit: 'shares',
+      entryFeeQuantity: 1,
+      exitFeeQuantity: 1,
     }));
   });
 
@@ -2100,6 +2130,16 @@ describe('OrderExecutor pause gate', () => {
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 100,
       exitReason: 'tier_exit',
+      entryOrderQuantity: 1,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: 1,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: 1,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity: 1,
+      quantityUnit: 'shares',
+      entryFeeQuantity: 1,
+      exitFeeQuantity: 1,
     }));
   });
 

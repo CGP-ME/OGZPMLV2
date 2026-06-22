@@ -2233,6 +2233,13 @@ class OrderExecutor {
             const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
             const holdDuration = exitTimestamp - buyTrade.entryTime;
             const longExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(buyTrade, 'BUY exit');
+            const longExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity ?? null;
+            const longExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit ?? buyTrade.entryOrderQuantityUnit ?? null;
+            const longEntryFeeQuantity = longExitOrderQuantity
+              ?? buyTrade.entryOrderQuantity
+              ?? (buyTrade.entryPrice > 0 ? longExitSizeUsd / buyTrade.entryPrice : null);
+            const longExitFeeQuantity = longExitOrderQuantity
+              ?? (price > 0 ? longExitSizeUsd / price : null);
 
             // Create complete trade result
             // FIX 2026-02-23: Use actual exitReason from decision (was hardcoded to 'signal')
@@ -2273,6 +2280,16 @@ class OrderExecutor {
                 stopLoss: this._firstFiniteNumber(buyTrade.exitContract?.stopLossPercent),
                 takeProfit: this._firstFiniteNumber(buyTrade.exitContract?.takeProfitPercent),
                 size: longExitSizeUsd,
+                entryOrderQuantity: buyTrade.entryOrderQuantity,
+                entryOrderQuantityUnit: buyTrade.entryOrderQuantityUnit,
+                remainingOrderQuantityBeforeExit: buyTrade.remainingOrderQuantity,
+                remainingOrderQuantityUnit: buyTrade.remainingOrderQuantityUnit,
+                exitOrderQuantity: longExitOrderQuantity,
+                exitOrderQuantityUnit: longExitQuantityUnit,
+                closedOrderQuantity: longExitOrderQuantity,
+                quantityUnit: longExitQuantityUnit,
+                entryFeeQuantity: longEntryFeeQuantity,
+                exitFeeQuantity: longExitFeeQuantity,
                 // MED-03: throw when buyTrade.entryStrategy missing at exit time.
                 // Set at trade open from orchResult.winnerStrategy (HIGH-08 covers
                 // missing-at-open). Missing AT EXIT means the trade record lost
@@ -2329,13 +2346,8 @@ class OrderExecutor {
             }
             let closeResult;
             const stateExitFraction = executedExitPlan?.stateExitFraction ?? fraction;
-            const stateExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
-            const stateExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
-            const longEntryFeeQuantity = stateExitOrderQuantity
-              ?? buyTrade.entryOrderQuantity
-              ?? (buyTrade.entryPrice > 0 ? longExitSizeUsd / buyTrade.entryPrice : null);
-            const longExitFeeQuantity = stateExitOrderQuantity
-              ?? (price > 0 ? longExitSizeUsd / price : null);
+            const stateExitOrderQuantity = longExitOrderQuantity;
+            const stateExitQuantityUnit = longExitQuantityUnit;
             const statePartialClose = executedExitPlan ? stateExitFraction < 1 : isPartialClose;
             if (statePartialClose) {
               closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
@@ -2769,6 +2781,13 @@ class OrderExecutor {
           const exitTimestamp = this.ctx.marketData?.timestamp || Date.now();
           const holdDuration = exitTimestamp - shortTrade.entryTime;
           const coverExitSizeUsd = this._firstFiniteNumber(executedExitPlan?.sizeUsd) ?? this._resolveStoredSizeUsd(shortTrade, 'SHORT exit');
+          const coverExitOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity ?? null;
+          const coverExitQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit ?? shortTrade.entryOrderQuantityUnit ?? null;
+          const shortEntryFeeQuantity = coverExitOrderQuantity
+            ?? shortTrade.entryOrderQuantity
+            ?? (shortTrade.entryPrice > 0 ? coverExitSizeUsd / shortTrade.entryPrice : null);
+          const shortExitFeeQuantity = coverExitOrderQuantity
+            ?? (price > 0 ? coverExitSizeUsd / price : null);
 
           const completeTradeResult = {
             ...shortTrade,
@@ -2808,6 +2827,16 @@ class OrderExecutor {
               stopLoss: this._firstFiniteNumber(shortTrade.exitContract?.stopLossPercent),
               takeProfit: this._firstFiniteNumber(shortTrade.exitContract?.takeProfitPercent),
               size: coverExitSizeUsd,
+              entryOrderQuantity: shortTrade.entryOrderQuantity,
+              entryOrderQuantityUnit: shortTrade.entryOrderQuantityUnit,
+              remainingOrderQuantityBeforeExit: shortTrade.remainingOrderQuantity,
+              remainingOrderQuantityUnit: shortTrade.remainingOrderQuantityUnit,
+              exitOrderQuantity: coverExitOrderQuantity,
+              exitOrderQuantityUnit: coverExitQuantityUnit,
+              closedOrderQuantity: coverExitOrderQuantity,
+              quantityUnit: coverExitQuantityUnit,
+              entryFeeQuantity: shortEntryFeeQuantity,
+              exitFeeQuantity: shortExitFeeQuantity,
               // MED-03: SHORT exit symmetric warn — same state-persistence
               // concern as BUY exit at :669-675.
               ...(shortTrade.entryStrategy ? {} : (() => { throw new Error(`[MED-03] SHORT exit: trade record missing entryStrategy (orderId=${shortTrade.orderId}) — state corruption between open and close`); })()),
@@ -2848,14 +2877,9 @@ class OrderExecutor {
           const positionState = stateManager.getState();
           const coverStateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
           const coverStatePartialClose = Boolean(executedExitPlan && coverStateExitFraction < 1);
-          const coverStateOrderQuantity = executedExitPlan?.orderQuantity ?? exitPlan?.orderQuantity;
-          const coverStateQuantityUnit = executedExitPlan?.quantityUnit ?? exitPlan?.quantityUnit;
+          const coverStateOrderQuantity = coverExitOrderQuantity;
+          const coverStateQuantityUnit = coverExitQuantityUnit;
           const shortSize = coverExitSizeUsd;
-          const shortEntryFeeQuantity = coverStateOrderQuantity
-            ?? shortTrade.entryOrderQuantity
-            ?? (shortTrade.entryPrice > 0 ? shortSize / shortTrade.entryPrice : null);
-          const shortExitFeeQuantity = coverStateOrderQuantity
-            ?? (price > 0 ? shortSize / price : null);
           let closeResult;
           if (coverStatePartialClose) {
             closeResult = await stateManager.reducePosition(shortTrade.orderId, coverStateExitFraction, price, {
