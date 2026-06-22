@@ -433,6 +433,10 @@
       "scaleOutFraction": 0.5,
       "feeBufferPercent": 0.05
     },
+    "breakEvenStop": {
+      "enabled": false,
+      "triggerPercent": 0.2
+    },
     "tieredExit": {
       "tier1ExitFraction": 0.3,
       "tier2ExitFraction": 0.3,

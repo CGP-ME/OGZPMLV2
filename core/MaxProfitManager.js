@@ -124,13 +124,14 @@ class MaxProfitManager {
       // TRAILING STOP MANAGEMENT
       // --------------------------------------------------------------------
       enableTrailingStop: true,       // Enable dynamic trailing stops
-      initialStopLossPercent: TradingConfig.get('exits.stopLossPercent', 1.5) / 100,  // CHANGE 629→2026-02-28: From TradingConfig (percent→decimal)
+      initialStopLossPercent: TradingConfig.get('exits.stopLossPercent', 1.5) / 100,  // CHANGE 629 -> 2026-02-28: From TradingConfig (percent -> decimal)
       // CHANGE 653: Realistic trailing stop thresholds for scalping
       minProfit: 0.003,                // 0.3% minimum profit before trailing starts
       trailDistance: 0.002,            // 0.2% trail distance (tight for scalping)
       tightTrailThreshold: 0.01,       // Tighten trail after 1% profit
       tightTrailDistance: 0.001,       // 0.1% tight trail (very tight)
-      breakevenThreshold: 0.002,       // Move to breakeven at 0.2% profit
+      enableBreakevenStop: TradingConfig.get('exitLogic.breakEvenStop.enabled', false),
+      breakevenThreshold: TradingConfig.get('exitLogic.breakEvenStop.triggerPercent', 0.2) / 100,
       
       // --------------------------------------------------------------------
       // TIME-BASED OPTIMIZATIONS
@@ -232,7 +233,7 @@ class MaxProfitManager {
       timeBasedExits: 0
     };
     
-    console.log('💰 MaxProfitManager initialized with advanced profit optimization');
+    console.log('[MaxProfitManager] initialized with advanced profit optimization');
     this.log('Configuration loaded with tiered exits and dynamic trailing', 'info');
 
     // ═══ PATCH 1: Read exitLogic config ═══
@@ -542,18 +543,7 @@ class MaxProfitManager {
         }
         this.state.realizedPnL += scaleOutSize * profitPercent;
 
-        // Move stop to break-even + fee buffer
-        const configuredFeeBuffer = this._finiteNumber(this.beScaleOutConfig.feeBufferPercent);
-        const feeBuffer = configuredFeeBuffer !== null
-          ? configuredFeeBuffer
-          : this.roundTripFeeBufferPercent();
-        if (this.state.direction === 'buy') {
-          this.state.currentStop = this.state.entryPrice * (1 + feeBuffer / 100);
-        } else {
-          this.state.currentStop = this.state.entryPrice * (1 - feeBuffer / 100);
-        }
-
-        this.log(`BE Scale-Out: Sold ${(scaleOutFraction * 100).toFixed(0)}% at ${(profitPercent * 100).toFixed(2)}% profit, stop→BE`, 'info');
+        this.log(`BE Scale-Out: Sold ${(scaleOutFraction * 100).toFixed(0)}% at ${(profitPercent * 100).toFixed(2)}% profit`, 'info');
 
         return {
           action: 'exit_partial',
@@ -565,7 +555,8 @@ class MaxProfitManager {
           remainingOrderQuantity: this.state.remainingOrderQuantity,
           reason: 'be_scaleout',
           profitPercent: profitPercent,
-          newStopPrice: this.state.currentStop
+          newStopPrice: this.state.currentStop,
+          stopMoved: false
         };
       }
     }
@@ -574,7 +565,7 @@ class MaxProfitManager {
     // STOP LOSS CHECK (HIGHEST PRIORITY)
     // ====================================================================
     if (this.shouldExitPosition(currentPrice, profitPercent)) {
-      const reason = this.state.trailingActive ? 'trailing_stop' : 'stop_loss';
+      const reason = this.state.trailingActive ? 'trailing_stop' : this.state.breakevenActive ? 'break_even' : 'stop_loss';
       this.log(`Position exit triggered: ${reason} at ${currentPrice}`, 'info');
       
       // Update analytics
@@ -978,7 +969,7 @@ class MaxProfitManager {
         this.log('Trailing stop activated', 'info');
       }
       const oldStopLabel = currentStop === null ? 'none' : currentStop.toFixed(2);
-      this.log(`Trail: ${oldStopLabel} → ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}%)`, 'debug');
+      this.log(`Trail: ${oldStopLabel} -> ${newStop.toFixed(2)} (${(trailDistance * 100).toFixed(2)}%)`, 'debug');
       return { updated: true, oldStop, newStop, trailDistance };
     }
 
@@ -1020,6 +1011,9 @@ class MaxProfitManager {
    * @param {number} profitPercent - Current profit percentage
    */
   updateBreakevenStop(profitPercent) {
+    if (!this.config.enableBreakevenStop) {
+      return;
+    }
     if (this.state.breakevenActive || profitPercent < this.config.breakevenThreshold) {
       return;
     }
@@ -1029,8 +1023,14 @@ class MaxProfitManager {
     
     if (this.state.direction === 'buy') {
       breakevenStop = this.state.entryPrice * (1 + feeBuffer);
+      if (!(breakevenStop < this.state.currentPrice)) {
+        return;
+      }
     } else {
       breakevenStop = this.state.entryPrice * (1 - feeBuffer);
+      if (!(breakevenStop > this.state.currentPrice)) {
+        return;
+      }
     }
     
     // Only update if breakeven stop is better than current stop
@@ -1148,6 +1148,7 @@ class MaxProfitManager {
    */
   shouldExitPosition(currentPrice, profitPercent) {
     if (!this.state.currentStop) return false;
+    if (!this.state.trailingActive && !this.state.breakevenActive) return false;
     
     if (this.state.direction === 'buy') {
       return currentPrice <= this.state.currentStop;
@@ -1420,20 +1421,20 @@ class MaxProfitManager {
     }
     
     // Format based on severity
-    let prefix = '💰';
+    let prefix = '[INFO]';
     
     switch (level) {
       case 'error':
-        prefix = '❌';
+        prefix = '[ERROR]';
         break;
       case 'warning':
-        prefix = '⚠️';
+        prefix = '[WARN]';
         break;
       case 'info':
-        prefix = '💰';
+        prefix = '[INFO]';
         break;
       case 'debug':
-        prefix = '🔍';
+        prefix = '[DEBUG]';
         break;
     }
     
@@ -1449,7 +1450,7 @@ class MaxProfitManager {
 
 /* 
 ============================================================================
-💰 MAX PROFIT MANAGER USAGE EXAMPLES FOR NEW DEVELOPERS:
+MAX PROFIT MANAGER USAGE EXAMPLES FOR NEW DEVELOPERS:
 ============================================================================
 
 // 1. INITIALIZE PROFIT MANAGER
@@ -1548,18 +1549,18 @@ const configBackup = profitManager.exportConfig();
 // const success = profitManager.importConfig(configBackup);
  
 ============================================================================
-💰 THIS IS YOUR PROFIT AMPLIFIER!
+THIS IS YOUR PROFIT AMPLIFIER.
 ============================================================================
 
 The MaxProfitManager transforms good trades into GREAT trades by:
 
-✅ TIERED EXITS - Take profits in stages to maximize gains
-✅ DYNAMIC TRAILING - Protect profits while allowing for bigger moves
-✅ VOLATILITY ADAPTATION - Adjust strategies based on market conditions
-✅ TIME OPTIMIZATION - Different strategies for different hold periods
-✅ BREAKEVEN PROTECTION - Lock in profits once position becomes profitable
-✅ MARKET AWARENESS - Adapt targets based on trending vs ranging markets
-✅ PERFORMANCE ANALYTICS - Track and optimize profit extraction efficiency
+- TIERED EXITS - Take profits in stages to maximize gains
+- DYNAMIC TRAILING - Protect profits while allowing for bigger moves
+- VOLATILITY ADAPTATION - Adjust strategies based on market conditions
+- TIME OPTIMIZATION - Different strategies for different hold periods
+- BREAKEVEN PROTECTION - Lock in profits once position becomes profitable
+- MARKET AWARENESS - Adapt targets based on trending vs ranging markets
+- PERFORMANCE ANALYTICS - Track and optimize profit extraction efficiency
 
 This system can be the difference between making rent and making life-changing
 money. Every extra percent of profit gets you closer to Houston!
@@ -1567,7 +1568,7 @@ money. Every extra percent of profit gets you closer to Houston!
 The difference between amateur and professional trading isn't just finding
 good trades - it's maximizing the profit from every winning trade.
 
-FOR VALHALLA! FOR HOUSTON! FOR MAXIMUM PROFITS! 💰🚀
+FOR MAXIMUM PROFITS.
 
 */
 

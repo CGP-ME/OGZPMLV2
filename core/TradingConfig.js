@@ -454,18 +454,18 @@ const BASE_CONFIG = {
     warmupTrades: env('PID_WARMUP_TRADES', 50),          // Min trades before active
     windowSize: env('PID_WINDOW_SIZE', 20),              // Rolling trade window
 
-    // Loop 1: Position Sizing — equity slope → size multiplier
+    // Loop 1: Position Sizing - equity slope -> size multiplier
     positionKp: env('PID_POSITION_KP', 0.30),            // Proportional gain
     positionKi: env('PID_POSITION_KI', 0.05),            // Integral gain
     positionKd: env('PID_POSITION_KD', 0.10),            // Derivative gain
     targetEquitySlope: env('PID_TARGET_SLOPE', 0.005),   // Target equity curve slope
 
-    // Loop 2: Regime Boost Adaptation — per-strategy P&L → boost adjustment
+    // Loop 2: Regime Boost Adaptation - per-strategy P&L -> boost adjustment
     regimeKp: env('PID_REGIME_KP', 0.02),
     regimeKi: env('PID_REGIME_KI', 0.005),
     regimeKd: env('PID_REGIME_KD', 0.01),
 
-    // Loop 3: Trailing Stop Adaptation — MFE capture → ATR multiplier
+    // Loop 3: Trailing Stop Adaptation - MFE capture -> ATR multiplier
     trailKp: env('PID_TRAIL_KP', 0.15),
     trailKi: env('PID_TRAIL_KI', 0.03),
     trailKd: env('PID_TRAIL_KD', 0.05),
@@ -742,6 +742,11 @@ const BASE_CONFIG = {
       fixedPercentTrigger: parseFloat(env('BE_SCALEOUT_TRIGGER_PCT', 0.5)),  // if triggerType=fixed_percent, fire at 0.5%
       scaleOutFraction: parseFloat(env('BE_SCALEOUT_FRACTION', 0.5)),  // sell 50% by default
       feeBufferPercent: parseFloat(env('BE_SCALEOUT_FEE_BUFFER', 0.05)),  // -0.05% below entry for fees
+    },
+
+    breakEvenStop: {
+      enabled: envBool('BREAKEVEN_STOP_ENABLED', false),
+      triggerPercent: parseFloat(env('BREAKEVEN_STOP_TRIGGER_PCT', 0.2)),
     },
 
     // ─── Tiered Exit Scale-Out (MPM multi-tier profit taking) ───
@@ -1087,7 +1092,7 @@ const BASE_CONFIG = {
     fibBoostGolden: env('FIB_BOOST_GOLDEN', 0.15),          // 15% confidence boost at golden zone
 
     // TPO strength scaling
-    tpoStrengthMultiplier: env('TPO_STRENGTH_MULT', 10),    // Scale 0.03-0.1 → 0.3-1.0
+    tpoStrengthMultiplier: env('TPO_STRENGTH_MULT', 10),    // Scale 0.03-0.1 -> 0.3-1.0
 
     // MTF timeframes (comma-separated in .env)
     mtfTimeframes: process.env.MTF_TIMEFRAMES?.split(',') || ['1m', '5m', '15m', '1h', '4h'],
@@ -2093,19 +2098,19 @@ class TradingConfig {
     if (rsi._validated) {
       const lockedValues = { sl: -0.8, tp: 1.0, conf: 0.60 };
       if (rsi.stopLossPercent !== lockedValues.sl) {
-        console.error('\n🚨🚨🚨 RSI STOP LOSS CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\nRSI STOP LOSS CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.sl}%, Got: ${rsi.stopLossPercent}%`);
         console.error('   This config was walk-forward validated on 2026-03-20');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
       }
       if (rsi.takeProfitPercent !== lockedValues.tp) {
-        console.error('\n🚨🚨🚨 RSI TAKE PROFIT CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\nRSI TAKE PROFIT CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.tp}%, Got: ${rsi.takeProfitPercent}%`);
         console.error('   This config was walk-forward validated on 2026-03-20');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
       }
       if (rsi.minConfidence !== lockedValues.conf) {
-        console.error('\n🚨🚨🚨 RSI MIN CONFIDENCE CHANGED FROM VALIDATED VALUE 🚨🚨🚨');
+        console.error('\nRSI MIN CONFIDENCE CHANGED FROM VALIDATED VALUE');
         console.error(`   Expected: ${lockedValues.conf}, Got: ${rsi.minConfidence}`);
         console.error('   This config was walk-forward validated on 2026-03-20');
         console.error('   RE-VALIDATE BEFORE DEPLOYING\n');
@@ -2113,7 +2118,7 @@ class TradingConfig {
     }
 
     if (errors.length > 0) {
-      console.warn('\n⚠️  TRADING CONFIG VALIDATION WARNINGS:');
+      console.warn('\nTRADING CONFIG VALIDATION WARNINGS:');
       errors.forEach(e => console.warn(`   - ${e}`));
       console.warn('');
     }

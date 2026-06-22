@@ -109,6 +109,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
       initialStopLossPercent: 0.008,
       enableTieredExit: false,
       enableTrailingStop: false,
+      enableBreakevenStop: true,
       breakevenThreshold: 0.05,
     });
 
@@ -121,6 +122,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     });
     expect(result.success).toBe(true);
 
+    manager.state.currentPrice = 102;
     manager.updateBreakevenStop(0.1);
 
     expect(manager.state.currentStop).toBeCloseTo(101.5);
@@ -262,6 +264,88 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(summary.remainingPnL).toBeCloseTo(750, 10);
     expect(summary.totalPnL).toBeCloseTo(1250, 10);
     expect(summary.totalPnL).not.toBeCloseTo(1500, 10);
+  });
+
+  test('break-even scale-out does not snap a long winner into a green stop-loss before tier development', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: true,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      enableTimeBasedAdjustments: false,
+      enableMarketAdaptation: false,
+      minHoldTimeMinutes: 0,
+      firstTierTarget: 0.015,
+      firstTierExit: 0.25,
+      secondTierTarget: 0.05,
+      secondTierExit: 0.25,
+      thirdTierTarget: 0.10,
+      thirdTierExit: 0.25,
+      finalTarget: 0.15,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.8,
+      entryOrderQuantity: 10,
+      entryOrderQuantityUnit: 'shares',
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+    });
+    expect(result.success).toBe(true);
+
+    const scaleOut = manager.update(100.5, { volatility: 0.01 });
+    expect(scaleOut.action).toBe('exit_partial');
+    expect(scaleOut.reason).toBe('be_scaleout');
+    expect(scaleOut.stopMoved).toBe(false);
+    expect(manager.state.currentStop).toBeCloseTo(99.5, 10);
+
+    const pullbackStillGreen = manager.update(100.04, { volatility: 0.01 });
+    expect(pullbackStillGreen.action).toBe('update');
+    expect(pullbackStillGreen.reason).toBeUndefined();
+
+    const tier = manager.update(101.5, { volatility: 0.01 });
+    expect(tier.action).toBe('exit_partial');
+    expect(tier.reason).toBe('profit_tier_1');
+  });
+
+  test('break-even scale-out does not snap a short winner into a green stop-loss before tier development', () => {
+    const manager = new MaxProfitManager({
+      enableTieredExit: true,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      enableTimeBasedAdjustments: false,
+      enableMarketAdaptation: false,
+      minHoldTimeMinutes: 0,
+      firstTierTarget: 0.015,
+      firstTierExit: 0.25,
+      secondTierTarget: 0.05,
+      secondTierExit: 0.25,
+      thirdTierTarget: 0.10,
+      thirdTierExit: 0.25,
+      finalTarget: 0.15,
+    });
+
+    const result = manager.start(100, 'sell', 1000, {
+      volatility: 0.01,
+      confidence: 0.8,
+      entryOrderQuantity: 10,
+      entryOrderQuantityUnit: 'shares',
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+    });
+    expect(result.success).toBe(true);
+
+    const scaleOut = manager.update(99.5, { volatility: 0.01 });
+    expect(scaleOut.action).toBe('exit_partial');
+    expect(scaleOut.reason).toBe('be_scaleout');
+    expect(scaleOut.stopMoved).toBe(false);
+    expect(manager.state.currentStop).toBeCloseTo(100.5, 10);
+
+    const pullbackStillGreen = manager.update(99.96, { volatility: 0.01 });
+    expect(pullbackStillGreen.action).toBe('update');
+    expect(pullbackStillGreen.reason).toBeUndefined();
+
+    const tier = manager.update(98.5, { volatility: 0.01 });
+    expect(tier.action).toBe('exit_partial');
+    expect(tier.reason).toBe('profit_tier_1');
   });
 
   test('getState reports active stop and trailing state from manager state', () => {
