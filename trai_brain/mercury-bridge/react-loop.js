@@ -107,6 +107,8 @@ async function runReactLoop(params) {
   }
 
   const tools = toolAdapter.buildToolSchema();
+  const dirtyDiffChangedFiles = extractDirtyDiffChangedFiles(starterContext);
+  const openedDirtyDiffFiles = new Set();
 
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -225,13 +227,24 @@ async function runReactLoop(params) {
           continue;
         }
 
-        if (verbose) console.error(`[REACT] Executing ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
-
         let toolResult;
-        try {
-          toolResult = await toolAdapter.execute(toolName, toolArgs);
-        } catch (err) {
-          toolResult = { error: err.message };
+        const dirtyDiffGateError = getDirtyDiffGateError({
+          toolName,
+          toolArgs,
+          changedFiles: dirtyDiffChangedFiles,
+          openedFiles: openedDirtyDiffFiles,
+        });
+        if (dirtyDiffGateError) {
+          if (verbose) console.error(`[REACT] Dirty diff gate blocked ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
+          toolResult = { error: dirtyDiffGateError };
+        } else {
+          if (verbose) console.error(`[REACT] Executing ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
+          try {
+            toolResult = await toolAdapter.execute(toolName, toolArgs);
+          } catch (err) {
+            toolResult = { error: err.message };
+          }
+          markDirtyDiffFileOpened({ toolName, toolArgs, toolResult, changedFiles: dirtyDiffChangedFiles, openedFiles: openedDirtyDiffFiles });
         }
 
         history.push({
@@ -269,8 +282,62 @@ async function runReactLoop(params) {
   };
 }
 
+function normalizeRepoPath(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\.\/+/, '');
+}
+
+function sectionLines(text, heading) {
+  const lines = String(text || '').split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start === -1) return [];
+  const result = [];
+  for (let index = start + 1; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.startsWith('## ')) break;
+    const trimmed = line.trim();
+    if (trimmed && trimmed !== '(none)') result.push(trimmed);
+  }
+  return result;
+}
+
+function extractDirtyDiffChangedFiles(starterContext = []) {
+  const changed = new Set();
+  for (const context of starterContext) {
+    if (!context || context.kind !== 'dirty_diff') continue;
+    for (const heading of ['## git diff --cached --name-only', '## git diff --name-only']) {
+      for (const filePath of sectionLines(context.text, heading)) {
+        changed.add(normalizeRepoPath(filePath));
+      }
+    }
+  }
+  return changed;
+}
+
+function getDirtyDiffGateError({ toolName, toolArgs, changedFiles, openedFiles }) {
+  if (!changedFiles || changedFiles.size === 0) return null;
+  const unopened = [...changedFiles].filter((filePath) => !openedFiles.has(filePath));
+  if (unopened.length === 0) return null;
+  if (toolName === 'open_file' && changedFiles.has(normalizeRepoPath(toolArgs && toolArgs.path))) {
+    return null;
+  }
+  return [
+    'Break-my-fix dirty-diff gate: open every tracked changed file before broad search.',
+    `Remaining changed files: ${unopened.join(', ')}`,
+    'After that, search sibling paths for the same bug class.',
+  ].join(' ');
+}
+
+function markDirtyDiffFileOpened({ toolName, toolArgs, toolResult, changedFiles, openedFiles }) {
+  if (toolName !== 'open_file' || !changedFiles || changedFiles.size === 0) return;
+  if (toolResult && toolResult.error) return;
+  const filePath = normalizeRepoPath(toolArgs && toolArgs.path);
+  if (changedFiles.has(filePath)) openedFiles.add(filePath);
+}
+
 module.exports = {
   runReactLoop,
   callMercuryWithRetry,
+  extractDirtyDiffChangedFiles,
+  getDirtyDiffGateError,
   AGENTIC_SYSTEM_PROMPT: config.AGENTIC_SYSTEM_PROMPT,
 };
