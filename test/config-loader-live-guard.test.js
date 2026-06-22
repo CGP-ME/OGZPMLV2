@@ -78,6 +78,57 @@ describe('ConfigLoader live trading safety guard', () => {
     return require('../foundation/ConfigLoader').load(opts);
   }
 
+  function configFileValue(configPath) {
+    const tradingConfigFile = require('../config/trading.config.json');
+    return configPath.split('.').reduce((current, part) => (
+      current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+    ), tradingConfigFile);
+  }
+
+  test('uses trading.config.json defaults when overlapping env vars are unset', () => {
+    delete process.env.MIN_STRATEGY_CONFIDENCE;
+    delete process.env.MAX_CONFIDENCE;
+    delete process.env.STOP_LOSS_PERCENT;
+    delete process.env.TAKE_PROFIT_PERCENT;
+    delete process.env.TRAILING_STOP_PERCENT;
+    delete process.env.TRAILING_ACTIVATION;
+    delete process.env.ATR_FILTER_ENABLED;
+    delete process.env.ATR_MIN_PERCENT;
+
+    const loaded = loadConfig();
+
+    expect(loaded.config.confidence.minStrategyConfidence).toBe(configFileValue('confidence.minStrategyConfidence'));
+    expect(loaded.config.confidence.maxConfidence).toBe(configFileValue('confidence.maxConfidence'));
+    expect(loaded.config.exits.stopLossPercent).toBe(configFileValue('exits.stopLossPercent'));
+    expect(loaded.config.exits.takeProfitPercent).toBe(configFileValue('exits.takeProfitPercent'));
+    expect(loaded.config.exits.trailingStopPercent).toBe(configFileValue('exits.trailingStopPercent'));
+    expect(loaded.config.exits.trailingActivation).toBe(configFileValue('exits.trailingActivation'));
+    expect(loaded.config.filters.atrEnabled).toBe(configFileValue('filters.atrEnabled'));
+    expect(loaded.config.filters.atrMinPercent).toBe(configFileValue('filters.atrMinPercent'));
+    expect(loaded.sources['confidence.minStrategyConfidence']).toBe('default');
+    expect(loaded.sources['exits.stopLossPercent']).toBe('default');
+    expect(loaded.sources['filters.atrEnabled']).toBe('default');
+  });
+
+  test('keeps risk defaults sourced from trading.config.json without weakening explicit-source guard', () => {
+    process.env.EXECUTION_MODE = 'backtest';
+    process.env.CANDLE_SOURCE = 'file';
+    process.env.BACKTEST_MODE = 'true';
+    delete process.env.MAX_DRAWDOWN;
+    delete process.env.MAX_DAILY_LOSS;
+
+    const loaded = loadConfig();
+
+    expect(loaded.config.risk.maxDrawdown).toBe(configFileValue('risk.maxDrawdown'));
+    expect(loaded.config.risk.maxDailyLoss).toBe(configFileValue('risk.maxDailyLoss'));
+    expect(loaded.sources['risk.maxDrawdown']).toBe('default');
+    expect(loaded.sources['risk.maxDailyLoss']).toBe('default');
+    expect(loaded.errors).toEqual(expect.arrayContaining([
+      'risk.maxDrawdown requires explicit env/profile source',
+      'risk.maxDailyLoss requires explicit env/profile source',
+    ]));
+  });
+
   test('throws during silent startup when live trading enables account drawdown bypass', () => {
     process.env.LIVE_TRADING = 'true';
     process.env.CONFIRM_LIVE_TRADING = 'true';

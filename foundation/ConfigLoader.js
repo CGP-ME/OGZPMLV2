@@ -45,6 +45,16 @@ function requiredConfiguredNumber(configPath) {
   return value;
 }
 
+function requiredConfiguredBool(configPath) {
+  const value = configPath.split('.').reduce((current, part) => (
+    current && Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined
+  ), tradingConfigFile);
+  if (typeof value !== 'boolean') {
+    throw new Error(`[ConfigLoader] config/trading.config.json ${configPath} must be a boolean`);
+  }
+  return value;
+}
+
 const LIVE_MIN_TRADE_CONFIDENCE_FLOOR = requiredConfiguredNumber('confidence.minTradeConfidence');
 
 // ═══════════════════════════════════════════════════════════════
@@ -264,8 +274,8 @@ function buildConfig() {
     // ─── CONFIDENCE GATES ───
     confidence: {
       minTradeConfidence: track('confidence.minTradeConfidence', envFloat('MIN_TRADE_CONFIDENCE', LIVE_MIN_TRADE_CONFIDENCE_FLOOR)),
-      minStrategyConfidence: track('confidence.minStrategyConfidence', envFloat('MIN_STRATEGY_CONFIDENCE', 0.35)),
-      maxConfidence: track('confidence.maxConfidence', envFloat('MAX_CONFIDENCE', 0.95)),
+      minStrategyConfidence: track('confidence.minStrategyConfidence', envFloat('MIN_STRATEGY_CONFIDENCE', requiredConfiguredNumber('confidence.minStrategyConfidence'))),
+      maxConfidence: track('confidence.maxConfidence', envFloat('MAX_CONFIDENCE', requiredConfiguredNumber('confidence.maxConfidence'))),
     },
 
     // ─── POSITION SIZING ───
@@ -277,10 +287,10 @@ function buildConfig() {
 
     // ─── EXIT PARAMETERS ───
     exits: {
-      stopLossPercent: track('exits.stopLossPercent', envFloat('STOP_LOSS_PERCENT', 1.5)),
-      takeProfitPercent: track('exits.takeProfitPercent', envFloat('TAKE_PROFIT_PERCENT', 2.0)),
-      trailingStopPercent: track('exits.trailingStopPercent', envFloat('TRAILING_STOP_PERCENT', 3.5)),
-      trailingActivation: track('exits.trailingActivation', envFloat('TRAILING_ACTIVATION', 2.5)),
+      stopLossPercent: track('exits.stopLossPercent', envFloat('STOP_LOSS_PERCENT', requiredConfiguredNumber('exits.stopLossPercent'))),
+      takeProfitPercent: track('exits.takeProfitPercent', envFloat('TAKE_PROFIT_PERCENT', requiredConfiguredNumber('exits.takeProfitPercent'))),
+      trailingStopPercent: track('exits.trailingStopPercent', envFloat('TRAILING_STOP_PERCENT', requiredConfiguredNumber('exits.trailingStopPercent'))),
+      trailingActivation: track('exits.trailingActivation', envFloat('TRAILING_ACTIVATION', requiredConfiguredNumber('exits.trailingActivation'))),
       maxHoldMinutes: track('exits.maxHoldMinutes', envInt('MAX_HOLD_MINUTES', 240)),
       exitSystem: track('exits.exitSystem', envStr('EXIT_SYSTEM', 'maxprofit')),
     },
@@ -307,16 +317,16 @@ function buildConfig() {
     risk: {
       riskManagerBypass: track('risk.riskManagerBypass', envBool('RISK_MANAGER_BYPASS', true)),
       accountDrawdownBypass: track('risk.accountDrawdownBypass', envBool('ACCOUNT_DRAWDOWN_BYPASS', false)),
-      maxDrawdown: track('risk.maxDrawdown', envFloat('MAX_DRAWDOWN', 10)),
-      maxDailyLoss: track('risk.maxDailyLoss', envFloat('MAX_DAILY_LOSS', 3)),
+      maxDrawdown: track('risk.maxDrawdown', envFloat('MAX_DRAWDOWN', requiredConfiguredNumber('risk.maxDrawdown'))),
+      maxDailyLoss: track('risk.maxDailyLoss', envFloat('MAX_DAILY_LOSS', requiredConfiguredNumber('risk.maxDailyLoss'))),
       maxWeeklyLoss: track('risk.maxWeeklyLoss', envFloat('MAX_WEEKLY_LOSS', 10)),
       maxMonthlyLoss: track('risk.maxMonthlyLoss', envFloat('MAX_MONTHLY_LOSS', 20)),
     },
 
     // ─── FILTERS ───
     filters: {
-      atrEnabled: track('filters.atrEnabled', envBool('ATR_FILTER_ENABLED', false)),
-      atrMinPercent: track('filters.atrMinPercent', envFloat('ATR_MIN_PERCENT', 0.15)),
+      atrEnabled: track('filters.atrEnabled', envBool('ATR_FILTER_ENABLED', requiredConfiguredBool('filters.atrEnabled'))),
+      atrMinPercent: track('filters.atrMinPercent', envFloat('ATR_MIN_PERCENT', requiredConfiguredNumber('filters.atrMinPercent'))),
     },
 
     // --- EVAL RULES ---
