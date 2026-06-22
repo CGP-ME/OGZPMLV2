@@ -60,30 +60,37 @@ function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
   const cachedDiff = gitReader(['diff', '--cached', '--no-ext-diff', '--']);
   const worktreeDiff = gitReader(['diff', '--no-ext-diff', '--']);
 
+  const text = [
+    'Neutral dirty-diff context for the current break-my-fix review.',
+    'This is not a conclusion or a scope limit. Use repo tools to inspect the real files before citing or deciding.',
+    '',
+    '## git diff --cached --name-only',
+    cachedNames.trim() || '(none)',
+    '',
+    '## git diff --name-only',
+    worktreeNames.trim() || '(none)',
+    '',
+    '## git diff --cached --no-ext-diff --',
+    cachedDiff.trim() || '(none)',
+    '',
+    '## git diff --no-ext-diff --',
+    worktreeDiff.trim() || '(none)',
+    '',
+    '## git status --short --untracked-files=no',
+    trackedStatus.trim() || '(clean)',
+    '',
+    'Untracked files are intentionally omitted from this neutral context. Stage intended new files before break-my-fix review.',
+  ].join('\n');
+
   return {
     source: BREAK_MY_FIX_DIFF_SOURCE,
+    file_path: BREAK_MY_FIX_DIFF_SOURCE,
+    start_line: 1,
+    end_line: text.split(/\r?\n/).length,
+    kind: 'dirty_diff',
+    name: 'tracked dirty diff',
     similarity: 1,
-    text: [
-      'Neutral dirty-diff context for the current break-my-fix review.',
-      'This is not a conclusion or a scope limit. Use repo tools to inspect the real files before citing or deciding.',
-      '',
-      '## git diff --cached --name-only',
-      cachedNames.trim() || '(none)',
-      '',
-      '## git diff --name-only',
-      worktreeNames.trim() || '(none)',
-      '',
-      '## git diff --cached --no-ext-diff --',
-      cachedDiff.trim() || '(none)',
-      '',
-      '## git diff --no-ext-diff --',
-      worktreeDiff.trim() || '(none)',
-      '',
-      '## git status --short --untracked-files=no',
-      trackedStatus.trim() || '(clean)',
-      '',
-      'Untracked files are intentionally omitted from this neutral context. Stage intended new files before break-my-fix review.',
-    ].join('\n'),
+    text,
   };
 }
 

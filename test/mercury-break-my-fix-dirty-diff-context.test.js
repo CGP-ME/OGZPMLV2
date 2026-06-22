@@ -27,6 +27,11 @@ describe('Mercury break-my-fix dirty diff context', () => {
     });
 
     expect(context.source).toBe('ogz-meta/mercury-review-input/dirty-diff.md');
+    expect(context.file_path).toBe('ogz-meta/mercury-review-input/dirty-diff.md');
+    expect(context.kind).toBe('dirty_diff');
+    expect(context.name).toBe('tracked dirty diff');
+    expect(context.start_line).toBe(1);
+    expect(context.end_line).toBeGreaterThan(1);
     expect(context.similarity).toBe(1);
     expect(context.text).toContain('This is not a conclusion or a scope limit.');
     expect(context.text).toContain('M core/MaxProfitManager.js');

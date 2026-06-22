@@ -116,9 +116,18 @@ async function runReactLoop(params) {
     const contextText = starterContext
       .map((c, i) => `[${i + 1}] ${c.source || 'unknown'} (sim=${(c.similarity || 0).toFixed(3)})\n${c.text || ''}`)
       .join('\n\n');
+    const hasDirtyDiffContext = starterContext.some((c) => c.kind === 'dirty_diff');
+    const contextIntro = hasDirtyDiffContext
+      ? [
+        'Neutral dirty diff context for the current break-my-fix review:',
+        '- Start by opening the changed repo files listed in this context with tools.',
+        '- Do not infer the fix target from unrelated TODO/FIX comments or old docs.',
+        '- This is not a scope limit. After checking changed files, search sibling paths for the same bug class.',
+      ].join('\n')
+      : 'Starter context from RAG retrieval (may or may not be relevant — trust tool results over this if they conflict):';
     messages.push({
       role: 'system',
-      content: `Starter context from RAG retrieval (may or may not be relevant — trust tool results over this if they conflict):\n\n${contextText}`,
+      content: `${contextIntro}\n\n${contextText}`,
     });
   }
 
