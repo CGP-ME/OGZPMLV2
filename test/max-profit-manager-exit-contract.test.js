@@ -7,6 +7,63 @@ describe('MaxProfitManager exit contract stop basis', () => {
   let logSpy;
   let warnSpy;
 
+  const MPM_OVERRIDE_PATHS = {
+    enableTieredExit: 'exitLogic.tieredExit.enabled',
+    firstTierTarget: 'exits.profitTiers.tier1',
+    firstTierExit: 'exitLogic.tieredExit.tier1ExitFraction',
+    secondTierTarget: 'exits.profitTiers.tier2',
+    secondTierExit: 'exitLogic.tieredExit.tier2ExitFraction',
+    thirdTierTarget: 'exits.profitTiers.tier3',
+    thirdTierExit: 'exitLogic.tieredExit.tier3ExitFraction',
+    finalTarget: 'exits.profitTiers.final',
+    enableTrailingStop: 'exitLogic.trail.enabled',
+    enableBreakevenStop: 'exitLogic.breakEvenStop.enabled',
+    enableTimeBasedAdjustments: 'holdTimes.enableTimeBasedAdjustments',
+    maxHoldTimeMinutes: 'holdTimes.defaultMaxHold',
+    minHoldTimeMinutes: 'holdTimes.minHoldTimeMinutes',
+    timeAdjustmentIntervals: 'holdTimes.tighteningSchedule',
+    enableVolatilityAdjustment: 'exitLogic.volatilityAdjustment.enabled',
+    enableMarketAdaptation: 'exitLogic.tieredExit.enableMarketAdaptation',
+  };
+
+  function toTradingConfigOverrides(config = {}) {
+    const overrides = {};
+    for (const [key, value] of Object.entries(config)) {
+      if (key === 'initialStopLossPercent') {
+        overrides['exits.stopLossPercent'] = value * 100;
+      } else if (key === 'breakevenThreshold') {
+        overrides['exitLogic.breakEvenStop.triggerPercent'] = value * 100;
+      } else if (key === 'minProfit') {
+        overrides['exitLogic.trail.minActivationPercent'] = value * 100;
+      } else if (key === 'trailDistance') {
+        overrides['exits.normalTrailDistance'] = value;
+      } else if (key === 'tightTrailThreshold') {
+        overrides['exitLogic.trail.profitRatchetThreshold'] = value * 100;
+      } else if (key === 'tightTrailDistance') {
+        overrides['exits.tightTrailDistance'] = value;
+      } else if (key === 'lowVolatilityThreshold') {
+        overrides['exitLogic.volatilityAdjustment.lowThresholdPercent'] = value * 100;
+      } else if (key === 'highVolatilityThreshold') {
+        overrides['exitLogic.volatilityAdjustment.highThresholdPercent'] = value * 100;
+      } else if (key === 'volatilityLookbackPeriods') {
+        overrides['exitLogic.volatilityAdjustment.lookbackPeriods'] = value;
+      } else if (MPM_OVERRIDE_PATHS[key]) {
+        overrides[MPM_OVERRIDE_PATHS[key]] = value;
+      } else {
+        throw new Error(`Test attempted unsupported MaxProfitManager constructor override: ${key}`);
+      }
+    }
+    return overrides;
+  }
+
+  function createManager(config = {}) {
+    const overrides = toTradingConfigOverrides(config);
+    if (Object.keys(overrides).length > 0) {
+      TradingConfig.setOverrides(overrides);
+    }
+    return new MaxProfitManager();
+  }
+
   beforeEach(() => {
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -21,7 +78,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   function startManager(direction, exitContract, config = {}) {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       initialStopLossPercent: 0.008,
       enableTieredExit: false,
       enableTrailingStop: false,
@@ -71,7 +128,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('malformed trade exit contracts fail loudly instead of falling back to global stop config', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       initialStopLossPercent: 0.008,
       enableTieredExit: false,
     });
@@ -105,7 +162,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
       'fees.takerFee': 0,
       'fees.totalRoundTrip': 0,
     });
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       initialStopLossPercent: 0.008,
       enableTieredExit: false,
       enableTrailingStop: false,
@@ -130,7 +187,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('unrealized PnL uses USD notional return without multiplying by entry price', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: false,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -172,7 +229,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('tier partial exit realized and narrator PnL use exit notional return', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: true,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -205,7 +262,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('close summary uses remaining USD notional return without multiplying by entry price', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: false,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -231,7 +288,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('scale-out then final close totals realized leg plus remaining notional PnL', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: false,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -267,7 +324,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('break-even scale-out does not snap a long winner into a green stop-loss before tier development', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: true,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -308,7 +365,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('break-even scale-out does not snap a short winner into a green stop-loss before tier development', () => {
-    const manager = new MaxProfitManager({
+    const manager = createManager({
       enableTieredExit: true,
       enableTrailingStop: false,
       enableBreakevenStop: false,
@@ -361,5 +418,49 @@ describe('MaxProfitManager exit contract stop basis', () => {
       lastProfitTrigger: null,
       isTrailing: true,
     });
+  });
+
+  test('rejects constructor tunables so MPM cannot silently override TradingConfig', () => {
+    expect(() => new MaxProfitManager({ enableTieredExit: false })).toThrow(/Constructor tunable overrides are disabled/);
+  });
+
+  test('fails loudly when required MPM config has the wrong type', () => {
+    TradingConfig.setOverrides({
+      'exitLogic.tieredExit.enabled': 'true',
+    });
+
+    expect(() => new MaxProfitManager()).toThrow(/exitLogic\.tieredExit\.enabled/);
+  });
+
+  test('loads MPM tunables from TradingConfig', () => {
+    TradingConfig.setOverrides(toTradingConfigOverrides({
+      enableTieredExit: false,
+      enableTrailingStop: false,
+      enableBreakevenStop: true,
+      breakevenThreshold: 0.075,
+      enableTimeBasedAdjustments: true,
+      maxHoldTimeMinutes: 222,
+      minHoldTimeMinutes: 3,
+      enableVolatilityAdjustment: true,
+      lowVolatilityThreshold: 0.007,
+      highVolatilityThreshold: 0.025,
+      volatilityLookbackPeriods: 33,
+      enableMarketAdaptation: false,
+    }));
+
+    const manager = new MaxProfitManager();
+
+    expect(manager.config.enableTieredExit).toBe(false);
+    expect(manager.config.enableTrailingStop).toBe(false);
+    expect(manager.config.enableBreakevenStop).toBe(true);
+    expect(manager.config.breakevenThreshold).toBeCloseTo(0.075, 10);
+    expect(manager.config.enableTimeBasedAdjustments).toBe(true);
+    expect(manager.config.maxHoldTimeMinutes).toBe(222);
+    expect(manager.config.minHoldTimeMinutes).toBe(3);
+    expect(manager.config.enableVolatilityAdjustment).toBe(true);
+    expect(manager.config.lowVolatilityThreshold).toBeCloseTo(0.007, 10);
+    expect(manager.config.highVolatilityThreshold).toBeCloseTo(0.025, 10);
+    expect(manager.config.volatilityLookbackPeriods).toBe(33);
+    expect(manager.config.enableMarketAdaptation).toBe(false);
   });
 });

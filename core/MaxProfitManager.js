@@ -9,10 +9,7 @@
  *
  * @example
  * const MaxProfitManager = require('./core/MaxProfitManager');
- * const profitManager = new MaxProfitManager({
- *   enableBreakevenStop: true,
- *   tieredExits: [0.5, 0.75, 1.0]  // Take profit at 0.5%, 0.75%, 1%
- * });
+ * const profitManager = new MaxProfitManager();
  *
  * // Start tracking a position
  * profitManager.startTracking(entryPrice, positionSize);
@@ -69,6 +66,54 @@ const { getNarrator } = require('./TradeNarrator');
 // entered when enabled (C1 zero-cost when OFF).
 const narrator = getNarrator();
 
+function requireMpmConfig(path) {
+  const value = TradingConfig.get(path);
+  if (value === undefined || value === null) {
+    throw new Error(`[MaxProfitManager] Missing required TradingConfig value: ${path}`);
+  }
+  return value;
+}
+
+function requireMpmNumber(path) {
+  const value = requireMpmConfig(path);
+  if (!Number.isFinite(value)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be a finite number: ${path}`);
+  }
+  return value;
+}
+
+function requireMpmBoolean(path) {
+  const value = requireMpmConfig(path);
+  if (typeof value !== 'boolean') {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be boolean: ${path}`);
+  }
+  return value;
+}
+
+function requireMpmString(path) {
+  const value = requireMpmConfig(path);
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be a non-empty string: ${path}`);
+  }
+  return value;
+}
+
+function requireMpmArray(path) {
+  const value = requireMpmConfig(path);
+  if (!Array.isArray(value)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be an array: ${path}`);
+  }
+  return value;
+}
+
+function requireMpmObject(path) {
+  const value = requireMpmConfig(path);
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be an object: ${path}`);
+  }
+  return value;
+}
+
 /**
  * MaxProfitManager Class - Advanced Profit Optimization Engine
  * 
@@ -96,9 +141,13 @@ class MaxProfitManager {
    * Sets up the comprehensive profit management framework with default settings
    * optimized for maximum profit extraction while maintaining risk control.
    * 
-   * @param {Object} config - Profit management configuration
+   * @param {Object} config - Disallowed legacy constructor overrides
    */
   constructor(config = {}) {
+    if (config && Object.keys(config).length > 0) {
+      throw new Error('[MaxProfitManager] Constructor tunable overrides are disabled; use TradingConfig profiles or TradingConfig.setOverrides so MPM cannot silently override config');
+    }
+
     // ======================================================================
     // CORE PROFIT OPTIMIZATION CONFIGURATION
     // ======================================================================
@@ -106,74 +155,66 @@ class MaxProfitManager {
       // --------------------------------------------------------------------
       // TIERED EXIT STRATEGY
       // --------------------------------------------------------------------
-      enableTieredExit: true,         // Enable multi-tier profit taking
+      enableTieredExit: requireMpmBoolean('exitLogic.tieredExit.enabled'),
       // FIX 2026-03-17: Read from TradingConfig for backtester env var support
       // FIX 2026-04-16: Tier exit fractions extracted to exitLogic.tieredExit
       // FIX TIER-5-MPM-TIER-COLLAPSE: prior code mixed two patterns in same block.
       // Target fields used `|| 0.007` (silent zero collapse). Exit fraction fields
       // used `.get(key, default)` (correct). Unified.
-      firstTierTarget: TradingConfig.get('exits.profitTiers.tier1', 0.007),
-      firstTierExit: TradingConfig.get('exitLogic.tieredExit.tier1ExitFraction', 0.30),
-      secondTierTarget: TradingConfig.get('exits.profitTiers.tier2', 0.010),
-      secondTierExit: TradingConfig.get('exitLogic.tieredExit.tier2ExitFraction', 0.30),
-      thirdTierTarget: TradingConfig.get('exits.profitTiers.tier3', 0.015),
-      thirdTierExit: TradingConfig.get('exitLogic.tieredExit.tier3ExitFraction', 0.20),
-      finalTarget: TradingConfig.get('exits.profitTiers.final', 0.025),
+      firstTierTarget: requireMpmNumber('exits.profitTiers.tier1'),
+      firstTierExit: requireMpmNumber('exitLogic.tieredExit.tier1ExitFraction'),
+      secondTierTarget: requireMpmNumber('exits.profitTiers.tier2'),
+      secondTierExit: requireMpmNumber('exitLogic.tieredExit.tier2ExitFraction'),
+      thirdTierTarget: requireMpmNumber('exits.profitTiers.tier3'),
+      thirdTierExit: requireMpmNumber('exitLogic.tieredExit.tier3ExitFraction'),
+      finalTarget: requireMpmNumber('exits.profitTiers.final'),
       
       // --------------------------------------------------------------------
       // TRAILING STOP MANAGEMENT
       // --------------------------------------------------------------------
-      enableTrailingStop: true,       // Enable dynamic trailing stops
-      initialStopLossPercent: TradingConfig.get('exits.stopLossPercent', 1.5) / 100,  // CHANGE 629 -> 2026-02-28: From TradingConfig (percent -> decimal)
+      enableTrailingStop: requireMpmBoolean('exitLogic.trail.enabled'),
+      initialStopLossPercent: requireMpmNumber('exits.stopLossPercent') / 100,  // CHANGE 629 -> 2026-02-28: From TradingConfig (percent -> decimal)
       // CHANGE 653: Realistic trailing stop thresholds for scalping
-      minProfit: 0.003,                // 0.3% minimum profit before trailing starts
-      trailDistance: 0.002,            // 0.2% trail distance (tight for scalping)
-      tightTrailThreshold: 0.01,       // Tighten trail after 1% profit
-      tightTrailDistance: 0.001,       // 0.1% tight trail (very tight)
-      enableBreakevenStop: TradingConfig.get('exitLogic.breakEvenStop.enabled', false),
-      breakevenThreshold: TradingConfig.get('exitLogic.breakEvenStop.triggerPercent', 0.2) / 100,
+      minProfit: requireMpmNumber('exitLogic.trail.minActivationPercent') / 100,
+      trailDistance: requireMpmNumber('exits.normalTrailDistance'),
+      tightTrailThreshold: requireMpmNumber('exitLogic.trail.profitRatchetThreshold') / 100,
+      tightTrailDistance: requireMpmNumber('exits.tightTrailDistance'),
+      enableBreakevenStop: requireMpmBoolean('exitLogic.breakEvenStop.enabled'),
+      breakevenThreshold: requireMpmNumber('exitLogic.breakEvenStop.triggerPercent') / 100,
       
       // --------------------------------------------------------------------
       // TIME-BASED OPTIMIZATIONS
       // --------------------------------------------------------------------
-      enableTimeBasedAdjustments: false,    // CHANGE 630: Disabled - for scalpers, not swing traders
-      maxHoldTimeMinutes: 180,              // 3 hours maximum hold time
+      enableTimeBasedAdjustments: requireMpmBoolean('holdTimes.enableTimeBasedAdjustments'),
+      maxHoldTimeMinutes: requireMpmNumber('holdTimes.defaultMaxHold'),
 
       // Minimum hold time - can be 0 for aggressive scalping
       // Read from TradingConfig to allow flexibility in backtest/scalping modes
-      minHoldTimeMinutes: TradingConfig.get('holdTimes.minHoldTimeMinutes', 0),
+      minHoldTimeMinutes: requireMpmNumber('holdTimes.minHoldTimeMinutes'),
 
-      timeAdjustmentIntervals: [
-        { minutes: 30, trailFactor: 1.0 },  // Normal trail for first 30 min
-        { minutes: 60, trailFactor: 0.8 },  // 20% tighter after 1 hour
-        { minutes: 120, trailFactor: 0.6 }, // 40% tighter after 2 hours
-        { minutes: 180, trailFactor: 0.4 }  // 60% tighter after 3 hours
-      ],
+      timeAdjustmentIntervals: requireMpmArray('holdTimes.tighteningSchedule'),
       
       // --------------------------------------------------------------------
       // VOLATILITY ADAPTATIONS
       // --------------------------------------------------------------------
-      enableVolatilityAdjustment: false,    // CHANGE 629: Disabled - was making stops too tight
-      lowVolatilityThreshold: 0.005,        // 0.5% low volatility threshold
-      highVolatilityThreshold: 0.02,        // 2% high volatility threshold
-      volatilityLookbackPeriods: 20,        // Periods for volatility calculation
+      enableVolatilityAdjustment: requireMpmBoolean('exitLogic.volatilityAdjustment.enabled'),
+      lowVolatilityThreshold: requireMpmNumber('exitLogic.volatilityAdjustment.lowThresholdPercent') / 100,
+      highVolatilityThreshold: requireMpmNumber('exitLogic.volatilityAdjustment.highThresholdPercent') / 100,
+      volatilityLookbackPeriods: requireMpmNumber('exitLogic.volatilityAdjustment.lookbackPeriods'),
       
       // --------------------------------------------------------------------
       // MARKET CONDITION ADAPTATIONS
       // --------------------------------------------------------------------
-      enableMarketAdaptation: true,         // Adapt to market conditions
+      enableMarketAdaptation: requireMpmBoolean('exitLogic.tieredExit.enableMarketAdaptation'),
       // FIX 2026-04-16: Market multipliers extracted to exitLogic.tieredExit
-      trendingMarketMultiplier: TradingConfig.get('exitLogic.tieredExit.trendingTargetMultiplier', 1.3),
-      rangeboundMarketMultiplier: TradingConfig.get('exitLogic.tieredExit.rangingTargetMultiplier', 0.8),
+      trendingMarketMultiplier: requireMpmNumber('exitLogic.tieredExit.trendingTargetMultiplier'),
+      rangeboundMarketMultiplier: requireMpmNumber('exitLogic.tieredExit.rangingTargetMultiplier'),
       
       // --------------------------------------------------------------------
       // PERFORMANCE TRACKING
       // --------------------------------------------------------------------
-      trackPerformance: true,               // Enable performance analytics
-      logLevel: 'info',                     // Logging level ('debug', 'info', 'warning', 'error')
-      
-      // Override with user configuration
-      ...config
+      trackPerformance: requireMpmBoolean('exitLogic.maxProfitManager.trackPerformance'),
+      logLevel: requireMpmString('exitLogic.maxProfitManager.logLevel'),
     };
     
     // ======================================================================
@@ -236,9 +277,8 @@ class MaxProfitManager {
     console.log('[MaxProfitManager] initialized with advanced profit optimization');
     this.log('Configuration loaded with tiered exits and dynamic trailing', 'info');
 
-    // ═══ PATCH 1: Read exitLogic config ═══
-    this.beScaleOutConfig = TradingConfig.get('exitLogic.beScaleOut') || {};
-    this.trailConfig = TradingConfig.get('exitLogic.trail') || {};
+    this.beScaleOutConfig = requireMpmObject('exitLogic.beScaleOut');
+    this.trailConfig = requireMpmObject('exitLogic.trail');
   }
   
   /**
@@ -1456,14 +1496,7 @@ MAX PROFIT MANAGER USAGE EXAMPLES FOR NEW DEVELOPERS:
 // 1. INITIALIZE PROFIT MANAGER
 const MaxProfitManager = require('./core/MaxProfitManager');
 
-const profitManager = new MaxProfitManager({
-  enableTieredExit: true,
-  firstTierTarget: 0.02,        // 2% profit
-  firstTierExit: 0.25,          // Exit 25% of position
-  enableTrailingStop: true,
-  trailDistance: 0.01,          // 1% trailing distance
-  enableVolatilityAdjustment: true
-});
+const profitManager = new MaxProfitManager();
 
 // 2. START MANAGING A POSITION
 const startResult = profitManager.start(

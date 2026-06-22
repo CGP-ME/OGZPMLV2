@@ -438,15 +438,21 @@
       "triggerPercent": 0.2
     },
     "tieredExit": {
+      "enabled": true,
       "tier1ExitFraction": 0.3,
       "tier2ExitFraction": 0.3,
       "tier3ExitFraction": 0.2,
+      "enableMarketAdaptation": true,
       "trendingTargetMultiplier": 1.3,
       "rangingTargetMultiplier": 0.8,
       "highConfidenceThreshold": 0.8,
       "highConfidenceMultiplier": 1.2,
       "lowConfidenceThreshold": 0.6,
       "lowConfidenceMultiplier": 0.8
+    },
+    "maxProfitManager": {
+      "trackPerformance": true,
+      "logLevel": "info"
     },
     "trail": {
       "enabled": true,
@@ -463,6 +469,12 @@
       "feeBufferPercent": 0.65,
       "roundNumberProximity": 0.5,
       "roundNumberTighten": 0.7
+    },
+    "volatilityAdjustment": {
+      "enabled": false,
+      "lowThresholdPercent": 0.5,
+      "highThresholdPercent": 2,
+      "lookbackPeriods": 20
     },
     "profitFloor": {
       "enabled": true,
@@ -720,6 +732,7 @@
   },
   "holdTimes": {
     "defaultMaxHold": 180,
+    "enableTimeBasedAdjustments": false,
     "minHoldTimeMinutes": 0,
     "tighteningSchedule": [
       {

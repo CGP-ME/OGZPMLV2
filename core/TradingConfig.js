@@ -753,6 +753,7 @@ const BASE_CONFIG = {
     // Lifted from MaxProfitManager constructor hardcodes 2026-04-16
     // All values env-backed for matrix sweep tuning
     tieredExit: {
+      enabled: envBool('TIERED_EXIT_ENABLED', true),
       // Fraction of original position to sell at each tier
       tier1ExitFraction: parseFloat(env('TIER1_EXIT_FRACTION', 0.30)),
       tier2ExitFraction: parseFloat(env('TIER2_EXIT_FRACTION', 0.30)),
@@ -760,6 +761,7 @@ const BASE_CONFIG = {
       // Tier 4 (final) fraction is computed: 1.0 - (tier1 + tier2 + tier3) = 0.20 default
 
       // Market regime target multipliers (applied when enableMarketAdaptation=true)
+      enableMarketAdaptation: envBool('TIER_MARKET_ADAPTATION_ENABLED', true),
       trendingTargetMultiplier: parseFloat(env('TIER_TREND_MULT', 1.3)),
       rangingTargetMultiplier: parseFloat(env('TIER_RANGE_MULT', 0.8)),
 
@@ -768,6 +770,11 @@ const BASE_CONFIG = {
       highConfidenceMultiplier: parseFloat(env('TIER_HIGH_CONF_MULT', 1.2)),
       lowConfidenceThreshold: parseFloat(env('TIER_LOW_CONF_THRESHOLD', 0.6)),
       lowConfidenceMultiplier: parseFloat(env('TIER_LOW_CONF_MULT', 0.8)),
+    },
+
+    maxProfitManager: {
+      trackPerformance: envBool('MPM_TRACK_PERFORMANCE', true),
+      logLevel: env('MPM_LOG_LEVEL', 'info'),
     },
 
     // ─── Dynamic Trailing Stop (lifted from DynamicTrailingStop.js into MPM) ───
@@ -786,6 +793,13 @@ const BASE_CONFIG = {
       feeBufferPercent: parseFloat(env('TRAIL_FEE_BUFFER', 0.65)),  // round-trip fee threshold
       roundNumberProximity: parseFloat(env('TRAIL_ROUND_PROXIMITY', 0.5)),
       roundNumberTighten: parseFloat(env('TRAIL_ROUND_TIGHTEN', 0.7)),
+    },
+
+    volatilityAdjustment: {
+      enabled: envBool('MPM_VOLATILITY_ADJUSTMENT_ENABLED', false),
+      lowThresholdPercent: parseFloat(env('MPM_LOW_VOLATILITY_THRESHOLD', 0.5)),
+      highThresholdPercent: parseFloat(env('MPM_HIGH_VOLATILITY_THRESHOLD', 2.0)),
+      lookbackPeriods: parseFloat(env('MPM_VOLATILITY_LOOKBACK_PERIODS', 20)),
     },
 
     // ─── Profit Floor Ladder (lifted from PatternBasedExitModel) ───
@@ -1113,7 +1127,8 @@ const BASE_CONFIG = {
   // =========================================================================
   holdTimes: {
     defaultMaxHold: 180,                                          // 3 hours default
-    minHoldTimeMinutes: env('MIN_HOLD_TIME_MINUTES', 0.0),       // 0 = no minimum (scalping)
+    enableTimeBasedAdjustments: envBool('MPM_TIME_BASED_ADJUSTMENTS_ENABLED', false),
+    minHoldTimeMinutes: parseFloat(env('MIN_HOLD_TIME_MINUTES', 0.0)), // 0 = no minimum (scalping)
 
     // Time-based trail tightening (for MaxProfitManager)
     tighteningSchedule: [
