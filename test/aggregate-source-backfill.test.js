@@ -240,4 +240,57 @@ describe('active timeframe aggregate source backfill', () => {
       timeframe: '15m',
     }));
   });
+
+  test('uses symbol-scoped aggregate state to trigger multi-symbol trading analysis', () => {
+    const OGZPrimeV14Bot = loadBot();
+    const periodStart = Date.UTC(2026, 5, 18, 15, 30, 0);
+    const completeSource = Array.from({ length: 15 }, (_, index) => candleAt(periodStart + index * 60_000, 100 + index));
+    const globalSameCloseTime = candleAt(periodStart, 999);
+    globalSameCloseTime.etime = periodStart + 15 * 60_000;
+    const broker = {
+      getCandles: jest.fn().mockResolvedValue([]),
+    };
+    const bot = Object.assign(Object.create(OGZPrimeV14Bot.prototype), {
+      candleAggregator: new CandleAggregator(),
+      _emittedAggregatedActiveCandles: new Set(),
+      _settledAggregatedActiveCandles: new Set(),
+      _aggregateSourceBackfills: new Set(),
+      timeframeHistories: {
+        '15m': [globalSameCloseTime],
+      },
+      symbolTimeframeHistories: new Map([
+        ['TSLA', new Map([['1m', completeSource]])],
+      ]),
+      config: {
+        dataFeed: {
+          livenessBackfillLimit: 20,
+          gapBackfillBufferCandles: 2,
+        },
+        assetClass: 'stocks',
+        brokerId: 'alpaca',
+      },
+      kraken: broker,
+      priceHistory: [],
+      storeTimeframeCandle: jest.fn(OGZPrimeV14Bot.prototype.storeTimeframeCandle),
+      storeSymbolTimeframeCandle: jest.fn(OGZPrimeV14Bot.prototype.storeSymbolTimeframeCandle),
+      _markActiveTimeframeData: jest.fn(),
+      getCandleScopeEnvelope: jest.fn(() => ({})),
+      handleMarketData: jest.fn(),
+      run15mTradingCycle: jest.fn(),
+    });
+
+    const result = bot._feedAggregatedActiveCandle({
+      symbol: 'TSLA',
+      sourceTimeframe: '1m',
+      activeTimeframe: '15m',
+      sourceLabel: 'single:alpaca',
+      traceId: 'trace_test',
+    });
+
+    expect(result.globalStoredCandle.isNewCandle).toBe(false);
+    expect(result.storedCandle.isNewCandle).toBe(true);
+    expect(bot.handleMarketData).toHaveBeenCalledTimes(1);
+    expect(bot.run15mTradingCycle).toHaveBeenCalledTimes(1);
+    expect(bot.run15mTradingCycle).toHaveBeenCalledWith('TSLA', 'trace_test');
+  });
 });

@@ -2096,7 +2096,7 @@ class OGZPrimeV14Bot {
 
           // Store in timeframe-specific history for dashboard
           const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData, ohlcSymbol);
-          this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
+          const symbolStoredCandle = this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
 
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
@@ -2133,15 +2133,16 @@ class OGZPrimeV14Bot {
           }
 
           // CHANGE 2026-02-21: Trigger trading analysis on ACTIVE timeframe candle close
-          if (timeframe === activeTf && storedCandle?.isNewCandle) {
+          const activeStoredCandle = symbolStoredCandle || storedCandle;
+          if (timeframe === activeTf && activeStoredCandle?.isNewCandle) {
             console.log(`V2: ${activeTf} candle closed - running trading analysis`);
             this.run15mTradingCycle(ohlcSymbol, traceId);
-          } else if (timeframe === activeTf && storedCandle && !storedCandle.isNewCandle) {
+          } else if (timeframe === activeTf && activeStoredCandle && !activeStoredCandle.isNewCandle) {
             const skipKey = `single:${ohlcSymbol}:${timeframe}`;
             this._visActiveTfUpdateSkipped ??= new Set();
             if (!this._visActiveTfUpdateSkipped.has(skipKey)) {
               this._visActiveTfUpdateSkipped.add(skipKey);
-              console.log(`[VIS][TradingCycle] waiting for new ${timeframe} candle boundary before analysis | symbol=${ohlcSymbol} etime=${storedCandle.candle?.etime || '(missing)'}`);
+              console.log(`[VIS][TradingCycle] waiting for new ${timeframe} candle boundary before analysis | symbol=${ohlcSymbol} etime=${activeStoredCandle.candle?.etime || '(missing)'}`);
             }
           }
         });
@@ -2378,7 +2379,7 @@ class OGZPrimeV14Bot {
       }
 
       const storedCandle = this.storeTimeframeCandle(activeTimeframe, activeOhlc, symbol);
-      this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
+      const symbolStoredCandle = this.storeSymbolTimeframeCandle(symbol, activeTimeframe, activeOhlc);
       this._markActiveTimeframeData(symbol, activeTimeframe);
       emitTrace(this, 'ACTIVE_CANDLE_AGGREGATED', {
         traceId,
@@ -2402,11 +2403,12 @@ class OGZPrimeV14Bot {
 
       console.log(`[VIS][OHLC][Aggregate] source=${sourceLabel} from=${sourceTimeframe} to=${activeTimeframe} symbol=${symbol} periodStart=${new Date(activeCandle.t).toISOString()} periodEnd=${new Date(activeCandle.t + activeMs).toISOString()} close=${activeCandle.c} sourceCandles=${sourceHistory.length} activeCandles=${this.priceHistory.length}`);
 
-      if (storedCandle?.isNewCandle) {
+      const activeStoredCandle = symbolStoredCandle || storedCandle;
+      if (activeStoredCandle?.isNewCandle) {
         console.log(`V2: ${activeTimeframe} aggregate closed - running trading analysis`);
         this.run15mTradingCycle(symbol, traceId);
       }
-      lastResult = { storedCandle, activeCandle };
+      lastResult = { storedCandle: activeStoredCandle, globalStoredCandle: storedCandle, activeCandle };
     }
 
     return lastResult;
