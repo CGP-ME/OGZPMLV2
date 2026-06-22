@@ -54,7 +54,7 @@ function readGit(args, repoRoot = config.REPO_ROOT) {
 }
 
 function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
-  const status = gitReader(['status', '--short']);
+  const trackedStatus = gitReader(['status', '--short', '--untracked-files=no']);
   const cachedNames = gitReader(['diff', '--cached', '--name-only']);
   const worktreeNames = gitReader(['diff', '--name-only']);
   const cachedDiff = gitReader(['diff', '--cached', '--no-ext-diff', '--']);
@@ -67,9 +67,6 @@ function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
       'Neutral dirty-diff context for the current break-my-fix review.',
       'This is not a conclusion or a scope limit. Use repo tools to inspect the real files before citing or deciding.',
       '',
-      '## git status --short',
-      status.trim() || '(clean)',
-      '',
       '## git diff --cached --name-only',
       cachedNames.trim() || '(none)',
       '',
@@ -81,6 +78,11 @@ function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
       '',
       '## git diff --no-ext-diff --',
       worktreeDiff.trim() || '(none)',
+      '',
+      '## git status --short --untracked-files=no',
+      trackedStatus.trim() || '(clean)',
+      '',
+      'Untracked files are intentionally omitted from this neutral context. Stage intended new files before break-my-fix review.',
     ].join('\n'),
   };
 }
