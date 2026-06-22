@@ -24,6 +24,7 @@
 'use strict';
 
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -40,6 +41,49 @@ const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, ev
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
+
+const BREAK_MY_FIX_DIFF_SOURCE = 'ogz-meta/mercury-review-input/dirty-diff.md';
+const DIFF_MAX_BUFFER = 10 * 1024 * 1024;
+
+function readGit(args, repoRoot = config.REPO_ROOT) {
+  return execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: DIFF_MAX_BUFFER,
+  });
+}
+
+function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
+  const status = gitReader(['status', '--short']);
+  const cachedNames = gitReader(['diff', '--cached', '--name-only']);
+  const worktreeNames = gitReader(['diff', '--name-only']);
+  const cachedDiff = gitReader(['diff', '--cached', '--no-ext-diff', '--']);
+  const worktreeDiff = gitReader(['diff', '--no-ext-diff', '--']);
+
+  return {
+    source: BREAK_MY_FIX_DIFF_SOURCE,
+    similarity: 1,
+    text: [
+      'Neutral dirty-diff context for the current break-my-fix review.',
+      'This is not a conclusion or a scope limit. Use repo tools to inspect the real files before citing or deciding.',
+      '',
+      '## git status --short',
+      status.trim() || '(clean)',
+      '',
+      '## git diff --cached --name-only',
+      cachedNames.trim() || '(none)',
+      '',
+      '## git diff --name-only',
+      worktreeNames.trim() || '(none)',
+      '',
+      '## git diff --cached --no-ext-diff --',
+      cachedDiff.trim() || '(none)',
+      '',
+      '## git diff --no-ext-diff --',
+      worktreeDiff.trim() || '(none)',
+    ].join('\n'),
+  };
+}
 
 function parseArgs(argv) {
   const args = {
@@ -204,6 +248,11 @@ async function runAgentic(query, opts) {
       });
     } else {
       if (verbose) console.log('[MERCURY-BRIDGE] Starter context: skipped (router policy=skip)');
+    }
+
+    if (isBreakMyFixQuery) {
+      starterContext.push(buildBreakMyFixDirtyDiffContext());
+      if (verbose) console.log('[MERCURY-BRIDGE] Break-my-fix dirty diff context injected');
     }
 
     if (verbose) {
@@ -474,4 +523,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic };
+module.exports = { runAgentic, buildBreakMyFixDirtyDiffContext };
