@@ -6,7 +6,7 @@
  * This file adds only the new Extra Credit visual effects.
  */
 
-/* Golden Setup Pulse — entire screen radiates gold on high-conviction setups */
+/* Golden Setup Pulse - entire screen radiates gold on high-conviction setups */
 @keyframes golden-setup-glow {
     0% { box-shadow: inset 0 0 40px rgba(255, 215, 0, 0.2); outline: 1px solid rgba(255, 215, 0, 0.3); }
     50% { box-shadow: inset 0 0 80px rgba(255, 215, 0, 0.5); outline: 3px solid rgba(255, 215, 0, 0.8); }
@@ -18,10 +18,10 @@ body.golden-alert-pulse {
 }
 
 /* .proximity-container + #goldenProximityFill rules moved to
-   public/css/golden-proximity.css (2026-04-25 L7 — relocated to
+   public/css/golden-proximity.css (2026-04-25 L7 - relocated to
    full-width top-of-document gauge). */
 
-/* Whale Absorption Glow — pulsing text when smart money detected */
+/* Whale Absorption Glow - pulsing text when smart money detected */
 @keyframes absorbed-pulse {
     0% { opacity: 1; }
     50% { opacity: 0.4; }
@@ -33,25 +33,25 @@ body.golden-alert-pulse {
     font-weight: 900;
 }
 
-/* Spoof Alert Flash — flashing red for wall-pulling detection */
+/* Spoof Alert Flash - flashing red for wall-pulling detection */
 @keyframes flash-red {
     from { opacity: 1; }
     to { opacity: 0.4; }
 }
 
-/* Hide trade manager on proof display page — available for trading interface later */
+/* Hide trade manager on proof display page - available for trading interface later */
 .trade-manager, #tradeManager, .trade-toggle { display: none !important; visibility: hidden !important; }
 
 /* Reclaim left panel space when trade manager is hidden */
 .main-container { padding-left: 20px !important; }
 
-/* Golden Mode Lock — execution button glow during high-conviction setups */
+/* Golden Mode Lock - execution button glow during high-conviction setups */
 .golden-mode {
     box-shadow: 0 0 20px var(--ml-color, #ffd700) !important;
     border-color: var(--ml-color, #ffd700) !important;
 }
 
-/* ═══ Theme Presets ═══ */
+/* === Theme Presets === */
 body.theme-cyberpunk {
     --ml-color: #ff00ff;
     --profit-color: #ff00ff;
@@ -144,3 +144,37 @@ body.theme-dark .header { background: linear-gradient(135deg, #151515 0%, #0a0a0
 body.theme-dark .edge-panel { border-color: rgba(136, 136, 136, 0.2); }
 body.theme-dark .chart-title { color: #888; }
 body.theme-dark .price-display { color: #aaa; border-color: #666; }
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Stronger header gradient */
+header#dashHeader,
+.dash-header {
+    background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+    min-height: 68px;
+}
+
+/* Bottom row gets red hairline top */
+.dash-bottom-row {
+    border-top: 1px solid rgba(220, 38, 38, 0.08);
+}
+
+/* All glass panels get the base transition for cyberpunk-polish hover */
+[id$="Panel"],
+[id$="Curve"],
+[id$="Report"],
+[id$="Brain"],
+[id$="Positions"],
+[id$="Leaderboard"],
+[id$="Readouts"],
+[id$="Heatbar"],
+[id$="Thought"],
+[id$="Gauge"],
+[id$="Card"],
+[id$="Preview"],
+[id$="Log"] {
+    transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+}

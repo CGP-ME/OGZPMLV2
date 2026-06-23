@@ -1,5 +1,5 @@
 /**
- * watchlist-strip.css — Multi-Ticker Watchlist Selection Panel Styling
+ * watchlist-strip.css - Multi-Ticker Watchlist Selection Panel Styling
  *
  * Styles the WatchlistStrip panel's horizontal card layout, broker badges,
  * position state pills, sparklines, animations, and interactive states.
@@ -268,7 +268,7 @@
 /* ─── Animations ──────────────────────────────────────────────────────────── */
 
 /**
- * Fault state pulse — RED alert indicator for position faults or errors.
+ * Fault state pulse - RED alert indicator for position faults or errors.
  */
 @keyframes ws-fault-pulse {
     0%, 100% {
@@ -282,7 +282,7 @@
 }
 
 /**
- * Price flash up — brief GREEN highlight when price ticks up.
+ * Price flash up - brief GREEN highlight when price ticks up.
  */
 @keyframes ws-price-flash-up {
     0% {
@@ -294,7 +294,7 @@
 }
 
 /**
- * Price flash down — brief RED highlight when price ticks down.
+ * Price flash down - brief RED highlight when price ticks down.
  */
 @keyframes ws-price-flash-down {
     0% {
@@ -385,4 +385,36 @@
         font-size: 8px;
         padding: 2px 4px;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Wider cards with more presence */
+.ws-card {
+    width: 132px;
+    padding: 10px 10px 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Stronger selected glow */
+.ws-card.selected {
+    box-shadow: 0 0 16px rgba(0, 204, 255, 0.5), 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Sparkline gets subtle glow */
+.ws-sparkline {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.15));
+}
+
+/* State pill centered */
+.ws-state {
+    text-align: center;
+    margin-top: auto;
+}
+
+/* Strip gets tighter bottom border */
+#watchlistStrip {
+    border-bottom-color: rgba(220, 38, 38, 0.08);
 }

@@ -1,5 +1,5 @@
 /**
- * live-readouts.css — LiveReadouts Styling
+ * live-readouts.css - LiveReadouts Styling
  *
  * 6-cell technical indicator readout grid: RSI, MACD, ATR, Volume, Live Conf, Pattern.
  * Extracted from unified-dashboard.html inline styles.
@@ -12,7 +12,7 @@
  * @module public/css/panels/live-readouts
  */
 
-/* Root container — 2×3 grid layout */
+/* Root container - 2×3 grid layout */
 #liveReadouts {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -46,7 +46,7 @@
     color: var(--text-secondary, #a1a1aa);
 }
 
-/* Cell value — large, bold monospace */
+/* Cell value - large, bold monospace */
 .lr-value {
     font-family: 'Orbitron', 'JetBrains Mono', monospace;
     font-size: 14px;
@@ -193,4 +193,31 @@
     .lr-conf-fill {
         background: #00d9ff;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Cell hover state */
+.lr-cell {
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.lr-cell:hover {
+    border-color: rgba(220, 38, 38, 0.15);
+    background: rgba(0, 0, 0, 0.35);
+}
+
+/* High confidence cell gets gold border */
+.lr-cell.is-high-confidence {
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.05);
+}
+
+/* Panel hover lift */
+#liveReadouts {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#liveReadouts:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(220, 38, 38, 0.08);
 }

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Design System Intake (2026-06-23)
+
+- Adopted the verified frontend design-system CSS refresh under the existing production dashboard asset paths instead of introducing `_new.css` runtime references.
+- Added the official OGZ logo assets and adapted the live HeaderStrip `.hs-logo` styling so the runtime-injected header styles cannot override the logo image.
+- Kept dashboard WebSocket token containment unchanged with the public shell still serving an empty `ws-token` meta value.
+
 ### Mercury Evidence Path Restoration (2026-06-23)
 
 - Removed the break-my-fix-specific routing, dirty-diff gate, and answer-marker contract so adversarial reviews use the normal Mercury RAG and repo-tool path instead of a special constrained cage.

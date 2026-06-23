@@ -1,5 +1,5 @@
 /**
- * header-strip.css — Dashboard Header Panel Styling
+ * header-strip.css - Dashboard Header Panel Styling
  *
  * Extracted from unified-dashboard.html's inline <style> block (lines 120-341).
  *
@@ -29,9 +29,9 @@
  *   --brand-red-bright, --brand-red, --brand-red-glow
  *
  * Animations:
- *   @keyframes hs-status-pulse — 1.2s soft pulse for active lights
- *   @keyframes hs-equity-flash-up — 300ms gold→green for upward price tick
- *   @keyframes hs-equity-flash-down — 300ms gold→red for downward price tick
+ *   @keyframes hs-status-pulse - 1.2s soft pulse for active lights
+ *   @keyframes hs-equity-flash-up - 300ms gold->green for upward price tick
+ *   @keyframes hs-equity-flash-down - 300ms gold->red for downward price tick
  *
  * Accessibility:
  *   @media (prefers-reduced-motion) disables all animations
@@ -39,7 +39,7 @@
  *   Title attributes on interactive elements
  */
 
-/* Root header container — shared with monolith, reused by module */
+/* Root header container - shared with monolith, reused by module */
 header#dashHeader {
     display: flex;
     align-items: center;
@@ -55,7 +55,7 @@ header#dashHeader {
 }
 
 /* ========================================================================
-   BRAND ZONE — Logo + Tagline (LEFT)
+   BRAND ZONE - Logo + Tagline (LEFT)
    ======================================================================== */
 
 .hs-brand {
@@ -66,51 +66,25 @@ header#dashHeader {
 }
 
 .hs-logo {
-    /* Brand red gradient — matches header-brand.css for consistency */
-    background: linear-gradient(
-        135deg,
-        var(--brand-red-bright) 0%,
-        var(--brand-red) 45%,
-        #b91c1c 75%,
-        var(--brand-red-bright) 100%
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
+    /* v3: Real OGZaddy cowboy-hat logo image replaces the CSS wordmark.
+       Place assets/logos/ogz-logo-white.png on your production server. */
+    display: block !important;
+    width: 180px !important;
+    height: 48px !important;
+    background: transparent url('/assets/logos/ogz-logo-white.png') left center / contain no-repeat !important;
+    background-image: url('/assets/logos/ogz-logo-white.png') !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
     -webkit-text-fill-color: transparent;
-    color: transparent;
-
-    font-family: 'Orbitron', monospace;
-    font-size: 32px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    line-height: 1;
-
-    /* Outer glow — reads through transparent text fill */
-    filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.45))
-            drop-shadow(0 0 4px rgba(0, 0, 0, 0.85));
-
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
+    font-size: 0 !important;        /* hide text content set by JS */
+    letter-spacing: 0 !important;
+    filter: drop-shadow(0 0 10px rgba(179, 21, 18, 0.50)) !important;
+    line-height: 1 !important;
 }
 
-/* Diamond accent — same as header-brand.css */
+/* Hide old diamond - logo image includes the emblem */
 .hs-logo::before {
-    content: '';
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    transform: rotate(45deg);
-    background: linear-gradient(
-        135deg,
-        var(--brand-red-bright) 0%,
-        var(--brand-red) 100%
-    );
-    box-shadow:
-        0 0 12px var(--brand-red-glow),
-        0 0 0 1px rgba(255, 255, 255, 0.10) inset;
-    filter: drop-shadow(0 0 6px var(--brand-red-glow));
+    display: none !important;
 }
 
 .hs-tagline {
@@ -125,7 +99,7 @@ header#dashHeader {
 }
 
 /* ========================================================================
-   HERO PRICE ZONE — Centered Equity Display (CENTER)
+   HERO PRICE ZONE - Centered Equity Display (CENTER)
    ======================================================================== */
 
 .hs-hero-price {
@@ -198,7 +172,7 @@ header#dashHeader {
 }
 
 /* ========================================================================
-   STATUS CLUSTER ZONE — Lights + Risk + Account (RIGHT)
+   STATUS CLUSTER ZONE - Lights + Risk + Account (RIGHT)
    ======================================================================== */
 
 .hs-status-cluster {

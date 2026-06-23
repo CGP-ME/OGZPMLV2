@@ -1,5 +1,5 @@
 /**
- * trai-brain.css — TRAIBrain Panel Styling
+ * trai-brain.css - TRAIBrain Panel Styling
  *
  * Glass-box treatment with gold underglow. Sentiment-colored accents for news.
  * Monospace fonts throughout. Pulsing ML-active indicator in header.
@@ -437,4 +437,22 @@
         animation: none;
         transition: none;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Panel hover lift */
+#traiBrain {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#traiBrain:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(0, 204, 255, 0.10);
+    border-color: rgba(0, 204, 255, 0.25);
+}
+
+/* Status connected gets cyan glow */
+.tb-header-status {
+    text-shadow: 0 0 6px rgba(0, 204, 255, 0.3);
 }

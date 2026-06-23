@@ -22,7 +22,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    /* Track is barely visible — the fill is the signal */
+    /* Track is barely visible - the fill is the signal */
     background: rgba(20, 20, 28, 0.88);
     border-bottom: 1px solid rgba(220, 38, 38, 0.10);
     z-index: 200;  /* above .header (z:10) and .main-container (z:5), below modals */
@@ -43,7 +43,7 @@
         0 0 10px var(--brand-red-glow),
         0 0 20px rgba(220, 38, 38, 0.30);
     transition: width 0.35s ease-out;
-    /* Promote to GPU compositor — width transitions on a 100vw element
+    /* Promote to GPU compositor - width transitions on a 100vw element
        are otherwise repaint-heavy on every animation frame. */
     will-change: width;
 }
@@ -53,4 +53,18 @@
     #goldenProximityFill {
         transition: none;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Golden proximity gets the gold-flash animation when active */
+.gp-active,
+.golden-proximity.active {
+    animation: ogz-gold-flash 1.6s ease-in-out infinite;
+}
+
+@keyframes ogz-gold-flash {
+    0%, 100% { text-shadow: 0 0 6px rgba(255, 215, 0, 0.45); filter: brightness(1); }
+    50%      { text-shadow: 0 0 16px rgba(255, 215, 0, 0.95), 0 0 28px rgba(255, 215, 0, 0.5); filter: brightness(1.25); }
 }

@@ -6,7 +6,7 @@
  * timeframes. Mirrors the mockup's left-rail header.
  *
  * Modular from day one (2026-04-25). No inline <style> growth in
- * unified-dashboard.html — link tag in <head>, DOM block prepended
+ * unified-dashboard.html - link tag in <head>, DOM block prepended
  * inside .edge-content, behavior in public/js/panels/asset-tf-card.js.
  *
  * Tokens: depends on :root vars (--brand-red*, --glass-*) defined
@@ -14,7 +14,7 @@
  */
 
 .asset-tf-card {
-    /* Glass surface matching .trading-panel .panel-section family —
+    /* Glass surface matching .trading-panel .panel-section family -
        same multi-layer recipe so the rails read as a coherent set. */
     position: relative;
     margin: 0 0 14px 0;
@@ -128,7 +128,7 @@
 }
 
 .asset-tf-card__pill:focus-visible {
-    /* Keyboard nav contrast — 2px brand-red ring against dark bg */
+    /* Keyboard nav contrast - 2px brand-red ring against dark bg */
     outline: 2px solid var(--brand-red-bright);
     outline-offset: 2px;
 }
@@ -146,7 +146,7 @@
         0 0 0 1px rgba(220, 38, 38, 0.15) inset;
 }
 
-/* Older browsers without backdrop-filter support — opaque fallback so
+/* Older browsers without backdrop-filter support - opaque fallback so
    the card stays legible instead of going transparent. */
 @supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
     .asset-tf-card {
@@ -161,4 +161,16 @@
         transform: none;
         transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Asset cards get hover lift */
+.asset-tf-card {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.asset-tf-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 10px rgba(220, 38, 38, 0.08);
 }

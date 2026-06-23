@@ -1,21 +1,21 @@
 /* ============================================================================
- * layouts.css — 4-mode dashboard layout system
+ * layouts.css - 4-mode dashboard layout system
  *
  * Drives the body-class layout system maintained by
  *   public/js/panels/layout-switcher.js
  *
  * The switcher applies ONE of these classes to <body>:
- *   .layout-operator   — full-vis default (no overrides — base CSS rules win)
- *   .layout-trader     — chart-dominant, rails collapsed, dev panels hidden
- *   .layout-showcase   — branded customer-demo skin (large fonts, hide dev)
- *   .layout-streamer   — OBS/Twitch-safe (16:9, watermark, webcam-safe zone,
+ *   .layout-operator   - full-vis default (no overrides - base CSS rules win)
+ *   .layout-trader     - chart-dominant, rails collapsed, dev panels hidden
+ *   .layout-showcase   - branded customer-demo skin (large fonts, hide dev)
+ *   .layout-streamer   - OBS/Twitch-safe (16:9, watermark, webcam-safe zone,
  *                        hide $ amounts via [data-money] selector)
  *
- * Operator mode is intentionally empty — the baseline dash-* CSS already
+ * Operator mode is intentionally empty - the baseline dash-* CSS already
  * defines that experience. The other three modes are additive layers.
  *
  * Selector convention:
- *   body.layout-<mode> <descendant>  — keeps every override scoped so the
+ *   body.layout-<mode> <descendant>  - keeps every override scoped so the
  *   user can toggle back to operator and lose nothing.
  *
  * Mounted via /css/layouts.css after the base dashboard.css so cascade order
@@ -35,7 +35,7 @@
 }
 
 /* ============================================================================
- * .layout-trader — Chart-dominant
+ * .layout-trader - Chart-dominant
  *
  * Goal: traders running real money want the chart big and the noise gone.
  * Hides: left rail (Edge Analytics), right rail (TRAI Brain, Risk Gauge, etc.),
@@ -70,7 +70,7 @@ body.layout-trader footer.dash-footer {
 }
 
 /* ============================================================================
- * .layout-showcase — Customer demo / VOD recording
+ * .layout-showcase - Customer demo / VOD recording
  *
  * Goal: clean, branded surface for screen-recording a 90-second product walk.
  * Hides: system-health (dev info), chain-of-thought (too noisy), rail-resize
@@ -80,7 +80,7 @@ body.layout-trader footer.dash-footer {
  *       even when shared without context.
  * ============================================================================ */
 /* Dev-y panels to hide for a clean customer-facing surface. These two are
- * the only genuinely "dev" elements in the v2 shell — SystemHealth (latency,
+ * the only genuinely "dev" elements in the v2 shell - SystemHealth (latency,
  * commit, last-crash) and ChainOfThought (raw bot reasoning stream). The v2
  * header has no commit-hash / broker-pill elements, so nothing else to hide. */
 body.layout-showcase #systemHealth,
@@ -104,7 +104,7 @@ body.layout-showcase #ogzGoalTrackerFloating {
     font-size: 14px;
 }
 
-/* Showcase corner watermark — Houston-gold "OGZ Prime" stamp */
+/* Showcase corner watermark - Houston-gold "OGZ Prime" stamp */
 body.layout-showcase::after {
     content: "OGZ PRIME";
     position: fixed;
@@ -120,13 +120,13 @@ body.layout-showcase::after {
 }
 
 /* ============================================================================
- * .layout-streamer — OBS / Twitch-safe
+ * .layout-streamer - OBS / Twitch-safe
  *
  * Goal: trader streams to Twitch / YouTube without doxxing $ amounts and with
  *       a webcam-safe corner reserved.
  *
  * Hides every element marked [data-money] (panels render % deltas in their
- *       place — see header-strip listener on OGZ.bus 'layout:change').
+ *       place - see header-strip listener on OGZ.bus 'layout:change').
  * Forces 16:9 viewport (letterboxes if window aspect differs).
  * Reserves bottom-right 25% as a no-content zone (webcam overlay sits there
  *       in OBS).
@@ -135,13 +135,13 @@ body.layout-showcase::after {
 
 /* Hide the dollar figures most visible to a stream audience.
  *
- * TODAY this targets the header hero equity + delta + unrealized P&L — the
+ * TODAY this targets the header hero equity + delta + unrealized P&L - the
  * single biggest doxxing risk, a large $ number sitting top-center. These are
  * real elements rendered by header-strip.js right now.
  *
  * Deeper per-panel $ values (open-positions rows, trade-log entries) are
  * scattered with no common hook. Hiding those cleanly needs the data-money
- * attribute pass (backlog) — once panels tag their $ spans with [data-money],
+ * attribute pass (backlog) - once panels tag their $ spans with [data-money],
  * the selector below starts catching them automatically. Until then it's an
  * inert forward hook, not a fictional rule. */
 body.layout-streamer .hs-hero-price-main,
@@ -154,7 +154,7 @@ body.layout-streamer [data-money] {
 
 /* Forward hook: once panels add data-money-pct, this swaps a % in place of
  * the hidden $ so the layout box doesn't collapse. Inert (empty content)
- * until that attribute exists — harmless no-op in the meantime. */
+ * until that attribute exists - harmless no-op in the meantime. */
 body.layout-streamer [data-money]::before {
     content: attr(data-money-pct);
     visibility: visible;
@@ -188,7 +188,7 @@ body.layout-streamer::before {
     box-sizing: border-box;
 }
 
-/* Streamer watermark bottom-left — bigger than showcase, no $ */
+/* Streamer watermark bottom-left - bigger than showcase, no $ */
 body.layout-streamer::after {
     content: "OGZ PRIME · LIVE";
     position: fixed;
@@ -207,17 +207,17 @@ body.layout-streamer::after {
 /* 16:9 letterbox REMOVED (#37). Forcing aspect-ratio:16/9 on the grid put
  * large black bars down both sides on wide monitors and stranded the left
  * rail as an orphaned column in the void. Streamer mode now uses the normal
- * full layout — OBS crops to whatever the streamer frames, and the cam-safe
+ * full layout - OBS crops to whatever the streamer frames, and the cam-safe
  * guide above already marks the webcam zone. What streamer mode actually
- * needs — $ redaction, the cam guide, the watermark — is unaffected. */
+ * needs - $ redaction, the cam guide, the watermark - is unaffected. */
 
-/* In streamer mode, collapse the right rail to compact width — too much
+/* In streamer mode, collapse the right rail to compact width - too much
  * personal data otherwise. Left rail keeps Edge Analytics (impersonal). */
 body.layout-streamer aside.dash-right-rail {
     width: var(--layout-rail-compact) !important;
 }
 
-/* Chain-of-Thought stays — it's the entertainment for the stream. */
+/* Chain-of-Thought stays - it's the entertainment for the stream. */
 
 /* Tweak chain-of-thought to be more readable on stream cap */
 body.layout-streamer #chainOfThought {
@@ -226,7 +226,7 @@ body.layout-streamer #chainOfThought {
 }
 
 /* ============================================================================
- * SWITCHER BUTTON — keep visible in every mode (it's how users get back)
+ * SWITCHER BUTTON - keep visible in every mode (it's how users get back)
  * ============================================================================ */
 body.layout-trader .ogz-layout-switcher,
 body.layout-showcase .ogz-layout-switcher,
@@ -240,13 +240,13 @@ body.layout-streamer .ogz-layout-switcher {
  * CELEBRATION CHAIN
  *
  * No "force visible" rules needed: toasts (.oca-toast), milestone banners and
- * GoalTracker are all body-fixed/floating elements — none are descendants of
+ * GoalTracker are all body-fixed/floating elements - none are descendants of
  * the rails or panels these layouts hide, so they survive every mode intact.
  * The only layout-specific celebration rule is the streamer $ redaction below.
  * ============================================================================ */
 
 /* In streamer mode, hide GoalTracker's $ blocks (Balance, Session P&L) but
- * keep the Houston Fund % + progress bar — those carry no dollar figure.
+ * keep the Houston Fund % + progress bar - those carry no dollar figure.
  * Real markup: .ogz-gt-block wraps each metric; values carry data-k="...". */
 body.layout-streamer #goalTracker .ogz-gt-block:has([data-k="balance"]),
 body.layout-streamer #goalTracker .ogz-gt-block:has([data-k="sessionPnl"]),
@@ -266,7 +266,7 @@ body.layout-streamer #ogzGoalTrackerFloating .ogz-gt-block:has([data-k="sessionP
 }
 
 /* ============================================================================
- * RESPONSIVE — narrow windows
+ * RESPONSIVE - narrow windows
  * On <900px, force operator-style single column regardless of layout mode.
  * (The base dashboard.css already collapses to single column; we just ensure
  * our overrides don't fight that.)
@@ -281,4 +281,50 @@ body.layout-streamer #ogzGoalTrackerFloating .ogz-gt-block:has([data-k="sessionP
     body.layout-streamer::before {
         display: none;   /* no cam zone on small screens */
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Ambient background glow (the faint gold/cyan radials) */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(0, 204, 255, 0.04) 0%, transparent 50%);
+}
+
+/* Showcase watermark */
+body.layout-showcase::after {
+    content: 'OGZ PRIME';
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: rgba(255, 215, 0, 0.45);
+    pointer-events: none;
+    z-index: 9300;
+}
+
+/* Streamer watermark + cam zone */
+body.layout-streamer::after {
+    content: 'OGZ PRIME · LIVE';
+    position: fixed;
+    bottom: 16px;
+    left: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    color: rgba(255, 215, 0, 0.55);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
+    pointer-events: none;
+    z-index: 9300;
 }

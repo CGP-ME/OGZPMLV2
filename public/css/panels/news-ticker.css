@@ -1,5 +1,5 @@
 /**
- * news-ticker.css — TRAI-flagged Events Horizontal Scroller Styling
+ * news-ticker.css - TRAI-flagged Events Horizontal Scroller Styling
  *
  * Styles the NewsTicker panel's marquee layout, sentiment dot colors, animations,
  * and interactive states. Loaded as external <link> from unified-dashboard.html
@@ -247,4 +247,27 @@
     .nt-source {
         font-size: 9px;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Ticker items get subtle hover highlight */
+.nt-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+}
+
+/* Diamond live marker glow */
+#newsTicker .nt-live-label,
+#newsTicker > span:first-child {
+    text-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+}
+
+/* Bullish sentiment items get green glow on hover */
+.nt-sent-bullish:hover {
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.1);
+}
+.nt-sent-defensive:hover {
+    box-shadow: 0 0 6px rgba(255, 51, 102, 0.1);
 }

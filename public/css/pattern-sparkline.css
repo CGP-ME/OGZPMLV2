@@ -11,7 +11,7 @@
  *
  * Modular from day one (2026-04-25). Behavior in
  * public/js/panels/pattern-sparkline.js. Existing pattern-name, pattern-
- * visual, and pattern-description elements are NOT modified — this is a
+ * visual, and pattern-description elements are NOT modified - this is a
  * pure additive overlay.
  */
 
@@ -24,7 +24,7 @@
 }
 
 .pattern-sparkline-conf {
-    /* Confidence chip — Orbitron number on a translucent surface,
+    /* Confidence chip - Orbitron number on a translucent surface,
        border tints to brand-red as confidence climbs (JS handles). */
     font-family: 'Orbitron', monospace;
     font-size: 13px;
@@ -41,7 +41,7 @@
                 box-shadow 0.25s ease;
 }
 
-/* Bucketed conviction tiers — JS toggles classes based on % bucket */
+/* Bucketed conviction tiers - JS toggles classes based on % bucket */
 .pattern-sparkline-conf.tier-low {
     color: #888;
     border-color: rgba(255, 255, 255, 0.10);
@@ -76,7 +76,7 @@
     border-radius: 6px;
 }
 
-/* Path stroke — JS sets the d attribute; styling lives here so the
+/* Path stroke - JS sets the d attribute; styling lives here so the
    visual treatment can change without touching the data layer. */
 .pattern-sparkline-svg .pl-line {
     fill: none;
@@ -88,7 +88,7 @@
     filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.45));
 }
 
-/* Optional fill area beneath the line — fades to transparent so the
+/* Optional fill area beneath the line - fades to transparent so the
    sparkline reads as a "rising tide" pattern, not a hard bar chart. */
 .pattern-sparkline-svg .pl-fill {
     fill: url(#patternSparkGradient);
@@ -110,4 +110,13 @@
     .pattern-sparkline-conf {
         transition: none;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Sparkline SVGs get subtle glow */
+.ps-sparkline svg,
+.sparkline-svg {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.12));
 }

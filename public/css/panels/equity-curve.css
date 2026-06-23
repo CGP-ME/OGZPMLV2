@@ -1,5 +1,5 @@
 /**
- * equity-curve.css — EquityCurve Panel Styling
+ * equity-curve.css - EquityCurve Panel Styling
  *
  * Theme: Glass-box treatment with gold/red accents.
  * Responsive: Gracefully degradates when container narrows.
@@ -266,4 +266,16 @@
         padding: 2px 6px;
         font-size: 7px;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Panel hover lift */
+#equityCurve {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#equityCurve:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 18px rgba(220, 38, 38, 0.14);
 }

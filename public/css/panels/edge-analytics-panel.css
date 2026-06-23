@@ -1,12 +1,12 @@
 /**
- * edge-analytics-panel.css — Edge Analytics Panel Styling (Phase 5 Refactor)
+ * edge-analytics-panel.css - Edge Analytics Panel Styling (Phase 5 Refactor)
  *
  * Extracted from unified-dashboard.html inline <style> block (lines 1595-1763).
  * Provides complete styling for the self-rendering EdgeAnalyticsPanel module.
  *
  * Class Naming:
- *   - `.eap-*` — new Edge Analytics Panel classes (glass-box design)
- *   - `.edge-section`, `.cvd-display`, `.fg-gauge`, etc. — legacy classes (for compat)
+ *   - `.eap-*` - new Edge Analytics Panel classes (glass-box design)
+ *   - `.edge-section`, `.cvd-display`, `.fg-gauge`, etc. - legacy classes (for compat)
  *
  * Both class hierarchies are styled identically so that:
  *   1. The new EdgeAnalyticsPanel module (using .eap-section) looks identical to legacy
@@ -406,4 +406,25 @@ body.theme-ocean .edge-section h4 {
     .fg-value {
         font-size: 28px;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Panel hover lift */
+#edgeAnalyticsPanel {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#edgeAnalyticsPanel:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(220, 38, 38, 0.12);
+}
+
+/* Section cards get subtle inner depth */
+.ea-section {
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.ea-section:hover {
+    border-color: rgba(220, 38, 38, 0.2);
+    background: rgba(0, 0, 0, 0.35);
 }

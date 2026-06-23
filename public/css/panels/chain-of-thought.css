@@ -1,8 +1,8 @@
 /**
- * chain-of-thought.css — ChainOfThought Panel Styling
+ * chain-of-thought.css - ChainOfThought Panel Styling
  *
  * Styles for the streaming reasoning ribbon that displays real-time bot
- * decision narration. Complementary to TRAIBrain (current thinking) —
+ * decision narration. Complementary to TRAIBrain (current thinking) -
  * ChainOfThought is the historical decision stream.
  *
  * All classes prefixed `cot-` for namespace isolation.
@@ -440,4 +440,33 @@
     #chainOfThought {
         min-height: 140px;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Execution lines get red brand glow */
+.cot-line.execution {
+    border-left-color: #dc2626;
+    text-shadow: 0 0 6px rgba(220, 38, 38, 0.25);
+}
+
+/* Decision lines get gold glow on the border */
+.cot-line.decision {
+    border-left-color: #ffd700;
+    box-shadow: inset 2px 0 8px rgba(255, 215, 0, 0.06);
+}
+
+/* Hover lift on the whole panel */
+#chainOfThought {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#chainOfThought:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(220, 38, 38, 0.12);
+}
+
+/* Header gets subtle red underglow */
+.cot-header {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }

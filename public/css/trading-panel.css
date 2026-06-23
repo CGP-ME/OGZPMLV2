@@ -13,11 +13,11 @@
  *
  * Tokens: depends on :root CSS variables (--brand-red*, --glass-*) defined
  * in unified-dashboard.html. Those stay inline because they are shared
- * across many panels — moving them is a separate cross-cutting refactor.
+ * across many panels - moving them is a separate cross-cutting refactor.
  */
 
 /* ============================================================
-   Container — fixed-position vertical stack on right side,
+   Container - fixed-position vertical stack on right side,
    mirrors Edge Analytics on the left.
    ============================================================ */
 .trading-panel {
@@ -48,7 +48,7 @@
 .trading-panel::-webkit-scrollbar-thumb:hover { background: var(--brand-red); }
 
 /* ============================================================
-   Right-rail glass cards — brand-red accent strip + multi-layer
+   Right-rail glass cards - brand-red accent strip + multi-layer
    shadow giving the "floating glass" look on solid-black bg
    where backdrop-filter alone would have nothing to filter.
    2026-04-25 boost: blur 14->20px, saturate 140%->160%, dropped
@@ -74,7 +74,7 @@
         0 0 24px rgba(220, 38, 38, 0.05);
     transition: border-color 0.25s ease, box-shadow 0.25s ease,
                 transform 0.25s ease;
-    /* Bound repaint to this element's box — backdrop-filter is GPU-expensive;
+    /* Bound repaint to this element's box - backdrop-filter is GPU-expensive;
        without containment the whole rail re-rasterizes on any sibling hover. */
     contain: paint;
     will-change: backdrop-filter;
@@ -120,7 +120,7 @@
 }
 
 /* ============================================================
-   Panel titles — red pulse dot + Orbitron caps.
+   Panel titles - red pulse dot + Orbitron caps.
    ============================================================ */
 .trading-panel .panel-title {
     color: #ffffff;
@@ -178,7 +178,7 @@
 }
 
 /* ============================================================
-   Stats grid — clean 2x2 glass tiles inside trading-panel.
+   Stats grid - clean 2x2 glass tiles inside trading-panel.
    ============================================================ */
 .trading-panel .stats-grid {
     display: grid;
@@ -226,7 +226,7 @@
 }
 
 /* ============================================================
-   Indicator bar — scoped overrides for the right-rail variant.
+   Indicator bar - scoped overrides for the right-rail variant.
    Base layout for .indicator-bar lives outside the trading-panel
    scope and stays in unified-dashboard.html until its own
    extraction pass.
@@ -273,7 +273,7 @@
 }
 
 /* ============================================================
-   Trade badge pills — scoped under .trading-panel so they don't
+   Trade badge pills - scoped under .trading-panel so they don't
    silently clobber the global .trade-badge rule used elsewhere.
    ============================================================ */
 .trading-panel .trade-badge {
@@ -297,8 +297,18 @@
 
 .trading-panel .trade-badge.sell {
     /* Near-opaque dark red guarantees ~10:1 text contrast regardless of parent
-       background — earlier 14% alpha collapsed contrast on light parents. */
+       background - earlier 14% alpha collapsed contrast on light parents. */
     background: rgba(127, 15, 15, 0.95);
     color: #fecaca;
     border: 1px solid rgba(220, 38, 38, 0.55);
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Trading panel buttons get brand-red hover */
+.tp-btn:hover,
+.trading-btn:hover {
+    border-color: rgba(220, 38, 38, 0.3);
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.15);
 }

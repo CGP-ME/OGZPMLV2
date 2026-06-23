@@ -1,5 +1,5 @@
 /**
- * cyberpunk-polish.css — OGZPrime Dashboard Visual Enhancement Layer
+ * cyberpunk-polish.css - OGZPrime Dashboard Visual Enhancement Layer
  *
  * This file applies ADDITIVE visual polish to the OGZPrime v2 dashboard:
  * Gold underglow on all panel containers, ambient scan-line effects, confidence
@@ -299,6 +299,64 @@ body::after {
     transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────
+   GOLD ATTENTION-FLASH SYSTEM (v3 Enhancement)
+   Gold = black+red base, gold is the psychological grab.
+   Apply .ogz-gold-flash to any live value that needs to scream "look here".
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes ogz-gold-flash {
+    0%, 100% {
+        text-shadow: 0 0 6px rgba(255, 215, 0, 0.45);
+        filter: brightness(1);
+    }
+    50% {
+        text-shadow: 0 0 16px rgba(255, 215, 0, 0.95), 0 0 28px rgba(255, 215, 0, 0.5);
+        filter: brightness(1.25);
+    }
+}
+
+@keyframes ogz-gold-ring {
+    0%   { box-shadow: 0 0 0 0   rgba(255, 215, 0, 0.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(255, 215, 0, 0); }
+}
+
+/* High-conviction value flash - add class via JS when confidence >= 0.85 */
+.ogz-gold-flash,
+.is-high-confidence .cp-conf-value,
+.is-high-confidence .confidence-value {
+    animation: ogz-gold-flash 1.6s ease-in-out infinite;
+    color: #ffd700 !important;
+}
+
+/* Gold ring on golden-setup panel border */
+.is-golden-setup {
+    animation: ogz-gold-ring 1.8s ease-out infinite;
+    border-color: rgba(255, 215, 0, 0.6) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ENHANCED PANEL HOVER (v3)
+   Amplified from base hover: stronger red underglow + 2px lift
+   ───────────────────────────────────────────────────────────────────────── */
+
+#chainOfThought:hover,
+#openPositions:hover,
+#traiBrain:hover,
+#strategyLeaderboard:hover,
+#equityCurve:hover,
+#liveReport:hover,
+#edgeAnalyticsPanel:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 8px 28px rgba(0, 0, 0, 0.60),
+        0 0 0 1px rgba(220, 38, 38, 0.22),
+        0 0 18px rgba(220, 38, 38, 0.16) !important;
+    border-color: rgba(220, 38, 38, 0.30) !important;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    ACCESSIBILITY: REDUCED MOTION
    ───────────────────────────────────────────────────────────────────────── */
@@ -308,7 +366,9 @@ body::after {
     .is-high-confidence,
     .is-trading-entry,
     .status-light.is-active,
-    .status-light.is-error {
+    .status-light.is-error,
+    .ogz-gold-flash,
+    .is-golden-setup {
         animation: none !important;
     }
 

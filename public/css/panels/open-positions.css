@@ -1,5 +1,5 @@
 /**
- * open-positions.css — OpenPositions Panel Stylesheet
+ * open-positions.css - OpenPositions Panel Stylesheet
  *
  * Styling for the multi-ticker positions table in the right rail.
  * Glass-box treatment matching PatternCard/TRAIBrain. All classes prefixed `op-`.
@@ -323,4 +323,33 @@
         animation: none !important;
         transition: none !important;
     }
+}
+
+
+/* === v3 ENHANCEMENTS ======================================================= */
+
+/* Panel hover lift */
+#openPositions {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+#openPositions:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(220, 38, 38, 0.12);
+}
+
+/* Aggregate P&L gets glow when positive */
+.op-aggregate-pnl:not(.negative) {
+    text-shadow: 0 0 8px rgba(34, 197, 94, 0.35);
+}
+
+/* Row hover gets subtle brand tint */
+.op-row:hover {
+    background: rgba(220, 38, 38, 0.04);
+    border-left: 2px solid rgba(220, 38, 38, 0.2);
+}
+
+/* Header gets deeper background */
+.op-header {
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom-color: rgba(220, 38, 38, 0.08);
 }
