@@ -12,8 +12,11 @@ const path = require('path');
 
 // ─── Repo root ────────────────────────────────────────────────
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const MERCURY_CONFIG_FILE = process.env.NODE_ENV === 'test' && process.env.MERCURY_CONFIG_FILE
-  ? path.resolve(process.env.MERCURY_CONFIG_FILE)
+const explicitConfigFile = typeof process.env.MERCURY_CONFIG_FILE === 'string'
+  ? process.env.MERCURY_CONFIG_FILE.trim()
+  : '';
+const MERCURY_CONFIG_FILE = explicitConfigFile
+  ? path.resolve(explicitConfigFile)
   : path.join(REPO_ROOT, 'mercury.config.json');
 const MERCURY_IGNORE_FILE = path.join(REPO_ROOT, 'mercury.ignore');
 

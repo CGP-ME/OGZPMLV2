@@ -7,6 +7,8 @@ const {
   hasUnsupportedRunCheckClaim,
   previewUncitedAnswer,
   normalizeToolHandleCitations,
+  compactAssistantMessageForHistory,
+  stringifyToolResultForHistory,
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,
@@ -71,6 +73,66 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(preview).toMatch(/^Looks clean\. /);
     expect(preview.length).toBeLessThanOrEqual(503);
     expect(preview).toMatch(/\.\.\.$/);
+  });
+
+  test('tool-call and tool-result history is compacted before the next Mercury request', async () => {
+    const giantArgument = JSON.stringify({
+      command: ['node', '-e', 'x'.repeat(5000)],
+      profile: 'oversized-proof',
+    });
+    const client = createClient([
+      {
+        role: 'assistant',
+        tool_calls: [{
+          id: 'call-big',
+          type: 'function',
+          function: {
+            name: 'run_check',
+            arguments: giantArgument,
+          },
+        }],
+      },
+      {
+        role: 'assistant',
+        content: 'The context budget is guarded at trai_brain/mercury-bridge/react-loop.js:43-89.',
+      },
+    ]);
+    const toolAdapter = createToolAdapter();
+    toolAdapter.execute.mockResolvedValue({
+      source: 'run_check',
+      stdout: 'y'.repeat(15000),
+    });
+
+    const result = await runReactLoop({
+      client,
+      toolAdapter,
+      userQuery: 'Mercury, break my fix.',
+    });
+
+    expect(result.termination).toBe('answer_given');
+    const secondRequest = client.messageSnapshots[1];
+    const assistantHistory = secondRequest.find((message) => message.role === 'assistant' && message.tool_calls);
+    const toolHistory = secondRequest.find((message) => message.role === 'tool');
+
+    expect(assistantHistory.tool_calls[0].function.arguments.length).toBeLessThan(giantArgument.length);
+    expect(assistantHistory.tool_calls[0].function.arguments).toContain('_mercury_context_compacted');
+    expect(assistantHistory.tool_calls[0].function.arguments).not.toContain('x'.repeat(3000));
+    expect(toolHistory.content).toContain('_mercury_context_compacted');
+    expect(toolHistory.content).not.toContain('y'.repeat(13000));
+  });
+
+  test('history compaction helpers are no-ops for small payloads', () => {
+    const toolCall = {
+      id: 'call-small',
+      function: {
+        name: 'grep',
+        arguments: JSON.stringify({ query: 'marker' }),
+      },
+    };
+
+    expect(compactAssistantMessageForHistory({ role: 'assistant', tool_calls: [toolCall] }).tool_calls[0])
+      .toEqual(toolCall);
+    expect(stringifyToolResultForHistory({ ok: true })).toBe('{"ok":true}');
   });
 
   test('tool availability contradiction detector rejects claims disproven by successful tool use', () => {

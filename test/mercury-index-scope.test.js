@@ -415,6 +415,7 @@ describe('Mercury index scope hygiene', () => {
     expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
     expect(result.tracked_mutation_detected).toBe(false);
     expect(result.artifact).toMatch(/^ogz-meta\/cognition-history\/mercury-execution\/.*syntax-proof\.log$/);
+    expect(result.artifact_citation).toMatch(/^ogz-meta\/cognition-history\/mercury-execution\/.*syntax-proof\.log:1-\d+$/);
     expect(fs.existsSync(path.join(tmpRoot, result.artifact))).toBe(true);
     expect(schemaNames).toContain('run_check');
   });

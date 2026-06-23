@@ -781,7 +781,11 @@ function createToolAdapter(opts = {}) {
       '',
     ].join('\n');
     fs.writeFileSync(absPath, content, 'utf8');
-    return relPath;
+    const lineCount = content.split(/\n/).length;
+    return {
+      relPath,
+      citation: `${relPath}:1-${lineCount}`,
+    };
   }
 
   function redactSensitiveOutput(value) {
@@ -1005,7 +1009,8 @@ function createToolAdapter(opts = {}) {
           exit_code: null,
           signal: null,
           timed_out: timedOut,
-          artifact,
+          artifact: artifact.relPath,
+          artifact_citation: artifact.citation,
           stdout: tailForMercury(stdout),
           stderr: tailForMercury(`${stderr}\n${err.message}`),
         });
@@ -1028,7 +1033,8 @@ function createToolAdapter(opts = {}) {
           exit_code: code,
           signal,
           timed_out: timedOut,
-          artifact,
+          artifact: artifact.relPath,
+          artifact_citation: artifact.citation,
           stdout: tailForMercury(stdout),
           stderr: tailForMercury(stderr),
         });

@@ -25,6 +25,8 @@ const config = require('./config');
 
 const FILE_LINE_CITATION_PATTERN = /\b[\w./-]+\.(?:js|mjs|cjs|json|md|css|html|yml|yaml|txt):\d+(?:[-‑–—]\d+)?\b/;
 const RUN_CHECK_ARTIFACT_CITATION_PATTERN = /\bogz-meta\/cognition-history\/mercury-execution\/[\w./-]+\.log:\d+(?:[-‑–—]\d+)?\b/;
+const MAX_TOOL_ARGUMENT_HISTORY_CHARS = 2000;
+const MAX_TOOL_RESULT_HISTORY_CHARS = 12000;
 
 function hasFileLineCitation(content) {
   return FILE_LINE_CITATION_PATTERN.test(content || '');
@@ -44,6 +46,55 @@ function previewUncitedAnswer(content) {
   const compact = String(content || '').replace(/\s+/g, ' ').trim();
   if (!compact) return '(empty content)';
   return compact.length > 500 ? `${compact.slice(0, 500)}...` : compact;
+}
+
+function truncateForHistory(value, maxChars) {
+  const text = String(value == null ? '' : value);
+  if (text.length <= maxChars) return { text, truncated: false };
+  return {
+    text: `${text.slice(0, maxChars)}\n...[truncated ${text.length - maxChars} chars for Mercury context budget]`,
+    truncated: true,
+    originalChars: text.length,
+  };
+}
+
+function compactToolCallForHistory(toolCall) {
+  if (!toolCall || !toolCall.function) return toolCall;
+  const rawArgs = toolCall.function.arguments;
+  if (typeof rawArgs !== 'string') return toolCall;
+  const compacted = truncateForHistory(rawArgs, MAX_TOOL_ARGUMENT_HISTORY_CHARS);
+  if (!compacted.truncated) return toolCall;
+  return {
+    ...toolCall,
+    function: {
+      ...toolCall.function,
+      arguments: JSON.stringify({
+        _mercury_context_compacted: true,
+        original_chars: compacted.originalChars,
+        argument_preview: compacted.text,
+      }),
+    },
+  };
+}
+
+function compactAssistantMessageForHistory(assistantMsg) {
+  if (!assistantMsg || !Array.isArray(assistantMsg.tool_calls)) return assistantMsg;
+  return {
+    ...assistantMsg,
+    tool_calls: assistantMsg.tool_calls.map(compactToolCallForHistory),
+  };
+}
+
+function stringifyToolResultForHistory(toolResult) {
+  const raw = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);
+  const compacted = truncateForHistory(raw, MAX_TOOL_RESULT_HISTORY_CHARS);
+  if (!compacted.truncated) return raw;
+  return JSON.stringify({
+    _mercury_context_compacted: true,
+    original_chars: compacted.originalChars,
+    result_preview: compacted.text,
+    note: 'Tool result was compacted before reinsertion into Mercury context. Re-run a narrower tool call if omitted lines are needed.',
+  });
 }
 
 function normalizeToolHandleCitations(content) {
@@ -277,10 +328,12 @@ async function runReactLoop(params) {
       };
     }
 
-    // Append assistant message to conversation for next turn
-    messages.push(assistantMsg);
-
     const hasToolCalls = Array.isArray(assistantMsg.tool_calls) && assistantMsg.tool_calls.length > 0;
+    // Append assistant message to conversation for next turn. Tool arguments can
+    // be huge or malformed; keep the executable original in this iteration, but
+    // compact the conversation copy so one bad probe cannot consume the next
+    // Mercury input window.
+    messages.push(hasToolCalls ? compactAssistantMessageForHistory(assistantMsg) : assistantMsg);
 
     if (hasToolCalls) {
       if (verbose) console.error(`[REACT] Assistant requested ${assistantMsg.tool_calls.length} tool call(s)`);
@@ -311,7 +364,10 @@ async function runReactLoop(params) {
           messages.push({
             role: 'tool',
             tool_call_id: toolCall.id,
-            content: JSON.stringify({ error: `Invalid JSON in arguments: ${err.message}`, raw: rawArgs }),
+            content: stringifyToolResultForHistory({
+              error: `Invalid JSON in arguments: ${err.message}`,
+              raw: truncateForHistory(rawArgs, 1000).text,
+            }),
           });
           history.push({ iteration, toolName, toolArgs: null, toolResult: { error: 'arg parse failed' }, toolCallId: toolCall.id });
           continue;
@@ -337,7 +393,7 @@ async function runReactLoop(params) {
         messages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
+          content: stringifyToolResultForHistory(toolResult),
         });
       }
       continue;
@@ -425,6 +481,8 @@ module.exports = {
   hasUnsupportedRunCheckClaim,
   previewUncitedAnswer,
   normalizeToolHandleCitations,
+  compactAssistantMessageForHistory,
+  stringifyToolResultForHistory,
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,

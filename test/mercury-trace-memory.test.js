@@ -1,5 +1,8 @@
 'use strict';
 
+const path = require('path');
+const { spawnSync } = require('child_process');
+
 const config = require('../trai_brain/mercury-bridge/config');
 const { shouldCaptureTrace } = require('../trai_brain/mercury-bridge/trace-memory');
 
@@ -14,7 +17,7 @@ describe('Mercury trace memory guard', () => {
     const configPath = require.resolve('../trai_brain/mercury-bridge/config');
     const originalConfigFile = process.env.MERCURY_CONFIG_FILE;
     jest.resetModules();
-    process.env.MERCURY_CONFIG_FILE = require('path').join(__dirname, 'fixtures', 'mercury-auto-capture.config.json');
+    process.env.MERCURY_CONFIG_FILE = path.join(__dirname, 'fixtures', 'mercury-auto-capture.config.json');
 
     expect(() => require(configPath)).toThrow(/traceMemory\.captureMode=auto.*Use manual/);
 
@@ -25,6 +28,25 @@ describe('Mercury trace memory guard', () => {
       delete process.env.MERCURY_CONFIG_FILE;
     }
     require('../trai_brain/mercury-bridge/config');
+  });
+
+  test('config override fails closed outside Jest test mode', () => {
+    const env = { ...process.env };
+    delete env.NODE_ENV;
+    env.MERCURY_CONFIG_FILE = path.join(__dirname, 'fixtures', 'mercury-auto-capture.config.json');
+
+    const result = spawnSync(process.execPath, [
+      '-e',
+      "require('./trai_brain/mercury-bridge/config')",
+    ], {
+      cwd: path.join(__dirname, '..'),
+      env,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`)
+      .toMatch(/Unsupported traceMemory\.captureMode=auto.*Use manual/);
   });
 
   test('manual capture mode refuses successful traces without an explicit capture request', () => {

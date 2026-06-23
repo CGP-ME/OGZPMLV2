@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Mercury Current-Fix Evidence And Manual Trace Capture (2026-06-23)
 
+- Honored `MERCURY_CONFIG_FILE` outside Jest so config-contract probes fail closed in real `run_check` execution contexts instead of only test mode.
+- Compacted oversized ReAct tool-call arguments and tool results before reinserting them into Mercury's next prompt, preventing a bad probe from exhausting the input-token window while preserving the original tool call for execution.
+- Added `run_check.artifact_citation` so execution proof returns a citeable `ogz-meta/cognition-history/mercury-execution/*.log:line` range without requiring Mercury to read ignored cognition-history artifacts.
 - Added a read-only `git_diff` Mercury tool so break-my-fix reviews can inspect staged, working-tree, or latest-commit evidence instead of inferring the target from stale repo text.
 - Moved investigation trace memory onto a fresh guarded collection and changed successful trace capture to manual opt-in via `--capture-trace`; normal code/doc RAG retrieval remains available.
 - Blocked current-fix trace capture unless Mercury used `git_diff`, preventing false-positive fix reviews from teaching future runs without exact diff evidence.
