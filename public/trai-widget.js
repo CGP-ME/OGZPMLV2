@@ -21,22 +21,10 @@
   let isOpen = false;
   let isConnected = false;
 
-  function storedDashboardToken() {
-    try {
-      const token = window.localStorage && window.localStorage.getItem('ogz.dashboard.wsToken');
-      return typeof token === 'string' ? token.trim() : '';
-    } catch (_) {
-      return '';
-    }
-  }
-
   function dashboardAuthToken() {
-    const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
-    if (typeof metaToken === 'string' && metaToken.trim() !== '') return metaToken.trim();
-    if (typeof window.OGZ_DASHBOARD_TOKEN === 'string' && window.OGZ_DASHBOARD_TOKEN.trim() !== '') {
-      return window.OGZ_DASHBOARD_TOKEN.trim();
-    }
-    return storedDashboardToken();
+    return window.OGZ && window.OGZ.Socket && typeof window.OGZ.Socket.getAuthToken === 'function'
+      ? window.OGZ.Socket.getAuthToken()
+      : '';
   }
 
   // Create widget HTML
@@ -397,7 +385,7 @@
     try {
       const authToken = dashboardAuthToken();
       if (!authToken) {
-        console.warn('[TRAI Widget] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+        console.warn('[TRAI Widget] No dashboard token configured — enter the operator WebSocket key in the dashboard');
         return;
       }
 

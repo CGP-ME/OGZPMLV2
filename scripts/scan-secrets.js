@@ -195,6 +195,14 @@ function isTemplateFile(filePath) {
   return /\.env\.(example|template|sample)$/i.test(filePath);
 }
 
+function isSourceCodeFile(filePath) {
+  return /\.(?:cjs|mjs|js|jsx|ts|tsx)$/i.test(filePath);
+}
+
+function isIdentifierReference(value) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(normalizeAssignmentValue(value));
+}
+
 function hashTokenLiteral(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
 }
@@ -331,6 +339,7 @@ function inspectLine(filePath, lineNumber, line, burnedTokenHashes) {
     isCredentialName(credentialAssignment[1]) &&
     credentialAssignment[1].toUpperCase() !== 'WEBSOCKET_AUTH_TOKEN' &&
     !isAllowedTokenAssignment(credentialAssignment[2]) &&
+    !(isSourceCodeFile(filePath) && isIdentifierReference(credentialAssignment[2])) &&
     (isTemplateFile(filePath) || !isDynamicAssignmentValue(credentialAssignment[2]))
   ) {
     findings.push({

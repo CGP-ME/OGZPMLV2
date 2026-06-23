@@ -9,10 +9,8 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-function createHarness({ token = '', storedToken = '', windowToken = '' } = {}) {
+function createHarness({ token = '', socketToken = '', windowToken = '' } = {}) {
   const instances = [];
-  const storage = new Map();
-  if (storedToken) storage.set('ogz.dashboard.wsToken', storedToken);
 
   class FakeWebSocket {
     constructor(url) {
@@ -56,12 +54,12 @@ function createHarness({ token = '', storedToken = '', windowToken = '' } = {}) 
   const context = {
     window: {
       location: { protocol: 'https:', host: 'dashboard.test', hostname: 'dashboard.test' },
+      OGZ: {
+        Socket: {
+          getAuthToken: jest.fn(() => socketToken)
+        }
+      },
       OGZ_DASHBOARD_TOKEN: windowToken,
-      localStorage: {
-        getItem: jest.fn(key => storage.get(key) || null),
-        setItem: jest.fn((key, value) => storage.set(key, String(value))),
-        removeItem: jest.fn(key => storage.delete(key))
-      }
     },
     document,
     WebSocket: FakeWebSocket,
@@ -90,24 +88,37 @@ function createHarness({ token = '', storedToken = '', windowToken = '' } = {}) 
 }
 
 describe('TRAI widget dashboard auth token', () => {
-  test('uses stored operator token when public meta token is empty', () => {
-    const harness = createHarness({ token: '', storedToken: 'placeholder-stored-token' });
+  test('uses main socket operator token when public meta token is empty', () => {
+    const harness = createHarness({ token: '', socketToken: 'placeholder-socket-token' });
 
     harness.api.connectWebSocket();
     const socket = harness.instances[0];
     socket.open();
 
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-socket-token' });
   });
 
-  test('treats whitespace meta token as missing and uses stored operator token', () => {
-    const harness = createHarness({ token: '   ', storedToken: 'placeholder-stored-token' });
+  test('treats whitespace meta token as missing and uses main socket operator token', () => {
+    const harness = createHarness({ token: '   ', socketToken: 'placeholder-socket-token' });
 
     harness.api.connectWebSocket();
     const socket = harness.instances[0];
     socket.open();
 
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-socket-token' });
+  });
+
+  test('ignores public meta and window tokens when no session operator token exists', () => {
+    const harness = createHarness({
+      token: 'placeholder-public-meta-token',
+      windowToken: 'placeholder-window-token',
+      socketToken: '',
+    });
+
+    harness.api.connectWebSocket();
+
+    expect(harness.instances).toEqual([]);
+    expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
   });
 
   test('closes without sending auth when no operator token is configured', () => {

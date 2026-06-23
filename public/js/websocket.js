@@ -14,8 +14,10 @@
     let authenticated = false;
     let lastPongAt = 0;
     let lastDataAt = 0;
+    let operatorDashboardToken = '';
 
     const WS_PATH = '/ws';
+    const DASHBOARD_WS_STORAGE_NAME = 'ogz.dashboard.wsToken';
     const HEARTBEAT_INTERVAL_MS = 15000;
     const PONG_TIMEOUT_MS = 30000;
     const DATA_TIMEOUT_MS = 60000;
@@ -82,21 +84,124 @@
     }
 
     function storedDashboardToken() {
+        clearLegacyDashboardToken();
+        return operatorDashboardToken;
+    }
+
+    function storeDashboardToken(token) {
+        const trimmed = typeof token === 'string' ? token.trim() : '';
+        if (!trimmed) return false;
+        operatorDashboardToken = trimmed;
+        clearLegacyDashboardToken();
+        return true;
+    }
+
+    function clearLegacyDashboardToken() {
         try {
-            const token = window.localStorage && window.localStorage.getItem('ogz.dashboard.wsToken');
-            return typeof token === 'string' ? token.trim() : '';
+            if (window.localStorage) window.localStorage.removeItem(DASHBOARD_WS_STORAGE_NAME);
         } catch (_) {
-            return '';
         }
     }
 
+    function clearStoredDashboardToken() {
+        operatorDashboardToken = '';
+        clearLegacyDashboardToken();
+    }
+
     function dashboardAuthToken() {
-        const metaToken = document.querySelector('meta[name="ws-token"]')?.content;
-        if (typeof metaToken === 'string' && metaToken.trim() !== '') return metaToken.trim();
-        if (typeof window.OGZ_DASHBOARD_TOKEN === 'string' && window.OGZ_DASHBOARD_TOKEN.trim() !== '') {
-            return window.OGZ_DASHBOARD_TOKEN.trim();
-        }
         return storedDashboardToken();
+    }
+
+    function removeDashboardTokenGate() {
+        const existing = document.getElementById('ogz-dashboard-token-gate');
+        if (existing && existing.parentNode) {
+            existing.parentNode.removeChild(existing);
+        }
+    }
+
+    function appendText(parent, tag, className, text) {
+        const el = document.createElement(tag);
+        if (className) el.className = className;
+        el.textContent = text;
+        parent.appendChild(el);
+        return el;
+    }
+
+    function showDashboardTokenGate(message) {
+        if (!document.body || typeof document.createElement !== 'function') return;
+        if (document.getElementById('ogz-dashboard-token-gate')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'ogz-dashboard-token-gate';
+        overlay.style.cssText = [
+            'position:fixed',
+            'inset:0',
+            'z-index:99999',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'background:rgba(0,0,0,0.82)',
+            'font-family:JetBrains Mono,monospace'
+        ].join(';');
+
+        const panel = document.createElement('form');
+        panel.style.cssText = [
+            'width:min(420px,calc(100vw - 32px))',
+            'border:1px solid rgba(0,204,255,0.35)',
+            'background:#05070a',
+            'box-shadow:0 0 30px rgba(0,204,255,0.16)',
+            'padding:22px',
+            'border-radius:8px',
+            'color:#e8f8ff'
+        ].join(';');
+        overlay.appendChild(panel);
+
+        appendText(panel, 'h2', '', 'Dashboard Access');
+        appendText(panel, 'p', '', message || 'Enter the operator WebSocket key for this browser session.');
+
+        const input = document.createElement('input');
+        input.type = 'password';
+        input.name = 'dashboardToken';
+        input.autocomplete = 'off';
+        input.placeholder = 'WebSocket key';
+        input.style.cssText = [
+            'width:100%',
+            'margin:16px 0 12px',
+            'padding:12px',
+            'border:1px solid rgba(255,255,255,0.18)',
+            'background:#020305',
+            'color:#fff',
+            'border-radius:4px',
+            'font-family:inherit'
+        ].join(';');
+        panel.appendChild(input);
+
+        const button = document.createElement('button');
+        button.type = 'submit';
+        button.textContent = 'Connect';
+        button.style.cssText = [
+            'width:100%',
+            'padding:12px',
+            'border:1px solid rgba(0,204,255,0.65)',
+            'background:#001923',
+            'color:#9ff2ff',
+            'border-radius:4px',
+            'font-family:inherit',
+            'cursor:pointer'
+        ].join(';');
+        panel.appendChild(button);
+
+        panel.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const token = input.value.trim();
+            if (!token) return;
+            if (Socket.setAuthToken(token)) {
+                removeDashboardTokenGate();
+            }
+        });
+
+        document.body.appendChild(overlay);
+        input.focus();
     }
 
     function sendRaw(data) {
@@ -178,7 +283,8 @@
 
             const token = dashboardAuthToken();
             if (!token) {
-                console.warn('[Socket] No dashboard token configured — set localStorage ogz.dashboard.wsToken or window.OGZ_DASHBOARD_TOKEN');
+                console.warn('[Socket] No dashboard token configured — enter the operator WebSocket key for this browser session');
+                showDashboardTokenGate();
                 return false;
             }
 
@@ -217,6 +323,7 @@
                     if (data.type === 'auth_success') {
                         authenticated = true;
                         reconnectAttempts = 0;
+                        removeDashboardTokenGate();
                         startHealthChecks();
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
@@ -236,6 +343,11 @@
                         this.send({ type: 'asset_change', asset: asset });
                         this.send({ type: 'request_historical', timeframe: tf, asset: asset, limit: 500 });
                     }
+                    if (data.type === 'auth_failure') {
+                        clearStoredDashboardToken();
+                        showDashboardTokenGate('Dashboard token was rejected. Enter the current operator WebSocket key.');
+                        forceReconnect('dashboard auth failure');
+                    }
 
                     // Dispatch to registered handlers
                     const handlerList = handlers.get(data.type);
@@ -247,12 +359,18 @@
 
             currentSocket.onclose = (event) => {
                 if (currentSocket !== ws) return;
+                const wasAuthenticated = authenticated;
                 authenticated = false;
                 ws = null;
                 stopHealthChecks();
                 const code = event && event.code != null ? event.code : 'unknown';
                 const reason = event && event.reason ? event.reason : 'no reason';
                 console.log(`[Socket] Disconnected: code=${code}, reason=${reason}`);
+                if (!wasAuthenticated && (code === 1008 || /auth|token/i.test(reason))) {
+                    clearStoredDashboardToken();
+                    showDashboardTokenGate(`Dashboard token rejected: ${reason}`);
+                    return;
+                }
                 scheduleReconnect(`close code=${code}`);
             };
 
@@ -291,7 +409,7 @@
                 return false;
             }
             try {
-                window.localStorage.setItem('ogz.dashboard.wsToken', token.trim());
+                storeDashboardToken(token);
             } catch (err) {
                 console.error('[Socket] Failed to store dashboard token:', err);
                 return false;
@@ -302,7 +420,7 @@
 
         clearAuthToken: () => {
             try {
-                window.localStorage.removeItem('ogz.dashboard.wsToken');
+                clearStoredDashboardToken();
             } catch (err) {
                 console.error('[Socket] Failed to clear dashboard token:', err);
                 return false;
@@ -310,6 +428,8 @@
             forceReconnect('dashboard token cleared');
             return true;
         },
+
+        getAuthToken: () => operatorDashboardToken,
 
         isConnected: () => Boolean(ws && ws.readyState === OPEN && authenticated)
     };

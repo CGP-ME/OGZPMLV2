@@ -10,14 +10,63 @@ const source = fs.readFileSync(
 function createHarness({
   protocol = 'https:',
   host = 'dashboard.test',
-  token = 'placeholder-dashboard-token',
+  token = '',
   windowToken = '',
-  storedToken = '',
+  legacyStoredToken = '',
 } = {}) {
   const instances = [];
   const registered = {};
-  const storage = new Map();
-  if (storedToken) storage.set('ogz.dashboard.wsToken', storedToken);
+  const localStorageMap = new Map();
+  const elementsById = new Map();
+  if (legacyStoredToken) localStorageMap.set('ogz.dashboard.wsToken', legacyStoredToken);
+
+  class FakeElement {
+    constructor(tagName) {
+      this.tagName = tagName.toUpperCase();
+      this.children = [];
+      this.parentNode = null;
+      this.style = {};
+      this.listeners = {};
+      this.focus = jest.fn();
+      this.textContent = '';
+      this.className = '';
+      this.type = '';
+      this.name = '';
+      this.autocomplete = '';
+      this.placeholder = '';
+      this.value = '';
+      this._id = '';
+    }
+
+    set id(value) {
+      this._id = value;
+      if (value) elementsById.set(value, this);
+    }
+
+    get id() {
+      return this._id;
+    }
+
+    appendChild(child) {
+      child.parentNode = this;
+      this.children.push(child);
+      if (child.id) elementsById.set(child.id, child);
+      return child;
+    }
+
+    removeChild(child) {
+      this.children = this.children.filter(item => item !== child);
+      child.parentNode = null;
+      if (child.id) elementsById.delete(child.id);
+      return child;
+    }
+
+    addEventListener(type, handler) {
+      this.listeners[type] = handler;
+    }
+  }
+
+  const body = new FakeElement('body');
 
   class FakeWebSocket {
     constructor(url) {
@@ -67,10 +116,13 @@ function createHarness({
       return null;
     }),
     getElementById: jest.fn((id) => {
+      if (elementsById.has(id)) return elementsById.get(id);
       if (id === 'cp-assetSelector') return { value: 'BTC-USD' };
       if (id === 'cp-timeframeSelector') return { value: '1m' };
       return null;
-    })
+    }),
+    createElement: jest.fn(tagName => new FakeElement(tagName)),
+    body
   };
 
   const context = {
@@ -79,14 +131,14 @@ function createHarness({
       OGZ,
       OGZ_DASHBOARD_TOKEN: windowToken,
       localStorage: {
-        getItem: jest.fn(key => storage.get(key) || null),
+        getItem: jest.fn(key => localStorageMap.get(key) || null),
         setItem: jest.fn((key, value) => {
-          storage.set(key, String(value));
+          localStorageMap.set(key, String(value));
         }),
         removeItem: jest.fn((key) => {
-          storage.delete(key);
+          localStorageMap.delete(key);
         })
-      }
+      },
     },
     document,
     WebSocket: FakeWebSocket,
@@ -110,14 +162,16 @@ function createHarness({
     Socket: registered.Socket,
     instances,
     console: context.console,
-    storage,
+    document,
+    localStorageMap,
     localStorage: context.window.localStorage
   };
 }
 
 function openAndAuthenticate(harness) {
-  harness.Socket.connect();
-  const socket = harness.instances[0];
+  harness.Socket.setAuthToken('placeholder-dashboard-token');
+  jest.advanceTimersByTime(1000);
+  const socket = harness.instances[harness.instances.length - 1];
   socket.open();
   socket.receive({ type: 'auth_success' });
   return socket;
@@ -136,7 +190,8 @@ describe('frontend websocket lifecycle', () => {
   test('connects to /ws, waits for auth_success, and starts heartbeat pings', () => {
     const harness = createHarness();
 
-    harness.Socket.connect();
+    harness.Socket.setAuthToken('placeholder-dashboard-token');
+    jest.advanceTimersByTime(1000);
     const socket = harness.instances[0];
 
     expect(socket.url).toBe('wss://dashboard.test/ws');
@@ -166,25 +221,37 @@ describe('frontend websocket lifecycle', () => {
     socket.receive({ type: 'pong' });
   });
 
-  test('uses stored operator token when public meta token is empty', () => {
-    const harness = createHarness({ token: '', storedToken: 'placeholder-stored-token' });
+  test('uses in-memory operator token when public meta token is empty', () => {
+    const harness = createHarness({ token: '' });
 
-    harness.Socket.connect();
+    harness.Socket.setAuthToken('placeholder-memory-token');
+    jest.advanceTimersByTime(1000);
     const socket = harness.instances[0];
     socket.open();
 
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-memory-token' });
     expect(harness.console.warn).not.toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
   });
 
-  test('treats whitespace meta token as missing and uses stored operator token', () => {
-    const harness = createHarness({ token: '   ', storedToken: 'placeholder-stored-token' });
+  test('treats whitespace meta token as missing and uses in-memory operator token', () => {
+    const harness = createHarness({ token: '   ' });
 
-    harness.Socket.connect();
+    harness.Socket.setAuthToken('placeholder-memory-token');
+    jest.advanceTimersByTime(1000);
     const socket = harness.instances[0];
     socket.open();
 
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-stored-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-memory-token' });
+  });
+
+  test('ignores and clears a legacy localStorage token instead of authenticating with it', () => {
+    const harness = createHarness({ token: '', legacyStoredToken: 'placeholder-legacy-token' });
+
+    expect(harness.Socket.connect()).toBe(false);
+
+    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.instances).toEqual([]);
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
   });
 
   test('closes without sending auth when no operator token is configured', () => {
@@ -194,6 +261,7 @@ describe('frontend websocket lifecycle', () => {
 
     expect(harness.instances).toEqual([]);
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
   });
 
   test('closes without sending auth when public meta token is only whitespace', () => {
@@ -205,12 +273,13 @@ describe('frontend websocket lifecycle', () => {
   });
 
   test('stores operator token and reconnects with the new value', () => {
-    const harness = createHarness({ token: '', storedToken: 'placeholder-old-token' });
+    const harness = createHarness({ token: '' });
     const firstSocket = openAndAuthenticate(harness);
 
     expect(harness.Socket.setAuthToken(' placeholder-operator-token ')).toBe(true);
 
-    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-operator-token');
+    expect(harness.Socket.getAuthToken()).toBe('placeholder-operator-token');
+    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
     expect(firstSocket.closeArgs).toEqual({
       code: 4000,
       reason: 'dashboard token updated'
@@ -221,6 +290,41 @@ describe('frontend websocket lifecycle', () => {
     secondSocket.open();
 
     expect(secondSocket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-operator-token' });
+  });
+
+  test('operator token gate stores the submitted key and reconnects', () => {
+    const harness = createHarness({ token: '' });
+
+    expect(harness.Socket.connect()).toBe(false);
+    const gate = harness.document.getElementById('ogz-dashboard-token-gate');
+    const form = gate.children[0];
+    const input = form.children[2];
+    input.value = ' placeholder-gate-token ';
+
+    form.listeners.submit({ preventDefault: jest.fn() });
+
+    expect(harness.Socket.getAuthToken()).toBe('placeholder-gate-token');
+    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+
+    jest.advanceTimersByTime(1000);
+    const socket = harness.instances[0];
+    socket.open();
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-gate-token' });
+  });
+
+  test('rejected auth clears stored token and surfaces the access gate', () => {
+    const harness = createHarness({ token: '' });
+
+    harness.Socket.setAuthToken('placeholder-bad-token');
+    jest.advanceTimersByTime(1000);
+    const socket = harness.instances[0];
+    socket.open();
+    socket.receive({ type: 'auth_failure' });
+
+    expect(harness.Socket.getAuthToken()).toBe('');
+    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
   });
 
   test('reconnects when pong heartbeat stops', () => {
