@@ -24,7 +24,6 @@
 'use strict';
 
 const path = require('path');
-const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -35,64 +34,10 @@ const { runReactLoop } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
-const { isBreakMyFixFrame } = require('../shared/break-my-fix-frame');
-const { assertBreakMyFixAnswerAccepted } = require('./break-my-fix-answer-contract');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
-
-const BREAK_MY_FIX_DIFF_SOURCE = 'ogz-meta/mercury-review-input/dirty-diff.md';
-const DIFF_MAX_BUFFER = 10 * 1024 * 1024;
-
-function readGit(args, repoRoot = config.REPO_ROOT) {
-  return execFileSync('git', args, {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    maxBuffer: DIFF_MAX_BUFFER,
-  });
-}
-
-function buildBreakMyFixDirtyDiffContext({ gitReader = readGit } = {}) {
-  const trackedStatus = gitReader(['status', '--short', '--untracked-files=no']);
-  const cachedNames = gitReader(['diff', '--cached', '--name-only']);
-  const worktreeNames = gitReader(['diff', '--name-only']);
-  const cachedDiff = gitReader(['diff', '--cached', '--no-ext-diff', '--']);
-  const worktreeDiff = gitReader(['diff', '--no-ext-diff', '--']);
-
-  const text = [
-    'Neutral dirty-diff context for the current break-my-fix review.',
-    'This is not a conclusion or a scope limit. Use repo tools to inspect the real files before citing or deciding.',
-    '',
-    '## git diff --cached --name-only',
-    cachedNames.trim() || '(none)',
-    '',
-    '## git diff --name-only',
-    worktreeNames.trim() || '(none)',
-    '',
-    '## git diff --cached --no-ext-diff --',
-    cachedDiff.trim() || '(none)',
-    '',
-    '## git diff --no-ext-diff --',
-    worktreeDiff.trim() || '(none)',
-    '',
-    '## git status --short --untracked-files=no',
-    trackedStatus.trim() || '(clean)',
-    '',
-    'Untracked files are intentionally omitted from this neutral context. Stage intended new files before break-my-fix review.',
-  ].join('\n');
-
-  return {
-    source: BREAK_MY_FIX_DIFF_SOURCE,
-    file_path: BREAK_MY_FIX_DIFF_SOURCE,
-    start_line: 1,
-    end_line: text.split(/\r?\n/).length,
-    kind: 'dirty_diff',
-    name: 'tracked dirty diff',
-    similarity: 1,
-    text,
-  };
-}
 
 function parseArgs(argv) {
   const args = {
@@ -210,7 +155,6 @@ async function runAgentic(query, opts) {
   const verbose = !opts.quiet;
   const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
-  const isBreakMyFixQuery = isBreakMyFixFrame(query);
 
   // Route the query unless caller has overridden
   const route = routeQuery(query);
@@ -259,11 +203,6 @@ async function runAgentic(query, opts) {
       if (verbose) console.log('[MERCURY-BRIDGE] Starter context: skipped (router policy=skip)');
     }
 
-    if (isBreakMyFixQuery) {
-      starterContext.push(buildBreakMyFixDirtyDiffContext());
-      if (verbose) console.log('[MERCURY-BRIDGE] Break-my-fix dirty diff context injected');
-    }
-
     if (verbose) {
       console.log(`[MERCURY-BRIDGE] Starter context: ${starterContext.length} chunks`);
       starterContext.forEach((c, idx) => {
@@ -275,7 +214,7 @@ async function runAgentic(query, opts) {
     // 2. Investigation trace memory — retrieve prior hint if available
     let traceHintText = null;
     let traceUsed = null;
-    if (config.TRACE_MEMORY_ENABLED && !isBreakMyFixQuery) {
+    if (config.TRACE_MEMORY_ENABLED) {
       await ensureTraceIndexes(store);
       await evictStaleTraces({ store, verbose });
 
@@ -291,7 +230,7 @@ async function runAgentic(query, opts) {
       }
     }
 
-    // 3. Build the tool adapter with both repo access and mongo (for get_chunk).
+    // 3. Build the tool adapter with both repo access and mongo (for get_chunk)
     const toolAdapter = createToolAdapter({
       repoRoot: config.REPO_ROOT,
       mongoStore: store,
@@ -317,6 +256,7 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
+      blastRadius: opts.blastRadius || null,
       maxIterations,
       maxTokens,
       verbose,
@@ -437,16 +377,9 @@ async function main() {
       return;
     }
 
-    if (isBreakMyFixFrame(args.query) && !args.agentic) {
-      throw new Error('break-my-fix prompts require --agentic so Mercury can use neutral dirty-diff context instead of single-shot RAG retrieval');
-    }
-
     if (args.agentic) {
       // Agentic mode — ReAct loop with tool access
       const result = await runAgentic(args.query, args);
-      if (isBreakMyFixFrame(args.query)) {
-        assertBreakMyFixAnswerAccepted(result.answer, result.history || []);
-      }
 
       console.log('');
       console.log('═══ ANSWER ═══');
@@ -532,4 +465,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic, buildBreakMyFixDirtyDiffContext };
+module.exports = { runAgentic };

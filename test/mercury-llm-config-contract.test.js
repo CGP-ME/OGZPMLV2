@@ -3,7 +3,6 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
 
 const baseMercuryConfig = require('../mercury.config.json');
 
@@ -144,6 +143,23 @@ describe('Mercury LLM config contract', () => {
     });
   });
 
+  test('Mercury evidence posture stays locked to current config contract', () => {
+    const prompt = baseMercuryConfig.agentic.systemPrompt.join('\n');
+
+    expect(baseMercuryConfig.llm.temperature).toBe(0.8);
+    expect(baseMercuryConfig.agentic.maxIterations).toBe(60);
+    expect(baseMercuryConfig.agentic.maxTokens).toBe(7750);
+    expect(prompt).toContain('file:line citations');
+    expect(prompt).toContain('dependency blast radius');
+    expect(prompt).toContain('Do not optimize for speed');
+    expect(prompt).toContain('say exactly what evidence is missing');
+    expect(prompt).not.toContain('Budget: aim');
+    expect(prompt).not.toContain('CONCRETE_BREAK_FOUND');
+    expect(prompt).not.toContain('NO_CONCRETE_BREAK_FOUND');
+    expect(prompt).not.toContain('break-my-fix answers must');
+    expect(prompt).not.toContain('dirty diff');
+  });
+
   test('LLM client options require a config-owned system prompt', async () => {
     await withMercuryConfig({}, () => {
       const { resolveMercuryLlmClientOptions } = require('../trai_brain/mercury-bridge/llm-client');
@@ -170,20 +186,6 @@ describe('Mercury LLM config contract', () => {
       await expect(runAgentic('break this', { quiet: true, topK: Number.NaN }))
         .rejects.toThrow(/--top-k must be a non-negative integer/);
     });
-  });
-
-  test('single-shot CLI refuses break-my-fix prompts before RAG retrieval', () => {
-    const result = spawnSync(process.execPath, [
-      'trai_brain/mercury-bridge/ask.js',
-      'Mercury, break my fix.',
-    ], {
-      cwd: path.resolve(__dirname, '..'),
-      encoding: 'utf8',
-    });
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('break-my-fix prompts require --agentic');
-    expect(result.stdout).not.toContain('Embedding query');
   });
 
   test('single-shot numeric overrides fail loud before runtime work', async () => {

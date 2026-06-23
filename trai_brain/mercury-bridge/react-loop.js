@@ -90,6 +90,7 @@ async function runReactLoop(params) {
     userQuery,
     starterContext = [],
     traceHint = null,
+    blastRadius = null,
     maxIterations = config.AGENTIC_MAX_ITERATIONS,
     maxTokens = config.AGENTIC_MAX_TOKENS,
     temperature = config.MERCURY_LLM_TEMPERATURE,
@@ -107,8 +108,6 @@ async function runReactLoop(params) {
   }
 
   const tools = toolAdapter.buildToolSchema();
-  const dirtyDiffChangedFiles = extractDirtyDiffChangedFiles(starterContext);
-  const openedDirtyDiffFiles = new Set();
 
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -118,18 +117,9 @@ async function runReactLoop(params) {
     const contextText = starterContext
       .map((c, i) => `[${i + 1}] ${c.source || 'unknown'} (sim=${(c.similarity || 0).toFixed(3)})\n${c.text || ''}`)
       .join('\n\n');
-    const hasDirtyDiffContext = starterContext.some((c) => c.kind === 'dirty_diff');
-    const contextIntro = hasDirtyDiffContext
-      ? [
-        'Neutral dirty diff context for the current break-my-fix review:',
-        '- Start by opening the changed repo files listed in this context with tools.',
-        '- Do not infer the fix target from unrelated TODO/FIX comments or old docs.',
-        '- This is not a scope limit. After checking changed files, search sibling paths for the same bug class.',
-      ].join('\n')
-      : 'Starter context from RAG retrieval (may or may not be relevant — trust tool results over this if they conflict):';
     messages.push({
       role: 'system',
-      content: `${contextIntro}\n\n${contextText}`,
+      content: `Starter context from RAG retrieval (may or may not be relevant — trust tool results over this if they conflict):\n\n${contextText}`,
     });
   }
 
@@ -138,6 +128,17 @@ async function runReactLoop(params) {
     messages.push({
       role: 'system',
       content: traceHint,
+    });
+  }
+
+  // Blast radius: who imports the file under attack. Caller list comes from
+  // tools/serena-bridge.js (dep-scanner inverse map). Mercury sees this as a
+  // separate system message so it can reason about which callers a proposed
+  // change affects without re-discovering the call graph.
+  if (blastRadius) {
+    messages.push({
+      role: 'system',
+      content: blastRadius,
     });
   }
 
@@ -227,24 +228,13 @@ async function runReactLoop(params) {
           continue;
         }
 
+        if (verbose) console.error(`[REACT] Executing ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
+
         let toolResult;
-        const dirtyDiffGateError = getDirtyDiffGateError({
-          toolName,
-          toolArgs,
-          changedFiles: dirtyDiffChangedFiles,
-          openedFiles: openedDirtyDiffFiles,
-        });
-        if (dirtyDiffGateError) {
-          if (verbose) console.error(`[REACT] Dirty diff gate blocked ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
-          toolResult = { error: dirtyDiffGateError };
-        } else {
-          if (verbose) console.error(`[REACT] Executing ${toolName}(${JSON.stringify(toolArgs).slice(0, 200)})`);
-          try {
-            toolResult = await toolAdapter.execute(toolName, toolArgs);
-          } catch (err) {
-            toolResult = { error: err.message };
-          }
-          markDirtyDiffFileOpened({ toolName, toolArgs, toolResult, changedFiles: dirtyDiffChangedFiles, openedFiles: openedDirtyDiffFiles });
+        try {
+          toolResult = await toolAdapter.execute(toolName, toolArgs);
+        } catch (err) {
+          toolResult = { error: err.message };
         }
 
         history.push({
@@ -282,62 +272,8 @@ async function runReactLoop(params) {
   };
 }
 
-function normalizeRepoPath(value) {
-  return String(value || '').replace(/\\/g, '/').replace(/^\.\/+/, '');
-}
-
-function sectionLines(text, heading) {
-  const lines = String(text || '').split(/\r?\n/);
-  const start = lines.findIndex((line) => line.trim() === heading);
-  if (start === -1) return [];
-  const result = [];
-  for (let index = start + 1; index < lines.length; index++) {
-    const line = lines[index];
-    if (line.startsWith('## ')) break;
-    const trimmed = line.trim();
-    if (trimmed && trimmed !== '(none)') result.push(trimmed);
-  }
-  return result;
-}
-
-function extractDirtyDiffChangedFiles(starterContext = []) {
-  const changed = new Set();
-  for (const context of starterContext) {
-    if (!context || context.kind !== 'dirty_diff') continue;
-    for (const heading of ['## git diff --cached --name-only', '## git diff --name-only']) {
-      for (const filePath of sectionLines(context.text, heading)) {
-        changed.add(normalizeRepoPath(filePath));
-      }
-    }
-  }
-  return changed;
-}
-
-function getDirtyDiffGateError({ toolName, toolArgs, changedFiles, openedFiles }) {
-  if (!changedFiles || changedFiles.size === 0) return null;
-  const unopened = [...changedFiles].filter((filePath) => !openedFiles.has(filePath));
-  if (unopened.length === 0) return null;
-  if (toolName === 'open_file' && changedFiles.has(normalizeRepoPath(toolArgs && toolArgs.path))) {
-    return null;
-  }
-  return [
-    'Break-my-fix dirty-diff gate: open every tracked changed file before broad search.',
-    `Remaining changed files: ${unopened.join(', ')}`,
-    'After that, search sibling paths for the same bug class.',
-  ].join(' ');
-}
-
-function markDirtyDiffFileOpened({ toolName, toolArgs, toolResult, changedFiles, openedFiles }) {
-  if (toolName !== 'open_file' || !changedFiles || changedFiles.size === 0) return;
-  if (toolResult && toolResult.error) return;
-  const filePath = normalizeRepoPath(toolArgs && toolArgs.path);
-  if (changedFiles.has(filePath)) openedFiles.add(filePath);
-}
-
 module.exports = {
   runReactLoop,
   callMercuryWithRetry,
-  extractDirtyDiffChangedFiles,
-  getDirtyDiffGateError,
   AGENTIC_SYSTEM_PROMPT: config.AGENTIC_SYSTEM_PROMPT,
 };

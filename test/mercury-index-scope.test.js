@@ -465,6 +465,23 @@ describe('Mercury index scope hygiene', () => {
     expect(rootList.scoped).toBeUndefined();
   });
 
+  test('Mercury exposes Serena blast-radius evidence as a normal read-only tool', async () => {
+    const adapter = createToolAdapter({ repoRoot: path.resolve(__dirname, '..') });
+
+    const result = await adapter.execute('serena_blast_radius', {
+      path: 'core/MaxProfitManager.js',
+    });
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('serena_blast_radius');
+    expect(result.file).toBe('core/MaxProfitManager.js');
+    expect(result.callerCount).toBeGreaterThan(0);
+    expect(result.text).toContain('## Blast Radius — core/MaxProfitManager.js');
+    expect(result.text).toContain('**Callers (file:line):**');
+    expect(schemaNames).toContain('serena_blast_radius');
+  });
+
   test('historical Mercury routing does not boost ignored ledger fix history', () => {
     const route = routeQuery('have we seen this bug before');
 
@@ -473,11 +490,11 @@ describe('Mercury index scope hygiene', () => {
     expect(route.rationale).not.toContain('fix_history');
   });
 
-  test('break-my-fix Mercury routing skips indexed starter context even when prompt mentions rules', () => {
-    const route = routeQuery('Mercury, break my fix. Find any way this fails, skips a required rule, or creates a new failure mode.');
+  test('plain break-my-fix wording uses normal Mercury retrieval instead of a special cage', () => {
+    const route = routeQuery('Mercury, break my fix.');
 
-    expect(route.queryType).toBe('break_my_fix');
-    expect(route.starterContextPolicy).toBe('skip');
+    expect(route.queryType).toBe('general');
+    expect(route.starterContextPolicy).toBe('mixed');
     expect(route.boostType).toBeNull();
   });
 

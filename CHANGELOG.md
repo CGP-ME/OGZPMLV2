@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Evidence Path Restoration (2026-06-23)
+
+- Removed the break-my-fix-specific routing, dirty-diff gate, and answer-marker contract so adversarial reviews use the normal Mercury RAG and repo-tool path instead of a special constrained cage.
+- Restored Mercury trace memory retrieval for all agentic prompts and kept the runtime generation posture at `0.8` temperature, `60` iterations, and `7750` max tokens.
+- Added `serena_blast_radius` as a read-only Mercury tool so reviews can inspect caller/blast-radius evidence with file:line references instead of guessing impact.
+
 ### SessionRouter Execution-Backed Source Flatten (2026-06-23)
 
 - Changed SessionRouter stock-session handoff closes to route through the injected trade execution path instead of calling StateManager directly, keeping broker execution, journal, trace, and StateManager mutation on the same close path.
