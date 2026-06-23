@@ -364,6 +364,114 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(tier.reason).toBe('profit_tier_1');
   });
 
+  test('tier exits rebalance against the live runner after break-even scale-out', () => {
+    const manager = createManager({
+      enableTieredExit: true,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      enableTimeBasedAdjustments: false,
+      enableMarketAdaptation: false,
+      minHoldTimeMinutes: 0,
+      firstTierTarget: 0.015,
+      firstTierExit: 0.30,
+      secondTierTarget: 0.05,
+      secondTierExit: 0.30,
+      thirdTierTarget: 0.10,
+      thirdTierExit: 0.20,
+      finalTarget: 0.15,
+      beScaleOutEnabled: true,
+      beScaleOutTriggerType: 'fixed_percent',
+      beScaleOutFixedPercentTrigger: 0.5,
+      beScaleOutScaleOutFraction: 0.5,
+      beScaleOutFeeBufferPercent: 0,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.8,
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+    });
+    expect(result.success).toBe(true);
+
+    const scaleOut = manager.update(100.5, { volatility: 0.01 });
+    expect(scaleOut.action).toBe('exit_partial');
+    expect(scaleOut.reason).toBe('be_scaleout');
+    expect(scaleOut.exitSize).toBeCloseTo(500, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(500, 10);
+    const tierSizesAfterScaleOut = manager.state.tiers.map(tier => tier.exitSize);
+    expect(tierSizesAfterScaleOut[0]).toBeCloseTo(150, 10);
+    expect(tierSizesAfterScaleOut[1]).toBeCloseTo(150, 10);
+    expect(tierSizesAfterScaleOut[2]).toBeCloseTo(100, 10);
+    expect(tierSizesAfterScaleOut[3]).toBeCloseTo(100, 10);
+
+    const tier1Price = manager.state.tiers.find(tier => tier.tier === 1).targetPrice;
+    const tier1 = manager.update(tier1Price, { volatility: 0.01 });
+    expect(tier1.action).toBe('exit_partial');
+    expect(tier1.reason).toBe('profit_tier_1');
+    expect(tier1.exitSize).toBeCloseTo(150, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(350, 10);
+    expect(manager.state.tiers.find(tier => tier.tier === 2).exitSize).toBeCloseTo(150, 10);
+    expect(manager.state.tiers.find(tier => tier.tier === 3).exitSize).toBeCloseTo(100, 10);
+    expect(manager.state.tiers.find(tier => tier.tier === 4).exitSize).toBeCloseTo(100, 10);
+
+    const tier2Price = manager.state.tiers.find(tier => tier.tier === 2).targetPrice;
+    const tier2 = manager.update(tier2Price, { volatility: 0.01 });
+    expect(tier2.action).toBe('exit_partial');
+    expect(tier2.reason).toBe('profit_tier_2');
+    expect(tier2.exitSize).toBeCloseTo(150, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(200, 10);
+
+    const tier3Price = manager.state.tiers.find(tier => tier.tier === 3).targetPrice;
+    const tier3 = manager.update(tier3Price, { volatility: 0.01 });
+    expect(tier3.action).toBe('exit_partial');
+    expect(tier3.reason).toBe('profit_tier_3');
+    expect(tier3.exitSize).toBeCloseTo(100, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(100, 10);
+
+    const tier4Price = manager.state.tiers.find(tier => tier.tier === 4).targetPrice;
+    const tier4 = manager.update(tier4Price, { volatility: 0.01 });
+    expect(tier4.action).toBe('exit_partial');
+    expect(tier4.reason).toBe('profit_tier_4');
+    expect(tier4.exitSize).toBeCloseTo(100, 10);
+    expect(manager.state.remainingSize).toBeCloseTo(0, 10);
+  });
+
+  test('oversized tier exit fails before mutating tier completion state', () => {
+    const manager = createManager({
+      enableTieredExit: true,
+      enableTrailingStop: false,
+      enableBreakevenStop: false,
+      enableTimeBasedAdjustments: false,
+      enableMarketAdaptation: false,
+      minHoldTimeMinutes: 0,
+      firstTierTarget: 0.015,
+      firstTierExit: 0.30,
+      secondTierTarget: 0.05,
+      secondTierExit: 0.30,
+      thirdTierTarget: 0.10,
+      thirdTierExit: 0.20,
+      finalTarget: 0.15,
+    });
+
+    const result = manager.start(100, 'buy', 1000, {
+      volatility: 0.01,
+      confidence: 0.8,
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+    });
+    expect(result.success).toBe(true);
+    manager.state.remainingSize = 100;
+
+    expect(() => manager.executePartialExit({
+      tier: 1,
+      exitSize: 150,
+      profitPercent: 0.015,
+    })).toThrow(/over-allocated position/);
+
+    expect(manager.state.remainingSize).toBeCloseTo(100, 10);
+    expect(manager.state.tiers.find(tier => tier.tier === 1).completed).toBe(false);
+    expect(manager.state.completedTiers).toHaveLength(0);
+  });
+
   test('break-even scale-out does not snap a short winner into a green stop-loss before tier development', () => {
     const manager = createManager({
       enableTieredExit: true,

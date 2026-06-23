@@ -14,10 +14,10 @@ const {
 } = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10922.160206213319,
-  totalTrades: 1598,
-  winRate: 66.0,
-  profitFactor: 1.20
+  finalBalance: 10663.30975684895,
+  totalTrades: 1596,
+  winRate: 70.1,
+  profitFactor: 1.16
 });
 
 const P0_GATE_ID = 'p0.single_lane.tsla_ema_anchor';

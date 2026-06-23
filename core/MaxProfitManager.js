@@ -611,6 +611,7 @@ class MaxProfitManager {
         if (scaleOutQuantity !== null) {
           this.state.remainingOrderQuantity -= scaleOutQuantity;
         }
+        this.rebalanceOpenTierExitSizes();
         this.state.realizedPnL += scaleOutSize * profitPercent;
 
         this.log(`BE Scale-Out: Sold ${(scaleOutFraction * 100).toFixed(0)}% at ${(profitPercent * 100).toFixed(2)}% profit`, 'info');
@@ -827,8 +828,60 @@ class MaxProfitManager {
         completed: false
       });
     });
+    this.rebalanceOpenTierExitSizes();
     
     this.log(`Setup ${this.state.tiers.length} profit tiers with market multiplier ${marketMultiplier.toFixed(2)}`, 'debug');
+  }
+
+  /**
+   * Rebalance open tier exit sizes against the current remaining position.
+   *
+   * Tier fractions are configured as relative tier weights. Once any earlier
+   * scale-out reduces the position, the still-open tiers must be resized to the
+   * live runner instead of continuing to spend stale original notional.
+   */
+  rebalanceOpenTierExitSizes() {
+    if (!Array.isArray(this.state.tiers) || this.state.tiers.length === 0) {
+      return;
+    }
+
+    const openTiers = this.state.tiers.filter(tier => !tier.completed);
+    if (openTiers.length === 0) {
+      return;
+    }
+
+    const remainingSize = Number.isFinite(this.state.remainingSize) ? this.state.remainingSize : NaN;
+    if (!Number.isFinite(remainingSize) || remainingSize < 0) {
+      throw new Error(`MaxProfitManager.rebalanceOpenTierExitSizes: invalid remainingSize ${this.state.remainingSize}`);
+    }
+
+    if (remainingSize === 0) {
+      openTiers.forEach(tier => {
+        tier.exitSize = 0;
+      });
+      return;
+    }
+
+    const totalOpenWeight = openTiers.reduce((sum, tier) => {
+      if (!Number.isFinite(tier.exitPercentage) || tier.exitPercentage < 0) {
+        throw new Error(`MaxProfitManager.rebalanceOpenTierExitSizes: invalid tier ${tier.tier} exitPercentage ${tier.exitPercentage}`);
+      }
+      return sum + tier.exitPercentage;
+    }, 0);
+
+    if (totalOpenWeight <= 0) {
+      throw new Error('MaxProfitManager.rebalanceOpenTierExitSizes: open tier exit weights must sum above zero');
+    }
+
+    let allocated = 0;
+    openTiers.forEach((tier, index) => {
+      if (index === openTiers.length - 1) {
+        tier.exitSize = remainingSize - allocated;
+      } else {
+        tier.exitSize = remainingSize * (tier.exitPercentage / totalOpenWeight);
+        allocated += tier.exitSize;
+      }
+    });
   }
   
   /**
@@ -877,6 +930,14 @@ class MaxProfitManager {
    * @param {Object} tierExit - Tier exit details
    */
   executePartialExit(tierExit) {
+    const exitSize = Number.isFinite(tierExit.exitSize) ? tierExit.exitSize : NaN;
+    if (!Number.isFinite(exitSize) || exitSize <= 0) {
+      throw new Error(`MaxProfitManager.executePartialExit: tier ${tierExit.tier} has invalid exitSize ${tierExit.exitSize}`);
+    }
+    if (exitSize - this.state.remainingSize > 1e-9) {
+      throw new Error(`MaxProfitManager.executePartialExit: tier ${tierExit.tier} over-allocated position by ${exitSize - this.state.remainingSize}`);
+    }
+
     // Mark tier as completed
     const tier = this.state.tiers.find(t => t.tier === tierExit.tier);
     if (tier) {
@@ -885,16 +946,20 @@ class MaxProfitManager {
         tier: tierExit.tier,
         executionTime: Date.now(),
         price: this.state.currentPrice,
-        size: tierExit.exitSize,
+        size: exitSize,
         profitPercent: tierExit.profitPercent
       });
     }
     
     // Update position size
-    this.state.remainingSize -= tierExit.exitSize;
+    this.state.remainingSize -= exitSize;
+    if (this.state.remainingSize < 0 && Math.abs(this.state.remainingSize) < 1e-9) {
+      this.state.remainingSize = 0;
+    }
+    this.rebalanceOpenTierExitSizes();
     
     // Calculate realized P&L from this exit
-    const realizedProfit = tierExit.exitSize * tierExit.profitPercent;
+    const realizedProfit = exitSize * tierExit.profitPercent;
     this.state.realizedPnL += realizedProfit;
     
     // Update analytics

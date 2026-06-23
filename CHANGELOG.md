@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MaxProfitManager Tier Runner Rebalance (2026-06-23)
+
+- Fixed tiered profit exits so open tier sizes rebalance against the current remaining runner after break-even scale-outs instead of spending stale original notional.
+- Added fail-fast over-allocation validation before tier completion state mutates, plus focused coverage for BE scale-out followed by all profit tiers.
+- Rebaselined the canonical P0 TSLA EMA anchor to the fixed MPM accounting result: `10663.30975684895 / 1596 trades / 70.1% WR / PF 1.16`.
+
 ### Mercury Break-My-Fix Answer Contract (2026-06-22)
 
 - Removed the generic early-answer tool-call budget from Mercury agentic review so adversarial prompts are no longer pressured to synthesize before a concrete failure is proven.

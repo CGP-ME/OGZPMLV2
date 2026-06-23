@@ -754,7 +754,8 @@ const BASE_CONFIG = {
     // All values env-backed for matrix sweep tuning
     tieredExit: {
       enabled: envBool('TIERED_EXIT_ENABLED', true),
-      // Fraction of original position to sell at each tier
+      // Relative tier weights. MaxProfitManager rebalances open tiers against
+      // the current remaining runner after any earlier partial exit.
       tier1ExitFraction: parseFloat(env('TIER1_EXIT_FRACTION', 0.30)),
       tier2ExitFraction: parseFloat(env('TIER2_EXIT_FRACTION', 0.30)),
       tier3ExitFraction: parseFloat(env('TIER3_EXIT_FRACTION', 0.20)),
