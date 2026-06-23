@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const {
+  assertP0LedgerConservation,
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts
 } = require('../ogz-meta/gates/multi-runtime-gate-runner');
@@ -31,6 +32,129 @@ function trade(overrides = {}) {
     ...overrides
   };
 }
+
+function ledgerTrade(overrides = {}) {
+  const entryPrice = overrides.entryPrice ?? 100;
+  const exitPrice = overrides.exitPrice ?? 105;
+  const closedOrderQuantity = overrides.closedOrderQuantity ?? overrides.exitOrderQuantity ?? 5;
+  const rawPnlDollars = overrides.rawPnlDollars ?? ((exitPrice - entryPrice) * closedOrderQuantity);
+  const feesDollars = overrides.feesDollars ?? 0.5;
+  const netPnlDollars = overrides.netPnlDollars ?? (rawPnlDollars - feesDollars);
+  const balanceBefore = overrides.balanceBefore ?? 10000;
+  return trade({
+    tradeNumber: overrides.tradeNumber ?? 1,
+    exitTime: overrides.exitTime ?? '2024-03-20T16:30:00.000Z',
+    entryPrice,
+    exitPrice,
+    entryOrderQuantity: overrides.entryOrderQuantity ?? 10,
+    remainingOrderQuantityBeforeExit: overrides.remainingOrderQuantityBeforeExit ?? 10,
+    exitOrderQuantity: overrides.exitOrderQuantity ?? closedOrderQuantity,
+    closedOrderQuantity,
+    size: overrides.size ?? entryPrice * closedOrderQuantity,
+    rawPnlDollars,
+    feesDollars,
+    netPnlDollars,
+    pnlPerShare: overrides.pnlPerShare ?? (netPnlDollars / closedOrderQuantity),
+    balanceBefore,
+    balanceAfter: overrides.balanceAfter ?? balanceBefore + netPnlDollars,
+    exitReason: overrides.exitReason ?? 'be_scaleout',
+    ...overrides
+  });
+}
+
+describe('P0 ledger conservation gate', () => {
+  test('accepts a clean multi-leg trade that closes exactly the original quantity', () => {
+    const leg1 = ledgerTrade({
+      tradeNumber: 1,
+      exitTime: '2024-03-20T16:30:00.000Z',
+      exitPrice: 101,
+      closedOrderQuantity: 5,
+      remainingOrderQuantityBeforeExit: 10,
+      feesDollars: 0.25,
+      balanceBefore: 10000,
+      exitReason: 'be_scaleout'
+    });
+    const leg2 = ledgerTrade({
+      tradeNumber: 2,
+      exitTime: '2024-03-20T16:45:00.000Z',
+      exitPrice: 103,
+      closedOrderQuantity: 3,
+      remainingOrderQuantityBeforeExit: 5,
+      feesDollars: 0.15,
+      balanceBefore: leg1.balanceAfter,
+      exitReason: 'profit_tier_1'
+    });
+    const leg3 = ledgerTrade({
+      tradeNumber: 3,
+      exitTime: '2024-03-20T17:00:00.000Z',
+      exitPrice: 104,
+      closedOrderQuantity: 2,
+      remainingOrderQuantityBeforeExit: 2,
+      feesDollars: 0.1,
+      balanceBefore: leg2.balanceAfter,
+      exitReason: 'max_hold_winner'
+    });
+
+    expect(() => assertP0LedgerConservation(reportPathFor([leg1, leg2, leg3]))).not.toThrow();
+  });
+
+  test('rejects an exit leg that closes more quantity than remains', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ tradeNumber: 1, closedOrderQuantity: 5, remainingOrderQuantityBeforeExit: 10 }),
+      ledgerTrade({ tradeNumber: 2, closedOrderQuantity: 6, remainingOrderQuantityBeforeExit: 5, balanceBefore: 10004.5 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/closes more quantity than remains/);
+  });
+
+  test('rejects closed notional that does not match entry price times closed quantity', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ size: 600, closedOrderQuantity: 5 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/closed notional/);
+  });
+
+  test('rejects raw PnL that does not match price move times closed quantity', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ rawPnlDollars: 999 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/raw PnL/);
+  });
+
+  test('rejects net PnL that does not equal raw PnL minus fees', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ netPnlDollars: 999 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/net PnL/);
+  });
+
+  test('rejects balance deltas that do not equal net PnL', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ balanceAfter: 10000 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/balance delta/);
+  });
+
+  test('rejects PnL per share that is divided by notional instead of closed quantity', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ pnlPerShare: 0.01 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/PnL per share/);
+  });
+
+  test('rejects a completed report group that leaves phantom remaining quantity', () => {
+    const reportPath = reportPathFor([
+      ledgerTrade({ closedOrderQuantity: 5, remainingOrderQuantityBeforeExit: 10 })
+    ]);
+
+    expect(() => assertP0LedgerConservation(reportPath)).toThrow(/final remaining quantity/);
+  });
+});
 
 describe('P0 tiered exit accounting gate', () => {
   test('accepts corrected original-position tier fractions', () => {

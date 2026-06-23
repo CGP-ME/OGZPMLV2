@@ -83,7 +83,7 @@ For changes on the trading/backtest execution path:
   Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
-- Current full-anchor expectation: `10710.667785934895 / 1692 trades / 62.8% WR / PF 1.15`.
+- Current full-anchor expectation: `10663.641411727374 / 1596 trades / 70.1% WR / PF 1.16`.
 - `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after
   each gate run. If it ever predates the current terminal PASS, treat that as a
   gate bug; use the direct worker report path printed by the gate command as
@@ -93,6 +93,8 @@ For changes on the trading/backtest execution path:
 - Older `13255.255799695915` references are historical contaminated partial-exit over-credit anchors.
 - Older `13213.042341608163` references are historical/modifiers-off anchors unless the current
   executable gate is explicitly rebaselined.
+- Older `10663.30975684895` references are historical requested-notional recorder anchors from before
+  backtest reports used executed closed quantity as the source of truth for stock P&L.
 - If the anchor moves, stop and root-cause before continuing.
 
 ## Pipeline Discipline

@@ -95,6 +95,37 @@ describe('Backtest report scope contract', () => {
     expect(record.exitFeeQuantity).toBe(2);
   });
 
+  test('uses executed closed quantity as source of truth for stock notional and PnL', () => {
+    const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
+    const entryPrice = 173.296605;
+    const exitPrice = 172.21385;
+    const closedOrderQuantity = 4.503204202990589;
+
+    const record = recorder.recordTrade(scopedTrade({
+      entryPrice,
+      exitPrice,
+      size: 780,
+      entryOrderQuantity: closedOrderQuantity,
+      entryOrderQuantityUnit: 'shares',
+      remainingOrderQuantityBeforeExit: closedOrderQuantity,
+      remainingOrderQuantityUnit: 'shares',
+      exitOrderQuantity: closedOrderQuantity,
+      exitOrderQuantityUnit: 'shares',
+      closedOrderQuantity,
+      quantityUnit: 'shares',
+      entryFeeQuantity: closedOrderQuantity,
+      exitFeeQuantity: closedOrderQuantity,
+    }));
+
+    const executedNotional = entryPrice * closedOrderQuantity;
+    const executedRawPnl = (exitPrice - entryPrice) * closedOrderQuantity;
+    expect(record.size).toBeCloseTo(executedNotional, 8);
+    expect(record.rawPnlDollars).toBeCloseTo(executedRawPnl, 8);
+    expect(record.netPnlDollars).toBeCloseTo(executedRawPnl, 8);
+    expect(record.balanceAfter - record.balanceBefore).toBeCloseTo(executedRawPnl, 8);
+    expect(record.pnlPerShare).toBeCloseTo(executedRawPnl / closedOrderQuantity, 8);
+  });
+
   test('rejects missing scope before mutating backtest balance or rows', () => {
     const recorder = new BacktestRecorder({ startingBalance: 10000, feePerSide: 0 });
 

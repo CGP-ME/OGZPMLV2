@@ -125,8 +125,6 @@ class BacktestRecorder {
      */
     recordTrade(trade) {
         const tradeScope = BacktestRecorder.validateTradeScope(trade, 'BacktestRecorder.recordTrade');
-        // FIX 2026-03-28: trade.size is already USD, no multiplication needed
-        const positionSizeUsd = trade.size || trade.sizeUsd || 1;
         const entryPrice = trade.entryPrice || 0;
         const exitPrice = trade.exitPrice || 0;
 
@@ -137,6 +135,12 @@ class BacktestRecorder {
         if (!(entryPrice > 0)) {
             throw new Error(`[MED-14] BacktestRecorder.recordTrade: entryPrice non-positive (got ${entryPrice}, direction=${trade.direction}) — refusing to log phantom \$0 P&L`);
         }
+        const closedOrderQuantity = BacktestRecorder.finiteNumberOrNull(
+            trade.closedOrderQuantity ?? trade.exitOrderQuantity ?? trade.orderQuantity
+        );
+        const positionSizeUsd = closedOrderQuantity !== null && closedOrderQuantity > 0
+            ? entryPrice * closedOrderQuantity
+            : (trade.size || trade.sizeUsd || 1);
         let rawPnlDollars;
         if (trade.direction === 'long' || trade.direction === 'buy') {
             // Long: profit when price goes UP
@@ -198,7 +202,7 @@ class BacktestRecorder {
             exitPrice: trade.exitPrice || 0,
             stopLoss: trade.stopLoss || trade.exitContract?.stopLoss || 0,
             takeProfit: trade.takeProfit || trade.exitContract?.takeProfit || 0,
-            size: trade.size || 1,
+            size: positionSizeUsd,
             entryOrderQuantity: BacktestRecorder.finiteNumberOrNull(trade.entryOrderQuantity),
             entryOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.entryOrderQuantityUnit),
             remainingOrderQuantityBeforeExit: BacktestRecorder.finiteNumberOrNull(
@@ -207,9 +211,7 @@ class BacktestRecorder {
             remainingOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.remainingOrderQuantityUnit),
             exitOrderQuantity: BacktestRecorder.finiteNumberOrNull(trade.exitOrderQuantity),
             exitOrderQuantityUnit: BacktestRecorder.cleanTextOrNull(trade.exitOrderQuantityUnit ?? trade.quantityUnit),
-            closedOrderQuantity: BacktestRecorder.finiteNumberOrNull(
-                trade.closedOrderQuantity ?? trade.exitOrderQuantity ?? trade.orderQuantity
-            ),
+            closedOrderQuantity,
             quantityUnit: BacktestRecorder.cleanTextOrNull(
                 trade.quantityUnit ?? trade.exitOrderQuantityUnit ?? trade.entryOrderQuantityUnit
             ),
@@ -310,10 +312,9 @@ class BacktestRecorder {
         else if (conf < 0.75) record.confidenceTier = 'high';
         else record.confidenceTier = 'very_high';
 
-        // P&L per share (for TTP 10-cent rule checking)
-        record.pnlPerShare = record.size > 0
-            ? record.netPnlDollars / record.size
-            : 0;
+        record.pnlPerShare = record.closedOrderQuantity > 0
+            ? record.netPnlDollars / record.closedOrderQuantity
+            : null;
 
         // Exit type normalization
         const er = (record.exitReason || '').toLowerCase();

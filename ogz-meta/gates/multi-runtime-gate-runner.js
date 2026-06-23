@@ -14,7 +14,7 @@ const {
 } = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10663.30975684895,
+  finalBalance: 10663.641411727374,
   totalTrades: 1596,
   winRate: 70.1,
   profitFactor: 1.16
@@ -298,6 +298,105 @@ function normalizedExitReason(value) {
   return String(value).trim().toLowerCase();
 }
 
+function requireFiniteNumber(value, label) {
+  const numberValue = Number(value);
+  assert(Number.isFinite(numberValue), `${label} must be finite, got ${value}`);
+  return numberValue;
+}
+
+function assertClose(actual, expected, label, tolerance = 1e-8) {
+  assert(
+    Math.abs(actual - expected) <= tolerance,
+    `${label}: actual=${actual}, expected=${expected}, diff=${actual - expected}`
+  );
+}
+
+function assertP0LedgerConservation(reportPath) {
+  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  const trades = Array.isArray(report.trades) ? report.trades : [];
+  assert(trades.length > 0, 'P0 report must contain trades for ledger conservation validation');
+
+  const groups = new Map();
+  for (const trade of trades) {
+    const key = tradeGroupKey(trade);
+    const group = groups.get(key) || [];
+    group.push(trade);
+    groups.set(key, group);
+  }
+
+  for (const [key, group] of groups.entries()) {
+    group.sort((a, b) => {
+      const exitA = Date.parse(a.exitTime || '');
+      const exitB = Date.parse(b.exitTime || '');
+      if (Number.isFinite(exitA) && Number.isFinite(exitB) && exitA !== exitB) {
+        return exitA - exitB;
+      }
+      return Number(a.tradeNumber || 0) - Number(b.tradeNumber || 0);
+    });
+
+    const first = group[0];
+    const entryPrice = requireFiniteNumber(first.entryPrice, `P0 ${key} entryPrice`);
+    assert(entryPrice > 0, `P0 ${key} entryPrice must be positive`);
+    const originalQuantity = requireFiniteNumber(first.entryOrderQuantity, `P0 ${key} entryOrderQuantity`);
+    assert(originalQuantity > 0, `P0 ${key} entryOrderQuantity must be positive`);
+    const direction = normalizedExitReason(first.direction);
+    assert(['long', 'buy', 'short', 'sell'].includes(direction), `P0 ${key} has unsupported direction ${first.direction}`);
+
+    let remainingQuantity = originalQuantity;
+    for (const trade of group) {
+      const rowEntryQuantity = requireFiniteNumber(trade.entryOrderQuantity, `P0 ${key} row ${trade.tradeNumber} entryOrderQuantity`);
+      assertClose(rowEntryQuantity, originalQuantity, `P0 ${key} row ${trade.tradeNumber} entry quantity drift`);
+
+      const beforeExit = requireFiniteNumber(trade.remainingOrderQuantityBeforeExit, `P0 ${key} row ${trade.tradeNumber} remainingOrderQuantityBeforeExit`);
+      assertClose(beforeExit, remainingQuantity, `P0 ${key} row ${trade.tradeNumber} remaining quantity before exit`);
+
+      const closedQuantity = requireFiniteNumber(
+        trade.closedOrderQuantity ?? trade.exitOrderQuantity,
+        `P0 ${key} row ${trade.tradeNumber} closedOrderQuantity`
+      );
+      assert(closedQuantity > 0, `P0 ${key} row ${trade.tradeNumber} closedOrderQuantity must be positive`);
+      assert(
+        closedQuantity <= remainingQuantity + 1e-8,
+        `P0 ${key} row ${trade.tradeNumber} closes more quantity than remains: closed=${closedQuantity}, remaining=${remainingQuantity}`
+      );
+
+      const exitQuantity = requireFiniteNumber(trade.exitOrderQuantity, `P0 ${key} row ${trade.tradeNumber} exitOrderQuantity`);
+      assertClose(exitQuantity, closedQuantity, `P0 ${key} row ${trade.tradeNumber} exit quantity mismatch`);
+
+      const size = requireFiniteNumber(trade.size, `P0 ${key} row ${trade.tradeNumber} size`);
+      assert(size > 0, `P0 ${key} row ${trade.tradeNumber} size must be positive`);
+      assertClose(size, entryPrice * closedQuantity, `P0 ${key} row ${trade.tradeNumber} closed notional`, 1e-6);
+
+      const exitPrice = requireFiniteNumber(trade.exitPrice, `P0 ${key} row ${trade.tradeNumber} exitPrice`);
+      assert(exitPrice > 0, `P0 ${key} row ${trade.tradeNumber} exitPrice must be positive`);
+      const expectedRawPnl = (direction === 'long' || direction === 'buy')
+        ? (exitPrice - entryPrice) * closedQuantity
+        : (entryPrice - exitPrice) * closedQuantity;
+      const rawPnl = requireFiniteNumber(trade.rawPnlDollars, `P0 ${key} row ${trade.tradeNumber} rawPnlDollars`);
+      assertClose(rawPnl, expectedRawPnl, `P0 ${key} row ${trade.tradeNumber} raw PnL`, 1e-6);
+
+      const fees = requireFiniteNumber(trade.feesDollars, `P0 ${key} row ${trade.tradeNumber} feesDollars`);
+      assert(fees >= 0, `P0 ${key} row ${trade.tradeNumber} feesDollars must be non-negative`);
+      const netPnl = requireFiniteNumber(trade.netPnlDollars, `P0 ${key} row ${trade.tradeNumber} netPnlDollars`);
+      assertClose(netPnl, rawPnl - fees, `P0 ${key} row ${trade.tradeNumber} net PnL`, 1e-6);
+
+      const pnlPerShare = requireFiniteNumber(trade.pnlPerShare, `P0 ${key} row ${trade.tradeNumber} pnlPerShare`);
+      assertClose(pnlPerShare, netPnl / closedQuantity, `P0 ${key} row ${trade.tradeNumber} PnL per share`, 1e-6);
+
+      const balanceBefore = requireFiniteNumber(trade.balanceBefore, `P0 ${key} row ${trade.tradeNumber} balanceBefore`);
+      const balanceAfter = requireFiniteNumber(trade.balanceAfter, `P0 ${key} row ${trade.tradeNumber} balanceAfter`);
+      assertClose(balanceAfter - balanceBefore, netPnl, `P0 ${key} row ${trade.tradeNumber} balance delta`, 1e-6);
+
+      remainingQuantity -= closedQuantity;
+      if (Math.abs(remainingQuantity) <= 1e-8) {
+        remainingQuantity = 0;
+      }
+    }
+
+    assertClose(remainingQuantity, 0, `P0 ${key} final remaining quantity`, 1e-8);
+  }
+}
+
 function assertP0TieredExitAccounting(reportPath) {
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   const trades = Array.isArray(report.trades) ? report.trades : [];
@@ -400,6 +499,7 @@ const GATES = [
     run: async () => {
       const { runP0 } = loadRuntime();
       const result = runP0('full', 'multi-runtime-gate');
+      assertP0LedgerConservation(result.report);
       assertP0TieredExitAccounting(result.report);
       assertP0LongOnlyNoShortArtifacts(result.report);
       assertP0Summary(result.summary);
@@ -1564,6 +1664,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertP0LedgerConservation,
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts,
   buildGateContext,
