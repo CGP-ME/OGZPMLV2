@@ -82,6 +82,20 @@ function requireMpmNumber(path) {
   return value;
 }
 
+function requireMpmNumberInRange(path, { greaterThan = null, min = null, max = null } = {}) {
+  const value = requireMpmNumber(path);
+  if (greaterThan !== null && !(value > greaterThan)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be > ${greaterThan}: ${path}`);
+  }
+  if (min !== null && !(value >= min)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be >= ${min}: ${path}`);
+  }
+  if (max !== null && !(value <= max)) {
+    throw new Error(`[MaxProfitManager] TradingConfig value must be <= ${max}: ${path}`);
+  }
+  return value;
+}
+
 function requireMpmBoolean(path) {
   const value = requireMpmConfig(path);
   if (typeof value !== 'boolean') {
@@ -112,6 +126,21 @@ function requireMpmObject(path) {
     throw new Error(`[MaxProfitManager] TradingConfig value must be an object: ${path}`);
   }
   return value;
+}
+
+function buildBeScaleOutConfig() {
+  const triggerType = requireMpmString('exitLogic.beScaleOut.triggerType');
+  if (!['one_to_one_r', 'fixed_percent'].includes(triggerType)) {
+    throw new Error(`[MaxProfitManager] exitLogic.beScaleOut.triggerType must be one_to_one_r or fixed_percent, got ${triggerType}`);
+  }
+
+  return {
+    enabled: requireMpmBoolean('exitLogic.beScaleOut.enabled'),
+    triggerType,
+    fixedPercentTrigger: requireMpmNumberInRange('exitLogic.beScaleOut.fixedPercentTrigger', { greaterThan: 0 }) / 100,
+    scaleOutFraction: requireMpmNumberInRange('exitLogic.beScaleOut.scaleOutFraction', { greaterThan: 0, max: 1 }),
+    feeBufferPercent: requireMpmNumberInRange('exitLogic.beScaleOut.feeBufferPercent', { min: 0 }),
+  };
 }
 
 /**
@@ -277,7 +306,8 @@ class MaxProfitManager {
     console.log('[MaxProfitManager] initialized with advanced profit optimization');
     this.log('Configuration loaded with tiered exits and dynamic trailing', 'info');
 
-    this.beScaleOutConfig = requireMpmObject('exitLogic.beScaleOut');
+    requireMpmObject('exitLogic.beScaleOut');
+    this.beScaleOutConfig = buildBeScaleOutConfig();
     this.trailConfig = requireMpmObject('exitLogic.trail');
   }
   
@@ -572,7 +602,7 @@ class MaxProfitManager {
 
       if (profitPercent >= trigger) {
         this.state.beScaleOutFired = true;
-        const scaleOutFraction = this.beScaleOutConfig.scaleOutFraction || 0.5;
+        const scaleOutFraction = this.beScaleOutConfig.scaleOutFraction;
         const scaleOutSize = this.state.remainingSize * scaleOutFraction;
         const scaleOutQuantity = this.state.remainingOrderQuantity !== null
           ? this.state.remainingOrderQuantity * scaleOutFraction

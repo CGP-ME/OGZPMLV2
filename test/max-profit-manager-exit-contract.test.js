@@ -24,6 +24,11 @@ describe('MaxProfitManager exit contract stop basis', () => {
     timeAdjustmentIntervals: 'holdTimes.tighteningSchedule',
     enableVolatilityAdjustment: 'exitLogic.volatilityAdjustment.enabled',
     enableMarketAdaptation: 'exitLogic.tieredExit.enableMarketAdaptation',
+    beScaleOutEnabled: 'exitLogic.beScaleOut.enabled',
+    beScaleOutTriggerType: 'exitLogic.beScaleOut.triggerType',
+    beScaleOutFixedPercentTrigger: 'exitLogic.beScaleOut.fixedPercentTrigger',
+    beScaleOutScaleOutFraction: 'exitLogic.beScaleOut.scaleOutFraction',
+    beScaleOutFeeBufferPercent: 'exitLogic.beScaleOut.feeBufferPercent',
   };
 
   function toTradingConfigOverrides(config = {}) {
@@ -111,13 +116,12 @@ describe('MaxProfitManager exit contract stop basis', () => {
   });
 
   test('one-to-one-R break-even scale-out uses the trade contract stop distance', () => {
-    const manager = startManager('buy', { stopLossPercent: -0.5 });
-    manager.beScaleOutConfig = {
-      enabled: true,
-      triggerType: 'one_to_one_r',
-      scaleOutFraction: 0.5,
-      feeBufferPercent: 0,
-    };
+    const manager = startManager('buy', { stopLossPercent: -0.5 }, {
+      beScaleOutEnabled: true,
+      beScaleOutTriggerType: 'one_to_one_r',
+      beScaleOutScaleOutFraction: 0.5,
+      beScaleOutFeeBufferPercent: 0,
+    });
 
     const beforeTrigger = manager.update(100.49, { volatility: 0.01 });
     expect(beforeTrigger.action).not.toBe('exit_partial');
@@ -211,14 +215,12 @@ describe('MaxProfitManager exit contract stop basis', () => {
   test('break-even scale-out realized PnL uses scale-out notional return', () => {
     const manager = startManager('buy', { stopLossPercent: -0.5 }, {
       minHoldTimeMinutes: 0,
+      beScaleOutEnabled: true,
+      beScaleOutTriggerType: 'fixed_percent',
+      beScaleOutFixedPercentTrigger: 1.5,
+      beScaleOutScaleOutFraction: 0.5,
+      beScaleOutFeeBufferPercent: 0,
     });
-    manager.beScaleOutConfig = {
-      enabled: true,
-      triggerType: 'fixed_percent',
-      fixedPercentTrigger: 0.015,
-      scaleOutFraction: 0.5,
-      feeBufferPercent: 0,
-    };
 
     const update = manager.update(101.5, { volatility: 0.01 });
 
@@ -294,14 +296,12 @@ describe('MaxProfitManager exit contract stop basis', () => {
       enableBreakevenStop: false,
       initialStopLossPercent: 0.05,
       minHoldTimeMinutes: 0,
+      beScaleOutEnabled: true,
+      beScaleOutTriggerType: 'fixed_percent',
+      beScaleOutFixedPercentTrigger: 10,
+      beScaleOutScaleOutFraction: 0.5,
+      beScaleOutFeeBufferPercent: 0,
     });
-    manager.beScaleOutConfig = {
-      enabled: true,
-      triggerType: 'fixed_percent',
-      fixedPercentTrigger: 0.10,
-      scaleOutFraction: 0.5,
-      feeBufferPercent: 0,
-    };
 
     const result = manager.start(100, 'buy', 10000, {
       volatility: 0.01,
@@ -462,5 +462,31 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(manager.config.highVolatilityThreshold).toBeCloseTo(0.025, 10);
     expect(manager.config.volatilityLookbackPeriods).toBe(33);
     expect(manager.config.enableMarketAdaptation).toBe(false);
+  });
+
+  test('fixed-percent BE scale-out trigger is config percent-form, not runtime decimal-form', () => {
+    const manager = startManager('buy', { stopLossPercent: -0.5 }, {
+      minHoldTimeMinutes: 0,
+      beScaleOutEnabled: true,
+      beScaleOutTriggerType: 'fixed_percent',
+      beScaleOutFixedPercentTrigger: 1.5,
+      beScaleOutScaleOutFraction: 0.5,
+      beScaleOutFeeBufferPercent: 0,
+    });
+
+    const beforeTrigger = manager.update(101.49, { volatility: 0.01 });
+    expect(beforeTrigger.action).toBe('update');
+
+    const atTrigger = manager.update(101.5, { volatility: 0.01 });
+    expect(atTrigger.action).toBe('exit_partial');
+    expect(atTrigger.reason).toBe('be_scaleout');
+  });
+
+  test('rejects invalid BE scale-out fractions instead of falling back to 50 percent', () => {
+    TradingConfig.setOverrides({
+      'exitLogic.beScaleOut.scaleOutFraction': 0,
+    });
+
+    expect(() => new MaxProfitManager()).toThrow(/exitLogic\.beScaleOut\.scaleOutFraction/);
   });
 });
