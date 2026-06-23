@@ -3,6 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const config = require('../trai_brain/mercury-bridge/config');
 const { walkRepo } = require('../trai_brain/mercury-bridge/indexer');
@@ -38,6 +39,10 @@ function toRelSet(root, files) {
   return new Set(files.map((file) => path.relative(root, file).replace(/\\/g, '/')));
 }
 
+function git(root, args) {
+  execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+}
+
 describe('Mercury index scope hygiene', () => {
   let tmpRoot;
 
@@ -66,6 +71,12 @@ describe('Mercury index scope hygiene', () => {
 
     expect(() => config.loadMercuryIgnore(badIgnore))
       .toThrow(/directory entries must end with \//);
+  });
+
+  test('mercury.ignore entries apply by exact directory name anywhere under repo root', () => {
+    expect(config.isPathIgnoredByMercury('ogz-meta/ledger/stale.md')).toBe(true);
+    expect(config.isPathIgnoredByMercury('src/ledger/stale.md')).toBe(true);
+    expect(config.isPathIgnoredByMercury('src/ledger-data/live.md')).toBe(false);
   });
 
   test('walkRepo indexes source and canonical specs, not stale intake/history artifacts', () => {
@@ -108,6 +119,20 @@ describe('Mercury index scope hygiene', () => {
     expect(files).toContain('core/live-path.js');
     expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
     expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
+  });
+
+  test('search alias uses grep semantics without bypassing ignored paths', async () => {
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_SEARCH_ALIAS_MARKER";');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'MERCURY_SEARCH_ALIAS_MARKER');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('search', { query: 'MERCURY_SEARCH_ALIAS_MARKER', limit: 20 });
+    const files = result.matches.map((match) => match.file);
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(files).toContain('core/live-path.js');
+    expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
+    expect(schemaNames).toContain('search');
   });
 
   test('grep file_pattern cannot re-include ignored intake/history artifacts', async () => {
@@ -263,6 +288,254 @@ describe('Mercury index scope hygiene', () => {
     });
 
     expect(ignoredResult.error).toContain('git_show blocked by mercury.ignore');
+  });
+
+  test('git_diff exposes staged changes and filters ignored intake paths', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_DIFF_MARKER";\n');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.md', 'MERCURY_DIFF_MARKER\n');
+    git(tmpRoot, ['add', 'core/live-path.js', 'ogz-meta/ledger/stale-audit.md']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('git_diff', { target: 'staged' });
+
+    expect(result.files).toEqual(['core/live-path.js']);
+    expect(result.diff).toContain('MERCURY_DIFF_MARKER');
+    expect(result.diff).not.toContain('ogz-meta/ledger/stale-audit.md');
+
+    const ignoredPathResult = await adapter.execute('git_diff', {
+      target: 'staged',
+      path: 'ogz-meta/ledger/stale-audit.md',
+    });
+
+    expect(ignoredPathResult.error).toContain('git_diff blocked by mercury.ignore');
+
+    const ignoredDirResult = await adapter.execute('git_diff', {
+      target: 'staged',
+      path: 'ogz-meta/ledger',
+    });
+
+    expect(ignoredDirResult.error).toContain('git_diff blocked by mercury.ignore');
+  });
+
+  test('git_diff exposes the latest committed fix for post-commit Mercury review', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_LAST_COMMIT_MARKER";\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'test commit']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('git_diff', { target: 'last_commit' });
+
+    expect(result.files).toEqual(['core/live-path.js']);
+    expect(result.diff).toContain('MERCURY_LAST_COMMIT_MARKER');
+  });
+
+  test('git_diff current target prefers staged changes over last commit', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/committed.js', 'const marker = "MERCURY_COMMITTED_MARKER";\n');
+    git(tmpRoot, ['add', 'core/committed.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'base commit']);
+
+    writeFixture(tmpRoot, 'core/current.js', 'const marker = "MERCURY_CURRENT_MARKER";\n');
+    git(tmpRoot, ['add', 'core/current.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('git_diff', {});
+
+    expect(result.requested_target).toBe('current');
+    expect(result.target).toBe('staged');
+    expect(result.files).toEqual(['core/current.js']);
+    expect(result.diff).toContain('MERCURY_CURRENT_MARKER');
+    expect(result.diff).not.toContain('MERCURY_COMMITTED_MARKER');
+  });
+
+  test('git_diff current path reads unstaged path changes when unrelated files are staged', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/staged.js', 'const marker = "BASE_STAGED";\n');
+    writeFixture(tmpRoot, 'core/unstaged.js', 'const marker = "BASE_UNSTAGED";\n');
+    git(tmpRoot, ['add', 'core/staged.js', 'core/unstaged.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'base commit']);
+
+    writeFixture(tmpRoot, 'core/staged.js', 'const marker = "MERCURY_STAGED_MARKER";\n');
+    writeFixture(tmpRoot, 'core/unstaged.js', 'const marker = "MERCURY_UNSTAGED_MARKER";\n');
+    git(tmpRoot, ['add', 'core/staged.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('git_diff', {
+      target: 'current',
+      path: 'core/unstaged.js',
+    });
+
+    expect(result.requested_target).toBe('current');
+    expect(result.target).toBe('working');
+    expect(result.files).toEqual(['core/unstaged.js']);
+    expect(result.diff).toContain('MERCURY_UNSTAGED_MARKER');
+    expect(result.diff).not.toContain('MERCURY_STAGED_MARKER');
+  });
+
+  test('git_diff current path reports no files when requested path has no changes', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/staged.js', 'const marker = "BASE_STAGED";\n');
+    writeFixture(tmpRoot, 'core/unchanged.js', 'const marker = "BASE_UNCHANGED";\n');
+    git(tmpRoot, ['add', 'core/staged.js', 'core/unchanged.js']);
+    git(tmpRoot, ['-c', 'user.name=OGZ Test', '-c', 'user.email=ogz@example.test', 'commit', '-m', 'base commit']);
+
+    writeFixture(tmpRoot, 'core/staged.js', 'const marker = "MERCURY_STAGED_ONLY";\n');
+    git(tmpRoot, ['add', 'core/staged.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('git_diff', {
+      target: 'current',
+      path: 'core/unchanged.js',
+    });
+
+    expect(result.requested_target).toBe('current');
+    expect(result.target).toBe('working');
+    expect(result.files).toEqual([]);
+    expect(result.file_count).toBe(0);
+    expect(result.diff).toBe('');
+  });
+
+  test('run_check executes proof commands in an isolated tracked snapshot', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_RUN_CHECK_MARKER";\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('run_check', {
+      command: ['node', '--check', 'core/live-path.js'],
+      profile: 'syntax-proof',
+    });
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('run_check');
+    expect(result.exit_code).toBe(0);
+    expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
+    expect(result.tracked_mutation_detected).toBe(false);
+    expect(result.artifact).toMatch(/^ogz-meta\/cognition-history\/mercury-execution\/.*syntax-proof\.log$/);
+    expect(fs.existsSync(path.join(tmpRoot, result.artifact))).toBe(true);
+    expect(schemaNames).toContain('run_check');
+  });
+
+  test('run_check prevents proof commands from mutating live repo code', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "ORIGINAL_LIVE_CODE";\n');
+    writeFixture(tmpRoot, 'core/mutator.js', [
+      "const fs = require('fs');",
+      "fs.writeFileSync('core/live-path.js', 'const marker = \"MUTATED_IN_SANDBOX\";\\n');",
+    ].join('\n'));
+    git(tmpRoot, ['add', 'core/live-path.js', 'core/mutator.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('run_check', {
+      command: ['node', 'core/mutator.js'],
+      profile: 'sandbox-mutation-proof',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.exit_code).toBe(0);
+    expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
+    expect(result.tracked_mutation_detected).toBe(false);
+    expect(fs.readFileSync(path.join(tmpRoot, 'core/live-path.js'), 'utf8')).toContain('ORIGINAL_LIVE_CODE');
+  });
+
+  test('run_check strips sensitive environment variables from child commands', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/env-check.js', [
+      "if (process.env.MERCURY_TEST_SECRET_TOKEN) {",
+      "  console.error('secret leaked');",
+      "  process.exit(1);",
+      "}",
+      "if (process.env.MERCURY_RUN_CHECK_SANITIZED_ENV !== 'true') {",
+      "  console.error('sanitized marker missing');",
+      "  process.exit(2);",
+      "}",
+      "console.log('env sanitized');",
+    ].join('\n'));
+    git(tmpRoot, ['add', 'core/env-check.js']);
+    process.env.MERCURY_TEST_SECRET_TOKEN = 'super-secret-fixture-value';
+
+    try {
+      const adapter = createToolAdapter({ repoRoot: tmpRoot });
+      const result = await adapter.execute('run_check', {
+        command: ['node', 'core/env-check.js'],
+        profile: 'env-sanitized',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.exit_code).toBe(0);
+      expect(result.stdout).toContain('env sanitized');
+      expect(result.stderr).not.toContain('super-secret-fixture-value');
+    } finally {
+      delete process.env.MERCURY_TEST_SECRET_TOKEN;
+    }
+  });
+
+  test('run_check blocks ignored paths and live repo mutation commands', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const ok = true;\n');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale.js', 'const stale = true;\n');
+    git(tmpRoot, ['add', 'core/live-path.js', 'ogz-meta/ledger/stale.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const ignoredPath = await adapter.execute('run_check', {
+      command: ['node', '--check', 'ogz-meta/ledger/stale.js'],
+      profile: 'ignored-path',
+    });
+    const gitMutation = await adapter.execute('run_check', {
+      command: ['git', 'reset', '--hard'],
+      profile: 'git-mutation',
+    });
+    const gitFetch = await adapter.execute('run_check', {
+      command: ['git', 'fetch'],
+      profile: 'git-fetch',
+    });
+    const gitStatus = await adapter.execute('run_check', {
+      command: ['git', 'status', '--short'],
+      profile: 'git-status',
+    });
+    const destructiveBinary = await adapter.execute('run_check', {
+      command: ['rm', '-rf', 'core/live-path.js'],
+      profile: 'destructive',
+    });
+    const networkBinary = await adapter.execute('run_check', {
+      command: ['curl', 'https://example.com'],
+      profile: 'network',
+    });
+    const interpreterBinary = await adapter.execute('run_check', {
+      command: ['python3', '-c', 'print("hi")'],
+      profile: 'interpreter',
+    });
+
+    expect(ignoredPath.error).toContain('run_check blocked by mercury.ignore');
+    expect(gitMutation.error).toContain('only allows read-only git subcommands');
+    expect(gitFetch.error).toContain('only allows read-only git subcommands');
+    expect(gitStatus.error).toBeUndefined();
+    expect(gitStatus.execution_cwd).toBe('live_repo_read_only_git');
+    expect(destructiveBinary.error).toContain('blocked executable');
+    expect(networkBinary.error).toContain('blocked executable');
+    expect(interpreterBinary.error).toContain('blocked executable');
+  });
+
+  test('open_file honors line_start alias used by model tool calls', async () => {
+    writeFixture(tmpRoot, 'core/line-alias.js', [
+      'const first = true;',
+      'const second = "MERCURY_LINE_ALIAS";',
+      'const third = true;',
+    ].join('\n'));
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('open_file', {
+      path: 'core/line-alias.js',
+      line_start: 2,
+      end_line: 2,
+    });
+
+    expect(result.start_line).toBe(2);
+    expect(result.text).toContain('MERCURY_LINE_ALIAS');
+    expect(result.text).not.toContain('const first');
   });
 
   test('legacy ReadOnlyToolbox repo search excludes stale intake/history artifacts', () => {

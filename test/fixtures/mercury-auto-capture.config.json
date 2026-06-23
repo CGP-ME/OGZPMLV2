@@ -1,0 +1,70 @@
+{
+  "mongo": {
+    "uri": "mongodb://localhost:27017",
+    "dbName": "ogz_knowledge",
+    "chunksCollection": "chunks",
+    "statsCollection": "index_stats"
+  },
+  "embeddings": {
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434/api/embeddings",
+    "model": "nomic-embed-text",
+    "dimensions": 768,
+    "apiKeyEnv": ""
+  },
+  "batching": {
+    "maxChunks": 100,
+    "maxTokens": 7750,
+    "failOnBatchError": true,
+    "minIntervalMs": 0
+  },
+  "chunking": {
+    "windowSize": 20,
+    "windowOverlap": 5,
+    "maxFileBytes": 200000,
+    "maxChunkChars": 8000
+  },
+  "retrieval": {
+    "topK": 8,
+    "bm25K1": 1.2,
+    "bm25B": 0.75,
+    "rrfK": 60,
+    "hybridCandidatePool": 50,
+    "contentTypeBoostStrong": 1.5,
+    "contentTypeBoostWeak": 1.2,
+    "hybridEnabled": true
+  },
+  "traceMemory": {
+    "enabled": true,
+    "collection": "investigation_traces_guarded_v1",
+    "captureMode": "auto",
+    "injectThreshold": 0.75,
+    "dedupThreshold": 0.92,
+    "staleDays": 30,
+    "maxCount": 10000,
+    "protectedUsageCount": 3
+  },
+  "llm": {
+    "provider": "mercury",
+    "baseUrl": "https://api.inceptionlabs.ai/v1",
+    "model": "mercury-2",
+    "apiKeyEnv": "INCEPTION_API_KEY",
+    "clientMaxTokens": 7750,
+    "clientMinTokens": 400,
+    "requestTimeoutMs": 300000,
+    "temperature": 0.8
+  },
+  "agentic": {
+    "maxIterations": 60,
+    "maxTokens": 7750,
+    "systemPrompt": [
+      "test prompt"
+    ]
+  },
+  "singleShot": {
+    "maxTokens": 2000,
+    "systemPrompt": [
+      "test prompt"
+    ]
+  }
+}

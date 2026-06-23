@@ -55,6 +55,7 @@ function parseArgs(argv) {
     explainTrace: false,   // print trace hint and exit
     traceStats: false,     // dump trace stats and exit
     pruneTraces: false,    // force eviction and exit
+    captureTrace: false,   // opt-in successful trace capture
   };
   const positional = [];
 
@@ -85,6 +86,8 @@ function parseArgs(argv) {
       args.traceStats = true;
     } else if (arg === '--prune-traces') {
       args.pruneTraces = true;
+    } else if (arg === '--capture-trace') {
+      args.captureTrace = true;
     } else if (arg.startsWith('--')) {
       console.warn(`[ask] Unknown flag: ${arg}`);
     } else {
@@ -140,6 +143,8 @@ function usage() {
   console.log('  --quiet                Suppress progress logs');
   console.log('  --show-chunks          Print retrieved chunk text');
   console.log('  --show-history         Agentic only: print full tool-call trace');
+  console.log('  --capture-trace        Agentic only: manually store a successful investigation trace');
+  console.log('                         RAG/chunk writes are never done by ask.js; run indexer.js explicitly.');
   console.log('');
   console.log('Examples:');
   console.log('  node trai_brain/mercury-bridge/ask.js "What does StopLossChecker do?"');
@@ -281,10 +286,12 @@ async function runAgentic(query, opts) {
         query,
         toolCallSequence,
         finalAnswer: result.answer,
+        captureRequested: opts.captureTrace === true,
         metadata: {
           iterations: result.iterations,
           latencyMs: result.totalLatencyMs,
           termination: result.termination,
+          captureRequested: opts.captureTrace === true,
         },
       });
 
@@ -292,7 +299,11 @@ async function runAgentic(query, opts) {
         if (captureResult.captured) {
           console.log(`[MERCURY-BRIDGE] Trace ${captureResult.action} (quality=${(captureResult.new_quality || captureResult.quality || 0).toFixed(1)})`);
         } else {
-          console.log(`[MERCURY-BRIDGE] Trace not captured: ${captureResult.reason || captureResult.action}`);
+          const reason = captureResult.reason || captureResult.action;
+          console.log(`[MERCURY-BRIDGE] Trace not captured: ${reason}`);
+          if (reason === 'manual_capture_not_requested') {
+            console.log('[MERCURY-BRIDGE] Manual capture mode: rerun with --capture-trace only if this answer should teach trace memory.');
+          }
         }
       }
     }

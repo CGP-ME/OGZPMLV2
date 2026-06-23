@@ -23,6 +23,92 @@
 
 const config = require('./config');
 
+const FILE_LINE_CITATION_PATTERN = /\b[\w./-]+\.(?:js|mjs|cjs|json|md|css|html|yml|yaml|txt):\d+(?:[-‑–—]\d+)?\b/;
+const RUN_CHECK_ARTIFACT_CITATION_PATTERN = /\bogz-meta\/cognition-history\/mercury-execution\/[\w./-]+\.log:\d+(?:[-‑–—]\d+)?\b/;
+
+function hasFileLineCitation(content) {
+  return FILE_LINE_CITATION_PATTERN.test(content || '');
+}
+
+function hasToolHandleCitation(content) {
+  return /【[^】]+†L\d+(?:[-‑–—]L?\d+)?】/.test(content || '');
+}
+
+function hasUnsupportedRunCheckClaim(content) {
+  const answer = String(content || '');
+  if (!/\brun_check\b/i.test(answer)) return false;
+  return !RUN_CHECK_ARTIFACT_CITATION_PATTERN.test(answer);
+}
+
+function previewUncitedAnswer(content) {
+  const compact = String(content || '').replace(/\s+/g, ' ').trim();
+  if (!compact) return '(empty content)';
+  return compact.length > 500 ? `${compact.slice(0, 500)}...` : compact;
+}
+
+function normalizeToolHandleCitations(content) {
+  return String(content || '')
+    .replace(
+    /(`?)([\w./-]+\.(?:js|mjs|cjs|json|md|css|html|yml|yaml|txt))\1([^.\n]{0,260})【open_file†L(\d+)(?:[-‑–—]L?(\d+))?】/g,
+    (match, tick, filePath, between, startLine, endLine) => {
+      const range = endLine ? `${startLine}-${endLine}` : startLine;
+      return `${tick}${filePath}${tick}${between}${filePath}:${range}`;
+    }
+  )
+    .replace(
+      /\bFile:\s*`?([\w./-]+\.(?:js|mjs|cjs|json|md|css|html|yml|yaml|txt))`?\s*(?:\*+)?\s*Lines?:\s*(\d+)(?:[-‑–—](\d+))?/gi,
+      (match, filePath, startLine, endLine) => `${filePath}:${endLine ? `${startLine}-${endLine}` : startLine}`
+    );
+}
+
+function escapeRegexLiteral(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function findToolAvailabilityContradiction(content, history = []) {
+  const answer = String(content || '');
+  const invokedTools = new Set(
+    history
+      .filter((entry) => entry && entry.toolName && !(entry.toolResult && entry.toolResult.error))
+      .map((entry) => entry.toolName)
+  );
+
+  for (const toolName of invokedTools) {
+    const escaped = escapeRegexLiteral(toolName);
+    const sameSentence = '[^.\\n!?:;]{0,180}';
+    const negativeAvailabilityPatterns = [
+      new RegExp(`\\b${escaped}\\b${sameSentence}\\b(?:not\\s+(?:exposed|listed|available|registered|implemented|usable)|missing|omitted|unavailable|unexposed)\\b`, 'i'),
+      new RegExp(`\\b${escaped}\\b${sameSentence}\\b(?:cannot|can't|can\\s+not)\\s+(?:be\\s+)?(?:invoked|called|used|seen|found)\\b`, 'i'),
+      new RegExp(`\\b(?:not\\s+(?:exposed|listed|available|registered|implemented|usable)|missing|omitted|unavailable|unexposed)\\b${sameSentence}\\b${escaped}\\b`, 'i'),
+      new RegExp(`\\b(?:cannot|can't|can\\s+not)\\s+(?:be\\s+)?(?:invoke|invoked|call|called|use|used|see|seen|find|found)\\b${sameSentence}\\b${escaped}\\b`, 'i'),
+    ];
+    if (negativeAvailabilityPatterns.some((pattern) => pattern.test(answer))) {
+      return toolName;
+    }
+  }
+  return null;
+}
+
+function hasUnsupportedTestOutcomeClaim(content, history = []) {
+  const answer = String(content || '');
+  const claimsTestOutcome = /\btest(?:s| suite| case)?\b[\s\S]{0,180}\b(?:fails?|failed|passes?|passed|green|red)\b/i.test(answer)
+    || /\b(?:fails?|failed|passes?|passed|green|red)\b[\s\S]{0,180}\btest(?:s| suite| case)?\b/i.test(answer);
+  if (!claimsTestOutcome) return false;
+  return !history.some((entry) => {
+    if (!entry || (entry.toolResult && entry.toolResult.error)) return false;
+    if (entry.toolName === 'run_check' && entry.toolResult && entry.toolResult.source === 'run_check') {
+      return true;
+    }
+    return /test|jest|npm/i.test(entry.toolName || '');
+  });
+}
+
+function hasConceptualProofClaim(content) {
+  const answer = String(content || '');
+  return /\bconceptual\b[\s\S]{0,240}\bno additional evidence needed\b/i.test(answer)
+    || /\bno additional evidence (?:is )?required\b/i.test(answer);
+}
+
 /**
  * Wrap generateWithTools with exponential backoff retry.
  * Retries on HTTP 429/502/503/504, empty responses, network errors.
@@ -150,6 +236,9 @@ async function runReactLoop(params) {
   const RECENT_WINDOW = 8;
   const DUP_THRESHOLD = 3;
   const recentToolHashes = [];
+  let citationRepairRequested = false;
+  let contradictionRepairRequested = false;
+  let unsupportedClaimRepairRequested = false;
 
   function hashToolCall(tc) {
     return `${tc.function?.name}:${JSON.stringify(tc.function?.arguments || {})}`;
@@ -202,10 +291,10 @@ async function runReactLoop(params) {
         if (verbose) console.error(`[REACT] Loop detected — Mercury is repeating tool calls. Forcing synthesis.`);
         // Remove the assistant message with tool_calls (can't leave it dangling)
         messages.pop();
-        // Add a synthesis-forcing user message
+        // Add a correctness-first synthesis message without pressuring speed.
         messages.push({
           role: 'user',
-          content: 'You have been repeating the same tool calls. Stop searching and provide your final answer now using the evidence you have already gathered. Cite file:line for every claim.',
+          content: 'You are repeating the same tool call. If that call cannot add new evidence, synthesize only from already gathered evidence with file:line citations for every factual claim. If the evidence is insufficient, say exactly what additional evidence or iterations are still needed instead of producing a brittle answer.',
         });
         continue;
       }
@@ -255,9 +344,65 @@ async function runReactLoop(params) {
     }
 
     // No tool calls — this is the final answer
+    const finalAnswer = normalizeToolHandleCitations(assistantMsg.content || '(empty content)');
+    if (!hasFileLineCitation(finalAnswer) || hasToolHandleCitation(finalAnswer) || hasUnsupportedRunCheckClaim(finalAnswer)) {
+      if (!citationRepairRequested) {
+        citationRepairRequested = true;
+        messages.push({
+          role: 'user',
+          content: 'Your answer is missing file:line citations in the required `path/to/file.js:123-130` format, it still contains tool-handle citations, or it claims a run_check result without citing the execution artifact as `ogz-meta/cognition-history/mercury-execution/name.log:line`. Tool-handle citations like `【open_file†L1-L2】`, `【run_check†L1-L2】`, and bare phrases like "lines 12-14" do not count. Use tools if needed, then return a final answer with only literal `path:line` citations for every factual claim. If no cited answer can be proven from available evidence, say what evidence is missing.',
+        });
+        continue;
+      }
+      if (verbose) console.error(`[REACT] Final answer missing file:line citations, contains tool handles, or has uncited run_check claims after repair request`);
+      return {
+        answer: `(Mercury final answer missing file:line citations, contains tool handles, or has uncited run_check claims after repair request)\n\nRejected answer preview: ${previewUncitedAnswer(finalAnswer)}`,
+        iterations: iteration,
+        termination: 'citation_missing',
+        history,
+      };
+    }
+
+    if (hasUnsupportedTestOutcomeClaim(finalAnswer, history) || hasConceptualProofClaim(finalAnswer)) {
+      if (!unsupportedClaimRepairRequested) {
+        unsupportedClaimRepairRequested = true;
+        messages.push({
+          role: 'user',
+          content: 'Your answer made a concrete proof claim without executable evidence. Do not claim a test passes or fails unless a test-run tool result is in the history. Do not use conceptual reproduction or "no additional evidence needed" as proof of a concrete break. Re-evaluate from executed tool results and current code only; if the exact behavior cannot be proven with available tools, say what evidence is missing.',
+        });
+        continue;
+      }
+      if (verbose) console.error(`[REACT] Final answer repeated unsupported test/conceptual proof claim after repair request`);
+      return {
+        answer: `(Mercury final answer repeated unsupported test/conceptual proof claim after repair request)\n\nRejected answer preview: ${previewUncitedAnswer(finalAnswer)}`,
+        iterations: iteration,
+        termination: 'unsupported_proof_claim',
+        history,
+      };
+    }
+
+    const contradictedTool = findToolAvailabilityContradiction(finalAnswer, history);
+    if (contradictedTool) {
+      if (!contradictionRepairRequested) {
+        contradictionRepairRequested = true;
+        messages.push({
+          role: 'user',
+          content: `Your answer says ${contradictedTool} is missing, unavailable, not exposed, or cannot be invoked, but this same investigation already executed ${contradictedTool} successfully. Re-evaluate from the actual tool results and return a cited answer. Do not claim a tool is unavailable after using it.`,
+        });
+        continue;
+      }
+      if (verbose) console.error(`[REACT] Final answer contradicted successful tool use after repair request`);
+      return {
+        answer: `(Mercury final answer contradicted successful ${contradictedTool} tool use after repair request)\n\nRejected answer preview: ${previewUncitedAnswer(finalAnswer)}`,
+        iterations: iteration,
+        termination: 'self_contradiction',
+        history,
+      };
+    }
+
     if (verbose) console.error(`[REACT] Final answer on iteration ${iteration}`);
     return {
-      answer: assistantMsg.content || '(empty content)',
+      answer: finalAnswer,
       iterations: iteration,
       termination: 'answer_given',
       history,
@@ -275,5 +420,13 @@ async function runReactLoop(params) {
 module.exports = {
   runReactLoop,
   callMercuryWithRetry,
+  hasFileLineCitation,
+  hasToolHandleCitation,
+  hasUnsupportedRunCheckClaim,
+  previewUncitedAnswer,
+  normalizeToolHandleCitations,
+  findToolAvailabilityContradiction,
+  hasUnsupportedTestOutcomeClaim,
+  hasConceptualProofClaim,
   AGENTIC_SYSTEM_PROMPT: config.AGENTIC_SYSTEM_PROMPT,
 };

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Current-Fix Evidence And Manual Trace Capture (2026-06-23)
+
+- Added a read-only `git_diff` Mercury tool so break-my-fix reviews can inspect staged, working-tree, or latest-commit evidence instead of inferring the target from stale repo text.
+- Moved investigation trace memory onto a fresh guarded collection and changed successful trace capture to manual opt-in via `--capture-trace`; normal code/doc RAG retrieval remains available.
+- Blocked current-fix trace capture unless Mercury used `git_diff`, preventing false-positive fix reviews from teaching future runs without exact diff evidence.
+- Clarified Mercury's `break my fix` intent contract so the phrase means adversarial review of the current change instead of usage guidance.
+- Added explicit control-flow proof language and ignored-path `git_diff` regression coverage after Mercury flagged an unreachable bypass.
+- Added an enumerate-and-eliminate reasoning contract so Mercury must weigh mutable outcomes and reject irrelevant paths before giving a deterministic cited answer.
+- Removed the accepted `auto` trace-capture mode so investigation trace writes have one valid posture: explicit manual capture.
+- Replaced early-stop prompt language with correctness-first investigation rules that require ruling out plausible outcomes or asking for more evidence/iterations.
+- Required Mercury to execute exact tool/input claims when possible, and added ignored-directory `git_diff` coverage after a false positive missed that guard.
+- Taught read tools to honor the model's `line_start` alias so Mercury cannot silently read from line 1 when it requests a later range.
+- Added a `git_diff` current target that resolves staged changes before working-tree changes, keeping break-my-fix reviews on the active diff instead of drifting to the previous commit.
+- Replaced the ReAct loop's repeated-tool-call hurry prompt with a correctness-first synthesis request, and made uncited final answers fail closed after one repair attempt.
+- Added `search` as a read-only Mercury compatibility alias for `grep` so stale tool-call habits use the same ignored-path policy instead of wasting iterations on an unknown tool.
+- Added a ReAct self-contradiction guard that rejects answers claiming a tool is unavailable after the same investigation already executed that tool successfully.
+- Fixed path-scoped `git_diff target=current` so unrelated staged files cannot hide unstaged changes for the requested path.
+- Changed `git_diff` diff generation to use only Git-confirmed changed files, so a requested path with no changes cannot be reported as changed.
+- Added a ReAct proof-quality guard that rejects claimed test outcomes without test-run evidence and rejects conceptual reproductions as proof of concrete breaks.
+- Added citation normalization that rewrites same-sentence `open_file` tool handles into literal `path:line` citations before answer acceptance.
+- Added `run_check` execution proof so Mercury can run argv-based checks in an isolated tracked-file snapshot without live repo code writes, while read-only git commands stay available and git mutation subcommands stay blocked.
+- Added answer gates for uncited `run_check` claims and leftover tool-handle citations, plus ignore-policy coverage proving exact ignored directory names apply anywhere while substring lookalikes remain readable.
+- Changed `run_check` live-repo git access from a mutation blocklist to a read-only subcommand allowlist, blocking commands such as `git fetch` that mutate repository metadata.
+- Sanitized sensitive environment variables for `run_check` child processes and blocked network utilities plus generic script interpreters so proof commands cannot exfiltrate runtime secrets.
+- Normalized Mercury's `File: ... Lines: ...` citation prose into literal `path:line` citations so otherwise valid investigations are not rejected for formatting drift.
+
 ### Dashboard Design System Intake (2026-06-23)
 
 - Adopted the verified frontend design-system CSS refresh under the existing production dashboard asset paths instead of introducing `_new.css` runtime references.

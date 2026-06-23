@@ -23,11 +23,12 @@
  * 4. Eviction — scheduled cleanup drops unused + old + low-quality
  *    traces when the collection exceeds the configured cap.
  *
- * Storage: mongo collection `investigation_traces` (separate
+ * Storage: configured mongo collection (separate
  * from the `chunks` collection used for code/doc retrieval).
  *
  * CAPTURE CRITERIA: Only successful runs (termination ===
- * 'answer_given') are captured. Failed runs do not teach.
+ * 'answer_given') are captured. Manual capture mode also requires
+ * an explicit capture request. Failed runs do not teach.
  */
 
 'use strict';
@@ -35,7 +36,8 @@
 const { embedText } = require('./indexer');
 const config = require('./config');
 
-const TRACE_COLLECTION = 'investigation_traces';
+const TRACE_COLLECTION = config.TRACE_COLLECTION;
+const CURRENT_FIX_QUERY_PATTERN = /\b(break my fix|current fix|current change|staged fix|staged change|uncommitted|working tree|latest committed|last commit)\b/i;
 
 // ─── Cosine similarity ────────────────────────────────────────
 
@@ -60,6 +62,26 @@ function computeQualityScore({ iterations, latencyMs, latency_ms }) {
   return iterations * 10 + (latency / 1000);
 }
 
+function hasToolCall(toolCallSequence, toolName) {
+  return (toolCallSequence || []).some((toolCall) => toolCall && toolCall.name === toolName);
+}
+
+function shouldCaptureTrace({ query, toolCallSequence, metadata, captureRequested = false }) {
+  if (!metadata || metadata.termination !== 'answer_given') {
+    return { capture: false, reason: 'termination_not_successful' };
+  }
+
+  if (config.TRACE_CAPTURE_MODE === 'manual' && captureRequested !== true) {
+    return { capture: false, reason: 'manual_capture_not_requested' };
+  }
+
+  if (CURRENT_FIX_QUERY_PATTERN.test(query || '') && !hasToolCall(toolCallSequence, 'git_diff')) {
+    return { capture: false, reason: 'current_fix_without_git_diff' };
+  }
+
+  return { capture: true };
+}
+
 // ─── Capture ──────────────────────────────────────────────────
 
 /**
@@ -73,9 +95,10 @@ function computeQualityScore({ iterations, latencyMs, latency_ms }) {
  *    - If existing trace has better or equal quality, SKIP capture.
  * 4. If no near-duplicate, INSERT new trace.
  */
-async function captureTrace({ store, query, toolCallSequence, finalAnswer, metadata }) {
-  if (metadata.termination !== 'answer_given') {
-    return { captured: false, reason: 'termination_not_successful' };
+async function captureTrace({ store, query, toolCallSequence, finalAnswer, metadata, captureRequested = false }) {
+  const captureGate = shouldCaptureTrace({ query, toolCallSequence, finalAnswer, metadata, captureRequested });
+  if (!captureGate.capture) {
+    return { captured: false, reason: captureGate.reason };
   }
 
   try {
@@ -340,5 +363,6 @@ module.exports = {
   getTraceStats,
   computeQualityScore,
   cosineSimilarity,
+  shouldCaptureTrace,
   TRACE_COLLECTION,
 };

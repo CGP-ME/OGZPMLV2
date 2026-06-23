@@ -3,8 +3,9 @@
 **Purpose:** Give Mercury-2 full awareness of the OGZPrime codebase via RAG.
 Replaces `scripts/mercury-analyze.js` which could only see 3 hardcoded files.
 
-**Scope:** MVP. Knowledge retrieval only — no agentic tool loop yet.
-Agentic ReAct wrapper is a v2 add-on built on the same foundation.
+**Scope:** RAG-backed adversarial verifier with native ReAct tools.
+Mercury retrieves repo memory, reads current code, checks git evidence, and can
+run isolated proof commands without write access to live repo code.
 
 ---
 
@@ -124,6 +125,10 @@ trai_brain/mercury-bridge/
 node trai_brain/mercury-bridge/indexer.js
 ```
 
+RAG/chunk memory writes are explicit. `ask.js` reads the indexed chunks but does
+not update the chunk collection. Only run the indexer after the repo/docs state is
+approved for Mercury retrieval.
+
 Expected output:
 ```
 [MERCURY-BRIDGE] Indexer starting...
@@ -142,6 +147,13 @@ Expected output:
 ```bash
 node trai_brain/mercury-bridge/ask.js "How does MaxProfitManager handle BE scale-out?"
 ```
+
+Investigation trace memory is also manual-write. Normal asks may retrieve prior
+trace hints, but a successful answer is not saved as a new trace unless
+`--capture-trace` is supplied. Treat the two write decisions independently:
+reindex RAG with `indexer.js` only when repo/docs content should be refreshed,
+and use `--capture-trace` only when the specific Mercury answer should teach
+future investigations.
 
 Expected output:
 ```
@@ -265,19 +277,17 @@ Trey requested MongoDB explicitly. Tradeoffs:
 
 ## What's NOT in MVP (deferred to v2)
 
-1. **Agentic ReAct loop** — Mercury can't yet call tools during inference. Retrieval is one-shot. When Mercury needs more context than the top-8 chunks, it currently has to guess. v2 adds tool-call parsing that lets Mercury request grep/read operations mid-conversation via the existing `ReadOnlyToolbox`.
+1. **TRAI hot-path integration** — Mercury via this bridge is not yet wired into TRAI's `processDecision` flow. v2 does that wiring once the bridge proves out.
 
-2. **TRAI hot-path integration** — Mercury via this bridge is not yet wired into TRAI's `processDecision` flow. v2 does that wiring once the bridge proves out.
+2. **Incremental reindex** — MVP reindexes the whole repo each run. v2 adds git diff detection + selective reindex on post-commit hook.
 
-3. **Incremental reindex** — MVP reindexes the whole repo each run. v2 adds git diff detection + selective reindex on post-commit hook.
+3. **Reranking** — MVP returns top-K by cosine only. v2 can add BM25 hybrid rerank or lexical boost for filename matches.
 
-4. **Reranking** — MVP returns top-K by cosine only. v2 can add BM25 hybrid rerank or lexical boost for filename matches.
+4. **Multi-turn conversation history** — MVP is single-turn: one question, one answer. v2 adds conversation context across follow-ups.
 
-5. **Multi-turn conversation history** — MVP is single-turn: one question, one answer. v2 adds conversation context across follow-ups.
+5. **Streaming responses** — MVP waits for the full Mercury response. v2 can stream tokens back to the CLI.
 
-6. **Streaming responses** — MVP waits for the full Mercury response. v2 can stream tokens back to the CLI.
-
-7. **Cross-encoder rerank** — Not needed at this scale.
+6. **Cross-encoder rerank** — Not needed at this scale.
 
 ---
 

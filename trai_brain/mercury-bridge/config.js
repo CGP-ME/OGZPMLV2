@@ -238,11 +238,17 @@ const HYBRID_ENABLED = requiredBoolean(MERCURY_CONFIG, 'retrieval.hybridEnabled'
 
 // ─── Investigation trace memory ──────────────────────────────
 const TRACE_MEMORY_ENABLED = requiredBoolean(MERCURY_CONFIG, 'traceMemory.enabled');
+const TRACE_COLLECTION = requiredString(MERCURY_CONFIG, 'traceMemory.collection');
+const TRACE_CAPTURE_MODE = requiredString(MERCURY_CONFIG, 'traceMemory.captureMode').toLowerCase();
 const TRACE_INJECT_THRESHOLD = requiredNumber(MERCURY_CONFIG, 'traceMemory.injectThreshold', { min: 0 });
 const TRACE_DEDUP_THRESHOLD = requiredNumber(MERCURY_CONFIG, 'traceMemory.dedupThreshold', { min: 0 });
 const TRACE_STALE_DAYS = requiredNumber(MERCURY_CONFIG, 'traceMemory.staleDays', { integer: true, min: 0 });
 const TRACE_MAX_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.maxCount', { integer: true, min: 1 });
 const TRACE_PROTECTED_USAGE_COUNT = requiredNumber(MERCURY_CONFIG, 'traceMemory.protectedUsageCount', { integer: true, min: 0 });
+const supportedTraceCaptureModes = new Set(['manual']);
+if (!supportedTraceCaptureModes.has(TRACE_CAPTURE_MODE)) {
+  throw new Error(`Unsupported traceMemory.captureMode=${TRACE_CAPTURE_MODE}. Use manual.`);
+}
 
 // ─── Mercury LLM client ───────────────────────────────────────
 const MERCURY_LLM_PROVIDER = requiredString(MERCURY_CONFIG, 'llm.provider').toLowerCase();
@@ -358,6 +364,8 @@ module.exports = {
   CONTENT_TYPE_BOOST_WEAK,
   HYBRID_ENABLED,
   TRACE_MEMORY_ENABLED,
+  TRACE_COLLECTION,
+  TRACE_CAPTURE_MODE,
   TRACE_INJECT_THRESHOLD,
   TRACE_DEDUP_THRESHOLD,
   TRACE_STALE_DAYS,
