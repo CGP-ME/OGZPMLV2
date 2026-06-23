@@ -841,6 +841,8 @@ class OGZPrimeV14Bot {
         forceCloseOnSessionEnd: sessionsCfg.forceCloseOnSessionEnd,
         stockSymbols,
         cryptoSymbols: sessionsCfg.cryptoSymbols,
+        executeTrade: this.executeTrade.bind(this),
+        getExitPrice: (symbol, trade, brokerPositions) => this.getTtpExitPrice(symbol, trade, brokerPositions),
       });
 
       // OHLC handler closure — mirrors single-broker handler in subscribeToMarketData.

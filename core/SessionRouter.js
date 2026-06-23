@@ -51,6 +51,8 @@ class SessionRouter extends EventEmitter {
     this.clock = config.clock || (() => Date.now());
     this.checkIntervalMs = config.fast ? 1000 : (config.checkIntervalMs || 60000);
     this.forceCloseOnSessionEnd = config.forceCloseOnSessionEnd !== false;
+    this.executeTrade = typeof config.executeTrade === 'function' ? config.executeTrade : null;
+    this.getExitPrice = typeof config.getExitPrice === 'function' ? config.getExitPrice : null;
 
     this.krakenAdapter = null;
     this.alpacaAdapter = null;
@@ -124,22 +126,48 @@ class SessionRouter extends EventEmitter {
     console.log('[SessionRouter] Wired — Kraken + Alpaca + OrderRouter');
   }
 
-  /**
-   * Read the current market price from the bot context. Falls back to
-   * the last candle in priceHistory if marketData is empty (pre-first-tick).
-   * Used for force-close P&L — closePosition computes (exit - entry), so
-   * passing entryPrice as exit produces $0 P&L (silent loss of records).
-   */
-  _getCurrentPrice() {
-    if (this.ctx && this.ctx.marketData && this.ctx.marketData.price > 0) {
-      return this.ctx.marketData.price;
-    }
-    if (this.ctx && Array.isArray(this.ctx.priceHistory) && this.ctx.priceHistory.length > 0) {
-      const last = this.ctx.priceHistory[this.ctx.priceHistory.length - 1];
-      if (Array.isArray(last)) return last[5] || null;             // [t,o,h,l,c,...]
-      if (last && typeof last === 'object') return last.close || null;
-    }
+  _resolveSourceExitPrice(symbol, trade) {
+    const configuredPrice = Number(this.getExitPrice?.(symbol, trade, []));
+    if (Number.isFinite(configuredPrice) && configuredPrice > 0) return configuredPrice;
+
+    const statePrice = symbol && this.stateManager?.getLastPrice
+      ? Number(this.stateManager.getLastPrice(symbol))
+      : null;
+    if (Number.isFinite(statePrice) && statePrice > 0) return statePrice;
+
     return null;
+  }
+
+  async _closeSourceTradeThroughExecution(orderId, trade) {
+    if (typeof this.executeTrade !== 'function') {
+      throw new Error('SessionRouter source force-close requires executeTrade');
+    }
+
+    const symbol = trade?.symbol;
+    const exitPrice = this._resolveSourceExitPrice(symbol, trade);
+    if (!exitPrice || exitPrice <= 0) {
+      throw new Error('no last-known price');
+    }
+
+    const tradeId = trade?.tradeId || trade?.orderId || trade?.id || orderId;
+    const action = trade?.action === 'SELL_SHORT' || trade?.direction === 'short' ? 'COVER' : 'SELL';
+    await this.executeTrade(
+      { action, confidence: 100, tradeId, exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      exitPrice,
+      {},
+      [],
+      null,
+      null,
+      symbol
+    );
+
+    const activeTrades = this.stateManager?.state?.activeTrades;
+    if (activeTrades instanceof Map && (activeTrades.has(orderId) || activeTrades.has(tradeId))) {
+      throw new Error('executeTrade did not close source position');
+    }
+
+    return { tradeId, symbol, action, exitPrice };
   }
 
   async start() {
@@ -1012,13 +1040,9 @@ class SessionRouter extends EventEmitter {
         pauseConfirmed: true
       });
 
-      // Force-close stock positions. Each trade is closed at the SYMBOL'S
-      // last-known price (StateManager tracks per-symbol prices), not a
-      // single global price. This eliminates the cross-asset equity
-      // corruption Mercury identified — TSLA closes at TSLA price, never
-      // at BTC price. closePosition with a real recent price produces
-      // accurate P&L; the original silent-$0 path (entryPrice fallback)
-      // is closed at the StateManager.closePosition signature level.
+      // Force-close tracked stock positions through the same execution path as
+      // TTP cutoff liquidation. State-only closes can make the router look flat
+      // while broker/journal/trace ownership diverges.
       const activeTrades = this.stateManager.state && this.stateManager.state.activeTrades;
       if (activeTrades && activeTrades.size > 0) {
         if (!this.forceCloseOnSessionEnd) {
@@ -1038,34 +1062,8 @@ class SessionRouter extends EventEmitter {
           const closeFailures = [];
           for (const [orderId, trade] of activeTrades.entries()) {
             try {
-              const symbol = trade.symbol;
-              const exitPrice = symbol && this.stateManager.getLastPrice
-                ? this.stateManager.getLastPrice(symbol)
-                : null;
-              if (!exitPrice || exitPrice <= 0) {
-                closeFailures.push({
-                  orderId,
-                  symbol,
-                  reason: 'no last-known price'
-                });
-                console.error(`[SessionRouter] CANNOT force-close ${orderId} (symbol=${symbol}): no last-known price; trade left open`);
-                continue;
-              }
-              const closeResult = await this.stateManager.closePosition(exitPrice, false, null, {
-                orderId,
-                exitReason: 'session_close',
-                tradeId: trade.tradeId || orderId,
-              });
-              if (!closeResult || closeResult.success === false) {
-                closeFailures.push({
-                  orderId,
-                  symbol,
-                  reason: closeResult && closeResult.error ? closeResult.error : 'closePosition did not confirm success'
-                });
-                console.error(`[SessionRouter] Failed to close ${orderId}:`, closeResult && closeResult.error ? closeResult.error : 'closePosition did not confirm success');
-                continue;
-              }
-              console.log(`[SessionRouter] Closed ${orderId} (${symbol}) at $${exitPrice}`);
+              const closeResult = await this._closeSourceTradeThroughExecution(orderId, trade);
+              console.log(`[SessionRouter] Closed ${orderId} (${closeResult.symbol}) at $${closeResult.exitPrice}`);
             } catch (closeErr) {
               closeFailures.push({
                 orderId,

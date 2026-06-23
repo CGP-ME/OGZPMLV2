@@ -62,6 +62,10 @@ describe('SessionRouter transition journal', () => {
         }
       }
     };
+    router.executeTrade = jest.fn().mockImplementation(async (decision) => {
+      router.stateManager.state.activeTrades.delete(decision.tradeId);
+    });
+    router.getExitPrice = jest.fn(() => null);
     router.krakenAdapter = {
       getBrokerName: jest.fn(() => 'kraken'),
       getPositions: jest.fn().mockResolvedValue([]),
@@ -615,9 +619,20 @@ describe('SessionRouter transition journal', () => {
     }), expect.objectContaining({
       sourceFlatConfirmed: true
     }));
-    expect(router.stateManager.closePosition.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(router.executeTrade.mock.invocationCallOrder[0]).toBeLessThan(
       router.alpacaAdapter.getPositions.mock.invocationCallOrder[0]
     );
+    expect(router.executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'STOCK_1', exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      125,
+      {},
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+    expect(router.stateManager.closePosition).not.toHaveBeenCalled();
     expect(router.alpacaAdapter.getPositions.mock.invocationCallOrder[0]).toBeLessThan(
       memory.switchSessionScope.mock.invocationCallOrder[0]
     );

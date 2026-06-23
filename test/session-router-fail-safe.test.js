@@ -37,6 +37,10 @@ describe('SessionRouter failed-safe transition behavior', () => {
       }),
       resumeTrading: jest.fn().mockResolvedValue({ success: true })
     };
+    router.executeTrade = jest.fn().mockImplementation(async (decision) => {
+      router.stateManager.state.activeTrades.delete(decision.tradeId);
+    });
+    router.getExitPrice = jest.fn(() => null);
     router.orderRouter = { registerBroker: jest.fn() };
     router.onOhlcCallback = jest.fn();
     router.ctx = {
@@ -200,23 +204,29 @@ describe('SessionRouter failed-safe transition behavior', () => {
     expect(router.stateManager.state.isTrading).toBe(false);
   });
 
-  test('transition to crypto fails safe when closePosition does not confirm success', async () => {
+  test('transition to crypto fails safe when executeTrade does not close source state', async () => {
     const router = makeRouter({ forceCloseOnSessionEnd: true });
     router.activeSession = 'stocks';
     router.stateManager.state.activeTrades = new Map([
       ['STOCK_1', { tradeId: 'STOCK_1', symbol: 'TSLA', assetClass: 'stock' }]
     ]);
-    router.stateManager.closePosition.mockResolvedValue({ success: false, error: 'broker close rejected' });
+    router.executeTrade.mockResolvedValue({ success: true });
 
     await router._transitionToCrypto(now);
 
     expect(router.failedSafeMode).toBe(true);
     expect(router.failedSafeReason).toBe('SessionRouter source force-close failed for 1 position(s)');
-    expect(router.stateManager.closePosition).toHaveBeenCalledWith(125, false, null, {
-      orderId: 'STOCK_1',
-      exitReason: 'session_close',
-      tradeId: 'STOCK_1'
-    });
+    expect(router.executeTrade).toHaveBeenCalledWith(
+      { action: 'SELL', confidence: 100, tradeId: 'STOCK_1', exitReason: 'session_close' },
+      { totalConfidence: 100 },
+      125,
+      {},
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+    expect(router.stateManager.closePosition).not.toHaveBeenCalled();
     expect(router.stateManager.resumeTrading).not.toHaveBeenCalled();
     expect(router.orderRouter.registerBroker).not.toHaveBeenCalled();
     expect(router.krakenAdapter.subscribeToCandles).not.toHaveBeenCalled();

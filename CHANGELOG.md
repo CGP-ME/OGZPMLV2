@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### SessionRouter Execution-Backed Source Flatten (2026-06-23)
+
+- Changed SessionRouter stock-session handoff closes to route through the injected trade execution path instead of calling StateManager directly, keeping broker execution, journal, trace, and StateManager mutation on the same close path.
+- Wired the runner's existing `executeTrade` and symbol-aware exit-price resolver into SessionRouter construction.
+- Added focused fail-safe and transition-journal coverage proving source handoff refuses to continue when execution does not remove the tracked active trade.
+
 ### Backtest Ledger Conservation Gate (2026-06-23)
 
 - Fixed BacktestRecorder stock exits so executed closed quantity owns reported notional, raw P&L, net P&L, and balance deltas instead of mixing executed share fields with requested-size math.
