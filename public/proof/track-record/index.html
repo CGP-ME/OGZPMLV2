@@ -162,6 +162,35 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .evidence-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 82px;
+    }
+    .evidence-card .label {
+      display: block;
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .evidence-card .value {
+      display: block;
+      font-size: 14px;
+      line-height: 1.35;
+      color: var(--white);
+      font-family: 'JetBrains Mono', monospace;
+      overflow-wrap: anywhere;
+    }
+
     #streamSlot {
       width: 100%; aspect-ratio: 16/9;
       background: var(--bg-card);
@@ -279,6 +308,11 @@
     <section>
       <h3>Accounts</h3>
       <div class="fleet-grid" id="fleetGrid"></div>
+    </section>
+
+    <section>
+      <h3>Proof Matrix</h3>
+      <div class="evidence-grid" id="proofMatrix"></div>
     </section>
 
     <section>

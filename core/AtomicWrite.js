@@ -22,10 +22,13 @@ const fs = require('fs');
  * Write a value as JSON to filePath atomically.
  * Pretty-prints with 2-space indent for human-readability of state files.
  */
-function writeJsonAtomic(filePath, data) {
+function writeJsonAtomic(filePath, data, options = {}) {
   const tmpPath = filePath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), options);
   fs.renameSync(tmpPath, filePath);
+  if (options.mode !== undefined) {
+    fs.chmodSync(filePath, options.mode);
+  }
 }
 
 /**

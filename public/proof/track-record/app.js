@@ -23,7 +23,12 @@
  *       status, broker,
  *       starting_balance, current_balance,
  *       profit_target, max_drawdown,
- *       days_traded, min_days_required,
+ *       days_traded, trades_recorded, min_trades_required,
+ *       proof_summary: {
+ *         trades_recorded, min_trades_required, winning_trades, losing_trades,
+ *         win_rate, gross_profit, gross_loss, avg_pnl, symbols_traded,
+ *         exit_reasons, partial_exits, full_exits, track_record_start_at
+ *       },
  *       equity_series: [{ t: ISO, balance: number }],
  *       daily_pnl: [{ date: "YYYY-MM-DD", pnl: number, trades: number }],
  *       recent_trades: [{ t: ISO, symbol, side, entry, exit, pnl, pct }]
@@ -76,6 +81,13 @@ function fmtPct(n) {
   if (n == null || isNaN(n)) return '—';
   const sign = n > 0 ? '+' : '';
   return `${sign}${n.toFixed(2)}%`;
+}
+
+function fmtCompactList(values, limit = 5) {
+  if (!Array.isArray(values) || values.length === 0) return '—';
+  const visible = values.slice(0, limit).join(', ');
+  const hidden = values.length - limit;
+  return hidden > 0 ? `${visible} +${hidden}` : visible;
 }
 
 function svgEl(tag, attrs = {}) {
@@ -227,8 +239,8 @@ function renderHeroStats(container, account) {
     { label: 'Total P&L', value: fmtUsd(pnl, true), klass: pnl >= 0 ? 'up' : 'down' },
     { label: 'Return', value: fmtPct(pct), klass: pct >= 0 ? 'up' : 'down' },
     targetPct != null ? { label: 'Target Progress', value: `${targetPct.toFixed(0)}%` } : null,
-    account.days_traded != null && account.min_days_required != null
-      ? { label: 'Days Traded', value: `${account.days_traded} / ${account.min_days_required}` } : null,
+    account.trades_recorded != null && account.min_trades_required != null
+      ? { label: 'Trade Progress', value: `${account.trades_recorded} / ${account.min_trades_required}` } : null,
     account.broker ? { label: 'Broker', value: account.broker } : null
   ].filter(Boolean);
   container.innerHTML = stats.map(s => `
@@ -236,6 +248,64 @@ function renderHeroStats(container, account) {
       <span class="label">${s.label}</span>
       <span class="value ${s.klass || ''}">${s.value}</span>
     </div>`).join('');
+}
+
+function mergeExitReasons(accounts) {
+  const merged = {};
+  for (const account of accounts) {
+    const reasons = account.proof_summary?.exit_reasons || {};
+    for (const [reason, count] of Object.entries(reasons)) {
+      merged[reason] = (merged[reason] || 0) + count;
+    }
+  }
+  return merged;
+}
+
+function aggregateProofSummary(accounts) {
+  const trades = accounts.reduce((sum, a) => sum + (a.proof_summary?.trades_recorded || a.trades_recorded || 0), 0);
+  const wins = accounts.reduce((sum, a) => sum + (a.proof_summary?.winning_trades || 0), 0);
+  const losses = accounts.reduce((sum, a) => sum + (a.proof_summary?.losing_trades || 0), 0);
+  const grossProfit = accounts.reduce((sum, a) => sum + (a.proof_summary?.gross_profit || 0), 0);
+  const grossLoss = accounts.reduce((sum, a) => sum + (a.proof_summary?.gross_loss || 0), 0);
+  return {
+    trades_recorded: trades,
+    min_trades_required: accounts.reduce((sum, a) => sum + (a.proof_summary?.min_trades_required || a.min_trades_required || 0), 0),
+    winning_trades: wins,
+    losing_trades: losses,
+    win_rate: trades > 0 ? (wins / trades) * 100 : 0,
+    gross_profit: grossProfit,
+    gross_loss: grossLoss,
+    avg_pnl: trades > 0 ? (grossProfit + grossLoss) / trades : 0,
+    symbols_traded: Array.from(new Set(accounts.flatMap(a => a.proof_summary?.symbols_traded || []))).sort(),
+    exit_reasons: mergeExitReasons(accounts),
+    partial_exits: accounts.reduce((sum, a) => sum + (a.proof_summary?.partial_exits || 0), 0),
+    full_exits: accounts.reduce((sum, a) => sum + (a.proof_summary?.full_exits || 0), 0),
+    track_record_start_at: accounts.map(a => a.proof_summary?.track_record_start_at).filter(Boolean).sort()[0] || null
+  };
+}
+
+function renderProofMatrix(container, account) {
+  const summary = account.proof_summary || {};
+  const exitReasons = Object.entries(summary.exit_reasons || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => `${reason}: ${count}`);
+  const startBoundary = summary.track_record_start_at
+    ? new Date(summary.track_record_start_at).toLocaleString()
+    : '—';
+  const cards = [
+    { label: 'Trade Progress', value: `${summary.trades_recorded ?? account.trades_recorded ?? 0} / ${summary.min_trades_required ?? account.min_trades_required ?? '—'}` },
+    { label: 'Win Rate', value: fmtPct(summary.win_rate ?? 0) },
+    { label: 'Symbols Covered', value: fmtCompactList(summary.symbols_traded || []) },
+    { label: 'Avg P&L', value: fmtUsd(summary.avg_pnl ?? 0, true) },
+    { label: 'Exit Evidence', value: fmtCompactList(exitReasons, 3) },
+    { label: 'Proof Boundary', value: startBoundary }
+  ];
+  container.innerHTML = cards.map(c => `
+    <div class="evidence-card">
+      <span class="label">${c.label}</span>
+      <span class="value">${c.value}</span>
+    </div>
+  `).join('');
 }
 
 function renderSparkline(values) {
@@ -400,6 +470,9 @@ function getSelectedAccount() {
       current_balance: STATE.accounts.reduce((s, a) => s + (a.current_balance || 0), 0),
       profit_target: STATE.accounts.reduce((s, a) => s + (a.profit_target || 0), 0),
       max_drawdown: STATE.accounts.reduce((s, a) => Math.max(s, a.max_drawdown || 0), 0),
+      trades_recorded: STATE.accounts.reduce((s, a) => s + (a.trades_recorded || 0), 0),
+      min_trades_required: STATE.accounts.reduce((s, a) => s + (a.min_trades_required || 0), 0),
+      proof_summary: aggregateProofSummary(STATE.accounts),
       equity_series: aggregateEquity(STATE.accounts),
       daily_pnl: aggregateDailyPnl(STATE.accounts),
       recent_trades: aggregateTrades(STATE.accounts)
@@ -414,6 +487,7 @@ function rerender() {
   renderEquityCurve(document.getElementById('heroChart'), sel, STATE.range);
   renderHeroStats(document.getElementById('heroStats'), sel);
   renderFleet(document.getElementById('fleetGrid'));
+  renderProofMatrix(document.getElementById('proofMatrix'), sel);
   renderStream(document.getElementById('streamSlot'), document.getElementById('vodArchive'));
   renderHeatmap(document.getElementById('heatmap'), sel.daily_pnl || []);
   const trades = STATE.selectedId === 'aggregate'

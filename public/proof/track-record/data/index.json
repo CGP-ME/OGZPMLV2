@@ -1,16 +1,10 @@
 {
-  "updated": "2026-05-19T14:19:29.368Z",
+  "updated": "2026-06-23T19:35:33.027Z",
   "mode": "live",
   "accounts": [
     {
-      "id": "preview-001",
-      "label": "Apex Eval (Preview)",
-      "stage": "EVAL",
-      "status": "preview"
-    },
-    {
-      "id": "default",
-      "label": "Default Account",
+      "id": "MAX58356",
+      "label": "Trade The Pool MAX5 5K",
       "stage": "EVAL",
       "status": "active"
     }

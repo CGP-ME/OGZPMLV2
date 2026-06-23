@@ -191,7 +191,52 @@ let _trackRecordWriteTimer = null;
 const _TRACK_RECORD_DEBOUNCE_MS = 5000;
 const PUBLIC_TRACK_RECORD_DATA_DIR = path.join(__dirname, '..', 'public', 'proof', 'track-record', 'data');
 const PUBLIC_TRACK_RECORD_ACCOUNTS_DIR = path.join(PUBLIC_TRACK_RECORD_DATA_DIR, 'accounts');
+const PUBLIC_PROOF_FILE_MODE = 0o644;
 const { writeJsonAtomic } = require('../core/AtomicWrite');
+
+function _readTradingProofLogEntries() {
+  if (!fs.existsSync(TRADING_PROOF_LOG)) return [];
+  const raw = fs.readFileSync(TRADING_PROOF_LOG, 'utf8').trim();
+  if (!raw) return [];
+
+  return raw.split('\n').map((line, index) => {
+    try {
+      return JSON.parse(line);
+    } catch (err) {
+      throw new Error(`Malformed trading proof log JSON at ${TRADING_PROOF_LOG}:${index + 1}: ${err.message}`);
+    }
+  });
+}
+
+function _trackRecordEntryKey(entry) {
+  return [
+    entry.type,
+    entry.timestamp,
+    entry.action,
+    entry.symbol,
+    entry.tradeId,
+    entry.orderId,
+    entry.price,
+    entry.pnl,
+    entry.exitReason,
+    entry.isPartialClose
+  ].map(value => value === undefined ? '' : String(value)).join('|');
+}
+
+function _readTrackRecordSourceEntries() {
+  const seen = new Set();
+  const entries = [];
+
+  for (const entry of [..._readTradingProofLogEntries(), ..._trackRecordBuffer]) {
+    if (!entry || typeof entry !== 'object') continue;
+    const key = _trackRecordEntryKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(entry);
+  }
+
+  return entries;
+}
 
 function _readRequiredString(env, key) {
   const value = env[key];
@@ -217,6 +262,15 @@ function _readPositiveInteger(env, key) {
     throw new Error(`Track record proof requires positive integer ${key}, got ${raw}`);
   }
   return value;
+}
+
+function _readRequiredIsoTimestamp(env, key) {
+  const raw = _readRequiredString(env, key);
+  const ms = Date.parse(raw);
+  if (!Number.isFinite(ms)) {
+    throw new Error(`Track record proof requires ISO timestamp ${key}, got ${raw}`);
+  }
+  return raw;
 }
 
 function _readFirstPositiveNumber(env, keys) {
@@ -270,8 +324,21 @@ function _resolveTrackRecordAccountConfig(env = process.env) {
     startingBalance,
     profitTarget: _readFirstPositiveNumber(env, ['OGZ_PROFIT_TARGET', 'TTP_PROFIT_TARGET_DOLLARS']),
     maxDrawdown: _resolveTrackRecordMaxDrawdown(env, startingBalance),
-    minDaysRequired: _readPositiveInteger(env, 'OGZ_MIN_DAYS_REQUIRED'),
+    minTradesRequired: _readPositiveInteger(env, 'OGZ_MIN_TRADES_REQUIRED'),
+    trackRecordStartAt: _readRequiredIsoTimestamp(env, 'OGZ_TRACK_RECORD_START_AT'),
   };
+}
+
+function _filterTrackRecordEntriesForAccount(entries, startAt) {
+  const startMs = Date.parse(startAt);
+  return entries.filter(entry => {
+    if (entry.type !== 'TRADE') return true;
+    const timestampMs = Date.parse(entry.timestamp);
+    if (!Number.isFinite(timestampMs)) {
+      throw new Error(`Track record proof requires TRADE timestamp before publishing ${entry.tradeId || entry.orderId || '(unknown trade)'}`);
+    }
+    return timestampMs >= startMs;
+  });
 }
 
 function _writeTrackRecordNow() {
@@ -288,10 +355,14 @@ function _writeTrackRecordNow() {
     startingBalance,
     profitTarget,
     maxDrawdown,
-    minDaysRequired,
+    minTradesRequired,
+    trackRecordStartAt,
   } = _resolveTrackRecordAccountConfig(process.env);
 
-  const entries = _trackRecordBuffer.filter(e => e.type === 'TRADE');
+  const entries = _filterTrackRecordEntriesForAccount(
+    _readTrackRecordSourceEntries(),
+    trackRecordStartAt
+  ).filter(e => e.type === 'TRADE');
   const byTradeId = new Map();
   for (const e of entries) {
     if (!e.tradeId) continue;
@@ -338,6 +409,32 @@ function _writeTrackRecordNow() {
   }
   const daily_pnl = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
   const days_traded = dailyMap.size;
+  const trades_recorded = exits.length;
+  const winningTrades = exits.filter(e => (e.pnl ?? 0) > 0).length;
+  const losingTrades = exits.filter(e => (e.pnl ?? 0) < 0).length;
+  const grossProfit = exits.reduce((sum, e) => sum + Math.max(e.pnl ?? 0, 0), 0);
+  const grossLoss = exits.reduce((sum, e) => sum + Math.min(e.pnl ?? 0, 0), 0);
+  const exitReasons = {};
+  for (const e of exits) {
+    const reason = e.exitReason || 'unknown';
+    exitReasons[reason] = (exitReasons[reason] || 0) + 1;
+  }
+  const symbolsTraded = Array.from(new Set(exits.map(e => e.symbol).filter(Boolean))).sort();
+  const proof_summary = {
+    trades_recorded,
+    min_trades_required: minTradesRequired,
+    winning_trades: winningTrades,
+    losing_trades: losingTrades,
+    win_rate: trades_recorded > 0 ? (winningTrades / trades_recorded) * 100 : 0,
+    gross_profit: grossProfit,
+    gross_loss: grossLoss,
+    avg_pnl: trades_recorded > 0 ? (grossProfit + grossLoss) / trades_recorded : 0,
+    symbols_traded: symbolsTraded,
+    exit_reasons: exitReasons,
+    partial_exits: exits.filter(e => e.isPartialClose).length,
+    full_exits: exits.filter(e => !e.isPartialClose).length,
+    track_record_start_at: trackRecordStartAt,
+  };
 
   const equity_series = [];
   let runningBalance = startingBalance;
@@ -361,48 +458,43 @@ function _writeTrackRecordNow() {
     profit_target: profitTarget,
     max_drawdown: maxDrawdown,
     days_traded: days_traded,
-    min_days_required: minDaysRequired,
+    trades_recorded: trades_recorded,
+    min_trades_required: minTradesRequired,
+    proof_summary,
     equity_series: equity_series,
     daily_pnl: daily_pnl,
     recent_trades: recent_trades,
     _meta: {
       last_updated: new Date().toISOString(),
       total_recorded_exits: exits.length,
+      track_record_start_at: trackRecordStartAt,
       execution_mode: process.env.PAPER_TRADING === 'true' ? 'paper'
                     : process.env.EXECUTION_MODE === 'live' ? 'live'
                     : 'backtest',
       spec: 'CC-SPEC-EVAL-CAPTURE'
     }
   };
-  writeJsonAtomic(path.join(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, `${accountId}.json`), accountJson);
+  writeJsonAtomic(
+    path.join(PUBLIC_TRACK_RECORD_ACCOUNTS_DIR, `${accountId}.json`),
+    accountJson,
+    { mode: PUBLIC_PROOF_FILE_MODE }
+  );
 
   const indexPath = path.join(PUBLIC_TRACK_RECORD_DATA_DIR, 'index.json');
-  let existingAccounts = [];
-  let existingMode = 'preview';
-  try {
-    if (fs.existsSync(indexPath)) {
-      const raw = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-      existingAccounts = raw.accounts || [];
-      existingMode = raw.mode || 'preview';
-    }
-  } catch {
-    existingAccounts = [];
-  }
-  const others = existingAccounts.filter(a => a.id !== accountId);
-  others.push({
+  const accounts = [{
     id: accountId,
     label: accountLabel,
     stage: accountStage,
     status: accountStatus
-  });
+  }];
   const mode = (accountJson._meta.execution_mode === 'live' || accountJson._meta.execution_mode === 'paper')
     ? 'live'
-    : existingMode;
+    : 'preview';
   writeJsonAtomic(indexPath, {
     updated: new Date().toISOString(),
     mode: mode,
-    accounts: others
-  });
+    accounts: accounts
+  }, { mode: PUBLIC_PROOF_FILE_MODE });
 }
 
 const TradingProofLogger = {
@@ -519,7 +611,10 @@ const TradingProofLogger = {
       };
 
       // Write to public folder
-      fs.writeFileSync(LIVE_TRADES_FILE, JSON.stringify(liveProof, null, 2));
+      fs.writeFileSync(LIVE_TRADES_FILE, JSON.stringify(liveProof, null, 2), {
+        mode: PUBLIC_PROOF_FILE_MODE
+      });
+      fs.chmodSync(LIVE_TRADES_FILE, PUBLIC_PROOF_FILE_MODE);
 
     } catch (err) {
       // Fail silently - don't crash bot for proof publishing
@@ -534,14 +629,14 @@ const TradingProofLogger = {
    *   public/proof/track-record/data/index.json
    *   public/proof/track-record/data/accounts/{OGZ_ACCOUNT_ID}.json
    *
-   * Reads from in-memory _trackRecordBuffer (populated by trade()).
+   * Reads from the durable trading proof log plus in-memory _trackRecordBuffer.
    * Debounced 5s — burst of trades = one disk write.
    * Atomic via writeJsonAtomic. Single-writer per process.
    *
    * Account-specific values come from env vars (OGZ_ACCOUNT_ID, OGZ_ACCOUNT_LABEL,
    * OGZ_ACCOUNT_STAGE, OGZ_ACCOUNT_STATUS, BROKER, STARTING_BALANCE,
-   * OGZ_PROFIT_TARGET, OGZ_MAX_DRAWDOWN, OGZ_MIN_DAYS_REQUIRED).
-   * Defaults documented in CC-SPEC-EVAL-CAPTURE.md if any are unset.
+   * OGZ_PROFIT_TARGET, OGZ_MAX_DRAWDOWN, OGZ_MIN_TRADES_REQUIRED,
+   * OGZ_TRACK_RECORD_START_AT). Missing proof-critical values fail loud.
    */
   publishTrackRecord() {
     // Debounce: schedule one write 5s out; coalesce bursts
