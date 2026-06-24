@@ -875,6 +875,71 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
+  test('stock share range caps cheap-symbol raw share counts to the configured max before eval gate', async () => {
+    TradingConfig.setOverrides({
+      features: { enableDynamicSizing: true },
+      positionSizing: { maxPositionSize: 0.20 },
+      entryLogic: {
+        sizing: {
+          absoluteCapPercent: 1.0,
+          stockShareRange: {
+            enabled: true,
+            minShares: 2,
+            maxShares: 8,
+            maxNotionalUsd: 5000,
+            consistencyCapBuffer: 0.98,
+            dailyLossRiskFraction: 1.0,
+          },
+        },
+      },
+      exits: { profitTiers: { final: 0.025 } },
+      evalRules: {
+        ttp: {
+          accountLimits: { dailyLossDollars: 50 },
+          consistency: { profitTargetDollars: 300, maxPositionProfitRatio: 0.30 },
+        },
+      },
+    });
+    clearTradingConfigOverrides = true;
+    mockStateManager.getAvailableCapital.mockReturnValue(5000);
+    mockStateManager.getEquity.mockReturnValue(5000);
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const preOrderEntryGate = jest.fn().mockResolvedValue({
+      allowed: false,
+      failedRules: [{ ruleId: 'SIZE_PROBE' }],
+    });
+    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false, preOrderEntryGate });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 100 },
+      {},
+      15,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ sizingMultiplier: 2.5 }),
+      'MARA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'eval_rule_gate',
+    }));
+    expect(preOrderEntryGate).toHaveBeenCalledWith(expect.objectContaining({
+      requestedSizeUsd: 6250,
+      orderQuantity: 8,
+      sizeUsd: 120,
+      stockShareRange: expect.objectContaining({
+        minShares: 2,
+        maxShares: 8,
+        reasons: expect.arrayContaining(['config_max_shares']),
+      }),
+    }));
+  });
+
   test('stock share range blocks when configured minimum shares would violate consistency cap', async () => {
     TradingConfig.setOverrides({
       features: { enableDynamicSizing: true },
