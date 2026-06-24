@@ -254,6 +254,7 @@ describe('frontend websocket lifecycle', () => {
     expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-persisted-token' });
     expect(harness.localStorage.removeItem).not.toHaveBeenCalledWith('ogz.dashboard.wsToken');
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
   test('closes without sending auth when no operator token is configured', () => {
@@ -263,7 +264,8 @@ describe('frontend websocket lifecycle', () => {
 
     expect(harness.instances).toEqual([]);
     expect(harness.console.warn).toHaveBeenCalledWith(expect.stringContaining('No dashboard token configured'));
-    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
   });
 
   test('closes without sending auth when public meta token is only whitespace', () => {
@@ -272,6 +274,8 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.Socket.connect()).toBe(false);
 
     expect(harness.instances).toEqual([]);
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
   });
 
   test('stores operator token and reconnects with the new value', () => {
@@ -292,30 +296,40 @@ describe('frontend websocket lifecycle', () => {
     secondSocket.open();
 
     expect(secondSocket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-operator-token' });
+    secondSocket.receive({ type: 'auth_success' });
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
   });
 
-  test('operator token gate stores the submitted key and reconnects', () => {
+  test('missing operator token shows a non-blocking data prompt instead of an access gate', () => {
     const harness = createHarness({ token: '' });
 
     expect(harness.Socket.connect()).toBe(false);
-    const gate = harness.document.getElementById('ogz-dashboard-token-gate');
-    const form = gate.children[0];
-    const input = form.children[2];
-    input.value = ' placeholder-gate-token ';
-
-    form.listeners.submit({ preventDefault: jest.fn() });
-
-    expect(harness.Socket.getAuthToken()).toBe('placeholder-gate-token');
-    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-gate-token');
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
+  });
+
+  test('non-blocking token prompt stores the submitted key and reconnects', () => {
+    const harness = createHarness({ token: '' });
+
+    expect(harness.Socket.connect()).toBe(false);
+    const prompt = harness.document.getElementById('ogz-dashboard-token-prompt');
+    const input = prompt.children[1];
+    input.value = ' placeholder-prompt-token ';
+
+    prompt.listeners.submit({ preventDefault: jest.fn() });
+
+    expect(harness.Socket.getAuthToken()).toBe('placeholder-prompt-token');
+    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-prompt-token');
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).toBeNull();
 
     jest.advanceTimersByTime(1000);
     const socket = harness.instances[0];
     socket.open();
-    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-gate-token' });
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-prompt-token' });
   });
 
-  test('rejected auth clears stored token and surfaces the access gate', () => {
+  test('rejected auth clears stored token without blocking the dashboard shell', () => {
     const harness = createHarness({ token: '' });
 
     harness.Socket.setAuthToken('placeholder-bad-token');
@@ -326,7 +340,8 @@ describe('frontend websocket lifecycle', () => {
 
     expect(harness.Socket.getAuthToken()).toBe('');
     expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
-    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
+    expect(harness.document.getElementById('ogz-dashboard-token-prompt')).not.toBeNull();
   });
 
   test('reconnects when pong heartbeat stops', () => {

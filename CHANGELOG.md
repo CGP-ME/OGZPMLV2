@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restored browser-local persistence for the operator-entered dashboard token so refreshing the production dashboard no longer reopens the access gate while public HTML still carries no WebSocket secret.
 - Kept rejected dashboard tokens fail-closed by clearing both memory and browser storage on auth failure.
+- Replaced the full-screen dashboard access gate with a non-blocking data-auth prompt so missing or rejected dashboard auth cannot cover the production dashboard shell.
 
 ### Live Report Trace Vocabulary (2026-06-24)
 
