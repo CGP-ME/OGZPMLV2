@@ -226,6 +226,43 @@ describe('TradingConfig runtime profile contract', () => {
     expect(JSON.stringify(summary)).not.toContain('parent-live-key');
   });
 
+  test('TTP eval sizing values read from env without requiring tuning profile overrides', () => {
+    const envBefore = {
+      TTP_DAILY_LOSS_LIMIT_DOLLARS: process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS,
+      TTP_MAX_LOSS_THRESHOLD_EQUITY: process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY,
+      TTP_PROFIT_TARGET_DOLLARS: process.env.TTP_PROFIT_TARGET_DOLLARS,
+      TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO,
+      TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO,
+    };
+
+    jest.resetModules();
+    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '50';
+    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '4850';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '300';
+    process.env.TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO = '0.30';
+    process.env.TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO = '0.06';
+
+    try {
+      const FreshTradingConfig = require('../core/TradingConfig');
+
+      expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.dailyLossDollars')).toBe(50);
+      expect(FreshTradingConfig.get('evalRules.ttp.accountLimits.maxLossThresholdEquity')).toBe(4850);
+      expect(FreshTradingConfig.get('evalRules.ttp.consistency.profitTargetDollars')).toBe(300);
+      expect(FreshTradingConfig.get('evalRules.ttp.consistency.maxPositionProfitRatio')).toBe(0.30);
+      expect(FreshTradingConfig.get('evalRules.ttp.consistency.maxProfitTargetInitialBalanceRatio')).toBe(0.06);
+      expect(FreshTradingConfig.getTuningProfileStatus().activeProfile).toBe(null);
+    } finally {
+      for (const [key, value] of Object.entries(envBefore)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+      jest.resetModules();
+    }
+  });
+
   test('flat-state tuning profile swap applies and restores config without mutating process env', async () => {
     const profileKeys = Object.keys(TradingConfig.resolveTuningProfile('current-eval').env);
     const envBefore = {};

@@ -1180,6 +1180,25 @@ const BASE_CONFIG = {
   },
 
   // =========================================================================
+  // EVAL RULE NUMBERS (ConfigLoader owns rule execution; TradingConfig exposes
+  // the same env-owned values for entry sizing math that must not silently miss
+  // live TTP caps.)
+  // =========================================================================
+  evalRules: {
+    ttp: {
+      accountLimits: {
+        dailyLossDollars: env('TTP_DAILY_LOSS_LIMIT_DOLLARS', null),
+        maxLossThresholdEquity: env('TTP_MAX_LOSS_THRESHOLD_EQUITY', null),
+      },
+      consistency: {
+        profitTargetDollars: env('TTP_PROFIT_TARGET_DOLLARS', null),
+        maxPositionProfitRatio: env('TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO', null),
+        maxProfitTargetInitialBalanceRatio: env('TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO', null),
+      },
+    },
+  },
+
+  // =========================================================================
   // TIMEFRAME-SPECIFIC ADJUSTMENTS
   // =========================================================================
   timeframeConfig: {
