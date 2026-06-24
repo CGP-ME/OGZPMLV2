@@ -55,7 +55,7 @@ class EvalRuleEngine {
         ...identity,
       };
     }
-    if (earningsResult.inputs?.enabled !== false) {
+    if (earningsResult.inputs?.enabled !== false && earningsResult.inputs?.calendarContributed !== false) {
       passedRules.push('TTP_EARNINGS_RESTRICTION');
     }
 
@@ -176,7 +176,6 @@ class EvalRuleEngine {
     const cfg = this.config.ttp?.earningsRestriction || {
       enabled: true,
       blockEntries: true,
-      requireKnownStatus: true,
     };
     const currentDateET = this.marketCalendar.getNYTimeParts(new Date(this.now())).date;
     const baseInputs = {
@@ -185,39 +184,28 @@ class EvalRuleEngine {
       currentDateET,
     };
     if (cfg.enabled !== true) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_restriction_disabled', {
+      return this._quarantineCalendarLane({
         ...baseInputs,
         enabled: false,
+        reason: 'earnings_restriction_disabled',
       });
     }
     if (cfg.blockEntries !== true) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_block_entries_disabled', {
+      return this._quarantineCalendarLane({
         ...baseInputs,
         blockEntries: cfg.blockEntries,
+        reason: 'earnings_block_entries_disabled',
       });
     }
-    if (cfg.requireKnownStatus !== true) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'known_earnings_status_required', {
-        ...baseInputs,
-        requireKnownStatus: cfg.requireKnownStatus,
-      });
-    }
-    if (!cfg.manualStatus || typeof cfg.manualStatus !== 'object' || Array.isArray(cfg.manualStatus) || cfg.manualStatus.__parseError) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'missing_manual_earnings_status', {
-        ...baseInputs,
-        statusSource: 'config.ttp.earningsRestriction.manualStatus',
-      });
-    }
-
     let statusResult;
     try {
       statusResult = await this._resolveEarningsStatus(entryPlan, currentDateET);
     } catch (error) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'earnings_status_error', {
-        symbol: entryPlan.symbol,
-        currentDateET,
+      return this._quarantineCalendarLane({
+        ...baseInputs,
         statusSource: 'provider',
         error: error.message,
+        reason: 'earnings_status_error',
       });
     }
 
@@ -227,12 +215,15 @@ class EvalRuleEngine {
       currentDateET,
       statusSource: statusResult.source,
       hasEarningsTonight: statusResult.hasEarningsTonight,
-      requireKnownStatus: cfg.requireKnownStatus !== false,
       blockEntries: cfg.blockEntries !== false,
     };
 
     if (statusResult.known !== true) {
-      return this._fail('TTP_EARNINGS_RESTRICTION', 'missing_earnings_status', inputs);
+      return this._quarantineCalendarLane({
+        ...inputs,
+        statusKnown: false,
+        reason: 'earnings_status_unknown',
+      });
     }
 
     if (cfg.blockEntries !== false && statusResult.hasEarningsTonight === true) {
@@ -240,6 +231,20 @@ class EvalRuleEngine {
     }
 
     return { allowed: true, inputs };
+  }
+
+  _quarantineCalendarLane(inputs) {
+    return {
+      allowed: true,
+      inputs: {
+        ...inputs,
+        statusKnown: false,
+        calendarLaneStatus: 'quarantined',
+        calendarContributed: false,
+        calendarMemoryWriteAllowed: false,
+        policy: 'calendar_lane_quarantined_does_not_block_bot',
+      },
+    };
   }
 
   _checkTtpAccountLimits(entryPlan) {

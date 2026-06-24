@@ -29,29 +29,54 @@ const OPERATOR_ENV_KEYS = Object.freeze([
   'OGZ_TRACK_RECORD_START_AT',
 ]);
 
-const OPERATOR_ENV_VALUES = Object.freeze({
-  ALPACA_MODE: 'paper',
-  ALPACA_API_KEY: 'test-alpaca-key',
-  ALPACA_API_SECRET: 'test-alpaca-secret',
-  SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
-  WEBSOCKET_AUTH_TOKEN: 'test-dashboard-runtime-token',
-  TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-08',
-  TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
-  TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
-  TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
-  TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":false,"SPY":false,"QQQ":false,"COIN":false,"MARA":false,"RIOT":false}}',
-  TTP_PROFIT_TARGET_DOLLARS: '300',
-  INITIAL_BALANCE: '5000',
-  STARTING_BALANCE: '5000',
-  OGZ_ACCOUNT_ID: 'MAX58356',
-  OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5',
-  OGZ_ACCOUNT_STAGE: 'EVAL',
-  OGZ_ACCOUNT_STATUS: 'active',
-  OGZ_MIN_TRADES_REQUIRED: '20',
-  OGZ_TRACK_RECORD_START_AT: '2026-06-12T00:00:00.000Z',
-});
+function currentNewYorkDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function operatorEnvValues() {
+  const today = currentNewYorkDate();
+  return {
+    ALPACA_MODE: 'paper',
+    ALPACA_API_KEY: 'test-alpaca-key',
+    ALPACA_API_SECRET: 'test-alpaca-secret',
+    SIGNALSTACK_WEBHOOK_URL: 'https://signalstack.example/webhook',
+    WEBSOCKET_AUTH_TOKEN: 'test-dashboard-runtime-token',
+    TTP_ACCOUNT_START_OF_DAY_DATE: today,
+    TTP_ACCOUNT_START_OF_DAY_EQUITY: '5000',
+    TTP_DAILY_LOSS_LIMIT_DOLLARS: '50',
+    TTP_MAX_LOSS_THRESHOLD_EQUITY: '4850',
+    TTP_EARNINGS_STATUS_JSON: JSON.stringify({
+      date: today,
+      symbols: { TSLA: false, NVDA: false, SPY: false, QQQ: false, COIN: false, MARA: false, RIOT: false },
+    }),
+    TTP_PROFIT_TARGET_DOLLARS: '300',
+    INITIAL_BALANCE: '5000',
+    STARTING_BALANCE: '5000',
+    OGZ_ACCOUNT_ID: 'MAX58356',
+    OGZ_ACCOUNT_LABEL: 'Trade The Pool MAX5',
+    OGZ_ACCOUNT_STAGE: 'EVAL',
+    OGZ_ACCOUNT_STATUS: 'active',
+    OGZ_MIN_TRADES_REQUIRED: '20',
+    OGZ_TRACK_RECORD_START_AT: '2026-06-12T00:00:00.000Z',
+  };
+}
 
 const LOCKED_PROFILE_ENV_VALUES = Object.freeze({
+  ENTRY_STOCK_SHARE_RANGE_ENABLED: 'true',
+  ENTRY_MIN_STOCK_SHARES: '2',
+  ENTRY_MAX_STOCK_SHARES: '8',
+  ENTRY_MAX_STOCK_NOTIONAL: '5000',
+  ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
+  ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
   MAX_DRAWDOWN: '3',
   MAX_DAILY_LOSS: '1',
   MAX_WEEKLY_LOSS: '3',
@@ -108,7 +133,8 @@ describe('ecosystem eval live profile', () => {
   });
 
   test('default PM2 env passes the eval posture gate when operator-owned values are present', () => {
-    const app = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+    const operatorEnv = operatorEnvValues();
+    const app = loadPrimeAppWithEnv(operatorEnv);
     const env = app.env;
     const report = validateEvalLivePosture(env, { loadDotenv: false });
 
@@ -137,10 +163,10 @@ describe('ecosystem eval live profile', () => {
     }));
     expect(report.checked.config['mode.execution']).toEqual({ value: 'live', source: 'env:EXECUTION_MODE' });
     expect(report.checked.config['broker.id']).toEqual({ value: 'alpaca', source: 'env:BROKER' });
-    expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_KEY);
-    expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.ALPACA_API_SECRET);
-    expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.SIGNALSTACK_WEBHOOK_URL);
-    expect(JSON.stringify(report)).not.toContain(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
+    expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_KEY);
+    expect(JSON.stringify(report)).not.toContain(operatorEnv.ALPACA_API_SECRET);
+    expect(JSON.stringify(report)).not.toContain(operatorEnv.SIGNALSTACK_WEBHOOK_URL);
+    expect(JSON.stringify(report)).not.toContain(operatorEnv.WEBSOCKET_AUTH_TOKEN);
   });
 
   test('locked 5k MAX profile values beat ambient shell env leftovers', () => {
@@ -165,7 +191,7 @@ describe('ecosystem eval live profile', () => {
     }
 
     try {
-      const app = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+      const app = loadPrimeAppWithEnv(operatorEnvValues());
 
       expect(app.env).toEqual(expect.objectContaining(LOCKED_PROFILE_ENV_VALUES));
     } finally {
@@ -180,8 +206,9 @@ describe('ecosystem eval live profile', () => {
   });
 
   test('dashboard stock data config is explicit on websocket and bot PM2 processes', () => {
-    const websocket = loadAppWithEnv('ogz-websocket', OPERATOR_ENV_VALUES);
-    const prime = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+    const operatorEnv = operatorEnvValues();
+    const websocket = loadAppWithEnv('ogz-websocket', operatorEnv);
+    const prime = loadPrimeAppWithEnv(operatorEnv);
 
     for (const app of [websocket, prime]) {
       expect(app.env).toEqual(expect.objectContaining({
@@ -196,17 +223,18 @@ describe('ecosystem eval live profile', () => {
     }
 
     expect(websocket.env).toEqual(expect.objectContaining({
-      ALPACA_API_KEY: OPERATOR_ENV_VALUES.ALPACA_API_KEY,
-      ALPACA_API_SECRET: OPERATOR_ENV_VALUES.ALPACA_API_SECRET,
+      ALPACA_API_KEY: operatorEnv.ALPACA_API_KEY,
+      ALPACA_API_SECRET: operatorEnv.ALPACA_API_SECRET,
     }));
   });
 
   test('dashboard websocket token is operator-owned and passed only to runtime processes', () => {
-    const websocket = loadAppWithEnv('ogz-websocket', OPERATOR_ENV_VALUES);
-    const prime = loadPrimeAppWithEnv(OPERATOR_ENV_VALUES);
+    const operatorEnv = operatorEnvValues();
+    const websocket = loadAppWithEnv('ogz-websocket', operatorEnv);
+    const prime = loadPrimeAppWithEnv(operatorEnv);
 
-    expect(websocket.env.WEBSOCKET_AUTH_TOKEN).toBe(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
-    expect(prime.env.WEBSOCKET_AUTH_TOKEN).toBe(OPERATOR_ENV_VALUES.WEBSOCKET_AUTH_TOKEN);
+    expect(websocket.env.WEBSOCKET_AUTH_TOKEN).toBe(operatorEnv.WEBSOCKET_AUTH_TOKEN);
+    expect(prime.env.WEBSOCKET_AUTH_TOKEN).toBe(operatorEnv.WEBSOCKET_AUTH_TOKEN);
 
     const defaultWebsocket = loadAppWithEnv('ogz-websocket', {});
     const defaultPrime = loadPrimeAppWithEnv({});

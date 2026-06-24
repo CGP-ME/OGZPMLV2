@@ -2,11 +2,25 @@
 
 const path = require('path');
 
+function currentNewYorkDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 describe('ConfigLoader live trading safety guard', () => {
   let originalEnv;
 
   beforeEach(() => {
     jest.resetModules();
+    const today = currentNewYorkDate();
     originalEnv = { ...process.env };
     process.env = {
       ...originalEnv,
@@ -47,14 +61,13 @@ describe('ConfigLoader live trading safety guard', () => {
       TTP_ACCOUNT_LIMITS_ENABLED: 'true',
       TTP_DAILY_LOSS_PAUSE_ENABLED: 'true',
       TTP_MAX_LOSS_ENABLED: 'true',
-      TTP_ACCOUNT_START_OF_DAY_DATE: '2026-05-23',
+      TTP_ACCOUNT_START_OF_DAY_DATE: today,
       TTP_ACCOUNT_START_OF_DAY_EQUITY: '50000',
       TTP_DAILY_LOSS_LIMIT_DOLLARS: '500',
       TTP_MAX_LOSS_THRESHOLD_EQUITY: '47500',
       TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
       TTP_EARNINGS_BLOCK_ENTRIES: 'true',
-      TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
-      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-05-23","symbols":{"TSLA":false}}',
+      TTP_EARNINGS_STATUS_JSON: JSON.stringify({ date: today, symbols: { TSLA: false } }),
       TTP_CONSISTENCY_ENABLED: 'true',
       TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
       TTP_PROFIT_TARGET_DOLLARS: '3000',
@@ -448,7 +461,7 @@ describe('ConfigLoader live trading safety guard', () => {
           enabled: true,
           enforceDailyLossPause: true,
           enforceMaxLoss: true,
-          accountStartOfDayDate: '2026-05-23',
+          accountStartOfDayDate: currentNewYorkDate(),
           accountStartOfDayEquity: 50000,
           dailyLossDollars: 500,
           maxLossThresholdEquity: 47500,
@@ -456,9 +469,8 @@ describe('ConfigLoader live trading safety guard', () => {
         earningsRestriction: expect.objectContaining({
           enabled: true,
           blockEntries: true,
-          requireKnownStatus: true,
           manualStatus: {
-            date: '2026-05-23',
+            date: currentNewYorkDate(),
             symbols: { TSLA: false },
           },
         }),
@@ -605,6 +617,16 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD/);
   });
 
+  test('rejects stale TTP start-of-day date during live eval startup', () => {
+    process.env.EVAL_RULES_ENABLED = 'true';
+    process.env.TTP_RULES_ENABLED = 'true';
+    process.env.LIVE_TRADING = 'true';
+    process.env.CONFIRM_LIVE_TRADING = 'true';
+    process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '2026-01-01';
+
+    expect(() => loadConfig()).toThrow(/TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date/);
+  });
+
   test('rejects disabling TTP account limits when eval rules are enabled', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
@@ -629,44 +651,59 @@ describe('ConfigLoader live trading safety guard', () => {
     expect(() => loadConfig()).toThrow(/TTP_MAX_LOSS_THRESHOLD_EQUITY must be configured/);
   });
 
-  test('rejects disabling TTP earnings restriction when eval rules are enabled', () => {
+  test('warns when TTP earnings restriction is disabled without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
     process.env.TTP_EARNINGS_RESTRICTION_ENABLED = 'false';
 
-    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_RESTRICTION_ENABLED=false is illegal/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.warnings.join('\n')).toMatch(/earnings calendar lane will not block entries/);
   });
 
-  test('rejects allowing unknown TTP earnings status when eval rules are enabled', () => {
+  test('ignores deprecated TTP earnings known-status knob without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'false';
+    process.env.TTP_EARNINGS_REQUIRE_KNOWN_STATUS = 'true';
 
-    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.evalRules.ttp.earningsRestriction).not.toHaveProperty('requireKnownStatus');
   });
 
-  test('rejects missing manual TTP earnings status when known status is required', () => {
+  test('allows missing manual TTP earnings status without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
     delete process.env.TTP_EARNINGS_STATUS_JSON;
 
-    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON must be configured/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.config.evalRules.ttp.earningsRestriction.manualStatus).toBeNull();
   });
 
-  test('rejects malformed manual TTP earnings status JSON', () => {
+  test('warns on malformed manual TTP earnings status JSON without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
     process.env.TTP_EARNINGS_STATUS_JSON = '{bad-json';
 
-    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON must be valid JSON/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.warnings.join('\n')).toMatch(/TTP_EARNINGS_STATUS_JSON parse failed and will be ignored/);
   });
 
-  test('rejects non-boolean manual TTP earnings symbol values', () => {
+  test('warns on non-boolean manual TTP earnings symbol values without blocking startup', () => {
     process.env.EVAL_RULES_ENABLED = 'true';
     process.env.TTP_RULES_ENABLED = 'true';
-    process.env.TTP_EARNINGS_STATUS_JSON = '{"date":"2026-05-23","symbols":{"TSLA":"false"}}';
+    process.env.TTP_EARNINGS_STATUS_JSON = JSON.stringify({ date: currentNewYorkDate(), symbols: { TSLA: 'false' } });
 
-    expect(() => loadConfig()).toThrow(/TTP_EARNINGS_STATUS_JSON\.symbols\.TSLA must be boolean/);
+    const loaded = loadConfig();
+
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.warnings.join('\n')).toMatch(/TTP_EARNINGS_STATUS_JSON\.symbols\.TSLA should be boolean/);
   });
 
   test('rejects missing TTP profit target when consistency rules are enabled', () => {

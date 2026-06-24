@@ -34,8 +34,13 @@ const REQUIRED_ENV_EXACT = Object.freeze({
   TTP_MAX_LOSS_ENABLED: 'true',
   TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
   TTP_EARNINGS_BLOCK_ENTRIES: 'true',
-  TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
   TTP_CONSISTENCY_ENABLED: 'true',
+  ENTRY_STOCK_SHARE_RANGE_ENABLED: 'true',
+  ENTRY_MIN_STOCK_SHARES: '2',
+  ENTRY_MAX_STOCK_SHARES: '8',
+  ENTRY_MAX_STOCK_NOTIONAL: '5000',
+  ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
+  ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
 });
 
 const REQUIRED_ENV_PROCESS_SOURCE = Object.freeze([
@@ -68,7 +73,6 @@ const REQUIRED_CONFIG_EXACT = Object.freeze({
   'evalRules.ttp.accountLimits.enforceMaxLoss': true,
   'evalRules.ttp.earningsRestriction.enabled': true,
   'evalRules.ttp.earningsRestriction.blockEntries': true,
-  'evalRules.ttp.earningsRestriction.requireKnownStatus': true,
   'evalRules.ttp.consistency.enabled': true,
 });
 
@@ -180,6 +184,10 @@ function safeWebhookReport(configSnapshot) {
 
 function addError(errors, message) {
   errors.push(message);
+}
+
+function addWarning(report, message) {
+  report.warnings.push(message);
 }
 
 function resolveRepoPath(filePath) {
@@ -457,19 +465,19 @@ function validateTtpCrossChecks(report) {
   };
 
   if (!manualStatus || typeof manualStatus !== 'object' || Array.isArray(manualStatus)) {
-    addError(report.errors, 'TTP earnings status must be an explicit object');
+    addWarning(report, 'TTP earnings status is not an explicit object; earnings calendar lane is quarantined');
     return;
   }
   if (manualStatus.date !== accountStartDate) {
-    addError(report.errors, `TTP earnings status date must match account start date ${accountStartDate}, got ${manualStatus.date}`);
+    addWarning(report, `TTP earnings status date ${manualStatus.date} does not match account start date ${accountStartDate}; earnings calendar lane is quarantined`);
   }
   if (!symbols || typeof symbols !== 'object' || Array.isArray(symbols)) {
-    addError(report.errors, 'TTP earnings status symbols must be an object');
+    addWarning(report, 'TTP earnings status symbols are not an object; earnings calendar lane is quarantined');
     return;
   }
   for (const symbol of configuredSymbols) {
     if (typeof symbols[symbol] !== 'boolean') {
-      addError(report.errors, `TTP earnings status symbols.${symbol} must be boolean, got ${typeof symbols[symbol]}`);
+      addWarning(report, `TTP earnings status symbols.${symbol} must be boolean, got ${typeof symbols[symbol]}; earnings calendar lane is quarantined`);
     }
   }
 
@@ -547,6 +555,7 @@ function validateEvalLivePosture(sourceEnv = process.env, options = {}) {
     status: 'FAIL',
     envFile: effectiveEnv.envFile,
     errors: [],
+    warnings: [],
     checked: {
       env: {},
       config: {},

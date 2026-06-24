@@ -16,9 +16,38 @@ const ConfigLoader = require('../foundation/ConfigLoader');
 
 const MISSING_ENV_FILE = path.join(__dirname, 'fixtures', 'missing-eval-live-posture.env');
 const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
-const EVAL_EARNINGS_STATUS_JSON = '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":false,"SPY":false,"QQQ":false,"COIN":false,"MARA":false,"RIOT":false}}';
+
+function currentNewYorkDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function earningsStatusJson(date = currentNewYorkDate(), symbolOverrides = {}) {
+  return JSON.stringify({
+    date,
+    symbols: {
+      TSLA: false,
+      NVDA: false,
+      SPY: false,
+      QQQ: false,
+      COIN: false,
+      MARA: false,
+      RIOT: false,
+      ...symbolOverrides,
+    },
+  });
+}
 
 function validEvalLiveEnv(overrides = {}) {
+  const today = currentNewYorkDate();
   return {
     DOTENV_CONFIG_PATH: MISSING_ENV_FILE,
     EXECUTION_MODE: 'live',
@@ -63,18 +92,23 @@ function validEvalLiveEnv(overrides = {}) {
     TTP_ACCOUNT_LIMITS_ENABLED: 'true',
     TTP_DAILY_LOSS_PAUSE_ENABLED: 'true',
     TTP_MAX_LOSS_ENABLED: 'true',
-    TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-08',
+    TTP_ACCOUNT_START_OF_DAY_DATE: today,
     TTP_ACCOUNT_START_OF_DAY_EQUITY: '50000',
     TTP_DAILY_LOSS_LIMIT_DOLLARS: '500',
     TTP_MAX_LOSS_THRESHOLD_EQUITY: '47500',
     TTP_EARNINGS_RESTRICTION_ENABLED: 'true',
     TTP_EARNINGS_BLOCK_ENTRIES: 'true',
-    TTP_EARNINGS_REQUIRE_KNOWN_STATUS: 'true',
-    TTP_EARNINGS_STATUS_JSON: EVAL_EARNINGS_STATUS_JSON,
+    TTP_EARNINGS_STATUS_JSON: earningsStatusJson(today),
     TTP_CONSISTENCY_ENABLED: 'true',
     TTP_CONSISTENCY_MAX_POSITION_PROFIT_RATIO: '0.30',
     TTP_PROFIT_TARGET_DOLLARS: '3000',
     TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.10',
+    ENTRY_STOCK_SHARE_RANGE_ENABLED: 'true',
+    ENTRY_MIN_STOCK_SHARES: '2',
+    ENTRY_MAX_STOCK_SHARES: '8',
+    ENTRY_MAX_STOCK_NOTIONAL: '5000',
+    ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
+    ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
     INITIAL_BALANCE: '50000',
     ...overrides,
   };
@@ -484,6 +518,25 @@ describe('eval live posture gate', () => {
     expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE >= 0\.5/);
   });
 
+  test('fails eval-live posture when stock share range contract is missing or loosened', () => {
+    const missingEnv = validEvalLiveEnv();
+    delete missingEnv.ENTRY_MAX_STOCK_SHARES;
+
+    const missingReport = validateEvalLivePosture(missingEnv);
+
+    expect(missingReport.status).toBe('FAIL');
+    expect(missingReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be explicitly set to 8/);
+
+    const looseReport = validateEvalLivePosture(validEvalLiveEnv({
+      ENTRY_STOCK_SHARE_RANGE_ENABLED: 'false',
+      ENTRY_MAX_STOCK_SHARES: '44',
+    }));
+
+    expect(looseReport.status).toBe('FAIL');
+    expect(looseReport.errors.join('\n')).toMatch(/ENTRY_STOCK_SHARE_RANGE_ENABLED must be true/);
+    expect(looseReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be 8, got 44/);
+  });
+
   test('fails if a critical live flag only passes by ConfigLoader default', () => {
     const env = validEvalLiveEnv();
     delete env.ENABLE_TRAI;
@@ -492,6 +545,15 @@ describe('eval live posture gate', () => {
 
     expect(report.status).toBe('FAIL');
     expect(report.errors.join('\n')).toMatch(/trai\.enabled must be explicitly sourced/);
+  });
+
+  test('fails eval-live posture when TTP start-of-day date is stale', () => {
+    const report = validateEvalLivePosture(validEvalLiveEnv({
+      TTP_ACCOUNT_START_OF_DAY_DATE: '2026-01-01',
+    }));
+
+    expect(report.status).toBe('FAIL');
+    expect(report.errors.join('\n')).toMatch(/TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date/);
   });
 
   test('rejects backtest tuning profile bleed and unsafe runtime tuning profiles', () => {
@@ -510,31 +572,42 @@ describe('eval live posture gate', () => {
     expect(runtimeProfileReport.errors.join('\n')).toMatch(/ACCOUNT_DRAWDOWN_BYPASS=true/);
   });
 
-  test('requires current eval earnings status to match the start-of-day date', () => {
+  test('quarantines stale eval earnings status without failing posture', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
-      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-07","symbols":{"TSLA":false}}',
+      TTP_EARNINGS_STATUS_JSON: earningsStatusJson('2026-06-07'),
     }));
 
-    expect(report.status).toBe('FAIL');
-    expect(report.errors.join('\n')).toMatch(/earnings status date must match account start date 2026-06-08/);
+    expect(report.status).toBe('PASS');
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join('\n')).toMatch(/earnings status date .* earnings calendar lane is quarantined/);
   });
 
-  test('requires every configured Alpaca symbol earnings status to be an explicit boolean', () => {
+  test('quarantines non-boolean eval earnings symbols without failing posture', () => {
     const report = validateEvalLivePosture(validEvalLiveEnv({
-      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":"false","SPY":false,"QQQ":false,"COIN":false,"MARA":false,"RIOT":false}}',
+      TTP_EARNINGS_STATUS_JSON: earningsStatusJson(currentNewYorkDate(), { NVDA: 'false' }),
     }));
 
-    expect(report.status).toBe('FAIL');
-    expect(report.errors.join('\n')).toMatch(/symbols\.NVDA must be boolean/);
+    expect(report.status).toBe('PASS');
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join('\n')).toMatch(/symbols\.NVDA must be boolean/);
   });
 
-  test('rejects missing earnings status for any configured Alpaca symbol', () => {
+  test('quarantines missing earnings status for configured Alpaca symbols without failing posture', () => {
+    const symbols = {
+      TSLA: false,
+      NVDA: false,
+      SPY: false,
+      QQQ: false,
+      COIN: false,
+      MARA: false,
+    };
     const report = validateEvalLivePosture(validEvalLiveEnv({
-      TTP_EARNINGS_STATUS_JSON: '{"date":"2026-06-08","symbols":{"TSLA":false,"NVDA":false,"SPY":false,"QQQ":false,"COIN":false,"MARA":false}}',
+      TTP_EARNINGS_STATUS_JSON: JSON.stringify({ date: currentNewYorkDate(), symbols }),
     }));
 
-    expect(report.status).toBe('FAIL');
-    expect(report.errors.join('\n')).toMatch(/symbols\.RIOT must be boolean/);
+    expect(report.status).toBe('PASS');
+    expect(report.errors).toEqual([]);
+    expect(report.warnings.join('\n')).toMatch(/symbols\.RIOT must be boolean/);
   });
 
   test('assert helper throws with a useful gate error', () => {

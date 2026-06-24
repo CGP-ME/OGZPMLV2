@@ -360,7 +360,6 @@ function buildConfig() {
         earningsRestriction: {
           enabled: track('evalRules.ttp.earningsRestriction.enabled', envBool('TTP_EARNINGS_RESTRICTION_ENABLED', true)),
           blockEntries: track('evalRules.ttp.earningsRestriction.blockEntries', envBool('TTP_EARNINGS_BLOCK_ENTRIES', true)),
-          requireKnownStatus: track('evalRules.ttp.earningsRestriction.requireKnownStatus', envBool('TTP_EARNINGS_REQUIRE_KNOWN_STATUS', true)),
           manualStatus: track('evalRules.ttp.earningsRestriction.manualStatus', envJsonObject('TTP_EARNINGS_STATUS_JSON', null)),
         },
         consistency: {
@@ -497,9 +496,23 @@ function isPlaceholderWebhookUrl(rawUrl) {
   }
 }
 
+function getCurrentNewYorkDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 function validate(config, sources = {}) {
   const errors = [];
   const warnings = [];
+  const currentNewYorkDate = getCurrentNewYorkDate();
 
   // Confidence
   if (config.confidence.minTradeConfidence < 0 || config.confidence.minTradeConfidence > 1) {
@@ -674,7 +687,7 @@ function validate(config, sources = {}) {
       errors.push('TTP_ACCOUNT_LIMITS_ENABLED=false is illegal when TTP eval rules are enabled');
     }
     if (ttpEarningsRestriction?.enabled !== true) {
-      errors.push('TTP_EARNINGS_RESTRICTION_ENABLED=false is illegal when TTP eval rules are enabled');
+      warnings.push('TTP_EARNINGS_RESTRICTION_ENABLED=false; earnings calendar lane will not block entries');
     }
     if (ttpConsistency?.enabled !== true) {
       errors.push('TTP_CONSISTENCY_ENABLED=false is illegal when TTP eval rules are enabled');
@@ -687,6 +700,8 @@ function validate(config, sources = {}) {
     if (ttpAccountLimits.enforceDailyLossPause === true) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ttpAccountLimits.accountStartOfDayDate || ''))) {
         errors.push(`TTP_ACCOUNT_START_OF_DAY_DATE must be YYYY-MM-DD for daily loss pause, got ${ttpAccountLimits.accountStartOfDayDate || '(missing)'}`);
+      } else if (config.mode.liveTrading && String(ttpAccountLimits.accountStartOfDayDate) !== currentNewYorkDate) {
+        errors.push(`TTP_ACCOUNT_START_OF_DAY_DATE must match current New York date ${currentNewYorkDate} for live eval, got ${ttpAccountLimits.accountStartOfDayDate}`);
       }
       if (!Number.isFinite(ttpAccountLimits.accountStartOfDayEquity) || ttpAccountLimits.accountStartOfDayEquity <= 0) {
         errors.push(`TTP_ACCOUNT_START_OF_DAY_EQUITY must be configured for daily loss pause, got ${ttpAccountLimits.accountStartOfDayEquity}`);
@@ -703,30 +718,29 @@ function validate(config, sources = {}) {
   }
   if (config.evalRules?.enabled && config.evalRules?.ttp?.enabled && ttpEarningsRestriction?.enabled) {
     if (ttpEarningsRestriction.blockEntries !== true) {
-      errors.push('TTP_EARNINGS_BLOCK_ENTRIES=false is illegal when TTP eval rules are enabled');
+      warnings.push('TTP_EARNINGS_BLOCK_ENTRIES=false; earnings calendar lane will not block entries');
     }
-    if (ttpEarningsRestriction.requireKnownStatus !== true) {
-      errors.push('TTP_EARNINGS_REQUIRE_KNOWN_STATUS=false is illegal when TTP eval rules are enabled');
-    }
-    if (ttpEarningsRestriction.requireKnownStatus === true) {
-      const manualStatus = ttpEarningsRestriction.manualStatus;
-      if (!manualStatus || typeof manualStatus !== 'object' || Array.isArray(manualStatus)) {
-        errors.push('TTP_EARNINGS_STATUS_JSON must be configured when known earnings status is required');
+    const manualStatus = ttpEarningsRestriction.manualStatus;
+    if (manualStatus !== null && manualStatus !== undefined) {
+      if (typeof manualStatus !== 'object' || Array.isArray(manualStatus)) {
+        warnings.push('TTP_EARNINGS_STATUS_JSON ignored because it is not an object');
       } else if (manualStatus.__parseError) {
-        errors.push(`TTP_EARNINGS_STATUS_JSON must be valid JSON: ${manualStatus.__parseError}`);
+        warnings.push(`TTP_EARNINGS_STATUS_JSON parse failed and will be ignored: ${manualStatus.__parseError}`);
       } else {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(manualStatus.date || ''))) {
-          errors.push(`TTP_EARNINGS_STATUS_JSON.date must be YYYY-MM-DD, got ${manualStatus.date || '(missing)'}`);
+          warnings.push(`TTP_EARNINGS_STATUS_JSON.date should be YYYY-MM-DD, got ${manualStatus.date || '(missing)'}; earnings calendar will not block entries`);
+        } else if (config.mode.liveTrading && String(manualStatus.date) !== currentNewYorkDate) {
+          warnings.push(`TTP_EARNINGS_STATUS_JSON.date ${manualStatus.date} does not match current New York date ${currentNewYorkDate}; earnings calendar will not block entries`);
         }
         if (!manualStatus.symbols || typeof manualStatus.symbols !== 'object' || Array.isArray(manualStatus.symbols) || Object.keys(manualStatus.symbols).length === 0) {
-          errors.push('TTP_EARNINGS_STATUS_JSON.symbols must be a non-empty object of SYMBOL:boolean entries');
+          warnings.push('TTP_EARNINGS_STATUS_JSON.symbols should be a non-empty object of SYMBOL:boolean entries; earnings calendar will not block entries');
         } else {
           for (const [symbol, hasEarningsTonight] of Object.entries(manualStatus.symbols)) {
             if (!String(symbol || '').trim()) {
-              errors.push('TTP_EARNINGS_STATUS_JSON.symbols contains an empty symbol key');
+              warnings.push('TTP_EARNINGS_STATUS_JSON.symbols contains an empty symbol key; ignoring that entry');
             }
             if (typeof hasEarningsTonight !== 'boolean') {
-              errors.push(`TTP_EARNINGS_STATUS_JSON.symbols.${symbol} must be boolean, got ${typeof hasEarningsTonight}`);
+              warnings.push(`TTP_EARNINGS_STATUS_JSON.symbols.${symbol} should be boolean, got ${typeof hasEarningsTonight}; ignoring that entry`);
             }
           }
         }

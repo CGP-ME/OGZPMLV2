@@ -37,7 +37,6 @@ function config(overrides = {}) {
       earningsRestriction: {
         enabled: true,
         blockEntries: true,
-        requireKnownStatus: true,
         manualStatus: {
           date: '2023-11-14',
           symbols: { TSLA: false },
@@ -273,7 +272,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
     })]);
   });
 
-  test('fails closed when manual earnings status is missing', async () => {
+  test('allows entries when manual earnings status is missing', async () => {
     const engine = makeEngine({
       cfg: config({
         earningsRestriction: {
@@ -287,16 +286,62 @@ describe('EvalRuleEngine TTP volume cap', () => {
     delete plan.hasEarningsTonight;
     const result = await engine.check(plan);
 
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_manual_earnings_status',
-      statusSource: 'config.ttp.earningsRestriction.manualStatus',
-      action: 'BLOCK_ORDER',
-    })]);
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      statusKnown: false,
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+      policy: 'calendar_lane_quarantined_does_not_block_bot',
+    }));
   });
 
-  test('fails closed when TTP config omits the earnings restriction block', async () => {
+  test('quarantines disabled earnings lane instead of blocking entries', async () => {
+    const engine = makeEngine({
+      cfg: config({
+        earningsRestriction: {
+          enabled: false,
+        },
+      }),
+      candles: [candle(-60000, 100000)],
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      reason: 'earnings_restriction_disabled',
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+    }));
+  });
+
+  test('quarantines non-blocking earnings lane config instead of blocking entries', async () => {
+    const engine = makeEngine({
+      cfg: config({
+        earningsRestriction: {
+          blockEntries: false,
+        },
+      }),
+      candles: [candle(-60000, 100000)],
+    });
+
+    const result = await engine.check(entryPlan({ orderQuantity: 10 }));
+
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      reason: 'earnings_block_entries_disabled',
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+    }));
+  });
+
+  test('allows entries when TTP config omits the earnings restriction block', async () => {
     const cfg = config();
     delete cfg.ttp.earningsRestriction;
     const engine = makeEngine({ cfg, candles: [candle(-60000, 100000)] });
@@ -305,15 +350,18 @@ describe('EvalRuleEngine TTP volume cap', () => {
     delete plan.hasEarningsTonight;
     const result = await engine.check(plan);
 
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_manual_earnings_status',
-      action: 'BLOCK_ORDER',
-    })]);
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      statusKnown: false,
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+      policy: 'calendar_lane_quarantined_does_not_block_bot',
+    }));
   });
 
-  test('refuses external earnings provider when manual eval status is missing', async () => {
+  test('does not let missing manual eval status shut down entries', async () => {
     const getEarningsStatus = jest.fn(() => ({ hasEarningsTonight: false, source: 'test-provider' }));
     const engine = new EvalRuleEngine({
       config: config({
@@ -330,13 +378,13 @@ describe('EvalRuleEngine TTP volume cap', () => {
     delete plan.hasEarningsTonight;
     const result = await engine.check(plan);
 
-    expect(result.allowed).toBe(false);
-    expect(getEarningsStatus).not.toHaveBeenCalled();
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_manual_earnings_status',
-      statusSource: 'config.ttp.earningsRestriction.manualStatus',
-    })]);
+    expect(result.allowed).toBe(true);
+    expect(getEarningsStatus).toHaveBeenCalledWith('TSLA', '2023-11-14', plan);
+    expect(result.passedRules).toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
+      statusSource: 'test-provider',
+      hasEarningsTonight: false,
+    }));
   });
 
   test('uses manual earnings status config before external provider lookup', async () => {
@@ -425,7 +473,7 @@ describe('EvalRuleEngine TTP volume cap', () => {
     })]);
   });
 
-  test('fails closed when manual earnings status is for a different ET date', async () => {
+  test('allows entries when manual earnings status is for a different ET date', async () => {
     const engine = new EvalRuleEngine({
       config: config({
         earningsRestriction: {
@@ -443,16 +491,19 @@ describe('EvalRuleEngine TTP volume cap', () => {
     delete plan.hasEarningsTonight;
     const result = await engine.check(plan);
 
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_earnings_status',
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
       statusSource: 'config.ttp.earningsRestriction.manualStatus',
-      hasEarningsTonight: null,
-    })]);
+      statusKnown: false,
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+      policy: 'calendar_lane_quarantined_does_not_block_bot',
+    }));
   });
 
-  test('stale manual earnings status cannot fall through to entry-plan false fields', async () => {
+  test('stale manual earnings status cannot shut down entries', async () => {
     const engine = new EvalRuleEngine({
       config: config({
         earningsRestriction: {
@@ -473,13 +524,16 @@ describe('EvalRuleEngine TTP volume cap', () => {
       orderQuantity: 10,
     }));
 
-    expect(result.allowed).toBe(false);
-    expect(result.failedRules).toEqual([expect.objectContaining({
-      ruleId: 'TTP_EARNINGS_RESTRICTION',
-      reason: 'missing_earnings_status',
+    expect(result.allowed).toBe(true);
+    expect(result.passedRules).not.toContain('TTP_EARNINGS_RESTRICTION');
+    expect(result.inputs).toEqual(expect.objectContaining({
       statusSource: 'config.ttp.earningsRestriction.manualStatus',
-      hasEarningsTonight: null,
-    })]);
+      statusKnown: false,
+      calendarLaneStatus: 'quarantined',
+      calendarContributed: false,
+      calendarMemoryWriteAllowed: false,
+      policy: 'calendar_lane_quarantined_does_not_block_bot',
+    }));
   });
 
   test('blocks new openings during the TTP liquidation window', async () => {

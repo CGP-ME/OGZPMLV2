@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Earnings Calendar Lane Quarantine (2026-06-24)
+
+- Removed the live-eval dependency on `TTP_EARNINGS_REQUIRE_KNOWN_STATUS`; the earnings calendar lane no longer owns a startup or entry shutdown switch for unknown status.
+- Changed missing, stale, malformed, disabled, or provider-error earnings data into explicit calendar-lane quarantine metadata while known earnings tonight still blocks the affected symbol entry.
+- Kept eval-live posture warnings for bad calendar data so the operator sees the issue without letting calendar data halt the bot.
+
 ### Mercury Current-Change Serena Context (2026-06-24)
 
 - Added automatic Serena blast-radius context for plain agentic Mercury asks so the CLI path and `/critic-attack` no longer diverge on caller-impact evidence.
@@ -1018,7 +1024,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TTP Earnings-Night Restriction Gate (2026-05-23)
 
 - Added a fail-closed pre-order TTP earnings restriction that blocks stock openings when earnings are scheduled tonight or when earnings status is unknown.
-- Added ConfigLoader-managed `TTP_EARNINGS_RESTRICTION_ENABLED`, `TTP_EARNINGS_BLOCK_ENTRIES`, and `TTP_EARNINGS_REQUIRE_KNOWN_STATUS` controls; when eval/TTP rules are enabled, disabling or softening the earnings rule is illegal.
+- Added ConfigLoader-managed `TTP_EARNINGS_RESTRICTION_ENABLED`, `TTP_EARNINGS_BLOCK_ENTRIES`, and historical `TTP_EARNINGS_REQUIRE_KNOWN_STATUS` controls; this fail-closed known-status policy was superseded by the 2026-06-24 calendar-lane quarantine policy above.
 - Kept earnings status explicit via entry-plan status or an injected provider, with provider errors and malformed provider returns blocking instead of guessing.
 - Verification: `node --check`, focused Jest EvalRuleEngine/ConfigLoader/OrderExecutor/cutoff coverage, `npm run test:smoke`, Mercury adversarial recheck, earnings-block trace proof, and canonical full P0 reproduced `$13255.255799695915 / 1410 trades / 60.6% WR / PF 1.71`.
 
