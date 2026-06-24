@@ -9,6 +9,7 @@ const config = require('../trai_brain/mercury-bridge/config');
 const { walkRepo } = require('../trai_brain/mercury-bridge/indexer');
 const { routeQuery } = require('../trai_brain/mercury-bridge/query-router');
 const { retrieveTopK } = require('../trai_brain/mercury-bridge/searcher');
+const { buildCurrentChangeBlastRadius, isSerenaSourcePath, selectCurrentChangeNames } = require('../trai_brain/mercury-bridge/ask');
 const { createToolAdapter, buildSkipDirGlobArgs } = require('../trai_brain/mercury-bridge/tool-adapter');
 const ReadOnlyToolbox = require('../trai_brain/read_only_tools');
 const TRAICore = require('../core/trai_core');
@@ -754,6 +755,102 @@ describe('Mercury index scope hygiene', () => {
     expect(result.text).toContain('## Blast Radius — core/MaxProfitManager.js');
     expect(result.text).toContain('**Callers (file:line):**');
     expect(schemaNames).toContain('serena_blast_radius');
+  });
+
+  test('plain Mercury CLI auto-blast-radius only considers current source files', () => {
+    expect(isSerenaSourcePath('core/EvalRuleEngine.js')).toBe(true);
+    expect(isSerenaSourcePath('foundation/ConfigLoader.js')).toBe(true);
+    expect(isSerenaSourcePath('ogz-meta/ledger/stale.js')).toBe(false);
+    expect(isSerenaSourcePath('ogz-meta/cognition-history/mercury/old-response.js')).toBe(false);
+    expect(isSerenaSourcePath('core/EvalRuleEngine.md')).toBe(false);
+    expect(isSerenaSourcePath('core/EvalRuleEngine.js.bak')).toBe(false);
+  });
+
+  test('plain Mercury CLI auto-blast-radius follows git_diff current semantics', () => {
+    expect(selectCurrentChangeNames({
+      cached: ['trai_brain/mercury-bridge/ask.js'],
+      working: ['core/EvalRuleEngine.js'],
+      untracked: ['new-tool.js'],
+    })).toEqual(['trai_brain/mercury-bridge/ask.js']);
+
+    expect(selectCurrentChangeNames({
+      cached: [],
+      working: ['core/EvalRuleEngine.js'],
+      untracked: ['new-tool.js'],
+    })).toEqual(['core/EvalRuleEngine.js', 'new-tool.js']);
+  });
+
+  test('plain Mercury CLI builds Serena blast-radius context from changed JS files', async () => {
+    const result = await buildCurrentChangeBlastRadius({
+      changedFiles: [
+        'core/EvalRuleEngine.js',
+        'ogz-meta/ledger/stale.js',
+        'README.md',
+      ],
+    });
+
+    expect(result.source).toBe('current_changes');
+    expect(result.meta).toEqual([
+      expect.objectContaining({
+        file: 'core/EvalRuleEngine.js',
+        callerCount: expect.any(Number),
+        riskLevel: expect.any(String),
+      }),
+    ]);
+    expect(result.text).toContain('## core/EvalRuleEngine.js');
+    expect(result.text).toContain('## Blast Radius — core/EvalRuleEngine.js');
+    expect(result.text).toContain('run-empire-v2.js');
+    expect(result.text).not.toContain('ogz-meta/ledger/stale.js');
+  });
+
+  test('plain Mercury CLI reports Serena failures without aborting the review', async () => {
+    const result = await buildCurrentChangeBlastRadius({
+      changedFiles: ['core/EvalRuleEngine.js'],
+      getBlastRadiusFn: async () => {
+        throw new Error('Serena timeout (5000ms)');
+      },
+    });
+
+    expect(result.text).toBeNull();
+    expect(result.meta).toEqual([]);
+    expect(result.errors).toEqual([
+      {
+        file: 'core/EvalRuleEngine.js',
+        error: 'Serena timeout (5000ms)',
+      },
+    ]);
+  });
+
+  test('plain Mercury CLI reports current-change discovery failures without aborting the review', async () => {
+    const result = await buildCurrentChangeBlastRadius({
+      currentChangedFilesFn: () => {
+        throw new Error('git unavailable');
+      },
+    });
+
+    expect(result.text).toBeNull();
+    expect(result.meta).toEqual([]);
+    expect(result.errors).toEqual([
+      {
+        file: '<current_changes>',
+        error: 'git unavailable',
+      },
+    ]);
+  });
+
+  test('plain Mercury CLI reports malformed Serena radius output without aborting the review', async () => {
+    const result = await buildCurrentChangeBlastRadius({
+      changedFiles: ['core/EvalRuleEngine.js'],
+      getBlastRadiusFn: async () => ({
+        file: 'core/EvalRuleEngine.js',
+      }),
+    });
+
+    expect(result.text).toBeNull();
+    expect(result.meta).toEqual([]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].file).toBe('core/EvalRuleEngine.js');
+    expect(result.errors[0].error).toMatch(/format failed/);
   });
 
   test('historical Mercury routing does not boost ignored ledger fix history', () => {

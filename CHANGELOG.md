@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury Current-Change Serena Context (2026-06-24)
+
+- Added automatic Serena blast-radius context for plain agentic Mercury asks so the CLI path and `/critic-attack` no longer diverge on caller-impact evidence.
+- Aligned auto-Serena file selection with `git_diff target=current`: staged changes are reviewed alone when present; otherwise working-tree plus untracked source files are scanned.
+- Made Serena blast-radius failures degrade loudly in Mercury metadata/logs instead of aborting the adversarial review or silently skipping impact context.
+- Added regression coverage proving ignored intake/history paths stay excluded and current-change Serena context is built before Mercury has to choose the tool itself.
+
 ### Mercury Current-Fix Evidence And Manual Trace Capture (2026-06-23)
 
 - Honored `MERCURY_CONFIG_FILE` outside Jest so config-contract probes fail closed in real `run_check` execution contexts instead of only test mode.

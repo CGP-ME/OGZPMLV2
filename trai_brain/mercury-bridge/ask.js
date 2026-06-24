@@ -24,6 +24,8 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
+const { execFileSync } = require('child_process');
 
 // Load .env from repo root so configured Mercury LLM key env is available.
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
@@ -38,6 +40,7 @@ const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, ev
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
+const { getBlastRadius, formatForMercury } = require('../../tools/serena-bridge');
 
 function parseArgs(argv) {
   const args = {
@@ -152,6 +155,136 @@ function usage() {
   console.log('');
 }
 
+function parseGitNameList(output) {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function gitNameList(repoRoot, args) {
+  const output = execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return parseGitNameList(output);
+}
+
+function selectCurrentChangeNames({ cached = [], working = [], untracked = [] } = {}) {
+  if (cached.length > 0) {
+    return [...new Set(cached)].sort();
+  }
+  return [...new Set([...working, ...untracked])].sort();
+}
+
+function currentChangedFiles(repoRoot = config.REPO_ROOT) {
+  return selectCurrentChangeNames({
+    cached: gitNameList(repoRoot, ['diff', '--name-only', '--cached']),
+    working: gitNameList(repoRoot, ['diff', '--name-only']),
+    untracked: gitNameList(repoRoot, ['ls-files', '--others', '--exclude-standard']),
+  });
+}
+
+function normalizeRepoRelativePath(repoRoot, relPath) {
+  if (!relPath || typeof relPath !== 'string') return null;
+  if (relPath.startsWith('/') || relPath.split('/').includes('..')) return null;
+  const absPath = path.resolve(repoRoot, relPath);
+  const normalizedRoot = path.resolve(repoRoot);
+  if (absPath !== normalizedRoot && !absPath.startsWith(`${normalizedRoot}${path.sep}`)) {
+    return null;
+  }
+  return path.relative(normalizedRoot, absPath).replace(/\\/g, '/');
+}
+
+function isSerenaSourcePath(relPath) {
+  return typeof relPath === 'string'
+    && relPath.endsWith('.js')
+    && !relPath.endsWith('.bak')
+    && !config.isPathIgnoredByMercury(relPath);
+}
+
+async function buildCurrentChangeBlastRadius({
+  repoRoot = config.REPO_ROOT,
+  changedFiles = null,
+  currentChangedFilesFn = currentChangedFiles,
+  getBlastRadiusFn = getBlastRadius,
+  formatForMercuryFn = formatForMercury,
+} = {}) {
+  let candidates;
+  try {
+    candidates = changedFiles || currentChangedFilesFn(repoRoot);
+  } catch (err) {
+    return {
+      text: null,
+      meta: [],
+      errors: [
+        {
+          file: '<current_changes>',
+          error: err.message,
+        },
+      ],
+      source: 'current_changes',
+    };
+  }
+  const targetFiles = [];
+  for (const candidate of candidates) {
+    const relPath = normalizeRepoRelativePath(repoRoot, candidate);
+    if (!relPath || !isSerenaSourcePath(relPath)) continue;
+    if (!fs.existsSync(path.join(repoRoot, relPath))) continue;
+    targetFiles.push(relPath);
+  }
+
+  if (targetFiles.length === 0) {
+    return {
+      text: null,
+      meta: [],
+      errors: [],
+      source: 'current_changes',
+    };
+  }
+
+  const sections = [];
+  const meta = [];
+  const errors = [];
+  for (const targetFile of targetFiles) {
+    let blastRadius;
+    try {
+      blastRadius = await getBlastRadiusFn(targetFile);
+    } catch (err) {
+      errors.push({
+        file: targetFile,
+        error: err.message,
+      });
+      continue;
+    }
+    let formatted;
+    try {
+      formatted = formatForMercuryFn(blastRadius);
+    } catch (err) {
+      errors.push({
+        file: targetFile,
+        error: `format failed: ${err.message}`,
+      });
+      continue;
+    }
+    meta.push({
+      file: targetFile,
+      callerCount: blastRadius.callerCount,
+      riskLevel: blastRadius.riskLevel,
+      latencyMs: blastRadius.latencyMs,
+    });
+    sections.push(`## ${targetFile}\n${formatted}`);
+  }
+
+  return {
+    text: sections.length > 0 ? sections.join('\n\n') : null,
+    meta,
+    errors,
+    source: 'current_changes',
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Agentic mode — hybrid retrieval (current semantic-only) + ReAct loop
 // ─────────────────────────────────────────────────────────────
@@ -253,6 +386,29 @@ async function runAgentic(query, opts) {
       console.log(`[MERCURY-BRIDGE] Starting ReAct loop (max ${maxIterations} iterations)...`);
     }
 
+    let blastRadius = opts.blastRadius || null;
+    let autoBlastRadius = null;
+    if (!blastRadius) {
+      autoBlastRadius = await buildCurrentChangeBlastRadius();
+      blastRadius = autoBlastRadius.text;
+      if (verbose) {
+        if (autoBlastRadius.meta.length > 0) {
+          console.log(`[MERCURY-BRIDGE] Serena current-change blast radius: ${autoBlastRadius.meta.length} file(s)`);
+          autoBlastRadius.meta.forEach((meta) => {
+            console.log(`  ${meta.file}: ${meta.callerCount} caller(s), risk=${meta.riskLevel}, ${meta.latencyMs}ms`);
+          });
+        } else {
+          console.log('[MERCURY-BRIDGE] Serena current-change blast radius: no changed JS files to scan');
+        }
+        if (autoBlastRadius.errors.length > 0) {
+          console.log(`[MERCURY-BRIDGE] Serena current-change blast radius unavailable for ${autoBlastRadius.errors.length} file(s)`);
+          autoBlastRadius.errors.forEach((entry) => {
+            console.log(`  ${entry.file}: ${entry.error}`);
+          });
+        }
+      }
+    }
+
     // 5. Run the loop with native tool calling
     const t0 = Date.now();
     const result = await runReactLoop({
@@ -261,12 +417,15 @@ async function runAgentic(query, opts) {
       userQuery: query,
       starterContext,
       traceHint: traceHintText,
-      blastRadius: opts.blastRadius || null,
+      blastRadius,
       maxIterations,
       maxTokens,
       verbose,
     });
     result.totalLatencyMs = Date.now() - t0;
+    if (autoBlastRadius) {
+      result.serenaBlastRadius = autoBlastRadius;
+    }
 
     // 6. Mark trace as used if we injected one
     if (traceUsed && result.termination === 'answer_given') {
@@ -476,4 +635,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { runAgentic };
+module.exports = {
+  runAgentic,
+  buildCurrentChangeBlastRadius,
+  currentChangedFiles,
+  isSerenaSourcePath,
+  selectCurrentChangeNames,
+};
