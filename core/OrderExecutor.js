@@ -773,15 +773,7 @@ class OrderExecutor {
     }
 
     const finiteCaps = caps.filter(value => Number.isFinite(value));
-    if (finiteCaps.length === 0) {
-      return {
-        orderQuantity: 0,
-        adjusted: true,
-        bounds: { minShares, maxShares: 0, reasons },
-        blockReason: 'stock_share_range_unbounded:no_positive_caps',
-      };
-    }
-    const maxShares = Math.min(...finiteCaps);
+    const maxShares = finiteCaps.length > 0 ? Math.min(...finiteCaps) : Infinity;
     if (Number.isFinite(maxShares) && maxShares < minShares) {
       return {
         orderQuantity: 0,

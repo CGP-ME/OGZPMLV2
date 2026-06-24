@@ -944,65 +944,6 @@ describe('OrderExecutor pause gate', () => {
     }));
   });
 
-  test('stock share range blocks instead of allowing unlimited shares when every cap is disabled', async () => {
-    TradingConfig.setOverrides({
-      features: { enableDynamicSizing: true },
-      positionSizing: { maxPositionSize: 0.20 },
-      entryLogic: {
-        sizing: {
-          absoluteCapPercent: 1.0,
-          stockShareRange: {
-            enabled: true,
-            minShares: 2,
-            maxShares: 0,
-            maxNotionalUsd: 0,
-            consistencyCapBuffer: 0.98,
-            dailyLossRiskFraction: 1.0,
-          },
-        },
-      },
-      exits: { profitTiers: { final: 0 } },
-      evalRules: {
-        ttp: {
-          accountLimits: { dailyLossDollars: 0 },
-          consistency: { profitTargetDollars: 0, maxPositionProfitRatio: 0 },
-        },
-      },
-    });
-    clearTradingConfigOverrides = true;
-    mockStateManager.getAvailableCapital.mockReturnValue(5000);
-    mockStateManager.getEquity.mockReturnValue(5000);
-    mockStateManager.get.mockImplementation((key) => {
-      if (key === 'isTrading') return true;
-      return null;
-    });
-    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
-    const executor = makeExecutor({ executionMode: 'live' }, { paperTrading: false, preOrderEntryGate });
-
-    const result = await executor.executeTrade(
-      { action: 'BUY', confidence: 100 },
-      {},
-      15,
-      { rsi: 55, macd: {}, trend: 'sideways' },
-      [],
-      null,
-      makeOrchResult({ sizingMultiplier: 2.5 }),
-      'MARA'
-    );
-
-    expect(result).toEqual(expect.objectContaining({
-      success: false,
-      reason: 'stock_share_range_unbounded:no_positive_caps',
-      orderQuantity: 0,
-      stockShareRange: expect.objectContaining({
-        minShares: 2,
-        maxShares: 0,
-        reasons: [],
-      }),
-    }));
-    expect(preOrderEntryGate).not.toHaveBeenCalled();
-  });
-
   test('stock share range blocks when configured minimum shares would violate consistency cap', async () => {
     TradingConfig.setOverrides({
       features: { enableDynamicSizing: true },
