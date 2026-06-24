@@ -248,7 +248,7 @@ describe('backtest worker env contract', () => {
     expect(env.ABSOLUTE_POSITION_CAP).toBe('1.00');
     expect(env.ENTRY_STOCK_SHARE_RANGE_ENABLED).toBe('true');
     expect(env.ENTRY_MIN_STOCK_SHARES).toBe('2');
-    expect(env.ENTRY_MAX_STOCK_SHARES).toBe('8');
+    expect(env.ENTRY_MAX_STOCK_SHARES).toBe('0');
     expect(env.ENTRY_MAX_STOCK_NOTIONAL).toBe('5000');
     expect(env.FEE_MODEL).toBe('per_share_minimum');
     expect(env.FEE_PER_SHARE).toBe('0.005');

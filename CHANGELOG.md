@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Stock Share Range Sizing (2026-06-24)
+
+- Removed the fixed `8`-share ceiling from the TTP 5k profile and live ecosystem env; `ENTRY_MAX_STOCK_SHARES=0` now means no universal share-count cap while notional, TTP consistency, and daily-loss caps still bound entries.
+- Added an entry-path guard that blocks stock share-range configs with no positive cap instead of falling through to unlimited shares.
+- Updated eval posture and backtest/profile tests so reintroducing a fixed universal share cap fails loudly.
+
 ### TTP Earnings Calendar Lane Quarantine (2026-06-24)
 
 - Removed the live-eval dependency on `TTP_EARNINGS_REQUIRE_KNOWN_STATUS`; the earnings calendar lane no longer owns a startup or entry shutdown switch for unknown status.

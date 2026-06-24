@@ -105,7 +105,7 @@ function validEvalLiveEnv(overrides = {}) {
     TTP_MAX_PROFIT_TARGET_INITIAL_BALANCE_RATIO: '0.10',
     ENTRY_STOCK_SHARE_RANGE_ENABLED: 'true',
     ENTRY_MIN_STOCK_SHARES: '2',
-    ENTRY_MAX_STOCK_SHARES: '8',
+    ENTRY_MAX_STOCK_SHARES: '0',
     ENTRY_MAX_STOCK_NOTIONAL: '5000',
     ENTRY_CONSISTENCY_CAP_BUFFER: '0.98',
     ENTRY_DAILY_LOSS_RISK_FRACTION: '1.0',
@@ -518,23 +518,23 @@ describe('eval live posture gate', () => {
     expect(lowReport.errors.join('\n')).toMatch(/MIN_TRADE_CONFIDENCE >= 0\.5/);
   });
 
-  test('fails eval-live posture when stock share range contract is missing or loosened', () => {
+  test('fails eval-live posture when stock share range contract is missing or reintroduces universal share cap', () => {
     const missingEnv = validEvalLiveEnv();
     delete missingEnv.ENTRY_MAX_STOCK_SHARES;
 
     const missingReport = validateEvalLivePosture(missingEnv);
 
     expect(missingReport.status).toBe('FAIL');
-    expect(missingReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be explicitly set to 8/);
+    expect(missingReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be explicitly set to 0/);
 
     const looseReport = validateEvalLivePosture(validEvalLiveEnv({
       ENTRY_STOCK_SHARE_RANGE_ENABLED: 'false',
-      ENTRY_MAX_STOCK_SHARES: '44',
+      ENTRY_MAX_STOCK_SHARES: '8',
     }));
 
     expect(looseReport.status).toBe('FAIL');
     expect(looseReport.errors.join('\n')).toMatch(/ENTRY_STOCK_SHARE_RANGE_ENABLED must be true/);
-    expect(looseReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be 8, got 44/);
+    expect(looseReport.errors.join('\n')).toMatch(/ENTRY_MAX_STOCK_SHARES must be 0, got 8/);
   });
 
   test('fails if a critical live flag only passes by ConfigLoader default', () => {

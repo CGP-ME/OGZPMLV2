@@ -79,7 +79,7 @@
           "ABSOLUTE_POSITION_CAP": "1.00",
           "ENTRY_STOCK_SHARE_RANGE_ENABLED": "true",
           "ENTRY_MIN_STOCK_SHARES": "2",
-          "ENTRY_MAX_STOCK_SHARES": "8",
+          "ENTRY_MAX_STOCK_SHARES": "0",
           "ENTRY_MAX_STOCK_NOTIONAL": "5000",
           "ENTRY_CONSISTENCY_CAP_BUFFER": "0.98",
           "ENTRY_DAILY_LOSS_RISK_FRACTION": "1.0",
