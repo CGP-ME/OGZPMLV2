@@ -343,14 +343,62 @@ git log --oneline -8
 
 | Rank | Item | Reason |
 |---:|---|---|
-| 1 | Canonical symbol-scoped fresh exit price truth | Strongest match for June 24 stop-loss overrun. |
-| 2 | Fractional stock webhook exit blocking | Directly logged blocked MARA BE scale-out. Protective exits cannot be blocked this way. |
-| 3 | Trade-scoped close notional in OrderExecutor | Directly logged negative notional in fee model. |
-| 4 | Proof-page partial/full leg truth | Public proof data currently mislabels BE scale-out leg. |
-| 5 | MPM intent-only partial-exit mutation | Prevents state from believing unconfirmed execution happened. |
-| 6 | Short-side MPM cleanup on COVER | Prevents stale MPM lifecycle state. |
-| 7 | Untracked artifact policy pass | Add narrow ignores or curation only after agreeing backup/forensic policy. |
-| 8 | P0 drift documentation/adjudication | Make current anchor history explicit so future agents stop arguing from stale anchors. |
+| 1 | June 24 forensic replay fixture | Prove the event chain before rewriting around assumptions. |
+| 2 | Canonical execution truth boundary | Accepted webhook/order is not a fill; define broker fill truth before planner rewrite. |
+| 3 | Canonical symbol-scoped fresh exit price truth | Strongest match for June 24 stop-loss overrun, and must feed both analysis and exit-only paths. |
+| 4 | Fractional stock webhook exit blocking | Directly logged blocked MARA BE scale-out. Protective exits cannot be blocked this way. |
+| 5 | Trade-scoped close notional in OrderExecutor | Directly logged negative notional in fee model. |
+| 6 | Proof-page partial/full leg truth | Public proof data currently mislabels BE scale-out leg. |
+| 7 | MPM intent-only partial-exit mutation | Prevents state from believing unconfirmed execution happened. |
+| 8 | Short-side MPM cleanup on COVER | Prevents stale MPM lifecycle state. |
+| 9 | Untracked artifact policy pass | Add narrow ignores or curation only after agreeing backup/forensic policy. |
+| 10 | P0 drift documentation/adjudication | Make current anchor history explicit so future agents stop arguing from stale anchors. |
+
+---
+
+## Addendum - GPT Stance Change Uploaded After Initial Handoff
+
+**Ledger intake file:** `ogz-meta/ledger/gptresponsetofollowupofmpmauditv2.md`
+**Uploaded/read:** 2026-06-24 22:27 UTC intake pass
+**Status:** Intake lead, not canonical by itself. Current code still needs line-by-line verification before implementation.
+
+GPT's updated stance aligns with the broad direction of the DeepSearch/Opus exit rewrite but changes the recommended first brick:
+
+```text
+Broker fill truth first.
+ExecutionFill -> StateManager.applyFill() -> CanonicalTradeEvent -> subscribers.
+ProfitExitPlanner comes after the fill truth boundary is deterministic.
+```
+
+The key corrected principle:
+
+- `webhookResult.sent === true` or broker order accepted is not execution truth.
+- The system should not mutate StateManager, proof, journal, dashboard, pattern memory, or MPM/private exit state as if a fill happened until an actual broker fill or reconciliation fact exists.
+
+This sharpens, rather than replaces, the earlier ranked list:
+
+1. Build the June 24 forensic replay fixture first, without runtime behavior change.
+2. Define the canonical fill/event contract before rewriting planner behavior:
+   - `OrderEvent` for submitted/accepted/rejected/canceled.
+   - `ExecutionFill` for partial/full/reconciled fill facts.
+   - `CanonicalTradeEvent` after StateManager applies the fill.
+3. Then fix canonical symbol price provenance across `_checkExitsOnly()` and `_analyze()`.
+4. Then make EMA semantics explicit as product policy, not as a hidden strategy rename:
+   - `fresh_crossover_only`
+   - `alignment_continuation`
+5. Then quarantine MPM/full-exit-only mode or implement the new coordinator, depending on operator tolerance for eval downtime.
+
+Rejected or downgraded from the intake:
+
+- Do not treat EMA alignment as a universally proven code bug. Current code/tests intentionally allow alignment continuation. The bug is ambiguity in live eval policy if that was not intended.
+- Do not treat `DynamicTrailingStop` env cleanup as the current June 24 blocker. It is a rewrite prerequisite, but current ECM does not use the active trailing check path as the primary exit path.
+- Do not land unused `applyFill()` scaffolding and call the system safer. It matters only when OrderExecutor and broker reconciliation actually route fill facts through it.
+- Do not release pending exits on a wall-clock timeout alone. A live broker order may still be active.
+- Do not add a configurable exit-price-source switch. Price truth should be a single canonical symbol-scoped algorithm with provenance and freshness validation.
+
+Updated next-agent interpretation:
+
+The immediate problem is not simply "delete MPM." MPM is the worst visible symptom of a larger truth-ownership disease. The replacement architecture should be organized around one broker-fill truth boundary and one post-fill canonical trade event. MPM removal becomes safer after no subsystem is allowed to invent remaining quantity, realized PnL, fees, or fill status on its own.
 
 ---
 
