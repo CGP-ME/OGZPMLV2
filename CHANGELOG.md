@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restored browser-local persistence for the operator-entered dashboard token so refreshing the production dashboard no longer reopens the access gate while public HTML still carries no WebSocket secret.
 - Kept rejected dashboard tokens fail-closed by clearing both memory and browser storage on auth failure.
-- Replaced the full-screen dashboard access gate with a non-blocking data-auth prompt so missing or rejected dashboard auth cannot cover the production dashboard shell.
-- Bumped the dashboard `websocket.js` cache key so browsers fetch the fixed token handling code instead of a stale modal build.
+- Removed visible dashboard auth gates/prompts entirely; missing dashboard auth now leaves the data socket disconnected without covering or floating over the production dashboard shell.
+- Added an operator-safe URL fragment bootstrap for dashboard tokens (`#dashboardToken=...`) that stores the token in browser-local storage and strips the fragment without putting the token in public HTML or query logs.
+- Bumped the dashboard `websocket.js` cache key so browsers fetch the fixed token handling code instead of a stale modal or prompt build.
 
 ### Live Report Trace Vocabulary (2026-06-24)
 

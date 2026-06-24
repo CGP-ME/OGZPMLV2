@@ -18,6 +18,7 @@
 
     const WS_PATH = '/ws';
     const DASHBOARD_WS_STORAGE_NAME = 'ogz.dashboard.wsToken';
+    const DASHBOARD_WS_FRAGMENT_KEYS = ['dashboardToken', 'ogzDashboardToken', 'ogz_ws_token'];
     const HEARTBEAT_INTERVAL_MS = 15000;
     const PONG_TIMEOUT_MS = 30000;
     const DATA_TIMEOUT_MS = 60000;
@@ -84,6 +85,8 @@
     }
 
     function storedDashboardToken() {
+        const fragmentToken = dashboardTokenFromFragment();
+        if (fragmentToken) return fragmentToken;
         if (operatorDashboardToken) return operatorDashboardToken;
         try {
             const stored = window.localStorage ? window.localStorage.getItem(DASHBOARD_WS_STORAGE_NAME) : '';
@@ -95,6 +98,67 @@
         } catch (_) {
         }
         return '';
+    }
+
+    function dashboardTokenFromFragment() {
+        const hash = window.location && typeof window.location.hash === 'string'
+            ? window.location.hash.replace(/^#/, '')
+            : '';
+        if (!hash) return '';
+
+        let params;
+        try {
+            params = new URLSearchParams(hash);
+        } catch (_) {
+            return '';
+        }
+
+        for (const key of DASHBOARD_WS_FRAGMENT_KEYS) {
+            const token = params.get(key);
+            if (storeDashboardToken(token)) {
+                stripDashboardTokenFragment(params);
+                return operatorDashboardToken;
+            }
+        }
+
+        return '';
+    }
+
+    function stripDashboardTokenFragment(existingParams) {
+        const hash = window.location && typeof window.location.hash === 'string'
+            ? window.location.hash.replace(/^#/, '')
+            : '';
+        if (!hash) return false;
+
+        let params = existingParams;
+        if (!params) {
+            try {
+                params = new URLSearchParams(hash);
+            } catch (_) {
+                return false;
+            }
+        }
+
+        let removed = false;
+        for (const key of DASHBOARD_WS_FRAGMENT_KEYS) {
+            if (params.has(key)) {
+                params.delete(key);
+                removed = true;
+            }
+        }
+        if (!removed) return false;
+
+        const nextHash = params.toString();
+        const nextUrl = `${window.location.pathname || ''}${window.location.search || ''}${nextHash ? `#${nextHash}` : ''}`;
+        try {
+            if (window.history && typeof window.history.replaceState === 'function') {
+                window.history.replaceState(null, document.title, nextUrl || window.location.pathname || '/');
+            } else {
+                window.location.hash = nextHash;
+            }
+        } catch (_) {
+        }
+        return true;
     }
 
     function storeDashboardToken(token) {
@@ -129,83 +193,6 @@
         if (existing && existing.parentNode) {
             existing.parentNode.removeChild(existing);
         }
-    }
-
-    function showDashboardTokenPrompt(message) {
-        if (!document.body || typeof document.createElement !== 'function') return;
-        if (document.getElementById('ogz-dashboard-token-prompt')) return;
-
-        const panel = document.createElement('form');
-        panel.id = 'ogz-dashboard-token-prompt';
-        panel.style.cssText = [
-            'position:fixed',
-            'right:16px',
-            'bottom:16px',
-            'z-index:9999',
-            'width:min(340px,calc(100vw - 32px))',
-            'border:1px solid rgba(0,204,255,0.35)',
-            'background:#05070a',
-            'box-shadow:0 0 22px rgba(0,204,255,0.12)',
-            'padding:14px',
-            'border-radius:6px',
-            'color:#e8f8ff',
-            'font-family:JetBrains Mono,monospace',
-            'pointer-events:auto'
-        ].join(';');
-
-        const label = document.createElement('label');
-        label.textContent = message || 'Dashboard data auth needed';
-        label.style.cssText = [
-            'display:block',
-            'margin-bottom:8px',
-            'font-size:12px',
-            'line-height:1.35'
-        ].join(';');
-        panel.appendChild(label);
-
-        const input = document.createElement('input');
-        input.type = 'password';
-        input.name = 'dashboardToken';
-        input.autocomplete = 'off';
-        input.placeholder = 'Dashboard token';
-        input.style.cssText = [
-            'width:100%',
-            'box-sizing:border-box',
-            'margin:0 0 8px',
-            'padding:8px',
-            'border:1px solid rgba(255,255,255,0.18)',
-            'background:#020305',
-            'color:#fff',
-            'border-radius:4px',
-            'font-family:inherit'
-        ].join(';');
-        panel.appendChild(input);
-
-        const button = document.createElement('button');
-        button.type = 'submit';
-        button.textContent = 'Connect data';
-        button.style.cssText = [
-            'width:100%',
-            'padding:8px',
-            'border:1px solid rgba(0,204,255,0.65)',
-            'background:#001923',
-            'color:#9ff2ff',
-            'border-radius:4px',
-            'font-family:inherit',
-            'cursor:pointer'
-        ].join(';');
-        panel.appendChild(button);
-
-        panel.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const token = input.value.trim();
-            if (!token) return;
-            if (Socket.setAuthToken(token)) {
-                removeDashboardTokenPrompt();
-            }
-        });
-
-        document.body.appendChild(panel);
     }
 
     function removeDashboardTokenPrompt() {
@@ -294,8 +281,9 @@
 
             const token = dashboardAuthToken();
             if (!token) {
-                console.warn('[Socket] No dashboard token configured. Enter the operator dashboard token.');
-                showDashboardTokenPrompt();
+                removeDashboardTokenGate();
+                removeDashboardTokenPrompt();
+                console.warn('[Socket] No dashboard token configured. Dashboard data socket remains disconnected.');
                 return false;
             }
 
@@ -358,7 +346,7 @@
                     if (data.type === 'auth_failure') {
                         clearStoredDashboardToken();
                         console.warn('[Socket] Dashboard token was rejected. Stored token cleared.');
-                        showDashboardTokenPrompt('Dashboard data auth rejected. Enter the current token.');
+                        removeDashboardTokenPrompt();
                         forceReconnect('dashboard auth failure');
                     }
 
@@ -382,7 +370,7 @@
                 if (!wasAuthenticated && (code === 1008 || /auth|token/i.test(reason))) {
                     clearStoredDashboardToken();
                     console.warn(`[Socket] Dashboard token rejected: ${reason}`);
-                    showDashboardTokenPrompt('Dashboard data auth rejected. Enter the current token.');
+                    removeDashboardTokenPrompt();
                     return;
                 }
                 scheduleReconnect(`close code=${code}`);
@@ -436,11 +424,12 @@
         clearAuthToken: () => {
             try {
                 clearStoredDashboardToken();
+                stripDashboardTokenFragment();
             } catch (err) {
                 console.error('[Socket] Failed to clear dashboard token:', err);
                 return false;
             }
-            showDashboardTokenPrompt();
+            removeDashboardTokenPrompt();
             forceReconnect('dashboard token cleared');
             return true;
         },
