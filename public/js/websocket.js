@@ -84,19 +84,31 @@
     }
 
     function storedDashboardToken() {
-        clearLegacyDashboardToken();
-        return operatorDashboardToken;
+        if (operatorDashboardToken) return operatorDashboardToken;
+        try {
+            const stored = window.localStorage ? window.localStorage.getItem(DASHBOARD_WS_STORAGE_NAME) : '';
+            const trimmed = typeof stored === 'string' ? stored.trim() : '';
+            if (trimmed) {
+                operatorDashboardToken = trimmed;
+                return trimmed;
+            }
+        } catch (_) {
+        }
+        return '';
     }
 
     function storeDashboardToken(token) {
         const trimmed = typeof token === 'string' ? token.trim() : '';
         if (!trimmed) return false;
         operatorDashboardToken = trimmed;
-        clearLegacyDashboardToken();
+        try {
+            if (window.localStorage) window.localStorage.setItem(DASHBOARD_WS_STORAGE_NAME, trimmed);
+        } catch (_) {
+        }
         return true;
     }
 
-    function clearLegacyDashboardToken() {
+    function removePersistedDashboardToken() {
         try {
             if (window.localStorage) window.localStorage.removeItem(DASHBOARD_WS_STORAGE_NAME);
         } catch (_) {
@@ -105,7 +117,7 @@
 
     function clearStoredDashboardToken() {
         operatorDashboardToken = '';
-        clearLegacyDashboardToken();
+        removePersistedDashboardToken();
     }
 
     function dashboardAuthToken() {
@@ -157,13 +169,13 @@
         overlay.appendChild(panel);
 
         appendText(panel, 'h2', '', 'Dashboard Access');
-        appendText(panel, 'p', '', message || 'Enter the operator WebSocket key for this browser session.');
+        appendText(panel, 'p', '', message || 'Enter the operator dashboard token.');
 
         const input = document.createElement('input');
         input.type = 'password';
         input.name = 'dashboardToken';
         input.autocomplete = 'off';
-        input.placeholder = 'WebSocket key';
+        input.placeholder = 'Dashboard token';
         input.style.cssText = [
             'width:100%',
             'margin:16px 0 12px',
@@ -283,7 +295,7 @@
 
             const token = dashboardAuthToken();
             if (!token) {
-                console.warn('[Socket] No dashboard token configured — enter the operator WebSocket key for this browser session');
+                console.warn('[Socket] No dashboard token configured. Enter the operator dashboard token.');
                 showDashboardTokenGate();
                 return false;
             }
@@ -345,7 +357,7 @@
                     }
                     if (data.type === 'auth_failure') {
                         clearStoredDashboardToken();
-                        showDashboardTokenGate('Dashboard token was rejected. Enter the current operator WebSocket key.');
+                        showDashboardTokenGate('Dashboard token was rejected. Enter the current operator dashboard token.');
                         forceReconnect('dashboard auth failure');
                     }
 

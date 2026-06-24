@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Operator Token Persistence (2026-06-24)
+
+- Restored browser-local persistence for the operator-entered dashboard token so refreshing the production dashboard no longer reopens the access gate while public HTML still carries no WebSocket secret.
+- Kept rejected dashboard tokens fail-closed by clearing both memory and browser storage on auth failure.
+
 ### Live Report Trace Vocabulary (2026-06-24)
 
 - Added current backend aggregate-candle and stock share-range trace events to the live report allow-list so proof capture classifies real runtime evidence instead of flagging mapped backend events as unknown.

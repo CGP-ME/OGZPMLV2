@@ -244,14 +244,16 @@ describe('frontend websocket lifecycle', () => {
     expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-memory-token' });
   });
 
-  test('ignores and clears a legacy localStorage token instead of authenticating with it', () => {
-    const harness = createHarness({ token: '', legacyStoredToken: 'placeholder-legacy-token' });
+  test('uses persisted operator token without requiring public HTML token injection', () => {
+    const harness = createHarness({ token: '', legacyStoredToken: 'placeholder-persisted-token' });
 
-    expect(harness.Socket.connect()).toBe(false);
+    harness.Socket.connect();
+    const socket = harness.instances[0];
+    socket.open();
 
-    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
-    expect(harness.instances).toEqual([]);
-    expect(harness.document.getElementById('ogz-dashboard-token-gate')).not.toBeNull();
+    expect(socket.sent[0]).toEqual({ type: 'auth', token: 'placeholder-persisted-token' });
+    expect(harness.localStorage.removeItem).not.toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
   });
 
   test('closes without sending auth when no operator token is configured', () => {
@@ -279,7 +281,7 @@ describe('frontend websocket lifecycle', () => {
     expect(harness.Socket.setAuthToken(' placeholder-operator-token ')).toBe(true);
 
     expect(harness.Socket.getAuthToken()).toBe('placeholder-operator-token');
-    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-operator-token');
     expect(firstSocket.closeArgs).toEqual({
       code: 4000,
       reason: 'dashboard token updated'
@@ -304,7 +306,7 @@ describe('frontend websocket lifecycle', () => {
     form.listeners.submit({ preventDefault: jest.fn() });
 
     expect(harness.Socket.getAuthToken()).toBe('placeholder-gate-token');
-    expect(harness.localStorage.removeItem).toHaveBeenCalledWith('ogz.dashboard.wsToken');
+    expect(harness.localStorage.setItem).toHaveBeenCalledWith('ogz.dashboard.wsToken', 'placeholder-gate-token');
     expect(harness.document.getElementById('ogz-dashboard-token-gate')).toBeNull();
 
     jest.advanceTimersByTime(1000);
