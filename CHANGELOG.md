@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Report Trace Vocabulary (2026-06-24)
+
+- Added current backend aggregate-candle and stock share-range trace events to the live report allow-list so proof capture classifies real runtime evidence instead of flagging mapped backend events as unknown.
+
 ### TTP Stock Share Range Sizing (2026-06-24)
 
 - Removed the fixed `8`-share ceiling from the TTP 5k profile and live ecosystem env; `ENTRY_MAX_STOCK_SHARES=0` now means no universal share-count cap while notional, TTP consistency, and daily-loss caps still bound entries.
