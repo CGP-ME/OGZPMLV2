@@ -54,6 +54,24 @@ function nonEmptyStringOrNull(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function jsonCloneOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return null;
+  }
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const normalized = nonEmptyStringOrNull(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 class TradeReplayCapture {
   constructor(config = {}) {
     if (!config.replayDir) {
@@ -113,7 +131,23 @@ class TradeReplayCapture {
           macd: finiteNumberOrNull(entryData.indicators?.macd),
           trend: nonEmptyStringOrNull(entryData.indicators?.trend),
           volatility: finiteNumberOrNull(entryData.indicators?.volatility)
-        }
+        },
+        entryStrategy: firstNonEmptyString(entryData.entryStrategy, entryData.strategy, entryData.winnerStrategy),
+        winnerStrategy: firstNonEmptyString(entryData.winnerStrategy, entryData.entryStrategy, entryData.strategy),
+        strategy: firstNonEmptyString(entryData.strategy, entryData.entryStrategy, entryData.winnerStrategy),
+        signalId: nonEmptyStringOrNull(entryData.signalId),
+        decisionId: nonEmptyStringOrNull(entryData.decisionId),
+        traceId: nonEmptyStringOrNull(entryData.traceId),
+        signalBasis: nonEmptyStringOrNull(entryData.signalBasis),
+        crossoverCount: finiteNumberOrNull(entryData.crossoverCount),
+        decisionLedger: jsonCloneOrNull(entryData.decisionLedger),
+        strategySignals: Array.isArray(entryData.strategySignals) ? jsonCloneOrNull(entryData.strategySignals) : null,
+        orchestratorDecision: jsonCloneOrNull(entryData.orchestratorDecision),
+        competingStrategies: Array.isArray(entryData.competingStrategies) ? jsonCloneOrNull(entryData.competingStrategies) : null,
+        confluence: jsonCloneOrNull(entryData.confluence),
+        positionSizing: jsonCloneOrNull(entryData.positionSizing),
+        exitContract: jsonCloneOrNull(entryData.exitContract),
+        riskGates: jsonCloneOrNull(entryData.riskGates)
       },
       candlesAtEntry: candleSnapshot
     });

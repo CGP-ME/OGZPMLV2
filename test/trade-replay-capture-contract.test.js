@@ -74,6 +74,21 @@ describe('TradeReplayCapture truth contract', () => {
       regime: '',
       patterns: [{ type: 'pattern-a', confidence: 0 }],
       indicators: { rsi: 0, macd: 0, trend: '', volatility: 0 },
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      signalId: 'sig-replay',
+      traceId: 'trace-replay',
+      decisionId: 'decision-replay',
+      signalBasis: 'fresh_crossover',
+      crossoverCount: 1,
+      strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 80 }],
+      orchestratorDecision: {
+        winnerStrategy: 'EMASMACrossover',
+        competingStrategies: [{ strategyName: 'RSI', adjustedConfidence: 62 }],
+      },
+      positionSizing: { finalSizeUsd: 500 },
+      exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+      riskGates: { ttp: { allowed: true } },
     }, candles());
 
     const filepath = capture.captureExit('ORDER-1', {
@@ -89,6 +104,20 @@ describe('TradeReplayCapture truth contract', () => {
     expect(entry).toEqual(expect.objectContaining({
       orderId: 'ORDER-1',
       direction: 'BUY',
+      entry: expect.objectContaining({
+        entryStrategy: 'EMASMACrossover',
+        winnerStrategy: 'EMASMACrossover',
+        signalId: 'sig-replay',
+        traceId: 'trace-replay',
+        decisionId: 'decision-replay',
+        signalBasis: 'fresh_crossover',
+        crossoverCount: 1,
+        strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 80 }],
+        orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
+        positionSizing: { finalSizeUsd: 500 },
+        exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+        riskGates: { ttp: { allowed: true } },
+      }),
     }));
     expect(filepath).toBe(path.join(tempDir, 'ORDER-1.json'));
     expect(list).toEqual([{

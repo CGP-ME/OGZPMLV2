@@ -86,6 +86,24 @@ function nonEmptyStringArrayOrNull(value) {
   return strings.every(item => item !== null) ? strings : null;
 }
 
+function jsonCloneOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return null;
+  }
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const normalized = nonEmptyStringOrNull(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 function roundFiniteOrNull(value, decimals = 2) {
   const n = finiteNumberOrNull(value);
   return n === null ? null : Number(n.toFixed(decimals));
@@ -286,6 +304,22 @@ class TradeJournal {
         trend: nonEmptyStringOrNull(entry.indicators?.trend),
         volatility: finiteNumberOrNull(entry.indicators?.volatility)
       },
+      entryStrategy: firstNonEmptyString(entry.entryStrategy, entry.strategy, entry.winnerStrategy),
+      winnerStrategy: firstNonEmptyString(entry.winnerStrategy, entry.entryStrategy, entry.strategy),
+      strategy: firstNonEmptyString(entry.strategy, entry.entryStrategy, entry.winnerStrategy),
+      signalId: nonEmptyStringOrNull(entry.signalId),
+      decisionId: nonEmptyStringOrNull(entry.decisionId),
+      traceId: nonEmptyStringOrNull(entry.traceId),
+      signalBasis: nonEmptyStringOrNull(entry.signalBasis),
+      crossoverCount: finiteNumberOrNull(entry.crossoverCount),
+      decisionLedger: jsonCloneOrNull(entry.decisionLedger),
+      strategySignals: Array.isArray(entry.strategySignals) ? jsonCloneOrNull(entry.strategySignals) : null,
+      orchestratorDecision: jsonCloneOrNull(entry.orchestratorDecision),
+      competingStrategies: Array.isArray(entry.competingStrategies) ? jsonCloneOrNull(entry.competingStrategies) : null,
+      confluence: jsonCloneOrNull(entry.confluence),
+      positionSizing: jsonCloneOrNull(entry.positionSizing),
+      exitContract: jsonCloneOrNull(entry.exitContract),
+      riskGates: jsonCloneOrNull(entry.riskGates),
       fees,
       ...this._scopeRecordFields()
     };
@@ -420,6 +454,22 @@ class TradeJournal {
       regime: nonEmptyStringOrNull(entry.regime),
       patterns: Array.isArray(entry.patterns) ? entry.patterns : [],
       indicators: entry.indicators && typeof entry.indicators === 'object' ? entry.indicators : {},
+      entryStrategy: firstNonEmptyString(entry.entryStrategy, entry.strategy, entry.winnerStrategy),
+      winnerStrategy: firstNonEmptyString(entry.winnerStrategy, entry.entryStrategy, entry.strategy),
+      strategy: firstNonEmptyString(entry.strategy, entry.entryStrategy, entry.winnerStrategy),
+      signalId: nonEmptyStringOrNull(entry.signalId),
+      decisionId: nonEmptyStringOrNull(entry.decisionId),
+      traceId: nonEmptyStringOrNull(entry.traceId),
+      signalBasis: nonEmptyStringOrNull(entry.signalBasis),
+      crossoverCount: finiteNumberOrNull(entry.crossoverCount),
+      decisionLedger: jsonCloneOrNull(entry.decisionLedger),
+      strategySignals: Array.isArray(entry.strategySignals) ? jsonCloneOrNull(entry.strategySignals) : null,
+      orchestratorDecision: jsonCloneOrNull(entry.orchestratorDecision),
+      competingStrategies: Array.isArray(entry.competingStrategies) ? jsonCloneOrNull(entry.competingStrategies) : null,
+      confluence: jsonCloneOrNull(entry.confluence),
+      positionSizing: jsonCloneOrNull(entry.positionSizing),
+      exitContract: jsonCloneOrNull(entry.exitContract),
+      riskGates: jsonCloneOrNull(entry.riskGates),
       entryTime: entry.timestamp,
       balanceAfter,
       ...this._scopeRecordFields()

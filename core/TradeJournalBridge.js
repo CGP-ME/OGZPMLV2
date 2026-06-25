@@ -163,9 +163,69 @@ function indicatorObjectOrEmpty(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+function jsonCloneOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return null;
+  }
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    const normalized = nonEmptyStringOrNull(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
+function activeTradeProvenance(activeTrade) {
+  const decisionLedger = jsonCloneOrNull(activeTrade?.decisionLedger);
+  const orchestratorDecision = jsonCloneOrNull(decisionLedger?.orchestratorDecision || activeTrade?.orchestratorDecision);
+  const strategySignals = Array.isArray(decisionLedger?.strategySignals)
+    ? jsonCloneOrNull(decisionLedger.strategySignals)
+    : (Array.isArray(activeTrade?.strategySignals) ? jsonCloneOrNull(activeTrade.strategySignals) : null);
+  const winnerStrategy = firstNonEmptyString(
+    activeTrade?.winnerStrategy,
+    orchestratorDecision?.winnerStrategy,
+    activeTrade?.entryStrategy,
+    activeTrade?.strategy
+  );
+  const entryStrategy = firstNonEmptyString(
+    activeTrade?.entryStrategy,
+    activeTrade?.strategy,
+    winnerStrategy
+  );
+  const competingStrategies = Array.isArray(orchestratorDecision?.competingStrategies)
+    ? jsonCloneOrNull(orchestratorDecision.competingStrategies)
+    : null;
+
+  return {
+    entryStrategy,
+    winnerStrategy,
+    strategy: entryStrategy,
+    signalId: firstNonEmptyString(activeTrade?.signalId, decisionLedger?.signalId),
+    decisionId: firstNonEmptyString(activeTrade?.decisionId, decisionLedger?.decisionId),
+    traceId: firstNonEmptyString(activeTrade?.traceId, decisionLedger?.traceId),
+    signalBasis: firstNonEmptyString(activeTrade?.signalBasis, orchestratorDecision?.signalBasis),
+    crossoverCount: finiteNumberOrNull(activeTrade?.crossoverCount ?? orchestratorDecision?.crossoverCount),
+    decisionLedger,
+    strategySignals,
+    orchestratorDecision,
+    competingStrategies,
+    confluence: jsonCloneOrNull(decisionLedger?.confluence || activeTrade?.confluence),
+    positionSizing: jsonCloneOrNull(decisionLedger?.positionSizing || activeTrade?.positionSizing),
+    exitContract: jsonCloneOrNull(decisionLedger?.exitContract || activeTrade?.exitContract),
+    riskGates: jsonCloneOrNull(decisionLedger?.riskGates || activeTrade?.riskGates),
+  };
+}
+
 function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   const missing = [];
   const orderId = nonEmptyStringOrNull(activeTrade?.orderId) || nonEmptyStringOrNull(activeTrade?.id);
+  const symbol = nonEmptyStringOrNull(activeTrade?.symbol);
   const action = entryActionOrNull(activeTrade?.action) || entryActionOrNull(activeTrade?.type);
   const entryPrice = positiveNumberOrNull(activeTrade?.entryPrice);
   const sizeUsd = positiveNumberOrNull(activeTrade?.sizeUsd ?? activeTrade?.usdValue);
@@ -173,22 +233,28 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
   const fees = nonNegativeNumberOrNull(activeTrade?.entryFee ?? activeTrade?.fees);
   const timestamp = nonNegativeNumberOrNull(activeTrade?.timestamp);
   const expected = nonEmptyStringOrNull(expectedOrderId);
+  const provenance = activeTradeProvenance(activeTrade);
 
   if (!orderId) missing.push('activeTrade.orderId');
   if (expected && orderId && orderId !== expected) missing.push('activeTrade.orderId');
+  if (!symbol) missing.push('activeTrade.symbol');
   if (!action) missing.push('activeTrade.action');
   if (entryPrice == null) missing.push('entryPrice');
   if (sizeUsd == null) missing.push('sizeUsd');
   if (confidence == null) missing.push('confidence');
   if (fees == null) missing.push('entryFee');
   if (timestamp == null) missing.push('timestamp');
+  if (!provenance.entryStrategy) missing.push('activeTrade.entryStrategy');
+  if (!provenance.traceId) missing.push('activeTrade.traceId');
+  if (!provenance.signalId) missing.push('activeTrade.signalId');
+  if (!provenance.decisionId) missing.push('activeTrade.decisionId');
 
   return {
     ok: missing.length === 0,
     missing,
     data: {
       orderId: expected || orderId,
-      symbol: nonEmptyStringOrNull(activeTrade?.symbol),
+      symbol,
       direction: action,
       entryPrice,
       size: sizeUsd,
@@ -199,6 +265,7 @@ function sourceBackedEntryFromActiveTrade(activeTrade, expectedOrderId) {
       indicators: indicatorObjectOrEmpty(activeTrade?.entryIndicators || activeTrade?.indicators),
       fees,
       timestamp,
+      ...provenance,
     },
   };
 }
@@ -218,8 +285,10 @@ function normalizeClosedTradeRecord(exitRecord) {
   const size = positiveNumberOrNull(exitRecord?.size ?? exitRecord?.sizeUsd ?? exitRecord?.usdValue);
   const maxProfit = finiteNumberOrNull(exitRecord?.maxProfit ?? exitRecord?.maxProfitPercent);
   const balance = finiteNumberOrNull(exitRecord?.balance ?? exitRecord?.balanceAfter);
+  const symbol = nonEmptyStringOrNull(exitRecord?.symbol);
 
   if (!orderId) missing.push('orderId');
+  if (!symbol) missing.push('symbol');
   if (!direction) missing.push('direction');
   if (entryPrice == null) missing.push('entryPrice');
   if (exitPrice == null) missing.push('exitPrice');
@@ -233,6 +302,7 @@ function normalizeClosedTradeRecord(exitRecord) {
     missing,
     data: {
       orderId,
+      symbol,
       direction,
       entryPrice,
       exitPrice,
@@ -434,7 +504,7 @@ class TradeJournalBridge {
         return bundle;
       }
     }
-    return { journal: this.journal, replay: this.replay, scope: this.journal?.scope || null };
+    return null;
   }
 
   _allJournalBundles() {
@@ -501,7 +571,15 @@ class TradeJournalBridge {
           failureContext.action = entryAction;
           const normalizedEntry = sourceBackedEntryFromActiveTrade(activeTrade, resultOrderId);
           if (!normalizedEntry.ok) {
-            throw new Error(`Entry ${resultOrderId} missing source-backed active trade field(s): ${normalizedEntry.missing.join(', ')}`);
+            TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_source_incomplete', {
+              ...failureContext,
+              orderId: resultOrderId,
+              action: entryAction,
+              missing: normalizedEntry.missing,
+              message: `Entry ${resultOrderId} missing source-backed active trade field(s): ${normalizedEntry.missing.join(', ')}`,
+              context: { activeTrade: compactTradeRecord(activeTrade) },
+            });
+            return result;
           }
           const entryData = normalizedEntry.data;
 
@@ -525,7 +603,23 @@ class TradeJournalBridge {
             confidence: entryData.confidence,
             regime: entryData.regime,
             patterns: entryData.patterns,
-            indicators: entryData.indicators
+            indicators: entryData.indicators,
+            entryStrategy: entryData.entryStrategy,
+            winnerStrategy: entryData.winnerStrategy,
+            strategy: entryData.strategy,
+            signalId: entryData.signalId,
+            decisionId: entryData.decisionId,
+            traceId: entryData.traceId,
+            signalBasis: entryData.signalBasis,
+            crossoverCount: entryData.crossoverCount,
+            decisionLedger: entryData.decisionLedger,
+            strategySignals: entryData.strategySignals,
+            orchestratorDecision: entryData.orchestratorDecision,
+            competingStrategies: entryData.competingStrategies,
+            confluence: entryData.confluence,
+            positionSizing: entryData.positionSizing,
+            exitContract: entryData.exitContract,
+            riskGates: entryData.riskGates
           }, bot.priceHistory || []);
           if (!replayEntry) {
             TradeJournalBridge.prototype._recordVisibilityFailure.call(bridge, 'trade_entry_replay_missing', {
@@ -662,7 +756,24 @@ class TradeJournalBridge {
     }
 
     try {
-      const bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
+      let bundle = TradeJournalBridge.prototype._getJournalBundleForOrderId.call(this, data.orderId);
+      if (!bundle && data.symbol) {
+        bundle = TradeJournalBridge.prototype._getJournalBundleForEntry.call(this, {
+          orderId: data.orderId,
+          symbol: data.symbol,
+        });
+      }
+      if (!bundle?.journal || !bundle?.replay) {
+        TradeJournalBridge.prototype._recordVisibilityFailure.call(this, 'trade_exit_scope_unresolved', {
+          phase: 'exit',
+          source,
+          orderId: data.orderId,
+          action: exitActionOrNull(exitRecord, data),
+          message: `Closed trade ${data.orderId} could not resolve a symbol-scoped journal bundle`,
+          context: { exitRecord: compactTradeRecord(exitRecord) },
+        });
+        return false;
+      }
       const journalExit = bundle.journal.recordExit({
         orderId: data.orderId,
         exitPrice: data.exitPrice,

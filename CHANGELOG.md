@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Trade Journal Attribution Proof (2026-06-25)
+
+- Preserved source-backed strategy attribution from active trades into TradeJournal entry/exit rows and TradeReplay packets, including winner strategy, trace/signal/decision IDs, decision ledger, competing strategies, sizing, exit contract, and risk-gate provenance.
+- Required source-backed journal entries to carry symbol, strategy, and proof correlation IDs before journaling so malformed active trades produce explicit visibility failures instead of un-attributed proof records.
+- Rebuilt symbol-scoped journal routing for close records by symbol when the in-memory bundle map no longer has the order ID, preventing exits after bundle loss or restart from falling back to the boot/default journal.
+
 ### Dashboard Operator Token Persistence (2026-06-24)
 
 - Restored browser-local persistence for the operator-entered dashboard token so refreshing the production dashboard no longer reopens the access gate while public HTML still carries no WebSocket secret.

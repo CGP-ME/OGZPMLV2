@@ -304,6 +304,70 @@ describe('TradeJournal today stats', () => {
     journal.destroy();
   });
 
+  test('preserves strategy attribution from entry through exit records', () => {
+    const TradeJournal = require('../core/TradeJournal');
+    const journal = new TradeJournal(journalConfig());
+
+    const entry = journal.recordEntry(validEntry({
+      orderId: 'ATTRIBUTED-ENTRY',
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      signalId: 'sig-attributed',
+      traceId: 'trace-attributed',
+      decisionId: 'decision-attributed',
+      signalBasis: 'fresh_crossover',
+      crossoverCount: 1,
+      strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 82 }],
+      orchestratorDecision: {
+        winnerStrategy: 'EMASMACrossover',
+        competingStrategies: [{ strategyName: 'RSI', adjustedConfidence: 61 }],
+      },
+      positionSizing: { finalSizeUsd: 500 },
+      exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+      riskGates: { ttp: { allowed: true } },
+    }));
+    const exit = journal.recordExit({
+      orderId: 'ATTRIBUTED-ENTRY',
+      exitPrice: 51000,
+      reason: 'take_profit',
+      pnl: 10,
+      fees: 0,
+      exitSize: 500,
+    });
+
+    expect(entry).toEqual(expect.objectContaining({
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      signalId: 'sig-attributed',
+      traceId: 'trace-attributed',
+      decisionId: 'decision-attributed',
+      signalBasis: 'fresh_crossover',
+      crossoverCount: 1,
+      strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 82 }],
+      orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
+      positionSizing: { finalSizeUsd: 500 },
+      exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+      riskGates: { ttp: { allowed: true } },
+    }));
+    expect(exit).toEqual(expect.objectContaining({
+      orderId: 'ATTRIBUTED-ENTRY',
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      signalId: 'sig-attributed',
+      traceId: 'trace-attributed',
+      decisionId: 'decision-attributed',
+      signalBasis: 'fresh_crossover',
+      crossoverCount: 1,
+      strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 82 }],
+      orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
+      positionSizing: { finalSizeUsd: 500 },
+      exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+      riskGates: { ttp: { allowed: true } },
+    }));
+
+    journal.destroy();
+  });
+
   test('throws on entry ledger append failure before mutating open state', () => {
     const TradeJournal = require('../core/TradeJournal');
     const journal = new TradeJournal(journalConfig());

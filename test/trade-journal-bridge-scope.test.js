@@ -101,12 +101,16 @@ describe('TradeJournalBridge scoped storage', () => {
       action: 'BUY',
       direction: 'long',
       symbol: 'MARA',
+      traceId: 'trace-mara-1',
+      signalId: 'signal-mara-1',
+      decisionId: 'decision-mara-1',
       size: 500,
       sizeUsd: 500,
       entryPrice: 14.9,
       confidence: 87,
       entryFee: 0.75,
       timestamp: Date.parse('2026-06-22T17:45:00.000Z'),
+      entryStrategy: 'MADynamicSR',
       regimeAtEntry: 'ranging',
       entryIndicators: { rsi: 46, macd: { macd: 0.11 }, trend: 'up', volatility: 0.22 },
       patterns: [{ name: 'wedge', confidence: 0.7 }],
@@ -155,15 +159,23 @@ describe('TradeJournalBridge scoped storage', () => {
         orderId: 'MARA-1',
         symbol: 'MARA',
         scopeKey: 'live:alpaca:acct-1:stocks:MARA:15m',
+        entryStrategy: 'MADynamicSR',
       });
       if (fs.existsSync(tslaLedger)) {
         expect(readJsonl(tslaLedger).some(row => row.orderId === 'MARA-1')).toBe(false);
       }
 
+      const oldMaraBundle = Array.from(bridge._journalBundles.values())
+        .find(bundle => bundle.scope?.symbol === 'MARA');
+      oldMaraBundle?.journal?.destroy?.();
+      if (oldMaraBundle?.scope?.scopeKey) {
+        bridge._journalBundles.delete(oldMaraBundle.scope.scopeKey);
+      }
       const grossPnl = 500 * ((15.05 - 14.9) / 14.9);
       expect(bridge._recordTradeLogClose({
         type: 'EXIT',
         id: 'MARA-1',
+        symbol: 'MARA',
         direction: 'BUY',
         entryPrice: 14.9,
         exitPrice: 15.05,
@@ -180,6 +192,13 @@ describe('TradeJournalBridge scoped storage', () => {
         orderId: 'MARA-1',
         symbol: 'MARA',
         exitReason: 'test_exit',
+      });
+      const maraRowsAfterExit = readJsonl(maraLedger);
+      expect(maraRowsAfterExit.map(row => row.event)).toEqual(['ENTRY', 'EXIT']);
+      expect(maraRowsAfterExit[1]).toMatchObject({
+        orderId: 'MARA-1',
+        symbol: 'MARA',
+        scopeKey: 'live:alpaca:acct-1:stocks:MARA:15m',
       });
 
       const symbolBreakdown = bridge._combinedPerformanceBreakdown('symbol');
@@ -320,6 +339,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['ORDER-1', {
         orderId: 'ORDER-1',
+        symbol: 'TSLA',
+        traceId: 'trace-order-1',
+        signalId: 'sig-order-1',
+        decisionId: 'decision-order-1',
         action: 'BUY',
         direction: 'long',
         size: 1250,
@@ -328,6 +351,19 @@ describe('TradeJournalBridge scoped storage', () => {
         confidence: 84,
         entryFee: 3.125,
         timestamp: 1780000000000,
+        entryStrategy: 'EMASMACrossover',
+        decisionLedger: {
+          signalId: 'sig-order-1',
+          traceId: 'trace-order-1',
+          strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 84 }],
+          orchestratorDecision: {
+            winnerStrategy: 'EMASMACrossover',
+            competingStrategies: [{ strategyName: 'RSI', adjustedConfidence: 62 }],
+          },
+          positionSizing: { finalSizeUsd: 1250 },
+          exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+          riskGates: { ttp: { allowed: true } },
+        },
         regimeAtEntry: 'state-regime',
         entryIndicators: { rsi: 52, macd: { macd: 0.12 }, trend: 'state-up', volatility: 0.19 },
         patterns: [],
@@ -377,6 +413,16 @@ describe('TradeJournalBridge scoped storage', () => {
       regime: 'state-regime',
       fees: 3.125,
       timestamp: 1780000000000,
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      signalId: 'sig-order-1',
+      traceId: 'trace-order-1',
+      decisionId: 'decision-order-1',
+      orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
+      strategySignals: [{ strategyName: 'EMASMACrossover', confidence: 84 }],
+      positionSizing: { finalSizeUsd: 1250 },
+      exitContract: { strategyName: 'EMASMACrossover', stopLossPercent: -0.5 },
+      riskGates: { ttp: { allowed: true } },
       indicators: { rsi: 52, macd: { macd: 0.12 }, trend: 'state-up', volatility: 0.19 },
     }));
     expect(bot.regimeDetector.detectRegime).not.toHaveBeenCalled();
@@ -386,6 +432,12 @@ describe('TradeJournalBridge scoped storage', () => {
         price: 50000,
         confidence: 84,
         regime: 'state-regime',
+        entryStrategy: 'EMASMACrossover',
+        winnerStrategy: 'EMASMACrossover',
+        signalId: 'sig-order-1',
+        traceId: 'trace-order-1',
+        decisionId: 'decision-order-1',
+        orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
       }),
       []
     );
@@ -396,6 +448,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['SHORT-1', {
         orderId: 'SHORT-1',
+        symbol: 'TSLA',
+        traceId: 'trace-short-1',
+        signalId: 'signal-short-1',
+        decisionId: 'decision-short-1',
         action: 'SELL_SHORT',
         direction: 'short',
         size: 875,
@@ -404,12 +460,24 @@ describe('TradeJournalBridge scoped storage', () => {
         confidence: 77,
         entryFee: 2.1875,
         timestamp: 1780000100000,
+        entryStrategy: 'LiquiditySweep',
+        decisionLedger: {
+          strategySignals: [{ strategyName: 'LiquiditySweep', confidence: 77 }],
+          orchestratorDecision: {
+            winnerStrategy: 'LiquiditySweep',
+            competingStrategies: [{ strategyName: 'EMASMACrossover', adjustedConfidence: 70 }],
+          },
+        },
         regimeAtEntry: 'state-bearish',
         entryIndicators: { rsi: 39, macd: { macd: -0.3 }, trend: 'state-down', volatility: 0.41 },
         patterns: [{ name: 'ema_short', confidence: 0.82 }],
       }],
       ['OLD-LONG-1', {
         orderId: 'OLD-LONG-1',
+        symbol: 'TSLA',
+        traceId: 'trace-old-long-1',
+        signalId: 'signal-old-long-1',
+        decisionId: 'decision-old-long-1',
         action: 'BUY',
         direction: 'long',
         size: 222,
@@ -463,6 +531,9 @@ describe('TradeJournalBridge scoped storage', () => {
       regime: 'state-bearish',
       fees: 2.1875,
       timestamp: 1780000100000,
+      entryStrategy: 'LiquiditySweep',
+      winnerStrategy: 'LiquiditySweep',
+      orchestratorDecision: expect.objectContaining({ winnerStrategy: 'LiquiditySweep' }),
       indicators: { rsi: 39, macd: { macd: -0.3 }, trend: 'state-down', volatility: 0.41 },
     }));
     expect(bot.regimeDetector.detectRegime).not.toHaveBeenCalled();
@@ -473,6 +544,9 @@ describe('TradeJournalBridge scoped storage', () => {
         direction: 'SELL_SHORT',
         confidence: 77,
         regime: 'state-bearish',
+        entryStrategy: 'LiquiditySweep',
+        winnerStrategy: 'LiquiditySweep',
+        orchestratorDecision: expect.objectContaining({ winnerStrategy: 'LiquiditySweep' }),
       }),
       []
     );
@@ -483,6 +557,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['SHORT-SOURCE-1', {
         orderId: 'SHORT-SOURCE-1',
+        symbol: 'TSLA',
+        traceId: 'trace-short-source-1',
+        signalId: 'signal-short-source-1',
+        decisionId: 'decision-short-source-1',
         action: 'SELL_SHORT',
         direction: 'short',
         size: 900,
@@ -491,6 +569,7 @@ describe('TradeJournalBridge scoped storage', () => {
         confidence: 88,
         entryFee: 2.25,
         timestamp: 1780000200000,
+        entryStrategy: 'LiquiditySweep',
         regimeAtEntry: 'source-bear',
         entryIndicators: { rsi: 36, trend: 'source-down' },
         patterns: [],
@@ -530,6 +609,11 @@ describe('TradeJournalBridge scoped storage', () => {
       confidence: 88,
       fees: 2.25,
       timestamp: 1780000200000,
+      entryStrategy: 'LiquiditySweep',
+      winnerStrategy: 'LiquiditySweep',
+      traceId: 'trace-short-source-1',
+      signalId: 'signal-short-source-1',
+      decisionId: 'decision-short-source-1',
       regime: 'source-bear',
       indicators: { rsi: 36, trend: 'source-down' },
     }));
@@ -630,6 +714,7 @@ describe('TradeJournalBridge scoped storage', () => {
   test('refuses to infer journal USD value from ambiguous legacy size', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const visibilityFailurePath = tempVisibilityFailurePath();
     const activeTrades = new Map([
       ['LEGACY-1', {
         orderId: 'LEGACY-1',
@@ -666,7 +751,7 @@ describe('TradeJournalBridge scoped storage', () => {
       replay: {
         captureEntry: jest.fn(),
       },
-      visibilityFailurePath: tempVisibilityFailurePath(),
+      visibilityFailurePath,
       _send: jest.fn(),
     };
 
@@ -682,7 +767,15 @@ describe('TradeJournalBridge scoped storage', () => {
 
       expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
       expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('sizeUsd'));
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('sizeUsd'));
+      const [record] = readJsonl(visibilityFailurePath);
+      expect(record).toMatchObject({
+        eventType: 'trade_entry_source_incomplete',
+        orderId: 'LEGACY-1',
+        action: 'BUY',
+        missing: expect.arrayContaining(['sizeUsd']),
+        message: expect.stringContaining('sizeUsd'),
+      });
     } finally {
       warnSpy.mockRestore();
     }
@@ -737,12 +830,13 @@ describe('TradeJournalBridge scoped storage', () => {
 
       expect(bridge.journal.recordEntry).not.toHaveBeenCalled();
       expect(bridge.replay.captureEntry).not.toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('entryFee'));
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('entryFee'));
       const [record] = readJsonl(visibilityFailurePath);
       expect(record).toMatchObject({
-        eventType: 'trade_entry_recording_exception',
+        eventType: 'trade_entry_source_incomplete',
         orderId: 'NO-FEE-1',
         action: 'BUY',
+        missing: expect.arrayContaining(['entryFee']),
         message: expect.stringContaining('entryFee'),
       });
     } finally {
@@ -755,6 +849,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['OPEN-STATE-1', {
         orderId: 'OPEN-STATE-1',
+        symbol: 'TSLA',
+        traceId: 'trace-open-state-1',
+        signalId: 'signal-open-state-1',
+        decisionId: 'decision-open-state-1',
         action: 'SELL_SHORT',
         direction: 'short',
         sizeUsd: 1200,
@@ -762,6 +860,7 @@ describe('TradeJournalBridge scoped storage', () => {
         confidence: 100,
         entryFee: 3,
         timestamp: 1780687800220,
+        entryStrategy: 'EMASMACrossover',
         regimeAtEntry: 'trending_down',
         entryIndicators: { rsi: 42, trend: 'down' },
         patterns: [{ name: 'ema_cross', confidence: 0.9 }],
@@ -795,6 +894,11 @@ describe('TradeJournalBridge scoped storage', () => {
       confidence: 100,
       fees: 3,
       timestamp: 1780687800220,
+      entryStrategy: 'EMASMACrossover',
+      winnerStrategy: 'EMASMACrossover',
+      traceId: 'trace-open-state-1',
+      signalId: 'signal-open-state-1',
+      decisionId: 'decision-open-state-1',
       regime: 'trending_down',
       indicators: { rsi: 42, trend: 'down' },
       source: 'StateManager.activeTrades',
@@ -889,6 +993,7 @@ describe('TradeJournalBridge scoped storage', () => {
     const result = await bot.orderExecutor.ctx.logTrade({
       type: 'SELL',
       orderId: 'ORDER-1',
+      symbol: 'TSLA',
       direction: 'long',
       entryPrice: 100,
       exitPrice: 105,
@@ -975,6 +1080,7 @@ describe('TradeJournalBridge scoped storage', () => {
       await bot.orderExecutor.ctx.logTrade({
         type: 'SELL',
         orderId: 'ORDER-2',
+        symbol: 'TSLA',
         direction: 'long',
         entryPrice: 100,
         pnl: 50,
@@ -1032,6 +1138,7 @@ describe('TradeJournalBridge scoped storage', () => {
     await expect(bot.orderExecutor.ctx.logTrade({
       type: 'SELL',
       orderId: 'ORDER-3',
+      symbol: 'TSLA',
       direction: 'long',
       entryPrice: 100,
       exitPrice: 105,
@@ -1057,6 +1164,7 @@ describe('TradeJournalBridge scoped storage', () => {
     const exitRecord = {
       type: 'SELL',
       orderId: 'ORDER-4',
+      symbol: 'TSLA',
       direction: 'long',
       entryPrice: 100,
       exitPrice: 105,
@@ -1125,6 +1233,7 @@ describe('TradeJournalBridge scoped storage', () => {
     const baseRecord = {
       type: 'SELL',
       orderId: 'ORDER-PARTIAL-KEY',
+      symbol: 'TSLA',
       direction: 'long',
       entryPrice: 100,
       exitPrice: 105,
@@ -1162,6 +1271,10 @@ describe('TradeJournalBridge scoped storage', () => {
     const activeTrades = new Map([
       ['ORDER-VIS-1', {
         orderId: 'ORDER-VIS-1',
+        symbol: 'BTC-USD',
+        traceId: 'trace-order-vis-1',
+        signalId: 'signal-order-vis-1',
+        decisionId: 'decision-order-vis-1',
         action: 'BUY',
         direction: 'long',
         sizeUsd: 1250,
@@ -1170,6 +1283,7 @@ describe('TradeJournalBridge scoped storage', () => {
         confidence: 75,
         entryFee: 3.125,
         timestamp: 1780000400000,
+        entryStrategy: 'RSI',
         regimeAtEntry: 'visibility-regime',
         entryIndicators: { rsi: 44 },
         patterns: [],
@@ -1245,6 +1359,7 @@ describe('TradeJournalBridge scoped storage', () => {
       expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
         type: 'SELL',
         orderId: 'ORDER-VIS-2',
+        symbol: 'TSLA',
         direction: 'long',
         entryPrice: 100,
         pnl: 50,
@@ -1288,6 +1403,7 @@ describe('TradeJournalBridge scoped storage', () => {
       expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
         type: 'SELL',
         orderId: 'ORDER-VIS-MISSING-SIZE',
+        symbol: 'TSLA',
         direction: 'long',
         entryPrice: 100,
         exitPrice: 105,
@@ -1346,6 +1462,7 @@ describe('TradeJournalBridge scoped storage', () => {
     expect(TradeJournalBridge.prototype._recordTradeLogClose.call(bridge, {
       type: 'SELL',
       orderId: 'ORDER-VIS-3',
+      symbol: 'TSLA',
       direction: 'long',
       entryPrice: 100,
       exitPrice: 105,
