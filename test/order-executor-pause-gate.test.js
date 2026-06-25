@@ -1585,6 +1585,166 @@ describe('OrderExecutor pause gate', () => {
     expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
+  test('live SELL exits are not blocked by zero available entry capital or missing confidence', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getAvailableCapital.mockReturnValue(0);
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 0 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_EXIT_ZERO_CAPITAL', price: 125, qty: 5 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', tradeId: 'BUY_1', exitReason: 'risk_flatten' },
+      { totalConfidence: 0 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'LIVE_EXIT_ZERO_CAPITAL',
+      action: 'SELL',
+      symbol: 'TSLA',
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+    }));
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 5,
+    }));
+    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
+      125,
+      false,
+      null,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'risk_flatten',
+      })
+    );
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+  });
+
+  test('live COVER exits are not blocked by zero confidence or zero available entry capital', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getAvailableCapital.mockReturnValue(0);
+    mockStateManager.getState.mockReturnValue({ position: -600, balance: 0 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeShortTrade()]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_COVER_ZERO_CONF', price: 120, qty: 6 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'COVER', confidence: 0, tradeId: 'SHORT_1', exitReason: 'risk_flatten' },
+      { totalConfidence: 0 },
+      120,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'LIVE_COVER_ZERO_CONF',
+      action: 'COVER',
+      symbol: 'TSLA',
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+    }));
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'buy',
+      amount: 6,
+    }));
+    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
+      120,
+      false,
+      null,
+      expect.objectContaining({
+        orderId: 'SHORT_1',
+        exitReason: 'risk_flatten',
+        direction: 'short',
+      })
+    );
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+  });
+
+  test('live SELL exits use stored trade scope instead of current SessionRouter scope', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      accountIdSource: 'test',
+      assetClass: 'stocks',
+      executionMode: 'live',
+      timeframe: '15m',
+    })]);
+    const sendOrder = jest.fn().mockResolvedValue({ orderId: 'LIVE_EXIT_STORED_SCOPE', price: 125, qty: 5 });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        runner: {
+          sessionRouter: { enabled: true },
+          getCandleScopeEnvelope: jest.fn(() => ({})),
+        },
+      }
+    );
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', tradeId: 'BUY_1', exitReason: 'cutoff_flatten' },
+      { totalConfidence: 0 },
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      brokerId: 'alpaca',
+      accountId: 'acct-main',
+      assetClass: 'stocks',
+      executionMode: 'live',
+      timeframe: '15m',
+    }));
+    expect(sendOrder).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: 'TSLA',
+      side: 'sell',
+      amount: 5,
+    }));
+  });
+
   test('live stock partial exit reduces state by accepted broker quantity', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

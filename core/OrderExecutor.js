@@ -1169,12 +1169,33 @@ class OrderExecutor {
         `[ENTRY-ACTION] OrderExecutor.executeTrade unsupported action ${JSON.stringify(decision?.action)} for ${symbol} - refusing to route order`
       );
     }
+    const isEntryAction = this._isEntryAction(decision.action);
+    const isExitAction = this._isExitAction(decision.action);
     decision.traceId = decision.traceId || createTraceId('trace');
     decision.signalId = decision.signalId || `${decision.traceId}:signal`;
     decision.decisionId = decision.decisionId || `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const traceId = decision.traceId;
     const signalId = decision.signalId;
-    const executionScope = this._runtimeScope(symbol);
+    const exitPlan = isExitAction
+      ? this._buildExitPlan({ decision, symbol, price })
+      : null;
+    const executionScope = exitPlan
+      ? {
+          brokerId: exitPlan.brokerId,
+          accountId: exitPlan.accountId,
+          accountIdSource: exitPlan.accountIdSource,
+          assetClass: exitPlan.assetClass,
+          executionMode: exitPlan.executionMode,
+          timeframe: exitPlan.timeframe,
+        }
+      : (isEntryAction ? this._runtimeScope(symbol) : {
+          brokerId: null,
+          accountId: null,
+          accountIdSource: null,
+          assetClass: null,
+          executionMode: null,
+          timeframe: null,
+        });
     const executionReturn = (success, details = {}) => ({
       success,
       reason: success ? null : (details.reason || null),
@@ -1203,7 +1224,7 @@ class OrderExecutor {
       assetClass: executionScope.assetClass,
       executionMode: executionScope.executionMode,
     });
-    if (this._isEntryAction(decision.action)) {
+    if (isEntryAction) {
       const missingScope = [];
       const hasText = (value) => value !== null && value !== undefined && String(value).trim() !== '';
       if (!hasText(executionScope.brokerId)) missingScope.push('brokerId');
@@ -1233,7 +1254,10 @@ class OrderExecutor {
     }
     // Log trade execution
     console.log("*** EXECUTE_TRADE_REACHED ***");
-    console.log(`\n${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${decision.confidence.toFixed(1)}%`);
+    const confidenceDisplay = Number.isFinite(decision.confidence)
+      ? `${decision.confidence.toFixed(1)}%`
+      : 'n/a';
+    console.log(`\n${decision.action} SIGNAL @ $${price.toFixed(2)} | Confidence: ${confidenceDisplay}`);
 
     // CHECKPOINT 1: Entry
     console.log(`CP1: executeTrade ENTRY - Balance: $${stateManager.get('balance')}, Position: ${stateManager.get('position')}`);
@@ -1246,14 +1270,14 @@ class OrderExecutor {
     // Pre-money: halt the entry instead. No fabricated capital.
     const currentEquity = stateManager.getEquity(price);
     const currentBalance = stateManager.getAvailableCapital(price);
-    if (currentBalance <= 0) {
+    if (isEntryAction && currentBalance <= 0) {
       console.error('[HALT] No available capital — refusing entry');
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'no_available_capital', availableCapital: currentBalance });
       return blockedReturn('no_available_capital', { availableCapital: currentBalance });
     }
     // CHANGE 2026-02-28: Use TradingConfig for position sizing
     // NOTE: DynamicPositionSizer.js exists in core/ but is NOT WIRED - needs tuning first
-    let basePositionPercent = TradingConfig.get('positionSizing.maxPositionSize');
+    let basePositionPercent = 0;
 
     // TUNE 2026-02-27: Confidence-scaled position sizing
     // 50% confidence = 0.5x, 75% = 1.5x, 90%+ = 2.5x (cap)
@@ -1263,14 +1287,16 @@ class OrderExecutor {
     // fired with 50% confidence and got phantom multipliers. Spec asks for
     // `=== 0 || == null` reject; extended to `!isFinite || <= 0` to also
     // catch NaN, undefined, and negative values (root-cause coverage).
-    if (!Number.isFinite(rawConfidence) || rawConfidence <= 0) {
+    if (isEntryAction && (!Number.isFinite(rawConfidence) || rawConfidence <= 0)) {
       console.error(`[HALT] Invalid confidence: ${rawConfidence} — skipping trade`);
       emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'invalid_confidence', confidencePct: rawConfidence });
       return blockedReturn('invalid_confidence', { confidencePct: rawConfidence });
     }
     // decision.confidence comes as percentage (e.g., 75 = 75%), convert to decimal
-    const tradeConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
-    if (this._isEntryAction(decision.action)) {
+    const tradeConfidence = Number.isFinite(rawConfidence) && rawConfidence > 0
+      ? (rawConfidence > 1 ? rawConfidence / 100 : rawConfidence)
+      : null;
+    if (isEntryAction) {
       const configuredMinConfidence = TradingConfig.get('confidence.minTradeConfidence');
       const minTradeConfidence = configuredMinConfidence > 1
         ? configuredMinConfidence / 100
@@ -1297,7 +1323,10 @@ class OrderExecutor {
     }
     const dynamicSizingEnabled = TradingConfig.get('features.enableDynamicSizing', true) !== false;
     let confidenceMultiplier = 1.0;
-    if (dynamicSizingEnabled) {
+    if (isEntryAction) {
+      basePositionPercent = TradingConfig.get('positionSizing.maxPositionSize');
+    }
+    if (isEntryAction && dynamicSizingEnabled) {
       // Linear scale: confidence 0.5 -> multiplier 0.5, confidence 1.0 -> multiplier 2.5
       confidenceMultiplier = Math.max(0.5, Math.min(2.5,
         0.5 + (tradeConfidence - 0.5) * 4.0
@@ -1307,29 +1336,35 @@ class OrderExecutor {
 
     // FIX 2026-03-06: ENFORCE MAX_POSITION_SIZE cap after confidence multiplier
     const maxPositionPercent = TradingConfig.get('positionSizing.maxPositionSize') * (dynamicSizingEnabled ? 2.5 : 1);
-    if (basePositionPercent > maxPositionPercent) {
+    if (isEntryAction && basePositionPercent > maxPositionPercent) {
       console.log(`Position capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(maxPositionPercent * 100).toFixed(2)}% (MAX_POSITION_SIZE limit)`);
       basePositionPercent = maxPositionPercent;
     }
     // ABSOLUTE_POSITION_CAP lives at entryLogic.sizing.absoluteCapPercent and
     // is enforced again inside _buildEntryPlan after confluence sizing.
-    const absoluteCap = this._resolveAbsolutePositionCap();
-    if (Number.isFinite(absoluteCap) && absoluteCap > 0 && basePositionPercent > absoluteCap) {
+    const absoluteCap = isEntryAction ? this._resolveAbsolutePositionCap() : null;
+    if (isEntryAction && Number.isFinite(absoluteCap) && absoluteCap > 0 && basePositionPercent > absoluteCap) {
       console.log(`Position absolute-capped: ${(basePositionPercent * 100).toFixed(2)}% -> ${(absoluteCap * 100).toFixed(2)}% (ABSOLUTE_POSITION_CAP)`);
       basePositionPercent = absoluteCap;
     }
-    console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance${dynamicSizingEnabled ? '' : ' (flat profile)'}`);
+    if (isEntryAction) {
+      console.log(`Confidence sizing: ${(tradeConfidence * 100).toFixed(0)}% -> ${confidenceMultiplier.toFixed(1)}x -> ${(basePositionPercent * 100).toFixed(2)}% of balance${dynamicSizingEnabled ? '' : ' (flat profile)'}`);
+    }
 
     // Phase 4 REWRITE: AGGRESSIVE_LEARNING_MODE removed - use TradingConfig for all sizing
-    const baseSizeUSD = currentBalance * basePositionPercent;
+    const baseSizeUSD = isEntryAction ? currentBalance * basePositionPercent : 0;
 
     // FIX 2026-03-28: Position size stays in USD (no BTC conversion for stocks)
     const positionSize = baseSizeUSD;
 
-    console.log(`Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
+    if (isEntryAction) {
+      console.log(`Position sizing: Balance=$${currentBalance.toFixed(2)}, Percent=${(basePositionPercent*100).toFixed(1)}%, USD=$${positionSize.toFixed(2)}`);
+    }
 
     // CHECKPOINT 2: Position sizing
-    console.log(`[CP2] Position size calculated: $${positionSize.toFixed(2)} USD`);
+    if (isEntryAction) {
+      console.log(`[CP2] Position size calculated: $${positionSize.toFixed(2)} USD`);
+    }
 
     if (decision.action === 'BUY') {
       if (!orchResult) {
@@ -1357,12 +1392,12 @@ class OrderExecutor {
         throw new Error('[HIGH-08] SHORT entry: orchResult.exitContract missing — Fix 7 regression or orchestrator upstream bug');
       }
     }
-    if (this._isEntryAction(decision.action)) {
+    if (isEntryAction) {
       MaxProfitManager.resolveContractStopPercent(orchResult.exitContract);
     }
 
     const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
-    const entryPlan = this._buildEntryPlan({
+    const entryPlan = isEntryAction ? this._buildEntryPlan({
       decision,
       symbol,
       price,
@@ -1374,7 +1409,7 @@ class OrderExecutor {
       orchResult,
       absoluteCapPercent: absoluteCap,
       forceWholeShares: isWebhookExecutionRoute
-    });
+    }) : null;
     if (entryPlan && entryPlan.orderQuantity <= 0) {
       const blockReason = entryPlan.stockShareRangeBlockReason || 'non_positive_order_quantity';
       console.warn(`[ENTRY-PLAN] Refusing ${entryPlan.action} for ${symbol}: planned ${entryPlan.quantityUnit} quantity=${entryPlan.orderQuantity} from sizeUsd=$${entryPlan.sizeUsd.toFixed(2)} at price=$${price.toFixed(2)} (${blockReason})`);
@@ -1433,11 +1468,7 @@ class OrderExecutor {
     const isLiveBrokerRoute = !this.ctx.backtestMode && !this.ctx.paperTrading && !isWebhookExecutionRoute;
     const shouldPlanWebhookExit = !this.ctx.backtestMode
       && this.ctx.webhookAdapter?.enabled === true
-      && this._isExitAction(decision.action);
-    const isExitAction = this._isExitAction(decision.action);
-    const exitPlan = isExitAction
-      ? this._buildExitPlan({ decision, symbol, price })
-      : null;
+      && isExitAction;
     if (isExitAction && !exitPlan) {
       const haltReason = decision.action === 'SELL'
         ? 'KILL-5: SELL with no matching BUY'
