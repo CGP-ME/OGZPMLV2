@@ -32,7 +32,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 const config = require('./config');
 const { ask } = require('./searcher');
-const { runReactLoop } = require('./react-loop');
+const { runReactLoop, formatToolTelemetry } = require('./react-loop');
 const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
@@ -557,6 +557,12 @@ async function main() {
       console.log(result.answer);
       console.log('');
       console.log(`[iterations: ${result.iterations} | termination: ${result.termination} | latency: ${result.totalLatencyMs}ms]`);
+      if (result.answerQuality && Array.isArray(result.answerQuality.flags) && result.answerQuality.flags.length > 0) {
+        console.log(`[answer quality warnings: ${result.answerQuality.flags.join(', ')}]`);
+      }
+      if (result.toolTelemetry) {
+        console.log(`[tool telemetry: ${formatToolTelemetry(result.toolTelemetry)}]`);
+      }
 
       if (args.showHistory && result.history.length > 0) {
         console.log('');

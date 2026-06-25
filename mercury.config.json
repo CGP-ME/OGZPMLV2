@@ -65,7 +65,7 @@
       "Every concrete claim must be backed by file:line citations from the current code, git evidence, or retrieved repo context. If you cannot prove a claim, say exactly what evidence is missing.",
       "",
       "Use the right tool for the evidence you need:",
-      "- Use git_diff target=current first for current fixes. Use target=last_commit only for explicit post-commit review or when current has no files.",
+      "- Use git_diff when code-change evidence matters. Choose current, last_commit, or explicit refs from the user's question and the evidence needed; do not assume the current diff is the whole answer.",
       "- Use grep or regex_grep to find sibling violations of the same bug class.",
       "- Use open_file for exact file:line proof before making a claim.",
       "- Use git_show for branch/history drift, regressions, and resurrected architecture.",
@@ -80,7 +80,7 @@
       "Do not claim tests pass or fail unless you have an actual test-run result in the current investigation. Do not use conceptual reproduction or \"no additional evidence needed\" as proof of a concrete break.",
       "If a broad test command fails, do not attribute that failure to the current fix until you isolate the failing suite or cite the exact execution artifact lines showing the current fix's test failed. A red unrelated suite is evidence of repo health, not proof against the active diff.",
       "",
-      "If the user says \"break my fix\", attack the current change evidence. Find a real failure mode, prove it with code, and explain the mechanism. If you cannot find a concrete break, say that plainly and list the exact evidence you checked. Never answer with usage instructions for how someone else could break it.",
+      "If the user says \"break my fix\", attack the available evidence without assuming one file, diff, branch, memory entry, or prior path is sufficient. Find a real failure mode, prove it with code, and explain the mechanism. If you cannot find a concrete break, say that plainly and list the exact evidence you checked. Never answer with usage instructions for how someone else could break it.",
       "",
       "INVESTIGATION DISCIPLINE:",
       "- Correctness outranks speed. We do not care how long the investigation takes as long as the answer is right.",
@@ -94,13 +94,7 @@
       "- Cite file:line for every factual claim. Never invent paths or line numbers.",
       "- Use literal repo citations like `trai_brain/mercury-bridge/tool-adapter.js:638-720`; tool-handle citations like `【open_file†L1-L2】` or bare prose like \"lines 12-14\" do not count.",
       "- Do not recap your search process. The user cares about the answer, not the path you took.",
-      "- If you cannot answer with available evidence, say so explicitly and list what you were unable to find.",
-      "",
-      "PRIOR INVESTIGATION HINTS:",
-      "You may see a \"PRIOR INVESTIGATION HINT\" block in your context. This contains the tool-call sequence that successfully answered a SIMILAR query in the past. Treat it as a starting suggestion, not an answer:",
-      "- If the prior sequence looks relevant, follow it as your opening strategy.",
-      "- If irrelevant or the current question is meaningfully different, ignore it.",
-      "- Never copy the prior final answer into your response."
+      "- If you cannot answer with available evidence, say so explicitly and list what you were unable to find."
     ]
   },
   "singleShot": {

@@ -46,6 +46,11 @@ does not match current doctrine.
 - Do not stage loose ledger/intake/proposal/backup piles, public backup files,
   or proof-track-record artifacts unless Trey explicitly tasks that cleanup.
   Source: `ogz-meta/sessions/session-2026-05-27-active-handoff-runtime-audit.md:17`.
+- Public proof/track-record data must not mislabel execution semantics. If
+  generated proof JSON disagrees with raw journals on partial/full close truth,
+  hold or revert the generated output and fix the writer/fixture before
+  publishing. Source:
+  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:83-106,263-285`.
 - Public dashboard HTML must never carry `WEBSOCKET_AUTH_TOKEN` or any long-lived
   dashboard WebSocket secret. Dashboard HTML must be no-store on the public
   hostname, missing token config must fail closed, and dashboard-token containment
@@ -78,6 +83,13 @@ For changes on the trading/backtest execution path:
 - Use one focused Mercury question at a time.
 - Use attack framing, not confirmation framing.
 - Use `--max-tokens=7750` and `--max-iterations=60`.
+- For broad Mercury/current-diff audits, do not pre-steer the prompt with
+  agent-selected file paths, line ranges, hidden current-diff instructions, or
+  prior-trace opening strategies. Use the visible attack frame
+  `Mercury, break my fix.` unless Trey explicitly narrows the target; require
+  evidence in Mercury's answer. Sources:
+  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:288-304`,
+  `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:33-41,98-105`.
 - After an approved push, do not claim Mercury has fresh repo context until
   `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code.
   Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.

@@ -55,11 +55,16 @@ async function getBlastRadius(filePath, options = {}) {
     }
   });
 
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs)
-  );
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs);
+  });
 
-  return Promise.race([work, timeout]);
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function formatForMercury(blastRadius) {

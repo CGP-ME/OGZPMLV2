@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const baseMercuryConfig = require('../mercury.config.json');
+const { createToolAdapter } = require('../trai_brain/mercury-bridge/tool-adapter');
 
 async function withEnv(env, fn) {
   const previous = {};
@@ -156,7 +157,7 @@ describe('Mercury LLM config contract', () => {
     expect(prompt).toContain('Every concrete claim must be backed by file:line citations');
     expect(prompt).toContain('tool-handle citations like `【open_file†L1-L2】`');
     expect(prompt).toContain('Use the right tool for the evidence you need');
-    expect(prompt).toContain('Use git_diff target=current first');
+    expect(prompt).toContain('do not assume the current diff is the whole answer');
     expect(prompt).toContain('Use indexed RAG chunks as orientation and memory');
     expect(prompt).toContain('Use serena_blast_radius');
     expect(prompt).toContain('enumerate the plausible outcomes and mutable paths');
@@ -164,7 +165,8 @@ describe('Mercury LLM config contract', () => {
     expect(prompt).toContain('prove the full reachable control flow');
     expect(prompt).toContain('execute that exact call or sequence');
     expect(prompt).toContain('Do not claim tests pass or fail unless you have an actual test-run result');
-    expect(prompt).toContain('If the user says "break my fix", attack the current change evidence');
+    expect(prompt).toContain('If the user says "break my fix", attack the available evidence');
+    expect(prompt).toContain('without assuming one file, diff, branch, memory entry, or prior path is sufficient');
     expect(prompt).toContain('Correctness outranks speed');
     expect(prompt).toContain('Do not stop at the first plausible finding');
     expect(prompt).toContain('say what additional evidence or iterations are needed');
@@ -173,6 +175,8 @@ describe('Mercury LLM config contract', () => {
     expect(prompt).not.toContain('Budget: aim');
     expect(prompt).not.toContain('CONCRETE_BREAK_FOUND');
     expect(prompt).not.toContain('NO_CONCRETE_BREAK_FOUND');
+    expect(prompt).not.toContain('Use git_diff target=current first');
+    expect(prompt).not.toContain('follow it as your opening strategy');
     expect(prompt).not.toContain('break-my-fix answers must');
     expect(prompt).not.toContain('dirty diff');
   });
@@ -216,5 +220,13 @@ describe('Mercury LLM config contract', () => {
       await expect(ask('break this', { maxTokens: 7750, verbose: false }))
         .rejects.toThrow(/maxTokens must match mercury\.config\.json value 2000/);
     });
+  });
+
+  test('Mercury tool docs do not reintroduce current-diff-first cage guidance', () => {
+    const toolDocs = createToolAdapter().buildToolDocs();
+
+    expect(toolDocs).toContain('Use git_diff when code-change evidence matters');
+    expect(toolDocs).toContain('do not assume the current diff is the whole answer');
+    expect(toolDocs).not.toContain('Use git_diff target=current first');
   });
 });

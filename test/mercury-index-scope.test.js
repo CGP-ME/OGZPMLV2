@@ -156,18 +156,21 @@ describe('Mercury index scope hygiene', () => {
   });
 
   test.each([
-    '[^\\x00-\\x7F]',
-    '\\p{Extended_Pictographic}',
-    '\\u{1F600}',
-    '\\d+',
-  ])('literal grep rejects regex-looking proof query %s', async (query) => {
-    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "ascii";');
+    [String.raw`[^\x00-\x7F]`, String.raw`const marker = "[^\x00-\x7F]";`],
+    [String.raw`\p{Extended_Pictographic}`, String.raw`const marker = "\p{Extended_Pictographic}";`],
+    [String.raw`\u{1F600}`, String.raw`const marker = "\u{1F600}";`],
+    [String.raw`\d+`, String.raw`const marker = "\d+";`],
+  ])('literal grep accepts regex-looking proof query %s as fixed text', async (query, fileText) => {
+    writeFixture(tmpRoot, 'core/live-path.js', fileText);
 
     const adapter = createToolAdapter({ repoRoot: tmpRoot });
     const result = await adapter.execute('grep', { query, limit: 20 });
 
-    expect(result.error).toContain('literal-only');
-    expect(result.matches).toBeUndefined();
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('direct_ripgrep_fixed');
+    expect(result.matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file: 'core/live-path.js', line: 1 }),
+    ]));
   });
 
   test('regex_grep supports regex proof queries with the shared skip policy', async () => {
@@ -421,6 +424,66 @@ describe('Mercury index scope hygiene', () => {
     expect(schemaNames).toContain('run_check');
   });
 
+  test('run_check snapshot preserves git ls-files visibility for git-aware tests', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_RUN_CHECK_MARKER";\n');
+    writeFixture(tmpRoot, 'core/check-git-files.js', [
+      "const { execFileSync } = require('child_process');",
+      "process.stdout.write(execFileSync('git', ['ls-files', 'core/live-path.js'], { encoding: 'utf8' }));",
+    ].join('\n'));
+    git(tmpRoot, ['add', 'core/live-path.js', 'core/check-git-files.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('run_check', {
+      command: ['node', 'core/check-git-files.js'],
+      profile: 'git-aware-proof',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('run_check');
+    expect(result.exit_code).toBe(0);
+    expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
+    expect(result.stdout).toContain('core/live-path.js');
+  });
+
+  test('run_check allows node inline eval inside the isolated snapshot', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_RUN_CHECK_MARKER";\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('run_check', {
+      command: ['node', '-e', "const fs=require('fs'); process.stdout.write(fs.readFileSync('core/live-path.js','utf8'))"],
+      profile: 'inline-node-proof',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('run_check');
+    expect(result.exit_code).toBe(0);
+    expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
+    expect(result.stdout).toContain('MERCURY_RUN_CHECK_MARKER');
+    expect(fs.readFileSync(path.join(tmpRoot, 'core/live-path.js'), 'utf8')).toContain('MERCURY_RUN_CHECK_MARKER');
+  });
+
+  test('run_check node inline eval cannot read host absolute paths', async () => {
+    git(tmpRoot, ['init']);
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_RUN_CHECK_MARKER";\n');
+    git(tmpRoot, ['add', 'core/live-path.js']);
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('run_check', {
+      command: ['node', '-e', "const fs=require('fs'); process.stdout.write(fs.readFileSync('/etc/passwd','utf8'))"],
+      profile: 'inline-node-host-read',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.source).toBe('run_check');
+    expect(result.exit_code).not.toBe(0);
+    expect(result.execution_cwd).toBe('isolated_tracked_snapshot');
+    expect(result.stdout).not.toContain('root:x:0:0');
+    expect(result.stderr).toMatch(/permission|access|ERR_ACCESS_DENIED/i);
+  });
+
   test('run_check prevents proof commands from mutating live repo code', async () => {
     git(tmpRoot, ['init']);
     writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "ORIGINAL_LIVE_CODE";\n');
@@ -510,6 +573,14 @@ describe('Mercury index scope hygiene', () => {
       command: ['python3', '-c', 'print("hi")'],
       profile: 'interpreter',
     });
+    const absoluteExecutable = await adapter.execute('run_check', {
+      command: ['/bin/ls'],
+      profile: 'absolute-executable',
+    });
+    const absoluteArgument = await adapter.execute('run_check', {
+      command: ['node', '--check', path.join(tmpRoot, 'core/live-path.js')],
+      profile: 'absolute-argument',
+    });
 
     expect(ignoredPath.error).toContain('run_check blocked by mercury.ignore');
     expect(gitMutation.error).toContain('only allows read-only git subcommands');
@@ -519,6 +590,8 @@ describe('Mercury index scope hygiene', () => {
     expect(destructiveBinary.error).toContain('blocked executable');
     expect(networkBinary.error).toContain('blocked executable');
     expect(interpreterBinary.error).toContain('blocked executable');
+    expect(absoluteExecutable.error).toContain('blocks absolute paths');
+    expect(absoluteArgument.error).toContain('blocks absolute paths');
   });
 
   test('open_file honors line_start alias used by model tool calls', async () => {

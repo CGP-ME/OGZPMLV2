@@ -149,32 +149,20 @@ if (_rgCheck.status !== 0) {
   console.error('');
 }
 
+function spawnFailedBeforeExit(result) {
+  return result && result.error && typeof result.status !== 'number';
+}
+
+function spawnErrorMessage(result, fallback = 'unknown') {
+  return result && result.error ? result.error.message : fallback;
+}
+
 function buildSkipDirGlobArgs() {
   const args = [];
   for (const dir of config.SKIP_DIRS) {
     args.push('--glob', `!**/${dir}/**`);
   }
   return args;
-}
-
-function looksLikeRegexQuery(query) {
-  const regexSignals = [
-    '[^',
-    '\\p',
-    '\\P',
-    '\\u',
-    '\\U',
-    '\\x',
-    '\\d',
-    '\\D',
-    '\\s',
-    '\\S',
-    '\\w',
-    '\\W',
-    '\\b',
-    '\\B',
-  ];
-  return regexSignals.some((signal) => query.includes(signal));
 }
 
 /**
@@ -246,7 +234,7 @@ function createToolAdapter(opts = {}) {
       return { error: `ripgrep failed before execution: ${err.message}` };
     }
 
-    if (result.error) {
+    if (spawnFailedBeforeExit(result)) {
       // ENOENT means rg is not installed. Fail closed instead of switching
       // to a second search implementation with different behavior.
       if (result.error.code === 'ENOENT') {
@@ -320,9 +308,6 @@ function createToolAdapter(opts = {}) {
 
     if (!query || typeof query !== 'string') {
       return { error: 'grep requires a non-empty query string' };
-    }
-    if (looksLikeRegexQuery(query)) {
-      return { error: 'grep is literal-only; use regex_grep for regex patterns' };
     }
 
     return runRipgrep({ query, limit, filePattern, fixedStrings: true });
@@ -658,7 +643,7 @@ function createToolAdapter(opts = {}) {
       timeout: 5000,
     });
 
-    if (result.error) {
+    if (spawnFailedBeforeExit(result)) {
       return { error: `git_show failed: ${result.error.message}` };
     }
     if (result.status !== 0) {
@@ -731,7 +716,7 @@ function createToolAdapter(opts = {}) {
       maxBuffer,
       timeout: 5000,
     });
-    if (result.error) {
+    if (spawnFailedBeforeExit(result)) {
       return { error: result.error.message };
     }
     if (result.status !== 0) {
@@ -833,6 +818,25 @@ function createToolAdapter(opts = {}) {
       fs.copyFileSync(sourcePath, targetPath);
     }
 
+    const sandboxGitInit = spawnSync('git', ['init'], {
+      cwd: sandboxRoot,
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024,
+    });
+    if (spawnFailedBeforeExit(sandboxGitInit) || sandboxGitInit.status !== 0) {
+      throw new Error(`cannot create run_check sandbox: git init failed: ${spawnErrorMessage(sandboxGitInit, sandboxGitInit.stderr)}`);
+    }
+    if (files.length > 0) {
+      const sandboxGitAdd = spawnSync('git', ['add', '-A'], {
+        cwd: sandboxRoot,
+        encoding: 'utf8',
+        maxBuffer: 20 * 1024 * 1024,
+      });
+      if (spawnFailedBeforeExit(sandboxGitAdd) || sandboxGitAdd.status !== 0) {
+        throw new Error(`cannot create run_check sandbox: git add failed: ${spawnErrorMessage(sandboxGitAdd, sandboxGitAdd.stderr)}`);
+      }
+    }
+
     const nodeModules = path.join(repoRoot, 'node_modules');
     if (fs.existsSync(nodeModules)) {
       fs.symlinkSync(nodeModules, path.join(sandboxRoot, 'node_modules'), 'dir');
@@ -856,11 +860,7 @@ function createToolAdapter(opts = {}) {
         return { error: 'run_check command argv entries must not contain NUL or newlines' };
       }
       if (path.isAbsolute(entry)) {
-        const resolvedArg = path.resolve(entry);
-        const rootResolved = path.resolve(repoRoot);
-        if (resolvedArg === rootResolved || resolvedArg.startsWith(`${rootResolved}${path.sep}`)) {
-          return { error: 'run_check blocks absolute paths into the live repo; use repo-relative paths in the isolated snapshot' };
-        }
+        return { error: 'run_check blocks absolute paths; use repo-relative paths in the isolated snapshot' };
       }
       normalized.push(entry);
     }
@@ -878,9 +878,28 @@ function createToolAdapter(opts = {}) {
     return -1;
   }
 
+  function nodeInlineOptionIndex(command) {
+    return command.findIndex(arg => arg === '-e' || arg === '--eval' || arg === '-p' || arg === '--print');
+  }
+
+  function isNodeInlineCommand(command) {
+    return path.basename(command[0]) === 'node' && nodeInlineOptionIndex(command) !== -1;
+  }
+
+  function withNodeInlineSnapshotPermissions(command, sandboxRoot) {
+    if (!sandboxRoot || !isNodeInlineCommand(command)) return command;
+    return [
+      command[0],
+      '--permission',
+      `--allow-fs-read=${sandboxRoot}`,
+      `--allow-fs-write=${sandboxRoot}`,
+      ...command.slice(1),
+    ];
+  }
+
   function validateNodeCommand(command) {
-    if (command.some(arg => arg === '-e' || arg === '--eval' || arg === '-p' || arg === '--print')) {
-      return { error: 'run_check blocks node inline eval/print; use repo files or focused tests' };
+    if (nodeInlineOptionIndex(command) !== -1) {
+      return { ok: true };
     }
     const scriptIndex = firstNonOptionIndex(command);
     if (scriptIndex === -1) return { ok: true };
@@ -968,7 +987,8 @@ function createToolAdapter(opts = {}) {
         });
       };
 
-      const child = spawn(command[0], command.slice(1), {
+      const spawnCommand = withNodeInlineSnapshotPermissions(command, sandboxRoot);
+      const child = spawn(spawnCommand[0], spawnCommand.slice(1), {
         cwd,
         env: buildRunCheckEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -1459,7 +1479,7 @@ Example call:
 {"tool": "git_diff", "args": {"target": "current"}}
 \`\`\`
 
-Use git_diff target=current first when the user asks you to break the current fix, staged fix, or uncommitted work. Use target=last_commit only when the user explicitly asks for the latest committed fix or when current returns no files. It is read-only and filters Mercury-ignored paths.
+Use git_diff when code-change evidence matters. Choose target=current, target=last_commit, or explicit refs from the user's question and the evidence needed; do not assume the current diff is the whole answer. It is read-only and filters Mercury-ignored paths.
 
 ## serena_blast_radius — dependency impact scan
 

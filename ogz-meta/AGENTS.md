@@ -183,6 +183,17 @@ Pipeline order:
 - Dispatch Mercury audits one at a time.
 - Always read the full answer before moving on.
 - Use exact file:line ranges in prompts.
+- Exception for broad `break my fix` / current-diff audits: do not narrow
+  Mercury with agent-selected file paths, line ranges, hidden current-diff
+  instructions, or prior-trace opening strategies unless Trey or the task
+  explicitly narrows the target. Let Mercury choose the evidence path and
+  require code/file evidence in the answer. Sources:
+  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:288-304`;
+  `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:33-41,98-105`.
+- Mercury answer-quality problems should be visible as warning/flag metadata
+  with the tool ledger, not hidden by final-answer suppression. Safety still
+  belongs at mutation and host-boundary edges. Source:
+  `ogz-meta/sessions/session-2026-06-25-mercury-deconstraint-handoff.md:342-372,587-602`.
 - Use `--max-iterations=60` and `--max-tokens=7750`.
 - If Mercury output is wrong-path or truncated, re-dispatch with better context instead of manually hand-waving it away.
 - Before deleting learned state, ledgers, logs, pattern banks, or history, propose Mercury forensic extraction to a new path first.
@@ -274,6 +285,11 @@ Pipeline order:
 - If dashboard timeframe switching sends correct messages but shape does not change, investigate backend historical candle relay before rewriting dashboard modules.
 - Do not show stock assets in the dashboard unless Alpaca/backend stock data is actually wired. Showing BTC data under a stock label is fake data.
 - Hidden UI panels are not removed code. Check whether event bindings still exist before deleting or rewriting.
+- Public proof/track-record data must not lie about execution semantics. If
+  generated proof JSON marks a partial `be_scaleout` or other partial close as a
+  full close, hold or revert the generated output, preserve the raw journals,
+  and fix the writer/fixture before publishing. Source:
+  `ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md:83-106,263-285`.
 
 ## Backtest Rules
 - `ogz-meta/BACKTEST-OPS.md` is the single source of truth for backtesting.

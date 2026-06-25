@@ -12,6 +12,9 @@ const {
   findToolAvailabilityContradiction,
   hasUnsupportedTestOutcomeClaim,
   hasConceptualProofClaim,
+  finalAnswerEvidenceFailures,
+  summarizeToolTelemetry,
+  formatToolTelemetry,
 } = require('../trai_brain/mercury-bridge/react-loop');
 
 function createToolAdapter() {
@@ -40,10 +43,17 @@ describe('Mercury ReAct loop evidence gates', () => {
   test('file-line citation detector accepts repo citations and rejects uncited prose', () => {
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257-264.')).toBe(true);
     expect(hasFileLineCitation('See trai_brain/mercury-bridge/react-loop.js:257‑264.')).toBe(true);
+    expect(hasFileLineCitation('See src/services/order-router.ts:12-20.')).toBe(true);
+    expect(hasFileLineCitation('See tools/audit_runner.py:44.')).toBe(true);
+    expect(hasFileLineCitation('See internal/broker/router.go:101-119.')).toBe(true);
+    expect(hasFileLineCitation('C:\\src\\file.js:12-20')).toBe(true);
+    expect(hasFileLineCitation('See C:\\src\\ogz\\core\\router.ts:12-20.')).toBe(true);
+    expect(hasFileLineCitation('See My Folder/core/router.ts:12-20.')).toBe(true);
     expect(hasFileLineCitation('This looks clean from the current evidence.')).toBe(false);
     expect(hasToolHandleCitation('See 【run_check†L1-L9】.')).toBe(true);
     expect(hasToolHandleCitation('See trai_brain/mercury-bridge/react-loop.js:257-264.')).toBe(false);
     expect(hasUnsupportedRunCheckClaim('The run_check result proves a test failed. test/foo.test.js:1-2')).toBe(true);
+    expect(hasUnsupportedRunCheckClaim('The run_check helper is implemented at trai_brain/mercury-bridge/tool-adapter.js:1000-1040.')).toBe(false);
     expect(hasUnsupportedRunCheckClaim(
       'The run_check result is in ogz-meta/cognition-history/mercury-execution/2026-06-23T20-08-44-993Z-run-tests.log:1-20.'
     )).toBe(false);
@@ -51,19 +61,37 @@ describe('Mercury ReAct loop evidence gates', () => {
 
   test('tool-handle citation normalizer converts same-sentence repo path handles', () => {
     const normalized = normalizeToolHandleCitations(
-      'The code in `trai_brain/mercury-bridge/tool-adapter.js` is guarded 【open_file†L209-L221】.'
+      'The code in `trai brain\\mercury-bridge\\tool-adapter.ts` is guarded 【open_file†L209-L221】.'
     );
 
-    expect(normalized).toContain('trai_brain/mercury-bridge/tool-adapter.js:209-221');
+    expect(normalized).toContain('trai brain\\mercury-bridge\\tool-adapter.ts:209-221');
+    expect(hasFileLineCitation(normalized)).toBe(true);
+  });
+
+  test('tool-handle citation normalizer converts same-paragraph repo path handles', () => {
+    const normalized = normalizeToolHandleCitations(
+      'The `mercury.config.json` file was updated to remove stale guidance. The relevant lines show the new wording and removal of the old phrase.【open_file†L65-L68】'
+    );
+
+    expect(normalized).toContain('mercury.config.json:65-68');
     expect(hasFileLineCitation(normalized)).toBe(true);
   });
 
   test('citation normalizer converts file plus lines prose into literal repo citations', () => {
     const normalized = normalizeToolHandleCitations(
-      'File: `trai_brain/mercury-bridge/tool-adapter.js` Lines: 1073-1082'
+      'File: `trai_brain/mercury-bridge/tool-adapter.py` Lines: 1073-1082'
     );
 
-    expect(normalized).toBe('trai_brain/mercury-bridge/tool-adapter.js:1073-1082');
+    expect(normalized).toBe('trai_brain/mercury-bridge/tool-adapter.py:1073-1082');
+    expect(hasFileLineCitation(normalized)).toBe(true);
+  });
+
+  test('citation normalizer converts path lines prose into literal repo citations', () => {
+    const normalized = normalizeToolHandleCitations(
+      '`mercury.config.json` lines 68-69 show the new wording.'
+    );
+
+    expect(normalized).toContain('mercury.config.json:68-69');
     expect(hasFileLineCitation(normalized)).toBe(true);
   });
 
@@ -175,6 +203,100 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(hasConceptualProofClaim('The cited code path is reachable. core/foo.js:10-20')).toBe(false);
   });
 
+  test('final answer evidence failures identify exact citation gate reasons', () => {
+    expect(finalAnswerEvidenceFailures('Looks good.')).toEqual(['missing_file_line_citation']);
+    expect(finalAnswerEvidenceFailures(
+      'The gate is in trai_brain/mercury-bridge/react-loop.js:1-3 and the tool said 【open_file†L1-L3】.'
+    )).toEqual(['tool_handle_citation']);
+    expect(finalAnswerEvidenceFailures(
+      'The run_check result proves it failed. trai_brain/mercury-bridge/react-loop.js:1-3'
+    )).toEqual(['uncited_run_check_claim']);
+    expect(finalAnswerEvidenceFailures(
+      'The run_check artifact is ogz-meta/cognition-history/mercury-execution/check.log:1-9 and code is trai_brain/mercury-bridge/react-loop.js:1-3.'
+    )).toEqual([]);
+  });
+
+  test('tool telemetry summarizes invocation count, success, failure, and evidence artifacts', () => {
+    const telemetry = summarizeToolTelemetry([
+      {
+        toolName: 'grep',
+        toolArgs: { query: 'marker' },
+        toolResult: { matches: [{ file: 'core/foo.js', line: 7 }] },
+      },
+      {
+        toolName: 'open_file',
+        toolArgs: { path: 'core/foo.js', start_line: 7 },
+        toolResult: { file: 'core/foo.js', start_line: 7, end_line: 12, text: '...' },
+      },
+      {
+        toolName: 'run_check',
+        toolArgs: { command: ['npx', '--no-install', 'jest'] },
+        toolResult: {
+          source: 'run_check',
+          exit_code: 0,
+          artifact_citation: 'ogz-meta/cognition-history/mercury-execution/focused.log:1-40',
+        },
+      },
+      {
+        toolName: 'run_check',
+        toolArgs: { command: ['npx', '--no-install', 'jest', 'broken.test.js'] },
+        toolResult: {
+          source: 'run_check',
+          exit_code: 1,
+          artifact_citation: 'ogz-meta/cognition-history/mercury-execution/broken.log:1-40',
+        },
+      },
+      {
+        toolName: 'git_show',
+        toolArgs: { ref: 'HEAD', path: 'missing.js' },
+        toolResult: { error: 'git show failed' },
+      },
+      {
+        toolName: 'open_file',
+        toolArgs: { path: 'missing-result.js' },
+        toolResult: null,
+      },
+    ]);
+
+    expect(telemetry.total).toBe(6);
+    expect(telemetry.succeeded).toBe(3);
+    expect(telemetry.failed).toBe(3);
+    expect(telemetry.byTool.open_file).toEqual({ calls: 2, succeeded: 1, failed: 1 });
+    expect(telemetry.byTool.run_check).toEqual({ calls: 2, succeeded: 1, failed: 1 });
+    expect(telemetry.byTool.git_show).toEqual({ calls: 1, succeeded: 0, failed: 1 });
+    expect(telemetry.filesOpened).toEqual(['core/foo.js:7-12']);
+    expect(telemetry.runCheckArtifacts).toEqual([
+      'ogz-meta/cognition-history/mercury-execution/focused.log:1-40',
+      'ogz-meta/cognition-history/mercury-execution/broken.log:1-40',
+    ]);
+    expect(telemetry.runChecks).toEqual([
+      {
+        profile: 'run_check',
+        command: 'npx --no-install jest',
+        exit_code: 0,
+        signal: '',
+        timed_out: false,
+        status: 'passed',
+        artifact_citation: 'ogz-meta/cognition-history/mercury-execution/focused.log:1-40',
+        error: '',
+      },
+      {
+        profile: 'run_check',
+        command: 'npx --no-install jest broken.test.js',
+        exit_code: 1,
+        signal: '',
+        timed_out: false,
+        status: 'failed',
+        artifact_citation: 'ogz-meta/cognition-history/mercury-execution/broken.log:1-40',
+        error: '',
+      },
+    ]);
+    expect(formatToolTelemetry(telemetry)).toContain('tool_calls=6');
+    expect(formatToolTelemetry(telemetry)).toContain('run_check_artifacts=2');
+    expect(formatToolTelemetry(telemetry)).toContain('run_checks=passed:run_check exit_code=0 artifact=ogz-meta/cognition-history/mercury-execution/focused.log:1-40');
+    expect(formatToolTelemetry(telemetry)).toContain('failed:run_check exit_code=1 artifact=ogz-meta/cognition-history/mercury-execution/broken.log:1-40');
+  });
+
 
   test('accepts a final answer only when it contains file-line evidence', async () => {
     const client = createClient([
@@ -193,6 +315,15 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(result.termination).toBe('answer_given');
     expect(result.iterations).toBe(1);
     expect(result.answer).toContain('trai_brain/mercury-bridge/react-loop.js:257-264');
+    expect(result.toolTelemetry).toEqual({
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      byTool: {},
+      filesOpened: [],
+      runCheckArtifacts: [],
+      runChecks: [],
+    });
   });
 
   test('normalizes tool-handle citations before accepting a final answer', async () => {
@@ -213,16 +344,12 @@ describe('Mercury ReAct loop evidence gates', () => {
     expect(result.answer).toContain('trai_brain/mercury-bridge/tool-adapter.js:209-221');
   });
 
-  test('repairs final answers that still contain tool-handle citations', async () => {
+  test('returns final answer with quality warnings when tool-handle citations remain', async () => {
     const client = createClient([
       {
         role: 'assistant',
         content: 'The test passed here 【run_check†L1-L9】 and the gate is in trai_brain/mercury-bridge/react-loop.js:331-348.',
       },
-      {
-        role: 'assistant',
-        content: 'The gate rejects tool handles at trai_brain/mercury-bridge/react-loop.js:331-348.',
-      },
     ]);
 
     const result = await runReactLoop({
@@ -233,25 +360,22 @@ describe('Mercury ReAct loop evidence gates', () => {
       maxIterations: 3,
       verbose: false,
     });
-    const repairMessage = client.messageSnapshots[1].find((message) => (
-      message.role === 'user' && message.content.includes('tool-handle citations')
-    ));
 
-    expect(repairMessage).toBeTruthy();
     expect(result.termination).toBe('answer_given');
-    expect(result.answer).not.toContain('【run_check');
+    expect(result.answer).toContain('The test passed here');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining([
+      'tool_handle_citation',
+      'uncited_run_check_claim',
+    ]));
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
-  test('repairs run_check claims that do not cite the execution artifact', async () => {
+  test('returns final answer with quality warnings when run_check claims do not cite the execution artifact', async () => {
     const client = createClient([
       {
         role: 'assistant',
         content: 'The run_check result proves the suite failed, and the gate is in trai_brain/mercury-bridge/react-loop.js:331-348.',
       },
-      {
-        role: 'assistant',
-        content: 'The suite failure is cited at ogz-meta/cognition-history/mercury-execution/run-tests.log:1-20 and the gate is in trai_brain/mercury-bridge/react-loop.js:331-348.',
-      },
     ]);
 
     const result = await runReactLoop({
@@ -262,19 +386,16 @@ describe('Mercury ReAct loop evidence gates', () => {
       maxIterations: 3,
       verbose: false,
     });
-    const repairMessage = client.messageSnapshots[1].find((message) => (
-      message.role === 'user' && message.content.includes('run_check result without citing')
-    ));
 
-    expect(repairMessage).toBeTruthy();
     expect(result.termination).toBe('answer_given');
-    expect(result.answer).toContain('ogz-meta/cognition-history/mercury-execution/run-tests.log:1-20');
+    expect(result.answer).toContain('The run_check result proves the suite failed');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining(['uncited_run_check_claim']));
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
-  test('repairs one uncited final answer before accepting cited proof', async () => {
+  test('returns uncited final answer with quality warnings without coaching a retry', async () => {
     const client = createClient([
       { role: 'assistant', content: 'I could not break it.' },
-      { role: 'assistant', content: 'I could not break it after reading trai_brain/mercury-bridge/react-loop.js:257-264.' },
     ]);
 
     const result = await runReactLoop({
@@ -285,22 +406,17 @@ describe('Mercury ReAct loop evidence gates', () => {
       maxIterations: 3,
       verbose: false,
     });
-
-    const repairMessage = client.messageSnapshots[1].at(-1);
 
     expect(result.termination).toBe('answer_given');
-    expect(result.iterations).toBe(2);
-    expect(repairMessage.role).toBe('user');
-    expect(repairMessage.content).toContain('missing file:line citations');
-    expect(repairMessage.content).toContain('path/to/file.js:123-130');
-    expect(repairMessage.content).toContain('Tool-handle citations like `【open_file†L1-L2】`');
-    expect(repairMessage.content).toContain('bare phrases like "lines 12-14" do not count');
+    expect(result.iterations).toBe(1);
+    expect(result.answer).toBe('I could not break it.');
+    expect(result.answerQuality.flags).toEqual(['missing_file_line_citation']);
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
-  test('fails closed when Mercury still returns uncited prose after repair', async () => {
+  test('returns uncited prose with quality warnings', async () => {
     const client = createClient([
       { role: 'assistant', content: 'Looks good.' },
-      { role: 'assistant', content: 'Still looks good.' },
     ]);
 
     const result = await runReactLoop({
@@ -312,12 +428,12 @@ describe('Mercury ReAct loop evidence gates', () => {
       verbose: false,
     });
 
-    expect(result.termination).toBe('citation_missing');
-    expect(result.answer).toContain('missing file:line citations');
-    expect(result.answer).toContain('Rejected answer preview: Still looks good.');
+    expect(result.termination).toBe('answer_given');
+    expect(result.answer).toBe('Looks good.');
+    expect(result.answerQuality.flags).toEqual(['missing_file_line_citation']);
   });
 
-  test('repairs final answers that contradict successful tool execution', async () => {
+  test('returns final answer with quality warning when it contradicts successful tool execution', async () => {
     const client = createClient([
       {
         role: 'assistant',
@@ -333,10 +449,6 @@ describe('Mercury ReAct loop evidence gates', () => {
         role: 'assistant',
         content: 'git_diff is not exposed to Mercury, so it cannot be invoked. trai_brain/mercury-bridge/tool-adapter.js:1006-1013',
       },
-      {
-        role: 'assistant',
-        content: 'git_diff was invoked successfully, so the availability claim is false. trai_brain/mercury-bridge/react-loop.js:253-259',
-      },
     ]);
     const toolAdapter = createToolAdapter();
     toolAdapter.execute.mockResolvedValue({ files: ['CHANGELOG.md'] });
@@ -350,14 +462,14 @@ describe('Mercury ReAct loop evidence gates', () => {
       verbose: false,
     });
 
-    const repairMessage = client.messageSnapshots[2].at(-1);
-
     expect(result.termination).toBe('answer_given');
-    expect(repairMessage.content).toContain('already executed git_diff successfully');
-    expect(repairMessage.content).toContain('Do not claim a tool is unavailable after using it');
+    expect(result.answer).toContain('git_diff is not exposed to Mercury');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining([
+      'tool_availability_contradiction:git_diff',
+    ]));
   });
 
-  test('fails closed when Mercury repeats a tool availability contradiction after repair', async () => {
+  test('returns final answer with quality warning when Mercury claims an already-used tool is unavailable', async () => {
     const client = createClient([
       {
         role: 'assistant',
@@ -373,10 +485,6 @@ describe('Mercury ReAct loop evidence gates', () => {
         role: 'assistant',
         content: 'git_diff is not exposed to Mercury. trai_brain/mercury-bridge/tool-adapter.js:1006-1013',
       },
-      {
-        role: 'assistant',
-        content: 'git_diff still cannot be invoked. trai_brain/mercury-bridge/tool-adapter.js:1006-1013',
-      },
     ]);
     const toolAdapter = createToolAdapter();
     toolAdapter.execute.mockResolvedValue({ files: ['CHANGELOG.md'] });
@@ -390,19 +498,18 @@ describe('Mercury ReAct loop evidence gates', () => {
       verbose: false,
     });
 
-    expect(result.termination).toBe('self_contradiction');
-    expect(result.answer).toContain('contradicted successful git_diff tool use');
+    expect(result.termination).toBe('answer_given');
+    expect(result.answer).toContain('git_diff is not exposed to Mercury');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining([
+      'tool_availability_contradiction:git_diff',
+    ]));
   });
 
-  test('repairs unsupported test outcome and conceptual proof claims', async () => {
+  test('returns final answer with quality warnings on unsupported test outcome and conceptual proof claims', async () => {
     const client = createClient([
       {
         role: 'assistant',
         content: 'The test fails. Conceptual reproduction, no additional evidence needed. test/mercury-index-scope.test.js:347-368',
-      },
-      {
-        role: 'assistant',
-        content: 'The exact runtime outcome cannot be proven from available tool results. test/mercury-index-scope.test.js:347-368',
       },
     ]);
 
@@ -414,40 +521,17 @@ describe('Mercury ReAct loop evidence gates', () => {
       maxIterations: 3,
       verbose: false,
     });
-
-    const repairMessage = client.messageSnapshots[1].at(-1);
 
     expect(result.termination).toBe('answer_given');
-    expect(repairMessage.content).toContain('Do not claim a test passes or fails unless a test-run tool result is in the history');
-    expect(repairMessage.content).toContain('Do not use conceptual reproduction');
+    expect(result.answer).toContain('The test fails');
+    expect(result.answerQuality.flags).toEqual(expect.arrayContaining([
+      'unsupported_test_outcome_claim',
+      'conceptual_proof_claim',
+    ]));
+    expect(client.messageSnapshots).toHaveLength(1);
   });
 
-  test('fails closed when unsupported proof claims repeat after repair', async () => {
-    const client = createClient([
-      {
-        role: 'assistant',
-        content: 'The test fails. Conceptual reproduction, no additional evidence needed. test/mercury-index-scope.test.js:347-368',
-      },
-      {
-        role: 'assistant',
-        content: 'The test still fails. No additional evidence required. test/mercury-index-scope.test.js:347-368',
-      },
-    ]);
-
-    const result = await runReactLoop({
-      client,
-      toolAdapter: createToolAdapter(),
-      userQuery: 'Mercury, break my fix.',
-      systemPrompt: 'test system',
-      maxIterations: 3,
-      verbose: false,
-    });
-
-    expect(result.termination).toBe('unsupported_proof_claim');
-    expect(result.answer).toContain('unsupported test/conceptual proof claim');
-  });
-
-  test('loop-detection repair message does not pressure Mercury to rush', async () => {
+  test('repeated tool calls continue without bridge synthesis coaching', async () => {
     const repeatedToolCall = {
       id: 'call-1',
       function: {
@@ -473,10 +557,8 @@ describe('Mercury ReAct loop evidence gates', () => {
       verbose: false,
     });
 
-    const loopRepairMessage = client.messageSnapshots[3].at(-1);
-
     expect(result.termination).toBe('answer_given');
-    expect(loopRepairMessage.content).toContain('If that call cannot add new evidence');
-    expect(loopRepairMessage.content).not.toMatch(/stop searching|provide your final answer now|hurry|rush/i);
+    expect(toolAdapter.execute).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(client.messageSnapshots)).not.toMatch(/repeating the same tool call|synthesize|hurry|rush/i);
   });
 });
