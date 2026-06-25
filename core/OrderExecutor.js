@@ -312,7 +312,7 @@ class OrderExecutor {
     return null;
   }
 
-  _webhookExecutionBlockReason(orderPlan) {
+  _webhookExecutionBlockReason(orderPlan, action = null) {
     if (!orderPlan) {
       return 'webhook_missing_order_plan';
     }
@@ -320,6 +320,9 @@ class OrderExecutor {
       return 'webhook_dry_run';
     }
     const quantityReason = this._webhookQuantityBlockReason(orderPlan.orderQuantity, orderPlan.quantityUnit);
+    if (quantityReason === 'fractional_share_quantity' && this._isExitAction(action)) {
+      return null;
+    }
     return quantityReason ? `webhook_${quantityReason}` : null;
   }
 
@@ -1481,7 +1484,7 @@ class OrderExecutor {
     }
     const brokerOrderPlan = entryPlan || exitPlan;
     if (isWebhookExecutionRoute) {
-      const webhookBlockReason = this._webhookExecutionBlockReason(brokerOrderPlan);
+      const webhookBlockReason = this._webhookExecutionBlockReason(brokerOrderPlan, decision.action);
       if (webhookBlockReason) {
         console.warn(`[WebhookOrder] BLOCKED ${decision.action} ${symbol} before execution/state side effects: ${webhookBlockReason}`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', {

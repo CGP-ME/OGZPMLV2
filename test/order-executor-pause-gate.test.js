@@ -612,6 +612,63 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
+  test('enabled webhook route dispatches fractional share exits instead of pre-blocking them', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getState.mockReturnValue({ position: 500, balance: 10000 });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn().mockResolvedValue({
+        sent: true,
+        response: { status: 202, body: '{"orderId":"WEBHOOK_EXIT_FRACTIONAL_1"}' },
+      }),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL', confidence: 100, tradeId: 'BUY_1', exitReason: 'tier_exit', exitFraction: 0.3 },
+      {},
+      125,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      null,
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: true,
+      orderId: 'WEBHOOK_EXIT_FRACTIONAL_1',
+      orderAccepted: true,
+      stateMutationSucceeded: true,
+      orderQuantity: 1.5,
+      quantityUnit: 'shares',
+    }));
+    expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'sell',
+      symbol: 'TSLA',
+      quantity: 1.5,
+      quantityUnit: 'shares',
+      bypassThrottle: true,
+    }));
+    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
+      'BUY_1',
+      0.3,
+      125,
+      expect.objectContaining({
+        orderId: 'BUY_1',
+        exitReason: 'tier_exit',
+        orderQuantity: 1.5,
+        quantityUnit: 'shares',
+      })
+    );
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('webhook_fractional_share_quantity'));
+  });
+
   test('enabled webhook route sent response without order identity blocks local state mutation', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Webhook Exit Dispatch Unblocker (2026-06-25)
+
+- Allowed webhook `SELL` and `COVER` exits to dispatch fractional share quantities instead of pre-blocking them with the entry-side stock share validator.
+- Added focused OrderExecutor coverage proving fractional-share exits reach the webhook route and state mutation path instead of returning `webhook_fractional_share_quantity`.
+
 ### Live Exit Price Freshness (2026-06-25)
 
 - Wired Alpaca trade ticks into the existing exit-only monitor so protective exits no longer wait for active-timeframe candle boundaries when a fresher per-symbol broker price is available.
