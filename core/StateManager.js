@@ -151,6 +151,7 @@ class StateManager {
       // Populated from OHLC handlers; used by getEquity/getAvailableCapital
       // and by SessionRouter for symbol-correct force-close prices.
       lastPrices: new Map(),    // symbol → most recent close price
+      lastPriceTimes: new Map(), // symbol → event timestamp for lastPrices
       lastTradeTime: null,      // Timestamp of last trade execution
       tradeCount: 0,            // Total trades (lifetime)
       dailyTradeCount: 0,       // Trades today (resets via resetDaily())
@@ -358,10 +359,17 @@ class StateManager {
    * equity math in getEquity and the symbol-correct force-close exit
    * price lookup in SessionRouter._transitionToCrypto.
    */
-  updateLastPrice(symbol, price) {
-    if (!symbol || typeof price !== 'number' || !(price > 0)) return;
+  updateLastPrice(symbol, price, eventTimeMs = Date.now()) {
+    if (!symbol || typeof price !== 'number' || !(price > 0)) return false;
+    const incomingTime = Number(eventTimeMs);
+    if (!Number.isFinite(incomingTime) || incomingTime <= 0) return false;
     if (!this.state.lastPrices) this.state.lastPrices = new Map();
+    if (!this.state.lastPriceTimes) this.state.lastPriceTimes = new Map();
+    const currentTime = this.state.lastPriceTimes.get(symbol);
+    if (Number.isFinite(currentTime) && incomingTime < currentTime) return false;
     this.state.lastPrices.set(symbol, price);
+    this.state.lastPriceTimes.set(symbol, incomingTime);
+    return true;
   }
 
   /**
@@ -1830,6 +1838,9 @@ class StateManager {
       if (this.state.lastPrices instanceof Map) {
         stateToSave.lastPrices = Object.fromEntries(this.state.lastPrices);
       }
+      if (this.state.lastPriceTimes instanceof Map) {
+        stateToSave.lastPriceTimes = Object.fromEntries(this.state.lastPriceTimes);
+      }
 
       // Save to disk atomically (Mercury Vector 6 — crash-safe state persistence)
       const { writeJsonAtomic } = require('./AtomicWrite');
@@ -1894,6 +1905,11 @@ class StateManager {
           savedState.lastPrices = new Map(Object.entries(savedState.lastPrices));
         } else if (!savedState.lastPrices) {
           savedState.lastPrices = new Map();
+        }
+        if (savedState.lastPriceTimes && !(savedState.lastPriceTimes instanceof Map)) {
+          savedState.lastPriceTimes = new Map(Object.entries(savedState.lastPriceTimes).map(([symbol, value]) => [symbol, Number(value)]));
+        } else if (!savedState.lastPriceTimes) {
+          savedState.lastPriceTimes = new Map();
         }
 
         // Restore state

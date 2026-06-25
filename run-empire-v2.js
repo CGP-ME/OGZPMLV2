@@ -898,7 +898,7 @@ class OGZPrimeV14Bot {
         this.lastBrokerDataSymbol = sym;
         this.lastBrokerDataTimeframe = tf;
         if (stateManager && stateManager.updateLastPrice) {
-          stateManager.updateLastPrice(sym, ohlcData[5]);
+          stateManager.updateLastPrice(sym, ohlcData[5], ohlcData[1]);
         }
         const activeTf = (this.timeframeSelector && this.timeframeSelector.currentTimeframe) || this.candleTimeframe;
         this._visOhlcSeen ??= new Set();
@@ -1772,7 +1772,7 @@ class OGZPrimeV14Bot {
       const symCtx = this.symbolContexts?.get(symbol);
       if (symCtx) symCtx.marketData = marketData;
       if (stateManager && stateManager.updateLastPrice) {
-        stateManager.updateLastPrice(symbol, latest.c);
+        stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
       }
       this._markActiveTimeframeData(symbol, timeframe);
 
@@ -2026,6 +2026,45 @@ class OGZPrimeV14Bot {
         }
       }
 
+      if (this.kraken.subscribeToTicker) {
+        for (const subscriptionSymbol of subscriptionSymbols) {
+          console.log(`Starting ${subscriptionSymbol} trade-tick subscription for exit protection...`);
+          this.kraken.subscribeToTicker(subscriptionSymbol, (tick) => {
+            const tickSymbol = normalizeRuntimeSymbol(tick?.symbol || subscriptionSymbol);
+            const tickPrice = Number(tick?.price);
+            if (!tickSymbol || !Number.isFinite(tickPrice) || tickPrice <= 0) {
+              console.error(`[EXIT-MONITOR] dropped invalid trade tick for ${subscriptionSymbol}: symbol=${tickSymbol || '(missing)'} price=${tick?.price}`);
+              return;
+            }
+            const eventTimeMs = Number.isFinite(Date.parse(tick.timestamp))
+              ? Date.parse(tick.timestamp)
+              : Date.now();
+            const tickMarketData = {
+              symbol: tickSymbol,
+              price: tickPrice,
+              timestamp: eventTimeMs,
+              timeframe: 'tick',
+              systemTime: Date.now(),
+              volume: Number.isFinite(Number(tick?.size)) ? Number(tick.size) : null,
+              priceSource: 'broker_trade_tick'
+            };
+            let priceAccepted = true;
+            if (stateManager && stateManager.updateLastPrice) {
+              priceAccepted = stateManager.updateLastPrice(tickSymbol, tickPrice, eventTimeMs);
+            }
+            if (priceAccepted === false) {
+              return;
+            }
+            const tickSymCtx = this.symbolContexts?.get(tickSymbol);
+            if (tickSymCtx) tickSymCtx.marketData = tickMarketData;
+            this.tradingLoop?.checkExitsOnly(tickSymbol)
+              .catch(error => {
+                console.error(`[EXIT-MONITOR] trade-tick exit check failed for ${tickSymbol}: ${error.message}`);
+              });
+          });
+        }
+      }
+
       // Subscribe to OHLC events from the broker
       if (this.kraken.on) {
         const singleSubscriptionSymbol = subscriptionSymbols.length === 1 ? subscriptionSymbols[0] : null;
@@ -2085,8 +2124,9 @@ class OGZPrimeV14Bot {
           this.lastBrokerDataReceived = Date.now();
           this.lastBrokerDataSymbol = ohlcSymbol;
           this.lastBrokerDataTimeframe = timeframe;
+          let priceAccepted = true;
           if (stateManager && stateManager.updateLastPrice) {
-            stateManager.updateLastPrice(ohlcSymbol, ohlcClose);
+            priceAccepted = stateManager.updateLastPrice(ohlcSymbol, ohlcClose, ohlcData[1]);
           }
           this._visOhlcSeen ??= new Set();
           const activeTf = this.timeframeSelector?.currentTimeframe || this.candleTimeframe;
@@ -2099,6 +2139,20 @@ class OGZPrimeV14Bot {
           // Store in timeframe-specific history for dashboard
           const storedCandle = this.storeTimeframeCandle(timeframe, ohlcData, ohlcSymbol);
           const symbolStoredCandle = this.storeSymbolTimeframeCandle(ohlcSymbol, timeframe, ohlcData);
+          const streamingMarketData = {
+            symbol: ohlcSymbol,
+            price: ohlcClose,
+            timestamp: ohlcData[1],
+            timeframe,
+            systemTime: Date.now(),
+            volume: Number.isFinite(Number(ohlcData[6])) ? Number(ohlcData[6]) : null,
+            open: ohlcData[2],
+            high: ohlcData[3],
+            low: ohlcData[4],
+            priceSource: 'broker_stream'
+          };
+          const streamSymCtx = this.symbolContexts?.get(ohlcSymbol);
+          if (streamSymCtx && priceAccepted !== false) streamSymCtx.marketData = streamingMarketData;
 
           // Feed only the active trading timeframe to indicators + strategy context.
           if (timeframe === activeTf) {
@@ -3028,7 +3082,7 @@ class OGZPrimeV14Bot {
       const symCtx = this.symbolContexts?.get(symbol);
       if (symCtx) symCtx.marketData = marketData;
       if (stateManager && stateManager.updateLastPrice) {
-        stateManager.updateLastPrice(symbol, latest.c);
+        stateManager.updateLastPrice(symbol, latest.c, latest.etime || latest.t);
       }
       this._markActiveTimeframeData(symbol, timeframe);
     }

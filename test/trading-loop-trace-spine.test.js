@@ -8,6 +8,7 @@ const mockStateManager = {
     return null;
   }),
   getEquity: jest.fn(() => 10000),
+  getLastPrice: jest.fn(() => null),
   isHalted: jest.fn(() => false),
   getHaltReason: jest.fn(() => null),
   isSymbolHalted: jest.fn(() => false),
@@ -121,6 +122,7 @@ describe('TradingLoop trace spine', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStateManager.getTradesBySymbol.mockReturnValue([]);
+    mockStateManager.getLastPrice.mockReturnValue(null);
     mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false });
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   });
@@ -865,6 +867,85 @@ describe('TradingLoop trace spine', () => {
       tradeId: 'BUY_1',
     }));
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
+  });
+
+  test('uses the fresh per-symbol last price for exit-only checks instead of stale active-timeframe marketData', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_FRESH_PRICE_1' });
+    mockStateManager.getTradesBySymbol.mockReturnValue([{
+      id: 'BUY_STOP_1',
+      orderId: 'BUY_STOP_1',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      assetClass: 'stocks',
+      entryPrice: 100,
+      sizeUsd: 1000,
+    }]);
+    mockStateManager.getLastPrice.mockReturnValue(98.9);
+    mockExitContractManager.checkExitConditions.mockImplementation((_trade, currentPrice, context) => ({
+      shouldExit: currentPrice <= 99,
+      exitReason: currentPrice <= 99 ? 'stop_loss' : undefined,
+      confidence: 100,
+      details: `fresh price ${currentPrice}`,
+      contextPriceSource: context.priceSource,
+    }));
+
+    const ctx = {
+      priceHistory: candles(30),
+      marketData: {
+        symbol: 'TSLA',
+        price: 100.2,
+        timestamp: 1700000000000,
+        volume: 1000,
+        timeframe: '15m',
+        priceSource: 'active_timeframe',
+      },
+      config: {
+        brokerId: 'alpaca',
+        assetClass: 'stocks',
+        timeframe: '15m',
+        executionMode: 'paper',
+        enableBacktestMode: false,
+        evalTraceEnabled: false,
+      },
+      evalRules: {
+        enabled: true,
+        ttp: {
+          enabled: true,
+          consistency: {
+            enabled: true,
+            maxPositionProfitRatio: 0.30,
+            profitTargetDollars: 3000,
+          },
+        },
+      },
+      indicatorEngine: {
+        getSnapshot: jest.fn(() => ({ indicators: { atr: 1, rsi: 55, superTrendDirection: 'sideways' } })),
+        getRawState: jest.fn(() => null),
+      },
+      maxProfitManagers: new Map(),
+      executeTrade,
+    };
+    const loop = new TradingLoop(ctx);
+
+    await loop._checkExitsOnly('TSLA');
+
+    expect(mockExitContractManager.checkExitConditions).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'BUY_STOP_1' }),
+      98.9,
+      expect.objectContaining({
+        currentPrice: 98.9,
+        priceSource: 'state_last_price',
+      })
+    );
+    expect(executeTrade).toHaveBeenCalledTimes(1);
+    expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
+      action: 'SELL',
+      direction: 'close',
+      exitReason: 'stop_loss',
+      tradeId: 'BUY_STOP_1',
+    }));
+    expect(executeTrade.mock.calls[0][2]).toBe(98.9);
   });
 
   test('does not let a missing active-trade asset class bypass the TTP consistency cap in stock runtime', async () => {

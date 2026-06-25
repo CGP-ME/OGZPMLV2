@@ -94,6 +94,21 @@ describe('StateManager load validation', () => {
     expect(manager.get('activeTrades').size).toBe(0);
   });
 
+  test('last price updates reject older event timestamps', () => {
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.updateLastPrice('TSLA', 101, 2000)).toBe(true);
+    expect(manager.getLastPrice('TSLA')).toBe(101);
+
+    expect(manager.updateLastPrice('TSLA', 95, 1500)).toBe(false);
+    expect(manager.getLastPrice('TSLA')).toBe(101);
+
+    expect(manager.updateLastPrice('TSLA', 102, 2500)).toBe(true);
+    expect(manager.getLastPrice('TSLA')).toBe(102);
+    expect(manager.get('lastPriceTimes').get('TSLA')).toBe(2500);
+  });
+
   test('fresh state initializer refuses missing or invalid starting balance', () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();

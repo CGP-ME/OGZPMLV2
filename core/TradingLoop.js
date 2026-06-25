@@ -495,7 +495,15 @@ class TradingLoop {
     const symCtx = this.ctx.symbolContexts?.get(symbol);
     const marketData = symCtx?.marketData
       ?? (this.ctx.marketData?.symbol === symbol ? this.ctx.marketData : null);
-    const price = marketData?.price;
+    const stateLastPrice = typeof stateManager.getLastPrice === 'function'
+      ? stateManager.getLastPrice(symbol)
+      : null;
+    const price = Number.isFinite(stateLastPrice) && stateLastPrice > 0
+      ? stateLastPrice
+      : marketData?.price;
+    const priceSource = Number.isFinite(stateLastPrice) && stateLastPrice > 0
+      ? 'state_last_price'
+      : (marketData?.priceSource || 'market_data');
     if (!Number.isFinite(price) || price <= 0) {
       this._diag('EXIT_ONLY_NO_PRICE', {
         symbol,
@@ -551,11 +559,12 @@ class TradingLoop {
 
       const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
         indicators,
-        currentTime: marketData?.timestamp ?? Date.now(),
+        currentTime: priceSource === 'state_last_price' ? Date.now() : (marketData?.timestamp ?? Date.now()),
         accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
         initialBalance: _initialBalance,
         currentPosition: stateManager.get('position'),
-        currentPrice: price
+        currentPrice: price,
+        priceSource
       });
 
       if (exitCheck.shouldExit) {

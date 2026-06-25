@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Live Exit Price Freshness (2026-06-25)
+
+- Wired Alpaca trade ticks into the existing exit-only monitor so protective exits no longer wait for active-timeframe candle boundaries when a fresher per-symbol broker price is available.
+- Updated symbol market data from every broker bar and made exit-only checks prefer `StateManager` per-symbol last prices over stale active-timeframe market data.
+- Added event-time ownership to `StateManager` last prices so delayed or out-of-order ticks/bars cannot overwrite a newer exit price source.
+
 ### Trade Journal Attribution Proof (2026-06-25)
 
 - Preserved source-backed strategy attribution from active trades into TradeJournal entry/exit rows and TradeReplay packets, including winner strategy, trace/signal/decision IDs, decision ledger, competing strategies, sizing, exit contract, and risk-gate provenance.
