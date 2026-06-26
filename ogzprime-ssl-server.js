@@ -52,6 +52,10 @@ const fs = require('fs');
 const PineTALib = require('./pine-transpiler/core/PineTALib');
 const fetchFn = global.fetch || require('node-fetch');
 const { fetchStockTicker } = require('./server/stock-data-adapter');
+const {
+  attachDashboardMarketScope,
+  buildDashboardMarketScope
+} = require('./server/dashboard-market-scope');
 const { buildTickerPriceFrame, parseTickerSymbolList } = require('./server/dashboard-ticker-frame');
 const { resolveDashboardStockConfig } = require('./server/dashboard-stock-stream-config');
 const { ASSET_REGISTRY, normalizeAssetSymbol } = require('./core/AssetRegistry');
@@ -1181,8 +1185,20 @@ function sendDashboardTickerFrames(frames, label) {
   return sentCount;
 }
 
+function dashboardStockMarketScope(symbol, timeframe = null) {
+  return buildDashboardMarketScope({
+    stateUpdateFrame: dashboardSnapshotCache.state_update,
+    symbol,
+    timeframe,
+    brokerId: 'alpaca',
+    assetClass: 'stocks',
+    executionMode: process.env.EXECUTION_MODE,
+    allowedSymbols: DASHBOARD_STOCK_PRICE_SYMBOLS
+  });
+}
+
 function stockTickerToPriceFrame(ticker) {
-  return {
+  const frame = {
     type: 'price',
     symbol: ticker.symbol,
     asset: ticker.symbol,
@@ -1214,13 +1230,16 @@ function stockTickerToPriceFrame(ticker) {
       overlays: null
     }
   };
+  return attachDashboardMarketScope(frame, dashboardStockMarketScope(ticker.symbol));
 }
 
 function stockTickerToTickerPriceFrame(ticker) {
+  const scopeResult = dashboardStockMarketScope(ticker.symbol);
   return buildTickerPriceFrame(ticker, {
     asset: ticker.symbol,
     brokerId: 'alpaca',
-    assetClass: 'stock',
+    assetClass: 'stocks',
+    ...(scopeResult && scopeResult.ok === true && scopeResult.scope ? scopeResult.scope : {}),
   }, {
     allowedSymbols: DASHBOARD_STOCK_PRICE_SYMBOLS,
   });
@@ -1780,12 +1799,13 @@ wss.on('connection', (ws, req) => {
               console.log(`[StockAdapter] Fetching ${asset} @ ${tf} from Alpaca...`);
               fetchStockCandles(asset, tf, limit, { config: DASHBOARD_STOCK_DATA_CONFIG }).then(candles => {
                 if (candles && candles.length > 0 && ws.readyState === WebSocket.OPEN) {
-                  ws.send(JSON.stringify({
+                  const frame = attachDashboardMarketScope({
                     type: 'historical_candles',
                     symbol: dashboardSymbol,
                     timeframe: tf,
                     candles: candles
-                  }));
+                  }, dashboardStockMarketScope(dashboardSymbol, tf));
+                  ws.send(JSON.stringify(frame));
                   console.log(`[StockAdapter] Sent ${candles.length} ${asset} candles to dashboard`);
                 } else {
                   console.warn(`[StockAdapter] No data for ${asset} @ ${tf}`);

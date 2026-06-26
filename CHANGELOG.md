@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Market Scope Contract (2026-06-26)
+
+- Added validated dashboard market-scope stamping for existing stock `price`, `ticker_price`, and `historical_candles` frames so the modular dashboard shell can consume `StateManager`/SessionRouter scope without a second router or fake defaults.
+- Required cached runtime scope to be timestamped, complete, v2-keyed, self-validating, allow-listed, and producer-matched before stock dashboard frames inherit broker/account/asset/timeframe scope.
+- Blocked raw ticker payloads from smuggling scope fields into `ticker_price`; scope-bearing ticker fields now come only from trusted overrides produced by the validated scope helper.
+
 ### PM2 Env Hydration (2026-06-26)
 
 - Loaded `.env` inside `ecosystem.config.js` before PM2 runtime env objects are frozen, with `.env` taking precedence on normal `pm2 startOrReload ... --update-env` restarts so dashboard WebSocket tokens, SignalStack webhook settings, and eval posture cannot stay on stale shell values after an operator env update.

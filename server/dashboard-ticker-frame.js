@@ -51,6 +51,20 @@ function copyFinite(frame, source, fields) {
   }
 }
 
+function copyBoolean(frame, source, fields) {
+  for (const field of fields) {
+    if (typeof source[field] === 'boolean') frame[field] = source[field];
+  }
+}
+
+function copyStringArray(frame, source, fields) {
+  for (const field of fields) {
+    if (Array.isArray(source[field]) && source[field].every(item => typeof item === 'string')) {
+      frame[field] = [...source[field]];
+    }
+  }
+}
+
 function parseTickerSymbolList(rawValue, fallbackValue) {
   const parsed = String(rawValue || '')
     .split(',')
@@ -65,12 +79,11 @@ function parseTickerSymbolList(rawValue, fallbackValue) {
 }
 
 function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
-  const source = { ...overrides, ...ticker };
-  const symbol = normalizeSymbol(source.symbol);
+  const symbol = normalizeSymbol(ticker.symbol ?? overrides.symbol);
   const allowedSymbols = Array.isArray(options.allowedSymbols) ? options.allowedSymbols : [];
-  const asset = normalizeAssetSymbol(source.asset || source.symbol, allowedSymbols);
-  const price = positiveNumber(source.price ?? source.close);
-  const timestamp = positiveNumber(source.timestamp);
+  const asset = normalizeAssetSymbol(overrides.asset || ticker.asset || ticker.symbol, allowedSymbols);
+  const price = positiveNumber(ticker.price ?? ticker.close);
+  const timestamp = positiveNumber(ticker.timestamp);
 
   if (!symbol || !asset || price === null || timestamp === null) return null;
   if (
@@ -88,11 +101,25 @@ function buildTickerPriceFrame(ticker = {}, overrides = {}, options = {}) {
     timestamp,
   };
 
-  const close = positiveNumber(source.close);
+  const close = positiveNumber(ticker.close);
   if (close !== null) frame.close = close;
 
-  copyFinite(frame, source, ['volume', 'change', 'changePct', 'change24h']);
-  copyText(frame, source, ['source', 'feed', 'broker', 'brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe']);
+  copyFinite(frame, ticker, ['volume', 'change', 'changePct', 'change24h']);
+  copyText(frame, ticker, ['source', 'feed']);
+  copyFinite(frame, overrides, ['scopeKeyVersion']);
+  copyText(frame, overrides, [
+    'broker',
+    'brokerId',
+    'accountId',
+    'accountIdSource',
+    'assetClass',
+    'executionMode',
+    'timeframe',
+    'scopeKey',
+    'runtimeScopeStatus'
+  ]);
+  copyBoolean(frame, overrides, ['scopeComplete']);
+  copyStringArray(frame, overrides, ['runtimeScopeMissing']);
 
   return frame;
 }
