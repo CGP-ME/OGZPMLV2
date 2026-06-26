@@ -108,6 +108,13 @@ describe('backtest worker env contract', () => {
     expect(env.CANDLE_SOURCE).toBe('file');
     expect(env.CANDLE_DATA_FILE).toBe(path.resolve(projectRoot, 'tuning/tsla-15m-2y.json'));
     expect(env.TEST_MODE).toBe('false');
+    expect(env.LIVE_TRADING).toBe('false');
+    expect(env.ENABLE_LIVE_TRADING).toBe('false');
+    expect(env.CONFIRM_LIVE_TRADING).toBe('false');
+    expect(env.WEBHOOK_ORDERS_ENABLED).toBe('false');
+    expect(env.WEBHOOK_DRY_RUN).toBe('true');
+    expect(env.EVAL_RULES_ENABLED).toBe('false');
+    expect(env.TTP_RULES_ENABLED).toBe('false');
     expect(env.BACKTEST_NO_PATTERN_SAVE).toBe('true');
     expect(env.DIRECTION_FILTER).toBe('long_only');
     expect(env.ACCOUNT_DRAWDOWN_BYPASS).toBe('true');
