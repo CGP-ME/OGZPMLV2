@@ -1,5 +1,17 @@
 'use strict';
 
+const path = require('path');
+
+function hydratePm2EnvFromDotenv() {
+  if (process.env.NODE_ENV === 'test') return;
+  require('dotenv').config({
+    path: path.join(__dirname, '.env'),
+    override: true,
+  });
+}
+
+hydratePm2EnvFromDotenv();
+
 const evalOperatorEnv = Object.freeze({
   ALPACA_MODE: process.env.ALPACA_MODE,
   ALPACA_API_KEY: process.env.ALPACA_API_KEY,

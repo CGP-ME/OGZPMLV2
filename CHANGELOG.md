@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### PM2 Env Hydration (2026-06-26)
+
+- Loaded `.env` inside `ecosystem.config.js` before PM2 runtime env objects are frozen, with `.env` taking precedence on normal `pm2 startOrReload ... --update-env` restarts so dashboard WebSocket tokens, SignalStack webhook settings, and eval posture cannot stay on stale shell values after an operator env update.
+- Added ecosystem profile coverage locking the dotenv hydration order while preserving Jest's explicit fake-env harness.
+
 ### Webhook Exit Dispatch Unblocker (2026-06-25)
 
 - Allowed webhook `SELL` and `COVER` exits to dispatch fractional share quantities instead of pre-blocking them with the entry-side stock share validator.

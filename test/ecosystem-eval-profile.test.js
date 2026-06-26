@@ -123,6 +123,20 @@ function loadPrimeAppWithEnv(envValues) {
 }
 
 describe('ecosystem eval live profile', () => {
+  test('hydrates .env before freezing PM2 runtime values outside the Jest harness', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'ecosystem.config.js'), 'utf8');
+    const hydrateIndex = source.indexOf('hydratePm2EnvFromDotenv();');
+    const operatorIndex = source.indexOf('const evalOperatorEnv = Object.freeze({');
+    const dotenvConfigIndex = source.indexOf("require('dotenv').config({");
+
+    expect(dotenvConfigIndex).toBeGreaterThan(-1);
+    expect(hydrateIndex).toBeGreaterThan(dotenvConfigIndex);
+    expect(operatorIndex).toBeGreaterThan(hydrateIndex);
+    expect(source).toContain("path: path.join(__dirname, '.env')");
+    expect(source).toContain('override: true');
+    expect(source).toContain("if (process.env.NODE_ENV === 'test') return;");
+  });
+
   test('declares operator-owned eval values in default PM2 env without committing defaults or placeholders', () => {
     const app = loadPrimeAppWithEnv({});
 
