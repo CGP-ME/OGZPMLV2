@@ -131,6 +131,35 @@ describe('TradingLoop trace spine', () => {
     logSpy.mockRestore();
   });
 
+  test('records ambiguous winner proof attribution without throwing', () => {
+    const loop = new TradingLoop(baseEntryContext());
+
+    expect(loop._ledgerWinnerAttribution([
+      { name: 'RSI', direction: 'buy', confidence: 0.8, reason: 'first' },
+      { strategyName: 'RSI', direction: 'buy', confidence: 0.7, reason: 'second' },
+    ], 'RSI')).toEqual({
+      status: 'ambiguous',
+      winnerIndex: null,
+      matchCount: 2,
+      matchedIndexes: [0, 1],
+      reason: 'orchResult.winnerStrategy "RSI" matched 2 strategy result(s); winner-only proof not attributed',
+    });
+  });
+
+  test('records missing winner proof attribution without throwing', () => {
+    const loop = new TradingLoop(baseEntryContext());
+
+    expect(loop._ledgerWinnerAttribution([
+      { name: 'RSI', direction: 'buy', confidence: 0.8, reason: 'first' },
+    ], 'EMASMACrossover')).toEqual({
+      status: 'missing',
+      winnerIndex: null,
+      matchCount: 0,
+      matchedIndexes: [],
+      reason: 'orchResult.winnerStrategy "EMASMACrossover" matched 0 strategy result(s); winner-only proof not attributed',
+    });
+  });
+
   test('preserves the analysis trace id on the execution decision and ledger data', async () => {
     const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'ORDER_TRACE_1' });
     const ctx = {
@@ -155,7 +184,25 @@ describe('TradingLoop trace spine', () => {
           direction: 'buy',
           confidence: 80,
           winnerStrategy: 'RSI',
-          allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 0.8, reason: 'test signal' }],
+          allResults: [{
+            name: 'RSI',
+            direction: 'buy',
+            confidence: 0.8,
+            reason: 'test signal',
+            learningSnapshot: {
+              mode: 'shadow',
+              applied: false,
+              decisionImpact: 'none_shadow_only',
+              featureSource: 'patterns[0].features',
+              source: 'learned_success',
+              status: 'promoted',
+              confidence: 0.72,
+              wins: 8,
+              losses: 3,
+              sampleCount: 11,
+              modifier: null,
+            },
+          }],
           exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
           confluence: { count: 1, strategies: ['RSI'] },
           sizingMultiplier: 1,
@@ -203,8 +250,37 @@ describe('TradingLoop trace spine', () => {
       executionMode: 'paper',
     }));
     expect(decision.ledgerData.strategySignals[0].baseConfidence).toBe(0.8);
+    expect(decision.ledgerData.strategySignals[0].learningSnapshot).toEqual(expect.objectContaining({
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      candidateRole: 'candidate',
+      source: 'learned_success',
+      status: 'promoted',
+    }));
     expect(decision.ledgerData.orchestratorDecision.finalConfidence).toBe(0.8);
+    expect(decision.ledgerData.orchestratorDecision.winnerAttribution).toEqual({
+      status: 'exact',
+      winnerIndex: 0,
+      matchCount: 1,
+    });
+    expect(decision.ledgerData.orchestratorDecision.learningSnapshot).toEqual(expect.objectContaining({
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      candidateRole: 'winner',
+      source: 'learned_success',
+      status: 'promoted',
+    }));
     expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].adjustedConfidence).toBe(0.8);
+    expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].learningSnapshot).toEqual(expect.objectContaining({
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      candidateRole: 'winner',
+      source: 'learned_success',
+      status: 'promoted',
+    }));
   });
 
   test('rejects 0-100 strategy confidences before writing decision ledger evidence', async () => {

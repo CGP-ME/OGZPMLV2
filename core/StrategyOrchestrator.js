@@ -86,6 +86,98 @@ function publicResult(result) {
   };
 }
 
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+}
+
+function firstFeatureVector(result, ctx) {
+  const candidates = [
+    { source: 'signalData.features', value: result?.signalData?.features },
+    { source: 'result.features', value: result?.features },
+  ];
+
+  if (Array.isArray(ctx?.patterns)) {
+    ctx.patterns.forEach((pattern, index) => {
+      candidates.push({ source: `patterns[${index}].features`, value: pattern?.features });
+    });
+  }
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate.value) && candidate.value.length > 0) {
+      return { source: candidate.source, features: candidate.value };
+    }
+  }
+
+  return null;
+}
+
+function buildLearningSnapshot(result, ctx) {
+  const memory = ctx?.extras?.patternMemory;
+  if (!memory || typeof memory.getConfidence !== 'function') {
+    return null;
+  }
+
+  const featureVector = firstFeatureVector(result, ctx);
+  if (!featureVector) {
+    return {
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      featureSource: null,
+      source: 'no_features',
+      status: 'unavailable',
+      confidence: null,
+      wins: null,
+      losses: null,
+      sampleCount: null,
+      modifier: null,
+    };
+  }
+
+  try {
+    const learned = memory.getConfidence(featureVector.features, ctx.extras?.patternScope || {});
+    const stats = learned?.stats || null;
+    const wins = firstFiniteNumber(stats?.wins, stats?.successCount);
+    const losses = firstFiniteNumber(stats?.losses, stats?.failureCount);
+    const sampleCount = Number.isFinite(wins) && Number.isFinite(losses)
+      ? wins + losses
+      : firstFiniteNumber(stats?.totalTrades, stats?.seenCount, stats?.timesSeen);
+
+    return {
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      featureSource: featureVector.source,
+      source: learned?.source || 'unknown',
+      status: learned?.status || stats?.status || 'unknown',
+      confidence: firstFiniteNumber(learned?.confidence),
+      wins,
+      losses,
+      sampleCount,
+      modifier: null,
+    };
+  } catch (error) {
+    return {
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      featureSource: featureVector.source,
+      source: 'lookup_error',
+      status: 'error',
+      confidence: null,
+      wins: null,
+      losses: null,
+      sampleCount: null,
+      modifier: null,
+      error: error.message,
+    };
+  }
+}
+
 function getEffectiveExitContractValue(strategyName, key) {
   const strategyValue = TradingConfig.get(`exitContracts.${strategyName}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
   if (strategyValue !== MISSING_EXIT_CONTRACT_VALUE) {
@@ -1150,6 +1242,7 @@ class StrategyOrchestrator {
             confidence,
             confidenceScore: confidence,
             strategyName: strategy.name,
+            learningSnapshot: buildLearningSnapshot({ ...result, strategyName: strategy.name }, ctx),
           });
         }
       } catch (err) {

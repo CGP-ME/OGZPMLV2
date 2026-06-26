@@ -90,6 +90,55 @@ describe('DecisionLedgerSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  test('preserves shadow learning snapshots through decision ledger validation', () => {
+    const learningSnapshot = {
+      mode: 'shadow',
+      applied: false,
+      decisionImpact: 'none_shadow_only',
+      candidateRole: 'winner',
+      featureSource: 'patterns[0].features',
+      source: 'learned_success',
+      status: 'promoted',
+      confidence: 0.72,
+      wins: 8,
+      losses: 3,
+      sampleCount: 11,
+      modifier: null,
+    };
+    const ledger = validLedger({
+      strategySignals: [{
+        name: 'MADynamicSR',
+        direction: 'long',
+        baseConfidence: 0.8,
+        reason: 'test signal',
+        learningSnapshot,
+      }],
+      orchestratorDecision: {
+        winnerStrategy: 'MADynamicSR',
+        finalConfidence: 0.8,
+        winnerAttribution: {
+          status: 'exact',
+          winnerIndex: 0,
+          matchCount: 1,
+        },
+        learningSnapshot,
+        reason: 'test decision',
+        competingStrategies: [{
+          name: 'MADynamicSR',
+          adjustedConfidence: 0.8,
+          rejected: false,
+          rejectReason: null,
+          learningSnapshot,
+        }],
+      },
+    });
+
+    expect(ledger.strategySignals[0].learningSnapshot).toEqual(learningSnapshot);
+    expect(ledger.orchestratorDecision.learningSnapshot).toEqual(learningSnapshot);
+    expect(ledger.orchestratorDecision.competingStrategies[0].learningSnapshot).toEqual(learningSnapshot);
+    expect(validateLedgerSkeleton(ledger).success).toBe(true);
+  });
+
   test('preserves explicit null structural exit fields instead of blocking trade birth', () => {
     const ledger = validLedger({
       exitContract: {

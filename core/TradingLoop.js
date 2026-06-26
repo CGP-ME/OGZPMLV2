@@ -130,12 +130,44 @@ class TradingLoop {
     return this._ledgerText(orchResult?.winnerStrategy, 'orchResult.winnerStrategy');
   }
 
+  _ledgerWinnerAttribution(allResults, winnerName) {
+    const matches = [];
+    allResults.forEach((result, index) => {
+      if (this._ledgerStrategyName(result, index) === winnerName) {
+        matches.push(index);
+      }
+    });
+    if (matches.length === 1) {
+      return {
+        status: 'exact',
+        winnerIndex: matches[0],
+        matchCount: 1,
+      };
+    }
+    return {
+      status: matches.length === 0 ? 'missing' : 'ambiguous',
+      winnerIndex: null,
+      matchCount: matches.length,
+      matchedIndexes: matches,
+      reason: `orchResult.winnerStrategy ${JSON.stringify(winnerName)} matched ${matches.length} strategy result(s); winner-only proof not attributed`,
+    };
+  }
+
+  _ledgerLearningSnapshot(result, candidateRole) {
+    if (!result?.learningSnapshot) return null;
+    return {
+      ...result.learningSnapshot,
+      candidateRole,
+    };
+  }
+
   _ledgerStrategySignal(result, index, indicators) {
     return {
       name: this._ledgerStrategyName(result, index),
       direction: this._ledgerDirection(result?.direction, `allResults[${index}].direction`),
       baseConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
       reason: this._ledgerText(result?.reason || result?.reasons?.join('; '), `allResults[${index}].reason`),
+      learningSnapshot: this._ledgerLearningSnapshot(result, 'candidate'),
       ...this._ledgerSignalMetadata(result, index),
       indicatorValues: {
         rsi: indicators.rsi,
@@ -147,13 +179,14 @@ class TradingLoop {
     };
   }
 
-  _ledgerCompetingStrategy(result, index, winnerName) {
+  _ledgerCompetingStrategy(result, index, winnerName, winnerIndex) {
     const name = this._ledgerStrategyName(result, index);
     return {
       name,
       adjustedConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
       rejected: name !== winnerName,
       rejectReason: name !== winnerName ? 'Lower confidence than winner' : null,
+      learningSnapshot: this._ledgerLearningSnapshot(result, index === winnerIndex ? 'winner' : 'competitor'),
       ...this._ledgerSignalMetadata(result, index),
     };
   }
@@ -675,6 +708,7 @@ class TradingLoop {
 
     // ─── GATHER DATA ───
     const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol);
+    const patternScope = this._patternScope(symbol);
 
     // ─── RUN ORCHESTRATOR ───
     const orchResult = this.ctx.strategyOrchestrator.evaluate(
@@ -697,6 +731,8 @@ class TradingLoop {
         // HIGH-16: pass timeframe so orchestrator can validate + scale SL/TP
         // per timeframe instead of falling back to '15m' silently.
         timeframe: this.ctx.candleTimeframe,
+        patternMemory: this.ctx.patternChecker?.memory || null,
+        patternScope,
       }
     );
 
@@ -1108,8 +1144,9 @@ class TradingLoop {
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
         const allResults = this._ledgerAllResults(orchResult);
         const winnerName = this._ledgerWinnerName(orchResult);
-        const winnerIndex = allResults.findIndex((result, index) => this._ledgerStrategyName(result, index) === winnerName);
-        const winnerSignalMetadata = winnerIndex >= 0 ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
+        const winnerAttribution = this._ledgerWinnerAttribution(allResults, winnerName);
+        const winnerIndex = winnerAttribution.winnerIndex;
+        const winnerSignalMetadata = winnerIndex !== null ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
         const ledgerScope = this._patternScope(symbol);
         decision.ledgerData = {
           candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
@@ -1128,11 +1165,13 @@ class TradingLoop {
           orchestratorDecision: {
             winnerStrategy: winnerName,
             finalConfidence: confidence,
+            winnerAttribution,
+            learningSnapshot: winnerIndex !== null ? this._ledgerLearningSnapshot(allResults[winnerIndex], 'winner') : null,
             ...winnerSignalMetadata,
             reason: allResults.length > 1
               ? `${winnerName} (${orchResult.confidence.toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
               : `${winnerName} selected at ${orchResult.confidence.toFixed(1)}%`,
-            competingStrategies: allResults.map((result, index) => this._ledgerCompetingStrategy(result, index, winnerName)),
+            competingStrategies: allResults.map((result, index) => this._ledgerCompetingStrategy(result, index, winnerName, winnerIndex)),
           },
           confluence: orchResult.confluence ? {
             // HIGH-17: ledger honesty for confluence count. Zero strategies

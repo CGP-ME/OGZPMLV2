@@ -2,23 +2,49 @@
 
 const { z } = require('zod');
 
+const LearningSnapshotSchema = z.object({
+  mode: z.literal('shadow'),
+  applied: z.literal(false),
+  decisionImpact: z.literal('none_shadow_only'),
+  candidateRole: z.enum(['candidate', 'winner', 'competitor']).optional(),
+  featureSource: z.string().nullable(),
+  source: z.string(),
+  status: z.string(),
+  confidence: z.number().min(0).max(1).nullable(),
+  wins: z.number().nullable(),
+  losses: z.number().nullable(),
+  sampleCount: z.number().nullable(),
+  modifier: z.null(),
+  error: z.string().optional(),
+});
+
 const StrategySignalSchema = z.object({
   name: z.string(),
   direction: z.enum(['long', 'short', 'hold']),
   baseConfidence: z.number().min(0).max(1),
   reason: z.string(),
+  learningSnapshot: LearningSnapshotSchema.nullable().optional(),
   indicatorValues: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),
 });
 
 const OrchestratorDecisionSchema = z.object({
   winnerStrategy: z.string().nullable(),
   finalConfidence: z.number().min(0).max(1),
+  winnerAttribution: z.object({
+    status: z.enum(['exact', 'missing', 'ambiguous']),
+    winnerIndex: z.number().int().min(0).nullable(),
+    matchCount: z.number().int().min(0),
+    matchedIndexes: z.array(z.number().int().min(0)).optional(),
+    reason: z.string().optional(),
+  }).optional(),
+  learningSnapshot: LearningSnapshotSchema.nullable().optional(),
   reason: z.string(),
   competingStrategies: z.array(z.object({
     name: z.string(),
     adjustedConfidence: z.number(),
     rejected: z.boolean().optional(),
     rejectReason: z.string().nullable().optional(),
+    learningSnapshot: LearningSnapshotSchema.nullable().optional(),
   })).optional(),
 });
 
@@ -186,6 +212,7 @@ function validateLedgerSkeleton(ledger) {
 
 module.exports = {
   DecisionLedgerSkeletonSchema,
+  LearningSnapshotSchema,
   StrategySignalSchema,
   OrchestratorDecisionSchema,
   PositionSizingSchema,
