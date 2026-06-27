@@ -181,6 +181,97 @@
         return incoming === selectedAssetSymbol();
     }
 
+    function cleanScopeValue(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).trim().toLowerCase();
+    }
+
+    function frameRuntimeScope(frame, state) {
+        const directScope = frame && frame.runtimeScope && typeof frame.runtimeScope === 'object'
+            ? frame.runtimeScope
+            : null;
+        const stateScope = state && state.runtimeScope && typeof state.runtimeScope === 'object'
+            ? state.runtimeScope
+            : null;
+        return directScope || stateScope;
+    }
+
+    function scopedPositionMatchesRuntimeScope(position, runtimeScope, selectedSymbol) {
+        if (!position || typeof position !== 'object') return false;
+        if (position.scopeComplete !== true) return false;
+        if (!runtimeScope || typeof runtimeScope !== 'object') return false;
+
+        const runtimeSymbol = normalizeDashboardSymbol(runtimeScope && (runtimeScope.symbol || runtimeScope.asset));
+        if (!runtimeSymbol || runtimeSymbol !== selectedSymbol) return false;
+
+        if (position.scopeKey && runtimeScope.scopeKey) {
+            return String(position.scopeKey).trim() === String(runtimeScope.scopeKey).trim();
+        }
+
+        const fields = ['brokerId', 'accountId', 'assetClass', 'executionMode', 'timeframe'];
+        return fields.every((field) => {
+            return cleanScopeValue(position[field]) &&
+                cleanScopeValue(runtimeScope[field]) &&
+                cleanScopeValue(position[field]) === cleanScopeValue(runtimeScope[field]);
+        });
+    }
+
+    function selectedScopedPositionFromStateUpdate(frame) {
+        const state = frame && frame.state ? frame.state : {};
+        const scopedPositions = Array.isArray(state.positions)
+            ? state.positions
+            : (Array.isArray(frame && frame.positions) ? frame.positions : null);
+        const selected = selectedAssetSymbol();
+        const runtimeScope = frameRuntimeScope(frame, state);
+
+        if (scopedPositions) {
+            const matches = scopedPositions.filter((position) => {
+                return normalizeDashboardSymbol(position && (position.symbol || position.asset)) === selected &&
+                    scopedPositionMatchesRuntimeScope(position, runtimeScope, selected);
+            });
+            return matches.length === 1 ? matches[0] : null;
+        }
+
+        const legacyPosition = state.position || null;
+        if (!legacyPosition || typeof legacyPosition !== 'object') return null;
+
+        const legacySymbol = normalizeDashboardSymbol(
+            legacyPosition.symbol || legacyPosition.asset ||
+            state.symbol || state.asset ||
+            (frame && (frame.symbol || frame.asset))
+        );
+        if (!legacySymbol || legacySymbol !== selected) return null;
+        if (!scopedPositionMatchesRuntimeScope(legacyPosition, runtimeScope, selected)) return null;
+
+        return legacyPosition;
+    }
+
+    function firstPositiveNumber() {
+        for (let i = 0; i < arguments.length; i += 1) {
+            const value = Number(arguments[i]);
+            if (isFinite(value) && value > 0) return value;
+        }
+        return null;
+    }
+
+    function positionLineLevels(position) {
+        if (!position || typeof position !== 'object') {
+            return { entry: null, stop: null, target: null };
+        }
+        return {
+            entry: firstPositiveNumber(position.entryPrice, position.entry, position.avgPrice),
+            stop: firstPositiveNumber(position.stopLoss, position.stop),
+            target: firstPositiveNumber(position.takeProfit, position.target),
+        };
+    }
+
+    function hasDrawablePositionLines(position) {
+        if (!position || typeof position !== 'object') return false;
+        const size = Number(position.size ?? position.sizeUsd);
+        const levels = positionLineLevels(position);
+        return isFinite(size) && size !== 0 && Boolean(levels.entry || levels.stop || levels.target);
+    }
+
     // ─── CSS Injection (Fallback) ──────────────────────────────────────────
     (function injectFlashStyle() {
         if (typeof document === 'undefined') return;
@@ -1136,8 +1227,7 @@
         // Maintain entry/stop/target price lines while a position is open.
         socket.registerHandler('state_update', (d) => {
             try {
-                const s = d && d.state ? d.state : {};
-                const pos = s.position;
+                const pos = selectedScopedPositionFromStateUpdate(d);
                 _lastPositionState = pos || null;
 
                 // Strip stale lines whenever position absent or flat
@@ -1147,7 +1237,7 @@
                     return null;
                 };
 
-                if (!pos || pos === 'flat' || pos === 'FLAT' || (typeof pos === 'object' && (pos.size === 0 || !pos.entryPrice))) {
+                if (!pos || pos === 'flat' || pos === 'FLAT') {
                     _entryPriceLine = stripLine(_entryPriceLine);
                     _stopPriceLine  = stripLine(_stopPriceLine);
                     _targetPriceLine = stripLine(_targetPriceLine);
@@ -1156,9 +1246,17 @@
 
                 if (typeof pos !== 'object' || !candleSeries) return;
 
-                const entry = Number(pos.entryPrice || pos.entry || pos.avgPrice);
-                const stop  = Number(pos.stopLoss   || pos.stop  || 0);
-                const targ  = Number(pos.takeProfit || pos.target|| 0);
+                const levels = positionLineLevels(pos);
+                if (!hasDrawablePositionLines(pos)) {
+                    _entryPriceLine = stripLine(_entryPriceLine);
+                    _stopPriceLine  = stripLine(_stopPriceLine);
+                    _targetPriceLine = stripLine(_targetPriceLine);
+                    return;
+                }
+
+                const entry = levels.entry;
+                const stop  = levels.stop;
+                const targ  = levels.target;
                 const isLong = String(pos.direction || pos.side || '').toLowerCase() === 'long'
                             || pos === 'long' || pos === 'LONG';
 
@@ -2510,6 +2608,18 @@
 
         isSelectedAssetPayload: function (payload) {
             return payloadMatchesSelectedAsset(payload);
+        },
+
+        _selectedScopedPositionFromStateUpdate: function (frame) {
+            return selectedScopedPositionFromStateUpdate(frame);
+        },
+
+        _positionLineLevels: function (position) {
+            return positionLineLevels(position);
+        },
+
+        _hasDrawablePositionLines: function (position) {
+            return hasDrawablePositionLines(position);
         }
     };
 

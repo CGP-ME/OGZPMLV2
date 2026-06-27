@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard Chart Position Scope (2026-06-27)
+
+- Made chart entry/stop/target lines consume the existing scoped `state_update.positions` contract instead of legacy scalar position truth.
+- Required selected chart positions to be scope-complete, runtime-scope matched, unique for the selected symbol, and backed by finite nonzero size before drawing price lines.
+- Kept legacy position objects fail-closed unless they are symbol-stamped and pass the same runtime-scope reconciliation.
+
 ### TRAI Events Degraded State (2026-06-27)
 
 - Returned HTTP 200 for the intentionally unconfigured `/api/trai/events` source state so the dashboard news ticker can render the real degraded state without Chrome logging a recurring failed resource.
