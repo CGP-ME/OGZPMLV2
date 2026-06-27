@@ -35,11 +35,12 @@
     'use strict';
 
     const STORAGE_KEY = 'ogz.milestones.fired';
+    const FEATURE_FLAG_KEY = 'ogz.features.milestoneEffects';
     const STYLE_ID = 'ogz-milestone-effects-styles';
 
     // Default tiers - keys must be stable (used as localStorage flags).
-    // Equity values represent ACCOUNT TOTAL (not P&L delta). Adjust via
-    // setTargets() if the bot's starting equity is different.
+    // Values are profit deltas over the first verified session equity heartbeat.
+    // Seed or hydration equity must not count as earned progress.
     const DEFAULT_TIERS = {
         first100:      { value: 100,   label: '🎯 First $100',           kind: 'profit'   },
         first1000:     { value: 1000,  label: '💰 First $1,000',          kind: 'profit'   },
@@ -58,9 +59,22 @@
         tiers: { ...DEFAULT_TIERS },
         fired: {},                 // { tierKey: true }
         firedWinEvents: {},
-        peakEquity: 0,
-        tradeCount: 0
+        sessionOpenEquity: null,
+        peakEquity: null,
+        tradeCount: 0,
+        enabled: false
     };
+
+    function isOperatorMilestoneEnabled() {
+        try {
+            const flags = window.OGZ_DASHBOARD_FLAGS || {};
+            return localStorage.getItem('ogz.profile') === 'operator' &&
+                flags.personalMilestones === true &&
+                localStorage.getItem(FEATURE_FLAG_KEY) === 'enabled';
+        } catch (_) {
+            return false;
+        }
+    }
 
     // ─── Persistence ────────────────────────────────────────────────────
     function loadPersisted() {
@@ -70,7 +84,6 @@
                 const data = JSON.parse(raw);
                 state.fired = data.fired || {};
                 state.firedWinEvents = data.firedWinEvents || {};
-                state.peakEquity = data.peakEquity || 0;
             }
         } catch (_) { /* swallow */ }
     }
@@ -78,8 +91,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 fired: state.fired,
-                firedWinEvents: state.firedWinEvents,
-                peakEquity: state.peakEquity
+                firedWinEvents: state.firedWinEvents
             }));
         } catch (_) { /* swallow */ }
     }
@@ -247,6 +259,7 @@
 
     // ─── Visual Helpers ─────────────────────────────────────────────────
     function showBanner(label, sub) {
+        if (!state.enabled) return;
         const el = document.createElement('div');
         el.className = 'ogz-milestone-banner';
         const text = document.createElement('div');
@@ -263,6 +276,7 @@
     }
 
     function confetti(count) {
+        if (!state.enabled) return;
         // Deterministic spread (index-based, no Math.random for fairness)
         const n = Math.max(10, Math.min(120, count | 0));
         const colors = ['#ffd700', '#ff6b6b', '#22c55e', '#60a5fa', '#a78bfa', '#f472b6'];
@@ -291,6 +305,7 @@
     }
 
     function screenFlash() {
+        if (!state.enabled) return;
         const el = document.createElement('div');
         el.className = 'ogz-screen-flash';
         document.body.appendChild(el);
@@ -298,6 +313,7 @@
     }
 
     function rocketAnimation() {
+        if (!state.enabled) return;
         const el = document.createElement('div');
         el.className = 'ogz-rocket';
         el.textContent = '🚀';
@@ -306,6 +322,7 @@
     }
 
     function houstonReadyTakeover() {
+        if (!state.enabled) return;
         const overlay = document.createElement('div');
         overlay.className = 'ogz-houston-ready-overlay';
         overlay.innerHTML = `
@@ -323,6 +340,7 @@
 
     // ─── Tier Crossing Logic ────────────────────────────────────────────
     function fireTier(key, tier) {
+        if (!state.enabled) return;
         if (state.fired[key]) return;          // already fired
         state.fired[key] = true;
         savePersisted();
@@ -350,43 +368,59 @@
     }
 
     function check(equity) {
-        const b = Number(equity) || 0;
-        if (b > state.peakEquity) {
+        if (!state.enabled) return;
+        const b = Number(equity);
+        if (!Number.isFinite(b) || b <= 0) return;
+        if (state.sessionOpenEquity === null) {
+            state.sessionOpenEquity = b;
+            savePersisted();
+            return;
+        }
+        if (state.peakEquity === null || b > state.peakEquity) {
             state.peakEquity = b;
             savePersisted();
         }
+        if (state.tradeCount <= 0) return;
+        const earned = b - state.sessionOpenEquity;
+        if (!Number.isFinite(earned) || earned <= 0) return;
         // Fire any unfired tier whose threshold the equity has crossed.
         // Iterate in ascending threshold order so banners come in sequence
         // if multiple cross in one update.
         const sorted = Object.entries(state.tiers).sort((a, b2) => a[1].value - b2[1].value);
         for (const [key, tier] of sorted) {
-            if (b >= tier.value && !state.fired[key]) {
+            if (earned >= tier.value && !state.fired[key]) {
                 fireTier(key, tier);
             }
         }
     }
 
     function onMilestoneEquity(payload) {
+        if (!state.enabled) return;
         if (!payload || typeof payload.equity !== 'number') return;
         check(payload.equity);
     }
 
     // Win-event tiers (firstWin)
     function onWin(payload) {
+        if (!state.enabled) return;
         if (!payload) return;
+        state.tradeCount++;
         if (!state.firedWinEvents.firstWin) {
             state.firedWinEvents.firstWin = true;
             savePersisted();
             showBanner(WIN_EVENT_TIERS.firstWin.label, WIN_EVENT_TIERS.firstWin.sub);
             confetti(30);
+        } else {
+            savePersisted();
         }
-        state.tradeCount++;
     }
 
     // ─── Public API ─────────────────────────────────────────────────────
     const api = {
         init() {
             try {
+                state.enabled = isOperatorMilestoneEnabled();
+                if (!state.enabled) return;
                 injectStyles();
                 loadPersisted();
                 (function bindBus() {
@@ -397,10 +431,13 @@
             } catch (_) { /* swallow */ }
         },
         check,
+        isEnabled: isOperatorMilestoneEnabled,
         resetProgress() {
             state.fired = {};
             state.firedWinEvents = {};
-            state.peakEquity = 0;
+            state.sessionOpenEquity = null;
+            state.peakEquity = null;
+            state.tradeCount = 0;
             try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
         },
         setTargets(overrides) {
@@ -420,8 +457,10 @@
                 tiers: state.tiers,
                 fired: { ...state.fired },
                 firedWinEvents: { ...state.firedWinEvents },
+                sessionOpenEquity: state.sessionOpenEquity,
                 peakEquity: state.peakEquity,
-                tradeCount: state.tradeCount
+                tradeCount: state.tradeCount,
+                enabled: state.enabled
             };
         }
     };
