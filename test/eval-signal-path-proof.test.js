@@ -261,6 +261,100 @@ describe('eval signal path proof', () => {
     }));
   });
 
+  test('uses symbol-scoped market data instead of global last-tick data during multi-asset analysis', async () => {
+    const { ctx } = buildProofContext({ brokerId: 'alpaca', symbol: 'TSLA', assetClass: 'stocks', price: 208 });
+    const tslaHistory = candles(20, 406);
+    const tslaMarketData = {
+      symbol: 'TSLA',
+      price: 406,
+      timestamp: 1700000060000,
+      volume: 1234,
+    };
+    ctx.marketData = {
+      symbol: 'NVDA',
+      price: 208,
+      timestamp: 1700000000000,
+      volume: 9999,
+    };
+    ctx.symbolContexts = new Map([
+      ['TSLA', {
+        priceHistory: tslaHistory,
+        marketData: tslaMarketData,
+      }]
+    ]);
+    ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+      ...buildOrchResult(),
+      direction: 'hold',
+      confidence: 80,
+    }));
+    ctx.executeTrade = jest.fn();
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_symbol_scope_price');
+
+    expect(loop._gatherData).toHaveBeenCalledWith(406, ctx.symbolContexts.get('TSLA'), 'TSLA', tslaMarketData);
+    expect(ctx.strategyOrchestrator.evaluate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Array),
+      expect.any(Object),
+      tslaHistory,
+      expect.objectContaining({
+        price: 406,
+        symbol: 'TSLA',
+      })
+    );
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('[MARKET-SCOPE][FALLBACK] analyze symbol=TSLA'));
+  });
+
+  test('warns and falls back only to matching global market data when scoped market data has the wrong symbol', async () => {
+    const { ctx } = buildProofContext({ brokerId: 'alpaca', symbol: 'TSLA', assetClass: 'stocks', price: 406 });
+    const tslaHistory = candles(20, 406);
+    const globalTslaMarketData = {
+      symbol: 'TSLA',
+      price: 406,
+      timestamp: 1700000060000,
+      volume: 1234,
+    };
+    ctx.marketData = globalTslaMarketData;
+    ctx.symbolContexts = new Map([
+      ['TSLA', {
+        priceHistory: tslaHistory,
+        marketData: {
+          symbol: 'NVDA',
+          price: 208,
+          timestamp: 1700000000000,
+          volume: 9999,
+        },
+      }]
+    ]);
+    ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+      ...buildOrchResult(),
+      direction: 'hold',
+      confidence: 80,
+    }));
+    ctx.executeTrade = jest.fn();
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+
+    await loop._analyze('TSLA', 'trace_symbol_scope_mismatch');
+
+    expect(loop._gatherData).toHaveBeenCalledWith(406, ctx.symbolContexts.get('TSLA'), 'TSLA', globalTslaMarketData);
+    expect(ctx.strategyOrchestrator.evaluate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Array),
+      expect.any(Object),
+      tslaHistory,
+      expect.objectContaining({
+        price: 406,
+        symbol: 'TSLA',
+      })
+    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('reason=symbol_context_market_data_symbol_mismatch'));
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+  });
+
   test.each([
     { brokerId: 'kraken', symbol: 'BTC-USD', assetClass: 'crypto', price: 50000 },
     { brokerId: 'alpaca', symbol: 'TSLA', assetClass: 'stocks', price: 100 },

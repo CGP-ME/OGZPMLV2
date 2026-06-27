@@ -71,6 +71,45 @@ class TradingLoop {
     console.log(`[PIPE][${stage}] ${parts.join(' ')}`);
   }
 
+  _resolveSymbolMarketData(symbol, symCtx = null) {
+    const globalMarketData = this.ctx.marketData;
+    const scopedMarketData = symCtx?.marketData;
+    if (scopedMarketData?.symbol === symbol) return scopedMarketData;
+    if (scopedMarketData) {
+      return globalMarketData?.symbol === symbol ? globalMarketData : null;
+    }
+    if (!symCtx) return globalMarketData ?? null;
+    return globalMarketData?.symbol === symbol ? globalMarketData : null;
+  }
+
+  _alertMarketDataFallback(symbol, stage, traceId, symCtx = null, marketData = null) {
+    const scopedMarketSymbol = symCtx?.marketData?.symbol || null;
+    if (scopedMarketSymbol === symbol) return;
+    if (!marketData && !scopedMarketSymbol) return;
+    const reason = scopedMarketSymbol
+      ? 'symbol_context_market_data_symbol_mismatch'
+      : (symCtx ? 'symbol_context_missing_market_data' : 'symbol_context_missing');
+    const marketSymbol = marketData?.symbol || null;
+    console.warn(`[MARKET-SCOPE][FALLBACK] ${stage} symbol=${symbol} reason=${reason} scopedMarketSymbol=${scopedMarketSymbol || 'missing'} using global marketData symbol=${marketSymbol || 'missing'}`);
+    this._diag('MARKET_SCOPE_FALLBACK', {
+      stage,
+      symbol,
+      reason,
+      scopedMarketSymbol: scopedMarketSymbol || 'missing',
+      marketSymbol: marketSymbol || 'missing'
+    });
+    if (traceId) {
+      emitTrace(this.ctx, 'MARKET_SCOPE_FALLBACK', {
+        traceId,
+        symbol,
+        stage,
+        reason,
+        scopedMarketSymbol,
+        marketSymbol,
+      });
+    }
+  }
+
   _ledgerText(value, label) {
     if (typeof value !== 'string' || !value.trim()) {
       throw new Error(`[LEDGER] ${label} missing or blank`);
@@ -526,8 +565,8 @@ class TradingLoop {
     const traceId = createTraceId('trace');
     emitTrace(this.ctx, 'EXIT_ONLY_START', { traceId, symbol });
     const symCtx = this.ctx.symbolContexts?.get(symbol);
-    const marketData = symCtx?.marketData
-      ?? (this.ctx.marketData?.symbol === symbol ? this.ctx.marketData : null);
+    const marketData = this._resolveSymbolMarketData(symbol, symCtx);
+    this._alertMarketDataFallback(symbol, 'exit_only', traceId, symCtx, marketData);
     const stateLastPrice = typeof stateManager.getLastPrice === 'function'
       ? stateManager.getLastPrice(symbol)
       : null;
@@ -687,7 +726,24 @@ class TradingLoop {
       this._firstAnalyzedSymbols.add(symbol);
     }
 
-    const { price } = this.ctx.marketData;
+    const marketData = this._resolveSymbolMarketData(symbol, symCtx);
+    this._alertMarketDataFallback(symbol, 'analyze', traceId, symCtx, marketData);
+    const price = Number(marketData?.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      this._diag('ANALYSIS_NO_SCOPED_PRICE', {
+        symbol,
+        route: symCtx ? 'symbolContext' : 'global',
+        marketSymbol: this.ctx.marketData?.symbol || 'missing'
+      });
+      emitTrace(this.ctx, 'ANALYSIS_SKIP', {
+        traceId,
+        symbol,
+        reason: 'no_scoped_price',
+        route: symCtx ? 'symbolContext' : 'global',
+        marketSymbol: this.ctx.marketData?.symbol || null,
+      });
+      return;
+    }
 
     // ─── WARMUP CHECK ───
     if (priceHistory.length < 15) {
@@ -707,7 +763,7 @@ class TradingLoop {
     }
 
     // ─── GATHER DATA ───
-    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol);
+    const { indicators, patterns, regime, tpoResult, fibLevels, nearestFibLevel, nearestStructure } = this._gatherData(price, symCtx, symbol, marketData);
     const patternScope = this._patternScope(symbol);
 
     // ─── RUN ORCHESTRATOR ───
@@ -813,12 +869,12 @@ class TradingLoop {
         minConfidencePct: minConfidence * 100,
       });
       console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter} enableShorts=${enableShorts}`);
-      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData);
+      this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
       return;
     }
 
     // ─── TRAI (async observer, non-blocking) ───
-    this._runTRAI(finalDirection, orchResult, indicators, patterns, regime, price, symbol);
+    this._runTRAI(finalDirection, orchResult, indicators, patterns, regime, price, symbol, marketData);
 
     // ═══════════════════════════════════════════════════════════════
     // DECISION ENGINE — Direction agnostic
@@ -884,7 +940,7 @@ class TradingLoop {
 
         const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
         indicators,
-        currentTime: this.ctx.marketData?.timestamp ?? Date.now(),
+        currentTime: marketData?.timestamp ?? Date.now(),
         // FIX 2026-04-09: Use getEquity() for live mode to get true account value
         accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
         initialBalance: _initialBalance,
@@ -928,7 +984,7 @@ class TradingLoop {
         const profitResult = mpm.update(price, {
           volatility: indicators.volatility ?? null,
           trend: indicators.trend || 'sideways',
-          volume: this.ctx.marketData?.volume || 0,
+          volume: marketData?.volume || 0,
           atr: indicators.atr,
           rsi: indicators.rsi,
           candle: priceHistory[priceHistory.length - 1],
@@ -1109,7 +1165,7 @@ class TradingLoop {
     this.ctx.lastDirection = finalDirection;
 
     // ─── BROADCAST ───
-    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence);
+    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData);
 
     // ─── EXECUTE ───
     if (decision.action !== 'HOLD') {
@@ -1149,7 +1205,7 @@ class TradingLoop {
         const winnerSignalMetadata = winnerIndex !== null ? this._ledgerSignalMetadata(allResults[winnerIndex], winnerIndex) : {};
         const ledgerScope = this._patternScope(symbol);
         decision.ledgerData = {
-          candleTimestamp: this.ctx.marketData.timestamp || Date.now(),
+          candleTimestamp: marketData?.timestamp || Date.now(),
           symbol,
           brokerId: ledgerScope.brokerId || null,
           accountId: ledgerScope.accountId || null,
@@ -1320,7 +1376,7 @@ class TradingLoop {
   // DATA GATHERING — unchanged from original, just extracted
   // ═══════════════════════════════════════════════════════════════
 
-  _gatherData(price, symCtx = null, symbol = null) {
+  _gatherData(price, symCtx = null, symbol = null, marketData = null) {
     // CC-C Multi-Symbol Commit 4/6: same per-symbol shadowing pattern as
     // _analyze. When symCtx is passed, route data-gathering reads through it;
     // otherwise fall back to this.ctx.* for single-symbol legacy callers.
@@ -1346,7 +1402,7 @@ class TradingLoop {
       macd: indicators.macd?.macd ?? indicators.macd?.macdLine ?? null,
       macdSignal: indicators.macd?.signal ?? indicators.macd?.signalLine ?? null,
       rsi: indicators.rsi,
-      volume: this.ctx.marketData.volume ?? null,
+      volume: marketData?.volume ?? null,
       ...patternScope
     });
     // 2026-05-04: Re-enabled per Wolf strategy-resurrection spec.
@@ -1358,7 +1414,7 @@ class TradingLoop {
       rsi: indicators.rsi,
       trend: indicators.trend,
       macd: indicators.macd?.macd ?? null,
-      volume: this.ctx.marketData?.volume ?? null
+      volume: marketData?.volume ?? null
     });
     const minPatternConf = TradingConfig.get('confidence.candlePatternMinConfidence') || 0.70;
     const candlePatterns = rawCandlePatterns.filter(p => (p.confidence || 0) >= minPatternConf);
@@ -1391,7 +1447,7 @@ class TradingLoop {
         let observed = null;
         if (canRecordPatternObservations && Array.isArray(pattern.features) && pattern.features.length > 0) {
           observed = this.ctx.patternChecker.memory.recordObservation(pattern.features, {
-            timestamp: this.ctx.marketData?.timestamp ?? Date.now(),
+            timestamp: marketData?.timestamp ?? Date.now(),
             strategy: pattern.name || pattern.type,
             price,
             ...patternScope,
@@ -1502,7 +1558,7 @@ class TradingLoop {
   // TRAI — async observer, non-blocking
   // ═══════════════════════════════════════════════════════════════
 
-  _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol) {
+  _runTRAI(direction, orchResult, indicators, patterns, regime, price, symbol, marketData = null) {
     const skipTRAI = this.ctx.config.enableBacktestMode && !this.ctx.traiEnableBacktest;
     if (!this.ctx.trai || skipTRAI) return;
 
@@ -1510,7 +1566,7 @@ class TradingLoop {
       const patternScope = this._patternScope(symbol);
       this.ctx.trai.processDecision(
         { action: direction.toUpperCase(), confidence: orchResult.confidence, patterns, indicators, price, timestamp: Date.now(), ...patternScope },
-        { volatility: indicators.volatility, trend: indicators.trend, volume: this.ctx.marketData.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
+        { volatility: indicators.volatility, trend: indicators.trend, volume: marketData?.volume || 'normal', regime: regime.currentRegime || 'unknown', indicators, positionSize: stateManager.get('balance') * TradingConfig.get('positionSizing.basePositionSize'), currentPosition: stateManager.get('position'), ...patternScope }
       ).then(d => { if (d?.id) this.ctx._lastTraiDecision = d; })
        .catch(err => console.warn('[TRAI] Error:', err.message));
     } catch (e) {
@@ -1522,8 +1578,8 @@ class TradingLoop {
   // DASHBOARD BROADCAST
   // ═══════════════════════════════════════════════════════════════
 
-  _broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData) {
-    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0);
+  _broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData = null) {
+    this._broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, { action: 'HOLD' }, confidenceData, 0, marketData);
   }
 
   _finiteDashboardNumber(...values) {
@@ -1534,7 +1590,7 @@ class TradingLoop {
     return null;
   }
 
-  _dashboardIndicatorsPayload(indicators) {
+  _dashboardIndicatorsPayload(indicators, marketData = null) {
     const macd = indicators?.macd;
     return {
       rsi: this._finiteDashboardNumber(indicators?.rsi),
@@ -1542,13 +1598,13 @@ class TradingLoop {
       macd: this._finiteDashboardNumber(macd?.macd, macd?.macdLine, macd),
       macdSignal: this._finiteDashboardNumber(macd?.signal, macd?.signalLine, indicators?.macdSignal),
       macdHistogram: this._finiteDashboardNumber(macd?.hist, macd?.histogram, indicators?.macdHistogram),
-      volume: this._finiteDashboardNumber(indicators?.volume, this.ctx.marketData?.volume)
+      volume: this._finiteDashboardNumber(indicators?.volume, marketData?.volume)
     };
   }
 
-  _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence) {
+  _broadcastDecision(symbol, price, indicators, patterns, regime, orchResult, decision, confidenceData, minConfidence, marketData = null) {
     const scope = this._dashboardScope(symbol);
-    const dashboardIndicators = this._dashboardIndicatorsPayload(indicators);
+    const dashboardIndicators = this._dashboardIndicatorsPayload(indicators, marketData);
     const winnerResult = Array.isArray(orchResult?.allResults)
       ? orchResult.allResults.find(r => r.strategyName === orchResult.winnerStrategy)
       : null;
