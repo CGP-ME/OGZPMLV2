@@ -463,18 +463,16 @@ describe('eval live posture gate', () => {
       expect(cachedAfter.fingerprint).toBe(cachedBefore.fingerprint);
       expect(cachedAfter.config.mode.execution).toBe('paper');
     } finally {
-      process.env = {
-        ...originalEnv,
-        RISK_MANAGER_BYPASS: originalEnv.RISK_MANAGER_BYPASS || 'false',
-        ACCOUNT_DRAWDOWN_BYPASS: originalEnv.ACCOUNT_DRAWDOWN_BYPASS || 'false',
-        MAX_DRAWDOWN: originalEnv.MAX_DRAWDOWN || '5',
-        MAX_DAILY_LOSS: originalEnv.MAX_DAILY_LOSS || '1',
-        MAX_WEEKLY_LOSS: originalEnv.MAX_WEEKLY_LOSS || '5',
-        MAX_MONTHLY_LOSS: originalEnv.MAX_MONTHLY_LOSS || '5',
-        ALPACA_MODE: originalEnv.ALPACA_MODE || 'paper',
-        ALPACA_API_KEY: originalEnv.ALPACA_API_KEY || 'test-alpaca-key',
-        ALPACA_API_SECRET: originalEnv.ALPACA_API_SECRET || 'test-alpaca-secret',
-      };
+      process.env = validEvalLiveEnv({
+        EXECUTION_MODE: 'paper',
+        PAPER_TRADING: 'false',
+        LIVE_TRADING: 'false',
+        CONFIRM_LIVE_TRADING: 'false',
+        WEBHOOK_ORDERS_ENABLED: 'false',
+        WEBHOOK_DRY_RUN: 'true',
+        EVAL_RULES_ENABLED: 'false',
+        TTP_RULES_ENABLED: 'false',
+      });
       ConfigLoader.load({ force: true, silent: true });
       process.env = originalEnv;
     }
