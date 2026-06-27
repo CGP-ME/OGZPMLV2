@@ -78,6 +78,46 @@ describe('TradeJournalBridge scoped storage', () => {
       .toThrow(/replayDir must stay under scoped journal dataDir/);
   });
 
+  test('resolves replay candles from active symbol context before bot-level history', () => {
+    const { resolveReplayPriceHistory } = require('../core/TradeJournalBridge');
+    const tslaHistory = [{ close: 400, timestamp: 1 }];
+    const maraHistory = [{ close: 14.5, timestamp: 2 }];
+    const result = resolveReplayPriceHistory({
+      priceHistory: tslaHistory,
+      symbolContexts: new Map([
+        ['MARA', { priceHistory: maraHistory }],
+      ]),
+      config: { tradingPair: 'TSLA' },
+    }, 'MARA');
+
+    expect(result).toMatchObject({
+      ok: true,
+      source: 'symbol_context',
+      symbol: 'MARA',
+    });
+    expect(result.priceHistory).toBe(maraHistory);
+  });
+
+  test('refuses bot-level replay history when symbol contexts are active but missing the trade symbol', () => {
+    const { resolveReplayPriceHistory } = require('../core/TradeJournalBridge');
+    const result = resolveReplayPriceHistory({
+      priceHistory: [{ close: 400, timestamp: 1 }],
+      symbolContexts: new Map([
+        ['TSLA', { priceHistory: [{ close: 400, timestamp: 1 }] }],
+      ]),
+      config: { tradingPair: 'TSLA' },
+    }, 'MARA');
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'symbol_context_missing',
+      source: 'symbol_context',
+      symbol: 'MARA',
+      availableSymbols: ['TSLA'],
+    });
+    expect(result.priceHistory).toBeNull();
+  });
+
   test('refuses unscoped default journal storage when runtime scope is incomplete', () => {
     const { resolveJournalDataDir } = require('../core/TradeJournalBridge');
 
@@ -369,6 +409,7 @@ describe('TradeJournalBridge scoped storage', () => {
         patterns: [],
       }],
     ]);
+    const tslaReplayHistory = [{ open: 49900, high: 50100, low: 49800, close: 50000, volume: 10, timestamp: 1779999990000 }];
     const bot = {
       executeTrade: jest.fn(async () => ({
         success: true,
@@ -383,6 +424,9 @@ describe('TradeJournalBridge scoped storage', () => {
         detectRegime: jest.fn(() => ({ currentRegime: 'test-regime' })),
       },
       priceHistory: [],
+      symbolContexts: new Map([
+        ['TSLA', { priceHistory: tslaReplayHistory }],
+      ]),
     };
     const bridge = {
       bot,
@@ -439,7 +483,7 @@ describe('TradeJournalBridge scoped storage', () => {
         decisionId: 'decision-order-1',
         orchestratorDecision: expect.objectContaining({ winnerStrategy: 'EMASMACrossover' }),
       }),
-      []
+      tslaReplayHistory
     );
   });
 
@@ -959,6 +1003,7 @@ describe('TradeJournalBridge scoped storage', () => {
   test('wraps OrderExecutor logTrade sink and records complete close records', async () => {
     const { TradeJournalBridge } = require('../core/TradeJournalBridge');
     const originalLogTrade = jest.fn(async () => ({ logged: true }));
+    const tslaReplayHistory = [{ open: 104, high: 106, low: 103, close: 105, volume: 10, timestamp: 1780000090000 }];
     const bot = {
       executeTrade: jest.fn(async () => ({ ok: true })),
       orderExecutor: {
@@ -974,6 +1019,9 @@ describe('TradeJournalBridge scoped storage', () => {
         }),
       },
       priceHistory: [],
+      symbolContexts: new Map([
+        ['TSLA', { priceHistory: tslaReplayHistory }],
+      ]),
     };
     const bridge = {
       bot,
@@ -1027,7 +1075,7 @@ describe('TradeJournalBridge scoped storage', () => {
         holdTime: 60000,
         direction: 'long',
       }),
-      []
+      tslaReplayHistory
     );
     expect(bridge._pushTradeClosedNotification).toHaveBeenCalledWith(
       'ORDER-1',
