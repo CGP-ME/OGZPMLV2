@@ -121,6 +121,7 @@ describe('TtpCutoffEnforcer', () => {
     const stateManager = {
       get: jest.fn(() => activeTrades),
       pauseTrading: jest.fn(async () => ({ success: true })),
+      updateState: jest.fn(async () => ({ success: true })),
     };
     const logger = { log: jest.fn() };
     const enforcer = new TtpCutoffEnforcer({
@@ -161,16 +162,30 @@ describe('TtpCutoffEnforcer', () => {
       { tradeId: 'BUY_1', symbol: 'TSLA', action: 'SELL', price: 126 },
     ]);
     expect(result.requiresManualReconciliation).toBe(true);
+    expect(result.quarantine).toEqual(expect.objectContaining({
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      brokerFlatVerified: false,
+      currentDateET: '2026-05-22',
+      marketTimeBlocksNewEntries: true,
+      inLiquidationWindow: true,
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
     expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
-    expect(stateManager.pauseTrading).toHaveBeenCalledWith(
-      expect.stringContaining('broker flatness unverified'),
-      expect.objectContaining({
+    expect(stateManager.pauseTrading).not.toHaveBeenCalled();
+    expect(stateManager.updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: expect.objectContaining({
         source: 'ttp_cutoff_unverified_broker_flatness',
-        recoverable: false,
+        entryBlocking: false,
+      }) },
+      expect.objectContaining({
+        action: 'TTP_CUTOFF_QUARANTINE',
+        entryBlocking: false,
       })
     );
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('pending manual reconciliation'));
+    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('BROKER FLATNESS QUARANTINED'));
   });
 
   test('webhook-routed cutoff still closes tracked state after the liquidation window is missed', async () => {
@@ -187,6 +202,7 @@ describe('TtpCutoffEnforcer', () => {
     const stateManager = {
       get: jest.fn(() => activeTrades),
       pauseTrading: jest.fn(async () => ({ success: true })),
+      updateState: jest.fn(async () => ({ success: true })),
     };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
@@ -220,15 +236,23 @@ describe('TtpCutoffEnforcer', () => {
       { tradeId: 'BUY_1', symbol: 'TSLA', action: 'SELL', price: 126 },
     ]);
     expect(result.requiresManualReconciliation).toBe(true);
+    expect(result.quarantine).toEqual(expect.objectContaining({
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      marketTimeBlocksNewEntries: true,
+      inLiquidationWindow: false,
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
     expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
-    expect(stateManager.pauseTrading).toHaveBeenCalledWith(
-      expect.stringContaining('manual account reconciliation required'),
-      expect.objectContaining({ source: 'ttp_cutoff_unverified_broker_flatness' })
+    expect(stateManager.pauseTrading).not.toHaveBeenCalled();
+    expect(stateManager.updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: expect.objectContaining({ source: 'ttp_cutoff_unverified_broker_flatness' }) },
+      expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
     );
   });
 
-  test('webhook-routed cutoff fails loud when broker flatness is unverified and entries cannot be paused', async () => {
+  test('webhook-routed cutoff quarantines unverified broker flatness without entry pause API', async () => {
     const now = () => new Date('2026-05-22T20:05:00.000Z').getTime();
     const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
     const executeTrade = jest.fn(async () => {
@@ -236,7 +260,10 @@ describe('TtpCutoffEnforcer', () => {
     });
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
-      stateManager: { get: jest.fn(() => activeTrades) },
+      stateManager: {
+        get: jest.fn(() => activeTrades),
+        updateState: jest.fn(async () => ({ success: true })),
+      },
       orderRouter: {
         cancelAllOpenOrders: jest.fn(),
         getAllPositions: jest.fn(),
@@ -251,7 +278,14 @@ describe('TtpCutoffEnforcer', () => {
       logger: { log: jest.fn() },
     });
 
-    await expect(enforcer.enforce()).rejects.toThrow(/StateManager\.pauseTrading unavailable/);
+    const result = await enforcer.enforce();
+
+    expect(result.enforced).toBe(true);
+    expect(result.requiresManualReconciliation).toBe(true);
+    expect(result.quarantine).toEqual(expect.objectContaining({
+      status: 'quarantined',
+      entryBlocking: false,
+    }));
     expect(enforcer.completedKeys.size).toBe(0);
   });
 
@@ -288,6 +322,7 @@ describe('TtpCutoffEnforcer', () => {
     const stateManager = {
       get: jest.fn(() => activeTrades),
       pauseTrading: jest.fn(async () => ({ success: true })),
+      updateState: jest.fn(async () => ({ success: true })),
     };
     const enforcer = new TtpCutoffEnforcer({
       evalRuleEngine: makeRuleEngine(now),
@@ -315,7 +350,11 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.requiresManualReconciliation).toBe(true);
     expect(enforcer.completedKeys.size).toBe(0);
     expect(enforcer.unverifiedKeys.has('2026-05-22:950')).toBe(true);
-    expect(stateManager.pauseTrading).toHaveBeenCalled();
+    expect(stateManager.pauseTrading).not.toHaveBeenCalled();
+    expect(stateManager.updateState).toHaveBeenCalledWith(
+      { ttpCutoffQuarantine: expect.objectContaining({ status: 'quarantined', entryBlocking: false }) },
+      expect.objectContaining({ action: 'TTP_CUTOFF_QUARANTINE' })
+    );
   });
 
   test('does not relabel unverified webhook cutoff as complete on repeated empty checks', async () => {

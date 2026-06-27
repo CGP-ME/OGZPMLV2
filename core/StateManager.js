@@ -144,6 +144,7 @@ class StateManager {
       // ─────────────────────────────────────────────────────────────────────
       activeTrades: new Map(),  // orderId → { size, price, entryTime, symbol, ... }
       symbolEntryHalts: {},     // canonical symbol -> { reason, haltedAt }
+      ttpCutoffQuarantine: null,
       // Per-symbol last-known prices for cross-asset equity math.
       // Mercury attack 2026-05-04: getEquity previously applied ONE caller-
       // supplied currentPrice across all activeTrades, which corrupts equity
@@ -239,6 +240,7 @@ class StateManager {
       inPosition: 0,
       activeTrades: new Map(),
       symbolEntryHalts: {},
+      ttpCutoffQuarantine: null,
       lastPrices: new Map(),
       lastTradeTime: null,
       tradeCount: 0,
@@ -2366,6 +2368,7 @@ class StateManager {
         tradeCount: state.tradeCount,
         dailyTradeCount: state.dailyTradeCount,
         recoveryMode: state.recoveryMode,
+        ttpCutoffQuarantine: state.ttpCutoffQuarantine || null,
         runtimeScope,
         runtimeScopeStatus,
         runtimeScopeMissing,
@@ -2386,6 +2389,7 @@ class StateManager {
         totalPnL: dashboardState.totalPnL,
         tradeCount: dashboardState.tradeCount,
         dailyTradeCount: dashboardState.dailyTradeCount,
+        ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,
         runtimeScope,
         runtimeScopeStatus,
         runtimeScopeMissing,

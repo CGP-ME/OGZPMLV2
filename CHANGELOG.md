@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TTP Cutoff Flatness Quarantine (2026-06-26)
+
+- Replaced the webhook-routed TTP cutoff broker-flatness global entry pause with an explicit `ttpCutoffQuarantine` state record and loud quarantine log.
+- Kept real cutoff safety failures fail-closed: pending-order cancellation failures, tracked trades that remain open, missing exit prices, failed orphan closes, and verified broker positions still open continue to throw instead of marking the cutoff complete.
+- Broadcast the cutoff quarantine through `StateManager` state updates so the dashboard/runtime can show manual reconciliation is required without turning `isTrading` off.
+
 ### Dashboard Market Scope Contract (2026-06-26)
 
 - Added validated dashboard market-scope stamping for existing stock `price`, `ticker_price`, and `historical_candles` frames so the modular dashboard shell can consume `StateManager`/SessionRouter scope without a second router or fake defaults.

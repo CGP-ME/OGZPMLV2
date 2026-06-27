@@ -190,11 +190,9 @@ class TtpCutoffEnforcer {
 
       const brokerFlatVerified = brokerPositionReadAvailable;
       if (!brokerFlatVerified) {
-        await this._pauseForUnverifiedBrokerFlatness(state, closed, orphanClosed);
+        const quarantine = await this._quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult);
         this.unverifiedKeys.add(key);
         this.completedKeys.delete(key);
-        const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
-        warn(`[TTP_MARKET_TIME] cutoff enforcement pending manual reconciliation date=${state.currentDateET} closed=${closed.length} orphanClosed=${orphanClosed.length} brokerFlatVerified=false`);
         return {
           enforced: true,
           alreadyCompleted,
@@ -204,6 +202,7 @@ class TtpCutoffEnforcer {
           orphanClosed,
           brokerFlatVerified,
           requiresManualReconciliation: true,
+          quarantine,
         };
       }
 
@@ -288,15 +287,28 @@ class TtpCutoffEnforcer {
     };
   }
 
-  async _pauseForUnverifiedBrokerFlatness(state, closed, orphanClosed) {
-    if (!this.stateManager || typeof this.stateManager.pauseTrading !== 'function') {
-      throw new Error('[TTP_MARKET_TIME] broker flatness unverified and StateManager.pauseTrading unavailable');
+  async _quarantineUnverifiedBrokerFlatness(state, closed, orphanClosed, cancelResult) {
+    if (!this.stateManager || typeof this.stateManager.updateState !== 'function') {
+      throw new Error('[TTP_MARKET_TIME] broker flatness unverified and StateManager.updateState unavailable for quarantine record');
     }
 
-    const reason = `[TTP_MARKET_TIME] broker flatness unverified after cutoff date=${state.currentDateET}; manual account reconciliation required before entries resume`;
-    await this.stateManager.pauseTrading(reason, {
+    const createdAt = new Date(this.now()).toISOString();
+    const reason = `[TTP_MARKET_TIME] broker flatness unverified after cutoff date=${state.currentDateET}; cutoff reconciliation quarantined; entries remain governed by normal risk/eval rules`;
+    const quarantine = {
       source: 'ttp_cutoff_unverified_broker_flatness',
-      recoverable: false,
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+      reason,
+      currentDateET: state.currentDateET,
+      cutoffMinute: state.cutoffMinute,
+      currentMinuteET: state.currentMinuteET,
+      phase: state.phase || null,
+      marketTimeBlocksNewEntries: state.blocksNewEntries === true,
+      inLiquidationWindow: state.inLiquidationWindow === true,
+      assetClass: this.assetClass || null,
       scope: {
         symbol: null,
         timeframe: null,
@@ -305,16 +317,25 @@ class TtpCutoffEnforcer {
         assetClass: this.assetClass || null,
         executionMode: null,
       },
+      closedCount: Array.isArray(closed) ? closed.length : 0,
+      orphanClosedCount: Array.isArray(orphanClosed) ? orphanClosed.length : 0,
+      cancelled: Number.isFinite(cancelResult?.cancelled) ? cancelResult.cancelled : 0,
       closed,
       orphanClosed,
-    });
+      createdAt,
+    };
 
-    if (typeof this.stateManager.getState === 'function') {
-      const stateSnapshot = this.stateManager.getState();
-      if (stateSnapshot?.isTrading !== false) {
-        throw new Error('[TTP_MARKET_TIME] broker flatness unverified and pauseTrading did not confirm entries paused');
-      }
+    const result = await this.stateManager.updateState(
+      { ttpCutoffQuarantine: quarantine },
+      { action: 'TTP_CUTOFF_QUARANTINE', reason, source: quarantine.source, entryBlocking: false }
+    );
+    if (result && result.success === false) {
+      throw new Error(`[TTP_MARKET_TIME] broker flatness quarantine record failed: ${result.error || 'unknown_error'}`);
     }
+
+    const warn = typeof this.logger.warn === 'function' ? this.logger.warn.bind(this.logger) : this.logger.log.bind(this.logger);
+    warn(`[TTP_MARKET_TIME] BROKER FLATNESS QUARANTINED date=${state.currentDateET} closed=${quarantine.closedCount} orphanClosed=${quarantine.orphanClosedCount} brokerFlatVerified=false entryBlocking=false manualReconciliationRequired=true`);
+    return quarantine;
   }
 
   _ttpBrokerPositions(positions, symbolScope = this._currentSymbolScope(), targetAllBrokerStocks = this.brokerNames.length > 0) {
