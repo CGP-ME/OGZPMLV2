@@ -658,7 +658,8 @@ app.get('/api/trai/events', async (req, res) => {
   try {
     const symbol = sanitizeSymbol(req.query.symbol, 'TSLA');
     if (!TAVILY_API_KEY) {
-      return res.status(503).json({
+      res.set('Cache-Control', 'no-store');
+      return res.json({
         events: [],
         source: 'tavily',
         symbol,

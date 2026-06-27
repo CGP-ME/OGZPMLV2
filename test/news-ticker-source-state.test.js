@@ -143,8 +143,8 @@ function loadNewsTicker(fetchImpl, selectedSymbol = 'TSLA') {
 describe('news ticker source state', () => {
   test('renders unconfigured TRAI news state instead of waiting forever', async () => {
     const fetchImpl = jest.fn(async () => ({
-      ok: false,
-      status: 503,
+      ok: true,
+      status: 200,
       json: async () => ({
         events: [],
         source: 'tavily',
@@ -166,6 +166,33 @@ describe('news ticker source state', () => {
       feedSymbol: 'TSLA',
     });
     expect(root.textContent).toContain('News search is not configured for this deployment.');
+  });
+
+  test('renders unavailable TRAI news state from real source outage', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        events: [],
+        source: 'tavily+trai',
+        symbol: 'TSLA',
+        configured: true,
+        status: 'unavailable',
+        message: 'News event source is temporarily unavailable.',
+      }),
+    }));
+    const { ticker, root } = loadNewsTicker(fetchImpl);
+
+    ticker.init();
+    await flushPromises();
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/trai/events?symbol=TSLA');
+    expect(ticker._compute()).toMatchObject({
+      realEventsCount: 0,
+      feedStatus: 'unavailable',
+      feedSymbol: 'TSLA',
+    });
+    expect(root.textContent).toContain('News event source is temporarily unavailable.');
   });
 
   test('renders empty TRAI news state as a sourced result', async () => {

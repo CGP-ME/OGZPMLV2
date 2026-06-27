@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### TRAI Events Degraded State (2026-06-27)
+
+- Returned HTTP 200 for the intentionally unconfigured `/api/trai/events` source state so the dashboard news ticker can render the real degraded state without Chrome logging a recurring failed resource.
+
 ### Mercury DeepSearch Substrate (2026-06-27)
 
 - Added a Mercury DeepSearch substrate spec translating the Sourcegraph brief into OGZPrime/Mercury phases: durable run ledgers, compasses, intent-shaped tools, code-intelligence primitives, rules-as-greps, canaries, and surfacer digest.
