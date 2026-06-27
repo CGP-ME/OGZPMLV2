@@ -225,7 +225,7 @@ describe('Mercury LLM config contract', () => {
   test('Mercury tool docs do not reintroduce current-diff-first cage guidance', () => {
     const toolDocs = createToolAdapter().buildToolDocs();
 
-    expect(toolDocs).toContain('Use git_diff when code-change evidence matters');
+    expect(toolDocs).toContain('Inspect active, staged, working, or recent-commit changes when the review depends on what changed');
     expect(toolDocs).toContain('do not assume the current diff is the whole answer');
     expect(toolDocs).not.toContain('Use git_diff target=current first');
   });

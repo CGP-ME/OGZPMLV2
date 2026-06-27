@@ -902,4 +902,10 @@ function getSource(path) {
   return _cached.sources ? _cached.sources[path] : undefined;
 }
 
-module.exports = { load, get, getSource, fingerprint, snapshot, validate };
+function _resetForTest() {
+  _cached = null;
+  activeEnv = process.env;
+  activeEnvSources = {};
+}
+
+module.exports = { load, get, getSource, fingerprint, snapshot, validate, _resetForTest };

@@ -463,18 +463,8 @@ describe('eval live posture gate', () => {
       expect(cachedAfter.fingerprint).toBe(cachedBefore.fingerprint);
       expect(cachedAfter.config.mode.execution).toBe('paper');
     } finally {
-      process.env = validEvalLiveEnv({
-        EXECUTION_MODE: 'paper',
-        PAPER_TRADING: 'false',
-        LIVE_TRADING: 'false',
-        CONFIRM_LIVE_TRADING: 'false',
-        WEBHOOK_ORDERS_ENABLED: 'false',
-        WEBHOOK_DRY_RUN: 'true',
-        EVAL_RULES_ENABLED: 'false',
-        TTP_RULES_ENABLED: 'false',
-      });
-      ConfigLoader.load({ force: true, silent: true });
       process.env = originalEnv;
+      ConfigLoader._resetForTest();
     }
   });
 

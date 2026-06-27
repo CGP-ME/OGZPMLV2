@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const serenaSymbols = require('./serena-symbol-scanner');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const IGNORE_DIRS = ['node_modules', '.git', 'archive', '.claude', 'ogz-meta/ledger'];
@@ -491,6 +492,9 @@ module.exports = {
   findJSFiles,
   extractDeps,
   getCallers,
+  getClassFields: serenaSymbols.getClassFields,
   getEventEmitters,
   getEventSubscribers,
+  getMethodCallers: serenaSymbols.getMethodCallers,
+  getPropertyReferences: serenaSymbols.getPropertyReferences,
 };

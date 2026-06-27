@@ -57,6 +57,11 @@ describe('Mercury index scope hygiene', () => {
     }
   });
 
+  afterAll(() => {
+    jest.unmock('child_process');
+    jest.resetModules();
+  });
+
   test('skip configuration excludes non-canonical intake and history directories', () => {
     const mercuryIgnore = fs.readFileSync(config.MERCURY_IGNORE_FILE, 'utf8');
 
@@ -153,6 +158,89 @@ describe('Mercury index scope hygiene', () => {
     expect(files).not.toContain('ogz-meta/ledger/stale-audit.md');
     expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.md');
     expect(result.filtered_ignored).toBeGreaterThan(0);
+  });
+
+  test('find_definition returns likely definitions with uncertainty metadata', async () => {
+    writeFixture(tmpRoot, 'core/live-path.js', [
+      'function executeTrade(ctx) {',
+      '  return ctx;',
+      '}',
+      'const executeTradeAlias = executeTrade;',
+    ].join('\n'));
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.js', 'function executeTrade(ctx) { return ctx; }');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('find_definition', {
+      symbol: 'executeTrade',
+      limit: 20,
+    });
+    const files = result.matches.map((match) => match.file);
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(result.source).toBe('find_definition_regex');
+    expect(result.precision).toBe('regex');
+    expect(result.uncertainty).toMatch(/regex definition search/);
+    expect(files).toContain('core/live-path.js');
+    expect(files).not.toContain('ogz-meta/ledger/stale-audit.js');
+    expect(schemaNames).toContain('find_definition');
+  });
+
+  test('find_references returns likely usages without bypassing ignored paths', async () => {
+    writeFixture(tmpRoot, 'core/live-path.js', [
+      'function executeTrade(ctx) {',
+      '  return ctx;',
+      '}',
+      'module.exports = { executeTrade };',
+      'executeTrade({ ok: true });',
+    ].join('\n'));
+    writeFixture(tmpRoot, 'ogz-meta/cognition-history/mercury/old-response.js', 'executeTrade({ stale: true });');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('find_references', {
+      symbol: 'executeTrade',
+      limit: 20,
+    });
+    const files = result.matches.map((match) => match.file);
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(result.source).toBe('find_references_regex');
+    expect(result.precision).toBe('regex');
+    expect(result.uncertainty).toMatch(/regex reference search/);
+    expect(files).toContain('core/live-path.js');
+    expect(files).not.toContain('ogz-meta/cognition-history/mercury/old-response.js');
+    expect(schemaNames).toContain('find_references');
+  });
+
+  test('rule_scan runs codified rules without bypassing ignored paths', async () => {
+    writeFixture(tmpRoot, 'ogz-meta/cognition/mercury-rules/no-marker.json', JSON.stringify({
+      name: 'no-marker',
+      mode: 'fixed',
+      pattern: 'MERCURY_RULE_MARKER',
+      file_pattern: '**/*.js',
+      prevents: 'fixture marker must not appear',
+      source_incident: 'test',
+      worked_example: 'fixture',
+      prune_condition: 'fixture',
+    }));
+    writeFixture(tmpRoot, 'core/live-path.js', 'const marker = "MERCURY_RULE_MARKER";');
+    writeFixture(tmpRoot, 'ogz-meta/ledger/stale-audit.js', 'const marker = "MERCURY_RULE_MARKER";');
+
+    const adapter = createToolAdapter({ repoRoot: tmpRoot });
+    const result = await adapter.execute('rule_scan', {
+      rule: 'no-marker',
+      limit: 20,
+    });
+    const rule = result.results[0];
+    const files = rule.matches.map((match) => match.file);
+    const schemaNames = adapter.buildToolSchema().map((tool) => tool.function.name);
+
+    expect(result.source).toBe('mercury_rule_scan');
+    expect(result.rules_scanned).toBe(1);
+    expect(rule.name).toBe('no-marker');
+    expect(rule.prevents).toBe('fixture marker must not appear');
+    expect(files).toContain('core/live-path.js');
+    expect(files).not.toContain('ogz-meta/ledger/stale-audit.js');
+    expect(schemaNames).toContain('rule_scan');
   });
 
   test.each([
@@ -659,7 +747,7 @@ describe('Mercury index scope hygiene', () => {
       expect(results.some((line) => line.includes('ogz-meta/ledger/stale-audit.md'))).toBe(false);
       expect(result.filteredIgnored).toBe(1);
     } finally {
-      jest.dontMock('child_process');
+      jest.unmock('child_process');
       jest.resetModules();
     }
   });
@@ -779,7 +867,7 @@ describe('Mercury index scope hygiene', () => {
       expect(result.error).toContain('ripgrep unavailable');
       expect(result.matches).toBeUndefined();
     } finally {
-      jest.dontMock('child_process');
+      jest.unmock('child_process');
       jest.resetModules();
     }
   });

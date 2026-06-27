@@ -1,0 +1,10 @@
+{
+  "name": "no-proof-partial-as-full-close",
+  "mode": "fixed",
+  "pattern": "\"exit_reason\": \"be_scaleout\"",
+  "file_pattern": "public/proof/track-record/data/**/*.json",
+  "prevents": "Generated public proof data must not mislabel partial exits as full closes.",
+  "source_incident": "ogz-meta/sessions/session-2026-06-24-clean-tree-and-exit-audit-handoff.md",
+  "worked_example": "A BE scale-out proof row is emitted with leg_type full_close even though the raw journal records a partial close.",
+  "prune_condition": "Delete only after proof publishing no longer emits leg_type or an AST/schema rule replaces this string rule."
+}

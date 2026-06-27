@@ -1,0 +1,45 @@
+[
+  {
+    "name": "p0-anchor-finder",
+    "purpose": "Mercury can find the current P0 expected anchor from repo code.",
+    "prompt": "Find the current P0 expected final balance, trade count, win rate, and profit factor. Cite the gate runner lines.",
+    "expected_evidence": [
+      "ogz-meta/gates/multi-runtime-gate-runner.js"
+    ]
+  },
+  {
+    "name": "proof-partial-full-close-semantics",
+    "purpose": "Mercury can explain why generated proof JSON is unsafe if partial/full close semantics disagree with raw journals.",
+    "prompt": "Find whether public proof track-record JSON can mislabel a partial close as a full close. Cite generated proof data and the writer or source journal path if available.",
+    "expected_evidence": [
+      "public/proof/track-record/data",
+      "leg_type"
+    ]
+  },
+  {
+    "name": "dashboard-ws-consumers",
+    "purpose": "Mercury can trace WebSocket event producers and consumers rather than only finding one literal.",
+    "prompt": "Trace the producers and consumers of a representative dashboard WebSocket event and cite both sides.",
+    "expected_evidence": [
+      "public/js",
+      "core"
+    ]
+  },
+  {
+    "name": "hot-path-or-docs-only",
+    "purpose": "Mercury can classify whether a change touches hot-path trading code or docs only.",
+    "prompt": "Using the current diff, classify whether this is hot-path trading code or docs only. Cite git_diff and file evidence.",
+    "expected_evidence": [
+      "git_diff"
+    ]
+  },
+  {
+    "name": "symbol-reference-recall",
+    "purpose": "Mercury can use code-intelligence primitives to find references for a narrow symbol.",
+    "prompt": "Find definitions and references for executeTrade. Use code-intelligence tools first, then open the important matches.",
+    "expected_evidence": [
+      "find_definition",
+      "find_references"
+    ]
+  }
+]

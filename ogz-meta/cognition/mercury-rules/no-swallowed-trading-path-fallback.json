@@ -1,0 +1,10 @@
+{
+  "name": "no-swallowed-trading-path-fallback",
+  "mode": "regex",
+  "pattern": "catch\\s*\\([^)]*\\)\\s*\\{[^}]{0,240}\\b(return\\s+(null|undefined|false)|console\\.warn)",
+  "file_pattern": "{core,modules,brokers}/**/*.js",
+  "prevents": "Trading-path failures must not silently degrade into null, false, undefined, or warn-only behavior.",
+  "source_incident": "ogz-meta/Alignment/OGZ-MASTER-ALIGNMENT.md",
+  "worked_example": "A broker, strategy, or state update catches an execution-path error, logs a warning, and returns a plausible fallback that lets trading continue.",
+  "prune_condition": "Delete only if a structured error taxonomy and AST scanner replace this regex rule."
+}

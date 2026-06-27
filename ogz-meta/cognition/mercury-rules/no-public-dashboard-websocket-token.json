@@ -1,0 +1,10 @@
+{
+  "name": "no-public-dashboard-websocket-token",
+  "mode": "fixed",
+  "pattern": "WEBSOCKET_AUTH_TOKEN",
+  "file_pattern": "public/**/*.html",
+  "prevents": "Public dashboard HTML must not carry long-lived WebSocket auth secrets.",
+  "source_incident": "ogz-meta/sessions/session-2026-06-06-dashboard-ws-token-containment.md",
+  "worked_example": "A public HTML template references WEBSOCKET_AUTH_TOKEN directly and can expose the dashboard token to unauthenticated clients.",
+  "prune_condition": "Delete only if public dashboard auth no longer uses WebSocket bearer-style tokens and the replacement has its own containment rule."
+}

@@ -12,7 +12,14 @@
  * Spec: ogz-meta/ledger/spec fixes/CC-SPEC-SERENA-MERCURY-INTEGRATION_1.md
  */
 
-const { getCallers, getEventEmitters, getEventSubscribers } = require('./dep-scanner');
+const {
+  getCallers,
+  getClassFields,
+  getEventEmitters,
+  getEventSubscribers,
+  getMethodCallers,
+  getPropertyReferences,
+} = require('./dep-scanner');
 
 const MAX_CALLERS_IN_PROMPT = 30;
 const SERENA_TIMEOUT_MS = 5000;
@@ -170,9 +177,200 @@ function formatEventBlastForMercury(blastRadius) {
   return lines.join('\n');
 }
 
+function formatScope(scope) {
+  if (!Array.isArray(scope) || scope.length === 0) return 'repo';
+  return scope.join(', ');
+}
+
+async function getSymbolBlastRadius(property, options = {}) {
+  const timeoutMs = options.timeoutMs || SERENA_TIMEOUT_MS;
+  const start = Date.now();
+  const work = new Promise((resolve, reject) => {
+    try {
+      const result = getPropertyReferences(property, options);
+      resolve({
+        ...result,
+        property,
+        scope: options.scope || [],
+        latencyMs: Date.now() - start,
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function formatSymbolBlastForMercury(result) {
+  const lines = [
+    `## Symbol References — ${result.property}`,
+    ``,
+    `**Parser:** ${result.parser}`,
+    `**Scope:** ${formatScope(result.scope)}`,
+    `**Total references:** ${result.total}` + (result.truncated ? ` (truncated)` : ''),
+    `**Files scanned:** ${result.filesScanned}`,
+    ``,
+    `**References (file:line op receiver):**`,
+  ];
+
+  if (!result.references || result.references.length === 0) {
+    lines.push(`- (none)`);
+  } else {
+    for (const ref of result.references) {
+      const receiver = ref.receiver ? ` ${ref.receiver}` : '';
+      lines.push(`- ${ref.file}:${ref.line}  \`${ref.op}\`${receiver}  \`${ref.context}\``);
+    }
+  }
+
+  if (result.errors && result.errors.length > 0) {
+    lines.push(``, `**Parse errors:**`);
+    for (const err of result.errors.slice(0, 10)) {
+      lines.push(`- ${err.file}: ${err.error}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+async function getMethodBlastRadius(method, options = {}) {
+  const timeoutMs = options.timeoutMs || SERENA_TIMEOUT_MS;
+  const start = Date.now();
+  const work = new Promise((resolve, reject) => {
+    try {
+      const result = getMethodCallers(method, options);
+      resolve({
+        ...result,
+        method,
+        scope: options.scope || [],
+        latencyMs: Date.now() - start,
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function formatMethodBlastForMercury(result) {
+  const lines = [
+    `## Method Callers — ${result.method}`,
+    ``,
+    `**Parser:** ${result.parser}`,
+    `**Scope:** ${formatScope(result.scope)}`,
+    `**Total callers:** ${result.total}` + (result.truncated ? ` (truncated)` : ''),
+    `**Files scanned:** ${result.filesScanned}`,
+    ``,
+    `**Callers (file:line op receiver):**`,
+  ];
+
+  if (!result.callers || result.callers.length === 0) {
+    lines.push(`- (none)`);
+  } else {
+    for (const caller of result.callers) {
+      const receiver = caller.receiver ? ` ${caller.receiver}` : '';
+      lines.push(`- ${caller.file}:${caller.line}  \`${caller.op}\`${receiver}  \`${caller.context}\``);
+    }
+  }
+
+  if (result.errors && result.errors.length > 0) {
+    lines.push(``, `**Parse errors:**`);
+    for (const err of result.errors.slice(0, 10)) {
+      lines.push(`- ${err.file}: ${err.error}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+async function getClassSurface(className, options = {}) {
+  const timeoutMs = options.timeoutMs || SERENA_TIMEOUT_MS;
+  const start = Date.now();
+  const work = new Promise((resolve, reject) => {
+    try {
+      const result = getClassFields(className, options);
+      resolve({
+        ...result,
+        scope: options.scope || [],
+        latencyMs: Date.now() - start,
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Serena timeout (${timeoutMs}ms)`)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function formatClassSurfaceForMercury(result) {
+  const lines = [
+    `## Class Surface — ${result.className}`,
+    ``,
+    `**Parser:** ${result.parser}`,
+    `**Scope:** ${formatScope(result.scope)}`,
+    `**Matches:** ${result.total}` + (result.truncated ? ` (truncated)` : ''),
+    `**Files scanned:** ${result.filesScanned}`,
+  ];
+
+  if (!result.classes || result.classes.length === 0) {
+    lines.push(``, `- (none)`);
+  } else {
+    for (const cls of result.classes) {
+      lines.push(``, `**${cls.file}:${cls.line}**`);
+      lines.push(`- fields: ${cls.fields.map((item) => `${item.name}:${item.line}`).join(', ') || '(none)'}`);
+      lines.push(`- getters: ${cls.getters.map((item) => `${item.name}:${item.line}`).join(', ') || '(none)'}`);
+      lines.push(`- setters: ${cls.setters.map((item) => `${item.name}:${item.line}`).join(', ') || '(none)'}`);
+      lines.push(`- methods: ${cls.methods.map((item) => `${item.name}:${item.line}`).join(', ') || '(none)'}`);
+    }
+  }
+
+  if (result.errors && result.errors.length > 0) {
+    lines.push(``, `**Parse errors:**`);
+    for (const err of result.errors.slice(0, 10)) {
+      lines.push(`- ${err.file}: ${err.error}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 module.exports = {
   getBlastRadius,
   formatForMercury,
+  getSymbolBlastRadius,
+  formatSymbolBlastForMercury,
+  getMethodBlastRadius,
+  formatMethodBlastForMercury,
+  getClassSurface,
+  formatClassSurfaceForMercury,
   getEventBlastRadius,
   formatEventBlastForMercury,
   MAX_CALLERS_IN_PROMPT,

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-10
 **Branch:** `rebuild/clean-from-baseline`
-**Status:** SPEC (not yet implemented)
+**Status:** PARTIAL IMPLEMENTATION (Phase A/B shipped 2026-06-27; deeper alias/data-flow and CLI flags remain deferred)
 **Predecessor:** `ogz-meta/specs/serena-mercury-integration.md` lines 220-232 ("Tree-sitter migration (next spec)")
 **Owner:** CC-C (Claude Code, this instance)
 **Reviewer:** Trey + Claude Desktop
@@ -16,6 +16,34 @@ Serena's current dep-scanner is regex-based. It tracks 6 dep types (`require`, `
 The triggering event: CC-C Multi-Symbol Commit 6a (Mercury attack pass, 2026-05-10) returned 6 real findings. Determining the blast radius of a single property — `ctx.priceHistory` — required a fallback to grep, which over-counts (string-literal matches, comments) and under-classifies (cannot distinguish read from write from method-call from destructure). Grep cannot tell you "which call sites *write* to `priceHistory.length` vs *read* it."
 
 Tree-sitter changes this from a string-search problem into a symbol-resolution problem.
+
+## Implementation status as of 2026-06-27
+
+Implemented:
+
+- `tools/serena-symbol-scanner.js` scans JavaScript with Tree-sitter first and
+  a Babel AST fallback for the observed Jest/native zero-node failure mode.
+- `tools/dep-scanner.js` exports `getPropertyReferences`,
+  `getMethodCallers`, and `getClassFields`.
+- `tools/serena-bridge.js` wraps those scanners for Mercury formatting.
+- `trai_brain/mercury-bridge/tool-adapter.js` exposes
+  `serena_property_refs`, `serena_method_callers`, and
+  `serena_class_fields` as read-only Mercury tools.
+- Covered operations include direct property `read`, `write`,
+  `write:compound`, `delete`, destructuring, mutating member calls such as
+  `mutate:push`, direct method `call`, `call+mutate-return:<method>`, and
+  `call+read-return`.
+- Repo-wide wildcard scopes `**/*.js`, `**/*`, and `*` are treated as full
+  repository scans. This was verified after a Mercury canary exposed false-zero
+  behavior for those scope strings.
+
+Still deferred:
+
+- CLI flags shown later in this spec.
+- Full receiver-path wildcard filtering.
+- Intra-procedural alias resolution and `resolvedFrom`.
+- Constructor-assigned class fields.
+- Inter-procedural points-to/data-flow.
 
 ## What it unlocks
 

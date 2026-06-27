@@ -204,6 +204,12 @@ Pipeline order:
 - Mercury attack is blocking for hot-path production code: `core/`, `brokers/`, `modules/`, `run-empire-v2.js`, dashboard runtime, and runtime-driving schemas/config. It is not required for markdown/rule files unless those files execute.
 - Always include the architecture question for fixes: did this close the underlying mechanism, or only the symptom, and what new failure modes did it introduce?
 - After an approved push, do not claim Mercury has fresh repo context until `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code. Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
+- Mercury's newer DeepSearch substrate adds durable run-ledger, compass,
+  rules-as-greps, and Serena AST evidence tools. Use them to improve recall and
+  observability, not as authority over current file:line proof; broad
+  `Mercury, break my fix.` reviews still must not be narrowed by hidden targets.
+  Source:
+  `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 
 ## Git Rules
 - Check status before staging.

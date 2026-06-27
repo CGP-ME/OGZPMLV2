@@ -85,6 +85,12 @@ cat ogz-meta/05_landmines-and-gotchas.md
 cat trai_brain/mercury-bridge/config.js
 ```
 
+Also inspect current Mercury run-ledger/compass/substrate notes when the task
+depends on Mercury behavior or answer quality. The 2026-06-27 substrate handoff
+records durable run-ledger support, rules-as-greps, Serena AST evidence tools,
+and the constraint that RAG, traces, compasses, and rules are evidence surfaces,
+not replacements for current file:line proof.
+
 10. Only then read the live code for the module you are touching.
 
 No doc, digest, session form, or chat transcript outranks the live file.

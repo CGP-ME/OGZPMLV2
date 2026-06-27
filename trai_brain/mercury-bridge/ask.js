@@ -37,6 +37,7 @@ const { createToolAdapter } = require('./tool-adapter');
 const { routeQuery } = require('./query-router');
 const { createMercuryLlmClient } = require('./llm-client');
 const { retrieveSimilarTrace, formatTraceAsHint, captureTrace, markTraceUsed, evictStaleTraces, ensureTraceIndexes, getTraceStats } = require('./trace-memory');
+const { buildRunLedgerEntry, writeRunLedgerEntry } = require('./run-ledger');
 const MongoStore = require('./mongo-store');
 const { embedText } = require('./indexer');
 const { retrieveTopK } = require('./searcher');
@@ -290,6 +291,7 @@ async function buildCurrentChangeBlastRadius({
 // ─────────────────────────────────────────────────────────────
 
 async function runAgentic(query, opts) {
+  const startedAt = new Date();
   const verbose = !opts.quiet;
   const maxIterations = configExactInteger(opts.maxIterations, config.AGENTIC_MAX_ITERATIONS, '--max-iterations');
   const maxTokens = configExactInteger(opts.maxTokens, config.AGENTIC_MAX_TOKENS, '--max-tokens');
@@ -312,9 +314,13 @@ async function runAgentic(query, opts) {
 
   // 1. Retrieve starter context from the existing indexed corpus
   const store = new MongoStore();
-  await store.connect();
+  let storeConnected = false;
+  let autoBlastRadius = null;
 
   try {
+    await store.connect();
+    storeConnected = true;
+
     const health = await store.healthCheck();
     if (!health.ok) {
       throw new Error(`MongoDB health check failed: ${health.error}`);
@@ -387,7 +393,6 @@ async function runAgentic(query, opts) {
     }
 
     let blastRadius = opts.blastRadius || null;
-    let autoBlastRadius = null;
     if (!blastRadius) {
       autoBlastRadius = await buildCurrentChangeBlastRadius();
       blastRadius = autoBlastRadius.text;
@@ -467,10 +472,41 @@ async function runAgentic(query, opts) {
       }
     }
 
+    const ledgerEntry = buildRunLedgerEntry({
+      repoRoot: config.REPO_ROOT,
+      query,
+      opts: { ...opts, maxIterations, maxTokens },
+      result,
+      startedAt,
+      finishedAt: new Date(),
+      autoBlastRadius,
+    });
+    result.runLedger = writeRunLedgerEntry({
+      repoRoot: config.REPO_ROOT,
+      entry: ledgerEntry,
+    });
+
     return result;
 
+  } catch (err) {
+    const ledgerEntry = buildRunLedgerEntry({
+      repoRoot: config.REPO_ROOT,
+      query,
+      opts: { ...opts, maxIterations, maxTokens },
+      error: err,
+      startedAt,
+      finishedAt: new Date(),
+      autoBlastRadius,
+    });
+    err.mercuryRunLedger = writeRunLedgerEntry({
+      repoRoot: config.REPO_ROOT,
+      entry: ledgerEntry,
+    });
+    throw err;
   } finally {
-    await store.disconnect();
+    if (storeConnected) {
+      await store.disconnect();
+    }
   }
 }
 
@@ -563,6 +599,9 @@ async function main() {
       if (result.toolTelemetry) {
         console.log(`[tool telemetry: ${formatToolTelemetry(result.toolTelemetry)}]`);
       }
+      if (result.runLedger) {
+        console.log(`[run ledger: ${result.runLedger.citation}]`);
+      }
 
       if (args.showHistory && result.history.length > 0) {
         console.log('');
@@ -609,6 +648,9 @@ async function main() {
   } catch (err) {
     console.error('');
     console.error('[MERCURY-BRIDGE] ERROR:', err.message);
+    if (err.mercuryRunLedger) {
+      console.error(`[MERCURY-BRIDGE] Run ledger: ${err.mercuryRunLedger.citation}`);
+    }
     if (err.message.includes('No chunks in index')) {
       console.error('');
       console.error('Run the indexer first:');

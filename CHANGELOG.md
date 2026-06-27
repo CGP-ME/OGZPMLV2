@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Mercury DeepSearch Substrate (2026-06-27)
+
+- Added a Mercury DeepSearch substrate spec translating the Sourcegraph brief into OGZPrime/Mercury phases: durable run ledgers, compasses, intent-shaped tools, code-intelligence primitives, rules-as-greps, canaries, and surfacer digest.
+- Added Mercury agentic run ledger writes under `ogz-meta/cognition-history/mercury-runs/`, including prompt hashes/excerpts, repo state, tool telemetry, run-check artifacts, answer-quality flags, verdict, and redacted failure rows.
+- Reframed Mercury tool descriptions around developer intent and added read-only `find_definition`, `find_references`, and `rule_scan` tools with focused coverage.
+- Added Serena AST-backed symbol scanning for Mercury: `serena_property_refs`, `serena_method_callers`, and `serena_class_fields` now expose property operations, method call sites, and class surfaces without matching comments or strings.
+- Added Mercury compass docs, initial rule corpus, canary definitions, and an offline `scripts/mercury-substrate-digest.js` surfacer for run-ledger telemetry.
+- Added a test-only `ConfigLoader._resetForTest()` cleanup path after Mercury found the eval-live posture test restored `process.env` without clearing the cached runtime snapshot.
+
 ### TTP Cutoff Flatness Quarantine (2026-06-26)
 
 - Replaced the webhook-routed TTP cutoff broker-flatness global entry pause with an explicit `ttpCutoffQuarantine` state record and loud quarantine log.

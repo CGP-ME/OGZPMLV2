@@ -93,6 +93,11 @@ For changes on the trading/backtest execution path:
 - After an approved push, do not claim Mercury has fresh repo context until
   `node trai_brain/mercury-bridge/indexer.js` succeeds for the pushed code.
   Source: `ogz-meta/sessions/session-2026-06-16-catchup-handoff-and-gap-register.md:141-151`.
+- Mercury now has durable run-ledger, compass, rules-as-greps, and Serena AST
+  evidence tools. Treat those as routing/evidence surfaces only; current
+  file:line proof still wins, and broad `Mercury, break my fix.` reviews must
+  not be re-caged with hidden targets. Source:
+  `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
 - Current full-anchor expectation: `10663.641411727374 / 1596 trades / 70.1% WR / PF 1.16`.
