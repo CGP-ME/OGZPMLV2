@@ -42,9 +42,24 @@ describe('claude bridge policy ownership', () => {
       path: 'ogz-meta/cognition-history/mercury/old-response.md',
     });
     expect(policy.checkPath('ogz-meta/sessions/session.md')).toEqual({
+      allowed: true,
+      reason: 'claude_owned',
+      path: 'ogz-meta/sessions/session.md',
+    });
+    expect(policy.checkPath('ogz-meta/sessions/session.md', { operation: 'write' })).toEqual({
+      allowed: true,
+      reason: 'claude_owned',
+      path: 'ogz-meta/sessions/session.md',
+    });
+    expect(policy.checkPath('other/sessions/session.md')).toEqual({
       allowed: false,
       reason: 'claude_bridge_ignored',
-      path: 'ogz-meta/sessions/session.md',
+      path: 'other/sessions/session.md',
+    });
+    expect(policy.checkPath('other/sessions/session.md', { operation: 'write' })).toEqual({
+      allowed: false,
+      reason: 'claude_bridge_ignored',
+      path: 'other/sessions/session.md',
     });
   });
 

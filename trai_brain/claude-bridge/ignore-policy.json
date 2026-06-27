@@ -3,7 +3,8 @@
   "snapshotReason": "Claude bridge must use its own cloned ignore state and must not import Mercury runtime modules.",
   "allowedPrefixes": [
     ".claude/",
-    "ogz-meta/ledger/"
+    "ogz-meta/ledger/",
+    "ogz-meta/sessions/"
   ],
   "ignoredDirectories": [
     "node_modules/",
