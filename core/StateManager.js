@@ -94,6 +94,9 @@ const INVALID_SCOPE_PLACEHOLDER_VALUES = new Set([
   'na'
 ]);
 
+const TTP_CUTOFF_FLATNESS_PAUSE_SOURCE = 'ttp_cutoff_unverified_broker_flatness';
+const TTP_CUTOFF_FLATNESS_PAUSE_PREFIX = '[TTP_MARKET_TIME] broker flatness unverified after cutoff';
+
 function firstNonEmptyString(...values) {
   for (const value of values) {
     if (typeof value === 'string' && value.trim().length > 0) {
@@ -1380,6 +1383,67 @@ class StateManager {
     return true;
   }
 
+  _isLegacyTtpFlatnessPause() {
+    const pauseReason = String(this.state.pauseReason || '').trim();
+    const lastError = String(this.state.lastError || '').trim();
+    const pauseSource = typeof this.state.pauseSource === 'string' ? this.state.pauseSource.trim() : this.state.pauseSource || null;
+    const legacyReason = pauseReason || lastError;
+    const reasonMatches = legacyReason.startsWith(TTP_CUTOFF_FLATNESS_PAUSE_PREFIX);
+    const errorMatches = !lastError || lastError === legacyReason || lastError.startsWith(TTP_CUTOFF_FLATNESS_PAUSE_PREFIX);
+    return pauseSource === TTP_CUTOFF_FLATNESS_PAUSE_SOURCE && reasonMatches && errorMatches;
+  }
+
+  _legacyTtpFlatnessReason() {
+    const pauseReason = String(this.state.pauseReason || '');
+    return pauseReason.trim() ? pauseReason : String(this.state.lastError || '');
+  }
+
+  _migrateLegacyTtpFlatnessPause(activeTradeCount) {
+    if (this.state.isTrading !== false || !this._isLegacyTtpFlatnessPause()) {
+      return false;
+    }
+    if (this.state.pauseRecoverable !== false) {
+      return false;
+    }
+    if (activeTradeCount !== 0) {
+      return false;
+    }
+    if (Number(this.state.position) !== 0 || Number(this.state.inPosition) !== 0) {
+      return false;
+    }
+
+    const pauseReason = this._legacyTtpFlatnessReason();
+    const cutoffDate = pauseReason.match(/date=([0-9]{4}-[0-9]{2}-[0-9]{2})/)?.[1] || null;
+    const migratedAt = new Date().toISOString();
+    this.state.ttpCutoffQuarantine = {
+      source: TTP_CUTOFF_FLATNESS_PAUSE_SOURCE,
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+      migratedFromLegacyPause: true,
+      migratedAt,
+      legacyPausedAt: this.state.pausedAt || null,
+      legacyPauseRecoverable: this.state.pauseRecoverable,
+      legacyPauseReason: pauseReason,
+      manualReconciliationMessage: pauseReason,
+      operatorMessage: pauseReason,
+      currentDateET: cutoffDate,
+      reason: `${pauseReason}; migrated from legacy global pause to non-blocking quarantine`,
+    };
+    this.state.isTrading = true;
+    this.state.pauseReason = null;
+    this.state.pauseSource = null;
+    this.state.pauseRecoverable = false;
+    this.state.pauseScope = null;
+    this.state.lastError = null;
+    this.state.pausedAt = null;
+    this.state.resumedAt = Date.now();
+    console.warn(`[StateManager] Migrated legacy TTP flatness pause to quarantine at ${migratedAt}`);
+    return true;
+  }
+
   async resumeTradingIfPausedBy(source, options = {}) {
     await this.acquireLock();
     try {
@@ -2024,6 +2088,9 @@ class StateManager {
             correctedStateShape = true;
             console.warn(`[StateManager] Cleared stale flat position metadata: ${JSON.stringify(staleFlatState)}`);
           }
+        }
+        if (this._migrateLegacyTtpFlatnessPause(activeTradeCount)) {
+          correctedStateShape = true;
         }
         if (correctedStateShape) {
           this.save();

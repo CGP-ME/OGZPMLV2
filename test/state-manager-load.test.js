@@ -18,12 +18,20 @@ describe('StateManager load validation', () => {
     process.env.DATA_DIR = tempDir;
     process.env.BACKTEST_MODE = 'false';
     process.env.EXECUTION_MODE = 'paper';
+    process.env.LIVE_TRADING = 'false';
+    process.env.PAPER_TRADING = 'true';
     process.env.CANDLE_SOURCE = 'live';
     process.env.FRESH_START = 'false';
     process.env.BROKER = 'alpaca';
     process.env.ALPACA_MODE = 'paper';
+    process.env.MIN_TRADE_CONFIDENCE = '0.5';
     process.env.MAX_WEEKLY_LOSS = '10';
     process.env.MAX_MONTHLY_LOSS = '20';
+    process.env.TTP_ACCOUNT_START_OF_DAY_DATE = '2026-06-26';
+    process.env.TTP_ACCOUNT_START_OF_DAY_EQUITY = '50000';
+    process.env.TTP_DAILY_LOSS_LIMIT_DOLLARS = '500';
+    process.env.TTP_MAX_LOSS_THRESHOLD_EQUITY = '47500';
+    process.env.TTP_PROFIT_TARGET_DOLLARS = '100';
   });
 
   afterEach(() => {
@@ -600,8 +608,221 @@ describe('StateManager load validation', () => {
     }), 'utf8');
 
     const { StateManager } = require('../core/StateManager');
-
     expect(() => new StateManager()).toThrow('Source-less position exposure');
+  });
+
+  test('load migrates legacy TTP flatness pause to non-blocking quarantine when flat', () => {
+    const legacyReason = '[TTP_MARKET_TIME] broker flatness unverified after cutoff date=2026-06-26; manual account reconciliation required before entries resume';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      inPosition: 0,
+      activeTrades: [],
+      symbolEntryHalts: {},
+      lastPrices: { TSLA: 425.95 },
+      isTrading: false,
+      pauseReason: legacyReason,
+      pauseSource: 'ttp_cutoff_unverified_broker_flatness',
+      pauseRecoverable: false,
+      pausedAt: Date.parse('2026-06-26T20:00:02.050Z'),
+      lastError: legacyReason,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+    expect(manager.get('pauseSource')).toBeNull();
+    expect(manager.get('lastError')).toBeNull();
+    expect(manager.get('pausedAt')).toBeNull();
+    expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      status: 'quarantined',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      requiresManualReconciliation: true,
+      brokerFlatVerified: false,
+      migratedFromLegacyPause: true,
+      legacyPauseRecoverable: false,
+      currentDateET: '2026-06-26',
+      legacyPauseReason: legacyReason,
+      manualReconciliationMessage: legacyReason,
+      operatorMessage: legacyReason,
+    }));
+
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    expect(saved.isTrading).toBe(true);
+    expect(saved.pauseReason).toBeNull();
+    expect(saved.pauseSource).toBeNull();
+    expect(saved.ttpCutoffQuarantine.entryBlocking).toBe(false);
+    expect(saved.ttpCutoffQuarantine.manualReconciliationMessage).toBe(legacyReason);
+  });
+
+  test('load keeps legacy TTP flatness pause blocking when tracked exposure exists', () => {
+    const legacyReason = '[TTP_MARKET_TIME] broker flatness unverified after cutoff date=2026-06-26; manual account reconciliation required before entries resume';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 9500,
+      totalBalance: 10000,
+      position: 500,
+      positionCount: 1,
+      entryPrice: 100,
+      entryTime: Date.parse('2026-06-26T15:00:00.000Z'),
+      inPosition: 500,
+      activeTrades: [[
+        'OPEN_TTP_1',
+        {
+          id: 'OPEN_TTP_1',
+          orderId: 'OPEN_TTP_1',
+          action: 'BUY',
+          direction: 'long',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          accountIdSource: 'config',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 5,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'LoadTestStrategy',
+        },
+      ]],
+      symbolEntryHalts: {},
+      lastPrices: { TSLA: 100 },
+      isTrading: false,
+      pauseReason: legacyReason,
+      pauseSource: 'ttp_cutoff_unverified_broker_flatness',
+      pauseRecoverable: false,
+      pausedAt: Date.parse('2026-06-26T20:00:02.050Z'),
+      lastError: legacyReason,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(false);
+    expect(manager.get('pauseSource')).toBe('ttp_cutoff_unverified_broker_flatness');
+    expect(manager.get('ttpCutoffQuarantine')).toBeNull();
+    expect(manager.get('activeTrades').size).toBe(1);
+  });
+
+  test('load does not migrate recoverable TTP flatness pause variants', () => {
+    const legacyReason = '[TTP_MARKET_TIME] broker flatness unverified after cutoff date=2026-06-26; manual account reconciliation required before entries resume';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      inPosition: 0,
+      activeTrades: [],
+      symbolEntryHalts: {},
+      lastPrices: { TSLA: 425.95 },
+      isTrading: false,
+      pauseReason: legacyReason,
+      pauseSource: 'ttp_cutoff_unverified_broker_flatness',
+      pauseRecoverable: true,
+      pausedAt: Date.parse('2026-06-26T20:00:02.050Z'),
+      lastError: legacyReason,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(false);
+    expect(manager.get('pauseSource')).toBe('ttp_cutoff_unverified_broker_flatness');
+    expect(manager.get('pauseRecoverable')).toBe(true);
+    expect(manager.get('ttpCutoffQuarantine')).toBeNull();
+  });
+
+  test('load migrates legacy TTP flatness pause with persisted whitespace', () => {
+    const legacyReason = '[TTP_MARKET_TIME] broker flatness unverified after cutoff date=2026-06-26; manual account reconciliation required before entries resume';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      inPosition: 0,
+      activeTrades: [],
+      symbolEntryHalts: {},
+      lastPrices: { TSLA: 425.95 },
+      isTrading: false,
+      pauseReason: ` ${legacyReason} `,
+      pauseSource: ' ttp_cutoff_unverified_broker_flatness ',
+      pauseRecoverable: false,
+      pausedAt: Date.parse('2026-06-26T20:00:02.050Z'),
+      lastError: ` ${legacyReason} `,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+    expect(manager.get('pauseSource')).toBeNull();
+    expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      legacyPauseReason: ` ${legacyReason} `,
+      manualReconciliationMessage: ` ${legacyReason} `,
+    }));
+  });
+
+  test('load migrates legacy TTP flatness pause when lastError carries the reason', () => {
+    const legacyReason = '[TTP_MARKET_TIME] broker flatness unverified after cutoff date=2026-06-26; manual account reconciliation required before entries resume';
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 0,
+      positionCount: 0,
+      entryPrice: 0,
+      entryTime: null,
+      inPosition: 0,
+      activeTrades: [],
+      symbolEntryHalts: {},
+      lastPrices: { TSLA: 425.95 },
+      isTrading: false,
+      pauseReason: null,
+      pauseSource: 'ttp_cutoff_unverified_broker_flatness',
+      pauseRecoverable: false,
+      pausedAt: Date.parse('2026-06-26T20:00:02.050Z'),
+      lastError: legacyReason,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+
+    expect(manager.get('isTrading')).toBe(true);
+    expect(manager.get('pauseReason')).toBeNull();
+    expect(manager.get('lastError')).toBeNull();
+    expect(manager.get('ttpCutoffQuarantine')).toEqual(expect.objectContaining({
+      source: 'ttp_cutoff_unverified_broker_flatness',
+      entryBlocking: false,
+      manualReconciliationRequired: true,
+      legacyPauseReason: legacyReason,
+      manualReconciliationMessage: legacyReason,
+    }));
   });
 
   test('recoverable data-feed pause resumes only from the matching owner', async () => {
