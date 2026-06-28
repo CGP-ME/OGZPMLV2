@@ -67,20 +67,29 @@
     // A trade at 23:30 ET (03:30 UTC next day) would otherwise zero the
     // session mid-position. Intl.DateTimeFormat handles the EDT/EST
     // transition automatically via the America/New_York tz.
-    const _etDateFormatter = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
-        ? new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'America/New_York',
-            year: 'numeric', month: '2-digit', day: '2-digit',
-        })
-        : null;
-    function todayET() {
-        if (_etDateFormatter) return _etDateFormatter.format(new Date());
-        // Fallback for environments without Intl (very old browsers / Node
-        // without ICU): approximate ET as UTC-5. Slightly off during EDT
-        // but still beats UTC midnight rollover.
-        const d = new Date(Date.now() - 5 * 3600 * 1000);
-        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+	    const _etDateFormatter = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+	        ? new Intl.DateTimeFormat('en-CA', {
+	            timeZone: 'America/New_York',
+	            year: 'numeric', month: '2-digit', day: '2-digit',
+	        })
+	        : null;
+    function nthSundayUtc(year, monthIndex, nth, hourUtc) {
+        const first = new Date(Date.UTC(year, monthIndex, 1, hourUtc, 0, 0));
+        const dayOffset = (7 - first.getUTCDay()) % 7;
+        return Date.UTC(year, monthIndex, 1 + dayOffset + (nth - 1) * 7, hourUtc, 0, 0);
     }
+    function easternOffsetHours(ms) {
+        const year = new Date(ms).getUTCFullYear();
+        const dstStart = nthSundayUtc(year, 2, 2, 7); // 02:00 EST = 07:00 UTC.
+        const dstEnd = nthSundayUtc(year, 10, 1, 6); // 02:00 EDT = 06:00 UTC.
+        return (ms >= dstStart && ms < dstEnd) ? 4 : 5;
+    }
+	    function todayET() {
+	        if (_etDateFormatter) return _etDateFormatter.format(new Date());
+        const now = Date.now();
+	        const d = new Date(now - easternOffsetHours(now) * 3600 * 1000);
+	        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+	    }
 
     function loadSession() {
         const savedDate = lsGet(LS_KEY_DATE);
@@ -288,13 +297,9 @@
         if (state.mounted && root && root.querySelector('.rg-ring-wrap')) return true;
         state.mounted = false;
 
-        // Prefer a semantic host; if none exist (page still loading, DOM
-        // stripped, test harness, etc.) fall back to a fixed-position
-        // element on document.body so the gauge is always visible rather
-        // than silently failing to mount. Per spec §5 mount priority.
         let host = findMountHost();
         let usedFallback = false;
-        if (!host) {
+        if (!root && !host) {
             if (!document.body) return false;  // DOM not ready yet
             host = document.body;
             usedFallback = true;
@@ -311,6 +316,11 @@
             // with other content for layout space when mounted outside
             // the intended status-row host.
             root.style.cssText = 'position:fixed;top:12px;right:12px;z-index:9999;';
+        } else {
+            root.style.position = '';
+            root.style.top = '';
+            root.style.right = '';
+            root.style.zIndex = '';
         }
         root.innerHTML = `
             <div class="rg-ring-wrap">
@@ -326,9 +336,10 @@
             <span class="rg-label">Risk Budget</span>
             <div class="rg-tooltip" role="tooltip"></div>
         `;
-        if (!root.parentNode) {
+        if (!root.parentNode && host) {
             host.appendChild(root);
         }
+        if (!root.parentNode) return false;
         state.mounted = true;
         render();
         return true;

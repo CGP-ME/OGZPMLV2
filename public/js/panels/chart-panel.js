@@ -145,7 +145,80 @@
     };
 
     const DEFAULT_SYMBOL = 'TSLA';
-    const DEFAULT_TIMEFRAME = '1m';
+    const DEFAULT_TIMEFRAME = '15m';
+    const KRAKEN_OHLC_PAIRS = Object.freeze({
+        'BTC-USD': 'XBTUSD',
+        'ETH-USD': 'ETHUSD'
+    });
+    const KRAKEN_OHLC_INTERVALS = Object.freeze({
+        '1m': 1,
+        '5m': 5,
+        '15m': 15,
+        '30m': 30,
+        '1h': 60,
+        '4h': 240,
+        '1d': 1440
+    });
+
+    function toFiniteNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function normalizeHistoricalCandle(candle) {
+        if (Array.isArray(candle)) {
+            return {
+                time: toFiniteNumber(candle[0]),
+                open: toFiniteNumber(candle[1]),
+                high: toFiniteNumber(candle[2]),
+                low: toFiniteNumber(candle[3]),
+                close: toFiniteNumber(candle[4]),
+                volume: toFiniteNumber(candle[6])
+            };
+        }
+        const rawTime = candle && (candle.time || candle.t || candle.timestamp || 0);
+        return {
+            time: toFiniteNumber(rawTime),
+            open: toFiniteNumber(candle && (candle.open || candle.o)),
+            high: toFiniteNumber(candle && (candle.high || candle.h)),
+            low: toFiniteNumber(candle && (candle.low || candle.l)),
+            close: toFiniteNumber(candle && (candle.close || candle.c)),
+            volume: toFiniteNumber(candle && (candle.volume || candle.v))
+        };
+    }
+
+    function parseDisplayedPrice() {
+        const raw = document.getElementById('currentPrice')?.textContent || '';
+        return toFiniteNumber(raw.replace(/[^0-9.-]/g, ''));
+    }
+
+    function isPriceMismatched(symbol, candles) {
+        if (!KRAKEN_OHLC_PAIRS[symbol] || !Array.isArray(candles) || candles.length === 0) return false;
+        const displayed = parseDisplayedPrice();
+        if (displayed <= 0) return false;
+        const last = candles[candles.length - 1];
+        const close = toFiniteNumber(last && last.close);
+        if (close <= 0) return true;
+        const ratio = close / displayed;
+        return ratio < 0.2 || ratio > 5;
+    }
+
+    async function fetchKrakenHistoricalCandles(symbol, timeframe, limit) {
+        const pair = KRAKEN_OHLC_PAIRS[symbol];
+        const interval = KRAKEN_OHLC_INTERVALS[timeframe || DEFAULT_TIMEFRAME];
+        if (!pair || !interval || typeof fetch !== 'function') return [];
+        const url = `https://api.kraken.com/0/public/OHLC?pair=${encodeURIComponent(pair)}&interval=${encodeURIComponent(interval)}`;
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Kraken OHLC HTTP ${response.status}`);
+        const payload = await response.json();
+        if (Array.isArray(payload?.error) && payload.error.length > 0) {
+            throw new Error(payload.error.join('; '));
+        }
+        const result = payload && payload.result ? payload.result : {};
+        const resultKey = Object.keys(result).find(key => key !== 'last' && Array.isArray(result[key]));
+        const rows = resultKey ? result[resultKey] : [];
+        return rows.slice(-Math.max(1, limit || 500)).map(normalizeHistoricalCandle);
+    }
 
     function normalizeDashboardSymbol(symbol) {
         const raw = String(symbol || '').trim().toUpperCase();
@@ -682,8 +755,7 @@
         const title = document.createElement('h2');
         title.className = 'cp-title';
         title.id = 'chartTitle';
-        title.textContent = 'ML VERSION';
-        title.style.display = 'none';
+        title.textContent = 'CHART: TSLA 15M';
 
         const priceDisplay = document.createElement('span');
         priceDisplay.className = 'cp-price-display';
@@ -736,9 +808,9 @@
         timeframeSelector.id = 'cp-timeframeSelector';
         timeframeSelector.className = 'cp-selector';
         timeframeSelector.innerHTML = `
-            <option value="1m" selected>1M</option>
+            <option value="1m">1M</option>
             <option value="5m">5M</option>
-            <option value="15m">15M</option>
+            <option value="15m" selected>15M</option>
             <option value="30m">30M</option>
             <option value="1h">1H</option>
             <option value="4h">4H</option>
@@ -866,6 +938,18 @@
         root.appendChild(container);
 
         return true;
+    }
+
+    function updateChartTitle() {
+        try {
+            const title = document.getElementById('chartTitle');
+            if (!title) return;
+            const symbol = selectedAssetSymbol();
+            const tf = document.getElementById('cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
+            title.textContent = `CHART: ${symbol} ${String(tf).toUpperCase()}`;
+        } catch (e) {
+            /* swallow */
+        }
     }
 
     // ─── Main Chart Initialization ─────────────────────────────────────────
@@ -1141,6 +1225,7 @@
 
         // Bind control events
         ChartPanel.bindControls();
+        updateChartTitle();
 
         // Resize handlers
         trackListener(window, 'resize', () => {
@@ -1516,6 +1601,7 @@
             const assetSel = root.querySelector('#cp-assetSelector');
             if (assetSel) trackListener(assetSel, 'change', (e) => {
                 this.switchAsset(e.target.value);
+                updateChartTitle();
             });
 
             // Timeframe selector — fix #42: do NOT call clearAll() preemptively.
@@ -1525,6 +1611,7 @@
             // ~5s watchdog that surfaces a visible "No data" message.
             const tfSel = root.querySelector('#cp-timeframeSelector');
             if (tfSel) trackListener(tfSel, 'change', (e) => {
+                updateChartTitle();
                 const socket = OGZ.get('Socket');
                 if (socket) {
                     socket.send({ type: 'timeframe_change', timeframe: e.target.value });
@@ -1601,6 +1688,7 @@
                 socket.send({ type: 'asset_change', asset: sym });
                 _loadedAsset = sym;
                 assetSel.value = sym;
+                updateChartTitle();
             } catch (e) {
                 console.warn('[ChartPanel] asset_change send failed', { asset: sym, error: e && e.message ? e.message : e });
                 return;
@@ -2136,26 +2224,56 @@
         /**
          * Load historical candles and recalculate indicators.
          */
-        loadHistorical: function (message) {
+        loadHistorical: async function (message) {
             const envelope = Array.isArray(message) ? { candles: message } : (message || {});
             if (!this.isSelectedAssetPayload(envelope)) return;
             const candles = envelope.candles;
             if (!candleSeries || !candles || candles.length === 0) return;
             try {
-                const formatted = candles.map(c => {
-                    const rawTime = c.time || c.t || c.timestamp || 0;
-                    const time = Math.floor(rawTime / (rawTime > 1e12 ? 1000 : 1));
+                const requestedSymbol = normalizeDashboardSymbol(envelope.symbol || envelope.asset || selectedAssetSymbol());
+                const requestedTimeframe = envelope.timeframe || document.getElementById('cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
+                const requestedLimit = Math.max(candles.length, 500);
+                let sourceCandles = candles;
+
+                if (KRAKEN_OHLC_PAIRS[requestedSymbol]) {
+                    try {
+                        const krakenCandles = await fetchKrakenHistoricalCandles(requestedSymbol, requestedTimeframe, requestedLimit);
+                        if (krakenCandles.length > 0) sourceCandles = krakenCandles;
+                    } catch (e) {
+                        console.warn('[ChartPanel] Kraken historical fallback failed', {
+                            asset: requestedSymbol,
+                            timeframe: requestedTimeframe,
+                            error: e && e.message ? e.message : e
+                        });
+                    }
+                }
+
+                const currentSymbol = selectedAssetSymbol();
+                const currentTimeframe = document.getElementById('cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
+                if (requestedSymbol !== currentSymbol || requestedTimeframe !== currentTimeframe) return;
+
+                const formatted = sourceCandles.map(c => {
+                    const candle = normalizeHistoricalCandle(c);
+                    const time = Math.floor(candle.time / (candle.time > 1e12 ? 1000 : 1));
                     return {
                         time,
-                        open: c.open || c.o || 0,
-                        high: c.high || c.h || 0,
-                        low: c.low || c.l || 0,
-                        close: c.close || c.c || 0,
-                        volume: c.volume || c.v || 0
+                        open: candle.open,
+                        high: candle.high,
+                        low: candle.low,
+                        close: candle.close,
+                        volume: candle.volume
                     };
                 }).filter(c => c.time > 0 && c.open > 0);
 
                 if (formatted.length === 0) return;
+                if (isPriceMismatched(requestedSymbol, formatted)) {
+                    const pill = document.getElementById('feedStatusPill');
+                    if (pill) {
+                        pill.textContent = `${requestedSymbol} historical feed mismatch`;
+                        pill.style.display = 'block';
+                    }
+                    return;
+                }
 
                 candleSeries.setData(formatted.map(c => ({
                     time: c.time, open: c.open, high: c.high, low: c.low, close: c.close

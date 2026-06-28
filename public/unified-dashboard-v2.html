@@ -120,6 +120,7 @@
             --left-rail-width: 320px;
             --right-rail-width: 320px;
             --rail-gap: 20px;
+            --dashboard-top-chrome-height: 287px;
         }
 
         body {
@@ -236,7 +237,9 @@
             display: grid;
             grid-template-columns: var(--left-rail-width) 1fr var(--right-rail-width);
             gap: var(--rail-gap);
-            flex: 1;
+            flex: 0 0 auto;
+            height: max(560px, calc(100vh - var(--dashboard-top-chrome-height)));
+            max-height: 780px;
             overflow: hidden;
             padding: var(--rail-gap);
             min-height: 0;
@@ -273,8 +276,18 @@
            intentionally NOT duplicated here to avoid a double border. */
         #chartPanel {
             flex: 1 1 auto;
-            min-height: 360px;
+            min-height: 590px;
             overflow: visible;
+        }
+
+        #chartPanel .cp-header {
+            gap: 8px;
+            padding: 10px 12px;
+        }
+
+        #chartPanel .cp-container,
+        #chartPanel .cp-tv-chart-container {
+            min-height: 420px;
         }
 
         /* Strategy Leaderboard now lives in the right rail with performance modules. */
@@ -312,7 +325,8 @@
             gap: 12px;
             overflow-y: auto;
             min-height: 0;
-            max-height: calc(100vh - 180px);
+            height: 100%;
+            max-height: 100%;
             padding: 0;
         }
 
@@ -333,9 +347,40 @@
             flex: 0 0 auto;
         }
 
+        #riskGauge {
+            min-height: 116px;
+        }
+
+        aside.dash-right-rail #openPositions {
+            order: 1;
+            flex: 0 0 180px !important;
+            height: 180px !important;
+            min-height: 180px !important;
+            max-height: 180px;
+            overflow-y: auto !important;
+        }
+        aside.dash-right-rail #riskGauge { order: 2; }
+        aside.dash-right-rail #edgeAnalyticsPanel { order: 3; }
+        aside.dash-right-rail #traiBrain {
+            order: 4;
+            flex: 0 0 180px !important;
+            height: 180px !important;
+            min-height: 180px !important;
+            max-height: 180px;
+            overflow-y: auto !important;
+        }
+        aside.dash-right-rail #sizePreview {
+            order: 5;
+            flex: 0 0 140px;
+            max-height: 140px;
+        }
+        aside.dash-right-rail #tradeLog { order: 6; }
+        aside.dash-right-rail #strategyLeaderboard { order: 7; }
+
         #edgeAnalyticsPanel,
         #traiBrain {
-            max-height: 280px;
+            flex: 0 0 180px;
+            max-height: 180px;
             min-height: 160px;
             overflow-y: auto;
         }
@@ -362,10 +407,12 @@
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             padding: 12px;
-            min-height: 280px;
+            min-height: 260px;
+            max-height: 320px;
             flex-shrink: 0;
             border-top: 1px solid var(--border-color);
             background: rgba(0, 0, 0, 0.4);
+            overflow: hidden;
         }
 
         #liveReport {
@@ -380,6 +427,7 @@
             padding: 8px;
             overflow-y: auto;
             min-height: 0;
+            max-height: 296px;
         }
 
         /* Footer: slim system health strip */
@@ -435,6 +483,8 @@
         @media (max-width: 1200px) {
             main.dash-main-grid {
                 grid-template-columns: 1fr;
+                height: auto;
+                max-height: none;
             }
             aside.dash-left-rail,
             aside.dash-right-rail {
@@ -818,7 +868,7 @@
 
     <!-- Phase E: Confidence Heatbar + Risk Gauge -->
     <script src="/js/panels/confidence-heatbar.js?v=1779666442541"></script>
-    <script src="/js/panels/risk-gauge.js?v=1782670000000"></script>
+    <script src="/js/panels/risk-gauge.js?v=1782700000000"></script>
 
     <!-- Phase F: HUD Widgets (Candle Countdown, Session Phase, Size Preview, Strategy Leaderboard) -->
     <script src="/js/panels/candle-countdown.js?v=1777005601913"></script>
@@ -865,7 +915,7 @@
     <script src="/js/panels/layout-switcher.js?v=1779478645357"></script>
 
     <!-- Phase 5 self-rendering modules (replace legacy chart.js + edge-analytics.js) -->
-    <script src="/js/panels/chart-panel.js?v=1782680000000"></script>
+    <script src="/js/panels/chart-panel.js?v=1782700000000"></script>
     <script src="/js/panels/edge-analytics-panel.js?v=1778309916680"></script>
 
     <!-- Trade replay: click any closed trade → modal with chart + reasoning -->
