@@ -5,6 +5,9 @@
 window.OGZ = (function() {
     'use strict';
 
+    const SPECIAL_MODULES = new Set(['Chart', 'Socket', 'Theme']);
+    const initializedModules = new Map();
+
     const state = {
         tier: 'ml',
         lastPrice: 0,
@@ -12,13 +15,29 @@ window.OGZ = (function() {
         proximityToGolden: 0,
         isGolden: false,
         lastBotMessageAt: 0,
+        initialized: false,
         activeModules: {}
     };
+
+    function initRegisteredModule(name, mod) {
+        if (SPECIAL_MODULES.has(name)) return;
+        if (initializedModules.get(name) === mod) return;
+        if (!mod || typeof mod.init !== 'function') return;
+        try {
+            mod.init();
+            initializedModules.set(name, mod);
+        } catch (e) {
+            console.error(`[OGZ] Module init failed: ${name}`, e);
+        }
+    }
 
     return {
         register: (name, mod) => {
             state.activeModules[name] = mod;
             console.log(`[OGZ] Module Registered: ${name}`);
+            if (state.initialized) {
+                initRegisteredModule(name, mod);
+            }
         },
 
         get: (name) => state.activeModules[name],
@@ -26,6 +45,11 @@ window.OGZ = (function() {
         state,
 
         init: async function() {
+            if (state.initialized) {
+                console.log('[Core] Modular System already booted.');
+                return;
+            }
+            state.initialized = true;
             console.log('[Core] Booting Modular System...');
 
             // Chart MUST init before Socket binds handlers (price/pattern_analysis/trade
@@ -33,8 +57,6 @@ window.OGZ = (function() {
             // not init(). Theme is init'd separately by unified-dashboard.html's window.onload.
             // Every other registered module gets init() called automatically — new modules
             // added via OGZ.register() require no further wiring here.
-            const SPECIAL = new Set(['Chart', 'Socket', 'Theme']);
-
             if (this.get('Chart')) this.get('Chart').init();
 
             if (this.get('Socket')) {
@@ -43,14 +65,7 @@ window.OGZ = (function() {
             }
 
             Object.keys(state.activeModules).forEach(name => {
-                if (SPECIAL.has(name)) return;
-                const mod = this.get(name);
-                if (!mod || typeof mod.init !== 'function') return;
-                try {
-                    mod.init();
-                } catch (e) {
-                    console.error(`[OGZ] Module init failed: ${name}`, e);
-                }
+                initRegisteredModule(name, this.get(name));
             });
 
             // Check TRAI status light

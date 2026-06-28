@@ -101,6 +101,10 @@
         'ticker_price'
     ]);
 
+    const SCOPE_ACK_FRAMES = new Set([
+        'asset_switched'
+    ]);
+
     const SOCKET_FRAME_TYPES = [
         'price',
         'delta',
@@ -147,7 +151,10 @@
             account: null,
             executionMode: null
         },
-        scopeSubscribers: []
+        scopeSubscribers: [],
+        scopeInputBound: false,
+        scopeInputHandler: null,
+        watchlistHandler: null
     };
 
     function nowIso() {
@@ -253,6 +260,59 @@
             });
         }
         return changed;
+    }
+
+    function normalizeSelectedSymbol(raw) {
+        const symbol = normalizeSymbol(raw);
+        if (!symbol) return null;
+        const selector = document.getElementById('cp-assetSelector');
+        if (!selector || !selector.options) return symbol;
+        const optionExists = (value) => Array.prototype.some.call(
+            selector.options,
+            (opt) => normalizeSymbol(opt.value) === value
+        );
+        if (optionExists(symbol)) return symbol;
+        const usdSymbol = symbol + '-USD';
+        if (optionExists(usdSymbol)) return usdSymbol;
+        return symbol;
+    }
+
+    function setSelectedScope(rawSymbol, broker, reason) {
+        const symbol = normalizeSelectedSymbol(rawSymbol);
+        if (!symbol) return false;
+        let changed = setScopeField('symbol', symbol, reason);
+        if (broker) changed = setScopeField('broker', broker, reason) || changed;
+        return changed;
+    }
+
+    function bindExplicitScopeInputs() {
+        if (state.scopeInputBound) return;
+        const bind = () => {
+            if (state.scopeInputBound) return;
+            const selector = document.getElementById('cp-assetSelector');
+            if (selector && typeof selector.addEventListener === 'function') {
+                state.scopeInputHandler = function () {
+                    setSelectedScope(selector.value, null, 'chart-selector');
+                };
+                selector.addEventListener('change', state.scopeInputHandler);
+                setSelectedScope(selector.value, null, 'chart-selector:init');
+            }
+            if (OGZ && OGZ.bus && typeof OGZ.bus.on === 'function') {
+                state.watchlistHandler = function (payload) {
+                    const symbol = payload && payload.symbol
+                        ? payload.symbol
+                        : (typeof payload === 'string' ? payload : null);
+                    const broker = payload && payload.broker ? payload.broker : null;
+                    setSelectedScope(symbol, broker, 'watchlist:select');
+                };
+                OGZ.bus.on('watchlist:select', state.watchlistHandler);
+            }
+            state.scopeInputBound = !!state.scopeInputHandler || !!state.watchlistHandler;
+        };
+        bind();
+        if (!state.scopeInputBound) {
+            window.setTimeout(bind, 0);
+        }
     }
 
     function scriptElements() {
@@ -406,7 +466,9 @@
             return false;
         }
 
-        syncScopeFromFrame(frame, 'frame:' + eventType);
+        if (SCOPE_ACK_FRAMES.has(eventType)) {
+            syncScopeFromFrame(frame, 'frame:' + eventType);
+        }
         addFreshness(eventType, symbol);
 
         const routed = symbol ? Object.assign({}, frame, { _empireSymbol: symbol }) : frame;
@@ -528,6 +590,7 @@
             if (state.initialized) return health();
             state.initialized = true;
             refreshInventory();
+            bindExplicitScopeInputs();
             bindToSocket();
             ensureHealthInterval();
             emitBus('empire:ready', health());
@@ -544,6 +607,16 @@
                 window.clearInterval(state.healthIntervalId);
                 state.healthIntervalId = null;
             }
+            const selector = document.getElementById('cp-assetSelector');
+            if (selector && state.scopeInputHandler) {
+                selector.removeEventListener('change', state.scopeInputHandler);
+            }
+            if (OGZ && OGZ.bus && typeof OGZ.bus.off === 'function' && state.watchlistHandler) {
+                OGZ.bus.off('watchlist:select', state.watchlistHandler);
+            }
+            state.scopeInputHandler = null;
+            state.watchlistHandler = null;
+            state.scopeInputBound = false;
             state.frameSubscribers.clear();
             emitBus('empire:teardown', { ts: nowIso() });
         },

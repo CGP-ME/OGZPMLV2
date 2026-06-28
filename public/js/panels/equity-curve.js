@@ -103,6 +103,8 @@
         // Data buffers
         samples: [],              // Array<EquitySample>
         trades: new Map(),        // Map<tradeId => TradeMarker>
+        latestTotalPnL: null,
+        startingEquity: null,
 
         // Configuration
         profitTarget: null,       // $
@@ -136,6 +138,43 @@
         if (n == null || isNaN(n)) return '—';
         const sign = n > 0 ? '+' : '';
         return `${sign}${n.toFixed(2)}%`;
+    }
+
+    function finiteNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function accountSource(data) {
+        if (!data || typeof data !== 'object') return {};
+        if (data.data && typeof data.data === 'object') {
+            return Object.assign({}, data, data.data);
+        }
+        return data;
+    }
+
+    function captureAccountSnapshot(data) {
+        const source = accountSource(data);
+        const equity = finiteNumber(source.equity);
+        const explicitPnl = source.totalPnL != null ? source.totalPnL : source.totalPnl;
+        const totalPnL = finiteNumber(explicitPnl);
+        const startingEquity = finiteNumber(
+            source.initialBalance != null ? source.initialBalance
+                : source.startingBalance != null ? source.startingBalance
+                    : source.startingEquity
+        );
+
+        if (startingEquity != null && startingEquity > 0) {
+            state.startingEquity = startingEquity;
+        }
+        if (totalPnL != null) {
+            state.latestTotalPnL = totalPnL;
+            if (equity != null && equity > 0) {
+                state.startingEquity = equity - totalPnL;
+            }
+        } else if (equity != null && state.startingEquity != null) {
+            state.latestTotalPnL = equity - state.startingEquity;
+        }
     }
 
     function svgEl(tag, attrs = {}) {
@@ -589,11 +628,14 @@
         if (!state.statsContainer || state.samples.length === 0) return;
 
         const lastSample = state.samples[state.samples.length - 1];
-        const firstSample = state.samples[0];
 
         const current = lastSample.equity;
-        const starting = firstSample.equity;
-        const pnl = current - starting;
+        const starting = Number.isFinite(state.startingEquity) && state.startingEquity > 0
+            ? state.startingEquity
+            : state.samples[0].equity;
+        const pnl = Number.isFinite(state.latestTotalPnL)
+            ? state.latestTotalPnL
+            : current - starting;
         const pct = starting ? (pnl / starting) * 100 : 0;
 
         const targetPct = state.profitTarget ? (pnl / state.profitTarget) * 100 : null;
@@ -735,6 +777,7 @@
 
     function handlePrice(data) {
         try {
+            captureAccountSnapshot(data);
             if (data && data.equity && typeof data.equity === 'number') {
                 addEquitySample(Date.now(), data.equity);
             }
@@ -755,6 +798,7 @@
 
     function handleBalanceUpdate(data) {
         try {
+            captureAccountSnapshot(data);
             if (data && typeof data.equity === 'number') {
                 addEquitySample(data.ts || Date.now(), data.equity);
             }
@@ -765,6 +809,7 @@
 
     function handleStateUpdate(data) {
         try {
+            captureAccountSnapshot(data);
             if (data && typeof data.equity === 'number') {
                 addEquitySample(data.ts || Date.now(), data.equity);
             }
@@ -780,6 +825,8 @@
             // When account changes, clear samples (new equity curve context)
             state.samples = [];
             state.trades.clear();
+            state.latestTotalPnL = null;
+            state.startingEquity = null;
             render();
         } catch (e) {
             // Silently ignore
@@ -842,6 +889,8 @@
         clear() {
             state.samples = [];
             state.trades.clear();
+            state.latestTotalPnL = null;
+            state.startingEquity = null;
             render();
         },
 

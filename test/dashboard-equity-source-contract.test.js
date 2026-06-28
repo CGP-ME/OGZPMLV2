@@ -162,6 +162,11 @@ describe('dashboard equity source contract', () => {
     expect(balanceHandler).toContain('typeof data.equity === \'number\'');
     expect(balanceHandler).toContain('addEquitySample(data.ts || Date.now(), data.equity)');
     expect(balanceHandler).not.toContain('data.balance');
+    expect(source).toContain('latestTotalPnL: null');
+    expect(source).toContain('function captureAccountSnapshot(data)');
+    expect(source).toContain('source.totalPnL != null ? source.totalPnL : source.totalPnl');
+    expect(source).toContain('state.startingEquity = equity - totalPnL');
+    expect(source).toContain('const pnl = Number.isFinite(state.latestTotalPnL)');
     expect(source).not.toContain('addTradeMarker(data.ts || Date.now(), data.symbol, data.side, data.pnl, data.balance)');
     expect(source).not.toContain(': 50000');
   });

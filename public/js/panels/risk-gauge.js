@@ -284,11 +284,10 @@
     }
 
     function mount() {
-        if (state.mounted) return true;
-        if (document.getElementById(ROOT_ID)) {
-            state.mounted = true;
-            return true;
-        }
+        let root = document.getElementById(ROOT_ID);
+        if (state.mounted && root && root.querySelector('.rg-ring-wrap')) return true;
+        state.mounted = false;
+
         // Prefer a semantic host; if none exist (page still loading, DOM
         // stripped, test harness, etc.) fall back to a fixed-position
         // element on document.body so the gauge is always visible rather
@@ -301,9 +300,12 @@
             usedFallback = true;
         }
 
-        const root = document.createElement('div');
-        root.id = ROOT_ID;
-        root.className = 'state-ok';
+        if (!root) {
+            root = document.createElement('div');
+            root.id = ROOT_ID;
+        }
+        root.classList.remove('state-watch', 'state-danger');
+        root.classList.add('state-ok');
         if (usedFallback) {
             // Fixed top-right positioning so the gauge doesn't compete
             // with other content for layout space when mounted outside
@@ -324,7 +326,9 @@
             <span class="rg-label">Risk Budget</span>
             <div class="rg-tooltip" role="tooltip"></div>
         `;
-        host.appendChild(root);
+        if (!root.parentNode) {
+            host.appendChild(root);
+        }
         state.mounted = true;
         render();
         return true;

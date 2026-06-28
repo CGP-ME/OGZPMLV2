@@ -20,6 +20,7 @@
         wins: 0,
         losses: 0,
         cumulativePnl: 0,
+        timerId: null,
     };
 
     function pad2(n) { return String(n).padStart(2, '0'); }
@@ -56,7 +57,23 @@
         setText('sessionWL', `${session.wins}W · ${session.losses}L`);
     }
 
+    function renderEmptyState() {
+        const container = document.getElementById('tradeLog');
+        if (!container) return;
+        if (container.querySelector('.trade-row')) return;
+        container.innerHTML = '<div class="trade-log-empty" style="padding:10px; color:#71717a; font-size:11px; font-family:\'JetBrains Mono\', monospace;">No trades this session yet.</div>';
+    }
+
     const TradeLog = {
+        init: function() {
+            renderEmptyState();
+            renderSessionPerformance();
+            tickTimer();
+            if (!session.timerId) {
+                session.timerId = setInterval(tickTimer, 1000);
+            }
+        },
+
         getSessionStats: function() {
             return {
                 startedAt: session.startedAt,
@@ -71,6 +88,8 @@
         addEntry: function(trade) {
             const container = document.getElementById('tradeLog');
             if (!container) return;
+            const empty = container.querySelector('.trade-log-empty');
+            if (empty) empty.remove();
 
             const row = document.createElement('div');
             row.className = 'trade-row';
@@ -120,14 +139,13 @@
             session.cumulativePnl = 0;
             renderSessionPerformance();
             tickTimer();
+            renderEmptyState();
         }
     };
 
     // Initial render + start session timer ticking
     document.addEventListener('DOMContentLoaded', () => {
-        renderSessionPerformance();
-        tickTimer();
-        setInterval(tickTimer, 1000);
+        TradeLog.init();
     });
 
     OGZ.register('TradeLog', TradeLog);
