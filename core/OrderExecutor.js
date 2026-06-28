@@ -23,6 +23,7 @@ const { getPIDController } = require('./PIDController');  // FIX 2026-04-05: Ada
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
@@ -850,6 +851,7 @@ class OrderExecutor {
     const entryStrategy = orchResult.winnerStrategy;
     const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
     const exitContract = orchResult.exitContract;
+    assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
     const scope = this._runtimeScope(symbol);
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
     const requestedSizeUsd = positionSize * sizingMultiplier;

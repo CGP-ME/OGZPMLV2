@@ -69,6 +69,7 @@ function makeOrchResult(overrides = {}) {
     exitContract: {
       stopLossPercent: -0.5,
       takeProfitPercent: 1,
+      useStructuralExits: false,
     },
     ...overrides,
   };
@@ -97,7 +98,7 @@ function makeBuyTrade(overrides = {}) {
     executionMode: 'live',
     timeframe: '1m',
     entryStrategy: 'RSI',
-    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false },
     ...overrides,
   };
 }
@@ -125,7 +126,7 @@ function makeShortTrade(overrides = {}) {
     executionMode: 'live',
     timeframe: '1m',
     entryStrategy: 'RSI',
-    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false },
     ...overrides,
   };
 }
@@ -1045,7 +1046,7 @@ describe('OrderExecutor pause gate', () => {
       null,
       makeOrchResult({
         sizingMultiplier: 1,
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 12 },
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 12, useStructuralExits: false },
       }),
       'TSLA'
     );
@@ -1088,7 +1089,7 @@ describe('OrderExecutor pause gate', () => {
       { rsi: 55, macd: {}, trend: 'sideways' },
       [],
       null,
-      makeOrchResult({ exitContract: { stopLossPercent: 0.5, takeProfitPercent: 1 } }),
+      makeOrchResult({ exitContract: { stopLossPercent: 0.5, takeProfitPercent: 1, useStructuralExits: false } }),
       'TSLA'
     )).rejects.toThrow(/must be negative risk distance/);
 
@@ -1096,6 +1097,58 @@ describe('OrderExecutor pause gate', () => {
     expect(sendOrder).not.toHaveBeenCalled();
     expect(webhookAdapter.emit).not.toHaveBeenCalled();
     expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('entry exit contract without structural ownership fails before broker, gate, webhook, or state side effects', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn();
+    const webhookAdapter = { emit: jest.fn() };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        webhookAdapter,
+        preOrderEntryGate,
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({ exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 } }),
+      'TSLA'
+    )).rejects.toThrow(/exitContract\.useStructuralExits missing\/invalid/);
+
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+    expect(sendOrder).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('entry plan helper rejects missing structural ownership before stock share routing', () => {
+    const executor = makeExecutor();
+
+    expect(() => executor._buildEntryPlan({
+      decision: { action: 'BUY', confidence: 50 },
+      symbol: 'TSLA',
+      price: 100,
+      positionSize: 500,
+      currentBalance: 5000,
+      currentEquity: 5000,
+      tradeConfidence: 50,
+      confidenceMultiplier: 1,
+      orchResult: makeOrchResult({ exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 } }),
+      absoluteCapPercent: 0.1,
+    })).toThrow(/OrderExecutor\._buildEntryPlan: exitContract\.useStructuralExits missing\/invalid/);
   });
 
   test('backtest non-fractional stock entry rejects zero-share order plan before simulated execution or state side effects', async () => {

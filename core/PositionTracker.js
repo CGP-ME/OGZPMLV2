@@ -19,6 +19,7 @@
 
 const { getInstance: getStateManager } = require('./StateManager');
 const PnLCalculator = require('./PnLCalculator');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 
 // Fields that CANNOT be changed after trade creation
 const IMMUTABLE_FIELDS = Object.freeze([
@@ -153,8 +154,10 @@ class PositionTracker {
       return { success: false, error: `side must be 'long' or 'short', got: ${side}` };
     }
 
-    if (!exitContract) {
-      console.warn('[PositionTracker] No exitContract provided - trade will lack exit conditions');
+    try {
+      assertExplicitExitOwnership(exitContract, 'PositionTracker.openPosition');
+    } catch (err) {
+      return { success: false, error: err.message };
     }
 
     let scope;

@@ -528,6 +528,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['ema_cross_reversal'],
@@ -563,6 +564,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: 0.60,      // LOCKED - 60% gate filters garbage signals
       atrMinPercent: null,      // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
@@ -579,6 +581,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 180,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['sr_break'],
@@ -591,6 +594,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.5,
       trailingActivation: 0.7,
       maxHoldTimeMinutes: 150,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['pattern_invalidated'],
@@ -602,6 +606,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 360,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: ['regime_change'],
@@ -612,6 +617,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.8,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 300,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
@@ -622,6 +628,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],
@@ -653,6 +660,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 1.5,
       trailingActivation: 1.0,
       maxHoldTimeMinutes: 10080,
+      useStructuralExits: false,
       minConfidence: null,
       atrMinPercent: null,
       invalidationConditions: ['regime_change'],
@@ -664,6 +672,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 1.1,
       trailingActivation: 1.65,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: 0.68,
       atrMinPercent: null,
       invalidationConditions: ['ema_pullback_invalidated'],
@@ -675,6 +684,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 1.0,
       trailingActivation: 1.5,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: 0.70,
       atrMinPercent: null,
       invalidationConditions: ['ema_retest_failed'],
@@ -686,6 +696,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: 0.62,
       atrMinPercent: null,
       invalidationConditions: ['regime_change'],
@@ -697,6 +708,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 1.0,
       trailingActivation: 1.5,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: 0.60,
       atrMinPercent: null,
       invalidationConditions: ['regime_change'],
@@ -724,6 +736,7 @@ const BASE_CONFIG = {
       trailingStopPercent: 0.6,
       trailingActivation: 0.8,
       maxHoldTimeMinutes: 240,
+      useStructuralExits: false,
       minConfidence: null,            // No locked per-strategy confidence gate yet.
       atrMinPercent: null,            // Per-strategy ATR threshold. null = use global default.
       invalidationConditions: [],

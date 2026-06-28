@@ -2,6 +2,7 @@
 
 const { buildPolicyHash } = require('../core/dto/FrozenExitPolicy');
 const PolicyBuilder = require('../core/PolicyBuilder');
+const TradingConfig = require('../core/TradingConfig');
 
 describe('PolicyBuilder frozen exit policy', () => {
   const fixedNowMs = Date.parse('2026-06-28T18:30:00.000Z');
@@ -200,6 +201,21 @@ describe('PolicyBuilder frozen exit policy', () => {
       nowMs: fixedNowMs,
       configReader: reader(),
     })).toThrow(/exitContract.useStructuralExits is required/);
+  });
+
+  test('all base exit contracts declare structural-exit ownership explicitly', () => {
+    const contracts = TradingConfig.BASE_CONFIG.exitContracts;
+
+    for (const [strategyName, contract] of Object.entries(contracts)) {
+      expect(contract).toHaveProperty('useStructuralExits');
+      expect(typeof contract.useStructuralExits).toBe('boolean');
+      expect(() => PolicyBuilder.buildForTrade({
+        strategyName,
+        exitContract: contract,
+        nowMs: fixedNowMs,
+        configReader: TradingConfig,
+      })).not.toThrow();
+    }
   });
 
   test('fails loudly when a required central config value is missing', () => {

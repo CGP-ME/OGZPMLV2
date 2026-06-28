@@ -62,7 +62,7 @@ function buildOrchResult() {
     confidence: 80,
     winnerStrategy: 'RSI',
     allResults: [{ strategyName: 'RSI', direction: 'buy', confidence: 0.8, reason: 'proof signal' }],
-    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+    exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1, useStructuralExits: false },
     confluence: { count: 1, strategies: ['RSI'] },
     sizingMultiplier: 1,
     signalBreakdown: { signals: [{ direction: 'buy', confidence: 0.8, reason: 'proof signal' }] },

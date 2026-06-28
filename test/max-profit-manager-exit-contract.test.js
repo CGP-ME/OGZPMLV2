@@ -69,6 +69,13 @@ describe('MaxProfitManager exit contract stop basis', () => {
     return new MaxProfitManager();
   }
 
+  function tradeExitContract(overrides = {}) {
+    return {
+      useStructuralExits: false,
+      ...overrides,
+    };
+  }
+
   beforeEach(() => {
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -93,7 +100,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, direction, 10, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract,
+      exitContract: tradeExitContract(exitContract),
     });
     expect(result.success).toBe(true);
     return manager;
@@ -140,8 +147,21 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(() => manager.start(100, 'buy', 10, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { takeProfitPercent: 1 },
+      exitContract: tradeExitContract({ takeProfitPercent: 1 }),
     })).toThrow(/exitContract\.stopLossPercent missing\/invalid/);
+  });
+
+  test('trade exit contracts require explicit structural-exit ownership', () => {
+    const manager = createManager({
+      initialStopLossPercent: 0.008,
+      enableTieredExit: false,
+    });
+
+    expect(() => manager.start(100, 'buy', 10, {
+      volatility: 0.01,
+      confidence: 0.7,
+      exitContract: { stopLossPercent: -0.5 },
+    })).toThrow(/exitContract\.useStructuralExits missing\/invalid/);
   });
 
   test('wrong-sign trade stop contracts fail before replacing existing manager state', () => {
@@ -151,7 +171,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     expect(() => manager.start(100, 'buy', 10, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { stopLossPercent: 0.5 },
+      exitContract: tradeExitContract({ stopLossPercent: 0.5 }),
     })).toThrow(/must be negative risk distance/);
     expect(manager.state).toBe(previousState);
     expect(manager.state.initialStopPercent).toBeCloseTo(0.005, 10);
@@ -179,7 +199,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
       confidence: 0.7,
       entryOrderQuantity: 1,
       entryOrderQuantityUnit: 'shares',
-      exitContract: { stopLossPercent: -0.5 },
+      exitContract: tradeExitContract({ stopLossPercent: -0.5 }),
     });
     expect(result.success).toBe(true);
 
@@ -202,7 +222,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 1000, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { stopLossPercent: -5 },
+      exitContract: tradeExitContract({ stopLossPercent: -5 }),
     });
     expect(result.success).toBe(true);
 
@@ -250,7 +270,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 1000, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { stopLossPercent: -5 },
+      exitContract: tradeExitContract({ stopLossPercent: -5 }),
     });
     expect(result.success).toBe(true);
 
@@ -275,7 +295,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 1000, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { stopLossPercent: -5 },
+      exitContract: tradeExitContract({ stopLossPercent: -5 }),
     });
     expect(result.success).toBe(true);
 
@@ -306,7 +326,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 10000, {
       volatility: 0.01,
       confidence: 0.7,
-      exitContract: { stopLossPercent: -5 },
+      exitContract: tradeExitContract({ stopLossPercent: -5 }),
     });
     expect(result.success).toBe(true);
 
@@ -345,7 +365,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
       confidence: 0.8,
       entryOrderQuantity: 10,
       entryOrderQuantityUnit: 'shares',
-      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+      exitContract: tradeExitContract({ stopLossPercent: -0.5, takeProfitPercent: 2 }),
     });
     expect(result.success).toBe(true);
 
@@ -389,7 +409,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 1000, {
       volatility: 0.01,
       confidence: 0.8,
-      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+      exitContract: tradeExitContract({ stopLossPercent: -0.5, takeProfitPercent: 2 }),
     });
     expect(result.success).toBe(true);
 
@@ -456,7 +476,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
     const result = manager.start(100, 'buy', 1000, {
       volatility: 0.01,
       confidence: 0.8,
-      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+      exitContract: tradeExitContract({ stopLossPercent: -0.5, takeProfitPercent: 2 }),
     });
     expect(result.success).toBe(true);
     manager.state.remainingSize = 100;
@@ -494,7 +514,7 @@ describe('MaxProfitManager exit contract stop basis', () => {
       confidence: 0.8,
       entryOrderQuantity: 10,
       entryOrderQuantityUnit: 'shares',
-      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 2 },
+      exitContract: tradeExitContract({ stopLossPercent: -0.5, takeProfitPercent: 2 }),
     });
     expect(result.success).toBe(true);
 

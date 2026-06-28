@@ -22,6 +22,11 @@ describe('StateManager openPosition scope contract', () => {
     assetClass: 'stocks',
     executionMode: 'paper',
     timeframe: '15m',
+    exitContract: {
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1,
+      useStructuralExits: false,
+    },
     entryOrderQuantity: 5,
     entryOrderQuantityUnit: 'shares',
     remainingOrderQuantity: 5,
@@ -58,6 +63,7 @@ describe('StateManager openPosition scope contract', () => {
       strategyName: 'ScopeTestStrategy',
       stopLossPercent: -0.5,
       takeProfitPercent: 1,
+      useStructuralExits: false,
     },
     riskGates: [],
     ...overrides,
@@ -176,6 +182,35 @@ describe('StateManager openPosition scope contract', () => {
     expect(result.success).toBe(false);
     expect(result.identityRejected).toBe(true);
     expect(result.error).toContain('action/direction mismatch');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+  });
+
+  test('rejects missing exit-contract ownership before mutating active trades', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      exitContract: undefined,
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.exitContractRejected).toBe(true);
+    expect(result.code).toBe('ENTRY_EXIT_CONTRACT_REJECTED');
+    expect(result.error).toContain('exitContract invalid');
+    expect(manager.get('activeTrades').size).toBe(0);
+    expect(manager.get('position')).toBe(0);
+  });
+
+  test('rejects ambiguous exit-contract ownership before mutating active trades', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      exitContract: {
+        stopLossPercent: -0.5,
+        takeProfitPercent: 1,
+      },
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.exitContractRejected).toBe(true);
+    expect(result.code).toBe('ENTRY_EXIT_CONTRACT_REJECTED');
+    expect(result.error).toContain('exitContract.useStructuralExits missing/invalid');
     expect(manager.get('activeTrades').size).toBe(0);
     expect(manager.get('position')).toBe(0);
   });

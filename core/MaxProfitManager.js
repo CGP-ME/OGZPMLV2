@@ -61,6 +61,7 @@
 const TradingConfig = require('./TradingConfig');  // CHANGE 2026-02-28: Centralized config
 const FeeModel = require('./FeeModel');
 const { getNarrator } = require('./TradeNarrator');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Hot-path hook below checks cached narrator.enabled first; try frame only
 // entered when enabled (C1 zero-cost when OFF).
@@ -505,6 +506,7 @@ class MaxProfitManager {
     if (typeof exitContract !== 'object') {
       throw new Error(`MaxProfitManager.start: options.exitContract invalid (got ${typeof exitContract}) — refusing to use global stop for a malformed trade contract`);
     }
+    assertExplicitExitOwnership(exitContract, 'MaxProfitManager.start');
 
     const rawStopLossPercent = Number(exitContract.stopLossPercent);
     if (!Number.isFinite(rawStopLossPercent) || rawStopLossPercent === 0) {

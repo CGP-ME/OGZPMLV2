@@ -18,6 +18,7 @@
 
 // Phase 1 REWRITE: Single source of truth for all trading params
 const TradingConfig = require('./TradingConfig');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 
 // Phase 10: Delegate to individual exit checkers
 const StopLossChecker = require('./exit/StopLossChecker');
@@ -117,7 +118,11 @@ class ExitContractManager {
     }
     const holdTimeMinutes = (context.currentTime - trade.entryTime) / 60000;
 
+    if (trade.exitContract) {
+      assertExplicitExitOwnership(trade.exitContract, 'ExitContractManager.checkExitConditions');
+    }
     const contract = trade.exitContract || this.getDefaultContract(trade.entryStrategy || 'default');
+    assertExplicitExitOwnership(contract, 'ExitContractManager.checkExitConditions');
     // Ensure trade has contract for checkers
     if (!trade.exitContract) trade.exitContract = contract;
 

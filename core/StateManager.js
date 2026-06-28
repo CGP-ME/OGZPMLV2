@@ -79,6 +79,7 @@ const TradingConfig = require('./TradingConfig');
 const { get: getConfigValue, getSource: getConfigSource } = require('../foundation/ConfigLoader');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
+const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Both hook sites (openPosition / closePosition) check cached narrator.enabled
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
@@ -721,6 +722,14 @@ class StateManager {
     } catch (err) {
       return this._rejectOpenPositionScope(err, context);
     }
+    try {
+      assertExplicitExitOwnership(context.exitContract, 'StateManager.openPosition');
+      if (context.ledgerData?.exitContract !== undefined && context.ledgerData.exitContract !== null) {
+        assertExplicitExitOwnership(context.ledgerData.exitContract, 'StateManager.openPosition ledgerData');
+      }
+    } catch (err) {
+      return this._rejectOpenPositionExitContract(err, context);
+    }
 
     const usdCost = size;
 
@@ -911,6 +920,19 @@ class StateManager {
     };
     const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
     console.error(`[StateManager] openPosition BLOCKED - ${message} context.symbol=${contextSymbol}`);
+    return result;
+  }
+
+  _rejectOpenPositionExitContract(err, context = {}) {
+    const result = {
+      success: false,
+      error: err.message,
+      code: 'ENTRY_EXIT_CONTRACT_REJECTED',
+      exitContractRejected: true,
+      missingFields: ['exitContract.useStructuralExits'],
+    };
+    const contextSymbol = context.symbol ?? context.ledgerData?.symbol ?? null;
+    console.error(`[StateManager] openPosition BLOCKED - ${err.message} context.symbol=${contextSymbol}`);
     return result;
   }
 
