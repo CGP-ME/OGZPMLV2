@@ -247,6 +247,33 @@ describe('frontend websocket lifecycle', () => {
     });
   });
 
+  test('bot_state counts as dashboard data for the stale-data watchdog', () => {
+    const harness = createHarness();
+    const socket = openAndAuthenticate(harness);
+
+    jest.advanceTimersByTime(15000);
+    socket.receive({ type: 'pong' });
+    jest.advanceTimersByTime(15000);
+    socket.receive({ type: 'pong' });
+    jest.advanceTimersByTime(15000);
+    socket.receive({
+      type: 'bot_state',
+      mode: 'weekend_idle',
+      reason: 'stocks_closed',
+      next_active_at: '2026-06-29T13:30:00.000Z',
+    });
+    socket.receive({ type: 'pong' });
+    jest.advanceTimersByTime(15000);
+    socket.receive({ type: 'pong' });
+    jest.advanceTimersByTime(15000);
+    socket.receive({ type: 'pong' });
+    jest.advanceTimersByTime(15000);
+    socket.receive({ type: 'pong' });
+
+    expect(socket.closeArgs).toBeNull();
+    expect(harness.instances).toHaveLength(1);
+  });
+
   test('uses in-memory operator token when public meta token is empty', () => {
     const harness = createHarness({ token: '' });
 

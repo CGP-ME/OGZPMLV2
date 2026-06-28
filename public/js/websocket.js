@@ -28,6 +28,7 @@
     const DASHBOARD_DATA_FRAME_TYPES = new Set([
         'asset_switched',
         'balance_update',
+        'bot_state',
         'bot_thinking',
         'broker_ack',
         'broker_reject',

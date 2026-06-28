@@ -14,6 +14,7 @@
 const WebSocket = require('ws');
 const { getInstance: getStateManager } = require('./StateManager');
 const { getNarrator } = require('./TradeNarrator');
+const { buildBotStateFrame } = require('./BotStateFrame');
 const stateManager = getStateManager();
 
 class WebSocketManager {
@@ -95,6 +96,8 @@ class WebSocketManager {
           type: 'auth',
           token: authToken
         }));
+        this.ctx.dashboardAuthPending = true;
+        this.ctx.dashboardConnectionId = null;
         console.log('[WebSocketManager] Sent authentication to dashboard');
 
         // DON'T send identify here - wait for auth_success message
@@ -117,6 +120,12 @@ class WebSocketManager {
           clearInterval(this.ctx.dataWatchdogInterval);
           this.ctx.dataWatchdogInterval = null;
         }
+        if (this.ctx.botStateInterval) {
+          clearInterval(this.ctx.botStateInterval);
+          this.ctx.botStateInterval = null;
+        }
+        this.ctx.dashboardAuthPending = false;
+        this.ctx.dashboardConnectionId = null;
         // Reconnect faster (2s instead of 5s)
         if (this.ctx.isRunning) {
           setTimeout(() => this.initializeDashboardWebSocket(), 2000);
@@ -132,6 +141,18 @@ class WebSocketManager {
 
           // Handle authentication success
           if (msg.type === 'auth_success') {
+            const connectionId = typeof msg.connectionId === 'string' && msg.connectionId.trim()
+              ? msg.connectionId.trim()
+              : null;
+            if (!this.ctx.dashboardAuthPending || !connectionId) {
+              console.error('[WebSocketManager] Invalid dashboard auth_success frame - closing connection.');
+              this.ctx.dashboardAuthPending = false;
+              this.ctx.dashboardWs.close(1008, 'Invalid auth_success');
+              return;
+            }
+
+            this.ctx.dashboardAuthPending = false;
+            this.ctx.dashboardConnectionId = connectionId;
             console.log('[WebSocketManager] Dashboard authentication successful');
 
             // Now send identify message after successful auth
@@ -165,6 +186,7 @@ class WebSocketManager {
 
             // CHANGE 2026-01-28: Start heartbeat ping interval after auth
             this.startHeartbeatPing();
+            this.startBotStateBroadcast();
 
             return;
           }
@@ -172,6 +194,7 @@ class WebSocketManager {
           // Handle authentication errors
           if (msg.type === 'error') {
             console.error('[WebSocketManager] Dashboard error:', msg.message);
+            this.ctx.dashboardAuthPending = false;
             return;
           }
 
@@ -288,8 +311,8 @@ class WebSocketManager {
     const PONG_TIMEOUT = 30000;  // 30 seconds (miss 2 pings = dead)
     const DATA_TIMEOUT = 60000;  // 60 seconds no data = force reconnect
 
-    // Track last message received (any type)
-    this.ctx.lastDashboardMessageReceived = this.ctx.lastDashboardMessageReceived || Date.now();
+    // Reset the data-watchdog grace window on each authenticated connection.
+    this.ctx.lastDashboardMessageReceived = Date.now();
 
     // Heartbeat ping/pong check
     this.ctx.heartbeatInterval = setInterval(() => {
@@ -347,6 +370,40 @@ class WebSocketManager {
     }, 30000); // Check every 30s
 
     console.log('[WebSocketManager] Heartbeat started (ping every 15s, pong timeout 30s, data timeout 60s)');
+  }
+
+  sendBotStateFrame() {
+    if (!this.ctx.dashboardWs || this.ctx.dashboardWs.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+
+    const frame = buildBotStateFrame({
+      ...this.ctx,
+      stateManager,
+    });
+
+    this.ctx.dashboardWs.send(JSON.stringify(frame));
+    return true;
+  }
+
+  startBotStateBroadcast() {
+    if (this.ctx.botStateInterval) {
+      clearInterval(this.ctx.botStateInterval);
+      this.ctx.botStateInterval = null;
+    }
+
+    try {
+      this.sendBotStateFrame();
+    } catch (error) {
+      console.error('[WebSocketManager] bot_state broadcast failed:', error.message);
+    }
+    this.ctx.botStateInterval = setInterval(() => {
+      try {
+        this.sendBotStateFrame();
+      } catch (error) {
+        console.error('[WebSocketManager] bot_state broadcast failed:', error.message);
+      }
+    }, 60000);
   }
 }
 

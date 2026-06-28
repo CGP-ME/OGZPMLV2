@@ -28,6 +28,9 @@
  *                        balance, totalBalance, realizedPnL, unrealizedPnL, totalPnL,
  *                        tradeCount, dailyTradeCount, recoveryMode }, timestamp }
  *   - 'balance_update' -> equity fallback: { type:'balance_update', equity }
+ *   - 'bot_state'      -> runtime posture banner. Shape:
+ *                        { type:'bot_state', mode, reason, next_active_at,
+ *                          active_strategies, active_brokers, timestamp }
  *   - 'bot_thinking'   -> TradingLoop.processCycle / TRAIDecisionModule. BOT-light heartbeat.
  *                        Shape: { type:'bot_thinking', timestamp, message, confidence,
  *                        data:{ reasoning, price, regime, module }, strategy_stack }
@@ -112,6 +115,7 @@
             bot:  { active: false, error: false, lastPulse: 0 },
             trai: { active: false, error: false, lastPulse: 0 },
         },
+        botState: null,
         idleTimers: { data: null, bot: null, trai: null },
 
         // Account selector
@@ -126,6 +130,7 @@
             dataLight: null,
             botLight: null,
             traiLight: null,
+            botStateBanner: null,
             riskBudgetPercent: null,
             riskBudgetLevel: null,
             accountSelector: null,
@@ -181,7 +186,8 @@
                 background: linear-gradient(180deg, #0d0d1a 0%, #080812 100%);
                 border-bottom: 1px solid rgba(255, 255, 255, 0.15);
                 box-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-                height: 66px;
+                min-height: 68px;
+                height: auto;
                 position: relative;
                 z-index: 10;
             }
@@ -319,6 +325,42 @@
                 flex: 0 0 auto;
                 margin-left: auto;
                 justify-self: end;
+            }
+
+            .hs-bot-state-banner {
+                display: inline-flex;
+                align-items: center;
+                flex: 0 1 280px;
+                width: min(28vw, 280px);
+                max-width: 280px;
+                min-height: 28px;
+                padding: 0 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(251, 191, 36, 0.35);
+                background: rgba(251, 191, 36, 0.08);
+                color: #fbbf24;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.7px;
+                text-transform: uppercase;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .hs-bot-state-banner.active,
+            .hs-bot-state-banner.live {
+                border-color: rgba(34, 197, 94, 0.42);
+                background: rgba(34, 197, 94, 0.08);
+                color: #22c55e;
+            }
+
+            .hs-bot-state-banner.paused,
+            .hs-bot-state-banner.risk {
+                border-color: rgba(239, 68, 68, 0.42);
+                background: rgba(239, 68, 68, 0.08);
+                color: #ef4444;
             }
 
             .hs-status-lights-bar {
@@ -487,6 +529,8 @@
             </div>
 
             <div class="hs-status-cluster">
+                <div class="hs-bot-state-banner awaiting" id="hsBotStateBanner">BOT STATE AWAITING</div>
+
                 <div class="hs-status-lights-bar">
                     <div class="hs-status-light">
                         <span class="hs-light" id="hsDataLight"></span>
@@ -520,6 +564,7 @@
         state.domRefs.dataLight = root.querySelector('#hsDataLight');
         state.domRefs.botLight = root.querySelector('#hsBotLight');
         state.domRefs.traiLight = root.querySelector('#hsTraiLight');
+        state.domRefs.botStateBanner = root.querySelector('#hsBotStateBanner');
         state.domRefs.riskBudgetPercent = root.querySelector('#hsRiskPercent');
         state.domRefs.riskBudgetLevel = root.querySelector('#hsRiskLevel');
         state.domRefs.accountSelector = root.querySelector('#hsAccountSelector');
@@ -601,6 +646,7 @@
         updateStatusLightDOM('data');
         updateStatusLightDOM('bot');
         updateStatusLightDOM('trai');
+        updateBotStateBanner();
 
         // Update risk budget
         if (state.domRefs.riskBudgetPercent) {
@@ -611,6 +657,72 @@
             state.domRefs.riskBudgetLevel.textContent = state.riskLevel;
             state.domRefs.riskBudgetLevel.className = `hs-risk-budget-level ${state.riskLevel.toLowerCase()}`;
         }
+    }
+
+    function classifyBotState(mode) {
+        const normalized = String(mode || '').toLowerCase();
+        if (normalized === 'live') return 'live';
+        if (normalized === 'eval_active') return 'active';
+        if (normalized === 'paused') return 'paused';
+        if (normalized === 'risk_circuit') return 'risk';
+        return 'awaiting';
+    }
+
+    function formatBotStateLabel(value) {
+        return String(value || '')
+            .replace(/_/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+    }
+
+    function formatNextActive(iso) {
+        if (!iso) return '';
+        const date = new Date(iso);
+        if (Number.isNaN(date.getTime())) return '';
+        try {
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                weekday: 'short',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short',
+            }).format(date);
+        } catch (_) {
+            return iso;
+        }
+    }
+
+    function normalizeBotState(frame) {
+        const data = frame && frame.data && typeof frame.data === 'object' ? frame.data : frame;
+        if (!data || typeof data !== 'object') return null;
+        const mode = typeof data.mode === 'string' && data.mode.trim() ? data.mode.trim() : 'unknown';
+        const reason = typeof data.reason === 'string' && data.reason.trim() ? data.reason.trim() : '';
+        const nextActive = typeof data.next_active_at === 'string' && data.next_active_at.trim()
+            ? data.next_active_at.trim()
+            : '';
+        return { mode, reason, nextActive };
+    }
+
+    function updateBotStateBanner() {
+        const el = state.domRefs.botStateBanner;
+        if (!el) return;
+
+        if (!state.botState) {
+            el.textContent = 'BOT STATE AWAITING';
+            el.className = 'hs-bot-state-banner awaiting';
+            return;
+        }
+
+        const modeLabel = formatBotStateLabel(state.botState.mode);
+        const reasonLabel = formatBotStateLabel(state.botState.reason);
+        const nextLabel = formatNextActive(state.botState.nextActive);
+        const parts = [modeLabel];
+        if (reasonLabel) parts.push(reasonLabel);
+        if (nextLabel) parts.push(`NEXT ${nextLabel}`);
+        el.textContent = parts.join(' | ');
+        el.className = `hs-bot-state-banner ${classifyBotState(state.botState.mode)}`;
     }
 
     // Auto-derive risk meter from session drawdown (if no external override).
@@ -739,6 +851,24 @@
         } catch (_) { /* swallow */ }
     }
 
+    function handleBotState(d) {
+        try {
+            const next = normalizeBotState(d);
+            if (!next) return;
+            state.botState = next;
+            if (next.mode === 'eval_active' || next.mode === 'live') {
+                pulseLight('bot');
+            } else if (next.mode === 'risk_circuit' || next.mode === 'paused') {
+                state.statusLights.bot.active = false;
+                state.statusLights.bot.error = true;
+            } else {
+                state.statusLights.bot.active = false;
+                state.statusLights.bot.error = false;
+            }
+            updateDisplay();
+        } catch (_) { /* swallow */ }
+    }
+
     // 'bot_thinking' - BOT light heartbeat. We don't render the reasoning
     // here (Intelligence/HUD modules own that); we only use this as proof
     // of life for the BOT pill.
@@ -826,6 +956,7 @@
                 socket.registerHandler('price', (e) => { try { handlePrice(e); } catch (_) {} });
                 socket.registerHandler('state_update', (e) => { try { handleStateUpdate(e); } catch (_) {} });
                 socket.registerHandler('balance_update', (e) => { try { handleBalanceUpdate(e); } catch (_) {} });
+                socket.registerHandler('bot_state', (e) => { try { handleBotState(e); } catch (_) {} });
                 socket.registerHandler('bot_thinking', (e) => { try { handleBotThinking(e); } catch (_) {} });
                 socket.registerHandler('narrator_event', (e) => { try { handleNarratorEvent(e); } catch (_) {} });
                 socket.registerHandler('trade', (e) => { try { handleTrade(e); } catch (_) {} });
@@ -927,6 +1058,7 @@
                 riskLevel: state.riskLevel,
                 externalRiskOverride: state.externalRiskOverride,
                 statusLights: JSON.parse(JSON.stringify(state.statusLights)),
+                botState: state.botState ? { ...state.botState } : null,
                 currentAccount: state.currentAccount,
             };
         },
