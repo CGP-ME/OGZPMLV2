@@ -9,6 +9,7 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
 
     const SPECIAL_MODULES = new Set(['Chart', 'Socket', 'Theme']);
     const initializedModules = new Map();
+    const initializedModuleRefs = new Set();
 
     const state = {
         tier: 'ml',
@@ -21,13 +22,18 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
         activeModules: {}
     };
 
-    function initRegisteredModule(name, mod) {
-        if (SPECIAL_MODULES.has(name)) return;
+    function initRegisteredModule(name, mod, force) {
+        if (SPECIAL_MODULES.has(name) && !force) return;
         if (initializedModules.get(name) === mod) return;
         if (!mod || typeof mod.init !== 'function') return;
+        if (initializedModuleRefs.has(mod)) {
+            initializedModules.set(name, mod);
+            return;
+        }
         try {
             mod.init();
             initializedModules.set(name, mod);
+            initializedModuleRefs.add(mod);
         } catch (e) {
             console.error(`[OGZ] Module init failed: ${name}`, e);
         }
@@ -65,7 +71,7 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
             // not init(). Theme is init'd separately by unified-dashboard.html's window.onload.
             // Every other registered module gets init() called automatically — new modules
             // added via OGZ.register() require no further wiring here.
-            if (this.get('Chart')) this.get('Chart').init();
+            if (this.get('Chart')) initRegisteredModule('Chart', this.get('Chart'), true);
 
             if (this.get('Socket')) {
                 this.bindGlobalHandlers();

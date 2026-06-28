@@ -63,6 +63,17 @@ describe('OGZ core module init contract', () => {
     expect(chart.init).not.toHaveBeenCalled();
   });
 
+  test('legacy Chart alias and ChartPanel registry entry initialize the shared chart module once', async () => {
+    const ogz = loadCore();
+    const chartPanel = { init: jest.fn() };
+
+    ogz.register('ChartPanel', chartPanel);
+    ogz.register('Chart', chartPanel);
+    await ogz.init();
+
+    expect(chartPanel.init).toHaveBeenCalledTimes(1);
+  });
+
   test('duplicate core script evaluation preserves the existing booted registry', async () => {
     const { context, source } = makeCoreContext();
     vm.runInContext(source, context);

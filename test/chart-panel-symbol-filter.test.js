@@ -84,6 +84,36 @@ describe('chart panel symbol filter', () => {
     expect(source).toContain("return optionExists ? selected : normalizeDashboardSymbol(DEFAULT_SYMBOL);");
   });
 
+  test('normalizes indicator selections without dropping existing oscillator panes on string calls', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+    const chart = loadChartPanel('TSLA');
+
+    expect(chart._normalizeIndicatorSelection(['RSI', 'ema', 'rsi'])).toEqual(['rsi', 'ema']);
+    expect(source).toContain("activeOverlays.concat([active])");
+    expect(source).toContain("const selected = normalizeIndicatorSelection(active);");
+    expect(source).toContain("activeOverlays = selected.slice();");
+    expect(source).toContain("syncIndicatorCheckboxes(selected);");
+    expect(source).toContain("if (storedCandles.length > 0) this.calculateIndicators(storedCandles);");
+    expect(source).not.toContain("if (storedCandles.length > 0) this.calculateIndicators(storedCandles);\n                    });");
+  });
+
+  test('generated price-line overlays are cleared before recalculation and chart clears', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+
+    expect(source).toContain("this._clearGeneratedOverlayLines();");
+    expect(source).toContain("if (!Array.isArray(candles) || candles.length < MIN_INDICATOR_CANDLES) return false;");
+    expect(source).toContain("candleSeries.removePriceLine(l)");
+  });
+
+  test('chart panel CSS does not clip oscillator panes inside the module shell', () => {
+    const css = fs.readFileSync(path.join(__dirname, '../public/css/panels/chart-panel.css'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '../public/unified-dashboard-v2.html'), 'utf8');
+
+    expect(css).not.toMatch(/\.cp-root\s*\{[^}]*overflow:\s*hidden/s);
+    expect(css).not.toMatch(/\.cp-container\s*\{[^}]*overflow:\s*hidden/s);
+    expect(html).not.toMatch(/#chartPanel\s*\{[^}]*overflow:\s*hidden/s);
+  });
+
   test('accepts only the selected dashboard symbol when a frame is symbol-stamped', () => {
     const chart = loadChartPanel('TSLA');
 

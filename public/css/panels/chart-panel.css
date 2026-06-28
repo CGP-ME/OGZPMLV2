@@ -27,7 +27,7 @@
     background: rgba(10, 10, 10, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* ===========================================================================
@@ -176,7 +176,7 @@
     flex-direction: column;
     min-height: 400px;
     background: #0a0a0a;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .cp-tv-chart-container {
@@ -190,8 +190,8 @@
        the candle pane to near-zero on any column that isn't very tall (see
        the "uhhhh" screenshot -- candle ~40px, only osc labels visible).
        This floor guarantees the price chart always stays the dominant pane;
-       if the column is too short to fit floor + osc stack, .cp-container's
-       overflow:hidden clips an oscillator rather than the candle. */
+       if the column is too short to fit floor + osc stack, the dashboard's
+       scrollable center column exposes the full panel instead of clipping it. */
     min-height: 260px;
 }
 

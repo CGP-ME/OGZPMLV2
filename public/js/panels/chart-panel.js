@@ -83,6 +83,7 @@
     let _cachedHudOhlc = null;
     let _cachedTooltipEl = null;
     let _loadedAsset = null;
+    let _initialized = false;
 
     // Teardown tracking
     const _trackedListeners = [];
@@ -535,6 +536,36 @@
         try {
             const active = OSC_PANE_ORDER.filter(k => !!_oscPanes[k]);
             localStorage.setItem(OSC_PANE_LS_KEY, JSON.stringify(active));
+        } catch (e) { /* swallow */ }
+    }
+
+    function normalizeIndicatorSelection(active) {
+        const normalize = (value) => String(value || '').trim().toLowerCase();
+        const unique = (items) => Array.from(new Set(items.map(normalize).filter(Boolean)));
+        if (Array.isArray(active)) return unique(active);
+        if (typeof active === 'string') {
+            const next = unique(activeOverlays.concat([active]));
+            return next;
+        }
+        return unique(activeOverlays);
+    }
+
+    function setSeriesVisible(series, visible) {
+        try {
+            if (series && typeof series.applyOptions === 'function') {
+                series.applyOptions({ visible: !!visible });
+            }
+        } catch (e) { /* swallow */ }
+    }
+
+    function syncIndicatorCheckboxes(selected) {
+        try {
+            const root = document.getElementById(ROOT_ID);
+            const checkboxContainer = root && root.querySelector('#cp-indicatorCheckboxes');
+            if (!checkboxContainer) return;
+            checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+                chk.checked = selected.includes(String(chk.value || '').toLowerCase());
+            });
         } catch (e) { /* swallow */ }
     }
 
@@ -1316,8 +1347,10 @@
          */
         init: function () {
             try {
+                if (_initialized) return;
                 if (!renderScaffold()) return;
                 if (!initChart()) return;
+                _initialized = true;
                 bootstrapWS(document.getElementById(ROOT_ID));
 
                 // Restore oscillator-pane set from last session. The volume pane
@@ -1513,7 +1546,6 @@
                         activeOverlays = [];
                         checkboxContainer.querySelectorAll('input:checked').forEach(c => activeOverlays.push(c.value));
                         this.toggleIndicators(activeOverlays);
-                        if (storedCandles.length > 0) this.calculateIndicators(storedCandles);
                     });
                 });
             }
@@ -1636,26 +1668,31 @@
          * Toggle indicator visibility and recalculate layout.
          */
         toggleIndicators: function (active) {
+            const selected = normalizeIndicatorSelection(active);
+            activeOverlays = selected.slice();
+            syncIndicatorCheckboxes(selected);
+            if (!tvChart || !candleSeries) return false;
+
             // ─── Price-chart overlays (unchanged) ───────────────────────
             // EMA / SMA / Bollinger / VWAP / Ichimoku / trendlines /
             // fibonacci / sr are correct price overlays — they stay on the
             // main chart exactly as before.
-            ema20Series.applyOptions({ visible: active.includes('ema') });
-            ema50Series.applyOptions({ visible: active.includes('ema') });
-            ema200Series.applyOptions({ visible: active.includes('ema') });
-            bbUpperSeries.applyOptions({ visible: active.includes('bollinger') });
-            bbMiddleSeries.applyOptions({ visible: active.includes('bollinger') });
-            bbLowerSeries.applyOptions({ visible: active.includes('bollinger') });
-            vwapSeries.applyOptions({ visible: active.includes('vwap') });
-            sma20Series.applyOptions({ visible: active.includes('sma') });
-            sma50Series.applyOptions({ visible: active.includes('sma') });
-            sma200Series.applyOptions({ visible: active.includes('sma') });
-            this._ichiTenkan.applyOptions({ visible: active.includes('ichimoku') });
-            this._ichiKijun.applyOptions({ visible: active.includes('ichimoku') });
-            this._ichiSenkouA.applyOptions({ visible: active.includes('ichimoku') });
-            this._ichiSenkouB.applyOptions({ visible: active.includes('ichimoku') });
-            this._trendResistance.applyOptions({ visible: active.includes('trendlines') });
-            this._trendSupport.applyOptions({ visible: active.includes('trendlines') });
+            setSeriesVisible(ema20Series, selected.includes('ema'));
+            setSeriesVisible(ema50Series, selected.includes('ema'));
+            setSeriesVisible(ema200Series, selected.includes('ema'));
+            setSeriesVisible(bbUpperSeries, selected.includes('bollinger'));
+            setSeriesVisible(bbMiddleSeries, selected.includes('bollinger'));
+            setSeriesVisible(bbLowerSeries, selected.includes('bollinger'));
+            setSeriesVisible(vwapSeries, selected.includes('vwap'));
+            setSeriesVisible(sma20Series, selected.includes('sma'));
+            setSeriesVisible(sma50Series, selected.includes('sma'));
+            setSeriesVisible(sma200Series, selected.includes('sma'));
+            setSeriesVisible(this._ichiTenkan, selected.includes('ichimoku'));
+            setSeriesVisible(this._ichiKijun, selected.includes('ichimoku'));
+            setSeriesVisible(this._ichiSenkouA, selected.includes('ichimoku'));
+            setSeriesVisible(this._ichiSenkouB, selected.includes('ichimoku'));
+            setSeriesVisible(this._trendResistance, selected.includes('trendlines'));
+            setSeriesVisible(this._trendSupport, selected.includes('trendlines'));
 
             // ─── Oscillators (fix #42) ──────────────────────────────────
             // RSI / MACD / ATR are no longer main-chart overlays — each
@@ -1663,34 +1700,36 @@
             // rsiOverlaySeries/macdLineSeries/macdSignalSeries/atrSeries are
             // intentionally left hidden + unfed.
             ['rsi', 'macd', 'atr'].forEach(key => {
-                if (active.includes(key)) {
+                if (selected.includes(key)) {
                     if (!_oscPanes[key]) this.addOscPane(key);
                 } else {
                     if (_oscPanes[key]) this.removeOscPane(key);
                 }
             });
 
-            this._fibLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch (e) { } });
-            this._fibLines = [];
-            this._srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch (e) { } });
-            this._srLines = [];
+            this._clearGeneratedOverlayLines();
 
             this._applyLayout();
+            if (storedCandles.length > 0) this.calculateIndicators(storedCandles);
+            return true;
         },
 
         /**
          * Calculate and render indicator overlays from stored candles.
          */
         calculateIndicators: function (candles) {
-            if (!candles || candles.length < MIN_INDICATOR_CANDLES) return;
+            if (!Array.isArray(candles) || candles.length < MIN_INDICATOR_CANDLES) return false;
+            if (!tvChart || !candleSeries) return false;
             const Ind = OGZ.get('Indicators');
-            if (!Ind) return;
+            if (!Ind) return false;
 
             const closes = candles.map(c => c.close);
             const times = candles.map(c => c.time);
             const mapSeries = (values) => values.map((v, i) => v != null ? { time: times[i], value: v } : null).filter(Boolean);
 
             try {
+                this._clearGeneratedOverlayLines();
+
                 const ema20 = Ind.calculateEMA(closes, 20);
                 const ema50 = Ind.calculateEMA(closes, 50);
                 const ema200 = Ind.calculateEMA(closes, 200);
@@ -1773,9 +1812,22 @@
                         this._srLines.push(line);
                     });
                 }
+                return true;
             } catch (e) {
                 /* swallow */
             }
+            return false;
+        },
+
+        _clearGeneratedOverlayLines: function () {
+            if (Array.isArray(this._fibLines)) {
+                this._fibLines.forEach(l => { try { if (candleSeries) candleSeries.removePriceLine(l); } catch (e) { } });
+            }
+            this._fibLines = [];
+            if (Array.isArray(this._srLines)) {
+                this._srLines.forEach(l => { try { if (candleSeries) candleSeries.removePriceLine(l); } catch (e) { } });
+            }
+            this._srLines = [];
         },
 
         /**
@@ -1800,6 +1852,7 @@
             wallLines = []; tpoLines = [];
 
             removeRsiBands(this);
+            this._clearGeneratedOverlayLines();
         },
 
         /**
@@ -1875,6 +1928,7 @@
             _oscPanes = {};
             _oscMainRangeCB = null;
             _oscSyncing = false;
+            _initialized = false;
 
             // Clear the timeframe-change watchdog if still pending.
             try { ChartPanel._clearNoDataWatchdog(); } catch (e) { /* swallow */ }
@@ -2630,6 +2684,10 @@
 
         _hasDrawablePositionLines: function (position) {
             return hasDrawablePositionLines(position);
+        },
+
+        _normalizeIndicatorSelection: function (active) {
+            return normalizeIndicatorSelection(active);
         }
     };
 
