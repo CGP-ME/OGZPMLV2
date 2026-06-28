@@ -113,6 +113,119 @@ function holdTimeMsOrNull(trade, now = Date.now()) {
   return startedAt === null ? null : now - startedAt;
 }
 
+function clonePlain(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function cloneStateSnapshot(value) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Map) {
+    const clonedMap = new Map();
+    for (const [key, mapValue] of value.entries()) {
+      clonedMap.set(key, cloneStateSnapshot(mapValue));
+    }
+    return clonedMap;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneStateSnapshot(entry));
+  }
+  const clonedObject = {};
+  for (const [key, objectValue] of Object.entries(value)) {
+    clonedObject[key] = cloneStateSnapshot(objectValue);
+  }
+  return clonedObject;
+}
+
+function deepFreezePlain(value) {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Map) {
+    for (const mapValue of value.values()) {
+      deepFreezePlain(mapValue);
+    }
+    for (const methodName of ['set', 'delete', 'clear']) {
+      Object.defineProperty(value, methodName, {
+        value: () => {
+          throw new TypeError('StateManager snapshot Map is read-only');
+        },
+        configurable: false,
+        writable: false,
+      });
+    }
+    return Object.freeze(value);
+  }
+  for (const key of Object.keys(value)) {
+    deepFreezePlain(value[key]);
+  }
+  return Object.freeze(value);
+}
+
+function initialBeScaleOutState(status = 'idle') {
+  return {
+    status,
+    intentId: null,
+    targetQuantity: null,
+    filledQuantity: 0,
+    brokerOrderIds: [],
+  };
+}
+
+function initialExitLifecycleFields() {
+  return {
+    tradeRevision: 0,
+    pendingExitIntent: null,
+    beScaleOutState: initialBeScaleOutState(),
+    tierStates: [],
+  };
+}
+
+function normalizeBeScaleOutState(value, legacy = false) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return initialBeScaleOutState(legacy ? 'unknown_legacy' : 'idle');
+  }
+  return {
+    status: typeof value.status === 'string' && value.status.trim()
+      ? value.status.trim()
+      : (legacy ? 'unknown_legacy' : 'idle'),
+    intentId: value.intentId ?? null,
+    targetQuantity: value.targetQuantity === null || value.targetQuantity === undefined
+      ? null
+      : (Number.isFinite(Number(value.targetQuantity)) ? Number(value.targetQuantity) : null),
+    filledQuantity: Number.isFinite(Number(value.filledQuantity)) ? Number(value.filledQuantity) : 0,
+    brokerOrderIds: Array.isArray(value.brokerOrderIds) ? [...value.brokerOrderIds] : [],
+  };
+}
+
+function normalizeTierStates(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((tierState) => clonePlain(tierState));
+}
+
+function withExitLifecycleFields(trade, { legacy = false, reset = false } = {}) {
+  if (!trade || typeof trade !== 'object' || Array.isArray(trade)) {
+    return trade;
+  }
+
+  const revision = Number(trade.tradeRevision);
+  return {
+    ...trade,
+    tradeRevision: !reset && Number.isSafeInteger(revision) && revision >= 0 ? revision : 0,
+    pendingExitIntent: !reset && Object.prototype.hasOwnProperty.call(trade, 'pendingExitIntent')
+      ? clonePlain(trade.pendingExitIntent)
+      : null,
+    beScaleOutState: reset ? initialBeScaleOutState() : normalizeBeScaleOutState(trade.beScaleOutState, legacy),
+    tierStates: reset ? [] : normalizeTierStates(trade.tierStates),
+  };
+}
+
 class StateManager {
   /**
    * Creates a new StateManager instance.
@@ -212,7 +325,7 @@ class StateManager {
    * Get current state snapshot (read-only)
    */
   getState() {
-    return { ...this.state };
+    return deepFreezePlain(cloneStateSnapshot(this.state));
   }
 
   /**
@@ -267,7 +380,7 @@ class StateManager {
    */
   set(key, value) {
     if (key === 'activeTrades') {
-      const activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.set');
+      const activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.set', { resetLifecycle: true });
       this.state.activeTrades = activeTrades;
       return activeTrades;
     }
@@ -397,13 +510,13 @@ class StateManager {
     await this.acquireLock();
 
     try {
-      return this._applyStateUpdatesLocked(updates, context);
+      return this._applyStateUpdatesLocked(updates, context, { resetActiveTradeLifecycle: true });
     } finally {
       this.releaseLock();
     }
   }
 
-  _applyStateUpdatesLocked(updates, context = {}) {
+  _applyStateUpdatesLocked(updates, context = {}, options = {}) {
     try {
       // Snapshot for rollback
       const snapshot = { ...this.state };
@@ -421,7 +534,9 @@ class StateManager {
 
         // CRITICAL FIX: Protect activeTrades Map from being overwritten
         if (key === 'activeTrades') {
-          this.state.activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.updateState');
+          this.state.activeTrades = this._normalizeActiveTradesInput(value, 'StateManager.updateState', {
+            resetLifecycle: options.resetActiveTradeLifecycle === true,
+          });
           if (Array.isArray(value)) {
             console.log(`[StateManager] Converted activeTrades array to Map with ${value.length} entries`);
           }
@@ -592,6 +707,7 @@ class StateManager {
       timestamp: Date.now(),
       status: 'open',
       ...context,
+      ...initialExitLifecycleFields(),
       // CC-C Commit 5: symbol assignment AFTER `...context` so the dash-
       // normalized value (line 405-407) wins over context.symbol (slash form
       // from the caller). The prior order had `symbol: tradeSymbol` BEFORE
@@ -1195,7 +1311,7 @@ class StateManager {
     return issues;
   }
 
-  _normalizeActiveTradesInput(value, caller = 'StateManager.activeTrades') {
+  _normalizeActiveTradesInput(value, caller = 'StateManager.activeTrades', { resetLifecycle = false } = {}) {
     let activeTrades;
     if (Array.isArray(value)) {
       activeTrades = new Map(value);
@@ -1208,14 +1324,17 @@ class StateManager {
     }
 
     const issues = [];
+    const normalizedTrades = new Map();
     for (const [tradeId, trade] of activeTrades.entries()) {
-      issues.push(...this._activeTradeQuantityIssuesForTrade(trade, tradeId));
+      const normalizedTrade = withExitLifecycleFields(trade, { reset: resetLifecycle });
+      issues.push(...this._activeTradeQuantityIssuesForTrade(normalizedTrade, tradeId));
+      normalizedTrades.set(tradeId, normalizedTrade);
     }
     if (issues.length > 0) {
       throw new Error(`[${caller}] active trade quantity invariant failed: ${issues.join('; ')}`);
     }
 
-    return activeTrades;
+    return normalizedTrades;
   }
 
   _activeTradeQuantityIssues() {
@@ -1575,18 +1694,18 @@ class StateManager {
     console.log(`[StateManager] this.get exists: ${typeof this.get}`);
     console.log(`[StateManager] this.set exists: ${typeof this.set}`);
 
-    const trades = this.get('activeTrades') || new Map();
+    const trades = new Map(this.state.activeTrades || []);
     console.log(`[StateManager] Got trades: ${trades instanceof Map ? 'Map' : typeof trades}`);
     if (!(trades instanceof Map)) {
       throw new Error(`[StateManager.updateActiveTrade] activeTrades container invariant failed: expected Map, got ${typeof trades}`);
     }
 
     const tradeRecord = tradeData && typeof tradeData === 'object'
-      ? {
-        ...tradeData,
-        id: tradeData.id || orderId,
-        orderId: tradeData.orderId || orderId,
-      }
+      ? withExitLifecycleFields({
+          ...tradeData,
+          id: tradeData.id || orderId,
+          orderId: tradeData.orderId || orderId,
+        }, { reset: true })
       : tradeData;
     const quantityIssues = this._activeTradeQuantityIssuesForTrade(tradeRecord, orderId);
     if (quantityIssues.length > 0) {
@@ -1594,9 +1713,9 @@ class StateManager {
     }
 
     trades.set(orderId, tradeRecord);
-    console.log(`[StateManager] About to call this.set with activeTrades`);
+    console.log(`[StateManager] About to normalize activeTrades`);
 
-    this.set('activeTrades', trades);
+    this.state.activeTrades = this._normalizeActiveTradesInput(trades, 'StateManager.updateActiveTrade');
     // FIX 2026-02-16: REMOVED this.save() - was causing race condition!
     // openPosition() saves AFTER updating BOTH activeTrades AND position atomically
     console.log(`[StateManager] Updated trade ${orderId} (no save - openPosition will save)`);
@@ -1606,10 +1725,10 @@ class StateManager {
    * Remove an active trade
    */
   removeActiveTrade(orderId) {
-    const trades = this.get('activeTrades');
+    const trades = new Map(this.state.activeTrades || []);
     if (trades && trades.has(orderId)) {
       trades.delete(orderId);
-      this.set('activeTrades', trades);
+      this.state.activeTrades = this._normalizeActiveTradesInput(trades, 'StateManager.removeActiveTrade');
       // FIX 2026-02-16: REMOVED this.save() - same race condition fix
       // closePosition() saves AFTER updating BOTH activeTrades AND position atomically
       console.log(`[StateManager] Removed trade ${orderId} (no save - closePosition will save)`);
@@ -1624,8 +1743,30 @@ class StateManager {
    * is what prevents cross-symbol contamination in multi-broker arbitrage.
    */
   getAllTrades() {
-    const trades = this.get('activeTrades');
+    const trades = this.state.activeTrades;
     return trades ? Array.from(trades.values()) : [];
+  }
+
+  /**
+   * Get a read-only active trade snapshot by id/orderId.
+   * This is the StateManager-owned read boundary for planner/coordinator code:
+   * callers can inspect trade truth without mutating the live activeTrades Map.
+   */
+  getActiveTrade(tradeId) {
+    if (typeof tradeId !== 'string' || !tradeId.trim()) {
+      throw new Error(`[StateManager.getActiveTrade] requires explicit non-empty tradeId; got ${JSON.stringify(tradeId)}`);
+    }
+
+    const trades = this.get('activeTrades');
+    if (!trades) {
+      return null;
+    }
+    if (!(trades instanceof Map)) {
+      throw new Error(`[StateManager.getActiveTrade] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+    }
+
+    const trade = trades.get(tradeId.trim()) || null;
+    return trade ? deepFreezePlain(clonePlain(trade)) : null;
   }
 
   normalizeSymbol(symbol, caller = 'StateManager.normalizeSymbol') {
@@ -1985,6 +2126,12 @@ class StateManager {
             `[StateManager.load] activeTrades container invariant failed: expected serialized array/Map, got ${Object.prototype.toString.call(this.state.activeTrades)}`
           );
         }
+        this.state.activeTrades = new Map(
+          Array.from(this.state.activeTrades.entries()).map(([tradeId, trade]) => [
+            tradeId,
+            withExitLifecycleFields(trade, { legacy: true }),
+          ])
+        );
         if (typeof this.state.isTrading !== 'boolean') {
           const invalidIsTrading = this.state.isTrading;
           const pauseReason = `[StateManager.load] invalid persisted isTrading=${JSON.stringify(invalidIsTrading)}; forcing entries paused`;

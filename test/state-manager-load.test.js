@@ -254,6 +254,130 @@ describe('StateManager load validation', () => {
     expect(() => new StateManager()).toThrow('activeTrades container invariant failed');
   });
 
+  test('loads legacy active trades with explicit unknown lifecycle state', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 500,
+      inPosition: 500,
+      activeTrades: [[
+        'LEGACY_LIFECYCLE_1',
+        {
+          id: 'LEGACY_LIFECYCLE_1',
+          orderId: 'LEGACY_LIFECYCLE_1',
+          action: 'BUY',
+          direction: 'long',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 5,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'LegacyLifecycleStrategy',
+        },
+      ]],
+      lastPrices: { TSLA: 100 },
+      isTrading: false,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    const trade = manager.get('activeTrades').get('LEGACY_LIFECYCLE_1');
+
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'unknown_legacy',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('preserves persisted active trade lifecycle state on load', () => {
+    fs.writeFileSync(stateFile, JSON.stringify({
+      balance: 10000,
+      totalBalance: 10000,
+      position: 500,
+      inPosition: 500,
+      activeTrades: [[
+        'PERSISTED_LIFECYCLE_1',
+        {
+          id: 'PERSISTED_LIFECYCLE_1',
+          orderId: 'PERSISTED_LIFECYCLE_1',
+          action: 'BUY',
+          direction: 'long',
+          status: 'open',
+          symbol: 'TSLA',
+          brokerId: 'alpaca',
+          accountId: 'acct-main',
+          assetClass: 'stocks',
+          executionMode: 'paper',
+          timeframe: '15m',
+          scopeKey: 'paper:alpaca:acct-main:stocks:TSLA:15m',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          entryOrderQuantity: 5,
+          entryOrderQuantityUnit: 'shares',
+          remainingOrderQuantity: 3,
+          remainingOrderQuantityUnit: 'shares',
+          entryStrategy: 'PersistedLifecycleStrategy',
+          tradeRevision: 4,
+          pendingExitIntent: { intentId: 'intent-1', expectedRemainingQuantity: 3 },
+          beScaleOutState: {
+            status: 'partial',
+            intentId: 'be-intent-1',
+            targetQuantity: 2,
+            filledQuantity: 1,
+            brokerOrderIds: ['broker-1'],
+          },
+          tierStates: [{
+            tierIndex: 0,
+            status: 'pending',
+            targetQuantity: 1,
+            filledQuantity: 0,
+          }],
+        },
+      ]],
+      lastPrices: { TSLA: 100 },
+      isTrading: false,
+      recoveryMode: false,
+    }), 'utf8');
+
+    const { StateManager } = require('../core/StateManager');
+    const manager = new StateManager();
+    const trade = manager.get('activeTrades').get('PERSISTED_LIFECYCLE_1');
+
+    expect(trade.tradeRevision).toBe(4);
+    expect(trade.pendingExitIntent).toEqual({ intentId: 'intent-1', expectedRemainingQuantity: 3 });
+    expect(trade.beScaleOutState).toEqual({
+      status: 'partial',
+      intentId: 'be-intent-1',
+      targetQuantity: 2,
+      filledQuantity: 1,
+      brokerOrderIds: ['broker-1'],
+    });
+    expect(trade.tierStates).toEqual([{
+      tierIndex: 0,
+      status: 'pending',
+      targetQuantity: 1,
+      filledQuantity: 0,
+    }]);
+  });
+
   test('partial reduction keeps remaining broker order quantity in sync', async () => {
     const { StateManager } = require('../core/StateManager');
     const manager = new StateManager();
@@ -422,7 +546,7 @@ describe('StateManager load validation', () => {
     });
     expect(opened.success).toBe(true);
 
-    const trade = manager.get('activeTrades').get('CLOSE_NULL_META');
+    const trade = manager.state.activeTrades.get('CLOSE_NULL_META');
     delete trade.entryStrategy;
     delete trade.strategy;
     trade.entryTime = 0;
@@ -504,7 +628,7 @@ describe('StateManager load validation', () => {
     });
     expect(opened.success).toBe(true);
 
-    const trade = manager.get('activeTrades').get('REDUCE_NULL_REASON');
+    const trade = manager.state.activeTrades.get('REDUCE_NULL_REASON');
     trade.decisionLedger = { tradeId: 'REDUCE_NULL_REASON', exits: [] };
 
     const reduced = await manager.reducePosition('REDUCE_NULL_REASON', 0.4, 110, {

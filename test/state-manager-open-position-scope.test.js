@@ -73,6 +73,10 @@ describe('StateManager openPosition scope contract', () => {
     process.env.DATA_DIR = tempDir;
     process.env.BACKTEST_MODE = 'false';
     process.env.EXECUTION_MODE = 'paper';
+    process.env.LIVE_TRADING = 'false';
+    process.env.CONFIRM_LIVE_TRADING = 'false';
+    process.env.EVAL_RULES_ENABLED = 'false';
+    process.env.TTP_RULES_ENABLED = 'false';
     process.env.CANDLE_SOURCE = 'live';
     process.env.BROKER = 'alpaca';
     process.env.ALPACA_MODE = 'paper';
@@ -241,6 +245,283 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager._buildScopedDashboardPositions(manager.state)).toEqual(beforePositions);
   });
 
+  test('set fills missing active trade lifecycle fields through StateManager normalization', () => {
+    manager.set('activeTrades', new Map([[
+      'SET_LIFECYCLE_1',
+      {
+        ...fullScope({
+          orderId: 'SET_LIFECYCLE_1',
+          scopeKey: expectedScopeKey,
+        }),
+        id: 'SET_LIFECYCLE_1',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+      },
+    ]]));
+
+    const trade = manager.get('activeTrades').get('SET_LIFECYCLE_1');
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('set resets caller-supplied active trade lifecycle fields', () => {
+    manager.set('activeTrades', new Map([[
+      'SET_LIFECYCLE_OVERRIDE',
+      {
+        ...fullScope({
+          orderId: 'SET_LIFECYCLE_OVERRIDE',
+          scopeKey: expectedScopeKey,
+        }),
+        id: 'SET_LIFECYCLE_OVERRIDE',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+        tradeRevision: 13,
+        pendingExitIntent: { intentId: 'caller-owned' },
+        beScaleOutState: {
+          status: 'complete',
+          intentId: 'caller-owned',
+          targetQuantity: 5,
+          filledQuantity: 5,
+          brokerOrderIds: ['caller-order'],
+        },
+        tierStates: [{ status: 'complete' }],
+      },
+    ]]));
+
+    const trade = manager.get('activeTrades').get('SET_LIFECYCLE_OVERRIDE');
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('updateActiveTrade resets caller-supplied exit lifecycle fields', () => {
+    manager.updateActiveTrade('UPDATE_LIFECYCLE_1', {
+      ...fullScope({
+        orderId: 'UPDATE_LIFECYCLE_1',
+        scopeKey: expectedScopeKey,
+      }),
+      id: 'UPDATE_LIFECYCLE_1',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+      tradeRevision: 22,
+      pendingExitIntent: { intentId: 'caller-owned' },
+      beScaleOutState: {
+        status: 'complete',
+        intentId: 'caller-owned',
+        targetQuantity: 5,
+        filledQuantity: 5,
+        brokerOrderIds: ['caller-order'],
+      },
+      tierStates: [{ status: 'complete' }],
+    });
+
+    const trade = manager.get('activeTrades').get('UPDATE_LIFECYCLE_1');
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('updateActiveTrade preserves existing StateManager-owned lifecycle fields on other trades', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const existingTrade = manager.state.activeTrades.get('OPEN_SCOPE_1');
+    existingTrade.tradeRevision = 3;
+    existingTrade.pendingExitIntent = { intentId: 'existing-intent' };
+    existingTrade.beScaleOutState = {
+      status: 'pending',
+      intentId: 'existing-be',
+      targetQuantity: 2,
+      filledQuantity: 1,
+      brokerOrderIds: ['existing-order'],
+    };
+    existingTrade.tierStates = [{ tierIndex: 0, status: 'pending' }];
+
+    manager.updateActiveTrade('UPDATE_LIFECYCLE_2', {
+      ...fullScope({
+        orderId: 'UPDATE_LIFECYCLE_2',
+        scopeKey: expectedScopeKey,
+      }),
+      id: 'UPDATE_LIFECYCLE_2',
+      sizeUsd: 250,
+      size: 250,
+      entryPrice: 100,
+      status: 'open',
+    });
+
+    const preservedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(preservedTrade.tradeRevision).toBe(3);
+    expect(preservedTrade.pendingExitIntent).toEqual({ intentId: 'existing-intent' });
+    expect(preservedTrade.beScaleOutState).toEqual({
+      status: 'pending',
+      intentId: 'existing-be',
+      targetQuantity: 2,
+      filledQuantity: 1,
+      brokerOrderIds: ['existing-order'],
+    });
+    expect(preservedTrade.tierStates).toEqual([{ tierIndex: 0, status: 'pending' }]);
+  });
+
+  test('removeActiveTrade preserves StateManager-owned lifecycle fields on remaining trades', () => {
+    const keptTrade = {
+      ...fullScope({
+        orderId: 'KEEP_LIFECYCLE_1',
+        scopeKey: expectedScopeKey,
+      }),
+      id: 'KEEP_LIFECYCLE_1',
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+      tradeRevision: 7,
+      pendingExitIntent: { intentId: 'kept-intent' },
+      beScaleOutState: {
+        status: 'partial',
+        intentId: 'kept-be',
+        targetQuantity: 3,
+        filledQuantity: 1,
+        brokerOrderIds: ['kept-order'],
+      },
+      tierStates: [{ tierIndex: 1, status: 'partial' }],
+    };
+    const removedTrade = {
+      ...fullScope({
+        orderId: 'REMOVE_LIFECYCLE_1',
+        scopeKey: expectedScopeKey,
+      }),
+      id: 'REMOVE_LIFECYCLE_1',
+      sizeUsd: 250,
+      size: 250,
+      entryPrice: 100,
+      status: 'open',
+    };
+    manager.state.activeTrades = new Map([
+      ['KEEP_LIFECYCLE_1', keptTrade],
+      ['REMOVE_LIFECYCLE_1', removedTrade],
+    ]);
+
+    manager.removeActiveTrade('REMOVE_LIFECYCLE_1');
+
+    const preservedTrade = manager.getActiveTrade('KEEP_LIFECYCLE_1');
+    expect(preservedTrade.tradeRevision).toBe(7);
+    expect(preservedTrade.pendingExitIntent).toEqual({ intentId: 'kept-intent' });
+    expect(preservedTrade.beScaleOutState).toEqual({
+      status: 'partial',
+      intentId: 'kept-be',
+      targetQuantity: 3,
+      filledQuantity: 1,
+      brokerOrderIds: ['kept-order'],
+    });
+    expect(preservedTrade.tierStates).toEqual([{ tierIndex: 1, status: 'partial' }]);
+    expect(manager.getActiveTrade('REMOVE_LIFECYCLE_1')).toBeNull();
+  });
+
+  test('updateState resets caller-supplied active trade lifecycle fields', async () => {
+    await manager.updateState({
+      activeTrades: new Map([[
+        'UPDATE_LIFECYCLE_OVERRIDE',
+        {
+          ...fullScope({
+            orderId: 'UPDATE_LIFECYCLE_OVERRIDE',
+            scopeKey: expectedScopeKey,
+          }),
+          id: 'UPDATE_LIFECYCLE_OVERRIDE',
+          sizeUsd: 500,
+          size: 500,
+          entryPrice: 100,
+          status: 'open',
+          tradeRevision: 17,
+          pendingExitIntent: { intentId: 'caller-owned' },
+          beScaleOutState: {
+            status: 'pending',
+            intentId: 'caller-owned',
+            targetQuantity: 2,
+            filledQuantity: 1,
+            brokerOrderIds: ['caller-order'],
+          },
+          tierStates: [{ status: 'pending' }],
+        },
+      ]]),
+    }, { action: 'TEST_LIFECYCLE_OVERRIDE' });
+
+    const trade = manager.get('activeTrades').get('UPDATE_LIFECYCLE_OVERRIDE');
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('updateState preserves active trade lifecycle fields when activeTrades is not updated', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const existingTrade = manager.state.activeTrades.get('OPEN_SCOPE_1');
+    existingTrade.tradeRevision = 9;
+    existingTrade.pendingExitIntent = { intentId: 'preserve-intent' };
+    existingTrade.beScaleOutState = {
+      status: 'pending',
+      intentId: 'preserve-be',
+      targetQuantity: 2,
+      filledQuantity: 1,
+      brokerOrderIds: ['preserve-order'],
+    };
+    existingTrade.tierStates = [{ tierIndex: 0, status: 'pending' }];
+
+    await manager.updateState({ balance: 9500 }, { action: 'BALANCE_ONLY_UPDATE' });
+
+    const preservedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(preservedTrade.tradeRevision).toBe(9);
+    expect(preservedTrade.pendingExitIntent).toEqual({ intentId: 'preserve-intent' });
+    expect(preservedTrade.beScaleOutState).toEqual({
+      status: 'pending',
+      intentId: 'preserve-be',
+      targetQuantity: 2,
+      filledQuantity: 1,
+      brokerOrderIds: ['preserve-order'],
+    });
+    expect(preservedTrade.tierStates).toEqual([{ tierIndex: 0, status: 'pending' }]);
+  });
+
   test('updateState rejects malformed activeTrades maps before mutating active trades', async () => {
     const beforePositions = manager._buildScopedDashboardPositions(manager.state);
 
@@ -305,6 +586,84 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.executionMode).toBe('paper');
     expect(trade.decisionLedger.positionSizing.finalSizeUsd).toBe(500);
     expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
+  });
+
+  test('initializes StateManager-owned exit lifecycle fields at trade birth', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      tradeRevision: 99,
+      pendingExitIntent: { intentId: 'caller-owned' },
+      beScaleOutState: { status: 'complete' },
+      tierStates: [{ status: 'complete' }],
+    }));
+
+    expect(result.success).toBe(true);
+    const trade = manager.get('activeTrades').get('OPEN_SCOPE_1');
+    expect(trade.tradeRevision).toBe(0);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.beScaleOutState).toEqual({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+      filledQuantity: 0,
+      brokerOrderIds: [],
+    });
+    expect(trade.tierStates).toEqual([]);
+  });
+
+  test('getActiveTrade returns a frozen clone and does not expose live trade mutation', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+
+    expect(result.success).toBe(true);
+    const snapshot = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(snapshot).toBeTruthy();
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.beScaleOutState)).toBe(true);
+    expect(Object.isFrozen(snapshot.beScaleOutState.brokerOrderIds)).toBe(true);
+
+    expect(() => {
+      snapshot.beScaleOutState.status = 'pending';
+    }).toThrow(TypeError);
+
+    const liveTrade = manager.get('activeTrades').get('OPEN_SCOPE_1');
+    expect(liveTrade.beScaleOutState.status).toBe('idle');
+  });
+
+  test('getState does not expose live activeTrades mutation', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+
+    expect(result.success).toBe(true);
+    const snapshot = manager.getState();
+    expect(snapshot.activeTrades).toBeInstanceOf(Map);
+
+    const snapshotTrade = snapshot.activeTrades.get('OPEN_SCOPE_1');
+    expect(Object.isFrozen(snapshotTrade)).toBe(true);
+    expect(() => {
+      snapshotTrade.sizeUsd = 9999;
+    }).toThrow(TypeError);
+
+    expect(() => {
+      snapshot.activeTrades.delete('OPEN_SCOPE_1');
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.activeTrades.set('FORGED_TRADE', {});
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.activeTrades.clear();
+    }).toThrow(TypeError);
+    expect(manager.get('activeTrades').has('OPEN_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').get('OPEN_SCOPE_1').sizeUsd).toBe(500);
+  });
+
+  test('getActiveTrade rejects ambiguous trade id and returns null for missing trade', async () => {
+    expect(() => manager.getActiveTrade('')).toThrow('requires explicit non-empty tradeId');
+    expect(manager.getActiveTrade('MISSING_TRADE')).toBeNull();
   });
 
   test('uses per-share minimum fee model for entry and exit accounting', async () => {
