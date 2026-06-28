@@ -228,18 +228,29 @@
     }
 
     // ─── Format Helpers ─────────────────────────────────────────────────
+    function isNumericValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value);
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed !== '' && Number.isFinite(Number(trimmed));
+        }
+        return false;
+    }
+
     function formatVolume(val) {
-        if (!isFinite(val) || val <= 0) return '--';
-        if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
-        if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
-        return val.toFixed(0);
+        if (!isNumericValue(val) || Number(val) <= 0) return '--';
+        const n = Number(val);
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toFixed(0);
     }
 
     function getRSIColorClass(val) {
-        if (!isFinite(val)) return '';
-        if (val >= RSI_NEUTRAL_MIN && val <= RSI_NEUTRAL_MAX) {
+        if (!isNumericValue(val)) return '';
+        const n = Number(val);
+        if (n >= RSI_NEUTRAL_MIN && n <= RSI_NEUTRAL_MAX) {
             return 'rsi-neutral';
-        } else if ((val >= RSI_WARN_LOW && val < RSI_NEUTRAL_MIN) || (val > RSI_NEUTRAL_MAX && val <= RSI_WARN_HIGH)) {
+        } else if ((n >= RSI_WARN_LOW && n < RSI_NEUTRAL_MIN) || (n > RSI_NEUTRAL_MAX && n <= RSI_WARN_HIGH)) {
             return 'rsi-warn';
         } else {
             return 'rsi-extreme';
@@ -247,8 +258,8 @@
     }
 
     function getMACSColorClass(val) {
-        if (!isFinite(val)) return '';
-        return val > 0 ? 'macd-positive' : 'macd-negative';
+        if (!isNumericValue(val)) return '';
+        return Number(val) > 0 ? 'macd-positive' : 'macd-negative';
     }
 
     function flashCell(cell) {
@@ -355,6 +366,11 @@
         confWrapper.className = 'lr-conf-wrapper';
         const confValue = document.createElement('div');
         confValue.className = 'lr-value';
+        const existingConfidence = document.getElementById('confidenceML');
+        if (existingConfidence && !root.contains(existingConfidence)) {
+            existingConfidence.removeAttribute('id');
+        }
+        confValue.id = 'confidenceML';
         confValue.textContent = String(state.liveConf);
         const confBar = document.createElement('div');
         confBar.className = 'lr-conf-bar';
@@ -407,8 +423,8 @@
             case 'rsi':
                 cellDiv = state.rsiCell;
                 valueSpan = state.rsiValueSpan;
-                if (isFinite(value)) {
-                    formattedValue = isFinite(value) ? Number(value).toFixed(0) : '--';
+                if (isNumericValue(value)) {
+                    formattedValue = Number(value).toFixed(0);
                 } else {
                     formattedValue = '--';
                 }
@@ -416,8 +432,8 @@
             case 'macd':
                 cellDiv = state.macdCell;
                 valueSpan = state.macdValueSpan;
-                if (isFinite(value)) {
-                    formattedValue = (value > 0 ? '+' : '') + Number(value).toFixed(2);
+                if (isNumericValue(value)) {
+                    formattedValue = (Number(value) > 0 ? '+' : '') + Number(value).toFixed(2);
                 } else {
                     formattedValue = '--';
                 }
@@ -425,7 +441,7 @@
             case 'atr':
                 cellDiv = state.atrCell;
                 valueSpan = state.atrValueSpan;
-                if (isFinite(value)) {
+                if (isNumericValue(value)) {
                     formattedValue = Number(value).toFixed(2);
                 } else {
                     formattedValue = '--';
@@ -434,12 +450,12 @@
             case 'volume':
                 cellDiv = state.volumeCell;
                 valueSpan = state.volumeValueSpan;
-                formattedValue = isFinite(value) ? formatVolume(value) : '--';
+                formattedValue = isNumericValue(value) ? formatVolume(value) : '--';
                 break;
             case 'liveConf':
                 cellDiv = state.liveConfCell;
                 valueSpan = state.confValueSpan;
-                if (isFinite(value)) {
+                if (isNumericValue(value)) {
                     const pct = Math.max(0, Math.min(100, Number(value)));
                     formattedValue = pct.toFixed(0) + '%';
                     if (state.liveConfBar) {
@@ -502,26 +518,26 @@
             if (Object.prototype.hasOwnProperty.call(data, 'indicators') && data.indicators == null) {
                 clearIndicatorReadouts();
             } else if (data.indicators) {
-                if (isFinite(data.indicators.rsi)) {
+                if (isNumericValue(data.indicators.rsi)) {
                     updateCell('rsi', data.indicators.rsi);
                     state.rsi = Number(data.indicators.rsi).toFixed(0);
                 }
-                if (isFinite(data.indicators.macd)) {
+                if (isNumericValue(data.indicators.macd)) {
                     updateCell('macd', data.indicators.macd);
                     state.macd = Number(data.indicators.macd).toFixed(2);
                 }
-                if (isFinite(data.indicators.atr)) {
+                if (isNumericValue(data.indicators.atr)) {
                     updateCell('atr', data.indicators.atr);
                     state.atr = Number(data.indicators.atr).toFixed(2);
                 }
-                if (isFinite(data.indicators.volume)) {
+                if (isNumericValue(data.indicators.volume)) {
                     updateCell('volume', data.indicators.volume);
                     state.volume = formatVolume(data.indicators.volume);
                 }
             }
 
             // Extract confidence if present (alternative: signal_analysis provides this)
-            if (isFinite(data.confidence)) {
+            if (isNumericValue(data.confidence)) {
                 updateCell('liveConf', data.confidence);
                 state.liveConf = Number(data.confidence).toFixed(0) + '%';
             }
@@ -536,7 +552,7 @@
 
             // Extract confidence from signal_analysis event
             // spec: data.modules.orchestrator.confidence
-            if (data.modules && data.modules.orchestrator && isFinite(data.modules.orchestrator.confidence)) {
+            if (data.modules && data.modules.orchestrator && isNumericValue(data.modules.orchestrator.confidence)) {
                 const conf = data.modules.orchestrator.confidence;
                 updateCell('liveConf', conf);
                 state.liveConf = Number(conf).toFixed(0) + '%';
@@ -607,35 +623,35 @@
     }
 
     function updateRSI(value) {
-        if (isFinite(value)) {
+        if (isNumericValue(value)) {
             state.rsi = Number(value).toFixed(0);
             updateCell('rsi', value);
         }
     }
 
     function updateMACD(value) {
-        if (isFinite(value)) {
+        if (isNumericValue(value)) {
             state.macd = Number(value).toFixed(2);
             updateCell('macd', value);
         }
     }
 
     function updateATR(value) {
-        if (isFinite(value)) {
+        if (isNumericValue(value)) {
             state.atr = Number(value).toFixed(2);
             updateCell('atr', value);
         }
     }
 
     function updateVolume(value) {
-        if (isFinite(value)) {
+        if (isNumericValue(value)) {
             state.volume = formatVolume(value);
             updateCell('volume', value);
         }
     }
 
     function updateLiveConf(value) {
-        if (isFinite(value)) {
+        if (isNumericValue(value)) {
             state.liveConf = Number(value).toFixed(0) + '%';
             updateCell('liveConf', value);
         }

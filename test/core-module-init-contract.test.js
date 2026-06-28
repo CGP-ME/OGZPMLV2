@@ -74,6 +74,22 @@ describe('OGZ core module init contract', () => {
     expect(chartPanel.init).toHaveBeenCalledTimes(1);
   });
 
+  test('panel modules initialize before the dashboard socket connects', async () => {
+    const ogz = loadCore();
+    const order = [];
+    const panel = { init: jest.fn(() => order.push('panel:init')) };
+    const socket = {
+      registerHandler: jest.fn(),
+      connect: jest.fn(() => order.push('socket:connect')),
+    };
+
+    ogz.register('Panel', panel);
+    ogz.register('Socket', socket);
+    await ogz.init();
+
+    expect(order).toEqual(['panel:init', 'socket:connect']);
+  });
+
   test('duplicate core script evaluation preserves the existing booted registry', async () => {
     const { context, source } = makeCoreContext();
     vm.runInContext(source, context);

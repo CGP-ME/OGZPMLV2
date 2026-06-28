@@ -22,6 +22,15 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
         activeModules: {}
     };
 
+    function isNumericValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value);
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed !== '' && Number.isFinite(Number(trimmed));
+        }
+        return false;
+    }
+
     function initRegisteredModule(name, mod, force) {
         if (SPECIAL_MODULES.has(name) && !force) return;
         if (initializedModules.get(name) === mod) return;
@@ -66,21 +75,21 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
             state.initialized = true;
             console.log('[Core] Booting Modular System...');
 
-            // Chart MUST init before Socket binds handlers (price/pattern_analysis/trade
-            // handlers reference Chart). Socket has special boot (bindGlobalHandlers + connect),
-            // not init(). Theme is init'd separately by unified-dashboard.html's window.onload.
-            // Every other registered module gets init() called automatically — new modules
-            // added via OGZ.register() require no further wiring here.
+            // Chart MUST init first because price/pattern_analysis/trade handlers
+            // reference it. Mount every normal panel before Socket.connect() so
+            // first-frame WebSocket data cannot race panel DOM bridges or handlers.
+            // Socket has special boot (bindGlobalHandlers + connect), not init().
+            // Theme is init'd separately by unified-dashboard.html's window.onload.
             if (this.get('Chart')) initRegisteredModule('Chart', this.get('Chart'), true);
+
+            Object.keys(state.activeModules).forEach(name => {
+                initRegisteredModule(name, this.get(name));
+            });
 
             if (this.get('Socket')) {
                 this.bindGlobalHandlers();
                 this.get('Socket').connect();
             }
-
-            Object.keys(state.activeModules).forEach(name => {
-                initRegisteredModule(name, this.get(name));
-            });
 
             // Check TRAI status light
             fetch('/api/trai/status').then(r => r.ok ? r.json() : null).then(d => {
@@ -169,7 +178,9 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                     const vol = data.volume != null ? data.volume : (data.candle && data.candle.volume);
                     set('volumeCore', vol != null ? Number(vol).toFixed(0) : '--');
                     set('atrML', ind.atr != null ? ind.atr.toFixed(2) : '--');
-                    set('confidenceML', data.confidence != null ? data.confidence.toFixed(0) + '%' : '--');
+                    if (isNumericValue(data.confidence)) {
+                        set('confidenceML', Number(data.confidence).toFixed(0) + '%');
+                    }
                 }
 
                 // Session Performance is owned by TradeLog (panels/trade-log.js) —
@@ -194,12 +205,12 @@ window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
                 state.lastBotMessageAt = Date.now();
                 if (this.get('Intelligence')) this.get('Intelligence').updateWinnerHUD(d);
                 // Populate the indicators-bar "Live Conf" field. bot_thinking
-                // carries decision.confidence which the price event does not —
-                // without this wire, #confidenceML rendered '--' on every tick.
+                // carries decision.confidence; price frames only update this
+                // field when they actually include confidence.
                 const conf = (d && d.confidence != null) ? d.confidence
                           : (d && d.data && d.data.confidence != null) ? d.data.confidence
                           : null;
-                if (conf != null) {
+                if (isNumericValue(conf)) {
                     const el = document.getElementById('confidenceML');
                     if (el) el.textContent = Number(conf).toFixed(0) + '%';
                 }

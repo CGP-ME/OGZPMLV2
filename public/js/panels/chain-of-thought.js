@@ -429,6 +429,12 @@
         return `${h}:${m}:${s} ET`;
     }
 
+    function normalizeConfidence(value) {
+        const n = Number(value);
+        if (!isFinite(n)) return undefined;
+        return n > 1 ? n / 100 : n;
+    }
+
     function renderLine(line) {
         const el = document.createElement('div');
         el.className = `cot-line ${line.level || 'info'}`;
@@ -513,7 +519,7 @@
                     ts: Date.now(),
                     text: String(text),
                     symbol: opts && opts.symbol ? String(opts.symbol) : undefined,
-                    confidence: opts && opts.confidence != null ? Number(opts.confidence) : undefined,
+                    confidence: opts && opts.confidence != null ? normalizeConfidence(opts.confidence) : undefined,
                     level: opts && ['info', 'decision', 'warning', 'execution'].includes(opts.level)
                         ? opts.level
                         : 'info',
@@ -634,8 +640,14 @@
 
     function onBotThinking(data) {
         try {
-            if (!data || !data.thinking) return;
-            const text = String(data.thinking);
+            if (!data) return;
+            const text = String(
+                data.thinking ||
+                data.analysis ||
+                data.message ||
+                (data.data && data.data.reasoning) ||
+                ''
+            );
             if (!text) return;
 
             ChainOfThought.addLine(text, {
