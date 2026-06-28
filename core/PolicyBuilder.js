@@ -1,0 +1,308 @@
+'use strict';
+
+const TradingConfig = require('./TradingConfig');
+const { freezePolicy } = require('./dto/FrozenExitPolicy');
+
+const REQUIRED_CONTRACT_FIELDS = Object.freeze([
+  'stopLossPercent',
+  'takeProfitPercent',
+  'trailingStopPercent',
+  'trailingActivation',
+  'maxHoldTimeMinutes',
+  'useStructuralExits',
+  'invalidationConditions',
+]);
+
+const CONFIG_PATHS = Object.freeze({
+  beScaleOut: Object.freeze({
+    enabled: 'exitLogic.beScaleOut.enabled',
+    triggerType: 'exitLogic.beScaleOut.triggerType',
+    fixedPercentTrigger: 'exitLogic.beScaleOut.fixedPercentTrigger',
+    scaleOutFraction: 'exitLogic.beScaleOut.scaleOutFraction',
+    feeBufferPercent: 'exitLogic.beScaleOut.feeBufferPercent',
+  }),
+  breakEvenStop: Object.freeze({
+    enabled: 'exitLogic.breakEvenStop.enabled',
+    triggerPercent: 'exitLogic.breakEvenStop.triggerPercent',
+  }),
+  tieredExit: Object.freeze({
+    enabled: 'exitLogic.tieredExit.enabled',
+    tier1ExitFraction: 'exitLogic.tieredExit.tier1ExitFraction',
+    tier2ExitFraction: 'exitLogic.tieredExit.tier2ExitFraction',
+    tier3ExitFraction: 'exitLogic.tieredExit.tier3ExitFraction',
+    enableMarketAdaptation: 'exitLogic.tieredExit.enableMarketAdaptation',
+    trendingTargetMultiplier: 'exitLogic.tieredExit.trendingTargetMultiplier',
+    rangingTargetMultiplier: 'exitLogic.tieredExit.rangingTargetMultiplier',
+    highConfidenceThreshold: 'exitLogic.tieredExit.highConfidenceThreshold',
+    highConfidenceMultiplier: 'exitLogic.tieredExit.highConfidenceMultiplier',
+    lowConfidenceThreshold: 'exitLogic.tieredExit.lowConfidenceThreshold',
+    lowConfidenceMultiplier: 'exitLogic.tieredExit.lowConfidenceMultiplier',
+  }),
+  profitTargets: Object.freeze({
+    tier1: 'exits.profitTiers.tier1',
+    tier2: 'exits.profitTiers.tier2',
+    tier3: 'exits.profitTiers.tier3',
+    final: 'exits.profitTiers.final',
+  }),
+  fees: Object.freeze({
+    model: 'fees.model',
+    makerFee: 'fees.makerFee',
+    takerFee: 'fees.takerFee',
+    slippage: 'fees.slippage',
+    totalRoundTrip: 'fees.totalRoundTrip',
+    safetyBuffer: 'fees.safetyBuffer',
+    perShare: 'fees.perShare',
+    minOrderFee: 'fees.minOrderFee',
+  }),
+});
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function assertPlainObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`[PolicyBuilder] ${label} must be a plain object`);
+  }
+}
+
+function requireContractField(contract, field) {
+  if (!hasOwn(contract, field)) {
+    throw new Error(`[PolicyBuilder] exitContract.${field} is required`);
+  }
+  return contract[field];
+}
+
+function requireFiniteNumber(value, label) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`[PolicyBuilder] ${label} must be a finite number`);
+  }
+  return value;
+}
+
+function requireFraction(value, label) {
+  const numericValue = requireFiniteNumber(value, label);
+  if (numericValue < 0 || numericValue > 1) {
+    throw new Error(`[PolicyBuilder] ${label} must be between 0 and 1`);
+  }
+  return numericValue;
+}
+
+function requirePercent(value, label) {
+  const numericValue = requireFiniteNumber(value, label);
+  if (numericValue < 0 || numericValue > 100) {
+    throw new Error(`[PolicyBuilder] ${label} must be between 0 and 100 percent-form`);
+  }
+  return numericValue;
+}
+
+function requirePositiveNumber(value, label) {
+  const numericValue = requireFiniteNumber(value, label);
+  if (numericValue <= 0) {
+    throw new Error(`[PolicyBuilder] ${label} must be greater than 0`);
+  }
+  return numericValue;
+}
+
+function requireNegativePercent(value, label) {
+  const numericValue = requireFiniteNumber(value, label);
+  if (numericValue >= 0 || numericValue < -100) {
+    throw new Error(`[PolicyBuilder] ${label} must be negative percent-form between -100 and 0`);
+  }
+  return numericValue;
+}
+
+function requireNullablePercent(value, label) {
+  if (value === null) {
+    return null;
+  }
+  return requirePercent(value, label);
+}
+
+function requireNullableFraction(value, label) {
+  if (value === null) {
+    return null;
+  }
+  return requireFraction(value, label);
+}
+
+function requireBoolean(value, label) {
+  if (typeof value !== 'boolean') {
+    throw new Error(`[PolicyBuilder] ${label} must be boolean`);
+  }
+  return value;
+}
+
+function requireString(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`[PolicyBuilder] ${label} must be a non-empty string`);
+  }
+  return value;
+}
+
+function readConfig(configReader, path) {
+  const value = configReader.get(path);
+  if (value === undefined) {
+    throw new Error(`[PolicyBuilder] missing TradingConfig value: ${path}`);
+  }
+  return value;
+}
+
+function readConfigGroup(configReader, paths) {
+  return Object.entries(paths).reduce((acc, [key, path]) => {
+    acc[key] = readConfig(configReader, path);
+    return acc;
+  }, {});
+}
+
+function normalizeContract(strategyName, contract) {
+  assertPlainObject(contract, 'exitContract');
+
+  for (const field of REQUIRED_CONTRACT_FIELDS) {
+    requireContractField(contract, field);
+  }
+
+  const invalidationConditions = requireContractField(contract, 'invalidationConditions');
+  if (!Array.isArray(invalidationConditions)) {
+    throw new Error('[PolicyBuilder] exitContract.invalidationConditions must be an array');
+  }
+
+  return {
+    strategyName,
+    stopLossPercent: requireNegativePercent(contract.stopLossPercent, 'exitContract.stopLossPercent'),
+    takeProfitPercent: requirePositiveNumber(contract.takeProfitPercent, 'exitContract.takeProfitPercent'),
+    trailingStopPercent: requireNullablePercent(contract.trailingStopPercent, 'exitContract.trailingStopPercent'),
+    trailingActivation: requireNullablePercent(contract.trailingActivation, 'exitContract.trailingActivation'),
+    maxHoldTimeMinutes: requirePositiveNumber(contract.maxHoldTimeMinutes, 'exitContract.maxHoldTimeMinutes'),
+    minConfidence: hasOwn(contract, 'minConfidence')
+      ? requireNullableFraction(contract.minConfidence, 'exitContract.minConfidence')
+      : null,
+    atrMinPercent: hasOwn(contract, 'atrMinPercent')
+      ? requireNullablePercent(contract.atrMinPercent, 'exitContract.atrMinPercent')
+      : null,
+    useStructuralExits: requireBoolean(contract.useStructuralExits, 'exitContract.useStructuralExits'),
+    invalidationConditions: invalidationConditions.map((condition, index) => (
+      requireString(condition, `exitContract.invalidationConditions[${index}]`)
+    )),
+    validatedAt: hasOwn(contract, '_validated') ? contract._validated : null,
+  };
+}
+
+function normalizeBeScaleOut(raw) {
+  return {
+    enabled: requireBoolean(raw.enabled, 'exitLogic.beScaleOut.enabled'),
+    triggerType: requireString(raw.triggerType, 'exitLogic.beScaleOut.triggerType'),
+    fixedPercentTrigger: requirePercent(raw.fixedPercentTrigger, 'exitLogic.beScaleOut.fixedPercentTrigger'),
+    scaleOutFraction: requireFraction(raw.scaleOutFraction, 'exitLogic.beScaleOut.scaleOutFraction'),
+    feeBufferPercent: requirePercent(raw.feeBufferPercent, 'exitLogic.beScaleOut.feeBufferPercent'),
+  };
+}
+
+function normalizeBreakEvenStop(raw) {
+  return {
+    enabled: requireBoolean(raw.enabled, 'exitLogic.breakEvenStop.enabled'),
+    triggerPercent: requireFiniteNumber(raw.triggerPercent, 'exitLogic.breakEvenStop.triggerPercent'),
+  };
+}
+
+function normalizeTieredExit(raw, targets) {
+  const tierFractions = [
+    ['tier1', raw.tier1ExitFraction],
+    ['tier2', raw.tier2ExitFraction],
+    ['tier3', raw.tier3ExitFraction],
+  ];
+  const configuredFractionTotal = tierFractions.reduce((sum, [name, fraction]) => (
+    sum + requireFraction(fraction, `exitLogic.tieredExit.${name}ExitFraction`)
+  ), 0);
+  if (configuredFractionTotal > 1) {
+    throw new Error('[PolicyBuilder] exitLogic.tieredExit fractions cannot exceed 1.0 total');
+  }
+  const finalExitFraction = 1 - configuredFractionTotal;
+
+  return {
+    enabled: requireBoolean(raw.enabled, 'exitLogic.tieredExit.enabled'),
+    enableMarketAdaptation: requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation'),
+    trendingTargetMultiplier: requireFiniteNumber(raw.trendingTargetMultiplier, 'exitLogic.tieredExit.trendingTargetMultiplier'),
+    rangingTargetMultiplier: requireFiniteNumber(raw.rangingTargetMultiplier, 'exitLogic.tieredExit.rangingTargetMultiplier'),
+    highConfidenceThreshold: requireFiniteNumber(raw.highConfidenceThreshold, 'exitLogic.tieredExit.highConfidenceThreshold'),
+    highConfidenceMultiplier: requireFiniteNumber(raw.highConfidenceMultiplier, 'exitLogic.tieredExit.highConfidenceMultiplier'),
+    lowConfidenceThreshold: requireFiniteNumber(raw.lowConfidenceThreshold, 'exitLogic.tieredExit.lowConfidenceThreshold'),
+    lowConfidenceMultiplier: requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitLogic.tieredExit.lowConfidenceMultiplier'),
+    allocationBasis: 'cumulative_original_quantity',
+    tiers: [
+      {
+        name: 'tier1',
+        targetProfitMove: requireFiniteNumber(targets.tier1, 'exits.profitTiers.tier1'),
+        exitFraction: requireFraction(raw.tier1ExitFraction, 'exitLogic.tieredExit.tier1ExitFraction'),
+      },
+      {
+        name: 'tier2',
+        targetProfitMove: requireFiniteNumber(targets.tier2, 'exits.profitTiers.tier2'),
+        exitFraction: requireFraction(raw.tier2ExitFraction, 'exitLogic.tieredExit.tier2ExitFraction'),
+      },
+      {
+        name: 'tier3',
+        targetProfitMove: requireFiniteNumber(targets.tier3, 'exits.profitTiers.tier3'),
+        exitFraction: requireFraction(raw.tier3ExitFraction, 'exitLogic.tieredExit.tier3ExitFraction'),
+      },
+      {
+        name: 'final',
+        targetProfitMove: requireFiniteNumber(targets.final, 'exits.profitTiers.final'),
+        exitFraction: finalExitFraction,
+      },
+    ],
+  };
+}
+
+function normalizeFees(raw) {
+  return {
+    model: requireString(raw.model, 'fees.model'),
+    makerFee: requireFiniteNumber(raw.makerFee, 'fees.makerFee'),
+    takerFee: requireFiniteNumber(raw.takerFee, 'fees.takerFee'),
+    slippage: requireFiniteNumber(raw.slippage, 'fees.slippage'),
+    totalRoundTrip: requireFiniteNumber(raw.totalRoundTrip, 'fees.totalRoundTrip'),
+    safetyBuffer: requireFiniteNumber(raw.safetyBuffer, 'fees.safetyBuffer'),
+    perShare: requireFiniteNumber(raw.perShare, 'fees.perShare'),
+    minOrderFee: requireFiniteNumber(raw.minOrderFee, 'fees.minOrderFee'),
+  };
+}
+
+function buildForTrade(options = {}) {
+  const {
+    strategyName,
+    exitContract,
+    nowMs,
+    configReader = TradingConfig,
+  } = options;
+
+  const normalizedStrategyName = requireString(strategyName, 'strategyName');
+  requireFiniteNumber(nowMs, 'nowMs');
+  if (!configReader || typeof configReader.get !== 'function') {
+    throw new Error('[PolicyBuilder] configReader.get must be a function');
+  }
+
+  const rawBeScaleOut = readConfigGroup(configReader, CONFIG_PATHS.beScaleOut);
+  const rawBreakEvenStop = readConfigGroup(configReader, CONFIG_PATHS.breakEvenStop);
+  const rawTieredExit = readConfigGroup(configReader, CONFIG_PATHS.tieredExit);
+  const rawProfitTargets = readConfigGroup(configReader, CONFIG_PATHS.profitTargets);
+  const rawFees = readConfigGroup(configReader, CONFIG_PATHS.fees);
+
+  return freezePolicy({
+    version: 1,
+    source: 'PolicyBuilder.buildForTrade',
+    strategyName: normalizedStrategyName,
+    builtAtMs: nowMs,
+    contract: normalizeContract(normalizedStrategyName, exitContract),
+    profitManagement: {
+      beScaleOut: normalizeBeScaleOut(rawBeScaleOut),
+      breakEvenStop: normalizeBreakEvenStop(rawBreakEvenStop),
+      tieredExit: normalizeTieredExit(rawTieredExit, rawProfitTargets),
+    },
+    fees: normalizeFees(rawFees),
+  });
+}
+
+module.exports = {
+  buildForTrade,
+  CONFIG_PATHS,
+};
