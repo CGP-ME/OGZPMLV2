@@ -189,6 +189,20 @@ describe('TradingLoop trace spine', () => {
             direction: 'buy',
             confidence: 0.8,
             reason: 'test signal',
+            decisionAttribution: {
+              strategyName: 'RSI',
+              baseConfidence: 0.7,
+              selectionScore: {
+                scale: 'nonnegative_selector',
+                initial: 0.7,
+                final: 0.8,
+              },
+              publicConfidence: 0.8,
+              contributors: [
+                { name: 'strategy_signal', type: 'base', confidence: 0.7, score: 0.7 },
+                { name: 'regime_boost', type: 'multiplier', selectionMultiplier: 1.142857142857143, previousSelectionScore: 0.7, nextSelectionScore: 0.8 },
+              ],
+            },
             learningSnapshot: {
               mode: 'shadow',
               applied: false,
@@ -201,6 +215,28 @@ describe('TradingLoop trace spine', () => {
               losses: 3,
               sampleCount: 11,
               modifier: null,
+            },
+          }],
+          filteredResults: [{
+            strategyName: 'HighAtrProbe',
+            direction: 'buy',
+            confidence: 0.9,
+            reason: 'higher confidence but filtered',
+            rejectedBy: 'atr_pre_entry_filter',
+            rejectReason: 'ATR 1.000% below 2%',
+            decisionAttribution: {
+              strategyName: 'HighAtrProbe',
+              baseConfidence: 0.9,
+              selectionScore: {
+                scale: 'nonnegative_selector',
+                initial: 0.9,
+                final: 0.9,
+              },
+              publicConfidence: 0.9,
+              contributors: [
+                { name: 'strategy_signal', type: 'base', confidence: 0.9, score: 0.9 },
+                { name: 'atr_pre_entry_filter', type: 'gate', passed: false, atrPercent: 1, threshold: 2 },
+              ],
             },
           }],
           exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
@@ -250,6 +286,18 @@ describe('TradingLoop trace spine', () => {
       executionMode: 'paper',
     }));
     expect(decision.ledgerData.strategySignals[0].baseConfidence).toBe(0.8);
+    expect(decision.ledgerData.strategySignals[0].decisionAttribution).toEqual(expect.objectContaining({
+      strategyName: 'RSI',
+      baseConfidence: 0.7,
+      selectionScore: {
+        scale: 'nonnegative_selector',
+        initial: 0.7,
+        final: 0.8,
+      },
+      publicConfidence: 0.8,
+    }));
+    expect(decision.ledgerData.strategySignals[0].decisionAttribution.contributors.map((item) => item.name))
+      .toEqual(['strategy_signal', 'regime_boost']);
     expect(decision.ledgerData.strategySignals[0].learningSnapshot).toEqual(expect.objectContaining({
       mode: 'shadow',
       applied: false,
@@ -273,6 +321,27 @@ describe('TradingLoop trace spine', () => {
       status: 'promoted',
     }));
     expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].adjustedConfidence).toBe(0.8);
+    expect(decision.ledgerData.orchestratorDecision.decisionAttribution).toEqual(expect.objectContaining({
+      strategyName: 'RSI',
+      baseConfidence: 0.7,
+      selectionScore: {
+        scale: 'nonnegative_selector',
+        initial: 0.7,
+        final: 0.8,
+      },
+    }));
+    expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].decisionAttribution).toEqual(expect.objectContaining({
+      strategyName: 'RSI',
+      publicConfidence: 0.8,
+    }));
+    expect(decision.ledgerData.orchestratorDecision.filteredStrategies[0]).toEqual(expect.objectContaining({
+      name: 'HighAtrProbe',
+      rejected: true,
+      rejectedBy: 'atr_pre_entry_filter',
+      rejectReason: 'ATR 1.000% below 2%',
+    }));
+    expect(decision.ledgerData.orchestratorDecision.filteredStrategies[0].decisionAttribution.contributors.map((item) => item.name))
+      .toEqual(['strategy_signal', 'atr_pre_entry_filter']);
     expect(decision.ledgerData.orchestratorDecision.competingStrategies[0].learningSnapshot).toEqual(expect.objectContaining({
       mode: 'shadow',
       applied: false,
@@ -303,6 +372,63 @@ describe('TradingLoop trace spine', () => {
 
     await expect(loop._analyze('TSLA', 'trace_bad_ledger_conf')).rejects.toThrow('allResults[0].confidence must be explicit 0..1');
     expect(ctx.executeTrade).not.toHaveBeenCalled();
+  });
+
+  test('rejects out-of-range confidence attribution before ledger persistence', () => {
+    const loop = new TradingLoop(baseEntryContext());
+
+    expect(() => loop._ledgerDecisionAttribution({
+      decisionAttribution: {
+        strategyName: 'RSI',
+        baseConfidence: 1.2,
+        publicConfidence: 1,
+        contributors: [],
+      },
+    }, 0)).toThrow('allResults[0].decisionAttribution.baseConfidence must be explicit 0..1');
+
+    expect(() => loop._ledgerDecisionAttribution({
+      decisionAttribution: {
+        strategyName: 'RSI',
+        baseConfidence: 0.8,
+        publicConfidence: 1.2,
+        contributors: [],
+      },
+    }, 0)).toThrow('allResults[0].decisionAttribution.publicConfidence must be explicit 0..1');
+
+    expect(() => loop._ledgerDecisionAttribution({
+      decisionAttribution: {
+        strategyName: 'RSI',
+        baseConfidence: 0.8,
+        publicConfidence: 1,
+        finalConfidence: 1.2,
+        contributors: [],
+      },
+    }, 0)).toThrow('allResults[0].decisionAttribution.finalConfidence must be explicit 0..1');
+
+    expect(() => loop._ledgerDecisionAttribution({
+      decisionAttribution: {
+        strategyName: 'RSI',
+        baseConfidence: 0.8,
+        publicConfidence: 1,
+        selectionScore: {
+          scale: 'nonnegative_selector',
+          initial: 0.8,
+          final: -0.1,
+        },
+        contributors: [],
+      },
+    }, 0)).toThrow('allResults[0].decisionAttribution.selectionScore.final must be finite and nonnegative');
+
+    expect(() => loop._ledgerDecisionAttribution({
+      decisionAttribution: {
+        strategyName: 'RSI',
+        baseConfidence: 0.8,
+        publicConfidence: 1,
+        contributors: [
+          { name: 'mtf_confluence_booster', type: 'multiplier', confidence: 1.2 },
+        ],
+      },
+    }, 0)).toThrow('allResults[0].decisionAttribution.contributors[0].confidence must be explicit 0..1');
   });
 
   test('rejects executable decisions without strategy-result evidence', async () => {

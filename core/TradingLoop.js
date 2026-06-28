@@ -200,6 +200,57 @@ class TradingLoop {
     };
   }
 
+  _ledgerDecisionAttribution(result, index) {
+    const attribution = result?.decisionAttribution;
+    if (attribution == null) return null;
+    if (typeof attribution !== 'object') {
+      throw new Error(`[LEDGER] allResults[${index}].decisionAttribution must be an object`);
+    }
+    const baseConfidence = Number(attribution.baseConfidence);
+    if (!Number.isFinite(baseConfidence) || baseConfidence < 0 || baseConfidence > 1) {
+      throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.baseConfidence must be explicit 0..1`);
+    }
+    const publicConfidence = Number(attribution.publicConfidence);
+    if (!Number.isFinite(publicConfidence) || publicConfidence < 0 || publicConfidence > 1) {
+      throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.publicConfidence must be explicit 0..1`);
+    }
+    if (Object.prototype.hasOwnProperty.call(attribution, 'finalConfidence')) {
+      const finalConfidence = Number(attribution.finalConfidence);
+      if (!Number.isFinite(finalConfidence) || finalConfidence < 0 || finalConfidence > 1) {
+        throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.finalConfidence must be explicit 0..1`);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(attribution, 'selectionScore')) {
+      const selectionScore = attribution.selectionScore;
+      if (!selectionScore || typeof selectionScore !== 'object') {
+        throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.selectionScore must be an object`);
+      }
+      const initialSelectionScore = Number(selectionScore.initial);
+      if (!Number.isFinite(initialSelectionScore) || initialSelectionScore < 0) {
+        throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.selectionScore.initial must be finite and nonnegative`);
+      }
+      const finalSelectionScore = Number(selectionScore.final);
+      if (!Number.isFinite(finalSelectionScore) || finalSelectionScore < 0) {
+        throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.selectionScore.final must be finite and nonnegative`);
+      }
+    }
+    if (!Array.isArray(attribution.contributors)) {
+      throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.contributors must be an array`);
+    }
+    attribution.contributors.forEach((contributor, contributorIndex) => {
+      if (!contributor || typeof contributor !== 'object') {
+        throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.contributors[${contributorIndex}] must be an object`);
+      }
+      if (Object.prototype.hasOwnProperty.call(contributor, 'confidence')) {
+        const contributorConfidence = Number(contributor.confidence);
+        if (!Number.isFinite(contributorConfidence) || contributorConfidence < 0 || contributorConfidence > 1) {
+          throw new Error(`[LEDGER] allResults[${index}].decisionAttribution.contributors[${contributorIndex}].confidence must be explicit 0..1`);
+        }
+      }
+    });
+    return JSON.parse(JSON.stringify(attribution));
+  }
+
   _ledgerStrategySignal(result, index, indicators) {
     return {
       name: this._ledgerStrategyName(result, index),
@@ -207,6 +258,7 @@ class TradingLoop {
       baseConfidence: this._ledgerConfidence01(result?.confidence, `allResults[${index}].confidence`),
       reason: this._ledgerText(result?.reason || result?.reasons?.join('; '), `allResults[${index}].reason`),
       learningSnapshot: this._ledgerLearningSnapshot(result, 'candidate'),
+      decisionAttribution: this._ledgerDecisionAttribution(result, index),
       ...this._ledgerSignalMetadata(result, index),
       indicatorValues: {
         rsi: indicators.rsi,
@@ -226,6 +278,21 @@ class TradingLoop {
       rejected: name !== winnerName,
       rejectReason: name !== winnerName ? 'Lower confidence than winner' : null,
       learningSnapshot: this._ledgerLearningSnapshot(result, index === winnerIndex ? 'winner' : 'competitor'),
+      decisionAttribution: this._ledgerDecisionAttribution(result, index),
+      ...this._ledgerSignalMetadata(result, index),
+    };
+  }
+
+  _ledgerFilteredStrategy(result, index) {
+    return {
+      name: this._ledgerStrategyName(result, index),
+      direction: this._ledgerDirection(result?.direction, `filteredResults[${index}].direction`),
+      adjustedConfidence: this._ledgerConfidence01(result?.confidence, `filteredResults[${index}].confidence`),
+      rejected: true,
+      rejectedBy: this._ledgerText(result?.rejectedBy, `filteredResults[${index}].rejectedBy`),
+      rejectReason: this._ledgerText(result?.rejectReason, `filteredResults[${index}].rejectReason`),
+      learningSnapshot: this._ledgerLearningSnapshot(result, 'filtered'),
+      decisionAttribution: this._ledgerDecisionAttribution(result, index),
       ...this._ledgerSignalMetadata(result, index),
     };
   }
@@ -1199,6 +1266,7 @@ class TradingLoop {
 
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
         const allResults = this._ledgerAllResults(orchResult);
+        const filteredResults = Array.isArray(orchResult.filteredResults) ? orchResult.filteredResults : [];
         const winnerName = this._ledgerWinnerName(orchResult);
         const winnerAttribution = this._ledgerWinnerAttribution(allResults, winnerName);
         const winnerIndex = winnerAttribution.winnerIndex;
@@ -1223,11 +1291,13 @@ class TradingLoop {
             finalConfidence: confidence,
             winnerAttribution,
             learningSnapshot: winnerIndex !== null ? this._ledgerLearningSnapshot(allResults[winnerIndex], 'winner') : null,
+            decisionAttribution: winnerIndex !== null ? this._ledgerDecisionAttribution(allResults[winnerIndex], winnerIndex) : null,
             ...winnerSignalMetadata,
             reason: allResults.length > 1
               ? `${winnerName} (${orchResult.confidence.toFixed(1)}%) selected over ${allResults.length - 1} alternatives`
               : `${winnerName} selected at ${orchResult.confidence.toFixed(1)}%`,
             competingStrategies: allResults.map((result, index) => this._ledgerCompetingStrategy(result, index, winnerName, winnerIndex)),
+            filteredStrategies: filteredResults.map((result, index) => this._ledgerFilteredStrategy(result, index)),
           },
           confluence: orchResult.confluence ? {
             // HIGH-17: ledger honesty for confluence count. Zero strategies

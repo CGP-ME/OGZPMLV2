@@ -64,26 +64,107 @@ function assertBaseConfidence01(confidence, label) {
   return confidence;
 }
 
-function assertBoostedConfidenceScore(confidence, label) {
-  if (!Number.isFinite(confidence)) {
-    throw new Error(`[HIGH-25] ${label} non-finite (got ${confidence})`);
+function assertRankingScore(score, label) {
+  if (!Number.isFinite(score)) {
+    throw new Error(`[HIGH-25] ${label} non-finite (got ${score})`);
   }
-  if (confidence < 0) {
-    throw new Error(`[HIGH-25] ${label} negative (got ${confidence})`);
+  if (score < 0) {
+    throw new Error(`[HIGH-25] ${label} negative (got ${score})`);
   }
-  return confidence;
+  return score;
 }
 
-function publicConfidence01(confidence, label = 'publicConfidence') {
-  return Math.min(1.0, assertBoostedConfidenceScore(confidence, label));
+function boundedConfidenceFromRankingScore(score, label = 'publicConfidence') {
+  return Math.min(1.0, assertRankingScore(score, label));
+}
+
+function cloneDecisionAttribution(attribution) {
+  if (!attribution || typeof attribution !== 'object') return null;
+  return {
+    ...attribution,
+    contributors: Array.isArray(attribution.contributors)
+      ? attribution.contributors.map((item) => ({ ...item }))
+      : [],
+  };
+}
+
+function refreshDecisionAttribution(result) {
+  if (!result.decisionAttribution) return;
+  if (!result.decisionAttribution.selectionScore) {
+    result.decisionAttribution.selectionScore = {
+      scale: 'nonnegative_selector',
+      initial: result.decisionAttribution.baseConfidence,
+      final: result.decisionAttribution.baseConfidence,
+    };
+  }
+  result.decisionAttribution.selectionScore.final = result.rankingScore;
+  result.decisionAttribution.finalConfidence = boundedConfidenceFromRankingScore(
+    result.rankingScore,
+    `${result.strategyName}.attributionRankingScore`
+  );
+  result.decisionAttribution.publicConfidence = result.decisionAttribution.finalConfidence;
+}
+
+function createDecisionAttribution(strategyName, baseConfidence) {
+  return {
+    strategyName,
+    baseConfidence,
+    confidenceScale: '0..1',
+    selectionScore: {
+      scale: 'nonnegative_selector',
+      initial: baseConfidence,
+      final: baseConfidence,
+    },
+    finalConfidence: baseConfidence,
+    publicConfidence: baseConfidence,
+    contributors: [{
+      name: 'strategy_signal',
+      type: 'base',
+      confidence: baseConfidence,
+      score: baseConfidence,
+    }],
+  };
+}
+
+function addDecisionContributor(result, contributor) {
+  if (!result.decisionAttribution) {
+    result.decisionAttribution = createDecisionAttribution(result.strategyName, result.confidence);
+  }
+  result.decisionAttribution.contributors.push(contributor);
+  refreshDecisionAttribution(result);
+}
+
+function recordRankingScoreChange(result, nextRankingScore, label, contributor) {
+  const previousRankingScore = result.rankingScore;
+  const updatedRankingScore = assertRankingScore(nextRankingScore, label);
+  result.rankingScore = updatedRankingScore;
+  addDecisionContributor(result, {
+    ...contributor,
+    previousSelectionScore: previousRankingScore,
+    nextSelectionScore: updatedRankingScore,
+    selectionMultiplier: previousRankingScore > 0 ? updatedRankingScore / previousRankingScore : null,
+  });
 }
 
 function publicResult(result) {
-  const { confidenceScore, ...publicFields } = result;
+  const { rankingScore, ...publicFields } = result;
   return {
     ...publicFields,
-    confidence: publicConfidence01(result.confidenceScore, `${result.strategyName}.publicConfidenceScore`),
+    decisionAttribution: cloneDecisionAttribution(result.decisionAttribution),
+    confidence: boundedConfidenceFromRankingScore(result.rankingScore, `${result.strategyName}.publicRankingScore`),
   };
+}
+
+function finiteConfigNumber(value, label, fallback, min = null) {
+  const resolved = value ?? fallback;
+  const numeric = Number(resolved);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`[MTF-BOOSTER] ${label} must be a finite number (got ${resolved})`);
+  }
+  if (min != null && numeric < min) {
+    throw new Error(`[MTF-BOOSTER] ${label} must be >= ${min} (got ${numeric})`);
+  }
+  return numeric;
 }
 
 function firstFiniteNumber(...values) {
@@ -355,6 +436,7 @@ class StrategyOrchestrator {
     // Stats tracking
     this.lastEvaluation = null;
     this.evalCount = 0;
+    this.mtfEvaluationCache = null;
 
     // DIAGNOSTIC FUNNELS - track where signals die (MUST be before _registerBuiltinStrategies)
     this.diagFunnel = {
@@ -385,6 +467,126 @@ class StrategyOrchestrator {
       bySymbol.set(canonicalSymbol, factory());
     }
     return bySymbol.get(canonicalSymbol);
+  }
+
+  _getMtfConfluenceForEvaluation(ctx) {
+    if (this.mtfEvaluationCache && this.mtfEvaluationCache.evalCount === this.evalCount) {
+      return this.mtfEvaluationCache.confluence;
+    }
+
+    const cacheResult = (confluence) => {
+      this.mtfEvaluationCache = { evalCount: this.evalCount, confluence };
+      return confluence;
+    };
+
+    const candles = ctx.priceHistory;
+    if (!candles || candles.length < this.minCandlesMTF) {
+      if (process.env.STRATEGY_DIAG === 'true') {
+        console.log(`[DIAG] MultiTimeframe: NOT ENOUGH CANDLES (${candles?.length || 0} < ${this.minCandlesMTF})`);
+      }
+      return cacheResult(null);
+    }
+
+    const latestCandle = candles[candles.length - 1];
+    if (!latestCandle || typeof latestCandle.timeframe !== 'string' || !latestCandle.timeframe.trim()) {
+      throw new Error('[STRATEGY-SCOPE] MultiTimeframe latest candle missing timeframe');
+    }
+
+    const scopedMtfAdapter = this._getSymbolStrategyModule(
+      'MultiTimeframe',
+      ctx.extras?.symbol,
+      this.mtfAdapter,
+      () => new MultiTimeframeAdapter({
+        activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
+      })
+    );
+
+    try {
+      scopedMtfAdapter.ingestCandle(latestCandle, latestCandle.timeframe);
+    } catch (e) {
+      if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
+      return cacheResult(null);
+    }
+
+    let confluence;
+    try {
+      confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
+    } catch (e) {
+      if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
+      return cacheResult(null);
+    }
+
+    if (process.env.STRATEGY_DIAG === 'true') {
+      console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({ dir: confluence.direction, score: confluence.confluenceScore ?? confluence.score }) : 'null'}`);
+    }
+    return cacheResult(confluence || null);
+  }
+
+  _applyMtfConfluenceBooster(results, ctx) {
+    const config = TradingConfig.get('orchestrator.mtfConfluenceBooster') || {};
+    if (config.enabled !== true) return false;
+    if (results.length === 0) return false;
+
+    const minScore = finiteConfigNumber(config.minScore, 'minScore', 0.30, 0);
+    const minConfidence = finiteConfigNumber(config.minConfidence, 'minConfidence', 0.50, 0);
+    const strengthMultiplier = finiteConfigNumber(config.strengthMultiplier, 'strengthMultiplier', 0.20, 0);
+    const maxMultiplier = finiteConfigNumber(config.maxMultiplier, 'maxMultiplier', 1.15, 1);
+    const conflictMultiplier = finiteConfigNumber(config.conflictMultiplier, 'conflictMultiplier', 0.85, 0);
+    const penalizeConflicts = config.penalizeConflicts !== false;
+    const boostMtfCandidate = config.boostMtfCandidate === true;
+
+    const confluence = this._getMtfConfluenceForEvaluation(ctx);
+    const signedScore = firstFiniteNumber(confluence?.confluenceScore, confluence?.score);
+    if (signedScore == null || signedScore === 0) return false;
+
+    const scoreMagnitude = Math.abs(signedScore);
+    const confidence = firstFiniteNumber(confluence?.confidence, scoreMagnitude);
+    if (scoreMagnitude < minScore || confidence < minConfidence) return false;
+
+    const mtfDirection = signedScore > 0 ? 'buy' : 'sell';
+    let changed = false;
+    for (const result of results) {
+      if (result.strategyName === 'MultiTimeframe' && !boostMtfCandidate) continue;
+
+      const aligned = result.direction === mtfDirection;
+      const multiplier = aligned
+        ? Math.min(maxMultiplier, 1 + (scoreMagnitude * strengthMultiplier))
+        : (penalizeConflicts ? conflictMultiplier : 1);
+
+      if (multiplier === 1) continue;
+      const previousRankingScore = result.rankingScore;
+      const boostedScore = previousRankingScore * multiplier;
+      const cappedScore = aligned
+        ? Math.min(boostedScore, Math.max(previousRankingScore, 1))
+        : boostedScore;
+      if (cappedScore === previousRankingScore) continue;
+      recordRankingScoreChange(
+        result,
+        cappedScore,
+        `${result.strategyName}.mtfConfluenceRankingScore`,
+        {
+          name: 'mtf_confluence_booster',
+          type: 'multiplier',
+          direction: mtfDirection,
+          score: signedScore,
+          confidence,
+          configuredMultiplier: multiplier,
+          aligned,
+        }
+      );
+      result.mtfConfluenceBooster = {
+        direction: mtfDirection,
+        score: signedScore,
+        confidence,
+        multiplier: cappedScore / previousRankingScore,
+        configuredMultiplier: multiplier,
+        aligned,
+      };
+      changed = true;
+    }
+
+    if (changed) results.sort((a, b) => b.rankingScore - a.rankingScore);
+    return changed;
   }
 
   /**
@@ -790,55 +992,30 @@ class StrategyOrchestrator {
 
     // ─── 7. Multi-Timeframe Confluence Strategy ───
     // FIX 2026-03-19: Self-contained — owns its MTF adapter internally
-    const mtfAdapterModule = this.mtfAdapter;
-    const minCandlesMTF = this.minCandlesMTF;
     if (shouldRegister('MultiTimeframe')) this.strategies.push({
       name: 'MultiTimeframe',
       evaluate: (ctx) => {
         // Self-contained: ingest candle and compute confluence internally
-        const candles = ctx.priceHistory;
-        if (!candles || candles.length < minCandlesMTF) {
-          if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: NOT ENOUGH CANDLES (${candles?.length || 0} < ${minCandlesMTF})`);
-          return null;
-        }
+        const confluence = this._getMtfConfluenceForEvaluation(ctx);
 
-        // Feed latest candle to MTF adapter
-        const latestCandle = candles[candles.length - 1];
-        const scopedMtfAdapter = this._getSymbolStrategyModule(
-          'MultiTimeframe',
-          ctx.extras?.symbol,
-          mtfAdapterModule,
-          () => new MultiTimeframeAdapter({
-            activeTimeframes: TradingConfig.get('orchestrator.mtfTimeframes') || ['1m', '5m', '15m', '1h', '4h']
-          })
-        );
-        try {
-          scopedMtfAdapter.ingestCandle(latestCandle);
-        } catch (e) {
-          if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: ingestCandle error: ${e.message}`);
-          return null;
-        }
-
-        let confluence;
-        try {
-          confluence = scopedMtfAdapter.getConfluence ? scopedMtfAdapter.getConfluence() : scopedMtfAdapter.getConfluenceScore();
-        } catch (e) {
-          if (process.env.STRATEGY_DIAG === 'true') console.log(`[DIAG] MultiTimeframe: getConfluence error: ${e.message}`);
-          return null;
-        }
-
-        // DIAGNOSTIC: Log every call
-        if (process.env.STRATEGY_DIAG === 'true') {
-          console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({dir: confluence.direction, score: confluence.score}) : 'null'}`);
-        }
+        const rawScore = Number.isFinite(confluence?.score)
+          ? confluence.score
+          : confluence?.confluenceScore;
+        const scoreMagnitude = Number.isFinite(rawScore) ? Math.abs(rawScore) : 0;
+        const confidence = Number.isFinite(confluence?.confidence)
+          ? confluence.confidence
+          : scoreMagnitude;
+        const timeframes = Array.isArray(confluence?.timeframes)
+          ? confluence.timeframes
+          : confluence?.readyTimeframes;
 
         if (!confluence || !confluence.direction || confluence.direction === 'neutral') return null;
-        if ((confluence.score || 0) < this.confluenceMinScore) return null;
+        if (scoreMagnitude < this.confluenceMinScore) return null;
 
         return {
           direction: confluence.direction,
-          confidence: confluence.score || 0,
-          reason: `MTF Confluence: ${confluence.direction} (${confluence.timeframes?.join(', ') || 'multiple'})`,
+          confidence,
+          reason: `MTF Confluence: ${confluence.direction} (${timeframes?.join(', ') || 'multiple'})`,
           signalData: confluence
         };
       }
@@ -1208,6 +1385,7 @@ class StrategyOrchestrator {
 
     // ─── Step 1: Run ALL strategies independently ───
     const results = [];
+    const filteredResults = [];
     const noSignalStrategies = [];
     const thrownStrategies = [];
     const contractConfidenceDropped = [];
@@ -1231,19 +1409,48 @@ class StrategyOrchestrator {
           }
           const contractMinConfidence = getContractMinConfidence(strategy.name);
           if (contractMinConfidence != null && confidence < contractMinConfidence) {
+            const rejectedCandidate = {
+              ...result,
+              confidence,
+              rankingScore: confidence,
+              strategyName: strategy.name,
+              decisionAttribution: createDecisionAttribution(strategy.name, confidence),
+              learningSnapshot: buildLearningSnapshot({ ...result, strategyName: strategy.name }, ctx),
+              rejectedBy: 'exit_contract_confidence_gate',
+              rejectReason: `confidence ${(confidence * 100).toFixed(1)}% below exit contract min ${(contractMinConfidence * 100).toFixed(1)}%`,
+            };
+            addDecisionContributor(rejectedCandidate, {
+              name: 'exit_contract_confidence_gate',
+              type: 'gate',
+              minConfidence: contractMinConfidence,
+              actualConfidence: confidence,
+              passed: false,
+            });
+            filteredResults.push(rejectedCandidate);
             contractConfidenceDropped.push(`${strategy.name}:${result.direction}:${(confidence * 100).toFixed(1)}%<min${(contractMinConfidence * 100).toFixed(1)}%`);
             if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {
               console.log(`[FILTER:contract-confidence] Skipped ${strategy.name} — confidence ${(confidence * 100).toFixed(1)}% below exit contract min ${(contractMinConfidence * 100).toFixed(1)}%`);
             }
             continue;
           }
-          results.push({
+          const candidate = {
             ...result,
             confidence,
-            confidenceScore: confidence,
+            rankingScore: confidence,
             strategyName: strategy.name,
+            decisionAttribution: createDecisionAttribution(strategy.name, confidence),
             learningSnapshot: buildLearningSnapshot({ ...result, strategyName: strategy.name }, ctx),
-          });
+          };
+          if (contractMinConfidence != null) {
+            addDecisionContributor(candidate, {
+              name: 'exit_contract_confidence_gate',
+              type: 'gate',
+              minConfidence: contractMinConfidence,
+              actualConfidence: confidence,
+              passed: true,
+            });
+          }
+          results.push(candidate);
         }
       } catch (err) {
         if (err.message && (
@@ -1261,7 +1468,7 @@ class StrategyOrchestrator {
       strategyName: r.strategyName,
       direction: r.direction,
       confidence: r.confidence,
-      confidenceScore: r.confidenceScore,
+      rankingScore: r.rankingScore,
     }));
     if (process.env.STRATEGY_DIAG === 'true' && rawStrategyResults.length > 0) {
       const rawList = rawStrategyResults
@@ -1288,6 +1495,20 @@ class StrategyOrchestrator {
     const filterPrice = extras.price ?? (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.c : null);
     if (!Number.isFinite(filterPrice) || filterPrice <= 0) {
       console.warn('[FILTER:atr] HALT — no valid price (extras.price + priceHistory both unusable). Clearing all candidates.');
+      for (const r of results) {
+        addDecisionContributor(r, {
+          name: 'atr_pre_entry_filter',
+          type: 'gate',
+          enabled: true,
+          passed: false,
+          reason: 'invalid_price',
+        });
+        filteredResults.push({
+          ...r,
+          rejectedBy: 'atr_pre_entry_filter',
+          rejectReason: 'ATR filter could not evaluate because price was invalid',
+        });
+      }
       results.length = 0;
     }
     // CRIT-10: Distinguish missing ATR from genuine zero. Previously
@@ -1314,12 +1535,45 @@ class StrategyOrchestrator {
         const contractAtrMin = getContractAtrMinPercent(r.strategyName);
         const threshold = contractAtrMin.value != null ? contractAtrMin.value : globalAtrMin;
         if (filterATRpct < threshold) {
+          addDecisionContributor(r, {
+            name: 'atr_pre_entry_filter',
+            type: 'gate',
+            atrPercent: filterATRpct,
+            threshold,
+            thresholdSource: contractAtrMin.value != null ? contractAtrMin.source : 'global',
+            passed: false,
+          });
+          filteredResults.push({
+            ...r,
+            rejectedBy: 'atr_pre_entry_filter',
+            rejectReason: `ATR ${filterATRpct.toFixed(3)}% below ${threshold}%`,
+          });
           atrDropped.push(`${r.strategyName}:${r.direction}:${(r.confidence * 100).toFixed(1)}%<atr${threshold}%`);
           if (process.env.STRATEGY_DIAG === 'true' || this.evalCount % 200 === 0) {
             console.log(`[FILTER:atr] Skipped ${r.strategyName} — ATR ${filterATRpct.toFixed(3)}% below ${threshold}% (${contractAtrMin.value != null ? contractAtrMin.source : 'global'})`);
           }
           results.splice(i, 1);
+        } else {
+          addDecisionContributor(r, {
+            name: 'atr_pre_entry_filter',
+            type: 'gate',
+            atrPercent: filterATRpct,
+            threshold,
+            thresholdSource: contractAtrMin.value != null ? contractAtrMin.source : 'global',
+            passed: true,
+          });
         }
+      }
+    } else if (atrFilterEnabled && results.length > 0) {
+      for (const r of results) {
+        addDecisionContributor(r, {
+          name: 'atr_pre_entry_filter',
+          type: 'gate',
+          enabled: true,
+          atrPercent: filterATRpct,
+          passed: null,
+          reason: filterATR === null ? 'atr_unavailable' : 'atr_percent_unavailable',
+        });
       }
     }
     if (process.env.STRATEGY_DIAG === 'true' && atrDropped.length > 0) {
@@ -1327,7 +1581,7 @@ class StrategyOrchestrator {
     }
 
     // ─── Step 2: Sort by ranking score (highest first) ───
-    results.sort((a, b) => b.confidenceScore - a.confidenceScore);
+    results.sort((a, b) => b.rankingScore - a.rankingScore);
 
     // ─── Step 2.5: Regime-based strategy boosting ───
     // FIX 2026-04-05: Read from TradingConfig for matrix sweep optimization
@@ -1377,14 +1631,24 @@ class StrategyOrchestrator {
       for (const result of results) {
         const boost = boosts[result.strategyName] || 1.0;
         if (boost !== 1.0) {
-          result.confidenceScore = assertBoostedConfidenceScore(
-            result.confidenceScore * boost,
-            `${result.strategyName}.regimeBoostedConfidenceScore`
+          recordRankingScoreChange(
+            result,
+            result.rankingScore * boost,
+            `${result.strategyName}.regimeRankingScore`,
+            {
+              name: 'regime_boost',
+              type: 'multiplier',
+              regimeType,
+              rawRegime,
+              regimeConfidence,
+              positionMultiplier: regimePositionMultiplier,
+              configuredMultiplier: boost,
+            }
           );
         }
       }
       // Re-sort after boosting
-      results.sort((a, b) => b.confidenceScore - a.confidenceScore);
+      results.sort((a, b) => b.rankingScore - a.rankingScore);
     }
 
     // ─── Step 2.6: Volume Profile-based strategy boosting ───
@@ -1440,18 +1704,31 @@ class StrategyOrchestrator {
             // Check for _allStrategies (used in inLVN)
             const boost = vpBoosts._allStrategies || vpBoosts[result.strategyName] || 1.0;
             if (boost !== 1.0) {
-              result.confidenceScore = assertBoostedConfidenceScore(
-                result.confidenceScore * boost,
-                `${result.strategyName}.volumeProfileBoostedConfidenceScore`
+              recordRankingScoreChange(
+                result,
+                result.rankingScore * boost,
+                `${result.strategyName}.volumeProfileRankingScore`,
+                {
+                  name: 'volume_profile_boost',
+                  type: 'multiplier',
+                  zone: vpZone,
+                  currentPrice,
+                  poc: vpProfile.poc,
+                  vah: vpProfile.vah,
+                  val: vpProfile.val,
+                  configuredMultiplier: boost,
+                }
               );
             }
           }
           // Re-sort after VP boosting
-          results.sort((a, b) => b.confidenceScore - a.confidenceScore);
+          results.sort((a, b) => b.rankingScore - a.rankingScore);
           console.log(`📊 [VP] Zone: ${vpZone} | POC: ${vpProfile.poc?.toFixed(0)} | VAH: ${vpProfile.vah?.toFixed(0)} | VAL: ${vpProfile.val?.toFixed(0)}`);
         }
       }
     }
+
+    this._applyMtfConfluenceBooster(results, ctx);
 
     // DEBUG 2026-03-06: Why is confidence 0?
     if (results.length > 0) {
@@ -1480,12 +1757,13 @@ class StrategyOrchestrator {
     }
 
     const publicResults = results.map(publicResult);
+    const publicFilteredResults = filteredResults.map(publicResult);
 
-    // ─── Step 3: Filter by boosted internal score threshold ───
+    // ─── Step 3: Filter by ranking score threshold ───
     // Regime/VP multipliers historically affected eligibility before winner
     // selection. Public/risk/exit confidence remains bounded by capping that
     // boosted score to 1.0 at the orchestrator boundary.
-    const qualified = results.filter(r => r.confidenceScore >= this.minStrategyConfidence);
+    const qualified = results.filter(r => r.rankingScore >= this.minStrategyConfidence);
 
     if (qualified.length === 0) {
       this.lastEvaluation = { action: 'HOLD', results: publicResults, qualified: [] };
@@ -1498,16 +1776,17 @@ class StrategyOrchestrator {
         sizingMultiplier: 1.0,
         confluence: { count: 0, strategies: [] },
         allResults: publicResults,
+        filteredResults: publicFilteredResults,
         reasons: results.length > 0
-          ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% internal threshold (best: ${results[0]?.strategyName} confidence ${(publicConfidence01(results[0]?.confidenceScore, `${results[0]?.strategyName}.bestPublicConfidenceScore`) * 100).toFixed(0)}%)`]
+          ? [`No strategy above ${(this.minStrategyConfidence * 100).toFixed(0)}% ranking threshold (best: ${results[0]?.strategyName} confidence ${(boundedConfidenceFromRankingScore(results[0]?.rankingScore, `${results[0]?.strategyName}.bestRankingScore`) * 100).toFixed(0)}%)`]
           : ['No signals detected']
       };
     }
 
     // ─── Step 4: Winner = highest ranking score among bounded candidates ───
     const winner = qualified[0];
-    const publicWinnerConfidence = publicConfidence01(winner.confidenceScore, `${winner.strategyName}.winnerPublicConfidenceScore`);
-    assertBoostedConfidenceScore(winner.confidenceScore, `${winner.strategyName}.winnerConfidenceScore`);
+    const publicWinnerConfidence = boundedConfidenceFromRankingScore(winner.rankingScore, `${winner.strategyName}.winnerRankingScore`);
+    assertRankingScore(winner.rankingScore, `${winner.strategyName}.winnerRankingScore`);
 
     // ─── Step 5: Count confluence (how many strategies agree on direction) ───
     const agreeing = qualified.filter(r => r.direction === winner.direction);
@@ -1531,6 +1810,7 @@ class StrategyOrchestrator {
         sizingMultiplier: 1.0,
         confluence: { count: confluenceCount, strategies: agreeing.map(r => r.strategyName) },
         allResults: publicResults,
+        filteredResults: publicFilteredResults,
         reasons: [`Need ${this.minConfluenceCount} confluent signals, got ${confluenceCount}`]
       };
     }
@@ -1618,7 +1898,7 @@ class StrategyOrchestrator {
     // Log opposing strategies (info only)
     const opposing = qualified.filter(r => r.direction !== winner.direction);
     opposing.forEach(r => {
-      reasons.push(`  Opposing: ${r.strategyName} says ${r.direction} (${(publicConfidence01(r.confidenceScore) * 100).toFixed(0)}%)`);
+      reasons.push(`  Opposing: ${r.strategyName} says ${r.direction} (${(boundedConfidenceFromRankingScore(r.rankingScore) * 100).toFixed(0)}%)`);
     });
 
     const output = {
@@ -1634,10 +1914,11 @@ class StrategyOrchestrator {
         opposing: opposing.map(r => ({
           name: r.strategyName,
           direction: r.direction,
-          confidence: publicConfidence01(r.confidenceScore, `${r.strategyName}.opposingPublicConfidenceScore`),
+          confidence: boundedConfidenceFromRankingScore(r.rankingScore, `${r.strategyName}.opposingRankingScore`),
         })),
       },
       allResults: publicResults,
+      filteredResults: publicFilteredResults,
       reasons,
       // Signal breakdown for trade logging (compatible with existing signalBreakdown format)
       signalBreakdown: {
