@@ -105,6 +105,9 @@
         trades: new Map(),        // Map<tradeId => TradeMarker>
         latestTotalPnL: null,
         startingEquity: null,
+        accountEquityAvailable: true,
+        accountPnlAvailable: true,
+        accountPnlBlockedByStatus: false,
 
         // Configuration
         profitTarget: null,       // $
@@ -141,6 +144,7 @@
     }
 
     function finiteNumber(value) {
+        if (value === null || value === undefined || value === '') return null;
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
     }
@@ -159,8 +163,26 @@
 
     function captureAccountSnapshot(data) {
         const source = accountSource(data);
-        const equity = finiteNumber(source.equity);
         const explicitPnl = source.totalPnL != null ? source.totalPnL : source.totalPnl;
+        if (state.accountPnlBlockedByStatus && source.pnlStatus !== 'priced') {
+            if (source.equity === null) {
+                state.accountEquityAvailable = false;
+            }
+            state.accountPnlAvailable = false;
+            state.latestTotalPnL = null;
+            return null;
+        }
+        if (source.equity === null || explicitPnl === null || source.pnlStatus === 'unpriced_open_position') {
+            if (source.equity === null) {
+                state.accountEquityAvailable = false;
+            }
+            state.accountPnlAvailable = false;
+            state.accountPnlBlockedByStatus = true;
+            state.latestTotalPnL = null;
+            return null;
+        }
+
+        const equity = finiteNumber(source.equity);
         const totalPnL = finiteNumber(explicitPnl);
         const startingEquity = finiteNumber(
             source.initialBalance != null ? source.initialBalance
@@ -168,15 +190,23 @@
                     : source.startingEquity
         );
 
+        if (equity != null) {
+            state.accountEquityAvailable = true;
+        }
+        if (source.pnlStatus === 'priced') {
+            state.accountPnlBlockedByStatus = false;
+        }
         if (startingEquity != null && startingEquity > 0) {
             state.startingEquity = startingEquity;
         }
         if (totalPnL != null) {
+            state.accountPnlAvailable = true;
             state.latestTotalPnL = totalPnL;
             if (equity != null && equity > 0) {
                 state.startingEquity = equity - totalPnL;
             }
         } else if (equity != null && state.startingEquity != null) {
+            state.accountPnlAvailable = true;
             state.latestTotalPnL = equity - state.startingEquity;
         }
         return equity;
@@ -634,16 +664,16 @@
 
         const lastSample = state.samples[state.samples.length - 1];
 
-        const current = lastSample.equity;
+        const current = state.accountEquityAvailable ? lastSample.equity : null;
         const starting = Number.isFinite(state.startingEquity) && state.startingEquity > 0
             ? state.startingEquity
             : state.samples[0].equity;
-        const pnl = Number.isFinite(state.latestTotalPnL)
-            ? state.latestTotalPnL
-            : current - starting;
-        const pct = starting ? (pnl / starting) * 100 : 0;
+        const pnl = state.accountPnlAvailable
+            ? (Number.isFinite(state.latestTotalPnL) ? state.latestTotalPnL : lastSample.equity - starting)
+            : null;
+        const pct = pnl != null && starting ? (pnl / starting) * 100 : null;
 
-        const targetPct = state.profitTarget ? (pnl / state.profitTarget) * 100 : null;
+        const targetPct = pnl != null && state.profitTarget ? (pnl / state.profitTarget) * 100 : null;
 
         const stats = [
             {
@@ -654,12 +684,12 @@
             {
                 label: 'Total P&L',
                 value: fmtUsd(pnl, true),
-                klass: pnl >= 0 ? 'profit' : 'loss'
+                klass: pnl == null ? '' : (pnl >= 0 ? 'profit' : 'loss')
             },
             {
                 label: 'Return',
                 value: fmtPct(pct),
-                klass: pct >= 0 ? 'profit' : 'loss'
+                klass: pct == null ? '' : (pct >= 0 ? 'profit' : 'loss')
             },
             {
                 label: 'Target Progress',
@@ -832,6 +862,9 @@
             state.trades.clear();
             state.latestTotalPnL = null;
             state.startingEquity = null;
+            state.accountEquityAvailable = true;
+            state.accountPnlAvailable = true;
+            state.accountPnlBlockedByStatus = false;
             render();
         } catch (e) {
             // Silently ignore
@@ -896,6 +929,9 @@
             state.trades.clear();
             state.latestTotalPnL = null;
             state.startingEquity = null;
+            state.accountEquityAvailable = true;
+            state.accountPnlAvailable = true;
+            state.accountPnlBlockedByStatus = false;
             render();
         },
 

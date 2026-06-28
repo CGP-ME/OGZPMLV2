@@ -2550,6 +2550,38 @@ class StateManager {
     });
   }
 
+  _getDashboardPricingStatus(state = this.state) {
+    const lastPrices = state.lastPrices instanceof Map
+      ? state.lastPrices
+      : new Map(Object.entries(state.lastPrices || {}));
+    const missingPriceSymbols = new Set();
+
+    for (const trade of this._getActiveTradesForProjection(state)) {
+      const rawSymbol = trade.symbol ? String(trade.symbol) : null;
+      let symbol = null;
+      if (rawSymbol) {
+        try {
+          symbol = this.normalizeSymbol(rawSymbol, 'StateManager.dashboardPricing symbol');
+        } catch (_) {
+          symbol = null;
+        }
+      }
+
+      const price = rawSymbol && lastPrices.has(rawSymbol)
+        ? Number(lastPrices.get(rawSymbol))
+        : null;
+
+      if (!Number.isFinite(price) || price <= 0) {
+        missingPriceSymbols.add(symbol || rawSymbol || trade.id || trade.orderId || 'unknown');
+      }
+    }
+
+    return {
+      pnlStatus: missingPriceSymbols.size > 0 ? 'unpriced_open_position' : 'priced',
+      pnlMissingPriceSymbols: [...missingPriceSymbols],
+    };
+  }
+
   broadcastToDashboard(updates, context) {
     if (!this.dashboardWs) return false;
     if (this.dashboardWs.readyState !== 1) {
@@ -2560,7 +2592,12 @@ class StateManager {
     try {
       const state = this.getState();
       const positions = this._buildScopedDashboardPositions(state);
-      const equity = this.getEquity();
+      const pricingStatus = this._getDashboardPricingStatus(state);
+      const hasPricedOpenPositions = pricingStatus.pnlMissingPriceSymbols.length === 0;
+      const equity = hasPricedOpenPositions ? this.getEquity() : null;
+      const initialBalance = state.initialBalance;
+      const dashboardTotalPnL = equity != null ? equity - initialBalance : null;
+      const dashboardUnrealizedPnL = dashboardTotalPnL != null ? dashboardTotalPnL - state.realizedPnL : null;
       const runtimeScope = this.getDashboardRuntimeScope();
       const runtimeScopeStatus = runtimeScope
         ? (runtimeScope.scopeComplete ? 'complete' : 'incomplete')
@@ -2575,10 +2612,13 @@ class StateManager {
         position: state.position,
         balance: state.balance,
         totalBalance: state.totalBalance,
+        initialBalance,
         equity,
         realizedPnL: state.realizedPnL,
-        unrealizedPnL: state.unrealizedPnL,
-        totalPnL: state.totalPnL,
+        unrealizedPnL: dashboardUnrealizedPnL,
+        totalPnL: dashboardTotalPnL,
+        pnlStatus: pricingStatus.pnlStatus,
+        pnlMissingPriceSymbols: pricingStatus.pnlMissingPriceSymbols,
         tradeCount: state.tradeCount,
         dailyTradeCount: state.dailyTradeCount,
         recoveryMode: state.recoveryMode,
@@ -2597,10 +2637,13 @@ class StateManager {
         context: context,
         balance: dashboardState.balance,
         totalBalance: dashboardState.totalBalance,
+        initialBalance: dashboardState.initialBalance,
         equity: dashboardState.equity,
         realizedPnL: dashboardState.realizedPnL,
         unrealizedPnL: dashboardState.unrealizedPnL,
         totalPnL: dashboardState.totalPnL,
+        pnlStatus: dashboardState.pnlStatus,
+        pnlMissingPriceSymbols: dashboardState.pnlMissingPriceSymbols,
         tradeCount: dashboardState.tradeCount,
         dailyTradeCount: dashboardState.dailyTradeCount,
         ttpCutoffQuarantine: dashboardState.ttpCutoffQuarantine,

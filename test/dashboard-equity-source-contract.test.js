@@ -148,6 +148,120 @@ describe('dashboard equity source contract', () => {
     expect(priceFrame.totalPnL).toBe(40);
   });
 
+  test('StateManager dashboard state_update publishes fee-aware totalPnL from equity minus initial balance', () => {
+    const stateManager = getStateManager();
+    const sent = [];
+    stateManager.dashboardWs = {
+      readyState: 1,
+      send(message) {
+        sent.push(JSON.parse(message));
+      },
+    };
+    stateManager.set('initialBalance', 5000);
+    stateManager.set('realizedPnL', -17.47);
+    stateManager.set('unrealizedPnL', 0);
+    stateManager.set('totalPnL', 33.53);
+    stateManager.set('activeTrades', new Map());
+
+    const ok = stateManager.broadcastToDashboard({}, { reason: 'fee_aware_dashboard_contract' });
+
+    expect(ok).toBe(true);
+    const frame = sent.find(message => message.type === 'state_update');
+    expect(frame).toBeTruthy();
+    expect(frame.initialBalance).toBe(5000);
+    expect(frame.state.initialBalance).toBe(5000);
+    expect(frame.equity).toBeCloseTo(4982.53, 5);
+    expect(frame.totalPnL).toBeCloseTo(-17.47, 5);
+    expect(frame.state.totalPnL).toBeCloseTo(-17.47, 5);
+    expect(frame.realizedPnL).toBeCloseTo(-17.47, 5);
+    expect(frame.unrealizedPnL).toBeCloseTo(0, 5);
+    expect(frame.pnlStatus).toBe('priced');
+    expect(frame.pnlMissingPriceSymbols).toEqual([]);
+  });
+
+  test('StateManager dashboard state_update does not fake unrealized P&L for unpriced open trades', () => {
+    const stateManager = getStateManager();
+    const sent = [];
+    stateManager.dashboardWs = {
+      readyState: 1,
+      send(message) {
+        sent.push(JSON.parse(message));
+      },
+    };
+    stateManager.set('initialBalance', 5000);
+    stateManager.set('realizedPnL', -17.47);
+    stateManager.set('unrealizedPnL', 0);
+    stateManager.set('totalPnL', 33.53);
+    stateManager.set('lastPrices', new Map());
+    stateManager.set('activeTrades', new Map([
+      ['TRADE-UNPRICED', {
+        id: 'TRADE-UNPRICED',
+        symbol: 'TSLA',
+        entryPrice: 100,
+        sizeUsd: 1000,
+        direction: 'long',
+        entryOrderQuantity: 10,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantity: 10,
+        remainingOrderQuantityUnit: 'shares',
+      }],
+    ]));
+
+    const ok = stateManager.broadcastToDashboard({}, { reason: 'unpriced_open_trade_contract' });
+
+    expect(ok).toBe(true);
+    const frame = sent.find(message => message.type === 'state_update');
+    expect(frame).toBeTruthy();
+    expect(frame.equity).toBeNull();
+    expect(frame.totalPnL).toBeNull();
+    expect(frame.unrealizedPnL).toBeNull();
+    expect(frame.state.equity).toBeNull();
+    expect(frame.state.totalPnL).toBeNull();
+    expect(frame.state.unrealizedPnL).toBeNull();
+    expect(frame.realizedPnL).toBeCloseTo(-17.47, 5);
+    expect(frame.pnlStatus).toBe('unpriced_open_position');
+    expect(frame.pnlMissingPriceSymbols).toEqual(['TSLA']);
+  });
+
+  test('StateManager dashboard state_update does not mark normalized-only price aliases as priced', () => {
+    const stateManager = getStateManager();
+    const sent = [];
+    stateManager.dashboardWs = {
+      readyState: 1,
+      send(message) {
+        sent.push(JSON.parse(message));
+      },
+    };
+    stateManager.set('initialBalance', 5000);
+    stateManager.set('realizedPnL', 0);
+    stateManager.set('unrealizedPnL', 0);
+    stateManager.set('totalPnL', 0);
+    stateManager.set('lastPrices', new Map([['BTC-USD', 110]]));
+    stateManager.set('activeTrades', new Map([
+      ['TRADE-SLASH', {
+        id: 'TRADE-SLASH',
+        symbol: 'BTC/USD',
+        entryPrice: 100,
+        sizeUsd: 1000,
+        direction: 'long',
+        entryOrderQuantity: 10,
+        entryOrderQuantityUnit: 'shares',
+        remainingOrderQuantity: 10,
+        remainingOrderQuantityUnit: 'shares',
+      }],
+    ]));
+
+    const ok = stateManager.broadcastToDashboard({}, { reason: 'normalized_alias_contract' });
+
+    expect(ok).toBe(true);
+    const frame = sent.find(message => message.type === 'state_update');
+    expect(frame).toBeTruthy();
+    expect(frame.equity).toBeNull();
+    expect(frame.totalPnL).toBeNull();
+    expect(frame.pnlStatus).toBe('unpriced_open_position');
+    expect(frame.pnlMissingPriceSymbols).toEqual(['BTC-USD']);
+  });
+
   test('equity curve samples state and balance events from equity fields only', () => {
     const source = fs.readFileSync(
       path.join(__dirname, '..', 'public/js/panels/equity-curve.js'),
@@ -163,15 +277,28 @@ describe('dashboard equity source contract', () => {
     expect(balanceHandler).toContain('addEquitySample(data.ts || data.timestamp || Date.now(), equity)');
     expect(balanceHandler).not.toContain('data.balance');
     expect(source).toContain('latestTotalPnL: null');
+    expect(source).toContain('accountEquityAvailable: true');
+    expect(source).toContain('accountPnlAvailable: true');
+    expect(source).toContain('accountPnlBlockedByStatus: false');
     expect(source).toContain('function captureAccountSnapshot(data)');
     expect(source).toContain("label: 'Current Equity'");
     expect(source).not.toContain("label: 'Current Balance'");
     expect(source).toContain('const source = Object.assign({}, data);');
     expect(source).toContain('Object.assign(source, data.data);');
     expect(source).toContain('Object.assign(source, data.state);');
+    expect(source).toContain("if (value === null || value === undefined || value === '') return null;");
+    expect(source).toContain("if (state.accountPnlBlockedByStatus && source.pnlStatus !== 'priced')");
+    expect(source).toContain('state.latestTotalPnL = null;');
+    expect(source).toContain("if (source.equity === null || explicitPnl === null || source.pnlStatus === 'unpriced_open_position')");
+    expect(source).toContain('state.accountPnlAvailable = false;');
+    expect(source).toContain('state.accountPnlBlockedByStatus = true;');
+    expect(source).toContain("if (source.pnlStatus === 'priced')");
+    expect(source).toContain('state.accountPnlBlockedByStatus = false;');
+    expect(source).toContain('const current = state.accountEquityAvailable ? lastSample.equity : null;');
+    expect(source).toContain('const pnl = state.accountPnlAvailable');
     expect(source).toContain('source.totalPnL != null ? source.totalPnL : source.totalPnl');
     expect(source).toContain('state.startingEquity = equity - totalPnL');
-    expect(source).toContain('const pnl = Number.isFinite(state.latestTotalPnL)');
+    expect(source).toContain('Number.isFinite(state.latestTotalPnL) ? state.latestTotalPnL : lastSample.equity - starting');
     expect(source).toContain('const equity = captureAccountSnapshot(data);');
     expect(source).toContain('addEquitySample(data.ts || data.timestamp || Date.now(), equity)');
     expect(source).not.toContain('addTradeMarker(data.ts || Date.now(), data.symbol, data.side, data.pnl, data.balance)');
