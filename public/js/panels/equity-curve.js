@@ -23,7 +23,7 @@
  *      - Hover trade marker: tooltip shows Time / Ticker / Side / P&L
  *      - Last data point: filled gold circle + value label floating right
  *   3. Stats row below chart:
- *      Current Balance / Total P&L / Return % / Target Progress % (tabular, monospace)
+ *      Current Equity / Total P&L / Return % / Target Progress % (tabular, monospace)
  *
  * Self-registers as OGZ.EquityCurve via OGZ.register().
  * Mounts into <div id="equityCurve"></div>.
@@ -647,7 +647,7 @@
 
         const stats = [
             {
-                label: 'Current Balance',
+                label: 'Current Equity',
                 value: fmtUsd(current),
                 klass: ''
             },

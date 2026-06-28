@@ -164,6 +164,8 @@ describe('dashboard equity source contract', () => {
     expect(balanceHandler).not.toContain('data.balance');
     expect(source).toContain('latestTotalPnL: null');
     expect(source).toContain('function captureAccountSnapshot(data)');
+    expect(source).toContain("label: 'Current Equity'");
+    expect(source).not.toContain("label: 'Current Balance'");
     expect(source).toContain('const source = Object.assign({}, data);');
     expect(source).toContain('Object.assign(source, data.data);');
     expect(source).toContain('Object.assign(source, data.state);');
