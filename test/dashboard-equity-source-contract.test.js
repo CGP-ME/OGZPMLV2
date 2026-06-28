@@ -156,17 +156,22 @@ describe('dashboard equity source contract', () => {
     const stateHandler = source.match(/function handleStateUpdate\(data\) \{[\s\S]*?\n    \}/)[0];
     const balanceHandler = source.match(/function handleBalanceUpdate\(data\) \{[\s\S]*?\n    \}/)[0];
 
-    expect(stateHandler).toContain('typeof data.equity === \'number\'');
-    expect(stateHandler).toContain('addEquitySample(data.ts || Date.now(), data.equity)');
+    expect(stateHandler).toContain('const equity = captureAccountSnapshot(data);');
+    expect(stateHandler).toContain('addEquitySample(data.ts || data.timestamp || Date.now(), equity)');
     expect(stateHandler).not.toContain('data.balance');
-    expect(balanceHandler).toContain('typeof data.equity === \'number\'');
-    expect(balanceHandler).toContain('addEquitySample(data.ts || Date.now(), data.equity)');
+    expect(balanceHandler).toContain('const equity = captureAccountSnapshot(data);');
+    expect(balanceHandler).toContain('addEquitySample(data.ts || data.timestamp || Date.now(), equity)');
     expect(balanceHandler).not.toContain('data.balance');
     expect(source).toContain('latestTotalPnL: null');
     expect(source).toContain('function captureAccountSnapshot(data)');
+    expect(source).toContain('const source = Object.assign({}, data);');
+    expect(source).toContain('Object.assign(source, data.data);');
+    expect(source).toContain('Object.assign(source, data.state);');
     expect(source).toContain('source.totalPnL != null ? source.totalPnL : source.totalPnl');
     expect(source).toContain('state.startingEquity = equity - totalPnL');
     expect(source).toContain('const pnl = Number.isFinite(state.latestTotalPnL)');
+    expect(source).toContain('const equity = captureAccountSnapshot(data);');
+    expect(source).toContain('addEquitySample(data.ts || data.timestamp || Date.now(), equity)');
     expect(source).not.toContain('addTradeMarker(data.ts || Date.now(), data.symbol, data.side, data.pnl, data.balance)');
     expect(source).not.toContain(': 50000');
   });

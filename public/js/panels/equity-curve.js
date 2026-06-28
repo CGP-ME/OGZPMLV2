@@ -147,10 +147,14 @@
 
     function accountSource(data) {
         if (!data || typeof data !== 'object') return {};
+        const source = Object.assign({}, data);
         if (data.data && typeof data.data === 'object') {
-            return Object.assign({}, data, data.data);
+            Object.assign(source, data.data);
         }
-        return data;
+        if (data.state && typeof data.state === 'object') {
+            Object.assign(source, data.state);
+        }
+        return source;
     }
 
     function captureAccountSnapshot(data) {
@@ -175,6 +179,7 @@
         } else if (equity != null && state.startingEquity != null) {
             state.latestTotalPnL = equity - state.startingEquity;
         }
+        return equity;
     }
 
     function svgEl(tag, attrs = {}) {
@@ -777,9 +782,9 @@
 
     function handlePrice(data) {
         try {
-            captureAccountSnapshot(data);
-            if (data && data.equity && typeof data.equity === 'number') {
-                addEquitySample(Date.now(), data.equity);
+            const equity = captureAccountSnapshot(data);
+            if (equity != null && equity > 0) {
+                addEquitySample(data.ts || data.timestamp || Date.now(), equity);
             }
         } catch (e) {
             // Silently ignore malformed price events
@@ -798,9 +803,9 @@
 
     function handleBalanceUpdate(data) {
         try {
-            captureAccountSnapshot(data);
-            if (data && typeof data.equity === 'number') {
-                addEquitySample(data.ts || Date.now(), data.equity);
+            const equity = captureAccountSnapshot(data);
+            if (equity != null && equity > 0) {
+                addEquitySample(data.ts || data.timestamp || Date.now(), equity);
             }
         } catch (e) {
             // Silently ignore malformed balance events
@@ -809,9 +814,9 @@
 
     function handleStateUpdate(data) {
         try {
-            captureAccountSnapshot(data);
-            if (data && typeof data.equity === 'number') {
-                addEquitySample(data.ts || Date.now(), data.equity);
+            const equity = captureAccountSnapshot(data);
+            if (equity != null && equity > 0) {
+                addEquitySample(data.ts || data.timestamp || Date.now(), equity);
             }
         } catch (e) {
             // Silently ignore malformed state updates
