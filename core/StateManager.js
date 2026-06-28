@@ -226,6 +226,24 @@ function withExitLifecycleFields(trade, { legacy = false, reset = false } = {}) 
   };
 }
 
+function requireNonEmptyString(value, field, caller) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`[${caller}] ${field} requires explicit non-empty string; got ${JSON.stringify(value)}`);
+  }
+  return value.trim();
+}
+
+function optionalFiniteNumber(value, field, caller, { min = -Infinity, max = Infinity } = {}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < min || numeric > max) {
+    throw new Error(`[${caller}] ${field} must be finite number between ${min} and ${max}; got ${JSON.stringify(value)}`);
+  }
+  return numeric;
+}
+
 class StateManager {
   /**
    * Creates a new StateManager instance.
@@ -314,6 +332,8 @@ class StateManager {
     this.set = this.set.bind(this);
     this.updateActiveTrade = this.updateActiveTrade.bind(this);
     this.removeActiveTrade = this.removeActiveTrade.bind(this);
+    this.reserveExitSlot = this.reserveExitSlot.bind(this);
+    this.releaseExitSlot = this.releaseExitSlot.bind(this);
     this.openPosition = this.openPosition.bind(this);
     this.closePosition = this.closePosition.bind(this);
 
@@ -1767,6 +1787,173 @@ class StateManager {
 
     const trade = trades.get(tradeId.trim()) || null;
     return trade ? deepFreezePlain(clonePlain(trade)) : null;
+  }
+
+  /**
+   * Reserve a single in-flight exit intent for a trade before broker submission.
+   * This is pre-confirm bookkeeping only: it prevents duplicate exits but does
+   * not change size, quantity, P&L, tier state, or BE scale-out state.
+   */
+  async reserveExitSlot(tradeId, intentId, options = {}) {
+    const caller = 'StateManager.reserveExitSlot';
+    const normalizedTradeId = requireNonEmptyString(tradeId, 'tradeId', caller);
+    const normalizedIntentId = requireNonEmptyString(intentId, 'intentId', caller);
+    const submittedAtMs = optionalFiniteNumber(options.submittedAtMs, 'submittedAtMs', caller, { min: 1 });
+    if (submittedAtMs === null) {
+      throw new Error(`[${caller}] submittedAtMs is required for deterministic exit intent provenance`);
+    }
+
+    const exitFraction = optionalFiniteNumber(options.exitFraction, 'exitFraction', caller, { min: 0, max: 1 });
+    if (exitFraction !== null && exitFraction <= 0) {
+      throw new Error(`[${caller}] exitFraction must be > 0 when supplied; got ${exitFraction}`);
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, reserved: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      if (trade.pendingExitIntent && trade.pendingExitIntent.intentId) {
+        return {
+          success: true,
+          reserved: false,
+          reason: 'exit_already_pending',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(trade.pendingExitIntent),
+        };
+      }
+
+      const remainingQuantity = Number(trade.remainingOrderQuantity);
+      const expectedRemainingQuantity = optionalFiniteNumber(
+        options.expectedRemainingQuantity,
+        'expectedRemainingQuantity',
+        caller,
+        { min: 0 }
+      ) ?? (
+        Number.isFinite(remainingQuantity) && remainingQuantity > 0 && exitFraction !== null
+          ? Math.max(0, remainingQuantity * (1 - exitFraction))
+          : null
+      );
+      const tradeRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const nextTrade = {
+        ...trade,
+        tradeRevision: tradeRevision + 1,
+        pendingExitIntent: {
+          intentId: normalizedIntentId,
+          sourceEventId: typeof options.sourceEventId === 'string' && options.sourceEventId.trim()
+            ? options.sourceEventId.trim()
+            : null,
+          brokerOrderId: typeof options.brokerOrderId === 'string' && options.brokerOrderId.trim()
+            ? options.brokerOrderId.trim()
+            : null,
+          lifecycleState: 'submitted',
+          submittedAtMs,
+          exitFraction,
+          expectedRemainingQuantity,
+          tradeRevision,
+        },
+      };
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'RESERVE_EXIT_SLOT',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        sourceEventId: nextTrade.pendingExitIntent.sourceEventId,
+      });
+
+      return {
+        ...result,
+        reserved: result.success === true,
+        reason: result.success === true ? 'reserved' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        pendingExitIntent: clonePlain(nextTrade.pendingExitIntent),
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Release a reserved exit slot after broker rejection/cancel or caller abort.
+   * A mismatched intent cannot clear another pending exit.
+   */
+  async releaseExitSlot(tradeId, intentId, options = {}) {
+    const caller = 'StateManager.releaseExitSlot';
+    const normalizedTradeId = requireNonEmptyString(tradeId, 'tradeId', caller);
+    const normalizedIntentId = requireNonEmptyString(intentId, 'intentId', caller);
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(normalizedTradeId);
+      if (!trade) {
+        return { success: false, released: false, reason: 'trade_not_found', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: true, released: false, reason: 'no_exit_pending', tradeId: normalizedTradeId, intentId: normalizedIntentId };
+      }
+      if (pending.intentId !== normalizedIntentId) {
+        return {
+          success: true,
+          released: false,
+          reason: 'intent_mismatch',
+          tradeId: normalizedTradeId,
+          intentId: normalizedIntentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const tradeRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const nextTrade = {
+        ...trade,
+        tradeRevision: tradeRevision + 1,
+        pendingExitIntent: null,
+      };
+      const nextActiveTrades = new Map(trades);
+      nextActiveTrades.set(normalizedTradeId, nextTrade);
+
+      const result = this._applyStateUpdatesLocked({
+        activeTrades: nextActiveTrades,
+      }, {
+        action: 'RELEASE_EXIT_SLOT',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+        reason: options.reason || null,
+      });
+
+      return {
+        ...result,
+        released: result.success === true,
+        reason: result.success === true ? 'released' : 'state_update_failed',
+        tradeId: normalizedTradeId,
+        intentId: normalizedIntentId,
+      };
+    } finally {
+      this.releaseLock();
+    }
   }
 
   normalizeSymbol(symbol, caller = 'StateManager.normalizeSymbol') {

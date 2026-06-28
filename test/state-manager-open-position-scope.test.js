@@ -666,6 +666,116 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.getActiveTrade('MISSING_TRADE')).toBeNull();
   });
 
+  test('reserveExitSlot records one pending exit intent without mutating position truth', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforePosition = manager.get('position');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+
+    const reserved = await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    expect(reserved.success).toBe(true);
+    expect(reserved.reserved).toBe(true);
+    expect(reserved.reason).toBe('reserved');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.tradeRevision).toBe(beforeTrade.tradeRevision + 1);
+    expect(trade.pendingExitIntent).toEqual({
+      intentId: 'intent-1',
+      sourceEventId: 'trace-1',
+      brokerOrderId: null,
+      lifecycleState: 'submitted',
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      exitFraction: 0.5,
+      expectedRemainingQuantity: 2.5,
+      tradeRevision: beforeTrade.tradeRevision,
+    });
+    expect(trade.remainingOrderQuantity).toBe(beforeTrade.remainingOrderQuantity);
+    expect(trade.sizeUsd).toBe(beforeTrade.sizeUsd);
+    expect(manager.get('position')).toBe(beforePosition);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('reserveExitSlot rejects duplicate pending exit intent without overwriting the original', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      exitFraction: 0.5,
+    });
+
+    const duplicate = await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-2', {
+      submittedAtMs: Date.parse('2026-06-28T07:01:00.000Z'),
+      exitFraction: 0.25,
+    });
+
+    expect(duplicate.success).toBe(true);
+    expect(duplicate.reserved).toBe(false);
+    expect(duplicate.reason).toBe('exit_already_pending');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.pendingExitIntent.intentId).toBe('intent-1');
+    expect(trade.pendingExitIntent.exitFraction).toBe(0.5);
+  });
+
+  test('releaseExitSlot refuses to clear a mismatched pending intent', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      exitFraction: 0.5,
+    });
+
+    const released = await manager.releaseExitSlot('OPEN_SCOPE_1', 'intent-2');
+
+    expect(released.success).toBe(true);
+    expect(released.released).toBe(false);
+    expect(released.reason).toBe('intent_mismatch');
+    expect(manager.getActiveTrade('OPEN_SCOPE_1').pendingExitIntent.intentId).toBe('intent-1');
+  });
+
+  test('releaseExitSlot clears matching pending intent and increments revision', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      exitFraction: 0.5,
+    });
+    const reservedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+
+    const released = await manager.releaseExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      reason: 'broker_rejected',
+    });
+
+    expect(released.success).toBe(true);
+    expect(released.released).toBe(true);
+    expect(released.reason).toBe('released');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.tradeRevision).toBe(reservedTrade.tradeRevision + 1);
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.remainingOrderQuantity).toBe(reservedTrade.remainingOrderQuantity);
+    expect(trade.sizeUsd).toBe(reservedTrade.sizeUsd);
+  });
+
   test('uses per-share minimum fee model for entry and exit accounting', async () => {
     const TradingConfig = require('../core/TradingConfig');
     TradingConfig.setOverrides({
