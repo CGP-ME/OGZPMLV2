@@ -590,13 +590,18 @@
         return `${h12}:${m} ${meridiem}`;
     }
 
+    function resetSection(section, titleText) {
+        if (!section) return;
+        section.textContent = '';
+        const title = document.createElement('div');
+        title.className = 'tb-section-title';
+        title.textContent = titleText;
+        section.appendChild(title);
+    }
+
     function renderNews() {
         if (!state.domRefs.newsSection) return;
-
-        // Keep title, remove items
-        const title = state.domRefs.newsSection.querySelector('.tb-section-title');
-        const existingItems = state.domRefs.newsSection.querySelectorAll('.tb-news-item, .tb-see-more');
-        existingItems.forEach(el => el.remove());
+        resetSection(state.domRefs.newsSection, 'Latest News');
 
         const filtered = state.news.filter(n => !state.selectedTicker || n.ticker === state.selectedTicker);
         const visible = filtered.slice(0, NEWS_VISIBLE_COUNT);
@@ -636,10 +641,7 @@
 
     function renderWhale() {
         if (!state.domRefs.whaleSection) return;
-
-        const title = state.domRefs.whaleSection.querySelector('.tb-section-title');
-        const existingItems = state.domRefs.whaleSection.querySelectorAll('.tb-whale-item, .tb-whale-muted');
-        existingItems.forEach(el => el.remove());
+        resetSection(state.domRefs.whaleSection, 'Whale Alert');
 
         const filtered = state.whales.filter(w => !state.selectedTicker || w.ticker === state.selectedTicker);
         const item = filtered.length > 0 ? filtered[0] : null;
@@ -664,10 +666,7 @@
 
     function renderNarrator() {
         if (!state.domRefs.narratorSection) return;
-
-        const title = state.domRefs.narratorSection.querySelector('.tb-section-title');
-        const existingLines = state.domRefs.narratorSection.querySelectorAll('.tb-narrator-lines');
-        existingLines.forEach(el => el.remove());
+        resetSection(state.domRefs.narratorSection, 'Narrator Output');
 
         if (state.narrator.length === 0) {
             const muted = document.createElement('div');
@@ -693,10 +692,7 @@
 
     function renderEscalation() {
         if (!state.domRefs.escalationSection) return;
-
-        const title = state.domRefs.escalationSection.querySelector('.tb-section-title');
-        const existingItems = state.domRefs.escalationSection.querySelectorAll('.tb-escalation-item, .tb-escalation-muted');
-        existingItems.forEach(el => el.remove());
+        resetSection(state.domRefs.escalationSection, 'Escalation Queue');
 
         if (state.escalations.length === 0) {
             const muted = document.createElement('div');
