@@ -62,15 +62,26 @@ function makeExecutor(config = {}, ctx = {}) {
   });
 }
 
+function makeExitContract(overrides = {}) {
+  return {
+    stopLossPercent: -0.5,
+    takeProfitPercent: 1,
+    trailingStopPercent: 0.6,
+    trailingActivation: 0.8,
+    maxHoldTimeMinutes: 240,
+    minConfidence: 0.6,
+    atrMinPercent: null,
+    useStructuralExits: false,
+    invalidationConditions: [],
+    ...overrides,
+  };
+}
+
 function makeOrchResult(overrides = {}) {
   return {
     winnerStrategy: 'RSI',
     sizingMultiplier: 2,
-    exitContract: {
-      stopLossPercent: -0.5,
-      takeProfitPercent: 1,
-      useStructuralExits: false,
-    },
+    exitContract: makeExitContract(),
     ...overrides,
   };
 }
@@ -335,6 +346,17 @@ describe('OrderExecutor pause gate', () => {
         entryOrderQuantityUnit: 'shares',
         remainingOrderQuantity: 5,
         remainingOrderQuantityUnit: 'shares',
+        frozenExitPolicy: expect.objectContaining({
+          source: 'PolicyBuilder.buildForTrade',
+          strategyName: 'RSI',
+          policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          contract: expect.objectContaining({
+            strategyName: 'RSI',
+            stopLossPercent: -0.5,
+            takeProfitPercent: 1,
+            useStructuralExits: false,
+          }),
+        }),
       })
     );
     expect(MaxProfitManager).toHaveBeenCalledTimes(1);
@@ -609,6 +631,11 @@ describe('OrderExecutor pause gate', () => {
         action: 'BUY',
         entryOrderQuantity: 5,
         remainingOrderQuantity: 5,
+        frozenExitPolicy: expect.objectContaining({
+          source: 'PolicyBuilder.buildForTrade',
+          strategyName: 'RSI',
+          policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
       })
     );
   });
@@ -1046,7 +1073,7 @@ describe('OrderExecutor pause gate', () => {
       null,
       makeOrchResult({
         sizingMultiplier: 1,
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 12, useStructuralExits: false },
+        exitContract: makeExitContract({ takeProfitPercent: 12 }),
       }),
       'TSLA'
     );
@@ -1127,6 +1154,47 @@ describe('OrderExecutor pause gate', () => {
       makeOrchResult({ exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 } }),
       'TSLA'
     )).rejects.toThrow(/exitContract\.useStructuralExits missing\/invalid/);
+
+    expect(preOrderEntryGate).not.toHaveBeenCalled();
+    expect(sendOrder).not.toHaveBeenCalled();
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('entry exit contract missing frozen policy fields fails before broker, gate, webhook, or state side effects', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    const sendOrder = jest.fn();
+    const webhookAdapter = { emit: jest.fn() };
+    const preOrderEntryGate = jest.fn().mockResolvedValue({ allowed: true });
+    const executor = makeExecutor(
+      { executionMode: 'live' },
+      {
+        paperTrading: false,
+        orderRouter: { sendOrder },
+        webhookAdapter,
+        preOrderEntryGate,
+      }
+    );
+
+    await expect(executor.executeTrade(
+      { action: 'BUY', confidence: 50 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways' },
+      [],
+      null,
+      makeOrchResult({
+        exitContract: {
+          stopLossPercent: -0.5,
+          takeProfitPercent: 1,
+          useStructuralExits: false,
+        },
+      }),
+      'TSLA'
+    )).rejects.toThrow(/exitContract\.trailingStopPercent is required/);
 
     expect(preOrderEntryGate).not.toHaveBeenCalled();
     expect(sendOrder).not.toHaveBeenCalled();
@@ -2798,6 +2866,15 @@ describe('OrderExecutor pause gate', () => {
         remainingOrderQuantity: 4,
         entryOrderQuantityUnit: 'shares',
         remainingOrderQuantityUnit: 'shares',
+        frozenExitPolicy: expect.objectContaining({
+          source: 'PolicyBuilder.buildForTrade',
+          strategyName: 'RSI',
+          policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          contract: expect.objectContaining({
+            strategyName: 'RSI',
+            useStructuralExits: false,
+          }),
+        }),
       })
     );
   });

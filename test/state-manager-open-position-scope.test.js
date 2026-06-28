@@ -69,6 +69,22 @@ describe('StateManager openPosition scope contract', () => {
     ...overrides,
   });
 
+  const frozenExitPolicy = (overrides = {}) => ({
+    source: 'PolicyBuilder.buildForTrade',
+    strategyName: 'ScopeTestStrategy',
+    contract: {
+      strategyName: 'ScopeTestStrategy',
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1,
+      useStructuralExits: false,
+    },
+    profitManagement: {
+      beScaleOut: { enabled: true },
+    },
+    fees: { model: 'percent' },
+    ...overrides,
+  });
+
   const expectedScopeKey = 'paper:alpaca:acct-main:stocks:TSLA:15m';
 
   beforeEach(() => {
@@ -621,6 +637,81 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.decisionLedger.executionMode).toBe('paper');
     expect(trade.decisionLedger.positionSizing.finalSizeUsd).toBe(500);
     expect(trade.decisionLedger.exitContract.strategyName).toBe('ScopeTestStrategy');
+  });
+
+  test('persists immutable frozen exit policy from entry context onto the active trade', async () => {
+    const policy = frozenExitPolicy();
+
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      frozenExitPolicy: policy,
+    }));
+
+    expect(result.success).toBe(true);
+    const trade = manager.get('activeTrades').get('OPEN_SCOPE_1');
+    expect(trade.frozenExitPolicy).not.toBe(policy);
+    expect(trade.frozenExitPolicy.policyHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(Object.isFrozen(trade.frozenExitPolicy)).toBe(true);
+    expect(Object.isFrozen(trade.frozenExitPolicy.contract)).toBe(true);
+    expect(manager.getActiveTrade('OPEN_SCOPE_1').frozenExitPolicy).toEqual(trade.frozenExitPolicy);
+
+    expect(() => {
+      trade.frozenExitPolicy.contract.stopLossPercent = -99;
+    }).toThrow(TypeError);
+    expect(manager.get('activeTrades').get('OPEN_SCOPE_1').frozenExitPolicy.contract.stopLossPercent).toBe(-0.5);
+  });
+
+  test('updateActiveTrade preserves existing frozen exit policy when update payload omits it', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      frozenExitPolicy: frozenExitPolicy(),
+    }));
+
+    expect(result.success).toBe(true);
+    const originalPolicy = manager.get('activeTrades').get('OPEN_SCOPE_1').frozenExitPolicy;
+
+    manager.updateActiveTrade('OPEN_SCOPE_1', fullScope({
+      id: 'OPEN_SCOPE_1',
+      scopeKey: expectedScopeKey,
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+    }));
+
+    const trade = manager.get('activeTrades').get('OPEN_SCOPE_1');
+    expect(trade.frozenExitPolicy).toBe(originalPolicy);
+    expect(Object.isFrozen(trade.frozenExitPolicy)).toBe(true);
+    expect(trade.frozenExitPolicy.contract.stopLossPercent).toBe(-0.5);
+  });
+
+  test('updateActiveTrade rejects replacement of an existing frozen exit policy', async () => {
+    const result = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      frozenExitPolicy: frozenExitPolicy(),
+    }));
+
+    expect(result.success).toBe(true);
+
+    expect(() => manager.updateActiveTrade('OPEN_SCOPE_1', fullScope({
+      id: 'OPEN_SCOPE_1',
+      scopeKey: expectedScopeKey,
+      sizeUsd: 500,
+      size: 500,
+      entryPrice: 100,
+      status: 'open',
+      frozenExitPolicy: frozenExitPolicy({
+        contract: {
+          strategyName: 'ScopeTestStrategy',
+          stopLossPercent: -1,
+          takeProfitPercent: 1,
+          useStructuralExits: false,
+        },
+      }),
+    }))).toThrow(/frozenExitPolicy is immutable/);
+
+    const trade = manager.get('activeTrades').get('OPEN_SCOPE_1');
+    expect(trade.frozenExitPolicy.contract.stopLossPercent).toBe(-0.5);
   });
 
   test('initializes StateManager-owned exit lifecycle fields at trade birth', async () => {

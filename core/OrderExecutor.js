@@ -24,6 +24,7 @@ const { createTraceId, emitTrace } = require('./TraceSpine');
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
+const PolicyBuilder = require('./PolicyBuilder');
 
 const stateManager = getStateManager();
 const SUPPORTED_ACTIONS = new Set(['BUY', 'SELL_SHORT', 'SELL', 'COVER']);
@@ -852,6 +853,11 @@ class OrderExecutor {
     const sizingMultiplier = orchResult?.sizingMultiplier ?? 1.0;
     const exitContract = orchResult.exitContract;
     assertExplicitExitOwnership(exitContract, 'OrderExecutor._buildEntryPlan');
+    const frozenExitPolicy = PolicyBuilder.buildForTrade({
+      strategyName: entryStrategy,
+      exitContract,
+      nowMs: Date.now(),
+    });
     const scope = this._runtimeScope(symbol);
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
     const requestedSizeUsd = positionSize * sizingMultiplier;
@@ -909,7 +915,8 @@ class OrderExecutor {
       orderQuantity,
       quantityUnit,
       entryStrategy,
-      exitContract
+      exitContract,
+      frozenExitPolicy
     };
   }
 
@@ -1800,6 +1807,7 @@ class OrderExecutor {
           const entryStrategy = entryPlan.entryStrategy;
           const sizingMultiplier = entryPlan.sizingMultiplier;
           const exitContract = entryPlan.exitContract;
+          const frozenExitPolicy = entryPlan.frozenExitPolicy;
           const adjustedPositionSize = executedEntryPlan.sizeUsd;
 
           // PERMANENT TRADE RECEIPT - shows actual dollars/percent on EVERY trade (live, paper, backtest)
@@ -1841,6 +1849,7 @@ class OrderExecutor {
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
             exitContract: exitContract,
+            frozenExitPolicy,
             ledgerData: decision.ledgerData || null,
             traceId,
             signalId,
@@ -2016,6 +2025,7 @@ class OrderExecutor {
           const entryStrategy = entryPlan.entryStrategy;
           const sizingMultiplier = entryPlan.sizingMultiplier;
           const exitContract = entryPlan.exitContract;
+          const frozenExitPolicy = entryPlan.frozenExitPolicy;
           const adjustedPositionSize = executedEntryPlan.sizeUsd;
 
           // FIX 2026-03-28: adjustedPositionSize is already USD, no multiplication needed
@@ -2056,6 +2066,7 @@ class OrderExecutor {
             reasoning: orchResult?.reasoning || '',
             entryStrategy: entryStrategy,
             exitContract: exitContract,
+            frozenExitPolicy,
             ledgerData: decision.ledgerData || null,
             traceId,
             signalId,

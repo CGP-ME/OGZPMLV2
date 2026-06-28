@@ -80,6 +80,7 @@ const { get: getConfigValue, getSource: getConfigSource } = require('../foundati
 const { getNarrator } = require('./TradeNarrator');
 const FeeModel = require('./FeeModel');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
+const { freezePolicy } = require('./dto/FrozenExitPolicy');
 // Cache singleton at module load — narrator.enabled is sealed from env vars.
 // Both hook sites (openPosition / closePosition) check cached narrator.enabled
 // first; try frame only entered when enabled (C1 zero-cost when OFF).
@@ -747,6 +748,10 @@ class StateManager {
     // and SessionRouter need symbol-aware pricing.
     const tradeSymbol = tradeScope.symbol;
 
+    const stateContext = context.frozenExitPolicy !== undefined
+      ? { ...context, frozenExitPolicy: freezePolicy(context.frozenExitPolicy) }
+      : context;
+
     const trade = {
       id: tradeId,
       action: tradeAction,  // BUY or SELL_SHORT
@@ -760,7 +765,7 @@ class StateManager {
       entryTime: Date.now(),
       timestamp: Date.now(),
       status: 'open',
-      ...context,
+      ...stateContext,
       ...initialExitLifecycleFields(),
       // CC-C Commit 5: symbol assignment AFTER `...context` so the dash-
       // normalized value (line 405-407) wins over context.symbol (slash form
@@ -1767,11 +1772,23 @@ class StateManager {
       throw new Error(`[StateManager.updateActiveTrade] activeTrades container invariant failed: expected Map, got ${typeof trades}`);
     }
 
+    const existingTrade = trades.get(orderId);
+    let normalizedFrozenExitPolicy = existingTrade?.frozenExitPolicy;
+    if (tradeData && typeof tradeData === 'object' && tradeData.frozenExitPolicy !== undefined) {
+      normalizedFrozenExitPolicy = freezePolicy(tradeData.frozenExitPolicy);
+      const existingHash = existingTrade?.frozenExitPolicy?.policyHash;
+      const incomingHash = normalizedFrozenExitPolicy?.policyHash;
+      if (existingHash && incomingHash && existingHash !== incomingHash) {
+        throw new Error(`[StateManager.updateActiveTrade] frozenExitPolicy is immutable for active trade ${orderId}; existing policyHash ${existingHash} does not match incoming ${incomingHash}`);
+      }
+    }
+
     const tradeRecord = tradeData && typeof tradeData === 'object'
       ? withExitLifecycleFields({
           ...tradeData,
           id: tradeData.id || orderId,
           orderId: tradeData.orderId || orderId,
+          ...(normalizedFrozenExitPolicy !== undefined ? { frozenExitPolicy: normalizedFrozenExitPolicy } : {}),
         }, { reset: true })
       : tradeData;
     const quantityIssues = this._activeTradeQuantityIssuesForTrade(tradeRecord, orderId);
