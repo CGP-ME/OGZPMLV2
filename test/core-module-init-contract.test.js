@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-function loadCore() {
+function makeCoreContext() {
   const source = fs.readFileSync(path.join(__dirname, '..', 'public/js/core.js'), 'utf8');
   const context = {
     window: {},
@@ -22,6 +22,11 @@ function loadCore() {
     isFinite,
   };
   vm.createContext(context);
+  return { context, source };
+}
+
+function loadCore() {
+  const { context, source } = makeCoreContext();
   vm.runInContext(source, context);
   return context.window.OGZ;
 }
@@ -56,5 +61,49 @@ describe('OGZ core module init contract', () => {
     ogz.register('Chart', chart);
 
     expect(chart.init).not.toHaveBeenCalled();
+  });
+
+  test('duplicate core script evaluation preserves the existing booted registry', async () => {
+    const { context, source } = makeCoreContext();
+    vm.runInContext(source, context);
+    const first = context.window.OGZ;
+    const panel = { init: jest.fn() };
+
+    first.register('Panel', panel);
+    await first.init();
+    vm.runInContext(source, context);
+
+    expect(context.window.OGZ).toBe(first);
+    expect(context.window.OGZ.state.initialized).toBe(true);
+    expect(context.window.OGZ.get('Panel')).toBe(panel);
+    expect(panel.init).toHaveBeenCalledTimes(1);
+  });
+
+  test('duplicate registration before boot cannot replace a module', async () => {
+    const ogz = loadCore();
+    const firstPanel = { init: jest.fn() };
+    const duplicatePanel = { init: jest.fn() };
+
+    ogz.register('Panel', firstPanel);
+    ogz.register('Panel', duplicatePanel);
+    await ogz.init();
+
+    expect(ogz.get('Panel')).toBe(firstPanel);
+    expect(firstPanel.init).toHaveBeenCalledTimes(1);
+    expect(duplicatePanel.init).not.toHaveBeenCalled();
+  });
+
+  test('duplicate late registration after boot cannot replace an initialized module', async () => {
+    const ogz = loadCore();
+    const firstPanel = { init: jest.fn() };
+    const duplicatePanel = { init: jest.fn() };
+
+    ogz.register('Panel', firstPanel);
+    await ogz.init();
+    ogz.register('Panel', duplicatePanel);
+
+    expect(ogz.get('Panel')).toBe(firstPanel);
+    expect(firstPanel.init).toHaveBeenCalledTimes(1);
+    expect(duplicatePanel.init).not.toHaveBeenCalled();
   });
 });

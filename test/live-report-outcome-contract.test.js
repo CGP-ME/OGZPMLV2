@@ -20,7 +20,7 @@ function createElementStub() {
   };
 }
 
-function loadLiveReportWithSocket() {
+function loadLiveReportWithSocket({ selectableAssets = null } = {}) {
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'js', 'panels', 'live-report.js'),
     'utf8'
@@ -67,7 +67,13 @@ function loadLiveReportWithSocket() {
     clearInterval: jest.fn(),
     setTimeout: jest.fn(),
     document: {
-      getElementById: jest.fn(id => (id === 'liveReport' ? root : null)),
+      getElementById: jest.fn(id => {
+        if (id === 'liveReport') return root;
+        if (id === 'cp-assetSelector' && selectableAssets) {
+          return { options: selectableAssets.map(value => ({ value })) };
+        }
+        return null;
+      }),
       createElement: jest.fn(() => createElementStub()),
       createDocumentFragment: jest.fn(() => createElementStub()),
       addEventListener: jest.fn(),
@@ -354,7 +360,9 @@ describe('LiveReport closed-trade outcome contract', () => {
   });
 
   test('accepts asset_switched only when it carries complete runtime scope', () => {
-    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket({
+      selectableAssets: ['BTC-USD', 'ETH-USD']
+    });
 
     liveReport.init();
     handlers.asset_switched({
@@ -376,6 +384,58 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(refs.get('symbol').textContent).toBe('ETH-USD');
     expect(refs.get('account').textContent).toBe('paper-main');
     expect(liveReport._compute().hasAsset).toBe(true);
+  });
+
+  test('rejects asset_switched runtime scope for a non-selectable dashboard symbol', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket({
+      selectableAssets: ['BTC-USD', 'ETH-USD']
+    });
+
+    liveReport.init();
+    handlers.asset_switched({
+      type: 'asset_switched',
+      data: {
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'SOL-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
+  test('rejects asset_switched runtime scope when no dashboard selector defines selectable assets', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.asset_switched({
+      type: 'asset_switched',
+      data: {
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'SOL-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
   });
 
   test('rejects malformed complete runtimeScope when required scope fields are missing', () => {

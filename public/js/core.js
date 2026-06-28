@@ -2,7 +2,9 @@
  * core.js - OGZPrime Orchestrator
  * Centralized State Management & Module Registry
  */
-window.OGZ = (function() {
+window.OGZ = (window.OGZ && window.OGZ.__coreGuard === 'ogz-core-v2')
+    ? window.OGZ
+    : (function() {
     'use strict';
 
     const SPECIAL_MODULES = new Set(['Chart', 'Socket', 'Theme']);
@@ -32,7 +34,13 @@ window.OGZ = (function() {
     }
 
     return {
+        __coreGuard: 'ogz-core-v2',
+
         register: (name, mod) => {
+            if (state.activeModules[name]) {
+                console.warn(`[OGZ] Duplicate module registration ignored: ${name}`);
+                return;
+            }
             state.activeModules[name] = mod;
             console.log(`[OGZ] Module Registered: ${name}`);
             if (state.initialized) {

@@ -84,6 +84,24 @@
         return DASHBOARD_DATA_FRAME_TYPES.has(type);
     }
 
+    function cleanSelectorValue(value) {
+        const selected = typeof value === 'string' ? value.trim() : '';
+        if (!selected || selected.toLowerCase() === 'none') return '';
+        return selected;
+    }
+
+    function selectedDashboardAsset() {
+        return cleanSelectorValue(document.getElementById('cp-assetSelector')?.value)
+            || cleanSelectorValue(document.getElementById('assetSelector')?.value)
+            || 'TSLA';
+    }
+
+    function selectedDashboardTimeframe() {
+        return cleanSelectorValue(document.getElementById('cp-timeframeSelector')?.value)
+            || cleanSelectorValue(document.getElementById('timeframeSelector')?.value)
+            || '15m';
+    }
+
     function storedDashboardToken() {
         const fragmentToken = dashboardTokenFromFragment();
         if (fragmentToken) return fragmentToken;
@@ -328,12 +346,8 @@
                         this.send({ type: 'identify', source: 'dashboard', tier: OGZ.state.tier, version: '2.0.0' });
                         // V2 chart-panel uses cp-* IDs; fall back to legacy monolith IDs,
                         // then default. Same fallback chain CC-D bakes into asset consumers.
-                        const asset = document.getElementById('cp-assetSelector')?.value
-                                   || document.getElementById('assetSelector')?.value
-                                   || 'TSLA';
-                        const tf = document.getElementById('cp-timeframeSelector')?.value
-                                || document.getElementById('timeframeSelector')?.value
-                                || '15m';
+                        const asset = selectedDashboardAsset();
+                        const tf = selectedDashboardTimeframe();
                         // #47: prime both startup paths. `asset_change` updates
                         // bot-side selected asset state, while `request_historical`
                         // asks the stock adapter or bot to send historical_candles.

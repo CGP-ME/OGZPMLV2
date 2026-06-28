@@ -121,7 +121,7 @@ describe('dashboard milestone effects feature gate', () => {
 
   test('explicit operator feature flag still refuses seed-equity milestone fire', () => {
     const harness = createHarness({
-      'ogz.profile': 'operator',
+      'ogz.layout': 'operator',
       'ogz.features.milestoneEffects': 'enabled'
     }, { personalMilestones: true });
     const api = harness.registered.MilestoneEffects;
@@ -137,6 +137,19 @@ describe('dashboard milestone effects feature gate', () => {
       peakEquity: null,
       tradeCount: 0
     }));
+    expect(harness.busHandlers['celebration:milestone']).toEqual(expect.any(Function));
+  });
+
+  test('operator layout key enables milestones when ogz.profile is unset', () => {
+    const harness = createHarness({
+      'ogz.layout.mode': 'operator',
+      'ogz.features.milestoneEffects': 'enabled'
+    }, { personalMilestones: true });
+    const api = harness.registered.MilestoneEffects;
+
+    api.init();
+
+    expect(api.isEnabled()).toBe(true);
     expect(harness.busHandlers['celebration:milestone']).toEqual(expect.any(Function));
   });
 

@@ -230,6 +230,18 @@
         if (!scope.timeframe) return false;
         return true;
     }
+    function normalizeDashboardSymbol(raw) {
+        const value = String(raw || '').trim().toUpperCase();
+        if (!value || value === 'NONE') return '';
+        return value.replace(/^XBT/, 'BTC').replace(/\//g, '-');
+    }
+    function isSelectableDashboardSymbol(rawSymbol) {
+        const symbol = normalizeDashboardSymbol(rawSymbol);
+        if (!symbol) return false;
+        const selector = document.getElementById('cp-assetSelector') || document.getElementById('assetSelector');
+        if (!selector || !selector.options || selector.options.length === 0) return false;
+        return Array.prototype.some.call(selector.options, opt => normalizeDashboardSymbol(opt.value) === symbol);
+    }
     function completeRuntimeScopeFromStateUpdate(msg, stateSnapshot) {
         const direct = msg && msg.runtimeScope && typeof msg.runtimeScope === 'object'
             ? msg.runtimeScope
@@ -288,6 +300,10 @@
             };
         const scope = completeRuntimeScopeFromStateUpdate(carrier, data);
         if (!scope) {
+            state.asset = null;
+            return false;
+        }
+        if (!isSelectableDashboardSymbol(firstValue(scope.symbol, scope.asset))) {
             state.asset = null;
             return false;
         }

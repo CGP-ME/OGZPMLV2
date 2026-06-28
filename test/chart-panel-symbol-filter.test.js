@@ -67,6 +67,23 @@ function runtimeScope(overrides = {}) {
 }
 
 describe('chart panel symbol filter', () => {
+  test('startup bootstrap waits for an open socket before sending historical requests', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+
+    expect(source).toContain("if (typeof socket.isConnected === 'function' && !socket.isConnected())");
+    expect(source).toContain("const switched = socket.send({ type: 'asset_change', asset: sym });");
+    expect(source).toContain("const requested = socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });");
+    expect(source).toContain("if (switched || requested) _loadedAsset = sym;");
+  });
+
+  test('startup selected asset refuses literal none and non-selectable values', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/panels/chart-panel.js'), 'utf8');
+
+    expect(source).toContain("if (!selected || selected === 'NONE') return normalizeDashboardSymbol(DEFAULT_SYMBOL);");
+    expect(source).toContain("const optionExists = Array.prototype.some.call(selector.options, opt => opt.value === selected);");
+    expect(source).toContain("return optionExists ? selected : normalizeDashboardSymbol(DEFAULT_SYMBOL);");
+  });
+
   test('accepts only the selected dashboard symbol when a frame is symbol-stamped', () => {
     const chart = loadChartPanel('TSLA');
 

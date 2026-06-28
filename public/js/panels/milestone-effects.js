@@ -68,7 +68,9 @@
     function isOperatorMilestoneEnabled() {
         try {
             const flags = window.OGZ_DASHBOARD_FLAGS || {};
-            return localStorage.getItem('ogz.profile') === 'operator' &&
+            const profile = localStorage.getItem('ogz.profile');
+            const layout = localStorage.getItem('ogz.layout') || localStorage.getItem('ogz.layout.mode');
+            return (profile === 'operator' || layout === 'operator') &&
                 flags.personalMilestones === true &&
                 localStorage.getItem(FEATURE_FLAG_KEY) === 'enabled';
         } catch (_) {

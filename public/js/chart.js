@@ -156,6 +156,28 @@
         return TF_SECONDS[tf] || 60;
     }
 
+    function cleanSelectorValue(value) {
+        const selected = typeof value === 'string' ? value.trim() : '';
+        if (!selected || selected.toLowerCase() === 'none') return '';
+        return selected;
+    }
+
+    function selectedLegacyAsset(selector) {
+        const selected = cleanSelectorValue(selector && selector.value);
+        if (!selected) return '';
+        if (selector && selector.options && selector.options.length > 0) {
+            const optionExists = Array.prototype.some.call(selector.options, opt => cleanSelectorValue(opt.value) === selected);
+            return optionExists ? selected : '';
+        }
+        return '';
+    }
+
+    function socketReady(socket) {
+        if (!socket || typeof socket.send !== 'function') return false;
+        if (typeof socket.isConnected === 'function' && !socket.isConnected()) return false;
+        return true;
+    }
+
     // ─── Phase A helpers (visible-window outlier clipping) ───
     // Both series use these to compute autoscale bounds that ignore flash-crash
     // wicks / mega-volume spikes. Normal bars stay readable.
@@ -589,16 +611,21 @@
             const assetSel = document.getElementById('assetSelector');
             if (assetSel) trackListener(assetSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
-                if (socket) {
-                    socket.send({ type: 'asset_change', asset: e.target.value });
+                const asset = selectedLegacyAsset(e.target);
+                if (socketReady(socket) && asset) {
+                    socket.send({ type: 'asset_change', asset });
                     this.clearAll();
                     // Tracked setTimeout — id goes into _trackedTimers so destroy() can clear
                     const tid = setTimeout(() => {
                         _trackedTimers.delete(tid);
                         const tf = document.getElementById('timeframeSelector')?.value || '1m';
-                        socket.send({ type: 'request_historical', timeframe: tf, asset: e.target.value, limit: 500 });
+                        if (socketReady(socket)) {
+                            socket.send({ type: 'request_historical', timeframe: tf, asset, limit: 500 });
+                        }
                     }, 500);
                     trackTimer(tid);
+                } else {
+                    console.warn('[Chart] Asset change skipped; socket unavailable or asset invalid:', e.target.value);
                 }
                 console.log('[Chart] Asset:', e.target.value);
             });
@@ -607,15 +634,18 @@
             const tfSel = document.getElementById('timeframeSelector');
             if (tfSel) trackListener(tfSel, 'change', (e) => {
                 const socket = OGZ.get('Socket');
-                if (socket) {
+                const asset = selectedLegacyAsset(document.getElementById('assetSelector'));
+                if (socketReady(socket) && asset) {
                     socket.send({ type: 'timeframe_change', timeframe: e.target.value });
                     this.clearAll();
                     socket.send({
                         type: 'request_historical',
                         timeframe: e.target.value,
-                        asset: document.getElementById('assetSelector')?.value || 'TSLA',
+                        asset,
                         limit: 500
                     });
+                } else {
+                    console.warn('[Chart] Timeframe change skipped; socket unavailable or asset invalid:', asset);
                 }
                 console.log('[Chart] Timeframe:', e.target.value);
             });

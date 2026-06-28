@@ -14,6 +14,8 @@ function createHarness({
   token = '',
   windowToken = '',
   legacyStoredToken = '',
+  cpAsset = 'BTC-USD',
+  cpTimeframe = '1m',
 } = {}) {
   const instances = [];
   const registered = {};
@@ -118,8 +120,8 @@ function createHarness({
     }),
     getElementById: jest.fn((id) => {
       if (elementsById.has(id)) return elementsById.get(id);
-      if (id === 'cp-assetSelector') return { value: 'BTC-USD' };
-      if (id === 'cp-timeframeSelector') return { value: '1m' };
+      if (id === 'cp-assetSelector') return { value: cpAsset };
+      if (id === 'cp-timeframeSelector') return { value: cpTimeframe };
       return null;
     }),
     createElement: jest.fn(tagName => new FakeElement(tagName)),
@@ -229,6 +231,20 @@ describe('frontend websocket lifecycle', () => {
     jest.advanceTimersByTime(15000);
     expect(socket.sent[socket.sent.length - 1].type).toBe('ping');
     socket.receive({ type: 'pong' });
+  });
+
+  test('does not send literal none as the startup asset after auth', () => {
+    const harness = createHarness({ cpAsset: 'none', cpTimeframe: 'none' });
+
+    const socket = openAndAuthenticate(harness);
+
+    expect(socket.sent[2]).toEqual({ type: 'asset_change', asset: 'TSLA' });
+    expect(socket.sent[3]).toEqual({
+      type: 'request_historical',
+      timeframe: '15m',
+      asset: 'TSLA',
+      limit: 500
+    });
   });
 
   test('uses in-memory operator token when public meta token is empty', () => {

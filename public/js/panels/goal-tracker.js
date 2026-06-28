@@ -37,12 +37,16 @@
     const ROOT_ID_TARGET = 'goalTracker';      // preferred mount if exists
     const FLOATING_ROOT_ID = 'ogzGoalTrackerFloating';
 
-    // Profile gate: 'operator' shows the personal Houston-fund framing;
+    // Operator gate shows the personal Houston-fund framing;
     // anything else (default) shows a generic profit-goal label so nothing
-    // private renders on a shipped dashboard. Operator opts in per-browser:
-    //   localStorage.setItem('ogz.profile','operator')
+    // private renders on a shipped dashboard. LayoutSwitcher persists the
+    // active operator posture under ogz.layout / ogz.layout.mode.
     const IS_OPERATOR = (function () {
-        try { return localStorage.getItem('ogz.profile') === 'operator'; }
+        try {
+            const profile = localStorage.getItem('ogz.profile');
+            const layout = localStorage.getItem('ogz.layout') || localStorage.getItem('ogz.layout.mode');
+            return profile === 'operator' || layout === 'operator';
+        }
         catch (_) { return false; }
     })();
 

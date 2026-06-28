@@ -158,7 +158,13 @@
         try {
             const root = document.getElementById(ROOT_ID);
             const selector = root && root.querySelector ? root.querySelector('#cp-assetSelector') : null;
-            return normalizeDashboardSymbol(selector && selector.value ? selector.value : DEFAULT_SYMBOL);
+            const selected = normalizeDashboardSymbol(selector && selector.value ? selector.value : DEFAULT_SYMBOL);
+            if (!selected || selected === 'NONE') return normalizeDashboardSymbol(DEFAULT_SYMBOL);
+            if (selector && selector.options) {
+                const optionExists = Array.prototype.some.call(selector.options, opt => opt.value === selected);
+                return optionExists ? selected : normalizeDashboardSymbol(DEFAULT_SYMBOL);
+            }
+            return selected;
         } catch (_) {
             return normalizeDashboardSymbol(DEFAULT_SYMBOL);
         }
@@ -1155,7 +1161,11 @@
         if (_wsBootstrapped) return;
         const socket = OGZ.get('Socket');
         if (!socket || typeof socket.registerHandler !== 'function') {
-            // Socket not registered yet — poll once a frame for up to 10s
+            // Socket not registered yet; retry until the module is available.
+            _wsBootstrapTimer = trackTimer(setTimeout(() => bootstrapWS(rootEl), 250));
+            return;
+        }
+        if (typeof socket.isConnected === 'function' && !socket.isConnected()) {
             _wsBootstrapTimer = trackTimer(setTimeout(() => bootstrapWS(rootEl), 250));
             return;
         }
@@ -1168,12 +1178,12 @@
         // kick; changing the selected asset just to provoke a response can
         // mislabel candles while multiple symbols/brokers are visible.
         try {
-            const sym = rootEl?.querySelector('#cp-assetSelector')?.value || DEFAULT_SYMBOL;
+            const sym = selectedAssetSymbol();
             const tf  = rootEl?.querySelector('#cp-timeframeSelector')?.value || DEFAULT_TIMEFRAME;
             if (typeof socket.send === 'function') {
-                socket.send({ type: 'asset_change', asset: sym });
-                socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
-                _loadedAsset = sym;
+                const switched = socket.send({ type: 'asset_change', asset: sym });
+                const requested = socket.send({ type: 'request_historical', timeframe: tf, asset: sym, limit: 500 });
+                if (switched || requested) _loadedAsset = sym;
             }
         } catch (e) { /* swallow */ }
 

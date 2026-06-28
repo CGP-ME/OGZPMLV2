@@ -245,8 +245,12 @@
         return true;
     }
 
-    function syncScopeFromFrame(frame, reason) {
+    function syncScopeFromFrame(frame, reason, requireSelectableSymbol) {
         const next = extractScope(frame);
+        if (requireSelectableSymbol && next.symbol) {
+            next.symbol = normalizeSelectedSymbol(next.symbol);
+            if (!next.symbol) return false;
+        }
         const previousSymbol = state.scope.symbol;
         let changed = false;
         Object.keys(next).forEach((field) => {
@@ -266,7 +270,7 @@
         const symbol = normalizeSymbol(raw);
         if (!symbol) return null;
         const selector = document.getElementById('cp-assetSelector');
-        if (!selector || !selector.options) return symbol;
+        if (!selector || !selector.options || selector.options.length === 0) return symbol;
         const optionExists = (value) => Array.prototype.some.call(
             selector.options,
             (opt) => normalizeSymbol(opt.value) === value
@@ -274,7 +278,7 @@
         if (optionExists(symbol)) return symbol;
         const usdSymbol = symbol + '-USD';
         if (optionExists(usdSymbol)) return usdSymbol;
-        return symbol;
+        return null;
     }
 
     function setSelectedScope(rawSymbol, broker, reason) {
@@ -467,7 +471,7 @@
         }
 
         if (SCOPE_ACK_FRAMES.has(eventType)) {
-            syncScopeFromFrame(frame, 'frame:' + eventType);
+            syncScopeFromFrame(frame, 'frame:' + eventType, true);
         }
         addFreshness(eventType, symbol);
 
