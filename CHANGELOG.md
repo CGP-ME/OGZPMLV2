@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed BacktestRecorder stock exits so executed closed quantity owns reported notional, raw P&L, net P&L, and balance deltas instead of mixing executed share fields with requested-size math.
 - Added a P0 ledger-conservation assertion that replays each completed trade group and fails on over-exits, quantity drift, notional mismatch, raw/net P&L mismatch, balance drift, or phantom remaining quantity.
-- Rebaselined the canonical P0 TSLA EMA anchor to the executed-quantity accounting result: `10663.641411727374 / 1596 trades / 70.1% WR / PF 1.16`.
+- Rebaselined the canonical P0 TSLA EMA anchor to the confirmed-fill accounting result: `10663.639172063286 / 1596 trades / 70.1% WR / PF 1.16`.
 
 ### MaxProfitManager Tier Runner Rebalance (2026-06-23)
 

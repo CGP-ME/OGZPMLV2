@@ -14,7 +14,7 @@ const {
 } = require('./eval-live-posture-gate');
 
 const EXPECTED_P0 = Object.freeze({
-  finalBalance: 10663.641411727374,
+  finalBalance: 10663.639172063286,
   totalTrades: 1596,
   winRate: 70.1,
   profitFactor: 1.16

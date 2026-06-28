@@ -12,6 +12,9 @@ const mockStateManager = {
   openPosition: jest.fn(),
   closePosition: jest.fn(),
   reducePosition: jest.fn(),
+  reserveExitSlot: jest.fn(),
+  releaseExitSlot: jest.fn(),
+  applyFill: jest.fn(),
   getTradesBySymbol: jest.fn(),
   haltSymbol: jest.fn(),
   removeActiveTrade: jest.fn(),
@@ -142,6 +145,44 @@ function makeShortTrade(overrides = {}) {
   };
 }
 
+function expectExitFillApplied({
+  tradeId,
+  filledQuantity,
+  fillPrice,
+  remainingQuantity,
+  direction = 'long',
+  executionMode = 'live',
+  simulated = false,
+  expectedLifecycleState = 'full_fill',
+  expectedReserveFraction = null,
+  expectedReserveRemainingQuantity = null,
+}) {
+  const reserveExpectation = {};
+  if (expectedReserveFraction !== null) reserveExpectation.exitFraction = expectedReserveFraction;
+  if (expectedReserveRemainingQuantity !== null) reserveExpectation.expectedRemainingQuantity = expectedReserveRemainingQuantity;
+  expect(mockStateManager.reserveExitSlot).toHaveBeenCalledWith(
+    tradeId,
+    expect.stringContaining(`exit:${tradeId}:`),
+    expect.objectContaining(reserveExpectation)
+  );
+  expect(mockStateManager.applyFill).toHaveBeenCalledWith(expect.objectContaining({
+    tradeId,
+    lifecycleState: expectedLifecycleState,
+    filledQuantity,
+    filledQuantityUnit: 'shares',
+    filledSizeUsd: filledQuantity * fillPrice,
+    fillPrice,
+    remainingQuantity,
+    executionMode,
+    simulated,
+  }));
+  expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+  expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+  if (direction === 'long') {
+    expect(mockStateManager.removeActiveTrade).not.toHaveBeenCalledWith(tradeId);
+  }
+}
+
 describe('OrderExecutor pause gate', () => {
   let errorSpy;
   let warnSpy;
@@ -164,6 +205,28 @@ describe('OrderExecutor pause gate', () => {
     mockStateManager.openPosition.mockResolvedValue({ success: true });
     mockStateManager.closePosition.mockResolvedValue({ success: true });
     mockStateManager.reducePosition.mockResolvedValue({ success: true });
+    mockStateManager.reserveExitSlot.mockResolvedValue({
+      success: true,
+      reserved: true,
+      reason: 'reserved',
+      pendingExitIntent: {
+        intentId: 'reserved-intent',
+        sourceEventId: 'reserved-source',
+        submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+        tradeRevision: 0,
+      },
+    });
+    mockStateManager.releaseExitSlot.mockResolvedValue({ success: true, released: true, reason: 'released' });
+    mockStateManager.applyFill.mockResolvedValue({
+      success: true,
+      applied: true,
+      code: 'FILL_APPLIED',
+      fillId: 'fill-1',
+      filledQuantity: 1,
+      remainingOrderQuantity: 0,
+      pnl: 0,
+      netRealizedResult: 0,
+    });
     mockStateManager.getTradesBySymbol.mockReturnValue([]);
     mockStateManager.haltSymbol.mockResolvedValue({ success: true });
   });
@@ -683,17 +746,7 @@ describe('OrderExecutor pause gate', () => {
       quantityUnit: 'shares',
       bypassThrottle: true,
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      0.3,
-      125,
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 1.5,
-        quantityUnit: 'shares',
-      })
-    );
+    expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 1.5, fillPrice: 125, remainingQuantity: 3.5, simulated: true });
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('webhook_fractional_share_quantity'));
   });
 
@@ -1602,12 +1655,7 @@ describe('OrderExecutor pause gate', () => {
         quantityUnit: 'shares',
       }),
     }));
-    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
-      125,
-      false,
-      null,
-      expect.objectContaining({ orderId: 'BUY_1' })
-    );
+    expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 5, fillPrice: 125, remainingQuantity: 0 });
   });
 
   test('live stock cover plan routes buy quantity from matched short trade', async () => {
@@ -1646,12 +1694,7 @@ describe('OrderExecutor pause gate', () => {
         quantityUnit: 'shares',
       }),
     }));
-    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
-      120,
-      false,
-      null,
-      expect.objectContaining({ orderId: 'SHORT_1', direction: 'short' })
-    );
+    expectExitFillApplied({ tradeId: 'SHORT_1', filledQuantity: 6, fillPrice: 120, remainingQuantity: 0, direction: 'short' });
   });
 
   test('live stock cover partial fill reduces short state by accepted broker quantity', async () => {
@@ -1692,25 +1735,13 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 4,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'SHORT_1',
-      4 / 6,
-      120,
-      expect.objectContaining({
-        orderId: 'SHORT_1',
-        exitReason: 'partial_fill_cover',
-        direction: 'short',
-        orderQuantity: 4,
-        quantityUnit: 'shares',
-      })
-    );
+    expectExitFillApplied({ tradeId: 'SHORT_1', filledQuantity: 4, fillPrice: 120, remainingQuantity: 2, direction: 'short' });
     expect(TradingProofLogger.trade).toHaveBeenCalledWith(expect.objectContaining({
       action: 'COVER',
       size: 400,
       value_usd: 400,
       pnl: -80,
     }));
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
   test('live Alpaca stock partial exit preserves requested fractional share quantity', async () => {
@@ -1749,18 +1780,7 @@ describe('OrderExecutor pause gate', () => {
         quantityUnit: 'shares',
       }),
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      0.5,
-      125,
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 2.5,
-        quantityUnit: 'shares',
-      })
-    );
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 2.5, fillPrice: 125, remainingQuantity: 2.5 });
   });
 
   test('live SELL exits are not blocked by zero available entry capital or missing confidence', async () => {
@@ -1804,16 +1824,7 @@ describe('OrderExecutor pause gate', () => {
       side: 'sell',
       amount: 5,
     }));
-    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
-      125,
-      false,
-      null,
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'risk_flatten',
-      })
-    );
-    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 5, fillPrice: 125, remainingQuantity: 0 });
   });
 
   test('live COVER exits are not blocked by zero confidence or zero available entry capital', async () => {
@@ -1857,17 +1868,7 @@ describe('OrderExecutor pause gate', () => {
       side: 'buy',
       amount: 6,
     }));
-    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
-      120,
-      false,
-      null,
-      expect.objectContaining({
-        orderId: 'SHORT_1',
-        exitReason: 'risk_flatten',
-        direction: 'short',
-      })
-    );
-    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({ tradeId: 'SHORT_1', filledQuantity: 6, fillPrice: 120, remainingQuantity: 0, direction: 'short' });
   });
 
   test('live SELL exits use stored trade scope instead of current SessionRouter scope', async () => {
@@ -1961,18 +1962,14 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 2,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      0.4,
-      125,
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 2,
-        quantityUnit: 'shares',
-      })
-    );
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 2,
+      fillPrice: 125,
+      remainingQuantity: 3,
+      expectedReserveFraction: 0.6,
+      expectedReserveRemainingQuantity: 2,
+    });
   });
 
   test('backtest Alpaca stock partial exit uses requested fractional share quantity', async () => {
@@ -2011,18 +2008,14 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 2.5,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      0.5,
-      125 * (1 - 0.0005),
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 2.5,
-        quantityUnit: 'shares',
-      })
-    );
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 2.5,
+      fillPrice: 125 * (1 - 0.0005),
+      remainingQuantity: 2.5,
+      executionMode: 'live',
+      simulated: true,
+    });
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 250,
       exitReason: 'tier_exit',
@@ -2234,18 +2227,13 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 0.8999999999999999,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      0.3,
-      125 * (1 - 0.0005),
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 0.8999999999999999,
-        quantityUnit: 'shares',
-      })
-    );
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 0.8999999999999999,
+      fillPrice: 125 * (1 - 0.0005),
+      remainingQuantity: 2.1,
+      simulated: true,
+    });
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 90,
       exitReason: 'tier_exit',
@@ -2279,18 +2267,19 @@ describe('OrderExecutor pause gate', () => {
     mockStateManager.getTradesBySymbol.mockImplementation(() => (
       activeTrade.sizeUsd > 0 ? [activeTrade] : []
     ));
-    mockStateManager.reducePosition.mockImplementation(async (tradeId, fraction, price, context = {}) => {
-      const closedSize = activeTrade.sizeUsd * fraction;
+    mockStateManager.applyFill.mockImplementation(async (fill) => {
+      const closedSize = activeTrade.sizeUsd * (fill.filledQuantity / activeTrade.remainingOrderQuantity);
       activeTrade.sizeUsd -= closedSize;
       activeTrade.size = activeTrade.sizeUsd;
-      activeTrade.remainingOrderQuantity -= context.orderQuantity;
-      return { success: true };
-    });
-    mockStateManager.closePosition.mockImplementation(async () => {
-      activeTrade.sizeUsd = 0;
-      activeTrade.size = 0;
-      activeTrade.remainingOrderQuantity = 0;
-      return { success: true };
+      activeTrade.remainingOrderQuantity = fill.remainingQuantity;
+      return {
+        success: true,
+        applied: true,
+        code: 'FILL_APPLIED',
+        fillId: fill.fillId,
+        filledQuantity: fill.filledQuantity,
+        remainingOrderQuantity: fill.remainingQuantity,
+      };
     });
 
     const recordedTrades = [];
@@ -2335,8 +2324,9 @@ describe('OrderExecutor pause gate', () => {
 
     expect(recordedTrades.map(t => t.size)).toEqual([150, 150, 100, 100]);
     expect(recordedTrades.reduce((sum, trade) => sum + trade.size, 0)).toBeCloseTo(500, 12);
-    expect(mockStateManager.reducePosition).toHaveBeenCalledTimes(3);
-    expect(mockStateManager.closePosition).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.applyFill).toHaveBeenCalledTimes(4);
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
   test('backtest Alpaca stock partial exits use remaining cost basis for larger later fractions', async () => {
@@ -2356,18 +2346,19 @@ describe('OrderExecutor pause gate', () => {
     mockStateManager.getTradesBySymbol.mockImplementation(() => (
       activeTrade.sizeUsd > 0 ? [activeTrade] : []
     ));
-    mockStateManager.reducePosition.mockImplementation(async (tradeId, fraction, price, context = {}) => {
-      const closedSize = activeTrade.sizeUsd * fraction;
+    mockStateManager.applyFill.mockImplementation(async (fill) => {
+      const closedSize = activeTrade.sizeUsd * (fill.filledQuantity / activeTrade.remainingOrderQuantity);
       activeTrade.sizeUsd -= closedSize;
       activeTrade.size = activeTrade.sizeUsd;
-      activeTrade.remainingOrderQuantity -= context.orderQuantity;
-      return { success: true };
-    });
-    mockStateManager.closePosition.mockImplementation(async () => {
-      activeTrade.sizeUsd = 0;
-      activeTrade.size = 0;
-      activeTrade.remainingOrderQuantity = 0;
-      return { success: true };
+      activeTrade.remainingOrderQuantity = fill.remainingQuantity;
+      return {
+        success: true,
+        applied: true,
+        code: 'FILL_APPLIED',
+        fillId: fill.fillId,
+        filledQuantity: fill.filledQuantity,
+        remainingOrderQuantity: fill.remainingQuantity,
+      };
     });
 
     const recordedTrades = [];
@@ -2408,8 +2399,9 @@ describe('OrderExecutor pause gate', () => {
 
     expect(recordedTrades.map(t => t.size)).toEqual([150, 280, 70]);
     expect(recordedTrades.reduce((sum, trade) => sum + trade.size, 0)).toBeCloseTo(500, 12);
-    expect(mockStateManager.reducePosition).toHaveBeenCalledTimes(2);
-    expect(mockStateManager.closePosition).toHaveBeenCalledTimes(1);
+    expect(mockStateManager.applyFill).toHaveBeenCalledTimes(3);
+    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
   });
 
   test('backtest non-fractional stock partial exit routes minimum whole share when requested fraction is sub-share', async () => {
@@ -2454,18 +2446,13 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 1,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.reducePosition).toHaveBeenCalledWith(
-      'BUY_1',
-      1 / 3,
-      125 * (1 - 0.0005),
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-        orderQuantity: 1,
-        quantityUnit: 'shares',
-      })
-    );
-    expect(mockStateManager.closePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 1,
+      fillPrice: 125 * (1 - 0.0005),
+      remainingQuantity: 2,
+      simulated: true,
+    });
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 100,
       exitReason: 'tier_exit',
@@ -2524,16 +2511,13 @@ describe('OrderExecutor pause gate', () => {
       orderQuantity: 1,
       quantityUnit: 'shares',
     }));
-    expect(mockStateManager.closePosition).toHaveBeenCalledWith(
-      125 * (1 - 0.0005),
-      false,
-      null,
-      expect.objectContaining({
-        orderId: 'BUY_1',
-        exitReason: 'tier_exit',
-      })
-    );
-    expect(mockStateManager.reducePosition).not.toHaveBeenCalled();
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 1,
+      fillPrice: 125 * (1 - 0.0005),
+      remainingQuantity: 0,
+      simulated: true,
+    });
     expect(backtestRecorder.recordTrade).toHaveBeenCalledWith(expect.objectContaining({
       size: 100,
       exitReason: 'tier_exit',

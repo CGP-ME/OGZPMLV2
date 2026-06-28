@@ -518,6 +518,28 @@ class StateManager {
     return exposureUsd;
   }
 
+  _getActiveTradeSignedExposureUsd(activeTrades = this.state.activeTrades) {
+    if (!activeTrades) {
+      return 0;
+    }
+    if (!(activeTrades instanceof Map)) {
+      throw new Error(`[StateManager] activeTrades signed exposure invariant failed: expected Map, got ${Object.prototype.toString.call(activeTrades)}`);
+    }
+
+    let signedExposureUsd = 0;
+    for (const [tradeId, trade] of activeTrades.entries()) {
+      const sizeUsd = Number(trade?.sizeUsd ?? trade?.size);
+      if (!Number.isFinite(sizeUsd) || sizeUsd < 0) {
+        throw new Error(`[StateManager] activeTrades signed exposure invariant failed for ${tradeId}: invalid sizeUsd=${trade?.sizeUsd} size=${trade?.size}`);
+      }
+      if (trade?.direction !== 'long' && trade?.direction !== 'short') {
+        throw new Error(`[StateManager] activeTrades signed exposure invariant failed for ${tradeId}: invalid direction=${trade?.direction}`);
+      }
+      signedExposureUsd += trade.direction === 'short' ? -Math.abs(sizeUsd) : Math.abs(sizeUsd);
+    }
+    return signedExposureUsd;
+  }
+
   /**
    * Record the most recent close price for a symbol.
    * Called from OHLC handlers on each candle close. Powers cross-asset
@@ -2186,8 +2208,12 @@ class StateManager {
       if (!Number.isFinite(priorOrderQuantity) || priorOrderQuantity <= 0) {
         return { success: false, applied: false, code: 'FILL_INVALID_REMAINING_QUANTITY', error: `Invalid remainingOrderQuantity ${trade.remainingOrderQuantity}`, fillId, tradeId, intentId };
       }
+      const tradeEntryPrice = Number(trade.entryPrice ?? trade.price);
       if (!Number.isFinite(priorSizeUsd) || priorSizeUsd <= 0) {
         return { success: false, applied: false, code: 'FILL_INVALID_SIZE_USD', error: `Invalid sizeUsd ${trade.sizeUsd ?? trade.size}`, fillId, tradeId, intentId };
+      }
+      if (!Number.isFinite(tradeEntryPrice) || tradeEntryPrice <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_ENTRY_PRICE', error: `Invalid entryPrice ${trade.entryPrice ?? trade.price}`, fillId, tradeId, intentId };
       }
       if (String(trade.remainingOrderQuantityUnit || '').trim() !== filledQuantityUnit) {
         return {
@@ -2227,11 +2253,10 @@ class StateManager {
         };
       }
 
-      const fillFraction = filledQuantity / priorOrderQuantity;
-      const closedEntryNotionalUsd = priorSizeUsd * fillFraction;
+      const closedEntryNotionalUsd = filledQuantity * tradeEntryPrice;
       const remainingSizeUsd = computedRemainingQuantity <= tolerance
         ? 0
-        : priorSizeUsd - closedEntryNotionalUsd;
+        : computedRemainingQuantity * tradeEntryPrice;
       const isShort = trade.direction === 'short';
       const pnl = isShort
         ? closedEntryNotionalUsd - filledSizeUsd
@@ -2318,10 +2343,10 @@ class StateManager {
       }
 
       const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
-      const positionDelta = isShort ? closedEntryNotionalUsd : -closedEntryNotionalUsd;
+      const remainingSignedExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeSignedExposureUsd(nextActiveTrades);
       const updates = {
         activeTrades: nextActiveTrades,
-        position: nextActiveTrades.size === 0 ? 0 : this.state.position + positionDelta,
+        position: remainingSignedExposureUsd,
         positionCount: nextActiveTrades.size,
         entryPrice: nextActiveTrades.size === 0 ? 0 : this.state.entryPrice,
         entryTime: nextActiveTrades.size === 0 ? null : this.state.entryTime,

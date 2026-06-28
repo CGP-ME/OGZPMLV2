@@ -973,6 +973,50 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('totalPnL')).toBe(20);
   });
 
+  test('applyFill derives entry basis from confirmed quantity and entry price when requested size differs', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      entryOrderQuantity: 4,
+      remainingOrderQuantity: 4,
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    const reserved = await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+      expectedRemainingQuantity: 2,
+    });
+    expect(reserved.success).toBe(true);
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      lifecycleState: 'full_fill',
+      filledQuantity: 2,
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      fee: 0,
+      remainingQuantity: 2,
+      expectedQuantity: 2,
+    }));
+
+    expect(applied.success).toBe(true);
+    expect(applied.pnl).toBe(20);
+    expect(applied.netRealizedResult).toBe(20);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.remainingOrderQuantity).toBe(2);
+    expect(trade.sizeUsd).toBe(200);
+    expect(trade.size).toBe(200);
+    expect(manager.get('position')).toBe(200);
+    expect(manager.get('inPosition')).toBe(200);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 20);
+    expect(manager.get('totalPnL')).toBe(20);
+  });
+
   test('applyFill keeps partial fill intent open for later fills from the same order', async () => {
     const opened = await manager.openPosition(500, 100, fullScope({
       scopeKey: expectedScopeKey,

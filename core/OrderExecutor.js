@@ -675,6 +675,69 @@ class OrderExecutor {
     });
   }
 
+  _buildExitIntentId(exitPlan, decision) {
+    if (!exitPlan || !decision) {
+      throw new Error('[EXECUTION-FILL] exit intent requires exitPlan and decision');
+    }
+    const tradeId = this._firstNonEmptyString(exitPlan.tradeId);
+    const decisionId = this._firstNonEmptyString(decision.decisionId);
+    if (!tradeId || !decisionId) {
+      throw new Error(`[EXECUTION-FILL] cannot build exit intent id without tradeId and decisionId; tradeId=${tradeId} decisionId=${decisionId}`);
+    }
+    return `exit:${tradeId}:${decisionId}`;
+  }
+
+  _buildExecutionFill({ exitPlan, executedExitPlan, tradeResult, fillPrice, fee, exitIntent, lifecycleState, confirmedAtMs, eventTimeMs, simulated }) {
+    const tradeId = this._firstNonEmptyString(executedExitPlan?.tradeId, exitPlan?.tradeId);
+    const intentId = this._firstNonEmptyString(exitIntent?.intentId);
+    const brokerOrderId = this._firstNonEmptyString(tradeResult?.orderId);
+    const sourceEventId = this._firstNonEmptyString(exitIntent?.sourceEventId);
+    if (!tradeId || !intentId || !brokerOrderId || !sourceEventId) {
+      throw new Error(`[EXECUTION-FILL] missing required fill identity tradeId=${tradeId} intentId=${intentId} brokerOrderId=${brokerOrderId} sourceEventId=${sourceEventId}`);
+    }
+
+    const filledQuantity = Number(executedExitPlan?.orderQuantity);
+    const remainingBefore = Number(exitPlan?.remainingOrderQuantity);
+    const numericFillPrice = Number(fillPrice);
+    const numericFee = Number(fee);
+    if (!Number.isFinite(filledQuantity) || filledQuantity <= 0) {
+      throw new Error(`[EXECUTION-FILL] filledQuantity must be positive for ${tradeId}; got ${executedExitPlan?.orderQuantity}`);
+    }
+    if (!Number.isFinite(remainingBefore) || remainingBefore <= 0) {
+      throw new Error(`[EXECUTION-FILL] remainingOrderQuantity must be positive for ${tradeId}; got ${exitPlan?.remainingOrderQuantity}`);
+    }
+    if (!Number.isFinite(numericFillPrice) || numericFillPrice <= 0) {
+      throw new Error(`[EXECUTION-FILL] fillPrice must be positive for ${tradeId}; got ${fillPrice}`);
+    }
+    if (!Number.isFinite(numericFee) || numericFee < 0) {
+      throw new Error(`[EXECUTION-FILL] fee must be finite and non-negative for ${tradeId}; got ${fee}`);
+    }
+
+    const remainingQuantity = Math.max(0, remainingBefore - filledQuantity);
+    const resolvedLifecycleState = lifecycleState || 'full_fill';
+    return {
+      fillId: `${brokerOrderId}:${intentId}:${filledQuantity}`,
+      brokerOrderId,
+      tradeId,
+      intentId,
+      sourceEventId,
+      lifecycleState: resolvedLifecycleState,
+      filledQuantity,
+      filledQuantityUnit: executedExitPlan.quantityUnit,
+      filledSizeUsd: filledQuantity * numericFillPrice,
+      fillPrice: numericFillPrice,
+      fee: numericFee,
+      expectedQuantity: Number(exitPlan.orderQuantity),
+      remainingQuantity,
+      submittedAtMs: exitIntent.submittedAtMs,
+      confirmedAtMs,
+      eventTimeMs,
+      expectedTradeRevision: exitIntent.tradeRevision,
+      executionMode: executedExitPlan.executionMode,
+      simulated,
+    };
+  }
+
   _percentDistanceDecimal(value, label) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric === 0) {
@@ -1518,6 +1581,46 @@ class OrderExecutor {
       }
     }
 
+    let exitIntent = null;
+    if (exitPlan) {
+      const submittedAtMs = Date.now();
+      const intentId = this._buildExitIntentId(exitPlan, decision);
+      const expectedRemainingQuantity = Math.max(0, exitPlan.remainingOrderQuantity - exitPlan.orderQuantity);
+      const reserved = await stateManager.reserveExitSlot(exitPlan.tradeId, intentId, {
+        submittedAtMs,
+        sourceEventId: decision.decisionId,
+        exitFraction: exitPlan.stateExitFraction,
+        expectedRemainingQuantity,
+      });
+      if (!reserved || reserved.success !== true || reserved.reserved !== true) {
+        const reason = reserved?.reason || reserved?.error || 'exit_intent_not_reserved';
+        console.error(`[EXECUTION-FILL] Refusing ${decision.action} ${symbol}: exit intent not reserved (${reason})`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: decision.action,
+          reason: 'exit_intent_not_reserved',
+          detail: reason,
+          tradeId: exitPlan.tradeId,
+          intentId,
+          pendingExitIntent: reserved?.pendingExitIntent || null,
+        });
+        return blockedReturn('exit_intent_not_reserved', {
+          detail: reason,
+          tradeId: exitPlan.tradeId,
+          intentId,
+          stateMutationSucceeded: false,
+        });
+      }
+      exitIntent = {
+        ...reserved.pendingExitIntent,
+        intentId,
+        submittedAtMs,
+        sourceEventId: decision.decisionId,
+      };
+    }
+
     // Change 587: SafetyNet DISABLED - too restrictive
     // Was blocking legitimate trades with overly conservative limits
     // We already have sufficient risk management through:
@@ -2228,7 +2331,6 @@ class OrderExecutor {
           // CHECKPOINT 7: SELL execution (close long)
           // FIX 2026-04-16: Hoist variables to SELL scope so post-block cleanup can see them
           let isPartialClose = false;
-          let fraction = null;
           let buyTrade = null;
           let pnl = 0;
           const currentState = stateManager.getState();
@@ -2380,58 +2482,45 @@ class OrderExecutor {
 
             console.log(`Trade closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
-            // CHANGE 2025-12-11: Use StateManager for atomic position close
-            const positionState = stateManager.getState();
-            const positionAmount = positionState.position;  // Position in USD
+            const stateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
+            const statePartialClose = executedExitPlan ? stateExitFraction < 1 : false;
+            isPartialClose = statePartialClose;
+            const longFillFee = this._calculateOrderFee({
+              notionalUsd: longExitOrderQuantity * price,
+              orderQuantity: longExitOrderQuantity,
+              side: 'exit',
+            });
+            const confirmedAtMs = Date.now();
+            const closeResult = await stateManager.applyFill(this._buildExecutionFill({
+              exitPlan,
+              executedExitPlan,
+              tradeResult,
+              fillPrice: price,
+              fee: longFillFee,
+              exitIntent,
+              confirmedAtMs,
+              eventTimeMs: exitTimestamp,
+              simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+            }));
 
-            // Close position via StateManager (handles P&L calculation)
-            // FIX 2026-04-16: Route partial exits to reducePosition, full exits to closePosition
-            // (isPartialClose/fraction hoisted to SELL-block scope above for MPM cleanup access)
-            if (typeof decision.exitFraction === 'number' && decision.exitFraction > 0 && decision.exitFraction < 1) {
-              isPartialClose = true;
-              fraction = decision.exitFraction;
-            }
-            let closeResult;
-            const stateExitFraction = executedExitPlan?.stateExitFraction ?? fraction;
-            const stateExitOrderQuantity = longExitOrderQuantity;
-            const stateExitQuantityUnit = longExitQuantityUnit;
-            const statePartialClose = executedExitPlan ? stateExitFraction < 1 : isPartialClose;
-            if (statePartialClose) {
-              closeResult = await stateManager.reducePosition(buyTrade.orderId, stateExitFraction, price, {
-                orderId: buyTrade.orderId,
-                exitReason: completeTradeResult.exitReason,
-                orderQuantity: stateExitOrderQuantity,
-                quantityUnit: stateExitQuantityUnit,
-                traceId,
-                signalId,
-                decisionId
-              });
-            } else {
-              closeResult = await stateManager.closePosition(price, false, null, {
-                orderId: buyTrade.orderId,
-                exitReason: completeTradeResult.exitReason,
-                traceId,
-                signalId,
-                decisionId
-              });
-            }
-
-            // CHANGE 2025-12-12: Validate StateManager.closePosition() success
+            // Confirmed execution fill is the only active-trade mutation path.
             if (!closeResult.success) {
-              console.error('StateManager.closePosition failed:', closeResult.error);
+              console.error('StateManager.applyFill failed:', closeResult.error);
               emitTrace(this.ctx, 'STATE_MUTATION', {
                 traceId,
                 signalId,
                 symbol,
                 action: decision.action,
                 success: false,
-                operation: statePartialClose ? 'reducePosition' : 'closePosition',
+                operation: 'applyFill',
                 orderId: buyTrade.orderId,
+                intentId: exitIntent?.intentId || null,
                 error: closeResult.error,
               });
               return blockedReturn('state_close_failed', {
-                operation: statePartialClose ? 'reducePosition' : 'closePosition',
+                operation: 'applyFill',
                 orderId: buyTrade.orderId,
+                intentId: exitIntent?.intentId || null,
                 orderAccepted: true,
                 stateMutationSucceeded: false,
                 error: closeResult.error,
@@ -2447,8 +2536,12 @@ class OrderExecutor {
               symbol,
               action: decision.action,
               success: true,
-              operation: statePartialClose ? 'reducePosition' : 'closePosition',
+              operation: 'applyFill',
               orderId: buyTrade.orderId,
+              intentId: exitIntent?.intentId || null,
+              fillId: closeResult.fillId || null,
+              filledQuantity: closeResult.filledQuantity ?? null,
+              remainingOrderQuantity: closeResult.remainingOrderQuantity ?? null,
               position: afterSellState.position,
               balance: afterSellState.balance,
             });
@@ -2462,7 +2555,7 @@ class OrderExecutor {
             // notifyTradeClose/Discord/explanation strings (all paths skipped under
             // BACKTEST_FAST or with TRAI disabled, which is why anchor was unaffected).
             // Correct formula for USD-denominated position: pnl = usd × (priceDelta / entry).
-            const usdAmount = statePartialClose && executedExitPlan ? executedExitPlan.sizeUsd : positionAmount;
+            const usdAmount = executedExitPlan ? executedExitPlan.sizeUsd : longExitSizeUsd;
             const sellValue = usdAmount;  // already USD — for display
             const profitLoss = buyTrade.entryPrice > 0
               ? usdAmount * ((price - buyTrade.entryPrice) / buyTrade.entryPrice)
@@ -2758,11 +2851,6 @@ class OrderExecutor {
                 console.warn(`[TRAI] Learning skipped for ${buyTrade.orderId}: pattern outcome was not recorded`);
               }
             }
-            // Clean up active trade
-            // CHANGE 2025-12-13: Remove from StateManager (single source of truth)
-            if (!isPartialClose) {
-              stateManager.removeActiveTrade(buyTrade.orderId);
-            }
           }
 
           // CHANGE 645: Reset MaxProfitManager after successful SELL
@@ -2787,7 +2875,6 @@ class OrderExecutor {
             }
           }
 
-          // Position already reset via stateManager.closePosition() above
         } else if (decision.action === 'COVER') {
           // ═══ COVER: Close a short position ═══
           const currentState = stateManager.getState();
@@ -2920,51 +3007,42 @@ class OrderExecutor {
 
           console.log(`SHORT closed: ${pnl >= 0 ? 'PASS' : 'FAIL'} ${pnl.toFixed(2)}% | Hold: ${(holdDuration/60000).toFixed(1)}min`);
 
-          // Close position
-          const positionState = stateManager.getState();
-          const coverStateExitFraction = executedExitPlan?.stateExitFraction ?? 1;
-          const coverStatePartialClose = Boolean(executedExitPlan && coverStateExitFraction < 1);
-          const coverStateOrderQuantity = coverExitOrderQuantity;
-          const coverStateQuantityUnit = coverExitQuantityUnit;
           const shortSize = coverExitSizeUsd;
-          let closeResult;
-          if (coverStatePartialClose) {
-            closeResult = await stateManager.reducePosition(shortTrade.orderId, coverStateExitFraction, price, {
-              orderId: shortTrade.orderId,
-              exitReason: completeTradeResult.exitReason,
-              direction: 'short',
-              orderQuantity: coverStateOrderQuantity,
-              quantityUnit: coverStateQuantityUnit,
-              traceId,
-              signalId,
-              decisionId
-            });
-          } else {
-            closeResult = await stateManager.closePosition(price, false, null, {
-              orderId: shortTrade.orderId,
-              exitReason: completeTradeResult.exitReason,
-              direction: 'short',
-              traceId,
-              signalId,
-              decisionId
-            });
-          }
+          const coverFillFee = this._calculateOrderFee({
+            notionalUsd: coverExitOrderQuantity * price,
+            orderQuantity: coverExitOrderQuantity,
+            side: 'exit',
+          });
+          const coverConfirmedAtMs = Date.now();
+          const closeResult = await stateManager.applyFill(this._buildExecutionFill({
+            exitPlan,
+            executedExitPlan,
+            tradeResult,
+            fillPrice: price,
+            fee: coverFillFee,
+            exitIntent,
+            confirmedAtMs: coverConfirmedAtMs,
+            eventTimeMs: exitTimestamp,
+            simulated: this.ctx.backtestMode === true || this.ctx.paperTrading === true || isWebhookExecutionRoute,
+          }));
 
           if (!closeResult.success) {
-            console.error('StateManager.closePosition (COVER) failed:', closeResult.error);
+            console.error('StateManager.applyFill (COVER) failed:', closeResult.error);
             emitTrace(this.ctx, 'STATE_MUTATION', {
               traceId,
               signalId,
               symbol,
               action: decision.action,
               success: false,
-              operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
+              operation: 'applyFill',
               orderId: shortTrade.orderId,
+              intentId: exitIntent?.intentId || null,
               error: closeResult.error,
             });
             return blockedReturn('state_close_failed', {
-              operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
+              operation: 'applyFill',
               orderId: shortTrade.orderId,
+              intentId: exitIntent?.intentId || null,
               orderAccepted: true,
               stateMutationSucceeded: false,
               error: closeResult.error,
@@ -2978,8 +3056,12 @@ class OrderExecutor {
             symbol,
             action: decision.action,
             success: true,
-            operation: coverStatePartialClose ? 'reducePosition' : 'closePosition',
+            operation: 'applyFill',
             orderId: shortTrade.orderId,
+            intentId: exitIntent?.intentId || null,
+            fillId: closeResult.fillId || null,
+            filledQuantity: closeResult.filledQuantity ?? null,
+            remainingOrderQuantity: closeResult.remainingOrderQuantity ?? null,
             position: afterCoverState.position,
             balance: afterCoverState.balance,
           });
@@ -3248,6 +3330,33 @@ class OrderExecutor {
 	        });
       } else {
         const blockReason = tradeResult?.reason || 'trade_result_not_successful_without_reason';
+        if (exitIntent) {
+          const released = await stateManager.releaseExitSlot(exitPlan.tradeId, exitIntent.intentId, {
+            reason: blockReason,
+          });
+          if (!released || released.success !== true || released.released !== true) {
+            const releaseReason = released?.reason || released?.error || 'release_failed';
+            console.error(`[EXECUTION-FILL] Failed to release exit intent ${exitIntent.intentId} after unaccepted ${decision.action}: ${releaseReason}`);
+            emitTrace(this.ctx, 'STATE_MUTATION', {
+              traceId,
+              signalId,
+              symbol,
+              action: decision.action,
+              success: false,
+              operation: 'releaseExitSlot',
+              orderId: exitPlan.tradeId,
+              intentId: exitIntent.intentId,
+              error: releaseReason,
+            });
+            return blockedReturn('exit_intent_release_failed', {
+              detail: releaseReason,
+              tradeId: exitPlan.tradeId,
+              intentId: exitIntent.intentId,
+              orderAccepted: false,
+              stateMutationSucceeded: false,
+            });
+          }
+        }
         console.log(`Trade blocked: ${blockReason}\n`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', {
           traceId,

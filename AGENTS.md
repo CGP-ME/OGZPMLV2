@@ -100,7 +100,7 @@ For changes on the trading/backtest execution path:
   `ogz-meta/sessions/session-2026-06-27-mercury-deepsearch-substrate.md:16-50,111-121,123-160`.
 - Run the full P0 TSLA 2-year anchor after each trading-path fix.
 - Current required P0 gate: `node ogz-meta/gates/multi-runtime-gate-runner.js --p0`.
-- Current full-anchor expectation: `10663.641411727374 / 1596 trades / 70.1% WR / PF 1.16`.
+- Current full-anchor expectation: `10663.639172063286 / 1596 trades / 70.1% WR / PF 1.16`.
 - `ogz-meta/gates/runs/multi-runtime-latest.json` is expected to update after
   each gate run. If it ever predates the current terminal PASS, treat that as a
   gate bug; use the direct worker report path printed by the gate command as
