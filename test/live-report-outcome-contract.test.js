@@ -217,6 +217,82 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(liveReport._compute().hasAsset).toBe(true);
   });
 
+  test('keeps freshness live from real price and ticker_price frames without inventing account state', () => {
+    const { liveReport, refs, handlers, socket } = loadLiveReportWithSocket();
+
+    liveReport.init();
+
+    expect(socket.registerHandler).toHaveBeenCalledWith('price', expect.any(Function));
+    expect(socket.registerHandler).toHaveBeenCalledWith('ticker_price', expect.any(Function));
+    expect(liveReport._compute().lastMsgAt).toBe(0);
+
+    handlers.price({
+      type: 'price',
+      symbol: 'TSLA',
+      price: 188.12,
+      timestamp: 1780000000000,
+    });
+
+    expect(refs.get('fresh').textContent).toBe('live');
+    expect(refs.get('fresh').className).toBe('lr-fresh live');
+    expect(liveReport._compute()).toEqual(expect.objectContaining({
+      hasAccount: false,
+      hasAsset: false,
+      tradeRows: 0,
+    }));
+    const afterPrice = liveReport._compute().lastMsgAt;
+    expect(afterPrice).toBeGreaterThan(0);
+
+    handlers.ticker_price({
+      type: 'ticker_price',
+      symbol: 'TSLA',
+      close: 188.34,
+      timestamp: 1780000001000,
+    });
+
+    expect(refs.get('fresh').textContent).toBe('live');
+    expect(liveReport._compute().lastMsgAt).toBeGreaterThanOrEqual(afterPrice);
+  });
+
+  test('does not mark freshness live from malformed price frames', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+
+    handlers.price({
+      type: 'price',
+      symbol: 'TSLA',
+      price: 0,
+      timestamp: 1780000000000,
+    });
+    handlers.ticker_price({
+      type: 'ticker_price',
+      symbol: 'TSLA',
+      data: { close: null },
+      timestamp: 1780000001000,
+    });
+    handlers.price({
+      type: 'price',
+      symbol: 'TSLA',
+      price: true,
+      timestamp: 1780000002000,
+    });
+    handlers.ticker_price({
+      type: 'ticker_price',
+      symbol: 'TSLA',
+      price: 188.34,
+    });
+    handlers.price({
+      type: 'price',
+      price: 188.12,
+      timestamp: 1780000003000,
+    });
+
+    expect(liveReport._compute().lastMsgAt).toBe(0);
+    expect(refs.get('fresh').textContent).not.toBe('live');
+    expect(refs.get('fresh').className).not.toBe('lr-fresh live');
+  });
+
   test('does not invent a symbol from incomplete runtimeScope', () => {
     const { liveReport, refs, handlers } = loadLiveReportWithSocket();
 

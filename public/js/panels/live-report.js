@@ -218,8 +218,44 @@
         return ['win', 'loss', 'flat', 'unverified'].includes(s) ? s : null;
     }
     function validPrice(v) {
-        const n = finiteNumber(v);
+        if (typeof v !== 'number' && typeof v !== 'string') return null;
+        const raw = typeof v === 'string' ? v.trim() : v;
+        if (raw === '') return null;
+        const n = Number(raw);
         return n != null && n > 0 ? n : null;
+    }
+    function marketFramePrice(msg) {
+        if (!msg || typeof msg !== 'object') return null;
+        return validPrice(firstValue(
+            msg.price,
+            msg.close,
+            msg.data && msg.data.price,
+            msg.data && msg.data.close,
+            msg.candle && msg.candle.close
+        ));
+    }
+    function marketFrameSymbol(msg) {
+        if (!msg || typeof msg !== 'object') return null;
+        return eventText(firstValue(
+            msg.symbol,
+            msg.asset,
+            msg.data && msg.data.symbol,
+            msg.data && msg.data.asset,
+            msg.candle && msg.candle.symbol
+        ));
+    }
+    function marketFrameTimestamp(msg) {
+        if (!msg || typeof msg !== 'object') return null;
+        return timestampMs(firstValue(
+            msg.timestamp,
+            msg.data && msg.data.timestamp,
+            msg.candle && msg.candle.timestamp
+        ));
+    }
+    function isLiveMarketFrame(msg) {
+        return marketFramePrice(msg) != null
+            && marketFrameSymbol(msg) != null
+            && marketFrameTimestamp(msg) != null;
     }
     function runtimeScopeHasRequiredFields(scope) {
         if (!firstValue(scope.symbol, scope.asset)) return false;
@@ -942,6 +978,12 @@
         tickFreshness();
     }
 
+    function onMarketData(msg) {
+        if (!isLiveMarketFrame(msg)) return;
+        state.lastMsgAt = Date.now();
+        tickFreshness();
+    }
+
     function summarizeTraceEvent(msg) {
         if (!msg) return null;
         const fields = msg.fields && typeof msg.fields === 'object' ? msg.fields : {};
@@ -1081,6 +1123,8 @@
                     socket.registerHandler('trace_event',         socketHandler('trace_event', onTraceEvent));
                     socket.registerHandler('journal_snapshot',    socketHandler('journal_snapshot', onJournalSnapshot));
                     socket.registerHandler('trade_closed_replay', socketHandler('trade_closed_replay', onTradeClosedReplay));
+                    socket.registerHandler('price',               socketHandler('price', onMarketData));
+                    socket.registerHandler('ticker_price',        socketHandler('ticker_price', onMarketData));
                 })();
 
                 state.freshTimer = setInterval(tickFreshness, 1000);
