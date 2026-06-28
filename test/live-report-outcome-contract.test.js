@@ -156,6 +156,284 @@ describe('LiveReport closed-trade outcome contract', () => {
     expect(source).not.toContain('unknown error');
   });
 
+  test('labels the seed deposit as starting balance, not current balance', () => {
+    const source = readFile('public/js/panels/live-report.js');
+
+    expect(source).toContain('Starting Balance');
+    expect(source).not.toContain('<div class="lr-k">Balance</div><div class="lr-v" data-k="balance">');
+  });
+
+  test('uses complete state_update runtimeScope for symbol when asset_switched is absent', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      runtimeScopeStatus: 'complete',
+      runtimeScope: {
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        broker: 'kraken',
+        accountId: 'paper-main',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeKey: 'paper:kraken:paper-main:crypto:BTC-USD:1m',
+        scopeKeyVersion: 2,
+        scopeComplete: true,
+        missingFields: [],
+      },
+      state: {
+        balance: 5000,
+        realizedPnL: -17.47,
+        tradeCount: 12,
+        position: 0,
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeKey: 'paper:kraken:paper-main:crypto:BTC-USD:1m',
+          scopeKeyVersion: 2,
+          scopeComplete: true,
+          missingFields: [],
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('BTC-USD');
+    expect(refs.get('account').textContent).toBe('paper-main');
+    expect(refs.get('balance').textContent).toBe('$5,000.00');
+    expect(refs.get('realized').textContent).toBe('-$17.47');
+    expect(liveReport._compute().hasAsset).toBe(true);
+  });
+
+  test('does not invent a symbol from incomplete runtimeScope', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      runtimeScopeStatus: 'incomplete',
+      runtimeScope: {
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeComplete: false,
+        missingFields: ['accountId'],
+      },
+      state: {
+        balance: 5000,
+        runtimeScopeStatus: 'incomplete',
+        runtimeScope: {
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: false,
+          missingFields: ['accountId'],
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
+  test('clears stale symbol when a later state_update has incomplete runtimeScope', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      runtimeScopeStatus: 'complete',
+      runtimeScope: {
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        accountId: 'paper-main',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeComplete: true,
+      },
+      state: {
+        balance: 5000,
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+    expect(refs.get('symbol').textContent).toBe('BTC-USD');
+
+    handlers.state_update({
+      type: 'state_update',
+      runtimeScopeStatus: 'incomplete',
+      runtimeScope: {
+        symbol: 'ETH-USD',
+        brokerId: 'kraken',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeComplete: false,
+        missingFields: ['accountId'],
+      },
+      state: {
+        balance: 5000,
+        runtimeScopeStatus: 'incomplete',
+        runtimeScope: {
+          symbol: 'ETH-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: false,
+          missingFields: ['accountId'],
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
+  test('refuses partial asset_switched payloads after a valid runtime scope', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      runtimeScopeStatus: 'complete',
+      runtimeScope: {
+        symbol: 'BTC-USD',
+        brokerId: 'kraken',
+        accountId: 'paper-main',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeComplete: true,
+      },
+      state: {
+        balance: 5000,
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'BTC-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+    expect(refs.get('symbol').textContent).toBe('BTC-USD');
+
+    handlers.asset_switched({
+      type: 'asset_switched',
+      data: { label: 'ETH-USD' },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
+  test('accepts asset_switched only when it carries complete runtime scope', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.asset_switched({
+      type: 'asset_switched',
+      data: {
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'ETH-USD',
+          brokerId: 'kraken',
+          accountId: 'paper-main',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('ETH-USD');
+    expect(refs.get('account').textContent).toBe('paper-main');
+    expect(liveReport._compute().hasAsset).toBe(true);
+  });
+
+  test('rejects malformed complete runtimeScope when required scope fields are missing', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      symbol: 'ETH-USD',
+      accountId: 'paper-main',
+      runtimeScopeStatus: 'complete',
+      runtimeScope: {
+        symbol: 'ETH-USD',
+        brokerId: 'kraken',
+        assetClass: 'crypto',
+        executionMode: 'paper',
+        timeframe: '1m',
+        scopeComplete: true,
+      },
+      state: {
+        balance: 5000,
+        runtimeScopeStatus: 'complete',
+        runtimeScope: {
+          symbol: 'ETH-USD',
+          brokerId: 'kraken',
+          assetClass: 'crypto',
+          executionMode: 'paper',
+          timeframe: '1m',
+          scopeComplete: true,
+        },
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
+  test('rejects top-level symbol and account when runtimeScope is absent', () => {
+    const { liveReport, refs, handlers } = loadLiveReportWithSocket();
+
+    liveReport.init();
+    handlers.state_update({
+      type: 'state_update',
+      symbol: 'ETH-USD',
+      accountId: 'paper-main',
+      runtimeScopeStatus: 'complete',
+      state: {
+        balance: 5000,
+        accountId: 'paper-main',
+      },
+    });
+
+    expect(refs.get('symbol').textContent).toBe('—');
+    expect(refs.get('account').textContent).toBe('—');
+    expect(liveReport._compute().hasAsset).toBe(false);
+  });
+
   test('classifies every current static backend trace event name', () => {
     const source = readFile('public/js/panels/live-report.js');
     const knownEvents = extractStringSet(source, 'TRACE_EVENTS_FOR_REPORT');

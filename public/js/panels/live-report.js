@@ -4,7 +4,8 @@
  * Covers Gate H plan commits 4, 5, 6, 7. Renders, fed ONLY by verified real
  * events (no synthetic data, no hydration defaults, no fake trades):
  *
- *   - Context strip  → active symbol / timeframe / account (asset_switched)
+ *   - Context strip  → active symbol / timeframe / account
+ *                       (asset_switched or complete state_update runtimeScope)
  *   - Data freshness → live / Ns ago / STALE clock from message arrival
  *   - Account state  → position / balance / realized PnL / trades / mode
  *                       (state_update)
@@ -60,6 +61,7 @@
         'EXECUTE_RETURN',
         'EXIT_ONLY_START',
         'GAP_BACKFILL_REPLAY',
+        'MARKET_SCOPE_FALLBACK',
         'ORDER_BLOCKED',
         'ORDER_ACCEPTED_OUTSIDE_SHARE_RANGE',
         'ORDER_EXCEPTION',
@@ -218,6 +220,79 @@
     function validPrice(v) {
         const n = finiteNumber(v);
         return n != null && n > 0 ? n : null;
+    }
+    function runtimeScopeHasRequiredFields(scope) {
+        if (!firstValue(scope.symbol, scope.asset)) return false;
+        if (!firstValue(scope.brokerId, scope.broker)) return false;
+        if (!scope.accountId) return false;
+        if (!scope.assetClass) return false;
+        if (!scope.executionMode) return false;
+        if (!scope.timeframe) return false;
+        return true;
+    }
+    function completeRuntimeScopeFromStateUpdate(msg, stateSnapshot) {
+        const direct = msg && msg.runtimeScope && typeof msg.runtimeScope === 'object'
+            ? msg.runtimeScope
+            : null;
+        const nested = stateSnapshot && stateSnapshot.runtimeScope && typeof stateSnapshot.runtimeScope === 'object'
+            ? stateSnapshot.runtimeScope
+            : null;
+        const scope = direct || nested;
+        if (!scope) return null;
+        const status = firstValue(
+            msg && msg.runtimeScopeStatus,
+            stateSnapshot && stateSnapshot.runtimeScopeStatus,
+            scope.runtimeScopeStatus
+        );
+        if (status !== 'complete' || scope.scopeComplete !== true) return null;
+        if (!runtimeScopeHasRequiredFields(scope)) return null;
+        return scope;
+    }
+    function setAssetFromRuntimeScope(scope) {
+        const symbol = firstValue(scope.symbol, scope.asset);
+        state.asset = {
+            label: String(symbol),
+            base: String(symbol),
+            asset: String(symbol),
+            broker: firstValue(scope.broker, scope.brokerId),
+            brokerId: firstValue(scope.brokerId, scope.broker),
+            accountId: scope.accountId || null,
+            assetClass: scope.assetClass || null,
+            executionMode: scope.executionMode || null,
+            timeframe: scope.timeframe || null,
+            scopeKey: scope.scopeKey || null
+        };
+    }
+    function syncAssetFromStateUpdate(msg, stateSnapshot) {
+        const scope = completeRuntimeScopeFromStateUpdate(msg, stateSnapshot);
+        if (!scope) {
+            state.asset = null;
+            return;
+        }
+        setAssetFromRuntimeScope(scope);
+    }
+    function syncAssetFromAssetSwitched(msg) {
+        const data = msg && msg.data && typeof msg.data === 'object' ? msg.data : null;
+        if (!data) {
+            state.asset = null;
+            return false;
+        }
+        const carrier = data.runtimeScope && typeof data.runtimeScope === 'object'
+            ? {
+                runtimeScope: data.runtimeScope,
+                runtimeScopeStatus: firstValue(msg.runtimeScopeStatus, data.runtimeScopeStatus)
+            }
+            : {
+                runtimeScope: data,
+                runtimeScopeStatus: firstValue(msg.runtimeScopeStatus, data.runtimeScopeStatus)
+            };
+        const scope = completeRuntimeScopeFromStateUpdate(carrier, data);
+        if (!scope) {
+            state.asset = null;
+            return false;
+        }
+        setAssetFromRuntimeScope(scope);
+        return true;
     }
     function formatHoldTime(raw) {
         if (typeof raw === 'string' && raw.trim()) return raw;
@@ -472,7 +547,7 @@
                 <div class="lr-cell"><div class="lr-k">Timeframe</div><div class="lr-v" data-k="tf">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Account</div><div class="lr-v" data-k="account">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Position</div><div class="lr-v" data-k="position">—</div></div>
-                <div class="lr-cell"><div class="lr-k">Balance</div><div class="lr-v" data-k="balance">—</div></div>
+                <div class="lr-cell"><div class="lr-k">Starting Balance</div><div class="lr-v" data-k="balance">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Realized P&L (lifetime)</div><div class="lr-v" data-k="realized">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Trades (lifetime)</div><div class="lr-v" data-k="trades">—</div></div>
                 <div class="lr-cell"><div class="lr-k">Mode</div><div class="lr-v" data-k="mode">—</div></div>
@@ -565,11 +640,9 @@
         }
         if (d.tf) d.tf.textContent = activeTimeframe();
         if (d.account) {
-            d.account.textContent = acct && acct.accountId
-                ? String(acct.accountId)
-                : state.asset && state.asset.accountId
-                    ? String(state.asset.accountId)
-                    : '—';
+            d.account.textContent = state.asset && state.asset.accountId
+                ? String(state.asset.accountId)
+                : '—';
         }
 
         if (d.position) {
@@ -775,15 +848,14 @@
         const s = msg && msg.state ? msg.state : null;
         if (!s) return;
         state.account = s;
+        syncAssetFromStateUpdate(msg, s);
         state.lastMsgAt = Date.now();
         render();
         tickFreshness();
     }
 
     function onAssetSwitched(msg) {
-        const a = msg && msg.data ? msg.data : null;
-        if (!a) return;
-        state.asset = a;
+        syncAssetFromAssetSwitched(msg);
         state.lastMsgAt = Date.now();
         render();
         tickFreshness();
