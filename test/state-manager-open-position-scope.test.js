@@ -776,6 +776,559 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.sizeUsd).toBe(reservedTrade.sizeUsd);
   });
 
+  const executionFill = (overrides = {}) => ({
+    fillId: 'fill-1',
+    brokerOrderId: 'broker-order-1',
+    tradeId: 'OPEN_SCOPE_1',
+    intentId: 'intent-1',
+    sourceEventId: 'trace-1',
+    lifecycleState: 'partial_fill',
+    filledQuantity: 2,
+    filledQuantityUnit: 'shares',
+    filledSizeUsd: 220,
+    fillPrice: 110,
+    fee: 1,
+    remainingQuantity: 3,
+    expectedQuantity: 4,
+    submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+    confirmedAtMs: Date.parse('2026-06-28T07:01:00.000Z'),
+    eventTimeMs: Date.parse('2026-06-28T07:00:00.000Z'),
+    rejectionReason: null,
+    executionMode: 'paper',
+    simulated: true,
+    expectedTradeRevision: 0,
+    ...overrides,
+  });
+
+  test('applyFill mutates position truth from confirmed fill quantity only', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    const reserved = await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.8,
+      expectedRemainingQuantity: 1,
+    });
+    expect(reserved.success).toBe(true);
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+    }));
+
+    expect(applied.success).toBe(true);
+    expect(applied.applied).toBe(true);
+    expect(applied.code).toBe('FILL_APPLIED');
+    expect(applied.remainingOrderQuantity).toBe(3);
+    expect(applied.pnl).toBe(20);
+    expect(applied.netRealizedResult).toBe(19);
+
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.pendingExitIntent).toEqual(expect.objectContaining({
+      intentId: 'intent-1',
+      status: 'partial_fill',
+      filledQuantity: 2,
+      remainingQuantity: 3,
+      brokerOrderIds: ['broker-order-1'],
+      lastFillId: 'fill-1',
+    }));
+    expect(trade.tradeRevision).toBe(beforeTrade.tradeRevision + 2);
+    expect(trade.remainingOrderQuantity).toBe(3);
+    expect(trade.sizeUsd).toBe(300);
+    expect(trade.size).toBe(300);
+    expect(manager.get('position')).toBe(300);
+    expect(manager.get('inPosition')).toBe(300);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
+    expect(manager.get('totalPnL')).toBe(20);
+  });
+
+  test('applyFill keeps partial fill intent open for later fills from the same order', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.8,
+      expectedRemainingQuantity: 1,
+    });
+
+    const firstFill = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      lifecycleState: 'partial_fill',
+      filledQuantity: 2,
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      remainingQuantity: 3,
+      expectedQuantity: 4,
+    }));
+    expect(firstFill.success).toBe(true);
+
+    const afterFirstTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(afterFirstTrade.pendingExitIntent).toEqual(expect.objectContaining({
+      intentId: 'intent-1',
+      status: 'partial_fill',
+      tradeRevision: afterFirstTrade.tradeRevision,
+      filledQuantity: 2,
+      remainingQuantity: 3,
+    }));
+
+    const secondFill = await manager.applyFill(executionFill({
+      fillId: 'fill-2',
+      brokerOrderId: 'broker-order-1',
+      expectedTradeRevision: afterFirstTrade.pendingExitIntent.tradeRevision,
+      lifecycleState: 'full_fill',
+      filledQuantity: 2,
+      filledSizeUsd: 240,
+      fillPrice: 120,
+      remainingQuantity: 1,
+      expectedQuantity: 4,
+    }));
+
+    expect(secondFill.success).toBe(true);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.pendingExitIntent).toBeNull();
+    expect(trade.tradeRevision).toBe(afterFirstTrade.tradeRevision + 1);
+    expect(trade.remainingOrderQuantity).toBe(1);
+    expect(trade.sizeUsd).toBe(100);
+    expect(manager.get('position')).toBe(100);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 58);
+    expect(manager.get('totalPnL')).toBe(60);
+  });
+
+  test('applyFill rejects duplicate fill replay without mutating active trade truth again', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.8,
+      expectedRemainingQuantity: 1,
+    });
+
+    const firstFill = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      lifecycleState: 'partial_fill',
+      filledQuantity: 2,
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      remainingQuantity: 3,
+      expectedQuantity: 4,
+    }));
+    expect(firstFill.success).toBe(true);
+
+    const afterFirstTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const duplicate = await manager.applyFill(executionFill({
+      expectedTradeRevision: afterFirstTrade.pendingExitIntent.tradeRevision,
+      lifecycleState: 'partial_fill',
+      filledQuantity: 2,
+      filledSizeUsd: 220,
+      fillPrice: 110,
+      remainingQuantity: 1,
+      expectedQuantity: 4,
+    }));
+
+    expect(duplicate.success).toBe(false);
+    expect(duplicate.applied).toBe(false);
+    expect(duplicate.code).toBe('FILL_DUPLICATE_FILL');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(3);
+    expect(trade.sizeUsd).toBe(300);
+    expect(trade.pendingExitIntent).toEqual(expect.objectContaining({
+      filledQuantity: 2,
+      remainingQuantity: 3,
+      lastFillId: 'fill-1',
+    }));
+    expect(manager.get('position')).toBe(300);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
+    expect(manager.get('totalPnL')).toBe(20);
+  });
+
+  test('applyFill preserves aggregate position truth with mixed active long and short trades', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'LONG_SCOPE_1',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    const openedShort = await manager.openPosition(300, 30, fullScope({
+      orderId: 'SHORT_SCOPE_1',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      symbol: 'MARA',
+      timeframe: '15m',
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      ledgerData: fullLedgerData({
+        strategySignals: [{
+          name: 'ScopeTestStrategy',
+          direction: 'short',
+          baseConfidence: 0.75,
+          reason: 'scoped short ledger test signal',
+        }],
+      }),
+    }));
+    expect(openedShort.success).toBe(true);
+    expect(manager.get('position')).toBe(200);
+    expect(manager.get('inPosition')).toBe(800);
+
+    const beforeShort = manager.getActiveTrade('SHORT_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('SHORT_SCOPE_1', 'short-intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-short-1',
+      exitFraction: 0.4,
+      expectedRemainingQuantity: 6,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      fillId: 'short-fill-1',
+      brokerOrderId: 'short-broker-order-1',
+      tradeId: 'SHORT_SCOPE_1',
+      intentId: 'short-intent-1',
+      sourceEventId: 'trace-short-1',
+      expectedTradeRevision: beforeShort.tradeRevision,
+      lifecycleState: 'partial_fill',
+      filledQuantity: 4,
+      filledSizeUsd: 100,
+      fillPrice: 25,
+      remainingQuantity: 6,
+      expectedQuantity: 4,
+    }));
+
+    expect(applied.success).toBe(true);
+    expect(applied.pnl).toBe(20);
+    expect(manager.getActiveTrade('LONG_SCOPE_1')).toEqual(expect.objectContaining({
+      sizeUsd: 500,
+      remainingOrderQuantity: 5,
+    }));
+    expect(manager.getActiveTrade('SHORT_SCOPE_1')).toEqual(expect.objectContaining({
+      sizeUsd: 180,
+      remainingOrderQuantity: 6,
+    }));
+    expect(manager.get('position')).toBe(320);
+    expect(manager.get('inPosition')).toBe(680);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
+  });
+
+  test('applyFill rejects stale trade revision without mutating reserved trade', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+    const reservedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: reservedTrade.tradeRevision,
+    }));
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_STALE_REVISION');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.pendingExitIntent.intentId).toBe('intent-1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('applyFill rejects overfilled quantity without mutating active trade truth', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 1,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      lifecycleState: 'full_fill',
+      filledQuantity: 6,
+      filledSizeUsd: 660,
+      remainingQuantity: 0,
+      expectedQuantity: 6,
+    }));
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_EXCEEDS_REMAINING_QUANTITY');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('position')).toBe(500);
+  });
+
+  test('applyFill rejects broker remaining quantity mismatch without mutating active trade truth', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      remainingQuantity: 2,
+    }));
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_REMAINING_QUANTITY_MISMATCH');
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('position')).toBe(500);
+  });
+
+  test('applyFill refuses missing broker remaining quantity without inferring silently', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    const fill = executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+    });
+    delete fill.remainingQuantity;
+    const applied = await manager.applyFill(fill);
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_INVALID_DTO');
+    expect(applied.error).toMatch(/remainingQuantity is required/);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('applyFill rejects fill notional that disagrees with quantity and price', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      filledQuantity: 2,
+      fillPrice: 110,
+      filledSizeUsd: 200,
+      remainingQuantity: 3,
+    }));
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_INVALID_DTO');
+    expect(applied.error).toMatch(/does not match filledQuantity \* fillPrice/);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('applyFill refuses caller-supplied fractions without throwing through caller', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      exitFraction: 0.5,
+    }));
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_INVALID_DTO');
+    expect(applied.error).toMatch(/must not contain fraction or exitFraction/);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('applyFill refuses missing fee without defaulting to zero or throwing', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 0.5,
+    });
+
+    const fill = executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+    });
+    delete fill.fee;
+    const applied = await manager.applyFill(fill);
+
+    expect(applied.success).toBe(false);
+    expect(applied.code).toBe('FILL_INVALID_DTO');
+    expect(applied.error).toMatch(/fee is required/);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(5);
+    expect(trade.sizeUsd).toBe(500);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('applyFill removes active trade and records close when confirmed fill exhausts quantity', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 1,
+      expectedRemainingQuantity: 0,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      lifecycleState: 'full_fill',
+      filledQuantity: 5,
+      filledSizeUsd: 550,
+      fillPrice: 110,
+      fee: 2,
+      remainingQuantity: 0,
+      expectedQuantity: 5,
+    }));
+
+    expect(applied.success).toBe(true);
+    expect(manager.getActiveTrade('OPEN_SCOPE_1')).toBeNull();
+    expect(manager.get('position')).toBe(0);
+    expect(manager.get('inPosition')).toBe(0);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 48);
+    expect(manager.get('totalPnL')).toBe(50);
+    expect(manager.get('closedTrades')).toEqual([
+      expect.objectContaining({
+        tradeId: 'OPEN_SCOPE_1',
+        fillId: 'fill-1',
+        brokerOrderId: 'broker-order-1',
+        intentId: 'intent-1',
+        sourceEventId: 'trace-1',
+        pnl: 50,
+        pnlPercent: 10,
+        exitPrice: 110,
+      }),
+    ]);
+  });
+
+  test('applyFill accounts confirmed short fills without using caller fractions', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      action: 'SELL_SHORT',
+      direction: 'short',
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData({
+        strategySignals: [{
+          name: 'ScopeTestStrategy',
+          direction: 'short',
+          baseConfidence: 0.75,
+          reason: 'scoped short ledger test signal',
+        }],
+      }),
+    }));
+    expect(opened.success).toBe(true);
+
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    const beforeRealizedPnL = manager.get('realizedPnL');
+    await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-1',
+      exitFraction: 1,
+    });
+
+    const applied = await manager.applyFill(executionFill({
+      expectedTradeRevision: beforeTrade.tradeRevision,
+      filledQuantity: 2,
+      filledSizeUsd: 180,
+      fillPrice: 90,
+      remainingQuantity: 3,
+      expectedQuantity: 2,
+    }));
+
+    expect(applied.success).toBe(true);
+    expect(applied.pnl).toBe(20);
+    expect(applied.netRealizedResult).toBe(19);
+    const trade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(trade.remainingOrderQuantity).toBe(3);
+    expect(trade.sizeUsd).toBe(300);
+    expect(manager.get('position')).toBe(-300);
+    expect(manager.get('inPosition')).toBe(300);
+    expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
+  });
+
   test('uses per-share minimum fee model for entry and exit accounting', async () => {
     const TradingConfig = require('../core/TradingConfig');
     TradingConfig.setOverrides({

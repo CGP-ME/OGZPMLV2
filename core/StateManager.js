@@ -244,6 +244,31 @@ function optionalFiniteNumber(value, field, caller, { min = -Infinity, max = Inf
   return numeric;
 }
 
+function requireFiniteNumber(value, field, caller, { min = -Infinity, max = Infinity } = {}) {
+  const numeric = optionalFiniteNumber(value, field, caller, { min, max });
+  if (numeric === null) {
+    throw new Error(`[${caller}] ${field} is required`);
+  }
+  return numeric;
+}
+
+function requireLifecycleState(value, caller) {
+  const allowed = new Set(['partial_fill', 'full_fill', 'reconciled']);
+  const normalized = requireNonEmptyString(value, 'lifecycleState', caller);
+  if (!allowed.has(normalized)) {
+    throw new Error(`[${caller}] lifecycleState must be one of ${Array.from(allowed).join(', ')}; got ${JSON.stringify(value)}`);
+  }
+  return normalized;
+}
+
+function requireNonNegativeInteger(value, field, caller) {
+  const numeric = requireFiniteNumber(value, field, caller, { min: 0 });
+  if (!Number.isSafeInteger(numeric)) {
+    throw new Error(`[${caller}] ${field} must be a non-negative safe integer; got ${JSON.stringify(value)}`);
+  }
+  return numeric;
+}
+
 class StateManager {
   /**
    * Creates a new StateManager instance.
@@ -1950,6 +1975,357 @@ class StateManager {
         reason: result.success === true ? 'released' : 'state_update_failed',
         tradeId: normalizedTradeId,
         intentId: normalizedIntentId,
+      };
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Apply a broker/simulator-confirmed exit fill to active trade truth.
+   * This is the future canonical mutation path for exits: callers provide
+   * confirmed fill quantity/value only, never a requested fraction.
+   */
+  async applyFill(fill = {}) {
+    const caller = 'StateManager.applyFill';
+    const invalidFill = (error, extra = {}) => ({
+      success: false,
+      applied: false,
+      code: 'FILL_INVALID_DTO',
+      error,
+      ...extra,
+    });
+    if (!fill || typeof fill !== 'object' || Array.isArray(fill)) {
+      return invalidFill(`[${caller}] fill must be an explicit object`);
+    }
+    if (Object.prototype.hasOwnProperty.call(fill, 'fraction') || Object.prototype.hasOwnProperty.call(fill, 'exitFraction')) {
+      return invalidFill(`[${caller}] fill must not contain fraction or exitFraction; StateManager derives fraction from confirmed quantity`);
+    }
+
+    let fillId;
+    let brokerOrderId;
+    let tradeId;
+    let intentId;
+    let sourceEventId;
+    let lifecycleState;
+    let filledQuantity;
+    let filledQuantityUnit;
+    let filledSizeUsd;
+    let fillPrice;
+    let fee;
+    let expectedQuantity;
+    let remainingQuantityFromFill;
+    let submittedAtMs;
+    let confirmedAtMs;
+    let eventTimeMs;
+    let expectedTradeRevision;
+    let executionMode;
+
+    try {
+      fillId = requireNonEmptyString(fill.fillId, 'fillId', caller);
+      brokerOrderId = requireNonEmptyString(fill.brokerOrderId, 'brokerOrderId', caller);
+      tradeId = requireNonEmptyString(fill.tradeId, 'tradeId', caller);
+      intentId = requireNonEmptyString(fill.intentId, 'intentId', caller);
+      sourceEventId = requireNonEmptyString(fill.sourceEventId, 'sourceEventId', caller);
+      lifecycleState = requireLifecycleState(fill.lifecycleState, caller);
+      filledQuantity = requireFiniteNumber(fill.filledQuantity, 'filledQuantity', caller, { min: 0 });
+      if (filledQuantity <= 0) {
+        throw new Error(`[${caller}] filledQuantity must be > 0; got ${filledQuantity}`);
+      }
+      filledQuantityUnit = requireNonEmptyString(fill.filledQuantityUnit, 'filledQuantityUnit', caller);
+      filledSizeUsd = requireFiniteNumber(fill.filledSizeUsd, 'filledSizeUsd', caller, { min: 0 });
+      if (filledSizeUsd <= 0) {
+        throw new Error(`[${caller}] filledSizeUsd must be > 0; got ${filledSizeUsd}`);
+      }
+      fillPrice = requireFiniteNumber(fill.fillPrice, 'fillPrice', caller, { min: 0 });
+      if (fillPrice <= 0) {
+        throw new Error(`[${caller}] fillPrice must be > 0; got ${fillPrice}`);
+      }
+      const expectedFilledSizeUsd = filledQuantity * fillPrice;
+      const fillNotionalTolerance = Math.max(0.01, Math.abs(expectedFilledSizeUsd) * 1e-6);
+      if (Math.abs(filledSizeUsd - expectedFilledSizeUsd) > fillNotionalTolerance) {
+        throw new Error(`[${caller}] filledSizeUsd ${filledSizeUsd} does not match filledQuantity * fillPrice ${expectedFilledSizeUsd}`);
+      }
+      fee = requireFiniteNumber(fill.fee, 'fee', caller, { min: 0 });
+      expectedQuantity = requireFiniteNumber(fill.expectedQuantity, 'expectedQuantity', caller, { min: 0 });
+      if (expectedQuantity <= 0) {
+        throw new Error(`[${caller}] expectedQuantity must be > 0; got ${expectedQuantity}`);
+      }
+      remainingQuantityFromFill = requireFiniteNumber(fill.remainingQuantity, 'remainingQuantity', caller, { min: 0 });
+      submittedAtMs = requireFiniteNumber(fill.submittedAtMs, 'submittedAtMs', caller, { min: 1 });
+      confirmedAtMs = requireFiniteNumber(fill.confirmedAtMs, 'confirmedAtMs', caller, { min: 1 });
+      eventTimeMs = requireFiniteNumber(fill.eventTimeMs, 'eventTimeMs', caller, { min: 1 });
+      expectedTradeRevision = requireNonNegativeInteger(fill.expectedTradeRevision, 'expectedTradeRevision', caller);
+      executionMode = requireNonEmptyString(fill.executionMode, 'executionMode', caller);
+      if (typeof fill.simulated !== 'boolean') {
+        throw new Error(`[${caller}] simulated must be explicit boolean; got ${JSON.stringify(fill.simulated)}`);
+      }
+    } catch (error) {
+      return invalidFill(error.message, {
+        fillId: typeof fill.fillId === 'string' ? fill.fillId : null,
+        tradeId: typeof fill.tradeId === 'string' ? fill.tradeId : null,
+        intentId: typeof fill.intentId === 'string' ? fill.intentId : null,
+      });
+    }
+
+    await this.acquireLock();
+    try {
+      const trades = this.state.activeTrades;
+      if (!(trades instanceof Map)) {
+        throw new Error(`[${caller}] activeTrades container invariant failed: expected Map, got ${Object.prototype.toString.call(trades)}`);
+      }
+
+      const trade = trades.get(tradeId);
+      if (!trade) {
+        return { success: false, applied: false, code: 'FILL_TRADE_NOT_FOUND', error: `Trade ${tradeId} not found`, fillId, tradeId, intentId };
+      }
+      const processedFillIds = Array.isArray(trade.processedFillIds)
+        ? trade.processedFillIds.filter((id) => typeof id === 'string' && id.trim())
+        : [];
+      if (processedFillIds.includes(fillId)) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_DUPLICATE_FILL',
+          error: `Fill ${fillId} was already applied to trade ${tradeId}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const pending = trade.pendingExitIntent;
+      if (!pending || !pending.intentId) {
+        return { success: false, applied: false, code: 'FILL_INTENT_NOT_RESERVED', error: `No pending exit intent for ${tradeId}`, fillId, tradeId, intentId };
+      }
+      if (pending.intentId !== intentId) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_INTENT_MISMATCH',
+          error: `Fill intent ${intentId} does not match pending intent ${pending.intentId}`,
+          fillId,
+          tradeId,
+          intentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+      const pendingStatus = pending.status || 'reserved';
+      if (pending.tradeRevision !== expectedTradeRevision) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_STALE_REVISION',
+          error: `Fill expected tradeRevision ${expectedTradeRevision} but pending intent was created at revision ${pending.tradeRevision}`,
+          fillId,
+          tradeId,
+          intentId,
+          pendingExitIntent: clonePlain(pending),
+        };
+      }
+
+      const currentRevision = Number.isSafeInteger(Number(trade.tradeRevision)) && Number(trade.tradeRevision) >= 0
+        ? Number(trade.tradeRevision)
+        : 0;
+      const expectedCurrentRevision = pendingStatus === 'partial_fill'
+        ? expectedTradeRevision
+        : expectedTradeRevision + 1;
+      if (currentRevision !== expectedCurrentRevision) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_STALE_TRADE_STATE',
+          error: `Fill expected current tradeRevision ${expectedCurrentRevision} but current revision is ${currentRevision}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const priorOrderQuantity = Number(trade.remainingOrderQuantity);
+      const priorSizeUsd = Number(trade.sizeUsd ?? trade.size);
+      if (!Number.isFinite(priorOrderQuantity) || priorOrderQuantity <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_REMAINING_QUANTITY', error: `Invalid remainingOrderQuantity ${trade.remainingOrderQuantity}`, fillId, tradeId, intentId };
+      }
+      if (!Number.isFinite(priorSizeUsd) || priorSizeUsd <= 0) {
+        return { success: false, applied: false, code: 'FILL_INVALID_SIZE_USD', error: `Invalid sizeUsd ${trade.sizeUsd ?? trade.size}`, fillId, tradeId, intentId };
+      }
+      if (String(trade.remainingOrderQuantityUnit || '').trim() !== filledQuantityUnit) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_QUANTITY_UNIT_MISMATCH',
+          error: `Fill quantity unit ${filledQuantityUnit} does not match trade remainingOrderQuantityUnit ${trade.remainingOrderQuantityUnit}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const tolerance = 1e-9;
+      if (filledQuantity > priorOrderQuantity + tolerance) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_EXCEEDS_REMAINING_QUANTITY',
+          error: `Fill quantity ${filledQuantity} exceeds remaining quantity ${priorOrderQuantity}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const computedRemainingQuantity = Math.max(0, priorOrderQuantity - filledQuantity);
+      if (Math.abs(remainingQuantityFromFill - computedRemainingQuantity) > tolerance) {
+        return {
+          success: false,
+          applied: false,
+          code: 'FILL_REMAINING_QUANTITY_MISMATCH',
+          error: `Fill remainingQuantity ${remainingQuantityFromFill} does not match computed remaining ${computedRemainingQuantity}`,
+          fillId,
+          tradeId,
+          intentId,
+        };
+      }
+
+      const fillFraction = filledQuantity / priorOrderQuantity;
+      const closedEntryNotionalUsd = priorSizeUsd * fillFraction;
+      const remainingSizeUsd = computedRemainingQuantity <= tolerance
+        ? 0
+        : priorSizeUsd - closedEntryNotionalUsd;
+      const isShort = trade.direction === 'short';
+      const pnl = isShort
+        ? closedEntryNotionalUsd - filledSizeUsd
+        : filledSizeUsd - closedEntryNotionalUsd;
+      const pnlPercent = closedEntryNotionalUsd > 0 ? (pnl / closedEntryNotionalUsd) * 100 : 0;
+      const netRealizedResult = pnl - fee;
+      const noActiveTradeRemainder = computedRemainingQuantity <= tolerance || remainingSizeUsd <= tolerance;
+      const nextActiveTrades = new Map(trades);
+      let closedTradeRecord = null;
+
+      if (noActiveTradeRemainder) {
+        nextActiveTrades.delete(tradeId);
+        closedTradeRecord = {
+          tradeId,
+          symbol: trade.symbol || null,
+          pnl,
+          pnlPercent,
+          direction: trade.direction,
+          entryPrice: trade.entryPrice,
+          exitPrice: fillPrice,
+          strategy: firstNonEmptyString(trade.entryStrategy, trade.strategy),
+          holdMs: holdTimeMsOrNull(trade, confirmedAtMs),
+          closedAt: confirmedAtMs,
+          fillId,
+          brokerOrderId,
+          intentId,
+          sourceEventId,
+          lifecycleState,
+          executionMode,
+          simulated: fill.simulated,
+        };
+      } else {
+        const nextRevision = currentRevision + 1;
+        const nextPendingExitIntent = lifecycleState === 'partial_fill'
+          ? {
+              ...pending,
+              status: 'partial_fill',
+              tradeRevision: nextRevision,
+              filledQuantity: Number(pending.filledQuantity || 0) + filledQuantity,
+              remainingQuantity: remainingQuantityFromFill,
+              brokerOrderIds: Array.from(new Set([...(pending.brokerOrderIds || []), brokerOrderId])),
+              lastFillId: fillId,
+              lastFillAtMs: confirmedAtMs,
+            }
+          : null;
+        const nextTrade = {
+          ...trade,
+          tradeRevision: nextRevision,
+          pendingExitIntent: nextPendingExitIntent,
+          processedFillIds: Array.from(new Set([...processedFillIds, fillId])),
+          sizeUsd: remainingSizeUsd,
+          size: remainingSizeUsd,
+          remainingOrderQuantity: computedRemainingQuantity,
+          remainingOrderQuantityUnit: filledQuantityUnit,
+        };
+        if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === intentId) {
+          const filledTotal = Number(nextTrade.beScaleOutState.filledQuantity || 0) + filledQuantity;
+          const targetQuantity = Number(nextTrade.beScaleOutState.targetQuantity || expectedQuantity);
+          nextTrade.beScaleOutState = {
+            ...nextTrade.beScaleOutState,
+            status: filledTotal + tolerance >= targetQuantity ? 'complete' : 'partial',
+            filledQuantity: filledTotal,
+            brokerOrderIds: Array.from(new Set([...(nextTrade.beScaleOutState.brokerOrderIds || []), brokerOrderId])),
+            lastUpdatedMs: confirmedAtMs,
+          };
+        }
+        if (Array.isArray(nextTrade.tierStates)) {
+          nextTrade.tierStates = nextTrade.tierStates.map((tier) => {
+            if (!tier || tier.intentId !== intentId) {
+              return tier;
+            }
+            const filledTotal = Number(tier.filledQuantity || 0) + filledQuantity;
+            const targetQuantity = Number(tier.targetQuantity || expectedQuantity);
+            return {
+              ...tier,
+              status: filledTotal + tolerance >= targetQuantity ? 'complete' : 'partial',
+              filledQuantity: filledTotal,
+              brokerOrderIds: Array.from(new Set([...(tier.brokerOrderIds || []), brokerOrderId])),
+              completedAtMs: filledTotal + tolerance >= targetQuantity ? confirmedAtMs : tier.completedAtMs ?? null,
+            };
+          });
+        }
+        nextActiveTrades.set(tradeId, nextTrade);
+      }
+
+      const remainingExposureUsd = nextActiveTrades.size === 0 ? 0 : this._getActiveTradeExposureUsd(nextActiveTrades);
+      const positionDelta = isShort ? closedEntryNotionalUsd : -closedEntryNotionalUsd;
+      const updates = {
+        activeTrades: nextActiveTrades,
+        position: nextActiveTrades.size === 0 ? 0 : this.state.position + positionDelta,
+        positionCount: nextActiveTrades.size,
+        entryPrice: nextActiveTrades.size === 0 ? 0 : this.state.entryPrice,
+        entryTime: nextActiveTrades.size === 0 ? null : this.state.entryTime,
+        inPosition: remainingExposureUsd,
+        realizedPnL: this.state.realizedPnL + netRealizedResult,
+        totalPnL: this.state.totalPnL + pnl,
+        lastTradeTime: confirmedAtMs,
+        ...(closedTradeRecord ? { closedTrades: [...(this.state.closedTrades || []), closedTradeRecord] } : {}),
+      };
+
+      const result = this._applyStateUpdatesLocked(updates, {
+        action: 'APPLY_EXECUTION_FILL',
+        fillId,
+        brokerOrderId,
+        tradeId,
+        intentId,
+        sourceEventId,
+        lifecycleState,
+        filledQuantity,
+        filledQuantityUnit,
+        filledSizeUsd,
+        fillPrice,
+        fee,
+        pnl,
+        netRealizedResult,
+        submittedAtMs,
+        confirmedAtMs,
+        eventTimeMs,
+        executionMode,
+        simulated: fill.simulated,
+      });
+
+      return {
+        ...result,
+        applied: result.success === true,
+        code: result.success === true ? 'FILL_APPLIED' : 'FILL_STATE_UPDATE_FAILED',
+        fillId,
+        tradeId,
+        intentId,
+        filledQuantity,
+        remainingOrderQuantity: computedRemainingQuantity,
+        pnl,
+        netRealizedResult,
       };
     } finally {
       this.releaseLock();
