@@ -7,6 +7,7 @@ const {
   CANONICAL_ENV,
   P0_TUNING_PROFILE,
   assertP0WorkerEnvMatchesProfile,
+  runP0,
 } = require('../ogz-meta/anchor-runner');
 
 describe('anchor-runner P0 env contract', () => {
@@ -36,6 +37,18 @@ describe('anchor-runner P0 env contract', () => {
   test('builds P0 from the pinned stock profile instead of ambient trading env', () => {
     const spec = buildP0RunSpec('full', 'unit', '2026-06-04T00-00-00-000Z');
 
+    expect(spec.runSpec).toEqual(expect.objectContaining({
+      profile: 'full',
+      runner: 'ogz-meta/anchor-runner.js',
+      command: 'node run-empire-v2.js',
+      candleFile: 'tuning/tsla-15m-2y.json',
+      stateFile: 'data/state-baseline-phase0.json',
+      tuningProfile: P0_TUNING_PROFILE,
+    }));
+    expect(spec.runSpec.candleFileSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(spec.runSpec.candleFilePresent).toBe(true);
+    expect(spec.runSpec.candleFileSizeBytes).toBeGreaterThan(0);
+    expect(spec.runSpec.canonicalEnv).toEqual(CANONICAL_ENV);
     expect(spec.tuningProfile.name).toBe(P0_TUNING_PROFILE);
     expect(spec.workerEnv).toEqual(expect.objectContaining({
       TUNING_PROFILE: 'current-eval',
@@ -87,5 +100,13 @@ describe('anchor-runner P0 env contract', () => {
     expect(stamp).toBe('2026-06-04T02-03-04-005Z');
     expect(spec.logPath).toContain('phase0-750-unit-2026-06-04T02-03-04-005Z.log');
     expect(spec.env.BACKTEST_REPORT_TAG).toBe('phase0-750-unit-2026-06-04T02-03-04-005Z');
+  });
+
+  test('fails before execution when the selected P0 candle file is missing', () => {
+    const spec = buildP0RunSpec('fast', 'unit', '2026-06-04T00-00-00-000Z');
+    expect(spec.runSpec.candleFilePresent).toBe(false);
+    expect(spec.runSpec.candleFileSha256).toBeNull();
+
+    expect(() => runP0('fast', 'unit')).toThrow(/canonical candle file missing/);
   });
 });

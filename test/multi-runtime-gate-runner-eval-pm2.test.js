@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  buildReportProvenance,
   buildGateContext,
   maybeWriteReport,
   P0_GATE_ID,
@@ -10,6 +11,62 @@ const {
 } = require('../ogz-meta/gates/multi-runtime-gate-runner');
 
 describe('multi-runtime gate runner eval PM2 context', () => {
+  test('adds repo and P0 baseline provenance to gate reports', () => {
+    const gitResponses = new Map([
+      ['branch --show-current', 'codex/baseline-test\n'],
+      ['rev-parse HEAD', 'abcdef1234567890abcdef1234567890abcdef12\n'],
+      ['status --porcelain --untracked-files=no', ' M core/OrderExecutor.js\nM  core/StateManager.js\n'],
+      ['diff --cached --name-only', 'core/StateManager.js\n'],
+      ['diff --name-only', 'core/OrderExecutor.js\n'],
+    ]);
+    const p0Gate = {
+      id: P0_GATE_ID,
+      layer: 'p0',
+      status: 'PASS',
+      detail: {
+        summary: { finalBalance: 10663.639172063286, totalTrades: 1596 },
+        report: '/repo/backtest-report.json',
+        reportMtimeMs: 1770000000000,
+        log: '/repo/p0.log',
+        runSpec: {
+          candleFile: 'tuning/tsla-15m-2y.json',
+          candleFileSha256: 'a'.repeat(64),
+        },
+        tuningProfile: { name: 'current-eval' },
+        workerEnv: { SOLO_STRATEGY: 'EMASMACrossover' },
+      },
+    };
+
+    const provenance = buildReportProvenance([p0Gate], {
+      execFileSync: (_cmd, args) => gitResponses.get(args.join(' ')) || '',
+      hashFile: (filePath) => `hash:${filePath}`,
+    });
+
+    expect(provenance.schemaVersion).toBe(2);
+    expect(provenance.git).toEqual(expect.objectContaining({
+      branch: 'codex/baseline-test',
+      commit: 'abcdef1234567890abcdef1234567890abcdef12',
+      shortCommit: 'abcdef12',
+      trackedDirty: true,
+      stagedPaths: ['core/StateManager.js'],
+      unstagedTrackedPaths: ['core/OrderExecutor.js'],
+    }));
+    expect(provenance.git.trackedDirtyHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(provenance.p0Baseline).toEqual(expect.objectContaining({
+      gateId: P0_GATE_ID,
+      classification: 'canonical',
+      actual: p0Gate.detail.summary,
+      reportMtimeMs: 1770000000000,
+      reportSha256: 'hash:/repo/backtest-report.json',
+      logSha256: 'hash:/repo/p0.log',
+      runSpec: p0Gate.detail.runSpec,
+      tuningProfile: p0Gate.detail.tuningProfile,
+    }));
+    expect(provenance.p0Baseline.expected.finalBalance).toBe(10663.639172063286);
+    expect(provenance.p0Baseline.workerEnvHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(provenance.p0Baseline.historicalAnchors.length).toBeGreaterThan(0);
+  });
+
   test('selects eval gate and builds PM2 env context without touching real PM2 in tests', () => {
     const argv = ['--eval', '--pm2', 'ogz-prime-v2'];
     const gates = selectedGates(argv);

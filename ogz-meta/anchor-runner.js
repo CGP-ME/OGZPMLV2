@@ -39,6 +39,7 @@
  * the same commit so they don't drift.
  */
 
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -85,6 +86,10 @@ function buildRunStamp(date = new Date()) {
   return date.toISOString().replace(/[:.]/g, '-');
 }
 
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 function assertP0WorkerEnvMatchesProfile(env, tuningProfile) {
   const mismatches = [];
   for (const [key, expectedValue] of Object.entries(tuningProfile.env || {})) {
@@ -110,6 +115,10 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
 
   const logName = `phase0-${cfg.logSuffix}-${logTag}-${runStamp}.log`;
   const logPath = path.join(REPO_ROOT, 'ogz-meta', 'ledger', logName);
+  const candleFilePath = path.join(REPO_ROOT, cfg.candleFile);
+  const candleFilePresent = fs.existsSync(candleFilePath);
+  const candleFileSizeBytes = candleFilePresent ? fs.statSync(candleFilePath).size : null;
+  const stateFilePath = path.join(REPO_ROOT, cfg.stateFile);
   const instrumentEnv = resolveInstrumentFromDataFile(cfg.candleFile);
   const tuningProfile = resolveTuningProfile(P0_TUNING_PROFILE);
   const env = buildBacktestWorkerEnv({
@@ -130,6 +139,23 @@ function buildP0RunSpec(profile, logTag, runStamp = buildRunStamp()) {
     cfg,
     env,
     logPath,
+    runSpec: {
+      profile,
+      label: cfg.label,
+      runner: 'ogz-meta/anchor-runner.js',
+      command: 'node run-empire-v2.js',
+      logTag,
+      reportTag: env.BACKTEST_REPORT_TAG,
+      candleFile: cfg.candleFile,
+      candleFilePath,
+      candleFilePresent,
+      candleFileSizeBytes,
+      candleFileSha256: candleFilePresent ? sha256File(candleFilePath) : null,
+      stateFile: cfg.stateFile,
+      stateFilePath,
+      tuningProfile: tuningProfile.name,
+      canonicalEnv: { ...CANONICAL_ENV },
+    },
     tuningProfile,
     workerEnv: summarizeWorkerEnv(env),
   };
@@ -148,14 +174,19 @@ function runP0(profile, logTag) {
     cfg,
     env,
     logPath,
+    runSpec,
     tuningProfile,
     workerEnv,
   } = buildP0RunSpec(profile, logTag);
+  if (!runSpec.candleFilePresent) {
+    throw new Error(`anchor-runner: canonical candle file missing: ${runSpec.candleFilePath}`);
+  }
 
   // Stream-capture: write everything to the log file so it's auditable
   // post-run. The "Report saved" line gives us the report JSON path.
   const cmd = `node run-empire-v2.js`;
   let stdout = '';
+  const runStartedAtMs = Date.now();
   try {
     stdout = execSync(cmd, {
       cwd: REPO_ROOT,
@@ -179,6 +210,13 @@ function runP0(profile, logTag) {
 
   if (!fs.existsSync(reportPath)) {
     throw new Error(`anchor-runner: report path from stdout not on disk: ${reportPath}`);
+  }
+  const reportStat = fs.statSync(reportPath);
+  if (reportStat.mtimeMs < runStartedAtMs - 1000) {
+    throw new Error(
+      `anchor-runner: report path predates this run and may be stale: ${reportPath}; ` +
+      `reportMtimeMs=${reportStat.mtimeMs}; runStartedAtMs=${runStartedAtMs}`
+    );
   }
   const reportRaw = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   const s = reportRaw.summary || {};
@@ -205,6 +243,8 @@ function runP0(profile, logTag) {
     label: cfg.label,
     log: logPath,
     report: reportPath,
+    reportMtimeMs: reportStat.mtimeMs,
+    runSpec,
     tuningProfile: summarizeTuningProfile(tuningProfile),
     workerEnv,
     summary
@@ -232,4 +272,5 @@ module.exports = {
   assertP0WorkerEnvMatchesProfile,
   buildP0RunSpec,
   buildRunStamp,
+  sha256File,
 };

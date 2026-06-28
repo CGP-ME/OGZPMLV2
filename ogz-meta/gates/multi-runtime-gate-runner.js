@@ -2,6 +2,8 @@
 'use strict';
 
 const assert = require('assert');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -21,6 +23,7 @@ const EXPECTED_P0 = Object.freeze({
 });
 
 const P0_GATE_ID = 'p0.single_lane.tsla_ema_anchor';
+const REPORT_SCHEMA_VERSION = 2;
 
 const P0_TIER_FRACTION_CAPS = Object.freeze({
   profit_tier_1: 0.30,
@@ -58,6 +61,114 @@ function loadRuntime() {
     };
   }
   return runtime;
+}
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
+function sha256Text(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function sha256FileIfPresent(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return null;
+  }
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function splitLines(value) {
+  return String(value || '').split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function readGitText(args, deps = {}) {
+  const runner = deps.execFileSync || execFileSync;
+  try {
+    return String(runner('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    })).trim();
+  } catch (err) {
+    return null;
+  }
+}
+
+function buildGitProvenance(deps = {}) {
+  const statusPorcelain = readGitText(['status', '--porcelain', '--untracked-files=no'], deps) || '';
+  const stagedPaths = splitLines(readGitText(['diff', '--cached', '--name-only'], deps));
+  const unstagedTrackedPaths = splitLines(readGitText(['diff', '--name-only'], deps));
+  const branch = readGitText(['branch', '--show-current'], deps);
+  const commit = readGitText(['rev-parse', 'HEAD'], deps);
+
+  return {
+    branch,
+    commit,
+    shortCommit: commit ? commit.slice(0, 8) : null,
+    trackedDirty: statusPorcelain.length > 0,
+    trackedDirtyHash: sha256Text(statusPorcelain),
+    stagedPaths,
+    unstagedTrackedPaths,
+    statusPorcelain
+  };
+}
+
+function buildP0BaselineProvenance(gates, deps = {}) {
+  const p0Gate = gates.find((gate) => gate.id === P0_GATE_ID);
+  if (!p0Gate) {
+    return null;
+  }
+  const detail = p0Gate.detail || {};
+  const hashFile = deps.hashFile || sha256FileIfPresent;
+
+  return {
+    gateId: P0_GATE_ID,
+    classification: 'canonical',
+    expected: { ...EXPECTED_P0 },
+    actual: detail.summary || null,
+    reportPath: detail.report || null,
+    reportMtimeMs: detail.reportMtimeMs || null,
+    reportSha256: hashFile(detail.report),
+    logPath: detail.log || null,
+    logSha256: hashFile(detail.log),
+    runSpec: detail.runSpec || null,
+    tuningProfile: detail.tuningProfile || null,
+    workerEnvHash: detail.workerEnv ? sha256Text(stableStringify(detail.workerEnv)) : null,
+    historicalAnchors: [
+      {
+        finalBalance: 10061.215823687478,
+        reason: 'historical ATR-off profile drift anchor before current-eval owned canonical ATR filter'
+      },
+      {
+        finalBalance: 13255.255799695915,
+        reason: 'historical contaminated partial-exit over-credit anchor'
+      },
+      {
+        finalBalance: 13213.042341608163,
+        reason: 'historical modifiers-off anchor unless explicitly rebaselined'
+      },
+      {
+        finalBalance: 10663.30975684895,
+        reason: 'historical requested-notional recorder anchor before executed closed quantity owned stock PnL'
+      }
+    ]
+  };
+}
+
+function buildReportProvenance(gates, deps = {}) {
+  return {
+    schemaVersion: REPORT_SCHEMA_VERSION,
+    generatedBy: 'ogz-meta/gates/multi-runtime-gate-runner.js',
+    git: buildGitProvenance(deps),
+    p0Baseline: buildP0BaselineProvenance(gates, deps)
+  };
 }
 
 function stateManager() {
@@ -507,6 +618,8 @@ const GATES = [
         summary: result.summary,
         log: result.log,
         report: result.report,
+        reportMtimeMs: result.reportMtimeMs,
+        runSpec: result.runSpec,
         tuningProfile: result.tuningProfile,
         workerEnv: result.workerEnv
       };
@@ -1643,9 +1756,13 @@ async function main() {
     }
   }
 
+  const provenance = buildReportProvenance(results);
   const report = {
+    schemaVersion: REPORT_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
-    branch: process.env.GIT_BRANCH || null,
+    branch: provenance.git.branch,
+    commit: provenance.git.commit,
+    provenance,
     gates: results
   };
 
@@ -1667,6 +1784,7 @@ module.exports = {
   assertP0LedgerConservation,
   assertP0TieredExitAccounting,
   assertP0LongOnlyNoShortArtifacts,
+  buildReportProvenance,
   buildGateContext,
   maybeWriteReport,
   P0_GATE_ID,
