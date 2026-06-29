@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Eval RIOT Quarantine (2026-06-29)
+
+- Removed RIOT from the active live eval Alpaca symbol universe, dashboard stock stream list, and default dashboard watchlist after eval trade review showed persistent RIOT losses.
+- Kept the RIOT asset registry entry intact for historical normalization while preventing active eval subscription or selection through the live dashboard surfaces.
+
 ### TRAI Passive Activation (2026-06-29)
 
 - Enabled TRAI by default in passive observation mode while keeping veto and execution adjustments off unless explicitly configured.

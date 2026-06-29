@@ -15,7 +15,7 @@ const {
 const ConfigLoader = require('../foundation/ConfigLoader');
 
 const MISSING_ENV_FILE = path.join(__dirname, 'fixtures', 'missing-eval-live-posture.env');
-const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT';
+const EVAL_ALPACA_SYMBOLS = 'TSLA,NVDA,SPY,QQQ,COIN,MARA';
 
 function currentNewYorkDate() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -40,7 +40,6 @@ function earningsStatusJson(date = currentNewYorkDate(), symbolOverrides = {}) {
       QQQ: false,
       COIN: false,
       MARA: false,
-      RIOT: false,
       ...symbolOverrides,
     },
   });
@@ -141,7 +140,7 @@ describe('eval live posture gate', () => {
       protocol: 'https:',
       source: 'env:SIGNALSTACK_WEBHOOK_URL',
     });
-    expect(report.checked.symbol.alpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA', 'RIOT']);
+    expect(report.checked.symbol.alpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA']);
     expect(JSON.stringify(report)).not.toContain('signalstack.example');
   });
 
@@ -589,7 +588,6 @@ describe('eval live posture gate', () => {
       SPY: false,
       QQQ: false,
       COIN: false,
-      MARA: false,
     };
     const report = validateEvalLivePosture(validEvalLiveEnv({
       TTP_EARNINGS_STATUS_JSON: JSON.stringify({ date: currentNewYorkDate(), symbols }),
@@ -597,7 +595,7 @@ describe('eval live posture gate', () => {
 
     expect(report.status).toBe('PASS');
     expect(report.errors).toEqual([]);
-    expect(report.warnings.join('\n')).toMatch(/symbols\.RIOT must be boolean/);
+    expect(report.warnings.join('\n')).toMatch(/symbols\.MARA must be boolean/);
   });
 
   test('assert helper throws with a useful gate error', () => {

@@ -767,7 +767,7 @@
   },
   "sessions": {
     "routerEnabled": false,
-    "stockSymbols": ["TSLA","SPY","QQQ","NVDA","COIN","MARA","RIOT"],
+    "stockSymbols": ["TSLA","SPY","QQQ","NVDA","COIN","MARA"],
     "cryptoSymbols": ["BTC-USD","ETH-USD","SOL-USD"],
     "checkIntervalMs": 60000,
     "forceCloseOnSessionEnd": true

@@ -794,14 +794,13 @@
                 <option value="QQQ">Nasdaq 100 (QQQ)</option>
                 <option value="COIN">Coinbase (COIN)</option>
                 <option value="MARA">Marathon (MARA)</option>
-                <option value="RIOT">Riot Platforms (RIOT)</option>
             </optgroup>
         `;
         // #48: selector now covers every watchlist ticker the backend serves —
-        // watchlist DEFAULT_TICKERS = TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT (Alpaca)
+        // watchlist DEFAULT_TICKERS = TSLA,NVDA,SPY,QQQ,COIN,MARA (Alpaca)
         // + BTC,ETH (Kraken). stock-data-adapter STOCK_TICKERS confirms all
-        // seven stocks are supported. Previously only TSLA/NVDA/SPY were
-        // options, so clicking QQQ/COIN/MARA/RIOT in the watchlist hit
+        // six stocks are supported. Previously only TSLA/NVDA/SPY were
+        // options, so clicking QQQ/COIN/MARA in the watchlist hit
         // switchAsset's unknown-symbol guard and silently did nothing.
 
         const timeframeSelector = document.createElement('select');

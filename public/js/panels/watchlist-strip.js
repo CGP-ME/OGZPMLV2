@@ -10,7 +10,7 @@
  * and re-render for the selected symbol.
  *
  * Default ticker universe: 3 crypto (Kraken) + 6 stocks (Alpaca):
- *   TSLA, NVDA, SPY, QQQ, COIN, MARA, RIOT (ALP)
+ *   TSLA, NVDA, SPY, QQQ, COIN, MARA (ALP)
  *   BTC, ETH (KRA)
  *
  * Subscribes to WS 'price' events to populate prices and sparklines.
@@ -78,7 +78,6 @@
         { symbol: 'QQQ', broker: 'ALP' },
         { symbol: 'COIN', broker: 'ALP' },
         { symbol: 'MARA', broker: 'ALP' },
-        { symbol: 'RIOT', broker: 'ALP' },
         // Crypto (Kraken)
         { symbol: 'BTC', broker: 'KRA' },
         { symbol: 'ETH', broker: 'KRA' },
