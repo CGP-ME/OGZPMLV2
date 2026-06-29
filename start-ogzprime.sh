@@ -86,7 +86,7 @@ start() {
     # NOTE: Dashboard served via ogz-websocket (port 3010) - no separate dashboard server needed
 
     echo -e "${YELLOW}[Start] Trading bot + TRAI...${NC}"
-    pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
+    node tools/eval-live-deploy.js
 
     pm2 save
     sleep 3

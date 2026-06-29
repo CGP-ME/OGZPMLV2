@@ -6,7 +6,7 @@ function hydratePm2EnvFromDotenv() {
   if (process.env.NODE_ENV === 'test') return;
   require('dotenv').config({
     path: path.join(__dirname, '.env'),
-    override: true,
+    override: false,
   });
 }
 

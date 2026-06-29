@@ -58,7 +58,7 @@ INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 startOrReload ecosystem.config.js --onl
 
 # Trading bot (paper mode by default)
 pm2 delete ogz-bot 2>/dev/null || true
-INCEPTION_API_KEY=$INCEPTION_API_KEY pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
+INCEPTION_API_KEY=$INCEPTION_API_KEY node tools/eval-live-deploy.js
 
 pm2 save
 

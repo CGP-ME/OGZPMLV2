@@ -130,8 +130,7 @@ if grep -q "YOUR_API_KEY_HERE" .env; then
 fi
 
 # Start the bot
-pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
-pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
+node tools/eval-live-deploy.js --with-websocket
 
 # Show status
 pm2 status

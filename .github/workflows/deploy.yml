@@ -39,10 +39,9 @@ jobs:
             # Save pattern memory before restart
             cp pattern_memory.json pattern_memory.backup.$(date +%s).json 2>/dev/null || true
 
-            # Restart with the checked-in PM2 runtime profile so operator-owned
-            # live credentials and dashboard auth are preserved through restart.
-            pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env
-            pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env
+            # Restart through the eval deploy wrapper so live date and dirty runtime
+            # quarantine are deterministic before the bot comes online.
+            node tools/eval-live-deploy.js --with-websocket
             pm2 save
 
             echo "Empire V2 deployed and restarted"

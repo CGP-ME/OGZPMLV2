@@ -125,7 +125,26 @@ function loadPrimeAppWithEnv(envValues) {
 }
 
 describe('ecosystem eval live profile', () => {
-  test('hydrates .env before freezing PM2 runtime values outside the Jest harness', () => {
+  test('eval live deploy wrapper stamps current date and owns runtime quarantine paths', () => {
+    const deployTool = require('../tools/eval-live-deploy');
+
+    expect(deployTool.evalLiveEnv({
+      TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-28',
+    }, '2026-06-29')).toEqual(expect.objectContaining({
+      TTP_ACCOUNT_START_OF_DAY_DATE: '2026-06-29',
+    }));
+    expect(deployTool.parseCli(['--with-websocket'])).toEqual({ withWebsocket: true });
+    expect(() => deployTool.parseCli(['--json'])).toThrow(/Unknown argument --json/);
+    expect(deployTool.RUNTIME_DEPLOY_PATHS).toEqual(expect.arrayContaining([
+      'ecosystem.config.js',
+      'config',
+      'core',
+      'modules',
+      'foundation',
+    ]));
+  });
+
+  test('hydrates .env before freezing PM2 runtime values without overriding explicit restart env', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'ecosystem.config.js'), 'utf8');
     const hydrateIndex = source.indexOf('hydratePm2EnvFromDotenv();');
     const operatorIndex = source.indexOf('const evalOperatorEnv = Object.freeze({');
@@ -135,7 +154,7 @@ describe('ecosystem eval live profile', () => {
     expect(hydrateIndex).toBeGreaterThan(dotenvConfigIndex);
     expect(operatorIndex).toBeGreaterThan(hydrateIndex);
     expect(source).toContain("path: path.join(__dirname, '.env')");
-    expect(source).toContain('override: true');
+    expect(source).toContain('override: false');
     expect(source).toContain("if (process.env.NODE_ENV === 'test') return;");
   });
 
@@ -262,30 +281,32 @@ describe('ecosystem eval live profile', () => {
     expect(defaultPrime.env.WEBSOCKET_AUTH_TOKEN).toBeUndefined();
   });
 
-  test('production start surfaces use the PM2 ecosystem profile for live processes', () => {
+  test('production start surfaces route eval bot restarts through the live deploy wrapper', () => {
     const packageJson = require('../package.json');
     const deployWorkflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'deploy.yml'), 'utf8');
     const startScript = fs.readFileSync(path.join(__dirname, '..', 'start-ogzprime.sh'), 'utf8');
     const cpuSetupScript = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'cpu-vps-setup.sh'), 'utf8');
     const packageScript = fs.readFileSync(path.join(__dirname, '..', 'deploy', 'create-package.sh'), 'utf8');
+    const evalDeployTool = fs.readFileSync(path.join(__dirname, '..', 'tools', 'eval-live-deploy.js'), 'utf8');
     const websocketServer = fs.readFileSync(path.join(__dirname, '..', 'ogzprime-ssl-server.js'), 'utf8');
 
-    expect(packageJson.scripts['start:prod']).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
-    expect(packageJson.scripts['start:prod']).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(packageJson.scripts['start:prod']).toBe('node tools/eval-live-deploy.js --with-websocket');
     expect(packageJson.scripts['start:prod']).not.toMatch(/pm2\s+start\s+run-empire-v2\.js/);
-    expect(deployWorkflow).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
-    expect(deployWorkflow).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(deployWorkflow).toContain('node tools/eval-live-deploy.js --with-websocket');
     expect(deployWorkflow).not.toMatch(/pm2\s+start\s+run-empire-v2\.js/);
     expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
     expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-stripe --update-env');
-    expect(startScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(startScript).toContain('node tools/eval-live-deploy.js');
     expect(startScript).not.toMatch(/pm2\s+(start|restart)\s+(public\/stripe-checkout\.js|ogz-(websocket|prime-v2|stripe)\b)/);
     expect(cpuSetupScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
-    expect(cpuSetupScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(cpuSetupScript).toContain('node tools/eval-live-deploy.js');
     expect(cpuSetupScript).not.toMatch(/pm2\s+start\s+(ogzprime-ssl-server\.js|run-empire-v2\.js)/);
-    expect(packageScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
-    expect(packageScript).toContain('pm2 startOrReload ecosystem.config.js --only ogz-prime-v2 --update-env');
+    expect(packageScript).toContain('node tools/eval-live-deploy.js --with-websocket');
     expect(packageScript).not.toMatch(/pm2\s+start\s+ecosystem\.config\.js\b/);
+    expect(evalDeployTool).toContain("TTP_ACCOUNT_START_OF_DAY_DATE: today");
+    expect(evalDeployTool).toContain("'stash'");
+    expect(evalDeployTool).toContain("['startOrReload', 'ecosystem.config.js', '--only', PM2_PROCESS, '--update-env']");
+    expect(evalDeployTool).toContain("['ogz-meta/gates/eval-live-posture-gate.js', '--pm2', PM2_PROCESS]");
     expect(websocketServer).toContain('pm2 startOrReload ecosystem.config.js --only ogz-websocket --update-env');
     expect(websocketServer).not.toMatch(/pm2\s+start\s+ogzprime-ssl-server\.js/);
   });
