@@ -193,6 +193,9 @@ function normalizeContract(strategyName, contract) {
     atrMinPercent: hasOwn(contract, 'atrMinPercent')
       ? requireNullablePercent(contract.atrMinPercent, 'exitContract.atrMinPercent')
       : null,
+    timeframe: hasOwn(contract, 'timeframe')
+      ? requireString(contract.timeframe, 'exitContract.timeframe')
+      : null,
     useStructuralExits: requireBoolean(contract.useStructuralExits, 'exitContract.useStructuralExits'),
     invalidationConditions: invalidationConditions.map((condition, index) => (
       requireString(condition, `exitContract.invalidationConditions[${index}]`)

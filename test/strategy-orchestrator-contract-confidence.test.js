@@ -24,22 +24,24 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     };
   }
 
-  function evaluateSingle(orchestrator, strategyName, confidence) {
+  function evaluateSingle(orchestrator, strategyName, confidence, options = {}) {
+    const timeframe = options.timeframe || '15m';
     orchestrator.strategies = [{
       name: strategyName,
       evaluate: () => ({
         direction: 'buy',
         confidence,
+        timeframe: options.signalTimeframe,
         reason: `${strategyName} test signal`,
       }),
     }];
 
     return orchestrator.evaluate(
-      { atr: 1, volatility: 1 },
+      { atr: options.atr ?? 1, volatility: options.volatility ?? 1 },
       [],
       { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
-      [{ o: 100, h: 101, l: 99, c: 100, t: 1 }],
-      { price: 100, timeframe: '15m' }
+      [{ o: 100, h: 101, l: 99, c: 100, t: 1, timeframe }],
+      { price: options.price ?? 100, timeframe }
     );
   }
 
@@ -107,6 +109,64 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     expect(result.exitContract).not.toBeNull();
   });
 
+  test('uses timeframe-specific minConfidence before flat strategy minConfidence', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    addContract(TradingConfig, 'ContractGateTimeframe', {
+      minConfidence: 0.30,
+      timeframes: {
+        '1h': { minConfidence: 0.80 },
+      },
+    });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+
+    const oneHour = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'ContractGateTimeframe', 0.75, { timeframe: '1h' });
+    const fifteenMinute = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'ContractGateTimeframe', 0.75, { timeframe: '15m' });
+
+    expect(oneHour.action).toBe('HOLD');
+    expect(oneHour.filteredResults[0]).toEqual(expect.objectContaining({
+      rejectedBy: 'exit_contract_confidence_gate',
+      timeframe: '1h',
+    }));
+    expect(oneHour.filteredResults[0].decisionAttribution.contributors).toContainEqual(expect.objectContaining({
+      name: 'exit_contract_confidence_gate',
+      minConfidence: 0.80,
+      timeframe: '1h',
+      passed: false,
+    }));
+    expect(fifteenMinute.action).toBe('BUY');
+    expect(fifteenMinute.winnerStrategy).toBe('ContractGateTimeframe');
+    expect(fifteenMinute.timeframe).toBe('15m');
+  });
+
+  test('fails loudly when a strategy reports a malformed timeframe', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    addContract(TradingConfig, 'ContractGateMalformedTimeframe', {
+      minConfidence: 0.30,
+      timeframes: {
+        '5m': { minConfidence: 0.80 },
+      },
+    });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+    const orchestrator = new StrategyOrchestrator({ minConfluenceCount: 1 });
+    orchestrator.strategies = [{
+      name: 'ContractGateMalformedTimeframe',
+      evaluate: () => ({
+        direction: 'buy',
+        confidence: 0.75,
+        timeframe: 5,
+        reason: 'malformed timeframe test signal',
+      }),
+    }];
+
+    expect(() => orchestrator.evaluate(
+      { atr: 1, volatility: 1 },
+      [],
+      { currentRegime: 'ranging', confidence: 0.5, positionMultiplier: 1 },
+      [{ o: 100, h: 101, l: 99, c: 100, t: 1, timeframe: '15m' }],
+      { price: 100, timeframe: '15m' }
+    )).toThrow(/ContractGateMalformedTimeframe\.timeframe must be a non-empty string/);
+  });
+
   test('does not invent a confidence gate when exit contract minConfidence is null', () => {
     const TradingConfig = require('../core/TradingConfig');
     addContract(TradingConfig, 'ContractGateOpen', { minConfidence: null });
@@ -164,6 +224,93 @@ describe('StrategyOrchestrator exit contract confidence gate', () => {
     expect(result.action).toBe('HOLD');
     expect(result.winnerStrategy).toBeNull();
     expect(result.exitContract).toBeNull();
+  });
+
+  test('uses timeframe-specific atrMinPercent before flat strategy atrMinPercent', () => {
+    process.env.ATR_FILTER_ENABLED = 'true';
+    process.env.ATR_MIN_PERCENT = '0.1';
+    const TradingConfig = require('../core/TradingConfig');
+    addContract(TradingConfig, 'RuntimeAtrTimeframeGate', {
+      minConfidence: null,
+      atrMinPercent: null,
+      timeframes: {
+        '1h': { atrMinPercent: 2.0 },
+      },
+    });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+
+    const oneHour = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'RuntimeAtrTimeframeGate', 0.90, { timeframe: '1h' });
+    const fifteenMinute = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'RuntimeAtrTimeframeGate', 0.90, { timeframe: '15m' });
+
+    expect(oneHour.action).toBe('HOLD');
+    expect(oneHour.filteredResults[0]).toEqual(expect.objectContaining({
+      rejectedBy: 'atr_pre_entry_filter',
+      timeframe: '1h',
+    }));
+    expect(oneHour.filteredResults[0].decisionAttribution.contributors).toContainEqual(expect.objectContaining({
+      name: 'atr_pre_entry_filter',
+      threshold: 2.0,
+      thresholdSource: 'strategy_timeframe',
+      timeframe: '1h',
+      passed: false,
+    }));
+    expect(fifteenMinute.action).toBe('BUY');
+    expect(fifteenMinute.winnerStrategy).toBe('RuntimeAtrTimeframeGate');
+    expect(fifteenMinute.timeframe).toBe('15m');
+  });
+
+  test('births the exit contract from the winning signal timeframe, not the base runtime timeframe', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    addContract(TradingConfig, 'ContractGateSignalTimeframe', {
+      minConfidence: 0.30,
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1.2,
+      trailingStopPercent: 0.4,
+      trailingActivation: 0.7,
+      maxHoldTimeMinutes: 90,
+      timeframes: {
+        '1h': {
+          minConfidence: 0.70,
+          stopLossPercent: -2.0,
+          takeProfitPercent: 4.5,
+          trailingStopPercent: 1.5,
+          trailingActivation: 2.0,
+          maxHoldTimeMinutes: 480,
+        },
+      },
+    });
+    const { StrategyOrchestrator } = require('../core/StrategyOrchestrator');
+
+    const result = evaluateSingle(new StrategyOrchestrator({ minConfluenceCount: 1 }), 'ContractGateSignalTimeframe', 0.75, {
+      timeframe: '15m',
+      signalTimeframe: '1h',
+    });
+
+    expect(result.action).toBe('BUY');
+    expect(result.timeframe).toBe('1h');
+    expect(result.exitContract).toEqual(expect.objectContaining({
+      timeframe: '1h',
+      stopLossPercent: -2.0,
+      takeProfitPercent: 4.5,
+      trailingStopPercent: 1.5,
+      trailingActivation: 2.0,
+      maxHoldTimeMinutes: 480,
+    }));
+    expect(result.signalBreakdown).toEqual(expect.objectContaining({
+      timeframe: '1h',
+    }));
+    expect(result.signalBreakdown.signals[0]).toEqual(expect.objectContaining({
+      timeframe: '1h',
+      decisionAttribution: expect.objectContaining({
+        contributors: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'exit_contract_confidence_gate',
+            timeframe: '1h',
+            passed: true,
+          }),
+        ]),
+      }),
+    }));
   });
 
   test('fails loudly when exit contract minConfidence is malformed', () => {

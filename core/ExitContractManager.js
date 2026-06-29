@@ -47,6 +47,88 @@ function positiveFiniteOrNull(value) {
   return numeric !== null && numeric > 0 ? numeric : null;
 }
 
+function normalizeTimeframeValue(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function cloneExitContract(contract) {
+  const { timeframes, ...runtimeContract } = contract || {};
+  return { ...runtimeContract };
+}
+
+function resolveTimeframeContract(contract, timeframe) {
+  const baseContract = cloneExitContract(contract);
+  const normalizedTimeframe = normalizeTimeframeValue(timeframe);
+  const timeframeContract = normalizedTimeframe && contract?.timeframes?.[normalizedTimeframe];
+  if (!timeframeContract || typeof timeframeContract !== 'object' || Array.isArray(timeframeContract)) {
+    return baseContract;
+  }
+  return {
+    ...baseContract,
+    ...cloneExitContract(timeframeContract),
+  };
+}
+
+const MISSING_EXIT_CONTRACT_VALUE = Symbol('missing_exit_contract_value');
+const EXIT_CONTRACT_VALUE_FIELDS = [
+  'strategyName',
+  'stopLossPercent',
+  'takeProfitPercent',
+  'trailingStopPercent',
+  'trailingActivation',
+  'maxHoldTimeMinutes',
+  'useStructuralExits',
+  'invalidationConditions',
+  'minConfidence',
+  'atrMinPercent',
+];
+
+function readRuntimeContractValue(path) {
+  return TradingConfig.get(path, MISSING_EXIT_CONTRACT_VALUE);
+}
+
+function hasRuntimeContractOverride(strategyName, timeframe) {
+  const normalizedTimeframe = normalizeTimeframeValue(timeframe);
+  return EXIT_CONTRACT_VALUE_FIELDS.some((field) => (
+    readRuntimeContractValue(`exitContracts.${strategyName}.${field}`) !== MISSING_EXIT_CONTRACT_VALUE
+    || (
+      normalizedTimeframe
+      && readRuntimeContractValue(`exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${field}`) !== MISSING_EXIT_CONTRACT_VALUE
+    )
+  ));
+}
+
+function applyRuntimeExitContractOverrides(contract, strategyName, timeframe) {
+  const normalizedTimeframe = normalizeTimeframeValue(timeframe);
+  const resolved = { ...contract };
+
+  for (const field of EXIT_CONTRACT_VALUE_FIELDS) {
+    const value = readRuntimeContractValue(`exitContracts.${strategyName}.${field}`);
+    if (value !== MISSING_EXIT_CONTRACT_VALUE) {
+      resolved[field] = value;
+    }
+  }
+
+  if (normalizedTimeframe) {
+    for (const field of EXIT_CONTRACT_VALUE_FIELDS) {
+      const value = readRuntimeContractValue(`exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${field}`);
+      if (value !== MISSING_EXIT_CONTRACT_VALUE) {
+        resolved[field] = value;
+      }
+    }
+  }
+
+  return resolved;
+}
+
+function buildStrategyContract(contract, strategyName, timeframe) {
+  return applyRuntimeExitContractOverrides(
+    resolveTimeframeContract(contract, timeframe),
+    strategyName,
+    timeframe
+  );
+}
+
 /**
  * Exit contracts and universal limits now come from TradingConfig (single source of truth)
  * Phase 1 REWRITE: Eliminated hardcoded duplicates - TradingConfig owns all trading params
@@ -74,39 +156,40 @@ class ExitContractManager {
    * @param {string} strategyName - Name of the strategy
    * @returns {Object} Exit contract with SL/TP/invalidation
    */
-  getDefaultContract(strategyName) {
+  getDefaultContract(strategyName, context = {}) {
     // FIX 2026-02-24: Validate strategyName is a string (Phase 12 fuzzing)
     if (typeof strategyName !== 'string' || !strategyName) {
       strategyName = 'default';
     }
+    const timeframe = normalizeTimeframeValue(context?.timeframe);
 
     // Try exact match first
     if (this.defaultContracts[strategyName]) {
-      return { ...this.defaultContracts[strategyName] };
+      return buildStrategyContract(this.defaultContracts[strategyName], strategyName, timeframe);
     }
 
     // Try partial match
     const lowerName = strategyName.toLowerCase();
     if (lowerName.includes('ema') || lowerName.includes('crossover')) {
-      return { ...this.defaultContracts.EMASMACrossover };
+      return buildStrategyContract(this.defaultContracts.EMASMACrossover, strategyName, timeframe);
     }
     if (lowerName.includes('sweep') || lowerName.includes('liquidity')) {
-      return { ...this.defaultContracts.LiquiditySweep };
+      return buildStrategyContract(this.defaultContracts.LiquiditySweep, strategyName, timeframe);
     }
     if (lowerName.includes('sr') || lowerName.includes('support') || lowerName.includes('resistance')) {
-      return { ...this.defaultContracts.MADynamicSR };
+      return buildStrategyContract(this.defaultContracts.MADynamicSR, strategyName, timeframe);
     }
     if (lowerName.includes('candle') || lowerName.includes('pattern')) {
-      return { ...this.defaultContracts.CandlePattern };
+      return buildStrategyContract(this.defaultContracts.CandlePattern, strategyName, timeframe);
     }
     if (lowerName.includes('regime')) {
-      return { ...this.defaultContracts.MarketRegime };
+      return buildStrategyContract(this.defaultContracts.MarketRegime, strategyName, timeframe);
     }
     if (lowerName.includes('mtf') || lowerName.includes('timeframe')) {
-      return { ...this.defaultContracts.MultiTimeframe };
+      return buildStrategyContract(this.defaultContracts.MultiTimeframe, strategyName, timeframe);
     }
 
-    return { ...this.defaultContracts.default };
+    return buildStrategyContract(this.defaultContracts.default, strategyName, timeframe);
   }
 
   /**
@@ -140,7 +223,7 @@ class ExitContractManager {
     if (trade.exitContract) {
       assertExplicitExitOwnership(trade.exitContract, 'ExitContractManager.checkExitConditions');
     }
-    const contract = trade.exitContract || this.getDefaultContract(trade.entryStrategy || 'default');
+    const contract = trade.exitContract || this.getDefaultContract(trade.entryStrategy || 'default', context);
     assertExplicitExitOwnership(contract, 'ExitContractManager.checkExitConditions');
     // Ensure trade has contract for checkers
     if (!trade.exitContract) trade.exitContract = contract;
@@ -572,12 +655,14 @@ class ExitContractManager {
     if (!context || typeof context !== 'object') context = {};
 
     // Start with default contract for this strategy
-    const contract = this.getDefaultContract(strategyName);
+    const timeframe = normalizeTimeframeValue(context.timeframe) || '15m';
+    const contract = this.getDefaultContract(strategyName, { timeframe });
+    contract.timeframe = timeframe;
 
     // FIX 2026-03-20: Only apply timeframe config for strategies WITHOUT their own exit contracts
     // Bug: Was overwriting RSI's -2.0% SL with 15m's -1.5% SL, causing premature stops on TSLA
-    const hasStrategyContract = !!TradingConfig.BASE_CONFIG.exitContracts[strategyName];
-    const timeframe = context.timeframe || '15m';
+    const hasStrategyContract = !!TradingConfig.BASE_CONFIG.exitContracts[strategyName]
+      || hasRuntimeContractOverride(strategyName, timeframe);
     const tfConfig = TradingConfig.getTimeframeConfig(timeframe);
     if (tfConfig && !hasStrategyContract) {
       // Only apply timeframe defaults for strategies using generic 'default' contract

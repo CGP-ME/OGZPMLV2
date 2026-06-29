@@ -165,6 +165,30 @@ function publicResult(result) {
   };
 }
 
+function normalizeTimeframeValue(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function requireOptionalTimeframe(value, label) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const normalized = normalizeTimeframeValue(value);
+  if (!normalized) {
+    throw new Error(`[TIMEFRAME-CONTRACT] ${label} must be a non-empty string when provided (got ${typeof value}: ${value})`);
+  }
+  return normalized;
+}
+
+function resolveSignalTimeframe(result, ctx, strategyName = 'strategy') {
+  return requireOptionalTimeframe(result?.timeframe, `${strategyName}.timeframe`)
+    || requireOptionalTimeframe(result?.sourceTimeframe, `${strategyName}.sourceTimeframe`)
+    || requireOptionalTimeframe(result?.signalData?.timeframe, `${strategyName}.signalData.timeframe`)
+    || requireOptionalTimeframe(ctx?.extras?.timeframe, 'extras.timeframe')
+    || requireOptionalTimeframe(ctx?.priceHistory?.[ctx.priceHistory.length - 1]?.timeframe, 'latestCandle.timeframe')
+    || null;
+}
+
 function finiteConfigNumber(value, label, fallback, min = null) {
   const resolved = value ?? fallback;
   const numeric = Number(resolved);
@@ -269,23 +293,37 @@ function buildLearningSnapshot(result, ctx) {
   }
 }
 
-function getEffectiveExitContractValue(strategyName, key) {
+function getEffectiveExitContractValue(strategyName, key, timeframe = null) {
+  const normalizedTimeframe = normalizeTimeframeValue(timeframe);
+  if (normalizedTimeframe) {
+    const timeframeValue = TradingConfig.get(`exitContracts.${strategyName}.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+    if (timeframeValue !== MISSING_EXIT_CONTRACT_VALUE) {
+      return { value: timeframeValue, source: 'strategy_timeframe', timeframe: normalizedTimeframe };
+    }
+  }
   const strategyValue = TradingConfig.get(`exitContracts.${strategyName}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
   if (strategyValue !== MISSING_EXIT_CONTRACT_VALUE) {
-    return { value: strategyValue, source: 'strategy' };
+    return { value: strategyValue, source: 'strategy', timeframe: normalizedTimeframe };
   }
   const strategyContract = TradingConfig.get(`exitContracts.${strategyName}`, MISSING_EXIT_CONTRACT_VALUE);
   if (strategyContract !== MISSING_EXIT_CONTRACT_VALUE) {
     throw new Error(`[EXIT-CONTRACT] ${strategyName}.${key} must be explicit null or a finite number; key is missing from strategy contract`);
   }
+  if (normalizedTimeframe) {
+    const defaultTimeframeValue = TradingConfig.get(`exitContracts.default.timeframes.${normalizedTimeframe}.${key}`, MISSING_EXIT_CONTRACT_VALUE);
+    if (defaultTimeframeValue !== MISSING_EXIT_CONTRACT_VALUE) {
+      return { value: defaultTimeframeValue, source: 'default_timeframe', timeframe: normalizedTimeframe };
+    }
+  }
   return {
     value: TradingConfig.get(`exitContracts.default.${key}`, null),
     source: 'default',
+    timeframe: normalizedTimeframe,
   };
 }
 
-function getContractMinConfidence(strategyName) {
-  const { value: minConfidence } = getEffectiveExitContractValue(strategyName, 'minConfidence');
+function getContractMinConfidence(strategyName, timeframe = null) {
+  const { value: minConfidence } = getEffectiveExitContractValue(strategyName, 'minConfidence', timeframe);
   if (minConfidence == null) return null;
   if (!Number.isFinite(minConfidence) || minConfidence < 0 || minConfidence > 1) {
     throw new Error(`[EXIT-CONTRACT] ${strategyName}.minConfidence must be null or a finite 0..1 number (got ${minConfidence})`);
@@ -293,8 +331,8 @@ function getContractMinConfidence(strategyName) {
   return minConfidence;
 }
 
-function getContractAtrMinPercent(strategyName) {
-  const contractAtrMin = getEffectiveExitContractValue(strategyName, 'atrMinPercent');
+function getContractAtrMinPercent(strategyName, timeframe = null) {
+  const contractAtrMin = getEffectiveExitContractValue(strategyName, 'atrMinPercent', timeframe);
   if (contractAtrMin.value == null) return contractAtrMin;
   if (!Number.isFinite(contractAtrMin.value) || contractAtrMin.value < 0) {
     throw new Error(`[EXIT-CONTRACT] ${strategyName}.atrMinPercent must be null or a finite non-negative number (got ${contractAtrMin.value})`);
@@ -1453,13 +1491,15 @@ class StrategyOrchestrator {
             noSignalStrategies.push(`${strategy.name}:conf<=0`);
             continue;
           }
-          const contractMinConfidence = getContractMinConfidence(strategy.name);
+          const signalTimeframe = resolveSignalTimeframe(result, ctx, strategy.name);
+          const contractMinConfidence = getContractMinConfidence(strategy.name, signalTimeframe);
           if (contractMinConfidence != null && confidence < contractMinConfidence) {
             const rejectedCandidate = {
               ...result,
               confidence,
               rankingScore: confidence,
               strategyName: strategy.name,
+              timeframe: signalTimeframe,
               decisionAttribution: createDecisionAttribution(strategy.name, confidence),
               learningSnapshot: buildLearningSnapshot({ ...result, strategyName: strategy.name }, ctx),
               rejectedBy: 'exit_contract_confidence_gate',
@@ -1470,6 +1510,7 @@ class StrategyOrchestrator {
               type: 'gate',
               minConfidence: contractMinConfidence,
               actualConfidence: confidence,
+              timeframe: signalTimeframe,
               passed: false,
             });
             filteredResults.push(rejectedCandidate);
@@ -1484,6 +1525,7 @@ class StrategyOrchestrator {
             confidence,
             rankingScore: confidence,
             strategyName: strategy.name,
+            timeframe: signalTimeframe,
             decisionAttribution: createDecisionAttribution(strategy.name, confidence),
             learningSnapshot: buildLearningSnapshot({ ...result, strategyName: strategy.name }, ctx),
           };
@@ -1493,6 +1535,7 @@ class StrategyOrchestrator {
               type: 'gate',
               minConfidence: contractMinConfidence,
               actualConfidence: confidence,
+              timeframe: signalTimeframe,
               passed: true,
             });
           }
@@ -1501,7 +1544,8 @@ class StrategyOrchestrator {
       } catch (err) {
         if (err.message && (
           err.message.startsWith('[EXIT-CONTRACT]') ||
-          err.message.startsWith('[STRATEGY-SCOPE]')
+          err.message.startsWith('[STRATEGY-SCOPE]') ||
+          err.message.startsWith('[TIMEFRAME-CONTRACT]')
         )) {
           throw err;
         }
@@ -1513,6 +1557,7 @@ class StrategyOrchestrator {
     const rawStrategyResults = results.map(r => ({
       strategyName: r.strategyName,
       direction: r.direction,
+      timeframe: r.timeframe,
       confidence: r.confidence,
       rankingScore: r.rankingScore,
     }));
@@ -1578,7 +1623,7 @@ class StrategyOrchestrator {
     if (atrFilterEnabled && filterATRpct > 0 && results.length > 0) {
       for (let i = results.length - 1; i >= 0; i--) {
         const r = results[i];
-        const contractAtrMin = getContractAtrMinPercent(r.strategyName);
+        const contractAtrMin = getContractAtrMinPercent(r.strategyName, r.timeframe);
         const threshold = contractAtrMin.value != null ? contractAtrMin.value : globalAtrMin;
         if (filterATRpct < threshold) {
           addDecisionContributor(r, {
@@ -1587,6 +1632,7 @@ class StrategyOrchestrator {
             atrPercent: filterATRpct,
             threshold,
             thresholdSource: contractAtrMin.value != null ? contractAtrMin.source : 'global',
+            timeframe: r.timeframe || null,
             passed: false,
           });
           filteredResults.push({
@@ -1606,6 +1652,7 @@ class StrategyOrchestrator {
             atrPercent: filterATRpct,
             threshold,
             thresholdSource: contractAtrMin.value != null ? contractAtrMin.source : 'global',
+            timeframe: r.timeframe || null,
             passed: true,
           });
         }
@@ -1926,15 +1973,16 @@ class StrategyOrchestrator {
     if (typeof timeframe !== 'string' || !timeframe) {
       throw new Error(`[HIGH-16] extras.timeframe missing or non-string (got ${typeof timeframe}: ${timeframe}) — TradingLoop must thread broker.candleTimeframe`);
     }
+    const winnerTimeframe = normalizeTimeframeValue(winner.timeframe) || timeframe;
     exitContract = ecm.createExitContract(
       winner.strategyName,
       { ...signalOverrides, confidence: publicWinnerConfidence },
-      { volatility: volPct, timeframe }
+      { volatility: volPct, timeframe: winnerTimeframe }
     );
 
     // ─── Step 8: Build reasons list ───
     const reasons = [
-      `Winner: ${winner.strategyName} (${(publicWinnerConfidence * 100).toFixed(0)}%) — ${winner.reason}`,
+      `Winner: ${winner.strategyName} ${winnerTimeframe} (${(publicWinnerConfidence * 100).toFixed(0)}%) — ${winner.reason}`,
       `Confluence: ${confluenceCount} strategies agree on ${winner.direction.toUpperCase()}`,
       `Sizing: ${sizingMultiplier}x base position`,
     ];
@@ -1955,6 +2003,7 @@ class StrategyOrchestrator {
       direction: winner.direction,
       confidence: publicWinnerConfidence * 100,
       winnerStrategy: winner.strategyName,
+      timeframe: winnerTimeframe,
       exitContract,
       sizingMultiplier,
       confluence: {
@@ -1973,14 +2022,17 @@ class StrategyOrchestrator {
       // Signal breakdown for trade logging (compatible with existing signalBreakdown format)
       signalBreakdown: {
         winnerStrategy: winner.strategyName,
+        timeframe: winnerTimeframe,
         winnerConfidence: publicWinnerConfidence,
         confluenceCount,
         sizingMultiplier,
         signals: publicResults.map(r => ({
           name: r.strategyName,
           direction: r.direction,
+          timeframe: r.timeframe || null,
           confidence: r.confidence,
           reason: r.reason,
+          decisionAttribution: cloneDecisionAttribution(r.decisionAttribution),
           signalBasis: r.signalData?.signalBasis || null,
           crossoverCount: Number.isFinite(r.signalData?.crossoverCount) ? r.signalData.crossoverCount : null,
         })),

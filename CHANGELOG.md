@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Strategy Timeframe Exit Contract Ownership (2026-06-29)
+
+- Added per-strategy per-timeframe exit contract resolution for confidence gates, ATR gates, and trade-birth exit geometry via `exitContracts.<strategy>.timeframes.<timeframe>`.
+- Stamped resolved signal and exit-contract timeframes into orchestrator output, signal breakdown, born exit contracts, and frozen exit policies for confidence/risk visibility.
+- Preserved locked strategy contracts from generic timeframe default clobbering while allowing explicit per-timeframe strategy overrides and runtime matrix overrides.
+
 ### MTF Frozen Exit Policy Snapshot (2026-06-29)
 
 - Added a frozen `mtfConfluenceSnapshot` to trade-birth exit policies so the new MPM/frozen-policy path can inspect higher-timeframe confluence without changing exit behavior.

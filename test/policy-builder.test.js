@@ -213,6 +213,18 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(policy.contract.stopLossPercent).toBe(-0.5);
   });
 
+  test('preserves the selected exit contract timeframe in the frozen policy', () => {
+    const policy = PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract({ timeframe: '1h' }),
+      nowMs: fixedNowMs,
+      ...policyContext,
+      configReader: reader(),
+    });
+
+    expect(policy.contract.timeframe).toBe('1h');
+  });
+
   test('freezes an aligned MTF confluence snapshot at trade birth', () => {
     const mtfConfluenceSnapshot = {
       direction: 'buy',

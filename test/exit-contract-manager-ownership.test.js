@@ -112,6 +112,112 @@ describe('ExitContractManager exit ownership contract', () => {
     expect(trade.exitContract.useStructuralExits).toBe(false);
   });
 
+  test('births strategy exit geometry from the selected timeframe contract', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    TradingConfig.BASE_CONFIG.exitContracts.TimeframeExitProbe = {
+      ...TradingConfig.BASE_CONFIG.exitContracts.default,
+      strategyName: 'TimeframeExitProbe',
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1.2,
+      trailingStopPercent: 0.4,
+      trailingActivation: 0.7,
+      maxHoldTimeMinutes: 90,
+      minConfidence: null,
+      atrMinPercent: null,
+      timeframes: {
+        '1h': {
+          stopLossPercent: -2.0,
+          takeProfitPercent: 4.5,
+          trailingStopPercent: 1.5,
+          trailingActivation: 2.0,
+          maxHoldTimeMinutes: 480,
+        },
+      },
+    };
+
+    const manager = new ExitContractManager();
+    const oneHour = manager.createExitContract('TimeframeExitProbe', {}, { timeframe: '1h', volatility: 1 });
+    const fifteenMinute = manager.createExitContract('TimeframeExitProbe', {}, { timeframe: '15m', volatility: 1 });
+
+    expect(oneHour).toEqual(expect.objectContaining({
+      strategyName: 'TimeframeExitProbe',
+      stopLossPercent: -2.0,
+      takeProfitPercent: 4.5,
+      trailingStopPercent: 1.5,
+      trailingActivation: 2.0,
+      maxHoldTimeMinutes: 480,
+      timeframe: '1h',
+    }));
+    expect(oneHour.timeframes).toBeUndefined();
+    expect(fifteenMinute).toEqual(expect.objectContaining({
+      strategyName: 'TimeframeExitProbe',
+      stopLossPercent: -0.5,
+      takeProfitPercent: 1.2,
+      trailingStopPercent: 0.4,
+      trailingActivation: 0.7,
+      maxHoldTimeMinutes: 90,
+      timeframe: '15m',
+    }));
+
+    delete TradingConfig.BASE_CONFIG.exitContracts.TimeframeExitProbe;
+  });
+
+  test('does not let generic timeframe defaults clobber a locked strategy contract', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    const manager = new ExitContractManager();
+    const baseContract = TradingConfig.BASE_CONFIG.exitContracts.EMASMACrossover;
+
+    const contract = manager.createExitContract('EMASMACrossover', {}, { timeframe: '1h', volatility: 1 });
+
+    expect(contract).toEqual(expect.objectContaining({
+      strategyName: 'EMASMACrossover',
+      stopLossPercent: baseContract.stopLossPercent,
+      takeProfitPercent: baseContract.takeProfitPercent,
+      trailingStopPercent: baseContract.trailingStopPercent,
+      trailingActivation: baseContract.trailingActivation,
+      maxHoldTimeMinutes: baseContract.maxHoldTimeMinutes,
+      timeframe: '1h',
+    }));
+    expect(contract.stopLossPercent).not.toBe(-2.5);
+  });
+
+  test('honors runtime per-timeframe exit geometry overrides at trade birth', () => {
+    const TradingConfig = require('../core/TradingConfig');
+    TradingConfig.setOverrides({
+      exitContracts: {
+        RuntimeTimeframeExitProbe: {
+          strategyName: 'RuntimeTimeframeExitProbe',
+          timeframes: {
+            '1h': {
+              stopLossPercent: -3.0,
+              takeProfitPercent: 6.0,
+              trailingStopPercent: 2.0,
+              trailingActivation: 2.5,
+              maxHoldTimeMinutes: 720,
+            },
+          },
+        },
+      },
+    });
+
+    try {
+      const manager = new ExitContractManager();
+      const contract = manager.createExitContract('RuntimeTimeframeExitProbe', {}, { timeframe: '1h', volatility: 1 });
+
+      expect(contract).toEqual(expect.objectContaining({
+        strategyName: 'RuntimeTimeframeExitProbe',
+        stopLossPercent: -3.0,
+        takeProfitPercent: 6.0,
+        trailingStopPercent: 2.0,
+        trailingActivation: 2.5,
+        maxHoldTimeMinutes: 720,
+        timeframe: '1h',
+      }));
+    } finally {
+      TradingConfig.clearOverrides();
+    }
+  });
+
   test('routes profit-side exits through the stateless planner after safety checks', () => {
     const manager = new ExitContractManager();
     const now = Date.parse('2026-06-28T12:00:00.000Z');
