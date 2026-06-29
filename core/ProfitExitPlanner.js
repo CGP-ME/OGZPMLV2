@@ -195,6 +195,24 @@ function tierExitFraction(snapshot, tier, tierState) {
     const targetQuantity = snapshot.entryOrderQuantity * configuredFraction;
     return remainingFractionForQuantity(snapshot, targetQuantity, filledQuantityFromState(tierState));
   }
+  if (allocationBasis === 'open_tier_weight') {
+    const tiers = snapshot.frozenExitPolicy.profitManagement.tieredExit.tiers;
+    const tierIndex = tiers.indexOf(tier);
+    const openWeight = tiers.reduce((sum, candidate, index) => {
+      const state = snapshot.tierStates[index];
+      if (!state || currentStateStatus(state, `snapshot.tierStates[${index}]`) !== 'idle') {
+        return sum;
+      }
+      return sum + requireFraction(candidate.exitFraction, `tier.${candidate.name || index}.exitFraction`);
+    }, 0);
+    if (openWeight <= 0) {
+      throw new Error('[ProfitExitPlanner] open tier weights must sum above zero');
+    }
+    if (tierIndex === tiers.length - 1) {
+      return 1;
+    }
+    return configuredFraction / openWeight;
+  }
   if (allocationBasis === 'remaining_quantity') {
     return configuredFraction;
   }
@@ -233,9 +251,14 @@ function planTier(snapshot, profitPercent) {
     if (exitFraction <= 0) {
       continue;
     }
+    const tierReason = tier.name === 'final'
+      ? `profit_tier_${index + 1}`
+      : typeof tier.name === 'string' && /^tier\d+$/i.test(tier.name.trim())
+      ? `profit_tier_${tier.name.trim().replace(/^\D+/i, '')}`
+      : `profit_${tier.name || `tier_${index + 1}`}`;
     return intent(snapshot, {
       action: exitFraction >= 1 ? 'exit_full' : 'exit_partial',
-      reason: `profit_${tier.name || `tier${index + 1}`}`,
+      reason: tierReason,
       exitRole: 'profit',
       stateKey: 'tierStates',
       tierIndex: index,
@@ -249,45 +272,6 @@ function planTier(snapshot, profitPercent) {
   }
 
   return null;
-}
-
-function planTrailing(snapshot, profitPercent) {
-  const policy = snapshot.frozenExitPolicy;
-  const trailingStopPercent = policy.contract.trailingStopPercent;
-  const trailingActivation = policy.contract.trailingActivation;
-  if (trailingStopPercent === undefined) {
-    throw new Error('[ProfitExitPlanner] policy.contract.trailingStopPercent is required');
-  }
-  if (trailingStopPercent === null) {
-    return null;
-  }
-  const trailDistance = requireFiniteNumber(trailingStopPercent, 'policy.contract.trailingStopPercent') / 100;
-  const activation = requireFiniteNumber(trailingActivation, 'policy.contract.trailingActivation') / 100;
-  const maxProfitPercent = Math.max(
-    requireFiniteNumber(snapshot.maxProfitPercent ?? profitPercent, 'snapshot.maxProfitPercent'),
-    profitPercent,
-  );
-  if (maxProfitPercent < activation) {
-    return null;
-  }
-  if ((maxProfitPercent - profitPercent) < trailDistance) {
-    return null;
-  }
-
-  return intent(snapshot, {
-    action: 'exit_full',
-    reason: 'trailing_stop',
-    exitRole: 'profit',
-    stateKey: null,
-    exitFraction: 1,
-    evidence: {
-      profitPercent,
-      maxProfitPercent,
-      trailDistance,
-      activation,
-      policyHash: policy.policyHash,
-    },
-  });
 }
 
 function plan(snapshot, market = {}) {
@@ -305,7 +289,6 @@ function plan(snapshot, market = {}) {
 
   return planBeScaleOut(snapshot, profitPercent)
     || planTier(snapshot, profitPercent)
-    || planTrailing(snapshot, profitPercent)
     || none('no_profit_exit', {
       profitPercent,
       policyHash: snapshot.frozenExitPolicy.policyHash,

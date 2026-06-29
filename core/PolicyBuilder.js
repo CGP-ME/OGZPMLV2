@@ -38,6 +38,12 @@ const CONFIG_PATHS = Object.freeze({
     lowConfidenceThreshold: 'exitLogic.tieredExit.lowConfidenceThreshold',
     lowConfidenceMultiplier: 'exitLogic.tieredExit.lowConfidenceMultiplier',
   }),
+  volatilityAdjustment: Object.freeze({
+    enabled: 'exitLogic.volatilityAdjustment.enabled',
+    lowThresholdPercent: 'exitLogic.volatilityAdjustment.lowThresholdPercent',
+    highThresholdPercent: 'exitLogic.volatilityAdjustment.highThresholdPercent',
+    lookbackPeriods: 'exitLogic.volatilityAdjustment.lookbackPeriods',
+  }),
   profitTargets: Object.freeze({
     tier1: 'exits.profitTiers.tier1',
     tier2: 'exits.profitTiers.tier2',
@@ -205,7 +211,92 @@ function normalizeBreakEvenStop(raw) {
   };
 }
 
-function normalizeTieredExit(raw, targets) {
+function normalizeVolatilityAdjustment(raw, volatility) {
+  const runtimeVolatility = requirePositiveNumber(volatility, 'volatility');
+  const enabled = requireBoolean(raw.enabled, 'exitLogic.volatilityAdjustment.enabled');
+  const lowThreshold = requireFiniteNumber(raw.lowThresholdPercent, 'exitLogic.volatilityAdjustment.lowThresholdPercent') / 100;
+  const highThreshold = requireFiniteNumber(raw.highThresholdPercent, 'exitLogic.volatilityAdjustment.highThresholdPercent') / 100;
+  requirePositiveNumber(raw.lookbackPeriods, 'exitLogic.volatilityAdjustment.lookbackPeriods');
+
+  if (!enabled) {
+    return {
+      enabled,
+      volatility: runtimeVolatility,
+      targetFactor: 1.0,
+      volatilityLevel: 'disabled',
+      adjusted: false,
+    };
+  }
+
+  if (runtimeVolatility <= lowThreshold) {
+    return {
+      enabled,
+      volatility: runtimeVolatility,
+      targetFactor: 0.8,
+      volatilityLevel: 'low',
+      adjusted: true,
+    };
+  }
+
+  if (runtimeVolatility >= highThreshold) {
+    return {
+      enabled,
+      volatility: runtimeVolatility,
+      targetFactor: 1.4,
+      volatilityLevel: 'high',
+      adjusted: true,
+    };
+  }
+
+  return {
+    enabled,
+    volatility: runtimeVolatility,
+    targetFactor: 1.0,
+    volatilityLevel: 'normal',
+    adjusted: false,
+  };
+}
+
+function normalizeMarketCondition(marketCondition) {
+  return requireString(marketCondition, 'marketCondition');
+}
+
+function targetAdjustment(raw, volatilityAdjustment, confidence, marketCondition) {
+  const runtimeConfidence = requirePositiveNumber(confidence, 'confidence');
+  const condition = normalizeMarketCondition(marketCondition);
+  let marketMultiplier = 1.0;
+  if (condition === 'trending' && requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation')) {
+    marketMultiplier = requireFiniteNumber(raw.trendingTargetMultiplier, 'exitLogic.tieredExit.trendingTargetMultiplier');
+  } else if (condition === 'ranging' && requireBoolean(raw.enableMarketAdaptation, 'exitLogic.tieredExit.enableMarketAdaptation')) {
+    marketMultiplier = requireFiniteNumber(raw.rangingTargetMultiplier, 'exitLogic.tieredExit.rangingTargetMultiplier');
+  }
+
+  const highConfThreshold = requireFiniteNumber(raw.highConfidenceThreshold, 'exitLogic.tieredExit.highConfidenceThreshold');
+  const highConfMult = requireFiniteNumber(raw.highConfidenceMultiplier, 'exitLogic.tieredExit.highConfidenceMultiplier');
+  const lowConfThreshold = requireFiniteNumber(raw.lowConfidenceThreshold, 'exitLogic.tieredExit.lowConfidenceThreshold');
+  const lowConfMult = requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitLogic.tieredExit.lowConfidenceMultiplier');
+  let confidenceMultiplier = 1.0;
+  if (runtimeConfidence > highConfThreshold) {
+    confidenceMultiplier = highConfMult;
+  } else if (runtimeConfidence < lowConfThreshold) {
+    confidenceMultiplier = lowConfMult;
+  }
+
+  return {
+    volatilityTargetFactor: requireFiniteNumber(volatilityAdjustment.targetFactor, 'volatilityAdjustment.targetFactor'),
+    marketCondition: condition,
+    marketMultiplier,
+    confidence: runtimeConfidence,
+    confidenceMultiplier,
+    combinedTargetMultiplier: volatilityAdjustment.targetFactor * marketMultiplier * confidenceMultiplier,
+  };
+}
+
+function adjustedTarget(target, adjustment, label) {
+  return requireFiniteNumber(target, label) * adjustment.combinedTargetMultiplier;
+}
+
+function normalizeTieredExit(raw, targets, volatilityAdjustment, confidence, marketCondition) {
   const tierFractions = [
     ['tier1', raw.tier1ExitFraction],
     ['tier2', raw.tier2ExitFraction],
@@ -218,6 +309,7 @@ function normalizeTieredExit(raw, targets) {
     throw new Error('[PolicyBuilder] exitLogic.tieredExit fractions cannot exceed 1.0 total');
   }
   const finalExitFraction = 1 - configuredFractionTotal;
+  const adjustment = targetAdjustment(raw, volatilityAdjustment, confidence, marketCondition);
 
   return {
     enabled: requireBoolean(raw.enabled, 'exitLogic.tieredExit.enabled'),
@@ -228,26 +320,31 @@ function normalizeTieredExit(raw, targets) {
     highConfidenceMultiplier: requireFiniteNumber(raw.highConfidenceMultiplier, 'exitLogic.tieredExit.highConfidenceMultiplier'),
     lowConfidenceThreshold: requireFiniteNumber(raw.lowConfidenceThreshold, 'exitLogic.tieredExit.lowConfidenceThreshold'),
     lowConfidenceMultiplier: requireFiniteNumber(raw.lowConfidenceMultiplier, 'exitLogic.tieredExit.lowConfidenceMultiplier'),
-    allocationBasis: 'cumulative_original_quantity',
+    allocationBasis: 'open_tier_weight',
+    adjustment,
     tiers: [
       {
         name: 'tier1',
-        targetProfitMove: requireFiniteNumber(targets.tier1, 'exits.profitTiers.tier1'),
+        targetProfitMove: adjustedTarget(targets.tier1, adjustment, 'exits.profitTiers.tier1'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier1, 'exits.profitTiers.tier1'),
         exitFraction: requireFraction(raw.tier1ExitFraction, 'exitLogic.tieredExit.tier1ExitFraction'),
       },
       {
         name: 'tier2',
-        targetProfitMove: requireFiniteNumber(targets.tier2, 'exits.profitTiers.tier2'),
+        targetProfitMove: adjustedTarget(targets.tier2, adjustment, 'exits.profitTiers.tier2'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier2, 'exits.profitTiers.tier2'),
         exitFraction: requireFraction(raw.tier2ExitFraction, 'exitLogic.tieredExit.tier2ExitFraction'),
       },
       {
         name: 'tier3',
-        targetProfitMove: requireFiniteNumber(targets.tier3, 'exits.profitTiers.tier3'),
+        targetProfitMove: adjustedTarget(targets.tier3, adjustment, 'exits.profitTiers.tier3'),
+        baseTargetProfitMove: requireFiniteNumber(targets.tier3, 'exits.profitTiers.tier3'),
         exitFraction: requireFraction(raw.tier3ExitFraction, 'exitLogic.tieredExit.tier3ExitFraction'),
       },
       {
         name: 'final',
-        targetProfitMove: requireFiniteNumber(targets.final, 'exits.profitTiers.final'),
+        targetProfitMove: adjustedTarget(targets.final, adjustment, 'exits.profitTiers.final'),
+        baseTargetProfitMove: requireFiniteNumber(targets.final, 'exits.profitTiers.final'),
         exitFraction: finalExitFraction,
       },
     ],
@@ -272,6 +369,9 @@ function buildForTrade(options = {}) {
     strategyName,
     exitContract,
     nowMs,
+    volatility,
+    confidence,
+    marketCondition,
     configReader = TradingConfig,
   } = options;
 
@@ -284,8 +384,10 @@ function buildForTrade(options = {}) {
   const rawBeScaleOut = readConfigGroup(configReader, CONFIG_PATHS.beScaleOut);
   const rawBreakEvenStop = readConfigGroup(configReader, CONFIG_PATHS.breakEvenStop);
   const rawTieredExit = readConfigGroup(configReader, CONFIG_PATHS.tieredExit);
+  const rawVolatilityAdjustment = readConfigGroup(configReader, CONFIG_PATHS.volatilityAdjustment);
   const rawProfitTargets = readConfigGroup(configReader, CONFIG_PATHS.profitTargets);
   const rawFees = readConfigGroup(configReader, CONFIG_PATHS.fees);
+  const volatilityAdjustment = normalizeVolatilityAdjustment(rawVolatilityAdjustment, volatility);
 
   return freezePolicy({
     version: 1,
@@ -296,7 +398,7 @@ function buildForTrade(options = {}) {
     profitManagement: {
       beScaleOut: normalizeBeScaleOut(rawBeScaleOut),
       breakEvenStop: normalizeBreakEvenStop(rawBreakEvenStop),
-      tieredExit: normalizeTieredExit(rawTieredExit, rawProfitTargets),
+      tieredExit: normalizeTieredExit(rawTieredExit, rawProfitTargets, volatilityAdjustment, confidence, marketCondition),
     },
     fees: normalizeFees(rawFees),
   });

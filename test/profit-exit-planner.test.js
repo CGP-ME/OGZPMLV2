@@ -232,12 +232,50 @@ describe('ProfitExitPlanner', () => {
 
     expect(result).toMatchObject({
       action: 'exit_partial',
-      reason: 'profit_tier1',
+      reason: 'profit_tier_1',
       stateKey: 'tierStates',
       tierIndex: 0,
       exitFraction: 0.3,
       expectedRemainingQuantity: 7,
     });
+  });
+
+  test('allocates open tiers by remaining open-tier weight after prior exits', () => {
+    const result = ProfitExitPlanner.plan(snapshot({
+      currentPrice: 102.5,
+      maxProfitPercent: 0.025,
+      remainingOrderQuantity: 1.1024260557099392,
+      beScaleOutState: {
+        status: 'complete',
+        targetQuantity: 1.5748943652999132,
+        filledQuantity: 1.5748943652999132,
+        brokerOrderIds: ['order-1'],
+        intentId: 'intent-old',
+      },
+      tierStates: [
+        { tierIndex: 0, status: 'complete', targetQuantity: 0.47246830958997393, filledQuantity: 0.47246830958997393 },
+        { tierIndex: 1, status: 'idle', filledQuantity: 0 },
+        { tierIndex: 2, status: 'idle', filledQuantity: 0 },
+        { tierIndex: 3, status: 'idle', filledQuantity: 0 },
+      ],
+      frozenExitPolicy: policy({
+        profitManagement: {
+          ...policy().profitManagement,
+          tieredExit: {
+            ...policy().profitManagement.tieredExit,
+            allocationBasis: 'open_tier_weight',
+          },
+        },
+      }),
+    }));
+
+    expect(result).toMatchObject({
+      action: 'exit_partial',
+      reason: 'profit_tier_2',
+      tierIndex: 1,
+    });
+    expect(result.exitFraction).toBeCloseTo(0.3 / 0.7, 12);
+    expect(result.expectedRemainingQuantity).toBeCloseTo(0.6299577461199652, 12);
   });
 
   test('caps cumulative-original tier quantity against confirmed remaining quantity', () => {
@@ -256,7 +294,7 @@ describe('ProfitExitPlanner', () => {
 
     expect(result).toMatchObject({
       action: 'exit_full',
-      reason: 'profit_tier1',
+      reason: 'profit_tier_1',
       exitFraction: 1,
       expectedRemainingQuantity: 0,
     });
@@ -285,7 +323,7 @@ describe('ProfitExitPlanner', () => {
     }))).toThrow(/pendingExitIntent\.lifecycleState must be a non-empty string/);
   });
 
-  test('emits trailing-stop profit intent after activation and pullback', () => {
+  test('does not emit trailing-stop intents because ECM owns dynamic trailing', () => {
     const result = ProfitExitPlanner.plan(snapshot({
       currentPrice: 101.1,
       maxProfitPercent: 0.02,
@@ -305,10 +343,10 @@ describe('ProfitExitPlanner', () => {
     }));
 
     expect(result).toMatchObject({
-      action: 'exit_full',
-      reason: 'trailing_stop',
-      exitFraction: 1,
-      exitRole: 'profit',
+      action: 'none',
+      reason: 'no_profit_exit',
+      exitFraction: null,
+      exitRole: null,
     });
   });
 
@@ -374,8 +412,8 @@ describe('ProfitExitPlanner', () => {
     }))).toThrow(/snapshot\.intentId must be a non-empty string/);
   });
 
-  test('requires explicit null to disable trailing stop config', () => {
-    expect(() => ProfitExitPlanner.plan(snapshot({
+  test('ignores trailing stop contract fields because ECM owns dynamic trailing', () => {
+    const result = ProfitExitPlanner.plan(snapshot({
       currentPrice: 101.1,
       maxProfitPercent: 0.02,
       beScaleOutState: {
@@ -405,7 +443,12 @@ describe('ProfitExitPlanner', () => {
           validatedAt: 'test',
         },
       }),
-    }))).toThrow(/policy\.contract\.trailingStopPercent is required/);
+    }));
+
+    expect(result).toMatchObject({
+      action: 'none',
+      reason: 'no_profit_exit',
+    });
   });
 
   test('requires lifecycle state objects instead of assuming idle state', () => {

@@ -703,7 +703,20 @@ class TradingLoop {
         initialBalance: _initialBalance,
         currentPosition: stateManager.get('position'),
         currentPrice: price,
-        priceSource
+        nearestStructure,
+        priceSource,
+        eventTimeMs: marketData?.eventTimeMs ?? marketData?.timestamp ?? null,
+        receivedAtMs: marketData?.receivedAtMs ?? Date.now(),
+        nowMs: Date.now(),
+        executionMode: this.ctx.config?.executionMode,
+        brokerId: this.ctx.config?.brokerId,
+        accountId: this.ctx.config?.accountId,
+        assetClass: this.ctx.config?.assetClass,
+        timeframe: this.ctx.config?.timeframe,
+        symbol,
+        intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
+        traceId,
+        signalId: `${traceId}:exit`
       });
 
       if (exitCheck.shouldExit) {
@@ -716,44 +729,13 @@ class TradingLoop {
           direction: 'close',
           confidence: exitCheck.confidence || 100,
           exitReason: exitCheck.exitReason,
+          exitFraction: exitCheck.exitFraction,
+          exitIntent: exitCheck.exitIntent,
           tradeId: activeTrade.id || activeTrade.orderId,
           traceId,
           signalId: `${traceId}:exit`
         }, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
         return;
-      }
-
-      const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id || activeTrade.orderId);
-      if (mpm?.state?.active) {
-        if (!Number.isFinite(indicators.volatility)) {
-          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; dynamic trailing update will be skipped unless ATR is present');
-        }
-        const profitResult = mpm.update(price, {
-          volatility: indicators.volatility ?? null,
-          trend: indicators.trend || 'sideways',
-          volume: marketData?.volume || 0,
-          atr: indicators.atr,
-          rsi: indicators.rsi,
-          candle: priceHistory[priceHistory.length - 1],
-          recentCandles: priceHistory.slice(-20),
-          nearestStructure
-        });
-
-        if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
-          const isClosingShort = this._isClosingShort(activeTrade);
-          await this.ctx.executeTrade({
-            action: isClosingShort ? 'COVER' : 'SELL',
-            direction: 'close',
-            confidence: 100,
-            exitSize: profitResult.exitSize,
-            exitFraction: profitResult.exitFraction,
-            exitReason: profitResult.reason,
-            tradeId: activeTrade.id || activeTrade.orderId,
-            traceId,
-            signalId: `${traceId}:exit`
-          }, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
-          return;
-        }
       }
     }
   }
@@ -1012,7 +994,21 @@ class TradingLoop {
         accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
         initialBalance: _initialBalance,
         currentPosition: stateManager.get('position'),
-        currentPrice: price
+        currentPrice: price,
+        nearestStructure,
+        priceSource: marketData?.priceSource || 'market_data',
+        eventTimeMs: marketData?.eventTimeMs ?? marketData?.timestamp ?? null,
+        receivedAtMs: marketData?.receivedAtMs ?? Date.now(),
+        nowMs: Date.now(),
+        executionMode: this.ctx.config?.executionMode,
+        brokerId: this.ctx.config?.brokerId,
+        accountId: this.ctx.config?.accountId,
+        assetClass: this.ctx.config?.assetClass,
+        timeframe: this.ctx.config?.timeframe,
+        symbol,
+        intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
+        traceId,
+        signalId: `${traceId}:exit`
       });
 
       if (exitCheck.shouldExit) {
@@ -1031,47 +1027,13 @@ class TradingLoop {
           direction: 'close',
           confidence: exitCheck.confidence || 100,
           exitReason: exitCheck.exitReason,
-          tradeId: activeTrade.id
+          exitFraction: exitCheck.exitFraction,
+          exitIntent: exitCheck.exitIntent,
+          tradeId: activeTrade.id || activeTrade.orderId,
+          traceId,
+          signalId: `${traceId}:exit`
         };
         break; // Exit one position per candle
-      }
-
-      // MaxProfitManager check — per-trade instance from Map
-      const mpm = this.ctx.maxProfitManagers?.get(activeTrade.id);
-      if (mpm?.state?.active) {
-        const recentCandles = priceHistory.slice(-20);
-        // HIGH-02: was `volatility: indicators.volatility || 0` — masked
-        // missing volatility as 0, causing MaxProfitManager.updateTrailingStop
-        // to compute zero-volatility ATR adjustments (tight trailing fires
-        // immediately on minor noise). Now: preserve explicit zero with `??`,
-        // log when truly missing so the silent-bypass is observable.
-        if (!Number.isFinite(indicators.volatility)) {
-          console.warn('[HIGH-02] indicators.volatility missing/non-finite — passing null to MaxProfitManager.update; dynamic trailing update will be skipped unless ATR is present');
-        }
-        const profitResult = mpm.update(price, {
-          volatility: indicators.volatility ?? null,
-          trend: indicators.trend || 'sideways',
-          volume: marketData?.volume || 0,
-          atr: indicators.atr,
-          rsi: indicators.rsi,
-          candle: priceHistory[priceHistory.length - 1],
-          recentCandles,
-          nearestStructure
-        });
-
-        if (profitResult && (profitResult.action === 'exit_full' || profitResult.action === 'exit_partial')) {
-          const isClosingShort = this._isClosingShort(activeTrade);
-          decision = {
-            action: isClosingShort ? 'COVER' : 'SELL',
-            direction: 'close',
-            confidence: 100,
-            exitSize: profitResult.exitSize,
-            exitFraction: profitResult.exitFraction,
-            exitReason: profitResult.reason,
-            tradeId: activeTrade.id
-          };
-          break;
-        }
       }
       } // end for (const activeTrade of activeTrades)
     } // end if (hasOpenPosition)

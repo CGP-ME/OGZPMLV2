@@ -280,9 +280,6 @@ const { SymbolTradingContext } = require('./core/SymbolTradingContext');
 const ENABLE_DPS = process.env.ENABLE_DPS === 'true';
 const DynamicPositionSizer = ENABLE_DPS ? require('./core/DynamicPositionSizer') : null;
 
-// Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
-const MaxProfitManager = require('./core/MaxProfitManager');
-
 // REFACTOR Phase 15: TradingLoop - exact copy of analyzeAndTrade() extracted
 const TradingLoop = require('./core/TradingLoop');
 
@@ -1050,10 +1047,6 @@ class OGZPrimeV14Bot {
       console.log('[EMPIRE V2] OrderRouter initialized - multi-broker ready');
     }
 
-    // Phase 4 REWRITE: MaxProfitManager standalone (was inside deleted OptimizedTradingBrain)
-    this.maxProfitManagers = new Map();
-    console.log('[EMPIRE V2] MaxProfitManager Map initialized - per-trade tiered exits ready');
-
     // DynamicPositionSizer NOT WIRED - needs tuning. Using inline confidence multiplier.
     // See core/DynamicPositionSizer.js for the module (curves need calibration).
     this.dynamicPositionSizer = null;
@@ -1367,7 +1360,6 @@ class OGZPrimeV14Bot {
       testMode: resolvedConfig.config.mode.testMode,
       // Phase 4 REWRITE: Standalone dependencies (was inside deleted modules)
       orderRouter: this.orderRouter,
-      maxProfitManagers: this.maxProfitManagers,
       // CC-C: webhook execution route, owned by OrderExecutor when enabled
       webhookAdapter: this.webhookAdapter,
       evalRuleEngine: this.evalRuleEngine,
@@ -1430,8 +1422,6 @@ class OGZPrimeV14Bot {
       traiEnableBacktest: TradingConfig.get('features.traiEnableBacktest'),
       // HIGH-16: broker.candleTimeframe threaded into ctx for orchestrator validation
       candleTimeframe: this.candleTimeframe,
-      // Phase 4 REWRITE: MaxProfitManager standalone
-      maxProfitManagers: this.maxProfitManagers,
       // Additional context for strategy orchestration
       strategyOrchestrator: this.strategyOrchestrator,
       emaCrossoverSignal: this.emaCrossoverSignal,
@@ -1463,8 +1453,7 @@ class OGZPrimeV14Bot {
       __dirname: __dirname,
       patternChecker: this.patternChecker,
       trai: this.trai,
-      backtestRecorder: this.backtestRecorder,
-      maxProfitManagers: this.maxProfitManagers  // Per-trade MPM instances for backtest mode
+      backtestRecorder: this.backtestRecorder
       // DynamicPositionSizer NOT WIRED - stats printing disabled
     });
 

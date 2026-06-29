@@ -40,6 +40,10 @@ describe('PolicyBuilder frozen exit policy', () => {
     'exitLogic.tieredExit.highConfidenceMultiplier': 1.2,
     'exitLogic.tieredExit.lowConfidenceThreshold': 0.6,
     'exitLogic.tieredExit.lowConfidenceMultiplier': 0.8,
+    'exitLogic.volatilityAdjustment.enabled': false,
+    'exitLogic.volatilityAdjustment.lowThresholdPercent': 0.5,
+    'exitLogic.volatilityAdjustment.highThresholdPercent': 2.0,
+    'exitLogic.volatilityAdjustment.lookbackPeriods': 20,
     'exits.profitTiers.tier1': 0.015,
     'exits.profitTiers.tier2': 0.020,
     'exits.profitTiers.tier3': 0.030,
@@ -58,6 +62,11 @@ describe('PolicyBuilder frozen exit policy', () => {
   const reader = (values = configValues()) => ({
     get: jest.fn((path) => values[path]),
   });
+  const policyContext = Object.freeze({
+    volatility: 0.01,
+    confidence: 0.75,
+    marketCondition: 'normal',
+  });
 
   test('freezes a stable per-trade policy from explicit contract and config values', () => {
     const configReader = reader();
@@ -65,6 +74,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader,
     });
 
@@ -89,7 +99,13 @@ describe('PolicyBuilder frozen exit policy', () => {
           scaleOutFraction: 0.5,
         },
         tieredExit: {
-          allocationBasis: 'cumulative_original_quantity',
+          allocationBasis: 'open_tier_weight',
+          adjustment: {
+            volatilityTargetFactor: 1,
+            marketCondition: 'normal',
+            confidenceMultiplier: 1,
+            combinedTargetMultiplier: 1,
+          },
         },
       },
       fees: {
@@ -112,12 +128,14 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
     const second = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
 
@@ -129,12 +147,14 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
     const second = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs + 1000,
+      ...policyContext,
       configReader: reader(),
     });
 
@@ -149,12 +169,14 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ _validated: '2026-03-20' }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
     const second = PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ _validated: '2026-06-28T18:45:00.000Z' }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
 
@@ -168,6 +190,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: input,
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
 
@@ -182,6 +205,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/exitContract must be a plain object/);
 
@@ -189,6 +213,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ stopLossPercent: undefined }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/exitContract.stopLossPercent must be a finite number/);
 
@@ -199,6 +224,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: missingStructuralFlag,
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/exitContract.useStructuralExits is required/);
   });
@@ -213,6 +239,7 @@ describe('PolicyBuilder frozen exit policy', () => {
         strategyName,
         exitContract: contract,
         nowMs: fixedNowMs,
+        ...policyContext,
         configReader: TradingConfig,
       })).not.toThrow();
     }
@@ -226,6 +253,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(values),
     })).toThrow(/missing TradingConfig value: exitLogic\.beScaleOut\.scaleOutFraction/);
   });
@@ -240,6 +268,7 @@ describe('PolicyBuilder frozen exit policy', () => {
         _validated: null,
       }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     });
 
@@ -253,6 +282,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(configValues({
         'exitLogic.tieredExit.tier1ExitFraction': 0.6,
         'exitLogic.tieredExit.tier2ExitFraction': 0.5,
@@ -264,6 +294,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(configValues({
         'exitLogic.tieredExit.tier1ExitFraction': -0.1,
       })),
@@ -275,6 +306,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(configValues({
         'exitLogic.beScaleOut.scaleOutFraction': 1.2,
       })),
@@ -284,6 +316,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(configValues({
         'exitLogic.beScaleOut.feeBufferPercent': 101,
       })),
@@ -293,6 +326,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(configValues({
         'exitLogic.beScaleOut.feeBufferPercent': 2,
       })),
@@ -306,6 +340,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ stopLossPercent: 0.5 }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/stopLossPercent must be negative percent-form/);
 
@@ -313,6 +348,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ takeProfitPercent: -1 }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/takeProfitPercent must be greater than 0/);
 
@@ -320,6 +356,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ maxHoldTimeMinutes: 0 }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/maxHoldTimeMinutes must be greater than 0/);
 
@@ -327,6 +364,7 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract({ minConfidence: 1.2 }),
       nowMs: fixedNowMs,
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/minConfidence must be between 0 and 1/);
   });
@@ -335,6 +373,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
+      ...policyContext,
       configReader: reader(),
     })).toThrow(/nowMs must be a finite number/);
   });
@@ -347,6 +386,7 @@ describe('PolicyBuilder frozen exit policy', () => {
         strategyName: 'EMASMACrossover',
         exitContract: exitContract(),
         nowMs: fixedNowMs,
+        ...policyContext,
         configReader: reader(configValues({
           'exitLogic.beScaleOut.scaleOutFraction': 0.25,
         })),
@@ -367,10 +407,57 @@ describe('PolicyBuilder frozen exit policy', () => {
       strategyName: 'EMASMACrossover',
       exitContract: exitContract(),
       nowMs: fixedNowMs,
+      ...policyContext,
     });
 
     expect(policy.strategyName).toBe('EMASMACrossover');
     expect(policy.profitManagement.beScaleOut).toHaveProperty('scaleOutFraction');
     expect(policy.fees).toHaveProperty('totalRoundTrip');
+  });
+
+  test('freezes MPM-equivalent adjusted tier targets at trade birth', () => {
+    const policy = PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      volatility: 0.03,
+      confidence: 0.85,
+      marketCondition: 'trending',
+      configReader: reader(configValues({
+        'exitLogic.volatilityAdjustment.enabled': true,
+      })),
+    });
+
+    const adjustment = policy.profitManagement.tieredExit.adjustment;
+    expect(adjustment).toMatchObject({
+      volatilityTargetFactor: 1.4,
+      marketCondition: 'trending',
+      marketMultiplier: 1.3,
+      confidence: 0.85,
+      confidenceMultiplier: 1.2,
+    });
+    expect(adjustment.combinedTargetMultiplier).toBeCloseTo(2.184);
+    expect(policy.profitManagement.tieredExit.tiers[0].baseTargetProfitMove).toBe(0.015);
+    expect(policy.profitManagement.tieredExit.tiers[0].targetProfitMove).toBeCloseTo(0.03276);
+  });
+
+  test('fails loudly when entry volatility or confidence is missing', () => {
+    expect(() => PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      confidence: 0.75,
+      marketCondition: 'normal',
+      configReader: reader(),
+    })).toThrow(/volatility must be a finite number/);
+
+    expect(() => PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      volatility: 0.01,
+      marketCondition: 'normal',
+      configReader: reader(),
+    })).toThrow(/confidence must be a finite number/);
   });
 });

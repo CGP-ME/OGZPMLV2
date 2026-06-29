@@ -951,17 +951,26 @@ describe('TradingLoop trace spine', () => {
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
   });
 
-  test('main candle MaxProfitManager exits do not inherit zero hold confidence', async () => {
-    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_MPM_MAIN_1' });
-    const mpm = {
-      state: { active: true },
-      update: jest.fn(() => ({
-        action: 'exit_full',
-        exitSize: 1000,
-        exitFraction: 1,
-        reason: 'max_profit_exit',
-      })),
-    };
+  test('main candle profit planner exits flow through ExitContractManager and do not inherit zero hold confidence', async () => {
+    const executeTrade = jest.fn().mockResolvedValue({ success: true, orderId: 'EXIT_PROFIT_MAIN_1' });
+    mockExitContractManager.checkExitConditions.mockReturnValue({
+      shouldExit: true,
+      exitReason: 'profit_tier_1',
+      confidence: 100,
+      exitFraction: 0.3,
+      exitIntent: {
+        action: 'exit_partial',
+        reason: 'profit_tier_1',
+        exitRole: 'profit',
+        stateKey: 'tierStates',
+        tierIndex: 0,
+        exitFraction: 0.3,
+        intentId: 'trace_profit_exit_zero_hold_conf:profit:BUY_MPM_1',
+        expectedTradeRevision: 0,
+        expectedRemainingQuantity: 7,
+        evidence: {},
+      },
+    });
     mockStateManager.getTradesBySymbol.mockReturnValue([{
       id: 'BUY_MPM_1',
       orderId: 'BUY_MPM_1',
@@ -990,22 +999,30 @@ describe('TradingLoop trace spine', () => {
           sizingMultiplier: 1,
         })),
       },
-      maxProfitManagers: new Map([['BUY_MPM_1', mpm]]),
+      maxProfitManagers: new Map(),
       executeTrade,
     });
     const loop = new TradingLoop(ctx);
     stubGatherData(loop);
     loop._broadcastDecision = jest.fn();
 
-    await loop._analyze('TSLA', 'trace_mpm_exit_zero_hold_conf');
+    await loop._analyze('TSLA', 'trace_profit_exit_zero_hold_conf');
 
     expect(executeTrade).toHaveBeenCalledTimes(1);
     expect(executeTrade.mock.calls[0][0]).toEqual(expect.objectContaining({
       action: 'SELL',
       direction: 'close',
       confidence: 100,
-      exitReason: 'max_profit_exit',
+      exitReason: 'profit_tier_1',
+      exitFraction: 0.3,
       tradeId: 'BUY_MPM_1',
+      traceId: 'trace_profit_exit_zero_hold_conf',
+      signalId: 'trace_profit_exit_zero_hold_conf:exit',
+    }));
+    expect(executeTrade.mock.calls[0][0].exitIntent).toEqual(expect.objectContaining({
+      reason: 'profit_tier_1',
+      stateKey: 'tierStates',
+      tierIndex: 0,
     }));
     expect(executeTrade.mock.calls[0][0].ledgerData).toBeUndefined();
   });

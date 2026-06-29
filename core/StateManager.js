@@ -178,12 +178,47 @@ function initialBeScaleOutState(status = 'idle') {
   };
 }
 
-function initialExitLifecycleFields() {
+function initialTierStatesFromPolicy(policy) {
+  const tiers = policy?.profitManagement?.tieredExit?.tiers;
+  if (!Array.isArray(tiers)) {
+    return [];
+  }
+  return tiers.map((tier, index) => ({
+    tierIndex: index,
+    name: typeof tier?.name === 'string' && tier.name.trim() ? tier.name.trim() : `tier${index + 1}`,
+    status: 'idle',
+    intentId: null,
+    targetQuantity: null,
+    filledQuantity: 0,
+    brokerOrderIds: [],
+    completedAtMs: null,
+  }));
+}
+
+function initialProfitStopPrice(entryPrice, direction, exitContract) {
+  const price = Number(entryPrice);
+  if (!Number.isFinite(price) || price <= 0) {
+    return null;
+  }
+
+  const rawStopPercent = Number(exitContract?.stopLossPercent);
+  if (!Number.isFinite(rawStopPercent) || rawStopPercent === 0) {
+    return null;
+  }
+
+  const stopDistance = Math.abs(rawStopPercent) / 100;
+  if (direction === 'short') {
+    return price * (1 + stopDistance);
+  }
+  return price * (1 - stopDistance);
+}
+
+function initialExitLifecycleFields(policy = null) {
   return {
     tradeRevision: 0,
     pendingExitIntent: null,
     beScaleOutState: initialBeScaleOutState(),
-    tierStates: [],
+    tierStates: initialTierStatesFromPolicy(policy),
   };
 }
 
@@ -773,6 +808,7 @@ class StateManager {
     const stateContext = context.frozenExitPolicy !== undefined
       ? { ...context, frozenExitPolicy: freezePolicy(context.frozenExitPolicy) }
       : context;
+    const profitStopPrice = initialProfitStopPrice(price, tradeDirection, stateContext.exitContract);
 
     const trade = {
       id: tradeId,
@@ -788,7 +824,14 @@ class StateManager {
       timestamp: Date.now(),
       status: 'open',
       ...stateContext,
-      ...initialExitLifecycleFields(),
+      ...initialExitLifecycleFields(stateContext.frozenExitPolicy || null),
+      maxProfitPercent: 0,
+      highestPrice: tradeDirection === 'long' ? price : 0,
+      lowestPrice: tradeDirection === 'short' ? price : Infinity,
+      currentStop: profitStopPrice,
+      initialStop: profitStopPrice,
+      trailingActive: false,
+      breakevenActive: false,
       // CC-C Commit 5: symbol assignment AFTER `...context` so the dash-
       // normalized value (line 405-407) wins over context.symbol (slash form
       // from the caller). The prior order had `symbol: tradeSymbol` BEFORE
@@ -1949,6 +1992,43 @@ class StateManager {
           tradeRevision,
         },
       };
+      const targetQuantity = optionalFiniteNumber(options.targetQuantity, 'targetQuantity', caller, { min: 0 })
+        ?? (Number.isFinite(remainingQuantity) && remainingQuantity > 0 && exitFraction !== null
+          ? remainingQuantity * exitFraction
+          : null);
+      const stateKey = typeof options.stateKey === 'string' && options.stateKey.trim()
+        ? options.stateKey.trim()
+        : null;
+      if (stateKey === 'beScaleOutState') {
+        nextTrade.beScaleOutState = {
+          ...normalizeBeScaleOutState(nextTrade.beScaleOutState),
+          status: 'pending',
+          intentId: normalizedIntentId,
+          targetQuantity,
+          brokerOrderIds: [],
+        };
+      } else if (stateKey === 'tierStates') {
+        const tierIndex = Number(options.tierIndex);
+        if (!Number.isInteger(tierIndex) || tierIndex < 0) {
+          throw new Error(`[${caller}] tierIndex must be a non-negative integer for tierStates reservation; got ${options.tierIndex}`);
+        }
+        if (!Array.isArray(nextTrade.tierStates) || !nextTrade.tierStates[tierIndex]) {
+          throw new Error(`[${caller}] tierStates[${tierIndex}] missing on active trade ${normalizedTradeId}`);
+        }
+        nextTrade.tierStates = nextTrade.tierStates.map((tier, index) => (
+          index === tierIndex
+            ? {
+                ...tier,
+                status: 'pending',
+                intentId: normalizedIntentId,
+                targetQuantity,
+                brokerOrderIds: [],
+              }
+            : tier
+        ));
+      } else if (stateKey !== null) {
+        throw new Error(`[${caller}] unsupported exit stateKey ${stateKey}`);
+      }
       const nextActiveTrades = new Map(trades);
       nextActiveTrades.set(normalizedTradeId, nextTrade);
 
@@ -2018,6 +2098,28 @@ class StateManager {
         tradeRevision: tradeRevision + 1,
         pendingExitIntent: null,
       };
+      if (nextTrade.beScaleOutState && nextTrade.beScaleOutState.intentId === normalizedIntentId) {
+        nextTrade.beScaleOutState = {
+          ...nextTrade.beScaleOutState,
+          status: 'idle',
+          intentId: null,
+          targetQuantity: null,
+          brokerOrderIds: [],
+        };
+      }
+      if (Array.isArray(nextTrade.tierStates)) {
+        nextTrade.tierStates = nextTrade.tierStates.map((tier) => (
+          tier && tier.intentId === normalizedIntentId
+            ? {
+                ...tier,
+                status: 'idle',
+                intentId: null,
+                targetQuantity: null,
+                brokerOrderIds: [],
+              }
+            : tier
+        ));
+      }
       const nextActiveTrades = new Map(trades);
       nextActiveTrades.set(normalizedTradeId, nextTrade);
 
@@ -2171,7 +2273,7 @@ class StateManager {
           pendingExitIntent: clonePlain(pending),
         };
       }
-      const pendingStatus = pending.status || 'reserved';
+      const pendingStatus = pending.lifecycleState || pending.status || 'reserved';
       if (pending.tradeRevision !== expectedTradeRevision) {
         return {
           success: false,
@@ -2294,6 +2396,7 @@ class StateManager {
           ? {
               ...pending,
               status: 'partial_fill',
+              lifecycleState: 'partial_fill',
               tradeRevision: nextRevision,
               filledQuantity: Number(pending.filledQuantity || 0) + filledQuantity,
               remainingQuantity: remainingQuantityFromFill,

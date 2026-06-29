@@ -14,7 +14,6 @@
 const { getInstance: getStateManager } = require('./StateManager');
 const TradingConfig = require('./TradingConfig');
 const exitContractManager = require('./ExitContractManager');
-const MaxProfitManager = require('./MaxProfitManager');
 const { getBrokerInfo } = require('../brokers/BrokerRegistry');
 // Phase 4 REWRITE: FeatureFlagManager removed - AGGRESSIVE_LEARNING_MODE deleted
 const { TradingProofLogger } = require('../ogz-meta/claudito-logger');
@@ -687,6 +686,28 @@ class OrderExecutor {
     return `exit:${tradeId}:${decisionId}`;
   }
 
+  _resolveContractStopPercent(exitContract) {
+    if (typeof exitContract !== 'object' || exitContract === null) {
+      throw new Error(`[ORDER-CONTRACT] exitContract invalid (got ${typeof exitContract}) - refusing entry without contracted stop`);
+    }
+    assertExplicitExitOwnership(exitContract, 'OrderExecutor._resolveContractStopPercent');
+
+    const rawStopLossPercent = Number(exitContract.stopLossPercent);
+    if (!Number.isFinite(rawStopLossPercent) || rawStopLossPercent === 0) {
+      throw new Error(`[ORDER-CONTRACT] exitContract.stopLossPercent missing/invalid (got ${exitContract.stopLossPercent}) - refusing entry without contracted stop`);
+    }
+    if (rawStopLossPercent > 0) {
+      throw new Error(`[ORDER-CONTRACT] exitContract.stopLossPercent must be negative risk distance (got ${exitContract.stopLossPercent})`);
+    }
+
+    const stopPercent = -rawStopLossPercent / 100;
+    if (!Number.isFinite(stopPercent) || stopPercent <= 0 || stopPercent >= 1) {
+      throw new Error(`[ORDER-CONTRACT] exitContract.stopLossPercent out of range (got ${exitContract.stopLossPercent})`);
+    }
+
+    return stopPercent;
+  }
+
   _buildExecutionFill({ exitPlan, executedExitPlan, tradeResult, fillPrice, fee, exitIntent, lifecycleState, confirmedAtMs, eventTimeMs, simulated }) {
     const tradeId = this._firstNonEmptyString(executedExitPlan?.tradeId, exitPlan?.tradeId);
     const intentId = this._firstNonEmptyString(exitIntent?.intentId);
@@ -909,7 +930,7 @@ class OrderExecutor {
     return haltReason;
   }
 
-  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, absoluteCapPercent, forceWholeShares = false }) {
+  _buildEntryPlan({ decision, symbol, price, positionSize, currentBalance, currentEquity, tradeConfidence, confidenceMultiplier, orchResult, entryVolatility, absoluteCapPercent, forceWholeShares = false }) {
     if (!this._isEntryAction(decision.action)) return null;
 
     const entryStrategy = orchResult.winnerStrategy;
@@ -920,6 +941,9 @@ class OrderExecutor {
       strategyName: entryStrategy,
       exitContract,
       nowMs: Date.now(),
+      volatility: entryVolatility,
+      confidence: tradeConfidence,
+      marketCondition: 'normal',
     });
     const scope = this._runtimeScope(symbol);
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();
@@ -974,6 +998,7 @@ class OrderExecutor {
       confidence: decision.confidence,
       tradeConfidence,
       confidenceMultiplier,
+      entryVolatility,
       sizingMultiplier,
       orderQuantity,
       quantityUnit,
@@ -1468,7 +1493,7 @@ class OrderExecutor {
       }
     }
     if (isEntryAction) {
-      MaxProfitManager.resolveContractStopPercent(orchResult.exitContract);
+      this._resolveContractStopPercent(orchResult.exitContract);
     }
 
     const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
@@ -1482,6 +1507,7 @@ class OrderExecutor {
       tradeConfidence,
       confidenceMultiplier,
       orchResult,
+      entryVolatility: indicators.volatility ?? null,
       absoluteCapPercent: absoluteCap,
       forceWholeShares: isWebhookExecutionRoute
     }) : null;
@@ -1591,6 +1617,9 @@ class OrderExecutor {
         sourceEventId: decision.decisionId,
         exitFraction: exitPlan.stateExitFraction,
         expectedRemainingQuantity,
+        stateKey: decision.exitIntent?.stateKey || null,
+        tierIndex: decision.exitIntent?.tierIndex,
+        targetQuantity: exitPlan.orderQuantity,
       });
       if (!reserved || reserved.success !== true || reserved.reserved !== true) {
         const reason = reserved?.reason || reserved?.error || 'exit_intent_not_reserved';
@@ -2023,20 +2052,6 @@ class OrderExecutor {
 	            action: decision.action,
 	          });
 
-	          // Change 605: Start MaxProfitManager on BUY to track profit targets
-          // Phase 4 REWRITE: Access maxProfitManager directly (was inside deleted tradingBrain)
-          const mpmInstance = new MaxProfitManager();
-          mpmInstance.start(price, 'buy', adjustedPositionSize, {
-            volatility: indicators.volatility ?? null,
-            confidence: decision.confidence / 100,
-            trend: indicators.trend || 'sideways',
-            entryOrderQuantity,
-            entryOrderQuantityUnit,
-            exitContract
-          });
-          this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmInstance);
-          console.log(`MaxProfitManager started for trade ${unifiedResult.orderId} - tracking profit targets`);
-
           // CHANGE 2026-02-01: Send Telegram notification for trade
           // Skip notifications during fast backtest
           if (!this.ctx.backtestFast) {
@@ -2234,19 +2249,6 @@ class OrderExecutor {
 	            symbol,
 	            action: decision.action,
 	          });
-
-	          // MaxProfitManager for short direction
-          const mpmShortInstance = new MaxProfitManager();
-          mpmShortInstance.start(price, 'sell', adjustedPositionSize, {
-            volatility: indicators.volatility ?? null,
-            confidence: decision.confidence / 100,
-            trend: indicators.trend || 'sideways',
-            entryOrderQuantity,
-            entryOrderQuantityUnit,
-            exitContract
-          });
-          this.ctx.maxProfitManagers.set(unifiedResult.orderId, mpmShortInstance);
-          console.log(`MaxProfitManager started (SHORT) for trade ${unifiedResult.orderId} - tracking profit targets`);
 
           // Notifications
           if (!this.ctx.backtestFast) {
@@ -2853,17 +2855,6 @@ class OrderExecutor {
             }
           }
 
-          // CHANGE 645: Reset MaxProfitManager after successful SELL
-          // Only reset and remove per-trade MPM on full close
-          if (!isPartialClose && this.ctx.maxProfitManagers) {
-            const mpm = this.ctx.maxProfitManagers.get(buyTrade.orderId);
-            if (mpm) {
-              mpm.reset();
-              this.ctx.maxProfitManagers.delete(buyTrade.orderId);
-	              console.log(`MaxProfitManager removed for trade ${buyTrade.orderId}`);
-            }
-          }
-
           // Stop pattern exit tracking
           if (this.ctx.patternExitModel) {
             this.ctx.patternExitModel.stopTracking({
@@ -3376,10 +3367,8 @@ class OrderExecutor {
       // are intentional halts on bad state. Without this differentiation, the wrapper
       // turns every "fail-loud" spec into fail-silent behavior. Re-throw audit prefixes
       // so they reach run-empire-v2's promise-rejection handler (operator-visible).
-      // Also re-throw MaxProfitManager.start errors (no audit prefix but explicit halt).
-      const isAuditThrow = error.message && /^\[(?:CRIT|HIGH|MED|RUN|EXIT|MOD|TRAI|PNLC|RISK|BTR|SESSION|DPS|PS)-/.test(error.message);
-      const isMpmHalt = error.message && error.message.startsWith('MaxProfitManager.start:');
-      if (isAuditThrow || isMpmHalt) {
+      const isAuditThrow = error.message && /^\[(?:CRIT|HIGH|MED|RUN|EXIT|MOD|TRAI|PNLC|RISK|BTR|SESSION|DPS|PS|ORDER)-/.test(error.message);
+      if (isAuditThrow) {
         console.error(`[FAIL-LOUD] ${error.message}`);
         emitTrace(this.ctx, 'ORDER_EXCEPTION', {
           traceId,

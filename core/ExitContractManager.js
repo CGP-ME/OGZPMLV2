@@ -19,14 +19,33 @@
 // Phase 1 REWRITE: Single source of truth for all trading params
 const TradingConfig = require('./TradingConfig');
 const { assertExplicitExitOwnership } = require('./dto/ExitContractOwnership');
+const ProfitExitPlanner = require('./ProfitExitPlanner');
 
 // Phase 10: Delegate to individual exit checkers
 const StopLossChecker = require('./exit/StopLossChecker');
 const TakeProfitChecker = require('./exit/TakeProfitChecker');
-const DynamicTrailingStop = require('./exit/DynamicTrailingStop');
 const MaxHoldChecker = require('./exit/MaxHoldChecker');
 // Phase 11: Break-even state machine (single source of truth)
 const BreakEvenManager = require('./exit/BreakEvenManager');
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function finiteOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function positiveFiniteOrNull(value) {
+  const numeric = finiteOrNull(value);
+  return numeric !== null && numeric > 0 ? numeric : null;
+}
 
 /**
  * Exit contracts and universal limits now come from TradingConfig (single source of truth)
@@ -44,7 +63,7 @@ class ExitContractManager {
     // Phase 10: Delegate to individual checkers
     this.stopLossChecker = new StopLossChecker(this.universalLimits);
     this.takeProfitChecker = new TakeProfitChecker();
-    this.trailingStopChecker = new DynamicTrailingStop();
+    this.trailConfig = TradingConfig.BASE_CONFIG.exitLogic.trail;
     this.maxHoldChecker = new MaxHoldChecker(this.universalLimits);
     // Phase 11: Break-even state machine (for external access/dashboard)
     this.breakEvenManager = new BreakEvenManager();
@@ -126,9 +145,10 @@ class ExitContractManager {
     // Ensure trade has contract for checkers
     if (!trade.exitContract) trade.exitContract = contract;
 
-    // PRIORITY ORDER: StopLoss > MaxHold > Invalidation
-    // PATCH 2: TakeProfit + TrailingStop removed — MaxProfitManager owns profit-side exits.
-    // ECM is now safety-only: hard stop, account drawdown, strategy SL/BE, max hold timeout, invalidation.
+    // PRIORITY ORDER: StopLoss > MaxHold > Invalidation > dynamic trailing > profit planner.
+    // ExitContractManager is the single exit coordinator. ProfitExitPlanner is
+    // stateless and emits intent only; OrderExecutor executes and StateManager
+    // mutates from confirmed execution facts.
 
     // 1. Stop loss + universal circuit breakers (hard stop, account drawdown, strategy SL with BE)
     const slResult = this.stopLossChecker.check(trade, currentPrice, pnlPercent, context);
@@ -155,11 +175,40 @@ class ExitContractManager {
       }
     }
 
+    const profitStopResult = this._checkProfitStopState(trade, currentPrice);
+    if (profitStopResult.shouldExit) return profitStopResult;
+
+    const plannerSnapshot = this._buildProfitPlannerSnapshot(trade, currentPrice, context);
+    if (plannerSnapshot.skipped) {
+      return {
+        shouldExit: false,
+        exitReason: null,
+        details: `Profit planner skipped: ${plannerSnapshot.reason}`,
+        profitPlannerSkipped: plannerSnapshot.reason,
+        profitPlannerMissing: plannerSnapshot.missing || null,
+      };
+    }
+
+    const profitIntent = ProfitExitPlanner.plan(plannerSnapshot.snapshot, { currentPrice });
+    if (profitIntent.action === 'exit_full' || profitIntent.action === 'exit_partial') {
+      return {
+        shouldExit: true,
+        exitReason: profitIntent.reason,
+        details: `Profit planner exit: ${profitIntent.reason}`,
+        confidence: 100,
+        exitFraction: profitIntent.exitFraction,
+        exitIntent: profitIntent,
+      };
+    }
+
+    this._updateProfitStopState(trade, currentPrice, pnlPercent, context);
+
     // No exit condition met
     return {
       shouldExit: false,
       exitReason: null,
-      details: `Holding: P&L ${pnlPercent.toFixed(2)}%, hold ${holdTimeMinutes.toFixed(0)} min`
+      details: `Holding: P&L ${pnlPercent.toFixed(2)}%, hold ${holdTimeMinutes.toFixed(0)} min`,
+      profitPlanner: profitIntent,
     };
   }
 
@@ -241,7 +290,273 @@ class ExitContractManager {
    * @returns {number} Updated max profit percent
    */
   updateMaxProfit(trade, currentPrice) {
-    return this.trailingStopChecker.updateMaxProfit(trade, currentPrice);
+    if (!trade || !trade.entryPrice) return 0;
+
+    const price = positiveFiniteOrNull(currentPrice);
+    const entryPrice = positiveFiniteOrNull(trade.entryPrice);
+    if (price === null || entryPrice === null) {
+      return Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
+    }
+
+    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const pnlPercent = isShort
+      ? ((entryPrice - price) / entryPrice) * 100
+      : ((price - entryPrice) / entryPrice) * 100;
+
+    const previousMax = Number.isFinite(Number(trade.maxProfitPercent)) ? Number(trade.maxProfitPercent) : 0;
+    trade.maxProfitPercent = Math.max(previousMax, pnlPercent);
+
+    if (isShort) {
+      const currentLow = positiveFiniteOrNull(trade.lowestPrice);
+      trade.lowestPrice = currentLow === null ? price : Math.min(currentLow, price);
+    } else {
+      const currentHigh = positiveFiniteOrNull(trade.highestPrice);
+      trade.highestPrice = currentHigh === null ? price : Math.max(currentHigh, price);
+    }
+
+    if (!Number.isFinite(Number(trade.currentStop)) || Number(trade.currentStop) <= 0) {
+      const stopPercent = finiteOrNull(trade.exitContract?.stopLossPercent);
+      if (stopPercent !== null && stopPercent !== 0) {
+        const stopDistance = Math.abs(stopPercent) / 100;
+        trade.currentStop = isShort ? entryPrice * (1 + stopDistance) : entryPrice * (1 - stopDistance);
+        trade.initialStop = trade.currentStop;
+      }
+    }
+
+    return trade.maxProfitPercent;
+  }
+
+  _checkProfitStopState(trade, currentPrice) {
+    const stop = positiveFiniteOrNull(trade?.currentStop);
+    const price = positiveFiniteOrNull(currentPrice);
+    if (stop === null || price === null || (!trade.trailingActive && !trade.breakevenActive)) {
+      return { shouldExit: false };
+    }
+
+    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const crossedStop = isShort ? price >= stop : price <= stop;
+    if (!crossedStop) {
+      return { shouldExit: false };
+    }
+
+    const reason = trade.trailingActive ? 'trailing_stop' : 'break_even';
+    return {
+      shouldExit: true,
+      exitReason: reason,
+      details: `${reason}: current price ${price.toFixed(2)} crossed managed stop ${stop.toFixed(2)}`,
+      confidence: 100,
+      meta: {
+        currentStop: stop,
+        trailingActive: trade.trailingActive === true,
+        breakevenActive: trade.breakevenActive === true,
+      },
+    };
+  }
+
+  _updateProfitStopState(trade, currentPrice, pnlPercent, context = {}) {
+    const price = positiveFiniteOrNull(currentPrice);
+    const entryPrice = positiveFiniteOrNull(trade?.entryPrice);
+    if (price === null || entryPrice === null) {
+      return { updated: false, reason: 'invalid_price' };
+    }
+
+    const profitPercent = finiteOrNull(pnlPercent);
+    if (profitPercent === null) {
+      return { updated: false, reason: 'invalid_profit' };
+    }
+
+    this._updateTrailingStopState(trade, price, profitPercent, context);
+    this._updateBreakevenStopState(trade, price, profitPercent);
+    return { updated: true };
+  }
+
+  _updateTrailingStopState(trade, currentPrice, pnlPercent, context = {}) {
+    const trailConfig = this.trailConfig || {};
+    if (trailConfig.enabled !== true) {
+      return { updated: false, reason: 'trailing_disabled' };
+    }
+
+    const minActivation = finiteOrNull(trailConfig.minActivationPercent);
+    if (minActivation === null || pnlPercent < minActivation) {
+      return { updated: false, reason: 'insufficient_profit' };
+    }
+
+    const indicators = context.indicators || {};
+    const atr = positiveFiniteOrNull(indicators.atr)
+      || positiveFiniteOrNull(indicators.volatility)
+      || positiveFiniteOrNull(context.volatility);
+    const atrMultiplier = finiteOrNull(trailConfig.atrMultiplier);
+    if (atr === null || atrMultiplier === null || atrMultiplier <= 0) {
+      return { updated: false, reason: 'missing_atr' };
+    }
+
+    let trailDistance = (atr / currentPrice) * atrMultiplier;
+
+    const direction = trade.direction === 'short' || trade.action === 'SELL_SHORT' ? 'short' : 'long';
+    const trend = String(indicators.trend || context.trend || '').toLowerCase();
+    const isBullTrend = trend === 'bullish' || trend === 'uptrend' || trend === 'trending_up' || trend === 'up';
+    const isBearTrend = trend === 'bearish' || trend === 'downtrend' || trend === 'trending_down' || trend === 'down';
+    const trendSupportsTrade = (direction === 'long' && isBullTrend) || (direction === 'short' && isBearTrend);
+    const rsi = finiteOrNull(indicators.rsi ?? context.rsi);
+    const trendWidenMultiplier = finiteOrNull(trailConfig.trendWidenMultiplier);
+    if (trendSupportsTrade && rsi !== null && trendWidenMultiplier !== null && trendWidenMultiplier > 1) {
+      const trendStrength = direction === 'long'
+        ? Math.max(0, (rsi - 50) / 50)
+        : Math.max(0, (50 - rsi) / 50);
+      trailDistance *= 1 + ((trendWidenMultiplier - 1) * trendStrength);
+    }
+
+    const ratchetThreshold = finiteOrNull(trailConfig.profitRatchetThreshold);
+    const ratchetRate = finiteOrNull(trailConfig.profitRatchetRate);
+    const ratchetFloor = finiteOrNull(trailConfig.profitRatchetFloor);
+    if (ratchetThreshold !== null && ratchetRate !== null && ratchetFloor !== null && pnlPercent > ratchetThreshold && ratchetRate > 0) {
+      const ratchetFactor = Math.max(ratchetFloor, 1 - ((pnlPercent - ratchetThreshold) * ratchetRate));
+      trailDistance *= ratchetFactor;
+    }
+
+    const nearestStructure = context.nearestStructure || indicators.nearestStructure || null;
+    const structurePrice = positiveFiniteOrNull(nearestStructure?.price);
+    const suppliedStructureDistance = finiteOrNull(nearestStructure?.distance);
+    const structureDistance = structurePrice !== null
+      ? Math.abs(currentPrice - structurePrice) / currentPrice * 100
+      : suppliedStructureDistance;
+    const structureThreshold = finiteOrNull(trailConfig.structureDistanceThreshold);
+    const structureTightenMultiplier = finiteOrNull(trailConfig.structureTightenMultiplier);
+    if (structureDistance !== null && structureDistance >= 0 && structureThreshold !== null && structureThreshold > 0
+      && structureTightenMultiplier !== null && structureDistance < structureThreshold) {
+      const distanceRatio = Math.max(0, Math.min(structureDistance / structureThreshold, 1));
+      trailDistance *= Math.max(0, structureTightenMultiplier + ((1 - structureTightenMultiplier) * distanceRatio));
+    }
+
+    const minTrailPercent = finiteOrNull(trailConfig.minTrailPercent);
+    const maxTrailPercent = finiteOrNull(trailConfig.maxTrailPercent);
+    if (!Number.isFinite(trailDistance) || trailDistance <= 0 || minTrailPercent === null || maxTrailPercent === null) {
+      return { updated: false, reason: 'invalid_trail_distance' };
+    }
+    const minTrail = Math.max(0, minTrailPercent) / 100;
+    const maxTrail = Math.max(minTrail, maxTrailPercent / 100);
+    trailDistance = Math.max(minTrail, Math.min(maxTrail, trailDistance));
+
+    const high = positiveFiniteOrNull(trade.highestPrice) || currentPrice;
+    const low = positiveFiniteOrNull(trade.lowestPrice) || currentPrice;
+    const newStop = direction === 'short'
+      ? low * (1 + trailDistance)
+      : high * (1 - trailDistance);
+    const currentStop = positiveFiniteOrNull(trade.currentStop);
+    const shouldImprove = currentStop === null
+      || (direction === 'short' ? newStop < currentStop : newStop > currentStop);
+
+    if (!Number.isFinite(newStop) || newStop <= 0 || !shouldImprove) {
+      return { updated: false, reason: 'no_improvement' };
+    }
+
+    trade.currentStop = newStop;
+    trade.trailingActive = true;
+    return { updated: true, newStop, trailDistance };
+  }
+
+  _updateBreakevenStopState(trade, currentPrice, pnlPercent) {
+    const breakEvenConfig = TradingConfig.BASE_CONFIG.exitLogic.breakEvenStop;
+    if (breakEvenConfig?.enabled !== true || trade.breakevenActive === true) {
+      return { updated: false, reason: 'breakeven_disabled_or_active' };
+    }
+
+    const triggerPercent = finiteOrNull(breakEvenConfig.triggerPercent);
+    if (triggerPercent === null || pnlPercent < triggerPercent) {
+      return { updated: false, reason: 'insufficient_profit' };
+    }
+
+    const entryPrice = positiveFiniteOrNull(trade.entryPrice);
+    if (entryPrice === null) {
+      return { updated: false, reason: 'missing_entry_price' };
+    }
+
+    const feeBufferPercent = TradingConfig.BASE_CONFIG.exitLogic.trail.feeBufferPercent;
+    const feeBuffer = Math.max(0, finiteOrNull(feeBufferPercent) ?? 0) / 100;
+    const isShort = trade.direction === 'short' || trade.action === 'SELL_SHORT';
+    const breakevenStop = isShort ? entryPrice * (1 - feeBuffer) : entryPrice * (1 + feeBuffer);
+
+    if (isShort ? !(breakevenStop > currentPrice) : !(breakevenStop < currentPrice)) {
+      return { updated: false, reason: 'not_beyond_fee_buffer' };
+    }
+
+    const currentStop = positiveFiniteOrNull(trade.currentStop);
+    const shouldImprove = currentStop === null
+      || (isShort ? breakevenStop < currentStop : breakevenStop > currentStop);
+    if (!shouldImprove) {
+      return { updated: false, reason: 'no_improvement' };
+    }
+
+    trade.currentStop = breakevenStop;
+    trade.breakevenActive = true;
+    return { updated: true, breakevenStop };
+  }
+
+  _buildProfitPlannerSnapshot(trade, currentPrice, context) {
+    const tradeId = firstNonEmptyString(trade.id, trade.orderId);
+    const intentId = firstNonEmptyString(context.intentId, context.signalId, context.traceId);
+    const entryPrice = finiteOrNull(trade.entryPrice ?? trade.price);
+    const entryOrderQuantity = finiteOrNull(trade.entryOrderQuantity ?? trade.quantity);
+    const remainingOrderQuantity = finiteOrNull(trade.remainingOrderQuantity);
+    const tradeRevision = finiteOrNull(trade.tradeRevision);
+    const maxProfitPercent = finiteOrNull(trade.maxProfitPercent);
+
+    if (!trade.frozenExitPolicy) {
+      return {
+        skipped: true,
+        reason: 'missing_frozen_exit_policy',
+        tradeId,
+      };
+    }
+    if (!tradeId || !intentId || !Number.isFinite(entryPrice) || !Number.isFinite(entryOrderQuantity)
+      || !Number.isFinite(remainingOrderQuantity) || !Number.isInteger(tradeRevision)) {
+      return {
+        skipped: true,
+        reason: 'missing_profit_planner_snapshot_field',
+        tradeId,
+        missing: {
+          tradeId: !tradeId,
+          intentId: !intentId,
+          entryPrice: !Number.isFinite(entryPrice),
+          entryOrderQuantity: !Number.isFinite(entryOrderQuantity),
+          remainingOrderQuantity: !Number.isFinite(remainingOrderQuantity),
+          tradeRevision: !Number.isInteger(tradeRevision),
+        },
+      };
+    }
+
+    return {
+      skipped: false,
+      snapshot: {
+        tradeId,
+        intentId,
+        tradeRevision,
+        executionMode: firstNonEmptyString(trade.executionMode, context.executionMode),
+        brokerId: firstNonEmptyString(trade.brokerId, context.brokerId),
+        accountId: firstNonEmptyString(trade.accountId, context.accountId),
+        assetClass: firstNonEmptyString(trade.assetClass, context.assetClass),
+        symbol: firstNonEmptyString(trade.symbol, context.symbol),
+        timeframe: firstNonEmptyString(trade.timeframe, context.timeframe),
+        sessionId: firstNonEmptyString(context.sessionId),
+        scopeKey: firstNonEmptyString(trade.scopeKey, context.scopeKey),
+        direction: firstNonEmptyString(trade.direction, trade.action),
+        entryPrice,
+        entryTimeMs: finiteOrNull(trade.entryTime ?? trade.timestamp),
+        entryOrderQuantity,
+        remainingOrderQuantity,
+        quantityUnit: firstNonEmptyString(trade.remainingOrderQuantityUnit, trade.entryOrderQuantityUnit),
+        currentPrice,
+        maxProfitPercent: maxProfitPercent === null ? null : maxProfitPercent / 100,
+        frozenExitPolicy: trade.frozenExitPolicy,
+        pendingExitIntent: trade.pendingExitIntent || null,
+        beScaleOutState: trade.beScaleOutState,
+        tierStates: trade.tierStates,
+        priceSource: firstNonEmptyString(context.priceSource),
+        eventTimeMs: finiteOrNull(context.eventTimeMs ?? context.currentTime),
+        receivedAtMs: finiteOrNull(context.receivedAtMs ?? context.currentTime),
+        nowMs: finiteOrNull(context.nowMs ?? context.currentTime),
+      },
+    };
   }
 
   /**

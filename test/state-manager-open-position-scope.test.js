@@ -80,6 +80,13 @@ describe('StateManager openPosition scope contract', () => {
     },
     profitManagement: {
       beScaleOut: { enabled: true },
+      tieredExit: {
+        enabled: true,
+        tiers: [
+          { name: 'tier1', targetProfitMove: 0.015, exitFraction: 0.3 },
+          { name: 'final', targetProfitMove: 0.03, exitFraction: 0.7 },
+        ],
+      },
     },
     fees: { model: 'percent' },
     ...overrides,
@@ -828,6 +835,49 @@ describe('StateManager openPosition scope contract', () => {
     expect(trade.sizeUsd).toBe(beforeTrade.sizeUsd);
     expect(manager.get('position')).toBe(beforePosition);
     expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL);
+  });
+
+  test('reserveExitSlot marks and releases profit planner lifecycle state without mutating position truth', async () => {
+    const opened = await manager.openPosition(500, 100, fullScope({
+      scopeKey: expectedScopeKey,
+      frozenExitPolicy: frozenExitPolicy(),
+      ledgerData: fullLedgerData(),
+    }));
+    expect(opened.success).toBe(true);
+    const beforeTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(beforeTrade.tierStates).toHaveLength(2);
+
+    const reserved = await manager.reserveExitSlot('OPEN_SCOPE_1', 'intent-tier-1', {
+      submittedAtMs: Date.parse('2026-06-28T07:00:00.000Z'),
+      sourceEventId: 'trace-tier',
+      exitFraction: 0.3,
+      stateKey: 'tierStates',
+      tierIndex: 0,
+      targetQuantity: 1.5,
+    });
+
+    expect(reserved.success).toBe(true);
+    const reservedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(reservedTrade.remainingOrderQuantity).toBe(beforeTrade.remainingOrderQuantity);
+    expect(reservedTrade.tierStates[0]).toEqual(expect.objectContaining({
+      status: 'pending',
+      intentId: 'intent-tier-1',
+      targetQuantity: 1.5,
+    }));
+
+    const released = await manager.releaseExitSlot('OPEN_SCOPE_1', 'intent-tier-1', {
+      reason: 'broker_rejected',
+    });
+
+    expect(released.success).toBe(true);
+    const releasedTrade = manager.getActiveTrade('OPEN_SCOPE_1');
+    expect(releasedTrade.pendingExitIntent).toBeNull();
+    expect(releasedTrade.remainingOrderQuantity).toBe(beforeTrade.remainingOrderQuantity);
+    expect(releasedTrade.tierStates[0]).toEqual(expect.objectContaining({
+      status: 'idle',
+      intentId: null,
+      targetQuantity: null,
+    }));
   });
 
   test('reserveExitSlot rejects duplicate pending exit intent without overwriting the original', async () => {

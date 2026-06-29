@@ -4,6 +4,16 @@ const mockStateManager = {
   getTradesBySymbol: jest.fn(),
 };
 
+const entryExitContract = () => ({
+  stopLossPercent: -0.5,
+  takeProfitPercent: 1,
+  trailingStopPercent: 0.5,
+  trailingActivation: 1,
+  maxHoldTimeMinutes: 120,
+  useStructuralExits: false,
+  invalidationConditions: [],
+});
+
 jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
@@ -170,10 +180,11 @@ describe('SessionRouter runtime scope propagation', () => {
       currentEquity: 10000,
       tradeConfidence: 0.88,
       confidenceMultiplier: 1,
+      entryVolatility: 0.01,
       orchResult: {
         winnerStrategy: 'ScopeStrategy',
         sizingMultiplier: 1,
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        exitContract: entryExitContract(),
       },
     });
 
@@ -206,10 +217,11 @@ describe('SessionRouter runtime scope propagation', () => {
       currentEquity: 10000,
       tradeConfidence: 0.88,
       confidenceMultiplier: 1,
+      entryVolatility: 0.01,
       orchResult: {
         winnerStrategy: 'ScopeStrategy',
         sizingMultiplier: 1,
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        exitContract: entryExitContract(),
       },
     })).toThrow(/accountId/);
   });
@@ -251,10 +263,11 @@ describe('SessionRouter runtime scope propagation', () => {
       currentEquity: 10000,
       tradeConfidence: 0.88,
       confidenceMultiplier: 1,
+      entryVolatility: 0.01,
       orchResult: {
         winnerStrategy: 'ScopeStrategy',
         sizingMultiplier: 1,
-        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        exitContract: entryExitContract(),
       },
     })).toThrow(/refusing static config fallback/);
   });
