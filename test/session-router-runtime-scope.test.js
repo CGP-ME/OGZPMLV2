@@ -185,6 +185,15 @@ describe('SessionRouter runtime scope propagation', () => {
         winnerStrategy: 'ScopeStrategy',
         sizingMultiplier: 1,
         exitContract: entryExitContract(),
+        mtfConfluenceSnapshot: {
+          direction: 'buy',
+          confluenceScore: 0.35,
+          confidence: 0.65,
+          readyTimeframes: ['15m', '1h'],
+          totalTimeframes: 4,
+          shouldTrade: true,
+          overallBias: 'bullish',
+        },
       },
     });
 
@@ -198,6 +207,17 @@ describe('SessionRouter runtime scope propagation', () => {
       timeframe: '5m',
       quantityUnit: 'shares',
       orderQuantity: 2.5,
+      frozenExitPolicy: expect.objectContaining({
+        mtfConfluenceSnapshot: expect.objectContaining({
+          available: true,
+          entryDirection: 'long',
+          direction: 'buy',
+          alignment: 'aligned',
+          score: 0.35,
+          confidence: 0.65,
+          readyTimeframes: ['15m', '1h'],
+        }),
+      }),
     }));
   });
 

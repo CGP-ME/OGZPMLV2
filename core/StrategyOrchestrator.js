@@ -88,6 +88,16 @@ function cloneDecisionAttribution(attribution) {
   };
 }
 
+function deepFreezePlain(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreezePlain(child);
+    }
+  }
+  return value;
+}
+
 function refreshDecisionAttribution(result) {
   if (!result.decisionAttribution) return;
   if (!result.decisionAttribution.selectionScore) {
@@ -475,7 +485,11 @@ class StrategyOrchestrator {
     }
 
     const cacheResult = (confluence) => {
-      this.mtfEvaluationCache = { evalCount: this.evalCount, confluence };
+      this.mtfEvaluationCache = {
+        evalCount: this.evalCount,
+        confluence,
+        snapshot: this._buildMtfConfluenceSnapshot(confluence),
+      };
       return confluence;
     };
 
@@ -520,6 +534,38 @@ class StrategyOrchestrator {
       console.log(`[DIAG] MultiTimeframe: confluence=${confluence ? JSON.stringify({ dir: confluence.direction, score: confluence.confluenceScore ?? confluence.score }) : 'null'}`);
     }
     return cacheResult(confluence || null);
+  }
+
+  _buildMtfConfluenceSnapshot(confluence) {
+    if (!confluence || typeof confluence !== 'object') {
+      return null;
+    }
+    const score = firstFiniteNumber(confluence.confluenceScore, confluence.score);
+    const readyTimeframes = Array.isArray(confluence.readyTimeframes)
+      ? confluence.readyTimeframes.slice()
+      : Array.isArray(confluence.timeframes)
+        ? confluence.timeframes.slice()
+        : [];
+
+    return deepFreezePlain({
+      source: 'StrategyOrchestrator.mtfConfluence',
+      direction: confluence.direction || 'neutral',
+      confluenceScore: score == null ? 0 : score,
+      confidence: firstFiniteNumber(confluence.confidence, score == null ? 0 : Math.abs(score)) ?? 0,
+      readyTimeframes,
+      totalTimeframes: Number.isInteger(confluence.totalTimeframes) && confluence.totalTimeframes >= 0
+        ? confluence.totalTimeframes
+        : null,
+      shouldTrade: typeof confluence.shouldTrade === 'boolean' ? confluence.shouldTrade : null,
+      overallBias: typeof confluence.overallBias === 'string' ? confluence.overallBias : null,
+    });
+  }
+
+  _getCachedMtfConfluenceSnapshot() {
+    if (!this.mtfEvaluationCache || this.mtfEvaluationCache.evalCount !== this.evalCount) {
+      return null;
+    }
+    return this.mtfEvaluationCache.snapshot || null;
   }
 
   _applyMtfConfluenceBooster(results, ctx) {
@@ -1729,6 +1775,7 @@ class StrategyOrchestrator {
     }
 
     this._applyMtfConfluenceBooster(results, ctx);
+    const mtfConfluenceSnapshot = this._getCachedMtfConfluenceSnapshot();
 
     // DEBUG 2026-03-06: Why is confidence 0?
     if (results.length > 0) {
@@ -1775,6 +1822,7 @@ class StrategyOrchestrator {
         exitContract: null,
         sizingMultiplier: 1.0,
         confluence: { count: 0, strategies: [] },
+        mtfConfluenceSnapshot,
         allResults: publicResults,
         filteredResults: publicFilteredResults,
         reasons: results.length > 0
@@ -1809,6 +1857,7 @@ class StrategyOrchestrator {
         exitContract: null,
         sizingMultiplier: 1.0,
         confluence: { count: confluenceCount, strategies: agreeing.map(r => r.strategyName) },
+        mtfConfluenceSnapshot,
         allResults: publicResults,
         filteredResults: publicFilteredResults,
         reasons: [`Need ${this.minConfluenceCount} confluent signals, got ${confluenceCount}`]
@@ -1917,6 +1966,7 @@ class StrategyOrchestrator {
           confidence: boundedConfidenceFromRankingScore(r.rankingScore, `${r.strategyName}.opposingRankingScore`),
         })),
       },
+      mtfConfluenceSnapshot,
       allResults: publicResults,
       filteredResults: publicFilteredResults,
       reasons,

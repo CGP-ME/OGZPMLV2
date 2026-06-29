@@ -944,6 +944,8 @@ class OrderExecutor {
       volatility: entryVolatility,
       confidence: tradeConfidence,
       marketCondition: 'normal',
+      entryDirection: decision.action === 'BUY' ? 'long' : 'short',
+      mtfConfluenceSnapshot: orchResult.mtfConfluenceSnapshot || null,
     });
     const scope = this._runtimeScope(symbol);
     const capPercent = absoluteCapPercent ?? this._resolveAbsolutePositionCap();

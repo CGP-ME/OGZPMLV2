@@ -92,6 +92,17 @@ describe('PolicyBuilder frozen exit policy', () => {
         maxHoldTimeMinutes: 300,
         invalidationConditions: ['ema_cross_reversal'],
       },
+      mtfConfluenceSnapshot: {
+        available: false,
+        source: 'none',
+        entryDirection: 'unknown',
+        direction: 'neutral',
+        alignment: 'unknown',
+        score: 0,
+        magnitude: 0,
+        confidence: 0,
+        readyTimeframes: [],
+      },
       profitManagement: {
         beScaleOut: {
           enabled: true,
@@ -117,6 +128,7 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(buildPolicyHash(policy)).toBe(policy.policyHash);
     expect(Object.isFrozen(policy)).toBe(true);
     expect(Object.isFrozen(policy.contract)).toBe(true);
+    expect(Object.isFrozen(policy.mtfConfluenceSnapshot)).toBe(true);
     expect(Object.isFrozen(policy.profitManagement.beScaleOut)).toBe(true);
     expect(Object.isFrozen(policy.profitManagement.tieredExit.tiers[0])).toBe(true);
     expect(configReader.get).toHaveBeenCalledWith('exitLogic.beScaleOut.enabled');
@@ -201,6 +213,70 @@ describe('PolicyBuilder frozen exit policy', () => {
     expect(policy.contract.stopLossPercent).toBe(-0.5);
   });
 
+  test('freezes an aligned MTF confluence snapshot at trade birth', () => {
+    const mtfConfluenceSnapshot = {
+      direction: 'buy',
+      confluenceScore: 0.42,
+      confidence: 0.7,
+      readyTimeframes: ['15m', '1h'],
+      totalTimeframes: 4,
+      shouldTrade: true,
+      overallBias: 'bullish',
+    };
+
+    const policy = PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      ...policyContext,
+      entryDirection: 'long',
+      mtfConfluenceSnapshot,
+      configReader: reader(),
+    });
+
+    mtfConfluenceSnapshot.readyTimeframes.push('4h');
+    mtfConfluenceSnapshot.confluenceScore = -0.99;
+
+    expect(policy.mtfConfluenceSnapshot).toEqual({
+      available: true,
+      source: 'StrategyOrchestrator.mtfConfluence',
+      entryDirection: 'long',
+      direction: 'buy',
+      alignment: 'aligned',
+      score: 0.42,
+      magnitude: 0.42,
+      confidence: 0.7,
+      readyTimeframes: ['15m', '1h'],
+      totalTimeframes: 4,
+      shouldTrade: true,
+      overallBias: 'bullish',
+    });
+    expect(Object.isFrozen(policy.mtfConfluenceSnapshot.readyTimeframes)).toBe(true);
+  });
+
+  test('marks MTF snapshot conflicts against short entries', () => {
+    const policy = PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      ...policyContext,
+      entryDirection: 'short',
+      mtfConfluenceSnapshot: {
+        direction: 'buy',
+        confluenceScore: 0.25,
+        confidence: 0.6,
+        readyTimeframes: ['1h'],
+      },
+      configReader: reader(),
+    });
+
+    expect(policy.mtfConfluenceSnapshot).toMatchObject({
+      entryDirection: 'short',
+      direction: 'buy',
+      alignment: 'conflicted',
+    });
+  });
+
   test('requires the actual strategy exit contract and does not fall back to default', () => {
     expect(() => PolicyBuilder.buildForTrade({
       strategyName: 'EMASMACrossover',
@@ -227,6 +303,23 @@ describe('PolicyBuilder frozen exit policy', () => {
       ...policyContext,
       configReader: reader(),
     })).toThrow(/exitContract.useStructuralExits is required/);
+  });
+
+  test('fails loudly when MTF snapshot fields are malformed', () => {
+    expect(() => PolicyBuilder.buildForTrade({
+      strategyName: 'EMASMACrossover',
+      exitContract: exitContract(),
+      nowMs: fixedNowMs,
+      ...policyContext,
+      entryDirection: 'long',
+      mtfConfluenceSnapshot: {
+        direction: 'buy',
+        confluenceScore: 0.25,
+        confidence: 1.2,
+        readyTimeframes: ['15m'],
+      },
+      configReader: reader(),
+    })).toThrow(/mtfConfluenceSnapshot\.confidence must be between 0 and 1/);
   });
 
   test('all base exit contracts declare structural-exit ownership explicitly', () => {

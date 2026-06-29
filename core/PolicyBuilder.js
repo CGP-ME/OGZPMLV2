@@ -139,6 +139,13 @@ function requireBoolean(value, label) {
   return value;
 }
 
+function requireOptionalBoolean(value, label) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  return requireBoolean(value, label);
+}
+
 function requireString(value, label) {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`[PolicyBuilder] ${label} must be a non-empty string`);
@@ -261,6 +268,116 @@ function normalizeMarketCondition(marketCondition) {
   return requireString(marketCondition, 'marketCondition');
 }
 
+function normalizeEntryDirection(direction) {
+  if (direction === undefined || direction === null || direction === '') {
+    return 'unknown';
+  }
+  const value = requireString(direction, 'entryDirection').toLowerCase();
+  if (['long', 'buy', 'bullish'].includes(value)) return 'long';
+  if (['short', 'sell', 'sell_short', 'bearish'].includes(value)) return 'short';
+  throw new Error(`[PolicyBuilder] entryDirection must be long/buy or short/sell when provided (got ${direction})`);
+}
+
+function normalizeMtfDirection(direction, score) {
+  if (direction === undefined || direction === null || direction === '') {
+    if (score > 0) return 'buy';
+    if (score < 0) return 'sell';
+    return 'neutral';
+  }
+  const value = requireString(direction, 'mtfConfluenceSnapshot.direction').toLowerCase();
+  if (['buy', 'bullish', 'long'].includes(value)) return 'buy';
+  if (['sell', 'bearish', 'short'].includes(value)) return 'sell';
+  if (value === 'neutral') return 'neutral';
+  throw new Error(`[PolicyBuilder] mtfConfluenceSnapshot.direction must be buy, sell, or neutral (got ${direction})`);
+}
+
+function normalizeStringArray(value, label) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`[PolicyBuilder] ${label} must be an array when provided`);
+  }
+  return value.map((item, index) => requireString(item, `${label}[${index}]`));
+}
+
+function normalizeOptionalNonNegativeInteger(value, label) {
+  if (value === undefined || value === null) return null;
+  const numericValue = requireFiniteNumber(value, label);
+  if (!Number.isInteger(numericValue) || numericValue < 0) {
+    throw new Error(`[PolicyBuilder] ${label} must be a non-negative integer`);
+  }
+  return numericValue;
+}
+
+function normalizeMtfConfluenceSnapshot(rawSnapshot, entryDirection) {
+  const normalizedEntryDirection = normalizeEntryDirection(entryDirection);
+  const emptySnapshot = {
+    available: false,
+    source: 'none',
+    entryDirection: normalizedEntryDirection,
+    direction: 'neutral',
+    alignment: 'unknown',
+    score: 0,
+    magnitude: 0,
+    confidence: 0,
+    readyTimeframes: [],
+    totalTimeframes: null,
+    shouldTrade: null,
+    overallBias: null,
+  };
+
+  if (rawSnapshot === undefined || rawSnapshot === null) {
+    return emptySnapshot;
+  }
+  assertPlainObject(rawSnapshot, 'mtfConfluenceSnapshot');
+
+  const score = rawSnapshot.confluenceScore !== undefined
+    ? requireFiniteNumber(rawSnapshot.confluenceScore, 'mtfConfluenceSnapshot.confluenceScore')
+    : rawSnapshot.score !== undefined
+      ? requireFiniteNumber(rawSnapshot.score, 'mtfConfluenceSnapshot.score')
+      : 0;
+  const confidence = rawSnapshot.confidence !== undefined
+    ? requireFraction(rawSnapshot.confidence, 'mtfConfluenceSnapshot.confidence')
+    : Math.min(1, Math.abs(score));
+  const direction = normalizeMtfDirection(rawSnapshot.direction, score);
+  const readyTimeframes = normalizeStringArray(
+    rawSnapshot.readyTimeframes !== undefined ? rawSnapshot.readyTimeframes : rawSnapshot.timeframes,
+    'mtfConfluenceSnapshot.readyTimeframes'
+  );
+  const available = rawSnapshot.available !== undefined
+    ? requireBoolean(rawSnapshot.available, 'mtfConfluenceSnapshot.available')
+    : direction !== 'neutral' || score !== 0 || readyTimeframes.length > 0;
+  const totalTimeframes = normalizeOptionalNonNegativeInteger(rawSnapshot.totalTimeframes, 'mtfConfluenceSnapshot.totalTimeframes');
+  const shouldTrade = requireOptionalBoolean(rawSnapshot.shouldTrade, 'mtfConfluenceSnapshot.shouldTrade');
+  const overallBias = rawSnapshot.overallBias === undefined || rawSnapshot.overallBias === null
+    ? null
+    : requireString(rawSnapshot.overallBias, 'mtfConfluenceSnapshot.overallBias');
+
+  let alignment = 'unknown';
+  if (!available || direction === 'neutral' || normalizedEntryDirection === 'unknown') {
+    alignment = available ? 'neutral' : 'unknown';
+  } else {
+    const entryMtfDirection = normalizedEntryDirection === 'long' ? 'buy' : 'sell';
+    alignment = entryMtfDirection === direction ? 'aligned' : 'conflicted';
+  }
+
+  return {
+    available,
+    source: rawSnapshot.source === undefined || rawSnapshot.source === null
+      ? 'StrategyOrchestrator.mtfConfluence'
+      : requireString(rawSnapshot.source, 'mtfConfluenceSnapshot.source'),
+    entryDirection: normalizedEntryDirection,
+    direction,
+    alignment,
+    score,
+    magnitude: Math.abs(score),
+    confidence,
+    readyTimeframes,
+    totalTimeframes,
+    shouldTrade,
+    overallBias,
+  };
+}
+
 function targetAdjustment(raw, volatilityAdjustment, confidence, marketCondition) {
   const runtimeConfidence = requirePositiveNumber(confidence, 'confidence');
   const condition = normalizeMarketCondition(marketCondition);
@@ -372,6 +489,8 @@ function buildForTrade(options = {}) {
     volatility,
     confidence,
     marketCondition,
+    entryDirection,
+    mtfConfluenceSnapshot,
     configReader = TradingConfig,
   } = options;
 
@@ -395,6 +514,7 @@ function buildForTrade(options = {}) {
     strategyName: normalizedStrategyName,
     builtAtMs: nowMs,
     contract: normalizeContract(normalizedStrategyName, exitContract),
+    mtfConfluenceSnapshot: normalizeMtfConfluenceSnapshot(mtfConfluenceSnapshot, entryDirection),
     profitManagement: {
       beScaleOut: normalizeBeScaleOut(rawBeScaleOut),
       breakEvenStop: normalizeBreakEvenStop(rawBreakEvenStop),

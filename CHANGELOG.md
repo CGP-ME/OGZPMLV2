@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### MTF Frozen Exit Policy Snapshot (2026-06-29)
+
+- Added a frozen `mtfConfluenceSnapshot` to trade-birth exit policies so the new MPM/frozen-policy path can inspect higher-timeframe confluence without changing exit behavior.
+- Threaded cached MTF confluence from `StrategyOrchestrator` through `OrderExecutor` into `PolicyBuilder`, with strict snapshot normalization and BUY/SELL_SHORT alignment stamping.
+- Added focused regression coverage for immutable orchestrator snapshots, policy snapshot freezing, malformed MTF snapshot rejection, and entry-plan handoff into the frozen policy.
+
 ### Dashboard Chart Position Scope (2026-06-27)
 
 - Made chart entry/stop/target lines consume the existing scoped `state_update.positions` contract instead of legacy scalar position truth.
