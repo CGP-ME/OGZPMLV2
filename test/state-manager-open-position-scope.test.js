@@ -1250,6 +1250,81 @@ describe('StateManager openPosition scope contract', () => {
     expect(manager.get('realizedPnL')).toBe(beforeRealizedPnL + 19);
   });
 
+  test('openPosition blocks same-symbol opposite-direction hedges', async () => {
+    const openedLong = await manager.openPosition(500, 100, fullScope({
+      orderId: 'LONG_SCOPE_1',
+      entryOrderQuantity: 5,
+      remainingOrderQuantity: 5,
+      scopeKey: expectedScopeKey,
+      ledgerData: fullLedgerData(),
+    }));
+    expect(openedLong.success).toBe(true);
+
+    const openedShort = await manager.openPosition(300, 30, fullScope({
+      orderId: 'SHORT_SCOPE_1',
+      action: 'SELL_SHORT',
+      direction: 'short',
+      symbol: 'TSLA',
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      ledgerData: fullLedgerData({
+        strategySignals: [{
+          name: 'ScopeTestStrategy',
+          direction: 'short',
+          baseConfidence: 0.75,
+          reason: 'same-symbol hedge test signal',
+        }],
+      }),
+    }));
+
+    expect(openedShort.success).toBe(false);
+    expect(openedShort.blockedReason).toBe('same_symbol_hedge_blocked');
+    expect(openedShort.existingTradeId).toBe('LONG_SCOPE_1');
+    expect(openedShort.existingDirection).toBe('long');
+    expect(openedShort.nextDirection).toBe('short');
+    expect(manager.get('activeTrades').size).toBe(1);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').has('SHORT_SCOPE_1')).toBe(false);
+    expect(manager.get('position')).toBe(500);
+  });
+
+  test('openPosition blocks same-symbol entries when existing trade direction is unknown', async () => {
+    manager.state.activeTrades = new Map([[
+      'AMBIGUOUS_SCOPE_1',
+      {
+        ...fullScope({
+          orderId: 'AMBIGUOUS_SCOPE_1',
+          action: undefined,
+          direction: undefined,
+        }),
+        id: 'AMBIGUOUS_SCOPE_1',
+        sizeUsd: 500,
+        size: 500,
+        entryPrice: 100,
+        status: 'open',
+      },
+    ]]);
+
+    const openedLong = await manager.openPosition(300, 30, fullScope({
+      orderId: 'LONG_SCOPE_2',
+      action: 'BUY',
+      direction: 'long',
+      symbol: 'TSLA',
+      entryOrderQuantity: 10,
+      remainingOrderQuantity: 10,
+      ledgerData: fullLedgerData(),
+    }));
+
+    expect(openedLong.success).toBe(false);
+    expect(openedLong.blockedReason).toBe('same_symbol_trade_direction_unknown');
+    expect(openedLong.existingTradeId).toBe('AMBIGUOUS_SCOPE_1');
+    expect(openedLong.existingDirection).toBeNull();
+    expect(openedLong.nextDirection).toBe('long');
+    expect(manager.get('activeTrades').size).toBe(1);
+    expect(manager.get('activeTrades').has('AMBIGUOUS_SCOPE_1')).toBe(true);
+    expect(manager.get('activeTrades').has('LONG_SCOPE_2')).toBe(false);
+  });
+
   test('applyFill rejects stale trade revision without mutating reserved trade', async () => {
     const opened = await manager.openPosition(500, 100, fullScope({
       scopeKey: expectedScopeKey,

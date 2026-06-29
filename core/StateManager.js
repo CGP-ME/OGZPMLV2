@@ -213,6 +213,19 @@ function initialProfitStopPrice(entryPrice, direction, exitContract) {
   return price * (1 - stopDistance);
 }
 
+function activeTradeDirection(trade) {
+  const direction = String(trade?.direction || '').trim().toLowerCase();
+  const action = String(trade?.action || '').trim().toUpperCase();
+  const directionSide = direction === 'long' || direction === 'short' ? direction : null;
+  const actionSide = action === 'BUY'
+    ? 'long'
+    : (action === 'SELL_SHORT' ? 'short' : null);
+  if (directionSide && actionSide && directionSide !== actionSide) {
+    return null;
+  }
+  return directionSide || actionSide;
+}
+
 function initialExitLifecycleFields(policy = null) {
   return {
     tradeRevision: 0,
@@ -899,6 +912,40 @@ class StateManager {
       console.log(`   Current Balance: $${this.state.balance}`);
 
       const nextActiveTrades = new Map(this.state.activeTrades || []);
+      const oppositeDirection = tradeDirection === 'long' ? 'short' : 'long';
+      const sameSymbolOppositeTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
+        if (!activeTrade || typeof activeTrade !== 'object') return false;
+        if (activeTrade.symbol !== tradeSymbol) return false;
+        const activeDirection = activeTradeDirection(activeTrade);
+        return activeDirection === oppositeDirection;
+      });
+      const sameSymbolUnknownTrade = Array.from(nextActiveTrades.values()).find((activeTrade) => {
+        if (!activeTrade || typeof activeTrade !== 'object') return false;
+        if (activeTrade.symbol !== tradeSymbol) return false;
+        return activeTradeDirection(activeTrade) === null;
+      });
+      if (sameSymbolUnknownTrade) {
+        const existingId = sameSymbolUnknownTrade.orderId || sameSymbolUnknownTrade.id || 'unknown';
+        return {
+          success: false,
+          error: `StateManager.openPosition same-symbol direction unknown: ${tradeSymbol} active trade ${existingId} has no trusted direction; refusing ${tradeDirection} entry ${tradeId}`,
+          blockedReason: 'same_symbol_trade_direction_unknown',
+          existingTradeId: existingId,
+          existingDirection: null,
+          nextDirection: tradeDirection,
+        };
+      }
+      if (sameSymbolOppositeTrade) {
+        const existingId = sameSymbolOppositeTrade.orderId || sameSymbolOppositeTrade.id || 'unknown';
+        return {
+          success: false,
+          error: `StateManager.openPosition same-symbol hedge blocked: ${tradeSymbol} already has ${oppositeDirection} trade ${existingId}; refusing ${tradeDirection} entry ${tradeId}`,
+          blockedReason: 'same_symbol_hedge_blocked',
+          existingTradeId: existingId,
+          existingDirection: oppositeDirection,
+          nextDirection: tradeDirection,
+        };
+      }
       nextActiveTrades.set(tradeId, trade);
       console.log(`[StateManager] Added trade ${tradeId} to activeTrades (now ${nextActiveTrades.size} trades)`);
 

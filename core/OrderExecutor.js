@@ -51,6 +51,19 @@ class OrderExecutor {
     return action === 'SELL' || action === 'COVER';
   }
 
+  _activeTradeDirection(trade) {
+    const direction = String(trade?.direction || '').trim().toLowerCase();
+    const action = String(trade?.action || '').trim().toUpperCase();
+    const directionSide = direction === 'long' || direction === 'short' ? direction : null;
+    const actionSide = action === 'BUY'
+      ? 'long'
+      : (action === 'SELL_SHORT' ? 'short' : null);
+    if (directionSide && actionSide && directionSide !== actionSide) {
+      return null;
+    }
+    return directionSide || actionSide;
+  }
+
   _shouldStoreTraiDecisionForOrder(traiDecision, decision, symbol, nowMs = Date.now()) {
     const traiSignal = traiDecision?.originalSignal || {};
     const traiDecisionAgeMs = Number.isFinite(traiDecision?.createdAt)
@@ -338,14 +351,16 @@ class OrderExecutor {
       return 'webhook_dry_run';
     }
     const quantityReason = this._webhookQuantityBlockReason(orderPlan.orderQuantity, orderPlan.quantityUnit);
-    if (quantityReason === 'fractional_share_quantity' && this._isExitAction(action)) {
-      return null;
-    }
     return quantityReason ? `webhook_${quantityReason}` : null;
   }
 
   _webhookSignalForOrderPlan(action, orderPlan) {
-    const webhookAction = action === 'BUY' || action === 'COVER' ? 'buy' : 'sell';
+    if (!SUPPORTED_ACTIONS.has(action)) {
+      throw new Error(`[WEBHOOK-ORDER] unsupported action ${JSON.stringify(action)} for webhook signal`);
+    }
+    const webhookAction = this._isExitAction(action)
+      ? 'close'
+      : (action === 'BUY' ? 'buy' : 'sell');
     return {
       action: webhookAction,
       symbol: orderPlan.symbol,
@@ -402,6 +417,46 @@ class OrderExecutor {
     }
 
     return null;
+  }
+
+  _sameSymbolHedgeBlock(action, symbol) {
+    if (!this._isEntryAction(action) || typeof symbol !== 'string' || !symbol.trim()) {
+      return null;
+    }
+    const nextDirection = action === 'BUY' ? 'long' : 'short';
+    const oppositeDirection = nextDirection === 'long' ? 'short' : 'long';
+    const activeTrades = typeof stateManager.getTradesBySymbol === 'function'
+      ? stateManager.getTradesBySymbol(symbol)
+      : [];
+    if (!Array.isArray(activeTrades)) {
+      throw new Error(`[ENTRY-HEDGE] StateManager.getTradesBySymbol(${symbol}) returned non-array ${Object.prototype.toString.call(activeTrades)}`);
+    }
+    const unknownDirectionTrade = activeTrades.find((trade) => {
+      if (!trade || typeof trade !== 'object') return false;
+      return this._activeTradeDirection(trade) === null;
+    });
+    if (unknownDirectionTrade) {
+      return {
+        reason: 'same_symbol_trade_direction_unknown',
+        nextDirection,
+        existingDirection: null,
+        existingTradeId: unknownDirectionTrade.orderId || unknownDirectionTrade.id || null,
+      };
+    }
+
+    const oppositeTrade = activeTrades.find((trade) => {
+      if (!trade || typeof trade !== 'object') return false;
+      const direction = this._activeTradeDirection(trade);
+      return direction === oppositeDirection;
+    });
+    if (!oppositeTrade) return null;
+
+    return {
+      reason: 'same_symbol_hedge_blocked',
+      nextDirection,
+      existingDirection: oppositeDirection,
+      existingTradeId: oppositeTrade.orderId || oppositeTrade.id || null,
+    };
   }
 
   _dashboardTradePayload(payload, trade = {}) {
@@ -1040,7 +1095,7 @@ class OrderExecutor {
     return trades[0];
   }
 
-  _buildExitPlan({ decision, symbol, price }) {
+  _buildExitPlan({ decision, symbol, price, forceWholeShares = false }) {
     if (!this._isExitAction(decision.action)) return null;
 
     const trade = this._findExitTrade(decision, symbol);
@@ -1080,6 +1135,7 @@ class OrderExecutor {
     }
     const rawOrderQuantity = remainingOrderQuantity * exitFraction;
     const orderQuantity = this._normalizeOrderQuantity(rawOrderQuantity, scope, {
+      forceWholeShares,
       allowMinimumShare: true,
       remainingOrderQuantity,
     });
@@ -1295,8 +1351,14 @@ class OrderExecutor {
     decision.decisionId = decision.decisionId || `dec_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const traceId = decision.traceId;
     const signalId = decision.signalId;
+    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
     const exitPlan = isExitAction
-      ? this._buildExitPlan({ decision, symbol, price })
+      ? this._buildExitPlan({
+        decision,
+        symbol,
+        price,
+        forceWholeShares: isWebhookExecutionRoute,
+      })
       : null;
     const executionScope = exitPlan
       ? {
@@ -1369,6 +1431,21 @@ class OrderExecutor {
         console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: ${globalHaltReason || symbolHaltReason}`);
         emitTrace(this.ctx, 'ORDER_BLOCKED', { traceId, signalId, symbol, action: decision.action, reason: 'halted', detail: globalHaltReason || symbolHaltReason });
         return blockedReturn('halted', { detail: globalHaltReason || symbolHaltReason });
+      }
+      const hedgeBlock = this._sameSymbolHedgeBlock(decision.action, symbol);
+      if (hedgeBlock) {
+        console.error(`[ENTRY] Refusing ${decision.action} for ${symbol}: same-symbol hedge blocked existing=${hedgeBlock.existingDirection} trade=${hedgeBlock.existingTradeId || 'unknown'} next=${hedgeBlock.nextDirection}`);
+        emitTrace(this.ctx, 'ORDER_BLOCKED', {
+          traceId,
+          signalId,
+          symbol,
+          action: decision.action,
+          reason: hedgeBlock.reason,
+          existingDirection: hedgeBlock.existingDirection,
+          existingTradeId: hedgeBlock.existingTradeId,
+          nextDirection: hedgeBlock.nextDirection,
+        });
+        return blockedReturn(hedgeBlock.reason, hedgeBlock);
       }
     }
     // Log trade execution
@@ -1515,7 +1592,6 @@ class OrderExecutor {
       this._resolveContractStopPercent(orchResult.exitContract);
     }
 
-    const isWebhookExecutionRoute = !this.ctx.backtestMode && this.ctx.webhookAdapter?.enabled === true;
     const entryPlan = isEntryAction ? this._buildEntryPlan({
       decision,
       symbol,

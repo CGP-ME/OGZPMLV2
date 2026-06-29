@@ -813,6 +813,58 @@ describe('TradingLoop trace spine', () => {
     }
   });
 
+  test('blocks opposite-side entry signals instead of creating flip exits', async () => {
+    const configSpy = mockDirectionConfig({ directionFilter: 'both', enableShorts: true });
+    try {
+      const ctx = baseEntryContext();
+      ctx.config.evalTraceEnabled = true;
+      ctx.strategyOrchestrator.evaluate = jest.fn(() => ({
+        direction: 'sell',
+        confidence: 80,
+        winnerStrategy: 'RSI',
+        allResults: [{ strategyName: 'RSI', direction: 'sell', confidence: 0.8, reason: 'test short signal' }],
+        exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+        confluence: { count: 1, strategies: ['RSI'] },
+        sizingMultiplier: 1,
+      }));
+      mockStateManager.getTradesBySymbol.mockReturnValue([{
+        id: 'BUY_OPEN_1',
+        orderId: 'BUY_OPEN_1',
+        symbol: 'TSLA',
+        action: 'BUY',
+        direction: 'long',
+        entryPrice: 100,
+        entryTime: Date.now() - 60000,
+      }]);
+      mockExitContractManager.checkExitConditions.mockReturnValue({ shouldExit: false, details: 'Holding' });
+      const loop = new TradingLoop(ctx);
+      stubGatherData(loop);
+
+      await loop._analyze('TSLA', 'trace_no_flip_1');
+
+      expect(ctx.executeTrade).not.toHaveBeenCalled();
+      const skipEvent = sentFrames(ctx).find(frame => frame.type === 'trace_event' && frame.event === 'DECISION_SKIP');
+      expect(skipEvent).toEqual(expect.objectContaining({
+        traceId: 'trace_no_flip_1',
+        symbol: 'TSLA',
+      }));
+      expect(skipEvent.fields).toEqual(expect.objectContaining({
+        reason: 'opposite_position_no_flip',
+        finalDirection: 'sell',
+      }));
+      expect(mockDecisionAutopsyLogger.writeAutopsy).toHaveBeenCalledWith(expect.objectContaining({
+        symbol: 'TSLA',
+        decision: expect.objectContaining({
+          action: 'HOLD',
+          blockReason: 'opposite_position_no_flip',
+        }),
+        skipReason: 'opposite_position_no_flip',
+      }));
+    } finally {
+      configSpy.mockRestore();
+    }
+  });
+
   test('blocks a TPO override that flips an allowed signal into a disallowed short', async () => {
     const configSpy = mockDirectionConfig({ directionFilter: 'long_only', enableShorts: false });
     try {

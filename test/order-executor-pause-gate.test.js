@@ -695,7 +695,83 @@ describe('OrderExecutor pause gate', () => {
     );
   });
 
-  test('enabled webhook route dispatches fractional share exits instead of pre-blocking them', async () => {
+  test('blocks same-symbol hedge entries before webhook, broker, or state mutation', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade()]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn(),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'SELL_SHORT', confidence: 75 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'same_symbol_hedge_blocked',
+      existingDirection: 'long',
+      nextDirection: 'short',
+      existingTradeId: 'BUY_1',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('blocks same-symbol entries when existing trade direction is unknown', async () => {
+    mockStateManager.get.mockImplementation((key) => {
+      if (key === 'isTrading') return true;
+      return null;
+    });
+    mockStateManager.getTradesBySymbol.mockReturnValue([makeBuyTrade({
+      orderId: 'AMBIGUOUS_1',
+      action: undefined,
+      direction: undefined,
+    })]);
+    const webhookAdapter = {
+      enabled: true,
+      dryRun: false,
+      emit: jest.fn(),
+    };
+    const executor = makeExecutor({}, { webhookAdapter });
+
+    const result = await executor.executeTrade(
+      { action: 'BUY', confidence: 75 },
+      {},
+      100,
+      { rsi: 55, macd: {}, trend: 'sideways', volatility: 0.01 },
+      [],
+      null,
+      makeOrchResult(),
+      'TSLA'
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      reason: 'same_symbol_trade_direction_unknown',
+      existingDirection: null,
+      nextDirection: 'long',
+      existingTradeId: 'AMBIGUOUS_1',
+    }));
+    expect(webhookAdapter.emit).not.toHaveBeenCalled();
+    expect(executor.ctx.orderRouter.sendOrder).not.toHaveBeenCalled();
+    expect(mockStateManager.openPosition).not.toHaveBeenCalled();
+  });
+
+  test('enabled stock webhook route sends exits as close actions and floors partial exits to whole shares', async () => {
     mockStateManager.get.mockImplementation((key) => {
       if (key === 'isTrading') return true;
       return null;
@@ -728,17 +804,25 @@ describe('OrderExecutor pause gate', () => {
       orderId: 'WEBHOOK_EXIT_FRACTIONAL_1',
       orderAccepted: true,
       stateMutationSucceeded: true,
-      orderQuantity: 1.5,
+      orderQuantity: 1,
       quantityUnit: 'shares',
     }));
     expect(webhookAdapter.emit).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'sell',
+      action: 'close',
       symbol: 'TSLA',
-      quantity: 1.5,
+      quantity: 1,
       quantityUnit: 'shares',
       bypassThrottle: true,
     }));
-    expectExitFillApplied({ tradeId: 'BUY_1', filledQuantity: 1.5, fillPrice: 125, remainingQuantity: 3.5, simulated: true });
+    expectExitFillApplied({
+      tradeId: 'BUY_1',
+      filledQuantity: 1,
+      fillPrice: 125,
+      remainingQuantity: 4,
+      simulated: true,
+      expectedReserveFraction: 0.2,
+      expectedReserveRemainingQuantity: 4,
+    });
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('webhook_fractional_share_quantity'));
   });
 
@@ -2907,6 +2991,32 @@ describe('OrderExecutor pause gate', () => {
     expect(cryptoExecutor._webhookQuantityBlockReason(0.016588545429287938, 'base')).toBeNull();
   });
 
+  test('webhook action mapping keeps entries directional but sends exits as close-only actions', () => {
+    const executor = makeExecutor();
+    const plan = {
+      symbol: 'TSLA',
+      orderQuantity: 2,
+      quantityUnit: 'shares',
+    };
+
+    const buySignal = executor._webhookSignalForOrderPlan('BUY', plan);
+    const shortSignal = executor._webhookSignalForOrderPlan('SELL_SHORT', plan);
+    expect(buySignal).toEqual(expect.objectContaining({ action: 'buy' }));
+    expect(shortSignal).toEqual(expect.objectContaining({ action: 'sell' }));
+    expect(buySignal).not.toHaveProperty('bypassThrottle');
+    expect(shortSignal).not.toHaveProperty('bypassThrottle');
+    expect(executor._webhookSignalForOrderPlan('SELL', plan)).toEqual(expect.objectContaining({
+      action: 'close',
+      bypassThrottle: true,
+    }));
+    expect(executor._webhookSignalForOrderPlan('COVER', plan)).toEqual(expect.objectContaining({
+      action: 'close',
+      bypassThrottle: true,
+    }));
+    expect(() => executor._webhookSignalForOrderPlan('sell', plan)).toThrow(/unsupported action/);
+    expect(() => executor._webhookSignalForOrderPlan('cover', plan)).toThrow(/unsupported action/);
+  });
+
   test('webhook emit helper broadcasts dispatch and local result trace events', async () => {
     const dashboardWs = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
     const webhookAdapter = {
@@ -3034,7 +3144,7 @@ describe('OrderExecutor pause gate', () => {
     );
 
     await expect(executor._emitWebhookOrder('SELL', {
-      action: 'sell',
+      action: 'close',
       symbol: 'TSLA',
       quantity: 3,
       quantityUnit: 'shares',
@@ -3074,7 +3184,7 @@ describe('OrderExecutor pause gate', () => {
       decisionId: 'decision_webhook_2',
       symbol: 'TSLA',
       action: 'SELL',
-      webhookAction: 'sell',
+      webhookAction: 'close',
       quantity: 3,
       quantityUnit: 'shares',
       orderType: 'market',
@@ -3112,7 +3222,7 @@ describe('OrderExecutor pause gate', () => {
     );
 
     await expect(executor._emitWebhookOrder('COVER', {
-      action: 'buy',
+      action: 'close',
       symbol: 'TSLA',
       quantity: 2,
       quantityUnit: 'shares',
@@ -3137,7 +3247,7 @@ describe('OrderExecutor pause gate', () => {
       decisionId: 'decision_webhook_3',
       symbol: 'TSLA',
       action: 'COVER',
-      webhookAction: 'buy',
+      webhookAction: 'close',
       quantity: 2,
       orderType: 'market',
       bypassThrottle: true,

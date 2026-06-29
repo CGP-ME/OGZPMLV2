@@ -169,6 +169,17 @@ describe('eval live posture gate', () => {
     expect(wrongOrderReport.errors.join('\n')).toMatch(/must list broker\.tradingPair TSLA first/);
   });
 
+  test('rejects stale PM2 eval symbol universe drift such as RIOT after quarantine', () => {
+    const report = validateEvalLivePosture(validEvalLiveEnv({
+      ALPACA_SYMBOLS: 'TSLA,NVDA,SPY,QQQ,COIN,MARA,RIOT',
+      TTP_EARNINGS_STATUS_JSON: earningsStatusJson(currentNewYorkDate(), { RIOT: false }),
+    }));
+
+    expect(report.status).toBe('FAIL');
+    expect(report.checked.symbol.expectedAlpacaSymbols).toEqual(['TSLA', 'NVDA', 'SPY', 'QQQ', 'COIN', 'MARA']);
+    expect(report.errors.join('\n')).toMatch(/ALPACA_SYMBOLS must exactly match eval universe TSLA, NVDA, SPY, QQQ, COIN, MARA/);
+  });
+
   test('readiness passes with explicit flat state and flat Alpaca positions', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ogz-eval-ready-'));
     const stateFile = writeStateFile(path.join(tempDir, 'state.json'));

@@ -121,13 +121,18 @@ class TtpCutoffEnforcer {
           continue;
         }
 
+        const action = this._exitActionForTrade(trade);
+        if (!action) {
+          failures.push({ tradeId, symbol, reason: 'active_trade_direction_unknown_for_cutoff' });
+          continue;
+        }
+
         const price = Number(this.getExitPrice?.(symbol, trade, targetBrokerPositions));
         if (!Number.isFinite(price) || price <= 0) {
           failures.push({ tradeId, symbol, reason: 'missing_exit_price' });
           continue;
         }
 
-        const action = trade.action === 'SELL_SHORT' || trade.direction === 'short' ? 'COVER' : 'SELL';
         await this.executeTrade(
           { action, confidence: 100, tradeId, exitReason: 'ttp_1550_liquidation' },
           { totalConfidence: 100 },
@@ -231,6 +236,22 @@ class TtpCutoffEnforcer {
   _isTtpStockTrade(trade) {
     const assetClass = String(trade?.assetClass || this.assetClass || '').trim().toLowerCase();
     return this._isTtpStockAssetClass(assetClass);
+  }
+
+  _exitActionForTrade(trade) {
+    const direction = String(trade?.direction || '').trim().toLowerCase();
+    const action = String(trade?.action || '').trim().toUpperCase();
+    const directionSide = direction === 'long' || direction === 'short' ? direction : null;
+    const actionSide = action === 'BUY'
+      ? 'long'
+      : (action === 'SELL_SHORT' ? 'short' : null);
+    if (directionSide && actionSide && directionSide !== actionSide) {
+      return null;
+    }
+    const side = directionSide || actionSide;
+    if (side === 'long') return 'SELL';
+    if (side === 'short') return 'COVER';
+    return null;
   }
 
   async _cancelOpenOrders(symbolScope) {

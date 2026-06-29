@@ -107,6 +107,36 @@ describe('TtpCutoffEnforcer', () => {
     expect(result.orphanClosed).toEqual([]);
   });
 
+  test('fails loud instead of guessing a cutoff exit side for ambiguous active trades', async () => {
+    const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
+    const activeTrades = new Map([['AMBIGUOUS_1', makeTrade({
+      id: 'AMBIGUOUS_1',
+      orderId: 'AMBIGUOUS_1',
+      action: undefined,
+      direction: undefined,
+    })]]);
+    const executeTrade = jest.fn();
+    const orderRouter = {
+      cancelAllOpenOrders: jest.fn(),
+      getAllPositions: jest.fn(),
+    };
+    const enforcer = new TtpCutoffEnforcer({
+      evalRuleEngine: makeRuleEngine(now),
+      stateManager: { get: jest.fn(() => activeTrades) },
+      orderRouter,
+      executeTrade,
+      getExitPrice: jest.fn(() => 125),
+      assetClass: 'stocks',
+      symbols: ['TSLA'],
+      brokerReconciliationEnabled: false,
+      now,
+      logger: { log: jest.fn() },
+    });
+
+    await expect(enforcer.enforce()).rejects.toThrow(/active_trade_direction_unknown_for_cutoff/);
+    expect(executeTrade).not.toHaveBeenCalled();
+  });
+
   test('webhook-routed cutoff closes tracked state without treating unrelated broker positions as truth', async () => {
     const now = () => new Date('2026-05-22T19:50:00.000Z').getTime();
     const activeTrades = new Map([['BUY_1', makeTrade({ remainingOrderQuantity: 1 })]]);
