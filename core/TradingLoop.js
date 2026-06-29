@@ -31,6 +31,7 @@ const CandlePatternDetector = require('./CandlePatternDetector');
 const { getNarrator } = require('./TradeNarrator');
 const { createTraceId, emitTrace } = require('./TraceSpine');
 const { stampPatternMaturity } = require('./PatternMaturity');
+const DecisionAutopsyLogger = require('./DecisionAutopsyLogger');
 const flagManager = FeatureFlagManager.getInstance();
 
 const candlePatternDetector = new CandlePatternDetector();
@@ -165,6 +166,23 @@ class TradingLoop {
     return orchResult.allResults;
   }
 
+  _autopsyAllResults(orchResult) {
+    return Array.isArray(orchResult?.allResults) ? orchResult.allResults : [];
+  }
+
+  _autopsyRaw(value) {
+    try {
+      return value === undefined ? null : JSON.parse(JSON.stringify(value));
+    } catch (error) {
+      return { serializationError: error.message };
+    }
+  }
+
+  _autopsyText(value) {
+    if (value === undefined || value === null || value === '') return null;
+    return String(value);
+  }
+
   _ledgerWinnerName(orchResult) {
     return this._ledgerText(orchResult?.winnerStrategy, 'orchResult.winnerStrategy');
   }
@@ -295,6 +313,270 @@ class TradingLoop {
       decisionAttribution: this._ledgerDecisionAttribution(result, index),
       ...this._ledgerSignalMetadata(result, index),
     };
+  }
+
+  _autopsyStrategySignals(orchResult, indicators = {}) {
+    return this._autopsyAllResults(orchResult).map((result, index) => {
+      try {
+        return this._ledgerStrategySignal(result, index, indicators);
+      } catch (error) {
+        return {
+          name: this._autopsyText(result?.strategyName || result?.name),
+          direction: this._autopsyText(result?.direction),
+          baseConfidence: null,
+          baseConfidenceRaw: result?.confidence ?? null,
+          reason: this._autopsyText(result?.reason || (Array.isArray(result?.reasons) ? result.reasons.join('; ') : null)),
+          normalizationError: error.message,
+          raw: this._autopsyRaw(result),
+          indicatorValues: {
+            rsi: indicators.rsi,
+            ema20: indicators.ema20,
+            ema50: indicators.ema50,
+            atr: indicators.atr,
+            trend: indicators.trend,
+          },
+        };
+      }
+    });
+  }
+
+  _autopsyWinnerAttribution(allResults, winnerName) {
+    if (!winnerName) return { status: 'missing', winnerIndex: null, matchCount: 0 };
+    try {
+      return this._ledgerWinnerAttribution(allResults, winnerName);
+    } catch (error) {
+      return {
+        status: 'unresolved',
+        winnerIndex: null,
+        matchCount: 0,
+        reason: error.message,
+      };
+    }
+  }
+
+  _autopsyCompetingStrategies(orchResult) {
+    const allResults = this._autopsyAllResults(orchResult);
+    if (allResults.length === 0) return [];
+    const winnerName = orchResult?.winnerStrategy || null;
+    const winnerAttribution = this._autopsyWinnerAttribution(allResults, winnerName);
+    return allResults.map((result, index) => {
+      try {
+        return this._ledgerCompetingStrategy(result, index, winnerName, winnerAttribution.winnerIndex);
+      } catch (error) {
+        return {
+          name: this._autopsyText(result?.strategyName || result?.name),
+          adjustedConfidence: null,
+          adjustedConfidenceRaw: result?.confidence ?? null,
+          rejected: this._autopsyText(result?.strategyName || result?.name) !== winnerName,
+          rejectReason: error.message,
+          normalizationError: error.message,
+          raw: this._autopsyRaw(result),
+        };
+      }
+    });
+  }
+
+  _autopsyFilteredStrategies(orchResult) {
+    const filteredResults = Array.isArray(orchResult?.filteredResults) ? orchResult.filteredResults : [];
+    return filteredResults.map((result, index) => {
+      try {
+        return this._ledgerFilteredStrategy(result, index);
+      } catch (error) {
+        return {
+          name: this._autopsyText(result?.strategyName || result?.name),
+          direction: this._autopsyText(result?.direction),
+          adjustedConfidence: null,
+          adjustedConfidenceRaw: result?.confidence ?? null,
+          rejected: true,
+          rejectedBy: this._autopsyText(result?.rejectedBy),
+          rejectReason: this._autopsyText(result?.rejectReason) || error.message,
+          normalizationError: error.message,
+          raw: this._autopsyRaw(result),
+        };
+      }
+    });
+  }
+
+  _autopsyDecisionStatus(decision, skipReason) {
+    if (decision?.action && decision.action !== 'HOLD') return 'execute';
+    if (skipReason) return 'skip';
+    return 'hold';
+  }
+
+  _entryRiskGates(finalDirection, directionFilter, enableShorts, priceHistory, activeTrades, maxPositions, minConfidence, confidence, riskGates = []) {
+    const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
+    return [
+      { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
+      { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
+      { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
+      { gate: 'shorts_enabled', threshold: true, value: finalDirection === 'sell' ? enableShorts : 'not_applicable', passed: executionDirectionGate.shortsPassed },
+      { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
+      { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
+      ...riskGates,
+    ];
+  }
+
+  _writeDecisionAutopsy({
+    traceId,
+    symbol,
+    price,
+    priceHistory,
+    marketData,
+    indicators = {},
+    patterns = [],
+    regime = null,
+    orchResult = null,
+    decision = { action: 'HOLD' },
+    finalDirection = null,
+    minConfidence = null,
+    activeTrades = [],
+    maxPositions = null,
+    directionFilter = null,
+    enableShorts = null,
+    riskGates = [],
+    exitEvaluations = [],
+    skipReason = null,
+    source = 'trading_loop',
+  }) {
+    try {
+      const scope = this._patternScope(symbol);
+      const confidencePct = Number.isFinite(orchResult?.confidence) ? orchResult.confidence : null;
+      const minConfidencePct = Number.isFinite(minConfidence) ? minConfidence * 100 : null;
+      const allResults = this._autopsyAllResults(orchResult);
+      const winnerName = orchResult?.winnerStrategy || null;
+      const winnerAttribution = winnerName && allResults.length > 0
+        ? this._autopsyWinnerAttribution(allResults, winnerName)
+        : { status: winnerName ? 'missing' : 'missing', winnerIndex: null, matchCount: 0 };
+      const failedRiskGates = Array.isArray(riskGates)
+        ? riskGates.filter(gate => gate && gate.passed === false)
+        : [];
+      const effectiveSkipReason = skipReason
+        || decision?.blockReason
+        || (decision?.action === 'HOLD' && finalDirection === 'hold' ? 'hold_direction' : null)
+        || (decision?.action === 'HOLD' && Number.isFinite(confidencePct) && Number.isFinite(minConfidencePct) && confidencePct < minConfidencePct ? 'below_min_confidence' : null)
+        || (decision?.action === 'HOLD' ? 'not_entry_candidate' : null);
+
+      const record = {
+        traceId,
+        signalId: decision?.signalId || (traceId ? `${traceId}:signal` : null),
+        timestamp: new Date().toISOString(),
+        candleTimestamp: marketData?.timestamp ?? Date.now(),
+        source,
+        status: this._autopsyDecisionStatus(decision, effectiveSkipReason),
+        symbol,
+        brokerId: scope.brokerId || null,
+        accountId: scope.accountId || null,
+        accountIdSource: scope.accountIdSource || null,
+        assetClass: scope.assetClass || null,
+        timeframe: scope.timeframe || null,
+        executionMode: scope.executionMode || 'paper',
+        market: {
+          price: Number.isFinite(price) ? price : null,
+          priceSource: marketData?.priceSource || null,
+          priceHistoryLength: Array.isArray(priceHistory) ? priceHistory.length : null,
+          volume: marketData?.volume ?? null,
+        },
+        indicators: {
+          rsi: indicators?.rsi ?? null,
+          ema20: indicators?.ema20 ?? null,
+          ema50: indicators?.ema50 ?? null,
+          atr: indicators?.atr ?? null,
+          trend: indicators?.trend ?? null,
+          volatility: indicators?.volatility ?? null,
+        },
+        regime: regime ? {
+          currentRegime: regime.currentRegime || null,
+          confidence: Number.isFinite(regime.confidence) ? regime.confidence : null,
+        } : null,
+        orchestratorDecision: {
+          action: orchResult?.action || null,
+          direction: orchResult?.direction || null,
+          finalDirection,
+          winnerStrategy: winnerName,
+          finalConfidence: Number.isFinite(confidencePct) ? confidencePct / 100 : null,
+          winnerAttribution,
+          reasons: Array.isArray(orchResult?.reasons) ? orchResult.reasons.slice() : [],
+          competingStrategies: this._autopsyCompetingStrategies(orchResult),
+          filteredStrategies: this._autopsyFilteredStrategies(orchResult),
+        },
+        strategySignals: this._autopsyStrategySignals(orchResult, indicators),
+        confluence: orchResult?.confluence || null,
+        mtfConfluenceSnapshot: orchResult?.mtfConfluenceSnapshot || null,
+        exitContract: orchResult?.exitContract || null,
+        gates: {
+          minConfidence: {
+            threshold: Number.isFinite(minConfidence) ? minConfidence : null,
+            value: Number.isFinite(confidencePct) ? confidencePct / 100 : null,
+            passed: Number.isFinite(confidencePct) && Number.isFinite(minConfidencePct)
+              ? confidencePct >= minConfidencePct
+              : null,
+          },
+          directionFilter: {
+            filter: directionFilter,
+            enableShorts,
+            finalDirection,
+          },
+          activePositions: {
+            count: Array.isArray(activeTrades) ? activeTrades.length : null,
+            maxPositions,
+          },
+          riskGates,
+          failedRiskGates,
+        },
+        exitEvaluations,
+        decision: {
+          action: decision?.action || 'HOLD',
+          direction: decision?.direction || null,
+          confidence: Number.isFinite(decision?.confidence) ? decision.confidence : null,
+          blockReason: decision?.blockReason || null,
+          exitReason: decision?.exitReason || null,
+          tradeId: decision?.tradeId || null,
+        },
+        skipReason: effectiveSkipReason,
+        patternCount: Array.isArray(patterns) ? patterns.length : 0,
+      };
+
+      const persisted = DecisionAutopsyLogger.writeAutopsy(record);
+      emitTrace(this.ctx, 'DECISION_AUTOPSY', {
+        traceId,
+        symbol,
+        persisted,
+        status: record.status,
+        action: record.decision.action,
+        skipReason: record.skipReason,
+        confidencePct,
+        minConfidencePct,
+        winnerStrategy: winnerName,
+        strategySignalCount: record.strategySignals.length,
+        failedRiskGateCount: failedRiskGates.length,
+      });
+      if (!persisted) {
+        emitTrace(this.ctx, 'DECISION_AUTOPSY_WRITE_FAILED', {
+          traceId,
+          symbol,
+          source,
+          status: record.status,
+          action: record.decision.action,
+          skipReason: record.skipReason,
+        });
+        const persistError = new Error('[DecisionAutopsyLogger] failed to persist decision autopsy after primary and fallback writes');
+        persistError.code = 'DECISION_AUTOPSY_PERSIST_FAILED';
+        throw persistError;
+      }
+    } catch (error) {
+      const label = error.code === 'DECISION_AUTOPSY_PERSIST_FAILED'
+        ? 'autopsy persist failed'
+        : 'autopsy build failed';
+      console.error(`[DecisionAutopsyLogger] ${label}: ${error.message}`);
+      emitTrace(this.ctx, 'DECISION_AUTOPSY_FAILED', {
+        traceId,
+        symbol,
+        reason: error.message,
+      });
+      if (error.code === 'DECISION_AUTOPSY_PERSIST_FAILED') {
+        throw error;
+      }
+    }
   }
 
   _directionGateStatus(direction, directionFilter, enableShorts) {
@@ -582,6 +864,13 @@ class TradingLoop {
     // Concurrency guard — one analysis at a time
     if (this.analyzing) {
       emitTrace(this.ctx, 'ANALYSIS_SKIP', { traceId, symbol, reason: 'concurrency_guard' });
+      this._writeDecisionAutopsy({
+        traceId,
+        symbol,
+        decision: { action: 'HOLD' },
+        skipReason: 'concurrency_guard',
+        source: 'trading_loop',
+      });
       return;
     }
     this.analyzing = true;
@@ -653,6 +942,7 @@ class TradingLoop {
 
     const activeTrades = stateManager.getTradesBySymbol(symbol);
     if (activeTrades.length === 0) return;
+    const exitEvaluations = [];
 
     const priceHistory = symCtx?.priceHistory ?? this.ctx.priceHistory;
     const indicatorEngine = symCtx?.indicatorEngine ?? this.ctx.indicatorEngine;
@@ -690,6 +980,27 @@ class TradingLoop {
         'exit_only'
       );
       if (consistencyDecision) {
+        exitEvaluations.push({
+          checker: 'ttp_consistency_profit_cap',
+          tradeId: activeTrade.id || activeTrade.orderId || null,
+          symbol: activeTrade.symbol || symbol,
+          shouldExit: true,
+          exitReason: consistencyDecision.exitReason,
+          exitFraction: consistencyDecision.exitFraction ?? null,
+          confidence: consistencyDecision.confidence,
+        });
+        this._writeDecisionAutopsy({
+          traceId,
+          symbol,
+          price,
+          priceHistory,
+          marketData,
+          indicators,
+          decision: consistencyDecision,
+          activeTrades,
+          exitEvaluations,
+          source: 'exit_only',
+        });
         await this.ctx.executeTrade(consistencyDecision, { totalConfidence: 100 }, price, indicators, [], null, null, symbol);
         return;
       }
@@ -724,7 +1035,7 @@ class TradingLoop {
           throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
         }
         const isClosingShort = this._isClosingShort(activeTrade);
-        await this.ctx.executeTrade({
+        const exitDecision = {
           action: isClosingShort ? 'COVER' : 'SELL',
           direction: 'close',
           confidence: exitCheck.confidence || 100,
@@ -734,10 +1045,55 @@ class TradingLoop {
           tradeId: activeTrade.id || activeTrade.orderId,
           traceId,
           signalId: `${traceId}:exit`
-        }, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
+        };
+        exitEvaluations.push({
+          checker: 'exit_contract_manager',
+          tradeId: activeTrade.id || activeTrade.orderId || null,
+          symbol: activeTrade.symbol || symbol,
+          shouldExit: true,
+          exitReason: exitCheck.exitReason || null,
+          exitFraction: exitCheck.exitFraction ?? null,
+          confidence: exitCheck.confidence ?? null,
+          details: exitCheck.details || null,
+        });
+        this._writeDecisionAutopsy({
+          traceId,
+          symbol,
+          price,
+          priceHistory,
+          marketData,
+          indicators,
+          decision: exitDecision,
+          activeTrades,
+          exitEvaluations,
+          source: 'exit_only',
+        });
+        await this.ctx.executeTrade(exitDecision, { totalConfidence: exitCheck.confidence || 100 }, price, indicators, [], null, null, symbol);
         return;
       }
+      exitEvaluations.push({
+        checker: 'exit_contract_manager',
+        tradeId: activeTrade.id || activeTrade.orderId || null,
+        symbol: activeTrade.symbol || symbol,
+        shouldExit: false,
+        exitReason: exitCheck.exitReason || null,
+        confidence: exitCheck.confidence ?? null,
+        details: exitCheck.details || null,
+      });
     }
+    this._writeDecisionAutopsy({
+      traceId,
+      symbol,
+      price,
+      priceHistory,
+      marketData,
+      indicators,
+      decision: { action: 'HOLD', confidence: 0 },
+      activeTrades,
+      exitEvaluations,
+      skipReason: 'no_exit_condition',
+      source: 'exit_only',
+    });
   }
 
   async _analyze(symbol, traceId = createTraceId('trace')) {
@@ -791,6 +1147,16 @@ class TradingLoop {
         route: symCtx ? 'symbolContext' : 'global',
         marketSymbol: this.ctx.marketData?.symbol || null,
       });
+      this._writeDecisionAutopsy({
+        traceId,
+        symbol,
+        price,
+        priceHistory,
+        marketData,
+        skipReason: 'no_scoped_price',
+        decision: { action: 'HOLD' },
+        source: 'trading_loop',
+      });
       return;
     }
 
@@ -807,6 +1173,17 @@ class TradingLoop {
         reason: 'warmup',
         priceHistory: priceHistory.length,
         required: 15,
+      });
+      this._writeDecisionAutopsy({
+        traceId,
+        symbol,
+        price,
+        priceHistory,
+        marketData,
+        decision: { action: 'HOLD' },
+        riskGates: [{ gate: 'warmup', threshold: 15, value: priceHistory.length, passed: false }],
+        skipReason: 'warmup',
+        source: 'trading_loop',
       });
       return;
     }
@@ -917,6 +1294,25 @@ class TradingLoop {
         confidencePct: orchResult.confidence,
         minConfidencePct: minConfidence * 100,
       });
+      this._writeDecisionAutopsy({
+        traceId,
+        symbol,
+        price,
+        priceHistory,
+        marketData,
+        indicators,
+        patterns,
+        regime,
+        orchResult,
+        decision: { action: 'HOLD', confidence: orchResult.confidence, blockReason: directionGate.reason },
+        finalDirection,
+        minConfidence,
+        activeTrades: stateManager.getTradesBySymbol(symbol),
+        maxPositions: TradingConfig.get('positionSizing.maxPositions') ?? 3,
+        directionFilter,
+        enableShorts,
+        skipReason: directionGate.reason,
+      });
       console.log(`[DIRECTION-GATE] Blocked ${finalDirection}: reason=${directionGate.reason} filter=${directionFilter} enableShorts=${enableShorts}`);
       this._broadcastAndReturn(symbol, price, indicators, patterns, regime, orchResult, confidenceData, marketData);
       return;
@@ -942,6 +1338,7 @@ class TradingLoop {
     // symbol explicitly.
     const activeTrades = stateManager.getTradesBySymbol(symbol);
     const maxPositions = TradingConfig.get('positionSizing.maxPositions') ?? 3;
+    const exitEvaluations = [];
 
     let decision = { action: 'HOLD', confidence: orchResult.confidence };
     this._diag('ENTRY_CONTEXT', {
@@ -981,6 +1378,15 @@ class TradingLoop {
           'candle_exit'
         );
         if (consistencyDecision) {
+          exitEvaluations.push({
+            checker: 'ttp_consistency_profit_cap',
+            tradeId: activeTrade.id || activeTrade.orderId || null,
+            symbol: activeTrade.symbol || symbol,
+            shouldExit: true,
+            exitReason: consistencyDecision.exitReason,
+            exitFraction: consistencyDecision.exitFraction ?? null,
+            confidence: consistencyDecision.confidence,
+          });
           decision = consistencyDecision;
           break;
         }
@@ -988,53 +1394,73 @@ class TradingLoop {
         exitContractManager.updateMaxProfit(activeTrade, price);
 
         const exitCheck = exitContractManager.checkExitConditions(activeTrade, price, {
-        indicators,
-        currentTime: marketData?.timestamp ?? Date.now(),
-        // FIX 2026-04-09: Use getEquity() for live mode to get true account value
-        accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
-        initialBalance: _initialBalance,
-        currentPosition: stateManager.get('position'),
-        currentPrice: price,
-        nearestStructure,
-        priceSource: marketData?.priceSource || 'market_data',
-        eventTimeMs: marketData?.eventTimeMs ?? marketData?.timestamp ?? null,
-        receivedAtMs: marketData?.receivedAtMs ?? Date.now(),
-        nowMs: Date.now(),
-        executionMode: this.ctx.config?.executionMode,
-        brokerId: this.ctx.config?.brokerId,
-        accountId: this.ctx.config?.accountId,
-        assetClass: this.ctx.config?.assetClass,
-        timeframe: this.ctx.config?.timeframe,
-        symbol,
-        intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
-        traceId,
-        signalId: `${traceId}:exit`
-      });
-
-      if (exitCheck.shouldExit) {
-        console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
-        // Determine correct exit action based on what we're closing
-        const isClosingShort = this._isClosingShort(activeTrade);
-        // MED-01: throw on missing exitReason. All exit checkers
-        // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
-        // a specific reason. Halt-class — refuses to silently attribute the
-        // exit as 'signal' when the source contract is broken.
-        if (exitCheck.shouldExit && !exitCheck.exitReason) {
-          throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
-        }
-        decision = {
-          action: isClosingShort ? 'COVER' : 'SELL',
-          direction: 'close',
-          confidence: exitCheck.confidence || 100,
-          exitReason: exitCheck.exitReason,
-          exitFraction: exitCheck.exitFraction,
-          exitIntent: exitCheck.exitIntent,
-          tradeId: activeTrade.id || activeTrade.orderId,
+          indicators,
+          currentTime: marketData?.timestamp ?? Date.now(),
+          // FIX 2026-04-09: Use getEquity() for live mode to get true account value
+          accountBalance: this.ctx.backtestRecorder?.balance ?? stateManager.getEquity(price),
+          initialBalance: _initialBalance,
+          currentPosition: stateManager.get('position'),
+          currentPrice: price,
+          nearestStructure,
+          priceSource: marketData?.priceSource || 'market_data',
+          eventTimeMs: marketData?.eventTimeMs ?? marketData?.timestamp ?? null,
+          receivedAtMs: marketData?.receivedAtMs ?? Date.now(),
+          nowMs: Date.now(),
+          executionMode: this.ctx.config?.executionMode,
+          brokerId: this.ctx.config?.brokerId,
+          accountId: this.ctx.config?.accountId,
+          assetClass: this.ctx.config?.assetClass,
+          timeframe: this.ctx.config?.timeframe,
+          symbol,
+          intentId: `${traceId}:profit:${activeTrade.id || activeTrade.orderId}`,
           traceId,
           signalId: `${traceId}:exit`
-        };
-        break; // Exit one position per candle
-      }
+        });
+
+        if (exitCheck.shouldExit) {
+          exitEvaluations.push({
+            checker: 'exit_contract_manager',
+            tradeId: activeTrade.id || activeTrade.orderId || null,
+            symbol: activeTrade.symbol || symbol,
+            shouldExit: true,
+            exitReason: exitCheck.exitReason || null,
+            exitFraction: exitCheck.exitFraction ?? null,
+            confidence: exitCheck.confidence ?? null,
+            details: exitCheck.details || null,
+          });
+          console.log(`[EXIT-CONTRACT] ${exitCheck.details}`);
+          // Determine correct exit action based on what we're closing
+          const isClosingShort = this._isClosingShort(activeTrade);
+          // MED-01: throw on missing exitReason. All exit checkers
+          // (TakeProfitChecker/StopLossChecker/MaxHoldChecker/etc.) MUST emit
+          // a specific reason. Halt-class — refuses to silently attribute the
+          // exit as 'signal' when the source contract is broken.
+          if (exitCheck.shouldExit && !exitCheck.exitReason) {
+            throw new Error('[MED-01] exitCheck.shouldExit=true but exitCheck.exitReason missing — exit-checker contract violation');
+          }
+          decision = {
+            action: isClosingShort ? 'COVER' : 'SELL',
+            direction: 'close',
+            confidence: exitCheck.confidence || 100,
+            exitReason: exitCheck.exitReason,
+            exitFraction: exitCheck.exitFraction,
+            exitIntent: exitCheck.exitIntent,
+            tradeId: activeTrade.id || activeTrade.orderId,
+            traceId,
+            signalId: `${traceId}:exit`
+          };
+          break; // Exit one position per candle
+        } else {
+          exitEvaluations.push({
+            checker: 'exit_contract_manager',
+            tradeId: activeTrade.id || activeTrade.orderId || null,
+            symbol: activeTrade.symbol || symbol,
+            shouldExit: false,
+            exitReason: exitCheck.exitReason || null,
+            confidence: exitCheck.confidence ?? null,
+            details: exitCheck.details || null,
+          });
+        }
       } // end for (const activeTrade of activeTrades)
     } // end if (hasOpenPosition)
 
@@ -1176,6 +1602,44 @@ class TradingLoop {
       });
     }
 
+    const autopsyRiskGates = (decision.action === 'BUY' || decision.action === 'SELL_SHORT')
+      ? this._entryRiskGates(
+        finalDirection,
+        directionFilter,
+        enableShorts,
+        priceHistory,
+        activeTrades,
+        maxPositions,
+        minConfidence,
+        confidence,
+        Array.isArray(decision.riskGates) ? decision.riskGates : []
+      )
+      : (Array.isArray(decision.riskGates) ? decision.riskGates : []);
+
+    this._writeDecisionAutopsy({
+      traceId,
+      symbol,
+      price,
+      priceHistory,
+      marketData,
+      indicators,
+      patterns,
+      regime,
+      orchResult,
+      decision,
+      finalDirection,
+      minConfidence,
+      activeTrades,
+      maxPositions,
+      directionFilter,
+      enableShorts,
+      riskGates: autopsyRiskGates,
+      exitEvaluations,
+      skipReason: decision.action === 'HOLD'
+        ? (decision.blockReason || (finalDirection === 'hold' ? 'hold_direction' : (confidence < minConfidence ? 'below_min_confidence' : 'not_entry_candidate')))
+        : null,
+    });
+
     // ─── ATTACH OVERRIDE LEVELS ───
     if (overrideSignal && decision.action !== 'HOLD') {
       decision.signalSource = signalSource;
@@ -1211,20 +1675,21 @@ class TradingLoop {
       });
       let riskGates = Array.isArray(decision.riskGates) ? decision.riskGates : [];
       if (isEntryAction) {
-        const executionDirectionGate = this._directionGateStatus(finalDirection, directionFilter, enableShorts);
         // L5: Capture risk gates that were checked during entry evaluation.
         // Pre-trade gates built here (warmup, min_confidence, direction_filter, shorts_enabled, same_direction_block,
         // max_positions). RiskManager contributes its own gates (drawdown_circuit, daily/weekly/monthly
         // loss limits, recovery min_confidence) via decision.riskGates — appended below.
-        riskGates = [
-          { gate: 'warmup', threshold: 15, value: priceHistory.length, passed: priceHistory.length >= 15 },
-          { gate: 'min_confidence', threshold: minConfidence, value: confidence, passed: confidence >= minConfidence },
-          { gate: 'direction_filter', threshold: directionFilter, value: finalDirection, passed: executionDirectionGate.filterPassed },
-          { gate: 'shorts_enabled', threshold: true, value: finalDirection === 'sell' ? enableShorts : 'not_applicable', passed: executionDirectionGate.shortsPassed },
-          { gate: 'same_direction_block', threshold: null, value: finalDirection, passed: !activeTrades.some(t => (finalDirection === 'buy' && (t.direction === 'long' || t.action === 'BUY')) || (finalDirection === 'sell' && (t.direction === 'short' || t.action === 'SELL_SHORT'))) },
-          { gate: 'max_positions', threshold: maxPositions, value: activeTrades.length, passed: activeTrades.length < maxPositions },
-          ...riskGates,
-        ];
+        riskGates = this._entryRiskGates(
+          finalDirection,
+          directionFilter,
+          enableShorts,
+          priceHistory,
+          activeTrades,
+          maxPositions,
+          minConfidence,
+          confidence,
+          riskGates
+        );
 
         // L1+L2: Attach full ledger data to entry decisions for StateManager.openPosition.
         const allResults = this._ledgerAllResults(orchResult);

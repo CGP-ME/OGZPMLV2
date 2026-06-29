@@ -20,6 +20,10 @@ const mockExitContractManager = {
   checkExitConditions: jest.fn(() => ({ shouldExit: false })),
 };
 
+const mockDecisionAutopsyLogger = {
+  writeAutopsy: jest.fn(() => true),
+};
+
 jest.mock('../core/StateManager', () => ({
   getInstance: () => mockStateManager,
 }));
@@ -27,6 +31,8 @@ jest.mock('../core/StateManager', () => ({
 jest.mock('../core/ExitContractManager', () => ({
   getInstance: () => mockExitContractManager,
 }));
+
+jest.mock('../core/DecisionAutopsyLogger', () => mockDecisionAutopsyLogger);
 
 const TradingLoop = require('../core/TradingLoop');
 const TradingConfig = require('../core/TradingConfig');
@@ -352,6 +358,194 @@ describe('TradingLoop trace spine', () => {
     }));
   });
 
+  test('writes a full decision autopsy for skipped entry candidates', async () => {
+    const ctx = baseEntryContext({
+      strategyOrchestrator: {
+        strategies: [{ name: 'RSI' }],
+        evaluate: jest.fn(() => ({
+          action: 'BUY',
+          direction: 'buy',
+          confidence: 40,
+          winnerStrategy: 'RSI',
+          allResults: [{
+            strategyName: 'RSI',
+            direction: 'buy',
+            confidence: 0.4,
+            reason: 'weak signal',
+            decisionAttribution: {
+              strategyName: 'RSI',
+              baseConfidence: 0.4,
+              selectionScore: { scale: 'nonnegative_selector', initial: 0.4, final: 0.4 },
+              publicConfidence: 0.4,
+              contributors: [{ name: 'strategy_signal', type: 'base', confidence: 0.4, score: 0.4 }],
+            },
+          }],
+          filteredResults: [],
+          exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+          confluence: { count: 1, strategies: ['RSI'] },
+          sizingMultiplier: 1,
+          reasons: ['Winner: RSI 15m (40%) - weak signal'],
+        })),
+      },
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+    const configSpy = mockDirectionConfig();
+
+    try {
+      await loop.analyzeAndTrade('TSLA', 'trace_autopsy_skip');
+    } finally {
+      configSpy.mockRestore();
+    }
+
+    const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(autopsy).toEqual(expect.objectContaining({
+      traceId: 'trace_autopsy_skip',
+      symbol: 'TSLA',
+      status: 'skip',
+      skipReason: 'below_min_confidence',
+    }));
+    expect(autopsy.orchestratorDecision).toEqual(expect.objectContaining({
+      winnerStrategy: 'RSI',
+      finalConfidence: 0.4,
+    }));
+    expect(autopsy.strategySignals[0]).toEqual(expect.objectContaining({
+      name: 'RSI',
+      direction: 'long',
+      baseConfidence: 0.4,
+      reason: 'weak signal',
+    }));
+    expect(autopsy.gates.minConfidence).toEqual({
+      threshold: 0.5,
+      value: 0.4,
+      passed: false,
+    });
+    expect(ctx.executeTrade).not.toHaveBeenCalled();
+  });
+
+  test('writes scoped decision autopsy for concurrency skips', async () => {
+    const ctx = baseEntryContext();
+    const loop = new TradingLoop(ctx);
+    loop.analyzing = true;
+
+    await loop.analyzeAndTrade('TSLA', 'trace_autopsy_concurrency');
+
+    const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(autopsy).toEqual(expect.objectContaining({
+      traceId: 'trace_autopsy_concurrency',
+      symbol: 'TSLA',
+      brokerId: 'alpaca',
+      accountId: 'paper-main',
+      accountIdSource: 'config',
+      assetClass: 'stocks',
+      timeframe: '15m',
+      executionMode: 'paper',
+      status: 'skip',
+      skipReason: 'concurrency_guard',
+    }));
+    expect(ctx.strategyOrchestrator.evaluate).not.toHaveBeenCalled();
+  });
+
+  test('fails closed after decision autopsy primary and fallback persistence fail', () => {
+    const ctx = baseEntryContext();
+    ctx.config.evalTraceEnabled = true;
+    const loop = new TradingLoop(ctx);
+    mockDecisionAutopsyLogger.writeAutopsy.mockReturnValueOnce(false);
+
+    expect(() => loop._writeDecisionAutopsy({
+      traceId: 'trace_autopsy_write_fail',
+      symbol: 'TSLA',
+      decision: { action: 'HOLD' },
+      skipReason: 'test_write_failure',
+    })).toThrow('failed to persist decision autopsy');
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[EVAL-TRACE][DECISION_AUTOPSY_WRITE_FAILED]'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[EVAL-TRACE][DECISION_AUTOPSY_FAILED]'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('traceId="trace_autopsy_write_fail"'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('skipReason="test_write_failure"'));
+  });
+
+  test('writes decision autopsy for accepted entries with complete pre-trade gates', async () => {
+    const ctx = baseEntryContext();
+    ctx.strategyOrchestrator.evaluate.mockReturnValue({
+      action: 'BUY',
+      direction: 'buy',
+      confidence: 80,
+      winnerStrategy: 'RSI',
+      allResults: [{
+        strategyName: 'RSI',
+        direction: 'buy',
+        confidence: 0.8,
+        reason: 'test signal',
+        decisionAttribution: {
+          strategyName: 'RSI',
+          baseConfidence: 0.7,
+          selectionScore: { scale: 'nonnegative_selector', initial: 0.7, final: 0.8 },
+          publicConfidence: 0.8,
+          contributors: [
+            { name: 'strategy_signal', type: 'base', confidence: 0.7, score: 0.7 },
+            { name: 'regime_boost', type: 'multiplier', selectionMultiplier: 1.142857142857143 },
+          ],
+        },
+      }],
+      filteredResults: [],
+      exitContract: { stopLossPercent: -0.5, takeProfitPercent: 1 },
+      confluence: { count: 1, strategies: ['RSI'] },
+      sizingMultiplier: 1,
+      mtfConfluenceSnapshot: {
+        source: 'StrategyOrchestrator.mtfConfluence',
+        direction: 'buy',
+        confluenceScore: 0.5,
+        confidence: 0.5,
+        readyTimeframes: ['15m', '1h'],
+      },
+      reasons: ['Winner: RSI 15m (80%) - test signal'],
+    });
+    const loop = new TradingLoop(ctx);
+    stubGatherData(loop);
+    const configSpy = mockDirectionConfig();
+
+    try {
+      await loop.analyzeAndTrade('TSLA', 'trace_autopsy_entry');
+    } finally {
+      configSpy.mockRestore();
+    }
+
+    const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(autopsy.status).toBe('execute');
+    expect(autopsy.orchestratorDecision).toEqual(expect.objectContaining({
+      finalConfidence: 0.8,
+      winnerStrategy: 'RSI',
+    }));
+    expect(autopsy.gates.minConfidence).toEqual({
+      threshold: 0.5,
+      value: 0.8,
+      passed: true,
+    });
+    expect(autopsy.decision).toEqual(expect.objectContaining({
+      action: 'BUY',
+      direction: 'long',
+      confidence: 80,
+    }));
+    expect(autopsy.mtfConfluenceSnapshot).toEqual(expect.objectContaining({
+      direction: 'buy',
+      readyTimeframes: ['15m', '1h'],
+    }));
+    expect(autopsy.gates.riskGates.map(gate => gate.gate)).toEqual(expect.arrayContaining([
+      'warmup',
+      'min_confidence',
+      'direction_filter',
+      'shorts_enabled',
+      'same_direction_block',
+      'max_positions',
+    ]));
+    expect(autopsy.strategySignals[0].decisionAttribution.contributors.map(c => c.name)).toEqual([
+      'strategy_signal',
+      'regime_boost',
+    ]);
+    expect(ctx.executeTrade).toHaveBeenCalled();
+  });
+
   test('rejects 0-100 strategy confidences before writing decision ledger evidence', async () => {
     const ctx = baseEntryContext({
       strategyOrchestrator: {
@@ -371,6 +565,19 @@ describe('TradingLoop trace spine', () => {
     stubGatherData(loop);
 
     await expect(loop._analyze('TSLA', 'trace_bad_ledger_conf')).rejects.toThrow('allResults[0].confidence must be explicit 0..1');
+    const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(autopsy.traceId).toBe('trace_bad_ledger_conf');
+    expect(autopsy.strategySignals[0]).toEqual(expect.objectContaining({
+      name: 'RSI',
+      baseConfidence: null,
+      baseConfidenceRaw: 80,
+      normalizationError: expect.stringContaining('allResults[0].confidence must be explicit 0..1'),
+    }));
+    expect(autopsy.orchestratorDecision.competingStrategies[0]).toEqual(expect.objectContaining({
+      adjustedConfidence: null,
+      adjustedConfidenceRaw: 80,
+      normalizationError: expect.stringContaining('allResults[0].confidence must be explicit 0..1'),
+    }));
     expect(ctx.executeTrade).not.toHaveBeenCalled();
   });
 
@@ -1086,6 +1293,24 @@ describe('TradingLoop trace spine', () => {
       tradeId: 'BUY_1',
     }));
     expect(mockExitContractManager.checkExitConditions).not.toHaveBeenCalled();
+    const autopsy = mockDecisionAutopsyLogger.writeAutopsy.mock.calls.at(-1)[0];
+    expect(autopsy).toEqual(expect.objectContaining({
+      source: 'exit_only',
+      status: 'execute',
+      symbol: 'TSLA',
+    }));
+    expect(autopsy.decision).toEqual(expect.objectContaining({
+      action: 'SELL',
+      exitReason: 'ttp_consistency_profit_cap',
+      tradeId: 'BUY_1',
+    }));
+    expect(autopsy.exitEvaluations).toEqual([
+      expect.objectContaining({
+        checker: 'ttp_consistency_profit_cap',
+        shouldExit: true,
+        exitReason: 'ttp_consistency_profit_cap',
+      }),
+    ]);
   });
 
   test('uses the fresh per-symbol last price for exit-only checks instead of stale active-timeframe marketData', async () => {
